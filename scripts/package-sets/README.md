@@ -75,6 +75,12 @@ the two-exact-source revision gate unperformed. Format-1 compatibility, that
 controlled fixture, local production comparison and physical heard-audio
 acceptance are separate evidence; none is inferred from a version bump.
 
+In both modes the route, static, shell, avatar and voice checks and their
+measurements run on the candidate. Only the open-tab late worker and rollback
+steps (and the clip journey's first and rollback selections) select the previous
+app. Each check, route, measurement and clip receipt in the browser receipt
+names the app (`candidate` or `previous`) that served it.
+
 `validate --offline --pnpm-store /path/to/store` reuses cached dependency bytes
 in copied isolated installs. It does not change the fresh-resolution consumer
 semantics below.

@@ -7,25 +7,31 @@ import { createApplicationServer } from "./server.mjs";
 import { observeBrowser } from "./measurements.mjs";
 import { exerciseClipCompatibility } from "./clips.mjs";
 
-const load = (directory) => ({
+// "candidate" is the set under validation; "previous" is the verified clean
+// predecessor or controlled byte-change variant that it upgrades from.
+const load = (directory, role) => ({
+    role,
     directory: path.resolve(directory),
     manifest: JSON.parse(
         readFileSync(path.join(directory, "app-manifest.json")),
     ),
 });
-const candidate = load(process.argv[2]);
-const other = process.argv[3] ? load(process.argv[3]) : null;
-const apps = other ? [other, candidate] : [candidate];
-if (process.argv[4] === "verified-clean-package-set-pair")
+const candidate = load(process.argv[2], "candidate");
+const previous = process.argv[3] ? load(process.argv[3], "previous") : null;
+const selectionKind = process.argv[4] ?? "single-revision";
+// Upgrade order: previous, then candidate, then rollback to previous.
+const apps = previous ? [previous, candidate] : [candidate];
+if (selectionKind === "verified-clean-package-set-pair")
     assert.notEqual(
-        other?.manifest.source_commit,
+        previous?.manifest.source_commit,
         candidate.manifest.source_commit,
     );
-const initial = apps[0],
-    upgraded = apps.at(-1);
 const seed = JSON.parse(
     readFileSync(
-        path.join(initial.directory, initial.manifest.catalog_seed.manifest),
+        path.join(
+            candidate.directory,
+            candidate.manifest.catalog_seed.manifest,
+        ),
     ),
 );
 const avatar = seed.inventory.starters[0].entries.find((name) =>
@@ -39,12 +45,23 @@ const prefix = (app) =>
             file.path.endsWith("/resource-manifests/browser-runtime.json"),
         )
         .path.split("resource-manifests/")[0];
-// Consumer-only source revisions can legitimately emit identical runtime bytes.
-// The server rejects any shared immutable URL whose verified payload differs.
+const label = (app) => ({
+    role: app.role,
+    source_commit: app.manifest.source_commit,
+    resource_prefix: prefix(app),
+});
+// Identical emitted bytes share every immutable URL, so the selection change,
+// old-tab worker and rollback below would exercise nothing. Source revisions
+// that emit identical bytes use the controlled variant instead.
 const distinctResourceRevisions =
-    Boolean(other) && prefix(initial) !== prefix(upgraded);
+    Boolean(previous) && prefix(previous) !== prefix(candidate);
+if (previous)
+    assert.ok(
+        distinctResourceRevisions,
+        `An upgrade/rollback pair needs distinct application resources; both use ${prefix(candidate)}`,
+    );
 const server = await createApplicationServer(apps, {
-    vrmFile: path.join(initial.directory, "catalog-seed/included", avatar),
+    vrmFile: path.join(candidate.directory, "catalog-seed/included", avatar),
 });
 const browserArgs = [
     "--use-gl=angle",
@@ -66,7 +83,8 @@ const errors = [],
     externalRequests = [],
     network = [],
     measurements = [],
-    routes = [];
+    routes = [],
+    checks = [];
 context.on("request", (request) => {
     const url = new URL(request.url());
     if (
@@ -85,9 +103,12 @@ await cdp.send("Network.enable");
 cdp.on("Network.loadingFinished", (event) =>
     network.push({ bytes: event.encodedDataLength }),
 );
-const checkpoint = async (name) => {
+// Each measurement and check names the app whose bytes served it.
+const check = (name, app) => checks.push({ name, app: app.role });
+const checkpoint = async (name, app) => {
     const result = {
         name,
+        app: app.role,
         ...(await observation.snapshot(page, cdp)),
         completedEncodedPageNetworkBytes: network.reduce(
             (sum, event) => sum + event.bytes,
@@ -101,6 +122,7 @@ const checkpoint = async (name) => {
     console.log(
         JSON.stringify({
             phase: name,
+            app: app.role,
             heapUsedBytes: result.heapUsedBytes,
             browserRssKiB: result.browserRssKiB,
             staticBodyBytes: result.completedStaticBodyBytesIncludingWorkers,
@@ -121,6 +143,36 @@ const admit = async (owner, roster = false) => {
     ]);
     return admission;
 };
+const firstPosedFrame = () =>
+    page.waitForFunction(
+        () =>
+            performance
+                .getEntriesByType("mark")
+                .some((mark) => mark.name.endsWith(":first-posed-frame")),
+        {},
+        { timeout: 60000 },
+    );
+const voiceReady = async () => {
+    await page.waitForFunction(
+        () =>
+            window.artifactResources.workers.some(
+                (worker) =>
+                    worker.messages.includes("ready") ||
+                    worker.messages.includes("error"),
+            ),
+        {},
+        { timeout: 120000 },
+    );
+    assert.ok(
+        await page.evaluate(() =>
+            window.artifactResources.workers.some((worker) =>
+                worker.messages.includes("ready"),
+            ),
+        ),
+        "Pinned models initialize without a substitute engine",
+    );
+};
+const workerPath = (app) => prefix(app) + "tts/workers/inference-worker.js";
 const voice = async (owner) => {
     await page
         .getByRole("button")
@@ -203,6 +255,9 @@ const signOut = async (owner) => {
     );
 };
 try {
+    // Route, static, shell, avatar and voice checks run on the candidate; only
+    // the upgrade and rollback steps below select the previous app.
+    server.select(candidate);
     await admit("artifact-owner");
     for (const temperature of ["cold", "warm"]) {
         const started = Date.now(),
@@ -211,7 +266,10 @@ try {
         await page
             .getByRole("heading", { name: "Your Animas will appear here" })
             .waitFor();
-        const measured = await checkpoint(`${temperature}-production-shell`);
+        const measured = await checkpoint(
+            `${temperature}-production-shell`,
+            candidate,
+        );
         measured.readyWallMs = Date.now() - started;
         measured.navigationEncodedPageNetworkBytes =
             measured.completedEncodedPageNetworkBytes - byteStart;
@@ -245,11 +303,12 @@ try {
         ),
         "application/json",
     );
-    const runtimePath = initial.manifest.files.find((file) =>
+    check("production-shell", candidate);
+    const runtimePath = candidate.manifest.files.find((file) =>
         file.path.endsWith("/resource-manifests/browser-runtime.json"),
     ).path;
     const runtime = JSON.parse(
-        readFileSync(path.join(initial.directory, runtimePath)),
+        readFileSync(path.join(candidate.directory, runtimePath)),
     );
     assert.equal(runtime.files.length, 21);
     assert.equal(
@@ -257,14 +316,14 @@ try {
         280549335,
     );
     for (const expected of runtime.files) {
-        const file = initial.manifest.files.find(
+        const file = candidate.manifest.files.find(
             (file) =>
-                "/" + file.path === prefix(initial) + "onnx/" + expected.path,
+                "/" + file.path === prefix(candidate) + "onnx/" + expected.path,
         );
         assert.equal(file.sha256, expected.sha256);
         assert.equal(file.size, expected.size);
     }
-    for (const file of initial.manifest.files) {
+    for (const file of candidate.manifest.files) {
         const response = await fetch(server.origin + "/" + file.path, {
             method: "HEAD",
         });
@@ -284,7 +343,7 @@ try {
             "Eval stays confined to the exact pinned sentencepiece worker",
         );
     }
-    const wasm = initial.manifest.files.find((file) =>
+    const wasm = candidate.manifest.files.find((file) =>
         file.path.endsWith(".wasm"),
     );
     const response = await fetch(server.origin + "/" + wasm.path, {
@@ -297,7 +356,7 @@ try {
     );
     assert.deepEqual(
         Buffer.from(await response.arrayBuffer()),
-        readFileSync(path.join(initial.directory, wasm.path)).subarray(0, 64),
+        readFileSync(path.join(candidate.directory, wasm.path)).subarray(0, 64),
     );
     const mismatch = await fetch(server.origin + "/" + wasm.path, {
         method: "HEAD",
@@ -313,6 +372,7 @@ try {
         ).status,
         304,
     );
+    check("static-inventory-head-range-cache", candidate);
     for (const [route, ready] of [
         [
             "/library",
@@ -362,7 +422,11 @@ try {
     ]) {
         await page.goto(server.origin + route);
         await ready();
-        routes.push({ requested: route, final: new URL(page.url()).pathname });
+        routes.push({
+            requested: route,
+            final: new URL(page.url()).pathname,
+            app: candidate.role,
+        });
         if (route === "/particle-effects/new")
             await page.screenshot({
                 path: "whole-app-creator.png",
@@ -370,79 +434,44 @@ try {
             });
     }
     await page.screenshot({ path: "whole-app-library.png", fullPage: true });
-    await checkpoint("retained-deep-links");
+    await checkpoint("retained-deep-links", candidate);
     await admit("artifact-owner", true);
     for (const temperature of ["cold", "warm"]) {
         const started = Date.now(),
             byteStart = network.reduce((sum, event) => sum + event.bytes, 0);
         await page.goto(server.origin + "/fixture-anima");
-        await page.waitForFunction(
-            () =>
-                performance
-                    .getEntriesByType("mark")
-                    .some((mark) => mark.name.endsWith(":first-posed-frame")),
-            {},
-            { timeout: 60000 },
+        await firstPosedFrame();
+        const measured = await checkpoint(
+            `${temperature}-first-avatar`,
+            candidate,
         );
-        const measured = await checkpoint(`${temperature}-first-avatar`);
         measured.readyWallMs = Date.now() - started;
         measured.navigationEncodedPageNetworkBytes =
             measured.completedEncodedPageNetworkBytes - byteStart;
     }
     await page.screenshot({ path: "whole-app-avatar.png", fullPage: true });
-    // Keep A's actual page open while B becomes the server's entry selection.
-    // Its next runtime-created worker and model URLs must still resolve A's bytes.
-    server.select(upgraded);
     const voiceStart = Date.now(),
         callStart = server.calls.length;
     await voice("artifact-owner");
-    await page.waitForFunction(
-        () =>
-            window.artifactResources.workers.some(
-                (worker) =>
-                    worker.messages.includes("ready") ||
-                    worker.messages.includes("error"),
-            ),
-        {},
-        { timeout: 120000 },
-    );
-    assert.ok(
-        await page.evaluate(() =>
-            window.artifactResources.workers.some((worker) =>
-                worker.messages.includes("ready"),
-            ),
-        ),
-        "Pinned models initialize without a substitute engine",
-    );
-    (await checkpoint("cold-first-voice-ready")).readyWallMs =
+    await voiceReady();
+    (await checkpoint("cold-first-voice-ready", candidate)).readyWallMs =
         Date.now() - voiceStart;
     const pcmStart = Date.now();
     await chatPcm();
-    (await checkpoint("cold-first-voice-playback")).firstPcmWallMs =
+    (await checkpoint("cold-first-voice-playback", candidate)).firstPcmWallMs =
         Date.now() - pcmStart;
-    assert.equal(
-        server.calls.filter((call) =>
-            call.path.startsWith(
-                prefix(initial) + "onnx/models/pocket-tts/animas/",
-            ),
-        ).length,
-        0,
-        "Owner voice catalogs are private API bytes, not immutable application resources",
-    );
-    const workerCalls = server.calls
-        .slice(callStart)
-        .filter((call) =>
-            call.path.endsWith("/tts/workers/inference-worker.js"),
-        );
     assert.ok(
-        workerCalls.some(
-            (call) =>
-                call.path.startsWith(prefix(initial)) && call.status === 200,
-        ),
-        "Open A tab creates A's worker after selection changes",
+        server.calls
+            .slice(callStart)
+            .some(
+                (call) =>
+                    call.path === workerPath(candidate) && call.status === 200,
+            ),
+        "The candidate page creates the candidate's worker",
     );
+    check("cold-voice-pcm", candidate);
     await signOut("artifact-owner");
-    await checkpoint("sign-out-cleanup");
+    await checkpoint("sign-out-cleanup", candidate);
     const endedCookie = await context.cookies();
     await admit("artifact-owner");
     await page.goto(server.origin);
@@ -456,16 +485,46 @@ try {
         endedCookie.map((cookie) => cookie.value),
         "Same owner receives a fresh admitted session",
     );
+    check("session-cleanup", candidate);
+    if (previous) {
+        // Keep the previous app's actual page open while the candidate becomes
+        // the entry selection. Its next runtime-created worker and model URLs
+        // must still resolve the previous app's bytes.
+        server.select(previous);
+        await admit("upgrade-owner", true);
+        await page.goto(server.origin + "/fixture-anima");
+        await firstPosedFrame();
+        await checkpoint("previous-open-page", previous);
+        server.select(candidate);
+        const lateStart = server.calls.length;
+        await voice("upgrade-owner");
+        await voiceReady();
+        await checkpoint("previous-late-voice-ready", previous);
+        const late = server.calls
+            .slice(lateStart)
+            .filter(
+                (call) =>
+                    call.path.startsWith("/_animama/static/") &&
+                    /\/(tts|onnx)\//.test(call.path),
+            );
+        assert.ok(
+            late.some(
+                (call) =>
+                    call.path === workerPath(previous) && call.status === 200,
+            ),
+            "The open previous page creates its own worker after the selection changes",
+        );
+        assert.ok(
+            late.every((call) => call.path.startsWith(prefix(previous))),
+            "Its late worker and model URLs resolve only the previous app's bytes",
+        );
+        check("old-tab-late-worker", previous);
+        await signOut("upgrade-owner");
+        await checkpoint("previous-sign-out-cleanup", previous);
+    }
     await admit("second-owner", true);
     await page.goto(server.origin + "/fixture-anima");
-    await page.waitForFunction(
-        () =>
-            performance
-                .getEntriesByType("mark")
-                .some((mark) => mark.name.endsWith(":first-posed-frame")),
-        {},
-        { timeout: 60000 },
-    );
+    await firstPosedFrame();
     assert.equal(
         await page.getByText("Hello", { exact: true }).count(),
         0,
@@ -473,19 +532,12 @@ try {
     );
     const warmVoiceStart = Date.now();
     await voice("second-owner");
-    await page.waitForFunction(
-        () =>
-            window.artifactResources.workers.some((worker) =>
-                worker.messages.includes("ready"),
-            ),
-        {},
-        { timeout: 120000 },
-    );
-    (await checkpoint("warm-first-voice-ready")).readyWallMs =
+    await voiceReady();
+    (await checkpoint("warm-first-voice-ready", candidate)).readyWallMs =
         Date.now() - warmVoiceStart;
     const warmPcmStart = Date.now();
     await chatPcm();
-    (await checkpoint("warm-first-voice-playback")).firstPcmWallMs =
+    (await checkpoint("warm-first-voice-playback", candidate)).firstPcmWallMs =
         Date.now() - warmPcmStart;
     assert.ok(
         await page.evaluate(
@@ -493,33 +545,46 @@ try {
                 window.artifactResources.workers.some((worker) =>
                     worker.url.includes(expected),
                 ),
-            prefix(upgraded) + "tts/workers/inference-worker.js",
+            workerPath(candidate),
         ),
-        "A fresh selected page uses B's actual worker URL",
+        "A fresh selected page uses the candidate's actual worker URL",
     );
+    check("fresh-selection-warm-voice", candidate);
     await signOut("second-owner");
-    await checkpoint("second-owner-cleanup");
-    server.select(initial);
-    await admit("rollback-owner");
-    await page.goto(server.origin);
-    await page
-        .getByRole("heading", { name: "Your Animas will appear here" })
-        .waitFor();
-    assert.ok(
-        await page.evaluate(
-            (expected) =>
-                [...document.scripts].some((script) =>
-                    script.src.includes(expected),
-                ),
-            prefix(initial),
-        ),
-        "Rollback selects A's emitted entry and retained chunks",
+    await checkpoint("second-owner-cleanup", candidate);
+    assert.equal(
+        server.calls.filter(
+            (call) =>
+                call.path.startsWith("/_animama/") &&
+                call.path.includes("/onnx/models/pocket-tts/animas/"),
+        ).length,
+        0,
+        "Owner voice catalogs are private API bytes, not immutable application resources",
     );
+    if (previous) {
+        server.select(previous);
+        await admit("rollback-owner");
+        await page.goto(server.origin);
+        await page
+            .getByRole("heading", { name: "Your Animas will appear here" })
+            .waitFor();
+        assert.ok(
+            await page.evaluate(
+                (expected) =>
+                    [...document.scripts].some((script) =>
+                        script.src.includes(expected),
+                    ),
+                prefix(previous),
+            ),
+            "Rollback selects the previous app's emitted entry and retained chunks",
+        );
+        check("rollback-entry", previous);
+    }
     const clipCompatibility = await exerciseClipCompatibility(
         browser,
         server,
         apps,
-        process.argv[4] ?? "single-revision",
+        selectionKind,
     );
     assert.deepEqual(errors, []);
     assert.deepEqual(
@@ -548,16 +613,21 @@ try {
         },
         measurement_protocol:
             "No forced GC; Runtime.getHeapUsage; 100ms page heap samples; 1s summed browser-process RSS; page CDP encoded bytes plus server static body bytes including workers. Warm cases reuse the browser HTTP cache.",
-        selection: {
-            kind: process.argv[4] ?? "single-revision",
-            distinct_resource_revisions: distinctResourceRevisions,
-            initial_source: initial.manifest.source_commit,
-            selected_source: upgraded.manifest.source_commit,
-            initial_prefix: prefix(initial),
-            selected_prefix: prefix(upgraded),
-            old_tab_late_worker: Boolean(other),
-            rollback_entry: Boolean(other),
+        applications: {
+            candidate: label(candidate),
+            previous: previous ? label(previous) : null,
         },
+        selection: {
+            kind: selectionKind,
+            distinct_resource_revisions: distinctResourceRevisions,
+            initial_source: apps[0].manifest.source_commit,
+            selected_source: candidate.manifest.source_commit,
+            initial_prefix: prefix(apps[0]),
+            selected_prefix: prefix(candidate),
+            old_tab_late_worker: Boolean(previous),
+            rollback_entry: Boolean(previous),
+        },
+        checks,
         routes,
         measurements,
         http_calls: server.calls,
