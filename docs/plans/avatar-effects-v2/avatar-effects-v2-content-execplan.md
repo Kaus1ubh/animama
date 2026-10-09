@@ -77,7 +77,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [x] P5 — Effect batch B: new face effects (R14). G2 passed 2026-10-08; saved as Local content.
 - [x] P6 — Effect batch C: flipbooks, body, sticker and silhouette effects (R14). G2 passed 2026-10-08; saved as Local content.
 - [x] P7 — Reaction wiring (R15). Review passed at round 3; G3 passed 2026-10-08.
-- [ ] P8 — Promotion, documentation and acceptance (R16). Gate G4.
+- [x] P8 — Promotion, documentation and acceptance (R16). G4 passed 2026-10-08; final integration review passed at round 2; PR open, owner merge approval pending.
 
 ## Surprises & Discoveries
 
@@ -1191,6 +1191,17 @@ FIR-R1-06 the framing-scale error reuses `invalid_size`.
 - **06 not changed:** the message names the problem; the code is only an
   internal capture failure category.
 
+#### Final integration Code Review #2 (repair round 1)
+
+Pass. FIR-R1-01…05 confirmed fixed (`make check` clean; prettier clean;
+docs match the picker groups and thumbnail options; a mutation probe shows
+the emotion guard fails when a Reaction keeps an effect dependency but
+loses its event); 06's reason accepted; no regressions. The P8 record's
+e2e, bench and app-check claims were traced to their run logs. Notes: a
+README comment alignment (fixed), and `playback-library.spec.ts` (edited in
+P8) is outside the `chromium` project's `testMatch`, so `pnpm e2e:test`
+does not run it (pre-existing).
+
 ## Final integration review
 
 Covers R12–R16 together against the final candidate, reusing still-valid phase
@@ -1225,4 +1236,25 @@ quiet machine.
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered (2026-10-08): R12–R16. The Included Avatar Effect library grew
+from 16 to 26 effects in one anime-comedy style (9 redrawn, 13 new, 3
+removed, 4 kept); every emotion has a Reaction variant that plays an
+effect, no Action uses a mouth effect, and all 26 effects are picker
+templates. Agents can now take an effect from brief to art, check, save and
+gated promotion with `effects:assets` and `effects check|save|promote` and
+the two skills, without reading source.
+
+What worked: parallel production (six subagents, concurrent image jobs)
+and one live review of the whole batch; the owner's own art for the effects
+where generated art missed the joke; bounded reviews, which found real
+defects at every phase (read-back strictness, Reaction body fields, scene
+and sound aliases, file-form preservation).
+
+What to change next time: say "anime gag" and the trope in the very first
+brief (the first round of art was polished but not funny); plan thumbnail
+framing for chest and side art with the effect list; give Reactions a save
+tool so they can be reviewed as Local content like effects.
+
+Open owner checks: merge approval of the exact candidate; the bench
+re-run on a quiet machine; a live chat through a few wired Reactions with a
+model connected.
