@@ -173,7 +173,7 @@ const voiceReady = async () => {
     );
 };
 const workerPath = (app) => prefix(app) + "tts/workers/inference-worker.js";
-const voice = async (owner) => {
+const voiceSettings = async (owner, configure) => {
     await page
         .getByRole("button")
         .filter({ hasText: `${owner} account` })
@@ -186,17 +186,26 @@ const voice = async (owner) => {
         exact: true,
     });
     await dialog.getByRole("button", { name: "Voice", exact: true }).click();
-    await dialog
-        .getByRole("switch", { name: "Enable Text-to-Speech", exact: true })
-        .check();
-    await dialog
-        .getByRole("combobox", { name: "Text-to-Speech provider", exact: true })
-        .click();
-    await page.getByRole("option", { name: "PocketTTS", exact: true }).click();
+    await configure(dialog);
     await dialog
         .getByRole("button", { name: "Close App Settings", exact: true })
         .click();
 };
+const voice = (owner) =>
+    voiceSettings(owner, async (dialog) => {
+        await dialog
+            .getByRole("switch", { name: "Enable Text-to-Speech", exact: true })
+            .check();
+        await dialog
+            .getByRole("combobox", {
+                name: "Text-to-Speech provider",
+                exact: true,
+            })
+            .click();
+        await page
+            .getByRole("option", { name: "PocketTTS", exact: true })
+            .click();
+    });
 const chatPcm = async () => {
     const input = page.getByRole("textbox", {
         name: "What's on your mind?",
@@ -258,6 +267,7 @@ try {
     // Route, static, shell, avatar and voice checks run on the candidate; only
     // the upgrade and rollback steps below select the previous app.
     server.select(candidate);
+    const candidateStart = server.calls.length;
     await admit("artifact-owner");
     for (const temperature of ["cold", "warm"]) {
         const started = Date.now(),
@@ -450,8 +460,7 @@ try {
             measured.completedEncodedPageNetworkBytes - byteStart;
     }
     await page.screenshot({ path: "whole-app-avatar.png", fullPage: true });
-    const voiceStart = Date.now(),
-        callStart = server.calls.length;
+    const voiceStart = Date.now();
     await voice("artifact-owner");
     await voiceReady();
     (await checkpoint("cold-first-voice-ready", candidate)).readyWallMs =
@@ -460,12 +469,16 @@ try {
     await chatPcm();
     (await checkpoint("cold-first-voice-playback", candidate)).firstPcmWallMs =
         Date.now() - pcmStart;
+    // Text-to-Speech is on by default, so the page may warm the worker as soon
+    // as an Anima opens; the voice action itself need not create it.
     assert.ok(
         server.calls
-            .slice(callStart)
+            .slice(candidateStart)
             .some(
                 (call) =>
-                    call.path === workerPath(candidate) && call.status === 200,
+                    call.method === "GET" &&
+                    call.path === workerPath(candidate) &&
+                    call.status === 200,
             ),
         "The candidate page creates the candidate's worker",
     );
@@ -492,11 +505,21 @@ try {
         // must still resolve the previous app's bytes.
         server.select(previous);
         await admit("upgrade-owner", true);
-        await page.goto(server.origin + "/fixture-anima");
-        await firstPosedFrame();
+        // Text-to-Speech is on by default and warms its worker when an Anima
+        // renders, so the previous page opens on the Library and reaches the
+        // Anima only after the selection changes, without a reload.
+        await page.goto(server.origin + "/library");
+        await page
+            .getByRole("heading", { name: "Library", exact: true })
+            .waitFor();
         await checkpoint("previous-open-page", previous);
         server.select(candidate);
         const lateStart = server.calls.length;
+        await page.evaluate(() => {
+            window.history.pushState({}, "", "/fixture-anima");
+            window.dispatchEvent(new PopStateEvent("popstate"));
+        });
+        await firstPosedFrame();
         await voice("upgrade-owner");
         await voiceReady();
         await checkpoint("previous-late-voice-ready", previous);
@@ -510,7 +533,9 @@ try {
         assert.ok(
             late.some(
                 (call) =>
-                    call.path === workerPath(previous) && call.status === 200,
+                    call.method === "GET" &&
+                    call.path === workerPath(previous) &&
+                    call.status === 200,
             ),
             "The open previous page creates its own worker after the selection changes",
         );
