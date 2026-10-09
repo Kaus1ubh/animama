@@ -55,6 +55,9 @@ Registered provider families are:
   every model connection
 - `OpenAIResponsesHTTPAgent`: OpenAI Responses via the OpenAI Python SDK, on
   the built-in OpenAI connection only
+- `AnthropicMessagesHTTPAgent`: Anthropic's Messages API via the official
+  `anthropic` Python SDK (`adapters/model_clients/anthropic_messages/`), on the
+  built-in Anthropic connection only; see [Anthropic Messages](#anthropic-messages)
 - `MockModelClient`: deterministic local/test model client
 
 Provider type names, including their `Agent` suffixes, are durable catalog
@@ -65,7 +68,9 @@ profile for each row. `OpenAIHTTPAgent` maps to
 `model_client="openai_chat_completions"` and
 `api_standard="chat_completions"` on every connection.
 `OpenAIResponsesHTTPAgent` maps to `model_client="openai_responses"` and
-`api_standard="responses"`.
+`api_standard="responses"`. `AnthropicMessagesHTTPAgent` maps to
+`model_client="anthropic_messages"` and `api_standard="anthropic_messages"`, so
+an Anthropic chat and an OpenAI chat never share history.
 
 `chat:sse` treats `api_standard` as the compatibility key for one persisted
 chat. A new or empty chat records the selected row's `api_standard` before any
@@ -170,8 +175,14 @@ from its environment, and Electron main replaces the store while it runs.
   `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS` (default 60). Chat Completions requests
   also cap connecting at 10 s (`connection_timeout`), so a stopped server fails
   quickly.
+- **Built-in `anthropic` connection.** Uses only `ANTHROPIC_API_KEY`, always
+  against `https://api.anthropic.com`. Without it a turn fails with
+  `missing_api_key` ("No key is configured for Anthropic", category
+  `credential_missing`) before any request.
 - **Clients.** `OpenAIHTTPAgent` caches one SDK client per connection.
   `OpenAIResponsesHTTPAgent` owns one OpenAI-only SDK client.
+  `AnthropicMessagesHTTPAgent` keeps one SDK client per credential, keyed by a
+  digest, so a replaced key builds a new client on the next request.
 
 ### Connection Presets
 
@@ -272,6 +283,44 @@ items as executable app-layer work. Its lifecycle observations expose only the
 call ID, status, operation type, and path length; the path and V4A diff are not
 copied into sanitized provider metadata. Other hosted native tools remain
 observations rather than app-executed calls.
+
+## Anthropic Messages
+
+`AnthropicMessagesModelClient` streams with `client.messages.stream` and
+JSON-shaped parameters built in `anthropic_messages/request.py`:
+
+- **Positions.** The stable instructions are one `system` block; history and
+  the user's new message follow; the turn context is a mid-conversation
+  `system` message after the user turn. `cache_control` marks the system block
+  and the last history block. See
+  [turn layout](prompt-caching.md#turn-layout).
+- **Tools and output.** Memory tools become strict tools
+  (`input_schema` converted by `anthropic_strict_schema`) with
+  `tool_choice: {type: auto, disable_parallel_tool_use: true}`; the reply
+  schema goes in `output_config.format`.
+- **Effort.** `none` sends `thinking: {type: disabled}` and no effort. Any
+  other effort leaves adaptive thinking on and sets `output_config.effort`.
+  Without a choice, chat requests use `medium` when the row offers it
+  (`low` skipped needed memory-tool calls in live tests).
+- **Limits.** `max_tokens` is the row's output limit, capped at 64,000 per
+  request (thinking included). Requests never carry sampling parameters or an
+  assistant prefill.
+- **Rounds.** After tool calls the final carries the round's content blocks
+  (signed thinking, text and `tool_use`) as a request-local continuation, and
+  the next round resends them unchanged with the `tool_result` user turn.
+  Forced-final and repair rounds keep the tools with `tool_choice: {type:
+  none}` and put their instruction, ending with the guardrails, in a user turn.
+- **Replay.** History alternates roles, merging same-role neighbours. Stored
+  memory-tool exchanges replay as `tool_use`/`tool_result` blocks; thinking
+  blocks and earlier turns' context messages are never replayed.
+- **Stream.** Text deltas from text blocks are the only public text; thinking
+  is never shown. A stream that closes before `message_stop` fails with
+  `anthropic_stream_incomplete`.
+- **Refusal.** `stop_reason: refusal` fails the turn with `model_refused`
+  (category `provider_error`) after any streamed text, with the refusal
+  category in `stop_details_category`; no assistant row is stored.
+- **Truncation.** A `max_tokens` stop offers no tool calls, and its text goes
+  through the usual [reply recovery](#reply-validation-and-recovery).
 
 ## Context And Structured Output
 
@@ -459,6 +508,15 @@ alters the reply, and the executor only uses a self-harm signal to add a
 [crisis card](chat.md#sse-events). Chat Completions rows do not support
 moderation and never receive the option.
 
+The Anthropic adapter classifies SDK errors and stream `error` events by
+Anthropic's `error.type`, then the HTTP status, into `anthropic_authentication_error`,
+`anthropic_permission_denied`, `anthropic_not_found`, `anthropic_rate_limit`,
+`anthropic_overloaded`, `anthropic_server_error`, `anthropic_context_exceeded`
+(prompt too long or request too large), `anthropic_quota_exceeded` (billing or
+credit balance), `anthropic_bad_request`, `anthropic_timeout` and
+`anthropic_connection_error`, with the same sanitized metadata and single
+retry before any text.
+
 Both OpenAI SDK adapters share one error classifier
 (`adapters/model_clients/openai_errors.py`) on every connection. It maps SDK
 exceptions and status codes into stable model-client codes such as
@@ -510,8 +568,8 @@ Completions rows never advertise native web search and use the
 [application web search](#application-web-search) tool instead. The Responses
 adapter sends native web search with `search_context_size: "low"` by default. Anima
 memory tools are separate app-layer function tools, supported for
-`OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent` and `MockModelClient` rows with
-tool calling. A row without tool calling runs the turn without memory tools
+`OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent`, `AnthropicMessagesHTTPAgent` and
+`MockModelClient` rows with tool calling. A row without tool calling runs the turn without memory tools
 (and without attached-file search) instead of failing setup, and a row with
 `allow_memory_writes=false` gets read tools only. The Responses adapter
 converts the shared Chat Completions-style function schemas and tool-result
@@ -642,6 +700,16 @@ latest direct-chat memory fingerprints into
 statuses, revisions, SHA-256 values, kinds, run metadata, and reserved message
 turns. Incognito turns may read memory context for model setup but do not update
 chat metadata.
+
+For `AnthropicMessagesHTTPAgent`, the final assistant row stores
+`raw_provider_message` as the reply's text block only (`{"role": "assistant",
+"content": [{"type": "text", ...}]}`) and `data.anthropic`: the message id,
+stop reason, refusal `stop_details` when present, usage (including any
+`iterations`) and the response's block types. Hidden tool rows store
+`anthropic_tool_use` and `anthropic_tool_result` items. Usage counts input as
+uncached plus cache-read plus cache-write tokens, with cache reads as cached
+input and cache writes in `cache_write_tokens`; thinking tokens are reasoning
+tokens.
 
 For `OpenAIResponsesHTTPAgent`, assistant rows may contain compact
 `data.openai` metadata such as response IDs and request cursors. The parent

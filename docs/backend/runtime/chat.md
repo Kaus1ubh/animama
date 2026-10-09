@@ -442,8 +442,9 @@ chat's `cum_*` counters. Active compaction summaries record `start_turn` and
 `end_turn`; the next prompt uses the summary as a `developer` continuity
 message directly after the system message and ahead of the exact visible
 messages with `turn > end_turn` when the selected provider serializes local
-context. Rows without a developer role get it at the end of the system message,
-before the closing guardrails. If an OpenAI Responses turn continues from a
+context. Rows without a developer role, and Anthropic rows (which have no
+developer role on the wire), get it at the end of the system message, before
+the closing guardrails. If an OpenAI Responses turn continues from a
 chat-row `openai_previous_response_id`, the request sends only the turn context,
 the new user input and the cursor, so the active summary is not physically
 included in that provider payload.

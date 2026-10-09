@@ -254,11 +254,18 @@ def anima_identity_path(anima_id: str) -> str:
     return IDENTITY_FILE_PATH
 
 
-def render_core_companion_instruction(anima_name: str | None) -> str:
-    """Render the stable companion instruction with the active anima name."""
+def render_core_companion_instruction(
+    anima_name: str | None,
+    *,
+    template: str = CORE_COMPANION_INSTRUCTION_TEMPLATE,
+) -> str:
+    """Render the stable companion instruction with the active anima name.
+
+    ``template`` selects a provider-phrased variant of the same instruction.
+    """
 
     name = _safe_anima_name(anima_name)
-    return CORE_COMPANION_INSTRUCTION_TEMPLATE.format(anima_name=name)
+    return template.format(anima_name=name)
 
 
 def _safe_anima_name(value: str | None) -> str:

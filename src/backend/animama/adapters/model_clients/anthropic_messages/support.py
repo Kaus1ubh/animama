@@ -1,11 +1,40 @@
-"""Shared construction of Anthropic SDK clients for the built-in Anthropic connection."""
+"""Shared constants and SDK client construction for the built-in Anthropic connection."""
 
 from __future__ import annotations
 
+from typing import Any
+
 from anthropic import AsyncAnthropic
+
+from animama.app.model_provider_native_tools import ANTHROPIC_MESSAGES_PROVIDER_TYPE
 
 ANTHROPIC_API_BASE_URL = "https://api.anthropic.com"
 """Anthropic's own API; custom Anthropic base URLs and gateways are out of scope."""
+
+ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE = ANTHROPIC_MESSAGES_PROVIDER_TYPE
+ANTHROPIC_API = "messages"
+ANTHROPIC_PROVIDER = "anthropic"
+MODEL_REFUSED_CODE = "model_refused"
+"""The model declined the turn (``stop_reason: refusal``); category ``provider_error`` (D12)."""
+ANTHROPIC_STREAM_INCOMPLETE_CODE = "anthropic_stream_incomplete"
+ANTHROPIC_CONNECTION_UNSUPPORTED_CODE = "anthropic_connection_unsupported"
+
+
+def clean_str(value: Any) -> str | None:
+    """Return a stripped non-empty string, or ``None``."""
+
+    if not isinstance(value, str):
+        return None
+    text = value.strip()
+    return text or None
+
+
+def optional_int(value: Any) -> int:
+    """Return a non-negative integer token count, treating anything else as zero."""
+
+    if isinstance(value, bool) or not isinstance(value, int):
+        return 0
+    return max(0, int(value))
 
 
 def anthropic_sdk_client(*, api_key: str, timeout: float | None, max_retries: int = 0) -> AsyncAnthropic:
@@ -26,4 +55,15 @@ def anthropic_sdk_client(*, api_key: str, timeout: float | None, max_retries: in
     )
 
 
-__all__ = ["ANTHROPIC_API_BASE_URL", "anthropic_sdk_client"]
+__all__ = [
+    "ANTHROPIC_API",
+    "ANTHROPIC_API_BASE_URL",
+    "ANTHROPIC_CONNECTION_UNSUPPORTED_CODE",
+    "ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE",
+    "ANTHROPIC_PROVIDER",
+    "ANTHROPIC_STREAM_INCOMPLETE_CODE",
+    "MODEL_REFUSED_CODE",
+    "anthropic_sdk_client",
+    "clean_str",
+    "optional_int",
+]

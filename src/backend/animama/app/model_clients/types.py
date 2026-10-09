@@ -15,6 +15,10 @@ if TYPE_CHECKING:
 
 MODEL_CLIENT_TOOL_CALL_ITEM_TYPE = "model_client_tool_call"
 MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE = "model_client_tool_result"
+ANTHROPIC_TOOL_USE_ITEM_TYPE = "anthropic_tool_use"
+"""Prompt and history item for one Anthropic ``tool_use`` block (``id``, ``name``, ``input``)."""
+ANTHROPIC_TOOL_RESULT_ITEM_TYPE = "anthropic_tool_result"
+"""Prompt and history item for one Anthropic ``tool_result`` block (``tool_use_id``, ``content``)."""
 
 
 def _freeze_value(value: Any) -> Any:
@@ -111,6 +115,11 @@ class ModelClientFinal:
     Provider adapters should emit this only after seeing the provider-specific
     terminal signal they trust. For OpenAI Chat Completions that is the streamed
     finish_reason path; for OpenAI Responses that is response.completed.
+
+    ``continuation`` is request-local provider state for the turn's next round
+    after tool calls (Anthropic carries the turn's assistant content blocks,
+    including signed thinking, so they are resent unchanged). It is never
+    persisted.
     """
 
     text: str
@@ -119,6 +128,7 @@ class ModelClientFinal:
     structured_payload: Mapping[str, Any] | None = None
     tool_calls: tuple[ModelClientToolCall, ...] = ()
     input_moderation: ModelClientModeration | None = None
+    continuation: ModelClientContinuation | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "raw_provider_metadata", _frozen_mapping(self.raw_provider_metadata))
@@ -336,6 +346,8 @@ class StaticModelClientRegistry(ModelClientRegistry):
 
 
 __all__ = [
+    "ANTHROPIC_TOOL_RESULT_ITEM_TYPE",
+    "ANTHROPIC_TOOL_USE_ITEM_TYPE",
     "ModelClient",
     "MODEL_CLIENT_TOOL_CALL_ITEM_TYPE",
     "MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE",

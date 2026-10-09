@@ -83,6 +83,12 @@ With the owner-only secrets file:
 ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.env" pytest -q -s tests/live/test_anthropic_messages_contract.py tests/live/test_prompt_cache_layout.py
 ```
 
+`test_anthropic_direct_turn.py` runs `DirectChatTurnExecutor` with the real
+Anthropic adapter against Claude Haiku 5.5: one structured turn, one
+memory-tool round, and a next turn rebuilt from the stored rows. Memory tools
+and chat storage are the offline fakes. It needs only `ANTHROPIC_API_KEY` and
+costs well under US$0.01.
+
 ## Manual OpenAI Stream Metadata Smoke
 
 Use this checklist only when validating a real OpenAI-backed local or staging

@@ -41,6 +41,17 @@ _CATEGORY_BY_CODE = {
     "openai_overloaded": ERROR_SERVER_ERROR,
     "openai_bad_request": ERROR_BAD_REQUEST,
     "openai_unprocessable_entity": ERROR_BAD_REQUEST,
+    "anthropic_connection_error": ERROR_UNREACHABLE,
+    "anthropic_timeout": ERROR_TIMEOUT,
+    "anthropic_authentication_error": ERROR_CREDENTIAL_REJECTED,
+    "anthropic_permission_denied": ERROR_CREDENTIAL_REJECTED,
+    "anthropic_not_found": ERROR_MODEL_NOT_FOUND,
+    "anthropic_rate_limit": ERROR_RATE_LIMITED,
+    "anthropic_quota_exceeded": ERROR_QUOTA_EXCEEDED,
+    "anthropic_overloaded": ERROR_SERVER_ERROR,
+    "anthropic_server_error": ERROR_SERVER_ERROR,
+    "anthropic_context_exceeded": ERROR_CONTEXT_EXCEEDED,
+    "anthropic_bad_request": ERROR_BAD_REQUEST,
 }
 
 

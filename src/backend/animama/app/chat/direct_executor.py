@@ -49,7 +49,8 @@ from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.events import Event, EventType, RunStatusKind, RunStatusPayload
 from animama.logging import get_logger
 
-from .api_standard import chat_api_standard_for_provider
+from .anthropic_instructions import INSTRUCTION_STYLE_ANTHROPIC, INSTRUCTION_STYLE_DEFAULT
+from .api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, chat_api_standard_for_provider
 from .direct_turn.constants import (
     DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
     OPENAI_RESPONSES_PROVIDER,
@@ -1196,6 +1197,11 @@ class DirectChatTurnExecutor:
                 model=model_provider.model,
             ),
             reasoning_effort=turn_reasoning_effort(request.options),
+            instruction_style=(
+                INSTRUCTION_STYLE_ANTHROPIC
+                if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
+                else INSTRUCTION_STYLE_DEFAULT
+            ),
             metadata={
                 "anima_id": request.anima_id,
                 "chat_id": request.chat_id,

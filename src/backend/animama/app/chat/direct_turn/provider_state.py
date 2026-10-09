@@ -339,6 +339,26 @@ def openai_responses_continuation_from_final(
     )
 
 
+def continuation_after_tool_round(
+    model_request: ModelClientRequest,
+    previous_final: ModelClientFinal | None,
+) -> ModelClientContinuation | None:
+    """Return the provider state the next round of a turn continues from.
+
+    Responses advances its cursor to the tool-call response. Other providers
+    may return their own request-local state on the final: Anthropic carries
+    the turn's assistant content blocks so they are resent unchanged.
+    """
+
+    responses = openai_responses_continuation_from_final(model_request, previous_final)
+    if responses is not None:
+        return responses
+    continuation = previous_final.continuation if previous_final is not None else None
+    if continuation is not None and continuation.provider_type == model_request.model_provider.provider_type:
+        return continuation
+    return None
+
+
 def model_request_without_continuation(model_request: ModelClientRequest) -> ModelClientRequest:
     """Copy a model request while dropping provider continuation state."""
 
@@ -390,6 +410,7 @@ def final_with_previous_response_retry_metadata(
         structured_payload=final.structured_payload,
         tool_calls=final.tool_calls,
         input_moderation=final.input_moderation,
+        continuation=final.continuation,
     )
 
 
@@ -400,6 +421,7 @@ __all__ = [
     "build_memory_tool_config",
     "build_model_client_provider_options",
     "compiled_context_history",
+    "continuation_after_tool_round",
     "native_memory_apply_patch_enabled",
     "final_with_previous_response_retry_metadata",
     "model_request_without_continuation",

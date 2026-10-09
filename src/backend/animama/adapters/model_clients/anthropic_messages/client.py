@@ -1,0 +1,236 @@
+"""Direct-chat model client for Anthropic's Messages API (official ``anthropic`` SDK)."""
+
+from __future__ import annotations
+
+import asyncio
+import hashlib
+import time
+from collections.abc import AsyncIterator
+from typing import Any
+
+import anthropic
+
+from animama.app.model_clients import (
+    MCTerminalIncompleteEvent,
+    ModelClientDelta,
+    ModelClientFinal,
+    ModelClientProviderError,
+    ModelClientRequest,
+    elapsed_ms,
+    model_client_event_delta,
+    model_client_preview_log_context,
+    model_client_request_log_context,
+)
+from animama.app.model_clients.credentials import ModelCredentialResolver, connection_for_model_provider
+from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID
+from animama.logging import get_logger
+
+from .._common import close_maybe_async
+from .errors import (
+    classify_anthropic_exception,
+    model_client_error_from_anthropic_info,
+    should_retry_anthropic_error,
+    sleep_before_anthropic_retry,
+)
+from .events import (
+    AnthropicStreamState,
+    events_from_stream_event,
+    public_text_delta,
+)
+from .final import STOP_REASON_REFUSAL, message_final_parts
+from .probe import AnthropicClientFactory
+from .request import continuation_with_round, messages_request_params
+from .support import (
+    ANTHROPIC_API,
+    ANTHROPIC_CONNECTION_UNSUPPORTED_CODE,
+    ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE,
+    ANTHROPIC_STREAM_INCOMPLETE_CODE,
+    MODEL_REFUSED_CODE,
+    anthropic_sdk_client,
+)
+
+_log = get_logger("adapters.model_clients.anthropic_messages.client")
+
+
+class AnthropicMessagesModelClient:
+    """Provider-neutral model client backed by ``client.messages.stream``.
+
+    It serves only the built-in ``anthropic`` connection, with only that
+    connection's ``ANTHROPIC_API_KEY``, resolved once per stream so a retry
+    never mixes keys. One SDK client is kept per credential (keyed by a
+    digest, never the key itself), so a key replaced on desktop applies to the
+    next request. ``client_factory`` is a test hook that builds a fake client.
+    """
+
+    def __init__(
+        self,
+        *,
+        credential_resolver: ModelCredentialResolver,
+        timeout: float | None = 60.0,
+        client_factory: AnthropicClientFactory | None = None,
+    ) -> None:
+        self._credentials = credential_resolver
+        self._timeout = timeout
+        self._client_factory = client_factory or anthropic_sdk_client
+        self._clients: dict[tuple[str, float | None], Any] = {}
+
+    async def stream(self, spec: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
+        """Stream one Messages request as provider-neutral deltas.
+
+        Text deltas from text blocks are public reply text; thinking never is.
+        The final carries the turn's content blocks as a continuation when the
+        model called tools, so the next round resends them unchanged. A
+        refusal raises ``model_refused`` after any text already streamed.
+        """
+
+        model = spec.model_provider.model
+        if spec.model_provider.connection_id != BUILTIN_ANTHROPIC_CONNECTION_ID:
+            # Anthropic requests carry the Anthropic key; no other connection may send one.
+            raise ModelClientProviderError(
+                "Anthropic Messages is only available on the built-in Anthropic connection",
+                code=ANTHROPIC_CONNECTION_UNSUPPORTED_CODE,
+                raw_metadata={"connection_id": spec.model_provider.connection_id, "model": model},
+            )
+        connection = connection_for_model_provider(spec.model_provider)
+        credential = self._credentials.resolve(connection)
+        if not credential.api_key:
+            raise ModelClientProviderError(
+                f"No key is configured for {connection.name}",
+                code="missing_api_key",
+                raw_metadata={
+                    "provider_type": ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE,
+                    "model": model,
+                    "connection_id": connection.id,
+                    "connection_name": connection.name,
+                },
+            )
+        timeout = connection.timeout_seconds if connection.timeout_seconds is not None else self._timeout
+        client = self._client_for(credential.api_key, timeout)
+        params = messages_request_params(spec)
+        metadata: dict[str, Any] = {"provider": ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE, "api": ANTHROPIC_API}
+        request_started_at = time.monotonic()
+        attempt = 0
+        while True:
+            state = AnthropicStreamState()
+            text_seen = False
+            try:
+                _log.info(
+                    "Anthropic Messages stream request started",
+                    **model_client_request_log_context(spec, include_prompt_preview=True),
+                    attempt=attempt,
+                )
+                async with client.messages.stream(**params) as stream:
+                    async for event in stream:
+                        for delta in events_from_stream_event(event, model=model, state=state):
+                            yield delta
+                        text = public_text_delta(event, state)
+                        if text is not None:
+                            text_seen = True
+                            yield ModelClientDelta(kind="text_delta", text=text, raw_metadata=metadata)
+                    message = await stream.get_final_message() if state.message_stopped else None
+            except asyncio.CancelledError:
+                raise
+            except anthropic.AnthropicError as exc:
+                info = classify_anthropic_exception(exc, model=model)
+                if should_retry_anthropic_error(info, attempt=attempt, output_started=text_seen):
+                    _log.warning(
+                        "Anthropic Messages stream retrying after provider error",
+                        **model_client_request_log_context(spec),
+                        attempt=attempt,
+                        code=info.code,
+                        status_code=info.metadata.get("status_code"),
+                    )
+                    attempt += 1
+                    await sleep_before_anthropic_retry(info)
+                    continue
+                _log.warning(
+                    "Anthropic Messages stream failed",
+                    **model_client_request_log_context(spec),
+                    attempt=attempt,
+                    code=info.code,
+                    status_code=info.metadata.get("status_code"),
+                    provider_error_type=info.metadata.get("provider_error_type"),
+                    elapsed_ms=elapsed_ms(request_started_at),
+                )
+                raise model_client_error_from_anthropic_info(info) from exc
+            break
+
+        if message is None:
+            # The stream closed without message_stop: never persist partial output.
+            yield model_client_event_delta(
+                MCTerminalIncompleteEvent(
+                    provider_type=ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE,
+                    api=ANTHROPIC_API,
+                    model=model,
+                    provider_event_type="message.stream_eof",
+                    response_id=state.message_id,
+                    status="incomplete",
+                )
+            )
+            raise ModelClientProviderError(
+                "Anthropic stream ended before the message completed",
+                code=ANTHROPIC_STREAM_INCOMPLETE_CODE,
+                raw_metadata={**metadata, "model": model, "message_id": state.message_id},
+            )
+        parts = message_final_parts(message, stream_iterations=state.iterations)
+        metadata.update(parts.metadata)
+        _log.info(
+            "Anthropic Messages stream completed",
+            **model_client_request_log_context(spec),
+            attempt=attempt,
+            message_id=parts.metadata.get("message_id"),
+            stop_reason=parts.stop_reason,
+            final_text_length=len(parts.text),
+            tool_call_count=len(parts.tool_calls),
+            input_tokens=parts.usage.input_tokens,
+            cached_input_tokens=parts.usage.input_tokens_details.cached_tokens,
+            output_tokens=parts.usage.output_tokens,
+            elapsed_ms=elapsed_ms(request_started_at),
+            **model_client_preview_log_context(final_text_preview=parts.text),
+        )
+        if parts.stop_reason == STOP_REASON_REFUSAL:
+            # The model declined the turn: an error state, never a persisted reply (D12).
+            raise ModelClientProviderError(
+                "Claude declined to respond to this message",
+                code=MODEL_REFUSED_CODE,
+                raw_metadata={
+                    "provider": ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE,
+                    "api": ANTHROPIC_API,
+                    "model": model,
+                    "message_id": parts.metadata.get("message_id"),
+                    "stop_reason": STOP_REASON_REFUSAL,
+                    "stop_details_category": parts.refusal_category,
+                },
+            )
+        yield ModelClientDelta(
+            kind="final",
+            final=ModelClientFinal(
+                text=parts.text,
+                usage=parts.usage,
+                raw_provider_metadata=metadata,
+                tool_calls=parts.tool_calls,
+                continuation=(
+                    continuation_with_round(spec.continuation, parts.content, model=model) if parts.tool_calls else None
+                ),
+            ),
+        )
+        yield ModelClientDelta(kind="done")
+
+    async def aclose(self) -> None:
+        clients = list(self._clients.values())
+        self._clients.clear()
+        for client in clients:
+            await close_maybe_async(client)
+
+    def _client_for(self, api_key: str, timeout: float | None) -> Any:
+        """Return the SDK client for this credential, building it once."""
+
+        cache_key = (hashlib.sha256(api_key.encode("utf-8")).hexdigest(), timeout)
+        client = self._clients.get(cache_key)
+        if client is None:
+            client = self._client_factory(api_key=api_key, timeout=timeout)
+            self._clients[cache_key] = client
+        return client
+
+
+__all__ = ["ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE", "AnthropicMessagesModelClient"]

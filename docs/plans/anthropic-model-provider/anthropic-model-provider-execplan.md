@@ -77,7 +77,8 @@ Ownership and boundaries:
 - [x] Phase 4: Cache-friendly instruction assembly for every provider. Done
       2026-10-09; Review #3 passed. After-shares: Responses cursor 0.90,
       Chat Completions developer 0.87, tagged block 0.84.
-- [ ] Phase 5: Chat turns on Anthropic models. Not started.
+- [x] Phase 5: Chat turns on Anthropic models. Done 2026-10-09; Review #3
+      passed. Anthropic cache share 0.88 through the real adapter.
 - [ ] Phase 6: Native web search and compaction. Not started.
 - [ ] Phase 7: Utility role and the Anthropic Memory Manager runtime. Not
       started.
@@ -222,6 +223,9 @@ stated:
 - **D16 (2026-10-08, owner):** when no effort is chosen, Anthropic requests use
   `low` for chat, `low` for Utility and `medium` for Memory Manager runs.
   Explicit settings win.
+- **D16 revision (2026-10-09, owner, D22):** the Anthropic chat default
+  becomes `medium` (see D22). Utility stays `low`; the Memory Manager stays
+  `medium`.
 - **D17 (2026-10-08, owner):** this plan absorbs #155. Its findings land in the
   backend runtime docs, and the delivering PR closes #155.
 - **D18 (2026-10-08, owner):** each provider format may have its own strategy
@@ -251,6 +255,12 @@ stated:
   - The owner authorized live API runs against the real endpoints for
     evaluation during this plan, and asked that decisions use the providers'
     current documentation.
+- **D22 (2026-10-09, owner):** Anthropic chat turns with no effort set use
+  `medium`, revising D16's `low`.
+  - Phase 5 live runs showed Haiku 5.5 at `low` made a needed memory-tool call
+    in only 1 of 5 attempts (plus 1 of 3 earlier), against 5 of 5 at `medium`.
+    That held even with Anthropic's recommended JSON-plus-tools prompt line.
+  - Utility stays `low`; the Memory Manager stays `medium`.
 
 ## Implementation orientation
 
@@ -1621,7 +1631,7 @@ refusals and errors. App pre-send fitting still applies until Phase 6.
    - Memory tools: `{name, description, input_schema, strict: true}`, with
      `tool_choice: auto` and `disable_parallel_tool_use: true`.
    - Structured output goes in `output_config.format`.
-   - Effort per D6 and D16. Chat with no setting uses `low`.
+   - Effort per D6, D16 and D22. Chat with no setting uses `medium` (D22).
    - `max_tokens` is the row's output limit capped by the per-turn limit.
    - Never send sampling parameters or a prefill.
 3. **Anthropic-tuned phrasing (R12).**
@@ -1667,7 +1677,7 @@ Tests (fake SDK client):
 - Request shape:
   - no sampling parameters;
   - breakpoints;
-  - effort and thinking mapping, including the D16 chat default;
+  - effort and thinking mapping, including the D22 chat default;
   - strict tools and structured output;
   - layout positions with the guardrails last.
 - Directive parity and identical guardrails.
@@ -1688,11 +1698,167 @@ Checks:
 
 Completion: tests pass; review leaves no blocker.
 
-Phase record: issue #369; starting source —; commit —.
+Phase record: issue #369; starting source `9330838a`; commit —.
+
+Implementation (delegated agent, reviewed independently):
+
+- **Adapter** `adapters/model_clients/anthropic_messages/`
+  (`client`, `request`, `events`, `final`, `errors`):
+  - It streams through `client.messages.stream`, with one SDK client per key
+    digest, and serves only the built-in `anthropic` connection.
+  - It retries once, only before any text has streamed.
+  - A stream that ends before `message_stop` fails with
+    `anthropic_stream_incomplete`.
+  - A refusal raises `model_refused` with its `stop_details` category.
+- **App:**
+  - Anthropic tool item types.
+  - `ModelClientFinal.continuation`, which carries the turn's messages to the
+    collector and is never persisted.
+  - Anthropic hidden rows and `data.anthropic`.
+  - Forced-final and repair keep the tools and set `tool_choice: none`, so the
+    signed thinking and the cache stay valid.
+  - R12 variants in `app/chat/anthropic_instructions.py`, with an
+    `instruction_style` in the assembler.
+- **Interim placement:** an app-compaction summary is folded into the system
+  text just before the closing guardrails. Phase 6 removes app compaction for
+  Anthropic.
+- **Ordering rule beyond D20:** a within-turn instruction with no reply before
+  it joins the turn-context system message. A system message must be last or
+  followed by an assistant turn, and nothing earlier is edited.
+- **Deviation:** no per-turn output limit exists in code, so each request is
+  capped at 64,000 output tokens (thinking included), or the row's lower limit.
+  The cap does not count against Anthropic's output rate limit.
+- **Tests:**
+  - `tests/anthropic_fakes.py`;
+  - `tests/test_anthropic_messages_client.py` (44);
+  - `tests/test_anthropic_direct_chat.py` (13, executor plus the real
+    adapter);
+  - route tests in `tests/test_anthropic_model_provider.py`.
+
+Live results (owner-authorized, 2026-10-09):
+
+- **Command:**
+  `ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.env" pytest -q -s tests/live/test_anthropic_direct_turn.py tests/live/test_prompt_cache_layout.py::test_measure_prompt_cache_share_per_provider_path tests/live/test_anthropic_messages_contract.py`.
+  The second run passed 12 of 12.
+- **Cache share, Anthropic through the real adapter:** 0.88 (0, 0.88, 0.876,
+  0.88, 0.881, 0.887). The OpenAI paths were unchanged from Phase 4.
+- **Direct-turn smoke:**
+  - A structured turn streamed incrementally.
+  - A tool round resent `thinking` and `tool_use` and ended `end_turn`.
+  - The next turn, rebuilt from stored rows, was accepted.
+- **Contract checks:** all 10 passed.
+- **First run:** the harness dropped the Anthropic assistant history, which
+  made its 0.891 invalid. That was fixed.
+- **Effort finding:** at effort `low`, Haiku 5.5 made a needed memory-tool call
+  in only 1 of 5 attempts, against 5 of 5 at `medium`. This led to the owner's
+  D22.
 
 #### Code Review #1 Findings
 
+Independent `sdlc-reviewer`, full initial review of the working tree on
+`9330838a`.
+
+No correctness defects were found. The reviewer verified:
+
+- the D20/D21 mapping;
+- ordering on every after-turn path, against Anthropic's current docs;
+- byte-exact within-turn rounds;
+- D8 persistence;
+- D12 refusals and errors;
+- usage;
+- credentials;
+- R12 directive parity;
+- no OpenAI regressions.
+
+Checks: 282 focused tests and 57 OpenAI regression tests passed; ruff, format
+and mypy passed on 44 files; the import boundary was clean.
+
+- **P5-R1-F1 (blocking):** the chat effort default was still `low`, against
+  D22.
+- **P5-R1-F2 (blocking, record):** the plan did not record Phase 5.
+- **Optional findings:**
+  - **F3:** web search does nothing on Anthropic rows until Phase 6.
+  - **F4:** a refusal on the repair request falls back to the invalid reply,
+    which is existing repair behaviour.
+  - **F5:** the new `<anima_identity>` and `<anima_memories>` tags are not
+    escaped.
+  - **F6:** `support.py` loads the whole chat package for one constant;
+    duplicated helpers.
+  - **F7:** the parity markers miss three directives.
+  - **F8:** two imprecise doc sentences.
+  - **F9:** minor items: the output reserve against the cap, no retry for an
+    incomplete stream, a log field name, idle clients, and request-building
+    errors outside the try.
+
 #### Code Review #1 Revisions
+
+- **F1 (accepted):** `DEFAULT_ANTHROPIC_CHAT_EFFORT = "medium"`. Tests, the
+  live-smoke comment, `model-client-providers.md` and this plan's step 2 and
+  tests are updated.
+- **F2 (accepted):** the implementation, deviations and live results are
+  recorded above.
+- **F3 (accepted as interim):** Phase 6 lands before the PR.
+- **F4 (rejected):** this is the repair behaviour shared by every provider. The
+  original reply was already produced, and R9 covers the primary request.
+- **F5 (accepted):** `_escape_tags` escapes `<anima_identity` and
+  `<anima_memories` (any case) inside owner text, with a test.
+- **F6 (partly accepted):** `support.py` imports the constant from
+  `model_provider_native_tools`. Deduplicating the helpers is deferred.
+- **F7 (accepted):** three markers added. The Anthropic gesture line now uses
+  the shared phrase "if there is no suitable gesture".
+- **F8 (accepted):** both doc sentences are fixed.
+- **F9 (deferred, optional):** minor, and none affects correctness.
+
+Verification: 231 focused tests passed; ruff, format and mypy passed on 31
+files. A full `make check-test` follows with Review #2.
+
+Repair budget: one of two rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck. It verified F1–F8 and accepted the F4 rejection and the F9
+deferral. Checks: 193 focused tests passed; ruff, format and mypy passed; the
+import boundary was clean; an isolated import confirmed the adapter no longer
+loads `animama.app.chat`.
+
+- **P5-R2-F1 (blocking, documentation):** the `effort_and_thinking` docstring
+  still said `low` (D16).
+- **Optional findings:**
+  - point the spec's dated `low` record at D22;
+  - Phase 9 should say "D16/D22";
+  - the "explicit setting wins" test case now equals the default;
+  - `_escape_turn_context_tags` could reuse `_escape_tags`.
+
+#### Code Review #2 Revisions
+
+- **R2-F1 (accepted):** the docstring cites D22 and `medium`.
+- **Optional, accepted:**
+  - the spec pointer and the Phase 9 wording;
+  - the explicit case now uses `low`;
+  - `_escape_turn_context_tags` reuses `_escape_tags`, and the unused regex is
+    removed.
+
+Verification: 103 focused tests passed (80 adapter and direct-chat, 23
+layout); ruff, format and mypy passed.
+
+Repair budget: two of two rounds used. Review #3 is the final targeted recheck.
+
+#### Code Review #3 Findings
+
+Final targeted recheck: **pass**, with no findings.
+
+- The R2-F1 docstring is fixed.
+- The explicit-effort test is fixed.
+- The shared escaping is character-for-character equivalent.
+- The spec and Phase 9 wording are updated.
+- Checks: 195 focused tests passed; ruff, format and mypy passed.
+
+#### Code Review #3 Revisions
+
+None needed. Full `make check-test` (started after the Review #1 repairs)
+passes audit, format, lint and mypy, with 3,415 passed and 24 skipped (live
+tests). The later repair-2 edits are a docstring, a test case and a helper
+reuse, and their focused tests pass.
 
 ### Phase 6: Native web search and compaction
 
@@ -1935,7 +2101,7 @@ owner's live smoke establishes acceptance.
      records the results.
    - For compaction, lower the row trigger to the 50,000 minimum by test
      configuration and use a long pasted document.
-   - Also judge reply quality and latency at the D16 defaults.
+   - Also judge reply quality and latency at the D16/D22 defaults.
 6. **Release gate.** Record that the next desktop release needs owner re-review
    of the Python license inventory.
 

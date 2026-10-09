@@ -9,6 +9,7 @@ No test sends a request to Anthropic.
 
 from __future__ import annotations
 
+import json
 import re
 from decimal import Decimal
 from pathlib import Path
@@ -26,6 +27,7 @@ from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.chat.api_standard import (
     ANTHROPIC_MESSAGES_PROVIDER_TYPE,
     CHAT_API_STANDARD_ANTHROPIC_MESSAGES,
+    CHAT_API_STANDARD_CHAT_COMPLETIONS,
     CHAT_API_STANDARD_RESPONSES,
     MODEL_CLIENT_ANTHROPIC_MESSAGES,
     chat_api_standard_for_provider_type,
@@ -66,12 +68,22 @@ from animama.app.services.model_role_resolver import (
 from animama.domain import ModelProvider, ModelProviderCapabilities, ModelProviderPricing
 from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID, BUILTIN_OPENAI_CONNECTION_ID
 from animama.domain.request_principal import RequestPrincipal
-from animama.orm import ORMAnima, ORMChat, ORMModelProvider
+from animama.orm import ORMAnima, ORMChat, ORMChatMessage, ORMModelProvider
 from animama.orm.base import Base
 from animama.server.model_clients import build_model_client_registry
 from animama.server.routers.anima import chat_anima_direct_sse
 from animama.server.routers.model_configuration import get_anthropic_connection_probe
 from animama.utils.type_helpers import coerce_provider_type
+from tests.anthropic_fakes import (
+    SENTINEL_KEY,
+    FakeAnthropicClient,
+    FakeClientFactory,
+    captured_anima_log_records,
+    message_events,
+    structured_reply,
+    text_block,
+    thinking_block,
+)
 from tests.local_http_client import local_client
 from tests.test_model_configuration_api import _app, _seed_builtins
 from tests.test_model_provider_catalog import _apply_seed_sql, _clear_model_provider_rows
@@ -352,12 +364,13 @@ def test_llm_skip_serves_anthropic_rows_with_the_mock_client(monkeypatch) -> Non
     assert isinstance(registry.get(ANTHROPIC_MESSAGES_PROVIDER_TYPE), MockModelClient)
 
 
-def test_startup_without_an_anthropic_key_registers_no_anthropic_client() -> None:
-    # The Anthropic chat client arrives with the Messages adapter; until then a
-    # turn on an Anthropic row has no client and fails instead of using OpenAI.
+def test_startup_without_an_anthropic_key_registers_the_anthropic_client() -> None:
+    from animama.adapters.model_clients import AnthropicMessagesModelClient
+
+    # The key is read per request, so the backend starts without one.
     registry = build_model_client_registry(credential_resolver=static_credential_resolver())
 
-    assert registry.get(ANTHROPIC_MESSAGES_PROVIDER_TYPE) is None
+    assert isinstance(registry.get(ANTHROPIC_MESSAGES_PROVIDER_TYPE), AnthropicMessagesModelClient)
 
 
 # ------------------------------------------------------------------- persistence
@@ -774,6 +787,143 @@ async def test_a_turn_on_an_anthropic_row_without_its_client_fails_before_any_re
     assert openai_client.seen_specs == []
     stored = (await async_session.execute(select(ORMChat).where(ORMChat.id == chat_id))).scalar_one_or_none()
     assert stored is None
+
+
+@pytest.mark.asyncio
+async def test_a_turn_without_the_anthropic_key_reports_the_missing_key_naming_the_anthropic_connection(
+    monkeypatch, async_session, async_session_factory
+) -> None:
+    anima_id = f"anima-anthropic-{uuid4().hex[:8]}"
+    chat_id = f"chat-anthropic-{uuid4().hex[:8]}"
+    await _seed_anthropic_turn(async_session, anima_id)
+    fake = FakeAnthropicClient([])
+    chat_sse_helpers._install_db_route_mocks(monkeypatch, async_session_factory, default_model_provider_id=HAIKU_ID)
+    monkeypatch.setattr(
+        chat_sse_helpers,
+        "_CURRENT_TEST_REGISTRY",
+        build_model_client_registry(
+            credential_resolver=static_credential_resolver({"OPENAI_API_KEY": "sk-openai-not-for-anthropic"}),
+            anthropic_client_factory=FakeClientFactory(fake),
+        ),
+    )
+
+    response = await chat_anima_direct_sse(
+        anima_id,
+        chat_sse_helpers._chat_request(message="hello", run_id=f"run-{chat_id}", chat_id=chat_id),
+        request=chat_sse_helpers._test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await chat_sse_helpers._collect_chunks(response)
+
+    error = chat_sse_helpers._event_data(chunks, "error")
+    assert error["code"] == "missing_api_key"
+    assert error["error"] == "No key is configured for Anthropic"
+    assert error["details"]["category"] == "credential_missing"
+    assert error["details"]["connection_name"] == "Anthropic"
+    assert fake.requests == []
+
+
+@pytest.mark.asyncio
+async def test_an_anthropic_turn_keeps_the_key_out_of_rows_responses_and_logs(
+    monkeypatch, async_session, async_session_factory
+) -> None:
+    monkeypatch.setenv("ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS", "true")
+    anima_id = f"anima-anthropic-{uuid4().hex[:8]}"
+    chat_id = f"chat-anthropic-{uuid4().hex[:8]}"
+    await _seed_anthropic_turn(async_session, anima_id)
+    fake = FakeAnthropicClient([message_events(thinking_block(), text_block(structured_reply("Hello from Claude.")))])
+    chat_sse_helpers._install_db_route_mocks(monkeypatch, async_session_factory, default_model_provider_id=HAIKU_ID)
+    monkeypatch.setattr(
+        chat_sse_helpers,
+        "_CURRENT_TEST_REGISTRY",
+        build_model_client_registry(
+            credential_resolver=static_credential_resolver({"ANTHROPIC_API_KEY": SENTINEL_KEY}),
+            anthropic_client_factory=FakeClientFactory(fake),
+        ),
+    )
+
+    with captured_anima_log_records() as records:
+        response = await chat_anima_direct_sse(
+            anima_id,
+            chat_sse_helpers._chat_request(message="hello claude", run_id=f"run-{chat_id}", chat_id=chat_id),
+            request=chat_sse_helpers._test_request(),
+            user=RequestPrincipal(id="user-1"),
+        )
+        chunks = await chat_sse_helpers._collect_chunks(response)
+
+    assert chat_sse_helpers._event_data(chunks, "run.completed")["chat_id"] == chat_id
+    assert SENTINEL_KEY not in "".join(chunks)
+    async_session.expire_all()
+    rows = (await async_session.execute(select(ORMChatMessage).where(ORMChatMessage.chat_id == chat_id))).scalars()
+    stored = [
+        json.dumps(
+            {"content": row.content, "data": row.message_data, "raw": row.raw_provider_message},
+            default=str,
+        )
+        for row in rows
+    ]
+    assert len(stored) == 2
+    assert all(SENTINEL_KEY not in row for row in stored)
+    assert any('"anthropic"' in row for row in stored)
+    chat = await async_session.get(ORMChat, chat_id)
+    assert chat is not None and SENTINEL_KEY not in json.dumps(chat.metadata_, default=str)
+    assert chat.cum_cached_input_tokens == 900
+    assert any(record.getMessage() == "Anthropic Messages stream completed" for record in records)
+    assert all(SENTINEL_KEY not in json.dumps(record.__dict__, default=str) for record in records)
+
+
+@pytest.mark.parametrize(
+    ("first_standard", "first_row", "second_standard", "second_row"),
+    [
+        (
+            CHAT_API_STANDARD_ANTHROPIC_MESSAGES,
+            HAIKU_ID,
+            CHAT_API_STANDARD_CHAT_COMPLETIONS,
+            "OpenAIHTTPAgent:gpt-6-luna",
+        ),
+        (
+            CHAT_API_STANDARD_CHAT_COMPLETIONS,
+            "OpenAIHTTPAgent:gpt-6-luna",
+            CHAT_API_STANDARD_ANTHROPIC_MESSAGES,
+            HAIKU_ID,
+        ),
+        (CHAT_API_STANDARD_RESPONSES, LUNA_ID, CHAT_API_STANDARD_ANTHROPIC_MESSAGES, HAIKU_ID),
+    ],
+)
+@pytest.mark.asyncio
+async def test_the_chat_fence_holds_both_ways_between_anthropic_and_openai(
+    async_session, first_standard: str, first_row: str, second_standard: str, second_row: str
+) -> None:
+    from animama.adapters.repositories.sqlalchemy.chat_compaction_repo import SQLAlchemyChatCompactionRepository
+    from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
+
+    anima_id = f"anima-fence-{uuid4().hex[:8]}"
+    async_session.add(ORMAnima(id=anima_id, user_id="user-1"))
+    await async_session.commit()
+    manager = ChatManager(
+        chats=SQLAlchemyChatRepository(async_session),
+        messages=SQLAlchemyChatMessageRepository(async_session),
+        compactions=SQLAlchemyChatCompactionRepository(async_session),
+        uow=SQLAlchemyUnitOfWork(async_session),
+    )
+    chat_id = f"chat-fence-{uuid4().hex[:8]}"
+    await manager.ensure_owned_chat(
+        anima_id=anima_id, chat_id=chat_id, user_id="user-1", api_standard=first_standard, model_provider_id=first_row
+    )
+
+    with pytest.raises(ChatApiStandardConflictError) as caught:
+        await manager.ensure_owned_chat(
+            anima_id=anima_id,
+            chat_id=chat_id,
+            user_id="user-1",
+            api_standard=second_standard,
+            model_provider_id=second_row,
+        )
+
+    assert caught.value.detail["code"] == "chat_api_standard_mismatch"
+    assert caught.value.detail["chat_api_standard"] == first_standard
+    assert caught.value.detail["requested_api_standard"] == second_standard
+    assert caught.value.detail["action"] == "start_new_chat"
 
 
 def test_the_anthropic_connection_has_neutral_options_and_openai_keeps_its_own() -> None:

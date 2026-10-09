@@ -8,10 +8,12 @@ from openai import AsyncOpenAI
 from animama.adapters.model_clients import (
     OPENAI_HTTP_PROVIDER_TYPE,
     OPENAI_RESPONSES_HTTP_PROVIDER_TYPE,
+    AnthropicMessagesModelClient,
     MockModelClient,
     OpenAIChatCompletionsModelClient,
     OpenAIResponsesModelClient,
 )
+from animama.adapters.model_clients.anthropic_messages.probe import AnthropicClientFactory
 from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
 from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE
 from animama.app.model_clients import StaticModelClientRegistry
@@ -43,12 +45,13 @@ def build_model_client_registry(
     app_settings: Settings = settings,
     openai_client: AsyncOpenAI | None = None,
     credential_resolver: ModelCredentialResolver | None = None,
+    anthropic_client_factory: AnthropicClientFactory | None = None,
 ) -> StaticModelClientRegistry:
     """Build shared model clients for app startup without request-local state.
 
-    No Anthropic Messages client is registered outside ``ANIMAMA_LLM_SKIP`` yet,
-    so a turn on an Anthropic row fails at setup instead of reaching another
-    provider.
+    Each provider type has its own client and reads only its own connection's
+    key; with ``ANIMAMA_LLM_SKIP`` every type uses the deterministic mock.
+    ``openai_client`` and ``anthropic_client_factory`` are test hooks.
     """
 
     registry = StaticModelClientRegistry()
@@ -84,6 +87,14 @@ def build_model_client_registry(
             timeout=app_settings.anima_model_client_timeout_seconds,
             compaction_threshold_tokens=app_settings.anima_openai_responses_compaction_threshold_tokens,
             close_client=False if openai_client is not None else True,
+        ),
+    )
+    registry.register(
+        ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+        AnthropicMessagesModelClient(
+            credential_resolver=credentials,
+            timeout=app_settings.anima_model_client_timeout_seconds,
+            client_factory=anthropic_client_factory,
         ),
     )
     return registry

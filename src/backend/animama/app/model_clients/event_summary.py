@@ -292,6 +292,7 @@ class ModelClientStreamEventObserver:
             structured_payload=final.structured_payload,
             tool_calls=final.tool_calls,
             input_moderation=final.input_moderation,
+            continuation=final.continuation,
         )
 
 

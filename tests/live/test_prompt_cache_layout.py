@@ -9,8 +9,9 @@ layout change to compare against the recorded baseline in
 ``test_measure_prompt_cache_share_per_provider_path`` measures the current
 assembly through the real adapters: OpenAI Responses with full history
 (``store: false``) and with a continuation cursor, OpenAI Chat Completions with a
-developer role and without one (the ``<turn_context>`` block), a naive
-Anthropic Messages mapping, and optionally a local Chat Completions server
+developer role and without one (the ``<turn_context>`` block), Anthropic
+Messages (Anthropic-phrased instructions, history replayed in its stored shape),
+and optionally a local Chat Completions server
 (``ANIMAMA_TEST_LOCAL_CHAT_BASE_URL`` plus ``ANIMAMA_TEST_LOCAL_CHAT_MODEL``).
 Rows match production: developer-role rows use the built-in OpenAI connection
 and carry its explicit cache breakpoints; the row without a developer role and
@@ -40,10 +41,17 @@ import anthropic
 import pytest
 from openai import AsyncOpenAI
 
+from animama.adapters.model_clients.anthropic_messages import AnthropicMessagesModelClient
 from animama.adapters.model_clients.anthropic_messages.schema import anthropic_strict_schema
 from animama.adapters.model_clients.openai_chat_completions import OpenAIChatCompletionsModelClient
 from animama.adapters.model_clients.openai_responses import OpenAIResponsesModelClient
 from animama.adapters.model_clients.openai_responses.request import responses_text_format
+from animama.app.chat.anthropic_instructions import (
+    ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE,
+    INSTRUCTION_STYLE_ANTHROPIC,
+    INSTRUCTION_STYLE_DEFAULT,
+)
+from animama.app.chat.direct_turn.message_builders import assistant_replay_message
 from animama.app.chat.direct_turn.response_format import build_main_structured_response_format
 from animama.app.chat.direct_turn.types import DirectChatAttachmentContext
 from animama.app.chat.memory_context import MAIN_STRUCTURED_OUTPUT_GUIDANCE
@@ -60,6 +68,7 @@ from animama.app.model_clients import (
     ModelClientProviderOptions,
     ModelClientRequest,
 )
+from animama.app.model_clients.credentials import builtin_anthropic_connection, static_credential_resolver
 from animama.app.model_clients.prompt import scoped_prompt_cache_key
 from animama.app.model_connection_presets import MODEL_CONNECTION_PRESETS, PRESET_CUSTOM, PRESET_OLLAMA
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
@@ -134,9 +143,9 @@ def _memory_map(turn: int) -> str:
 ATTACHMENT = DirectChatAttachmentContext(filename="handbook.md", chunk_count=3, description="Lighthouse handbook")
 
 
-def _guidance() -> str:
+def _guidance(base: str = MAIN_STRUCTURED_OUTPUT_GUIDANCE) -> str:
     rows = "\n".join(f"- {gesture}: {gesture.title()} — a friendly {gesture}" for gesture in GESTURE_IDS)
-    return f"{MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()}\n\nAvailable Gestures for this Anima:\n{rows}"
+    return f"{base.strip()}\n\nAvailable Gestures for this Anima:\n{rows}"
 
 
 def _output_type() -> Any:
@@ -146,18 +155,21 @@ def _output_type() -> Any:
 def _prompt(
     *,
     turn: int,
-    history: list[dict[str, str]],
+    history: list[dict[str, Any]],
     supports_developer_role: bool,
     provider_type: str,
     model: str,
     run_tag: str,
+    instruction_style: str = INSTRUCTION_STYLE_DEFAULT,
+    guidance: str = MAIN_STRUCTURED_OUTPUT_GUIDANCE,
 ) -> DirectChatPrompt:
     return DirectChatPromptAssembler().assemble(
         user_message=USER_TURNS[turn],
         anima_identity=_synthetic_identity(run_tag),
         anima_name="Mira",
         anima_memories=_synthetic_memories(),
-        response_format_guidance=_guidance(),
+        instruction_style=instruction_style,
+        response_format_guidance=_guidance(guidance),
         memory_map=_memory_map(turn),
         attached_files=[ATTACHMENT],
         supports_developer_role=supports_developer_role,
@@ -262,46 +274,70 @@ async def _run_openai_path(
     return usages
 
 
-async def _run_anthropic_current_layout() -> list[_TurnUsage]:
-    """Map today's folded layout to Anthropic with top-level automatic caching."""
+def _anthropic_provider() -> ModelProvider:
+    """The built-in Haiku 5.5 row as production loads it."""
 
-    output_format = {
-        "type": "json_schema",
-        "schema": anthropic_strict_schema(build_main_structured_response_json_schema(_output_type())),
-    }
-    history: list[dict[str, str]] = []
+    return ModelProvider(
+        id=f"AnthropicMessagesHTTPAgent:{ANTHROPIC_MODEL}",
+        provider_type="AnthropicMessagesHTTPAgent",
+        model=ANTHROPIC_MODEL,
+        model_label="Claude Haiku 5.5",
+        provider_label="Anthropic",
+        connection_id="anthropic",
+        connection=builtin_anthropic_connection(),
+        context_window_tokens=1_000_000,
+        max_output_tokens=128_000,
+        capabilities=ModelProviderCapabilities(
+            supports_streaming=True,
+            supports_tools=True,
+            supports_reasoning=True,
+            supported_reasoning_efforts=["none", "low", "medium", "high", "xhigh", "max"],
+            structured_kinds=["main_structured_response"],
+            structured_output_transport="json_schema",
+        ),
+    )
+
+
+async def _run_anthropic_adapter_path() -> list[_TurnUsage]:
+    """Drive the real Anthropic adapter: stable cached system, history, user, then the turn-context system message.
+
+    History is replayed in the shape the chat stores (the reply's text block),
+    so the request matches production; usage counts cache reads and writes.
+    """
+
+    provider = _anthropic_provider()
+    client = AnthropicMessagesModelClient(
+        credential_resolver=static_credential_resolver({"ANTHROPIC_API_KEY": os.environ["ANTHROPIC_API_KEY"]}),
+        timeout=120.0,
+    )
+    history: list[dict[str, Any]] = []
     usages: list[_TurnUsage] = []
     run_tag = uuid4().hex
-    async with anthropic.AsyncAnthropic(api_key=os.environ["ANTHROPIC_API_KEY"], timeout=120.0) as client:
+    try:
         for turn in range(len(USER_TURNS)):
             prompt = _prompt(
                 turn=turn,
                 history=history,
-                supports_developer_role=False,
-                provider_type="AnthropicMessagesHTTPAgent",
+                supports_developer_role=provider.accepts_developer_role,
+                provider_type=provider.provider_type,
                 model=ANTHROPIC_MODEL,
                 run_tag=run_tag,
+                instruction_style=INSTRUCTION_STYLE_ANTHROPIC,
+                guidance=ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE,
             )
-            system = next(str(m["content"]) for m in prompt.messages if m.get("role") == "system")
-            messages = [
-                {"role": str(m["role"]), "content": str(m["content"])}
-                for m in prompt.messages
-                if m.get("role") in {"user", "assistant"}
+            final = await _final(client, ModelClientRequest(model_provider=provider, prompt=prompt))
+            usages.append(_TurnUsage(final.usage.input_tokens, final.usage.input_tokens_details.cached_tokens))
+            # Stored rows carry the provider-shaped message the assembler replays.
+            history += [
+                {"role": "user", "content": USER_TURNS[turn]},
+                {
+                    "role": "assistant",
+                    "content": final.text,
+                    "raw_provider_message": assistant_replay_message(final.text, model_provider=provider),
+                },
             ]
-            message = await cast(Any, client).messages.create(
-                model=ANTHROPIC_MODEL,
-                max_tokens=1024,
-                system=system,
-                messages=messages,
-                cache_control={"type": "ephemeral"},
-                output_config={"effort": "low", "format": output_format},
-            )
-            usage = message.usage
-            cached = usage.cache_read_input_tokens or 0
-            total = usage.input_tokens + cached + (usage.cache_creation_input_tokens or 0)
-            usages.append(_TurnUsage(total, cached))
-            text = "".join(getattr(block, "text", "") for block in message.content if block.type == "text")
-            history += [{"role": "user", "content": USER_TURNS[turn]}, {"role": "assistant", "content": text}]
+    finally:
+        await client.aclose()
     return usages
 
 
@@ -373,7 +409,7 @@ async def test_measure_prompt_cache_share_per_provider_path() -> None:
                 OPENAI_MODEL,
             )
         )
-    runs.append(("anthropic_messages_current_layout", _run_anthropic_current_layout, ANTHROPIC_MODEL))
+    runs.append(("anthropic_messages", _run_anthropic_adapter_path, ANTHROPIC_MODEL))
 
     local_base_url = os.getenv("ANIMAMA_TEST_LOCAL_CHAT_BASE_URL", "").strip()
     local_model = os.getenv("ANIMAMA_TEST_LOCAL_CHAT_MODEL", "").strip()

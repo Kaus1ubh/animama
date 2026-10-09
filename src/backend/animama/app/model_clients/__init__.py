@@ -33,6 +33,8 @@ from .logging_context import (
 )
 from .prompt import DirectChatPrompt
 from .types import (
+    ANTHROPIC_TOOL_RESULT_ITEM_TYPE,
+    ANTHROPIC_TOOL_USE_ITEM_TYPE,
     MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
     MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
     ModelClient,
@@ -54,6 +56,8 @@ from .types import (
 )
 
 __all__ = [
+    "ANTHROPIC_TOOL_RESULT_ITEM_TYPE",
+    "ANTHROPIC_TOOL_USE_ITEM_TYPE",
     "DirectChatPrompt",
     "DEFAULT_STREAM_EVENT_SUMMARY_METADATA_KEY",
     "MCAssistantMessageDoneEvent",

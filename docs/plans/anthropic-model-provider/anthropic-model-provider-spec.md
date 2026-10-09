@@ -307,7 +307,8 @@ Exclude:
   Guardrails text is identical on every provider.
 - Thinking is never displayed. When neither the owner nor the Anima has chosen
   an effort, Anthropic requests use:
-  - `low` for chat turns, which favors companion latency;
+  - `medium` for chat turns (owner, 2026-10-09: at `low`, Haiku 5.5 often
+    skipped needed memory-tool calls in live tests);
   - `low` for Utility tasks;
   - `medium` for Memory Manager runs.
 
@@ -419,8 +420,8 @@ transport. These tests cannot establish real model, audio or avatar fidelity.
       - a local Chat Completions server, when one is available to the owner.
 
       Evidence: recorded live measurements with model, revision and method.
-- [ ] On Anthropic rows, unset effort resolves to `low` for chat and Utility and
-      `medium` for the Memory Manager. An explicit setting overrides it.
+- [ ] On Anthropic rows, unset effort resolves to `medium` for chat, `low` for
+      Utility and `medium` for the Memory Manager. An explicit setting overrides it.
       Anthropic instruction phrasing passes review against Anthropic's prompting
       guidance without changing directives. Evidence: request-shape tests;
       prompt review; owner smoke of reply quality and latency.
@@ -474,8 +475,9 @@ Decided on 2026-10-08:
   - Native Anthropic web search for Anthropic rows.
   - A per-model **Compact early** setting, on by default, for models with a
     long-context price step (R5).
-  - Anthropic-tuned instructions, with per-role effort defaults: chat `low`,
-    Utility `low`, Memory Manager `medium` (R12).
+  - Anthropic-tuned instructions, with per-role effort defaults: chat `low`
+    (revised to `medium` on 2026-10-09, D22), Utility `low`, Memory Manager
+    `medium` (R12).
   - Instruction assembly optimized for prefix caching on every provider path,
     absorbing #155 (R11).
 

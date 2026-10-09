@@ -24,6 +24,8 @@ Its rows match what production sends:
 - Developer-role rows name the built-in OpenAI connection, so they carry the
   explicit breakpoints described below.
 - The row without a developer role, and the optional local row, carry none.
+- The Anthropic row runs the real Anthropic adapter with the Anthropic-phrased
+  instructions, replaying history in the shape the chat stores.
 
 See [tests/live/README.md](../../../tests/live/README.md) for keys, cost and the
 local-server option. Rerun it after any change to instruction assembly, tool
@@ -75,17 +77,20 @@ from three parts:
   Companion Guardrails.
 - **History**, replayed exactly as stored.
 - **Turn context:** the memory map, then the attachment list, then the
-  guardrails again, immediately before the user's new message.
+  guardrails again, immediately before the user's new message (after it on
+  Anthropic Messages).
 
 The last instruction text the model reads before the user's words is therefore
 always the guardrails, word for word
-([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)).
+([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)); on
+Anthropic Messages the turn context after the user's words also ends with them.
 
 | Path | Request order |
 | --- | --- |
 | Chat Completions with a developer role | system (stable instructions); developer (app compaction summary, when there is one); history; developer (turn context); user |
 | Chat Completions without a developer role (the row lacks the role, or its connection sets `fold_developer_role`) | system (stable instructions, a `# Turn Context` description of the block, the compaction summary, then the guardrails); history; user (a `<turn_context>` block holding the turn context, then the user's words) |
 | OpenAI Responses | `instructions` (stable instructions); input: developer item (turn context), user item |
+| Anthropic Messages | `system` (stable instructions, with an app compaction summary folded in before the closing guardrails); history; user; mid-conversation `system` message (turn context) |
 
 On Responses the chain lives in OpenAI server state (`previous_response_id`,
 `store: true`). With a cursor, a request sends only the new items. Each turn's
@@ -94,10 +99,21 @@ context item stays in the stored chain until native compaction runs at
 Requests without a cursor send history before the new items. These are the
 first turn, incognito turns (`store: false`) and the stale-cursor replay.
 
+On Anthropic Messages the turn context follows the user's words, because
+Anthropic accepts a mid-conversation `system` message only after a user turn. No
+tagged block is used. Anthropic rows get their own phrasing of the
+non-guardrail sections (`app/chat/anthropic_instructions.py`): the identity and
+`MEMORIES.md` are delimited with XML tags, the response guidance matches strict
+structured output, and a short `# Turn Context` section describes the trailing
+system message. The directives and the guardrails are the same on every path.
+The app compaction summary sits in the system prompt until native compaction
+replaces app compaction for Anthropic chats.
+
 ### Explicit breakpoints
 
-Only requests on the built-in OpenAI connection carry breakpoints. Other servers
-never receive the field.
+OpenAI breakpoint fields go only to requests on the built-in OpenAI connection;
+other OpenAI-compatible servers never receive them. Anthropic uses its own
+`cache_control` markers.
 
 - **Chat Completions with a developer role:** the system message and the last
   two assistant replies before the turn's user message. Those are three
@@ -109,6 +125,10 @@ never receive the field.
   one. Cursor requests need none, because the stored chain is the prefix.
 - **Rows without a developer role:** none. Local servers reuse the longest
   identical token prefix by themselves.
+- **Anthropic Messages:** `cache_control` on the system block and on the last
+  replayed history block. The previous request wrote an entry at its own last
+  history block, which this request finds within the 20-block lookback. Tools
+  render before the system block, so they share its entry.
 
 ### Within a turn
 
@@ -120,7 +140,16 @@ never receive the field.
   - a developer message on Chat Completions;
   - a developer item after the round's new input on Responses;
   - on rows without a developer role, the end of the system message for that
-    one request.
+    one request;
+  - on Anthropic, text in the user turn after the tool results or after the
+    invalid reply, because Haiku 5.5 may ignore a system message placed right
+    after tool results. With no reply before it, the text joins the
+    turn-context message.
+- On Anthropic, each round resends the earlier rounds' assistant content
+  exactly as returned (signed thinking, text and `tool_use`), carried in the
+  request-local continuation. Forced-final and repair rounds keep the turn's
+  tools and set `tool_choice` to `none`: changing the tool list would
+  invalidate the turn's thinking blocks and the whole cache.
 
 ### Tag escaping
 
@@ -144,7 +173,7 @@ Anima, per chat, or per turn.
 | Memory and response guidance | per Anima | stable instructions | memory-write flags or the response format change |
 | Gesture list and response schema | per Anima | stable instructions (response guidance) and `response_format` | the Anima's loadout changes; the schema's `gesture` enum changes with it |
 | Companion Guardrails | per installation | end of the stable instructions, and end of the turn context | never ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)) |
-| Compaction summary | per chat | developer message after the system message, or the end of the system message before the guardrails | app compaction runs (Chat Completions only). The trigger is the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90,000), 70% of the context window, and 75% of the window left after the reply reserve. Each run misses the history cache once. |
+| Compaction summary | per chat | developer message after the system message, or the end of the system message before the guardrails (rows without a developer role, and Anthropic) | app compaction runs (Chat Completions and, until native compaction, Anthropic). The trigger is the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90,000), 70% of the context window, and 75% of the window left after the reply reserve. Each run misses the history cache once. |
 | History | per turn | after the stable instructions | every turn (append) |
 | Memory map (file paths and descriptions) | per installation | turn context | a memory file is added, removed, moved or re-described |
 | Attachment list | per turn | turn context | each turn that attaches files. The uploaded-file tools change with it. |
@@ -166,6 +195,18 @@ Measured with `tests/live/test_prompt_cache_layout.py`:
 | Responses without a cursor (`store: false`) | 0, 0, 0.854, 0.857, 0.856, 0.856 | 0.68 | 5,378 |
 | Chat Completions, developer role | 0, 0.864, 0.866, 0.872, 0.868, 0.872 | 0.87 | 5,406 |
 | Chat Completions, `<turn_context>` block | 0, 0.866, 0.851, 0.841, 0.823, 0.808 | 0.84 | 5,442 |
+
+Anthropic Messages (Claude Haiku 5.5, through the real adapter with the
+Anthropic-phrased instructions; source `9330838a-dirty`, 2026-10-09):
+
+| Path | Cached share by turn | Mean, turns 2–6 | Input tokens, turn 6 |
+| --- | --- | --- | --- |
+| Anthropic Messages | 0, 0.88, 0.876, 0.88, 0.881, 0.887 | 0.88 | 9,680 |
+
+Anthropic counts the same prompt as about 1.8 times OpenAI's tokens, including
+the structured-output schema. Within a turn, a tool round reuses the tools,
+the system prompt and the history (its breakpoint is the same in every round).
+The turn's context, thinking and tool exchange are uncached.
 
 - **Responses with a cursor:** input grows faster, because each turn's context
   item stays in the stored chain until native compaction.
