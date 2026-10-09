@@ -5,6 +5,7 @@ import { AnimaVoicesEditor } from "./VoiceLoadoutSection";
 import { filteredPocketVoices, PocketVoiceList } from "./PocketVoicePicker";
 import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 import { voiceCloneSampleSource } from "@/lib/speech/pocket/voice-clones";
+import type { PocketVoiceAvailability } from "@/lib/speech/pocket/voice-preferences";
 import { IDLE_VOICE_SAMPLE } from "@/lib/speech/pocket/voice-sample-player";
 
 const fixtures = vi.hoisted(() => ({
@@ -20,6 +21,9 @@ const fixtures = vi.hoisted(() => ({
   update: vi.fn(),
   selectedCloneId: null as string | null,
   clones: [] as PyVoiceContent[],
+  availability: (() => null) as (id: string) => PocketVoiceAvailability | null,
+  operatorManaged: false,
+  install: vi.fn(),
 }));
 vi.mock("@/query/hooks/useAnimaLoadout", () => ({
   useAnimaLoadout: () => ({
@@ -52,6 +56,12 @@ vi.mock("@/query/mutations/useVoiceCloneActions", () => ({
 vi.mock("@/query/mutations/useModelAssetActions", () => ({
   useModelAssetAction: () => ({ mutateAsync: vi.fn() }),
 }));
+// A local runtime; operator-provided voices come from the downloads fixture.
+vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
+  useRuntimeCapabilities: () => ({
+    data: { local_filesystem_administration: true },
+  }),
+}));
 vi.mock("@/ui/settings/SettingsProvider", () => ({
   useSettings: () => ({
     animaId: "anima-1",
@@ -74,8 +84,9 @@ vi.mock("@/hooks/use-pocket-tts-runtime", () => ({
 }));
 vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
   usePocketVoiceDownloads: () => ({
-    availability: () => null,
-    install: vi.fn(),
+    availability: fixtures.availability,
+    install: fixtures.install,
+    operatorManaged: fixtures.operatorManaged,
   }),
 }));
 vi.mock("@/ui/app/AppShell", () => ({ useOptionalAppShell: () => null }));
@@ -87,6 +98,10 @@ describe("Anima voice configuration", () => {
     fixtures.animaProvider = undefined;
     fixtures.selectedCloneId = null;
     fixtures.clones = [];
+    fixtures.speech.tts_pocket_anima_voice = "eve";
+    fixtures.availability = () => null;
+    fixtures.operatorManaged = false;
+    fixtures.install.mockReset();
   });
   it.each([
     ["pocket_tts", false],
@@ -321,5 +336,69 @@ describe("Anima voice configuration", () => {
     expect(html).not.toContain('aria-label="Filter voices"');
     expect(html).not.toContain("Download</button>");
     expect(html).not.toContain(">Included</span>");
+  });
+});
+
+describe("operator-provided Pocket voices", () => {
+  const managedAvailability = (id: string): PocketVoiceAvailability | null =>
+    id === "anna"
+      ? { assetId: "pocket-voice-anna", status: "not_installed" }
+      : id === "clara"
+        ? { assetId: "pocket-voice-clara", status: "installed" }
+        : null;
+  const renderList = (operatorManaged: boolean) =>
+    renderToStaticMarkup(
+      <PocketVoiceList
+        value="eve"
+        disabled={false}
+        hasCustomVoice={false}
+        onSelect={async () => undefined}
+        availability={managedAvailability}
+        onDownload={() => undefined}
+        operatorManaged={operatorManaged}
+        onSelected={() => undefined}
+        sample={IDLE_VOICE_SAMPLE}
+        player={{ play: vi.fn(), stop: vi.fn(), dispose: vi.fn() }}
+      />,
+    );
+
+  it("shows provided voices as available and others as not available, without downloads", () => {
+    const html = renderList(true);
+    expect(html).not.toContain("Download Anna");
+    expect(html).not.toMatch(/aria-label="(Retry download|Cancel download)/);
+    expect(html).toMatch(
+      /<button[^>]*disabled=""[^>]*aria-label="Select Anna"/,
+    );
+    const anna = html
+      .split('aria-label="Select Anna"')[1]!
+      .split("</button>")[0]!;
+    expect(anna).toContain("Not available");
+    expect(html).toContain('aria-label="Clara available"');
+    expect(html).not.toMatch(
+      /<button[^>]*disabled=""[^>]*aria-label="Select Clara"/,
+    );
+    expect(html).toContain('aria-label="Eve included"');
+    expect(html).toContain("Speech models are managed by the hosted operator.");
+  });
+
+  it("keeps self-hosted download actions", () => {
+    const html = renderList(false);
+    expect(html).toContain('aria-label="Download Anna"');
+    expect(html).toContain('aria-label="Clara downloaded"');
+    expect(html).not.toContain("Not available");
+    expect(html).not.toContain("managed by the hosted operator");
+  });
+
+  it("says when the saved voice is not provided, without starting an install", () => {
+    fixtures.speech.tts_provider = "pocket_tts";
+    fixtures.speech.tts_pocket_anima_voice = "anna";
+    fixtures.availability = managedAvailability;
+    fixtures.operatorManaged = true;
+    const html = renderToStaticMarkup(<AnimaVoicesEditor />);
+    expect(html).toContain(
+      "Anna is not available here, so replies use the default voice.",
+    );
+    expect(html).not.toContain("could not be downloaded");
+    expect(fixtures.install).not.toHaveBeenCalled();
   });
 });

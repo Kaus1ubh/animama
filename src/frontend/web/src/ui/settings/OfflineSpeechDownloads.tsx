@@ -15,11 +15,15 @@ import {
 } from "@/lib/speech/client-parakeet/client";
 import type { ParakeetWebgpuStatus } from "@/lib/speech/client-parakeet/webgpu";
 import { formatFileSize } from "@/lib/user-files/uploads";
-import { useModelAssets } from "@/query/hooks/useModelAssets";
+import {
+  useModelAssets,
+  useOperatorManagedModelAssets,
+} from "@/query/hooks/useModelAssets";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
 import { PACK_WORK_BLOCKS_ASSET } from "@/query/model-download-coordination";
 import { Button } from "@/ui/components/button";
+import { OPERATOR_MANAGED_MODELS_NOTE } from "./operator-managed-models";
 
 // Stable failure codes from the model-asset API; they never carry paths.
 const ASSET_FAILURE_TEXT: Record<
@@ -92,22 +96,6 @@ export function gpuInstallBlockedReason({
 }
 
 type Change = "install" | "cancel" | "remove";
-
-/** Shown instead of model actions where the runtime's operator provides models. */
-export const OPERATOR_MANAGED_MODELS_NOTE =
-  "Speech models are managed by the hosted operator.";
-
-/**
- * Whether the runtime's operator provisions speech models. Installing or
- * removing them is server model installation, which belongs to local
- * filesystem administration; without that permission (hosted) the model-asset
- * service refuses both, so the UI shows each model's state without actions.
- */
-export function useOperatorManagedModels(): boolean {
-  return (
-    useRuntimeCapabilities().data?.local_filesystem_administration !== true
-  );
-}
 
 export type OfflineSpeechDownloadsViewProps = {
   cpu: PyModelAssetState | undefined;
@@ -482,7 +470,7 @@ export function useOfflineSpeechDownloads(): Omit<
 > {
   const assets = useModelAssets({ enabled: true });
   const capabilities = useRuntimeCapabilities();
-  const operatorManaged = useOperatorManagedModels();
+  const operatorManaged = useOperatorManagedModelAssets();
   const action = useModelAssetAction();
   const [gpuSupport, setGpuSupport] = useState<ParakeetWebgpuStatus | null>(
     null,

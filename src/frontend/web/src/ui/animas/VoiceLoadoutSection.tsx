@@ -18,7 +18,10 @@ import { useVoiceSelection } from "@/query/mutations/useVoiceSelection";
 import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
 import { toTtsProvider } from "@/lib/speech/tts-provider";
 import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
-import { PocketVoicePicker } from "@/ui/animas/PocketVoicePicker";
+import {
+  PocketVoicePicker,
+  pocketVoiceNotProvided,
+} from "@/ui/animas/PocketVoicePicker";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import {
@@ -264,8 +267,16 @@ export function AnimaVoicesEditor() {
             downloadBlockedReason={downloads.blockedReason}
             downloadError={downloads.error}
             retryAssetIds={downloads.retryAssetIds}
+            operatorManaged={downloads.operatorManaged}
           />
-          {!selectedCloneId && download?.status === "downloading" ? (
+          {!selectedCloneId &&
+          pocketVoiceNotProvided(download, downloads.operatorManaged) ? (
+            // Speech falls back to the default voice; nothing installs it here.
+            <p role="status" className="text-muted-foreground text-xs">
+              {pocketVoiceLabel(pocketVoice)} is not available here, so replies
+              use the default voice.
+            </p>
+          ) : !selectedCloneId && download?.status === "downloading" ? (
             <p role="status" className="text-muted-foreground text-xs">
               Downloading {pocketVoiceLabel(pocketVoice)}…{" "}
               {Math.round((download.progress ?? 0) * 100)}%

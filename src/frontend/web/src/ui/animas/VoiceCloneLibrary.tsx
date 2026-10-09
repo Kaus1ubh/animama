@@ -12,6 +12,7 @@ import {
   type PreparedVoiceClone,
 } from "@/lib/speech/pocket/voice-clones";
 import { parseContentApiErrorDetail } from "@/lib/content/contentSaveErrors";
+import { useOperatorManagedModelAssets } from "@/query/hooks/useModelAssets";
 import { useVoiceCloneActions } from "@/query/mutations/useVoiceCloneActions";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
 import {
@@ -20,6 +21,7 @@ import {
 } from "@/lib/speech/pocket/voice-cloning-encoder";
 import { VoiceCloningDownload } from "./VoiceCloningDownload";
 import { Button } from "@/ui/components/button";
+import { OPERATOR_MANAGED_MODELS_NOTE } from "@/ui/settings/operator-managed-models";
 import { Input } from "@/ui/components/input";
 import {
   Dialog,
@@ -57,6 +59,7 @@ export function VoiceCloneLibrary({
 
   const actions = useVoiceCloneActions();
   const modelAction = useModelAssetAction();
+  const operatorManaged = useOperatorManagedModelAssets();
   const input = useRef<HTMLInputElement>(null);
   const prepared = useRef<PreparedVoiceClone | null>(null);
   const pending = useRef(false);
@@ -146,9 +149,16 @@ export function VoiceCloneLibrary({
     } catch (cause) {
       if (controller.signal.aborted) return;
       if (cause instanceof PocketVoiceEncoderDownloadRequired) {
-        setEncoder(cause.asset);
-        if (cause.asset.status === "failed") setEncoderError(cause.message);
-        setEncoderOpen(true);
+        if (operatorManaged) {
+          // The operator provides the encoder; this runtime never downloads it.
+          setError(
+            `Voice cloning is not available here. ${OPERATOR_MANAGED_MODELS_NOTE}`,
+          );
+        } else {
+          setEncoder(cause.asset);
+          if (cause.asset.status === "failed") setEncoderError(cause.message);
+          setEncoderOpen(true);
+        }
       } else {
         const message = cloneError(
           cause,

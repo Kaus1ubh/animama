@@ -1,15 +1,15 @@
 import { useState } from "react";
 import { POCKET_VOICE_ENCODER_ASSET_ID } from "@/lib/speech/pocket/voice-cloning-encoder";
 import { formatFileSize } from "@/lib/user-files/uploads";
-import { useModelAssets } from "@/query/hooks/useModelAssets";
+import {
+  useModelAssets,
+  useOperatorManagedModelAssets,
+} from "@/query/hooks/useModelAssets";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
 import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
 import { Button } from "@/ui/components/button";
-import {
-  OfflineSpeechDownloads,
-  OPERATOR_MANAGED_MODELS_NOTE,
-  useOperatorManagedModels,
-} from "./OfflineSpeechDownloads";
+import { OfflineSpeechDownloads } from "./OfflineSpeechDownloads";
+import { OPERATOR_MANAGED_MODELS_NOTE } from "./operator-managed-models";
 import cloningAttribution from "../../../../../../models/pocket-tts-voice-cloning/ATTRIBUTION.md?raw";
 
 /** Optional downloads shared by setup and Voice settings; all install in place. */
@@ -57,7 +57,7 @@ export function VoiceCloneSettings() {
  */
 function VoiceCloningStatus({ busy = false }: { busy?: boolean }) {
   const assets = useModelAssets({ enabled: true });
-  const operatorManaged = useOperatorManagedModels();
+  const operatorManaged = useOperatorManagedModelAssets();
   const action = useModelAssetAction();
   const [confirmRemove, setConfirmRemove] = useState(false);
   const asset = assets.data?.assets.find(
