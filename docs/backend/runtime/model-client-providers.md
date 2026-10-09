@@ -537,12 +537,13 @@ server-side compaction instead.
 ### Context window budget
 
 Rows with a context window never receive a prompt larger than it
-(`app/chat/direct_turn/context_fit.py`, `app/model_clients/context_budget.py`).
-The only exception is a client that asks its provider to compact: a Responses
-client with a positive compaction threshold reports `native_context_compaction`,
-and those turns rely on server-side compaction. A Responses client without one
-(threshold `0`, or a composition that omits it) is bounded like Chat
-Completions:
+(`app/chat/direct_turn/context_fit.py`, `app/model_clients/context_budget.py`),
+with two exceptions. A client that asks its provider to compact (a Responses
+client with a positive compaction threshold reports `native_context_compaction`)
+relies on server-side compaction. A turn that continues from a stored provider
+cursor (`openai_previous_response_id`) sends no local history, so it is not
+fitted either. Any other Responses turn without native compaction (threshold
+`0`, or a composition that omits it) is bounded like Chat Completions:
 
 - **Budget.** Available tokens are the window minus the row's
   `max_output_tokens`, or minus a quarter of the window (at most 4096) when

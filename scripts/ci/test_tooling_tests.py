@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,6 +17,7 @@ class ToolingSuiteTests(unittest.TestCase):
         for directory in tooling_tests.NODE_SUITES:
             self.assertTrue(list((tooling_tests.ROOT / directory).glob("*.test.mjs")), directory)
 
+    @unittest.skipIf(shutil.which("node") is None, "Node runs only after the workflow sets it up")
     def test_node_suites_fail_when_empty_or_failing_and_pass_otherwise(self):
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
