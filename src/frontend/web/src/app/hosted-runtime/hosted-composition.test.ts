@@ -591,14 +591,19 @@ describe("hosted admission and transport", () => {
 
   it("repairs only reported hosted bootstrap/recovery, never installation bootstrap", async () => {
     const { composition, calls } = fixture({ ...active, state: "recovery" });
+    expect((await composition.readAdmission()).status).toBe("recovery");
+    expect(calls).toHaveLength(1);
     await composition.repair();
-    expect(calls.map((call) => new URL(call.url).pathname)).toEqual([
-      "/v1/hosted/runtime-context",
-      "/v1/hosted/bootstrap:ensure",
-      "/v1/hosted/runtime-context",
-    ]);
-    const body = (await calls[1].json()) as Record<string, unknown>;
+    await vi.waitFor(() =>
+      expect(calls.map((call) => new URL(call.url).pathname)).toEqual([
+        "/v1/hosted/runtime-context",
+        "/v1/hosted/runtime-context",
+        "/v1/hosted/bootstrap:ensure",
+      ]),
+    );
+    const body = (await calls[2].json()) as Record<string, unknown>;
     expect(Object.keys(body)).toEqual(["idempotency_key"]);
+    expect(calls[2].headers.get("X-Animama-CSRF")).toBe("fixture-csrf");
   });
 
   it("binds account navigation to a validated admission URL and gives useful absence feedback", async () => {
@@ -614,5 +619,257 @@ describe("hosted admission and transport", () => {
     expect(() => missing.composition.accountActions!.openAccount()).toThrow(
       "Account access is unavailable",
     );
+  });
+});
+
+/** A signed-in account whose server-owned setup the test controls. */
+function setupFlow(
+  initial: string,
+  ensure: (key: string, sent: number) => Response | Promise<Response>,
+) {
+  const state = { value: initial };
+  const keys: string[] = [];
+  let contextReads = 0;
+  const fetch: typeof globalThis.fetch = async (input) => {
+    const request = input as Request;
+    const path = new URL(request.url).pathname;
+    if (path === "/v1/hosted/runtime-context") {
+      contextReads += 1;
+      return Response.json({ ...active, state: state.value });
+    }
+    if (path === "/v1/hosted/bootstrap:ensure") {
+      const body = (await request.json()) as { idempotency_key: string };
+      keys.push(body.idempotency_key);
+      return ensure(body.idempotency_key, keys.length);
+    }
+    if (path === "/v1/hosted/events")
+      return new Response(new ReadableStream<Uint8Array>());
+    return Response.json({ ok: true });
+  };
+  const composition = createHostedComposition({
+    baseUrl: "https://app.example.test",
+    fetch,
+    navigate: vi.fn(),
+  });
+  const controller = new RuntimeController(composition);
+  const views: string[] = [];
+  controller.subscribe(() => {
+    const admission = controller.getSnapshot().admission;
+    views.push(
+      admission.status === "loading" && admission.message
+        ? `loading: ${admission.message}`
+        : admission.status,
+    );
+  });
+  const unsubscribe = composition.subscribe!((invalidate) => {
+    void controller.refresh(false, invalidate);
+  });
+  return {
+    state,
+    keys,
+    views,
+    controller,
+    contextReads: () => contextReads,
+    status: () => controller.getSnapshot().admission.status,
+    close: () => {
+      unsubscribe();
+      controller.dispose();
+    },
+  };
+}
+const setupAnswer = () => Response.json({ state: "active", ready: true });
+
+describe("hosted account setup", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("sets up a signed-in first-use account automatically, then admits it", async () => {
+    const flow = setupFlow("bootstrap_required", () => {
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      await vi.waitFor(() => expect(flow.status()).toBe("ready"));
+      expect(flow.views).toContain("loading: Setting up your account…");
+      expect(flow.views).not.toContain("recovery");
+      expect(flow.keys).toHaveLength(1);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("replays the same idempotency key after a lost reply", async () => {
+    vi.useFakeTimers();
+    const flow = setupFlow("bootstrap_required", (_key, sent) => {
+      if (sent === 1) throw new TypeError("Failed to fetch");
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      await vi.advanceTimersByTimeAsync(500);
+      await vi.waitFor(() => expect(flow.status()).toBe("ready"));
+      expect(flow.keys).toHaveLength(2);
+      expect(flow.keys[1]).toBe(flow.keys[0]);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("offers recovery after an unanswered attempt and replays its key on retry", async () => {
+    vi.useFakeTimers();
+    let online = false;
+    const flow = setupFlow("bootstrap_required", () => {
+      if (!online) throw new TypeError("Failed to fetch");
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      await vi.advanceTimersByTimeAsync(1_500);
+      await vi.waitFor(() => expect(flow.status()).toBe("recovery"));
+      expect(flow.keys).toHaveLength(3);
+      // Ordinary reads do not repeat an automatic attempt that already failed.
+      await flow.controller.refresh();
+      expect(flow.status()).toBe("recovery");
+      expect(flow.keys).toHaveLength(3);
+      online = true;
+      await flow.controller.refresh(true);
+      await vi.waitFor(() => expect(flow.status()).toBe("ready"));
+      expect(flow.keys).toHaveLength(4);
+      expect(flow.keys[3]).toBe(flow.keys[0]);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("starts a person's retry with a new key once the server answered", async () => {
+    const flow = setupFlow("bootstrap_required", (_key, sent) => {
+      if (sent === 1)
+        return Response.json(
+          { state: "identity_unavailable" },
+          { status: 503 },
+        );
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      await vi.waitFor(() => expect(flow.status()).toBe("recovery"));
+      expect(flow.keys).toHaveLength(1);
+      await flow.controller.refresh(true);
+      await vi.waitFor(() => expect(flow.status()).toBe("ready"));
+      expect(flow.keys).toHaveLength(2);
+      expect(flow.keys[1]).not.toBe(flow.keys[0]);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("runs one setup attempt at a time", async () => {
+    let finish!: () => void;
+    const flow = setupFlow(
+      "bootstrap_required",
+      () =>
+        new Promise<Response>((resolve) => {
+          finish = () => {
+            flow.state.value = "active";
+            resolve(setupAnswer());
+          };
+        }),
+    );
+    try {
+      await flow.controller.refresh();
+      await flow.controller.refresh();
+      await flow.controller.refresh(true);
+      await vi.waitFor(() => expect(flow.keys).toHaveLength(1));
+      expect(flow.status()).toBe("loading");
+      finish();
+      await vi.waitFor(() => expect(flow.status()).toBe("ready"));
+      expect(flow.keys).toHaveLength(1);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("bounds setup progress polling, then offers recovery that polls again", async () => {
+    vi.useFakeTimers();
+    const flow = setupFlow("bootstrapping", () => setupAnswer());
+    try {
+      await flow.controller.refresh();
+      expect(flow.views.at(-1)).toMatch(/^loading: /);
+      await vi.advanceTimersByTimeAsync(10 * 60_000);
+      expect(flow.status()).toBe("recovery");
+      const reads = flow.contextReads();
+      expect(reads).toBeGreaterThan(10);
+      expect(reads).toBeLessThan(40);
+      await vi.advanceTimersByTimeAsync(10 * 60_000);
+      expect(flow.contextReads()).toBe(reads);
+      await flow.controller.refresh(true);
+      expect(flow.status()).toBe("loading");
+      flow.state.value = "active";
+      await vi.advanceTimersByTimeAsync(5_000);
+      expect(flow.status()).toBe("ready");
+      expect(flow.keys).toHaveLength(0);
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("repairs an open view's bootstrap requirement without ending its session", async () => {
+    const flow = setupFlow("active", () => {
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      const original = flow.controller.getSnapshot();
+      original.queryClient.setQueryData(["draft"], "retain");
+      // A newer release requires the idempotent bootstrap again.
+      flow.state.value = "bootstrap_required";
+      await flow.controller.refresh();
+      await vi.waitFor(() => expect(flow.keys).toHaveLength(1));
+      await vi.waitFor(() =>
+        expect(flow.controller.getSnapshot().reconnecting).toBe(false),
+      );
+      expect(flow.controller.getSnapshot().scope).toBe(original.scope);
+      expect(original.scope!.controller.signal.aborted).toBe(false);
+      expect(original.queryClient.getQueryData(["draft"])).toBe("retain");
+    } finally {
+      flow.close();
+    }
+  });
+
+  it("keeps repairing an open view at a bounded pace while setup fails", async () => {
+    vi.useFakeTimers();
+    let healthy = false;
+    const flow = setupFlow("active", () => {
+      if (!healthy)
+        return Response.json(
+          { state: "identity_unavailable" },
+          { status: 503 },
+        );
+      flow.state.value = "active";
+      return setupAnswer();
+    });
+    try {
+      await flow.controller.refresh();
+      const original = flow.controller.getSnapshot().scope;
+      flow.state.value = "recovery";
+      await flow.controller.refresh();
+      await vi.advanceTimersByTimeAsync(60_000);
+      expect(flow.keys.length).toBeGreaterThan(1);
+      expect(flow.keys.length).toBeLessThanOrEqual(6);
+      expect(flow.controller.getSnapshot().reconnecting).toBe(true);
+      expect(flow.controller.getSnapshot().scope).toBe(original);
+      healthy = true;
+      await vi.advanceTimersByTimeAsync(120_000);
+      expect(flow.controller.getSnapshot().reconnecting).toBe(false);
+      expect(flow.controller.getSnapshot().scope).toBe(original);
+    } finally {
+      flow.close();
+    }
   });
 });

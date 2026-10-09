@@ -6,6 +6,7 @@ import { zRuntimeCapabilities } from "@animama/runtime-contracts/validators";
 import type { AdmissionRefresh, AppComposition } from "../runtime/composition";
 import type { SessionRequestScope } from "../runtime/session-requests";
 import { traceProductRequest } from "../runtime/product-request-tracing";
+import { createAccountSetup } from "./account-setup";
 import {
   hostedRecoveryIdentity,
   forgetHostedRecoveryIdentity,
@@ -39,6 +40,18 @@ const REVOKING_STATES = new Set([
   "restricted",
   "deletion_pending",
 ]);
+/** Server-owned account setup states; they withhold admission without revoking. */
+const SETUP_STATES = new Set([
+  "bootstrap_required",
+  "bootstrapping",
+  "recovery",
+]);
+/** Progress reads while setup finishes elsewhere, before recovery is offered (~2 min). */
+const SETUP_POLL_DELAYS_MS = [1_500, 3_000, 5_000];
+const MAX_SETUP_POLLS = 24;
+/** An open view repeats failed setup on its own after this pause, doubling to a minute. */
+const SETUP_PAUSE_MS = 2_000;
+const MAX_SETUP_PAUSE_MS = 60_000;
 
 /** Cookie authority and CSRF are installed before React; browser headers cannot choose an owner. */
 export function createHostedComposition(
@@ -105,6 +118,70 @@ export function createHostedComposition(
     return response.json() as Promise<T>;
   }
 
+  // Attempts are not tied to an admission read: a superseded read must not
+  // abandon a setup request whose reply would otherwise be lost.
+  const setup = createAccountSetup((idempotencyKey) =>
+    authorizedFetch("/v1/hosted/bootstrap:ensure", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ idempotency_key: idempotencyKey }),
+    }),
+  );
+  /** A signed-in first use starts setup without a click, once per page. */
+  let automaticSetup = true;
+  /** A person's retry permits one attempt, including in `recovery`. */
+  let setupRequested = false;
+  let setupPolls = 0;
+  let setupPause = SETUP_PAUSE_MS;
+  let setupPausedUntil = 0;
+
+  /**
+   * Account setup withholds admission without revoking anything. A first use
+   * sets up on its own behind a setup view, and `recovery` (or a failed
+   * attempt) waits for a person's retry. An open view keeps its session and
+   * drafts suspended while it repairs at a bounded pace.
+   */
+  function setupAdmission(state: string): RuntimeAdmission {
+    const open = session !== null;
+    if (state === "bootstrapping") {
+      if (open) throw new Error("Hosted account setup has not finished");
+      setupPolls += 1;
+      if (setupPolls > MAX_SETUP_POLLS) return { status: "recovery" };
+      if (listeners.size && !bootstrapTimer)
+        bootstrapTimer = setTimeout(
+          () => {
+            bootstrapTimer = null;
+            notify();
+          },
+          SETUP_POLL_DELAYS_MS[
+            Math.min(setupPolls, SETUP_POLL_DELAYS_MS.length) - 1
+          ],
+        );
+      return {
+        status: "loading",
+        message: "Finishing setting up your account…",
+      };
+    }
+    const permitted = open
+      ? Date.now() >= setupPausedUntil
+      : setupRequested || (state === "bootstrap_required" && automaticSetup);
+    if (permitted && csrf && !setup.running) {
+      if (open) {
+        setupPausedUntil = Date.now() + setupPause;
+        setupPause = Math.min(setupPause * 2, MAX_SETUP_PAUSE_MS);
+      } else {
+        automaticSetup = false;
+        setupRequested = false;
+      }
+      // The context read afterwards, not the reply, decides what comes next.
+      void setup.run().then(() => notify());
+    }
+    if (open) throw new Error("Hosted account setup has not finished");
+    return setup.running
+      ? { status: "loading", message: "Setting up your account…" }
+      : { status: "recovery" };
+  }
+
   async function contextAdmission(
     context: HostedContext,
     signal?: AbortSignal,
@@ -147,18 +224,17 @@ export function createHostedComposition(
       identity_unavailable: "unavailable",
       ineligible: "ineligible",
       paused: "restricted",
-      bootstrap_required: "recovery",
-      bootstrapping: "loading",
-      recovery: "recovery",
       restricted: "restricted",
       deletion_pending: "restricted",
     };
+    if (context.state !== "bootstrapping") setupPolls = 0;
     if (context.state !== "active") {
+      if (SETUP_STATES.has(context.state)) return setupAdmission(context.state);
       const authoritativeDenial = REVOKING_STATES.has(context.state);
       if (session && !authoritativeDenial)
         throw new Error("Hosted admission could not currently be confirmed");
       session = null;
-      // Initial reloads have no in-memory session yet. Unknown/repair states
+      // Initial reloads have no in-memory session yet. Unknown/transient states
       // withhold admission but cannot revoke that tab's persisted operation.
       if (authoritativeDenial) {
         void scope?.end();
@@ -166,17 +242,10 @@ export function createHostedComposition(
         forgetHostedRecoveryIdentity();
         signal?.throwIfAborted();
       }
-      if (
-        context.state === "bootstrapping" &&
-        listeners.size &&
-        !bootstrapTimer
-      )
-        bootstrapTimer = setTimeout(() => {
-          bootstrapTimer = null;
-          notify();
-        }, 1_000);
       return { status: states[context.state] ?? "unavailable" };
     }
+    setupRequested = false;
+    setupPause = SETUP_PAUSE_MS;
     const result = zRuntimeCapabilities.safeParse(context.capabilities);
     // Older schema defaults must not accidentally admit a hosted surface.
     const raw = context.capabilities as { schema_version?: unknown } | null;
@@ -278,22 +347,10 @@ export function createHostedComposition(
     return contextAdmission(context, signal);
   }
 
+  /** A person's retry permits one new setup attempt and restarts progress reads. */
   async function repair(signal?: AbortSignal): Promise<RuntimeAdmission> {
-    if (signedOut) return { status: "sign-in-required" };
-    const context = await json<HostedContext>("/v1/hosted/runtime-context", {
-      signal,
-    });
-    signal?.throwIfAborted();
-    const admission = await contextAdmission(context, signal);
-    if (!["bootstrap_required", "recovery"].includes(context.state))
-      return admission;
-    if (!csrf) return { status: "sign-in-required" };
-    await json("/v1/hosted/bootstrap:ensure", {
-      method: "POST",
-      signal,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ idempotency_key: key() }),
-    });
+    setupRequested = true;
+    setupPolls = 0;
     return readAdmission(signal);
   }
 

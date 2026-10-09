@@ -82,12 +82,13 @@ async function mount(
   route = "/",
   state = "active",
   viewport = { width: 1280, height: 800 },
-  { utilities = false } = {},
+  { utilities = false, loseFirstSetupReply = false } = {},
 ) {
   const page = await browser.newPage({ viewport });
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const calls = [];
+  const setupKeys = [];
   let csrf = "fixture-session-one";
   let generation = "fixture-session-generation-one";
   let offline = false;
@@ -147,7 +148,14 @@ async function mount(
           account_url: `${origin}/central-account`,
         };
     else if (url.pathname === "/v1/runtime-capabilities") data = capabilities;
-    else if (url.pathname === "/v1/hosted/events")
+    else if (url.pathname === "/v1/hosted/bootstrap:ensure") {
+      setupKeys.push(JSON.parse(request.postData() ?? "{}").idempotency_key);
+      if (loseFirstSetupReply && setupKeys.length === 1)
+        return requestRoute.abort("connectionreset");
+      // The server-owned setup completes the account.
+      state = "active";
+      data = { state: "active", ready: true, failed_steps: [] };
+    } else if (url.pathname === "/v1/hosted/events")
       return requestRoute.fulfill({
         contentType: "text/event-stream",
         body: "event: ready\ndata: {}\n\n",
@@ -213,6 +221,7 @@ async function mount(
   return {
     page,
     calls,
+    setupKeys,
     reauthenticate: () => {
       csrf = "fixture-session-two";
       generation = "fixture-session-generation-two";
@@ -220,8 +229,56 @@ async function mount(
     offline: (value) => {
       offline = value;
     },
+    setState: (value) => {
+      state = value;
+    },
   };
 }
+
+test("a signed-in first use sets up its account automatically, replaying the key after a lost reply", async () => {
+  const { page, setupKeys } = await mount(
+    "/",
+    "bootstrap_required",
+    undefined,
+    {
+      loseFirstSetupReply: true,
+    },
+  );
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    assert.equal(setupKeys.length, 2);
+    assert.equal(setupKeys[1], setupKeys[0]);
+  } finally {
+    await page.close();
+  }
+});
+
+test("an open view repairs a newly required account setup and keeps its session", async () => {
+  const fixture = await mount();
+  const { page, setupKeys } = fixture;
+  try {
+    await page.getByText("Your Animas will appear here").waitFor();
+    await page.evaluate(() => window.hostedFixture.startPrivateWork());
+    const first = await page.evaluate(() => window.hostedFixture.current());
+    fixture.setState("bootstrap_required");
+    await page.evaluate(() => window.hostedFixture.refresh());
+    await page.waitForFunction(
+      () =>
+        window.hostedFixture.current().status === "ready" &&
+        !window.hostedFixture.current().reconnecting,
+    );
+    assert.equal(setupKeys.length, 1);
+    const current = await page.evaluate(() => window.hostedFixture.current());
+    assert.equal(current.key, first.key);
+    assert.equal(current.privateData, "old-private-data");
+    assert.equal(
+      await page.evaluate(() => window.hostedFixture.draft().operationId),
+      "fixture-operation",
+    );
+  } finally {
+    await page.close();
+  }
+});
 
 test("transient context failure preserves the original draft and fences dispatch until a successful refresh", async () => {
   const fixture = await mount();

@@ -111,7 +111,9 @@ export class RuntimeController {
     const pending = new AbortController();
     this.pending = pending;
     const generation = ++this.generation;
-    if (invalidate === true || this.snapshot.admission.status !== "ready")
+    const { status } = this.snapshot.admission;
+    // A loading view (such as account setup progress) stays while it re-reads.
+    if (invalidate === true || (status !== "ready" && status !== "loading"))
       this.publish({ status: "loading" });
     try {
       const admission = await (

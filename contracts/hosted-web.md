@@ -26,6 +26,17 @@ which prompts an immediate context read.
 Hosted login/callback/logout, session cookies, CSRF and central account URLs remain
 consumer-owned HTTP behavior.
 
+A signed-in `bootstrap_required` context starts that server-owned setup without
+a click, one attempt at a time, behind a setup view; the context read afterwards
+decides the next view. A network failure, or a 5xx reply without a hosted
+`state`, is retried with the same idempotency key, and an unanswered key is
+replayed by the next attempt; once the server answers, a later attempt uses a
+new key. `bootstrapping` is re-read with backoff for about two minutes before
+recovery is offered. `recovery` and a failed first attempt show recovery, whose
+retry starts one new attempt. An admitted view whose context later requires
+setup (for example after a policy update) keeps its session and drafts suspended
+and repeats setup at a bounded pace until the context is active again.
+
 The hosted context may additionally return `account_url`, an optional central
 account navigation URL. The browser accepts HTTPS or its own application origin,
 rejects embedded credentials, and shows an account-access error when it is absent
