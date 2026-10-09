@@ -29,6 +29,7 @@ class LocalValidationTests(unittest.TestCase):
             [row[0] for row in full],
             [
                 "backend-full",
+                "tooling-tests",
                 "frontend-source",
                 "browser-smoke",
                 "package-build",
@@ -41,6 +42,9 @@ class LocalValidationTests(unittest.TestCase):
             ],
         )
         self.assertEqual(sum("ci:source" in row[2] for row in full), 1)
+        # The hosted tooling step's runner, including the whole-app harness unit tests.
+        tooling = next(row[2] for row in full if row[0] == "tooling-tests")
+        self.assertEqual(tooling[-1], "scripts/ci/tooling_tests.py")
         baseline_command = next(row[2] for row in full if row[0] == "baseline-build")
         self.assertIn(str(output / "baseline"), baseline_command)
         self.assertIn(baseline, baseline_command)

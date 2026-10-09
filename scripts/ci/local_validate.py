@@ -94,6 +94,9 @@ def commands(profile: str, source: Path, output: Path, commit: str, baseline: st
     checks = []
     if profile in {"backend", "full"}:
         checks.append(("backend-full", source, ["make", "check-test"]))
+    if profile == "full":
+        # The same package-set, release, repository-boundary and harness suites as hosted CI.
+        checks.append(("tooling-tests", source, ["uv", "run", "--no-sync", "python", "scripts/ci/tooling_tests.py"]))
     if profile in {"web", "full"}:
         checks += [
             (

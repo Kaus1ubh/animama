@@ -241,18 +241,7 @@ jobs:
         id: tooling-tests
         if: steps.select.outputs.mode == 'full'
         run: |
-          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" tooling-tests -- uv run --no-sync python - <<'PYTHON'
-          import sys
-          import unittest
-          for directory in ('scripts/package-sets', 'scripts/public-release', 'scripts/repository-boundary'):
-              suite = unittest.TestLoader().discover(directory, pattern='test_*.py')
-              count = suite.countTestCases()
-              print(f'{directory}: collected {count} tests', flush=True)
-              if count == 0:
-                  raise SystemExit(f'Required suite collected no tests: {directory}')
-              if not unittest.TextTestRunner(stream=sys.stdout, verbosity=2).run(suite).wasSuccessful():
-                  raise SystemExit(1)
-          PYTHON
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" tooling-tests -- uv run --no-sync python scripts/ci/tooling_tests.py
       - name: Install Chromium for full browser-dependent tests
         id: browser-install
         if: steps.select.outputs.mode == 'full'

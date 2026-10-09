@@ -12,7 +12,10 @@ Run the tooling tests from the repository root:
 
 ```bash
 uv run --no-sync python -m unittest discover -s scripts/repository-boundary -p 'test_*.py'
+node --test scripts/repository-boundary/consumers/hosted-app/*.test.mjs
 ```
+
+Full validation runs both through `scripts/ci/tooling_tests.py`.
 
 ## Shared import and artifact checks
 
