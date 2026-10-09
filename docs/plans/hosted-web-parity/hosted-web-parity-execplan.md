@@ -1988,8 +1988,12 @@ GitHub runner before: on two vCPUs, after #377 made Pocket TTS warm on every Ani
 page, a navigation exceeded its 15-second bound. The unchanged harness also failed
 locally under `docker --cpus=2`, at other 15-second steps. Repair #395 admits new
 fixture owners with Text-to-Speech off and gives every browser step 45 seconds,
-replacing the earlier 15-second save deadline recorded above; it passes locally
-under two and one CPUs. A successful main run is still required before promotion.
+replacing the earlier 15-second save deadline recorded above. It also fixes the
+product defect the harness exposed (#396): the browser warmed Pocket TTS from the
+default preferences before the owner's settings were read, so every Anima page
+loaded Pocket even for owners who had turned speech off. The PR records the
+validated revision and local evidence. A successful main run is still required
+before promotion.
 
 ## Final integration review
 

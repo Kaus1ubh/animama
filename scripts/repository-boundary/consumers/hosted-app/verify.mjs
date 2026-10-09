@@ -459,6 +459,15 @@ try {
             measured.completedEncodedPageNetworkBytes - byteStart;
     }
     await page.screenshot({ path: "whole-app-avatar.png", fullPage: true });
+    assert.ok(
+        !server.calls.some(
+            (call) =>
+                call.method === "GET" &&
+                (call.path === workerPath(candidate) ||
+                    call.path.includes("/onnx/models/pocket-tts/")),
+        ),
+        "An owner with Text-to-Speech off loads no Pocket TTS before turning voice on",
+    );
     const voiceStart = Date.now(),
         callStart = server.calls.length;
     await voice("artifact-owner");

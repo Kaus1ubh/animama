@@ -202,7 +202,7 @@ export function useTtsPlayback(
   const logger = useMemo(() => createLogger("TTSPlayback"), []);
   const { masterMuted, ttsMuted, ttsVolume } = useSoundController();
   const effectiveTtsVolume = masterMuted || ttsMuted ? 0 : ttsVolume;
-  const { effectivePreferences, isLoading: settingsLoading } = useSettings();
+  const { effectivePreferences, settingsLoaded } = useSettings();
   const platform = useRuntimePlatform();
   const [isAudioActive, setIsAudioActive] = useState(false);
   const shouldStreamTtsChunks =
@@ -1528,7 +1528,7 @@ export function useTtsPlayback(
   useEffect(() => {
     if (
       !shouldPreparePocketTts(
-        settingsLoading,
+        settingsLoaded,
         effectivePreferences.speech?.tts_enabled,
         effectivePreferences.speech?.tts_provider,
       )
@@ -1541,7 +1541,7 @@ export function useTtsPlayback(
       });
     });
   }, [
-    settingsLoading,
+    settingsLoaded,
     effectivePreferences.speech?.tts_enabled,
     effectivePreferences.speech?.tts_provider,
     logger,
@@ -1551,7 +1551,7 @@ export function useTtsPlayback(
   useEffect(() => {
     if (
       !shouldPreparePocketTts(
-        settingsLoading,
+        settingsLoaded,
         effectivePreferences.speech?.tts_enabled,
         effectivePreferences.speech?.tts_provider,
       )
@@ -1582,7 +1582,7 @@ export function useTtsPlayback(
         });
       });
   }, [
-    settingsLoading,
+    settingsLoaded,
     effectivePreferences.speech?.tts_enabled,
     effectivePreferences.speech?.tts_provider,
     logger,
