@@ -88,9 +88,11 @@ App Settings opens over the active route without remounting the chat runtime.
 
 - Generated SDK methods come from `@animama/runtime-contracts/sdk`; their
   generated source lives under `src/frontend/packages/runtime-contracts/src/generated`.
-- API base URLs and browser flags come from `src/frontend/web/src/platform/env.ts`.
-- `configureAnimaApiClient.ts` uses `window.location.origin`; the local
-  request interceptor adds only the CSRF marker to mutating `/v1` requests.
+- Browser flags come from `src/frontend/web/src/platform/env.ts`.
+- API requests use the admitted session's client from `useProductApiClient()`,
+  built on the entrypoint's same-origin transport; there is no global default
+  client. The local request interceptor adds only the CSRF marker to mutating
+  `/v1` requests.
 - TanStack Query state uses `src/frontend/web/src/query/keys.ts` and the hooks
   under `query/hooks` and `query/mutations`.
 - Runtime-local state that is not server state lives in Zustand stores under

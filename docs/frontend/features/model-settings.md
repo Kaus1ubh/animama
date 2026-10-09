@@ -1,11 +1,16 @@
 # Model settings
 
-App Settings → Models lets the installation owner connect model servers, add
-their models and choose the default model for each job. It appears only when
-`GET /v1/runtime-capabilities` reports `model_configuration: true` (desktop and
-self-hosted web); other compositions keep a fixed catalog. Running Ollama, LM
-Studio, llama.cpp or vLLM, their context windows and reaching them from Docker
-Compose are covered in [Local model servers](../../backend/operations/local-models.md).
+App Settings → Models lets the owner connect model servers, add their models
+and choose the default model for each job. Each part follows its own admitted
+runtime capability (`modelSettingsAvailability` in
+`model-configuration-state.ts`): connections and their models need
+`model_configuration: true` (desktop and self-hosted web), the default models
+need `model_role_selection: true` (hosted runtimes offer these over the
+operator's fixed catalog) and the search service needs
+`web_search.configuration: true`. The section appears when any part does.
+Running Ollama, LM Studio, llama.cpp or vLLM, their context windows and reaching
+them from Docker Compose are covered in
+[Local model servers](../../backend/operations/local-models.md).
 
 Code: `web/src/ui/settings/models/`, hooks in
 `web/src/query/hooks/useModelConfiguration.ts` and mutations in
