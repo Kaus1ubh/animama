@@ -10,7 +10,13 @@ from typing import Literal, Protocol
 from animama.domain.usage import Usage
 
 from .limits import ModelCallLimits
-from .types import ModelClient, ModelClientDelta, ModelClientRequest, ModelClientTimeoutError
+from .types import (
+    ModelClient,
+    ModelClientDelta,
+    ModelClientRequest,
+    ModelClientTimeoutError,
+    uses_native_context_compaction,
+)
 
 # Error code for an admitted call that exceeded its absolute provider deadline.
 DEADLINE_CODE = "model_deadline_exceeded"
@@ -65,6 +71,12 @@ class AccountedModelClient:
     def __init__(self, client: ModelClient, boundary: ModelCallBoundary) -> None:
         self._client = client
         self._boundary = boundary
+
+    @property
+    def native_context_compaction(self) -> bool:
+        """Admission bounds a request but never compacts it; report the wrapped client."""
+
+        return uses_native_context_compaction(self._client)
 
     async def stream(self, request: ModelClientRequest) -> AsyncGenerator[ModelClientDelta, None]:
         call = await self._boundary.admit(request)

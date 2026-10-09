@@ -59,10 +59,12 @@ from animama.app.model_clients import (
     ModelClientProviderOptions,
     ModelClientRequest,
     StaticModelClientRegistry,
+    uses_native_context_compaction,
 )
 from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.model_connection_presets import MODEL_CONNECTION_PRESETS
 from animama.domain import ModelConnection, ModelProvider, ModelProviderCapabilities
+from animama.server.config import settings
 from animama.server.model_clients import build_model_client_registry
 
 
@@ -1711,6 +1713,24 @@ async def test_openai_responses_client_can_disable_native_compaction_payload() -
     )
 
     assert "context_management" not in fake_openai.response_create_calls[0]
+
+
+@pytest.mark.parametrize(("threshold", "native"), [(10_000, True), (0, False), (-1, False), (None, False)])
+def test_responses_client_reports_native_compaction_only_when_requests_carry_it(
+    threshold: int | None, native: bool
+) -> None:
+    # Without native compaction the direct-chat executor fits prompts to the row's window.
+    responses = OpenAIResponsesModelClient(api_key="sk-test", compaction_threshold_tokens=threshold)
+    registry = build_model_client_registry(
+        app_settings=settings.model_copy(
+            update={"anima_openai_responses_compaction_threshold_tokens": threshold if threshold is not None else 0}
+        ),
+        credential_resolver=static_credential_resolver(),
+    )
+
+    assert uses_native_context_compaction(responses) is native
+    assert uses_native_context_compaction(registry.get(OPENAI_RESPONSES_HTTP_PROVIDER_TYPE)) is native
+    assert uses_native_context_compaction(registry.get(OPENAI_HTTP_PROVIDER_TYPE)) is False
 
 
 @pytest.mark.asyncio

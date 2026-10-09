@@ -308,6 +308,20 @@ class ModelClientWithComplete(ModelClient, Protocol):
         raise NotImplementedError
 
 
+def uses_native_context_compaction(client: object) -> bool:
+    """Return whether ``client`` asks its provider to compact long prompts itself.
+
+    Such a client (OpenAI Responses with a compaction threshold) keeps prompts
+    within the model's window on the provider side. For every other client the
+    application fits prompts to the row's context window. Clients opt in with a
+    ``native_context_compaction`` property that is ``True``; wrappers forward
+    the wrapped client's value. The capability is optional, so it is not part
+    of the runtime-checkable ``ModelClient`` protocol.
+    """
+
+    return getattr(client, "native_context_compaction", False) is True
+
+
 class ModelClientRegistry(Protocol):
     """Resolve shared model clients by persisted provider type."""
 
@@ -358,4 +372,5 @@ __all__ = [
     "ModelClientWithComplete",
     "StaticModelClientRegistry",
     "model_client_event_delta",
+    "uses_native_context_compaction",
 ]
