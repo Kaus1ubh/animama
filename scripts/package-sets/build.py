@@ -336,15 +336,13 @@ def git_version(command):
     return subprocess.check_output([command, "--version"], text=True).strip()
 
 
-def validate(directory, work, previous_app_set=None, offline=False, pnpm_store=None, legacy_app_set=None):
+def validate(directory, work, previous_app_set=None, offline=False, pnpm_store=None):
     """Record only checks actually run against the exact finished set."""
     m = verify(directory)
     checker = TOOL_ROOT / "scripts/repository-boundary/check-packed-artifacts.py"
     command = [sys.executable, str(checker), str(directory), "--work-dir", str(work)]
     if previous_app_set:
         command.extend(["--previous-app-set", str(previous_app_set)])
-    if legacy_app_set:
-        command.extend(["--legacy-app-set", str(legacy_app_set)])
     if offline:
         command.append("--offline")
     if pnpm_store:
@@ -401,7 +399,6 @@ def main():
     v.add_argument("directory", type=Path)
     v.add_argument("--work-dir", type=Path, required=True)
     v.add_argument("--previous-app-set", type=Path)
-    v.add_argument("--legacy-app-set", type=Path)
     v.add_argument("--offline", action="store_true")
     v.add_argument("--pnpm-store", type=Path)
     c = sub.add_parser("compare")
@@ -414,7 +411,7 @@ def main():
         elif a.command == "validate":
             print(
                 json.dumps(
-                    validate(a.directory, a.work_dir, a.previous_app_set, a.offline, a.pnpm_store, a.legacy_app_set)
+                    validate(a.directory, a.work_dir, a.previous_app_set, a.offline, a.pnpm_store)
                 )
             )
         else:

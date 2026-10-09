@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { parseAnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { POSE_CREATOR_CLIP_VALIDATION_OPTIONS } from "@/stores/pose-creator-store";
 import { createPoseCreatorClipDraftFromAnimaPoseClip } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import { createActionDocument } from "./actionDocument";
@@ -24,7 +24,7 @@ const metadata = {
 };
 
 const clip = {
-  schema: "animaPoseClip/1.0",
+  schema: "animaPoseClip/2.0",
   id: "wave",
   name: "Wave",
   role: "motion",
@@ -33,14 +33,16 @@ const clip = {
   playback: {
     lifetime: { kind: "whileInteractionPhase", phases: ["talking"] },
   },
-  poses: {
-    a: { expressions: { happy: 0 } },
-    b: { expressions: { happy: 1 } },
-  },
-  poseKeyframes: [
-    { time: 0, pose: "a" },
-    { time: 1, pose: "b" },
+  beats: [
+    { id: "a", label: "A", time: 0 },
+    { id: "b", label: "B", time: 1 },
   ],
+  expressions: {
+    happy: [
+      { beat: "a", v: 0 },
+      { beat: "b", v: 1 },
+    ],
+  },
 };
 
 const draftOf = (value: unknown) =>
@@ -74,7 +76,7 @@ describe("hosted artifact clip round-trip compatibility", () => {
     );
     if (reopened.kind !== "project")
       throw new Error("Expected a project import");
-    expect(parseAnyAnimaPoseClip(reopened.project.sequence)).toMatchObject(
+    expect(parseAnimaPoseClip(reopened.project.sequence)).toMatchObject(
       metadata,
     );
     expect(reopened.project.sequence?.schema).toBe("animaPoseClip/2.0");
@@ -91,8 +93,8 @@ describe("hosted artifact clip round-trip compatibility", () => {
   it("retains opaque metadata when saving a playable effect-only timeline", () => {
     const effectOnly = {
       ...clip,
-      poses: {},
-      poseKeyframes: [],
+      beats: [],
+      expressions: {},
       events: [
         {
           id: "sparkles",

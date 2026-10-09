@@ -160,9 +160,7 @@ export function createClipApi(reply, applicationDirectory, expectedSchema) {
                 const selectedSchema = expectedSchema();
                 if (
                     bytes.length > MAX_CLIP ||
-                    !["animaPoseClip/1.0", "animaPoseClip/2.0"].includes(
-                        selectedSchema,
-                    ) ||
+                    selectedSchema !== "animaPoseClip/2.0" ||
                     JSON.parse(bytes).schema !== selectedSchema
                 )
                     throw new Error("Invalid or oversized clip companion");

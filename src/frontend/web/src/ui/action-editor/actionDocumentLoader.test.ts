@@ -374,12 +374,12 @@ describe("owned action reopening", () => {
     "uses the runtime clip byte bound when reopening a %s-byte sequence",
     async (size) => {
       const sequence = JSON.stringify({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "saved-reaction",
         name: "Saved Reaction",
         duration: 1,
-        poses: { smile: { expressions: { happy: 1 } } },
-        poseKeyframes: [{ time: 0, pose: "smile" }],
+        beats: [{ id: "smile", label: "Smile", time: 0 }],
+        expressions: { happy: [{ beat: "smile", v: 1 }] },
       });
       vi.stubGlobal(
         "fetch",
@@ -403,7 +403,7 @@ describe("owned action reopening", () => {
         await expect(reopened).rejects.toThrow(/too large|exceeds|size/i);
       } else {
         await expect(reopened).resolves.toMatchObject({
-          sequence: { schema: "animaPoseClip/1.0" },
+          sequence: { schema: "animaPoseClip/2.0" },
         });
       }
     },
