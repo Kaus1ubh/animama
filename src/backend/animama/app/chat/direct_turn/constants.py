@@ -12,6 +12,11 @@ MOCK_MODEL_PROVIDER = "MockModelClient"
 # Requested through `native_tools`; hosted by OpenAI Responses or Anthropic, otherwise the application tool.
 WEB_SEARCH_NATIVE_TOOL = "web_search"
 
+# Providers whose server compacts long chats (OpenAI Responses and Anthropic
+# Messages): the application neither fits their prompts to the window nor runs
+# its own compaction for them.
+NATIVE_COMPACTION_PROVIDERS = frozenset({OPENAI_RESPONSES_PROVIDER, ANTHROPIC_MESSAGES_PROVIDER})
+
 DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER = frozenset(
     {
         OPENAI_RESPONSES_PROVIDER,

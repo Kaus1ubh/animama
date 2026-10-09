@@ -20,8 +20,10 @@ from animama.app.model_clients import (
     model_client_event_delta,
     model_client_preview_log_context,
     model_client_request_log_context,
+    model_client_run_status_delta,
 )
 from animama.app.model_clients.credentials import ModelCredentialResolver, connection_for_model_provider
+from animama.domain.events import RunStatusKind
 from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID
 from animama.logging import get_logger
 
@@ -37,9 +39,20 @@ from .events import (
     events_from_stream_event,
     public_text_delta,
 )
-from .final import STOP_REASON_REFUSAL, message_final_parts
+from .final import (
+    STOP_REASON_PAUSE_TURN,
+    STOP_REASON_REFUSAL,
+    AnthropicResponse,
+    content_block_param,
+    message_final_parts,
+)
 from .probe import AnthropicClientFactory
-from .request import continuation_with_round, messages_request_params
+from .request import (
+    continuation_rounds,
+    continuation_with_round,
+    messages_request_params,
+    messages_with_paused_content,
+)
 from .support import (
     ANTHROPIC_API,
     ANTHROPIC_CONNECTION_UNSUPPORTED_CODE,
@@ -51,9 +64,12 @@ from .support import (
 
 _log = get_logger("adapters.model_clients.anthropic_messages.client")
 
+MAX_PAUSE_TURN_CONTINUATIONS = 3
+"""Resends after ``stop_reason: pause_turn`` before the round ends with what it has."""
+
 
 class AnthropicMessagesModelClient:
-    """Provider-neutral model client backed by ``client.messages.stream``.
+    """Provider-neutral model client backed by the beta ``client.beta.messages.stream``.
 
     It serves only the built-in ``anthropic`` connection, with only that
     connection's ``ANTHROPIC_API_KEY``, resolved once per stream so a retry
@@ -75,12 +91,16 @@ class AnthropicMessagesModelClient:
         self._clients: dict[tuple[str, float | None], Any] = {}
 
     async def stream(self, spec: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
-        """Stream one Messages request as provider-neutral deltas.
+        """Stream one round of a turn as provider-neutral deltas.
 
         Text deltas from text blocks are public reply text; thinking never is.
-        The final carries the turn's content blocks as a continuation when the
-        model called tools, so the next round resends them unchanged. A
-        refusal raises ``model_refused`` after any text already streamed.
+        Server-side web searches and compactions are reported as run statuses.
+        A round that pauses (``pause_turn``, during server-side search) is
+        resumed by resending its content unchanged, at most three times. The
+        final carries the round's content blocks as a continuation when the
+        model called tools, so the next round resends them unchanged, and the
+        turn's latest compaction block as its replay prefix. A refusal raises
+        ``model_refused`` after any text already streamed.
         """
 
         model = spec.model_provider.model
@@ -110,18 +130,31 @@ class AnthropicMessagesModelClient:
         metadata: dict[str, Any] = {"provider": ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE, "api": ANTHROPIC_API}
         request_started_at = time.monotonic()
         attempt = 0
+        text_seen = False
+        # Started statuses not yet finished, finished before a retry and before
+        # the final so each started status is followed by finished.
+        open_statuses: list[RunStatusKind] = []
+        # This round's responses: the first, then each pause_turn continuation.
+        responses: list[AnthropicResponse] = []
+        paused_content: list[dict[str, Any]] = []
         while True:
             state = AnthropicStreamState()
-            text_seen = False
+            request_params = (
+                {**params, "messages": messages_with_paused_content(params["messages"], paused_content)}
+                if paused_content
+                else params
+            )
             try:
                 _log.info(
                     "Anthropic Messages stream request started",
                     **model_client_request_log_context(spec, include_prompt_preview=True),
                     attempt=attempt,
+                    pause_turn_continuation=len(responses),
                 )
-                async with client.messages.stream(**params) as stream:
+                async with client.beta.messages.stream(**request_params) as stream:
                     async for event in stream:
                         for delta in events_from_stream_event(event, model=model, state=state):
+                            _track_run_status(open_statuses, delta)
                             yield delta
                         text = public_text_delta(event, state)
                         if text is not None:
@@ -140,6 +173,8 @@ class AnthropicMessagesModelClient:
                         code=info.code,
                         status_code=info.metadata.get("status_code"),
                     )
+                    for delta in _finish_run_statuses(open_statuses):
+                        yield delta
                     attempt += 1
                     await sleep_before_anthropic_retry(info)
                     continue
@@ -153,26 +188,40 @@ class AnthropicMessagesModelClient:
                     elapsed_ms=elapsed_ms(request_started_at),
                 )
                 raise model_client_error_from_anthropic_info(info) from exc
-            break
 
-        if message is None:
-            # The stream closed without message_stop: never persist partial output.
-            yield model_client_event_delta(
-                MCTerminalIncompleteEvent(
-                    provider_type=ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE,
-                    api=ANTHROPIC_API,
-                    model=model,
-                    provider_event_type="message.stream_eof",
-                    response_id=state.message_id,
-                    status="incomplete",
+            if message is None:
+                # The stream closed without message_stop: never persist partial output.
+                yield model_client_event_delta(
+                    MCTerminalIncompleteEvent(
+                        provider_type=ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE,
+                        api=ANTHROPIC_API,
+                        model=model,
+                        provider_event_type="message.stream_eof",
+                        response_id=state.message_id,
+                        status="incomplete",
+                    )
                 )
+                raise ModelClientProviderError(
+                    "Anthropic stream ended before the message completed",
+                    code=ANTHROPIC_STREAM_INCOMPLETE_CODE,
+                    raw_metadata={**metadata, "model": model, "message_id": state.message_id},
+                )
+            responses.append(AnthropicResponse(message=message, stream_iterations=list(state.iterations)))
+            if state.stop_reason != STOP_REASON_PAUSE_TURN or len(responses) > MAX_PAUSE_TURN_CONTINUATIONS:
+                break
+            # The server paused a long server-tool turn: send its content back
+            # unchanged and it resumes where it stopped (no extra user message).
+            paused_content.extend(content_block_param(block) for block in message.content or ())
+            _log.info(
+                "Anthropic Messages turn paused; resuming",
+                **model_client_request_log_context(spec),
+                pause_turn_continuation=len(responses),
+                message_id=state.message_id,
             )
-            raise ModelClientProviderError(
-                "Anthropic stream ended before the message completed",
-                code=ANTHROPIC_STREAM_INCOMPLETE_CODE,
-                raw_metadata={**metadata, "model": model, "message_id": state.message_id},
-            )
-        parts = message_final_parts(message, stream_iterations=state.iterations)
+
+        for delta in _finish_run_statuses(open_statuses):
+            yield delta
+        parts = message_final_parts(responses, earlier_rounds=continuation_rounds(spec.continuation))
         metadata.update(parts.metadata)
         _log.info(
             "Anthropic Messages stream completed",
@@ -180,11 +229,13 @@ class AnthropicMessagesModelClient:
             attempt=attempt,
             message_id=parts.metadata.get("message_id"),
             stop_reason=parts.stop_reason,
+            pause_turn_continuations=len(responses) - 1,
             final_text_length=len(parts.text),
             tool_call_count=len(parts.tool_calls),
             input_tokens=parts.usage.input_tokens,
             cached_input_tokens=parts.usage.input_tokens_details.cached_tokens,
             output_tokens=parts.usage.output_tokens,
+            compacted=bool(parts.replay_prefix),
             elapsed_ms=elapsed_ms(request_started_at),
             **model_client_preview_log_context(final_text_preview=parts.text),
         )
@@ -212,6 +263,7 @@ class AnthropicMessagesModelClient:
                 continuation=(
                     continuation_with_round(spec.continuation, parts.content, model=model) if parts.tool_calls else None
                 ),
+                replay_prefix=parts.replay_prefix,
             ),
         )
         yield ModelClientDelta(kind="done")
@@ -233,4 +285,22 @@ class AnthropicMessagesModelClient:
         return client
 
 
-__all__ = ["ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE", "AnthropicMessagesModelClient"]
+def _track_run_status(open_statuses: list[RunStatusKind], delta: ModelClientDelta) -> None:
+    status = delta.run_status
+    if status is None:
+        return
+    if status.phase == "started":
+        open_statuses.append(status.status)
+    elif status.status in open_statuses:
+        open_statuses.remove(status.status)
+
+
+def _finish_run_statuses(open_statuses: list[RunStatusKind]) -> list[ModelClientDelta]:
+    """Return ``finished`` deltas for statuses left open (a retried or truncated stream)."""
+
+    finished = [model_client_run_status_delta(status, "finished") for status in reversed(open_statuses)]
+    open_statuses.clear()
+    return finished
+
+
+__all__ = ["ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE", "MAX_PAUSE_TURN_CONTINUATIONS", "AnthropicMessagesModelClient"]

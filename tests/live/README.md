@@ -84,10 +84,17 @@ ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.en
 ```
 
 `test_anthropic_direct_turn.py` runs `DirectChatTurnExecutor` with the real
-Anthropic adapter against Claude Haiku 5.5: one structured turn, one
-memory-tool round, and a next turn rebuilt from the stored rows. Memory tools
-and chat storage are the offline fakes. It needs only `ANTHROPIC_API_KEY` and
-costs well under US$0.01.
+Anthropic adapter against Claude Haiku 5.5:
+
+- one structured turn;
+- one memory-tool round, and a next turn rebuilt from the stored rows;
+- a turn that searches the web with Anthropic's server tool;
+- a turn that compacts on the server at the 50,000-token minimum trigger, and
+  a next turn replayed from the stored compaction block.
+
+Memory tools and chat storage are the offline fakes. It needs only
+`ANTHROPIC_API_KEY`. A full run costs under US$0.05: one or two web searches,
+billed per search, and one compaction request of about 60,000 tokens.
 
 ## Manual OpenAI Stream Metadata Smoke
 

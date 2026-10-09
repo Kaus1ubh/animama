@@ -53,7 +53,7 @@ from .anthropic_instructions import INSTRUCTION_STYLE_ANTHROPIC, INSTRUCTION_STY
 from .api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, chat_api_standard_for_provider
 from .direct_turn.constants import (
     DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
-    OPENAI_RESPONSES_PROVIDER,
+    NATIVE_COMPACTION_PROVIDERS,
     STRUCTURED_REPAIR_METADATA_KEY,
 )
 from .direct_turn.context_fit import drop_oldest_history, fit_history
@@ -489,7 +489,12 @@ class DirectChatTurnExecutor:
         chat_context = None
         compiled_history: list[Any] = []
         if not skip_context_fetch:
-            chat_context = await chat_manager.get_chat_context(chat_id=request.chat_id)
+            # Anthropic chats replay from their newest server-side compaction
+            # block instead of the application's compaction summary.
+            chat_context = await chat_manager.get_chat_context(
+                chat_id=request.chat_id,
+                native_compaction=model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+            )
             compiled_history = compiled_context_history(chat_context)
         _log.info(
             "Direct chat history context prepared",
@@ -604,7 +609,16 @@ class DirectChatTurnExecutor:
             for event in stream_emitter.feed_text_delta(round_index, text):
                 await early_event_queue.put(event)
 
+        # Statuses still open when the turn's model work ends (a failed or
+        # retried provider stream) are finished then, so each started status
+        # is followed by finished.
+        open_statuses: list[RunStatusKind] = []
+
         async def on_run_status(status: RunStatusKind, phase: str) -> None:
+            if phase == "started":
+                open_statuses.append(status)
+            elif status in open_statuses:
+                open_statuses.remove(status)
             await early_event_queue.put(self._run_status_event(prepared.request, status, phase))
 
         # The collector asks `needs_repair` about the turn's final reply before
@@ -656,6 +670,10 @@ class DirectChatTurnExecutor:
                     shrink_request=shrink_request if context_budget is not None else None,
                 )
             finally:
+                while open_statuses:
+                    await early_event_queue.put(
+                        self._run_status_event(prepared.request, open_statuses.pop(), "finished")
+                    )
                 await early_event_queue.put(None)
 
         collector_task = asyncio.create_task(
@@ -931,14 +949,19 @@ class DirectChatTurnExecutor:
         """Return whether this turn offers the application ``web_search`` tool.
 
         Requested web search that the provider does not host uses the
-        configured backend on a model that calls tools. Otherwise the turn runs
+        configured backend on a model that calls tools, except on Anthropic
+        rows, which use only Anthropic's server tool. Otherwise the turn runs
         without search and logs why, instead of failing.
         """
 
         if not wants_application_web_search(model_provider, request.options):
             return False
         reason = None
-        if self._web_search_tool is None:
+        if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+            # Anthropic rows search only with Anthropic's own server tool (D7);
+            # a row without it runs the turn without search.
+            reason = "provider_without_native_web_search"
+        elif self._web_search_tool is None:
             reason = "no_backend"
         elif not model_provider.capabilities.supports_tools:
             reason = "model_without_tools"
@@ -963,11 +986,12 @@ class DirectChatTurnExecutor:
     def _context_budget(self, prepared: PreparedDirectChatTurn) -> ContextBudget | None:
         """Return the window budget for models the application must keep within it.
 
-        OpenAI Responses compacts natively; rows without a window are not bounded.
+        OpenAI Responses and Anthropic Messages compact natively on the server;
+        rows without a window are not bounded.
         """
 
         model_provider = prepared.model_request.model_provider
-        if model_provider.provider_type == OPENAI_RESPONSES_PROVIDER or not prepared.context_loaded:
+        if model_provider.provider_type in NATIVE_COMPACTION_PROVIDERS or not prepared.context_loaded:
             return None
         return context_budget_for_model(model_provider)
 

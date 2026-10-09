@@ -47,12 +47,14 @@ from .types import (
     ModelClientProviderOptions,
     ModelClientRegistry,
     ModelClientRequest,
+    ModelClientRunStatus,
     ModelClientTimeoutError,
     ModelClientToolCall,
     ModelClientToolResult,
     ModelClientWithComplete,
     StaticModelClientRegistry,
     model_client_event_delta,
+    model_client_run_status_delta,
 )
 
 __all__ = [
@@ -80,6 +82,7 @@ __all__ = [
     "ModelClientProviderOptions",
     "ModelClientRequest",
     "ModelClientRegistry",
+    "ModelClientRunStatus",
     "ModelClientStreamEventObserver",
     "ModelClientTimeoutError",
     "ModelClientToolCall",
@@ -104,5 +107,6 @@ __all__ = [
     "model_client_preview_log_context",
     "model_client_event_delta",
     "model_client_request_log_context",
+    "model_client_run_status_delta",
     "sanitize_model_client_stream_event",
 ]

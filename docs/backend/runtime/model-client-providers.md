@@ -286,18 +286,45 @@ observations rather than app-executed calls.
 
 ## Anthropic Messages
 
-`AnthropicMessagesModelClient` streams with `client.messages.stream` and
-JSON-shaped parameters built in `anthropic_messages/request.py`:
+`AnthropicMessagesModelClient` streams with the beta
+`client.beta.messages.stream` (beta `compact-2026-01-12`) and JSON-shaped
+parameters built in `anthropic_messages/request.py`:
 
 - **Positions.** The stable instructions are one `system` block; history and
   the user's new message follow; the turn context is a mid-conversation
-  `system` message after the user turn. `cache_control` marks the system block
-  and the last history block. See
+  `system` message after the user turn. `cache_control` marks the system block,
+  a replayed compaction block and the last history block. See
   [turn layout](prompt-caching.md#turn-layout).
 - **Tools and output.** Memory tools become strict tools
   (`input_schema` converted by `anthropic_strict_schema`) with
   `tool_choice: {type: auto, disable_parallel_tool_use: true}`; the reply
   schema goes in `output_config.format`.
+- **Web search.** When the turn asks for web search and the row lists
+  `web_search` in its native tools, the request adds Anthropic's server tool
+  `{type: web_search_20250305, name: web_search, max_uses: 5,
+  allowed_callers: [direct]}`. Anthropic runs the searches and bills each one
+  to the owner's Anthropic account. Anthropic rows never get the
+  [application web search](#application-web-search) tool. The stream reports
+  `run.status` `searching_web` from a search's `server_tool_use` block to its
+  result block. A result whose content is an error object (such as
+  `max_uses_exceeded`) does not fail the turn.
+- **Paused turns.** `stop_reason: pause_turn` (a long server-side search
+  loop) is resumed by resending the round's content unchanged as the last
+  assistant message, at most three times. The round's content, text and
+  summed usage span every resumed response; after the third resend the round
+  ends with what it has.
+- **Compaction.** Every request sends `context_management.edits`
+  `[{type: compact_20260112, trigger: {type: input_tokens, value: T},
+  pause_after_compaction: false}]`. `T` is 150,000 (Anthropic's default),
+  except on rows with a long-context price threshold whose owner left
+  **Compact early** on: there `T` is 90% of the threshold, at least 50,000
+  (90,000 for Claude Haiku 5.5). The stream reports `run.status`
+  `summarizing_context` while the compaction block streams, and the reply
+  continues from the summary. Usage sums every `usage.iterations` entry, so
+  billing includes the compaction step. The provider metadata's
+  `context_tokens` is the last iteration's footprint, which becomes
+  `chats.active_context_tokens`. Application pre-send fitting and
+  post-response compaction never run for Anthropic chats.
 - **Effort.** `none` sends `thinking: {type: disabled}` and no effort. Any
   other effort leaves adaptive thinking on and sets `output_config.effort`.
   Without a choice, chat requests use `medium` when the row offers it
@@ -306,13 +333,20 @@ JSON-shaped parameters built in `anthropic_messages/request.py`:
   request (thinking included). Requests never carry sampling parameters or an
   assistant prefill.
 - **Rounds.** After tool calls the final carries the round's content blocks
-  (signed thinking, text and `tool_use`) as a request-local continuation, and
-  the next round resends them unchanged with the `tool_result` user turn.
-  Forced-final and repair rounds keep the tools with `tool_choice: {type:
-  none}` and put their instruction, ending with the guardrails, in a user turn.
+  (a compaction block, signed thinking, text, web-search blocks and
+  `tool_use`) as a request-local continuation, and the next round resends them
+  unchanged with the `tool_result` user turn. Forced-final and repair rounds
+  keep the tools with `tool_choice: {type: none}` and put their instruction,
+  ending with the guardrails, in a user turn.
 - **Replay.** History alternates roles, merging same-role neighbours. Stored
   memory-tool exchanges replay as `tool_use`/`tool_result` blocks; thinking
-  blocks and earlier turns' context messages are never replayed.
+  blocks, web-search blocks and earlier turns' context messages are never
+  replayed. After a compaction, history starts at the newest assistant row
+  whose stored content begins with a compaction block, however many rows
+  back, and includes every later row
+  (`ChatManager.get_chat_context(native_compaction=True)`). The API ignores
+  content before that block, so older rows are not sent. Anthropic chats ignore
+  `chat_compactions` summaries.
 - **Stream.** Text deltas from text blocks are the only public text; thinking
   is never shown. A stream that closes before `message_stop` fails with
   `anthropic_stream_incomplete`.
@@ -563,9 +597,9 @@ it only when the connection's `send_openai_extensions` option is on.
 
 `native_tools` and `reasoning_effort` are request-scoped options validated
 against the selected catalog row. Current direct support includes the
-Responses-native `web_search` tool for catalog rows that advertise it; Chat
-Completions rows never advertise native web search and use the
-[application web search](#application-web-search) tool instead. The Responses
+Responses-native and Anthropic server-side `web_search` tools for catalog rows
+that advertise them; Chat Completions rows never advertise native web search
+and use the [application web search](#application-web-search) tool instead. The Responses
 adapter sends native web search with `search_context_size: "low"` by default. Anima
 memory tools are separate app-layer function tools, supported for
 `OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent`, `AnthropicMessagesHTTPAgent` and
@@ -597,8 +631,8 @@ of the model's context window, and 75% of the window left after the reply
 reserve. The last bound matters only for rows with a large reply reserve; it
 keeps this pass ahead of the 90% pre-send trigger. Each compaction rewrites
 the summary that heads the cached history, so the trigger is set high. Primary `chat:sse` turns that use
-`OpenAIResponsesHTTPAgent` skip the local pass and rely on Responses
-server-side compaction instead.
+`OpenAIResponsesHTTPAgent` or `AnthropicMessagesHTTPAgent` skip the local pass
+and rely on the provider's server-side compaction instead.
 
 ### Context window budget
 
@@ -643,6 +677,9 @@ passes keep a user message together with its reply.
 `native_tools: ["web_search"]` means "search the web" for any model:
 
 - A Responses row that advertises hosted `web_search` keeps hosted search.
+- An Anthropic row uses only Anthropic's server tool (see
+  [Anthropic Messages](#anthropic-messages)). A row without it runs the turn
+  without search (`provider_without_native_web_search`).
 - Otherwise, when the installation has a search backend and the row calls
   tools, the turn offers the application function tool `web_search(query)`
   (`app/web_search/`), also on turns without memory tools. The tool shares the
@@ -702,11 +739,23 @@ turns. Incognito turns may read memory context for model setup but do not update
 chat metadata.
 
 For `AnthropicMessagesHTTPAgent`, the final assistant row stores
-`raw_provider_message` as the reply's text block only (`{"role": "assistant",
-"content": [{"type": "text", ...}]}`) and `data.anthropic`: the message id,
-stop reason, refusal `stop_details` when present, usage (including any
-`iterations`) and the response's block types. Hidden tool rows store
-`anthropic_tool_use` and `anthropic_tool_result` items. Usage counts input as
+`raw_provider_message` as the turn's latest compaction block, when the server
+compacted, followed by the reply's text block (`{"role": "assistant",
+"content": [{"type": "compaction", ...}, {"type": "text", ...}]}`). It also
+stores `data.anthropic`:
+
+- the message id, stop reason and refusal `stop_details` when present;
+- this round's usage, including any `iterations` and `web_search_requests`;
+- the turn's billed searches across all rounds as top-level
+  `web_search_requests` (failed searches are not billed);
+- the response's block types and `pause_turn_continuations`;
+- the turn's searches as `native_tool_summaries` (query, then result titles
+  and URLs or an `error_code`);
+- text `citations` (URL, title and cited text).
+
+Sources are stored, not displayed, and encrypted search content is never
+stored. Hidden tool rows store `anthropic_tool_use` and
+`anthropic_tool_result` items. Usage counts input as
 uncached plus cache-read plus cache-write tokens, with cache reads as cached
 input and cache writes in `cache_write_tokens`; thinking tokens are reasoning
 tokens.

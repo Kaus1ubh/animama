@@ -771,7 +771,7 @@ async def test_direct_turn_emits_sse_compatible_events_and_persists_model_snapsh
     )
     assert frame is not None
     assert json.loads(frame.split("data: ", 1)[1])["text"] == "Hello there."
-    assert chats.context_calls == [{"chat_id": "chat-1"}]
+    assert chats.context_calls == [{"chat_id": "chat-1", "native_compaction": False}]
     spec = model_client.seen_specs[0]
     assert [(message["role"], message["content"]) for message in spec.prompt.messages] == [
         *_phase5_prefix(),

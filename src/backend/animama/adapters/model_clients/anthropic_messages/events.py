@@ -1,9 +1,14 @@
-"""Map raw Anthropic stream events to sanitized ``MC*`` observations.
+"""Map raw Anthropic stream events to sanitized ``MC*`` observations and run statuses.
 
 Observations carry identifiers, block types, lengths, stop reasons and usage,
-never text, thinking, tool input or signatures. The SDK stream helper also
-yields derived events (``text``, ``thinking``, ``input_json``, ``signature``,
-``citation``) that repeat the raw deltas; those are skipped.
+never text, thinking, tool input, search results, summaries or signatures. The
+SDK stream helper also yields derived events (``text``, ``thinking``,
+``input_json``, ``signature``, ``citation``, ``compaction``) that repeat the
+raw deltas; those are skipped.
+
+Server-side work is reported as run statuses: ``searching_web`` from a
+``web_search`` server-tool block's start to its result block's end, and
+``summarizing_context`` while a compaction block streams.
 """
 
 from __future__ import annotations
@@ -26,13 +31,18 @@ from animama.app.model_clients import (
     MCUsageEvent,
     ModelClientDelta,
     model_client_event_delta,
+    model_client_run_status_delta,
 )
 
 from .._common import get_value
 from .final import usage_from_anthropic, usage_iterations
 from .support import ANTHROPIC_API, ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE, clean_str
 
-_DERIVED_EVENT_TYPES = frozenset({"text", "thinking", "input_json", "signature", "citation"})
+_DERIVED_EVENT_TYPES = frozenset({"text", "thinking", "input_json", "signature", "citation", "compaction"})
+WEB_SEARCH_TOOL_NAME = "web_search"
+SERVER_TOOL_USE_BLOCK = "server_tool_use"
+WEB_SEARCH_RESULT_BLOCK = "web_search_tool_result"
+COMPACTION_BLOCK = "compaction"
 
 
 @dataclass(slots=True)
@@ -75,6 +85,7 @@ def events_from_stream_event(event: Any, *, model: str, state: AnthropicStreamSt
     index = get_value(event, "index")
     content_index = index if isinstance(index, int) else None
     observed: list[MCEvent] = []
+    statuses: list[ModelClientDelta] = []
     common: dict[str, Any] = {
         "provider_type": ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE,
         "api": ANTHROPIC_API,
@@ -120,6 +131,10 @@ def events_from_stream_event(event: Any, *, model: str, state: AnthropicStreamSt
                     item_type=block_type,
                 )
             )
+            if block_type == SERVER_TOOL_USE_BLOCK and get_value(block, "name") == WEB_SEARCH_TOOL_NAME:
+                statuses.append(model_client_run_status_delta("searching_web", "started"))
+            elif block_type == COMPACTION_BLOCK:
+                statuses.append(model_client_run_status_delta("summarizing_context", "started"))
     elif event_type == "content_block_delta":
         observed.extend(_delta_events(event, common=common, state=state, content_index=content_index))
     elif event_type == "content_block_stop":
@@ -149,6 +164,10 @@ def events_from_stream_event(event: Any, *, model: str, state: AnthropicStreamSt
                     item_type=block_type or None,
                 )
             )
+            if block_type == WEB_SEARCH_RESULT_BLOCK:
+                statuses.append(model_client_run_status_delta("searching_web", "finished"))
+            elif block_type == COMPACTION_BLOCK:
+                statuses.append(model_client_run_status_delta("summarizing_context", "finished"))
     elif event_type == "message_delta":
         state.stop_reason = clean_str(get_value(get_value(event, "delta"), "stop_reason")) or state.stop_reason
         usage = get_value(event, "usage")
@@ -174,7 +193,7 @@ def events_from_stream_event(event: Any, *, model: str, state: AnthropicStreamSt
         )
     else:
         observed.append(MCUnknownProviderEvent(**common, response_id=state.message_id, content_index=content_index))
-    return [model_client_event_delta(item) for item in observed]
+    return [*(model_client_event_delta(item) for item in observed), *statuses]
 
 
 def _delta_events(
@@ -214,7 +233,7 @@ def _delta_events(
                 status="in_progress",
             )
         ]
-    if delta_type in {"thinking_delta", "signature_delta", "citations_delta"}:
+    if delta_type in {"thinking_delta", "signature_delta", "citations_delta", "compaction_delta"}:
         return [
             MCResponseProgressEvent(
                 **detail,

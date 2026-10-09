@@ -90,7 +90,7 @@ Anthropic Messages the turn context after the user's words also ends with them.
 | Chat Completions with a developer role | system (stable instructions); developer (app compaction summary, when there is one); history; developer (turn context); user |
 | Chat Completions without a developer role (the row lacks the role, or its connection sets `fold_developer_role`) | system (stable instructions, a `# Turn Context` description of the block, the compaction summary, then the guardrails); history; user (a `<turn_context>` block holding the turn context, then the user's words) |
 | OpenAI Responses | `instructions` (stable instructions); input: developer item (turn context), user item |
-| Anthropic Messages | `system` (stable instructions, with an app compaction summary folded in before the closing guardrails); history; user; mid-conversation `system` message (turn context) |
+| Anthropic Messages | `system` (stable instructions); history, starting at the latest compaction block when the server has compacted; user; mid-conversation `system` message (turn context) |
 
 On Responses the chain lives in OpenAI server state (`previous_response_id`,
 `store: true`). With a cursor, a request sends only the new items. Each turn's
@@ -106,8 +106,13 @@ non-guardrail sections (`app/chat/anthropic_instructions.py`): the identity and
 `MEMORIES.md` are delimited with XML tags, the response guidance matches strict
 structured output, and a short `# Turn Context` section describes the trailing
 system message. The directives and the guardrails are the same on every path.
-The app compaction summary sits in the system prompt until native compaction
-replaces app compaction for Anthropic chats.
+
+Anthropic chats compact on Anthropic's server, never through app compaction.
+Every request sends threshold compaction (`compact_20260112`) with a trigger
+from the row; see [Anthropic Messages](model-client-providers.md#anthropic-messages).
+The compaction block is stored before the reply text and replayed at the head
+of later requests; the API ignores whatever precedes it, so earlier rows are
+not sent.
 
 ### Explicit breakpoints
 
@@ -128,7 +133,10 @@ other OpenAI-compatible servers never receive them. Anthropic uses its own
 - **Anthropic Messages:** `cache_control` on the system block and on the last
   replayed history block. The previous request wrote an entry at its own last
   history block, which this request finds within the 20-block lookback. Tools
-  render before the system block, so they share its entry.
+  render before the system block, so they share its entry. A replayed
+  compaction block carries a third breakpoint, because it heads every request
+  until the next compaction. That leaves one of Anthropic's four breakpoints
+  unused.
 
 ### Within a turn
 
@@ -146,10 +154,12 @@ other OpenAI-compatible servers never receive them. Anthropic uses its own
     after tool results. With no reply before it, the text joins the
     turn-context message.
 - On Anthropic, each round resends the earlier rounds' assistant content
-  exactly as returned (signed thinking, text and `tool_use`), carried in the
-  request-local continuation. Forced-final and repair rounds keep the turn's
-  tools and set `tool_choice` to `none`: changing the tool list would
-  invalidate the turn's thinking blocks and the whole cache.
+  exactly as returned (a compaction block, signed thinking, text, web-search
+  blocks and `tool_use`), carried in the request-local continuation. A round
+  that pauses during a server-side search resends its content the same way.
+  Forced-final and repair rounds keep the turn's tools and set `tool_choice`
+  to `none`: changing the tool list would invalidate the turn's thinking
+  blocks and the whole cache.
 
 ### Tag escaping
 
@@ -173,7 +183,7 @@ Anima, per chat, or per turn.
 | Memory and response guidance | per Anima | stable instructions | memory-write flags or the response format change |
 | Gesture list and response schema | per Anima | stable instructions (response guidance) and `response_format` | the Anima's loadout changes; the schema's `gesture` enum changes with it |
 | Companion Guardrails | per installation | end of the stable instructions, and end of the turn context | never ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)) |
-| Compaction summary | per chat | developer message after the system message, or the end of the system message before the guardrails (rows without a developer role, and Anthropic) | app compaction runs (Chat Completions and, until native compaction, Anthropic). The trigger is the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90,000), 70% of the context window, and 75% of the window left after the reply reserve. Each run misses the history cache once. |
+| Compaction summary | per chat | developer message after the system message, or the end of the system message before the guardrails (rows without a developer role); on Anthropic, a compaction block at the head of the history | app compaction runs (Chat Completions). The trigger is the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90,000), 70% of the context window, and 75% of the window left after the reply reserve. On Anthropic the server compacts when a request's input reaches the row's trigger. Each compaction misses the history cache once. |
 | History | per turn | after the stable instructions | every turn (append) |
 | Memory map (file paths and descriptions) | per installation | turn context | a memory file is added, removed, moved or re-described |
 | Attachment list | per turn | turn context | each turn that attaches files. The uploaded-file tools change with it. |

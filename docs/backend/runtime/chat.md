@@ -341,11 +341,14 @@ precedes every provider-derived frame of the turn. Clients render it as app UI,
 never as assistant text.
 
 `run.status` frames include `type="run.status"`, `run_id`, `status`
-(`summarizing_context` while earlier conversation is compacted before sending,
-`searching_web` while an application web search runs) and `phase`
-(`started`, then `finished`). Summarizing always precedes reply text; a search
-may follow text that streamed in an earlier tool round. Clients show a status
-only while the reply is pending and ignore unknown statuses.
+(`summarizing_context` while earlier conversation is compacted before sending
+or by Anthropic's server, `searching_web` while an application or
+Anthropic-hosted web search runs) and `phase` (`started`, then `finished`).
+Every `started` is followed by `finished`, including when the turn fails.
+Summarizing precedes the reply text of its request; a search, or an Anthropic
+compaction in a later tool round, may follow text that streamed in an earlier
+round. Clients show a status only while the reply is pending and ignore
+unknown statuses.
 
 `safety.crisis_support` frames include `type="safety.crisis_support"`,
 `run_id`, `source` (`local` or `moderation`), and `resources`, the resolved
@@ -386,7 +389,9 @@ unit of work. The parent chat's `active_context_tokens` is replaced with the
 latest turn's footprint in the next turn's context: its last request's total
 tokens minus output reasoning tokens. A turn with tool rounds or a split
 structured round sums every request in the message usage, so it records that
-footprint as `context_tokens` in the provider metadata. When a stream reports
+footprint as `context_tokens` in the provider metadata. An Anthropic request
+that compacted also bills the compaction step, so its `context_tokens` is
+the last iteration's footprint only. When a stream reports
 no usage, the Chat Completions adapter substitutes a character-based estimate
 marked `usage_estimated`, so the value still advances and post-response
 compaction can trigger. The same non-incognito update stores the last durable
@@ -427,8 +432,9 @@ generation.
 
 After a successful non-incognito response and before the normal
 `run.completed` frame, the route runs a hidden compaction check. OpenAI
-Responses turns skip it and rely on provider-side compaction; Chat Completions
-models also compact before sending when a prompt nears their window (see the
+Responses and Anthropic Messages turns skip it and rely on provider-side
+compaction; Chat Completions models also compact before sending when a prompt
+nears their window (see the
 [context window budget](model-client-providers.md#context-window-budget)). If
 `chats.active_context_tokens` is at or above
 the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90000), 70%
@@ -442,9 +448,11 @@ chat's `cum_*` counters. Active compaction summaries record `start_turn` and
 `end_turn`; the next prompt uses the summary as a `developer` continuity
 message directly after the system message and ahead of the exact visible
 messages with `turn > end_turn` when the selected provider serializes local
-context. Rows without a developer role, and Anthropic rows (which have no
-developer role on the wire), get it at the end of the system message, before
-the closing guardrails. If an OpenAI Responses turn continues from a
+context. Rows without a developer role get it at the end of the system
+message, before the closing guardrails. Anthropic chats ignore these
+summaries: their history starts at the newest stored compaction block (see
+[Anthropic Messages](model-client-providers.md#anthropic-messages)). If an
+OpenAI Responses turn continues from a
 chat-row `openai_previous_response_id`, the request sends only the turn context,
 the new user input and the cursor, so the active summary is not physically
 included in that provider payload.

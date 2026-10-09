@@ -228,7 +228,9 @@ def assistant_messages_for_persistence(
         final=final,
         model_provider=model_provider,
         usage=final.usage,
-        raw_provider_message=assistant_replay_message(content, model_provider=model_provider),
+        raw_provider_message=assistant_replay_message(
+            content, model_provider=model_provider, replay_prefix=final.replay_prefix
+        ),
         memory=memory,
         structured_recovery=structured_recovery,
     )
@@ -237,16 +239,23 @@ def assistant_messages_for_persistence(
     return assistant_msg
 
 
-def assistant_replay_message(content: str, *, model_provider: ModelProvider) -> dict[str, Any]:
+def assistant_replay_message(
+    content: str,
+    *,
+    model_provider: ModelProvider,
+    replay_prefix: tuple[Mapping[str, Any], ...] = (),
+) -> dict[str, Any]:
     """Return the provider-shaped assistant message replayed in later turns.
 
-    Anthropic rows store only the reply's text content block: thinking blocks
-    are never replayed across turns (D8), and the turn's context message is
-    rebuilt each turn rather than stored.
+    Anthropic rows store the turn's latest compaction block, when the server
+    compacted, then the reply's text content block. Thinking blocks and raw
+    web-search blocks are never replayed across turns (D8), and the turn's
+    context message is rebuilt each turn rather than stored.
     """
 
     if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER:
-        return {"role": "assistant", "content": [{"type": "text", "text": content}]}
+        prefix = [json_safe_copy(block) for block in replay_prefix]
+        return {"role": "assistant", "content": [*prefix, {"type": "text", "text": content}]}
     return {"role": "assistant", "content": content}
 
 

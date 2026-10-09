@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
+from animama.domain.events import RunStatusKind, RunStatusPhase
 from animama.domain.model_provider import ModelProvider
 from animama.domain.usage import Usage
 
@@ -120,6 +121,11 @@ class ModelClientFinal:
     after tool calls (Anthropic carries the turn's assistant content blocks,
     including signed thinking, so they are resent unchanged). It is never
     persisted.
+
+    ``replay_prefix`` holds provider content blocks that later turns must
+    replay before the reply text, persisted with the assistant row: the
+    turn's latest Anthropic compaction block, which carries the summary of
+    everything before it.
     """
 
     text: str
@@ -129,9 +135,15 @@ class ModelClientFinal:
     tool_calls: tuple[ModelClientToolCall, ...] = ()
     input_moderation: ModelClientModeration | None = None
     continuation: ModelClientContinuation | None = None
+    replay_prefix: tuple[Mapping[str, Any], ...] = ()
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "raw_provider_metadata", _frozen_mapping(self.raw_provider_metadata))
+        object.__setattr__(
+            self,
+            "replay_prefix",
+            tuple(_frozen_mapping(block) for block in self.replay_prefix if isinstance(block, Mapping)),
+        )
         structured = None if self.structured_payload is None else _frozen_mapping(self.structured_payload)
         object.__setattr__(self, "structured_payload", structured)
         object.__setattr__(
@@ -142,11 +154,25 @@ class ModelClientFinal:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelClientRunStatus:
+    """Provider-side work shown while the reply is pending.
+
+    ``searching_web`` covers a provider-hosted web search and
+    ``summarizing_context`` a provider-side compaction. Each ``started`` is
+    followed by ``finished``.
+    """
+
+    status: RunStatusKind
+    phase: RunStatusPhase
+
+
+@dataclass(frozen=True, slots=True)
 class ModelClientDelta:
     """Streaming item emitted by a provider-neutral model client.
 
     `text_delta` carries public assistant text, `event` carries sanitized
-    provider observations for logs/metadata, `final` carries the authoritative
+    provider observations for logs/metadata, `run_status` carries provider-side
+    work to show while the reply is pending, `final` carries the authoritative
     assistant output, and `error` carries stream-level provider failure.
     """
 
@@ -155,6 +181,7 @@ class ModelClientDelta:
     final: ModelClientFinal | None = None
     error: str | None = None
     stream_event: MCEvent | None = None
+    run_status: ModelClientRunStatus | None = None
     raw_metadata: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
 
     def __post_init__(self) -> None:
@@ -165,6 +192,12 @@ def model_client_event_delta(event: MCEvent) -> ModelClientDelta:
     """Build a streaming delta for an ordered provider observation."""
 
     return ModelClientDelta(kind="event", stream_event=event)
+
+
+def model_client_run_status_delta(status: RunStatusKind, phase: RunStatusPhase) -> ModelClientDelta:
+    """Build a streaming delta reporting provider-side work (a hosted search or compaction)."""
+
+    return ModelClientDelta(kind="run_status", run_status=ModelClientRunStatus(status=status, phase=phase))
 
 
 class ModelClientError(Exception):
@@ -360,10 +393,12 @@ __all__ = [
     "ModelClientProviderOptions",
     "ModelClientRequest",
     "ModelClientRegistry",
+    "ModelClientRunStatus",
     "ModelClientTimeoutError",
     "ModelClientToolCall",
     "ModelClientToolResult",
     "ModelClientWithComplete",
     "StaticModelClientRegistry",
     "model_client_event_delta",
+    "model_client_run_status_delta",
 ]

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from animama.app.util.json_values import json_safe_copy
@@ -285,15 +285,7 @@ class ModelClientStreamEventObserver:
                 provider_type=model_request.model_provider.provider_type,
                 model=model_request.model_provider.model,
             )
-        return ModelClientFinal(
-            text=final.text,
-            usage=final.usage,
-            raw_provider_metadata=raw_provider_metadata,
-            structured_payload=final.structured_payload,
-            tool_calls=final.tool_calls,
-            input_moderation=final.input_moderation,
-            continuation=final.continuation,
-        )
+        return replace(final, raw_provider_metadata=raw_provider_metadata)
 
 
 def _event_has_usage(event: MCEvent) -> bool:

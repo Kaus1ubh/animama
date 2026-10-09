@@ -79,7 +79,8 @@ Ownership and boundaries:
       Chat Completions developer 0.87, tagged block 0.84.
 - [x] Phase 5: Chat turns on Anthropic models. Done 2026-10-09; Review #3
       passed. Anthropic cache share 0.88 through the real adapter.
-- [ ] Phase 6: Native web search and compaction. Not started.
+- [x] Phase 6: Native web search and compaction. Done 2026-10-09; Review #2
+      passed.
 - [ ] Phase 7: Utility role and the Anthropic Memory Manager runtime. Not
       started.
 - [ ] Phase 8: Desktop key, App Settings and chat UI. Not started.
@@ -1909,11 +1910,152 @@ live contract test.
 
 Completion: tests pass; review leaves no blocker.
 
-Phase record: issue #370; starting source —; commit —.
+Phase record: issue #370; starting source `929acfbe`; commit —.
+
+Implementation (delegated agent, reviewed independently):
+
+- **Requests:**
+  - Every Anthropic request uses the beta messages stream with
+    `compact-2026-01-12` and `compact_20260112` (`pause_after_compaction:
+    false`).
+  - The trigger follows D4, revised: 90,000 for Haiku with **Compact early**
+    on, otherwise 150,000.
+  - With web search on and supported, requests add `web_search_20250305` with
+    `max_uses` 5 and `allowed_callers: ["direct"]`.
+  - `pause_turn` resends the round's content unchanged, at most 3 times.
+- **Statuses and data:**
+  - `searching_web` and `summarizing_context` arrive as `run_status` deltas.
+    Open statuses are finished before a retry, before the final and at turn
+    end, even on failure.
+  - `data.anthropic` gains `native_tool_summaries`, `citations` (url, title,
+    and a short `cited_text` excerpt, which Anthropic limits to 150
+    characters), `pause_turn_continuations` and a turn-wide
+    `web_search_requests`.
+- **Storage and replay:**
+  - Stored assistant content is `[compaction?, text]`.
+  - Replay starts at the newest visible assistant row with a compaction block
+    (no 200-row limit; JSONB `content[0].type`), and `cache_control` is added
+    to that block when the request is built.
+  - Anthropic chats skip app compaction and pre-send fitting.
+  - Anthropic rows never get the application search tool (closes P3-R1-F8).
+
+Deviations:
+
+- **App-summary folding removed.** The Phase 5 interim folding is gone, and
+  Anthropic replay ignores `chat_compactions`: app compaction never runs for
+  Anthropic chats.
+- **Compaction on every Anthropic request**, including Utility prompts. Phase 7
+  decides whether Utility omits it (P6-R1-F4).
+- **Replay start.** Replay starts at the compacting assistant row, so that
+  turn's tool exchanges are not replayed. The API ignores everything before
+  the block.
+- **Repair.** A repair request does not carry the invalid round's compaction or
+  searches (P6-R1-F2, as on Responses).
+- **No user-message breakpoint.** In the live tool round only 888 of 6,086
+  input tokens were uncached.
+- **`cache_control` on the compaction block** is added at request time, not
+  stored (equivalent).
+- **`pause_turn`** was verified offline only; the live search did not pause.
+
+Tests: new `tests/test_anthropic_search_and_compaction.py` (22), two
+database-backed replay-start tests in `tests/test_chat_manager.py`, and fake-SDK
+extensions.
+
+Checks: `make check-test` (implementer) passed audit, format, lint and mypy,
+with 3,438 passed and 26 skipped; both compose configs were valid.
+
+Live (owner-authorized, 2026-10-09):
+
+- **Command:** `tests/live/test_anthropic_direct_turn.py`, 4 passed. The
+  run-in-turn tests:
+  - **Web search:** a web-search turn made one search, with
+    `searching_web` started and finished.
+  - **Compaction:** a compaction turn at the 50,000 minimum gave
+    `summarizing_context` started and finished, stored `[compaction, text]` and
+    `context_tokens` of 5,728.
+  - **Follow-up:** a turn replayed from the block was accepted, with 6,245
+    input tokens, 5,198 of them cached.
+- **Spend:** about US$0.05.
+- The live contract test was rerun at review (see Review #1 Revisions).
 
 #### Code Review #1 Findings
 
+Independent `sdlc-reviewer`, full initial review of the working tree on
+`929acfbe`.
+
+No code defects were found. The reviewer verified:
+
+- the API usage against SDK 1.12.1 types;
+- no application search on Anthropic rows;
+- the breakpoint budget (at most 3);
+- ordering on pause resends;
+- persistence with no thinking or encrypted search content;
+- the replay start;
+- status pairing;
+- usage;
+- that the other providers are unchanged.
+
+Checks: 394 focused tests passed (including the database replay tests); ruff,
+format and mypy passed; the import boundary was clean.
+
+- **P6-R1-F1 (blocking, record):** the Phase 6 record was missing, and the live
+  contract test listed in Checks was not run.
+- **Optional findings:**
+  - **F2:** repair drops the invalid round's search record and compacts again.
+  - **F3:** `usage.web_search_requests` covers only the final round.
+  - **F4:** compaction on Utility requests (Phase 7).
+  - **F5:** repeated block-type constants.
+  - **F6:** a docstring overstates "never kept".
+  - **F7:** no test of the request shape on later pauses.
+  - **F8, F9:** informational: server summaries cover the turn context;
+    `data-model.md` is queued for Phase 9; Phase 5 development chats lose
+    their app summary.
+
 #### Code Review #1 Revisions
+
+- **F1 (accepted):** the record is above, and the live contract test was rerun
+  on 2026-10-09 with the direct-turn tests: 13 passed.
+  - All 10 contract checks still hold.
+  - It reconfirms D7: basic search 6.96 s and 14,530 tokens median; dynamic
+    13.11 s and 28,267 tokens.
+- **F2 (deferred):** repair is rare and matches Responses behaviour. Recorded as
+  a known limitation.
+- **F3 (accepted):** the turn-wide `data.anthropic.web_search_requests` counts
+  successful searches, with tests.
+- **F4:** carried to Phase 7. Decide whether Utility requests omit
+  `context_management`.
+- **F5 (deferred, optional):** DRY cleanup.
+- **F6 (accepted):** the docstring now notes the `cited_text` excerpt.
+- **F7 (accepted):** the pause test asserts each resume resends the prefix
+  unchanged, with every paused round's server tool blocks merged into one
+  trailing assistant message.
+- **F8, F9:** no change.
+
+Verification: 78 focused tests passed (search and compaction, adapter, direct
+chat); ruff and format passed.
+
+Repair budget: one of two rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck: **pass**. It verified F1, F3, F6 and F7 and accepted the F2,
+F4 and F5 dispositions. Checks: 78 focused tests passed; ruff, format and mypy
+passed.
+
+- **P6-R2-F1 (optional):** document the turn-wide `web_search_requests`
+  alongside the per-round usage field.
+- **P6-R2-F2 (optional):** the 150-character limit on `cited_text` comes from
+  Anthropic, not the app.
+
+#### Code Review #2 Revisions
+
+- **R2-F1 (accepted):** `model-client-providers.md` now distinguishes the
+  round's usage from the turn's billed searches.
+- **R2-F2 (accepted):** the plan wording is corrected.
+
+Final `make check-test` on this tree: audit, format, lint and mypy pass; 3,438
+passed and 26 skipped (live tests). The doc and plan wording edits came after
+it started and touch no code.
 
 ### Phase 7: Utility role and the Anthropic Memory Manager runtime
 
@@ -1930,6 +2072,9 @@ Outcome:
 1. **Utility.**
    - `DirectModelPromptRunner` prompts run on the Anthropic client, with effort
      `low` unless set.
+   - Decide whether Utility requests omit `context_management` (P6-R1-F4). A
+     large summarization input above the trigger would otherwise be compacted
+     by the server first.
    - Fix any mapping gaps.
 2. **Selector.**
    - Choose the runtime (OpenAI Agents or `AnthropicMemoryManagerRuntime`) by

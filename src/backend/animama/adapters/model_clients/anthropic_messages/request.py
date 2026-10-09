@@ -4,7 +4,6 @@ The direct-chat assembler produces one OpenAI-compatible message list (see
 ``docs/backend/runtime/prompt-caching.md``)::
 
     system (stable instructions, ending with the Companion Guardrails)
-    developer (app compaction summary, when there is one)
     history ...
     developer (turn context: memory map, attachments, then the guardrails)
     user (the user's new message)
@@ -13,20 +12,24 @@ The direct-chat assembler produces one OpenAI-compatible message list (see
 This module maps it to Anthropic's positions (D20, D21):
 
 - The stable instructions become one ``system`` text block with
-  ``cache_control``. An app compaction summary is folded into it just before
-  the closing guardrails, so the system prompt still ends with them. (Phase 6
-  replaces app compaction with native compaction for Anthropic chats.)
+  ``cache_control``.
 - History is replayed in order with same-role neighbours merged, memory-tool
   exchanges as ``tool_use``/``tool_result`` blocks and never any thinking.
-  The last history block carries the second ``cache_control`` breakpoint.
+  History may start with the assistant row that holds the chat's latest
+  compaction block (the API ignores whatever precedes it); that block carries
+  a ``cache_control`` breakpoint, and so does the last history block.
 - The user's new message is a user turn, followed by the turn context as a
   mid-conversation ``system`` message: Anthropic accepts a system message only
   after a user turn, so it follows the user's words. No tagged block is used.
 - Within a turn, each round's assistant content is resent exactly as Anthropic
-  returned it (signed thinking, text, ``tool_use``), taken from the
-  continuation cursor. Forced-final and repair instructions, which already end
-  with the guardrails, are text in a user turn after the tool results or the
-  invalid reply.
+  returned it (compaction, signed thinking, text, server web-search blocks,
+  ``tool_use``), taken from the continuation cursor. Forced-final and repair
+  instructions, which already end with the guardrails, are text in a user turn
+  after the tool results or the invalid reply.
+
+Every request uses the beta Messages API with server-side compaction
+(``compact_20260112``, D4). When the turn asked for web search and the row
+hosts it, Anthropic's ``web_search`` server tool is offered (D7).
 
 Requests never carry sampling parameters or an assistant prefill.
 """
@@ -39,6 +42,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
+from animama.app.model_catalog import early_compaction_available
 from animama.app.model_clients import (
     ANTHROPIC_TOOL_RESULT_ITEM_TYPE,
     ANTHROPIC_TOOL_USE_ITEM_TYPE,
@@ -46,7 +50,6 @@ from animama.app.model_clients import (
     ModelClientRequest,
 )
 from animama.app.model_clients.prompt import prompt_messages, prompt_tools
-from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain import ModelProvider
 
 from .._common import jsonable
@@ -62,10 +65,30 @@ At ``low``, Haiku 5.5 often skipped needed memory-tool calls in live tests."""
 EFFORT_NONE = "none"
 CACHE_CONTROL: dict[str, str] = {"type": "ephemeral"}
 _THINKING_BLOCK_TYPES = frozenset({"thinking", "redacted_thinking"})
+COMPACTION_BLOCK_TYPE = "compaction"
+
+COMPACTION_BETA = "compact-2026-01-12"
+COMPACTION_EDIT_TYPE = "compact_20260112"
+COMPACTION_MIN_TRIGGER_TOKENS = 50_000
+"""Anthropic's minimum compaction trigger."""
+COMPACTION_DEFAULT_TRIGGER_TOKENS = 150_000
+"""Anthropic's default trigger, used unless **Compact early** applies (D4)."""
+EARLY_COMPACTION_SHARE = 0.9
+"""**Compact early** triggers at this share of the row's long-context price threshold (D4)."""
+
+WEB_SEARCH_NATIVE_TOOL = "web_search"
+WEB_SEARCH_MAX_USES = 5
+WEB_SEARCH_SERVER_TOOL: dict[str, Any] = {
+    "type": "web_search_20250305",
+    "name": "web_search",
+    "max_uses": WEB_SEARCH_MAX_USES,
+    "allowed_callers": ["direct"],
+}
+"""Basic web search, called directly by the model (D7; chosen over dynamic filtering in Phase 1)."""
 
 
 def messages_request_params(spec: ModelClientRequest) -> dict[str, Any]:
-    """Return JSON-shaped keyword arguments for ``client.messages.stream``."""
+    """Return JSON-shaped keyword arguments for ``client.beta.messages.stream``, including ``betas``."""
 
     prompt = spec.prompt
     layout = _prompt_layout(prompt_messages(prompt))
@@ -73,11 +96,15 @@ def messages_request_params(spec: ModelClientRequest) -> dict[str, Any]:
         "model": spec.model_provider.model,
         "max_tokens": request_max_tokens(spec.model_provider),
         "messages": _request_messages(layout, continuation_rounds(spec.continuation)),
+        "betas": [COMPACTION_BETA],
+        "context_management": compaction_context_management(spec.model_provider),
     }
-    system_text = _system_text(layout.system_text, layout.summaries)
-    if system_text:
-        params["system"] = [{"type": "text", "text": system_text, "cache_control": dict(CACHE_CONTROL)}]
+    if layout.system_text:
+        params["system"] = [{"type": "text", "text": layout.system_text, "cache_control": dict(CACHE_CONTROL)}]
     tools = anthropic_tools(prompt_tools(prompt))
+    if WEB_SEARCH_NATIVE_TOOL in spec.provider_options.native_tools:
+        # Executor setup passes web_search here only when the row hosts it.
+        tools.append(copy.deepcopy(WEB_SEARCH_SERVER_TOOL))
     if tools:
         params["tools"] = tools
         params["tool_choice"] = _tool_choice(prompt.tool_choice, prompt.parallel_tool_calls)
@@ -93,6 +120,50 @@ def messages_request_params(spec: ModelClientRequest) -> dict[str, Any]:
     if output_config:
         params["output_config"] = output_config
     return params
+
+
+def compaction_trigger_tokens(model_provider: ModelProvider) -> int:
+    """Return the input-token count at which the server compacts this row's chats (D4).
+
+    With **Compact early** on a row whose pricing has a long-context step, the
+    trigger is 90% of that step, never below Anthropic's minimum. Otherwise it
+    is Anthropic's default.
+    """
+
+    threshold = model_provider.pricing.long_context_token_threshold
+    if model_provider.early_compaction and early_compaction_available(model_provider) and threshold:
+        return max(COMPACTION_MIN_TRIGGER_TOKENS, int(threshold * EARLY_COMPACTION_SHARE))
+    return COMPACTION_DEFAULT_TRIGGER_TOKENS
+
+
+def compaction_context_management(model_provider: ModelProvider) -> dict[str, Any]:
+    """Return ``context_management`` for threshold compaction that continues the turn."""
+
+    return {
+        "edits": [
+            {
+                "type": COMPACTION_EDIT_TYPE,
+                "trigger": {"type": "input_tokens", "value": compaction_trigger_tokens(model_provider)},
+                # The reply continues from the summary; turns are never re-inserted (D4).
+                "pause_after_compaction": False,
+            }
+        ]
+    }
+
+
+def messages_with_paused_content(messages: list[dict[str, Any]], content: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return ``messages`` followed by a paused turn's assistant content, resent unchanged.
+
+    After ``stop_reason: pause_turn`` the server resumes the turn when the
+    assistant content it returned so far is sent back as the last message.
+    """
+
+    resent = copy.deepcopy(messages)
+    if resent and resent[-1]["role"] == "assistant":
+        resent[-1]["content"] = [*resent[-1]["content"], *copy.deepcopy(content)]
+    else:
+        resent.append({"role": "assistant", "content": copy.deepcopy(content)})
+    return resent
 
 
 def request_max_tokens(model_provider: ModelProvider) -> int:
@@ -196,7 +267,6 @@ class _PromptLayout:
     """The assembler's prompt split into the parts Anthropic places differently."""
 
     system_text: str | None = None
-    summaries: list[str] = field(default_factory=list)
     history: list[Mapping[str, Any]] = field(default_factory=list)
     turn_user: Mapping[str, Any] | None = None
     turn_context: str | None = None
@@ -221,32 +291,13 @@ def _prompt_layout(messages: list[dict[str, Any]]) -> _PromptLayout:
         # The turn context sits directly before the user's new message.
         layout.turn_context = _text(messages[user_index - 1].get("content"))
         history_end = user_index - 1
-    index = start
-    while index < history_end and _is_instruction(messages[index], "developer"):
-        # Leading developer messages are the app compaction summary.
-        summary = _text(messages[index].get("content"))
-        if summary:
-            layout.summaries.append(summary)
-        index += 1
-    layout.history = list(messages[index:history_end])
+    # Anthropic chats never carry an app compaction summary: their server
+    # compacts, and history replay ignores app compaction (other roles in
+    # history are not replayed).
+    layout.history = list(messages[start:history_end])
     layout.turn_user = messages[user_index]
     layout.after_turn = list(messages[user_index + 1 :])
     return layout
-
-
-def _system_text(system_text: str | None, summaries: list[str]) -> str | None:
-    """Fold an app compaction summary into the system prompt before its closing guardrails."""
-
-    if not summaries:
-        return system_text
-    summary = "\n\n".join(summaries)
-    if not system_text:
-        return summary
-    guardrails = COMPANION_GUARDRAILS.strip()
-    if system_text.endswith(guardrails):
-        head = system_text[: -len(guardrails)].rstrip()
-        return f"{head}\n\n{summary}\n\n{guardrails}" if head else f"{summary}\n\n{guardrails}"
-    return f"{system_text}\n\n{summary}"
 
 
 class _Conversation:
@@ -287,6 +338,10 @@ def _request_messages(layout: _PromptLayout, rounds: list[list[dict[str, Any]]])
             conversation.add(*mapped)
     _drop_orphan_prefix(conversation.messages)
     if conversation.messages:
+        first_block = conversation.messages[0]["content"][0]
+        if first_block.get("type") == COMPACTION_BLOCK_TYPE:
+            # The summary heads every request until the next compaction.
+            first_block["cache_control"] = dict(CACHE_CONTROL)
         # Cache the replayed history: the previous request wrote an entry at
         # its own last history block, which this request reads.
         conversation.messages[-1]["content"][-1]["cache_control"] = dict(CACHE_CONTROL)
@@ -350,10 +405,16 @@ def _history_blocks(message: Mapping[str, Any]) -> tuple[str, list[dict[str, Any
 
 
 def _drop_orphan_prefix(messages: list[dict[str, Any]]) -> None:
-    """Start history at a user turn without tool results whose calls fell outside the window."""
+    """Start history at a user turn without tool results whose calls fell outside the window.
+
+    History that starts at a compaction block's assistant row is kept: the API
+    reads the conversation from that block on.
+    """
 
     while messages:
         first = messages[0]
+        if first["role"] == "assistant" and first["content"][0].get("type") == COMPACTION_BLOCK_TYPE:
+            return
         if first["role"] != "user":
             messages.pop(0)
             continue
@@ -434,12 +495,20 @@ def _text(value: Any) -> str | None:
 __all__ = [
     "ANTHROPIC_MAX_TOKENS_PER_REQUEST",
     "CACHE_CONTROL",
+    "COMPACTION_BETA",
+    "COMPACTION_BLOCK_TYPE",
+    "COMPACTION_DEFAULT_TRIGGER_TOKENS",
+    "COMPACTION_MIN_TRIGGER_TOKENS",
     "DEFAULT_ANTHROPIC_CHAT_EFFORT",
+    "WEB_SEARCH_SERVER_TOOL",
     "anthropic_output_format",
     "anthropic_tools",
+    "compaction_context_management",
+    "compaction_trigger_tokens",
     "continuation_rounds",
     "continuation_with_round",
     "effort_and_thinking",
     "messages_request_params",
+    "messages_with_paused_content",
     "request_max_tokens",
 ]

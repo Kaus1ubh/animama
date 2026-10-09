@@ -100,13 +100,10 @@ def _provider(
 def _messages(
     *,
     history: list[dict[str, Any]] | None = None,
-    summary: str | None = None,
     user: str = "What did I plan for the garden?",
     extra: list[dict[str, Any]] | None = None,
 ) -> tuple[dict[str, Any], ...]:
     messages: list[dict[str, Any]] = [{"role": "system", "content": SYSTEM_TEXT}]
-    if summary is not None:
-        messages.append({"role": "developer", "content": summary})
     messages += history or []
     messages += [{"role": "developer", "content": CONTEXT_TEXT}, {"role": "user", "content": user}]
     messages += extra or []
@@ -253,23 +250,6 @@ def test_max_tokens_is_the_row_limit_capped_per_request(row_limit: int | None, e
     params = messages_request_params(_request(provider=_provider(max_output_tokens=row_limit)))
 
     assert params["max_tokens"] == expected
-
-
-def test_app_compaction_summary_folds_into_the_system_prompt_before_the_guardrails() -> None:
-    summary = "Compacted prior chat history for continuity.\nThe user plans a garden."
-    params = messages_request_params(
-        _request(messages=_messages(summary=summary, history=[{"role": "user", "content": "earlier"}]))
-    )
-
-    system_text = params["system"][0]["text"]
-    assert system_text == f"# Core Instructions\n\nYou are Mira.\n\n{summary}\n\n{GUARDRAILS}"
-    assert [message["role"] for message in params["messages"]] == ["user", "system"]
-    # The summary is not a separate message, and same-role history merges with the new turn.
-    assert params["messages"][0]["content"][0] == {
-        "type": "text",
-        "text": "earlier",
-        "cache_control": {"type": "ephemeral"},
-    }
 
 
 def test_history_replay_merges_roles_maps_tool_exchanges_and_never_sends_thinking() -> None:

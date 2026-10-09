@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, cast
 
 from animama.app.model_clients import (
@@ -403,15 +403,7 @@ def final_with_previous_response_retry_metadata(
         "stale_previous_response_id": stale_cursor,
         "fallback": "manual_context_without_previous_response_id",
     }
-    return ModelClientFinal(
-        text=final.text,
-        usage=final.usage,
-        raw_provider_metadata=raw_provider_metadata,
-        structured_payload=final.structured_payload,
-        tool_calls=final.tool_calls,
-        input_moderation=final.input_moderation,
-        continuation=final.continuation,
-    )
+    return replace(final, raw_provider_metadata=raw_provider_metadata)
 
 
 __all__ = [

@@ -650,6 +650,11 @@ class DirectTurnModelStreamCollector:
                     # but not exposed as public chat:sse frames.
                     event_delta_count += 1
                     stream_events.record(delta.stream_event)
+                elif delta.kind == "run_status" and delta.run_status is not None:
+                    # Provider-side work (a hosted web search or a compaction)
+                    # is shown while the reply is pending, like the app search tool.
+                    if self._on_run_status is not None:
+                        await self._on_run_status(delta.run_status.status, delta.run_status.phase)
                 elif delta.kind == "final" and delta.final is not None:
                     # This is the only successful end-of-stream signal accepted
                     # by direct chat. The adapter decides what provider signal is
@@ -923,20 +928,32 @@ def _final_with_usage(
     user's message; later rounds only add tool exchanges.
     """
 
-    return ModelClientFinal(
-        text=final.text,
+    return replace(
+        final,
         usage=usage,
         raw_provider_metadata={
             **dict(final.raw_provider_metadata),
             "tool_loop_usage_aggregated": True,
             # Summed usage is billed; only the last request's prompt and reply
             # remain in the next turn's context.
-            CONTEXT_TOKENS_METADATA_KEY: context_tokens_from_usage(final.usage),
+            CONTEXT_TOKENS_METADATA_KEY: _context_tokens(final),
         },
-        structured_payload=final.structured_payload,
-        tool_calls=final.tool_calls,
         input_moderation=input_moderation,
+        continuation=None,
     )
+
+
+def _context_tokens(final: ModelClientFinal) -> int:
+    """Return the final request's footprint in the next turn's context.
+
+    An adapter may record it itself: an Anthropic request that compacted bills
+    the compaction step too, but only its last iteration remains in context.
+    """
+
+    recorded = final.raw_provider_metadata.get(CONTEXT_TOKENS_METADATA_KEY)
+    if isinstance(recorded, int) and not isinstance(recorded, bool):
+        return max(0, recorded)
+    return context_tokens_from_usage(final.usage)
 
 
 def _prompt_tool_names(prompt: DirectChatPrompt) -> set[str]:
