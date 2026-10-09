@@ -78,7 +78,7 @@ Paths: frontend relative to `src/frontend/web/`, backend to
       stack yet.
 - [ ] P1 — Scene family designs (R2 input). Briefs, mocks and capability list ready (2026-10-09); waiting for G1.
 - [x] P2 — Art budgets and shared import limits (R6). Review passed at round 3.
-- [ ] P3 — Particle texture import (R1).
+- [x] P3 — Particle texture import (R1). Review passed at round 2.
 - [ ] P4 — Check, render and bench for Particle and Scene Effects (R3).
 - [ ] P5 — Scene layer capabilities (R2). Waits for G1.
 - [ ] P6 — Headed preview for Particle and Scene Effects (R4).
@@ -484,9 +484,148 @@ Particle Effects that use built-in textures still open and play.
 
 #### P3 record
 
+Starting source and issue: `c246cb64`, #388. Task stack `animama-particle-fx`
+(development build) at http://animama-particle-fx.localhost:8620; only the
+`web` service publishes a port.
+
+Delivered:
+
+- **Texture table.** `ParticleVFXEditorDraft.textureFiles` holds the bytes of
+  every texture the effect carries, keyed by its package-relative path. A
+  reference is never reused for different bytes (imports get
+  `textures/<stem>-<n>.png`), so undo and redo restore textures by restoring
+  the JSON; the fingerprint counts used textures by hash. Duplicate and Add
+  emitter keep a carried texture (`editor/textureFiles.ts`, `draft.ts`,
+  `textures.ts`).
+- **Import.** "Import PNG texture" in the emitter's Texture section
+  (`EmitterCarriedTextures.tsx`, existing components) checks size, format and
+  header dimensions with `inspectEffectArt` before anything decodes it; a
+  refusal names the limit and leaves the draft unchanged. The Atlas tile
+  fields (now capped at 16) state a sprite sheet's grid; an imported sheet's
+  tile counts are its atlas for validation.
+- **Reopen, JSON import.** Reopening an item downloads every texture file it
+  lists. Imported JSON keeps its texture references: embedded PNG data
+  becomes texture files, and a reference without bytes shows "Texture … is
+  missing" with a file chooser; readiness blocks Save until it is supplied.
+- **Save and packages.** The package builder takes bytes from the draft,
+  enforces the P2 limits (bytes, side, total) and returns the saved draft with
+  every packaged texture's bytes. The backend checks the same limits and the
+  sprite-sheet grid at Save, scan and package install
+  (`app/services/effect_art_validation.py` through the kind's companion-file
+  validation) and in package capability checks (`_particle`). The runtime's
+  private particle loader checks count, total and header dimensions before
+  creating object URLs.
+- **Recovery.** Particle recovery records (`animama/particle-effect-recovery/3`)
+  keep the used textures' Blobs in IndexedDB, up to 37 MiB in all (5 MiB of
+  JSON plus the 32 MiB texture total); a larger draft is not stored and the
+  creator warns. The text fallback keeps the JSON and says which textures must
+  be chosen again; `/2` records still restore.
+- **Journey.** `e2e/journeys/accountless-particle-texture-import.spec.ts`
+  (allowlisted; `docs/frontend/testing/browser-journeys.md` updated): refusals,
+  a PNG and a 4×4 sheet in two emitters, recovery after reload, Save, reopen,
+  desktop and narrow screenshots, a Portable package export and import with
+  textures intact, and supplying a texture imported JSON refers to.
+
+Included effects today use only built-in texture names, so the "Included
+effect with non-built-in textures" case is covered by reopening Local and
+imported items through the same code path; P7's throwaway-branch promotion
+exercises an Included one.
+
+Checks (agent, 2026-10-09):
+
+- Frontend: focused vitest over the particle, content, effects and runtime
+  folders (751 pass); `pnpm check`; `pnpm web:lint`; Prettier on changed
+  files; `pnpm e2e:check`.
+- `pnpm web:test`: 3,359 pass; 4 fail in `tests/local-api-proxy.test.ts`
+  because another session's dev server holds host port 5173 (environmental).
+  Script browser tests: the two hosted sign-out tests failed on a fixture
+  that wrote `/3` records without `textures`; the fixture now writes texture
+  Blobs and both pass. "hosted Library restores mobile navigation after
+  Escape" timed out under load and passes alone.
+- Backend: `uv run pytest -q -k "content or package or particle or catalog or
+  effect" tests` (932 pass, including the new `test_particle_texture_limits.py`
+  and the Included content integrity and catalog tests); `uv run ruff check`;
+  `ruff format --check`; mypy on the new modules.
+- Browser: `pnpm e2e:test -- --project chromium --grep "Particle texture
+  import"` on the task stack: 2 passed (setup and the journey, 26 s); the
+  content ledger has nothing unresolved.
+
 #### Code Review #1 Findings
 
+Reviewed source: working tree on `c246cb64`, P3 files and hunks only (P4 work
+had started in `scripts/` and the Scene hunk of `AnimaRuntimeMediaCatalog.ts`);
+full initial review (`sdlc-reviewer`).
+
+- **P3-R1-F1 (required):** the backend checked only files declared with role
+  `texture`; a Quarks image may name a file declared `image`, and undeclared
+  companions are scanned as textures, so an oversized texture could be admitted
+  through Save or a package.
+- **P3-R1-F2 (required):** embedded-data extraction named files
+  `textures/embedded-<n>.png` from 1 without avoiding references the JSON or
+  the carried table already use, so new bytes could replace an existing
+  texture.
+- P3-R1-F3 (optional): the `sr-only` file input added a second, invisible tab
+  stop beside its button.
+- P3-R1-F4 (optional): a fetch-path message still said 25 MiB.
+- P3-R1-F5 (optional): Pillow's decompression-bomb refusal was reported as a
+  format error instead of the size limit.
+- P3-R1-F6 (optional): the preview failed as a whole for refused embedded or
+  remote images and echoed the URL.
+- P3-R1-F7 (optional): the recovery cap is 37 MiB for JSON and textures
+  together, and an over-cap IndexedDB record is not stored, not stored without
+  textures as step 5 says.
+- P3-R1-F8 (optional): built-in identity still matched by basename, so
+  `images/heart.png` showed as both the built-in Heart and missing.
+- P3-R1-F9 (optional): no test showed a Local scan or package refusing an
+  over-limit texture, or reopen failing.
+- P3-R1-F10 (optional): duplicated SHA-256 and inspection code; the backend
+  wrapped one emitter in a fake manifest.
+- P3-R1-F11 (optional): Duplicate gives a carried texture the default
+  (additive) blending, as it does for built-in textures.
+
 #### Code Review #1 Revisions
+
+- F1 accepted: `effect_art_validation._texture_paths` checks every companion
+  except JSON and text notes, whatever its role; the creator's reopen also
+  downloads files registered as `image`. Tests: oversized textures declared
+  `image` or undeclared are refused at Save; a Local scan reports an
+  oversized texture.
+- F2 accepted: extraction allocates references with the same unique-reference
+  helper as imports and skips the draft's carried references. Test.
+- F3 accepted: the input is `hidden`, as in `SoundUploadButton`.
+- F4 accepted: the message names the shared limit.
+- F5 accepted: a decompression-bomb refusal reports the 2048 px limit. Test
+  with a 30000 × 30000 header.
+- F6 accepted: any image that is neither carried nor built in previews as the
+  default texture; no URL is shown.
+- F7 accepted as recorded behaviour: recovery stores JSON and texture Blobs up
+  to 37 MiB together; a larger draft (only possible beyond the Save limits)
+  is not stored and the store's "too large" warning shows. The P3 record is
+  corrected below.
+- F8 accepted: built-in identity matches the exact `textures/<file>` path.
+  Test.
+- F9 accepted in part: the Local scan test above (package install shares that
+  scan) and a `loadParticleVFXTextureFiles` test; a full package round trip
+  with an invalid texture is not constructible through Save.
+- F10 accepted: the package builder uses `readParticleVFXTextureFile` (one
+  inspection and hash); the backend has `emitter_grid_issue`.
+- F11 rejected: Duplicate's blending is existing behaviour for every texture
+  and outside R1.
+- Also fixed: the journey polled recovery before the typed name was stored,
+  so a reload could restore an unnamed draft; it now waits for both.
+- Checks after revisions: `uv run pytest -q tests/test_particle_texture_limits.py
+  tests/test_content_package_capabilities.py` (84 pass); focused vitest over
+  the particle, content and creator folders (626 pass); the journey on the task
+  stack (2 passed).
+
+#### Code Review #2 (repair round 1)
+
+Pass. F1 and F2 verified fixed (the reviewer's role and size probes now refuse
+every case); the other accepted fixes verified. Noted: a Particle entry's
+companions other than JSON, text notes and PNG, JPEG or WebP textures (for
+example `.svg` or `.wav`) are now refused; no current content has any. Checks:
+175 backend tests over the particle, package and content-store files, 367
+vitest, eslint and `e2e:check:source` clean.
 
 ### P4 — Check, render and bench for Particle and Scene Effects (R3). #389
 

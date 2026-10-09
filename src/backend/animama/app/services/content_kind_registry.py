@@ -49,6 +49,7 @@ from .content_image import MAX_APPEARANCE_SOURCE_BYTES, validate_appearance_imag
 from .content_pose import validate_resolved_pose
 from .content_svg import validate_svg_file
 from .content_voice import validate_pocket_clone_document, validate_pocket_clone_files
+from .effect_art_validation import validate_particle_texture_files
 
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_DOCUMENT_DEPTH = 32
@@ -1164,6 +1165,8 @@ class ContentTypeHandler:
             return validate_pocket_clone_files(document, files)
         if isinstance(document, GestureDocumentV1 | ReactionDocumentV1):
             return validate_action_clip_files(document, files)
+        if isinstance(document, ParticleEffectDocumentV1):
+            return validate_particle_texture_files(document, files)
         return ()
 
     def validate_resolved_dependencies(

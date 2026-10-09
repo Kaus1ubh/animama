@@ -24,4 +24,35 @@ describe("typed Particle Effect document", () => {
       particleVFXDocumentFingerprint(draft),
     );
   });
+
+  it("changes when a texture the effect uses gets new bytes, not when an unused one does", () => {
+    const draft = createParticleVFXEditorDraftFromBlank();
+    const reference = "textures/glyph-1.png";
+    (draft.quarksJson.images as { url: string }[])[0]!.url = reference;
+    const file = (sha256: string) => ({
+      blob: new Blob([]),
+      sha256,
+      width: 1,
+      height: 1,
+    });
+    const supplied = { ...draft, textureFiles: { [reference]: file("a") } };
+    const replaced = { ...draft, textureFiles: { [reference]: file("b") } };
+    const unused = {
+      ...supplied,
+      textureFiles: {
+        ...supplied.textureFiles,
+        "textures/other-1.png": file("c"),
+      },
+    };
+
+    expect(particleVFXDocumentFingerprint(supplied)).not.toBe(
+      particleVFXDocumentFingerprint(draft),
+    );
+    expect(particleVFXDocumentFingerprint(replaced)).not.toBe(
+      particleVFXDocumentFingerprint(supplied),
+    );
+    expect(particleVFXDocumentFingerprint(unused)).toBe(
+      particleVFXDocumentFingerprint(supplied),
+    );
+  });
 });

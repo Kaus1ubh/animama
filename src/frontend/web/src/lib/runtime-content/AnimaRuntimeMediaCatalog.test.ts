@@ -753,7 +753,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
       ],
       object: { type: "Object3D", children: [] },
     });
-    const texture = new Uint8Array([9, 8, 7]);
+    const texture = pngHeader(8, 8);
     const entry = privateEntry({
       slot: "particle_vfx",
       runtimeId: "private-particle",
@@ -849,6 +849,60 @@ describe("AnimaRuntimeMediaCatalog", () => {
       "blob:owned-1",
       "blob:owned-2",
     ]);
+  });
+
+  it("fails closed on a private particle texture over the size limits", async () => {
+    const manifest = JSON.stringify({
+      images: [{ url: "textures/huge.png" }],
+      object: { type: "Object3D", children: [] },
+    });
+    const texture = pngHeader(4096, 8);
+    const entry = privateEntry({
+      slot: "particle_vfx",
+      runtimeId: "huge-particle",
+      kind: "particle_vfx",
+      files: [
+        {
+          role: "manifest",
+          ordinal: 1,
+          filename: "effect.json",
+          contentType: "application/json",
+          bytes: new TextEncoder().encode(manifest).byteLength,
+          url: "/runtime/manifest",
+        },
+        {
+          role: "texture",
+          ordinal: 1,
+          filename: "huge.png",
+          contentType: "image/png",
+          bytes: texture.byteLength,
+          url: "/runtime/texture",
+        },
+      ],
+      logicalResourceUrls: { "textures/huge.png": "/runtime/texture" },
+      config: { max_particles: 32, duration_seconds: 1 },
+    });
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      const source = authorizedSource(input);
+      if (!source) return authorizedDownload(String(input));
+      const body = source.endsWith("manifest")
+        ? new TextEncoder().encode(manifest)
+        : texture;
+      return new Response(body, {
+        status: 200,
+        headers: { "content-length": String(body.byteLength) },
+      });
+    });
+    const createObjectURL = vi.fn(() => "blob:never");
+    const catalog = new AnimaRuntimeMediaCatalog(
+      mediaCatalog({ particleVfx: [entry] }),
+      { fetcher, createObjectURL, revokeObjectURL: vi.fn() },
+    );
+
+    await expect(
+      catalog.resolveParticleVFX("huge-particle"),
+    ).resolves.toBeNull();
+    expect(createObjectURL).not.toHaveBeenCalled();
   });
 
   it("fails closed when a particle manifest contains an unowned reference", async () => {

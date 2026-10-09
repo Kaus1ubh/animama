@@ -12,8 +12,29 @@ import {
   type ParticleVFXContentPackageResource,
 } from "./particleVFXContentPackage";
 
-const PNG = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
-const WEBP = new TextEncoder().encode("RIFF0000WEBP");
+/** A PNG signature and a 1×1 IHDR: enough for the header checks. */
+const PNG = new Uint8Array([
+  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 13, 0x49, 0x48, 0x44,
+  0x52, 0, 0, 0, 1, 0, 0, 0, 1, 8, 6, 0, 0, 0, 0, 0, 0, 0,
+]);
+/** A WebP VP8X header declaring 1×1. */
+const WEBP = new Uint8Array([
+  ...new TextEncoder().encode("RIFF0000WEBPVP8X"),
+  10,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+  0,
+]);
 
 /** Packaging receives the name allocated by the save flow. */
 function namedDraft() {
@@ -270,4 +291,84 @@ it("saves avatar rectangle fitting with no maximum size limit", async () => {
     resources: [resource("textures/soft-dot.png", PNG, "image/png")],
   });
   expect(built.normalizedDraft.catalog.shapeAutoFit?.maxSize).toBeUndefined();
+});
+
+describe("Particle VFX textures the effect carries", () => {
+  function pngOf(width: number, height: number, size = 64): Blob {
+    const bytes = new Uint8Array(Math.max(size, PNG.length));
+    bytes.set(PNG);
+    const view = new DataView(bytes.buffer);
+    view.setUint32(16, width);
+    view.setUint32(20, height);
+    return new Blob([bytes], { type: "image/png" });
+  }
+
+  function carried(blob: Blob) {
+    return { blob, sha256: "a".repeat(64), width: 1, height: 1 };
+  }
+
+  it("packages a carried texture and reopens with its bytes under the package path", async () => {
+    const draft = namedDraft();
+    (draft.quarksJson.images as { url: string }[])[0]!.url =
+      "textures/glyph-1.png";
+    const blob = pngOf(64, 32);
+    const withFile = {
+      ...draft,
+      textureFiles: { "textures/glyph-1.png": carried(blob) },
+    };
+    const built = await buildParticleVFXContentPackage({
+      draft: withFile,
+      resources: [],
+    });
+    expect(built.textures.map((texture) => texture.packageReference)).toEqual([
+      "textures/glyph-1.png",
+    ]);
+    expect(await built.textures[0]!.file.arrayBuffer()).toEqual(
+      await blob.arrayBuffer(),
+    );
+    const reopened = built.normalizedDraft.textureFiles["textures/glyph-1.png"];
+    expect(reopened).toMatchObject({ width: 64, height: 32 });
+    expect(reopened!.sha256).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("refuses a texture over the size limits or a total over 32 MiB, naming the limit", async () => {
+    const draft = namedDraft();
+    (draft.quarksJson.images as { url: string }[])[0]!.url =
+      "textures/big-1.png";
+    await expect(
+      buildParticleVFXContentPackage({
+        draft: {
+          ...draft,
+          textureFiles: {
+            "textures/big-1.png": carried(pngOf(8, 8, 4 * 1024 * 1024 + 1)),
+          },
+        },
+        resources: [],
+      }),
+    ).rejects.toThrow("4 MiB");
+    await expect(
+      buildParticleVFXContentPackage({
+        draft: {
+          ...draft,
+          textureFiles: { "textures/big-1.png": carried(pngOf(4096, 8)) },
+        },
+        resources: [],
+      }),
+    ).rejects.toThrow("2048 px");
+
+    let many = namedDraft();
+    const files: Record<string, ReturnType<typeof carried>> = {};
+    for (let index = 0; index < 9; index += 1) {
+      if (index) many = addParticleVFXEditorEmitter(many);
+      const reference = `textures/part-${index}.png`;
+      (many.quarksJson.images as { url: string }[])[index]!.url = reference;
+      files[reference] = carried(pngOf(8, 8, 4 * 1024 * 1024 - 64));
+    }
+    await expect(
+      buildParticleVFXContentPackage({
+        draft: { ...many, textureFiles: files },
+        resources: [],
+      }),
+    ).rejects.toThrow("32 MiB");
+  });
 });

@@ -26,6 +26,10 @@ import {
   parseSceneVFXEntry,
 } from "@/lib/scene-vfx/catalog";
 import type { SceneVFXEntry, SceneVFXKind } from "@/lib/scene-vfx/types";
+import {
+  PARTICLE_TEXTURE_LIMITS,
+  inspectEffectArt,
+} from "@/lib/effects/effectArtLimits";
 import { createLogger } from "@/lib/logger";
 import {
   fetchPrivateRuntimeContentResponse,
@@ -530,6 +534,7 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
       if (!document || !images) throw new Error("particle_manifest_invalid");
       const referenced = new Set<string>();
       const textureUrlsByResource = new Map<string, string>();
+      let textureBytes = 0;
       for (const image of images) {
         const imageRecord = recordValue(image);
         if (!imageRecord || typeof imageRecord.url !== "string") {
@@ -556,6 +561,16 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
             },
             "particle",
           );
+          // Check each texture's size and header before the browser decodes
+          // it, as for Avatar Effect images.
+          textureBytes += textureBlob.size;
+          if (
+            textureUrlsByResource.size >= PARTICLE_TEXTURE_LIMITS.count ||
+            textureBytes > PARTICLE_TEXTURE_LIMITS.totalBytes ||
+            !(await inspectEffectArt(textureBlob, PARTICLE_TEXTURE_LIMITS)).ok
+          ) {
+            throw new Error("particle_texture_limit");
+          }
           objectUrl = this.ownedObjectUrl(textureBlob);
           textureUrlsByResource.set(resourceUrl, objectUrl);
           createdUrls.push(objectUrl);

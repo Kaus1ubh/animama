@@ -25,6 +25,7 @@ from animama.app.contracts.avatar_effect import (
     AvatarEffectDefinitionV2,
 )
 from animama.app.contracts.content_package import NON_PORTABLE_REFERENCES_CAPABILITY
+from animama.app.services.effect_art_validation import emitter_grid_issue
 from animama.domain.content_catalog import ContentKind
 from animama.domain.content_documents import (
     AvatarEffectDocumentV1,
@@ -582,6 +583,8 @@ def _particle(value: dict[str, Any], document: TypedContentDocument) -> None:
         emitters += 1
         ps = _object(node.get("ps"), "Particle system")
         _require(ps.get("version") == "3.0", "Unsupported particle system version")
+        grid_issue = emitter_grid_issue(ps)
+        _require(grid_issue is None, grid_issue or "")
         _require(type(ps.get("renderMode")) is int and ps["renderMode"] in range(6), "Unsupported particle render mode")
         _require(_number(ps.get("duration"), "Particle duration") > 0, "Particle duration must be positive")
         _enum(

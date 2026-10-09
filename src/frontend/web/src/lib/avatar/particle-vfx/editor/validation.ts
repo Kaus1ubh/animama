@@ -1,3 +1,4 @@
+import { PARTICLE_TEXTURE_LIMITS } from "@/lib/effects/effectArtLimits";
 import { isParticleVFXAnchor } from "../runtime";
 import { collectEmitterNodes } from "./emitters";
 import { readJsonObject } from "./json";
@@ -70,7 +71,7 @@ export function validateParticleVFXEditorDraft(
         severity: "warning",
         code: "embedded-texture-url",
         message:
-          "Embedded data texture URLs work but should be migrated to tracked public assets.",
+          "This embedded texture is not a PNG the effect can carry; replace it with an imported texture.",
         target,
       });
     } else if (classification === "blob") {
@@ -206,8 +207,23 @@ export function validateParticleVFXEditorDraft(
       ? getParticleVFXEditorTextureById(emitter.textureId)
       : null;
     const atlas = texture?.atlas;
+    // An imported sheet has no built-in metadata: its tile counts are its atlas.
+    const carriedTexture = !texture && Boolean(emitter.textureUrl);
     const tileCapacity =
       emitter.renderer.uTileCount * emitter.renderer.vTileCount;
+    const maxGrid = PARTICLE_TEXTURE_LIMITS.grid;
+    if (
+      [emitter.renderer.uTileCount, emitter.renderer.vTileCount].some(
+        (count) => !Number.isInteger(count) || count < 1 || count > maxGrid,
+      )
+    ) {
+      issues.push({
+        severity: "error",
+        code: "atlas-grid-limit",
+        message: `Sprite sheets have 1 to ${maxGrid} tiles in each direction.`,
+        target,
+      });
+    }
     if (atlas) {
       if (
         emitter.renderer.uTileCount === 1 &&
@@ -234,7 +250,7 @@ export function validateParticleVFXEditorDraft(
       }
     }
     if (emitter.frameOverLife.mode !== "off") {
-      if (!atlas) {
+      if (!atlas && !carriedTexture) {
         issues.push({
           severity: "warning",
           code: "frame-over-life-without-atlas",
