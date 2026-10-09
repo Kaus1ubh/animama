@@ -75,8 +75,9 @@ rejected. This exercises an already-open tab's late worker, the new selection,
 and rollback, while every route, static and measurement check runs on the
 candidate. Without a predecessor, the labelled controlled byte-change fixture
 leaves the genuine two-source gate unperformed. See
-[package-set tooling](../package-sets/README.md) and the
-[hosted contract](../../contracts/hosted-web.md) for exact identities and grammar.
+[package-set tooling](../package-sets/README.md#validation-receipt) for the
+receipt schema and the [hosted contract](../../contracts/hosted-web.md) for exact
+identities and grammar.
 
 To check wheel reproducibility within one build environment, build twice from
 unchanged inputs and compare SHA-256 digests. This does not establish universal
