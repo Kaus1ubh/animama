@@ -214,6 +214,43 @@ describe("composition lifetime boundary", () => {
     );
   });
 
+  it("reports a failed session cleanup once, then readmits and reports only newer failures", async () => {
+    const { controller, set } = fixture();
+    await controller.refresh();
+    controller.getSnapshot().scope!.register(() => {
+      throw new Error("Recovery storage is blocked");
+    });
+    set(ready("after-failed-cleanup"));
+    await controller.refresh();
+    const reported = controller.getSnapshot().admission;
+    expect(reported.status).toBe("unavailable");
+    expect(reported.status !== "ready" && reported.message).toMatch(
+      /previous session/,
+    );
+    await controller.refresh();
+    expect(controller.getSnapshot().scope!.key).toBe("after-failed-cleanup");
+    set(ready("after-clean-cleanup"));
+    await controller.refresh();
+    expect(controller.getSnapshot().scope!.key).toBe("after-clean-cleanup");
+  });
+
+  it("reports a cleanup failure from sign-out once without blocking the next sign-in", async () => {
+    const { controller, set } = fixture();
+    await controller.refresh();
+    controller.getSnapshot().scope!.register(() => {
+      throw new Error("Recovery storage is blocked");
+    });
+    await controller.signOut();
+    const signedOut = controller.getSnapshot().admission;
+    expect(signedOut.status).toBe("sign-in-required");
+    expect(signedOut.status !== "ready" && signedOut.message).toMatch(
+      /could not be removed/,
+    );
+    set(ready("next-sign-in"));
+    await controller.refresh();
+    expect(controller.getSnapshot().scope!.key).toBe("next-sign-in");
+  });
+
   it("does not retire a newer ready lifetime when an older admission read finishes late", async () => {
     const { controller, composition } = fixture();
     await controller.refresh();

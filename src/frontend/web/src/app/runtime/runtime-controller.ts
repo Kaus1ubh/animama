@@ -1,10 +1,13 @@
 import { QueryClient } from "@tanstack/react-query";
 import type { RuntimeAdmission } from "@animama/runtime-contracts";
+import { createLogger } from "@/lib/logger";
 import { queryClientOptions } from "@/query/queryClientOptions";
 import type { AdmissionRefresh, AppComposition } from "./composition";
 import { SessionRequestScope } from "./session-requests";
 import { clearPrivateSessionState } from "./private-session-state";
 import { beginHostedRecoverySession } from "@/lib/content/recovery-session";
+
+const logger = createLogger("RuntimeController");
 
 export type RuntimeSnapshot = {
   admission: RuntimeAdmission;
@@ -18,7 +21,10 @@ export class RuntimeController {
   private readonly listeners = new Set<() => void>();
   private pending: AbortController | null = null;
   private generation = 0;
+  /** Settles once every ended session's disposal has settled; it never rejects. */
   private cleanup: Promise<void> = Promise.resolve();
+  /** Disposal failures not yet shown to the person; each is reported once. */
+  private cleanupErrors: unknown[] = [];
   private retry: ReturnType<typeof setTimeout> | null = null;
   private retryDelay = 1_000;
   private snapshot: RuntimeSnapshot = {
@@ -54,17 +60,12 @@ export class RuntimeController {
     }
     this.composition.bindSession?.(null);
     if (previous.scope) {
-      this.cleanup = Promise.allSettled([
-        this.cleanup,
-        previous.scope.end(),
-      ]).then((results) => {
-        const errors = results.flatMap((result) =>
-          result.status === "rejected" ? [result.reason] : [],
-        );
-        if (errors.length)
-          throw new AggregateError(errors, "Session cleanup failed");
+      const ended = previous.scope.end().catch((error: unknown) => {
+        this.cleanupErrors.push(error);
       });
-      void this.cleanup.catch(() => {});
+      // Readmission still waits for every earlier disposal, but a failure is
+      // collected for one report instead of rejecting every later admission.
+      this.cleanup = Promise.all([this.cleanup, ended]).then(() => {});
     }
     void previous.queryClient.cancelQueries();
     previous.queryClient.clear();
@@ -126,9 +127,15 @@ export class RuntimeController {
       )
         this.publish({ status: "loading" });
       if (admission.status === "ready") await this.cleanup;
-      if (generation === this.generation && !pending.signal.aborted)
-        this.publish(admission);
       this.retryDelay = 1_000;
+      if (generation !== this.generation || pending.signal.aborted) return;
+      if (admission.status === "ready" && this.takeCleanupFailures())
+        this.publish({
+          status: "unavailable",
+          message:
+            "Animama could not finish clearing the previous session from this browser. Reload the page, or try again to continue.",
+        });
+      else this.publish(admission);
     } catch {
       if (generation === this.generation && !pending.signal.aborted) {
         if (
@@ -160,16 +167,16 @@ export class RuntimeController {
     const generation = ++this.generation;
     // Private work ends immediately, even when the logout request fails.
     this.publish({ status: "sign-in-required" });
-    const [remote, cleanup] = await Promise.allSettled([
+    const [remote] = await Promise.allSettled([
       this.composition.accountActions?.signOut(),
       this.cleanup,
     ]);
     if (generation !== this.generation) return;
-    if (cleanup.status === "rejected") {
+    if (this.takeCleanupFailures()) {
       this.publish({
         status: "sign-in-required",
         message:
-          "This view is signed out. Browser recovery could not be fully removed.",
+          "You are signed out, but some private data could not be removed from this browser. Reload the page before signing in again.",
       });
     } else if (remote.status === "rejected") {
       this.publish({
@@ -196,6 +203,23 @@ export class RuntimeController {
     this.pending?.abort();
     ++this.generation;
     this.publish({ status: "loading" });
+  }
+
+  /**
+   * Takes the disposal failures collected so far. Reporting each one once lets a
+   * retry admit again, while later cleanups report only their own failures.
+   */
+  private takeCleanupFailures(): boolean {
+    if (!this.cleanupErrors.length) return false;
+    logger.error(
+      "Session",
+      "Previous session cleanup failed",
+      new AggregateError(
+        this.cleanupErrors.splice(0),
+        "Session cleanup failed",
+      ),
+    );
+    return true;
   }
 
   private suspend(): void {
