@@ -445,7 +445,7 @@ Checks: `uv lock --check`, `make check-test`, and both live files.
 Completion: live checks pass or each deviation is decided; the baseline is
 recorded; review leaves no blocker.
 
-Phase record: issue #365; starting source `b37abfa5`; commit —.
+Phase record: issue #365; starting source `b37abfa5`; commit `93387454`.
 
 Results (2026-10-08). Source: `b37abfa5` plus this phase's working tree. Model
 `claude-haiku-5-5`; SDK `anthropic` 1.12.1. Live spend was well under budget:
@@ -784,7 +784,10 @@ those count against the Phase 1 budget.
 
 Completion: the doc is reviewed and the owner decision is recorded.
 
-Phase record: issue #366; starting source `93387454`; commit —.
+Phase record: issue #366; starting source `93387454`; commit `39d2ffee`.
+Issue #364 was republished from the spec after this commit (updated
+2026-10-09T16:09:22Z) and read back: it carries the 90,000 thresholds and the
+2026-10-09 decisions.
 
 Candidate measurements (2026-10-08, `test_measure_candidate_layouts` in
 `tests/live/test_prompt_cache_layout.py`, source `93387454-dirty`, same method
