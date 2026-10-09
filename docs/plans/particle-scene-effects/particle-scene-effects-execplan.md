@@ -1,8 +1,8 @@
 # Particle and Scene Effect platform and pipelines (Plan 1, platform)
 
-Source agreement: the draft spec
+Source agreement: the spec
 [particle-scene-effects-spec.md](particle-scene-effects-spec.md), requirements
-R1–R8, at the revision that records the owner's 2026-10-09 review decisions.
+R1–R8, agreed by the owner on 2026-10-09.
 Until the spec is published to
 [#297](https://github.com/raymond-van/animama/issues/297), the draft is the
 authority.
@@ -70,8 +70,8 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 
 ## Progress
 
-- [x] Spec drafted; owner review decisions recorded (2026-10-09); repository
-      surveyed; plan drafted.
+- [x] Spec drafted; owner review decisions recorded; spec agreed (2026-10-09);
+      repository surveyed; plan drafted; D1 decided.
 - [ ] Owner review of this plan and authorization of phases.
 - [ ] Workspace: publish the spec to #297, read it back, create phase issues.
 - [ ] P1 — Scene family designs (R2 input). Gate G1.
@@ -93,8 +93,8 @@ Paths: frontend relative to `src/frontend/web/`, backend to
   around the canvas and page-level capture, not a canvas readback.
 - 2026-10-09 (planning): the licence inventory has no truthful rule for new
   Particle or Scene art. `vfx/particle/quark/**` describes generator output from
-  CC0 inputs, and new Scene PNGs would fall to the catch-all `**/*`. Promotion
-  needs a decision (D1 below).
+  CC0 inputs, and new Scene PNGs would fall to the catch-all `**/*`. The owner
+  decided D1 (Decision Log).
 - 2026-10-09 (planning): Particle texture limits exist only in the frontend.
   The backend does not enforce texture count, bytes, dimensions or particle
   totals, and the runtime's private particle loader checks no dimensions.
@@ -133,10 +133,11 @@ Paths: frontend relative to `src/frontend/web/`, backend to
     a hard limit.
   - Dry-run effects (P8) stay Local drafts. They may become Plan 2 candidates
     but are not promoted in Plan 1.
-- **Open, for the owner at plan review — D1, licence rules for new art.** #298
-  decided that promoted files follow existing inventory rules without per-effect
-  wording. For Particle Effects the existing rule misstates new art's origin.
-  **Recommendation:** promotion writes new Particle and Scene art under
+- **2026-10-09, owner (plan review):** the spec is agreed (Status: Agreed).
+- **2026-10-09, owner — D1, licence rules for new art** (amends the spec's R14
+  wording). #298 had promoted files follow existing inventory rules without
+  per-effect wording, but for Particle Effects the existing rule misstates new
+  art's origin. Promotion writes new Particle and Scene art under
   owner-authored rules worded like `vfx/avatar/**/*`:
   - Particle: `effects promote` inserts a per-stem rule
     `vfx/particle/quark/<stem>/**` before `vfx/particle/quark/**`, as

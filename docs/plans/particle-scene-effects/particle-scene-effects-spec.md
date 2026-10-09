@@ -1,11 +1,12 @@
 # Launch-quality Particle and Scene Effects, their pipelines and simpler creators
 
-Status: Proposal
+Status: Agreed (owner, 2026-10-09)
 Owner decision: Intent discovery on 2026-10-09 settled the problem, scope, the
 three-plan delivery order and the decisions listed under
 [Open questions and decisions](#open-questions-and-decisions). The owner then
 asked for this draft and, on review the same day, resolved its open questions
-(see the dated spec-review decisions). Items still marked **Proposal** are
+(see the dated spec-review decisions) and accepted the spec. Items still marked
+**Proposal** are
 fixed by the named plan or gate: the R2 capability list and R6 budget values by
 Plan 1, the R9 and R10 lists before Plan 2 starts.
 Authoritative source: this draft until it is published in
@@ -368,9 +369,14 @@ use `animaPoseClip/2.0`.
   `content/included/` only after the owner approves it in the live preview on
   both Included Avatars. Promotion is an explicit, owner-approved step in
   Plan 2's PR.
-- Promoted files follow the existing inventory rules and source-review record
-  form, as #298 did. The included-content integrity and starter closure tests
-  pass.
+- New Particle and Scene art is promoted under owner-authored licence rules
+  worded like the existing `vfx/avatar/**/*` rule: one rule per promoted
+  Particle Effect folder (`vfx/particle/quark/<stem>/**`, ahead of the legacy
+  `vfx/particle/quark/**` rule, as Gestures are promoted), and one kind-wide
+  `vfx/scene/**/*.png` rule. Source-review records use the owner-authored
+  form. There is no per-effect "AI-generated" wording, as #298 decided (owner
+  decision, 2026-10-09). The included-content integrity and starter closure
+  tests pass.
 
 ### Plan 3 — creators
 
@@ -556,6 +562,11 @@ Decisions (owner, 2026-10-09, review of this draft):
 - **Final lists.** Trimming the R9 candidates and confirming the R10 families
   are deferred until before Plan 2 starts. Plan 1's design step may propose
   family changes.
+- **Licence rules for new art (Plan 1 review, D1).** The existing
+  `vfx/particle/quark/**` rule describes generated CC0 derivatives and new
+  Scene PNGs would fall to the catch-all rule, so promotion uses owner-authored
+  rules instead (R14).
+- **Agreement.** The owner accepted this spec on 2026-10-09.
 
 Open:
 
