@@ -51,4 +51,39 @@ describe("AdmissionScreen", () => {
     expect(absent.button("Sign out")).toBeDefined();
     expect(absent.container.textContent).not.toContain("unavailable");
   });
+
+  it("offers to retry an unfinished sign-out before signing in again", () => {
+    const retry = vi.fn();
+    const signIn = vi.fn();
+    const view = render({
+      admission: { status: "sign-in-required" },
+      signOutIncomplete: true,
+      retry,
+      signIn,
+    });
+    expect(view.container.querySelector("h1")!.textContent).toBe(
+      "Sign-out did not complete",
+    );
+    act(() => view.button("Try again")!.click());
+    expect(retry).toHaveBeenCalledOnce();
+    act(() => view.button("Sign in")!.click());
+    expect(signIn).toHaveBeenCalledOnce();
+  });
+
+  it("announces a sign-in problem as an alert beside the sign-in explanation", () => {
+    const view = render({
+      admission: {
+        status: "sign-in-required",
+        message: "Sign-in did not finish. Please try again.",
+      },
+      signIn: vi.fn(),
+    });
+    expect(view.container.querySelector('[role="alert"]')!.textContent).toBe(
+      "Sign-in did not finish. Please try again.",
+    );
+    expect(view.container.textContent).toContain(
+      "Sign in to access your Animas, chats and Library.",
+    );
+    expect(view.button("Sign in")).toBeDefined();
+  });
 });

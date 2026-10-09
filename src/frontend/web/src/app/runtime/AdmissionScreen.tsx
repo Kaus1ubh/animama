@@ -25,10 +25,16 @@ const messages = {
   ],
 } as const;
 
+const signOutIncompleteCopy = [
+  "Sign-out did not complete",
+  "Animama closed this view, but your account may still be signed in. Try again to finish signing out.",
+] as const;
+
 /** Common admission states render without mounting any private feature. */
 export function AdmissionScreen({
   admission,
   hosted,
+  signOutIncomplete = false,
   retry,
   signIn,
   openAccount,
@@ -36,13 +42,25 @@ export function AdmissionScreen({
 }: {
   admission: Exclude<RuntimeAdmission, { status: "ready" }>;
   hosted: boolean;
+  /** An explicit sign-out has not finished; `retry` repeats it. */
+  signOutIncomplete?: boolean;
   retry: () => void;
   signIn?: () => void;
   openAccount?: () => void;
   signOut?: () => void;
 }) {
   const [accountError, setAccountError] = useState<string | null>(null);
-  const [title, description] = messages[admission.status];
+  const [title, description] = signOutIncomplete
+    ? signOutIncompleteCopy
+    : messages[admission.status];
+  // A sign-in view keeps its explanation and announces a problem as an alert.
+  const alert =
+    admission.status === "sign-in-required" ? admission.message : undefined;
+  const text = alert ? description : (admission.message ?? description);
+  const offersSignIn =
+    admission.status === "sign-in-required" &&
+    !signOutIncomplete &&
+    signIn !== undefined;
   return (
     <main className="bg-background text-foreground flex min-h-screen items-center justify-center px-6">
       <section
@@ -54,25 +72,31 @@ export function AdmissionScreen({
             ? "Local runtime unavailable"
             : title}
         </h1>
-        {admission.message || description ? (
-          <p className="text-muted-foreground text-sm">
-            {admission.message ?? description}
+        {text ? <p className="text-muted-foreground text-sm">{text}</p> : null}
+        {alert ? (
+          <p role="alert" className="text-sm font-medium">
+            {alert}
           </p>
         ) : null}
         {admission.status !== "loading" ? (
           <button
             type="button"
-            onClick={
-              admission.status === "sign-in-required" && signIn ? signIn : retry
-            }
+            onClick={offersSignIn ? signIn : retry}
             className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium"
           >
-            {admission.status === "sign-in-required" && signIn
+            {offersSignIn
               ? "Sign in"
               : admission.status === "recovery"
                 ? "Try recovery"
                 : "Try again"}
           </button>
+        ) : null}
+        {signOutIncomplete && signIn ? (
+          <div className="flex justify-center gap-4 text-sm">
+            <button type="button" onClick={signIn}>
+              Sign in
+            </button>
+          </div>
         ) : null}
         {hosted &&
         admission.status !== "loading" &&

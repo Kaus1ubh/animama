@@ -8,6 +8,12 @@ import type { SessionRequestScope } from "../runtime/session-requests";
 import { traceProductRequest } from "../runtime/product-request-tracing";
 import { createAccountSetup } from "./account-setup";
 import {
+  markSignOutIncomplete,
+  signInReturnPath,
+  signOutMarkedIncomplete,
+  takeSignInFailure,
+} from "./account-navigation";
+import {
   hostedRecoveryIdentity,
   forgetHostedRecoveryIdentity,
 } from "./recovery-identity";
@@ -62,7 +68,15 @@ export function createHostedComposition(
   let scope: SessionRequestScope | null = null;
   let session: { owner: string; generation: string; key: string } | null = null;
   let accountUrl: string | null = null;
+  /** This tab signed out, so it stays signed out until a sign-in here. */
   let signedOut = false;
+  /** Another tab signed out; this tab checks again when it is next focused. */
+  let signedOutElsewhere = false;
+  /** This page's remote logout failed; a browser-wide marker mirrors it. */
+  let signOutFailed = false;
+  let signOutAttempt: Promise<void> | null = null;
+  /** A failed sign-in callback is reported on the sign-in view until the next attempt. */
+  let signInFailed = takeSignInFailure();
   let signInError = false;
   let loginRequest: AbortController | null = null;
   let events: AbortController | null = null;
@@ -116,6 +130,102 @@ export function createHostedComposition(
     if (!response.ok)
       throw new Error(`Hosted request failed (${response.status})`);
     return response.json() as Promise<T>;
+  }
+
+  const signOutIncomplete = () => signOutFailed || signOutMarkedIncomplete();
+  const signInRequired = (): RuntimeAdmission =>
+    signInFailed
+      ? {
+          status: "sign-in-required",
+          message: "Sign-in did not finish. Please try again.",
+        }
+      : { status: "sign-in-required" };
+
+  /**
+   * Reads the current session for sign-out work without admitting it. Returns
+   * its CSRF token, or null once the session has ended.
+   */
+  async function liveSessionCsrf(signal?: AbortSignal): Promise<string | null> {
+    const response = await authorizedFetch("/v1/hosted/runtime-context", {
+      signal,
+    });
+    if (response.status === 401 || response.status === 403) return null;
+    if (!response.ok)
+      throw new Error("Hosted context is temporarily unavailable");
+    const context = (await response.json()) as HostedContext;
+    if (context.state === "session_required") return null;
+    if (typeof context.csrf_token !== "string" || !context.csrf_token)
+      throw new Error("Hosted context has no current CSRF token");
+    return context.csrf_token;
+  }
+
+  /** The sign-out finished elsewhere, or the session ended on its own. */
+  function forgetIncompleteSignOut(): void {
+    signOutFailed = false;
+    markSignOutIncomplete(false);
+    csrf = null;
+  }
+
+  /**
+   * A failed sign-out stays on its retry view, and never readmits the session
+   * it left live, until it finishes or someone signs in again. The read keeps
+   * the retry's CSRF token current.
+   */
+  async function incompleteSignOut(
+    signal?: AbortSignal,
+  ): Promise<RuntimeAdmission> {
+    try {
+      const current = await liveSessionCsrf(signal);
+      if (current) csrf = current;
+      else forgetIncompleteSignOut();
+    } catch {
+      signal?.throwIfAborted();
+      // The retry reads the context again before its logout.
+    }
+    return { status: "sign-in-required" };
+  }
+
+  async function logout(): Promise<void> {
+    // A retry, or a page reloaded since the failure, uses the current token.
+    if (!csrf || signOutIncomplete()) csrf = await liveSessionCsrf();
+    if (csrf) await json("/api/cloud/auth/logout", { method: "POST" });
+  }
+
+  async function signOutOnce(): Promise<void> {
+    loginRequest?.abort();
+    session = null;
+    signedOut = true;
+    signedOutElsewhere = false;
+    // Private browser state is removed at once, whatever the server says.
+    const recoveryCleanup = purgeHostedRecoverySessions();
+    forgetHostedRecoveryIdentity();
+    channel?.postMessage({ type: "signed-out" });
+    const [remote, local] = await Promise.allSettled([
+      logout(),
+      recoveryCleanup,
+    ]);
+    accountUrl = null;
+    signOutFailed = remote.status === "rejected";
+    markSignOutIncomplete(signOutFailed);
+    if (!signOutFailed) csrf = null;
+    const errors = [remote, local].flatMap((result) =>
+      result.status === "rejected" ? [result.reason] : [],
+    );
+    if (errors.length)
+      throw new AggregateError(
+        errors,
+        "Hosted sign-out could not fully complete",
+      );
+  }
+
+  /** Whether another tab's newer session is live, so a sign-in here can adopt it. */
+  async function anotherSessionIsLive(signal: AbortSignal): Promise<boolean> {
+    try {
+      return (await liveSessionCsrf(signal)) !== null;
+    } catch {
+      signal.throwIfAborted();
+      return false;
+    }
   }
 
   // Attempts are not tied to an admission read: a superseded read must not
@@ -242,10 +352,12 @@ export function createHostedComposition(
         forgetHostedRecoveryIdentity();
         signal?.throwIfAborted();
       }
+      if (context.state === "session_required") return signInRequired();
       return { status: states[context.state] ?? "unavailable" };
     }
     setupRequested = false;
     setupPause = SETUP_PAUSE_MS;
+    signInFailed = false;
     const result = zRuntimeCapabilities.safeParse(context.capabilities);
     // Older schema defaults must not accidentally admit a hosted surface.
     const raw = context.capabilities as { schema_version?: unknown } | null;
@@ -317,7 +429,9 @@ export function createHostedComposition(
   async function readAdmission(
     signal?: AbortSignal,
   ): Promise<RuntimeAdmission> {
-    if (signedOut) return { status: "sign-in-required" };
+    if (signOutAttempt) return { status: "sign-in-required" };
+    if (signOutIncomplete()) return incompleteSignOut(signal);
+    if (signedOut || signedOutElsewhere) return { status: "sign-in-required" };
     if (signInError) {
       signInError = false;
       return {
@@ -336,7 +450,7 @@ export function createHostedComposition(
       await purgeHostedRecoverySessions();
       forgetHostedRecoveryIdentity();
       signal?.throwIfAborted();
-      return { status: "sign-in-required" };
+      return signInRequired();
     }
     if (!response.ok)
       throw new Error("Hosted context is temporarily unavailable");
@@ -463,19 +577,33 @@ export function createHostedComposition(
     accountAffordances: () => ({
       // Without a validated URL the Account controls are hidden, not broken.
       canOpenAccount: accountUrl !== null,
-      signOutIncomplete: false,
+      signOutIncomplete: signOutIncomplete(),
     }),
     accountActions: {
       signIn: () => {
+        // The session a failed sign-out left live is never adopted: only a
+        // new sign-in, which ends that session on the server, replaces it.
+        const replaceSession = signOutAttempt !== null || signOutIncomplete();
+        forgetIncompleteSignOut();
         signedOut = false;
+        signedOutElsewhere = false;
+        signInFailed = false;
+        automaticSetup = true;
         session = null;
         forgetHostedRecoveryIdentity();
         loginRequest?.abort();
         const controller = new AbortController();
         loginRequest = controller;
-        // Login is deliberately separate from product CSRF admission.
-        void options
-          .fetch(
+        void (async () => {
+          // Another tab may have signed in since this view signed out. Adopt
+          // that session instead of replacing it (and retiring its drafts).
+          if (
+            !replaceSession &&
+            (await anotherSessionIsLive(controller.signal))
+          )
+            return notify(true);
+          // Login is deliberately separate from product CSRF admission.
+          const response = await options.fetch(
             new Request(new URL("/api/cloud/auth/login", origin), {
               method: "POST",
               signal: controller.signal,
@@ -483,52 +611,30 @@ export function createHostedComposition(
               cache: "no-store",
               redirect: "error",
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ return_path: "/" }),
+              body: JSON.stringify({ return_path: signInReturnPath() }),
             }),
-          )
-          .then(async (response) => {
-            if (!response.ok) throw new Error("Sign-in is unavailable");
-            const result = (await response.json()) as {
-              authorization_url?: string;
-            };
-            controller.signal.throwIfAborted();
-            const url = new URL(result.authorization_url ?? "");
-            if (url.protocol !== "https:" || url.username || url.password)
-              throw new Error("Sign-in requires a secure identity endpoint");
-            options.navigate(url.href);
-          })
-          .catch(() => {
-            if (!controller.signal.aborted) {
-              signInError = true;
-              notify(true);
-            }
-          });
-      },
-      signOut: async () => {
-        loginRequest?.abort();
-        signedOut = true;
-        session = null;
-        const recoveryCleanup = purgeHostedRecoverySessions();
-        channel?.postMessage({ type: "signed-out" });
-        try {
-          const results = await Promise.allSettled([
-            json("/api/cloud/auth/logout", { method: "POST" }),
-            recoveryCleanup,
-          ]);
-          const errors = results.flatMap((result) =>
-            result.status === "rejected" ? [result.reason] : [],
           );
-          if (errors.length)
-            throw new AggregateError(
-              errors,
-              "Hosted sign-out could not fully complete",
-            );
-        } finally {
-          forgetHostedRecoveryIdentity();
-          csrf = null;
-          accountUrl = null;
-        }
+          if (!response.ok) throw new Error("Sign-in is unavailable");
+          const result = (await response.json()) as {
+            authorization_url?: string;
+          };
+          controller.signal.throwIfAborted();
+          const url = new URL(result.authorization_url ?? "");
+          if (url.protocol !== "https:" || url.username || url.password)
+            throw new Error("Sign-in requires a secure identity endpoint");
+          options.navigate(url.href);
+        })().catch(() => {
+          if (!controller.signal.aborted) {
+            signInError = true;
+            notify(true);
+          }
+        });
       },
+      /** Joins a running sign-out; a failed remote logout keeps its CSRF for the retry. */
+      signOut: () =>
+        (signOutAttempt ??= signOutOnce().finally(() => {
+          signOutAttempt = null;
+        })),
       openAccount: () => {
         if (!accountUrl)
           throw new Error(
@@ -578,9 +684,17 @@ export function createHostedComposition(
     },
     subscribe: (refresh) => {
       listeners.add(refresh);
-      const onFocus = () => refresh();
+      // Returning to a tab checks the server again, including a tab another
+      // tab signed out: someone may have signed in again since.
+      const onFocus = () => {
+        if (typeof document !== "undefined" && document.hidden) return;
+        signedOutElsewhere = false;
+        refresh();
+      };
       if (typeof window !== "undefined") {
         window.addEventListener("focus", onFocus);
+        if (typeof document !== "undefined")
+          document.addEventListener("visibilitychange", onFocus);
         if (typeof BroadcastChannel !== "undefined" && !channel) {
           channel = new BroadcastChannel("animama-hosted-admission");
           channel.onmessage = (event: MessageEvent<unknown>) => {
@@ -590,7 +704,9 @@ export function createHostedComposition(
               "type" in event.data &&
               event.data.type === "signed-out"
             ) {
-              signedOut = true;
+              // Only the tab that signed out stays latched; this one ends its
+              // private work now and reads the server when it is next focused.
+              signedOutElsewhere = true;
               session = null;
               notify(true);
             }
@@ -602,6 +718,8 @@ export function createHostedComposition(
         listeners.delete(refresh);
         if (typeof window !== "undefined")
           window.removeEventListener("focus", onFocus);
+        if (typeof document !== "undefined")
+          document.removeEventListener("visibilitychange", onFocus);
         if (!listeners.size) {
           stopEvents();
           if (bootstrapTimer) clearTimeout(bootstrapTimer);

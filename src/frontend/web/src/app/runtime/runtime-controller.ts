@@ -175,31 +175,36 @@ export class RuntimeController {
     }
   };
 
+  /**
+   * Ends private work at once, then shows how the sign-out finished. An
+   * incomplete remote sign-out is reported by the composition's account
+   * affordances, which survive any re-read made while it runs.
+   */
   readonly signOut = async (): Promise<void> => {
     if (this.retry) clearTimeout(this.retry);
     this.retry = null;
     this.pending?.abort();
-    const generation = ++this.generation;
+    ++this.generation;
     // Private work ends immediately, even when the logout request fails.
     this.publish({ status: "sign-in-required" });
     const [remote] = await Promise.allSettled([
       this.composition.accountActions?.signOut(),
       this.cleanup,
     ]);
-    if (generation !== this.generation) return;
-    if (this.takeCleanupFailures()) {
-      this.publish({
-        status: "sign-in-required",
-        message:
-          "You are signed out, but some private data could not be removed from this browser. Reload the page before signing in again.",
-      });
-    } else if (remote.status === "rejected") {
-      this.publish({
-        status: "sign-in-required",
-        message:
-          "This view is signed out. Remote sign-out could not be confirmed; sign in again to continue.",
-      });
-    }
+    // A sign-in that finished meanwhile owns the view now.
+    if (this.snapshot.admission.status === "ready") return;
+    const cleanupFailed = this.takeCleanupFailures();
+    const incomplete =
+      this.composition.accountAffordances?.().signOutIncomplete ?? false;
+    this.publish(
+      cleanupFailed || (remote.status === "rejected" && !incomplete)
+        ? {
+            status: "sign-in-required",
+            message:
+              "You are signed out, but some private data could not be removed from this browser. Reload the page before signing in again.",
+          }
+        : { status: "sign-in-required" },
+    );
   };
 
   readonly completeOnboarding = async (

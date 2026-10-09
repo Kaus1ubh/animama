@@ -52,8 +52,12 @@ export function AppRouter() {
       <AdmissionScreen
         admission={admission}
         hosted={composition.kind === "hosted"}
+        signOutIncomplete={account.signOutIncomplete}
         retry={() => {
-          void controller.refresh(admission.status === "recovery");
+          // An unfinished sign-out is retried, never replaced by readmission.
+          void (account.signOutIncomplete
+            ? controller.signOut()
+            : controller.refresh(admission.status === "recovery"));
         }}
         signIn={composition.accountActions?.signIn}
         openAccount={

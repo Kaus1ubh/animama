@@ -251,6 +251,40 @@ describe("composition lifetime boundary", () => {
     expect(controller.getSnapshot().scope!.key).toBe("next-sign-in");
   });
 
+  it("keeps a failed sign-out visible when admission is re-read while it runs", async () => {
+    const { controller, composition } = fixture();
+    await controller.refresh();
+    let incomplete = false;
+    Object.assign(composition, {
+      accountAffordances: () => ({
+        canOpenAccount: false,
+        signOutIncomplete: incomplete,
+      }),
+    });
+    let fail!: () => void;
+    vi.mocked(composition.accountActions!.signOut).mockImplementation(
+      () =>
+        new Promise<void>((_resolve, reject) => {
+          fail = () => {
+            incomplete = true;
+            reject(new Error("Logout failed"));
+          };
+        }),
+    );
+    const pending = controller.signOut();
+    // A focus while the logout runs re-reads admission.
+    vi.mocked(composition.readAdmission).mockResolvedValue({
+      status: "sign-in-required",
+    });
+    await controller.refresh();
+    fail();
+    await pending;
+    expect(controller.getSnapshot().admission).toEqual({
+      status: "sign-in-required",
+    });
+    expect(controller.getSnapshot().account.signOutIncomplete).toBe(true);
+  });
+
   it("publishes the account affordances the composition reports with each admission", async () => {
     const { controller, composition } = fixture();
     expect(controller.getSnapshot().account).toEqual({

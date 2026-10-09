@@ -97,6 +97,20 @@ Account actions provide sign-in, Cloud-scoped sign-out, account access and usage
 credentials, arbitrary endpoints and dispatch permission are never browser inputs.
 Restriction/outage state and quota request errors preserve private saved data.
 
+Sign-in sends the current path and query, without the callback marker, as
+`return_path`; the consumer validates it again. A callback that returns with
+`?sign_in=failed` shows an alert on the sign-in view, and the marker is removed
+from the URL before the router reads it. A signed-out tab first adopts a session
+that another tab has established instead of starting a sign-in that would replace
+it. Sign-out ends private browser work at once and tells other tabs, which end
+theirs and read the runtime context again when next focused; only the tab that
+signed out stays signed out until a sign-in there. If the remote logout fails,
+the Cloud session is still live: every tab and reload in that browser shows a
+retryable "Sign-out did not complete" view instead of readmitting it, until a
+retry (with a freshly read CSRF token) finishes, the context shows no session,
+or someone signs in again, which starts a new sign-in rather than adopting the
+live session.
+
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline

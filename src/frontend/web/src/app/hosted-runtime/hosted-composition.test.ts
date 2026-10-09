@@ -886,3 +886,301 @@ describe("hosted account setup", () => {
     }
   });
 });
+
+/** One browser profile: shared storage, focus and tab broadcasts. */
+function installBrowserPage(href = "https://app.example.test/") {
+  const rows = new Map<string, string>();
+  const storage = {
+    get length() {
+      return rows.size;
+    },
+    key: (index: number) => [...rows.keys()][index] ?? null,
+    getItem: (key: string) => rows.get(key) ?? null,
+    setItem: (key: string, value: string) => void rows.set(key, value),
+    removeItem: (key: string) => void rows.delete(key),
+  };
+  const focusListeners = new Set<() => void>();
+  const location = new URL(href);
+  const history = {
+    state: null,
+    replaceState: vi.fn((_state: unknown, _title: string, url: string) => {
+      location.href = new URL(url, location).href;
+    }),
+  };
+  const channels: { onmessage: ((event: MessageEvent) => void) | null }[] = [];
+  vi.stubGlobal("window", {
+    localStorage: storage,
+    sessionStorage: storage,
+    location,
+    history,
+    document: { pictureInPictureElement: null },
+    addEventListener: (type: string, listener: () => void) => {
+      if (type === "focus") focusListeners.add(listener);
+    },
+    removeEventListener: (_type: string, listener: () => void) =>
+      focusListeners.delete(listener),
+  });
+  vi.stubGlobal("document", {
+    hidden: false,
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
+  });
+  vi.stubGlobal(
+    "BroadcastChannel",
+    class {
+      onmessage: ((event: MessageEvent) => void) | null = null;
+      postMessage = vi.fn();
+      close = vi.fn();
+      constructor() {
+        channels.push(this);
+      }
+    },
+  );
+  return {
+    rows,
+    location,
+    history,
+    focus: () => focusListeners.forEach((listener) => listener()),
+    /** Another tab's sign-out message. */
+    signedOutElsewhere: () =>
+      channels.forEach((channel) =>
+        channel.onmessage?.({
+          data: { type: "signed-out" },
+        } as MessageEvent),
+      ),
+  };
+}
+
+/** The hosted service as the browser's tabs see it. */
+function hostedService() {
+  const service = {
+    session: "fixture-session-generation-one" as string | null,
+    logoutStatus: 200,
+    calls: [] as Request[],
+    paths: () => service.calls.map((call) => new URL(call.url).pathname),
+    fetch: (async (input) => {
+      const request = input as Request;
+      service.calls.push(request);
+      const path = new URL(request.url).pathname;
+      if (path === "/v1/hosted/runtime-context")
+        return Response.json(
+          service.session
+            ? { ...active, recovery_session_id: service.session }
+            : {
+                ...active,
+                state: "session_required",
+                user_id: null,
+                csrf_token: null,
+              },
+        );
+      if (path === "/api/cloud/auth/logout") {
+        if (service.logoutStatus === 200) service.session = null;
+        return Response.json({}, { status: service.logoutStatus });
+      }
+      if (path === "/api/cloud/auth/login")
+        return Response.json({
+          authorization_url: "https://identity.example.test/sign-in",
+        });
+      if (path === "/v1/hosted/events")
+        return new Response(new ReadableStream<Uint8Array>());
+      return Response.json({ ok: true });
+    }) as typeof globalThis.fetch,
+  };
+  return service;
+}
+
+/** One tab of the hosted app, mounted like the entrypoint mounts it. */
+function hostedTab(service: ReturnType<typeof hostedService>) {
+  const navigate = vi.fn();
+  const composition = createHostedComposition({
+    baseUrl: "https://app.example.test",
+    fetch: service.fetch,
+    navigate,
+  });
+  const controller = new RuntimeController(composition);
+  const unsubscribe = composition.subscribe!((invalidate) => {
+    void controller.refresh(false, invalidate);
+  });
+  return {
+    composition,
+    controller,
+    navigate,
+    status: () => controller.getSnapshot().admission.status,
+    incomplete: () => controller.getSnapshot().account.signOutIncomplete,
+    close: () => {
+      unsubscribe();
+      controller.dispose();
+    },
+  };
+}
+
+describe("hosted sign-in and sign-out", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
+  it("keeps a failed remote sign-out retryable across reads and reloads until it finishes", async () => {
+    installBrowserPage();
+    const service = hostedService();
+    service.logoutStatus = 503;
+    const tab = hostedTab(service);
+    const reloaded = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      expect(tab.status()).toBe("ready");
+      await tab.controller.signOut();
+      expect(tab.status()).toBe("sign-in-required");
+      expect(tab.controller.getSnapshot().scope).toBeNull();
+      expect(tab.incomplete()).toBe(true);
+      // A focus or other read neither erases the failure nor readmits the
+      // session it left live.
+      await tab.controller.refresh();
+      expect(tab.status()).toBe("sign-in-required");
+      expect(tab.incomplete()).toBe(true);
+      // Neither does a reload of the page.
+      await reloaded.controller.refresh();
+      expect(reloaded.status()).toBe("sign-in-required");
+      expect(reloaded.incomplete()).toBe(true);
+      service.logoutStatus = 200;
+      await reloaded.controller.signOut();
+      expect(reloaded.incomplete()).toBe(false);
+      const logouts = service.calls.filter(
+        (call) => new URL(call.url).pathname === "/api/cloud/auth/logout",
+      );
+      expect(logouts).toHaveLength(2);
+      expect(logouts[1].headers.get("X-Animama-CSRF")).toBe("fixture-csrf");
+      // The original page sees the finished sign-out on its next read.
+      await tab.controller.refresh();
+      expect(tab.incomplete()).toBe(false);
+      expect(tab.status()).toBe("sign-in-required");
+    } finally {
+      tab.close();
+      reloaded.close();
+    }
+  });
+
+  it("replaces the session a failed sign-out left live with a new sign-in", async () => {
+    installBrowserPage();
+    const service = hostedService();
+    service.logoutStatus = 503;
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await tab.controller.signOut();
+      expect(tab.incomplete()).toBe(true);
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() =>
+        expect(tab.navigate).toHaveBeenCalledWith(
+          "https://identity.example.test/sign-in",
+        ),
+      );
+      expect(tab.composition.accountAffordances!().signOutIncomplete).toBe(
+        false,
+      );
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("lets a tab signed out by another tab adopt a newer session when it is focused", async () => {
+    const page = installBrowserPage();
+    const service = hostedService();
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      const first = tab.controller.getSnapshot().scope!;
+      page.signedOutElsewhere();
+      await vi.waitFor(() => expect(tab.status()).toBe("sign-in-required"));
+      expect(first.controller.signal.aborted).toBe(true);
+      // The other tab signs in again.
+      service.session = "fixture-session-generation-two";
+      page.focus();
+      await vi.waitFor(() => expect(tab.status()).toBe("ready"));
+      expect(tab.controller.getSnapshot().scope!.key).not.toBe(first.key);
+      expect(tab.navigate).not.toHaveBeenCalled();
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("adopts another tab's active session instead of starting a new sign-in", async () => {
+    const page = installBrowserPage();
+    const service = hostedService();
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      page.signedOutElsewhere();
+      await vi.waitFor(() => expect(tab.status()).toBe("sign-in-required"));
+      service.session = "fixture-session-generation-two";
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() => expect(tab.status()).toBe("ready"));
+      expect(service.paths()).not.toContain("/api/cloud/auth/login");
+      expect(tab.navigate).not.toHaveBeenCalled();
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("keeps the tab that signed out signed out when it is focused again", async () => {
+    const page = installBrowserPage();
+    const service = hostedService();
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      await tab.controller.signOut();
+      expect(tab.incomplete()).toBe(false);
+      service.session = "fixture-session-generation-two";
+      page.focus();
+      await tab.controller.refresh();
+      expect(tab.status()).toBe("sign-in-required");
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("returns to the current page after sign-in", async () => {
+    installBrowserPage("https://app.example.test/library?tab=effects#top");
+    const service = hostedService();
+    service.session = null;
+    const tab = hostedTab(service);
+    try {
+      await tab.controller.refresh();
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() => expect(tab.navigate).toHaveBeenCalled());
+      const login = service.calls.find(
+        (call) => new URL(call.url).pathname === "/api/cloud/auth/login",
+      )!;
+      expect(await login.json()).toEqual({
+        return_path: "/library?tab=effects",
+      });
+    } finally {
+      tab.close();
+    }
+  });
+
+  it("reports a failed sign-in callback on the sign-in view and removes its marker", async () => {
+    const page = installBrowserPage(
+      "https://app.example.test/library?sign_in=failed&tab=1",
+    );
+    const service = hostedService();
+    service.session = null;
+    const tab = hostedTab(service);
+    try {
+      expect(page.location.href).toBe("https://app.example.test/library?tab=1");
+      await tab.controller.refresh();
+      expect(tab.controller.getSnapshot().admission).toEqual({
+        status: "sign-in-required",
+        message: "Sign-in did not finish. Please try again.",
+      });
+      tab.composition.accountActions!.signIn();
+      await vi.waitFor(() => expect(tab.navigate).toHaveBeenCalled());
+      const login = service.calls.find(
+        (call) => new URL(call.url).pathname === "/api/cloud/auth/login",
+      )!;
+      expect(await login.json()).toEqual({ return_path: "/library?tab=1" });
+      expect(await tab.composition.readAdmission()).toEqual({
+        status: "sign-in-required",
+      });
+    } finally {
+      tab.close();
+    }
+  });
+});
