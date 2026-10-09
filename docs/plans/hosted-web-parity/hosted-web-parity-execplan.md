@@ -1970,6 +1970,13 @@ in-memory flag could outlive the shared marker (R2-PF-02). Repair round 2 keeps
 the guard until the consumer has ended the session; the consumer now ends a
 browser's current session whenever a sign-in starts.
 
+Code Review #3 (final targeted, at `7a9e63f4`) passed: R2-PF-01, R2-PF-02 and the
+nits are verified. Its one recommended fix (R3-PF-01: a stale tab's remembered
+sign-out target could turn a later deliberate sign-out into a no-op that left a
+newer session live) is applied in `70ce8675` with a test that fails first. Its
+consumer nit (send `recovery_session_id` for every live session state) belongs to
+the consumer. Repair rounds used: 2 of 2, plus that one-line recommended fix.
+
 ## Final integration review
 
 A6's review closes integration of A1–A6; do not reopen those reviews. A7 has the new scope's separately bounded review above, reusing valid inherited evidence.
