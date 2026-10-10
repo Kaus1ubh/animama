@@ -92,6 +92,8 @@ export function SidebarCreateMenu() {
   const triggerRef = useRef<HTMLAnchorElement>(null);
   /** Focus returned from the picker must not reopen the hover menu. */
   const suppressFocusOpenRef = useRef(false);
+  /** A choice or dismissal closed the menu; only Create itself reopens it. */
+  const dismissedRef = useRef(false);
   const closeMobileSidebar = useCloseMobileSidebar();
   const animaCreation = useRuntimeFeatureEnabled("anima_creation");
   // A withheld Anima creator keeps its item, disabled with the shared reason.
@@ -119,7 +121,17 @@ export function SidebarCreateMenu() {
 
   const openMenu = () => {
     cancelClose();
+    dismissedRef.current = false;
     setOpen(true);
+  };
+
+  /**
+   * Pointer or focus reaching the menu keeps it open and recovers a hover close
+   * that beat the pointer there. The closed menu stays mounted while it
+   * animates out, so a dismissed menu must not reopen from those events.
+   */
+  const keepMenu = () => {
+    if (!dismissedRef.current) openMenu();
   };
 
   const scheduleClose = () => {
@@ -132,6 +144,7 @@ export function SidebarCreateMenu() {
 
   const closeMenu = () => {
     cancelClose();
+    dismissedRef.current = true;
     setOpen(false);
   };
 
@@ -146,7 +159,10 @@ export function SidebarCreateMenu() {
 
   return (
     <>
-      <Popover open={open} onOpenChange={setOpen}>
+      <Popover
+        open={open}
+        onOpenChange={(next) => (next ? openMenu() : closeMenu())}
+      >
         <PopoverAnchor asChild>
           <div onMouseEnter={openMenu} onMouseLeave={scheduleClose}>
             <SidebarLink
@@ -193,9 +209,9 @@ export function SidebarCreateMenu() {
           collisionPadding={12}
           className="z-[130] w-44 border-0 bg-transparent p-0 shadow-none"
           onOpenAutoFocus={(event) => event.preventDefault()}
-          onMouseEnter={openMenu}
+          onMouseEnter={keepMenu}
           onMouseLeave={scheduleClose}
-          onFocusCapture={openMenu}
+          onFocusCapture={keepMenu}
           onBlurCapture={scheduleClose}
           onEscapeKeyDown={() => {
             cancelClose();
