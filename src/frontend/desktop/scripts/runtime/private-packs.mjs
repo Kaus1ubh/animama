@@ -31,6 +31,16 @@ import { readJson, repoRoot, run } from "./common.mjs";
 const resources = path.join(repoRoot, "src/backend/animama/resources");
 
 /**
+ * Hashes of the vendor's watermarked preview sounds. They may never ship
+ * anywhere, so the release scan allows them in no location. A backend
+ * resource, like the manifests, because the backend restricts them too.
+ */
+export const PREVIEW_DENY_PATH = path.join(
+  resources,
+  "wow-comedy-sfx-preview-deny.json",
+);
+
+/**
  * One private pack. Paths follow the pack ID: the tracked manifest (also the
  * backend's restricted-hash resource), the tracked licence inventory copied
  * into the staged pack, the ignored build input (never inside `content/`) and
@@ -45,6 +55,7 @@ function definePack({
   privateFields,
   envPrefix,
   requireEnv,
+  denyListPath = null,
 }) {
   return Object.freeze({
     id,
@@ -70,6 +81,8 @@ function definePack({
     envPrefix,
     /** Release candidates set this to `1` so a missing pack fails the build. */
     requireEnv,
+    /** Hashes that may appear nowhere, such as the vendor's watermarked previews. */
+    denyListPath,
   });
 }
 
@@ -115,6 +128,7 @@ export const WOW_COMEDY_SFX = definePack({
   ],
   envPrefix: "ANIMAMA_WOW_COMEDY_SFX_R2",
   requireEnv: "ANIMAMA_REQUIRE_WOW_COMEDY_SFX",
+  denyListPath: PREVIEW_DENY_PATH,
 });
 
 /** Every private pack; the desktop supervisor mounts the same IDs. */
@@ -128,15 +142,6 @@ export function packById(id) {
     );
   return pack;
 }
-
-/**
- * Hashes of the vendor's watermarked preview sounds. They may never ship
- * anywhere, so the release scan allows them in no location.
- */
-export const PREVIEW_DENY_PATH = path.join(
-  resources,
-  "wow-comedy-sfx-preview-deny.json",
-);
 
 export class PackError extends Error {}
 
@@ -495,6 +500,10 @@ export async function publishPack({
   credentials = confirm ? packCredentials(pack, process.env, "write") : null,
   fetch: fetchImpl = fetch,
 }) {
+  if (!manifest.files.length)
+    throw new PackError(
+      "The manifest lists no files; there is nothing to publish",
+    );
   const problems = verifyPack({
     pack,
     dir: input,
@@ -557,4 +566,37 @@ export function manifestFor(pack, dir, version) {
       }))
       .sort((a, b) => a.path.localeCompare(b.path)),
   };
+}
+
+/**
+ * Hash rules for an expanded release candidate: each pack's bytes may appear
+ * only inside the app's own runtime directory (macOS or Windows layout), and
+ * deny-listed bytes nowhere.
+ */
+export function releaseScanRules({
+  packs = PRIVATE_PACKS,
+  manifestOf = readManifest,
+  denyListOf = readDenyList,
+} = {}) {
+  return packs.flatMap((pack) => [
+    {
+      manifest: manifestOf(pack),
+      allow: [
+        new RegExp(
+          `/(Contents/)?[Rr]esources/runtime/${pack.stagedRelative}/`,
+          "u",
+        ),
+      ],
+      rule: `${pack.id}-outside-runtime`,
+    },
+    ...(pack.denyListPath
+      ? [
+          {
+            manifest: denyListOf(pack.denyListPath),
+            allow: [],
+            rule: "watermarked-preview",
+          },
+        ]
+      : []),
+  ]);
 }

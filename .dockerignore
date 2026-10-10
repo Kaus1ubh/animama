@@ -115,8 +115,8 @@ cloud/cdk.out*/
 .sst
 
 # Private build inputs, such as the non-portable Mixamo-motion and comedy sound
-# packs, are fetched
-# from an owner-only store and never tracked or sent to a Docker build context.
+# packs, are fetched from an owner-only store and never tracked or sent to a
+# Docker build context.
 /build-inputs/
 
 # Third-party sounds ship only as a private pack; loose copies in a checkout

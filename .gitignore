@@ -82,8 +82,8 @@ content/included/**/*.review/
 .compatibility-base/
 
 # Private build inputs, such as the non-portable Mixamo-motion and comedy sound
-# packs, are fetched
-# from an owner-only store and never tracked or sent to a Docker build context.
+# packs, are fetched from an owner-only store and never tracked or sent to a
+# Docker build context.
 /build-inputs/
 
 # Mixamo-derived animations are private, user-supplied inputs.

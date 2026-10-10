@@ -74,7 +74,13 @@ starting revision; implementers re-check them.
 - [x] Owner review of this plan (2026-10-09): optional sound link accepted,
       fresh mapping for every effect, watermarked previews deleted.
 - [x] Implementation authorized for the whole plan (`/implement`, 2026-10-09).
-- [ ] Phase 1: Generalized private packs and the empty sound pack.
+- [x] Workspace: worktree on `feat/licensed-comedy-sfx`, fast-forwarded to
+      `3efefc5b`; plan pushed at `995dc4fa`; #399 marked Agreed and linked;
+      phase issues #402 (P1), #403 (P2), #404 (P3, blocked by #403) and #405
+      (P4, blocked by #402–#404) created as sub-issues. Task stack: started when
+      a phase first needs it.
+- [x] Phase 1: Generalized private packs and the empty sound pack (#402).
+      Review #1 passed; revisions recorded.
 - [ ] Phase 2: Optional accompanying sounds and the non-portable sound policy (backend).
 - [ ] Phase 3: Frontend affordances.
 - [ ] Phase 4: Sound mapping, pack assembly and integration (owner gates G1–G3).
@@ -175,7 +181,7 @@ starting revision; implementers re-check them.
     desktop:mixamo-motion` stays as an alias, so the release workflow and docs
     keep working.
   - **Watermarked previews are denied by hash.** A tracked, public-safe
-    `scripts/wow-comedy-sfx/preview-deny.json` lists their SHA-256 hashes
+    `src/backend/animama/resources/wow-comedy-sfx-preview-deny.json` lists their SHA-256 hashes
     (hashes only, no audio). It joins the backend's restricted set and the
     release scan, with no allowed location.
   - **A new ADR (0019)** records optional accompanying sounds and the
@@ -184,6 +190,20 @@ starting revision; implementers re-check them.
   reuse the sounds the effects had before the 2026-09-02 cleanup; they were
   random, so every effect gets a freshly chosen sound. The watermarked previews
   may be deleted entirely. The other proposed decisions stand as written.
+- 2026-10-10, agent (Phase 1 implementation): the preview deny list is the
+  backend resource `src/backend/animama/resources/wow-comedy-sfx-preview-deny.json`,
+  not `scripts/wow-comedy-sfx/`, because `restricted_sha256()` reads every
+  restricted-hash file through `importlib.resources`; the desktop tool reads
+  the same file, as it does the manifests. It lists sizes and hashes only.
+  The pack definition names it (`denyListPath`), so the CLI scan and the
+  release scan apply it without special-casing the sound pack.
+- 2026-10-10, agent (Phase 2 design, within the accepted outcome): resolve
+  optional edges once, in the Included scan, instead of teaching catalog
+  validity, typed admission, closures and staging to tolerate unresolved edges.
+  Every consumer zips an entry's dependency refs with resolved item IDs
+  (`strict=True`), so an unresolved edge anywhere downstream would break that
+  invariant in a dozen places. Local content may not declare optional edges,
+  so the scan of Included content is the only place they need resolving.
 
 ## Phased implementation
 
@@ -220,7 +240,7 @@ Intended changes:
    vendor, licence reference, no purchase data). Add `/content/included/sfx/`
    to `.dockerignore`.
 5. **Preview deny list and deletion.** Generate
-   `scripts/wow-comedy-sfx/preview-deny.json` (path-free SHA-256 list with a
+   `src/backend/animama/resources/wow-comedy-sfx-preview-deny.json` (path-free SHA-256 list with a
    schema version) from the primary checkout's ignored
    `content/included/sfx/comedy/1/`, check that no tracked file matches, then
    delete that directory (owner decision, 2026-10-09). The backend restricted
@@ -245,53 +265,117 @@ and mounts from a synthetic fixture in tests; review passes.
 
 #### Phase 1 references
 
-Issue: to be created. Commits: none yet.
+Issue: #402. Commits: `eef55ddf` (`build(content)[p1]: generalize private
+Included packs and add the empty sound pack`) and the Code Review #1 revision
+commit.
+
+#### Phase 1 results
+
+Implemented as planned, with the deny-list location recorded in the Decision
+Log. The 45 watermarked preview files were hashed and then deleted from the
+primary checkout's ignored `content/included/sfx/` (owner decision); no tracked
+file matches a preview hash. The Mixamo tests now live in one parameterized
+`private-packs.test.mjs` covering both packs, so they were restructured rather
+than kept "unmodified apart from imports"; their meaning is unchanged.
+
+Checks at `eef55ddf` (2026-10-09/10):
+
+- `uv run pytest -q`: 3358 passed, 10 skipped; `uv run ruff check` and
+  `make format-check` pass.
+- From `src/frontend`: `pnpm desktop:check` passes; `pnpm desktop:test`: 501
+  passed, 14 skipped.
+- `pnpm desktop:runtime:stage -- --platform darwin --arch arm64` and
+  `pnpm desktop:runtime:audit` pass without pack inputs; both packs log
+  "staging without it".
+- Not run: a stage with a pack present (no real pack before Phase 4; unit
+  tests cover staging with a synthetic pack), and the licence-inventory
+  assignment, which needs a full staged runtime (Phase 4 checks it with real
+  content).
 
 #### Code Review #1 Findings
 
-Not started.
+Independent `sdlc-reviewer`, 2026-10-10, source `eef55ddf` (baseline
+`995dc4fa`). **Pass**; one required record fix. The reviewer confirmed Mixamo
+behaviour is unchanged (environment, paths, payload rules, messages, mount,
+licence refs, release-scan rule) and the tracked files are public-safe. Checks:
+82 desktop pack and supervisor tests, 25 backend tests, prettier, ruff, the
+import-boundary check, `bash -n reset.sh`, both Compose config checks, both
+`scan --git` runs and the CLI argument cases.
+
+- **P1-F1 (required):** the plan named the deny list
+  `scripts/wow-comedy-sfx/preview-deny.json`; it shipped as a backend resource
+  without a recorded decision.
+- **P1-F2 (optional):** the release-scan rules and per-pack licence refs have
+  no tests (pre-existing gap for Mixamo).
+- **P1-F3 (optional):** the manifest-union test re-implements the loop it
+  checks; a malformed second resource is not tested through the union.
+- **P1-F4 (optional):** `publishPack` doesn't refuse an empty manifest.
+- **P1-F5 (optional):** nothing ties the backend pack ID list to the desktop
+  lists.
+- Optional notes: the CLI special-cases the sound pack for the deny list;
+  `content/included/README.md` still says the previews were kept (Phase 4);
+  ignore-file comment wrapping.
 
 #### Code Review #1 Revisions
 
-Not started.
+- P1-F1 **accepted:** Decision Log entry added; the three step texts name
+  `src/backend/animama/resources/wow-comedy-sfx-preview-deny.json`.
+- P1-F2 **partly accepted:** the rules moved into `releaseScanRules()` in
+  `private-packs.mjs`, tested for rule names, per-pack allowed directories
+  (macOS and Windows layouts) and the deny rule. The licence assignment needs a
+  full staged runtime; it is **deferred** to Phase 4's staged inventory check
+  with the real pack.
+- P1-F3 **accepted:** a test swaps `RESTRICTED_RESOURCES` for synthetic files
+  and checks the union and a malformed second resource.
+- P1-F4 **accepted:** `publishPack` refuses an empty manifest, with a test.
+- P1-F5 **rejected:** a cross-language check would parse source text; a
+  missing backend ID fails loudly at backend startup ("Invalid immutable
+  Included source configuration"), and the desktop lists are already tested
+  together.
+- Optional notes: the deny list is now a pack-definition field
+  (`denyListPath`) used by the CLI and the release scan; the README sentence is
+  added to Phase 4 step 10; the ignore-file comments are rewrapped.
+- Checks after revisions: `npx vitest run tests/private-packs.test.mjs` 28
+  passed; `uv run pytest -q tests/test_content_portability.py` 9 passed.
+  Repair budget: one round used, one left.
 
 ### Phase 2: Optional accompanying sounds and the non-portable sound policy (backend)
 
 Requirements: #399 R3, R7 (degradation), R9 (backend). Depends on P1 (for the
 restricted set; can start in parallel).
 
-Intended changes:
+Intended changes (revised 2026-10-10 during implementation; see the Decision
+Log):
 
 1. **Document model.** `ContentDependencyV1` gains `optional: bool = False`;
    `_dependencies` parses `"optional": true` only on `sound_effect` edges of
    Avatar and Scene Effects and rejects it elsewhere
-   (`dependency_optional_not_allowed`). Descriptor writers round-trip it.
-2. **Catalog validity.** An unresolved or invalid optional edge doesn't make
-   the entry INVALID or propagate `dependency_unavailable`. Record a
-   non-blocking diagnostic if the diagnostics model supports warnings;
-   otherwise none.
-3. **Runtime closure and alias map.** `runtime_content_closure.py` omits
-   unavailable optional edges instead of dropping the root; the runtime
-   reference map leaves `sound.onApply` unset, which the frontend already plays
-   silently.
-4. **Desktop starter staging.** `runtime/starter_content.py` closure resolution
-   tolerates optional edges to excluded, non-portable or missing targets and
-   never stages them.
-5. **Capabilities.** `content_package_capabilities._sound` accepts a
-   `soundAlias` that names an optional edge, and allows a missing target for
-   that edge.
-6. **Export.** For a descriptor with an optional edge to a non-portable or
-   unavailable sound, `portable_json` drops the edge and its `soundAlias`, and
-   the export summary lists the sound as omitted (reuse the existing omitted-item
-   model; extend its kind set if needed). Required non-portable edges keep
-   `package_non_portable`. Anima export through Reaction and Gesture closures
-   succeeds.
-7. **Save and import policy.** Typed save refuses a Local item with any edge to
-   a non-portable Sound Effect (`content_non_portable_dependency`, naming the
-   sound). Import strips optional edges to non-portable sounds from Local
-   entries and refuses required ones. Record how import treats Included-origin
-   entries (binds to the receiver's Included item, or writes a Local copy).
-8. **OpenAPI.** If summary or error schemas change, regenerate the client
+   (`dependency_optional_not_allowed`).
+2. **Included scan resolves optional edges.** After the Included scan (single
+   root or every mounted source), an optional edge whose target isn't a VALID
+   scanned Included entry of the declared kind is removed from the entry's
+   effective metadata and dependency refs, together with a `definition.soundAlias`
+   that names it. The entry's revision folds in the omitted refs, so mounting
+   or unmounting the pack is a content change. Everything downstream (catalog
+   validity, typed admission, the runtime closure and alias map, starter
+   staging, previews) sees an ordinary effect without a sound, so no
+   dependency invariant changes.
+3. **Local content never uses optional edges or non-portable sounds.** Catalog
+   reconciliation marks a Local entry INVALID when it declares an optional edge
+   (`dependency_optional_not_allowed`) or when an edge resolves to a
+   non-portable Sound Effect (`non_portable_dependency`). Typed save and import
+   then fail through the existing `saved_content_invalid` and import checks,
+   and loose files dropped into the Local library are covered too.
+4. **Export.** An optional edge to a non-portable sound is not part of the
+   package closure. `portable_json` removes optional edges whose target isn't a
+   package entry, with the `soundAlias` that names them, and writes the kept
+   ones as ordinary edges (no `optional` key). The export summary lists the
+   omitted sounds. Required non-portable edges keep `package_non_portable`.
+   Anima export through Reaction and Gesture closures succeeds.
+5. **Import** needs no new rule: a package edge must name a package entry
+   (`complete_graph`), restricted bytes are refused by hash, and item 3 refuses
+   the rest.
+6. **OpenAPI.** If summary or error schemas change, regenerate the client
    offline with `pnpm openapi-ts` (after `uv sync --python 3.12.13` in a fresh
    worktree).
 
@@ -314,7 +398,7 @@ test changes meaning; review passes.
 
 #### Phase 2 references
 
-Issue: to be created. Commits: none yet.
+Issue: #403. Commits: none yet.
 
 #### Code Review #1 Findings
 
@@ -362,7 +446,7 @@ explains every unavailable action in text; review passes.
 
 #### Phase 3 references
 
-Issue: to be created. Commits: none yet.
+Issue: #404. Commits: none yet.
 
 #### Code Review #1 Findings
 
@@ -384,7 +468,7 @@ criteria with real content. Depends on P1–P3. Contains owner gates.
    `desktop-macos-signing` environment. Record a dated, credential-free note
    here.
 2. **Watermarked previews.** Phase 1 records their hashes in
-   `scripts/wow-comedy-sfx/preview-deny.json` and deletes the ignored
+   `src/backend/animama/resources/wow-comedy-sfx-preview-deny.json` and deletes the ignored
    `content/included/sfx/comedy/1/` from the primary checkout (owner decision,
    2026-10-09). They would otherwise collide with the pack's logical keys.
 3. **Fresh mapping (agent draft for G2).** Choose one sound per effect from the
@@ -431,10 +515,12 @@ criteria with real content. Depends on P1–P3. Contains owner gates.
     non-portable sound policy); a pack guide beside
     `docs/backend/operations/mixamo-motion-pack.md` (or a shared private-packs
     guide if that reads better); `content/included/README.md` (replace the
-    "no distribution license" paragraph and "This library holds no
-    non-portable content"); `docs/frontend/runtime/sound.md` (optional sounds;
+    "no distribution license" paragraph, including "Existing private
+    development files are not deleted" (they were deleted on 2026-10-09), and
+    "This library holds no non-portable content"); document
+    `pnpm desktop:private-pack --pack <id>`; `docs/frontend/runtime/sound.md` (optional sounds;
     fix the Particle Effect claim); `docs/frontend/runtime/avatar-vfx.md`;
-    `docs/frontend/features/library.md`; the redistribution review, runtime
+    `docs/frontend/features/library.md` (licensed sounds are not listed); the redistribution review, runtime
     staging and release docs; `.gitignore` comment at :74; the packaged
     attribution notice and licence sources crediting WOW Sound (R8); a visible
     credit where the app lists third-party notices.
@@ -453,7 +539,7 @@ content; review passes.
 
 #### Phase 4 references
 
-Issue: to be created. Commits: none yet.
+Issue: #405. Commits: none yet.
 
 #### Code Review #1 Findings
 

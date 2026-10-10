@@ -22,6 +22,7 @@ import {
   publishPack,
   readDenyList,
   readManifest,
+  releaseScanRules,
   scanForPackBytes,
   stagePack,
   verifyPack,
@@ -420,6 +421,37 @@ describe("private pack definitions", () => {
       }),
     );
     expect(() => readManifest(WOW_COMEDY_SFX, file)).toThrow(PackError);
+  });
+
+  it("lets each pack's bytes appear only in its own runtime directory", () => {
+    const rules = releaseScanRules({
+      manifestOf: (pack) => ({ pack_id: pack.id, files: [] }),
+      denyListOf: () => ({ files: [] }),
+    });
+    expect(rules.map((item) => item.rule)).toEqual([
+      "mixamo-motion-outside-runtime",
+      "wow-comedy-sfx-outside-runtime",
+      "watermarked-preview",
+    ]);
+    const [mixamo, sounds, previews] = rules;
+    const mac = "x/Animama.app/Contents/Resources/runtime/content";
+    const win = "x/resources/runtime/content";
+    expect(mixamo.allow[0].test(`${mac}/mixamo-motion/a.vrma`)).toBe(true);
+    expect(sounds.allow[0].test(`${win}/wow-comedy-sfx/a.ogg`)).toBe(true);
+    expect(mixamo.allow[0].test(`${mac}/wow-comedy-sfx/a.ogg`)).toBe(false);
+    expect(sounds.allow[0].test(`${mac}/included-core/a.ogg`)).toBe(false);
+    expect(previews.allow).toEqual([]);
+  });
+
+  it("refuses to publish an empty manifest", async () => {
+    await expect(
+      publishPack({
+        pack: WOW_COMEDY_SFX,
+        manifest: { pack_id: "wow-comedy-sfx", version: "v0", files: [] },
+        input: path.join(root, "absent"),
+        privateInventory: path.join(root, "absent.json"),
+      }),
+    ).rejects.toThrow(/nothing to publish/u);
   });
 
   it("finds watermarked preview bytes by hash", () => {

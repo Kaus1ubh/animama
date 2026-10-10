@@ -18,7 +18,6 @@ import { PublicationError } from "./publication.mjs";
 import {
   PRIVATE_PACKS,
   PackError,
-  WOW_COMEDY_SFX,
   fetchPack,
   manifestFor,
   packById,
@@ -87,10 +86,10 @@ async function main() {
         ...options,
         manifest: readManifest(pack),
       }),
-      ...(pack === WOW_COMEDY_SFX
+      ...(pack.denyListPath
         ? scanForPackBytes(targets, {
             ...options,
-            manifest: readDenyList(),
+            manifest: readDenyList(pack.denyListPath),
           }).map((found) => `${found} (watermarked preview)`)
         : []),
     ];

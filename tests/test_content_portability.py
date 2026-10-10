@@ -9,6 +9,7 @@ from pathlib import Path
 import pytest
 
 from animama.adapters.content_store import FilesystemContentStore
+from animama.app.services import content_portability
 from animama.app.services.content_portability import (
     PRIVATE_PACK_IDS,
     RESTRICTED_RESOURCES,
@@ -139,6 +140,28 @@ def test_every_private_pack_manifest_and_the_preview_deny_list_are_restricted() 
         expected |= parse_restricted_manifest(value, pack_id=pack_id)
     assert {pack_id for _, pack_id in RESTRICTED_RESOURCES} - {None} == set(PRIVATE_PACK_IDS)
     assert restricted_sha256() == frozenset(expected)
+
+
+def test_restricted_hashes_are_the_union_of_every_resource(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    first, second = "a" * 64, "b" * 64
+    (tmp_path / "one.json").write_text(
+        json.dumps({"schema_version": 1, "pack_id": "one", "files": [{"sha256": first}]})
+    )
+    (tmp_path / "deny.json").write_text(json.dumps({"schema_version": 1, "files": [{"sha256": second}]}))
+    (tmp_path / "broken.json").write_text(
+        json.dumps({"schema_version": 1, "pack_id": "two", "files": [{"sha256": "x"}]})
+    )
+    monkeypatch.setattr(content_portability, "files", lambda _package: tmp_path)
+    try:
+        restricted_sha256.cache_clear()
+        monkeypatch.setattr(content_portability, "RESTRICTED_RESOURCES", (("one.json", "one"), ("deny.json", None)))
+        assert restricted_sha256() == frozenset({first, second})
+        restricted_sha256.cache_clear()
+        monkeypatch.setattr(content_portability, "RESTRICTED_RESOURCES", (("one.json", "one"), ("broken.json", "two")))
+        with pytest.raises(ValueError):
+            restricted_sha256()
+    finally:
+        restricted_sha256.cache_clear()
 
 
 def test_a_manifest_for_another_pack_is_refused() -> None:

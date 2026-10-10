@@ -36,12 +36,7 @@ import {
   writeJson,
 } from "./common.mjs";
 import { releaseName, verifyArtifactIndex } from "./release-artifacts.mjs";
-import {
-  PRIVATE_PACKS,
-  readDenyList,
-  readManifest,
-  scanForPackBytes,
-} from "./private-packs.mjs";
+import { releaseScanRules, scanForPackBytes } from "./private-packs.mjs";
 
 /** Messages the CLI may print: they never contain paths, output or values. */
 export class ScanError extends Error {}
@@ -527,24 +522,7 @@ export async function scanCandidate({
       ...(await privateTextFindings(expanded, needles, skip)),
       // Non-portable pack bytes may appear only inside the app's own runtime,
       // and watermarked vendor previews nowhere.
-      ...[
-        ...PRIVATE_PACKS.map((pack) => ({
-          manifest: readManifest(pack),
-          // Only the app's own runtime directory (macOS or Windows layout).
-          allow: [
-            new RegExp(
-              `/(Contents/)?[Rr]esources/runtime/${pack.stagedRelative}/`,
-              "u",
-            ),
-          ],
-          rule: `${pack.id}-outside-runtime`,
-        })),
-        {
-          manifest: readDenyList(),
-          allow: [],
-          rule: "watermarked-preview",
-        },
-      ].flatMap(({ manifest, allow, rule }) =>
+      ...releaseScanRules().flatMap(({ manifest, allow, rule }) =>
         scanForPackBytes([expanded], {
           manifest,
           allow,
