@@ -1,5 +1,6 @@
 import type { EditorView } from "@uiw/react-codemirror";
 import { useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/ui/components/button";
 import {
@@ -28,6 +29,7 @@ export function CreateAnimaIdentityStep({
   readOnly?: boolean;
   onChange: (patch: Pick<CreateAnimaDraft, "identity_markdown">) => void;
 }) {
+  const { t } = useTranslation("create");
   const editor = useRef<EditorView | null>(null);
   const [tab, setTab] = useState("write");
   const [suggestionOpen, setSuggestionOpen] = useState(false);
@@ -58,12 +60,15 @@ export function CreateAnimaIdentityStep({
   return (
     <div id="creation-identity" tabIndex={-1} className="space-y-4">
       <p className="text-sm font-medium">
-        Identity <span className="text-muted-foreground">· Required</span>
+        {t("identityStep.title")}{" "}
+        <span className="text-muted-foreground">
+          {t("identityStep.required")}
+        </span>
       </p>
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList>
-          <TabsTrigger value="write">Write</TabsTrigger>
-          <TabsTrigger value="preview">Preview</TabsTrigger>
+          <TabsTrigger value="write">{t("identityStep.write")}</TabsTrigger>
+          <TabsTrigger value="preview">{t("identityStep.preview")}</TabsTrigger>
         </TabsList>
         <TabsContent
           value="write"
@@ -78,10 +83,10 @@ export function CreateAnimaIdentityStep({
               onCreateEditor={(view) => {
                 editor.current = view;
               }}
-              ariaLabel="Identity Markdown"
+              ariaLabel={t("identityStep.editorLabel")}
               ariaInvalid={errors.includes("/identity_markdown")}
               indentWithTab={false}
-              placeholder="Describe who they are, how they speak, and what matters to them…"
+              placeholder={t("identityStep.placeholder")}
             />
           </div>
         </TabsContent>
@@ -89,7 +94,7 @@ export function CreateAnimaIdentityStep({
           <MemoryMarkdownPreview
             value={draft.identity_markdown}
             allowImages={false}
-            emptyText="Your identity preview will appear here."
+            emptyText={t("identityStep.previewEmpty")}
             className="min-h-[390px] overflow-auto rounded-xl border p-5"
           />
         </TabsContent>
@@ -101,28 +106,27 @@ export function CreateAnimaIdentityStep({
           size="sm"
           onClick={() => setSuggestionOpen(true)}
         >
-          Use Avatar suggestion
+          {t("identityStep.useSuggestion")}
         </Button>
       ) : null}
       <Dialog open={suggestionOpen} onOpenChange={setSuggestionOpen}>
         <DialogContent>
-          <DialogTitle>Use Avatar suggestion?</DialogTitle>
+          <DialogTitle>{t("identityStep.suggestion.title")}</DialogTitle>
           <DialogDescription>
-            The suggestion is copied as editable text. Your current identity is
-            changed only after you choose an option below.
+            {t("identityStep.suggestion.description")}
           </DialogDescription>
           <div className="max-h-48 overflow-auto text-sm whitespace-pre-wrap">
             {suggestion}
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setSuggestionOpen(false)}>
-              Cancel
+              {t("actions.cancel")}
             </Button>
             <Button variant="outline" onClick={() => applySuggestion(true)}>
-              Append suggestion
+              {t("identityStep.suggestion.append")}
             </Button>
             <Button onClick={() => applySuggestion(false)}>
-              Replace identity
+              {t("identityStep.suggestion.replace")}
             </Button>
           </DialogFooter>
         </DialogContent>

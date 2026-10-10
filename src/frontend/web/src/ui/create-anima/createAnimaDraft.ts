@@ -1,3 +1,4 @@
+import { getI18n } from "react-i18next";
 import { z } from "zod";
 import { POCKET_VOICES } from "@/lib/speech/pocket/voice-catalog";
 
@@ -7,6 +8,7 @@ import type {
   ItemRevisionRef,
 } from "@animama/runtime-contracts/sdk";
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
+import { CreatorError } from "./createAnimaErrors";
 import {
   defaultAnimaIdentityMarkdown,
   DEFAULT_ANIMA_IDENTITY_MARKDOWN,
@@ -14,16 +16,19 @@ import {
   upgradeDefaultAnimaIdentityMarkdown,
 } from "./createAnimaIdentity";
 
+/** Creator step IDs in order; `CreationStep` indexes them. */
 export const CREATION_STEPS = [
-  "Avatar",
-  "Voice",
-  "Identity",
-  "Actions",
-  "Review",
+  "avatar",
+  "voice",
+  "identity",
+  "actions",
+  "review",
 ] as const;
 export type CreationStep = 0 | 1 | 2 | 3 | 4;
 export const INTENSITIES = ["1", "2", "3"] as const;
 export type Intensity = (typeof INTENSITIES)[number];
+/** Every tracked emotion has one Reaction cell per intensity. */
+export const REACTION_CELL_COUNT = TRACKED_EMOTIONS.length * INTENSITIES.length;
 export const itemIdSchema = z
   .string()
   .regex(/^[A-Za-z0-9][A-Za-z0-9:_-]{0,127}$/)
@@ -106,6 +111,7 @@ export const creationVoiceDraftSchema = z.strictObject({
   elevenlabs_voice_id: z.string().max(100000).nullable(),
 });
 export type CreationVoiceDraft = z.infer<typeof creationVoiceDraftSchema>;
+/** Schema messages are developer text; `draftIssues` words voice issues by path. */
 export const creationVoiceSchema = creationVoiceDraftSchema.superRefine(
   (voice, context) => {
     const pocket = voice.pocket;
@@ -521,13 +527,12 @@ export function creationRoots(draft: CreateAnimaDraft): CreationRoot[] {
 
 /** Exact union drops unused roots/supports and rejects contradictory revision pins. */
 export function mergeSourceMaps(maps: SourceMap[]): SourceMap {
+  const t = getI18n().getFixedT(null, "create");
   const union: SourceMap = {};
   for (const map of maps)
     for (const [id, revision] of Object.entries(map)) {
       if (union[id] && canonicalJson(union[id]) !== canonicalJson(revision))
-        throw new Error(
-          `Selected sources disagree about revision ${id}. Review the affected content.`,
-        );
+        throw new CreatorError(t("draft.sourcesDisagree", { id }));
       union[id] = revision;
     }
   return union;
@@ -536,14 +541,13 @@ export function mergeSourceMaps(maps: SourceMap[]): SourceMap {
 export function buildAnimaSpec(
   draft: CreateAnimaDraft,
 ): z.infer<typeof animaSpecSchema> {
+  const t = getI18n().getFixedT(null, "create");
   if (!draft.avatar || !draft.starter_pack)
-    throw new Error(
-      "Choose an Avatar and resolve the Starter Pack before reviewing.",
-    );
+    throw new CreatorError(t("draft.reviewNeedsAvatar"));
   const maps = creationRoots(draft).map(({ source }) => {
     const evidence = draft.evidence[source.item_id];
     if (!evidence || !sameRef(evidence.source, source))
-      throw new Error("Selected content still needs exact source validation.");
+      throw new CreatorError(t("draft.sourceNeedsValidation"));
     return evidence.revisions;
   });
   return animaSpecSchema.parse({
@@ -568,33 +572,38 @@ export function draftIssues(
   identityLimit = 32768,
   displayNameLimit = 40,
 ): AnimaCreationDiagnostic[] {
+  // Issue messages are interface text, worded when the draft is checked.
+  const t = getI18n().getFixedT(null, "create");
   const issues: AnimaCreationDiagnostic[] = [];
   const add = (path: string, message: string) =>
     issues.push({ code: "draft_invalid", path, message });
-  if (!draft.avatar)
-    add("/avatar", "Choose an admitted Avatar or save your VRM to My Content.");
-  if (draft.needs_file_reselection)
-    add("/avatar", "Reselect and save your VRM, or cancel the unsaved upload.");
+  if (!draft.avatar) add("/avatar", t("draft.chooseAvatar"));
+  if (draft.needs_file_reselection) add("/avatar", t("draft.reselectFile"));
   // The name plate is a creator-wide field, so it gates the first forward move.
   const displayNameLength = nameLength(draft.display_name);
-  if (displayNameLength < 1) add("/display_name", "Enter a name to continue.");
+  if (displayNameLength < 1) add("/display_name", t("draft.nameRequired"));
   else if (
     displayNameLength > displayNameLimit ||
     /[\p{Cc}]/u.test(draft.display_name) ||
     hasInvalidUnicode(draft.display_name)
   )
-    add(
-      "/display_name",
-      `Use 1–${displayNameLimit} characters without control characters.`,
-    );
+    add("/display_name", t("draft.nameInvalid", { limit: displayNameLimit }));
   if (through > 0) {
     const voice = creationVoiceSchema.safeParse(draft.voice);
     if (!voice.success)
-      for (const issue of voice.error.issues)
+      for (const issue of voice.error.issues) {
+        const field = issue.path[0];
         add(
           `/voice/${issue.path.join("/")}`,
-          draft.voice ? issue.message : "Choose a voice for your Anima.",
+          !draft.voice
+            ? t("draft.chooseVoice")
+            : field === "elevenlabs_voice_id"
+              ? t("draft.elevenLabsVoiceIdInvalid")
+              : field === "pocket"
+                ? t("draft.pocketVoiceUnavailable")
+                : t("draft.chooseVoice"),
         );
+      }
   }
   if (through > 1) {
     if (
@@ -605,11 +614,11 @@ export function draftIssues(
     )
       add(
         "/identity_markdown",
-        `Enter nonblank Markdown within ${identityLimit.toLocaleString()} UTF-8 bytes.`,
+        t("draft.identityInvalid", { limit: identityLimit }),
       );
   }
   if (through > 2 && !draft.starter_pack)
-    add("/starter_pack", "The installation's Starter Pack needs attention.");
+    add("/starter_pack", t("draft.starterPackNeedsAttention"));
   return issues;
 }
 

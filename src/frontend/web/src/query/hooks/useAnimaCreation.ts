@@ -43,16 +43,21 @@ import {
   type CreationSourceKind,
   type FrozenCreationRequest,
 } from "@/ui/create-anima/createAnimaDraft";
+import { CreatorError } from "@/ui/create-anima/createAnimaErrors";
 import {
   classifyCreationFailure,
   type CreationFailure,
 } from "@/ui/create-anima/createAnimaSubmission";
 
-/** A creation failure; `message` is worded from its code (`creationFailureText`). */
-export class AnimaCreationApiError extends Error {
+/**
+ * A creation failure worded from its code (`creationFailureText`): `message`
+ * is interface text and `detail` any backend English shown beneath it.
+ */
+export class AnimaCreationApiError extends CreatorError {
   readonly failure: CreationFailure;
   constructor(failure: CreationFailure) {
-    super(creationFailureText(failure.detail).message);
+    const text = creationFailureText(failure.detail);
+    super(text.message, text.detail);
     this.failure = failure;
   }
 }

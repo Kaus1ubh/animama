@@ -87,29 +87,61 @@ export function errorWording(
   return translate(key, params);
 }
 
+/** True while the interface is in English, the language of backend detail. */
+export function sourceLocaleActive(): boolean {
+  const i18n = getI18n();
+  return (
+    (i18n?.resolvedLanguage ?? i18n?.language ?? SOURCE_LOCALE) ===
+    SOURCE_LOCALE
+  );
+}
+
 /**
  * The text for a failure in an area. `fallback` names the generic message used
- * when the code is not worded (default `errors:generic.unexpected`).
+ * when the code is not worded (default `errors:generic.unexpected`). A `null`
+ * area is for services that send no codes (memory), so only the fallback rule
+ * applies.
  */
 export function apiErrorText(
   info: ApiErrorInfo,
-  area: ErrorArea,
+  area: ErrorArea | null,
   fallback?: string,
 ): ApiErrorText {
   const worded =
-    (info.code && errorWording(area, info.code, info.params)) ??
-    (info.reason && errorWording(area, info.reason, info.params));
+    area &&
+    ((info.code && errorWording(area, info.code, info.params)) ??
+      (info.reason && errorWording(area, info.reason, info.params)));
   if (worded) return { message: worded, detail: null };
-  const i18n = getI18n();
-  const english =
-    (i18n?.resolvedLanguage ?? i18n?.language ?? SOURCE_LOCALE) ===
-    SOURCE_LOCALE;
-  if (english && info.message) return { message: info.message, detail: null };
-  const translate = i18n.t as (key: string) => string;
+  if (sourceLocaleActive() && info.message)
+    return { message: info.message, detail: null };
+  const translate = getI18n().t as (key: string) => string;
   return {
     message: fallback ?? translate("errors:generic.unexpected"),
     detail: info.message,
   };
+}
+
+/**
+ * Text for English that carries no code, such as an error a service stored
+ * with a run or file: that English in English, else `fallback` with the
+ * English as detail.
+ */
+export function uncodedErrorText(
+  message: string | null,
+  fallback: string,
+): ApiErrorText {
+  return apiErrorText(
+    {
+      status: null,
+      code: null,
+      reason: null,
+      field: null,
+      params: {},
+      message,
+    },
+    null,
+    fallback,
+  );
 }
 
 /** One string for places that show a single line: the message, then any detail. */

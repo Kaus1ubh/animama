@@ -1,6 +1,8 @@
 import { useProductApiClient } from "@animama/product-ui";
 import { useRef, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { useFormatters } from "@animama/product-ui/i18n";
 import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 
 import { usePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
@@ -33,12 +35,19 @@ import {
 } from "@/ui/components/select";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 
+/** Provider product names, shown as written in every locale. */
+const PROVIDER_NAMES = {
+  pocket_tts: "PocketTTS",
+  elevenlabs: "ElevenLabs",
+} as const;
+
 /** Voice authoring belongs with the rest of an Anima's Loadout. */
 export function VoiceLoadoutSection() {
+  const { t } = useTranslation("animas");
   const [expanded, setExpanded] = useState(false);
   return (
     <LoadoutSectionDisclosure
-      title="Voices"
+      title={t("voices.title")}
       headingId="voice-loadout-heading"
       contentId="voice-loadout-content"
       expanded={expanded}
@@ -68,6 +77,8 @@ export function elevenLabsVoiceId(
 /** Persist choices independently of which provider is currently used for replies. */
 export function AnimaVoicesEditor() {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("animas");
+  const formatters = useFormatters();
 
   const {
     animaId,
@@ -92,11 +103,11 @@ export function AnimaVoicesEditor() {
   );
   const providerLabel =
     configuredProvider === "pocket_tts"
-      ? "PocketTTS"
+      ? PROVIDER_NAMES.pocket_tts
       : configuredProvider === "elevenlabs"
-        ? "ElevenLabs"
+        ? PROVIDER_NAMES.elevenlabs
         : configuredProvider === "browser"
-          ? "Browser"
+          ? t("voices.provider.browser")
           : null;
   const activeProvider = effectivePreferences.speech?.tts_enabled
     ? configuredProvider
@@ -136,9 +147,9 @@ export function AnimaVoicesEditor() {
       // Loadout is outside the chat route; the next chat mount reads this override.
       // Never copy the app's enable flag or the other provider's voice settings.
       await updateAnimaPreferences({ speech: { tts_provider: provider } });
-      toast.success("TTS provider saved.");
+      toast.success(t("voices.provider.saved"));
     } catch {
-      toast.error("Failed to save TTS provider. Try again.");
+      toast.error(t("voices.provider.saveFailed"));
     } finally {
       pending.current = false;
       setSaving(false);
@@ -186,7 +197,7 @@ export function AnimaVoicesEditor() {
           downloads.install(state.assetId);
       }
     } catch (error) {
-      toast.error("Failed to select PocketTTS voice. Refresh and try again.");
+      toast.error(t("voices.pocket.selectFailed"));
       throw error;
     } finally {
       pending.current = false;
@@ -196,13 +207,16 @@ export function AnimaVoicesEditor() {
 
   return (
     <div className="space-y-6 px-3">
-      <section className="space-y-2" aria-label="Voice provider">
+      <section
+        className="space-y-2"
+        aria-label={t("voices.provider.sectionLabel")}
+      >
         <div className="flex items-center justify-between gap-4">
           <label
             htmlFor="anima-tts-provider"
             className="shrink-0 text-sm font-semibold"
           >
-            TTS Provider
+            {t("voices.provider.label")}
           </label>
           <Select
             // An inherited value stays unselected so choosing that same provider
@@ -213,35 +227,46 @@ export function AnimaVoicesEditor() {
           >
             <SelectTrigger
               id="anima-tts-provider"
-              aria-label="TTS Provider"
+              aria-label={t("voices.provider.label")}
               className="w-48 min-w-0"
             >
               <SelectValue
                 placeholder={
                   providerLabel
-                    ? `${providerLabel}${savedProvider ? "" : " (app)"}`
-                    : "Choose provider"
+                    ? savedProvider
+                      ? providerLabel
+                      : t("voices.provider.appDefault", {
+                          provider: providerLabel,
+                        })
+                    : t("voices.provider.choose")
                 }
               >
                 {savedProvider ? providerLabel : undefined}
               </SelectValue>
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="pocket_tts">PocketTTS</SelectItem>
-              <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+              <SelectItem value="pocket_tts">
+                {PROVIDER_NAMES.pocket_tts}
+              </SelectItem>
+              <SelectItem value="elevenlabs">
+                {PROVIDER_NAMES.elevenlabs}
+              </SelectItem>
             </SelectContent>
           </Select>
         </div>
         {effectivePreferences.speech?.tts_enabled !== true ? (
           <p className="text-muted-foreground text-xs">
-            Speech is off in application settings.
+            {t("voices.provider.speechOff")}
           </p>
         ) : null}
       </section>
       {configuredProvider === "pocket_tts" ? (
-        <section className="space-y-3" aria-label="PocketTTS voice">
+        <section
+          className="space-y-3"
+          aria-label={t("voices.pocket.sectionLabel")}
+        >
           <ProviderHeading
-            name="PocketTTS"
+            name={PROVIDER_NAMES.pocket_tts}
             active={activeProvider === "pocket_tts"}
           />
           <PocketVoicePicker
@@ -249,7 +274,7 @@ export function AnimaVoicesEditor() {
             disabled={pocketDisabled || runtime.isEncodingVoice}
             unavailableSelection={
               selectedCloneId && !selectedClone
-                ? "Saved voice unavailable"
+                ? t("voices.pocket.savedUnavailable")
                 : undefined
             }
             onDeleteClone={(id) =>
@@ -273,24 +298,30 @@ export function AnimaVoicesEditor() {
           pocketVoiceNotProvided(download, downloads.operatorManaged) ? (
             // Speech falls back to the default voice; nothing installs it here.
             <p role="status" className="text-muted-foreground text-xs">
-              {pocketVoiceLabel(pocketVoice)} is not available here, so replies
-              use the default voice.
+              {t("voices.pocket.notProvided", {
+                voice: pocketVoiceLabel(pocketVoice),
+              })}
             </p>
           ) : !selectedCloneId && download?.status === "downloading" ? (
             <p role="status" className="text-muted-foreground text-xs">
-              Downloading {pocketVoiceLabel(pocketVoice)}…{" "}
-              {Math.round((download.progress ?? 0) * 100)}%
+              {t("voices.pocket.downloading", {
+                voice: pocketVoiceLabel(pocketVoice),
+                percent: formatters.number(download.progress ?? 0, {
+                  style: "percent",
+                }),
+              })}
             </p>
           ) : !selectedCloneId && download?.status === "failed" ? (
             <p role="alert" className="text-destructive text-xs">
-              {pocketVoiceLabel(pocketVoice)} could not be downloaded. Open the
-              voice list to retry.
+              {t("voices.pocket.downloadFailed", {
+                voice: pocketVoiceLabel(pocketVoice),
+              })}
             </p>
           ) : null}
           {library.isError || loadout.isError ? (
             <div role="alert" className="space-y-2 text-xs">
               <p className="text-destructive">
-                Saved voices could not be loaded.
+                {t("voices.pocket.libraryFailed")}
               </p>
               <Button
                 type="button"
@@ -301,7 +332,7 @@ export function AnimaVoicesEditor() {
                   void loadout.refetch();
                 }}
               >
-                Retry
+                {t("actions.retry")}
               </Button>
             </div>
           ) : null}
@@ -310,7 +341,7 @@ export function AnimaVoicesEditor() {
           !library.isPending &&
           !library.isError ? (
             <p role="alert" className="text-destructive text-xs">
-              This saved voice is unavailable. Choose another voice.
+              {t("voices.pocket.selectedUnavailable")}
             </p>
           ) : null}
           <VoiceCloneLibrary
@@ -324,9 +355,12 @@ export function AnimaVoicesEditor() {
         </section>
       ) : null}
       {configuredProvider === "elevenlabs" ? (
-        <section className="space-y-3" aria-label="ElevenLabs voice">
+        <section
+          className="space-y-3"
+          aria-label={t("voices.elevenLabs.sectionLabel")}
+        >
           <ProviderHeading
-            name="ElevenLabs"
+            name={PROVIDER_NAMES.elevenlabs}
             active={activeProvider === "elevenlabs"}
           />
           <ElevenLabsVoiceForm
@@ -343,7 +377,7 @@ export function AnimaVoicesEditor() {
                     elevenlabs: { primary_voice: { voice_id: voiceId } },
                   },
                 });
-                toast.success("ElevenLabs voice saved.");
+                toast.success(t("voices.elevenLabs.saved"));
               } finally {
                 pending.current = false;
                 setSaving(false);
@@ -357,12 +391,13 @@ export function AnimaVoicesEditor() {
 }
 
 function ProviderHeading({ name, active }: { name: string; active: boolean }) {
+  const { t } = useTranslation("animas");
   return (
     <div className="flex items-center justify-between gap-2">
       <h3 className="text-sm font-semibold">{name}</h3>
       {active ? (
         <span className="bg-muted text-muted-foreground rounded-full px-2 py-0.5 text-xs">
-          Active provider
+          {t("voices.provider.active")}
         </span>
       ) : null}
     </div>
@@ -379,6 +414,7 @@ function ElevenLabsVoiceForm({
   disabled: boolean;
   onSave: (id: string) => Promise<void>;
 }) {
+  const { t } = useTranslation("animas");
   const [value, setValue] = useState(savedVoiceId);
   const [error, setError] = useState<string | null>(null);
   const submit = async (event: FormEvent) => {
@@ -386,16 +422,14 @@ function ElevenLabsVoiceForm({
     if (disabled) return;
     const id = value.trim();
     if (!/^[A-Za-z0-9_-]{1,128}$/.test(id)) {
-      setError(
-        "Enter a voice ID using letters, numbers, underscores or hyphens.",
-      );
+      setError(t("voices.elevenLabs.invalidId"));
       return;
     }
     setError(null);
     try {
       await onSave(id);
     } catch {
-      setError("Voice ID could not be saved. Try again.");
+      setError(t("voices.elevenLabs.saveFailed"));
     }
   };
   return (
@@ -404,7 +438,7 @@ function ElevenLabsVoiceForm({
         htmlFor="anima-elevenlabs-voice"
         className="text-muted-foreground text-xs"
       >
-        Voice ID
+        {t("voices.elevenLabs.idLabel")}
       </label>
       <div className="flex items-center gap-2">
         <Input
@@ -412,7 +446,7 @@ function ElevenLabsVoiceForm({
           value={value}
           onChange={(event) => setValue(event.target.value)}
           disabled={disabled}
-          placeholder="Enter voice ID"
+          placeholder={t("voices.elevenLabs.idPlaceholder")}
           autoComplete="off"
           spellCheck={false}
           aria-invalid={Boolean(error)}
@@ -423,7 +457,7 @@ function ElevenLabsVoiceForm({
           variant="outline"
           disabled={disabled || value.trim() === savedVoiceId}
         >
-          Save
+          {t("actions.save")}
         </Button>
       </div>
       {error ? (

@@ -9,11 +9,11 @@ import { readyDraft, ref } from "./createAnimaTestFixtures";
 
 it("places Voice before Identity and includes both provider choices in creation", () => {
   expect(CREATION_STEPS).toEqual([
-    "Avatar",
-    "Voice",
-    "Identity",
-    "Actions",
-    "Review",
+    "avatar",
+    "voice",
+    "identity",
+    "actions",
+    "review",
   ]);
   const draft = {
     ...readyDraft(),

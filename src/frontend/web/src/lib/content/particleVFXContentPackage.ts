@@ -1,3 +1,4 @@
+import { getI18n } from "react-i18next";
 import {
   PARTICLE_VFX_EDITOR_TEXTURES,
   createParticleVFXEditorDraftFromImport,
@@ -66,13 +67,14 @@ export async function buildParticleVFXContentPackage({
   fetcher?: typeof fetch;
   signal?: AbortSignal;
 }): Promise<ParticleVFXContentPackage> {
+  const t = getI18n().getFixedT(null, "library");
   const rawJson = cloneJson(draft.quarksJson);
   const { catalog, notices } = normalizeCatalogForPrivateContent(draft.catalog);
   validateRuntimeDefaults(catalog);
   const references = collectRawImageReferences(rawJson);
   if (references.length > MAX_TEXTURES) {
     throw new ParticleVFXContentPackageError(
-      `Particle Effects support at most ${MAX_TEXTURES} unique textures.`,
+      t("content.particle.tooManyTextures", { count: MAX_TEXTURES }),
     );
   }
   const resourcesByReference = new Map<
@@ -82,7 +84,9 @@ export async function buildParticleVFXContentPackage({
   for (const resource of resources) {
     if (resourcesByReference.has(resource.logicalReference)) {
       throw new ParticleVFXContentPackageError(
-        `Texture ${resource.logicalReference} has an ambiguous resource source.`,
+        t("content.particle.textureAmbiguous", {
+          texture: resource.logicalReference,
+        }),
       );
     }
     resourcesByReference.set(resource.logicalReference, resource);
@@ -101,12 +105,12 @@ export async function buildParticleVFXContentPackage({
     const blob = await loadTextureBlob(source, fetcher, signal);
     if (!blob.size) {
       throw new ParticleVFXContentPackageError(
-        `Texture ${logicalReference} is empty.`,
+        t("content.particle.textureEmpty", { texture: logicalReference }),
       );
     }
     if (blob.size > MAX_TEXTURE_BYTES) {
       throw new ParticleVFXContentPackageError(
-        `Texture ${logicalReference} exceeds the 25 MiB limit.`,
+        t("content.particle.textureTooLarge", { texture: logicalReference }),
       );
     }
     const detected = await detectTextureType(blob);
@@ -118,7 +122,7 @@ export async function buildParticleVFXContentPackage({
       (declared && declared.contentType !== detected.contentType)
     ) {
       throw new ParticleVFXContentPackageError(
-        `Texture ${logicalReference} has mismatched or unsupported image bytes.`,
+        t("content.particle.textureMismatched", { texture: logicalReference }),
       );
     }
     const filename = uniqueTextureFilename(
@@ -151,8 +155,7 @@ export async function buildParticleVFXContentPackage({
   if (!readiness.ready) {
     const issue = readiness.issues.find(({ severity }) => severity === "error");
     throw new ParticleVFXContentPackageError(
-      issue?.message ??
-        "This Particle VFX is not ready to save as a Particle Effect.",
+      issue?.message ?? t("content.particle.notReady"),
     );
   }
 
@@ -163,13 +166,13 @@ export async function buildParticleVFXContentPackage({
   );
   if (manifestFile.size > MAX_MANIFEST_BYTES) {
     throw new ParticleVFXContentPackageError(
-      "Particle VFX manifest exceeds the 5 MiB limit.",
+      t("content.particle.manifestTooLarge"),
     );
   }
   packageBytes += manifestFile.size;
   if (packageBytes > MAX_PACKAGE_BYTES) {
     throw new ParticleVFXContentPackageError(
-      "Particle VFX package exceeds the 64 MiB limit.",
+      t("content.particle.packageTooLarge"),
     );
   }
 
@@ -183,6 +186,7 @@ export async function buildParticleVFXContentPackage({
 }
 
 function collectRawImageReferences(json: Record<string, unknown>): string[] {
+  const t = getI18n().getFixedT(null, "library");
   const images = Array.isArray(json.images) ? json.images : [];
   const references: string[] = [];
   const seen = new Set<string>();
@@ -192,7 +196,7 @@ function collectRawImageReferences(json: Record<string, unknown>): string[] {
     if (!reference) continue;
     if (!isPotentialLogicalReference(reference)) {
       throw new ParticleVFXContentPackageError(
-        `Texture reference ${index + 1} is unsafe or non-portable.`,
+        t("content.particle.referenceUnsafe", { index: index + 1 }),
       );
     }
     if (!seen.has(reference)) {
@@ -207,6 +211,7 @@ function resolveTextureSource(
   reference: string,
   exact: ParticleVFXContentPackageResource | undefined,
 ): { blob: Blob | null; url: string | null; contentType: string | null } {
+  const t = getI18n().getFixedT(null, "library");
   if (exact) {
     return {
       blob: exact.blob,
@@ -216,7 +221,7 @@ function resolveTextureSource(
   }
   if (reference.includes("..")) {
     throw new ParticleVFXContentPackageError(
-      `Texture ${reference} is not available from the exact App source.`,
+      t("content.particle.textureNotInApp", { texture: reference }),
     );
   }
   const curated = PARTICLE_VFX_EDITOR_TEXTURES.find(
@@ -224,7 +229,7 @@ function resolveTextureSource(
   );
   if (!curated) {
     throw new ParticleVFXContentPackageError(
-      `Texture ${reference} is not available to the content entry.`,
+      t("content.particle.textureNotAvailable", { texture: reference }),
     );
   }
   return {
@@ -240,21 +245,22 @@ async function loadTextureBlob(
   signal?: AbortSignal,
 ): Promise<Blob> {
   if (source.blob) return source.blob;
+  const t = getI18n().getFixedT(null, "library");
   if (!source.url) {
     throw new ParticleVFXContentPackageError(
-      "A texture resource is unresolved.",
+      t("content.particle.textureUnresolved"),
     );
   }
   const response = await fetcher(source.url, { signal });
   if (!response.ok) {
     throw new ParticleVFXContentPackageError(
-      `Texture fetch failed with HTTP ${response.status}.`,
+      t("content.particle.textureFetchFailed", { status: response.status }),
     );
   }
   const declaredLength = Number(response.headers.get("content-length"));
   if (Number.isFinite(declaredLength) && declaredLength > MAX_TEXTURE_BYTES) {
     throw new ParticleVFXContentPackageError(
-      "A texture exceeds the 25 MiB limit.",
+      t("content.particle.aTextureTooLarge"),
     );
   }
   const blob = await response.blob();
@@ -344,6 +350,7 @@ function rewriteImageReferences(
 function normalizeCatalogForPrivateContent(
   input: ParticleVFXEditorCatalogDraft,
 ): { catalog: ParticleVFXEditorCatalogDraft; notices: string[] } {
+  const t = getI18n().getFixedT(null, "library");
   const notices: string[] = [];
   const maxDurationSec = Math.min(
     input.performanceBudget.maxDurationSec,
@@ -354,14 +361,10 @@ function normalizeCatalogForPrivateContent(
     MAX_PARTICLES,
   );
   if (maxDurationSec !== input.performanceBudget.maxDurationSec) {
-    notices.push(
-      "Maximum duration was reduced to the private 30-second limit.",
-    );
+    notices.push(t("content.particle.durationReduced"));
   }
   if (maxParticles !== input.performanceBudget.maxParticles) {
-    notices.push(
-      "Particle budget was reduced to the private 512-particle limit.",
-    );
+    notices.push(t("content.particle.budgetReduced"));
   }
   return {
     catalog: {
@@ -384,26 +387,30 @@ function normalizeCatalogForPrivateContent(
 }
 
 function validateRuntimeDefaults(catalog: ParticleVFXEditorCatalogDraft): void {
+  const t = getI18n().getFixedT(null, "library");
   if (!catalog.label.trim() || catalog.label.length > 120) {
-    throw new ParticleVFXContentPackageError(
-      "Particle VFX name must contain 1 to 120 characters.",
-    );
+    throw new ParticleVFXContentPackageError(t("content.particle.nameLength"));
   }
   if (catalog.description.length > 500) {
     throw new ParticleVFXContentPackageError(
-      "Particle VFX description must contain at most 500 characters.",
+      t("content.particle.descriptionLength"),
     );
   }
   const transform = catalog.defaultTransform;
-  validateNumber(transform.depthOffset, -100, 100, "depth offset");
-  for (const [field, triple] of Object.entries({
-    offset: transform.offset,
-    rotation: transform.rotation,
-    scale: transform.scale,
-  })) {
-    const minimum = field === "scale" ? Number.MIN_VALUE : -100;
+  validateNumber(
+    transform.depthOffset,
+    -100,
+    100,
+    t("content.particle.settings.depthOffset"),
+  );
+  const transforms = [
+    [transform.offset, -100, t("content.particle.settings.offset")],
+    [transform.rotation, -100, t("content.particle.settings.rotation")],
+    [transform.scale, Number.MIN_VALUE, t("content.particle.settings.scale")],
+  ] as const;
+  for (const [triple, minimum, setting] of transforms) {
     for (const component of Object.values(triple)) {
-      validateNumber(component, minimum, 100, `${field} transform`);
+      validateNumber(component, minimum, 100, setting);
     }
   }
   const fit = catalog.shapeAutoFit;
@@ -417,11 +424,16 @@ function validateRuntimeDefaults(catalog: ParticleVFXEditorCatalogDraft): void {
     );
     if (!entries.length) {
       throw new ParticleVFXContentPackageError(
-        "Rectangle auto-fit dimensions cannot be empty.",
+        t("content.particle.autoFitEmpty"),
       );
     }
     for (const component of entries) {
-      validateNumber(component, 0, 100, "rectangle auto-fit dimension");
+      validateNumber(
+        component,
+        0,
+        100,
+        t("content.particle.settings.autoFitDimension"),
+      );
     }
   }
   for (const dimension of ["width", "height"] as const) {
@@ -429,7 +441,9 @@ function validateRuntimeDefaults(catalog: ParticleVFXEditorCatalogDraft): void {
     const maximum = fit.maxSize?.[dimension];
     if (minimum !== undefined && maximum !== undefined && minimum > maximum) {
       throw new ParticleVFXContentPackageError(
-        `Rectangle auto-fit ${dimension} minimum exceeds its maximum.`,
+        dimension === "width"
+          ? t("content.particle.autoFitWidthRange")
+          : t("content.particle.autoFitHeightRange"),
       );
     }
   }
@@ -441,20 +455,22 @@ function validateRuntimeDefaults(catalog: ParticleVFXEditorCatalogDraft): void {
       fit.emitterNames.some((name) => !name.trim() || name.length > 120))
   ) {
     throw new ParticleVFXContentPackageError(
-      "Rectangle auto-fit emitter names must be unique and match up to eight emitters.",
+      t("content.particle.autoFitEmitters"),
     );
   }
 }
 
+/** `setting` is the worded name of the checked setting. */
 function validateNumber(
   value: number,
   minimum: number,
   maximum: number,
-  label: string,
+  setting: string,
 ): void {
   if (!Number.isFinite(value) || value < minimum || value > maximum) {
+    const t = getI18n().getFixedT(null, "library");
     throw new ParticleVFXContentPackageError(
-      `Particle VFX ${label} is outside the supported content range.`,
+      t("content.particle.outOfRange", { setting }),
     );
   }
 }
@@ -516,8 +532,9 @@ function shapeAutoFitConfig(value: ParticleVFXShapeAutoFit) {
 
 function safePublicUrl(value: string): string {
   if (!value.startsWith("/") || value.startsWith("//")) {
+    const t = getI18n().getFixedT(null, "library");
     throw new ParticleVFXContentPackageError(
-      "Public texture resources must be same-origin paths.",
+      t("content.particle.publicTextureOrigin"),
     );
   }
   return value;

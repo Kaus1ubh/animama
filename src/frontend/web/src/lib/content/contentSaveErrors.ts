@@ -1,6 +1,11 @@
 import { getI18n } from "react-i18next";
 
-import { errorWording } from "@/lib/errors/apiError";
+import {
+  apiErrorLine,
+  errorWording,
+  readApiError,
+  sourceLocaleActive,
+} from "@/lib/errors/apiError";
 
 export type ContentApiErrorDetail = {
   code: string | null;
@@ -41,25 +46,22 @@ function objectValue(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function stringValue(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-/** Extract stable content error fields from direct and legacy API envelopes. */
+/**
+ * Extract stable content error fields from direct and legacy API envelopes
+ * (`{ detail }` or `{ data: { detail } }` with an object `detail`).
+ */
 export function parseContentApiErrorDetail(
   value: unknown,
 ): ContentApiErrorDetail | null {
   const root = objectValue(value);
-  if (!root) return null;
-  const data = objectValue(root.data);
-  const envelope = data ?? root;
-  const detail = objectValue(envelope.detail);
+  const detail = objectValue((objectValue(root?.data) ?? root)?.detail);
   if (!detail) return null;
+  const { code, field, reason, message } = readApiError(value);
   return {
-    code: stringValue(detail.code),
-    field: stringValue(detail.field),
-    reason: stringValue(detail.reason),
-    message: stringValue(detail.message),
+    code,
+    field,
+    reason,
+    message,
     details: objectValue(detail.details) ?? {},
   };
 }
@@ -68,35 +70,52 @@ function sentence(value: string): string {
   return /[.!?]$/.test(value) ? value : `${value}.`;
 }
 
+/**
+ * A validation sentence with the backend's English explanation: inside the
+ * sentence in English, and after the translated sentence as secondary detail
+ * in other locales.
+ */
+function explainedMessage(
+  explanation: string | null,
+  explained: (cause: string) => string,
+  unexplained: () => string,
+): string {
+  if (!explanation) return unexplained();
+  if (sourceLocaleActive()) return explained(sentence(explanation));
+  return apiErrorLine({ message: unexplained(), detail: explanation });
+}
+
 /** Name the definition setting by its path below `definition`, e.g. `transform.offset.x`. */
 function avatarEffectDefinitionMessage(detail: ContentApiErrorDetail): string {
   const setting =
     detail.field?.replace(/^definition\.(?=.)/, "") ?? "definition";
-  return detail.message
-    ? getI18n().t("errors:contentSave.avatarEffectSettingInvalid", {
+  const t = getI18n().t;
+  return explainedMessage(
+    detail.message,
+    (cause) =>
+      t("errors:contentSave.avatarEffectSettingInvalid", { setting, cause }),
+    () =>
+      t("errors:contentSave.avatarEffectSettingInvalidUnexplained", {
         setting,
-        cause: sentence(detail.message),
-      })
-    : getI18n().t("errors:contentSave.avatarEffectSettingInvalidUnexplained", {
-        setting,
-      });
+      }),
+  );
 }
 
 /**
  * Word a Save failure from its code. A validation failure keeps the backend's
- * explanation (a technical setting path or English validator text) inside the
- * translated sentence.
+ * explanation (a technical setting path or English validator text) as detail.
  */
 function contentSaveMessage(detail: ContentApiErrorDetail): string {
   if (detail.code === "content_invalid") {
     if (detail.reason === "avatar_effect_definition_invalid")
       return avatarEffectDefinitionMessage(detail);
-    const explanation = detail.message ?? detail.reason;
-    return explanation
-      ? getI18n().t("errors:contentSave.validationFailed", {
-          explanation: sentence(explanation),
-        })
-      : getI18n().t("errors:contentSave.validationFailedUnexplained");
+    const t = getI18n().t;
+    return explainedMessage(
+      detail.message ?? detail.reason,
+      (explanation) =>
+        t("errors:contentSave.validationFailed", { explanation }),
+      () => t("errors:contentSave.validationFailedUnexplained"),
+    );
   }
   return (
     (detail.code && errorWording("contentSave", detail.code)) ??

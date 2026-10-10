@@ -12,7 +12,10 @@ export default defineConfig({
   ...base,
   extract: {
     ...base.extract,
-    input: scope.converted,
+    // A converted directory may hold stylesheets; only its code is linted.
+    input: scope.converted.map((glob) =>
+      glob.endsWith("/**") ? `${glob}/*.{ts,tsx}` : glob,
+    ),
     ignore: [...(base.extract.ignore as string[]), ...scope.exempt],
   },
   // Every element, including components such as SettingsRow and SelectItem,

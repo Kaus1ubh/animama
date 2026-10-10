@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
 import { isReservedUserMemoryEntry } from "@/lib/memory-entries/anima-folders";
 import {
@@ -25,25 +27,30 @@ export type MemoryExplorerAction = {
 export function memoryExplorerProtectedRowActions(
   type: "file" | "directory",
 ): MemoryExplorerAction[] {
+  const t = getI18n().getFixedT(null, "memory");
   const actions: MemoryExplorerAction[] = [];
 
   if (type === "directory") {
     actions.push(
-      { id: "new-file", label: "New file", disabled: true },
-      { id: "new-directory", label: "New directory", disabled: true },
+      { id: "new-file", label: t("explorer.actions.newFile"), disabled: true },
+      {
+        id: "new-directory",
+        label: t("explorer.actions.newDirectory"),
+        disabled: true,
+      },
     );
   }
   actions.push(
     {
       id: "rename",
-      label: "Rename",
+      label: t("explorer.actions.rename"),
       disabled: true,
       separatorBefore: type === "directory",
     },
-    { id: "move", label: "Move to…", disabled: true },
+    { id: "move", label: t("explorer.actions.move"), disabled: true },
     {
       id: "delete",
-      label: "Delete",
+      label: t("explorer.actions.delete"),
       disabled: true,
       destructive: true,
       separatorBefore: true,
@@ -54,6 +61,7 @@ export function memoryExplorerProtectedRowActions(
 
 /** Returns the canonical ellipsis/right-click actions for one physical row. */
 export function memoryExplorerRowActions(entry: PyMemoryEntryHeader) {
+  const t = getI18n().getFixedT(null, "memory");
   const actions: MemoryExplorerAction[] = [];
   const canCreateChildren =
     entry.type === "directory" &&
@@ -67,24 +75,24 @@ export function memoryExplorerRowActions(entry: PyMemoryEntryHeader) {
 
   if (canCreateChildren) {
     actions.push(
-      { id: "new-file", label: "New file" },
-      { id: "new-directory", label: "New directory" },
+      { id: "new-file", label: t("explorer.actions.newFile") },
+      { id: "new-directory", label: t("explorer.actions.newDirectory") },
     );
   }
   if (canRelocate) {
     actions.push(
       {
         id: "rename",
-        label: "Rename",
+        label: t("explorer.actions.rename"),
         separatorBefore: canCreateChildren,
       },
-      { id: "move", label: "Move to…" },
+      { id: "move", label: t("explorer.actions.move") },
     );
   }
   if (canDeleteMemoryEntry(entry)) {
     actions.push({
       id: "delete",
-      label: "Delete",
+      label: t("explorer.actions.delete"),
       destructive: true,
       separatorBefore: actions.length > 0,
     });

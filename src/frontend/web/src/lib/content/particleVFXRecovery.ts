@@ -1,3 +1,4 @@
+import { getI18n } from "react-i18next";
 import type { ParticleVFXEditorCatalogDraft } from "@/lib/avatar/particle-vfx";
 import type { JsonObject } from "@/lib/avatar/particle-vfx/editor/types";
 import {
@@ -36,10 +37,14 @@ export const particleVFXRecoveryStore = createCreatorRecoveryStore({
   fallbackKeyPrefix: "anima.particleVfxCreator.recovery.v1",
   maxBytes: PARTICLE_VFX_RECOVERY_MAX_BYTES,
   messages: {
-    tooLarge:
-      "This effect is too large for browser crash recovery. Save can still continue.",
-    unavailable:
-      "Browser crash recovery is unavailable. Keep this tab open until Save finishes.",
+    tooLarge: () => {
+      const t = getI18n().getFixedT(null, "library");
+      return t("content.recovery.particleTooLarge");
+    },
+    unavailable: () => {
+      const t = getI18n().getFixedT(null, "library");
+      return t("content.recovery.unavailable");
+    },
   },
   codec: {
     measure: (recovery: ParticleVFXRecovery) =>

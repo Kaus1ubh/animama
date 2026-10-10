@@ -1,0 +1,435 @@
+{
+  "actions": {
+    "cancel": "キャンセル",
+    "done": "完了",
+    "equip": "装備",
+    "equipped": "装備中",
+    "loop": "ループ",
+    "moreActions": "その他の操作",
+    "moreActionsFor": "{{name}} のその他の操作",
+    "move": "移動",
+    "preview": "プレビュー",
+    "previewNamed": "{{name}} をプレビュー",
+    "previewUnavailable": "プレビューは利用できません",
+    "remove": "外す",
+    "replace": "置き換え",
+    "replay": "もう一度再生",
+    "reset": "リセット",
+    "retry": "再試行",
+    "save": "保存",
+    "stop": "停止"
+  },
+  "appearance": {
+    "created": "ローカルの外観画像を作成しました。",
+    "defaultOption": {
+      "background_image": "画像なし",
+      "profile_image": "デフォルトのアバターポートレート"
+    },
+    "empty": {
+      "background_image": "背景画像なし",
+      "profile_image": "アバターのポートレートが使われます"
+    },
+    "fileSize": "25 MiB 未満の画像を選んでください。",
+    "fileType": "PNG、JPEG、WebP のいずれかの画像を選んでください。",
+    "fit": {
+      "contain": "フィット",
+      "cover": "フィル"
+    },
+    "localImageUnavailable": "選択したローカル画像は利用できません。",
+    "preparing": "ローカル画像を準備しています…",
+    "previewAlt": {
+      "background_image": "{{name}} の背景のプレビュー",
+      "profile_image": "{{name}} のプロフィールのプレビュー"
+    },
+    "progress": "画像の保存の進行状況",
+    "ready": "画像の準備ができました。切り抜きを調整してから、この Anima に保存してください。",
+    "retrySave": "保存を再試行",
+    "saveFailed": "画像を更新できませんでした。",
+    "saving": "保存しています…",
+    "savingProgress": "保存しています {{percent}}…",
+    "sections": {
+      "background_image": "背景",
+      "profile_image": "プロフィール"
+    },
+    "sourceLabel": {
+      "background_image": "背景画像のソース",
+      "profile_image": "プロフィール画像のソース"
+    },
+    "title": "外観",
+    "updated": {
+      "background_image": "背景画像を更新しました。",
+      "profile_image": "プロフィール画像を更新しました。"
+    },
+    "upload": "画像をアップロード",
+    "uploadFailed": "画像を保存できませんでした。",
+    "uploadLabel": {
+      "background_image": "背景画像をアップロード",
+      "profile_image": "プロフィール画像をアップロード"
+    },
+    "zoom": "ズーム {{zoom}}×"
+  },
+  "badges": {
+    "starter": "同梱",
+    "starterShort": "同"
+  },
+  "carousel": {
+    "create": "Anima を作成",
+    "initialsShown": "イニシャルを表示中",
+    "label": "Anima カルーセル",
+    "loading": "読み込み中…",
+    "newAnima": "新しい Anima",
+    "next": "次の Anima を選択",
+    "previous": "前の Anima を選択",
+    "select": "{{name}} を選択"
+  },
+  "gestures": {
+    "all": "すべて",
+    "clips": "クリップ",
+    "customFailed": "カスタムジェスチャーを読み込めませんでした。",
+    "customFirst": "カスタムを先頭に",
+    "filter": "ジェスチャーの絞り込みと並べ替え",
+    "listLabel": "利用可能なジェスチャー",
+    "loadingCustom": "カスタムジェスチャーを読み込んでいます…",
+    "motionType": "モーションの種類",
+    "nameAsc": "名前 A–Z",
+    "nameDesc": "名前 Z–A",
+    "noCustom": "利用できるカスタムジェスチャーはありません。",
+    "noFilterMatch": "選択したフィルターに一致するジェスチャーはありません。",
+    "noSearchMatch": "検索に一致するジェスチャーはありません。",
+    "search": "ジェスチャーを検索",
+    "show": "表示",
+    "showMore": "さらに表示",
+    "showStarters": "同梱ジェスチャーを表示",
+    "sortBy": "並べ替え",
+    "status": "状態",
+    "title": "ジェスチャー",
+    "unequipped": "未装備",
+    "updateAvailable": "アップデートあり",
+    "updateInLibrary": "ライブラリで更新",
+    "updatesOnly": "アップデートがあるもののみ",
+    "viewInLibrary": "ライブラリで表示",
+    "vrma": "VRMA"
+  },
+  "identity": {
+    "edit": "アイデンティティを編集",
+    "empty": "_アイデンティティの内容はまだありません。_",
+    "emptyStarter": "_利用できる初期アイデンティティはありません。_",
+    "loadFailed": "現在のアイデンティティの記憶ファイルを読み込めませんでした。",
+    "loading": "アイデンティティを読み込んでいます…"
+  },
+  "idle": {
+    "actions": "待機スタイルの操作",
+    "activeStyle": "使用中のスタイル",
+    "cell": "{{emotion}} · {{intensity}}",
+    "choose": "待機スタイルを選択",
+    "defaultPool": "デフォルト",
+    "duplicate": "複製して編集",
+    "edit": "スタイルを編集",
+    "empty": "スケジュールされた待機ジェスチャーはありません。呼吸や静止の動きは続きます。",
+    "filter": "感情の割り当てを絞り込む",
+    "gestureCount_other": "{{count}} 件のジェスチャー",
+    "inherit": "デフォルトを使用",
+    "loading": "待機スタイルを読み込んでいます…",
+    "mine": "自分のもの",
+    "noCellGesture": "このセルにスケジュールされた待機ジェスチャーはありません。",
+    "noIdle": "待機なし",
+    "none": "待機スタイルなし",
+    "noResults": "待機スタイルが見つかりません。",
+    "noScheduled": "スケジュールされた待機なし",
+    "poolsHint": "プールはこのスタイルに属します。この Anima だけで使うバリエーションが必要な場合は、複製して保存したコピーをここで選択してください。",
+    "poolsTitle": "感情と強さのプール",
+    "previewActive": "使用中の待機スタイルをプレビュー",
+    "search": "待機スタイルを検索",
+    "showInherited": "継承されたセルを表示",
+    "starter": "同梱",
+    "title": "待機スタイル",
+    "useStarter": "同梱スタイルを使用"
+  },
+  "loadout": {
+    "fallbackName": {
+      "idleStyle": "待機スタイル",
+      "reaction": "リアクション"
+    },
+    "gestureNotLocal": "このジェスチャーはローカルカタログにありません。",
+    "loading": "ジェスチャーとリアクションのロードアウトを読み込んでいます…",
+    "noPreviewSource": "このロードアウト項目にはプレビュー元がありません。",
+    "previewContextLoading": "Anima のプレビュー環境をまだ読み込んでいます。",
+    "reactionNotLocal": "このリアクションはローカルカタログにありません。",
+    "review": {
+      "action": "操作:",
+      "actions": {
+        "add": "追加",
+        "leave_empty": "空のままにする",
+        "remove": "外す",
+        "replace": "置き換え",
+        "revert": "元に戻す",
+        "unchanged": "変更なし",
+        "update": "更新"
+      },
+      "confirm": "変更を確定",
+      "current": "現在:",
+      "description": "この変更は次にマウントされるチャットのランタイムに反映されます。進行中のチャットは現在のリビジョンのままです。",
+      "result": "結果:",
+      "title": "ロードアウトの変更を確認"
+    },
+    "title": "ロードアウト",
+    "unavailable": "ロードアウトは利用できません。",
+    "updated": "ロードアウトを更新しました。変更は次にチャットをマウントしたときに反映されます。"
+  },
+  "manage": {
+    "animaFallback": "Anima",
+    "description": {
+      "gesture": "このジェスチャーを使える Anima を選んでください。進行中のチャットは既存のデータを保持します。変更を反映するには新しいチャットを開いてください。",
+      "reaction": "このリアクションを使える Anima を選んでください。進行中のチャットは既存のデータを保持します。変更を反映するには新しいチャットを開いてください。"
+    },
+    "equippedTo": "{{name}} を {{anima}} に装備しました。",
+    "notEquipped": "未装備",
+    "notLocal": "このアクションはローカルカタログにありません。",
+    "removedFrom": "{{name}} を {{anima}} から外しました。",
+    "title": "{{name}} を装備",
+    "willReplace": {
+      "gesture": "現在のジェスチャーを置き換えます",
+      "reaction": "現在のリアクションを置き換えます"
+    }
+  },
+  "management": {
+    "avatar": {
+      "preparingDescription": "この Anima のメインモデルを解決しています…",
+      "preparingTitle": "アバターを準備しています",
+      "retry": "アバターを再試行",
+      "unavailableDescription": "選択したランタイムを読み込めませんでした。",
+      "unavailableTitle": "アバターのプレビューは利用できません"
+    },
+    "customizeAppearance": "{{name}} の外観をカスタマイズ",
+    "emotionsTitle": "感情の状態",
+    "error": {
+      "anima": "この Anima を読み込めませんでした。すでに利用できなくなっている可能性があります。",
+      "roster": "所有している Anima のカルーセルを読み込めませんでした。",
+      "title": "Anima の管理は利用できません"
+    },
+    "gestureHint": {
+      "pinch": "ドラッグ · ピンチでズーム",
+      "pointer": "ドラッグで回転 · スクロールでズーム",
+      "short": "ドラッグ · ピンチ",
+      "touch": "ドラッグで回転 · ピンチでズーム"
+    },
+    "loading": {
+      "description": "キャラクターのステージと詳細を読み込んでいます…",
+      "title": "Anima の管理を準備しています"
+    },
+    "openEmotions": "感情タブを開く。{{feeling}}",
+    "preview": {
+      "loop": "{{name}} のプレビューをループ",
+      "move": "{{name}} のプレビューのアバターを移動",
+      "region": "{{name}} をプレビュー中",
+      "replay": "{{name}} のプレビューをもう一度再生",
+      "retry": "{{name}} のプレビューを再試行",
+      "states": {
+        "error": "プレビューは利用できません",
+        "idle": "プレビュー待機中",
+        "loading": "Anima を読み込み中",
+        "playing": "再生中",
+        "ready": "準備完了"
+      },
+      "status": "{{name}} のプレビュー: {{status}}",
+      "stop": "{{name}} のプレビューを停止",
+      "summary": "{{version}} · {{status}}"
+    },
+    "tabs": {
+      "emotions": "感情",
+      "loadout": "ロードアウト",
+      "memories": "記憶",
+      "overview": "アイデンティティ",
+      "settings": "設定"
+    }
+  },
+  "memories": {
+    "edit": "記憶を編集",
+    "empty": "_まだ記憶はありません。_",
+    "loadFailed": "現在の記憶ファイルを読み込めませんでした。",
+    "loading": "記憶を読み込んでいます…",
+    "missing": "MEMORIES.md がありません。",
+    "repair": "記憶を修復",
+    "repairing": "記憶を修復しています…"
+  },
+  "reactions": {
+    "catalogUnavailable": "リアクションのカタログは利用できません。",
+    "cellName": "{{emotion}}（{{intensity}}）",
+    "change": "{{emotion}}（{{intensity}}）のリアクションを変更",
+    "chooseFromLibrary": "ライブラリから選ぶ",
+    "included": "同梱",
+    "intensity": {
+      "level": "レベル {{level}}",
+      "mild": "弱め",
+      "moderate": "中程度",
+      "strong": "強め"
+    },
+    "leaveEmpty": "空のままにする",
+    "levels": "{{emotion}}のリアクションレベル",
+    "loading": "リアクションを読み込んでいます…",
+    "local": "ローカル",
+    "noReaction": "リアクションなし",
+    "noResults": "リアクションが見つかりません。",
+    "retryCatalog": "カタログを再試行",
+    "revertToStarter": "同梱に戻す",
+    "search": "リアクションを検索",
+    "suggestion": "{{emotion}} · {{intensity}}",
+    "title": "リアクション"
+  },
+  "roster": {
+    "description": "このアカウントにはまだ Anima がありません。アカウントの準備中もライブラリを見ることができます。このホスト型アプリケーションでは Anima を作成できません。",
+    "menu": "メニュー",
+    "openLibrary": "ライブラリを開く",
+    "openSidebar": "サイドバーを開く",
+    "title": "ここに Anima が表示されます"
+  },
+  "stage": {
+    "avatarLabel": "{{name}} のアバター",
+    "emptyDescription": "この Anima には現在プレビューできる VRM アバターがありません。",
+    "emptyTitle": "アバターのプレビューはありません",
+    "errors": {
+      "contentPreview": "選択したコンテンツをプレビューできませんでした。",
+      "modelRestored": "選択したアバターモデルを読み込めませんでした。保存済みのモデルに戻しました。",
+      "noRuntimeFile": "選択したアバターモデルにはプレビューできるランタイムファイルがありません。保存済みのモデルに戻しました。",
+      "render": "このアバターを VRM プレビューとして描画できませんでした。"
+    },
+    "label": "{{name}} のインタラクティブプレビュー",
+    "loading": "Anima を読み込み中",
+    "localReplacement": "{{size}} • ローカルの差し替えプレビュー",
+    "noAvatar": "VRM アバターはありません",
+    "resetCamera": "プレビューのカメラをリセット",
+    "savedAvatar": "現在保存されているアバター"
+  },
+  "voices": {
+    "cloning": {
+      "change": "サンプルを変更",
+      "checking": "音声クローンを確認しています…",
+      "clone": "音声をクローン",
+      "cloningVoice": "音声をクローンしています…",
+      "delete": {
+        "confirm": "音声を削除",
+        "description": "保存されたクローンと元のサンプルを削除します。Anima が使用している音声は、削除する前に置き換える必要があります。",
+        "title": "{{name}} を削除しますか？"
+      },
+      "deleted": "音声クローンを削除しました。",
+      "download": {
+        "attribution": "モデルの帰属表示",
+        "cancel": "ダウンロードをキャンセル",
+        "cancelling": "キャンセルしています…",
+        "close": "閉じる",
+        "closingKeeps": "閉じてもダウンロードは続きます。",
+        "description": "音声クローンをインストールしてから、選択したサンプルで続行します。",
+        "intro": "音声クローンには一度だけ {{size}} のダウンロードが必要です。音声サンプルはこのインストール内にとどまります。Eve、Azelma など、インストール済みの音声はこのダウンロードなしで使えます。",
+        "notNow": "今はしない",
+        "preparing": "準備しています…",
+        "progress": "音声クローンをダウンロード中: {{percent}}",
+        "progressLabel": "音声クローンのダウンロード",
+        "progressUnknown": "音声クローンをダウンロードしています…",
+        "retry": "ダウンロードを再試行",
+        "start": "ダウンロードしてクローン",
+        "title": "音声クローンをダウンロードしますか？",
+        "verifying": "ダウンロードが完了しました。音声クローンを検証しています…"
+      },
+      "downloading": "音声クローンをダウンロードしています…",
+      "errors": {
+        "cancelFailed": "ダウンロードをキャンセルできませんでした。もう一度お試しください。",
+        "cancelled": "ダウンロードをキャンセルしました。サンプルはいつでも再試行できます。",
+        "changed": "この音声は変更されました。音声ライブラリを更新してから、もう一度お試しください。",
+        "deleteFailed": "音声を削除できませんでした。もう一度お試しください。",
+        "inUse": "この音声は Anima が使用しています。削除する前に、この音声を使っている各 Anima で別の音声を選んでください。",
+        "saveFailed": "音声を保存できませんでした。サンプルはいつでも再試行できます。"
+      },
+      "fileLabel": "カスタム音声サンプルをアップロード",
+      "hint": "WAV、MP3、Ogg · 最大 25 MiB。話者が 1 人だけのクリアな録音を使ってください。クローンには最初の 10 秒が使われます。",
+      "nameLabel": "音声クローンの名前",
+      "namePlaceholder": "音声の名前（任意）",
+      "operatorManaged": "ここでは音声クローンを利用できません。{{note}}",
+      "sampleFallback": "音声サンプル",
+      "saved": "音声クローンを保存しました。Anima の音声設定で選択できます。",
+      "savingVoice": "音声を保存しています…",
+      "sectionLabel": "音声クローン",
+      "title": "音声クローン",
+      "upload": "音声サンプルをアップロード"
+    },
+    "elevenLabs": {
+      "idLabel": "音声 ID",
+      "idPlaceholder": "音声 ID を入力",
+      "invalidId": "英字、数字、アンダースコア、ハイフンを使って音声 ID を入力してください。",
+      "saved": "ElevenLabs の音声を保存しました。",
+      "saveFailed": "音声 ID を保存できませんでした。もう一度お試しください。",
+      "sectionLabel": "ElevenLabs の音声"
+    },
+    "picker": {
+      "available": "利用可能な PocketTTS の音声",
+      "availableState": "{{name}} は利用可能",
+      "availableTitle": "利用可能",
+      "clonesHeading": "あなたの音声クローン",
+      "count_other": "{{count}} 件の音声",
+      "custom": "カスタム",
+      "customUploaded": "カスタム（アップロード）",
+      "delete": "{{name}} を削除",
+      "download": "{{name}} をダウンロード",
+      "downloadCancel": "{{name}} のダウンロードをキャンセル",
+      "downloaded": "{{name}} はダウンロード済み",
+      "downloadedTitle": "ダウンロード済み",
+      "downloading": "{{name}} をダウンロード中 {{percent}}",
+      "downloadingTitle": "ダウンロード中 {{percent}}",
+      "downloadRetry": "{{name}} のダウンロードを再試行",
+      "filters": {
+        "any": "すべての音声",
+        "custom": "カスタム音声",
+        "female": "女性の音声",
+        "male": "男性の音声"
+      },
+      "filtersRecommended": "{{filter}} · おすすめ",
+      "gender": {
+        "any": "すべて",
+        "female": "女性",
+        "label": "音声の性別",
+        "male": "男性"
+      },
+      "included": "{{name}} は同梱",
+      "includedTitle": "同梱",
+      "listLabel": "PocketTTS の音声",
+      "noMatch": "これらのフィルターに一致する音声はありません。",
+      "notAvailable": "利用不可",
+      "pocketHeading": "PocketTTS の音声",
+      "recommended": "おすすめ",
+      "recommendedOnly": "おすすめのみ",
+      "sample": {
+        "none": "この音声にはサンプルがありません",
+        "play": "{{name}} のサンプルを再生",
+        "stop": "{{name}} のサンプルを停止",
+        "unavailable": "{{name}}: {{reason}}"
+      },
+      "search": "音声を検索",
+      "searchLabel": "PocketTTS の音声を検索",
+      "select": "{{name}} を選択",
+      "titleWithCancel": "{{status}} · ダウンロードをキャンセル",
+      "trigger": "PocketTTS の音声: {{name}}",
+      "verifying": "検証しています…"
+    },
+    "pocket": {
+      "downloadFailed": "{{voice}} をダウンロードできませんでした。音声の一覧を開いて再試行してください。",
+      "downloading": "{{voice}} をダウンロードしています… {{percent}}",
+      "libraryFailed": "保存された音声を読み込めませんでした。",
+      "notProvided": "{{voice}} はここでは利用できないため、返信にはデフォルトの音声が使われます。",
+      "savedUnavailable": "保存された音声は利用できません",
+      "sectionLabel": "PocketTTS の音声",
+      "selectedUnavailable": "この保存された音声は利用できません。別の音声を選んでください。",
+      "selectFailed": "PocketTTS の音声を選択できませんでした。更新してからもう一度お試しください。"
+    },
+    "provider": {
+      "active": "使用中のプロバイダー",
+      "appDefault": "{{provider}}（アプリ）",
+      "browser": "ブラウザー",
+      "choose": "プロバイダーを選択",
+      "label": "TTS プロバイダー",
+      "saved": "TTS プロバイダーを保存しました。",
+      "saveFailed": "TTS プロバイダーを保存できませんでした。もう一度お試しください。",
+      "sectionLabel": "音声プロバイダー",
+      "speechOff": "アプリの設定で音声がオフになっています。"
+    },
+    "title": "音声"
+  }
+}

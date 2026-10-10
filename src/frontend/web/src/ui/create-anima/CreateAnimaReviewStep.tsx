@@ -2,6 +2,7 @@ import type {
   AnimaCreationDiagnostic,
   AnimaSpecInput,
 } from "@animama/runtime-contracts/sdk";
+import { useTranslation } from "react-i18next";
 import { creationIssueText } from "@/lib/errors/creationErrors";
 import type { AnimaCreationSources } from "@/query/hooks/useAnimaCreation";
 import { useVoiceClones } from "@/query/hooks/useVoiceClones";
@@ -9,6 +10,7 @@ import { pocketVoiceLabel } from "@/lib/speech/pocket/voice-groups";
 import { Button } from "@/ui/components/button";
 import { MemoryMarkdownPreview } from "@/ui/memory/MemoryMarkdownPreview";
 import {
+  REACTION_CELL_COUNT,
   reactionCount,
   type CreateAnimaDraft,
   type CreationStep,
@@ -29,6 +31,7 @@ export function CreateAnimaReviewStep({
   busy: boolean;
   onEdit: (step: CreationStep) => void;
 }) {
+  const { t } = useTranslation("create");
   const avatar = sources.avatars.data?.find(
     (item) => item.item_id === draft.avatar?.item_id,
   );
@@ -46,8 +49,8 @@ export function CreateAnimaReviewStep({
               (clone) =>
                 voice.pocket.type === "clone" &&
                 clone.item_id === voice.pocket.source.item_id,
-            )?.name ?? "Saved voice clone")
-          : "Application default (saved request)";
+            )?.name ?? t("review.voice.savedClone"))
+          : t("review.voice.applicationDefault");
   const count = reactionCount(draft);
   const visibleWarnings = warnings.filter(
     (warning) => warning.path !== "/appearance/profile",
@@ -60,13 +63,13 @@ export function CreateAnimaReviewStep({
             {draft.display_name.trim()}
           </h3>
           <p className="text-muted-foreground mt-1 text-sm">
-            {avatar?.name ?? draft.avatar?.item_id ?? "Avatar missing"}
+            {avatar?.name ?? draft.avatar?.item_id ?? t("review.avatarMissing")}
           </p>
         </div>
       </div>
       <section className="rounded-xl border p-4">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-medium">Voice</h3>
+          <h3 className="font-medium">{t("review.voice.title")}</h3>
           <Button
             type="button"
             variant="ghost"
@@ -74,19 +77,24 @@ export function CreateAnimaReviewStep({
             onClick={() => onEdit(1)}
             disabled={busy}
           >
-            Edit Voice
+            {t("review.voice.edit")}
           </Button>
         </div>
         <p className="text-muted-foreground mt-2 text-sm break-words">
           {voice
-            ? `${voice.provider === "pocket_tts" ? "PocketTTS" : "ElevenLabs"} · `
-            : ""}
-          {voiceName}
+            ? t("review.voice.summary", {
+                provider:
+                  voice.provider === "pocket_tts"
+                    ? t("voiceStep.providers.pocketTts")
+                    : t("voiceStep.providers.elevenLabs"),
+                voice: voiceName ?? "",
+              })
+            : voiceName}
         </p>
       </section>
       <section className="rounded-xl border p-4">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-medium">Identity</h3>
+          <h3 className="font-medium">{t("review.identity.title")}</h3>
           <Button
             type="button"
             variant="ghost"
@@ -94,7 +102,7 @@ export function CreateAnimaReviewStep({
             onClick={() => onEdit(2)}
             disabled={busy}
           >
-            Edit Identity
+            {t("review.identity.edit")}
           </Button>
         </div>
         <MemoryMarkdownPreview
@@ -105,7 +113,7 @@ export function CreateAnimaReviewStep({
       </section>
       <section className="space-y-3 rounded-xl border p-4">
         <div className="flex items-center justify-between gap-2">
-          <h3 className="font-medium">Actions</h3>
+          <h3 className="font-medium">{t("review.actions.title")}</h3>
           <Button
             type="button"
             variant="ghost"
@@ -113,27 +121,34 @@ export function CreateAnimaReviewStep({
             onClick={() => onEdit(3)}
             disabled={busy}
           >
-            Edit Actions
+            {t("review.actions.edit")}
           </Button>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="bg-muted/30 rounded-lg p-3">
             <p className="text-xl font-semibold">{draft.gestures.length}</p>
-            <p className="text-muted-foreground text-xs">Gestures selected</p>
+            <p className="text-muted-foreground text-xs">
+              {t("review.actions.gesturesSelected")}
+            </p>
           </div>
           <div className="bg-muted/30 rounded-lg p-3">
             <p className="text-xl font-semibold">
-              {count} <span className="text-sm font-normal">/ 72</span>
+              {count}{" "}
+              <span className="text-sm font-normal">
+                {t("review.actions.reactionTotal", {
+                  total: REACTION_CELL_COUNT,
+                })}
+              </span>
             </p>
             <p className="text-muted-foreground text-xs">
-              Reaction cells assigned
+              {t("review.actions.reactionCells")}
             </p>
           </div>
         </div>
       </section>
       {visibleWarnings.length ? (
         <div role="status" className="space-y-2 rounded-xl border p-4">
-          <h3 className="text-sm font-medium">Good to know</h3>
+          <h3 className="text-sm font-medium">{t("review.warnings")}</h3>
           <ul className="text-muted-foreground list-disc space-y-1 pl-4 text-sm">
             {visibleWarnings.map((warning, index) => {
               const text = creationIssueText(warning);

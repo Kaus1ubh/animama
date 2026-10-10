@@ -1,11 +1,13 @@
 "use client";
 
 import { ListFilter } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   LIBRARY_UPLOAD_STATUSES,
   type ContentLibrarySearch,
 } from "@/lib/content/librarySearch";
+import { libraryUploadStatusLabel } from "@/lib/uploads/libraryUploads";
 import { Button } from "@/ui/components/button";
 import {
   DropdownMenu,
@@ -21,13 +23,6 @@ import {
 
 type SearchUpdate = (update: Partial<ContentLibrarySearch>) => void;
 
-function labelFromValue(value: string): string {
-  return value
-    .split("_")
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
-}
-
 /** One contextual filter/sort menu shared by every Library inventory. */
 export function LibraryFilterMenu({
   search,
@@ -36,6 +31,7 @@ export function LibraryFilterMenu({
   search: ContentLibrarySearch;
   onSearchChange: SearchUpdate;
 }) {
+  const { t } = useTranslation("library");
   const uploads = search.section === "chat-uploads";
   const gestures =
     search.section === "all" ||
@@ -77,10 +73,10 @@ export function LibraryFilterMenu({
           type="button"
           className="h-11"
           variant={filtersActive ? "secondary" : "outline"}
-          aria-label="Filter and sort Library"
+          aria-label={t("filters.label")}
         >
           <ListFilter />
-          Filter
+          {t("filters.button")}
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
@@ -89,7 +85,7 @@ export function LibraryFilterMenu({
       >
         {uploads ? (
           <>
-            <DropdownMenuLabel>Upload status</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("filters.uploadStatus")}</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={search.uploadStatus}
               onValueChange={(value) =>
@@ -104,14 +100,16 @@ export function LibraryFilterMenu({
                   value={status}
                   onSelect={(event) => event.preventDefault()}
                 >
-                  {status === "all" ? "All statuses" : labelFromValue(status)}
+                  {status === "all"
+                    ? t("filters.allStatuses")
+                    : libraryUploadStatusLabel(status)}
                 </DropdownMenuRadioItem>
               ))}
             </DropdownMenuRadioGroup>
           </>
         ) : (
           <>
-            <DropdownMenuLabel>Show</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("filters.show")}</DropdownMenuLabel>
             <DropdownMenuCheckboxItem
               checked={search.showStarters}
               onCheckedChange={(checked) =>
@@ -119,11 +117,11 @@ export function LibraryFilterMenu({
               }
               onSelect={(event) => event.preventDefault()}
             >
-              Show starters
+              {t("filters.showStarters")}
             </DropdownMenuCheckboxItem>
 
             <DropdownMenuSeparator />
-            <DropdownMenuLabel>Sort by</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("filters.sortBy")}</DropdownMenuLabel>
             <DropdownMenuRadioGroup
               value={search.sort}
               onValueChange={(value) =>
@@ -136,28 +134,28 @@ export function LibraryFilterMenu({
                 value="name"
                 onSelect={(event) => event.preventDefault()}
               >
-                Name
+                {t("filters.sort.name")}
               </DropdownMenuRadioItem>
               {!(search.section === "actions" && search.action === "poses") ? (
                 <DropdownMenuRadioItem
                   value="updated"
                   onSelect={(event) => event.preventDefault()}
                 >
-                  Recently updated
+                  {t("filters.sort.updated")}
                 </DropdownMenuRadioItem>
               ) : null}
               <DropdownMenuRadioItem
                 value="relevance"
                 onSelect={(event) => event.preventDefault()}
               >
-                Relevance
+                {t("filters.sort.relevance")}
               </DropdownMenuRadioItem>
             </DropdownMenuRadioGroup>
 
             {gestures ? (
               <>
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel>Gestures</DropdownMenuLabel>
+                <DropdownMenuLabel>{t("filters.gestures")}</DropdownMenuLabel>
                 <DropdownMenuCheckboxItem
                   checked={search.gestureUpdatesOnly}
                   onCheckedChange={(checked) =>
@@ -167,11 +165,13 @@ export function LibraryFilterMenu({
                   }
                   onSelect={(event) => event.preventDefault()}
                 >
-                  Updates available only
+                  {t("filters.updatesOnly")}
                 </DropdownMenuCheckboxItem>
 
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel>Gesture status</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  {t("filters.gestureStatus")}
+                </DropdownMenuLabel>
                 <DropdownMenuRadioGroup
                   value={search.gestureStatus}
                   onValueChange={(value) =>
@@ -185,24 +185,24 @@ export function LibraryFilterMenu({
                     value="all"
                     onSelect={(event) => event.preventDefault()}
                   >
-                    All
+                    {t("filters.all")}
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem
                     value="equipped"
                     onSelect={(event) => event.preventDefault()}
                   >
-                    Equipped
+                    {t("filters.status.equipped")}
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem
                     value="unequipped"
                     onSelect={(event) => event.preventDefault()}
                   >
-                    Unequipped
+                    {t("filters.status.unequipped")}
                   </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
 
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel>Motion type</DropdownMenuLabel>
+                <DropdownMenuLabel>{t("filters.motionType")}</DropdownMenuLabel>
                 <DropdownMenuRadioGroup
                   value={search.gestureMotion}
                   onValueChange={(value) =>
@@ -216,24 +216,26 @@ export function LibraryFilterMenu({
                     value="all"
                     onSelect={(event) => event.preventDefault()}
                   >
-                    All
+                    {t("filters.all")}
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem
                     value="vrma"
                     onSelect={(event) => event.preventDefault()}
                   >
-                    VRMA
+                    {t("filters.motion.vrma")}
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem
                     value="anima_clip"
                     onSelect={(event) => event.preventDefault()}
                   >
-                    Clips
+                    {t("filters.motion.clips")}
                   </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
 
                 <DropdownMenuSeparator />
-                <DropdownMenuLabel>Gesture order</DropdownMenuLabel>
+                <DropdownMenuLabel>
+                  {t("filters.gestureOrder")}
+                </DropdownMenuLabel>
                 <DropdownMenuRadioGroup
                   value={search.gestureSort}
                   onValueChange={(value) =>
@@ -246,19 +248,19 @@ export function LibraryFilterMenu({
                     value="custom-first"
                     onSelect={(event) => event.preventDefault()}
                   >
-                    Custom first
+                    {t("filters.order.customFirst")}
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem
                     value="name-asc"
                     onSelect={(event) => event.preventDefault()}
                   >
-                    Name A–Z
+                    {t("filters.order.nameAscending")}
                   </DropdownMenuRadioItem>
                   <DropdownMenuRadioItem
                     value="name-desc"
                     onSelect={(event) => event.preventDefault()}
                   >
-                    Name Z–A
+                    {t("filters.order.nameDescending")}
                   </DropdownMenuRadioItem>
                 </DropdownMenuRadioGroup>
               </>
@@ -270,7 +272,7 @@ export function LibraryFilterMenu({
           <>
             <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={resetFilters}>
-              Reset filters
+              {t("filters.reset")}
             </DropdownMenuItem>
           </>
         ) : null}

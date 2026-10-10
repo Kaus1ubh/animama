@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import type { CatalogSaveInput } from "@/lib/content/catalogApi";
 import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
 
@@ -8,10 +10,10 @@ export function librarySoundSaveInput(
   file: File,
   operationId: string,
 ): CatalogSaveInput {
-  if (item.origin !== "owned")
-    throw new Error("Included sounds are read-only.");
+  const t = getI18n().getFixedT(null, "library");
+  if (item.origin !== "owned") throw new Error(t("sound.readOnly"));
   if (!item.revision_sha256 || !item.logical_key)
-    throw new Error("Reload this sound before editing it.");
+    throw new Error(t("sound.reloadBeforeEditing"));
   return {
     kind: "sound_effect",
     // Updates resolve the original storage locator by catalogItemId. Keep this

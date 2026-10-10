@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { getI18n } from "react-i18next";
 
 import {
   ContentSaveApiError,
@@ -253,5 +254,33 @@ describe("toContentSaveApiError", () => {
     expect(
       toContentSaveApiError(new TypeError("Invalid form data")).message,
     ).toBe("Invalid form data");
+  });
+
+  describe("outside English", () => {
+    afterEach(async () => {
+      await getI18n().changeLanguage("en");
+    });
+
+    it("keeps the backend's English explanation as secondary detail", async () => {
+      await getI18n().changeLanguage("ja");
+      const message = toContentSaveApiError(
+        {
+          detail: {
+            code: "content_invalid",
+            reason: "The sequence has no playable frames",
+          },
+        },
+        422,
+      ).message;
+      expect(message).toBe(
+        getI18n().t("errors:generic.withDetail", {
+          message: getI18n().t(
+            "errors:contentSave.validationFailedUnexplained",
+          ),
+          detail: "The sequence has no playable frames",
+        }),
+      );
+      expect(message.startsWith("The sequence")).toBe(false);
+    });
   });
 });

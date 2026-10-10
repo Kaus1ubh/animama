@@ -1,0 +1,401 @@
+{
+  "create": {
+    "contentLabel": "Initial content",
+    "contentPlaceholder": "# Notes",
+    "description": "Names use filesystem-safe characters and files are stored as markdown.",
+    "descriptionPlaceholder": "Optional",
+    "directoryCreated": "Directory created.",
+    "directoryNamePlaceholder": "notes",
+    "directoryTitle": "New directory",
+    "failed": "Failed to create memory entry.",
+    "fileCreated": "Markdown file created.",
+    "fileNamePlaceholder": "notes.md or projects/notes.md",
+    "fileTitle": "New markdown file",
+    "nameOrPath": "Name or path",
+    "submit": "Create"
+  },
+  "diff": {
+    "after": "After",
+    "before": "Before",
+    "descriptionChange": {
+      "clear": "clear",
+      "replace": "replace",
+      "set": "set"
+    },
+    "noContentChanges": "No content changes.",
+    "noTextualChanges": "No textual changes in this version.",
+    "operations": {
+      "create": "Create",
+      "delete": "Delete",
+      "update": "Update"
+    },
+    "showLess": "Show less",
+    "showLines_one": "Show {{count}} line",
+    "showLines_other": "Show {{count}} lines"
+  },
+  "editor": {
+    "deleted": "Memory entry deleted.",
+    "deleteFailed": "Failed to delete memory entry.",
+    "editorHeading": "Editor",
+    "fallbackTitle": "Memory file",
+    "loadingFile": "Loading file...",
+    "saveDraftOverLatest": "Save draft over latest"
+  },
+  "errors": {
+    "entryFailed": "Memory operation failed.",
+    "managerFailed": "Memory manager operation failed."
+  },
+  "explorer": {
+    "actions": {
+      "delete": "Delete",
+      "move": "Move to…",
+      "newDirectory": "New directory",
+      "newFile": "New file",
+      "rename": "Rename"
+    },
+    "actionsFor": "Actions for {{path}}",
+    "collapse": "Collapse file explorer",
+    "collapseAll": "Collapse all directories",
+    "drag": {
+      "cancelled": "Memory move cancelled.",
+      "instructions": "Press Space or Enter to pick up a memory entry. Use the arrow keys to choose a directory, then press Space or Enter to move it. Press Escape to cancel.",
+      "moveInto": "Move into {{path}}.",
+      "moving": "Moving {{source}} into {{destination}}.",
+      "notOver": "Not over a valid memory directory.",
+      "pickedUp": "Picked up {{path}}."
+    },
+    "empty": "No memory files yet.",
+    "episodesRoot": "Episodes",
+    "expand": "Expand file explorer",
+    "expandAll": "Expand all directories",
+    "filter": "Filter",
+    "filterFiles": "Filter files",
+    "filterLabel": "Filter memory files",
+    "heading": "Memory files",
+    "identityMissing": "This Anima's identity is missing and needs repair.",
+    "loadFailed": "Failed to load memory files.",
+    "loading": "Loading files...",
+    "memoriesMissing": "MEMORIES.md is missing.",
+    "needsRepair": "Needs repair",
+    "newMarkdownFile": "New markdown file",
+    "noAnimas": "No Animas yet.",
+    "noEpisodes": "No episodes yet.",
+    "noMatches": "No matching memory files.",
+    "otherEpisodes": "Other episodes",
+    "pendingEpisodes_one": "{{count}} pending episode",
+    "pendingEpisodes_other": "{{count}} pending episodes",
+    "refresh": "Refresh memory files",
+    "repair": "Repair",
+    "repairMemories": "Repair MEMORIES.md for {{name}}",
+    "reservedName": "Reserved name",
+    "reservedNameHint": "This name is reserved for Anima identities. Rename it, or move its contents out, to edit them.",
+    "unsavedChanges": "Unsaved changes"
+  },
+  "layout": {
+    "resizeExplorer": "Resize Files and Work panes",
+    "resizeHint": "{{label}}. Use Left and Right Arrow keys to resize. Double-click to reset.",
+    "resizeWork": "Resize Work and Preview panes"
+  },
+  "library": {
+    "blocker": {
+      "description_one": "Save or discard {{count}} unsaved draft before leaving the Memory workspace.",
+      "description_other": "Save or discard {{count}} unsaved drafts before leaving the Memory workspace.",
+      "discardAndLeave": "Discard and leave",
+      "saveAndLeave": "Save and leave",
+      "stay": "Stay",
+      "title": "Unsaved memory drafts"
+    },
+    "createBlocked": {
+      "animaFolders": "Anima folders only contain each Anima's identity and memories.",
+      "episodes": "Generated episodes cannot contain user-created files."
+    },
+    "delete": {
+      "directoryContents": "{{path}} and its contents will be permanently removed. This includes {{files}}.",
+      "directoryContentsNested": "{{path}} and its contents will be permanently removed. This includes {{files}} and {{directories}}.",
+      "directoryDeleted": "Directory deleted.",
+      "directoryFailed": "Failed to delete directory.",
+      "directoryTitle": "Delete directory?",
+      "dirtyDrafts_one": "{{count}} unsaved draft will also be discarded.",
+      "dirtyDrafts_other": "{{count}} unsaved drafts will also be discarded.",
+      "emptyDirectory": "{{path}} is empty and will be permanently removed.",
+      "file": "{{path}} will be permanently removed.",
+      "fileDeleted": "Memory file deleted.",
+      "fileFailed": "Failed to delete memory file.",
+      "files_one": "{{count}} file",
+      "files_other": "{{count}} files",
+      "fileTitle": "Delete file?",
+      "nestedDirectories_one": "{{count}} nested directory",
+      "nestedDirectories_other": "{{count}} nested directories"
+    },
+    "identitiesFailed": "Could not load Anima identities.",
+    "identitiesFailedDescription": "User memory is still available. Refresh to retry.",
+    "modes": {
+      "manager": "Memory Manager",
+      "manual": "Manual"
+    },
+    "panes": {
+      "explorerLabel": "Memory file explorer",
+      "files": "Files",
+      "previewLabel": "Memory preview",
+      "work": "Work",
+      "workLabel": "Memory work pane"
+    },
+    "reflect": {
+      "action": "Reflect",
+      "anyway": "Reflect anyway",
+      "confirmDescription": "Reflection reads the last saved version of {{name}}'s MEMORIES.md and ignores your unsaved Manual draft. The draft stays open, but once either it or a Reflection proposal is saved, the other will conflict.",
+      "confirmTitle": "Reflect with an unsaved draft?",
+      "label": "Reflect on {{name}}'s memories"
+    },
+    "relocate": {
+      "cannotMove": "Cannot move memory entry.",
+      "cannotRename": "This memory entry cannot be renamed.",
+      "moveConflict": "The explorer was not moved. Refresh and try again.",
+      "moved": "{{name}} moved.",
+      "moveFailed": "Failed to move memory entry.",
+      "moveRefreshFailed": "Memory move succeeded, but the explorer could not refresh.",
+      "moveUncertain": "The move result is uncertain.",
+      "moveUncertainDescription": "Refreshing before another move is attempted.",
+      "refreshBeforeChange": "Refresh before making another change.",
+      "renameConflict": "The explorer was not renamed. Refresh and try again.",
+      "renamed": "{{from}} renamed to {{to}}.",
+      "renameFailed": "Failed to rename memory entry.",
+      "renameRefreshFailed": "Memory rename succeeded, but the explorer could not refresh.",
+      "renameUncertain": "The rename result is uncertain.",
+      "renameUncertainDescription": "Refreshing before another rename is attempted."
+    },
+    "removedAnimaFile": {
+      "deleted": "{{name}} was deleted.",
+      "discarded": "Unsaved {{file}} changes could not be saved and were discarded.",
+      "unavailable": "{{name}}'s {{file}} is unavailable."
+    },
+    "repair": {
+      "failed": "Failed to repair {{name}}'s MEMORIES.md.",
+      "fallbackName": "This Anima",
+      "repaired": "{{name}}'s MEMORIES.md was repaired."
+    }
+  },
+  "manager": {
+    "approval": {
+      "approve": "Approve",
+      "feedbackCount": "{{length, number}} / {{max, number}}",
+      "feedbackHint": "This rejects the current diff and sends your feedback to the manager.",
+      "feedbackPlaceholder": "Explain what should change, such as a different Markdown path or wording.",
+      "reject": "Reject",
+      "rejectionFeedback": "Rejection feedback",
+      "requestChanges": "Request changes",
+      "requestRevision": "Request a revised memory change",
+      "sendFeedback": "Send feedback",
+      "status": {
+        "approved": "Approved",
+        "approvedUndone": "Approved · Undone",
+        "pending": "Pending review",
+        "rejected": "Rejected"
+      },
+      "undo": "Undo"
+    },
+    "autoApprove": "Auto approve",
+    "blocked": {
+      "busy": "The Memory Manager is still working. Try again when it finishes.",
+      "loadFailed": "The Memory Manager conversation could not load. Retry it first.",
+      "pendingApproval": "Approve or reject the pending memory change in the Memory Manager first."
+    },
+    "completed": "This conversation is complete. Select New to begin another.",
+    "emptyDescription": "Ask it to create, update, or organize a memory file.",
+    "emptyTitle": "Start a memory conversation",
+    "episodes": {
+      "failedDescription": "The fixed batch remains pending. Start another processing run when you are ready to retry.",
+      "failedTitle_one": "Episode review stopped for {{count}} episode",
+      "failedTitle_other": "Episode review stopped for {{count}} episodes",
+      "processedDescription": "This batch is complete. You can continue with general Memory Manager questions in this conversation.",
+      "processedMoreDescription": "This batch is complete. More pending episodes are ready for another batch, and this conversation is now in general Memory Manager mode.",
+      "processedTitle_one": "Reviewed {{count}} episode",
+      "processedTitle_other": "Reviewed {{count}} episodes",
+      "processingDescription": "The Memory Manager is reviewing this fixed batch. Episode status changes only after terminal completion.",
+      "reviewingTitle_one": "Reviewing {{count}} episode",
+      "reviewingTitle_other": "Reviewing {{count}} episodes",
+      "waitingDescription": "Review the proposed memory change below. The batch remains pending until the manager reaches its final response."
+    },
+    "feedback": {
+      "empty": "Enter feedback before requesting changes.",
+      "tooLong": "Feedback must be {{max, number}} characters or fewer."
+    },
+    "loadFailed": "Failed to load this memory-manager conversation.",
+    "loadFailedHint": "Retry it before changing its lifecycle.",
+    "loadingDescription": "Resolving the current conversation.",
+    "loadingTitle": "Loading memory manager",
+    "messageLabel": "Memory manager message",
+    "new": "New",
+    "placeholder": "Ask the memory manager to create or update a memory file",
+    "processEpisodes": "Process episodes",
+    "reflection": {
+      "activeDescription": "These turns count as reflected once a MEMORIES.md change from this Reflection is applied. Reply to refine it.",
+      "activeTitle": "Reflecting on {{turns}} with {{name}}",
+      "completedAppliedDescription": "The applied MEMORIES.md change stands and these turns count as reflected.",
+      "completedTitle": "Reflected on {{turns}} with {{name}}",
+      "completedUnchangedDescription": "No change from this Reflection was applied, so these turns remain for the next Reflection.",
+      "failedAppliedDescription": "The applied MEMORIES.md change stands and these turns count as reflected. The conversation stopped before it finished; the error below explains why.",
+      "failedTitle": "Reflection on {{turns}} with {{name}} stopped",
+      "failedUnchangedDescription": "{{name}}'s MEMORIES.md and these turns are unchanged, so they remain for the next Reflection. The error below explains why it stopped.",
+      "remaining_one": "{{count}} more remains",
+      "remaining_other": "{{count}} more remain",
+      "titleWithRemaining": "{{title}} · {{remaining}}",
+      "turns_one": "{{count}} turn",
+      "turns_other": "{{count}} turns",
+      "waitingDescription": "Review the proposed MEMORIES.md change below. These turns count as reflected only once a change from this Reflection is applied."
+    },
+    "runFailed": "The Memory Manager could not finish this conversation.",
+    "stopped": "Memory manager stopped.",
+    "stoppedFallback": "The conversation could not continue. Select New to retry.",
+    "toasts": {
+      "applied": "Memory change applied.",
+      "appliedDescription": "The approved diff was committed.",
+      "completeFailed": "Failed to complete memory-manager run.",
+      "decisionFailed": "Failed to record approval decision.",
+      "feedbackSent": "Your feedback was sent to the Memory Manager.",
+      "noFilesChanged": "No memory files were changed.",
+      "processFailed": "Failed to process pending episodes.",
+      "reflectionFailed": "Reflection did not start.",
+      "rejected": "Memory change rejected.",
+      "sendFailed": "Failed to send memory-manager message.",
+      "startFailed": "Failed to start memory manager.",
+      "undoDeleted": "The approved file was removed as a new Version.",
+      "undoFailed": "Failed to undo the approved memory change.",
+      "undone": "Memory change undone.",
+      "undoRestored": "The earlier content was restored as Version {{version}}.",
+      "undoStale": "This memory change can no longer be undone.",
+      "undoStaleDescription": "Open Versions to inspect the latest file and explicitly Revert if needed."
+    }
+  },
+  "manual": {
+    "discard": {
+      "description": "Your unsaved changes to {{path}} will be removed.",
+      "title": "Discard changes?"
+    },
+    "generatedEpisode": "Generated episode",
+    "openManager": "Open Memory Manager",
+    "readOnly": "Read-only memory",
+    "readOnlyHint": "This file can be previewed but cannot be changed manually.",
+    "reservedHint": "The animas path is reserved for Anima identities. Rename or move this file out of it before editing.",
+    "reservedPath": "Reserved path",
+    "saveOverLatest": "Save over latest",
+    "selectFile": "Select a memory file to edit it.",
+    "unsaved": "Unsaved"
+  },
+  "markdown": {
+    "emptyFile": "Empty file",
+    "image": "[Image: {{alt}}]",
+    "imageNotLoaded": "[Image: not loaded]"
+  },
+  "move": {
+    "description": "Choose a new parent directory for this memory entry.",
+    "destination": "Destination",
+    "empty": "No matching directories.",
+    "fallbackTitle": "Move memory entry",
+    "reasons": {
+      "alreadyInDirectory": "This entry is already in that directory.",
+      "alreadyInRoot": "This entry is already in Memory root.",
+      "cannotMove": "This memory entry cannot be moved.",
+      "chooseDirectory": "Choose an ordinary memory directory.",
+      "containsItself": "A directory cannot contain itself.",
+      "insideDescendant": "A directory cannot move inside one of its descendants.",
+      "otherScope": "The destination is in another memory scope.",
+      "reserved": "The animas path is reserved for Anima identities."
+    },
+    "root": "Memory root",
+    "search": "Search directories",
+    "submit": "Move here",
+    "title": "Move {{name}}"
+  },
+  "preview": {
+    "copied": "Markdown copied.",
+    "copyFailed": "Could not copy Markdown to the clipboard.",
+    "copyLabel": "Copy preview Markdown",
+    "copyTitle": "Copy Markdown",
+    "generated": "Generated",
+    "loading": "Loading preview...",
+    "readOnly": "Read only",
+    "selectFile": "Select a memory file to preview it.",
+    "unsavedDraft": "Unsaved draft",
+    "unsavedManualDraft": "Unsaved manual draft"
+  },
+  "rename": {
+    "directoryTitle": "Rename directory",
+    "fileTitle": "Rename file",
+    "submit": "Rename"
+  },
+  "shared": {
+    "blankIdentity": "Anima identity cannot be blank.",
+    "cancel": "Cancel",
+    "changedElsewhere": "This memory changed elsewhere.",
+    "conflictNotice": "This file has a newer server version. Your draft is preserved.",
+    "delete": "Delete",
+    "description": "Description",
+    "discard": "Discard",
+    "draftSaved": "Draft saved.",
+    "draftStillOpen": "Your draft is still open.",
+    "enterName": "Enter a name.",
+    "fileLoadFailed": "Failed to load this memory file.",
+    "loadingEditor": "Loading editor...",
+    "memorySaved": "Memory saved.",
+    "name": "Name",
+    "noDescription": "No description",
+    "none": "None",
+    "optionalDescription": "Optional description",
+    "preview": "Preview",
+    "retry": "Retry",
+    "save": "Save",
+    "saveFailed": "Failed to save memory.",
+    "useLatest": "Use latest",
+    "version": "Version {{version}}"
+  },
+  "versions": {
+    "afterRevert": "After Revert · Version {{version}}",
+    "back": "Back",
+    "changesIn": "Changes in Version {{version}}",
+    "confirmRevert": "Confirm Revert",
+    "contentChanges": "Content changes",
+    "createdIn": "Created in Version {{version}}",
+    "current": "Current",
+    "currentContent": "Current content",
+    "currentVersion": "{{path}} · Current Version {{version}}",
+    "detailLabel": "Selected version changes",
+    "discardAndContinue": "Discard draft and continue",
+    "discardFirst": "Discard the Manual draft first?",
+    "discardFirstDescription": "Revert cannot continue while this file has an unsaved or conflicted draft. Discarding restores the current server content before you review the final confirmation.",
+    "emptyContent": "(empty)",
+    "entryFallback": "Memory entry",
+    "history": "Version history",
+    "keepDraft": "Keep draft",
+    "listLabel": "Memory entry versions",
+    "loadFailed": "Failed to load version history.",
+    "loading": "Loading versions...",
+    "loadingChanges": "Loading changes...",
+    "loadOlder": "Load older versions",
+    "none": "No versions are available.",
+    "operationLine": "{{operation}} · {{time}}",
+    "operations": {
+      "create": "Created",
+      "delete": "Deleted",
+      "move": "Moved",
+      "revert": "Reverted",
+      "undo": "Undone",
+      "update": "Updated"
+    },
+    "path": "Path",
+    "range": "Version {{from}} → Version {{to}}",
+    "revertConfirmDescription": "This restores only content and description. The current path, name, folder, kind, and metadata stay unchanged, and the Revert is recorded as a new Version.",
+    "revertConfirmTitle": "Revert to Version {{version}}?",
+    "revertConflict": "This memory changed before Revert could finish.",
+    "revertConflictDescription": "Current memory and Versions were refreshed. Your newer draft was preserved.",
+    "reverted": "Reverted to Version {{version}}.",
+    "revertedDescription": "The restored content is now Version {{version}}.",
+    "revertFailed": "Failed to revert memory.",
+    "revertTo": "Revert to Version {{version}}",
+    "selectHint": "Select a version to inspect its changes.",
+    "selectVersion": "Select a version",
+    "timeUnavailable": "Time unavailable",
+    "title": "Versions",
+    "versionLoadFailed": "Failed to load this version."
+  }
+}

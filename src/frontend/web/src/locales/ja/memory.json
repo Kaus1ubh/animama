@@ -1,0 +1,390 @@
+{
+  "create": {
+    "contentLabel": "初期内容",
+    "contentPlaceholder": "# メモ",
+    "description": "名前にはファイルシステムで使える文字を使用し、ファイルは Markdown として保存されます。",
+    "descriptionPlaceholder": "任意",
+    "directoryCreated": "ディレクトリを作成しました。",
+    "directoryNamePlaceholder": "notes",
+    "directoryTitle": "新しいディレクトリ",
+    "failed": "記憶エントリを作成できませんでした。",
+    "fileCreated": "Markdown ファイルを作成しました。",
+    "fileNamePlaceholder": "notes.md または projects/notes.md",
+    "fileTitle": "新しい Markdown ファイル",
+    "nameOrPath": "名前またはパス",
+    "submit": "作成"
+  },
+  "diff": {
+    "after": "変更後",
+    "before": "変更前",
+    "descriptionChange": {
+      "clear": "削除",
+      "replace": "置換",
+      "set": "設定"
+    },
+    "noContentChanges": "内容の変更はありません。",
+    "noTextualChanges": "このバージョンにはテキストの変更がありません。",
+    "operations": {
+      "create": "作成",
+      "delete": "削除",
+      "update": "更新"
+    },
+    "showLess": "折りたたむ",
+    "showLines_other": "{{count}} 行をすべて表示"
+  },
+  "editor": {
+    "deleted": "記憶エントリを削除しました。",
+    "deleteFailed": "記憶エントリを削除できませんでした。",
+    "editorHeading": "エディター",
+    "fallbackTitle": "記憶ファイル",
+    "loadingFile": "ファイルを読み込んでいます...",
+    "saveDraftOverLatest": "下書きで最新版を上書き保存"
+  },
+  "errors": {
+    "entryFailed": "記憶の操作に失敗しました。",
+    "managerFailed": "記憶マネージャーの操作に失敗しました。"
+  },
+  "explorer": {
+    "actions": {
+      "delete": "削除",
+      "move": "移動…",
+      "newDirectory": "新しいディレクトリ",
+      "newFile": "新しいファイル",
+      "rename": "名前を変更"
+    },
+    "actionsFor": "{{path}} の操作",
+    "collapse": "ファイルエクスプローラーを折りたたむ",
+    "collapseAll": "すべてのディレクトリを折りたたむ",
+    "drag": {
+      "cancelled": "記憶の移動をキャンセルしました。",
+      "instructions": "Space キーまたは Enter キーで記憶エントリを持ち上げます。矢印キーでディレクトリを選び、Space キーまたは Enter キーで移動します。Escape キーでキャンセルします。",
+      "moveInto": "{{path}} に移動します。",
+      "moving": "{{source}} を {{destination}} に移動しています。",
+      "notOver": "有効な記憶ディレクトリの上にありません。",
+      "pickedUp": "{{path}} を持ち上げました。"
+    },
+    "empty": "記憶ファイルはまだありません。",
+    "episodesRoot": "エピソード",
+    "expand": "ファイルエクスプローラーを展開",
+    "expandAll": "すべてのディレクトリを展開",
+    "filter": "絞り込み",
+    "filterFiles": "ファイルを絞り込む",
+    "filterLabel": "記憶ファイルを絞り込む",
+    "heading": "記憶ファイル",
+    "identityMissing": "この Anima のアイデンティティが見つからないため、修復が必要です。",
+    "loadFailed": "記憶ファイルを読み込めませんでした。",
+    "loading": "ファイルを読み込んでいます...",
+    "memoriesMissing": "MEMORIES.md が見つかりません。",
+    "needsRepair": "修復が必要",
+    "newMarkdownFile": "新しい Markdown ファイル",
+    "noAnimas": "Anima はまだいません。",
+    "noEpisodes": "エピソードはまだありません。",
+    "noMatches": "一致する記憶ファイルはありません。",
+    "otherEpisodes": "その他のエピソード",
+    "pendingEpisodes_other": "未処理のエピソード {{count}} 件",
+    "refresh": "記憶ファイルを再読み込み",
+    "repair": "修復",
+    "repairMemories": "{{name}} の MEMORIES.md を修復",
+    "reservedName": "予約済みの名前",
+    "reservedNameHint": "この名前は Anima のアイデンティティ用に予約されています。編集するには、名前を変更するか、中身を外に移動してください。",
+    "unsavedChanges": "未保存の変更"
+  },
+  "layout": {
+    "resizeExplorer": "ファイルと作業ペインのサイズを変更",
+    "resizeHint": "{{label}}。左右の矢印キーでサイズを変更し、ダブルクリックでリセットします。",
+    "resizeWork": "作業とプレビューペインのサイズを変更"
+  },
+  "library": {
+    "blocker": {
+      "description_other": "記憶ワークスペースを離れる前に、未保存の下書き {{count}} 件を保存または破棄してください。",
+      "discardAndLeave": "破棄して移動",
+      "saveAndLeave": "保存して移動",
+      "stay": "とどまる",
+      "title": "未保存の記憶の下書き"
+    },
+    "createBlocked": {
+      "animaFolders": "Anima フォルダーには、各 Anima のアイデンティティと記憶だけが入ります。",
+      "episodes": "生成されたエピソードにはユーザーが作成したファイルを入れられません。"
+    },
+    "delete": {
+      "directoryContents": "{{path}} とその中身は完全に削除されます。{{files}}が含まれます。",
+      "directoryContentsNested": "{{path}} とその中身は完全に削除されます。{{files}}と {{directories}}が含まれます。",
+      "directoryDeleted": "ディレクトリを削除しました。",
+      "directoryFailed": "ディレクトリを削除できませんでした。",
+      "directoryTitle": "ディレクトリを削除しますか？",
+      "dirtyDrafts_other": "未保存の下書き {{count}} 件も破棄されます。",
+      "emptyDirectory": "{{path}} は空で、完全に削除されます。",
+      "file": "{{path}} は完全に削除されます。",
+      "fileDeleted": "記憶ファイルを削除しました。",
+      "fileFailed": "記憶ファイルを削除できませんでした。",
+      "files_other": "{{count}} 個のファイル",
+      "fileTitle": "ファイルを削除しますか？",
+      "nestedDirectories_other": "{{count}} 個のサブディレクトリ"
+    },
+    "identitiesFailed": "Anima のアイデンティティを読み込めませんでした。",
+    "identitiesFailedDescription": "ユーザーの記憶は引き続き利用できます。再読み込みして再試行してください。",
+    "modes": {
+      "manager": "記憶マネージャー",
+      "manual": "手動"
+    },
+    "panes": {
+      "explorerLabel": "記憶ファイルエクスプローラー",
+      "files": "ファイル",
+      "previewLabel": "記憶のプレビュー",
+      "work": "作業",
+      "workLabel": "記憶の作業ペイン"
+    },
+    "reflect": {
+      "action": "振り返る",
+      "anyway": "このまま振り返る",
+      "confirmDescription": "振り返りは {{name}} の MEMORIES.md の最後に保存されたバージョンを読み込み、未保存の手動の下書きは無視します。下書きは開いたままですが、下書きと振り返りの提案のどちらかを保存すると、もう一方は競合します。",
+      "confirmTitle": "未保存の下書きがある状態で振り返りますか？",
+      "label": "{{name}} の記憶を振り返る"
+    },
+    "relocate": {
+      "cannotMove": "記憶エントリを移動できません。",
+      "cannotRename": "この記憶エントリの名前は変更できません。",
+      "moveConflict": "移動は行われませんでした。再読み込みしてもう一度お試しください。",
+      "moved": "{{name}} を移動しました。",
+      "moveFailed": "記憶エントリを移動できませんでした。",
+      "moveRefreshFailed": "記憶を移動しましたが、エクスプローラーを更新できませんでした。",
+      "moveUncertain": "移動の結果を確認できません。",
+      "moveUncertainDescription": "次の移動を行う前に再読み込みしています。",
+      "refreshBeforeChange": "次の変更を行う前に再読み込みしてください。",
+      "renameConflict": "名前は変更されませんでした。再読み込みしてもう一度お試しください。",
+      "renamed": "{{from}} の名前を {{to}} に変更しました。",
+      "renameFailed": "記憶エントリの名前を変更できませんでした。",
+      "renameRefreshFailed": "記憶の名前を変更しましたが、エクスプローラーを更新できませんでした。",
+      "renameUncertain": "名前変更の結果を確認できません。",
+      "renameUncertainDescription": "次の名前変更を行う前に再読み込みしています。"
+    },
+    "removedAnimaFile": {
+      "deleted": "{{name}} は削除されました。",
+      "discarded": "{{file}} の未保存の変更は保存できなかったため、破棄されました。",
+      "unavailable": "{{name}} の {{file}} は利用できません。"
+    },
+    "repair": {
+      "failed": "{{name}} の MEMORIES.md を修復できませんでした。",
+      "fallbackName": "この Anima",
+      "repaired": "{{name}} の MEMORIES.md を修復しました。"
+    }
+  },
+  "manager": {
+    "approval": {
+      "approve": "承認",
+      "feedbackCount": "{{length, number}} / {{max, number}}",
+      "feedbackHint": "現在の差分を却下し、フィードバックをマネージャーに送信します。",
+      "feedbackPlaceholder": "Markdown のパスや表現など、変更してほしい内容を説明してください。",
+      "reject": "却下",
+      "rejectionFeedback": "却下時のフィードバック",
+      "requestChanges": "変更を依頼",
+      "requestRevision": "記憶の変更の修正を依頼",
+      "sendFeedback": "フィードバックを送信",
+      "status": {
+        "approved": "承認済み",
+        "approvedUndone": "承認済み · 取り消し済み",
+        "pending": "レビュー待ち",
+        "rejected": "却下済み"
+      },
+      "undo": "元に戻す"
+    },
+    "autoApprove": "自動承認",
+    "blocked": {
+      "busy": "記憶マネージャーはまだ処理中です。完了してからもう一度お試しください。",
+      "loadFailed": "記憶マネージャーの会話を読み込めませんでした。先に再試行してください。",
+      "pendingApproval": "先に記憶マネージャーで保留中の記憶の変更を承認または却下してください。"
+    },
+    "completed": "この会話は完了しました。新しい会話を始めるには「新規」を選択してください。",
+    "emptyDescription": "記憶ファイルの作成、更新、整理を依頼できます。",
+    "emptyTitle": "記憶の会話を始める",
+    "episodes": {
+      "failedDescription": "このバッチは保留中のままです。再試行する準備ができたら、別の処理を開始してください。",
+      "failedTitle_other": "{{count}} 件のエピソードのレビューが停止しました",
+      "processedDescription": "このバッチは完了しました。この会話では引き続き記憶マネージャーに一般的な質問ができます。",
+      "processedMoreDescription": "このバッチは完了しました。次のバッチで処理できる保留中のエピソードがあります。この会話は一般的な記憶マネージャーモードになりました。",
+      "processedTitle_other": "{{count}} 件のエピソードをレビューしました",
+      "processingDescription": "記憶マネージャーがこのバッチをレビューしています。エピソードの状態は処理が最後まで完了してから変わります。",
+      "reviewingTitle_other": "{{count}} 件のエピソードをレビュー中",
+      "waitingDescription": "下の記憶の変更案を確認してください。マネージャーが最終的な応答を返すまで、バッチは保留中のままです。"
+    },
+    "feedback": {
+      "empty": "変更を依頼する前にフィードバックを入力してください。",
+      "tooLong": "フィードバックは {{max, number}} 文字以内にしてください。"
+    },
+    "loadFailed": "この記憶マネージャーの会話を読み込めませんでした。",
+    "loadFailedHint": "状態を変更する前に再試行してください。",
+    "loadingDescription": "現在の会話を確認しています。",
+    "loadingTitle": "記憶マネージャーを読み込んでいます",
+    "messageLabel": "記憶マネージャーへのメッセージ",
+    "new": "新規",
+    "placeholder": "記憶ファイルの作成や更新を記憶マネージャーに依頼",
+    "processEpisodes": "エピソードを処理",
+    "reflection": {
+      "activeDescription": "この振り返りによる MEMORIES.md の変更が適用されると、これらのターンは振り返り済みになります。返信して内容を調整できます。",
+      "activeTitle": "{{name}} との {{turns}}を振り返り中",
+      "completedAppliedDescription": "適用された MEMORIES.md の変更は維持され、これらのターンは振り返り済みになります。",
+      "completedTitle": "{{name}} との {{turns}}を振り返りました",
+      "completedUnchangedDescription": "この振り返りでは変更が適用されなかったため、これらのターンは次の振り返りに残ります。",
+      "failedAppliedDescription": "適用された MEMORIES.md の変更は維持され、これらのターンは振り返り済みになります。会話は完了前に停止しました。理由は下のエラーを参照してください。",
+      "failedTitle": "{{name}} との {{turns}}の振り返りが停止しました",
+      "failedUnchangedDescription": "{{name}} の MEMORIES.md とこれらのターンは変更されていないため、次の振り返りに残ります。停止した理由は下のエラーを参照してください。",
+      "remaining_other": "残り {{count}} ターン",
+      "titleWithRemaining": "{{title}} · {{remaining}}",
+      "turns_other": "{{count}} ターン",
+      "waitingDescription": "下の MEMORIES.md の変更案を確認してください。この振り返りによる変更が適用された時点で、これらのターンは振り返り済みになります。"
+    },
+    "runFailed": "記憶マネージャーはこの会話を完了できませんでした。",
+    "stopped": "記憶マネージャーが停止しました。",
+    "stoppedFallback": "会話を続行できませんでした。再試行するには「新規」を選択してください。",
+    "toasts": {
+      "applied": "記憶の変更を適用しました。",
+      "appliedDescription": "承認された差分を反映しました。",
+      "completeFailed": "記憶マネージャーの処理を完了できませんでした。",
+      "decisionFailed": "承認の判断を記録できませんでした。",
+      "feedbackSent": "フィードバックを記憶マネージャーに送信しました。",
+      "noFilesChanged": "記憶ファイルは変更されていません。",
+      "processFailed": "保留中のエピソードを処理できませんでした。",
+      "reflectionFailed": "振り返りを開始できませんでした。",
+      "rejected": "記憶の変更を却下しました。",
+      "sendFailed": "記憶マネージャーにメッセージを送信できませんでした。",
+      "startFailed": "記憶マネージャーを開始できませんでした。",
+      "undoDeleted": "承認されたファイルを新しいバージョンとして削除しました。",
+      "undoFailed": "承認された記憶の変更を取り消せませんでした。",
+      "undone": "記憶の変更を取り消しました。",
+      "undoRestored": "以前の内容をバージョン {{version}} として復元しました。",
+      "undoStale": "この記憶の変更はもう取り消せません。",
+      "undoStaleDescription": "バージョンを開いて最新のファイルを確認し、必要に応じて明示的に復元してください。"
+    }
+  },
+  "manual": {
+    "discard": {
+      "description": "{{path}} への未保存の変更は削除されます。",
+      "title": "変更を破棄しますか？"
+    },
+    "generatedEpisode": "生成されたエピソード",
+    "openManager": "記憶マネージャーを開く",
+    "readOnly": "読み取り専用の記憶",
+    "readOnlyHint": "このファイルはプレビューできますが、手動では変更できません。",
+    "reservedHint": "animas パスは Anima のアイデンティティ用に予約されています。編集する前に、このファイルの名前を変更するか、外に移動してください。",
+    "reservedPath": "予約済みのパス",
+    "saveOverLatest": "最新版に上書き保存",
+    "selectFile": "編集する記憶ファイルを選択してください。",
+    "unsaved": "未保存"
+  },
+  "markdown": {
+    "emptyFile": "空のファイル",
+    "image": "[画像: {{alt}}]",
+    "imageNotLoaded": "[画像: 読み込まれていません]"
+  },
+  "move": {
+    "description": "この記憶エントリの新しい親ディレクトリを選択してください。",
+    "destination": "移動先",
+    "empty": "一致するディレクトリはありません。",
+    "fallbackTitle": "記憶エントリを移動",
+    "reasons": {
+      "alreadyInDirectory": "このエントリはすでにそのディレクトリにあります。",
+      "alreadyInRoot": "このエントリはすでに記憶のルートにあります。",
+      "cannotMove": "この記憶エントリは移動できません。",
+      "chooseDirectory": "通常の記憶ディレクトリを選択してください。",
+      "containsItself": "ディレクトリを自分自身の中に入れることはできません。",
+      "insideDescendant": "ディレクトリを自分のサブディレクトリの中に移動することはできません。",
+      "otherScope": "移動先は別の記憶スコープにあります。",
+      "reserved": "animas パスは Anima のアイデンティティ用に予約されています。"
+    },
+    "root": "記憶のルート",
+    "search": "ディレクトリを検索",
+    "submit": "ここに移動",
+    "title": "{{name}} を移動"
+  },
+  "preview": {
+    "copied": "Markdown をコピーしました。",
+    "copyFailed": "Markdown をクリップボードにコピーできませんでした。",
+    "copyLabel": "プレビューの Markdown をコピー",
+    "copyTitle": "Markdown をコピー",
+    "generated": "生成済み",
+    "loading": "プレビューを読み込んでいます...",
+    "readOnly": "読み取り専用",
+    "selectFile": "プレビューする記憶ファイルを選択してください。",
+    "unsavedDraft": "未保存の下書き",
+    "unsavedManualDraft": "未保存の手動の下書き"
+  },
+  "rename": {
+    "directoryTitle": "ディレクトリの名前を変更",
+    "fileTitle": "ファイルの名前を変更",
+    "submit": "名前を変更"
+  },
+  "shared": {
+    "blankIdentity": "Anima のアイデンティティは空にできません。",
+    "cancel": "キャンセル",
+    "changedElsewhere": "この記憶は別の場所で変更されました。",
+    "conflictNotice": "このファイルにはサーバー上に新しいバージョンがあります。下書きは保持されています。",
+    "delete": "削除",
+    "description": "説明",
+    "discard": "破棄",
+    "draftSaved": "下書きを保存しました。",
+    "draftStillOpen": "下書きは開いたままです。",
+    "enterName": "名前を入力してください。",
+    "fileLoadFailed": "この記憶ファイルを読み込めませんでした。",
+    "loadingEditor": "エディターを読み込んでいます...",
+    "memorySaved": "記憶を保存しました。",
+    "name": "名前",
+    "noDescription": "説明なし",
+    "none": "なし",
+    "optionalDescription": "説明（任意）",
+    "preview": "プレビュー",
+    "retry": "再試行",
+    "save": "保存",
+    "saveFailed": "記憶を保存できませんでした。",
+    "useLatest": "最新版を使用",
+    "version": "バージョン {{version}}"
+  },
+  "versions": {
+    "afterRevert": "復元後 · バージョン {{version}}",
+    "back": "戻る",
+    "changesIn": "バージョン {{version}} の変更",
+    "confirmRevert": "復元を確定",
+    "contentChanges": "内容の変更",
+    "createdIn": "バージョン {{version}} で作成",
+    "current": "現在",
+    "currentContent": "現在の内容",
+    "currentVersion": "{{path}} · 現在のバージョン {{version}}",
+    "detailLabel": "選択したバージョンの変更",
+    "discardAndContinue": "下書きを破棄して続行",
+    "discardFirst": "先に手動の下書きを破棄しますか？",
+    "discardFirstDescription": "このファイルに未保存または競合している下書きがある間は、復元を続行できません。破棄すると、最終確認の前に現在のサーバー上の内容に戻ります。",
+    "emptyContent": "（空）",
+    "entryFallback": "記憶エントリ",
+    "history": "バージョン履歴",
+    "keepDraft": "下書きを残す",
+    "listLabel": "記憶エントリのバージョン",
+    "loadFailed": "バージョン履歴を読み込めませんでした。",
+    "loading": "バージョンを読み込んでいます...",
+    "loadingChanges": "変更を読み込んでいます...",
+    "loadOlder": "以前のバージョンを読み込む",
+    "none": "利用できるバージョンはありません。",
+    "operationLine": "{{operation}} · {{time}}",
+    "operations": {
+      "create": "作成",
+      "delete": "削除",
+      "move": "移動",
+      "revert": "復元",
+      "undo": "取り消し",
+      "update": "更新"
+    },
+    "path": "パス",
+    "range": "バージョン {{from}} → バージョン {{to}}",
+    "revertConfirmDescription": "復元されるのは内容と説明だけです。現在のパス、名前、フォルダー、種類、メタデータは変わらず、復元は新しいバージョンとして記録されます。",
+    "revertConfirmTitle": "バージョン {{version}} に復元しますか？",
+    "revertConflict": "復元が完了する前にこの記憶が変更されました。",
+    "revertConflictDescription": "現在の記憶とバージョンを再読み込みしました。新しい下書きは保持されています。",
+    "reverted": "バージョン {{version}} に復元しました。",
+    "revertedDescription": "復元した内容は現在バージョン {{version}} です。",
+    "revertFailed": "記憶を復元できませんでした。",
+    "revertTo": "バージョン {{version}} に復元",
+    "selectHint": "変更を確認するバージョンを選択してください。",
+    "selectVersion": "バージョンを選択",
+    "timeUnavailable": "日時不明",
+    "title": "バージョン",
+    "versionLoadFailed": "このバージョンを読み込めませんでした。"
+  }
+}

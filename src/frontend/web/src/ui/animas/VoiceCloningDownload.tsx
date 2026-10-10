@@ -1,6 +1,7 @@
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 import attribution from "../../../../../../models/pocket-tts-voice-cloning/ATTRIBUTION.md?raw";
-import { formatFileSize } from "@/lib/user-files/uploads";
 import { Button } from "@/ui/components/button";
 
 /** First-use download controls; closing the containing view only detaches its waiter. */
@@ -23,6 +24,8 @@ export function VoiceCloningDownload({
   onCancelDownload: () => void;
   onClose: () => void;
 }) {
+  const { t } = useTranslation("animas");
+  const formatters = useFormatters();
   const downloading = asset.status === "downloading";
   const progress =
     downloading && asset.total_bytes
@@ -31,9 +34,9 @@ export function VoiceCloningDownload({
   return (
     <div className="space-y-4">
       <p className="text-muted-foreground text-sm">
-        Voice cloning needs a one-time {formatFileSize(asset.size_bytes)}{" "}
-        download. Your audio sample stays on this installation. Eve, Azelma and
-        other installed voices work without this download.
+        {t("voices.cloning.download.intro", {
+          size: formatters.fileSize(asset.size_bytes),
+        })}
       </p>
       <p
         className="bg-muted/30 truncate rounded-lg px-3 py-2 text-sm"
@@ -45,17 +48,24 @@ export function VoiceCloningDownload({
         <div className="space-y-2">
           <p className="text-muted-foreground text-xs" role="status">
             {progress === 1
-              ? "Download complete. Verifying voice cloning…"
-              : `Downloading voice cloning${progress === undefined ? "…" : `: ${Math.round(progress * 100)}%`}`}
+              ? t("voices.cloning.download.verifying")
+              : progress === undefined
+                ? t("voices.cloning.download.progressUnknown")
+                : t("voices.cloning.download.progress", {
+                    percent: formatters.number(progress, {
+                      style: "percent",
+                      maximumFractionDigits: 0,
+                    }),
+                  })}
           </p>
           <progress
             className="w-full"
             max={1}
             value={progress}
-            aria-label="Voice cloning download"
+            aria-label={t("voices.cloning.download.progressLabel")}
           />
           <p className="text-muted-foreground text-xs">
-            Closing keeps the download running.
+            {t("voices.cloning.download.closingKeeps")}
           </p>
         </div>
       ) : null}
@@ -65,14 +75,16 @@ export function VoiceCloningDownload({
         </p>
       ) : null}
       <details className="text-muted-foreground text-xs">
-        <summary>Model attribution</summary>
+        <summary>{t("voices.cloning.download.attribution")}</summary>
         <pre className="mt-2 font-sans text-xs whitespace-pre-wrap">
           {attribution.trim()}
         </pre>
       </details>
       <div className="flex flex-wrap justify-end gap-2">
         <Button type="button" variant="ghost" onClick={onClose}>
-          {downloading ? "Close" : "Not now"}
+          {downloading
+            ? t("voices.cloning.download.close")
+            : t("voices.cloning.download.notNow")}
         </Button>
         {downloading ? (
           <Button
@@ -81,16 +93,18 @@ export function VoiceCloningDownload({
             disabled={cancelling}
             onClick={onCancelDownload}
           >
-            {cancelling ? "Cancelling…" : "Cancel download"}
+            {cancelling
+              ? t("voices.cloning.download.cancelling")
+              : t("voices.cloning.download.cancel")}
           </Button>
         ) : null}
         {!downloading || (error && !busy) ? (
           <Button type="button" disabled={busy} onClick={onDownload}>
             {busy
-              ? "Preparing…"
+              ? t("voices.cloning.download.preparing")
               : error || asset.status === "failed"
-                ? "Retry download"
-                : "Download and clone"}
+                ? t("voices.cloning.download.retry")
+                : t("voices.cloning.download.start")}
           </Button>
         ) : null}
       </div>

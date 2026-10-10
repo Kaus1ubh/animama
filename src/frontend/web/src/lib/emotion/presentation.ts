@@ -5,6 +5,7 @@ import type { LocaleFormatters } from "@animama/product-ui/i18n";
 import {
   EMOTION_GROUP_MEMBERS,
   EMOTION_GROUPS,
+  TRACKED_EMOTIONS,
   buildEmotionRuntimeState,
   normalizeEmotionStateMap,
   type ResolvedEmotionGroup,
@@ -108,6 +109,16 @@ export function emotionLabel(
   t: TFunction<"emotion"> = activeEmotionT(),
 ): string {
   return t(`emotions.${emotion}`);
+}
+
+/** Display name of a saved emotion value; a value outside the tracked emotions shows as saved. */
+export function storedEmotionLabel(
+  emotion: string,
+  t: TFunction<"emotion"> = activeEmotionT(),
+): string {
+  return (TRACKED_EMOTIONS as readonly string[]).includes(emotion)
+    ? emotionLabel(emotion as TrackedEmotion, t)
+    : emotion;
 }
 
 /** Display name of an emotion group. */

@@ -1,3 +1,4 @@
+import { getI18n } from "react-i18next";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import type {
   PyCatalogViewItem,
@@ -6,7 +7,8 @@ import type {
   PyReaction,
 } from "@/lib/content/catalogTypes";
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
-import { isNonPortable, NON_PORTABLE_REASON } from "@/lib/content/portability";
+import { isNonPortable, nonPortableReason } from "@/lib/content/portability";
+import { storedEmotionLabel } from "@/lib/emotion/presentation";
 
 export type LibraryProductCard = {
   key: string;
@@ -94,7 +96,7 @@ export function libraryProductActionPolicy(
     preview: Boolean(card.source),
     manage: action && Boolean(card.source),
     edit: Boolean(card.source) && !editBlocked,
-    ...(editBlocked ? { editUnavailableReason: NON_PORTABLE_REASON } : {}),
+    ...(editBlocked ? { editUnavailableReason: nonPortableReason() } : {}),
     useInGesture: reusableEffect && Boolean(card.source),
     useInReaction: reusableEffect && Boolean(card.source),
   };
@@ -102,7 +104,10 @@ export function libraryProductActionPolicy(
 
 /** Keep only item-specific metadata; status badges are rendered separately. */
 export function libraryProductMetadata(card: LibraryProductCard): string[] {
-  return card.emotion ? [`${card.emotion} Level ${card.intensity ?? 1}`] : [];
+  if (!card.emotion) return [];
+  const emotion = storedEmotionLabel(card.emotion);
+  const t = getI18n().getFixedT(null, "library");
+  return [t("row.emotionLevel", { emotion, level: card.intensity ?? 1 })];
 }
 
 /** Omit stock catalog placeholders without changing the underlying content. */

@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import type { PyMemoryManagerApprovalDecisionRequest } from "@/lib/content/catalogTypes";
 
 export const MEMORY_MANAGER_REJECTION_FEEDBACK_MAX_CHARS = 2000;
@@ -6,18 +8,24 @@ export type MemoryManagerRejectionFeedbackValidation =
   | { valid: true; feedback: string }
   | { valid: false; error: string };
 
-/** Normalizes and validates feedback used to request a revised approval. */
+/**
+ * Normalizes and validates feedback used to request a revised approval. The
+ * `error` is worded in the active UI Locale.
+ */
 export function validateMemoryManagerRejectionFeedback(
   value: string,
 ): MemoryManagerRejectionFeedbackValidation {
+  const t = getI18n().getFixedT(null, "memory");
   const feedback = value.trim();
   if (!feedback) {
-    return { valid: false, error: "Enter feedback before requesting changes." };
+    return { valid: false, error: t("manager.feedback.empty") };
   }
   if (feedback.length > MEMORY_MANAGER_REJECTION_FEEDBACK_MAX_CHARS) {
     return {
       valid: false,
-      error: `Feedback must be ${MEMORY_MANAGER_REJECTION_FEEDBACK_MAX_CHARS.toLocaleString()} characters or fewer.`,
+      error: t("manager.feedback.tooLong", {
+        max: MEMORY_MANAGER_REJECTION_FEEDBACK_MAX_CHARS,
+      }),
     };
   }
   return { valid: true, feedback };

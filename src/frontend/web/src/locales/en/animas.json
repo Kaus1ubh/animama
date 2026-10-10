@@ -1,0 +1,437 @@
+{
+  "actions": {
+    "cancel": "Cancel",
+    "done": "Done",
+    "equip": "Equip",
+    "equipped": "Equipped",
+    "loop": "Loop",
+    "moreActions": "More actions",
+    "moreActionsFor": "More actions for {{name}}",
+    "move": "Move",
+    "preview": "Preview",
+    "previewNamed": "Preview {{name}}",
+    "previewUnavailable": "Preview unavailable",
+    "remove": "Remove",
+    "replace": "Replace",
+    "replay": "Replay",
+    "reset": "Reset",
+    "retry": "Retry",
+    "save": "Save",
+    "stop": "Stop"
+  },
+  "appearance": {
+    "created": "Local Appearance Image created.",
+    "defaultOption": {
+      "background_image": "No image",
+      "profile_image": "Default Avatar portrait"
+    },
+    "empty": {
+      "background_image": "No background image",
+      "profile_image": "The Avatar portrait will be used"
+    },
+    "fileSize": "Choose an image smaller than 25 MiB.",
+    "fileType": "Choose a PNG, JPEG, or WebP image.",
+    "fit": {
+      "contain": "Fit",
+      "cover": "Fill"
+    },
+    "localImageUnavailable": "The selected Local image is unavailable.",
+    "preparing": "Preparing Local image…",
+    "previewAlt": {
+      "background_image": "{{name}} background preview",
+      "profile_image": "{{name}} profile preview"
+    },
+    "progress": "Image save progress",
+    "ready": "Image is ready. Adjust the crop, then save it to this Anima.",
+    "retrySave": "Retry save",
+    "saveFailed": "The image could not be updated.",
+    "saving": "Saving…",
+    "savingProgress": "Saving {{percent}}…",
+    "sections": {
+      "background_image": "Background",
+      "profile_image": "Profile"
+    },
+    "sourceLabel": {
+      "background_image": "Background image source",
+      "profile_image": "Profile image source"
+    },
+    "title": "Appearance",
+    "updated": {
+      "background_image": "Background image updated.",
+      "profile_image": "Profile image updated."
+    },
+    "upload": "Upload image",
+    "uploadFailed": "The image could not be saved.",
+    "uploadLabel": {
+      "background_image": "Upload background image",
+      "profile_image": "Upload profile image"
+    },
+    "zoom": "Zoom {{zoom}}×"
+  },
+  "badges": {
+    "starter": "Starter",
+    "starterShort": "S"
+  },
+  "carousel": {
+    "create": "Create Anima",
+    "initialsShown": "Initials shown",
+    "label": "Anima carousel",
+    "loading": "Loading…",
+    "newAnima": "New Anima",
+    "next": "Select next Anima",
+    "previous": "Select previous Anima",
+    "select": "Select {{name}}"
+  },
+  "gestures": {
+    "all": "All",
+    "clips": "Clips",
+    "customFailed": "Custom Gestures could not be loaded.",
+    "customFirst": "Custom first",
+    "filter": "Filter and sort Gestures",
+    "listLabel": "Available Gestures",
+    "loadingCustom": "Loading custom Gestures…",
+    "motionType": "Motion type",
+    "nameAsc": "Name A–Z",
+    "nameDesc": "Name Z–A",
+    "noCustom": "No custom Gestures available.",
+    "noFilterMatch": "No Gestures match the selected filters.",
+    "noSearchMatch": "No Gestures match your search.",
+    "search": "Search gestures",
+    "show": "Show",
+    "showMore": "Show more",
+    "showStarters": "Show starters",
+    "sortBy": "Sort by",
+    "status": "Status",
+    "title": "Gestures",
+    "unequipped": "Unequipped",
+    "updateAvailable": "Update available",
+    "updateInLibrary": "Update in Library",
+    "updatesOnly": "Updates available only",
+    "viewInLibrary": "View in Library",
+    "vrma": "VRMA"
+  },
+  "identity": {
+    "edit": "Edit identity",
+    "empty": "_No identity content provided yet._",
+    "emptyStarter": "_No starter identity is available._",
+    "loadFailed": "The current identity memory file could not be loaded.",
+    "loading": "Loading identity…"
+  },
+  "idle": {
+    "actions": "Idle Style actions",
+    "activeStyle": "Active style",
+    "cell": "{{emotion}} · {{intensity}}",
+    "choose": "Choose an Idle Style",
+    "defaultPool": "Default",
+    "duplicate": "Duplicate and edit",
+    "edit": "Edit Style",
+    "empty": "No scheduled idle Gestures. Procedural breathing and resting continue.",
+    "filter": "Filter emotion assignments",
+    "gestureCount_one": "{{count}} Gesture",
+    "gestureCount_other": "{{count}} Gestures",
+    "inherit": "Uses Default",
+    "loading": "Loading Idle Styles…",
+    "mine": "Mine",
+    "noCellGesture": "No scheduled idle Gesture for this cell.",
+    "noIdle": "No idle",
+    "none": "No Idle Style",
+    "noResults": "No Idle Styles found.",
+    "noScheduled": "No scheduled idle",
+    "poolsHint": "Pools belong to this Style. Duplicate it for a variation used only by this Anima, then select the saved copy here.",
+    "poolsTitle": "Emotion and intensity pools",
+    "previewActive": "Preview active Idle Style",
+    "search": "Search Idle Styles",
+    "showInherited": "Show inherited cells",
+    "starter": "Starter",
+    "title": "Idle Style",
+    "useStarter": "Use Starter"
+  },
+  "loadout": {
+    "fallbackName": {
+      "idleStyle": "Idle Style",
+      "reaction": "Reaction"
+    },
+    "gestureNotLocal": "This Gesture is not available in the local catalog.",
+    "loading": "Loading Gesture and Reaction Loadout…",
+    "noPreviewSource": "This Loadout entry does not have a preview source.",
+    "previewContextLoading": "The Anima preview context is still loading.",
+    "reactionNotLocal": "This Reaction is not available in the local catalog.",
+    "review": {
+      "action": "Action:",
+      "actions": {
+        "add": "add",
+        "leave_empty": "leave empty",
+        "remove": "remove",
+        "replace": "replace",
+        "revert": "revert",
+        "unchanged": "unchanged",
+        "update": "update"
+      },
+      "confirm": "Confirm change",
+      "current": "Current:",
+      "description": "This changes the next mounted chat runtime. An active chat keeps its current revision.",
+      "result": "Result:",
+      "title": "Review Loadout change"
+    },
+    "title": "Loadout",
+    "unavailable": "The Loadout is unavailable.",
+    "updated": "Loadout updated. Changes apply to the next chat mount."
+  },
+  "manage": {
+    "animaFallback": "Anima",
+    "description": {
+      "gesture": "Choose which Animas can invoke this gesture. Active chats keep their existing bytes; open a new chat to mount the change.",
+      "reaction": "Choose which Animas can invoke this reaction. Active chats keep their existing bytes; open a new chat to mount the change."
+    },
+    "equippedTo": "{{name}} equipped to {{anima}}.",
+    "notEquipped": "Not equipped",
+    "notLocal": "This Action is not available in the local catalog.",
+    "removedFrom": "{{name}} removed from {{anima}}.",
+    "title": "Equip {{name}}",
+    "willReplace": {
+      "gesture": "Will replace the current gesture",
+      "reaction": "Will replace the current reaction"
+    }
+  },
+  "management": {
+    "avatar": {
+      "preparingDescription": "Resolving this Anima's primary model…",
+      "preparingTitle": "Preparing avatar",
+      "retry": "Retry avatar",
+      "unavailableDescription": "The selected runtime could not be loaded.",
+      "unavailableTitle": "Avatar preview unavailable"
+    },
+    "customizeAppearance": "Customize {{name}}'s appearance",
+    "emotionsTitle": "Emotional State",
+    "error": {
+      "anima": "This Anima could not be loaded. It may no longer be available.",
+      "roster": "The owned-Anima carousel could not be loaded.",
+      "title": "Anima management is unavailable"
+    },
+    "gestureHint": {
+      "pinch": "Drag · Pinch to zoom",
+      "pointer": "Drag to rotate · Scroll to zoom",
+      "short": "Drag · Pinch",
+      "touch": "Drag to rotate · Pinch to zoom"
+    },
+    "loading": {
+      "description": "Loading the character stage and details…",
+      "title": "Preparing Anima management"
+    },
+    "openEmotions": "Open Emotions tab. {{feeling}}",
+    "preview": {
+      "loop": "Loop {{name}} preview",
+      "move": "Move {{name}} preview avatar",
+      "region": "Previewing {{name}}",
+      "replay": "Replay {{name}} preview",
+      "retry": "Retry {{name}} preview",
+      "states": {
+        "error": "Preview unavailable",
+        "idle": "Preview idle",
+        "loading": "Loading anima",
+        "playing": "Playing",
+        "ready": "Ready"
+      },
+      "status": "{{name}} preview: {{status}}",
+      "stop": "Stop {{name}} preview",
+      "summary": "{{version}} · {{status}}"
+    },
+    "tabs": {
+      "emotions": "Emotions",
+      "loadout": "Loadout",
+      "memories": "Memories",
+      "overview": "Identity",
+      "settings": "Settings"
+    }
+  },
+  "memories": {
+    "edit": "Edit memories",
+    "empty": "_No memories recorded yet._",
+    "loadFailed": "The current memories file could not be loaded.",
+    "loading": "Loading memories…",
+    "missing": "MEMORIES.md is missing.",
+    "repair": "Repair memories",
+    "repairing": "Repairing memories…"
+  },
+  "reactions": {
+    "catalogUnavailable": "Reaction catalog unavailable.",
+    "cellName": "{{emotion, lowercase}} {{intensity}}",
+    "change": "Change {{intensity}} {{emotion, lowercase}} Reaction",
+    "chooseFromLibrary": "Choose from Library",
+    "included": "Included",
+    "intensity": {
+      "level": "Level {{level}}",
+      "mild": "Mild",
+      "moderate": "Moderate",
+      "strong": "Strong"
+    },
+    "leaveEmpty": "Leave empty",
+    "levels": "{{emotion, lowercase}} Reaction levels",
+    "loading": "Loading Reactions…",
+    "local": "Local",
+    "noReaction": "No Reaction",
+    "noResults": "No Reactions found.",
+    "retryCatalog": "Retry catalog",
+    "revertToStarter": "Revert to Starter",
+    "search": "Search reactions",
+    "suggestion": "{{emotion, lowercase}} · {{intensity}}",
+    "title": "Reactions"
+  },
+  "roster": {
+    "description": "There are no Animas in this account yet. You can explore your Library while your account is prepared. Creating Animas is unavailable in this hosted application.",
+    "menu": "Menu",
+    "openLibrary": "Open Library",
+    "openSidebar": "Open sidebar",
+    "title": "Your Animas will appear here"
+  },
+  "stage": {
+    "avatarLabel": "{{name}} avatar",
+    "emptyDescription": "This anima does not currently expose a previewable VRM avatar.",
+    "emptyTitle": "No avatar preview available",
+    "errors": {
+      "contentPreview": "The selected content could not be previewed.",
+      "modelRestored": "The selected avatar model could not be loaded. The saved model was restored.",
+      "noRuntimeFile": "The selected avatar model has no previewable runtime file. The saved model was restored.",
+      "render": "This avatar could not be rendered as a VRM preview."
+    },
+    "label": "Interactive preview of {{name}}",
+    "loading": "Loading anima",
+    "localReplacement": "{{size}} • Local replacement preview",
+    "noAvatar": "No VRM avatar available",
+    "resetCamera": "Reset preview camera",
+    "savedAvatar": "Current saved avatar"
+  },
+  "voices": {
+    "cloning": {
+      "change": "Change sample",
+      "checking": "Checking voice cloning…",
+      "clone": "Clone voice",
+      "cloningVoice": "Cloning voice…",
+      "delete": {
+        "confirm": "Delete voice",
+        "description": "This removes the saved clone and any original sample. Voices used by an Anima must be replaced before deletion.",
+        "title": "Delete {{name}}?"
+      },
+      "deleted": "Voice clone deleted.",
+      "download": {
+        "attribution": "Model attribution",
+        "cancel": "Cancel download",
+        "cancelling": "Cancelling…",
+        "close": "Close",
+        "closingKeeps": "Closing keeps the download running.",
+        "description": "Install voice cloning, then continue with your selected sample.",
+        "intro": "Voice cloning needs a one-time {{size}} download. Your audio sample stays on this installation. Eve, Azelma and other installed voices work without this download.",
+        "notNow": "Not now",
+        "preparing": "Preparing…",
+        "progress": "Downloading voice cloning: {{percent}}",
+        "progressLabel": "Voice cloning download",
+        "progressUnknown": "Downloading voice cloning…",
+        "retry": "Retry download",
+        "start": "Download and clone",
+        "title": "Download voice cloning?",
+        "verifying": "Download complete. Verifying voice cloning…"
+      },
+      "downloading": "Downloading voice cloning…",
+      "errors": {
+        "cancelFailed": "The download could not be cancelled. Try again.",
+        "cancelled": "Download cancelled. Your sample is ready to retry.",
+        "changed": "This voice changed. Refresh the voice library and try again.",
+        "deleteFailed": "Voice could not be deleted. Try again.",
+        "inUse": "This voice is used by an Anima. Choose another voice for each Anima using it before deleting.",
+        "saveFailed": "Voice could not be saved. Your sample is ready to retry."
+      },
+      "fileLabel": "Upload custom voice sample",
+      "hint": "WAV, MP3 or Ogg · up to 25 MiB. Use a clear recording of one speaker; cloning uses the first 10 seconds.",
+      "nameLabel": "Voice clone name",
+      "namePlaceholder": "Voice name (optional)",
+      "operatorManaged": "Voice cloning is not available here. {{note}}",
+      "sampleFallback": "Voice sample",
+      "saved": "Voice clone saved. Choose it in an Anima’s Voices settings.",
+      "savingVoice": "Saving voice…",
+      "sectionLabel": "Voice cloning",
+      "title": "Voice Cloning",
+      "upload": "Upload voice sample"
+    },
+    "elevenLabs": {
+      "idLabel": "Voice ID",
+      "idPlaceholder": "Enter voice ID",
+      "invalidId": "Enter a voice ID using letters, numbers, underscores or hyphens.",
+      "saved": "ElevenLabs voice saved.",
+      "saveFailed": "Voice ID could not be saved. Try again.",
+      "sectionLabel": "ElevenLabs voice"
+    },
+    "picker": {
+      "available": "Available PocketTTS voices",
+      "availableState": "{{name}} available",
+      "availableTitle": "Available",
+      "clonesHeading": "Your voice clones",
+      "count_one": "{{count}} voice",
+      "count_other": "{{count}} voices",
+      "custom": "Custom",
+      "customUploaded": "Custom (uploaded)",
+      "delete": "Delete {{name}}",
+      "download": "Download {{name}}",
+      "downloadCancel": "Cancel download {{name}}",
+      "downloaded": "{{name}} downloaded",
+      "downloadedTitle": "Downloaded",
+      "downloading": "Downloading {{name}} {{percent}}",
+      "downloadingTitle": "Downloading {{percent}}",
+      "downloadRetry": "Retry download {{name}}",
+      "filters": {
+        "any": "All voices",
+        "custom": "Custom voices",
+        "female": "Female voices",
+        "male": "Male voices"
+      },
+      "filtersRecommended": "{{filter}} · Recommended",
+      "gender": {
+        "any": "All",
+        "female": "Female",
+        "label": "Voice gender",
+        "male": "Male"
+      },
+      "included": "{{name}} included",
+      "includedTitle": "Included",
+      "listLabel": "PocketTTS voices",
+      "noMatch": "No voices match these filters.",
+      "notAvailable": "Not available",
+      "pocketHeading": "PocketTTS voices",
+      "recommended": "Recommended",
+      "recommendedOnly": "Recommended only",
+      "sample": {
+        "none": "No sample available for this voice",
+        "play": "Play {{name}} sample",
+        "stop": "Stop {{name}} sample",
+        "unavailable": "{{name}}: {{reason}}"
+      },
+      "search": "Search voices",
+      "searchLabel": "Search PocketTTS voices",
+      "select": "Select {{name}}",
+      "titleWithCancel": "{{status}} · Cancel download",
+      "trigger": "PocketTTS voice: {{name}}",
+      "verifying": "Verifying…"
+    },
+    "pocket": {
+      "downloadFailed": "{{voice}} could not be downloaded. Open the voice list to retry.",
+      "downloading": "Downloading {{voice}}… {{percent}}",
+      "libraryFailed": "Saved voices could not be loaded.",
+      "notProvided": "{{voice}} is not available here, so replies use the default voice.",
+      "savedUnavailable": "Saved voice unavailable",
+      "sectionLabel": "PocketTTS voice",
+      "selectedUnavailable": "This saved voice is unavailable. Choose another voice.",
+      "selectFailed": "Failed to select PocketTTS voice. Refresh and try again."
+    },
+    "provider": {
+      "active": "Active provider",
+      "appDefault": "{{provider}} (app)",
+      "browser": "Browser",
+      "choose": "Choose provider",
+      "label": "TTS Provider",
+      "saved": "TTS provider saved.",
+      "saveFailed": "Failed to save TTS provider. Try again.",
+      "sectionLabel": "Voice provider",
+      "speechOff": "Speech is off in application settings."
+    },
+    "title": "Voices"
+  }
+}

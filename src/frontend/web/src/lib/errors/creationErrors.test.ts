@@ -33,6 +33,24 @@ describe("creation wording", () => {
     ).toBe("The Reaction grid is incomplete.");
   });
 
+  it("keeps a multi-cause code's backend cause as detail", async () => {
+    const detail = {
+      code: "anima_creation_defaults_unavailable",
+      message: "The Included starter Avatar is unavailable.",
+    };
+    expect(creationFailureText(detail)).toEqual({
+      message:
+        "The default model, Starter Pack or starter Avatar for new Animas is unavailable or needs repair.",
+      detail: "The Included starter Avatar is unavailable.",
+    });
+    await getI18n().changeLanguage("ja");
+    expect(creationIssueText(detail)).toEqual({
+      message:
+        "新しい Anima の既定のモデル、スターターパック、またはスターターアバターが利用できないか、修復が必要です。",
+      detail: "The Included starter Avatar is unavailable.",
+    });
+  });
+
   it("keeps the creator's own issue text", () => {
     expect(
       creationIssueText({

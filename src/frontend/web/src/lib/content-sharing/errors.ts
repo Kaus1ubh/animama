@@ -6,12 +6,11 @@ import { errorWording } from "@/lib/errors/apiError";
 /** The message for a failure, naming the display names the server attached. */
 function sharingErrorText(code: string, items: readonly string[]): string {
   if (!items.length) return sharingMessage(code);
-  const list = items.join(", ");
   return code === "package_non_portable"
-    ? getI18n().t("errors:sharing.nonPortableItems", { items: list })
+    ? getI18n().t("errors:sharing.nonPortableItems", { items })
     : getI18n().t("errors:sharing.withItems", {
         message: sharingMessage(code),
-        items: list,
+        items,
       });
 }
 

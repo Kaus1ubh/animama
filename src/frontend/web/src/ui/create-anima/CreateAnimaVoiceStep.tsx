@@ -1,6 +1,7 @@
 import { useProductApiClient } from "@animama/product-ui";
 import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
 import {
@@ -37,6 +38,7 @@ export function CreateAnimaVoiceStep({
   disabled: boolean;
   onBusyChange: (busy: boolean) => void;
 }) {
+  const { t } = useTranslation("create");
   const apiClient = useProductApiClient();
 
   const { effectivePreferences, isLoading } = useSettings();
@@ -65,7 +67,7 @@ export function CreateAnimaVoiceStep({
       },
     });
   }, [voice, isLoading, disabled, effectivePreferences.speech, onChange]);
-  if (!voice) return <p role="status">Loading voice defaults…</p>;
+  if (!voice) return <p role="status">{t("voiceStep.loading")}</p>;
   const clones = library.data ?? [];
   const selectedId =
     voice.pocket.type === "clone" ? voice.pocket.source.item_id : null;
@@ -75,13 +77,10 @@ export function CreateAnimaVoiceStep({
       ? voice.pocket.voice_id
       : DEFAULT_POCKET_VOICE;
   const select = async (id: string) => {
-    if (disabled || cloning) throw new Error("Voice settings are busy.");
+    if (disabled || cloning) throw new Error(t("voiceStep.busy"));
     if (id.startsWith("clone:")) {
       const clone = clones.find((item) => `clone:${item.item_id}` === id);
-      if (!clone)
-        throw new Error(
-          "This saved voice is unavailable. Refresh the library.",
-        );
+      if (!clone) throw new Error(t("voiceStep.cloneUnavailable"));
       onChange({
         voice: {
           ...voice,
@@ -111,14 +110,14 @@ export function CreateAnimaVoiceStep({
       id="creation-voice"
       tabIndex={-1}
       className="space-y-6"
-      aria-label="Voice configuration"
+      aria-label={t("voiceStep.label")}
     >
       <div className="flex items-center justify-between gap-4">
         <label
           htmlFor="creation-tts-provider"
           className="text-sm font-semibold"
         >
-          TTS Provider
+          {t("voiceStep.provider")}
         </label>
         <Select
           value={voice.provider}
@@ -130,21 +129,27 @@ export function CreateAnimaVoiceStep({
         >
           <SelectTrigger
             id="creation-tts-provider"
-            aria-label="TTS Provider"
+            aria-label={t("voiceStep.provider")}
             className="w-48 min-w-0"
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="pocket_tts">PocketTTS</SelectItem>
-            <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+            <SelectItem value="pocket_tts">
+              {t("voiceStep.providers.pocketTts")}
+            </SelectItem>
+            <SelectItem value="elevenlabs">
+              {t("voiceStep.providers.elevenLabs")}
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
       {voice.provider === "pocket_tts" ? (
         <div className="space-y-6">
           <div className="space-y-3">
-            <h2 className="text-sm font-semibold">PocketTTS voice</h2>
+            <h2 className="text-sm font-semibold">
+              {t("voiceStep.pocketVoice")}
+            </h2>
             <PocketVoicePicker
               value={selected}
               disabled={disabled || library.isPending || library.isError}
@@ -153,7 +158,7 @@ export function CreateAnimaVoiceStep({
               unavailableSelection={
                 selectedId &&
                 !clones.some((clone) => clone.item_id === selectedId)
-                  ? "Saved voice unavailable"
+                  ? t("voiceStep.savedVoiceUnavailable")
                   : undefined
               }
               onDeleteClone={(id) =>
@@ -177,18 +182,18 @@ export function CreateAnimaVoiceStep({
             !library.isError &&
             !clones.some((clone) => clone.item_id === selectedId) ? (
               <p role="alert" className="text-destructive text-sm">
-                This saved voice is unavailable. Choose another voice.
+                {t("voiceStep.chooseAnother")}
               </p>
             ) : null}
             {library.isError ? (
               <div role="alert" className="space-y-2 text-sm">
-                <p>Saved voices could not be loaded.</p>
+                <p>{t("voiceStep.loadFailed")}</p>
                 <Button
                   type="button"
                   variant="outline"
                   onClick={() => void library.refetch()}
                 >
-                  Retry saved voices
+                  {t("voiceStep.retry")}
                 </Button>
               </div>
             ) : null}
@@ -209,11 +214,11 @@ export function CreateAnimaVoiceStep({
             htmlFor="creation-elevenlabs-id"
             className="text-sm font-semibold"
           >
-            ElevenLabs voice ID
+            {t("voiceStep.elevenLabsId")}
           </label>
           <Input
             id="creation-elevenlabs-id"
-            placeholder="Enter voice ID"
+            placeholder={t("voiceStep.elevenLabsPlaceholder")}
             autoComplete="off"
             spellCheck={false}
             value={voice.elevenlabs_voice_id ?? ""}

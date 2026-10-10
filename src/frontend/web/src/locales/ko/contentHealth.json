@@ -1,0 +1,50 @@
+{
+  "actions": {
+    "retryLibrary": "라이브러리 다시 시도",
+    "retryScan": "스캔 다시 시도",
+    "scanning": "스캔하는 중…"
+  },
+  "diagnostics": {
+    "case_collision": "대소문자만 다른 두 경로가 있어 이식할 수 없습니다.",
+    "empty_file": "콘텐츠 파일은 비어 있을 수 없습니다.",
+    "entry_too_large": "이 항목이 지원되는 크기 제한을 초과합니다.",
+    "file_too_large": "이 파일이 지원되는 크기 제한을 초과합니다.",
+    "hard_link_rejected": "하드 링크된 파일은 스캔하지 않습니다.",
+    "incomplete_operation": "저장이 중단되어 이 항목이 불완전합니다. 조정이 필요합니다.",
+    "invalid_gltf_asset": "VRM 및 VRMA 파일에는 glTF 2 에셋이 필요합니다.",
+    "invalid_gltf_container": "glTF 데이터가 잘못되었습니다.",
+    "invalid_json_shape": "최상위 JSON 값은 객체여야 합니다.",
+    "invalidHeader": "{{format}} 파일 서명이 잘못되었습니다.",
+    "json_too_large": "JSON 파일이 지원되는 크기 제한을 초과합니다.",
+    "malformed_json": "이 파일은 올바른 UTF-8 JSON 문서가 아닙니다.",
+    "missing_descriptor_file": "이 항목에 선언된 파일이 없습니다.",
+    "missing_vrm_extension": "이 파일에는 VRM 또는 VRMA 유형에 필요한 확장이 없습니다.",
+    "nested_descriptor": "콘텐츠 항목은 서로 중첩할 수 없습니다.",
+    "pocket_clone_file_size": "음성 복제 파일은 비어 있지 않아야 하며 최대 25MiB여야 합니다.",
+    "provenance_missing": "이 기본 제공 항목에는 라이선스 기록이 없습니다.",
+    "special_file_rejected": "일반 파일과 폴더만 스캔합니다.",
+    "svg_size_limit": "SVG 이미지는 최대 32MiB여야 합니다.",
+    "symlink_rejected": "심볼릭 링크는 스캔하지 않습니다.",
+    "too_many_files": "이 항목에 파일이 너무 많습니다.",
+    "unreadable_file": "파일을 읽을 수 없습니다.",
+    "unreadable_path": "파일 또는 폴더를 검사할 수 없습니다.",
+    "unsafe_descriptor_path": "선언된 파일 경로는 항목 안에 있어야 합니다.",
+    "unsupported_extension": "이 파일 형식은 지원되지 않습니다."
+  },
+  "itemStatus": {
+    "invalid": "이 항목은 유효성 검사를 통과하지 못했습니다.",
+    "missing": "파일 또는 폴더가 없습니다.",
+    "scanRequired": "변경 사항이 스캔을 기다리고 있습니다."
+  },
+  "loadFailed": "콘텐츠 라이브러리를 불러올 수 없습니다. 다시 시도하여 확인하세요.",
+  "operatorManaged": "호스트 파일 스캔은 운영자가 관리합니다.",
+  "scanFailed": "스캔에 실패했습니다. 다시 시도하세요.",
+  "scanRequired": {
+    "local": "로컬 변경 사항을 다시 스캔해야 합니다.",
+    "operator": "운영자가 콘텐츠 변경 사항을 조정하고 있습니다."
+  },
+  "status": {
+    "attention": "콘텐츠에 확인이 필요합니다",
+    "unavailable": "콘텐츠 라이브러리를 사용할 수 없음"
+  }
+}

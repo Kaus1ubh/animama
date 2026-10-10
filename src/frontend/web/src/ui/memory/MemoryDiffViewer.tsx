@@ -2,9 +2,14 @@
 
 import { ChevronDown, ChevronRight, FileDiff } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 
 import type { PyMemoryPatchPreview } from "@/lib/content/catalogTypes";
-import { memoryDescriptionChange } from "@/lib/memory-manager/description-change";
+import {
+  memoryDescriptionChange,
+  type MemoryDescriptionChangeKind,
+} from "@/lib/memory-manager/description-change";
 import { previewWithDisplayPath } from "@/lib/memory-manager/display-path";
 import { parseUnifiedDiff } from "@/lib/memory-manager/unified-diff";
 import { cn } from "@/lib/utils";
@@ -12,10 +17,27 @@ import { Button } from "@/ui/components/button";
 
 const COLLAPSED_LINE_COUNT = 80;
 
-function operationLabel(operation: PyMemoryPatchPreview["operation"]) {
-  if (operation === "create") return "Create";
-  if (operation === "update") return "Update";
-  return "Delete";
+function operationLabel(
+  t: TFunction<"memory">,
+  operation: PyMemoryPatchPreview["operation"],
+) {
+  if (operation === "create") return t("diff.operations.create");
+  if (operation === "update") return t("diff.operations.update");
+  return t("diff.operations.delete");
+}
+
+function descriptionChangeLabel(
+  t: TFunction<"memory">,
+  kind: MemoryDescriptionChangeKind,
+) {
+  switch (kind) {
+    case "set":
+      return t("diff.descriptionChange.set");
+    case "clear":
+      return t("diff.descriptionChange.clear");
+    case "replace":
+      return t("diff.descriptionChange.replace");
+  }
 }
 
 type ParsedDiffLine = ReturnType<typeof parseUnifiedDiff>[number];
@@ -46,6 +68,7 @@ export function MemoryDiffViewer({
   pathLabel?: string;
   className?: string;
 }) {
+  const { t } = useTranslation("memory");
   const preview = previewWithDisplayPath(sourcePreview, pathLabel);
   const descriptionChange = memoryDescriptionChange(preview);
 
@@ -64,7 +87,7 @@ export function MemoryDiffViewer({
           <div className="min-w-0">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-foreground text-sm font-semibold">
-                {operationLabel(preview.operation)}
+                {operationLabel(t, preview.operation)}
               </span>
               <span className="text-muted-foreground truncate font-mono text-xs">
                 {preview.path}
@@ -80,7 +103,7 @@ export function MemoryDiffViewer({
         {preview.expected_version !== null &&
         preview.expected_version !== undefined ? (
           <span className="text-muted-foreground text-xs">
-            Version {preview.expected_version}
+            {t("shared.version", { version: preview.expected_version })}
           </span>
         ) : null}
       </div>
@@ -89,19 +112,19 @@ export function MemoryDiffViewer({
         <section className="border-border/70 border-b px-4 py-3">
           <div className="mb-2 flex items-center justify-between gap-3">
             <h4 className="text-foreground text-xs font-semibold tracking-wide uppercase">
-              Description
+              {t("shared.description")}
             </h4>
             <span className="text-muted-foreground text-xs capitalize">
-              {descriptionChange.kind}
+              {descriptionChangeLabel(t, descriptionChange.kind)}
             </span>
           </div>
           <div className="grid gap-2 sm:grid-cols-2">
             <DescriptionValue
-              label="Before"
+              label={t("diff.before")}
               value={descriptionChange.oldValue}
             />
             <DescriptionValue
-              label="After"
+              label={t("diff.after")}
               value={descriptionChange.newValue}
             />
           </div>
@@ -110,7 +133,7 @@ export function MemoryDiffViewer({
 
       <MemoryUnifiedDiff
         unifiedDiff={preview.unified_diff}
-        emptyMessage="No content changes."
+        emptyMessage={t("diff.noContentChanges")}
       />
     </div>
   );
@@ -123,6 +146,7 @@ function DescriptionValue({
   label: string;
   value: string | null;
 }) {
+  const { t } = useTranslation("memory");
   return (
     <div className="border-border/70 bg-muted/20 min-w-0 rounded-md border px-3 py-2">
       <div className="text-muted-foreground text-2xs mb-1 font-medium tracking-wide uppercase">
@@ -134,7 +158,7 @@ function DescriptionValue({
           value === null ? "text-muted-foreground italic" : "text-foreground",
         )}
       >
-        {value ?? "No description"}
+        {value ?? t("shared.noDescription")}
       </p>
     </div>
   );
@@ -143,11 +167,13 @@ function DescriptionValue({
 /** Renders reusable unified-diff lines without assuming an approval payload. */
 export function MemoryUnifiedDiff({
   unifiedDiff,
-  emptyMessage = "No textual changes in this version.",
+  emptyMessage,
 }: {
   unifiedDiff: string | null | undefined;
+  /** Shown without changed lines; defaults to "No textual changes in this version." */
   emptyMessage?: string;
 }) {
+  const { t } = useTranslation("memory");
   const [expanded, setExpanded] = useState(false);
   const lines = useMemo(() => parseUnifiedDiff(unifiedDiff), [unifiedDiff]);
   const collapsible = lines.length > COLLAPSED_LINE_COUNT;
@@ -160,7 +186,7 @@ export function MemoryUnifiedDiff({
     <>
       {lines.length === 0 ? (
         <div className="text-muted-foreground px-4 py-6 text-sm">
-          {emptyMessage}
+          {emptyMessage ?? t("diff.noTextualChanges")}
         </div>
       ) : (
         <div className="overflow-x-auto">
@@ -193,7 +219,9 @@ export function MemoryUnifiedDiff({
             ) : (
               <ChevronRight className="size-4" />
             )}
-            {expanded ? "Show less" : `Show ${lines.length} lines`}
+            {expanded
+              ? t("diff.showLess")
+              : t("diff.showLines", { count: lines.length })}
           </Button>
         </div>
       ) : null}

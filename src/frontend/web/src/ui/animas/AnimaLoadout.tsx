@@ -18,6 +18,7 @@ import type {
   PyLoadoutPlan,
   PyReactionIntent,
 } from "@animama/runtime-contracts/api-types";
+import type { TFunction } from "i18next";
 import type {
   PyExactContentSource,
   PyGesture,
@@ -92,6 +93,29 @@ function toastLoadoutFailure(error: unknown, fallback: string) {
   toast.error(text.message, { description: text.detail ?? undefined });
 }
 
+/** Display wording for a reviewed plan's action (a backend enum). */
+function planActionLabel(
+  t: TFunction<"animas">,
+  action: PyLoadoutPlan["action"],
+): string {
+  switch (action) {
+    case "add":
+      return t("loadout.review.actions.add");
+    case "update":
+      return t("loadout.review.actions.update");
+    case "replace":
+      return t("loadout.review.actions.replace");
+    case "remove":
+      return t("loadout.review.actions.remove");
+    case "revert":
+      return t("loadout.review.actions.revert");
+    case "leave_empty":
+      return t("loadout.review.actions.leave_empty");
+    case "unchanged":
+      return t("loadout.review.actions.unchanged");
+  }
+}
+
 function intentSource(
   source: PyExactContentSource | PyCatalogLoadoutSource | null | undefined,
 ): PyCatalogLoadoutSource | null {
@@ -113,7 +137,7 @@ export function AnimaLoadout({
   onStagePreview: (target: ContentPreviewTarget) => void;
 }) {
   const apiClient = useProductApiClient();
-  const { t } = useTranslation("errors");
+  const { t } = useTranslation(["animas", "errors"]);
 
   const query = useLoadout(animaId);
   const runtimeSnapshotQuery = useAnimaRuntimeCatalog(animaId);
@@ -260,9 +284,14 @@ export function AnimaLoadout({
   ) => {
     const catalogSource = intentSource(row.source);
     if (!catalogSource) {
-      toast.error("This Loadout entry does not have a preview source.");
+      toast.error(t("loadout.noPreviewSource"));
       return;
     }
+    if (!runtimeQuery.data) {
+      toast.error(t("loadout.previewContextLoading"));
+      return;
+    }
+    const runtimeData = runtimeQuery.data;
     try {
       const itemId = catalogSource.catalog_item_id;
       const options = {
@@ -276,16 +305,13 @@ export function AnimaLoadout({
           : await previewReaction({ ...options, client: apiClient });
       const target = actionPreviewTarget(
         typedActionPreview(result.data),
-        row.name ?? "Reaction",
+        row.name ?? t("loadout.fallbackName.reaction"),
       );
-      if (!runtimeQuery.data) {
-        throw new Error("The Anima preview context is still loading.");
-      }
       onStagePreview(
-        withLibraryPreviewAnimaContext(target, animaId, runtimeQuery.data),
+        withLibraryPreviewAnimaContext(target, animaId, runtimeData),
       );
     } catch (error) {
-      toastLoadoutFailure(error, t("loadout.previewUnavailable"));
+      toastLoadoutFailure(error, t("errors:loadout.previewUnavailable"));
     }
   };
 
@@ -304,7 +330,7 @@ export function AnimaLoadout({
         idempotencyKey: crypto.randomUUID(),
       });
     } catch (error) {
-      toastLoadoutFailure(error, t("loadout.reviewFailed"));
+      toastLoadoutFailure(error, t("errors:loadout.reviewFailed"));
     } finally {
       setReviewing(false);
     }
@@ -325,7 +351,7 @@ export function AnimaLoadout({
         idempotencyKey: crypto.randomUUID(),
       });
     } catch (error) {
-      toastLoadoutFailure(error, t("loadout.reviewFailed"));
+      toastLoadoutFailure(error, t("errors:loadout.reviewFailed"));
     } finally {
       setReviewing(false);
     }
@@ -346,7 +372,7 @@ export function AnimaLoadout({
         idempotencyKey: crypto.randomUUID(),
       });
     } catch (error) {
-      toastLoadoutFailure(error, t("loadout.reviewFailed"));
+      toastLoadoutFailure(error, t("errors:loadout.reviewFailed"));
     } finally {
       setReviewing(false);
     }
@@ -377,13 +403,13 @@ export function AnimaLoadout({
       onStagePreview(
         idleStylePreviewTarget(
           typedIdleStylePreview(result, selectedRef),
-          loadout.idle_style.name ?? "Idle Style",
+          loadout.idle_style.name ?? t("loadout.fallbackName.idleStyle"),
           animaId,
           runtimeQuery.data,
         ),
       );
     } catch (error) {
-      toastLoadoutFailure(error, t("loadout.previewFailed"));
+      toastLoadoutFailure(error, t("errors:loadout.previewFailed"));
     }
   };
 
@@ -411,26 +437,26 @@ export function AnimaLoadout({
           plan_digest: reviewed.plan.plan_digest,
           idempotency_key: reviewed.idempotencyKey,
         });
-      toast.success("Loadout updated. Changes apply to the next chat mount.");
+      toast.success(t("loadout.updated"));
       setReviewed(null);
     } catch (error) {
-      toastLoadoutFailure(error, t("loadout.updateFailed"));
+      toastLoadoutFailure(error, t("errors:loadout.updateFailed"));
     }
   };
 
   if (query.isPending) {
     return (
       <p className="text-muted-foreground py-10 text-center text-sm">
-        Loading Gesture and Reaction Loadout…
+        {t("loadout.loading")}
       </p>
     );
   }
   if (query.isError || !loadout || !gesturePresentation) {
     return (
       <div className="space-y-3 rounded-xl border p-5 text-sm">
-        <p className="text-destructive">The Loadout is unavailable.</p>
+        <p className="text-destructive">{t("loadout.unavailable")}</p>
         <Button variant="outline" onClick={() => void query.refetch()}>
-          Retry
+          {t("actions.retry")}
         </Button>
       </div>
     );
@@ -443,7 +469,7 @@ export function AnimaLoadout({
 
   return (
     <div className="space-y-8 pt-5 md:pt-6">
-      <h1 className="text-2xl font-semibold">Loadout</h1>
+      <h1 className="text-2xl font-semibold">{t("loadout.title")}</h1>
       {loadout.warnings?.length ? (
         <div className="border-warning/35 rounded-lg border p-3 text-sm">
           {loadout.warnings.map((warning) => (
@@ -469,7 +495,7 @@ export function AnimaLoadout({
         onEquip={(gesture: PyGesture) => {
           const source = intentSource(gesture.source);
           if (!source) {
-            toast.error("This Gesture is not available in the local catalog.");
+            toast.error(t("loadout.gestureNotLocal"));
             return;
           }
           void planGesture({
@@ -516,7 +542,7 @@ export function AnimaLoadout({
         onSelect={(cell, reaction: PyReaction) => {
           const source = intentSource(reaction.source);
           if (!source) {
-            toast.error("This Reaction is not available in the local catalog.");
+            toast.error(t("loadout.reactionNotLocal"));
             return;
           }
           void planReaction({
@@ -571,27 +597,32 @@ export function AnimaLoadout({
       <Dialog open={Boolean(reviewed)} onOpenChange={() => setReviewed(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Review Loadout change</DialogTitle>
+            <DialogTitle>{t("loadout.review.title")}</DialogTitle>
             <DialogDescription>
-              This changes the next mounted chat runtime. An active chat keeps
-              its current revision.
+              {t("loadout.review.description")}
             </DialogDescription>
           </DialogHeader>
           {reviewed ? (
             <div className="space-y-2 rounded-lg border p-4 text-sm">
               <p>
-                <span className="text-muted-foreground">Action:</span>{" "}
-                {reviewed.plan.action.replaceAll("_", " ")}
+                <span className="text-muted-foreground">
+                  {t("loadout.review.action")}
+                </span>{" "}
+                {planActionLabel(t, reviewed.plan.action)}
               </p>
               {reviewed.plan.current_name ? (
                 <p>
-                  <span className="text-muted-foreground">Current:</span>{" "}
+                  <span className="text-muted-foreground">
+                    {t("loadout.review.current")}
+                  </span>{" "}
                   {reviewed.plan.current_name}
                 </p>
               ) : null}
               {reviewed.plan.target_name ? (
                 <p>
-                  <span className="text-muted-foreground">Result:</span>{" "}
+                  <span className="text-muted-foreground">
+                    {t("loadout.review.result")}
+                  </span>{" "}
                   {reviewed.plan.target_name}
                 </p>
               ) : null}
@@ -609,10 +640,10 @@ export function AnimaLoadout({
                 committing || !reviewed || reviewed.plan.action === "unchanged"
               }
             >
-              Confirm change
+              {t("loadout.review.confirm")}
             </Button>
             <Button variant="outline" onClick={() => setReviewed(null)}>
-              Cancel
+              {t("actions.cancel")}
             </Button>
           </DialogFooter>
         </DialogContent>

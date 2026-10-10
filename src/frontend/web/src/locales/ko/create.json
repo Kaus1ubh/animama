@@ -1,0 +1,437 @@
+{
+  "actions": {
+    "back": "뒤로",
+    "cancel": "취소",
+    "clear": "지우기",
+    "creatorHub": "만들기 허브",
+    "startOver": "처음부터 다시 시작",
+    "tryAgain": "다시 시도"
+  },
+  "actionsStep": {
+    "cell": {
+      "apply": "셀에 적용",
+      "assignment": "리액션 할당",
+      "description": "리액션을 선택하거나 이 셀을 비워 두세요. 미리 보기는 할당을 바꾸지 않습니다.",
+      "noMatches": "일치하는 리액션이 없습니다. 셀은 변경되지 않았습니다.",
+      "preview": "리액션 {{name}} 미리 보기",
+      "search": "리액션 검색",
+      "searchPlaceholder": "리액션 검색…",
+      "showMore": "리액션 더 보기",
+      "sourceFilter": "리액션 소스",
+      "title": "{{emotion}} · 강도 {{intensity}}"
+    },
+    "confirm": {
+      "clear": "선택 지우기",
+      "clearDescription": "이 선택 항목만 지워집니다. 빈 선택도 유효하며, 저장된 콘텐츠는 삭제되지 않습니다.",
+      "clearGesturesTitle": "모든 제스처를 지울까요?",
+      "clearReactionsTitle": "모든 리액션을 지울까요?",
+      "reset": "액션 초기화",
+      "resetDescription": "제스처 선택과 리액션 셀 {{total}}개 전체를 현재 스타터 팩으로 바꿉니다. 아바타와 정체성은 그대로 유지됩니다.",
+      "resetTitle": "액션을 추천 구성으로 초기화할까요?"
+    },
+    "gestures": {
+      "clearAll": "모든 제스처 지우기",
+      "keptSelection": "유지된 선택: {{id}}. 필터에 의해 숨겨졌거나 확인이 필요합니다.",
+      "key": "제스처 {{key}}",
+      "loadFailed": "제스처를 불러올 수 없습니다. 선택은 변경되지 않았습니다.",
+      "loading": "제스처를 불러오는 중…",
+      "noMatches": "일치하는 제스처가 없습니다. 숨겨진 선택은 유지됩니다.",
+      "none": "선택된 제스처가 없습니다. 그래도 Anima를 만들 수 있습니다.",
+      "preview": "제스처 {{name}} 미리 보기",
+      "retry": "제스처 다시 불러오기",
+      "search": "제스처 검색",
+      "searchPlaceholder": "제스처 검색…",
+      "select": "선택",
+      "selected": "선택됨",
+      "sourceFilter": "제스처 소스"
+    },
+    "reactions": {
+      "change": "{{emotion}} 강도 {{intensity}} 변경",
+      "clearAll": "모든 리액션 지우기",
+      "clearCell": "{{emotion}} 강도 {{intensity}} 지우기",
+      "empty": "비어 있음",
+      "levels": "{{emotion}} 리액션 단계",
+      "loadFailed": "리액션을 불러올 수 없습니다. 할당은 유지됩니다.",
+      "matrix": "리액션 매트릭스",
+      "needsAttention": "선택됨 · 확인 필요",
+      "none": "셀 {{total}}개가 모두 비어 있습니다. 그래도 Anima를 만들 수 있습니다.",
+      "previewCell": "{{emotion}} 강도 {{intensity}} 미리 보기",
+      "previewLabel": "{{emotion}} · {{intensity}}",
+      "retry": "리액션 다시 불러오기",
+      "revert": "되돌리기",
+      "revertCell": "{{emotion}} 강도 {{intensity}}을(를) 추천 구성으로 되돌리기"
+    },
+    "replace": {
+      "confirm": "선택 바꾸기",
+      "description": "이 시맨틱 키는 제스처 하나만 사용할 수 있습니다. 선택한 소스가 {{name}}(으)로 바뀌며, 콘텐츠는 삭제되지 않습니다.",
+      "keep": "현재 항목 유지",
+      "title": "“{{key}}”의 제스처를 바꿀까요?"
+    },
+    "starterPack": {
+      "description": "필수가 아닌 출발점입니다. Anima가 할 수 있는 것을 정확히 선택하세요.",
+      "reset": "추천 구성으로 초기화",
+      "summary_other": "제스처 <strong>{{count}}</strong>개 · 리액션 셀 <strong>{{reactions}}</strong> / {{total}}개 할당됨",
+      "title": "추천 스타터 팩",
+      "version": "버전 {{version}} · 추천 제스처 {{gestures}}개 · 추천 셀 {{cells}}개"
+    },
+    "tabs": {
+      "gestures": "제스처 ({{selected}})",
+      "reactions": "리액션 ({{assigned}}/{{total}})"
+    }
+  },
+  "avatarStep": {
+    "alreadySaved": "똑같은 데이터가 이미 내 콘텐츠에 있습니다. 기존 아바타가 선택되었으며, 이름과 메타데이터는 유지되었습니다.",
+    "cancelUpload": "업로드 취소",
+    "collision": {
+      "chooseNewName": "새 이름 선택",
+      "description": "두 파일을 모두 유지하려면 다른 이름을 사용하세요. 바꾸기는 기존 내 콘텐츠 항목을 변경하며 현재 리비전이 필요합니다. 실행 중인 Anima가 사용 중이면 서버가 바꾸기를 거부합니다.",
+      "item": "{{name}} · {{id}}",
+      "replace": "이 아바타 바꾸기",
+      "title": "이미 사용 중인 아바타 이름입니다"
+    },
+    "discardUpload": "저장되지 않은 업로드 삭제",
+    "emptyIncluded": "사용할 수 있는 기본 제공 아바타가 없습니다. 내 콘텐츠를 사용하거나 VRM을 업로드할 수 있습니다.",
+    "emptyLocal": "내 콘텐츠에 아직 아바타가 없습니다. VRM을 업로드해 추가하세요.",
+    "fileInput": "VRM 파일 선택",
+    "groupLabel": {
+      "included": "기본 제공 아바타",
+      "local": "내 콘텐츠 아바타"
+    },
+    "inUse": "실행 중인 Anima가 이 아바타를 사용하고 있습니다. 그대로 두고 업로드한 파일은 새 이름으로 저장하세요.",
+    "label": "아바타 선택",
+    "loadFailed": "아바타를 불러올 수 없습니다. 선택은 유지됩니다.",
+    "loading": "아바타를 불러오는 중…",
+    "nameUsed": "이미 사용 중인 이름입니다. 새 이름을 입력하거나 아래에서 일치하는 아바타를 명시적으로 바꾸세요. 실행 중인 Anima가 사용하는 아바타는 여기서 바꿀 수 없습니다.",
+    "needsAttention": "이 아바타는 확인이 필요합니다. 다른 소스를 선택하거나 다시 시도하세요.",
+    "noMatches": "일치하는 아바타가 없습니다. 선택한 아바타는 변경되지 않았습니다.",
+    "optionLabel": {
+      "included": "{{name}} 기본 제공",
+      "local": "{{name}} 내 콘텐츠"
+    },
+    "previewing": "{{name}} 미리 보는 중 · {{size}}",
+    "readFailed": "이 VRM을 읽을 수 없습니다.",
+    "reselect": "이전 파일이 저장되지 않았습니다. VRM 업로드로 다시 선택하세요. 브라우저는 새로 고침 후 로컬 파일을 복원할 수 없습니다.",
+    "retry": "아바타 다시 불러오기",
+    "save": "아바타를 내 콘텐츠에 저장",
+    "saveAs": "내 콘텐츠에 저장할 이름",
+    "saved": "아바타가 내 콘텐츠에 저장되었습니다. 만들기를 취소해도 남아 있습니다.",
+    "saveFailed": "저장하지 못했습니다. 파일은 그대로 있으니 다시 시도할 수 있습니다.",
+    "saving": "아바타를 저장하는 중…",
+    "search": "아바타 검색",
+    "searchPlaceholder": "아바타 검색…",
+    "showMore": "아바타 더 보기",
+    "upload": "VRM 업로드"
+  },
+  "completion": {
+    "degraded": "일부 런타임 콘텐츠를 사용할 수 없습니다. Anima는 정상적으로 만들어졌습니다.",
+    "description": "만들기가 완료되었습니다. 첫 채팅을 열어도 다른 Anima가 만들어지지 않습니다.",
+    "filesVerified_other": "파일 {{completed, number}} / {{count, number}}개 확인됨",
+    "openAnyway": "그래도 Anima 열기",
+    "openFailed": "첫 채팅을 열 수 없습니다.",
+    "preparing": "첫 채팅을 준비하는 중…",
+    "retry": "Anima 다시 열기",
+    "title": "Anima가 만들어졌습니다"
+  },
+  "controller": {
+    "defaultsUnavailable": "만들기 기본값을 사용할 수 없습니다. 설치 소유자에게 복구를 요청한 후 다시 시도하세요.",
+    "libraryAvatarUnavailable": "라이브러리 아바타를 선택할 수 없습니다. 아래에서 사용 가능한 아바타를 선택하세요.",
+    "libraryAvatarUnavailableReason": "라이브러리 아바타를 선택할 수 없습니다: {{reason}} 아래에서 사용 가능한 아바타를 선택하세요.",
+    "lockBusy": "다른 탭에서 이 만들기 요청을 확인하고 있습니다. 완료될 때까지 기다린 후 여기서 같은 결과를 확인하세요.",
+    "locksUnavailable": "이 브라우저에서는 탭 간에 만들기를 안전하게 조정할 수 없습니다. 로컬 저장소와 Web Locks가 활성화된 최신 브라우저를 사용하세요.",
+    "notAvatar": "이 소스는 아바타가 아닙니다.",
+    "revisionsAccepted": "업데이트된 리비전을 수락했습니다. 만들기 전에 초안 전체를 다시 확인하세요.",
+    "starterPackRefreshFailed": "추천 스타터 팩을 새로 고칠 수 없습니다. 액션은 유지되었습니다."
+  },
+  "draft": {
+    "chooseAvatar": "허용된 아바타를 선택하거나 VRM을 내 콘텐츠에 저장하세요.",
+    "chooseVoice": "Anima의 음성을 선택하세요.",
+    "elevenLabsVoiceIdInvalid": "영문자, 숫자, 밑줄 또는 하이픈으로 ElevenLabs 음성 ID를 입력하세요.",
+    "identityInvalid": "{{limit, number}} UTF-8 바이트 이내로 비어 있지 않은 Markdown을 입력하세요.",
+    "nameInvalid": "제어 문자 없이 1–{{limit}}자로 입력하세요.",
+    "nameRequired": "계속하려면 이름을 입력하세요.",
+    "pocketVoiceUnavailable": "사용 가능한 PocketTTS 음성을 선택하세요.",
+    "reselectFile": "VRM을 다시 선택해 저장하거나, 저장되지 않은 업로드를 취소하세요.",
+    "reviewNeedsAvatar": "검토하기 전에 아바타를 선택하고 스타터 팩을 해결하세요.",
+    "sourceNeedsValidation": "선택한 콘텐츠는 아직 정확한 소스 검증이 필요합니다.",
+    "sourcesDisagree": "선택한 소스들의 리비전 {{id}}이(가) 서로 다릅니다. 영향을 받는 콘텐츠를 검토하세요.",
+    "starterPackNeedsAttention": "이 설치의 스타터 팩은 확인이 필요합니다."
+  },
+  "effectKinds": {
+    "avatar": {
+      "create": "아바타 효과 만들기",
+      "description": "얼굴, 몸 또는 아바타 옆에 아트를 추가합니다.",
+      "label": "아바타 효과",
+      "new": "새 아바타 효과"
+    },
+    "particle": {
+      "create": "파티클 효과 만들기",
+      "description": "폭발, 궤적, 분위기 있는 파티클을 추가합니다.",
+      "label": "파티클 효과",
+      "new": "새 파티클 효과"
+    },
+    "scene": {
+      "create": "장면 효과 만들기",
+      "description": "Anima 주변에 배경과 집중선을 구성합니다.",
+      "label": "장면 효과",
+      "new": "새 장면 효과"
+    }
+  },
+  "files": {
+    "documentTooLarge": "VRM 문서가 지원되는 한도를 초과합니다.",
+    "externalResources": "외부 모델 리소스는 허용되지 않습니다. 독립형 VRM으로 내보내세요.",
+    "invalidDocument": "이 파일에는 유효한 VRM 문서가 없습니다.",
+    "notBinary": "바이너리 VRM/GLB 파일이 아닙니다.",
+    "tooLarge": "{{limit}} MiB 이하의 독립형 .vrm 파일을 선택하세요.",
+    "unsupportedVersion": "VRM 0.x (0.0) 또는 VRM 1.0 모델을 선택하세요."
+  },
+  "hub": {
+    "actions": {
+      "description": "Anima에게 움직임, 개성, 감정을 부여하세요.",
+      "gesture": {
+        "action": "제스처 만들기",
+        "description": "표현력 있는 움직임과 재사용 가능한 액션을 안무합니다.",
+        "title": "제스처"
+      },
+      "reaction": {
+        "action": "리액션 만들기",
+        "description": "Anima가 표현할 수 있는 감정 반응을 디자인합니다.",
+        "title": "리액션"
+      },
+      "title": "액션"
+    },
+    "anima": {
+      "action": "Anima 만들기",
+      "description": "모든 대화의 중심이 되는 동반자를 만드세요.",
+      "title": "Anima"
+    },
+    "description": "Anima를 위한 캐릭터, 액션, 효과를 만드세요.",
+    "effects": {
+      "description": "재사용 가능한 효과를 제스처와 리액션에 겹쳐 넣으세요. 사운드는 각 SFX 탭이나 함께 재생할 사운드 선택기에서 업로드하세요.",
+      "title": "효과"
+    },
+    "title": "만들기"
+  },
+  "identityStep": {
+    "editorLabel": "정체성 Markdown",
+    "placeholder": "어떤 존재인지, 어떻게 말하는지, 무엇을 중요하게 여기는지 적어 보세요…",
+    "preview": "미리 보기",
+    "previewEmpty": "정체성 미리 보기가 여기에 표시됩니다.",
+    "required": "· 필수",
+    "suggestion": {
+      "append": "제안 추가",
+      "description": "제안은 편집 가능한 텍스트로 복사됩니다. 현재 정체성은 아래 옵션 중 하나를 선택해야만 변경됩니다.",
+      "replace": "정체성 바꾸기",
+      "title": "아바타 제안을 사용할까요?"
+    },
+    "title": "정체성",
+    "useSuggestion": "아바타 제안 사용",
+    "write": "작성"
+  },
+  "leave": {
+    "discard": "초안 삭제",
+    "draft": {
+      "action": "초안 저장 후 나가기",
+      "description": "나중에 계속하려면 이 초안을 저장하거나 삭제하세요. 확정된 업로드는 내 콘텐츠에 남습니다.",
+      "title": "Anima 초안에서 나갈까요?"
+    },
+    "keepEditing": "계속 편집",
+    "locked": {
+      "action": "요청 유지 후 나가기",
+      "description": "고정된 요청은 유지해야 합니다. 다른 만들기를 시작하기 전에 만들기 결과 확인으로 돌아오세요. 나가도 이미 보낸 요청은 취소되지 않습니다.",
+      "title": "만들기가 확정되지 않은 상태로 나갈까요?"
+    }
+  },
+  "locked": {
+    "acknowledgeStartOver": "확인하고 처음부터 다시 시작",
+    "check": {
+      "description": "원래 요청은 저장되어 있습니다. 이 초안을 변경하기 전에 결과를 확인하세요. 다시 시도하면 똑같은 요청을 사용하므로 중복으로 만들어지지 않습니다.",
+      "title": "만들기 결과를 확인하세요"
+    },
+    "checking": "확인하는 중…",
+    "checkResult": "만들기 결과 확인",
+    "conflict": {
+      "description": "이 키는 이미 다른 내용으로 사용되었습니다. 편집과 자동 재시도가 중지되었으며, 원래 요청은 유지됩니다.",
+      "title": "만들기 요청 충돌"
+    },
+    "creating": "Anima를 만드는 중…",
+    "deleted": {
+      "description": "원래 만들기는 성공했지만 해당 Anima는 나중에 삭제되었습니다. 다시 만들어진 것은 없습니다.",
+      "title": "이 Anima는 삭제되었습니다"
+    }
+  },
+  "namePlate": {
+    "characters": "자",
+    "count": "{{current}} / {{limit}}",
+    "label": "이름",
+    "placeholder": "이름 입력"
+  },
+  "nav": {
+    "completed": "{{step}}, 완료됨",
+    "label": "Anima 만들기 진행 상황",
+    "needsAttention": "{{step}}, 확인 필요"
+  },
+  "options": {
+    "loadFailed": "스타터 팩 또는 만들기 기본값을 불러올 수 없습니다. 초안은 유지됩니다.",
+    "needsRepair": "추천 스타터 팩을 복구해야 합니다. 선택 항목이 불완전한 팩으로 바뀌지 않았습니다.",
+    "retry": "만들기 옵션 다시 불러오기"
+  },
+  "page": {
+    "continueTo": "{{step}}(으)로 계속",
+    "create": "Anima 만들기",
+    "formLabel": "{{step}} 양식",
+    "issuesLabel": "만들기 문제",
+    "preparingStage": "미리 보기 공간을 준비하는 중…",
+    "reviewUpdatedSources": "업데이트된 소스 검토",
+    "runtimeUnavailable": "로컬 런타임을 사용할 수 없습니다. 다시 연결된 후 다시 시도하세요.",
+    "stepCounter": "{{total}}단계 중 {{current}}단계",
+    "title": "Anima 만들기",
+    "working": "처리하는 중…"
+  },
+  "picker": {
+    "avatarGroups": {
+      "aroundHead": "머리 주변",
+      "body": "몸",
+      "cheeks": "볼",
+      "eyes": "눈",
+      "mouth": "입",
+      "wholeFace": "얼굴 전체"
+    },
+    "choose": "선택",
+    "kindDescription": "만들 효과의 종류를 선택하세요.",
+    "noParticleTemplates": "아직 파티클 효과 템플릿이 없습니다. 처음부터 시작해 만들어 보세요.",
+    "noPreview": "아직 미리 보기가 없습니다",
+    "previewUnavailable": "미리 보기를 사용할 수 없습니다",
+    "startFromScratch": "처음부터 시작",
+    "templateDescription": "템플릿이나 처음부터 시작하세요. 저장되지 않은 새 초안이 만들어지며, 템플릿은 변경되지 않습니다.",
+    "title": "효과 만들기"
+  },
+  "recovery": {
+    "appearance": {
+      "action": "이미지 없이 계속",
+      "description": "프로필 이미지와 배경 이미지는 더 이상 Anima 만들기 중에 설정하지 않습니다. 해당 초안 선택 없이 계속하세요. 확정된 업로드는 내 콘텐츠에 남고 다른 선택은 모두 유지됩니다.",
+      "title": "만들기 이미지 없이 계속할까요?"
+    },
+    "checking": "저장된 초안을 확인하는 중…",
+    "corrupt": {
+      "title": "저장된 초안을 확인해야 합니다"
+    },
+    "resume": {
+      "action": "저장된 초안 이어서 하기",
+      "description": "이 설치에 저장된 초안이 있습니다. 이어서 하거나 명시적으로 처음부터 다시 시작하세요. 저장된 업로드는 내 콘텐츠에 남습니다.",
+      "title": "Anima 만들기를 계속할까요?"
+    }
+  },
+  "repair": {
+    "accept": "업데이트된 리비전 수락",
+    "keep": "고정된 리비전 유지",
+    "policyDescription": "고정된 스타터 팩 식별 정보와 기본 대기 정책만 업데이트합니다. 제스처와 리액션 선택은 초기화되지 않습니다.",
+    "sourceDescription": "이 소스와 전체 종속성이 여기에 표시된 현재 리비전을 사용합니다. 다른 선택은 그대로 유지됩니다. 이후 초안 전체를 다시 확인하세요.",
+    "title": "업데이트된 소스 리비전을 수락할까요?"
+  },
+  "review": {
+    "actions": {
+      "edit": "액션 편집",
+      "gesturesSelected": "선택된 제스처",
+      "reactionCells": "할당된 리액션 셀",
+      "reactionTotal": "/ {{total}}",
+      "title": "액션"
+    },
+    "avatarMissing": "아바타 없음",
+    "identity": {
+      "edit": "정체성 편집",
+      "title": "정체성"
+    },
+    "voice": {
+      "applicationDefault": "앱 기본값(저장된 요청)",
+      "edit": "음성 편집",
+      "savedClone": "저장된 음성 복제",
+      "summary": "{{provider}} · {{voice}}",
+      "title": "음성"
+    },
+    "warnings": "알아 두면 좋은 점"
+  },
+  "sources": {
+    "all": "모든 소스",
+    "included": "기본 제공",
+    "local": "내 콘텐츠"
+  },
+  "stage": {
+    "actionBytesUnavailable": "액션의 등록된 데이터를 준비할 수 없습니다.",
+    "actionNotPlayed": "이 액션을 재생할 수 없습니다.",
+    "actionNotPrepared": "이 액션을 준비할 수 없습니다.",
+    "avatarUnavailable": "아바타 미리 보기를 사용할 수 없습니다.",
+    "dependencyChanged": "액션 종속성이 변경되었습니다. 미리 보기 전에 업데이트된 소스를 수락하세요.",
+    "dependencyUnavailable": "액션 종속성을 사용할 수 없습니다. 재생이 중지되었습니다.",
+    "empty": "VRM(100 MB 미만)을 업로드하거나 아바타를 선택하면 여기에 표시됩니다.",
+    "label": "Anima 미리 보기",
+    "loadingAvatar": "선택한 아바타를 불러오는 중…",
+    "noModel": "선택한 아바타에 등록된 모델이 없습니다.",
+    "notAction": "선택한 소스는 액션이 아닙니다.",
+    "preparing": "미리 보기를 준비하는 중…",
+    "preparingAction": "액션과 종속성을 준비하는 중…",
+    "retry": "미리 보기 다시 시도",
+    "unavailable": "아바타 미리 보기를 사용할 수 없습니다. 양식은 계속 편집할 수 있습니다.",
+    "upload": "VRM 파일 업로드",
+    "waitForAvatar": "선택한 아바타를 기다리거나 미리 보기를 다시 시도하세요.",
+    "webglUnavailable": "WebGL을 사용할 수 없습니다. 미리 보기를 다시 시도하거나 선택한 아바타로 계속하세요."
+  },
+  "startOver": {
+    "description": "저장된 초안은 삭제되지만 확정된 내 콘텐츠 업로드는 삭제되지 않습니다. 이전에 삭제된 만들기는 다시 만들어지지 않습니다.",
+    "keep": "초안 유지",
+    "title": "새 초안을 시작할까요?"
+  },
+  "steps": {
+    "actions": {
+      "description": "Anima가 어떻게 움직이고 반응할지 선택하세요.",
+      "heading": "액션 선택",
+      "label": "액션"
+    },
+    "avatar": {
+      "heading": "아바타 선택",
+      "label": "아바타"
+    },
+    "identity": {
+      "description": "어떤 존재인지, 어떻게 말하는지, 무엇을 중요하게 여기는지 정하세요.",
+      "heading": "정체성 정의",
+      "label": "정체성"
+    },
+    "review": {
+      "heading": "Anima 검토",
+      "label": "검토"
+    },
+    "voice": {
+      "heading": "음성 선택",
+      "label": "음성"
+    }
+  },
+  "storage": {
+    "changedElsewhere": "이 초안이 다른 탭에서 변경되었습니다. 계속하기 전에 마지막으로 저장된 상태를 검토하세요.",
+    "checkBeforeDiscard": "이 요청을 삭제하기 전에 만들기 결과를 확인하세요.",
+    "conflict": "이 초안이 다른 탭에서 변경되었습니다. 편집을 이어받기 전에 검토하세요.",
+    "notStarted": "정확한 요청이 안전하게 저장되지 않으면 만들기가 시작되지 않습니다.",
+    "pendingElsewhere": "다른 탭에서 만들기가 대기 중입니다. 원래 만들기 결과를 확인하세요.",
+    "retrySave": "초안 저장 다시 시도",
+    "reviewLatest": "마지막으로 저장된 상태 검토",
+    "tooLarge": "저장된 초안이 복구 한도를 초과합니다. 더 이상 필요 없다고 확인한 경우에만 처음부터 다시 시작하세요.",
+    "unavailable": "초안 저장소를 사용할 수 없습니다. Anima를 만들기 전에 브라우저 저장소를 활성화하세요.",
+    "unreadable": "이 버전에서는 저장된 초안을 읽을 수 없습니다. 초안은 삭제되지 않았습니다. 바꾸려면 처음부터 다시 시작을 확정하세요."
+  },
+  "voiceStep": {
+    "busy": "음성 설정을 처리하는 중입니다.",
+    "chooseAnother": "이 저장된 음성은 사용할 수 없습니다. 다른 음성을 선택하세요.",
+    "cloneUnavailable": "이 저장된 음성은 사용할 수 없습니다. 라이브러리를 새로 고치세요.",
+    "elevenLabsId": "ElevenLabs 음성 ID",
+    "elevenLabsPlaceholder": "음성 ID 입력",
+    "label": "음성 설정",
+    "loadFailed": "저장된 음성을 불러올 수 없습니다.",
+    "loading": "음성 기본값을 불러오는 중…",
+    "pocketVoice": "PocketTTS 음성",
+    "provider": "TTS 제공자",
+    "providers": {
+      "elevenLabs": "ElevenLabs",
+      "pocketTts": "PocketTTS"
+    },
+    "retry": "저장된 음성 다시 불러오기",
+    "savedVoiceUnavailable": "저장된 음성을 사용할 수 없음"
+  }
+}

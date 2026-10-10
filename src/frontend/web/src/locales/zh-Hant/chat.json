@@ -198,11 +198,11 @@
     "backgroundAlt": "{{name}} 的背景",
     "close": "關閉 Anima 個人資料",
     "closeShort": "關閉",
-    "description": "外觀、情緒、身分、記憶和設定。",
+    "description": "外觀、情緒、身分設定、記憶和設定。",
     "documents": {
-      "editIdentity": "編輯身分",
+      "editIdentity": "編輯身分設定",
       "editMemories": "編輯記憶",
-      "identity": "身分",
+      "identity": "身分設定",
       "label": "Anima 文件",
       "memories": "記憶"
     },
@@ -211,7 +211,7 @@
     "emotions": "情緒",
     "exploreEmotions": "查看情緒",
     "fullDetails": "查看完整詳細資料",
-    "noIdentity": "尚未提供身分內容。",
+    "noIdentity": "尚未提供身分設定內容。",
     "profileImageAlt": "{{name}} 的頭像",
     "settings": "Anima 設定",
     "settingsTitle": "{{name}} 設定"

@@ -2,6 +2,7 @@
 
 import { Folder, FolderRoot, Loader2, MoveRight } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
 import {
@@ -41,9 +42,10 @@ export function MemoryMoveEntryDialog({
   onOpenChange,
   onConfirm,
 }: MemoryMoveEntryDialogProps) {
+  const { t } = useTranslation("memory");
   const destinations = useMemo(
-    () => (source ? memoryMoveDestinations(entries, source) : []),
-    [entries, source],
+    () => (source ? memoryMoveDestinations(entries, source, t) : []),
+    [entries, source, t],
   );
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
@@ -65,34 +67,39 @@ export function MemoryMoveEntryDialog({
       onOpenChange={(nextOpen) => {
         if (!isMoving) onOpenChange(nextOpen);
       }}
-      title={source ? `Move ${source.name}` : "Move memory entry"}
-      description="Choose a new parent directory for this memory entry."
+      title={
+        source
+          ? t("move.title", { name: source.name })
+          : t("move.fallbackTitle")
+      }
+      description={t("move.description")}
       showCloseButton
       className="max-w-lg"
     >
       <Command>
         <div className="border-border/70 border-b px-4 py-3">
-          <p className="text-sm font-semibold">Move {source?.name}</p>
+          <p className="text-sm font-semibold">
+            {t("move.title", { name: source?.name ?? "" })}
+          </p>
           <p className="text-muted-foreground mt-0.5 truncate text-xs">
             {source?.path}
           </p>
         </div>
-        <CommandInput placeholder="Search directories" />
+        <CommandInput placeholder={t("move.search")} />
         <CommandList>
-          <CommandEmpty>No matching directories.</CommandEmpty>
-          <CommandGroup heading="Destination">
+          <CommandEmpty>{t("move.empty")}</CommandEmpty>
+          <CommandGroup heading={t("move.destination")}>
             {destinations.map((destination) => {
               const key = destinationKey(destination);
               const selectedDestination = key === selectedKey;
+              const location = destination.path ?? t("move.root");
               return (
                 <CommandItem
                   key={key}
-                  value={`${destination.label} ${destination.path ?? "Memory root"}`}
+                  value={`${destination.label} ${location}`}
                   disabled={destination.disabled}
                   data-checked={selectedDestination || undefined}
-                  title={
-                    destination.reason ?? destination.path ?? "Memory root"
-                  }
+                  title={destination.reason ?? location}
                   onSelect={() => setSelectedKey(key)}
                   className="items-start"
                 >
@@ -104,7 +111,7 @@ export function MemoryMoveEntryDialog({
                   <span className="min-w-0 flex-1">
                     <span className="block truncate">{destination.label}</span>
                     <span className="text-muted-foreground block truncate text-xs">
-                      {destination.reason ?? destination.path ?? "Memory root"}
+                      {destination.reason ?? location}
                     </span>
                   </span>
                 </CommandItem>
@@ -119,7 +126,7 @@ export function MemoryMoveEntryDialog({
             disabled={isMoving}
             onClick={() => onOpenChange(false)}
           >
-            Cancel
+            {t("shared.cancel")}
           </Button>
           <Button
             type="button"
@@ -135,7 +142,7 @@ export function MemoryMoveEntryDialog({
             ) : (
               <MoveRight className="size-4" />
             )}
-            Move here
+            {t("move.submit")}
           </Button>
         </div>
       </Command>

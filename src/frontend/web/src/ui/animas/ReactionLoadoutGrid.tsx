@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import {
   ChevronDown,
@@ -20,6 +21,7 @@ import {
   ReactionIntensityBadge,
   reactionIntensityLabel,
 } from "@/ui/animas/ActionLoadoutRows";
+import { storedEmotionLabel } from "@/lib/emotion/presentation";
 import { Button } from "@/ui/components/button";
 import {
   Command,
@@ -74,9 +76,13 @@ export function ReactionChoice({
   onSelect: () => void;
   onPreview: () => void;
 }) {
+  const { t } = useTranslation("animas");
   const suggestion =
     reaction.emotion && reaction.intensity
-      ? `${reaction.emotion} · ${reactionIntensityLabel(reaction.intensity)}`
+      ? t("reactions.suggestion", {
+          emotion: storedEmotionLabel(reaction.emotion),
+          intensity: reactionIntensityLabel(reaction.intensity, t),
+        })
       : null;
   return (
     <CommandItem
@@ -99,7 +105,7 @@ export function ReactionChoice({
         type="button"
         size="icon-sm"
         variant="ghost"
-        aria-label={`Preview ${reaction.name}`}
+        aria-label={t("actions.previewNamed", { name: reaction.name })}
         onPointerDown={(event) => event.preventDefault()}
         onClick={(event) => {
           event.stopPropagation();
@@ -132,6 +138,7 @@ function ReactionSelector({
   onPreview: (reaction: PyReaction) => void;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation("animas");
   const [open, setOpen] = useState(false);
   const currentSourceKey = reactionSourceKey(cell.source);
   const { local, included } = groupReactionSelectorChoices(available);
@@ -161,12 +168,17 @@ function ReactionSelector({
           variant="outline"
           role="combobox"
           aria-expanded={open}
-          aria-label={`Change ${reactionIntensityLabel(cell.intensity)} ${cell.emotion} Reaction`}
+          aria-label={t("reactions.change", {
+            intensity: reactionIntensityLabel(cell.intensity, t),
+            emotion: storedEmotionLabel(cell.emotion),
+          })}
           disabled={disabled}
           className="h-9 min-w-0 flex-1 justify-between gap-2 rounded-lg px-3 font-normal"
         >
           <span className="flex min-w-0 items-center gap-2">
-            <span className="truncate">{cell.name ?? "No Reaction"}</span>
+            <span className="truncate">
+              {cell.name ?? t("reactions.noReaction")}
+            </span>
             {cell.state === "starter" ? <StarterBadge /> : null}
           </span>
           <ChevronDown className="text-muted-foreground size-4 shrink-0" />
@@ -178,20 +190,22 @@ function ReactionSelector({
         className="w-(--radix-popover-trigger-width) min-w-80 p-0"
       >
         <Command>
-          <CommandInput placeholder="Search reactions" autoFocus />
+          <CommandInput placeholder={t("reactions.search")} autoFocus />
           <CommandList>
             <CommandEmpty>
               {availableError
-                ? "Reaction catalog unavailable."
+                ? t("reactions.catalogUnavailable")
                 : availableLoading
-                  ? "Loading Reactions…"
-                  : "No Reactions found."}
+                  ? t("reactions.loading")
+                  : t("reactions.noResults")}
             </CommandEmpty>
             {local.length ? (
-              <CommandGroup heading="Local">{local.map(choice)}</CommandGroup>
+              <CommandGroup heading={t("reactions.local")}>
+                {local.map(choice)}
+              </CommandGroup>
             ) : null}
             {included.length ? (
-              <CommandGroup heading="Included">
+              <CommandGroup heading={t("reactions.included")}>
                 {included.map(choice)}
               </CommandGroup>
             ) : null}
@@ -206,12 +220,12 @@ function ReactionSelector({
                   className="w-full"
                   onClick={onRetry}
                 >
-                  Retry catalog
+                  {t("reactions.retryCatalog")}
                 </Button>
               ) : (
                 <p className="text-muted-foreground flex items-center justify-center gap-2 py-1 text-xs">
                   <Loader2 className="size-3.5 animate-spin" />
-                  Loading Reactions…
+                  {t("reactions.loading")}
                 </p>
               )}
             </div>
@@ -235,8 +249,13 @@ function CellActions({
   onRevert: () => void;
   onLeaveEmpty: () => void;
 }) {
+  const { t } = useTranslation("animas");
   const reactionName =
-    cell.name ?? `${cell.emotion} ${reactionIntensityLabel(cell.intensity)}`;
+    cell.name ??
+    t("reactions.cellName", {
+      emotion: storedEmotionLabel(cell.emotion),
+      intensity: reactionIntensityLabel(cell.intensity, t),
+    });
 
   return (
     <div className="flex shrink-0 items-center gap-1">
@@ -247,14 +266,14 @@ function CellActions({
             size="icon-sm"
             variant="outline"
             disabled={!cell.source}
-            aria-label={`Preview ${reactionName}`}
+            aria-label={t("actions.previewNamed", { name: reactionName })}
             onClick={onPreview}
           >
             <Play />
           </Button>
         </TooltipTrigger>
         <TooltipContent side="top" sideOffset={6}>
-          {cell.source ? "Preview" : "Preview unavailable"}
+          {cell.source ? t("actions.preview") : t("actions.previewUnavailable")}
         </TooltipContent>
       </Tooltip>
 
@@ -266,25 +285,25 @@ function CellActions({
                 type="button"
                 size="icon-sm"
                 variant="ghost"
-                aria-label={`More actions for ${reactionName}`}
+                aria-label={t("actions.moreActionsFor", { name: reactionName })}
               >
                 <EllipsisVertical />
               </Button>
             </DropdownMenuTrigger>
           </TooltipTrigger>
           <TooltipContent side="top" sideOffset={6}>
-            More actions
+            {t("actions.moreActions")}
           </TooltipContent>
         </Tooltip>
         <DropdownMenuContent align="end">
           <DropdownMenuItem asChild>
             <Link to="/library" search={LIBRARY_REACTIONS}>
-              Choose from Library
+              {t("reactions.chooseFromLibrary")}
             </Link>
           </DropdownMenuItem>
           {cell.state === "custom" || cell.state === "empty" ? (
             <DropdownMenuItem disabled={mutationsDisabled} onSelect={onRevert}>
-              Revert to Starter
+              {t("reactions.revertToStarter")}
             </DropdownMenuItem>
           ) : null}
           {cell.state !== "empty" ? (
@@ -293,7 +312,7 @@ function CellActions({
               disabled={mutationsDisabled}
               onSelect={onLeaveEmpty}
             >
-              Leave empty
+              {t("reactions.leaveEmpty")}
             </DropdownMenuItem>
           ) : null}
         </DropdownMenuContent>
@@ -377,13 +396,14 @@ export function ReactionLoadoutGrid({
   onLeaveEmpty: (cell: PyReactionCell) => void;
   onRetryAvailable: () => void;
 }) {
+  const { t } = useTranslation("animas");
   const [expanded, setExpanded] = useState(false);
   const [expandedEmotions, setExpandedEmotions] = useState<
     Set<ReactionLoadoutRow["emotion"]>
   >(() => new Set(rows[0] ? [rows[0].emotion] : []));
   return (
     <LoadoutSectionDisclosure
-      title="Reactions"
+      title={t("reactions.title")}
       headingId="reaction-loadout-heading"
       contentId="reaction-loadout-content"
       expanded={expanded}
@@ -423,7 +443,7 @@ export function ReactionLoadoutGrid({
                 }`}
               >
                 <span className="truncate text-sm font-semibold capitalize">
-                  {row.emotion}
+                  {storedEmotionLabel(row.emotion)}
                 </span>
                 {expanded ? (
                   <ChevronDown className="text-foreground size-4 shrink-0" />
@@ -436,7 +456,9 @@ export function ReactionLoadoutGrid({
                 <div
                   id={panelId}
                   role="region"
-                  aria-label={`${row.emotion} Reaction levels`}
+                  aria-label={t("reactions.levels", {
+                    emotion: storedEmotionLabel(row.emotion),
+                  })}
                   className="border-t"
                 >
                   {row.cells.map((cell) => (

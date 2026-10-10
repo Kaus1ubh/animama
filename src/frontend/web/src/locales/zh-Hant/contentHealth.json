@@ -1,0 +1,50 @@
+{
+  "actions": {
+    "retryLibrary": "重試資源庫",
+    "retryScan": "重新掃描",
+    "scanning": "正在掃描…"
+  },
+  "diagnostics": {
+    "case_collision": "有兩個路徑僅大小寫不同，因此無法移植。",
+    "empty_file": "內容檔案不能為空。",
+    "entry_too_large": "此項目超出支援的大小上限。",
+    "file_too_large": "此檔案超出支援的大小上限。",
+    "hard_link_rejected": "不會掃描硬連結檔案。",
+    "incomplete_operation": "儲存中斷導致此項目不完整，需要進行協調。",
+    "invalid_gltf_asset": "VRM 和 VRMA 檔案需要 glTF 2 資產。",
+    "invalid_gltf_container": "glTF 資料無效。",
+    "invalid_json_shape": "頂層 JSON 值必須是物件。",
+    "invalidHeader": "{{format}} 檔案簽章無效。",
+    "json_too_large": "JSON 檔案超出支援的大小上限。",
+    "malformed_json": "此檔案不是有效的 UTF-8 JSON 文件。",
+    "missing_descriptor_file": "缺少此項目宣告的檔案。",
+    "missing_vrm_extension": "此檔案不包含其 VRM 或 VRMA 類型所需的擴充功能。",
+    "nested_descriptor": "內容項目不能相互巢狀。",
+    "pocket_clone_file_size": "複製語音檔案不能為空，且不得超過 25 MiB。",
+    "provenance_missing": "此內建項目沒有授權記錄。",
+    "special_file_rejected": "僅掃描一般檔案與資料夾。",
+    "svg_size_limit": "SVG 圖片不得超過 32 MiB。",
+    "symlink_rejected": "不會掃描符號連結。",
+    "too_many_files": "此項目包含的檔案過多。",
+    "unreadable_file": "無法讀取檔案。",
+    "unreadable_path": "無法檢查檔案或資料夾。",
+    "unsafe_descriptor_path": "宣告的檔案路徑必須位於項目內。",
+    "unsupported_extension": "不支援此檔案類型。"
+  },
+  "itemStatus": {
+    "invalid": "此項目未通過驗證。",
+    "missing": "檔案或資料夾遺失。",
+    "scanRequired": "變更正在等待掃描。"
+  },
+  "loadFailed": "無法載入內容資源庫。請重試以再次檢查。",
+  "operatorManaged": "主機檔案掃描由營運方管理。",
+  "scanFailed": "掃描失敗。請再試一次。",
+  "scanRequired": {
+    "local": "本機變更需要重新掃描。",
+    "operator": "營運方正在協調內容變更。"
+  },
+  "status": {
+    "attention": "內容需要處理",
+    "unavailable": "內容資源庫無法使用"
+  }
+}

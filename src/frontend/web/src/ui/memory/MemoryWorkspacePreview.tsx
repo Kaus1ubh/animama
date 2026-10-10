@@ -8,6 +8,7 @@ import {
   LockKeyhole,
   Sparkles,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type { PyMemoryEntryResponse } from "@/lib/content/catalogTypes";
@@ -24,7 +25,7 @@ export function MemoryWorkspacePreview({
   isLoading,
   isError,
   hasUnsavedDraft,
-  unsavedLabel = "Unsaved draft",
+  unsavedLabel,
   onOpenVersions,
 }: {
   entry: PyMemoryEntryResponse | null;
@@ -35,14 +36,16 @@ export function MemoryWorkspacePreview({
   isLoading: boolean;
   isError: boolean;
   hasUnsavedDraft: boolean;
+  /** Badge for an unsaved draft; defaults to "Unsaved draft". */
   unsavedLabel?: string;
   onOpenVersions: () => void;
 }) {
+  const { t } = useTranslation("memory");
   if (isLoading) {
     return (
       <div className="text-muted-foreground flex min-h-0 flex-1 items-center justify-center text-sm">
         <Loader2 className="mr-2 size-4 animate-spin" />
-        Loading preview...
+        {t("preview.loading")}
       </div>
     );
   }
@@ -50,7 +53,7 @@ export function MemoryWorkspacePreview({
     return (
       <div className="text-destructive flex min-h-0 flex-1 flex-col items-center justify-center gap-2 p-6 text-center text-sm">
         <AlertTriangle className="size-7" />
-        Failed to load this memory file.
+        {t("shared.fileLoadFailed")}
       </div>
     );
   }
@@ -58,7 +61,7 @@ export function MemoryWorkspacePreview({
     return (
       <div className="text-muted-foreground flex min-h-0 flex-1 flex-col items-center justify-center gap-3 p-6 text-center">
         <FileText className="size-8" />
-        <p className="text-sm">Select a memory file to preview it.</p>
+        <p className="text-sm">{t("preview.selectFile")}</p>
       </div>
     );
   }
@@ -67,9 +70,9 @@ export function MemoryWorkspacePreview({
   const copyPreview = async () => {
     try {
       await navigator.clipboard.writeText(value);
-      toast.success("Markdown copied.");
+      toast.success(t("preview.copied"));
     } catch {
-      toast.error("Could not copy Markdown to the clipboard.");
+      toast.error(t("preview.copyFailed"));
     }
   };
 
@@ -85,7 +88,7 @@ export function MemoryWorkspacePreview({
               {displayPath ?? entry.path}
             </h3>
             <p className="text-muted-foreground mt-1 line-clamp-2 text-xs">
-              {description || "No description"}
+              {description || t("shared.noDescription")}
             </p>
           </div>
           <div className="flex min-w-0 items-center gap-2">
@@ -95,8 +98,8 @@ export function MemoryWorkspacePreview({
               size="icon-sm"
               className="text-muted-foreground"
               onClick={() => void copyPreview()}
-              aria-label="Copy preview Markdown"
-              title="Copy Markdown"
+              aria-label={t("preview.copyLabel")}
+              title={t("preview.copyTitle")}
             >
               <Copy className="size-4" />
             </Button>
@@ -107,24 +110,24 @@ export function MemoryWorkspacePreview({
               className="text-muted-foreground font-mono text-xs"
               onClick={onOpenVersions}
             >
-              Version {entry.version}
+              {t("shared.version", { version: entry.version })}
             </Button>
           </div>
         </div>
         <div className="mt-2 flex flex-wrap gap-2">
           {generated ? (
             <span className="bg-info/10 text-2xs text-info inline-flex items-center gap-1 rounded-sm px-2 py-1 font-medium">
-              <Sparkles className="size-3" /> Generated
+              <Sparkles className="size-3" /> {t("preview.generated")}
             </span>
           ) : null}
           {generated ? (
             <span className="bg-muted text-muted-foreground text-2xs inline-flex items-center gap-1 rounded-sm px-2 py-1 font-medium">
-              <LockKeyhole className="size-3" /> Read only
+              <LockKeyhole className="size-3" /> {t("preview.readOnly")}
             </span>
           ) : null}
           {hasUnsavedDraft ? (
             <span className="bg-warning/10 text-2xs text-warning rounded-sm px-2 py-1 font-medium">
-              {unsavedLabel}
+              {unsavedLabel ?? t("preview.unsavedDraft")}
             </span>
           ) : null}
         </div>

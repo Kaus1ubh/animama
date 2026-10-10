@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
 import { isEpisodeLogEntry } from "@/lib/memory-entries/protection";
 
@@ -48,7 +50,11 @@ function updatedAtTime(entry: PyMemoryEntryHeader) {
   return Number.isNaN(time) ? 0 : time;
 }
 
-/** Groups generated episode files chronologically while retaining legacy paths. */
+/**
+ * Groups generated episode files chronologically while retaining legacy paths.
+ * Dates and the legacy group label are worded in the active UI Locale; pass
+ * the formatting `locale` so callers recompute when it changes.
+ */
 export function groupEpisodeEntries(
   entries: PyMemoryEntryHeader[],
   query = "",
@@ -116,7 +122,12 @@ export function groupEpisodeEntries(
     });
   }
   if (legacy.length > 0) {
-    groups.push({ key: "other", label: "Other episodes", items: legacy });
+    const t = getI18n().getFixedT(null, "memory");
+    groups.push({
+      key: "other",
+      label: t("explorer.otherEpisodes"),
+      items: legacy,
+    });
   }
   return groups;
 }

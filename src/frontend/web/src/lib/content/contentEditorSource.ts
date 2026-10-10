@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import type {
   ContentKind,
   PyCatalogViewItem,
@@ -27,8 +29,9 @@ export async function loadCreatorPreviewFile(
   role: string,
   signal?: AbortSignal,
 ): Promise<File> {
+  const t = getI18n().getFixedT(null, "library");
   const file = contentPreviewPrimaryFile(preview, role);
-  if (!file) throw new Error(`The selected content has no ${role} file.`);
+  if (!file) throw new Error(t("content.source.missingFile", { role }));
   const source = preview.files.find(
     (candidate) => candidate.file_ref === file.file_ref,
   )!;
@@ -38,7 +41,7 @@ export async function loadCreatorPreviewFile(
   );
   try {
     const loaded = session.files.get(file.file_ref);
-    if (!loaded) throw new Error(`The selected ${role} file is unavailable.`);
+    if (!loaded) throw new Error(t("content.source.fileUnavailable", { role }));
     signal?.throwIfAborted();
     return new File([loaded.blob], file.filename, { type: file.media_type });
   } finally {

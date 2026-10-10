@@ -10,7 +10,9 @@ import {
 } from "lucide-react";
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import type {
   PyMemoryEntryHeader,
@@ -39,7 +41,6 @@ import {
 } from "@/lib/memory-entries/library-search";
 import {
   canDeleteMemoryEntry,
-  BLANK_ANIMA_IDENTITY_MESSAGE,
   canEditMemoryEntry,
   isBlankAnimaIdentityDraft,
   isEpisodeLogEntry,
@@ -128,6 +129,8 @@ export function MemoryLibraryPage({
   search,
   onSearchChange,
 }: MemoryLibraryPageProps) {
+  const { t } = useTranslation("memory");
+  const { locale } = useFormatters();
   const [treeQuery, setTreeQuery] = useState("");
   const [expandedNodeIds, setExpandedNodeIds] = useState(
     () => new Set<string>(),
@@ -197,8 +200,8 @@ export function MemoryLibraryPage({
     [animaFiles],
   );
   const tree = useMemo(
-    () => buildMemoryWorkspaceTree(entries, undefined, animaFolders),
-    [animaFolders, entries],
+    () => buildMemoryWorkspaceTree(entries, locale, animaFolders),
+    [animaFolders, entries, locale],
   );
   const selection = useMemo(
     () =>
@@ -306,24 +309,29 @@ export function MemoryLibraryPage({
     for (const notice of result.notices) {
       toast.warning(
         notice.reason === "deleted"
-          ? `${notice.label} was deleted.`
-          : `${notice.label}'s ${notice.fileName} is unavailable.`,
+          ? t("library.removedAnimaFile.deleted", { name: notice.label })
+          : t("library.removedAnimaFile.unavailable", {
+              name: notice.label,
+              file: notice.fileName,
+            }),
         {
           id: `anima-file-removed:${notice.entryId}`,
-          description: `Unsaved ${notice.fileName} changes could not be saved and were discarded.`,
+          description: t("library.removedAnimaFile.discarded", {
+            file: notice.fileName,
+          }),
         },
       );
     }
-  }, [animaFolders, identitiesQuery.isSuccess]);
+  }, [animaFolders, identitiesQuery.isSuccess, t]);
 
   useEffect(() => {
     if (identitiesQuery.isError) {
-      toast.error("Could not load Anima identities.", {
+      toast.error(t("library.identitiesFailed"), {
         id: "anima-identities-error",
-        description: "User memory is still available. Refresh to retry.",
+        description: t("library.identitiesFailedDescription"),
       });
     }
-  }, [identitiesQuery.isError]);
+  }, [identitiesQuery.isError, t]);
 
   useEffect(() => {
     if (!workspaceLoaded || moveReconciliationRef.current) return;
@@ -423,8 +431,9 @@ export function MemoryLibraryPage({
     ) => {
       const header = entries.find((entry) => entry.id === draft.entryId);
       if (header && isBlankAnimaIdentityDraft(header, draft.content)) {
-        toast.error(BLANK_ANIMA_IDENTITY_MESSAGE);
-        throw new Error(BLANK_ANIMA_IDENTITY_MESSAGE);
+        const message = t("shared.blankIdentity");
+        toast.error(message);
+        throw new Error(message);
       }
       try {
         const updated = await patchEntry.mutateAsync({
@@ -454,18 +463,18 @@ export function MemoryLibraryPage({
           if (draft.entryId === selectedEntryId) {
             await detailById.refetch();
           }
-          toast.error("This memory changed elsewhere.", {
-            description: "Your draft is still open.",
+          toast.error(t("shared.changedElsewhere"), {
+            description: t("shared.draftStillOpen"),
           });
         } else {
-          toast.error("Failed to save memory.", {
+          toast.error(t("shared.saveFailed"), {
             description: memoryEntryErrorMessage(error),
           });
         }
         throw error;
       }
     },
-    [detailById, entries, patchEntry, selectedEntryId],
+    [detailById, entries, patchEntry, selectedEntryId, t],
   );
 
   const handleSaveCurrent = async (forceLatestVersion: boolean) => {
@@ -478,7 +487,9 @@ export function MemoryLibraryPage({
           ? selectedEntry.aggregate_revision
           : currentDraft.baseAggregateRevision,
       );
-      toast.success(forceLatestVersion ? "Draft saved." : "Memory saved.");
+      toast.success(
+        forceLatestVersion ? t("shared.draftSaved") : t("shared.memorySaved"),
+      );
     } catch {
       // saveDraft owns the actionable error state and toast.
     }
@@ -538,14 +549,14 @@ export function MemoryLibraryPage({
       setEntryToDelete(null);
       toast.success(
         entryToDelete.type === "directory"
-          ? "Directory deleted."
-          : "Memory file deleted.",
+          ? t("library.delete.directoryDeleted")
+          : t("library.delete.fileDeleted"),
       );
     } catch (error) {
       toast.error(
         entryToDelete.type === "directory"
-          ? "Failed to delete directory."
-          : "Failed to delete memory file.",
+          ? t("library.delete.directoryFailed")
+          : t("library.delete.fileFailed"),
         {
           description: memoryEntryErrorMessage(error),
         },
@@ -575,13 +586,13 @@ export function MemoryLibraryPage({
         entries,
       });
       if (!validation.valid) {
-        toast.error("Cannot move memory entry.", {
+        toast.error(t("library.relocate.cannotMove"), {
           description: validation.reason ?? undefined,
         });
         return false;
       }
     } else if (!name || !canMoveMemoryEntry(source)) {
-      toast.error("This memory entry cannot be renamed.");
+      toast.error(t("library.relocate.cannotRename"));
       return false;
     } else if (name === source.name) {
       return true;
@@ -628,15 +639,18 @@ export function MemoryLibraryPage({
         }
         toast.success(
           operation === "rename"
-            ? `${source.name} renamed to ${moved.name}.`
-            : `${source.name} moved.`,
+            ? t("library.relocate.renamed", {
+                from: source.name,
+                to: moved.name,
+              })
+            : t("library.relocate.moved", { name: source.name }),
         );
       } else {
         toast.warning(
-          `Memory ${operation} succeeded, but the explorer could not refresh.`,
-          {
-            description: "Refresh before making another change.",
-          },
+          operation === "rename"
+            ? t("library.relocate.renameRefreshFailed")
+            : t("library.relocate.moveRefreshFailed"),
+          { description: t("library.relocate.refreshBeforeChange") },
         );
       }
       if (operation === "move" && destinationParentId) {
@@ -649,17 +663,31 @@ export function MemoryLibraryPage({
       return true;
     } catch (error) {
       if (isMemoryEntryConflict(error)) {
-        toast.error("This memory changed elsewhere.", {
-          description: `The explorer was not ${operation === "rename" ? "renamed" : "moved"}. Refresh and try again.`,
+        toast.error(t("shared.changedElsewhere"), {
+          description:
+            operation === "rename"
+              ? t("library.relocate.renameConflict")
+              : t("library.relocate.moveConflict"),
         });
       } else if (error instanceof MemoryEntryApiError) {
-        toast.error(`Failed to ${operation} memory entry.`, {
-          description: memoryEntryErrorMessage(error),
-        });
+        toast.error(
+          operation === "rename"
+            ? t("library.relocate.renameFailed")
+            : t("library.relocate.moveFailed"),
+          { description: memoryEntryErrorMessage(error) },
+        );
       } else {
-        toast.error(`The ${operation} result is uncertain.`, {
-          description: `Refreshing before another ${operation} is attempted.`,
-        });
+        toast.error(
+          operation === "rename"
+            ? t("library.relocate.renameUncertain")
+            : t("library.relocate.moveUncertain"),
+          {
+            description:
+              operation === "rename"
+                ? t("library.relocate.renameUncertainDescription")
+                : t("library.relocate.moveUncertainDescription"),
+          },
+        );
         const refreshed = await refreshWorkspace();
         const refreshedSource = refreshed.isError
           ? null
@@ -726,14 +754,14 @@ export function MemoryLibraryPage({
         focusedNode?.kind === "episode-root" ||
           focusedNode?.kind === "episode-month" ||
           focusedNode?.kind === "episode-file"
-          ? "Generated episodes cannot contain user-created files."
+          ? t("library.createBlocked.episodes")
           : focusedNode?.kind === "anima-root" ||
               focusedNode?.kind === "anima-directory" ||
               (focusedNode &&
                 "entry" in focusedNode &&
                 focusedNode.entry.anima_id)
-            ? "Anima folders only contain each Anima's identity and memories."
-            : "The animas path is reserved for Anima identities.",
+            ? t("library.createBlocked.animaFolders")
+            : t("move.reasons.reserved"),
       );
       return;
     }
@@ -746,14 +774,14 @@ export function MemoryLibraryPage({
 
   /** Recreates a missing `MEMORIES.md`; the refreshed listing shows it. */
   const handleRepairAnimaMemories = async (animaId: string) => {
-    const label =
+    const name =
       animaFolders.find((folder) => folder.animaId === animaId)?.label ??
-      "This Anima";
+      t("library.repair.fallbackName");
     try {
       await repairMemories.mutateAsync({ animaId });
-      toast.success(`${label}'s MEMORIES.md was repaired.`);
+      toast.success(t("library.repair.repaired", { name }));
     } catch (error) {
-      toast.error(`Failed to repair ${label}'s MEMORIES.md.`, {
+      toast.error(t("library.repair.failed", { name }), {
         description: memoryEntryErrorMessage(error),
       });
     }
@@ -795,13 +823,24 @@ export function MemoryLibraryPage({
     ? isMemoryEntryDraftDirty(currentDraft)
     : false;
   const selectedDraftConflict = currentDraft?.conflict === true;
-  const deletionDescription = entryToDelete
-    ? entryToDelete.type === "file"
-      ? `${entryToDelete.path} will be permanently removed.`
+  const deletionDescription = !entryToDelete
+    ? ""
+    : entryToDelete.type === "file"
+      ? t("library.delete.file", { path: entryToDelete.path })
       : deletionEntries.length === 1
-        ? `${entryToDelete.path} is empty and will be permanently removed.`
-        : `${entryToDelete.path} and its contents will be permanently removed. This includes ${deletionFileCount} ${deletionFileCount === 1 ? "file" : "files"}${deletionDirectoryCount > 0 ? ` and ${deletionDirectoryCount} nested ${deletionDirectoryCount === 1 ? "directory" : "directories"}` : ""}.`
-    : "";
+        ? t("library.delete.emptyDirectory", { path: entryToDelete.path })
+        : deletionDirectoryCount > 0
+          ? t("library.delete.directoryContentsNested", {
+              path: entryToDelete.path,
+              files: t("library.delete.files", { count: deletionFileCount }),
+              directories: t("library.delete.nestedDirectories", {
+                count: deletionDirectoryCount,
+              }),
+            })
+          : t("library.delete.directoryContents", {
+              path: entryToDelete.path,
+              files: t("library.delete.files", { count: deletionFileCount }),
+            });
 
   // Reflect curates the selected Anima's MEMORIES.md, in either work mode.
   const reflectionFolder = animaFolderForMemoriesEntry(
@@ -815,7 +854,7 @@ export function MemoryLibraryPage({
     // The manager may have become busy or gained a pending approval while the
     // draft confirmation was open, so recheck instead of failing silently.
     if (!manager.canStartSpecializedRun) {
-      toast.error("Reflection did not start.", {
+      toast.error(t("manager.toasts.reflectionFailed"), {
         description: manager.specializedRunBlockReason ?? undefined,
       });
       return;
@@ -860,13 +899,13 @@ export function MemoryLibraryPage({
           >
             <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="files">
-                <Files className="size-4" /> Files
+                <Files className="size-4" /> {t("library.panes.files")}
               </TabsTrigger>
               <TabsTrigger value="work">
-                <Pencil className="size-4" /> Work
+                <Pencil className="size-4" /> {t("library.panes.work")}
               </TabsTrigger>
               <TabsTrigger value="preview">
-                <Eye className="size-4" /> Preview
+                <Eye className="size-4" /> {t("shared.preview")}
               </TabsTrigger>
             </TabsList>
           </Tabs>
@@ -874,7 +913,7 @@ export function MemoryLibraryPage({
             explorerCollapsed={explorerCollapsed}
             explorer={
               <section
-                aria-label="Memory file explorer"
+                aria-label={t("library.panes.explorerLabel")}
                 className={cn(
                   "bg-background relative min-h-0 min-w-0 flex-1 overflow-hidden lg:flex",
                   mobilePane === "files" ? "flex" : "hidden",
@@ -930,7 +969,7 @@ export function MemoryLibraryPage({
             }
             work={
               <section
-                aria-label="Memory work pane"
+                aria-label={t("library.panes.workLabel")}
                 className={cn(
                   "bg-background min-h-0 min-w-0 flex-1 flex-col overflow-hidden lg:flex lg:pt-4",
                   mobilePane === "work" ? "flex" : "hidden",
@@ -945,8 +984,12 @@ export function MemoryLibraryPage({
                     className="min-w-0 flex-1"
                   >
                     <TabsList className="bg-muted grid w-full grid-cols-2">
-                      <TabsTrigger value="manual">Manual</TabsTrigger>
-                      <TabsTrigger value="manager">Memory Manager</TabsTrigger>
+                      <TabsTrigger value="manual">
+                        {t("library.modes.manual")}
+                      </TabsTrigger>
+                      <TabsTrigger value="manager">
+                        {t("library.modes.manager")}
+                      </TabsTrigger>
                     </TabsList>
                   </Tabs>
                   {reflectionFolder ? (
@@ -955,8 +998,12 @@ export function MemoryLibraryPage({
                       variant="outline"
                       size="sm"
                       className="shrink-0"
-                      aria-label={`Reflect on ${reflectionFolder.label}'s memories`}
-                      title={`Reflect on ${reflectionFolder.label}'s memories`}
+                      aria-label={t("library.reflect.label", {
+                        name: reflectionFolder.label,
+                      })}
+                      title={t("library.reflect.label", {
+                        name: reflectionFolder.label,
+                      })}
                       disabled={!manager.canStartSpecializedRun}
                       onClick={handleReflect}
                     >
@@ -965,7 +1012,7 @@ export function MemoryLibraryPage({
                       ) : (
                         <Sparkles className="size-4" />
                       )}
-                      Reflect
+                      {t("library.reflect.action")}
                     </Button>
                   ) : null}
                 </div>
@@ -999,7 +1046,7 @@ export function MemoryLibraryPage({
             }
             preview={
               <section
-                aria-label="Memory preview"
+                aria-label={t("library.panes.previewLabel")}
                 className={cn(
                   "bg-background min-h-0 min-w-0 flex-1 overflow-hidden lg:flex lg:pt-4",
                   mobilePane === "preview" ? "flex" : "hidden",
@@ -1020,8 +1067,8 @@ export function MemoryLibraryPage({
                   onOpenVersions={() => setVersionsOpen(true)}
                   unsavedLabel={
                     search.mode === "manager"
-                      ? "Unsaved manual draft"
-                      : "Unsaved draft"
+                      ? t("preview.unsavedManualDraft")
+                      : t("preview.unsavedDraft")
                   }
                 />
               </section>
@@ -1082,8 +1129,9 @@ export function MemoryLibraryPage({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              Delete{" "}
-              {entryToDelete?.type === "directory" ? "directory" : "file"}?
+              {entryToDelete?.type === "directory"
+                ? t("library.delete.directoryTitle")
+                : t("library.delete.fileTitle")}
             </DialogTitle>
             <DialogDescription>{deletionDescription}</DialogDescription>
           </DialogHeader>
@@ -1094,9 +1142,9 @@ export function MemoryLibraryPage({
             >
               <AlertTriangle className="mt-0.5 size-4 shrink-0" />
               <span>
-                {deletionDirtyDraftCount} unsaved
-                {deletionDirtyDraftCount === 1 ? " draft" : " drafts"} will also
-                be discarded.
+                {t("library.delete.dirtyDrafts", {
+                  count: deletionDirtyDraftCount,
+                })}
               </span>
             </div>
           ) : null}
@@ -1106,7 +1154,7 @@ export function MemoryLibraryPage({
               disabled={deleteEntry.isPending}
               onClick={() => setEntryToDelete(null)}
             >
-              Cancel
+              {t("shared.cancel")}
             </Button>
             <Button
               variant="destructive"
@@ -1116,7 +1164,7 @@ export function MemoryLibraryPage({
               {deleteEntry.isPending ? (
                 <Loader2 className="size-4 animate-spin" />
               ) : null}
-              Delete
+              {t("shared.delete")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1128,12 +1176,11 @@ export function MemoryLibraryPage({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Reflect with an unsaved draft?</DialogTitle>
+            <DialogTitle>{t("library.reflect.confirmTitle")}</DialogTitle>
             <DialogDescription>
-              Reflection reads the last saved version of{" "}
-              {reflectionToConfirm?.animaName}&apos;s MEMORIES.md and ignores
-              your unsaved Manual draft. The draft stays open, but once either
-              it or a Reflection proposal is saved, the other will conflict.
+              {t("library.reflect.confirmDescription", {
+                name: reflectionToConfirm?.animaName ?? "",
+              })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1141,14 +1188,14 @@ export function MemoryLibraryPage({
               variant="outline"
               onClick={() => setReflectionToConfirm(null)}
             >
-              Cancel
+              {t("shared.cancel")}
             </Button>
             <Button
               onClick={() =>
                 reflectionToConfirm && startReflection(reflectionToConfirm)
               }
             >
-              Reflect anyway
+              {t("library.reflect.anyway")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -1160,16 +1207,14 @@ export function MemoryLibraryPage({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Unsaved memory drafts</DialogTitle>
+            <DialogTitle>{t("library.blocker.title")}</DialogTitle>
             <DialogDescription>
-              Save or discard {dirtyDrafts.length} unsaved
-              {dirtyDrafts.length === 1 ? " draft" : " drafts"} before leaving
-              the Memory workspace.
+              {t("library.blocker.description", { count: dirtyDrafts.length })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter className="sm:justify-between">
             <Button variant="outline" onClick={() => blocker.reset?.()}>
-              Stay
+              {t("library.blocker.stay")}
             </Button>
             <div className="flex flex-wrap justify-end gap-2">
               <Button
@@ -1179,7 +1224,7 @@ export function MemoryLibraryPage({
                   blocker.proceed?.();
                 }}
               >
-                Discard and leave
+                {t("library.blocker.discardAndLeave")}
               </Button>
               <Button
                 disabled={exitSaving}
@@ -1188,7 +1233,7 @@ export function MemoryLibraryPage({
                 {exitSaving ? (
                   <Loader2 className="size-4 animate-spin" />
                 ) : null}
-                Save and leave
+                {t("library.blocker.saveAndLeave")}
               </Button>
             </div>
           </DialogFooter>

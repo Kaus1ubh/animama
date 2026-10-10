@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import type { ImportRecovery, RecoveryStore } from "./importSession";
 import { recoverySessionIsActive } from "@/lib/content/recovery-session";
 
@@ -45,10 +47,9 @@ export function importRecoveryStore(
   return {
     read,
     write(value) {
+      const t = getI18n().getFixedT(null, "library");
       if (value && !recoverySessionIsActive(owner))
-        throw new Error(
-          "This browser session has ended. Sign in again to recover an import.",
-        );
+        throw new Error(t("sharing.import.sessionEnded"));
       const prior = storage.getItem(key);
       if (prior) {
         const current = JSON.parse(prior) as ImportRecovery;
@@ -56,17 +57,13 @@ export function importRecoveryStore(
           current.operation_id !== ownedOperation &&
           current.operation_id !== value?.operation_id
         )
-          throw new Error(
-            "Another window has an import in progress. Finish or recover that import first.",
-          );
+          throw new Error(t("sharing.import.otherWindow"));
       }
       try {
         if (value) storage.setItem(key, JSON.stringify(value));
         else storage.removeItem(key);
       } catch {
-        throw new Error(
-          "Recovery identifiers could not be saved. Enable browser storage before importing.",
-        );
+        throw new Error(t("sharing.import.recoveryNotSaved"));
       }
       ownedOperation = value?.operation_id ?? null;
     },

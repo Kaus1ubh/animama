@@ -3,6 +3,7 @@
 import { useProductApiClient } from "@animama/product-ui";
 
 import { type ReactElement, useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Link } from "@tanstack/react-router";
 import {
   ChevronDown,
@@ -146,10 +147,11 @@ function InventoryState({
   empty: boolean;
   onRetry?: () => void;
 }) {
+  const { t } = useTranslation("library");
   if (pending)
     return (
       <p className="text-muted-foreground col-span-full rounded-xl border p-4 text-sm">
-        Loading…
+        {t("inventory.loading")}
       </p>
     );
   if (error)
@@ -158,12 +160,10 @@ function InventoryState({
         role="alert"
         className="col-span-full flex items-center justify-between gap-3 p-4"
       >
-        <p className="text-destructive text-sm">
-          This group could not be loaded.
-        </p>
+        <p className="text-destructive text-sm">{t("inventory.loadFailed")}</p>
         {onRetry ? (
           <Button size="sm" variant="outline" onClick={onRetry}>
-            Retry
+            {t("inventory.retry")}
           </Button>
         ) : null}
       </div>
@@ -171,7 +171,7 @@ function InventoryState({
   if (empty)
     return (
       <p className="text-muted-foreground col-span-full rounded-xl border border-dashed p-4 text-sm">
-        No matching items.
+        {t("inventory.noMatches")}
       </p>
     );
   return null;
@@ -209,6 +209,7 @@ function ProductRow({
   previewing?: boolean;
   layout: LibraryLayout;
 }) {
+  const { t } = useTranslation("library");
   const itemId = card.itemId;
   const componentType =
     card.family === "particle"
@@ -231,7 +232,17 @@ function ProductRow({
   const editPath = `${editPaths[card.family]}/${encodeURIComponent(itemId)}/edit`;
   const policy = libraryProductActionPolicy(card);
   const previewLabel =
-    card.family === "sound" ? (previewing ? "Stop" : "Play") : "Preview";
+    card.family === "sound"
+      ? previewing
+        ? t("inventory.actions.stop")
+        : t("inventory.actions.play")
+      : t("inventory.actions.preview");
+  const manageSoundLabel = t("inventory.actions.manageSound");
+  const notEditableLabel = t("inventory.actions.notEditable");
+  const editLabel = t("inventory.actions.edit");
+  const manageLabel = t("inventory.actions.manage");
+  const useInGestureLabel = t("inventory.actions.useInGesture");
+  const useInReactionLabel = t("inventory.actions.useInReaction");
   return (
     <LibraryProductRow
       layout={layout}
@@ -254,15 +265,17 @@ function ProductRow({
             </ActionTooltip>
           ) : null}
           {card.family === "sound" && onManage ? (
-            <ActionTooltip label="Manage sound" layout={layout}>
+            <ActionTooltip label={manageSoundLabel} layout={layout}>
               <Button
                 size={layout === "grid" ? "icon-sm" : "sm"}
                 variant="outline"
                 onClick={onManage}
-                aria-label="Manage sound"
+                aria-label={manageSoundLabel}
               >
                 <Pencil />
-                {layout === "list" ? " Manage" : null}
+                {layout === "list"
+                  ? ` ${t("inventory.actions.manageShort")}`
+                  : null}
               </Button>
             </ActionTooltip>
           ) : policy.editUnavailableReason ? (
@@ -278,11 +291,11 @@ function ProductRow({
                 >
                   <Link
                     to={editPath}
-                    aria-label="Not editable"
+                    aria-label={notEditableLabel}
                     aria-describedby={`not-editable-${card.key}`}
                   >
                     <Lock />
-                    {layout === "list" ? " Not editable" : null}
+                    {layout === "list" ? ` ${notEditableLabel}` : null}
                     <span id={`not-editable-${card.key}`} className="sr-only">
                       {policy.editUnavailableReason}
                     </span>
@@ -292,55 +305,55 @@ function ProductRow({
               <TooltipContent>{policy.editUnavailableReason}</TooltipContent>
             </Tooltip>
           ) : policy.edit ? (
-            <ActionTooltip label="Edit" layout={layout}>
+            <ActionTooltip label={editLabel} layout={layout}>
               <Button
                 size={layout === "grid" ? "icon-sm" : "sm"}
                 variant="outline"
                 asChild
               >
-                <Link to={editPath} aria-label="Edit">
+                <Link to={editPath} aria-label={editLabel}>
                   <Pencil />
-                  {layout === "list" ? " Edit" : null}
+                  {layout === "list" ? ` ${editLabel}` : null}
                 </Link>
               </Button>
             </ActionTooltip>
           ) : null}
           {policy.manage && onManage ? (
-            <ActionTooltip label="Add / Manage" layout={layout}>
+            <ActionTooltip label={manageLabel} layout={layout}>
               <Button
                 size={layout === "grid" ? "icon-sm" : "sm"}
                 onClick={onManage}
-                aria-label="Add / Manage"
+                aria-label={manageLabel}
               >
                 <Plus />
-                {layout === "list" ? "Add / Manage" : null}
+                {layout === "list" ? manageLabel : null}
               </Button>
             </ActionTooltip>
           ) : null}
           {policy.useInGesture ? (
-            <ActionTooltip label="Use in Gesture" layout={layout}>
+            <ActionTooltip label={useInGestureLabel} layout={layout}>
               <Button size={layout === "grid" ? "icon-sm" : "sm"} asChild>
                 <Link
                   to="/gestures/new"
                   search={{ component: card.itemId, componentType }}
-                  aria-label="Use in Gesture"
+                  aria-label={useInGestureLabel}
                 >
                   <WandSparkles />
-                  {layout === "list" ? " Use in Gesture" : null}
+                  {layout === "list" ? ` ${useInGestureLabel}` : null}
                 </Link>
               </Button>
             </ActionTooltip>
           ) : null}
           {policy.useInReaction ? (
-            <ActionTooltip label="Use in Reaction" layout={layout}>
+            <ActionTooltip label={useInReactionLabel} layout={layout}>
               <Button size={layout === "grid" ? "icon-sm" : "sm"} asChild>
                 <Link
                   to="/reactions/new"
                   search={{ component: card.itemId, componentType }}
-                  aria-label="Use in Reaction"
+                  aria-label={useInReactionLabel}
                 >
                   <WandSparkles />
-                  {layout === "list" ? " Use in Reaction" : null}
+                  {layout === "list" ? ` ${useInReactionLabel}` : null}
                 </Link>
               </Button>
             </ActionTooltip>
@@ -360,6 +373,7 @@ function LoadMore({
     fetchNextPage: () => Promise<unknown>;
   };
 }) {
+  const { t } = useTranslation("library");
   return query.hasNextPage ? (
     <Button
       variant="outline"
@@ -368,7 +382,7 @@ function LoadMore({
       onClick={() => void query.fetchNextPage()}
     >
       {query.isFetchingNextPage ? <Loader2 className="animate-spin" /> : null}
-      Load more
+      {t("inventory.loadMore")}
     </Button>
   ) : null;
 }
@@ -382,6 +396,7 @@ export function LibraryContentInventory({
   onSearchChange: SearchUpdate;
 }) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("library");
 
   const [layout, setLayout] = useLibraryLayout();
   const groups = contentInventoryGroups(search);
@@ -505,7 +520,7 @@ export function LibraryContentInventory({
       setPreviewError(
         cause instanceof Error
           ? cause.message
-          : "This Idle Style could not be previewed.",
+          : t("inventory.idleStylePreviewFailed"),
       );
     }
   };
@@ -620,22 +635,27 @@ export function LibraryContentInventory({
     cards: LibraryProductCard[];
     query?: typeof gestures | typeof poses;
   }> = [
-    { id: "gestures", title: "Gestures", cards: gestureRows, query: gestures },
+    {
+      id: "gestures",
+      title: t("inventory.groups.gestures"),
+      cards: gestureRows,
+      query: gestures,
+    },
     {
       id: "reactions",
-      title: "Reactions",
+      title: t("inventory.groups.reactions"),
       cards: reactionRows,
       query: reactions as typeof gestures,
     },
     {
       id: "poses",
-      title: "Poses",
+      title: t("inventory.groups.poses"),
       cards: (poses.data?.items ?? []).map(poseLibraryCard),
       query: poses,
     },
     {
       id: "idle-styles",
-      title: "Idle Styles",
+      title: t("inventory.groups.idleStyles"),
       cards: (idleStyles.data?.pages.flatMap((page) => page.items) ?? []).map(
         idleStyleLibraryCard,
       ),
@@ -643,7 +663,7 @@ export function LibraryContentInventory({
     },
     {
       id: "particle",
-      title: "Particle Effects",
+      title: t("inventory.groups.particleEffects"),
       cards: effectRows(
         "particle",
         particles.data?.pages.flatMap((page) => page.items) ?? [],
@@ -652,7 +672,7 @@ export function LibraryContentInventory({
     },
     {
       id: "avatar-effects",
-      title: "Avatar Effects",
+      title: t("inventory.groups.avatarEffects"),
       cards: effectRows(
         "avatar-effect",
         avatarEffects.data?.pages.flatMap((page) => page.items) ?? [],
@@ -661,7 +681,7 @@ export function LibraryContentInventory({
     },
     {
       id: "scene",
-      title: "Scene Effects",
+      title: t("inventory.groups.sceneEffects"),
       cards: effectRows(
         "scene",
         scenes.data?.pages.flatMap((page) => page.items) ?? [],
@@ -670,7 +690,7 @@ export function LibraryContentInventory({
     },
     {
       id: "sound",
-      title: "Sound Effects",
+      title: t("inventory.groups.soundEffects"),
       cards: effectRows(
         "sound",
         sounds.data?.pages.flatMap((page) => page.items) ?? [],
@@ -686,7 +706,7 @@ export function LibraryContentInventory({
           <Input
             className="h-11 pl-9"
             value={search.query ?? ""}
-            placeholder="Search the Library"
+            placeholder={t("inventory.search")}
             onChange={(event) =>
               onSearchChange({ query: event.target.value || undefined })
             }
@@ -694,13 +714,13 @@ export function LibraryContentInventory({
         </label>
         <div
           role="group"
-          aria-label="Library layout"
+          aria-label={t("inventory.layout.label")}
           className="flex items-center gap-1 rounded-lg border p-1"
         >
           {(
             [
-              ["grid", "Grid view", LayoutGrid],
-              ["list", "List view", List],
+              ["grid", t("inventory.layout.grid"), LayoutGrid],
+              ["list", t("inventory.layout.list"), List],
             ] as const
           ).map(([value, label, Icon]) => (
             <Tooltip key={value} delayDuration={300}>
@@ -726,7 +746,7 @@ export function LibraryContentInventory({
           <ProductGroup
             layout={layout}
             id="avatars"
-            title="Avatars"
+            title={t("inventory.groups.avatars")}
             footer={<LoadMore query={avatars} />}
           >
             <InventoryState
@@ -753,16 +773,21 @@ export function LibraryContentInventory({
                   }}
                   actions={
                     <>
-                      <ActionTooltip label="Preview" layout={layout}>
+                      <ActionTooltip
+                        label={t("inventory.actions.preview")}
+                        layout={layout}
+                      >
                         <Button
                           size={layout === "grid" ? "icon-sm" : "sm"}
                           variant="outline"
                           disabled={!avatar.catalog_item_id}
                           onClick={() => void previewAvatar(avatar)}
-                          aria-label="Preview"
+                          aria-label={t("inventory.actions.preview")}
                         >
                           <Play />
-                          {layout === "list" ? " Preview" : null}
+                          {layout === "list"
+                            ? ` ${t("inventory.actions.preview")}`
+                            : null}
                         </Button>
                       </ActionTooltip>
                       {avatar.catalog_item_id ? (
@@ -774,15 +799,20 @@ export function LibraryContentInventory({
                               <Button
                                 type="button"
                                 size={layout === "grid" ? "icon-sm" : "sm"}
-                                aria-label="Create Anima"
+                                aria-label={t("inventory.actions.createAnima")}
                               >
                                 <Plus />
-                                {layout === "list" ? " Create Anima" : null}
+                                {layout === "list"
+                                  ? ` ${t("inventory.actions.createAnima")}`
+                                  : null}
                               </Button>
                             </UnavailableAction>
                           )}
                         >
-                          <ActionTooltip label="Create Anima" layout={layout}>
+                          <ActionTooltip
+                            label={t("inventory.actions.createAnima")}
+                            layout={layout}
+                          >
                             <Button
                               size={layout === "grid" ? "icon-sm" : "sm"}
                               asChild
@@ -790,23 +820,30 @@ export function LibraryContentInventory({
                               <Link
                                 to="/animas/new"
                                 search={{ avatar: avatar.catalog_item_id }}
-                                aria-label="Create Anima"
+                                aria-label={t("inventory.actions.createAnima")}
                               >
                                 <Plus />
-                                {layout === "list" ? " Create Anima" : null}
+                                {layout === "list"
+                                  ? ` ${t("inventory.actions.createAnima")}`
+                                  : null}
                               </Link>
                             </Button>
                           </ActionTooltip>
                         </RuntimeFeatureGate>
                       ) : (
-                        <ActionTooltip label="Draft" layout={layout}>
+                        <ActionTooltip
+                          label={t("inventory.actions.draft")}
+                          layout={layout}
+                        >
                           <Button
                             size={layout === "grid" ? "icon-sm" : "sm"}
                             disabled
-                            aria-label="Draft"
+                            aria-label={t("inventory.actions.draft")}
                           >
                             <Plus />
-                            {layout === "list" ? " Draft" : null}
+                            {layout === "list"
+                              ? ` ${t("inventory.actions.draft")}`
+                              : null}
                           </Button>
                         </ActionTooltip>
                       )}
@@ -850,9 +887,7 @@ export function LibraryContentInventory({
       {!groups.length ? (
         <div className="rounded-xl border border-dashed p-8 text-center">
           <Sparkles className="mx-auto size-5" />
-          <p className="mt-2 font-medium">
-            Chat Uploads are managed separately below.
-          </p>
+          <p className="mt-2 font-medium">{t("inventory.uploadsSeparate")}</p>
         </div>
       ) : null}
       {managedSound ? (

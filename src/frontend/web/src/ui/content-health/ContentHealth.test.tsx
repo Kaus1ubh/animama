@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getI18n } from "react-i18next";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ContentHealth } from "./ContentHealth";
+import { ContentHealth, contentDiagnosticText } from "./ContentHealth";
 
 const state = vi.hoisted(() => ({
   catalog: { data: undefined, isError: false, isFetching: false } as {
@@ -149,5 +150,52 @@ describe("content attention indicator", () => {
     const scanning = renderToStaticMarkup(<ContentHealth />);
     expect(scanning).toContain("Scanning…");
     expect(scanning).toContain('disabled=""');
+  });
+
+  it("words known diagnostic codes instead of the backend's English", () => {
+    state.catalog.data!.items = [
+      {
+        item_id: "empty",
+        display_name: "Empty clip",
+        status: "invalid",
+        diagnostics: [
+          { code: "empty_file", message: "Content files cannot be empty" },
+          { code: "invalid_png_header", message: "PNG signature is invalid" },
+        ],
+      },
+    ];
+    const html = renderToStaticMarkup(<ContentHealth />);
+    expect(html).toContain("Content files cannot be empty.");
+    expect(html).toContain("The PNG file signature is invalid.");
+    expect(html).not.toContain("PNG signature is invalid<");
+  });
+});
+
+describe("content diagnostic wording", () => {
+  const t = getI18n().getFixedT(null, "contentHealth");
+  const unworded = { code: "future_code", message: "Backend detail." };
+
+  afterEach(async () => {
+    await getI18n().changeLanguage("en");
+  });
+
+  it("shows an unworded diagnostic's English message in English", () => {
+    expect(contentDiagnosticText(t, unworded)).toEqual({
+      message: "Backend detail.",
+      detail: null,
+    });
+  });
+
+  it("keeps the English as secondary detail in other locales", async () => {
+    await getI18n().changeLanguage("ja");
+    expect(
+      contentDiagnosticText(
+        getI18n().getFixedT(null, "contentHealth"),
+        unworded,
+      ),
+    ).toEqual({
+      message: getI18n().t("contentHealth:itemStatus.invalid"),
+      detail: "Backend detail.",
+    });
   });
 });

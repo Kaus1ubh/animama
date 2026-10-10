@@ -8,9 +8,16 @@ import {
   FEELING_EMOJIS,
   feelingLabel,
   formatEmotionAverage,
+  storedEmotionLabel,
 } from "./presentation";
 
 describe("emotion presentation", () => {
+  it("labels a saved tracked emotion and keeps any other saved value", () => {
+    const t = getI18n().getFixedT(null, "emotion");
+    expect(storedEmotionLabel("joy")).toBe(t("emotions.joy"));
+    expect(storedEmotionLabel("wistful")).toBe("wistful");
+  });
+
   it.each([
     ["admiration", "✨", "🤩", "🌟"],
     ["caring", "😊", "😇", "🥰"],

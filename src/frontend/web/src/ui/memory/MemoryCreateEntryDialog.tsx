@@ -2,6 +2,7 @@
 
 import { Loader2, Plus } from "lucide-react";
 import { type FormEvent, useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type { PyMemoryEntryResponse } from "@/lib/content/catalogTypes";
@@ -40,6 +41,7 @@ export function MemoryCreateEntryDialog({
   onOpenChange: (open: boolean) => void;
   onCreated: (entry: PyMemoryEntryResponse) => void;
 }) {
+  const { t } = useTranslation("memory");
   const createEntry = useCreateMemoryEntry();
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -56,7 +58,7 @@ export function MemoryCreateEntryDialog({
     event.preventDefault();
     const entryName = normalizeMemoryEntryName(name, kind);
     if (!entryName) {
-      toast.error("Enter a name.");
+      toast.error(t("shared.enterName"));
       return;
     }
 
@@ -78,12 +80,14 @@ export function MemoryCreateEntryDialog({
         },
       });
       toast.success(
-        kind === "file" ? "Markdown file created." : "Directory created.",
+        kind === "file"
+          ? t("create.fileCreated")
+          : t("create.directoryCreated"),
       );
       onCreated(entry);
       onOpenChange(false);
     } catch (error) {
-      toast.error("Failed to create memory entry.", {
+      toast.error(t("create.failed"), {
         description: memoryEntryErrorMessage(error),
       });
     }
@@ -94,45 +98,50 @@ export function MemoryCreateEntryDialog({
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {kind === "file" ? "New markdown file" : "New directory"}
+            {kind === "file"
+              ? t("create.fileTitle")
+              : t("create.directoryTitle")}
           </DialogTitle>
-          <DialogDescription>
-            Names use filesystem-safe characters and files are stored as
-            markdown.
-          </DialogDescription>
+          <DialogDescription>{t("create.description")}</DialogDescription>
         </DialogHeader>
         <form className="space-y-4" onSubmit={handleSubmit}>
           <div className="space-y-2">
             <Label htmlFor="memory-entry-name">
-              {kind === "file" ? "Name or path" : "Name"}
+              {kind === "file" ? t("create.nameOrPath") : t("shared.name")}
             </Label>
             <Input
               id="memory-entry-name"
               value={name}
               onChange={(event) => setName(event.target.value)}
               placeholder={
-                kind === "file" ? "notes.md or projects/notes.md" : "notes"
+                kind === "file"
+                  ? t("create.fileNamePlaceholder")
+                  : t("create.directoryNamePlaceholder")
               }
             />
           </div>
           <div className="space-y-2">
-            <Label htmlFor="memory-entry-description">Description</Label>
+            <Label htmlFor="memory-entry-description">
+              {t("shared.description")}
+            </Label>
             <Input
               id="memory-entry-description"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Optional"
+              placeholder={t("create.descriptionPlaceholder")}
             />
           </div>
           {kind === "file" ? (
             <div className="space-y-2">
-              <Label htmlFor="memory-entry-content">Initial content</Label>
+              <Label htmlFor="memory-entry-content">
+                {t("create.contentLabel")}
+              </Label>
               <Textarea
                 id="memory-entry-content"
                 className="min-h-32 font-mono text-sm"
                 value={content}
                 onChange={(event) => setContent(event.target.value)}
-                placeholder="# Notes"
+                placeholder={t("create.contentPlaceholder")}
               />
             </div>
           ) : null}
@@ -142,7 +151,7 @@ export function MemoryCreateEntryDialog({
               variant="outline"
               onClick={() => onOpenChange(false)}
             >
-              Cancel
+              {t("shared.cancel")}
             </Button>
             <Button type="submit" disabled={createEntry.isPending}>
               {createEntry.isPending ? (
@@ -150,7 +159,7 @@ export function MemoryCreateEntryDialog({
               ) : (
                 <Plus className="size-4" />
               )}
-              Create
+              {t("create.submit")}
             </Button>
           </DialogFooter>
         </form>

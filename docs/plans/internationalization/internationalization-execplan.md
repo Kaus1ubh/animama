@@ -67,7 +67,7 @@ Boundaries:
 - [x] Phase 3: backend diagnostics and shared error wording (R10); review #2
       passed 2026-10-10.
 - [x] Phase 4: app shell, chat and safety (R7, R9); review #2 passed 2026-10-10.
-- [ ] Phase 5: Animas, Library and memory (R7).
+- [x] Phase 5: Animas, Library and memory (R7); review #3 passed 2026-10-10.
 - [ ] Phase 6: Settings, profile and sound (R7).
 - [ ] Phase 7: creators (R7).
 - [ ] Phase 8: desktop shell (R8).
@@ -75,25 +75,18 @@ Boundaries:
 - [ ] Final integration review.
 - [ ] PR; owner gates G1–G3; owner merge approval.
 
-## Pause and handoff (2026-10-10)
+## Handoff
 
-The owner paused work after the Phase 3 review and asked to stop the task stack.
-
-- Committed: `7550f192` (plan), `1766cc8f` and `4ef6786a` (Phase 1),
-  `7ea5826b` (Phase 2).
-- Uncommitted in the worktree:
-  - Phase 3 (reviewed once; P3-R1-01 to fix): Loadout warning `params`
-    (backend + SDK), `web/src/lib/errors/**`, `locales/*/errors.json`, the
-    converted error modules and creation/Loadout renderers, i18n docs section.
-  - Phase 4 product-ui part (not yet reviewed): `useProductTranslation` with an
-    English fallback, chat failures stored as catalog references and worded at
-    render, translated notice/composer/transcript/run-status strings, product
-    catalogs moved to `locales/<tag>/product.json` with four translations,
-    product-ui lint in `i18n:check`, unused `formatAnimaTimestamp` removed.
-- Next: commit Phase 3 by path after review #2, then continue Phase 4 (web
-  shell, chat, safety, emotion). Resumed by the owner on 2026-10-10.
-- Task stack `animama-i18n` (base port 8300) is stopped, data kept; restart with
-  `./reset.sh --name i18n --base-port 8300` from this worktree.
+- Worktree `worktrees/animama/i18n-intent-discovery-42bc7e`, branch
+  `feat/internationalization`, based on `5993bbee`. Each phase is committed
+  after its review passes; nothing is pushed until the final PR.
+- Task stack `animama-i18n` (base port 8300, development build) at
+  `http://animama-i18n.localhost:8300`. Restart it with
+  `./reset.sh --name i18n --base-port 8300` from this worktree and stop it with
+  `docker compose -p animama-i18n stop`. After product-ui changes, rebuild the
+  packages inside the `web` service.
+- `tests/local-api-proxy.test.ts` fails while another task's server holds port
+  5173. That failure is environmental.
 
 ## Surprises & Discoveries
 
@@ -645,13 +638,143 @@ The speech-recognition wording in this record was corrected. Result: pass.
 Issue: #422. Areas: `ui/animas`, `ui/create-anima`, `ui/create`, `ui/library`,
 `ui/memory*`, content sharing and import UI, `lib/content` messages.
 
+Results (2026-10-10, three parallel agents on disjoint areas, integrated by the
+coordinator):
+
+- New namespaces `animas`, `contentHealth`, `create`, `library` and `memory`,
+  translated into all four beta locales. Converted and linted: `ui/animas`,
+  `ui/action-manage`, `ui/content-health`, `ui/create-anima`, the Create hub
+  and pickers, `ui/library`, `ui/memory`, `lib/memory-entries`,
+  `lib/memory-manager`, `lib/content-sharing`, the Library upload and content
+  message modules, and `useLibrarySharingFlow`. The two Create preview files used
+  only by the avatar-portrait debug route are exempt.
+- Phase 3 deferrals resolved:
+  - P3-R1-03: the multi-cause `anima_creation_defaults_unavailable` keeps the
+    backend cause as detail in every locale.
+  - P3-R1-04: backend English moves from the translated sentence to detail.
+  - P3-R1-05: item lists use `{{items, list}}`; codec lists use the disjunction
+    style.
+  - P3-R1-06: `parseContentApiErrorDetail` reuses `readApiError`, and the upload
+    arms collapse into `errorWording`.
+- `apiErrorText` accepts a `null` area for services that send no codes. The new
+  `uncodedErrorText` words stored English (Memory Manager `run.error`, upload
+  `last_error`, preview and clone failures) by the same rule.
+- Intentional English changes:
+  - sizes come from the shared formatter ("37.9 MB", "2 kB", "MB" not "MiB");
+  - the codec list reads "MP3, WAV, or Ogg";
+  - "1 file verified" is singular;
+  - an upload filter uses the row labels.
+- Term list: added Action, Identity, Starter Pack and My Content. The Chinese
+  renderings are aligned across namespaces (行为/行為, 身份设定/身分設定).
+- The i18n guide covers `getFixedT` outside React (the extractor does not see
+  `getI18n().t("ns:key")`), `{{items, list}}`, multi-cause codes and
+  `uncodedErrorText`. The lint config limits converted directories to
+  `ts`/`tsx`, because `ui/memory` holds a stylesheet.
+- Left for later phases:
+  - Phase 6: `lib/speech/pocket` text (accents, sample player, clone
+    validation, encoder failure text) and `OPERATOR_MANAGED_MODELS_NOTE`.
+  - Phase 7: `NON_PORTABLE_REASON` in the action editor, creator recovery and
+    readiness text, `lib/content-preview` messages and version labels, and
+    `lib/effects` template labels that are no longer displayed.
+  - Included content names, per the spec.
+- Checks:
+  - `pnpm i18n:check`, `pnpm --filter animama-web check` and `pnpm web:lint`
+    pass; Prettier is clean on the changed web files.
+  - Web vitest: 3792 pass. 4 fail in `tests/local-api-proxy.test.ts` because
+    another task holds port 5173.
+  - Browser under `ja` on the task stack: Anima detail and Loadout, Library,
+    Memory, the Create hub and Anima creation step 1 show Japanese chrome. Stored
+    profile text and Included content names stay as authored.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full review of the Phase 5 working tree on
+`4d050f70` (2026-10-10). It confirmed P3-R1-03 to P3-R1-06 are resolved, the
+refactors keep their behavior, placeholder parity holds and stored data is not
+translated.
+
+- **P5-R1-01 (required).** `VoiceCloneLibrary` `cloneError` returned any
+  `Error.message`, so clone and network English became the primary text outside
+  English; its docstring said otherwise.
+- **P5-R1-02 (required).** Library upload rows always used `processingFailed`
+  as the generic message, so a usable keyword-only upload read "Processing
+  failed" outside English.
+- Optional:
+  - **P5-R1-03:** `contentDiagnosticText` duplicated the English-first rule.
+  - **P5-R1-04:** the tracked-emotion check was duplicated (also in
+    `SharingPackageDetails`).
+  - **P5-R1-05:** preview runtime `Error.message` was primary in every locale.
+  - **P5-R1-06:** the Chinese "Identity" was only partly aligned.
+  - **P5-R1-07:** `lib/effects` template labels are unused copies.
+  - Minor: a raw `{{role}}` ID inside the content-source sentences; the Memory
+    "Animas" folder label; three sentence fragments.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P5-R1-01 accepted.** `cloneError` keeps a worded `ContentSaveApiError`.
+  Everything else goes through `apiErrorText(readApiError(error), null,
+  fallback)`, and the docstring now matches.
+- **P5-R1-02 accepted.** `storedUploadErrorLine` in `upload-card-status.ts`
+  picks the generic message by status and serves both the upload card and the
+  Library row. A new `ja` test covers keyword-only and failed uploads.
+- **P5-R1-03 accepted.** `contentDiagnosticText` uses `uncodedErrorText`; its
+  tests switch the locale instead of passing a language.
+- **P5-R1-04 accepted.** `storedEmotionLabel` in `lib/emotion/presentation.ts`
+  replaces the three copies.
+- **P5-R1-05 accepted.** `AnimaAvatarStage` preview failures use
+  `uncodedErrorText`.
+- **P5-R1-06 accepted.** All Chinese Identity strings use 身份设定/身分設定.
+- **P5-R1-07 deferred** to Phase 7, which owns `lib/effects` and the creators.
+- Minor items deferred:
+  - The `{{role}}` sentences come from `loadCreatorPreviewFile`, which creators
+    use and which the Library sound dialog also uses for its `audio` role. They
+    appear only when a file is missing. Wording the roles belongs to Phase 7.
+  - The "Animas" folder label is a path segment.
+  - The fragments read as labels.
+- Checks after repair:
+  - `tsc` and eslint pass.
+  - Vitest in content-health, animas, emotion, content, library, uploads,
+    user-files and errors: 76 files, 522 pass.
+  - `pnpm i18n:check` passes.
+
+Repair budget: one of two repair rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck. P5-R1-02 to P5-R1-05 are resolved without regressions, and
+the P5-R1-07 deferral is reasonable.
+
+- **P5-R2-01 (required).** P5-R1-01 was only partly fixed.
+  - `cloneError` read the code through `parseContentApiErrorDetail`, which
+    returns `null` for a `ContentSaveApiError`.
+  - Deleting an in-use clone therefore showed the English from
+    `toVoiceCloneError` in every locale.
+  - No test covered delete rejection.
+- Optional:
+  - The Chinese `memory.json` still used the short Identity term in seven
+    strings.
+  - The `{{role}}` deferral reason was incomplete.
+  - `storedEmotionLabel` had no direct test.
+
+#### Code Review #2 Revisions
+
+- **P5-R2-01 accepted.** `cloneError` reads `code` from a
+  `ContentSaveApiError` first. A new `ja` test deletes an in-use clone and
+  expects the voice wording; it fails without the fix and passes with it.
+- Optional accepted:
+  - the seven `memory.json` strings use 身份设定/身分設定;
+  - the `{{role}}` deferral above is corrected;
+  - `presentation.test.ts` covers `storedEmotionLabel`.
+- Checks:
+  - vitest in emotion, animas and memory: 14 files, 127 pass;
+  - `tsc`, eslint and `pnpm i18n:check` pass.
+
+Repair budget: two of two repair rounds used.
+
+#### Code Review #3 Findings
+
+Final targeted review. P5-R2-01 is resolved: the delete-in-use path shows the
+voice wording. The optional revisions caused no regressions. Result: pass.
 
 ### Phase 6 — Settings, profile and sound (R7)
 

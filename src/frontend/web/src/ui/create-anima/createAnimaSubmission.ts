@@ -4,6 +4,7 @@ import type {
 } from "@animama/runtime-contracts/sdk";
 import { zAnimaCreationDiagnostic } from "@animama/runtime-contracts/validators";
 import { getI18n } from "react-i18next";
+import { CreatorError } from "./createAnimaErrors";
 import {
   canonicalJson,
   creationRequestSchema,
@@ -24,7 +25,9 @@ export function freezeCreation(
     if (canonicalJson(oldSpec) === canonicalJson(spec))
       return structuredClone(previous);
     if (draft.submission?.state !== "rejected")
-      throw new Error(getI18n().t("errors:creation.checkPreviousResult"));
+      throw new CreatorError(
+        getI18n().t("errors:creation.checkPreviousResult"),
+      );
   }
   return creationRequestSchema.parse({
     ...spec,

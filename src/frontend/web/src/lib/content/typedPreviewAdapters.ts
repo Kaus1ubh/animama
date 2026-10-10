@@ -1,3 +1,4 @@
+import { getI18n } from "react-i18next";
 import type {
   PyTypedContentPreview,
   PyTypedDependency,
@@ -205,7 +206,8 @@ export function typedActionPreview(
 ): PyActionPreview {
   const item = preview.item;
   if (item.kind !== "gesture" && item.kind !== "reaction") {
-    throw new Error("The preview is not an Action.");
+    const t = getI18n().getFixedT(null, "library");
+    throw new Error(t("content.preview.notAction"));
   }
   const implementationDependency = (item.dependencies ?? []).find(
     (dependency) =>
@@ -274,31 +276,33 @@ export function typedIdleStylePreview(
   preview: PyTypedContentPreview,
   gestureRef?: string,
 ): PyIdleStylePreview {
+  const t = getI18n().getFixedT(null, "library");
   const style = preview.item;
   if (style.kind === "gesture") {
     const selectedRef = style.logical_key;
     if (!selectedRef || (gestureRef && gestureRef !== selectedRef))
-      throw new Error("The selected idle Gesture is unavailable.");
+      throw new Error(t("content.preview.idleGestureUnavailable"));
     return idleGesturePreview(preview, selectedRef);
   }
   if (style.kind !== "idle_style")
-    throw new Error("The preview is not an Idle Style.");
+    throw new Error(t("content.preview.notIdleStyle"));
   const selectedRef = gestureRef ?? style.default_pool[0];
-  if (!selectedRef) throw new Error("No scheduled idle Gesture in this pool.");
+  if (!selectedRef) throw new Error(t("content.preview.noIdleGesture"));
   const selectedDependency = (style.dependencies ?? []).find(
     (dependency) =>
       dependency.kind === "gesture" && dependency.ref === selectedRef,
   );
   const gesture = exactDependencyTarget(preview, selectedDependency);
   if (!gesture || gesture.kind !== "gesture")
-    throw new Error("The selected idle Gesture is unavailable.");
+    throw new Error(t("content.preview.idleGestureUnavailable"));
   const supports: PreviewItem[] = [];
   const seen = new Set([gesture.item_id]);
   const pending = [...(gesture.dependencies ?? [])];
   while (pending.length) {
     const dependency = pending.shift()!;
     const support = exactDependencyTarget(preview, dependency);
-    if (!support) throw new Error("An idle Gesture dependency is unavailable.");
+    if (!support)
+      throw new Error(t("content.preview.idleDependencyUnavailable"));
     if (seen.has(support.item_id)) continue;
     seen.add(support.item_id);
     supports.push(support);

@@ -198,11 +198,11 @@
     "backgroundAlt": "{{name}} 的背景",
     "close": "关闭 Anima 资料",
     "closeShort": "关闭",
-    "description": "外观、情绪、身份、记忆和设置。",
+    "description": "外观、情绪、身份设定、记忆和设置。",
     "documents": {
-      "editIdentity": "编辑身份",
+      "editIdentity": "编辑身份设定",
       "editMemories": "编辑记忆",
-      "identity": "身份",
+      "identity": "身份设定",
       "label": "Anima 文档",
       "memories": "记忆"
     },
@@ -211,7 +211,7 @@
     "emotions": "情绪",
     "exploreEmotions": "查看情绪",
     "fullDetails": "查看完整详情",
-    "noIdentity": "尚未提供身份内容。",
+    "noIdentity": "尚未提供身份设定内容。",
     "profileImageAlt": "{{name}} 的头像",
     "settings": "Anima 设置",
     "settingsTitle": "{{name}} 设置"

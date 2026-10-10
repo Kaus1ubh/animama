@@ -1,6 +1,7 @@
 import { getI18n } from "react-i18next";
 
 import { parseContentApiErrorDetail } from "@/lib/content/contentSaveErrors";
+import { errorWording } from "@/lib/errors/apiError";
 import { normalizeBaseUrl } from "@/lib/utils";
 
 export type ContentPreflightResult = {
@@ -180,21 +181,20 @@ export function getContentUploadErrorPresentation(
   return { message: fallback, code: null, details: {} };
 }
 
+/** Upload state conflicts worded as `errors:uploads.<code>`. */
+const CONFLICT_CODES = new Set([
+  "content_upload_idempotency_mismatch",
+  "content_upload_retry_required",
+  "content_uploads_incomplete",
+  "content_storage_unavailable",
+]);
+
 /** Guidance for an upload state conflict, by code. */
 function conflictMessage(code: string): string {
-  const t = getI18n().t;
-  switch (code) {
-    case "content_upload_idempotency_mismatch":
-      return t("errors:uploads.content_upload_idempotency_mismatch");
-    case "content_upload_retry_required":
-      return t("errors:uploads.content_upload_retry_required");
-    case "content_uploads_incomplete":
-      return t("errors:uploads.content_uploads_incomplete");
-    case "content_storage_unavailable":
-      return t("errors:uploads.content_storage_unavailable");
-    default:
-      return t("errors:uploads.conflict");
-  }
+  return (
+    (CONFLICT_CODES.has(code) && errorWording("uploads", code)) ||
+    getI18n().t("errors:uploads.conflict")
+  );
 }
 
 function stringList(value: unknown): string[] {
@@ -205,23 +205,32 @@ function stringList(value: unknown): string[] {
     : [];
 }
 
+/** Backend reasons worded as `errors:uploads.<reason>`, without parameters. */
+const WORDED_REASONS = new Set([
+  "animated_image_unsupported",
+  "unsupported_image_format",
+  "content_mismatch",
+  "invalid_glb_header",
+  "vrma_external_resource",
+  "document_unsupported_encoding",
+  "document_invalid_pdf",
+  "document_pdf_encrypted",
+  "document_invalid_utf8",
+  "document_utf8_bom",
+  "document_invalid_json",
+  "document_pdf_page_limit",
+  "ambiguous_particle_texture_filename",
+]);
+
 /** Translate stable backend reasons into corrective product guidance. */
 function remediationForContentError(
   reason: string,
   details: Record<string, unknown>,
 ): string {
   const t = getI18n().t;
+  const worded = WORDED_REASONS.has(reason) && errorWording("uploads", reason);
+  if (worded) return worded;
   switch (reason) {
-    case "animated_image_unsupported":
-      return t("errors:uploads.animated_image_unsupported");
-    case "unsupported_image_format":
-      return t("errors:uploads.unsupported_image_format");
-    case "content_mismatch":
-      return t("errors:uploads.content_mismatch");
-    case "invalid_glb_header":
-      return t("errors:uploads.invalid_glb_header");
-    case "vrma_external_resource":
-      return t("errors:uploads.vrma_external_resource");
     case "vrma_animation_count":
       return details.animation_count == null
         ? t("errors:uploads.vrmaAnimationCount")
@@ -231,29 +240,11 @@ function remediationForContentError(
     case "audio_unsupported_codec": {
       const codecs = stringList(details.supported_codecs);
       return codecs.length
-        ? t("errors:uploads.audio_unsupported_codec", {
-            codecs: codecs.join(", "),
-          })
+        ? t("errors:uploads.audio_unsupported_codec", { codecs })
         : t("errors:uploads.audioCodecUnsupported");
     }
-    case "document_unsupported_encoding":
-      return t("errors:uploads.document_unsupported_encoding");
-    case "document_invalid_pdf":
-      return t("errors:uploads.document_invalid_pdf");
-    case "document_pdf_encrypted":
-      return t("errors:uploads.document_pdf_encrypted");
-    case "document_invalid_utf8":
-      return t("errors:uploads.document_invalid_utf8");
-    case "document_utf8_bom":
-      return t("errors:uploads.document_utf8_bom");
-    case "document_invalid_json":
-      return t("errors:uploads.document_invalid_json");
-    case "document_pdf_page_limit":
-      return t("errors:uploads.document_pdf_page_limit");
     case "manifest_reference_mismatch":
       return particleMismatchMessage(details);
-    case "ambiguous_particle_texture_filename":
-      return t("errors:uploads.ambiguous_particle_texture_filename");
     case "cardinality":
       return cardinalityMessage(details);
     case "invalid_image":
@@ -294,15 +285,16 @@ function cardinalityMessage(details: Record<string, unknown>): string {
 }
 
 function particleMismatchMessage(details: Record<string, unknown>): string {
-  const missing = stringList(details.missing_filenames).join(", ");
-  const unexpected = stringList(details.unexpected_filenames).join(", ");
+  const missing = stringList(details.missing_filenames);
+  const unexpected = stringList(details.unexpected_filenames);
   const t = getI18n().t;
-  if (missing && unexpected)
+  if (missing.length && unexpected.length)
     return t("errors:uploads.particleMissingAndUnexpected", {
       missing,
       unexpected,
     });
-  if (missing) return t("errors:uploads.particleMissing", { missing });
-  if (unexpected) return t("errors:uploads.particleUnexpected", { unexpected });
+  if (missing.length) return t("errors:uploads.particleMissing", { missing });
+  if (unexpected.length)
+    return t("errors:uploads.particleUnexpected", { unexpected });
   return t("errors:uploads.manifest_reference_mismatch");
 }

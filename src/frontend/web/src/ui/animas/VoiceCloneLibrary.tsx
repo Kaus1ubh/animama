@@ -1,5 +1,7 @@
 import { useProductApiClient } from "@animama/product-ui";
 import { useEffect, useRef, useState, type FormEvent } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import type {
   PyModelAssetState,
@@ -11,7 +13,15 @@ import {
   voiceCloneNameFromFile,
   type PreparedVoiceClone,
 } from "@/lib/speech/pocket/voice-clones";
-import { parseContentApiErrorDetail } from "@/lib/content/contentSaveErrors";
+import {
+  ContentSaveApiError,
+  parseContentApiErrorDetail,
+} from "@/lib/content/contentSaveErrors";
+import {
+  apiErrorLine,
+  apiErrorText,
+  readApiError,
+} from "@/lib/errors/apiError";
 import { useOperatorManagedModelAssets } from "@/query/hooks/useModelAssets";
 import { useVoiceCloneActions } from "@/query/mutations/useVoiceCloneActions";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
@@ -32,13 +42,26 @@ import {
   DialogTitle,
 } from "@/ui/components/dialog";
 
-function cloneError(error: unknown, fallback: string): string {
-  const code = parseContentApiErrorDetail(error)?.code;
-  if (code === "catalog_item_in_use")
-    return "This voice is used by an Anima. Choose another voice for each Anima using it before deleting.";
+/**
+ * Text for a failed clone operation. The in-use and changed codes have voice
+ * wording; other content save failures arrive worded (`toContentSaveApiError`);
+ * any other English stays primary in English and is secondary detail under
+ * `fallback` elsewhere.
+ */
+function cloneError(
+  t: TFunction<"animas">,
+  error: unknown,
+  fallback: string,
+): string {
+  const code =
+    error instanceof ContentSaveApiError
+      ? error.code
+      : parseContentApiErrorDetail(error)?.code;
+  if (code === "catalog_item_in_use") return t("voices.cloning.errors.inUse");
   if (code === "catalog_revision_conflict")
-    return "This voice changed. Refresh the voice library and try again.";
-  return error instanceof Error ? error.message : fallback;
+    return t("voices.cloning.errors.changed");
+  if (error instanceof ContentSaveApiError) return error.message;
+  return apiErrorLine(apiErrorText(readApiError(error), null, fallback));
 }
 
 /** Named originals and encoded voices are saved together, independently of selection. */
@@ -56,6 +79,7 @@ export function VoiceCloneLibrary({
   onBusyChange: (busy: boolean) => void;
 }) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("animas");
 
   const actions = useVoiceCloneActions();
   const modelAction = useModelAssetAction();
@@ -114,7 +138,7 @@ export function VoiceCloneLibrary({
           controller.signal.throwIfAborted();
           setEncoder(asset);
         }
-        setStatus("Checking voice cloning…");
+        setStatus(t("voices.cloning.checking"));
         const next = await prepareVoiceClone(apiClient, {
           name: name.trim(),
           file,
@@ -125,10 +149,10 @@ export function VoiceCloneLibrary({
               setEncoder(asset);
               if (asset.status === "downloading") {
                 setEncoderOpen(true);
-                setStatus("Downloading voice cloning…");
+                setStatus(t("voices.cloning.downloading"));
               } else if (asset.status === "installed") {
                 setEncoderOpen(false);
-                setStatus("Cloning voice…");
+                setStatus(t("voices.cloning.cloningVoice"));
               }
             },
           },
@@ -137,22 +161,22 @@ export function VoiceCloneLibrary({
         prepared.current = next;
       }
       controller.signal.throwIfAborted();
-      setStatus("Saving voice…");
+      setStatus(t("voices.cloning.savingVoice"));
       await actions.saveVoiceClone.mutateAsync(prepared.current);
       controller.signal.throwIfAborted();
       prepared.current = null;
       setName("");
       setFile(null);
-      toast.success(
-        "Voice clone saved. Choose it in an Anima’s Voices settings.",
-      );
+      toast.success(t("voices.cloning.saved"));
     } catch (cause) {
       if (controller.signal.aborted) return;
       if (cause instanceof PocketVoiceEncoderDownloadRequired) {
         if (operatorManaged) {
           // The operator provides the encoder; this runtime never downloads it.
           setError(
-            `Voice cloning is not available here. ${OPERATOR_MANAGED_MODELS_NOTE}`,
+            t("voices.cloning.operatorManaged", {
+              note: OPERATOR_MANAGED_MODELS_NOTE,
+            }),
           );
         } else {
           setEncoder(cause.asset);
@@ -161,8 +185,9 @@ export function VoiceCloneLibrary({
         }
       } else {
         const message = cloneError(
+          t,
           cause,
-          "Voice could not be saved. Your sample is ready to retry.",
+          t("voices.cloning.errors.saveFailed"),
         );
         if (waitingForEncoder) {
           setEncoderError(message);
@@ -203,12 +228,12 @@ export function VoiceCloneLibrary({
       });
       controller.signal.throwIfAborted();
       setEncoder(asset);
-      setEncoderError("Download cancelled. Your sample is ready to retry.");
+      setEncoderError(t("voices.cloning.errors.cancelled"));
       setStatus(null);
     } catch (cause) {
       if (controller.signal.aborted) return;
       setEncoderError(
-        cloneError(cause, "The download could not be cancelled. Try again."),
+        cloneError(t, cause, t("voices.cloning.errors.cancelFailed")),
       );
     } finally {
       if (operation.current === controller && !controller.signal.aborted) {
@@ -226,10 +251,10 @@ export function VoiceCloneLibrary({
     try {
       await actions.deleteVoiceClone.mutateAsync(deleting);
       onDeleteClose();
-      toast.success("Voice clone deleted.");
+      toast.success(t("voices.cloning.deleted"));
     } catch (cause) {
       setDialogError(
-        cloneError(cause, "Voice could not be deleted. Try again."),
+        cloneError(t, cause, t("voices.cloning.errors.deleteFailed")),
       );
     } finally {
       changeBusy(false);
@@ -237,9 +262,14 @@ export function VoiceCloneLibrary({
   };
 
   return (
-    <section className="space-y-3" aria-label="Voice cloning">
+    <section
+      className="space-y-3"
+      aria-label={t("voices.cloning.sectionLabel")}
+    >
       {heading ? (
-        <h3 className="pt-3 text-sm font-semibold">Voice Cloning</h3>
+        <h3 className="pt-3 text-sm font-semibold">
+          {t("voices.cloning.title")}
+        </h3>
       ) : null}
       <form
         className="space-y-2"
@@ -250,9 +280,9 @@ export function VoiceCloneLibrary({
       >
         <Input
           id="voice-clone-name"
-          aria-label="Voice clone name"
+          aria-label={t("voices.cloning.nameLabel")}
           value={name}
-          placeholder="Voice name (optional)"
+          placeholder={t("voices.cloning.namePlaceholder")}
           maxLength={120}
           disabled={locked}
           onChange={(event) => {
@@ -269,7 +299,7 @@ export function VoiceCloneLibrary({
             disabled={locked}
             onClick={() => input.current?.click()}
           >
-            {file ? "Change sample" : "Upload voice sample"}
+            {file ? t("voices.cloning.change") : t("voices.cloning.upload")}
           </Button>
           <span
             className="text-muted-foreground min-w-0 flex-1 truncate text-xs"
@@ -283,14 +313,14 @@ export function VoiceCloneLibrary({
             size="sm"
             disabled={locked || !file}
           >
-            Clone voice
+            {t("voices.cloning.clone")}
           </Button>
           <input
             ref={input}
             type="file"
             accept=".wav,.mp3,.ogg,audio/wav,audio/mpeg,audio/ogg"
             className="hidden"
-            aria-label="Upload custom voice sample"
+            aria-label={t("voices.cloning.fileLabel")}
             onChange={(event) => {
               const next = event.currentTarget.files?.[0];
               event.currentTarget.value = "";
@@ -304,8 +334,7 @@ export function VoiceCloneLibrary({
           />
         </div>
         <p className="text-muted-foreground text-xs">
-          WAV, MP3 or Ogg · up to 25 MiB. Use a clear recording of one speaker;
-          cloning uses the first 10 seconds.
+          {t("voices.cloning.hint")}
         </p>
         {status ? (
           <p role="status" className="text-muted-foreground text-xs">
@@ -326,15 +355,15 @@ export function VoiceCloneLibrary({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Download voice cloning?</DialogTitle>
+            <DialogTitle>{t("voices.cloning.download.title")}</DialogTitle>
             <DialogDescription>
-              Install voice cloning, then continue with your selected sample.
+              {t("voices.cloning.download.description")}
             </DialogDescription>
           </DialogHeader>
           {encoder ? (
             <VoiceCloningDownload
               asset={encoder}
-              sampleName={file?.name ?? "Voice sample"}
+              sampleName={file?.name ?? t("voices.cloning.sampleFallback")}
               error={encoderError}
               busy={busy}
               cancelling={cancellingDownload}
@@ -356,10 +385,11 @@ export function VoiceCloneLibrary({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete {deleting?.name}?</DialogTitle>
+            <DialogTitle>
+              {t("voices.cloning.delete.title", { name: deleting?.name ?? "" })}
+            </DialogTitle>
             <DialogDescription>
-              This removes the saved clone and any original sample. Voices used
-              by an Anima must be replaced before deletion.
+              {t("voices.cloning.delete.description")}
             </DialogDescription>
           </DialogHeader>
           {dialogError ? (
@@ -377,7 +407,7 @@ export function VoiceCloneLibrary({
                 onDeleteClose();
               }}
             >
-              Cancel
+              {t("actions.cancel")}
             </Button>
             <Button
               type="button"
@@ -385,7 +415,7 @@ export function VoiceCloneLibrary({
               disabled={busy}
               onClick={() => void remove()}
             >
-              Delete voice
+              {t("voices.cloning.delete.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
