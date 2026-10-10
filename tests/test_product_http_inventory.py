@@ -163,6 +163,23 @@ def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> No
                 assert depends_on(route.dependant, expected), (method, route.path, spec.access)
 
 
+# Stages whose shared routes the package serves; ExecPlan Phases 2 and 3 move them.
+MOVED_STAGES = frozenset({2})
+
+
+def test_the_package_serves_exactly_the_moved_stages(tmp_path: Path) -> None:
+    modules: dict[tuple[str, str], str] = {}
+    for route in local_app(tmp_path, desktop=True, web_root=True).router.routes:
+        assert isinstance(route, APIRoute | APIWebSocketRoute), route
+        methods = ["WEBSOCKET"] if isinstance(route, APIWebSocketRoute) else sorted(route.methods)
+        for method in methods:
+            modules[(method, route.path)] = route.endpoint.__module__
+    for spec in ROUTES:
+        if spec.disposition == "shared":
+            served = modules[(spec.method, spec.path)].startswith("animama.product_http.")
+            assert served == (spec.stage in MOVED_STAGES), (spec.method, spec.path, spec.stage)
+
+
 def test_route_specs_reject_mismatched_stage_or_capability() -> None:
     with pytest.raises(ValueError, match="stage"):
         RouteSpec("GET", "/v1/chats", "list_chats", "shared", "read")
