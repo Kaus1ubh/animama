@@ -61,12 +61,9 @@ from animama.orm import (
     ORMMemoryManagerRun,
     ORMUserSettings,
 )
-from animama.product_http.routes import memory as memory_entries_router
+from animama.product_http.routes import animas as anima_router, memory as memory_entries_router
 from animama.server.model_roles import ModelRoleSettings
-from animama.server.routers import (
-    anima as anima_router,
-    memory_manager as memory_manager_router,
-)
+from animama.server.routers import memory_manager as memory_manager_router
 from animama.server.schemas.memory_entry import PyMemoryEntryCreateRequest, PyMemoryEntryPatchRequest
 from animama.server.schemas.memory_manager import (
     PyMemoryManagerApprovalDecisionRequest,
@@ -816,7 +813,9 @@ async def test_deleting_an_anima_removes_its_coverage(async_session, clean_rows)
     await _reflect(async_session, user_id=user_id, anima_id=anima_id, auto_approve_diffs=True)
     assert await _coverage(async_session, user_id=user_id, anima_id=anima_id) is not None
 
-    await anima_router.delete_anima(anima_id, session=async_session, user=_user(user_id))
+    await anima_router.delete_anima(
+        anima_id, repositories=SQLAlchemyProductRepositories(async_session), user=_user(user_id)
+    )
 
     rows = await async_session.execute(
         select(ORMAnimaMemoryReflection).where(ORMAnimaMemoryReflection.anima_id == anima_id)

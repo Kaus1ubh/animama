@@ -12,6 +12,8 @@ from functools import cached_property
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.repositories.sqlalchemy.anima_chat_profile_repo import SQLAlchemyAnimaChatProfileRepository
+from animama.adapters.repositories.sqlalchemy.anima_presentation_repo import SQLAlchemyAnimaPresentationRepository
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.avatar_repo import SQLAlchemyAvatarRepository
 from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
@@ -19,6 +21,7 @@ from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRep
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
+from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.settings_repo import (
     SQLAlchemyAnimaSettingsRepository,
     SQLAlchemyUserSettingsRepository,
@@ -37,6 +40,18 @@ class SQLAlchemyProductRepositories:
     @cached_property
     def animas(self) -> SQLAlchemyAnimaRepository:
         return SQLAlchemyAnimaRepository(self._session)
+
+    @cached_property
+    def anima_chat_profiles(self) -> SQLAlchemyAnimaChatProfileRepository:
+        return SQLAlchemyAnimaChatProfileRepository(self._session)
+
+    @cached_property
+    def anima_presentations(self) -> SQLAlchemyAnimaPresentationRepository:
+        return SQLAlchemyAnimaPresentationRepository(self._session)
+
+    @cached_property
+    def model_providers(self) -> SQLAlchemyModelProviderRepository:
+        return SQLAlchemyModelProviderRepository(self._session)
 
     @cached_property
     def chats(self) -> SQLAlchemyChatRepository:

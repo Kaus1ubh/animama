@@ -15,8 +15,7 @@ from animama.app.contracts.anima import PyAnimaChatProfileUpdateRequest, PyAnima
 from animama.app.contracts.settings import PyAnimaSettingsUpdate
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima
-from animama.product_http.routes import settings
-from animama.server.routers import anima
+from animama.product_http.routes import animas as anima, settings
 
 CALLER = RequestPrincipal(id="caller-owner")
 
@@ -28,20 +27,30 @@ def anima_scoped_calls(anima_id: str, session: AsyncSession) -> dict[str, Callab
     """
 
     return {
-        "get_anima": lambda: anima.get_anima(anima_id=anima_id, session=session, user=CALLER),
+        "get_anima": lambda: anima.get_anima(
+            anima_id=anima_id, repositories=SQLAlchemyProductRepositories(session), user=CALLER
+        ),
         "patch_anima": lambda: anima.patch_anima(
-            anima_id=anima_id, req=PyAnimaUpdateRequest(), session=session, user=CALLER
+            anima_id=anima_id,
+            req=PyAnimaUpdateRequest(),
+            repositories=SQLAlchemyProductRepositories(session),
+            user=CALLER,
         ),
         "update_anima_chat_profile": lambda: anima.update_anima_chat_profile(
             anima_id=anima_id,
             req=PyAnimaChatProfileUpdateRequest(default_model_provider_id="model"),
-            session=session,
+            repositories=SQLAlchemyProductRepositories(session),
             user=CALLER,
         ),
         "update_anima_emotional_state": lambda: anima.update_anima_emotional_state(
-            anima_id=anima_id, emotional_state=PyEmotionalState(), session=session, user=CALLER
+            anima_id=anima_id,
+            emotional_state=PyEmotionalState(),
+            repositories=SQLAlchemyProductRepositories(session),
+            user=CALLER,
         ),
-        "delete_anima": lambda: anima.delete_anima(anima_id=anima_id, session=session, user=CALLER),
+        "delete_anima": lambda: anima.delete_anima(
+            anima_id=anima_id, repositories=SQLAlchemyProductRepositories(session), user=CALLER
+        ),
         "get_anima_settings": lambda: settings.get_anima_settings(
             anima_id=anima_id, repositories=SQLAlchemyProductRepositories(session), user=CALLER
         ),

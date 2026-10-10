@@ -2,6 +2,7 @@ from fastapi import APIRouter
 
 from animama.product_http.routes import (
     anima_runtime,
+    animas,
     avatars,
     chats,
     content as shared_content,
@@ -34,6 +35,7 @@ router = APIRouter()
 
 
 router.include_router(anima_creation.router)
+router.include_router(animas.router)
 router.include_router(anima.router)
 router.include_router(loadouts.router)
 router.include_router(anima_runtime.router)

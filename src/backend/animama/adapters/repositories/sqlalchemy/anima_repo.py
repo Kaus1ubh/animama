@@ -6,6 +6,7 @@ from collections.abc import Iterable
 
 from sqlalchemy import delete, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import noload, selectinload
 
 from animama.domain.anima_definition import ANIMA_IDENTITY_PATH, AnimaDefinitionError, normalize_display_name
 from animama.logging import get_logger
@@ -33,6 +34,19 @@ class SQLAlchemyAnimaRepository(AnimaRepository):
             select(ORMAnima.id).where(ORMAnima.id == anima_id, ORMAnima.user_id == user_id).limit(1)
         )
         return res.scalar_one_or_none() is not None
+
+    async def list_owned(self, *, user_id: str) -> list[Anima]:
+        res = await self._s.execute(
+            select(ORMAnima)
+            .where(ORMAnima.user_id == user_id)
+            .order_by(ORMAnima.created_at.asc(), ORMAnima.id.asc())
+            .options(
+                selectinload(ORMAnima.avatar),
+                noload(ORMAnima.archive),
+                noload(ORMAnima.chats),
+            )
+        )
+        return [anima_orm_to_domain(row) for row in res.scalars()]
 
     async def list(self, *, ids: Iterable[str] | None = None) -> list[Anima]:
         if ids is None:

@@ -30,8 +30,10 @@ Local setup and host/key administration schemas remain in the server composition
   local report (`server/runtime_capabilities.py`) includes document-worker liveness.
 - `server/routers/desktop_control.py`: private pack-removal preflight, never
   included in public OpenAPI or mounted in self-host composition.
-- `server/routers/anima.py`: anima CRUD, chat-profile updates, direct chat
-  SSE, and voice catalog uploads.
+- `product_http/routes/animas.py` (shared): Anima list, reads, edits,
+  chat-profile and emotional-state updates, and deletion.
+- `server/routers/anima.py`: direct chat SSE and voice catalog uploads (stages 4
+  and 5 of the shared-route plan).
 - `server/routers/model_provider.py`: active provider/model catalog for
   frontend model selection.
 - `server/routers/model_configuration.py`: owner model connections, models,

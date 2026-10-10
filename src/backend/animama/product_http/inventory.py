@@ -82,6 +82,12 @@ ROUTES: tuple[RouteSpec, ...] = (
     _excluded("anima_creation", "POST", "/v1/animas", "create_anima", "write"),
     _local("POST", "/v1/animas/starters:ensure", "ensure_anima_starters", "write"),
     # Animas, their voice catalogs and chat
+    _shared(3, "GET", "/v1/animas", "list_animas", "read"),
+    _shared(3, "GET", "/v1/animas/{anima_id}", "get_anima", "read"),
+    _shared(3, "PATCH", "/v1/animas/{anima_id}/chat-profile", "update_anima_chat_profile", "write"),
+    _shared(3, "PATCH", "/v1/animas/{anima_id}", "patch_anima", "write"),
+    _shared(3, "DELETE", "/v1/animas/{anima_id}", "delete_anima", "write"),
+    _shared(3, "PUT", "/v1/animas/{anima_id}/emotional-state", "update_anima_emotional_state", "write"),
     _shared(4, "POST", "/v1/animas/voice-catalogs/uploads", "init_anima_voice_catalog_upload", "write"),
     _shared(
         4, "PUT", "/v1/animas/voice-catalogs/uploads/{upload_id}/content", "upload_anima_voice_catalog_content", "write"
@@ -94,12 +100,6 @@ ROUTES: tuple[RouteSpec, ...] = (
         "write",
     ),
     _shared(4, "DELETE", "/v1/animas/voice-catalogs/uploads/{upload_id}", "abort_anima_voice_catalog_upload", "write"),
-    _shared(3, "GET", "/v1/animas", "list_animas", "read"),
-    _shared(3, "GET", "/v1/animas/{anima_id}", "get_anima", "read"),
-    _shared(3, "PATCH", "/v1/animas/{anima_id}/chat-profile", "update_anima_chat_profile", "write"),
-    _shared(3, "PATCH", "/v1/animas/{anima_id}", "patch_anima", "write"),
-    _shared(3, "DELETE", "/v1/animas/{anima_id}", "delete_anima", "write"),
-    _shared(3, "PUT", "/v1/animas/{anima_id}/emotional-state", "update_anima_emotional_state", "write"),
     _shared(5, "POST", "/v1/animas/{anima_id}/chat:sse", "chat_anima_direct_sse", "stream"),
     # Loadouts
     _shared(2, "GET", "/v1/animas/{anima_id}/loadout", "get_anima_loadout", "read"),

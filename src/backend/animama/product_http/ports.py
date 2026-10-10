@@ -18,7 +18,9 @@ from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
+from animama.app.ports.anima_chat_profile_port import AnimaChatProfileRepository
 from animama.app.ports.anima_port import AnimaRepository
+from animama.app.ports.anima_presentation_port import AnimaPresentationRepository
 from animama.app.ports.avatar_port import AvatarRepository
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.chat_port import ChatRepository
@@ -26,6 +28,7 @@ from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
 from animama.app.ports.memory_entry_port import MemoryEntryRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
+from animama.app.ports.model_provider_port import ModelProviderRepository
 from animama.app.ports.settings_port import AnimaSettingsRepository, UserSettingsRepository
 from animama.app.ports.uow_port import UnitOfWork
 from animama.app.ports.user_profile_port import UserProfileRepository
@@ -47,6 +50,17 @@ class ProductRepositories(Protocol):
 
     @property
     def animas(self) -> AnimaRepository: ...
+
+    @property
+    def anima_chat_profiles(self) -> AnimaChatProfileRepository: ...
+
+    @property
+    def anima_presentations(self) -> AnimaPresentationRepository: ...
+
+    @property
+    def model_providers(self) -> ModelProviderRepository:
+        """The composition's model catalog, which an Anima's chat model must name."""
+        ...
 
     @property
     def chats(self) -> ChatRepository: ...

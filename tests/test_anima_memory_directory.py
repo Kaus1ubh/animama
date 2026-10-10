@@ -24,9 +24,8 @@ from animama.domain.anima_definition import ANIMA_MEMORIES_KIND, ANIMA_MEMORIES_
 from animama.domain.memory_entry import MEMORY_ENTRY_OPERATION_UNDO
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMMemoryEntry, ORMMemoryEntryVersion
-from animama.product_http.routes import memory as memory_entries_router
+from animama.product_http.routes import animas as anima_router, memory as memory_entries_router
 from animama.server.app import app
-from animama.server.routers import anima as anima_router
 from animama.server.schemas.memory_entry import (
     PyMemoryEntryCreateRequest,
     PyMemoryEntryPatchRequest,
@@ -390,7 +389,7 @@ async def test_deleting_anima_removes_its_scoped_memory_only(async_session, clea
         user=user,
     )
 
-    await anima_router.delete_anima(doomed, session=async_session, user=user)
+    await anima_router.delete_anima(doomed, repositories=SQLAlchemyProductRepositories(async_session), user=user)
 
     remaining_entries = (
         await async_session.execute(select(func.count()).where(ORMMemoryEntry.anima_id == doomed))
@@ -423,7 +422,7 @@ async def test_deleting_anima_removes_its_scoped_memory_only(async_session, clea
     assert [item.anima_id for item in listing.identities] == [kept]
 
     with pytest.raises(HTTPException) as repeat:
-        await anima_router.delete_anima(doomed, session=async_session, user=user)
+        await anima_router.delete_anima(doomed, repositories=SQLAlchemyProductRepositories(async_session), user=user)
     assert repeat.value.status_code == 404
 
 

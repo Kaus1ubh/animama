@@ -28,6 +28,11 @@ class AnimaRepository(Protocol):
 
         raise NotImplementedError
 
+    async def list_owned(self, *, user_id: str) -> list[Anima]:
+        """Return the user's Animas, oldest first, without their archives or chats."""
+
+        raise NotImplementedError
+
     async def list(self, *, ids: Iterable[str] | None = None) -> list[Anima]:
         """Return all animas or a filtered subset by id."""
 

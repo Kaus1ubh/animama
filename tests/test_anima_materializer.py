@@ -51,10 +51,10 @@ from animama.orm import (
 from animama.orm.content_catalog import ORMContentCatalogDependency, ORMContentCatalogItem
 from animama.orm.model_provider import ORMModelProvider
 from animama.product_http.ports import install_product_ports
+from animama.product_http.routes.animas import patch_anima, router as anima_router
 from animama.product_http.routes.avatars import delete_avatar
 from animama.product_http.routes.memory import router as memory_router
 from animama.server.deps import get_async_session, get_current_principal
-from animama.server.routers.anima import patch_anima, router as anima_router
 from animama.server.schemas.anima import PyAnimaUpdate, PyAnimaUpdateRequest
 from tests.anima_creation_support import creation_fixture
 from tests.local_http_client import local_client
@@ -372,7 +372,7 @@ async def test_name_guard_invalidates_reviewed_loadout_without_rewriting_identit
             anima=PyAnimaUpdate(display_name="Owner Name"),
             expected_aggregate_revision=1,
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
         user=user,
     )
     assert json.loads(bytes(response.body))["aggregate_revision"] == 2
@@ -383,7 +383,7 @@ async def test_name_guard_invalidates_reviewed_loadout_without_rewriting_identit
                 anima=PyAnimaUpdate(display_name="Stale"),
                 expected_aggregate_revision=1,
             ),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
             user=user,
         )
     assert stale.value.status_code == 409
@@ -648,7 +648,7 @@ async def test_avatar_changes_and_stale_chat_writes_preserve_live_definition(asy
             anima=PyAnimaUpdate(avatar_id=None, display_name="My renamed Anima"),
             expected_aggregate_revision=2,
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
         user=user,
     )
     assert json.loads(bytes(response.body))["aggregate_revision"] == 3
