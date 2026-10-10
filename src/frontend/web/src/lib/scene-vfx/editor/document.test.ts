@@ -380,4 +380,19 @@ describe("optional background layers (C1–C6)", () => {
     expect(normalized.background.scatters).toEqual([]);
     expect(sceneEffectDefinition(normalized)).not.toHaveProperty("tile");
   });
+
+  it("leaves a current document's JSON unchanged", () => {
+    // Restored recovery is compared with the pre-reload export text, so
+    // normalizing must not reorder the layers.
+    const document = createSceneEffectDocumentFromDefinition({
+      name: "Kawaii Sparkles",
+      description: "",
+      definition: sceneEffectDefinition(createDefaultSceneEffectDocument()),
+      images: new Map(),
+      sound: null,
+    });
+    expect(JSON.stringify(normalizeSceneEffectDocument(document))).toBe(
+      JSON.stringify(document),
+    );
+  });
 });

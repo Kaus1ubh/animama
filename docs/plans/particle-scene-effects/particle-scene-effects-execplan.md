@@ -1936,6 +1936,16 @@ desktop:check`, `pnpm web:test` (447 files, 3424 tests) and `pnpm build`
 pass; `pnpm openapi-ts` leaves the generated client unchanged; from
 `src/frontend/web` `pnpm -s test:source` 106 passed.
 
+Full browser journeys (`pnpm e2e:test`, built stack `animama-particle-fx-e2e`
+from `4708045d`, run `run-1010150727`): 39 passed, 1 failed in 12.8 min. The
+failure, "scene creator discard existing draft before Library Edit", was a
+P5 regression: restoring a Scene draft from browser recovery normalized it by
+spreading the optional-layer defaults first, which moved `gradient`…`flash`
+ahead of `solid`, `pattern` and `marquee`, so the restored portable JSON text
+no longer matched the pre-reload text. `normalizeSceneEffectDocument` now
+fills only missing layers in place (regression test in `document.test.ts`,
+red before the fix). The suite is rerun on the merged candidate.
+
 #### Code Review #1 Findings
 
 Round 1 (full initial review, `sdlc-reviewer`, working tree on `4708045d`):

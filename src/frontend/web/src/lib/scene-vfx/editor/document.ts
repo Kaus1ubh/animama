@@ -105,14 +105,25 @@ export function cloneSceneEffectDocument(
 
 /**
  * A document from before the optional layers (C1–C6), from browser recovery
- * or an editor export, gains them switched off.
+ * or an editor export, gains them switched off. Layers it has keep their
+ * place, so a current document's JSON is unchanged (restored recovery is
+ * compared with the export text).
  */
 export function normalizeSceneEffectDocument(
   document: SceneEffectEditorDocument,
 ): SceneEffectEditorDocument {
+  const optional = defaultSceneOptionalLayers();
+  const background = document.background;
   return {
     ...document,
-    background: { ...defaultSceneOptionalLayers(), ...document.background },
+    background: {
+      ...background,
+      gradient: background.gradient ?? optional.gradient,
+      tile: background.tile ?? optional.tile,
+      screen: background.screen ?? optional.screen,
+      scatters: background.scatters ?? optional.scatters,
+      flash: background.flash ?? optional.flash,
+    },
   };
 }
 
