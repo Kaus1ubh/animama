@@ -89,7 +89,10 @@ starting revision; implementers re-check them.
       G1–G3). Tooling and docs committed; content awaits G2, publish awaits G1.
 - [x] Final integration review of Phases 1–3 and the committed Phase 4 part
       (2026-10-10); Phase 4 content is reviewed after G2.
-- [ ] PR opened and merge approval.
+- [x] PR opened: [#427](https://github.com/raymond-van/animama/pull/427)
+      (2026-10-10; branch merged with `origin/main` `5993bbee` first). Hosted CI
+      is disabled; local checks are the evidence. Both task stacks torn down.
+- [ ] Phase 4 content after G1 and G2, then merge approval.
 - [ ] Release gate G4: WOW Sound's written confirmation, recorded in the release
       review before the first public release containing the pack. Not part of
       the PR.
