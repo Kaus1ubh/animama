@@ -9,9 +9,12 @@ admission state. Browser identity and Authorization headers select no owner.
 Tests use explicit fixture bootstrap and dependency overrides.
 
 Shared product routes (ADR 0021) live in `product_http/routes/`. They take owner
-sessions, repositories and policy from the `ProductPorts` the composition installs,
-never from `get_async_session`, so tests replace the ports (see
-`tests/product_http_support.py`) or call handlers with an explicit repository bundle.
+sessions, repositories, policy, content services and byte delivery from the
+`ProductPorts` the composition installs, never from `get_async_session`, so tests
+replace the ports (see `tests/product_http_support.py`) or call handlers with an
+explicit repository bundle. Each composition delivers verified files, runtime JSON
+and package archives under its own caching policy; the paragraphs below describe
+the local one.
 
 Retained product HTTP schemas live under `app/contracts/`, including chat/history,
 manual memory/Memory Manager, model roles, content/loadouts/runtime, profile and
@@ -518,7 +521,7 @@ download URL and never renews the lease as a side effect of a GET.
 The manifest GET negotiates gzip or identity and returns the complete
 `PyAnimaRuntime` JSON. Gzip work runs off the event loop; Content-Length is the
 encoded length, Vary includes Accept-Encoding, and ETag hashes the actual wire
-body. The cache policy remains `private, no-cache`. Each request authorizes and
+body. The local cache policy is `private, no-cache`. Each request authorizes and
 issues fresh lease information: If-None-Match never skips issuance with 304,
 since `effective_revision` does not include the changing lease fields. An
 unsupported encoding falls back to identity unless identity is explicitly
@@ -543,7 +546,7 @@ opened and verified on disk, with bounded reads off the event loop. Physical
 changes mark the catalog scan-required; independent good members remain usable.
 
 Complete bundles use the same gzip/identity negotiation, wire ETag/length and
-`Vary: Accept-Encoding` as manifests, with `private, no-cache`. Unlike issuance,
+`Vary: Accept-Encoding` as manifests, with the local `private, no-cache`. Unlike issuance,
 bundle GET does not change a lease, so it may return 304 **after all authorization
 and physical checks**. Mixed-error responses use `no-store`, omit ETag and never
 return 304. Wrong owners/revisions return 404 and expired snapshots return 409.

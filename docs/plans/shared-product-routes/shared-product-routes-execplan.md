@@ -390,6 +390,58 @@ README's description of `server/routers/`, this record's commits and validation,
 `__all__` in `memory.py`, a note that synchronous port members run on the event
 loop, and response bodies in the memory refusals) are applied. Result: pass.
 
+### Phase 3 review record
+
+Browser journeys before review (full `pnpm e2e:test` on a built stack at
+`6c1d46a6`): 37 passed, 1 failed. Releasing a package download's lease in a worker
+thread let the client's immediate discard run first and answer 409; `3604a3fb`
+restored a synchronous release.
+
+Code Review #1 Findings (at `6c1d46a6`, with `3604a3fb` noted):
+
+- P3R-01 (blocking): every content request built a package-stage coordinator,
+  whose constructor creates the staging roots, on the event loop.
+- P3R-02 (blocking): the runtime manifest and JSON bundle and the package download
+  hard-coded the local caching policy instead of using the composition's delivery.
+- P3R-03 (blocking): two-owner and deferred-commit tests missed Avatar face-part and
+  portrait writes, cross-owner saves, the owner's chat-profile commit and package
+  prepare and commit, and one face-part check used a non-Avatar item.
+- Optional: O-01 handlers reached through `content.catalog.mutations.catalog`, and
+  item reads needed runtime paths; O-02 the runtime drift path built a full content
+  bundle; O-03 `PackageRoute` returned errors inside the write session's scope, so a
+  composition saw a normal exit; O-04 docs and a docstring omitted content and
+  delivery; O-05 the Avatar catalog loads the visible catalog; O-06 other synchronous
+  IO remains on the loop (`has_pending`, a download error path); O-07 the package
+  test's per-owner roots could not show stage isolation; O-08 logger names changed;
+  O-09 inert session overrides; O-10 read routes were not checked against write
+  sessions; O-11 shared byte routes are GET only; O-12 three local store builders.
+  Outside the range, `3604a3fb` moved the lease release's state write back onto the
+  loop.
+
+Code Review #1 Revisions:
+
+- P3R-01: the local ports build one coordinator per runtime layout and pass it to
+  the content services; a test removes the staging root and shows content requests
+  never recreate it.
+- P3R-02: `ProductPorts` gains `json_response` and `download_response`. The local
+  policies live in `product_http/delivery.py` (`encoded_json_response`,
+  `PackageDownloadResponse`), and the test doubles never let clients store bytes or
+  JSON.
+- P3R-03: the typed test saves a real Avatar and refuses another owner's face-part
+  reads and writes, portraits and saves naming the owner's item; the owner's
+  portrait and correction commit through the composition. The Anima test commits a
+  chat model; the package test refuses another owner's prepare and commit.
+- The download lease is released in the worker thread that reads the last chunk,
+  before the client receives it, and on any other exit by the response; a unit test
+  pins the order.
+- O-01 (item reads use the repositories), O-02, O-03 (`PackageRoute` raises HTTP
+  errors, so the write session sees the failure; responses are unchanged), O-04,
+  O-07 (a shared-root stage-service test), O-09, O-10, O-11 and O-12 are applied.
+- O-05 and O-06 are deferred: the Avatar catalog's output is unchanged and its
+  reads are bounded by the owner's visible catalog; the remaining synchronous IO
+  predates this plan. O-08 needs no change; nothing filters on logger names.
+- Repair rounds used: 1 of 2.
+
 ## Final integration review
 
 After Phase 3: one final review of combined acceptance (unchanged local behaviour,

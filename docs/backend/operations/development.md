@@ -1579,8 +1579,8 @@ environment usage.
    `product_http/inventory.py` with its disposition and access class.
 2. Use `get_current_principal` for every local product route. Only the internal
    `/health` readiness probe is unauthenticated. Shared handlers take sessions,
-   repositories and policy from the installed `ProductPorts`, never
-   `get_async_session` or global settings.
+   repositories, policy, content services and byte delivery from the installed
+   `ProductPorts`, never `get_async_session` or global settings.
 3. Prefer app services and repository ports for persistence.
 4. Keep a shared route's Pydantic request/response schemas in `app/contracts/`;
    a local route's may stay near its router or established schema module.

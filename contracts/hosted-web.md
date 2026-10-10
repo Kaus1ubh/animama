@@ -13,7 +13,8 @@ Product routes every composition serves live in `animama.product_http`
 `ProductPorts`: owner sessions under its commit authority, repositories, content
 services and byte delivery. The route inventory marks each route shared, local-only
 or withheld by a capability; shared routes of later stages remain consumer-owned
-until they move.
+until they move. Shared byte routes answer GET only: a consumer that serves HEAD or
+Range for them adds those through its own delivery port or routes.
 
 ## Admission and browser lifetime
 
