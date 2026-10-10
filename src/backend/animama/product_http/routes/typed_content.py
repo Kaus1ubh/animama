@@ -1,38 +1,22 @@
-"""Typed product routes backed by the one editable Content Catalog."""
+"""Typed content, portrait and face-part routes over the one editable Content Catalog (ADR 0021)."""
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
-from typing import Annotated, Any
+from typing import Annotated, Any, BinaryIO
 
-from fastapi import APIRouter, Depends, File, Form, Request, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.repositories.sqlalchemy.avatar_face_part_override_repo import (
-    SQLAlchemyAvatarFacePartOverrideRepository,
-)
-from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.contracts.avatar_face_parts import (
     AvatarFacePartCorrection,
     AvatarFacePartsState,
     AvatarFacePartsUpdate,
 )
-from animama.app.services.avatar_face_parts_service import AvatarFacePartsService
-from animama.app.services.content_image import MAX_APPEARANCE_SOURCE_BYTES
-from animama.app.services.typed_content_batch_service import (
-    BuiltinTypedRoot,
-    CatalogTypedRoot,
-    TypedContentBatchResolver,
-)
-from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentService
-from animama.domain.content_catalog import ContentKind
-from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.routes.content import bounded_upload, raise_content_mutation
-from animama.server.deps import get_async_session, get_current_principal
-from animama.server.schemas.idle_style import PyIdlePlayback
-from animama.server.schemas.typed_content import (
+from animama.app.contracts.idle_style import PyIdlePlayback
+from animama.app.contracts.typed_content import (
     PyAppearance,
     PyAppearancePage,
     PyAvatarContent,
@@ -65,46 +49,34 @@ from animama.server.schemas.typed_content import (
     legacy_saved_content_response,
     typed_content_response,
 )
-
-from .content import _save_service, _service, _store, save_content_item
+from animama.app.services.content_image import MAX_APPEARANCE_SOURCE_BYTES
+from animama.app.services.content_kind_registry import MAX_JSON_BYTES, definition_for_kind
+from animama.app.services.content_save_service import ContentSaveService
+from animama.app.services.typed_content_batch_service import (
+    BuiltinTypedRoot,
+    CatalogTypedRoot,
+    TypedContentBatchResolver,
+)
+from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentService
+from animama.domain.content_catalog import ContentConflictError, ContentKind, SavedContent
+from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.ports import ProductContent, ReadContent, WriteContent
+from animama.product_http.principal import get_current_principal
+from animama.product_http.routes.content import bounded_upload, raise_content_mutation
 
 router = APIRouter(tags=["typed-content"])
 
 
-def _typed_service(request: Request, session: AsyncSession) -> TypedContentService:
-    """Compose typed product views over the shared catalog services."""
-
-    return TypedContentService(
-        catalog=SQLAlchemyContentCatalog(session),
-        content=_service(request, session),
-    )
-
-
-def _face_parts_service(request: Request, session: AsyncSession) -> AvatarFacePartsService:
-    """Compose owner-scoped face-part reads and Local/Included saves."""
-
-    return AvatarFacePartsService(
-        catalog=SQLAlchemyContentCatalog(session),
-        overrides=SQLAlchemyAvatarFacePartOverrideRepository(session),
-        store=_store(request),
-        saves=_save_service(request, session),
-        commit=session.commit,
-    )
-
-
-async def _typed_responses(
-    request: Request, session: AsyncSession, *, user_id: str, values: tuple[TypedCatalogItem, ...]
-) -> list[Any]:
+async def _typed_responses(content: ProductContent, *, user_id: str, values: tuple[TypedCatalogItem, ...]) -> list[Any]:
     """Project typed items, adding each Avatar's effective owner-scoped face parts."""
 
     responses = [typed_content_response(value) for value in values]
-    await _overlay_face_parts(request, session, user_id=user_id, values=values, responses=responses)
+    await _overlay_face_parts(content, user_id=user_id, values=values, responses=responses)
     return responses
 
 
 async def _overlay_face_parts(
-    request: Request,
-    session: AsyncSession,
+    content: ProductContent,
     *,
     user_id: str,
     values: tuple[TypedCatalogItem, ...],
@@ -118,7 +90,7 @@ async def _overlay_face_parts(
 
     if not any(value.item.kind is ContentKind.AVATAR for value in values):
         return
-    effective = await _face_parts_service(request, session).effective_for_items(user_id=user_id, items=values)
+    effective = await content.face_parts.effective_for_items(user_id=user_id, items=values)
     for value, response in zip(values, responses, strict=True):
         parts = effective.get(value.item.id)
         if parts is not None and isinstance(response, PyAvatarContent):
@@ -135,12 +107,12 @@ async def _overlay_face_parts(
 async def resolve_content_evidence(
     body: PyContentEvidenceRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    content: ReadContent,
 ) -> PyContentEvidenceResponse:
     """Resolve exact revision metadata without issuing a file capability."""
 
     try:
-        result = await TypedContentBatchResolver(catalog=SQLAlchemyContentCatalog(session)).resolve(
+        result = await TypedContentBatchResolver(catalog=content.catalog.mutations.catalog).resolve(
             user_id=user.id,
             locators=tuple(
                 CatalogTypedRoot(
@@ -163,9 +135,8 @@ async def resolve_content_evidence(
 )
 async def prepare_content_previews(
     body: PyContentPreviewsPrepareRequest,
-    request: Request,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    content: WriteContent,
 ) -> PyContentPreviewsPrepareResponse:
     """Prepare at most one owner-scoped lease for a successful root union."""
 
@@ -187,21 +158,19 @@ async def prepare_content_previews(
                         version=root.source.version,
                     )
                 )
-        result = await TypedContentBatchResolver(catalog=SQLAlchemyContentCatalog(session)).resolve(
+        result = await TypedContentBatchResolver(catalog=content.catalog.mutations.catalog).resolve(
             user_id=user.id,
             locators=tuple(locators),
         )
         preview = None
         if result.roots:
-            preview = await _service(request, session).issue_preview_bundle(
+            preview = await content.catalog.issue_preview_bundle(
                 anchor=result.roots[0].item.item,
                 entries=tuple(item.item for item in result.entries),
                 user_id=user.id,
             )
         prepared = PyContentPreviewsPrepareResponse.from_domain(result, preview)
-        await _overlay_face_parts(
-            request, session, user_id=user.id, values=tuple(result.entries), responses=prepared.items
-        )
+        await _overlay_face_parts(content, user_id=user.id, values=tuple(result.entries), responses=prepared.items)
         return prepared
     except Exception as exc:
         raise_content_mutation(exc)
@@ -212,14 +181,102 @@ async def prepare_content_previews(
 )
 async def get_gesture_idle_playback(
     item_id: str,
-    request: Request,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    content: ReadContent,
 ) -> PyIdlePlayback:
     """Return finite Idle eligibility for this exact current Gesture revision."""
     try:
-        value = await _typed_service(request, session).gesture_idle_playback(user_id=user.id, item_id=item_id)
+        value = await content.typed.gesture_idle_playback(user_id=user.id, item_id=item_id)
         return PyIdlePlayback.model_validate(value)
+    except Exception as exc:
+        raise_content_mutation(exc)
+
+
+async def _save_content_item(
+    *,
+    saves: ContentSaveService,
+    kind: ContentKind,
+    entry_name: str,
+    user_id: str,
+    operation_id: str,
+    files: list[UploadFile] | None,
+    catalog_item_id: str | None,
+    expected_revision: str | None,
+    descriptor_json: str | None,
+    metadata_json: str | None,
+    companion_paths_json: str,
+    creation_context: bool,
+) -> SavedContent:
+    """Save one typed entry from its standalone file or descriptor and companions."""
+
+    definition = definition_for_kind(kind)
+    uploads = files or []
+    try:
+        if descriptor_json is None:
+            if len(uploads) != 1:
+                raise ContentConflictError("standalone_requires_one_file", field="files")
+            upload = uploads[0]
+            payload_stream, payload_size_bytes = await bounded_upload(upload, limit=definition.max_file_bytes)
+            metadata = metadata_json.encode() if metadata_json is not None else None
+            if metadata is not None and len(metadata) > MAX_JSON_BYTES:
+                raise HTTPException(status_code=413, detail={"code": "content_metadata_too_large"})
+            saved = await saves.save_standalone_stream(
+                user_id=user_id,
+                kind=kind,
+                entry_name=entry_name,
+                filename=upload.filename or entry_name,
+                payload_stream=payload_stream,
+                payload_size_bytes=payload_size_bytes,
+                metadata_sidecar=metadata,
+                operation_id=operation_id,
+                catalog_item_id=catalog_item_id,
+                expected_revision=expected_revision,
+                declared_content_type=upload.content_type if kind is ContentKind.APPEARANCE else None,
+                creation_context=creation_context,
+            )
+        else:
+            try:
+                companion_paths = json.loads(companion_paths_json)
+            except json.JSONDecodeError as exc:
+                raise ContentConflictError("invalid_companion_paths", field="files") from exc
+            if (
+                not isinstance(companion_paths, list)
+                or len(companion_paths) != len(uploads)
+                or not all(isinstance(value, str) for value in companion_paths)
+            ):
+                raise ContentConflictError("invalid_companion_paths", field="files")
+            companions: dict[str, tuple[BinaryIO, int]] = {}
+            descriptor = descriptor_json.encode()
+            total = len(descriptor)
+            if total > MAX_JSON_BYTES:
+                raise HTTPException(status_code=413, detail={"code": "content_descriptor_too_large"})
+            for path, upload in zip(companion_paths, uploads, strict=True):
+                if path in companions:
+                    raise ContentConflictError("duplicate_companion_path", field="files")
+                payload_stream, payload_size_bytes = await bounded_upload(upload, limit=definition.max_file_bytes)
+                total += payload_size_bytes
+                if total > definition.max_entry_bytes:
+                    raise HTTPException(
+                        status_code=413,
+                        detail={"code": "content_entry_too_large", "field": "files"},
+                    )
+                companions[path] = (payload_stream, payload_size_bytes)
+            saved = await saves.save_descriptor_streams(
+                user_id=user_id,
+                kind=kind,
+                entry_name=entry_name,
+                descriptor=descriptor,
+                companion_files=companions,
+                operation_id=operation_id,
+                catalog_item_id=catalog_item_id,
+                expected_revision=expected_revision,
+                companion_media_types={
+                    path: upload.content_type for path, upload in zip(companion_paths, uploads, strict=True)
+                },
+            )
+        return saved
+    except HTTPException:
+        raise
     except Exception as exc:
         raise_content_mutation(exc)
 
@@ -237,49 +294,45 @@ def _install_family_routes(
     """Register one family without weakening its exact OpenAPI response model."""
 
     async def list_family(
-        request: Request,
         user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-        session: Annotated[AsyncSession, Depends(get_async_session)],
+        content: ReadContent,
     ) -> Any:
         try:
-            values = await _typed_service(request, session).list_kind(user_id=user.id, kind=kind)
-            return page_model(items=await _typed_responses(request, session, user_id=user.id, values=values))
+            values = await content.typed.list_kind(user_id=user.id, kind=kind)
+            return page_model(items=await _typed_responses(content, user_id=user.id, values=values))
         except Exception as exc:
             raise_content_mutation(exc)
 
     async def get_family(
         item_id: str,
-        request: Request,
         user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-        session: Annotated[AsyncSession, Depends(get_async_session)],
+        content: ReadContent,
     ) -> Any:
         try:
-            value = await _typed_service(request, session).get(
+            value = await content.typed.get(
                 user_id=user.id,
                 kind=kind,
                 item_id=item_id,
             )
-            (response,) = await _typed_responses(request, session, user_id=user.id, values=(value,))
+            (response,) = await _typed_responses(content, user_id=user.id, values=(value,))
             return response
         except Exception as exc:
             raise_content_mutation(exc)
 
     async def preview_family(
         item_id: str,
-        request: Request,
         user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-        session: Annotated[AsyncSession, Depends(get_async_session)],
+        content: WriteContent,
     ) -> PyTypedContentPreview:
         try:
-            value = await _typed_service(request, session).preview(
+            value = await content.typed.preview(
                 user_id=user.id,
                 kind=kind,
                 item_id=item_id,
             )
             response = PyTypedContentPreview.from_domain(value)
             await _overlay_face_parts(
-                request,
-                session,
+                content,
                 user_id=user.id,
                 values=(value.item, *value.supports),
                 responses=[response.item, *response.supports],
@@ -319,9 +372,8 @@ def _install_family_routes(
 
     async def save_family(
         entry_name: str,
-        request: Request,
         user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-        session: Annotated[AsyncSession, Depends(get_async_session)],
+        content: WriteContent,
         operation_id: Annotated[str, Form(min_length=1, max_length=128)],
         files: Annotated[list[UploadFile] | None, File()] = None,
         catalog_item_id: Annotated[str | None, Form()] = None,
@@ -331,12 +383,11 @@ def _install_family_routes(
         companion_paths_json: Annotated[str, Form()] = "[]",
         creation_context: Annotated[bool, Form()] = False,
     ) -> Any:
-        saved = await save_content_item(
-            request=request,
+        saved = await _save_content_item(
+            saves=content.saves,
             kind=kind,
             entry_name=entry_name,
-            user=user,
-            session=session,
+            user_id=user.id,
             operation_id=operation_id,
             files=files,
             catalog_item_id=catalog_item_id,
@@ -463,9 +514,8 @@ _install_family_routes(
 @router.put("/v1/avatar-content/{item_id}/portrait", response_model=PyAppearance, operation_id="save_avatar_portrait")
 async def save_avatar_portrait(
     item_id: str,
-    request: Request,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    content: WriteContent,
     file: Annotated[UploadFile, File()],
     entry_name: Annotated[str, Form(min_length=1, max_length=120)],
     operation_id: Annotated[str, Form(min_length=1, max_length=128)],
@@ -479,7 +529,7 @@ async def save_avatar_portrait(
 
     try:
         stream, size = await bounded_upload(file, limit=MAX_APPEARANCE_SOURCE_BYTES)
-        saved = await _save_service(request, session).save_standalone_stream(
+        saved = await content.saves.save_standalone_stream(
             user_id=user.id,
             kind=ContentKind.APPEARANCE,
             entry_name=entry_name,
@@ -506,9 +556,8 @@ async def save_avatar_portrait(
 )
 async def get_avatar_face_parts(
     item_id: str,
-    request: Request,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    content: ReadContent,
 ) -> AvatarFacePartsState:
     """Return the effective face-part correction for a current admitted Avatar.
 
@@ -517,7 +566,7 @@ async def get_avatar_face_parts(
     """
 
     try:
-        return await _face_parts_service(request, session).get(user_id=user.id, item_id=item_id)
+        return await content.face_parts.get(user_id=user.id, item_id=item_id)
     except Exception as exc:
         raise_content_mutation(exc)
 
@@ -530,9 +579,8 @@ async def get_avatar_face_parts(
 async def save_avatar_face_parts(
     item_id: str,
     body: AvatarFacePartsUpdate,
-    request: Request,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    content: WriteContent,
 ) -> AvatarFacePartsState:
     """Replace or clear (``face_parts: null``) an Avatar's face-part correction.
 
@@ -544,7 +592,7 @@ async def save_avatar_face_parts(
     """
 
     try:
-        return await _face_parts_service(request, session).save(user_id=user.id, item_id=item_id, update=body)
+        return await content.face_parts.save(user_id=user.id, item_id=item_id, update=body)
     except Exception as exc:
         raise_content_mutation(exc)
 

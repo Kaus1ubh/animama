@@ -9,6 +9,7 @@ from animama.product_http.routes import (
     runtime_capabilities,
     safety,
     settings,
+    typed_content,
 )
 
 from . import (
@@ -26,7 +27,6 @@ from . import (
     model_assets,
     model_provider,
     runtime_context,
-    typed_content,
     user_files,
 )
 

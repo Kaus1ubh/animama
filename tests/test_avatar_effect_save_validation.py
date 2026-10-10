@@ -15,9 +15,8 @@ from sqlalchemy import delete
 
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMContentCatalogItem
-from animama.product_http.routes import content
+from animama.product_http.routes import content, typed_content
 from animama.server.deps import get_async_session, get_current_principal
-from animama.server.routers import typed_content
 from tests.content_package_helpers import package_services
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports

@@ -24,10 +24,10 @@ from animama.domain.content_documents import ContentDocumentError
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.routes.content import router as content_router
 from animama.product_http.routes.loadouts import router as loadout_router
+from animama.product_http.routes.typed_content import router as typed_router
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.routers.typed_content import router as typed_router
 from animama.server.schemas.runtime_content import PyAnimaRuntime
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports

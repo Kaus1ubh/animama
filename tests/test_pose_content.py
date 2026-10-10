@@ -15,10 +15,9 @@ from animama.app.services.content_kind_registry import handler_for_kind
 from animama.domain.content_catalog import ContentKind, ContentSource
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMContentCatalogItem
-from animama.product_http.routes import content
+from animama.product_http.routes import content, typed_content
 from animama.server.app import app
 from animama.server.deps import get_async_session, get_current_principal
-from animama.server.routers import typed_content
 from tests.content_package_helpers import package_services, reviewed_export, reviewed_import
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports

@@ -29,10 +29,10 @@ from animama.orm.avatar import ORMAvatar
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.product_http.routes.content import router
 from animama.product_http.routes.loadouts import router as anima_loadout_router
+from animama.product_http.routes.typed_content import router as typed_content_router
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.routers.typed_content import router as typed_content_router
 from animama.server.schemas.content import PyContentPreview
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports

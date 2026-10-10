@@ -17,10 +17,10 @@ from animama.domain.content_catalog import ContentConflictError, ContentKind
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMAnimaContentBinding, ORMContentCatalogItem
 from animama.product_http.routes.content import router
+from animama.product_http.routes.typed_content import router as typed_content_router
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.routers.typed_content import router as typed_content_router
 from animama.server.schemas.typed_content import PyReaction, typed_content_response
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports

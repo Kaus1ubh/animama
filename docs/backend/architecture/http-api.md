@@ -52,8 +52,9 @@ Local setup and host/key administration schemas remain in the server composition
 - `server/routers/content.py`: the local Rescan (host administration).
 - `server/routers/content_packages.py`: reviewed package import/export,
   bounded transfer and durable operation status.
-- `server/routers/typed_content.py`: typed product List/Get/Save/Preview routes
-  over the shared catalog.
+- `product_http/routes/typed_content.py` (shared): typed product
+  List/Get/Save/Preview routes over the shared catalog, Avatar portraits and
+  face parts.
 - `product_http/routes/loadouts.py` (shared): typed Anima loadout read plus optimistic,
   idempotent family plan/commit commands.
 - `server/routers/anima_runtime.py`: exact runtime issuance, lease renewal, and
