@@ -4,8 +4,8 @@
   "content_id": "builtin:gesture:thinking-chin-rest",
   "version": 1,
   "semantic_key": "thinking_chin_rest",
-  "name": "Thinking Chin Rest",
-  "ai_description": "A held thinking pose: a hand rests on the chin while the eyes drift. Use while pondering a question.",
+  "name": "Thinking Chin",
+  "ai_description": "A held thinking pose: the chin rests on a loose fist, its elbow cradled in the other hand, while the eyes drift. Use while pondering a question.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

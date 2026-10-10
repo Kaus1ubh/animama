@@ -1,0 +1,394 @@
+{
+  "description": "animaPoseClip/2.0 hand keys (presets, Curl, Spread and per-finger offsets) shared by the frontend parser (schemaV2.test.ts) and the backend validator (tests/test_pose_clip_v2.py). Each case replaces `hands` in `clip`. Valid cases list the hands the frontend parser keeps (`parsed`): zero offsets and empty digits are dropped. Invalid cases hold one fault, reported at `path` by both sides.",
+  "clip": {
+    "schema": "animaPoseClip/2.0",
+    "id": "hand-keys",
+    "name": "Hand Keys",
+    "duration": 1,
+    "beats": [
+      { "id": "start", "label": "Start", "time": 0 },
+      { "id": "close", "label": "Close", "time": 0.5 }
+    ]
+  },
+  "valid": [
+    {
+      "name": "fitted presets with offsets on every digit",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "pinch",
+            "fingers": {
+              "thumb": {
+                "curl": [4.25, -6],
+                "palmarAbduction": 3.5,
+                "twist": -2
+              },
+              "index": { "curl": [10, 0, -5], "splay": 2 }
+            }
+          },
+          {
+            "beat": "close",
+            "preset": "ok",
+            "curl": 5,
+            "fingers": {
+              "middle": { "curl": 12 },
+              "ring": { "splay": -3 },
+              "little": { "curl": [1, 2, 3], "splay": -8 }
+            }
+          }
+        ]
+      },
+      "parsed": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "pinch",
+            "fingers": {
+              "thumb": {
+                "curl": [4.25, -6],
+                "palmarAbduction": 3.5,
+                "twist": -2
+              },
+              "index": { "curl": [10, 0, -5], "splay": 2 }
+            }
+          },
+          {
+            "beat": "close",
+            "preset": "ok",
+            "curl": 5,
+            "fingers": {
+              "middle": { "curl": 12 },
+              "ring": { "splay": -3 },
+              "little": { "curl": [1, 2, 3], "splay": -8 }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "the other new presets on both hands",
+      "hands": {
+        "left": [{ "beat": "start", "preset": "palm-flat" }],
+        "right": [
+          { "beat": "start", "preset": "cupped" },
+          { "beat": "close", "preset": "soft-claw", "spread": -4 }
+        ]
+      },
+      "parsed": {
+        "left": [{ "beat": "start", "preset": "palm-flat" }],
+        "right": [
+          { "beat": "start", "preset": "cupped" },
+          { "beat": "close", "preset": "soft-claw", "spread": -4 }
+        ]
+      }
+    },
+    {
+      "name": "offset limits are inclusive",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "soft-claw",
+            "fingers": {
+              "thumb": { "curl": 90, "palmarAbduction": -90 },
+              "ring": { "curl": [90, -90, 0.5], "splay": 90 }
+            }
+          }
+        ]
+      },
+      "parsed": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "soft-claw",
+            "fingers": {
+              "thumb": { "curl": 90, "palmarAbduction": -90 },
+              "ring": { "curl": [90, -90, 0.5], "splay": 90 }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "name": "zero offsets and empty digits are dropped",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "cupped",
+            "fingers": {
+              "thumb": { "curl": [0, 1], "twist": 0 },
+              "index": { "curl": 0, "splay": 0 },
+              "middle": {},
+              "ring": { "curl": [0, 0, 0] }
+            }
+          },
+          { "beat": "close", "preset": "fist", "fingers": {} }
+        ]
+      },
+      "parsed": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "cupped",
+            "fingers": { "thumb": { "curl": [0, 1] } }
+          },
+          { "beat": "close", "preset": "fist" }
+        ]
+      }
+    }
+  ],
+  "invalid": [
+    {
+      "name": "unknown preset",
+      "hands": { "right": [{ "beat": "start", "preset": "claw" }] },
+      "path": "hands.right[0].preset"
+    },
+    {
+      "name": "fingers is not an object",
+      "hands": {
+        "right": [{ "beat": "start", "preset": "relaxed", "fingers": [1] }]
+      },
+      "path": "hands.right[0].fingers"
+    },
+    {
+      "name": "fingers is null",
+      "hands": {
+        "right": [{ "beat": "start", "preset": "relaxed", "fingers": null }]
+      },
+      "path": "hands.right[0].fingers"
+    },
+    {
+      "name": "unknown digit",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "pinky": { "curl": 10 } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.pinky"
+    },
+    {
+      "name": "an Object.prototype name is not a digit",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "constructor": {} }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.constructor"
+    },
+    {
+      "name": "digit offsets are not an object",
+      "hands": {
+        "right": [
+          { "beat": "start", "preset": "relaxed", "fingers": { "index": 10 } }
+        ]
+      },
+      "path": "hands.right[0].fingers.index"
+    },
+    {
+      "name": "the thumb has no splay offset",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "thumb": { "splay": 5 } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.thumb.splay"
+    },
+    {
+      "name": "fingers have no palmarAbduction offset",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "index": { "palmarAbduction": 5 } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.index.palmarAbduction"
+    },
+    {
+      "name": "fingers have no twist offset",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "middle": { "twist": 5 } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.middle.twist"
+    },
+    {
+      "name": "an Object.prototype name is not an offset",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "ring": { "toString": 5 } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.ring.toString"
+    },
+    {
+      "name": "offset above the limit",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "index": { "curl": 90.5 } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.index.curl"
+    },
+    {
+      "name": "offset below the limit",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "thumb": { "palmarAbduction": -91 } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.thumb.palmarAbduction"
+    },
+    {
+      "name": "offset is a string",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "little": { "splay": "5" } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.little.splay"
+    },
+    {
+      "name": "offset is a boolean",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "middle": { "curl": true } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.middle.curl"
+    },
+    {
+      "name": "segment curl holds a null",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "ring": { "curl": [1, null, 2] } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.ring.curl"
+    },
+    {
+      "name": "segment curl above the limit",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "index": { "curl": [10, 95, 0] } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.index.curl"
+    },
+    {
+      "name": "a finger curl lists two segments",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "index": { "curl": [10, 20] } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.index.curl"
+    },
+    {
+      "name": "the thumb curl lists three segments",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "thumb": { "curl": [10, 20, 30] } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.thumb.curl"
+    },
+    {
+      "name": "segment curl is empty",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "index": { "curl": [] } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.index.curl"
+    },
+    {
+      "name": "splay is not per segment",
+      "hands": {
+        "right": [
+          {
+            "beat": "start",
+            "preset": "relaxed",
+            "fingers": { "little": { "splay": [1, 2, 3] } }
+          }
+        ]
+      },
+      "path": "hands.right[0].fingers.little.splay"
+    },
+    {
+      "name": "a fault on a later key of the other hand",
+      "hands": {
+        "left": [
+          { "beat": "start", "preset": "ok" },
+          {
+            "beat": "close",
+            "preset": "ok",
+            "fingers": { "thumb": { "twist": 120 } }
+          }
+        ]
+      },
+      "path": "hands.left[1].fingers.thumb.twist"
+    }
+  ]
+}

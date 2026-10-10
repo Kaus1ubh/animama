@@ -92,9 +92,12 @@ export type AvatarEffectTemplate = {
    * Thumbnail capture: `framing` is the head (default) or `wide` for art on
    * the chest or beside the head that a head framing would crop; `time`
    * (seconds after applying, default 1) for looping art that is faded out at
-   * 1 s.
+   * 1 s. `clip` names an Included Gesture (its folder stem) that poses Annie,
+   * for art attached to a hand that hangs out of frame at rest: the clip is
+   * sampled at `time` with the effect applied at 0, as
+   * `effects:render --with-clip` does.
    */
-  thumbnail?: { framing?: "wide"; time?: number };
+  thumbnail?: { framing?: "wide"; time?: number; clip?: string };
 };
 
 function included(
@@ -138,10 +141,21 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   }),
   included("doki_doki", "Doki Doki", "around-head", { framing: "wide" }),
   included("idea_bulb", "Idea Bulb", "around-head", { framing: "wide" }),
+  included("huff_puff", "Huff Puff", "around-head", { time: 0.3 }),
   included("mouth_w", "Mouth w", "mouth"),
   included("mouth_hover_w", "Mouth Hover w", "mouth"),
   included("heart_throb", "Heart Throb", "body", { framing: "wide" }),
   included("despair_shade", "Despair Shade", "body"),
+  included("idea_bulb_fingertip", "Idea Bulb Fingertip", "body", {
+    framing: "wide",
+    clip: "have-an-idea",
+    time: 3,
+  }),
+  included("finger_heart_pop", "Finger Heart Pop", "body", {
+    framing: "wide",
+    clip: "finger-heart-pose",
+    time: 1,
+  }),
 ];
 
 /** The Scene creator's starting templates, in its own order. */

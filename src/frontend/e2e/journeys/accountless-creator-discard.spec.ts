@@ -34,7 +34,7 @@ const cases = [
   {
     creator: "Gesture",
     section: "gesture",
-    contentName: "shy-finger-poke",
+    contentName: "Have an Idea",
     nameLabel: "gesture name",
     jsonTitle: "Creator JSON",
   },

@@ -23,6 +23,19 @@ import {
   type LibraryPreviewSection,
 } from "../helpers/preview-surfaces";
 
+/**
+ * What a pose or reaction clip journey must observe while it plays. The pose
+ * proof checks neither particle effects nor expression weights.
+ */
+type ClipExpectations = {
+  avatarEffects: readonly string[];
+  eventIds: readonly string[];
+  particleEffects: readonly string[];
+  sceneEffects: readonly string[];
+  /** Expression weights the clip must reach. */
+  expressionThresholds: Readonly<Record<string, number>>;
+};
+
 type LibraryJourney = {
   channel: string;
   contentName: string;
@@ -31,6 +44,8 @@ type LibraryJourney = {
   requiredFiles: readonly string[];
   section: LibraryPreviewSection;
   target: ExpectedPlaybackTarget;
+  /** Required by the pose and reaction proofs. */
+  clip?: ClipExpectations;
 };
 
 const JOURNEYS: readonly LibraryJourney[] = [
@@ -77,6 +92,40 @@ const JOURNEYS: readonly LibraryJourney[] = [
       "emoji-star-struck-1f929.svg",
       "emoji-sparkles-2728.svg",
     ],
+    clip: {
+      avatarEffects: ["star3"],
+      eventIds: ["scene-emotion-background", "avatar-star3", "particle-hearts"],
+      particleEffects: ["hearts"],
+      sceneEffects: ["scene-vfx-emotion-admiration"],
+      expressionThresholds: { happy: 0.72, relaxed: 0.24 },
+    },
+  },
+  {
+    // No Included Gesture plays a Scene Effect, so this Reaction carries the
+    // Scene Effect a clip event starts, beside an Avatar and a Particle Effect.
+    key: "library-reaction-curiosity-3",
+    channel: "reaction",
+    contentName: "Curiosity Reaction 3",
+    section: "reaction",
+    proof: "reaction",
+    target: { kind: "anima_pose_clip", runtimeId: "curiosity-3" },
+    requiredFiles: [
+      "exclamation.png",
+      "idea_bulb.png",
+      "emoji-thinking-face-1f914.svg",
+      "emoji-question-mark-2753.svg",
+    ],
+    clip: {
+      avatarEffects: ["idea_bulb"],
+      eventIds: [
+        "scene-emotion-background",
+        "particle-exclamation",
+        "avatar-idea-bulb",
+      ],
+      particleEffects: ["exclamation"],
+      sceneEffects: ["scene-vfx-emotion-curiosity"],
+      expressionThresholds: { surprised: 0.48, relaxed: 0.28 },
+    },
   },
   {
     key: "library-gesture-being-cocky",
@@ -88,19 +137,31 @@ const JOURNEYS: readonly LibraryJourney[] = [
     requiredFiles: ["being_cocky.vrma"],
   },
   {
-    key: "library-gesture-shy-finger-poke",
+    key: "library-gesture-have-an-idea",
     channel: "pose-clip",
-    contentName: "shy-finger-poke",
+    contentName: "Have an Idea",
     section: "gesture",
     proof: "pose",
-    target: { kind: "anima_pose_clip", runtimeId: "shy-finger-poke" },
-    requiredFiles: [
-      "eye_vv_r.png",
-      "emoji-sparkles-2728.svg",
-      "emoji-sparkling-heart-1f496.svg",
-    ],
+    target: { kind: "anima_pose_clip", runtimeId: "have_idea" },
+    requiredFiles: ["idea_bulb_fingertip.png"],
+    // The bulb event starts 2.6 s into the clip and shows its effect for
+    // 0.95 s; the proof keeps sampling until a sample inside that interval.
+    clip: {
+      avatarEffects: ["idea_bulb_fingertip"],
+      eventIds: ["idea-bulb"],
+      particleEffects: [],
+      sceneEffects: [],
+      expressionThresholds: {},
+    },
   },
 ] as const;
+
+/** The clip expectations a pose or reaction journey declares. */
+function clipExpectations(journey: LibraryJourney): ClipExpectations {
+  if (!journey.clip)
+    throw new Error(`${journey.key} declares no clip expectations.`);
+  return journey.clip;
+}
 
 for (const journey of JOURNEYS) {
   test(`${journey.key} @surface-library @channel-${journey.channel} @playback-representative @read-only`, async ({
@@ -165,26 +226,24 @@ for (const journey of JOURNEYS) {
               });
             });
           break;
-        case "reaction":
+        case "reaction": {
+          const clip = clipExpectations(journey);
           samples =
             await test.step("Assert reaction timing, expressions, fired events, and all VFX channels", async () => {
               return proveReactionPlayback({
                 evidence: animamaEvidence,
                 evidenceName: journey.key,
-                expectedAvatarEffects: ["star3"],
-                expectedEventIds: [
-                  "scene-emotion-background",
-                  "avatar-star3",
-                  "particle-hearts",
-                ],
-                expectedParticleEffects: ["hearts"],
-                expectedSceneEffects: ["scene-vfx-emotion-admiration"],
+                expectedAvatarEffects: clip.avatarEffects,
+                expectedEventIds: clip.eventIds,
+                expectedParticleEffects: clip.particleEffects,
+                expectedSceneEffects: clip.sceneEffects,
                 expectedTarget: journey.target,
-                expressionThresholds: { happy: 0.72, relaxed: 0.24 },
+                expressionThresholds: clip.expressionThresholds,
                 surface,
               });
             });
           break;
+        }
         case "vrma":
           samples =
             await test.step(`Assert VRMA ${journey.target.runtimeId} is active, weighted, and advancing`, async () => {
@@ -196,26 +255,23 @@ for (const journey of JOURNEYS) {
               });
             });
           break;
-        case "pose":
+        case "pose": {
+          const clip = clipExpectations(journey);
           samples =
             await test.step("Assert pose timing, resolved bones, fired events, and VFX channels", async () => {
               return provePoseClipPlayback({
                 evidence: animamaEvidence,
                 evidenceName: journey.key,
-                expectedAvatarEffects: ["eye_vv"],
-                expectedEventIds: [
-                  "scene-kawaii-sparkles",
-                  "avatar-eye-vv",
-                  "sfx-cute-slide",
-                  "scene-focus-light-streak",
-                ],
-                expectedSceneEffects: ["kawaii-sparkles", "light-streak"],
+                expectedAvatarEffects: clip.avatarEffects,
+                expectedEventIds: clip.eventIds,
+                expectedSceneEffects: clip.sceneEffects,
                 expectedTarget: journey.target,
                 maxMissingBones: 1,
                 surface,
               });
             });
           break;
+        }
       }
 
       await test.step(`Assert preview API selected ${journey.target.runtimeId} and loaded required resources`, async () => {

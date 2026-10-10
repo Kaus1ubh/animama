@@ -5,7 +5,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { createApplicationServer } from "./server.mjs";
 import { observeBrowser } from "./measurements.mjs";
-import { exerciseClipCompatibility } from "./clips.mjs";
+import { STEP_TIMEOUT_MS, exerciseClipCompatibility } from "./clips.mjs";
 
 // "candidate" is the set under validation; "previous" is the verified clean
 // predecessor or controlled byte-change variant that it upgrades from.
@@ -77,7 +77,7 @@ const context = await browser.newContext({
 });
 const observation = await observeBrowser(context, browser);
 const page = await context.newPage();
-page.setDefaultTimeout(15000);
+context.setDefaultTimeout(STEP_TIMEOUT_MS);
 const errors = [],
     consoleErrors = [],
     externalRequests = [],
@@ -267,7 +267,6 @@ try {
     // Route, static, shell, avatar and voice checks run on the candidate; only
     // the upgrade and rollback steps below select the previous app.
     server.select(candidate);
-    const candidateStart = server.calls.length;
     await admit("artifact-owner");
     for (const temperature of ["cold", "warm"]) {
         const started = Date.now(),
@@ -460,7 +459,17 @@ try {
             measured.completedEncodedPageNetworkBytes - byteStart;
     }
     await page.screenshot({ path: "whole-app-avatar.png", fullPage: true });
-    const voiceStart = Date.now();
+    assert.ok(
+        !server.calls.some(
+            (call) =>
+                call.method === "GET" &&
+                (call.path === workerPath(candidate) ||
+                    call.path.includes("/onnx/models/pocket-tts/")),
+        ),
+        "An owner with Text-to-Speech off loads no Pocket TTS before turning voice on",
+    );
+    const voiceStart = Date.now(),
+        callStart = server.calls.length;
     await voice("artifact-owner");
     await voiceReady();
     (await checkpoint("cold-first-voice-ready", candidate)).readyWallMs =
@@ -469,11 +478,10 @@ try {
     await chatPcm();
     (await checkpoint("cold-first-voice-playback", candidate)).firstPcmWallMs =
         Date.now() - pcmStart;
-    // Text-to-Speech is on by default, so the page may warm the worker as soon
-    // as an Anima opens; the voice action itself need not create it.
+    // Owners start with Text-to-Speech off, so the voice action creates it.
     assert.ok(
         server.calls
-            .slice(candidateStart)
+            .slice(callStart)
             .some(
                 (call) =>
                     call.method === "GET" &&
@@ -505,9 +513,9 @@ try {
         // must still resolve the previous app's bytes.
         server.select(previous);
         await admit("upgrade-owner", true);
-        // Text-to-Speech is on by default and warms its worker when an Anima
-        // renders, so the previous page opens on the Library and reaches the
-        // Anima only after the selection changes, without a reload.
+        // The previous page opens on the Library and reaches the Anima only
+        // after the selection changes, without a reload, so every worker it
+        // creates starts after the change.
         await page.goto(server.origin + "/library");
         await page
             .getByRole("heading", { name: "Library", exact: true })

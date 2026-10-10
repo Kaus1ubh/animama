@@ -551,9 +551,11 @@ export async function renderEffectThumbnail({
 
 /**
  * Render several thumbnails on one renderer page (one Vite server and browser
- * for the whole batch). `jobs` are `{ effect, outFile, framingScale?, time? }`
- * (`time` overrides the batch's). Every job is
- * attempted; `EffectRenderFailure` is thrown afterwards if any failed.
+ * for the whole batch). `jobs` are
+ * `{ effect, outFile, framingScale?, time?, clip? }`: `time` overrides the
+ * batch's, and `clip` (parsed Gesture clip JSON) poses the Avatar, sampled at
+ * the same time after applying as `--with-clip`. Every job is attempted;
+ * `EffectRenderFailure` is thrown afterwards if any failed.
  */
 export async function renderEffectThumbnails({
   jobs,
@@ -563,7 +565,7 @@ export async function renderEffectThumbnails({
 }) {
   const results = await withRendererPage({}, async (context) => {
     const results = [];
-    for (const { effect, outFile, framingScale, time: jobTime } of jobs) {
+    for (const { effect, outFile, framingScale, time: jobTime, clip } of jobs) {
       let result;
       try {
         result = await writeThumbnailOnPage(context, {
@@ -572,7 +574,7 @@ export async function renderEffectThumbnails({
           time: jobTime ?? time,
           size,
           expression: null,
-          clip: null,
+          clip: clip ?? null,
           framingScale,
         });
       } catch (error) {

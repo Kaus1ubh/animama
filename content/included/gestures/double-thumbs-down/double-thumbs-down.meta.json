@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:double-thumbs-down",
   "version": 1,
   "semantic_key": "double-thumbs-down",
-  "name": "double-thumbs-down",
+  "name": "Double Thumbs Down",
   "ai_description": "Give two thumbs down to express strong disapproval, rejection, or playful disappointment.",
   "implementation": {
     "kind": "anima_clip",

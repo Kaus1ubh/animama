@@ -52,6 +52,246 @@
     }
   ],
   "joints": {
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.5,
+          "beat": "lips"
+        },
+        {
+          "v": 2,
+          "beat": "kiss"
+        },
+        {
+          "v": 4,
+          "beat": "release"
+        },
+        {
+          "v": 3,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "lips"
+        },
+        {
+          "v": -4,
+          "beat": "release"
+        },
+        {
+          "v": -3.5,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "release"
+        },
+        {
+          "v": 1.5,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "lips",
+          "dt": -0.1
+        },
+        {
+          "v": 2.5,
+          "beat": "kiss"
+        },
+        {
+          "v": -2,
+          "beat": "release"
+        },
+        {
+          "v": -1.5,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "lips",
+          "dt": -0.1
+        },
+        {
+          "v": 3.5,
+          "beat": "kiss",
+          "dt": -0.12
+        },
+        {
+          "v": 3,
+          "beat": "kiss"
+        },
+        {
+          "v": -3,
+          "beat": "release",
+          "dt": -0.05
+        },
+        {
+          "v": -2,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -4,
+          "beat": "lips",
+          "dt": -0.1
+        },
+        {
+          "v": -5,
+          "beat": "kiss"
+        },
+        {
+          "v": -7,
+          "beat": "release"
+        },
+        {
+          "v": -6,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "lips",
+          "dt": -0.1
+        },
+        {
+          "v": -3,
+          "beat": "kiss"
+        },
+        {
+          "v": 1,
+          "beat": "release"
+        },
+        {
+          "v": 0.5,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "lips"
+        },
+        {
+          "v": 3,
+          "beat": "kiss"
+        },
+        {
+          "v": 7,
+          "beat": "release"
+        },
+        {
+          "v": 6,
+          "beat": "hold"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 4,
+          "beat": "lips"
+        },
+        {
+          "v": 4,
+          "beat": "kiss"
+        },
+        {
+          "v": 9,
+          "beat": "release"
+        },
+        {
+          "v": 8,
+          "beat": "hold"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
     "rightUpperArm": {
       "elevation": [
         {
@@ -59,24 +299,24 @@
           "beat": "start"
         },
         {
-          "v": 36,
+          "v": 34,
           "beat": "start",
           "dt": 0.25
         },
         {
-          "v": 52,
+          "v": 34,
           "beat": "lips"
         },
         {
-          "v": 52,
+          "v": 34,
           "beat": "kiss"
         },
         {
-          "v": 70,
+          "v": 72,
           "beat": "release"
         },
         {
-          "v": 66,
+          "v": 70,
           "beat": "hold"
         },
         {
@@ -90,24 +330,24 @@
           "beat": "start"
         },
         {
-          "v": 45,
+          "v": 65,
           "beat": "start",
           "dt": 0.25
         },
         {
-          "v": 80,
+          "v": 75,
           "beat": "lips"
         },
         {
-          "v": 80,
+          "v": 75,
           "beat": "kiss"
         },
         {
-          "v": 70,
+          "v": 75,
           "beat": "release"
         },
         {
-          "v": 70,
+          "v": 73,
           "beat": "hold"
         },
         {
@@ -121,24 +361,24 @@
           "beat": "start"
         },
         {
-          "v": 32,
-          "beat": "lips",
-          "dt": -0.2
+          "v": 55,
+          "beat": "start",
+          "dt": 0.25
         },
         {
-          "v": 66,
+          "v": 60,
           "beat": "lips"
         },
         {
-          "v": 66,
+          "v": 60,
           "beat": "kiss"
         },
         {
-          "v": 20,
+          "v": 88,
           "beat": "release"
         },
         {
-          "v": 20,
+          "v": 82,
           "beat": "hold"
         },
         {
@@ -154,35 +394,30 @@
           "beat": "start"
         },
         {
-          "v": 40,
+          "v": 44,
           "beat": "start",
-          "dt": 0.16
+          "dt": 0.15
         },
         {
-          "v": 95,
-          "beat": "lips",
-          "dt": -0.16
+          "v": 100,
+          "beat": "start",
+          "dt": 0.34
         },
         {
-          "v": 136,
+          "v": 132,
           "beat": "lips"
         },
         {
-          "v": 136,
+          "v": 132,
           "beat": "kiss"
         },
         {
-          "v": 92,
-          "beat": "release",
-          "dt": -0.15
-        },
-        {
-          "v": 30,
+          "v": 26,
           "beat": "release",
           "dt": 0.15
         },
         {
-          "v": 28,
+          "v": 30,
           "beat": "hold"
         },
         {
@@ -196,19 +431,29 @@
           "beat": "start"
         },
         {
-          "v": 0,
+          "v": 22,
+          "beat": "start",
+          "dt": 0.25
+        },
+        {
+          "v": 65,
           "beat": "lips"
         },
         {
-          "v": 0,
+          "v": 65,
           "beat": "kiss"
         },
         {
-          "v": 70,
+          "v": 75,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 80,
           "beat": "release"
         },
         {
-          "v": 70,
+          "v": 74,
           "beat": "hold"
         },
         {
@@ -224,19 +469,24 @@
           "beat": "start"
         },
         {
-          "v": 35,
+          "v": 12,
           "beat": "lips"
         },
         {
-          "v": 35,
+          "v": 12,
           "beat": "kiss"
         },
         {
-          "v": -15,
+          "v": -30,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": -20,
           "beat": "release"
         },
         {
-          "v": -12,
+          "v": -16,
           "beat": "hold"
         },
         {
@@ -244,73 +494,27 @@
           "beat": "settle"
         }
       ]
-    },
-    "head": {
-      "lateralFlexion": [
-        {
-          "v": 0,
-          "beat": "start"
-        },
-        {
-          "v": 5,
-          "beat": "lips"
-        },
-        {
-          "v": 7,
-          "beat": "release"
-        },
-        {
-          "v": 6,
-          "beat": "hold"
-        },
-        {
-          "v": 0,
-          "beat": "settle"
-        }
-      ],
-      "flexion": [
-        {
-          "v": 0,
-          "beat": "start"
-        },
-        {
-          "v": 3,
-          "beat": "lips"
-        },
-        {
-          "v": -3,
-          "beat": "release"
-        },
-        {
-          "v": 0,
-          "beat": "settle"
-        }
-      ]
-    },
-    "chest": {
-      "flexion": [
-        {
-          "v": 0,
-          "beat": "start"
-        },
-        {
-          "v": 1,
-          "beat": "kiss"
-        },
-        {
-          "v": 4,
-          "beat": "release"
-        },
-        {
-          "v": 3,
-          "beat": "hold"
-        },
-        {
-          "v": 0,
-          "beat": "settle"
-        }
-      ]
     }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.012,
+        "beat": "release"
+      },
+      {
+        "v": 0.01,
+        "beat": "hold"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
   },
   "hands": {
     "right": [
@@ -320,27 +524,51 @@
       },
       {
         "preset": "open-together",
-        "curl": 20,
+        "fingers": {
+          "index": {
+            "curl": [45, 0, 0]
+          },
+          "middle": {
+            "curl": [45, 0, 0]
+          },
+          "ring": {
+            "curl": [49, 0, 0]
+          },
+          "little": {
+            "curl": [53, 0, 0]
+          }
+        },
         "beat": "lips",
-        "dt": -0.1
+        "dt": -0.12
       },
       {
         "preset": "open-together",
-        "curl": 20,
+        "fingers": {
+          "index": {
+            "curl": [45, 0, 0]
+          },
+          "middle": {
+            "curl": [45, 0, 0]
+          },
+          "ring": {
+            "curl": [49, 0, 0]
+          },
+          "little": {
+            "curl": [53, 0, 0]
+          }
+        },
         "beat": "kiss",
-        "dt": 0.05
-      },
-      {
-        "preset": "open-together",
-        "spread": 8,
-        "beat": "release",
-        "dt": -0.05
-      },
-      {
-        "preset": "open-together",
-        "spread": 8,
-        "beat": "hold",
         "dt": 0.1
+      },
+      {
+        "preset": "open-spread",
+        "beat": "release"
+      },
+      {
+        "preset": "open-together",
+        "spread": 10,
+        "beat": "hold",
+        "dt": 0.05
       },
       {
         "preset": "relaxed",
@@ -356,19 +584,23 @@
         "beat": "start"
       },
       {
-        "v": 0.7,
+        "v": 0.5,
         "beat": "lips",
         "dt": -0.05
       },
       {
-        "v": 0.7,
+        "v": 0.55,
         "beat": "kiss",
-        "dt": 0.05
+        "dt": -0.12
+      },
+      {
+        "v": 0.5,
+        "beat": "kiss"
       },
       {
         "v": 0,
         "beat": "release",
-        "dt": -0.1
+        "dt": -0.12
       },
       {
         "v": 0,
@@ -381,17 +613,21 @@
         "beat": "start"
       },
       {
-        "v": 0.3,
+        "v": 0.32,
         "beat": "lips",
         "dt": -0.1
       },
       {
-        "v": 0.8,
+        "v": 0.38,
+        "beat": "kiss"
+      },
+      {
+        "v": 0.58,
         "beat": "release",
         "dt": -0.05
       },
       {
-        "v": 0.75,
+        "v": 0.55,
         "beat": "hold",
         "dt": 0.1
       },
@@ -400,7 +636,7 @@
         "beat": "settle"
       }
     ],
-    "blinkLeft": [
+    "blinkRight": [
       {
         "v": 0,
         "beat": "start"
@@ -432,10 +668,16 @@
       "bone": "rightIndexDistal",
       "target": "head",
       "beat": "lips",
-      "from": 0,
+      "from": 0.06,
       "to": 0.3,
-      "offset": [0.025, 0.009, 0.12],
-      "tolerance": 0.05
+      "offset": [-0.009, 0.004, 0.115],
+      "tolerance": 0.015,
+      "point": "tip",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.16,
+        "blendOut": 0.16
+      }
     }
   ]
 }

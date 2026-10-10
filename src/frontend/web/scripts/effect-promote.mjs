@@ -1,15 +1,13 @@
 import { readFileSync, readdirSync, statSync } from "node:fs";
-import {
-  mkdir,
-  readFile,
-  readdir,
-  rm,
-  rmdir,
-  writeFile,
-} from "node:fs/promises";
+import { mkdir, readFile, rm, rmdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import { sourceAssets } from "./effect-check.mjs";
+import {
+  includedActionDependencies,
+  includedContentTypes,
+  listIncludedMetas,
+} from "./included-dependencies.mjs";
 
 /**
  * `pnpm -s effects promote <items.json> [--dry-run]`: write owner-approved
@@ -129,13 +127,6 @@ const REACTION_BODY_FIELDS = [
   "basePose",
   "mutedProceduralLayers",
 ];
-/** The alias field and dependency type of each event that plays content. */
-const EVENT_DEPENDENCIES = {
-  avatar_vfx: ["effectId", "avatar_effect"],
-  particle_vfx: ["effectId", "particle_effect"],
-  scene_vfx: ["presetId", "scene_effect"],
-  sfx: ["cueId", "sound_effect"],
-};
 /** What a replace keeps from the Included clip: identity and lifetime. */
 const KEPT_CLIP_FIELDS = ["id", "role", "playback", "loop"];
 
@@ -355,11 +346,7 @@ export async function planEffectPromotion(
   // content ID Included after this run, and the Included ID each promoted
   // effect source becomes.
   const metas = await repo.includedMetas();
-  const includedTypes = new Map(
-    metas
-      .filter(({ value }) => typeof value.content_id === "string")
-      .map(({ value }) => [value.content_id, value.content_type]),
-  );
+  const includedTypes = includedContentTypes(metas);
   const promotedRefs = new Map();
   const targets = new Map();
   for (const item of effectItems) {
@@ -819,42 +806,15 @@ function planAction(
       if (isSet(clip[field]))
         fail(`Reactions are expression-only; the clip sets ${field}.`);
 
-  const dependencies = [];
-  const declared = new Map();
-  for (const dependency of Array.isArray(project.dependencies)
-    ? project.dependencies
-    : []) {
-    const { alias, ref, content_type: contentType } = dependency ?? {};
-    if (
-      typeof alias !== "string" ||
-      typeof ref !== "string" ||
-      typeof contentType !== "string"
-    )
-      fail('each dependency needs "alias", "ref" and "content_type".');
-    if (declared.has(alias)) fail(`dependency alias "${alias}" repeats.`);
-    const included = promotedRefs.get(ref) ?? ref;
-    if (!includedTypes.has(included))
-      fail(
-        `dependency "${alias}" (${ref}) is not Included content after this promotion; promote it in the same run.`,
-      );
-    if (includedTypes.get(included) !== contentType)
-      fail(
-        `dependency "${alias}" is declared as a ${contentType}, but ${included} is a ${includedTypes.get(included)}.`,
-      );
-    declared.set(alias, contentType);
-    dependencies.push({
-      ref: included,
-      alias,
-      content_type: contentType,
-      config: dependency.config ?? {},
-    });
-  }
-  for (const event of Array.isArray(clip.events) ? clip.events : []) {
-    const [field, contentType] = EVENT_DEPENDENCIES[event?.kind] ?? [];
-    if (field && declared.get(event[field]) !== contentType)
-      fail(
-        `event "${event.id}" plays "${event[field]}", which no dependency declares as a ${contentType.replace("_", " ")}.`,
-      );
+  let dependencies;
+  try {
+    dependencies = includedActionDependencies(
+      project.dependencies,
+      clip.events,
+      { includedTypes, promotedRefs },
+    );
+  } catch (error) {
+    fail(error.message);
   }
 
   return {
@@ -922,36 +882,7 @@ export function workingTreeRepo(root) {
       walk("content/included");
       return matches.sort();
     },
-    async includedMetas() {
-      const metas = [];
-      const walk = async (relative) => {
-        for (const entry of await readdir(path.join(root, relative), {
-          withFileTypes: true,
-        })) {
-          const child = `${relative}/${entry.name}`;
-          if (entry.isDirectory()) await walk(child);
-          else if (
-            entry.name.endsWith(".json") &&
-            !entry.name.endsWith(".review.json")
-          ) {
-            try {
-              const value = JSON.parse(
-                await readFile(path.join(root, child), "utf8"),
-              );
-              if (
-                typeof value?.content_id === "string" ||
-                Array.isArray(value?.dependencies)
-              )
-                metas.push({ path: child, value });
-            } catch {
-              // Not a descriptor.
-            }
-          }
-        }
-      };
-      await walk("content/included");
-      return metas;
-    },
+    includedMetas: () => listIncludedMetas(root, { readFileSync, readdirSync }),
   };
 }
 

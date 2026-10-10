@@ -64,85 +64,60 @@
           "beat": "start"
         },
         {
-          "v": 2,
+          "v": 1,
           "beat": "anticipate"
         },
         {
-          "v": -6.5,
+          "v": -3,
           "beat": "burst"
         },
         {
-          "v": -8,
+          "v": -2.45,
           "beat": "burst",
-          "dt": 0.139
+          "dt": 0.28
         },
         {
-          "v": -6.88,
-          "beat": "burst",
-          "dt": 0.22
-        },
-        {
-          "v": -8,
+          "v": -3.25,
           "beat": "laughing",
-          "dt": -0.263
+          "dt": -0.13
         },
         {
-          "v": -6.58,
-          "beat": "laughing",
-          "dt": -0.21
-        },
-        {
-          "v": -8,
-          "beat": "laughing",
-          "dt": -0.049
-        },
-        {
-          "v": -7.1,
+          "v": -2.81,
           "beat": "laughing",
           "dt": 0.06
         },
         {
-          "v": -8,
+          "v": -3.386,
           "beat": "laughing",
-          "dt": 0.172
+          "dt": 0.25
         },
         {
-          "v": -6.72,
+          "v": -3.013,
           "beat": "laughing",
-          "dt": 0.22
+          "dt": 0.44
         },
         {
-          "v": -8,
-          "beat": "laughing",
-          "dt": 0.404
-        },
-        {
-          "v": -7.17,
-          "beat": "laughing",
-          "dt": 0.54
-        },
-        {
-          "v": -8,
+          "v": -3.373,
           "beat": "recover",
-          "dt": -0.53
+          "dt": -0.57
         },
         {
-          "v": -7.4,
+          "v": -3.05,
           "beat": "recover",
-          "dt": -0.46
+          "dt": -0.38
         },
         {
-          "v": -6.27,
+          "v": -3.21,
           "beat": "recover",
-          "dt": -0.195
+          "dt": -0.19
         },
         {
-          "v": -3.84,
+          "v": -2,
           "beat": "recover",
           "dt": 0.04
         },
         {
-          "v": 2,
+          "v": 1.2,
           "beat": "rebound",
           "dt": -0.02
         },
@@ -157,16 +132,16 @@
           "beat": "start"
         },
         {
-          "v": -2,
+          "v": -1.5,
           "beat": "burst"
         },
         {
-          "v": 2,
+          "v": 1.5,
           "beat": "laughing",
           "dt": 0.3
         },
         {
-          "v": 1,
+          "v": 0.5,
           "beat": "recover"
         },
         {
@@ -182,88 +157,63 @@
           "beat": "start"
         },
         {
-          "v": 3,
-          "beat": "anticipate"
+          "v": 1.5,
+          "beat": "anticipate",
+          "dt": 0.015
         },
         {
-          "v": -5,
+          "v": -3.5,
           "beat": "burst",
-          "dt": -0.02
+          "dt": 0.03
         },
         {
-          "v": -8,
-          "beat": "burst",
-          "dt": 0.119
-        },
-        {
-          "v": -5.75,
-          "beat": "burst",
-          "dt": 0.2
-        },
-        {
-          "v": -8,
+          "v": -2.8,
           "beat": "laughing",
-          "dt": -0.283
+          "dt": -0.29
         },
         {
-          "v": -5.15,
+          "v": -3.75,
           "beat": "laughing",
-          "dt": -0.23
+          "dt": -0.1
         },
         {
-          "v": -8,
+          "v": -3.202,
           "beat": "laughing",
-          "dt": -0.069
+          "dt": 0.09
         },
         {
-          "v": -6.2,
+          "v": -3.886,
           "beat": "laughing",
-          "dt": 0.04
+          "dt": 0.28
         },
         {
-          "v": -8,
+          "v": -3.445,
           "beat": "laughing",
-          "dt": 0.152
+          "dt": 0.47
         },
         {
-          "v": -5.45,
-          "beat": "laughing",
-          "dt": 0.2
-        },
-        {
-          "v": -8,
-          "beat": "laughing",
-          "dt": 0.384
-        },
-        {
-          "v": -6.35,
-          "beat": "laughing",
-          "dt": 0.52
-        },
-        {
-          "v": -8,
+          "v": -3.873,
           "beat": "recover",
-          "dt": -0.55
+          "dt": -0.54
         },
         {
-          "v": -6.8,
+          "v": -3.52,
           "beat": "recover",
-          "dt": -0.48
+          "dt": -0.35
         },
         {
-          "v": -6.44,
+          "v": -3.71,
           "beat": "recover",
-          "dt": -0.215
+          "dt": -0.16
         },
         {
-          "v": -3.56,
+          "v": -2.2,
           "beat": "recover",
-          "dt": 0.02
+          "dt": 0.07
         },
         {
-          "v": 2,
-          "beat": "rebound",
-          "dt": -0.02
+          "v": 1.5,
+          "beat": "rebound"
         },
         {
           "v": 0,
@@ -276,17 +226,17 @@
           "beat": "start"
         },
         {
-          "v": 3,
+          "v": 2.5,
           "beat": "burst",
           "dt": -0.05
         },
         {
-          "v": -2,
+          "v": -1.5,
           "beat": "laughing",
           "dt": 0.1
         },
         {
-          "v": 2,
+          "v": 1,
           "beat": "recover",
           "dt": -0.2
         },
@@ -303,88 +253,64 @@
           "beat": "start"
         },
         {
-          "v": 2,
-          "beat": "anticipate"
+          "v": 1,
+          "beat": "anticipate",
+          "dt": 0.02
         },
         {
-          "v": -4.5,
+          "v": -3,
           "beat": "burst",
-          "dt": -0.01
+          "dt": 0.04
         },
         {
-          "v": -7,
-          "beat": "burst",
-          "dt": 0.129
-        },
-        {
-          "v": -5.12,
-          "beat": "burst",
-          "dt": 0.21
-        },
-        {
-          "v": -7,
+          "v": -2.55,
           "beat": "laughing",
-          "dt": -0.273
+          "dt": -0.28
         },
         {
-          "v": -4.62,
+          "v": -3.25,
           "beat": "laughing",
-          "dt": -0.22
+          "dt": -0.09
         },
         {
-          "v": -7,
+          "v": -2.882,
           "beat": "laughing",
-          "dt": -0.059
+          "dt": 0.1
         },
         {
-          "v": -5.5,
+          "v": -3.386,
           "beat": "laughing",
-          "dt": 0.05
+          "dt": 0.29
         },
         {
-          "v": -7,
+          "v": -3.058,
           "beat": "laughing",
-          "dt": 0.162
+          "dt": 0.48
         },
         {
-          "v": -4.88,
-          "beat": "laughing",
-          "dt": 0.21
-        },
-        {
-          "v": -7,
-          "beat": "laughing",
-          "dt": 0.394
-        },
-        {
-          "v": -5.62,
-          "beat": "laughing",
-          "dt": 0.53
-        },
-        {
-          "v": -7,
+          "v": -3.373,
           "beat": "recover",
-          "dt": -0.54
+          "dt": -0.53
         },
         {
-          "v": -6,
+          "v": -3.07,
           "beat": "recover",
-          "dt": -0.47
+          "dt": -0.34
         },
         {
-          "v": -5.56,
+          "v": -3.21,
           "beat": "recover",
-          "dt": -0.205
+          "dt": -0.15
         },
         {
-          "v": -3.08,
+          "v": -1.8,
           "beat": "recover",
-          "dt": 0.03
+          "dt": 0.08
         },
         {
-          "v": 2,
+          "v": 1,
           "beat": "rebound",
-          "dt": -0.02
+          "dt": 0.01
         },
         {
           "v": 0,
@@ -399,27 +325,27 @@
           "beat": "start"
         },
         {
-          "v": 3,
+          "v": 2,
           "beat": "anticipate",
           "dt": 0.02
         },
         {
-          "v": -7,
+          "v": -4,
           "beat": "burst",
           "dt": -0.05
         },
         {
-          "v": -6,
+          "v": -3.5,
           "beat": "laughing",
           "dt": 0.3
         },
         {
-          "v": -3,
+          "v": -2,
           "beat": "recover",
           "dt": -0.2
         },
         {
-          "v": 2,
+          "v": 1.5,
           "beat": "rebound"
         },
         {
@@ -435,87 +361,62 @@
           "beat": "start"
         },
         {
-          "v": 4,
+          "v": 3,
           "beat": "anticipate",
           "dt": 0.02
         },
         {
-          "v": -3.5,
+          "v": -5,
           "beat": "burst",
           "dt": 0.03
         },
         {
-          "v": -7,
-          "beat": "burst",
-          "dt": 0.169
-        },
-        {
-          "v": -4.38,
-          "beat": "burst",
-          "dt": 0.25
-        },
-        {
-          "v": -7,
+          "v": -4.45,
           "beat": "laughing",
-          "dt": -0.233
+          "dt": -0.25
         },
         {
-          "v": -3.68,
+          "v": -5.35,
           "beat": "laughing",
-          "dt": -0.18
+          "dt": -0.06
         },
         {
-          "v": -7,
+          "v": -4.76,
           "beat": "laughing",
-          "dt": -0.019
+          "dt": 0.13
         },
         {
-          "v": -4.9,
+          "v": -5.408,
           "beat": "laughing",
-          "dt": 0.09
+          "dt": 0.32
         },
         {
-          "v": -7,
+          "v": -4.962,
           "beat": "laughing",
-          "dt": 0.202
+          "dt": 0.51
         },
         {
-          "v": -4.03,
-          "beat": "laughing",
-          "dt": 0.25
-        },
-        {
-          "v": -7,
-          "beat": "laughing",
-          "dt": 0.434
-        },
-        {
-          "v": -5.07,
-          "beat": "laughing",
-          "dt": 0.57
-        },
-        {
-          "v": -7,
+          "v": -5.367,
           "beat": "recover",
           "dt": -0.5
         },
         {
-          "v": -5.6,
+          "v": -5.05,
           "beat": "recover",
-          "dt": -0.43
+          "dt": -0.31
         },
         {
-          "v": -5.27,
+          "v": -5.23,
           "beat": "recover",
-          "dt": -0.165
+          "dt": -0.12
         },
         {
-          "v": -2.49,
+          "v": -2.5,
           "beat": "recover",
           "dt": 0.07
         },
         {
-          "v": 3.5,
+          "v": 2.5,
           "beat": "rebound",
           "dt": 0.08
         },
@@ -531,7 +432,7 @@
           "beat": "start"
         },
         {
-          "v": 6,
+          "v": 5,
           "beat": "burst"
         },
         {
@@ -540,12 +441,12 @@
           "dt": 0.1
         },
         {
-          "v": 7,
+          "v": 5,
           "beat": "recover",
           "dt": -0.5
         },
         {
-          "v": 2,
+          "v": 1.5,
           "beat": "rebound",
           "dt": -0.1
         },
@@ -560,17 +461,17 @@
           "beat": "start"
         },
         {
-          "v": -4,
+          "v": -3.5,
           "beat": "burst",
           "dt": -0.1
         },
         {
-          "v": 3,
+          "v": 2.5,
           "beat": "laughing",
           "dt": 0.2
         },
         {
-          "v": -2,
+          "v": -1.5,
           "beat": "recover",
           "dt": -0.1
         },
@@ -587,89 +488,64 @@
           "beat": "start"
         },
         {
-          "v": 4,
+          "v": 1,
           "beat": "anticipate",
           "dt": 0.02
         },
         {
-          "v": 6.6,
+          "v": 1.5,
           "beat": "burst",
-          "dt": 0.005
+          "dt": 0.05
         },
         {
-          "v": -0.9,
-          "beat": "burst",
-          "dt": 0.144
-        },
-        {
-          "v": 4.72,
-          "beat": "burst",
-          "dt": 0.225
-        },
-        {
-          "v": -0.9,
+          "v": 3.7,
           "beat": "laughing",
-          "dt": -0.258
+          "dt": -0.27
         },
         {
-          "v": 6.22,
+          "v": 0.7,
           "beat": "laughing",
-          "dt": -0.205
+          "dt": -0.08
         },
         {
-          "v": -0.9,
+          "v": 2.86,
           "beat": "laughing",
-          "dt": -0.043
+          "dt": 0.11
         },
         {
-          "v": 3.6,
+          "v": 0.8,
           "beat": "laughing",
-          "dt": 0.065
+          "dt": 0.3
         },
         {
-          "v": -0.9,
+          "v": 2.05,
           "beat": "laughing",
-          "dt": 0.177
+          "dt": 0.49
         },
         {
-          "v": 5.47,
-          "beat": "laughing",
-          "dt": 0.225
-        },
-        {
-          "v": -0.9,
-          "beat": "laughing",
-          "dt": 0.409
-        },
-        {
-          "v": 3.23,
-          "beat": "laughing",
-          "dt": 0.545
-        },
-        {
-          "v": -0.9,
+          "v": 0.9,
           "beat": "recover",
-          "dt": -0.525
+          "dt": -0.52
         },
         {
-          "v": 2.1,
+          "v": 1.3,
           "beat": "recover",
-          "dt": -0.455
+          "dt": -0.33
         },
         {
-          "v": -1.34,
+          "v": 1,
           "beat": "recover",
-          "dt": -0.19
+          "dt": -0.14
         },
         {
-          "v": 0.41,
+          "v": 0,
           "beat": "recover",
-          "dt": 0.045
+          "dt": 0.1
         },
         {
           "v": "base",
           "beat": "rebound",
-          "dt": 0.15
+          "dt": 0.2
         }
       ],
       "protraction": [
@@ -678,11 +554,11 @@
           "beat": "start"
         },
         {
-          "v": -5,
+          "v": -2,
           "beat": "burst"
         },
         {
-          "v": -2,
+          "v": -1,
           "beat": "recover",
           "dt": -0.2
         },
@@ -690,6 +566,94 @@
           "v": "base",
           "beat": "rebound",
           "dt": 0.25
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 0.8,
+          "beat": "anticipate",
+          "dt": 0.02
+        },
+        {
+          "v": 1.5,
+          "beat": "burst",
+          "dt": 0.07
+        },
+        {
+          "v": 3.2,
+          "beat": "laughing",
+          "dt": -0.25
+        },
+        {
+          "v": 0.7,
+          "beat": "laughing",
+          "dt": -0.06
+        },
+        {
+          "v": 2.5,
+          "beat": "laughing",
+          "dt": 0.13
+        },
+        {
+          "v": 0.8,
+          "beat": "laughing",
+          "dt": 0.32
+        },
+        {
+          "v": 1.825,
+          "beat": "laughing",
+          "dt": 0.51
+        },
+        {
+          "v": 0.9,
+          "beat": "recover",
+          "dt": -0.5
+        },
+        {
+          "v": 1.2,
+          "beat": "recover",
+          "dt": -0.31
+        },
+        {
+          "v": 1,
+          "beat": "recover",
+          "dt": -0.12
+        },
+        {
+          "v": 0,
+          "beat": "recover",
+          "dt": 0.12
+        },
+        {
+          "v": "base",
+          "beat": "rebound",
+          "dt": 0.22
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -1.5,
+          "beat": "burst"
+        },
+        {
+          "v": -1,
+          "beat": "recover",
+          "dt": -0.2
+        },
+        {
+          "v": "base",
+          "beat": "rebound",
+          "dt": 0.2
         }
       ]
     },
@@ -710,72 +674,22 @@
           "dt": 0.06
         },
         {
-          "v": 31,
-          "beat": "burst",
-          "dt": 0.199
-        },
-        {
-          "v": 33.25,
-          "beat": "burst",
-          "dt": 0.28
-        },
-        {
-          "v": 31,
+          "v": 33,
           "beat": "laughing",
-          "dt": -0.203
+          "dt": 0.1
         },
         {
-          "v": 33.85,
+          "v": 33.5,
           "beat": "laughing",
-          "dt": -0.15
+          "dt": 0.8
         },
         {
-          "v": 31,
-          "beat": "laughing",
-          "dt": 0.012
-        },
-        {
-          "v": 32.8,
-          "beat": "laughing",
-          "dt": 0.12
-        },
-        {
-          "v": 31,
-          "beat": "laughing",
-          "dt": 0.232
-        },
-        {
-          "v": 33.55,
-          "beat": "laughing",
-          "dt": 0.28
-        },
-        {
-          "v": 31,
-          "beat": "laughing",
-          "dt": 0.464
-        },
-        {
-          "v": 32.65,
-          "beat": "laughing",
-          "dt": 0.6
-        },
-        {
-          "v": 31,
+          "v": 29,
           "beat": "recover",
-          "dt": -0.47
+          "dt": -0.14
         },
         {
-          "v": 32.2,
-          "beat": "recover",
-          "dt": -0.4
-        },
-        {
-          "v": 26.98,
-          "beat": "recover",
-          "dt": -0.135
-        },
-        {
-          "v": 24.32,
+          "v": 24.5,
           "beat": "recover",
           "dt": 0.1
         },
@@ -864,72 +778,22 @@
           "dt": 0.1
         },
         {
-          "v": 80,
-          "beat": "burst",
-          "dt": 0.239
-        },
-        {
-          "v": 82.25,
+          "v": 81.5,
           "beat": "laughing",
-          "dt": -0.28
+          "dt": 0.2
         },
         {
-          "v": 80,
+          "v": 82.5,
           "beat": "laughing",
-          "dt": -0.164
+          "dt": 0.8
         },
         {
-          "v": 82.85,
-          "beat": "laughing",
-          "dt": -0.11
-        },
-        {
-          "v": 80,
-          "beat": "laughing",
-          "dt": 0.051
-        },
-        {
-          "v": 81.8,
-          "beat": "laughing",
-          "dt": 0.16
-        },
-        {
-          "v": 80,
-          "beat": "laughing",
-          "dt": 0.272
-        },
-        {
-          "v": 82.55,
-          "beat": "laughing",
-          "dt": 0.32
-        },
-        {
-          "v": 80,
-          "beat": "laughing",
-          "dt": 0.504
-        },
-        {
-          "v": 81.65,
+          "v": 60,
           "beat": "recover",
-          "dt": -0.56
+          "dt": -0.1
         },
         {
-          "v": 80,
-          "beat": "recover",
-          "dt": -0.43
-        },
-        {
-          "v": 78.07,
-          "beat": "recover",
-          "dt": -0.36
-        },
-        {
-          "v": 56.11,
-          "beat": "recover",
-          "dt": -0.095
-        },
-        {
-          "v": 38.61,
+          "v": 40,
           "beat": "recover",
           "dt": 0.14
         },
@@ -977,7 +841,7 @@
           "beat": "burst"
         },
         {
-          "v": 14,
+          "v": 13,
           "beat": "laughing",
           "dt": 0.4
         },
@@ -993,89 +857,6 @@
         }
       ]
     },
-    "leftShoulder": {
-      "elevation": [
-        {
-          "v": "base",
-          "beat": "start"
-        },
-        {
-          "v": 3,
-          "beat": "anticipate",
-          "dt": 0.02
-        },
-        {
-          "v": 6,
-          "beat": "burst",
-          "dt": -0.02
-        },
-        {
-          "v": -0.382,
-          "beat": "burst",
-          "dt": 0.1
-        },
-        {
-          "v": 5.043,
-          "beat": "burst",
-          "dt": 0.22
-        },
-        {
-          "v": 0.431,
-          "beat": "laughing",
-          "dt": -0.26
-        },
-        {
-          "v": 4.351,
-          "beat": "laughing",
-          "dt": -0.14
-        },
-        {
-          "v": 1.019,
-          "beat": "laughing",
-          "dt": -0.02
-        },
-        {
-          "v": 3.851,
-          "beat": "laughing",
-          "dt": 0.1
-        },
-        {
-          "v": 1.444,
-          "beat": "laughing",
-          "dt": 0.22
-        },
-        {
-          "v": 3.49,
-          "beat": "laughing",
-          "dt": 0.34
-        },
-        {
-          "v": 1.751,
-          "beat": "laughing",
-          "dt": 0.46
-        },
-        {
-          "v": 3.229,
-          "beat": "laughing",
-          "dt": 0.58
-        },
-        {
-          "v": 1.973,
-          "beat": "recover",
-          "dt": -0.5
-        },
-        {
-          "v": 0.3,
-          "beat": "recover",
-          "dt": 0.02
-        },
-        {
-          "v": "base",
-          "beat": "rebound",
-          "dt": 0.1
-        }
-      ]
-    },
     "leftUpperArm": {
       "elevation": [
         {
@@ -1083,72 +864,58 @@
           "beat": "start"
         },
         {
-          "v": 18,
+          "v": 18.5,
           "beat": "burst",
-          "dt": -0.2
+          "dt": -0.18
         },
         {
-          "v": 25,
-          "beat": "burst"
-        },
-        {
-          "v": 15.75,
+          "v": 21.5,
           "beat": "burst",
-          "dt": 0.12
+          "dt": 0.06
         },
         {
-          "v": 23.613,
-          "beat": "burst",
-          "dt": 0.24
-        },
-        {
-          "v": 16.929,
+          "v": 22.2,
           "beat": "laughing",
-          "dt": -0.24
+          "dt": -0.22
         },
         {
-          "v": 22.61,
+          "v": 21,
           "beat": "laughing",
-          "dt": -0.12
+          "dt": -0.03
         },
         {
-          "v": 17.781,
-          "beat": "laughing"
-        },
-        {
-          "v": 21.886,
+          "v": 21.864,
           "beat": "laughing",
-          "dt": 0.12
+          "dt": 0.16
         },
         {
-          "v": 18.397,
+          "v": 21,
           "beat": "laughing",
-          "dt": 0.24
+          "dt": 0.35
         },
         {
-          "v": 21.362,
+          "v": 21.54,
           "beat": "laughing",
-          "dt": 0.36
+          "dt": 0.54
         },
         {
-          "v": 18.842,
-          "beat": "laughing",
-          "dt": 0.48
-        },
-        {
-          "v": 20.984,
+          "v": 21,
           "beat": "recover",
-          "dt": -0.6
+          "dt": -0.47
         },
         {
-          "v": 19.163,
+          "v": 21.24,
           "beat": "recover",
-          "dt": -0.48
+          "dt": -0.28
         },
         {
-          "v": 18,
+          "v": 21,
           "beat": "recover",
-          "dt": -0.1
+          "dt": -0.09
+        },
+        {
+          "v": 20,
+          "beat": "recover"
         },
         {
           "v": "base",
@@ -1162,19 +929,19 @@
           "beat": "start"
         },
         {
-          "v": 50,
+          "v": 12,
           "beat": "burst",
-          "dt": -0.2
+          "dt": -0.15
         },
         {
-          "v": 50,
+          "v": 10,
           "beat": "recover",
           "dt": -0.1
         },
         {
           "v": "base",
           "beat": "rebound",
-          "dt": 0.1
+          "dt": 0.15
         }
       ],
       "rotation": [
@@ -1183,19 +950,19 @@
           "beat": "start"
         },
         {
-          "v": 2,
+          "v": -6,
           "beat": "burst",
-          "dt": -0.2
+          "dt": -0.1
         },
         {
-          "v": 2,
+          "v": -4,
           "beat": "recover",
           "dt": -0.1
         },
         {
           "v": "base",
           "beat": "rebound",
-          "dt": 0.1
+          "dt": 0.15
         }
       ]
     },
@@ -1206,77 +973,63 @@
           "beat": "start"
         },
         {
+          "v": 18,
+          "beat": "burst",
+          "dt": -0.15
+        },
+        {
+          "v": 26,
+          "beat": "burst",
+          "dt": 0.1
+        },
+        {
           "v": 28,
-          "beat": "burst",
-          "dt": -0.2
-        },
-        {
-          "v": 8,
-          "beat": "burst"
-        },
-        {
-          "v": 30,
-          "beat": "burst",
-          "dt": 0.24
-        },
-        {
-          "v": 9.65,
           "beat": "laughing",
-          "dt": -0.24
+          "dt": -0.19
         },
         {
-          "v": 26.947,
-          "beat": "laughing",
-          "dt": -0.12
-        },
-        {
-          "v": 12.245,
+          "v": 24,
           "beat": "laughing"
         },
         {
-          "v": 24.742,
+          "v": 26.88,
           "beat": "laughing",
-          "dt": 0.12
+          "dt": 0.19
         },
         {
-          "v": 14.119,
+          "v": 24,
           "beat": "laughing",
-          "dt": 0.24
+          "dt": 0.38
         },
         {
-          "v": 23.149,
+          "v": 25.8,
           "beat": "laughing",
-          "dt": 0.36
+          "dt": 0.57
         },
         {
-          "v": 15.474,
-          "beat": "laughing",
-          "dt": 0.48
-        },
-        {
-          "v": 21.997,
+          "v": 24,
           "beat": "recover",
-          "dt": -0.6
+          "dt": -0.44
         },
         {
-          "v": 16.452,
+          "v": 24.8,
           "beat": "recover",
-          "dt": -0.48
+          "dt": -0.25
         },
         {
-          "v": 21.166,
+          "v": 24,
           "beat": "recover",
-          "dt": -0.36
+          "dt": -0.06
         },
         {
-          "v": 12,
+          "v": 18,
           "beat": "recover",
-          "dt": -0.05
+          "dt": 0.02
         },
         {
           "v": "base",
           "beat": "rebound",
-          "dt": 0.1
+          "dt": 0.2
         }
       ],
       "supination": [
@@ -1285,19 +1038,18 @@
           "beat": "start"
         },
         {
-          "v": -5,
+          "v": 6,
           "beat": "burst",
-          "dt": -0.2
+          "dt": -0.1
         },
         {
-          "v": -5,
-          "beat": "recover",
-          "dt": -0.1
+          "v": 4,
+          "beat": "recover"
         },
         {
           "v": "base",
           "beat": "rebound",
-          "dt": 0.1
+          "dt": 0.2
         }
       ]
     },
@@ -1309,18 +1061,27 @@
         },
         {
           "v": 12,
-          "beat": "burst",
-          "dt": -0.2
+          "beat": "burst"
         },
         {
-          "v": 12,
+          "v": 8,
+          "beat": "laughing",
+          "dt": -0.1
+        },
+        {
+          "v": 13,
+          "beat": "laughing",
+          "dt": 0.5
+        },
+        {
+          "v": 9,
           "beat": "recover",
           "dt": -0.1
         },
         {
           "v": "base",
-          "beat": "rebound",
-          "dt": 0.1
+          "beat": "settle",
+          "dt": -0.2
         }
       ]
     }
@@ -1337,12 +1098,12 @@
         "dt": 0.02
       },
       {
-        "v": 0.025,
+        "v": 0.015,
         "beat": "burst",
         "dt": -0.05
       },
       {
-        "v": 0.02,
+        "v": 0.013,
         "beat": "recover",
         "dt": -0.4
       },
@@ -1362,7 +1123,7 @@
         "beat": "start"
       },
       {
-        "v": -0.006,
+        "v": -0.005,
         "beat": "anticipate",
         "dt": 0.02
       },
@@ -1371,19 +1132,14 @@
         "beat": "burst"
       },
       {
-        "v": -0.007,
+        "v": -0.005,
         "beat": "laughing",
-        "dt": -0.22
-      },
-      {
-        "v": -0.004,
-        "beat": "laughing",
-        "dt": 0.22
+        "dt": -0.2
       },
       {
         "v": -0.003,
-        "beat": "recover",
-        "dt": -0.4
+        "beat": "laughing",
+        "dt": 0.7
       },
       {
         "v": 0,
@@ -1397,17 +1153,17 @@
         "beat": "start"
       },
       {
-        "v": -0.008,
+        "v": -0.006,
         "beat": "burst",
         "dt": 0.1
       },
       {
-        "v": 0.006,
+        "v": 0.004,
         "beat": "laughing",
         "dt": 0.4
       },
       {
-        "v": 0.002,
+        "v": 0.001,
         "beat": "recover",
         "dt": 0.1
       },
@@ -1424,16 +1180,14 @@
         "beat": "start"
       },
       {
-        "preset": "relaxed",
-        "curl": 10,
-        "spread": 4,
+        "preset": "cupped",
+        "curl": -6,
         "beat": "burst",
         "dt": -0.18
       },
       {
-        "preset": "relaxed",
+        "preset": "cupped",
         "curl": -6,
-        "spread": 3,
         "beat": "recover",
         "dt": -0.1
       },
@@ -1449,14 +1203,16 @@
         "beat": "start"
       },
       {
-        "preset": "open-together",
-        "spread": 4,
+        "preset": "relaxed",
+        "curl": -4,
+        "spread": 5,
         "beat": "burst",
         "dt": -0.15
       },
       {
-        "preset": "open-together",
-        "spread": 4,
+        "preset": "relaxed",
+        "curl": -3,
+        "spread": 3,
         "beat": "recover",
         "dt": -0.05
       },
@@ -1474,26 +1230,26 @@
         "beat": "start"
       },
       {
-        "v": 0.6,
+        "v": 0.55,
         "beat": "anticipate",
         "dt": 0.12
       },
       {
-        "v": 0.9,
+        "v": 0.82,
         "beat": "burst"
       },
       {
-        "v": 0.85,
+        "v": 0.78,
         "beat": "recover",
         "dt": -0.2
       },
       {
-        "v": 0.75,
+        "v": 0.65,
         "beat": "recover",
         "dt": 0.2
       },
       {
-        "v": 0.6,
+        "v": 0.45,
         "beat": "rebound",
         "dt": 0.15
       },
@@ -1509,91 +1265,57 @@
         "beat": "start"
       },
       {
-        "v": 0.1,
+        "v": 0.08,
         "beat": "anticipate",
         "dt": 0.07
       },
       {
-        "v": 0.25,
+        "v": 0.3,
         "beat": "burst",
-        "dt": -0.08
+        "dt": -0.06
       },
       {
-        "v": 0.75,
-        "beat": "burst"
-      },
-      {
-        "v": 0.188,
+        "v": 0.5,
         "beat": "burst",
-        "dt": 0.14
-      },
-      {
-        "v": 0.562,
-        "beat": "burst",
-        "dt": 0.22
-      },
-      {
-        "v": 0.237,
-        "beat": "laughing",
-        "dt": -0.29
-      },
-      {
-        "v": 0.712,
-        "beat": "laughing",
-        "dt": -0.21
-      },
-      {
-        "v": 0.15,
-        "beat": "laughing",
-        "dt": -0.02
-      },
-      {
-        "v": 0.45,
-        "beat": "laughing",
         "dt": 0.06
       },
       {
-        "v": 0.212,
-        "beat": "laughing",
-        "dt": 0.14
-      },
-      {
-        "v": 0.637,
-        "beat": "laughing",
-        "dt": 0.22
-      },
-      {
-        "v": 0.138,
-        "beat": "laughing",
-        "dt": 0.46
-      },
-      {
-        "v": 0.413,
-        "beat": "laughing",
-        "dt": 0.54
-      },
-      {
-        "v": 0.1,
-        "beat": "recover",
-        "dt": -0.54
-      },
-      {
         "v": 0.3,
-        "beat": "recover",
-        "dt": -0.46
+        "beat": "burst",
+        "dt": 0.28
       },
       {
-        "v": 0.075,
-        "beat": "recover",
-        "dt": -0.04
+        "v": 0.46,
+        "beat": "laughing",
+        "dt": -0.1
       },
       {
-        "v": 0.225,
-        "beat": "recover",
-        "dt": 0.04
+        "v": 0.28,
+        "beat": "laughing",
+        "dt": 0.13
       },
       {
-        "v": 0.15,
+        "v": 0.42,
+        "beat": "laughing",
+        "dt": 0.36
+      },
+      {
+        "v": 0.26,
+        "beat": "laughing",
+        "dt": 0.59
+      },
+      {
+        "v": 0.36,
+        "beat": "laughing",
+        "dt": 0.82
+      },
+      {
+        "v": 0.2,
+        "beat": "recover",
+        "dt": -0.15
+      },
+      {
+        "v": 0.08,
         "beat": "rebound",
         "dt": -0.1
       },
@@ -1603,5 +1325,16 @@
         "dt": -0.15
       }
     ]
-  }
+  },
+  "contacts": [
+    {
+      "bone": "rightHand",
+      "target": "spine",
+      "beat": "burst",
+      "from": 0.15,
+      "to": 1.45,
+      "offset": [0.027, 0.084, 0.178],
+      "tolerance": 0.05
+    }
+  ]
 }

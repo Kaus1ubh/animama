@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:heart-hands-build",
   "version": 1,
   "semantic_key": "heart-hands-build",
-  "name": "heart-hands-build",
+  "name": "Heart Hands",
   "ai_description": "Bring both hands together into a heart to express warm affection, gratitude, or support.",
   "implementation": {
     "kind": "anima_clip",

@@ -1,11 +1,12 @@
 import type { VRM, VRMHumanBoneName, VRMPose } from "@pixiv/three-vrm";
-import { Quaternion, Vector3 } from "three";
+import { Object3D, Quaternion, Vector3 } from "three";
 
 import {
   getAnimaPoseClipTimelineDuration,
   parseAnimaPoseClip,
   type AnimaPoseClipV2,
 } from "../poses/animaPoseClip";
+import type { AnimaPoseClipMutableLayerId } from "../poses/animaPoseClip/clipVocabulary";
 import {
   createAnimaPoseClipProgram,
   type AnimaPoseClipProgram,
@@ -18,8 +19,17 @@ import {
   decomposeJointRotation,
   resolveJoint,
   type JointComponentDefinition,
+  type Side,
 } from "../poses/anatomy/anatomy";
-import { applyCanonicalPose, rawBoneWorldPosition } from "./kinematics";
+import {
+  CanonicalSkeleton,
+  FINGER_BONE,
+  HAND_BONE,
+  HAND_OR_FINGER_BONE,
+  avatarScale,
+  type ContactPoint,
+} from "../poses/anatomy/arms";
+import { applyCanonicalPose } from "./kinematics";
 
 /**
  * Automated motion checks for an agent-authored or hand-made Gesture clip.
@@ -27,14 +37,16 @@ import { applyCanonicalPose, rawBoneWorldPosition } from "./kinematics";
  * Checks play the clip through the production sampler on each loaded Avatar
  * (2.0 clips prepared for that Avatar, as at runtime) and report plausibility
  * problems. They cannot establish natural-looking motion; they catch anatomy,
- * continuity, collision and grounding mistakes.
+ * continuity, rhythm, collision, contact and grounding mistakes.
  */
 
 export type MotionCheckCategory =
   | "pose"
   | "range"
   | "smoothness"
+  | "oscillation"
   | "intersection"
+  | "fingers"
   | "contact"
   | "feet"
   | "loopSeam"
@@ -45,7 +57,9 @@ export type MotionCheckFinding = {
   severity: "fail" | "warn";
   /**
    * Avatar id, or null for checks on the canonical clip values that every
-   * Avatar shares (range, smoothness, loop seam, unresolved poses).
+   * Avatar shares (range, smoothness, oscillation, loop seam, unresolved
+   * poses). Range and smoothness of an arm that a solved contact moves are
+   * also reported per Avatar after the first.
    */
   avatar: string | null;
   /** Bone, joint component or body pair the finding concerns. */
@@ -58,8 +72,9 @@ export type MotionCheckFinding = {
   unit: string;
   detail: string;
   /**
-   * Contacts only: where the bone actually is relative to the target, in the
-   * target's rest-aligned frame (metres). Usable directly as `offset`.
+   * Contacts only: where the contact point actually is relative to the target
+   * point, in the target's rest-aligned frame, in metres at the reference
+   * height (divided by the Avatar's scale). Usable directly as `offset`.
    */
   actualOffset?: [number, number, number];
 };
@@ -76,18 +91,30 @@ export type MotionCheckAvatar = { id: string; vrm: VRM };
 export type MotionCheckContact = {
   /** Humanoid bone that should touch, for example `rightIndexDistal`. */
   bone: string;
+  /** Where on `bone` (default `joint`; `tip` on fingers, `palm` on hands). */
+  point?: ContactPoint;
   /** Humanoid bone it touches, for example `head`. */
   target: string;
-  /** Offset from the target bone in its rest-aligned frame, metres (x left, y up, z forward). */
+  /** Where on `target` (default `joint`). */
+  targetPoint?: ContactPoint;
+  /**
+   * Offset from the target point in the target's rest-aligned frame, metres
+   * at the reference height (x left, y up, z forward); scaled per Avatar.
+   */
   offset?: [number, number, number];
   from: number;
   to: number;
   /** Allowed distance, metres. Defaults to `contactTolerance`. */
   tolerance?: number;
+  /** Also check that the palm of `bone`'s hand faces the target. */
+  facing?: boolean;
 };
 
 export type MotionCheckOptions = {
-  /** Contacts to check besides those a 2.0 clip declares. */
+  /**
+   * Contacts to check besides those a 2.0 clip declares. Playback does not
+   * solve them; they are measured like unsolved clip contacts.
+   */
   contacts?: readonly MotionCheckContact[];
   /**
    * Check that feet stay at their base-pose positions. Defaults to true
@@ -120,8 +147,33 @@ export const MOTION_CHECK_THRESHOLDS = {
   popRatio: 4,
   /** Skip arm plane/rotation range checks while the arm hangs (degenerate). */
   armDegenerateElevation: 20,
+  /**
+   * Rapid oscillation (WARN): one joint component swings back and forth for
+   * at least `cycles` cycles (that many peaks and troughs: 2 × `cycles`
+   * reversals in a row, each swing at least `amplitude` degrees) faster than
+   * `frequency` Hz, timed over whole cycles from peak to peak and trough to
+   * trough. Calm laughs and bounces pulse at 2.5–3.3 Hz; 4 Hz and above
+   * reads as shivering. Small tremors below the amplitude are ignored, and
+   * eyes, fingers and toes are not measured (darts and wiggles may be fast).
+   */
+  oscillation: { frequency: 4, amplitude: 1.5, cycles: 3 },
   /** Penetration beyond the base pose's own, metres. */
   intersectionMargin: 0.015,
+  /**
+   * Finger capsules, as multiples of the Avatar's finger spacing (mean
+   * distance between neighbouring finger bases): finger, thumb and palm
+   * radii. A pair WARNs when its axes come closer than `warnFraction` of the
+   * two radii together (the volumes overlap by more than half). Within one
+   * hand it FAILs below `failFraction` (a finger passes through); between the
+   * two hands, whose placement differs with each Avatar's arms, it only warns.
+   */
+  fingers: {
+    fingerRadius: 0.45,
+    thumbRadius: 0.5,
+    palmRadius: 0.75,
+    warnFraction: 0.5,
+    failFraction: 0.2,
+  },
   /** Feet: horizontal slide, lift and sink from the base pose. */
   footSlide: 0.02,
   footLift: 0.015,
@@ -131,10 +183,25 @@ export const MOTION_CHECK_THRESHOLDS = {
   /** Disagreement between Avatars in a bone's world rotation from rest, degrees. */
   parityDegrees: 10,
   contactTolerance: 0.06,
+  /**
+   * A solved contact's tolerance is at most this: the solver lands the point
+   * exactly when the Avatar can reach it.
+   */
+  solvedContactTolerance: 0.015,
+  /**
+   * WARN when a solved contact's authored (unsolved) point is farther than
+   * this from its target at full weight (metres at the reference height):
+   * the solver, not the authored arm, is doing the reach.
+   */
+  reachCorrection: 0.08,
+  /** WARN when a `facing` palm turns further than this from its target, degrees. */
+  facingDegrees: 45,
 } as const;
 
 type Pose = VRMPose;
 type Capsule = { a: Vector3; b: Vector3; radius: number };
+/** A contact as checked: solved when the clip declares `solve` for it. */
+type CheckedContact = MotionCheckContact & { solved: boolean };
 
 const T = MOTION_CHECK_THRESHOLDS;
 const SIDES = ["left", "right"] as const;
@@ -155,15 +222,38 @@ export function checkMotion(
   for (let index = 0; index * (1 / sampleRate) < duration - 1e-9; index += 1)
     times.push(index / sampleRate);
   times.push(duration);
-  const contacts = [...clipContacts(clip), ...(options.contacts ?? [])];
+  const contacts: CheckedContact[] = [
+    ...clipContacts(clip),
+    ...(options.contacts ?? []).map((contact) => ({
+      ...contact,
+      solved: false,
+    })),
+  ];
   // Feet should stay put unless the clip moves its legs itself.
   const plantFeet =
     options.plantFeet ?? (clip.plantFeet === true || !keysLegs(clip));
-  // Each Avatar plays its own preparation (fitted hands, solved legs). Checks
-  // on canonical values use the first Avatar's.
+  // Each Avatar plays its own preparation (fitted hands, solved legs and
+  // contacts). Checks on canonical values use the first Avatar's.
   const programs = avatars.map(({ vrm }) =>
     createAnimaPoseClipProgram(clip, { vrm, resolvePose: resolveCatalogPose }),
   );
+  // Arms that solved contacts move differ per Avatar by design, so parity
+  // and the reach-correction warning read the authored (unsolved) arms.
+  const solvedSides = new Set(
+    contacts.flatMap((contact) =>
+      contact.solved ? [handSideOf(contact.bone)!] : [],
+    ),
+  );
+  const unsolvedPrograms =
+    solvedSides.size > 0
+      ? avatars.map(({ vrm }) =>
+          createAnimaPoseClipProgram(clip, {
+            vrm,
+            resolvePose: resolveCatalogPose,
+            solveContacts: false,
+          }),
+        )
+      : programs;
   const canonical =
     programs[0] ??
     createAnimaPoseClipProgram(clip, { resolvePose: resolveCatalogPose });
@@ -191,19 +281,29 @@ export function checkMotion(
     ),
     ...checkRanges(times, canonicalPoses),
     ...checkSmoothness(times, canonicalPoses),
+    ...checkOscillation(times, canonicalPoses),
     ...(clip.loop ? checkLoopSeam(canonical, duration, sampleRate) : []),
+    ...checkSolvedHeadContacts(contacts, clip.mutedProceduralLayers ?? []),
   ];
+  // The canonical pass sees only the first Avatar's solve; solved arms get
+  // range and smoothness on every other Avatar too.
+  const solvedArmBones = new Set<string>(
+    [...solvedSides].flatMap((side) => [`${side}UpperArm`, `${side}LowerArm`]),
+  );
   const rotationsFromRest: Record<string, Map<string, Quaternion>[]> = {};
   for (const [index, avatar] of avatars.entries()) {
     const avatarPoses =
       index === 0 ? canonicalPoses : samplesOf(programs[index]);
     const body = new AvatarBody(avatar.vrm);
-    const restPositions = body.capture(base);
-    const restPenetration = penetrations(body.capsules(restPositions));
-    const restRotations = body.rotations({});
+    const restFrame = body.capture(base);
+    const restPenetration = penetrations(body.capsules(restFrame));
     const frames = avatarPoses.map((pose) => body.capture(pose));
-    rotationsFromRest[avatar.id] = avatarPoses.map((pose) =>
-      body.rotationsFromRest(pose, restRotations),
+    const unsolvedFrames =
+      unsolvedPrograms === programs
+        ? frames
+        : samplesOf(unsolvedPrograms[index]).map((pose) => body.capture(pose));
+    rotationsFromRest[avatar.id] = unsolvedFrames.map((frame) =>
+      body.rotationsFromRest(frame),
     );
     raw.push(
       ...checkIntersections(
@@ -213,15 +313,28 @@ export function checkMotion(
         restPenetration,
         contacts,
       ),
+      ...checkFingers(avatar.id, times, frames, body, contacts),
       ...checkContacts(
         avatar.id,
         times,
-        avatarPoses,
+        frames,
+        unsolvedFrames,
         body,
-        restRotations,
         contacts,
       ),
-      ...(plantFeet ? checkFeet(avatar.id, times, frames, restPositions) : []),
+      ...(plantFeet ? checkFeet(avatar.id, times, frames, restFrame) : []),
+      ...(index > 0 && solvedArmBones.size > 0
+        ? [
+            ...checkRanges(times, avatarPoses, {
+              avatar: avatar.id,
+              joints: solvedArmBones,
+            }),
+            ...checkSmoothness(times, avatarPoses, {
+              avatar: avatar.id,
+              bones: solvedArmBones,
+            }),
+          ]
+        : []),
     );
   }
   raw.push(...checkParity(times, rotationsFromRest));
@@ -245,12 +358,30 @@ function keysLegs(clip: AnimaPoseClipV2): boolean {
 }
 
 /** A clip's declared contacts, in seconds from its start. */
-function clipContacts(clip: AnimaPoseClipV2): MotionCheckContact[] {
+function clipContacts(clip: AnimaPoseClipV2): CheckedContact[] {
   const beatTimes = new Map(clip.beats.map(({ id, time }) => [id, time]));
-  return (clip.contacts ?? []).map(({ beat, from, to, ...contact }) => {
-    const time = beatTimes.get(beat) ?? 0;
-    return { ...contact, from: time + from, to: time + to };
+  return (clip.contacts ?? []).map((contact) => {
+    const time = beatTimes.get(contact.beat) ?? 0;
+    return {
+      bone: contact.bone,
+      target: contact.target,
+      from: time + contact.from,
+      to: time + contact.to,
+      ...(contact.point ? { point: contact.point } : {}),
+      ...(contact.targetPoint ? { targetPoint: contact.targetPoint } : {}),
+      ...(contact.offset ? { offset: contact.offset } : {}),
+      ...(contact.tolerance !== undefined
+        ? { tolerance: contact.tolerance }
+        : {}),
+      ...(contact.facing ? { facing: true } : {}),
+      solved: contact.solve !== undefined,
+    };
   });
+}
+
+/** The side of a hand or finger bone, or null for any other bone. */
+function handSideOf(bone: string): Side | null {
+  return (HAND_OR_FINGER_BONE.exec(bone)?.[1] as Side | undefined) ?? null;
 }
 
 /** Resolve pose references the way playback does: from the app catalog. */
@@ -293,13 +424,21 @@ function rotationOf(pose: Pose, bone: VRMHumanBoneName): Quaternion {
 
 // ─── Canonical-value checks ────────────────────────────────────────────────
 
+/**
+ * Which poses a range or smoothness pass reports on: the canonical values
+ * (`avatar` null, every joint) or one Avatar's solved arms.
+ */
+type CheckScope = { avatar: string | null; joints?: ReadonlySet<string> };
+
 function checkRanges(
   times: readonly number[],
   poses: readonly Pose[],
+  { avatar, joints }: CheckScope = { avatar: null },
 ): MotionCheckFinding[] {
   const findings: MotionCheckFinding[] = [];
+  const ids = joints ? JOINT_IDS.filter((id) => joints.has(id)) : JOINT_IDS;
   poses.forEach((pose, index) => {
-    for (const id of JOINT_IDS) {
+    for (const id of ids) {
       const joint = resolveJoint(id)!;
       const values = decomposeJointRotation(
         joint,
@@ -329,7 +468,7 @@ function checkRanges(
         findings.push({
           category: "range",
           severity,
-          avatar: null,
+          avatar,
           subject: `${id}.${name}`,
           from: times[index],
           to: times[index],
@@ -347,11 +486,18 @@ function checkRanges(
 function checkSmoothness(
   times: readonly number[],
   poses: readonly Pose[],
+  {
+    avatar,
+    bones: only,
+  }: { avatar: string | null; bones?: ReadonlySet<string> } = {
+    avatar: null,
+  },
 ): MotionCheckFinding[] {
   const findings: MotionCheckFinding[] = [];
   const bones = new Set<VRMHumanBoneName>();
   for (const pose of poses)
-    for (const bone of Object.keys(pose)) bones.add(bone as VRMHumanBoneName);
+    for (const bone of Object.keys(pose))
+      if (!only || only.has(bone)) bones.add(bone as VRMHumanBoneName);
   const add = (
     bone: string,
     severity: "fail" | "warn",
@@ -365,7 +511,7 @@ function checkSmoothness(
     findings.push({
       category: "smoothness",
       severity,
-      avatar: null,
+      avatar,
       subject: bone,
       from,
       to,
@@ -460,7 +606,7 @@ function checkSmoothness(
           );
       }
     });
-    findings.push(...findStalls(bone, times, steps, speeds));
+    findings.push(...findStalls(bone, avatar, times, steps, speeds));
   }
   return findings;
 }
@@ -472,6 +618,7 @@ function checkSmoothness(
  */
 function findStalls(
   bone: string,
+  avatar: string | null,
   times: readonly number[],
   steps: readonly Vector3[],
   speeds: readonly number[],
@@ -510,7 +657,7 @@ function findStalls(
       findings.push({
         category: "smoothness",
         severity: "warn",
-        avatar: null,
+        avatar,
         subject: bone,
         from: times[index],
         to: times[end + 1],
@@ -523,6 +670,204 @@ function findStalls(
     index = end + 1;
   }
   return findings;
+}
+
+/** Joints whose components the oscillation check reads (not eyes, fingers or toes). */
+const OSCILLATION_JOINTS = JOINT_IDS.filter(
+  (id) => !/^eyes$|Thumb|Index|Middle|Ring|Little|Toes/.test(id),
+);
+
+/**
+ * Warn where a joint component swings back and forth faster than about 4 Hz
+ * for three cycles or more (`MOTION_CHECK_THRESHOLDS.oscillation`).
+ *
+ * Reversals are the turning points of the component's curve, keeping only
+ * swings of at least the amplitude (a zig-zag filter), timed to a fraction of
+ * a frame by a parabola through the samples around each turn; where the
+ * motion starts is not a reversal. Every six reversals in a row (three peaks
+ * and three troughs) are rated by the time between like reversals: first to
+ * fifth (peak to peak, or trough to trough) and second to sixth, two full
+ * cycles each. Whole cycles hold one quick and one slow swing each, so an
+ * uneven pulse (a quick rise and a slower fall) counts at its true cycle rate.
+ * Overlapping fast windows are reported as one stretch, with the fastest
+ * window's rate.
+ */
+export function checkOscillation(
+  times: readonly number[],
+  poses: readonly Pose[],
+): MotionCheckFinding[] {
+  const findings: MotionCheckFinding[] = [];
+  for (const id of OSCILLATION_JOINTS) {
+    const joint = resolveJoint(id)!;
+    const names = Object.keys(JOINT_DEFINITIONS[joint.type].components);
+    const series: Record<string, (number | null)[]> = Object.fromEntries(
+      names.map((name) => [name, []]),
+    );
+    let previous: Record<string, number> | undefined;
+    for (const pose of poses) {
+      // Near the previous frame, so a value never jumps Euler branches.
+      const values = decomposeJointRotation(
+        joint,
+        rotationOf(pose, joint.bones[0]),
+        previous,
+      );
+      previous = values;
+      for (const name of names)
+        series[name].push(
+          joint.type === "upperArm" &&
+            name !== "elevation" &&
+            values.elevation < T.armDegenerateElevation
+            ? null // A hanging arm's plane and rotation are undefined.
+            : values[name],
+        );
+    }
+    for (const name of names)
+      findings.push(...oscillationRuns(`${id}.${name}`, times, series[name]));
+  }
+  return findings;
+}
+
+function oscillationRuns(
+  subject: string,
+  times: readonly number[],
+  values: readonly (number | null)[],
+): MotionCheckFinding[] {
+  const { frequency, amplitude, cycles } = T.oscillation;
+  const reversalsNeeded = 2 * cycles;
+  const findings: MotionCheckFinding[] = [];
+  // Each stretch of defined values is measured on its own.
+  let start = 0;
+  while (start < values.length) {
+    if (values[start] === null) {
+      start += 1;
+      continue;
+    }
+    let end = start;
+    while (end + 1 < values.length && values[end + 1] !== null) end += 1;
+    const span = values.slice(start, end + 1) as number[];
+    const spanTimes = times.slice(start, end + 1);
+    // The first turn is where the first swing starts, not a reversal.
+    const reversals = turningPoints(span, amplitude)
+      .slice(1)
+      .map((index) => turnTime(spanTimes, span, index));
+    // Cycle rate of each window of `reversalsNeeded` reversals starting
+    // there: like reversals `reversalsNeeded − 2` apart span `cycles − 1`
+    // whole cycles; the window's first and second such spans are averaged.
+    const rates = reversals
+      .slice(0, Math.max(0, reversals.length - reversalsNeeded + 1))
+      .map(
+        (time, index) =>
+          (2 * (cycles - 1)) /
+          (reversals[index + reversalsNeeded - 2] -
+            time +
+            reversals[index + reversalsNeeded - 1] -
+            reversals[index + 1]),
+      );
+    let first = 0;
+    while (first < rates.length) {
+      if (!(rates[first] > frequency)) {
+        first += 1;
+        continue;
+      }
+      let last = first;
+      while (last + 1 < rates.length && rates[last + 1] > frequency) last += 1;
+      const count = last - first + reversalsNeeded;
+      findings.push({
+        category: "oscillation",
+        severity: "warn",
+        avatar: null,
+        subject,
+        from: reversals[first],
+        to: reversals[last + reversalsNeeded - 1],
+        value: round(Math.max(...rates.slice(first, last + 1))),
+        limit: frequency,
+        unit: "Hz",
+        detail: `${Math.floor(count / 2)} cycles back and forth (${count} reversals) faster than ${frequency} Hz (rapid oscillation)`,
+      });
+      first = last + 1;
+    }
+    start = end + 1;
+  }
+  return findings;
+}
+
+/**
+ * Indices of a curve's turning points with swings of at least `amplitude`
+ * between them: the first is where the first such swing starts; the last
+ * extreme, not followed by a reversal, is left out.
+ */
+function turningPoints(values: readonly number[], amplitude: number): number[] {
+  const turns: number[] = [];
+  let low = 0;
+  let high = 0;
+  let direction = 0;
+  let extreme = 0;
+  for (let index = 1; index < values.length; index += 1) {
+    const value = values[index];
+    if (direction === 0) {
+      if (value < values[low]) low = index;
+      if (value > values[high]) high = index;
+      if (values[high] - values[low] >= amplitude) {
+        // The earlier extreme starts the first swing.
+        turns.push(Math.min(low, high));
+        direction = low < high ? 1 : -1;
+        extreme = Math.max(low, high);
+      }
+    } else if (direction > 0) {
+      if (value > values[extreme]) extreme = index;
+      else if (values[extreme] - value >= amplitude) {
+        turns.push(extreme);
+        direction = -1;
+        extreme = index;
+      }
+    } else if (value < values[extreme]) extreme = index;
+    else if (value - values[extreme] >= amplitude) {
+      turns.push(extreme);
+      direction = 1;
+      extreme = index;
+    }
+  }
+  return turns;
+}
+
+/**
+ * The time of a turning point: the middle of a flat top, or the vertex of the
+ * parabola through the sample and its neighbours (sub-frame accuracy).
+ */
+function turnTime(
+  times: readonly number[],
+  values: readonly number[],
+  index: number,
+): number {
+  let first = index;
+  let last = index;
+  while (first > 0 && Math.abs(values[first - 1] - values[index]) < 1e-6)
+    first -= 1;
+  while (
+    last < values.length - 1 &&
+    Math.abs(values[last + 1] - values[index]) < 1e-6
+  )
+    last += 1;
+  if (last > first) return (times[first] + times[last]) / 2;
+  if (index === 0 || index === values.length - 1) return times[index];
+  const [before, at, after] = [
+    values[index - 1],
+    values[index],
+    values[index + 1],
+  ];
+  const curvature = before - 2 * at + after;
+  if (Math.abs(curvature) < 1e-12) return times[index];
+  const shift = Math.min(
+    0.5,
+    Math.max(-0.5, (0.5 * (before - after)) / curvature),
+  );
+  return (
+    times[index] +
+    shift *
+      (shift < 0
+        ? times[index] - times[index - 1]
+        : times[index + 1] - times[index])
+  );
 }
 
 function checkLoopSeam(
@@ -592,57 +937,160 @@ function checkLoopSeam(
   return findings;
 }
 
+/**
+ * Live layers that turn the head or neck after the clip, so a hand solved onto
+ * the head drifts: every mutable layer except breathing, whose millimetres are
+ * accepted.
+ */
+const HEAD_MOVING_LAYERS: readonly AnimaPoseClipMutableLayerId[] = [
+  "sway",
+  "bounce",
+  "headNod",
+  "headSideTilt",
+  "cursorLookAt",
+  "emotionPosture",
+];
+const HEAD_TARGET = /^(head|neck|jaw|leftEye|rightEye)$/;
+
+/**
+ * Warn about a solved contact on the head or neck while a live layer that
+ * moves the head stays on: the layers run after the clip, so the hand would
+ * land where the head was and the head would move away from it.
+ */
+function checkSolvedHeadContacts(
+  contacts: readonly CheckedContact[],
+  muted: readonly AnimaPoseClipMutableLayerId[],
+): MotionCheckFinding[] {
+  const unmuted = HEAD_MOVING_LAYERS.filter((layer) => !muted.includes(layer));
+  if (unmuted.length === 0) return [];
+  return contacts
+    .filter((contact) => contact.solved && HEAD_TARGET.test(contact.target))
+    .map((contact) => ({
+      category: "contact",
+      severity: "warn",
+      avatar: null,
+      subject: `${contact.bone}→${contact.target}`,
+      from: contact.from,
+      to: contact.to,
+      value: unmuted.length,
+      limit: 0,
+      unit: " layers",
+      detail: `solved head contact while live layers move the head after the clip; mute ${unmuted.join(", ")}`,
+    }));
+}
+
 // ─── Per-Avatar rendered checks ────────────────────────────────────────────
 
-const TRACKED_BONES: VRMHumanBoneName[] = [
-  "hips",
-  "chest",
-  "upperChest",
-  "neck",
-  "head",
-  "leftEye",
-  "rightEye",
-  ...SIDES.flatMap((side) =>
-    (
-      [
-        "UpperArm",
-        "LowerArm",
-        "Hand",
-        "MiddleProximal",
-        "MiddleIntermediate",
-        "MiddleDistal",
-        "UpperLeg",
-        "Foot",
-        "Toes",
-      ] as const
-    ).map((part) => `${side}${part}` as VRMHumanBoneName),
-  ),
-];
+/** Raw (skinned) bone world positions and rotations under one pose. */
+type Frame = {
+  positions: Map<VRMHumanBoneName, Vector3>;
+  rotations: Map<VRMHumanBoneName, Quaternion>;
+};
 
-type Frame = Map<VRMHumanBoneName, Vector3>;
+const FINGER_DIGITS = ["Index", "Middle", "Ring", "Little"] as const;
+/** Checked finger segments per digit; the thumb metacarpal lies in the palm. */
+const DIGIT_SEGMENTS = {
+  Thumb: ["ThumbProximal", "ThumbDistal"],
+  Index: ["IndexProximal", "IndexIntermediate", "IndexDistal"],
+  Middle: ["MiddleProximal", "MiddleIntermediate", "MiddleDistal"],
+  Ring: ["RingProximal", "RingIntermediate", "RingDistal"],
+  Little: ["LittleProximal", "LittleIntermediate", "LittleDistal"],
+} as const;
+type Digit = keyof typeof DIGIT_SEGMENTS;
+
+/** One finger segment's capsule, from its joint to the next joint or the tip. */
+type FingerSegment = {
+  digit: Digit;
+  bone: VRMHumanBoneName;
+  radius: number;
+  /** Checked against its own palm (not proximal finger segments, which join it). */
+  againstPalm: boolean;
+};
+/** One hand's finger and palm capsules, sized from the rig. */
+type HandCapsules = {
+  side: Side;
+  segments: FingerSegment[];
+  /** Palm capsules run from the wrist to each of these finger bases. */
+  palmBases: VRMHumanBoneName[];
+  palmRadius: number;
+};
+
+const scratchScale = new Vector3();
 
 /** Rendered body measurements for one Avatar. */
 class AvatarBody {
+  /** Head-bone height over a 1.35 m reference: sizes the body capsules. */
   readonly scale: number;
+  /** `avatarScale`: contact offsets (authored at 1.25 m) are multiplied by it. */
+  readonly contactScale: number;
+  readonly skeleton: CanonicalSkeleton;
+  readonly hands: Partial<Record<Side, HandCapsules>>;
   private readonly vrm: VRM;
+  private readonly nodes: [VRMHumanBoneName, Object3D][];
+  private readonly restRotations: Map<VRMHumanBoneName, Quaternion>;
 
   constructor(vrm: VRM) {
     this.vrm = vrm;
-    applyCanonicalPose(vrm, {});
-    const head = rawBoneWorldPosition(vrm, "head")!;
-    const foot = rawBoneWorldPosition(vrm, "leftFoot")!;
+    this.nodes = Object.keys(vrm.humanoid.humanBones).flatMap((bone) => {
+      const node = vrm.humanoid.getRawBoneNode(bone as VRMHumanBoneName);
+      return node ? [[bone as VRMHumanBoneName, node] as const] : [];
+    }) as [VRMHumanBoneName, Object3D][];
+    const rest = this.capture({});
+    this.restRotations = rest.rotations;
+    const head = rest.positions.get("head")!;
+    const foot = rest.positions.get("leftFoot")!;
     // Head-bone height relative to a 1.35 m reference Avatar.
     this.scale = (head.y - foot.y) / 1.35;
+    this.skeleton = new CanonicalSkeleton(vrm);
+    this.contactScale = avatarScale(this.skeleton);
+    this.hands = {};
+    for (const side of SIDES) {
+      const hand = this.handCapsules(side);
+      if (hand) this.hands[side] = hand;
+    }
   }
 
+  /** Pose the Avatar and read every raw humanoid bone's world transform. */
   capture(pose: Pose): Frame {
+    // Updates every world matrix, so they can be read directly below.
     applyCanonicalPose(this.vrm, pose);
-    const frame: Frame = new Map();
-    for (const bone of TRACKED_BONES) {
-      const position = rawBoneWorldPosition(this.vrm, bone);
-      if (position) frame.set(bone, position);
+    const positions = new Map<VRMHumanBoneName, Vector3>();
+    const rotations = new Map<VRMHumanBoneName, Quaternion>();
+    for (const [bone, node] of this.nodes) {
+      const position = new Vector3();
+      const rotation = new Quaternion();
+      node.matrixWorld.decompose(position, rotation, scratchScale);
+      positions.set(bone, position);
+      rotations.set(bone, rotation);
     }
-    return frame;
+    return { positions, rotations };
+  }
+
+  /**
+   * A bone's world rotation from its T-pose world rotation: its rest-aligned
+   * frame, which equals the canonical world rotation contact points use.
+   */
+  delta(frame: Frame, bone: VRMHumanBoneName): Quaternion {
+    return (frame.rotations.get(bone) ?? new Quaternion())
+      .clone()
+      .multiply(
+        (this.restRotations.get(bone) ?? new Quaternion()).clone().invert(),
+      );
+  }
+
+  /** World position of a contact point, or null when the rig lacks the bone. */
+  point(
+    frame: Frame,
+    bone: VRMHumanBoneName,
+    point: ContactPoint | undefined,
+  ): Vector3 | null {
+    const position = frame.positions.get(bone);
+    const offset = this.skeleton.pointOffset(bone, point);
+    if (!position || !offset) return null;
+    return offset
+      .clone()
+      .applyQuaternion(this.delta(frame, bone))
+      .add(position);
   }
 
   /**
@@ -650,46 +1098,21 @@ class AvatarBody {
    * three-vrm's normalization makes these equal across correctly converted
    * rigs, whatever their raw bone orientations.
    */
-  rotationsFromRest(
-    pose: Pose,
-    rest: Map<VRMHumanBoneName, Quaternion>,
-  ): Map<string, Quaternion> {
-    const current = this.rotations(pose);
+  rotationsFromRest(frame: Frame): Map<string, Quaternion> {
     const result = new Map<string, Quaternion>();
-    for (const bone of PARITY_BONES) {
-      const now = current.get(bone);
-      const then = rest.get(bone);
-      if (now && then) result.set(bone, now.multiply(then.clone().invert()));
-    }
+    for (const bone of PARITY_BONES)
+      if (frame.rotations.has(bone) && this.restRotations.has(bone))
+        result.set(bone, this.delta(frame, bone));
     return result;
-  }
-
-  /** World rotations of raw bones under a canonical pose. */
-  rotations(pose: Pose): Map<VRMHumanBoneName, Quaternion> {
-    applyCanonicalPose(this.vrm, pose);
-    const result = new Map<VRMHumanBoneName, Quaternion>();
-    for (const [bone] of Object.entries(this.vrm.humanoid.humanBones)) {
-      const node = this.vrm.humanoid.getRawBoneNode(bone as VRMHumanBoneName);
-      if (node)
-        result.set(
-          bone as VRMHumanBoneName,
-          node.getWorldQuaternion(new Quaternion()),
-        );
-    }
-    return result;
-  }
-
-  position(bone: VRMHumanBoneName): Vector3 | null {
-    return rawBoneWorldPosition(this.vrm, bone);
   }
 
   /** Approximate body volumes; radii scale with the Avatar's height. */
   capsules(frame: Frame): Record<string, Capsule> {
     const s = this.scale;
-    const get = (bone: VRMHumanBoneName) => frame.get(bone)!;
+    const get = (bone: VRMHumanBoneName) => frame.positions.get(bone)!;
     const head = get("head");
-    const leftEye = frame.get("leftEye");
-    const rightEye = frame.get("rightEye");
+    const leftEye = frame.positions.get("leftEye");
+    const rightEye = frame.positions.get("rightEye");
     // Without eye bones, approximate the eyes above and in front of the head joint.
     const eyes =
       leftEye && rightEye
@@ -699,7 +1122,7 @@ class AvatarBody {
       // The torso ends at the upper chest so the chin and throat stay clear.
       torso: {
         a: get("hips"),
-        b: frame.get("upperChest") ?? get("chest"),
+        b: frame.positions.get("upperChest") ?? get("chest"),
         radius: 0.13 * s,
       },
       neck: { a: get("neck"), b: head, radius: 0.05 * s },
@@ -727,6 +1150,61 @@ class AvatarBody {
       };
     }
     return result;
+  }
+
+  /**
+   * A hand's centre on its bone line: halfway from the wrist to the base of
+   * the middle finger (or the nearest finger the rig has).
+   */
+  handCentre(frame: Frame, side: Side): Vector3 | null {
+    const wrist = frame.positions.get(`${side}Hand`);
+    if (!wrist) return null;
+    const base = (["Middle", "Ring", "Index", "Little"] as const)
+      .map((digit) => frame.positions.get(`${side}${digit}Proximal`))
+      .find(Boolean);
+    return base ? wrist.clone().lerp(base, 0.5) : wrist.clone();
+  }
+
+  /**
+   * Finger capsules from rig proportions, or null for a hand with fewer than
+   * two finger bases (no spacing to size them from).
+   */
+  private handCapsules(side: Side): HandCapsules | null {
+    const bases = FINGER_DIGITS.map(
+      (digit) => `${side}${digit}Proximal` as VRMHumanBoneName,
+    ).filter((bone) => this.skeleton.has(bone));
+    if (bases.length < 2) return null;
+    let spacing = 0;
+    for (let index = 1; index < bases.length; index += 1)
+      spacing += this.skeleton
+        .restPosition(bases[index])!
+        .distanceTo(this.skeleton.restPosition(bases[index - 1])!);
+    spacing /= bases.length - 1;
+    const segments: FingerSegment[] = [];
+    for (const [digit, bones] of Object.entries(DIGIT_SEGMENTS) as [
+      Digit,
+      readonly string[],
+    ][])
+      bones.forEach((name, index) => {
+        const bone = `${side}${name}` as VRMHumanBoneName;
+        if (!this.skeleton.has(bone)) return;
+        segments.push({
+          digit,
+          bone,
+          radius:
+            spacing *
+            (digit === "Thumb"
+              ? T.fingers.thumbRadius
+              : T.fingers.fingerRadius),
+          againstPalm: digit === "Thumb" || index > 0,
+        });
+      });
+    return {
+      side,
+      segments,
+      palmBases: bases,
+      palmRadius: spacing * T.fingers.palmRadius,
+    };
   }
 }
 
@@ -813,71 +1291,425 @@ function checkIntersections(
   return findings;
 }
 
+/** A hand part the finger check names: a digit (`rightIndex`) or a palm (`rightPalm`). */
+function fingerPart(bone: string): string | null {
+  const match = HAND_OR_FINGER_BONE.exec(bone);
+  if (!match) return null;
+  return `${match[1]}${match[2] === "Hand" ? "Palm" : match[2]}`;
+}
+
+/** A placed finger or palm capsule and the hand part it belongs to. */
+type PartCapsule = Capsule & { part: string; againstPalm: boolean };
+/** One hand's capsules on a frame, with a bounding sphere about the wrist. */
+type PlacedHand = {
+  fingers: PartCapsule[];
+  palm: PartCapsule[];
+  wrist: Vector3;
+  reach: number;
+};
+
+/**
+ * Finger collisions on one Avatar: a finger through another finger of the
+ * same hand, through its own palm, or through any part of the other hand.
+ *
+ * Each finger segment is a capsule from its joint to the next joint (the last
+ * to its tip) and the palm a fan of capsules from the wrist to each finger
+ * base, sized from the rig's finger spacing (`MOTION_CHECK_THRESHOLDS.fingers`).
+ * Proximal finger segments are not checked against their own palm (they join
+ * it), and the thumb not against the fingers of its own hand: fitted shapes
+ * (fist, point, peace, pinch, OK) press it onto them by design. A declared
+ * contact allows the parts it names while it lasts: two digits, or a digit
+ * and its palm, of one hand; any parts of the two hands for a hand-to-hand
+ * contact. Overlaps between the two hands only warn.
+ */
+function checkFingers(
+  avatar: string,
+  times: readonly number[],
+  frames: readonly Frame[],
+  body: AvatarBody,
+  contacts: readonly MotionCheckContact[],
+): MotionCheckFinding[] {
+  const hands = SIDES.flatMap((side) => body.hands[side] ?? []);
+  const findings: MotionCheckFinding[] = [];
+  frames.forEach((frame, index) => {
+    const time = times[index];
+    const named = contacts
+      .filter(
+        (contact) => time >= contact.from - 1e-6 && time <= contact.to + 1e-6,
+      )
+      .flatMap((contact) => {
+        const bone = fingerPart(contact.bone);
+        const target = fingerPart(contact.target);
+        return bone && target ? [[bone, target]] : [];
+      });
+    const allowed = (a: string, b: string) =>
+      named.some(([bone, target]) =>
+        a.startsWith("left") !== b.startsWith("left")
+          ? bone.startsWith("left") !== target.startsWith("left")
+          : (bone === a && target === b) || (bone === b && target === a),
+      );
+    const placed = new Map<Side, PlacedHand>();
+    for (const hand of hands) {
+      const wrist = frame.positions.get(`${hand.side}Hand`);
+      if (!wrist) continue;
+      const fingers = hand.segments.flatMap((segment): PartCapsule[] => {
+        const a = frame.positions.get(segment.bone);
+        const b = body.point(frame, segment.bone, "tip");
+        return a && b
+          ? [
+              {
+                a,
+                b,
+                radius: segment.radius,
+                part: `${hand.side}${segment.digit}`,
+                againstPalm: segment.againstPalm,
+              },
+            ]
+          : [];
+      });
+      const palm = hand.palmBases.flatMap((bone): PartCapsule[] => {
+        const base = frame.positions.get(bone);
+        return base
+          ? [
+              {
+                a: wrist,
+                b: base,
+                radius: hand.palmRadius,
+                part: `${hand.side}Palm`,
+                againstPalm: false,
+              },
+            ]
+          : [];
+      });
+      let reach = 0;
+      for (const capsule of [...fingers, ...palm])
+        reach = Math.max(
+          reach,
+          capsule.b.distanceTo(wrist) + capsule.radius,
+          capsule.a.distanceTo(wrist) + capsule.radius,
+        );
+      placed.set(hand.side, { fingers, palm, wrist, reach });
+    }
+
+    // The deepest overlap per pair of parts in this frame, relative to the
+    // two radii.
+    const worst = new Map<
+      string,
+      { distance: number; sum: number; detail: string; sameHand: boolean }
+    >();
+    const test = (a: PartCapsule, b: PartCapsule, detail: string) => {
+      const sum = a.radius + b.radius;
+      const distance = segmentDistance(a.a, a.b, b.a, b.b);
+      if (distance >= T.fingers.warnFraction * sum) return;
+      const subject = [a.part, b.part].sort(partOrder).join("/");
+      const current = worst.get(subject);
+      if (!current || distance / sum < current.distance / current.sum)
+        worst.set(subject, {
+          distance,
+          sum,
+          detail,
+          sameHand: a.part.startsWith("left") === b.part.startsWith("left"),
+        });
+    };
+    for (const [side, { fingers, palm }] of placed) {
+      for (let i = 0; i < fingers.length; i += 1)
+        for (let j = i + 1; j < fingers.length; j += 1) {
+          const [a, b] = [fingers[i], fingers[j]];
+          if (
+            a.part === b.part ||
+            a.part.endsWith("Thumb") ||
+            b.part.endsWith("Thumb") ||
+            allowed(a.part, b.part)
+          )
+            continue;
+          test(a, b, "fingers pass through each other");
+        }
+      for (const finger of fingers)
+        if (finger.againstPalm && !allowed(finger.part, `${side}Palm`))
+          for (const capsule of palm)
+            test(finger, capsule, "a finger passes through its palm");
+    }
+    const left = placed.get("left");
+    const right = placed.get("right");
+    if (
+      left &&
+      right &&
+      left.wrist.distanceTo(right.wrist) < left.reach + right.reach &&
+      !allowed("leftPalm", "rightPalm")
+    ) {
+      for (const finger of left.fingers)
+        for (const capsule of [...right.fingers, ...right.palm])
+          test(finger, capsule, "a finger passes through the other hand");
+      for (const finger of right.fingers)
+        for (const capsule of left.palm)
+          test(finger, capsule, "a finger passes through the other hand");
+    }
+
+    for (const [subject, { distance, sum, detail, sameHand }] of worst) {
+      // Between the hands the overlap depends on each Avatar's arm
+      // proportions, so it only warns; a hand's own shape fails.
+      const severity =
+        sameHand && distance < T.fingers.failFraction * sum ? "fail" : "warn";
+      const fraction =
+        severity === "fail" ? T.fingers.failFraction : T.fingers.warnFraction;
+      findings.push({
+        category: "fingers",
+        severity,
+        avatar,
+        subject,
+        from: time,
+        to: time,
+        // Overlap depth of the two capsules: deeper is worse.
+        value: round(sum - distance, 3),
+        limit: round((1 - fraction) * sum, 3),
+        unit: "m",
+        detail: `${detail} (finger capsules)`,
+      });
+    }
+  });
+  return findings;
+}
+
+const PART_ORDER = ["Thumb", "Index", "Middle", "Ring", "Little", "Palm"];
+
+/** Left before right, then thumb to little finger, palm last. */
+function partOrder(a: string, b: string): number {
+  const rank = (part: string) =>
+    (part.startsWith("left") ? 0 : 10) +
+    PART_ORDER.indexOf(part.replace(/^(left|right)/, ""));
+  return rank(a) - rank(b);
+}
+
+/**
+ * Contacts on one Avatar, on raw (skinned) bones so the solver is verified
+ * independently of it. Each contact point is the bone's `point` (and the
+ * target's `targetPoint`) carried by the bone's rest-aligned frame; the
+ * offset is scaled by the Avatar's `contactScale`.
+ *
+ * - Every contact: FAIL beyond its tolerance (solved: at most
+ *   `solvedContactTolerance`, "unreachable on this Avatar").
+ * - Solved contacts: WARN when the authored arm's point is far from the
+ *   target at full weight (`reachCorrection`).
+ * - `facing`: WARN when the palm turns away from the target.
+ */
 function checkContacts(
   avatar: string,
   times: readonly number[],
-  poses: readonly Pose[],
+  frames: readonly Frame[],
+  unsolvedFrames: readonly Frame[],
   body: AvatarBody,
-  restRotations: Map<VRMHumanBoneName, Quaternion>,
-  contacts: readonly MotionCheckContact[],
+  contacts: readonly CheckedContact[],
 ): MotionCheckFinding[] {
   const findings: MotionCheckFinding[] = [];
+  const scale = body.contactScale;
   for (const contact of contacts) {
-    const tolerance = contact.tolerance ?? T.contactTolerance;
+    const subject = `${contact.bone}→${contact.target}`;
     const bone = contact.bone as VRMHumanBoneName;
     const target = contact.target as VRMHumanBoneName;
-    times.forEach((time, index) => {
-      if (time < contact.from - 1e-6 || time > contact.to + 1e-6) return;
-      const rotations = body.rotations(poses[index]);
-      const from = body.position(bone);
-      const to = body.position(target);
-      if (!from || !to) {
-        findings.push({
-          category: "contact",
-          severity: "fail",
-          avatar,
-          subject: `${contact.bone}→${contact.target}`,
-          from: time,
-          to: time,
-          value: 0,
-          limit: 0,
-          unit: "",
-          detail: "the Avatar lacks a contact bone",
-        });
-        return;
-      }
-      const delta = (rotations.get(target) ?? new Quaternion()).multiply(
-        (restRotations.get(target) ?? new Quaternion()).clone().invert(),
+    const finding = (
+      severity: "fail" | "warn",
+      time: number,
+      value: number,
+      limit: number,
+      unit: string,
+      detail: string,
+      actualOffset?: [number, number, number],
+    ): MotionCheckFinding => ({
+      ...(actualOffset ? { actualOffset } : {}),
+      category: "contact",
+      severity,
+      avatar,
+      subject,
+      from: time,
+      to: time,
+      value,
+      limit,
+      unit,
+      detail,
+    });
+    try {
+      body.skeleton.pointOffset(bone, contact.point);
+      body.skeleton.pointOffset(target, contact.targetPoint);
+    } catch (error) {
+      findings.push(
+        finding("fail", contact.from, 0, 0, "", (error as Error).message),
       );
-      const offset = new Vector3(
-        ...(contact.offset ?? [0, 0, 0]),
-      ).applyQuaternion(delta);
+      continue;
+    }
+    const tolerance = contact.solved
+      ? Math.min(
+          contact.tolerance ?? T.contactTolerance,
+          T.solvedContactTolerance,
+        )
+      : (contact.tolerance ?? T.contactTolerance);
+    /** The contact's point, its target point and the offset target on a frame. */
+    const measure = (frame: Frame) => {
+      const from = body.point(frame, bone, contact.point);
+      const base = body.point(frame, target, contact.targetPoint);
+      if (!from || !base) return null;
+      const delta = body.delta(frame, target);
+      const to = new Vector3(...(contact.offset ?? [0, 0, 0]))
+        .multiplyScalar(scale)
+        .applyQuaternion(delta)
+        .add(base);
       const actual = from
         .clone()
-        .sub(to)
-        .applyQuaternion(delta.clone().invert());
-      const distance = from.distanceTo(to.add(offset));
-      if (distance > tolerance)
-        findings.push({
-          actualOffset: actual.toArray().map((n) => round(n, 3)) as [
-            number,
-            number,
-            number,
-          ],
-          category: "contact",
-          severity: "fail",
-          avatar,
-          subject: `${contact.bone}→${contact.target}`,
-          from: time,
-          to: time,
-          value: round(distance, 3),
-          limit: tolerance,
-          unit: "m",
-          detail: "declared contact is not reached",
-        });
+        .sub(base)
+        .applyQuaternion(delta.clone().invert())
+        .divideScalar(scale)
+        .toArray()
+        .map((n) => round(n, 3)) as [number, number, number];
+      return { distance: from.distanceTo(to), actual };
+    };
+    times.forEach((time, index) => {
+      if (time < contact.from - 1e-6 || time > contact.to + 1e-6) return;
+      const reached = measure(frames[index]);
+      if (!reached) {
+        findings.push(
+          finding("fail", time, 0, 0, "", "the Avatar lacks a contact bone"),
+        );
+        return;
+      }
+      if (reached.distance > tolerance)
+        findings.push(
+          finding(
+            "fail",
+            time,
+            round(reached.distance, 3),
+            tolerance,
+            "m",
+            contact.solved
+              ? "solved contact is not reached: unreachable on this Avatar"
+              : "declared contact is not reached",
+            reached.actual,
+          ),
+        );
+      if (contact.solved) {
+        const authored = measure(unsolvedFrames[index]);
+        const limit = T.reachCorrection * scale;
+        if (authored && authored.distance > limit)
+          findings.push(
+            finding(
+              "warn",
+              time,
+              round(authored.distance, 3),
+              round(limit, 3),
+              "m",
+              "the authored arm is far from this solved contact (the solver does the reaching); bring the authored hand nearer the target",
+              authored.actual,
+            ),
+          );
+      }
+      if (contact.facing) {
+        const angle = palmFacingAngle(body, frames[index], contact);
+        if (angle !== null && angle > T.facingDegrees)
+          findings.push(
+            finding(
+              "warn",
+              time,
+              round(angle),
+              T.facingDegrees,
+              "°",
+              "the palm does not face the target",
+            ),
+          );
+      }
     });
   }
   return findings;
+}
+
+/**
+ * Where each bone's segment ends, for aiming a palm at the nearest point of a
+ * target bone: the next joint along the spine or limb (the first one the rig
+ * has). Fingers end at their tip; hands and the head are aimed at their
+ * middle instead.
+ */
+const SEGMENT_END: Readonly<Record<string, readonly string[]>> = {
+  hips: ["spine"],
+  spine: ["chest"],
+  chest: ["upperChest", "neck"],
+  upperChest: ["neck"],
+  neck: ["head"],
+  Shoulder: ["UpperArm"],
+  UpperArm: ["LowerArm"],
+  LowerArm: ["Hand"],
+  UpperLeg: ["LowerLeg"],
+  LowerLeg: ["Foot"],
+  Foot: ["Toes"],
+};
+
+/**
+ * Angle in degrees between the palm normal of the contact bone's hand and the
+ * direction from the hand's centre to the target, or null when undefined.
+ *
+ * The palm normal is the hand's rest −Y (the canonical T-pose holds both palms
+ * down) carried by its rest-aligned frame, so both sides share it. The aim is
+ * the target body part, not the touch point (`offset` and `targetPoint` are
+ * ignored): during a touch the touch point lies on the palm itself (or at the
+ * fingertips, along the fingers), so the direction to it says nothing about
+ * the palm. A hand target is aimed at its centre, a head target halfway from
+ * the head joint to the eyes, and any other bone at the point of its segment
+ * (from its joint to the next joint, or a finger's tip) nearest the hand's
+ * centre, so a palm resting anywhere along a forearm or the spine aims
+ * straight into it.
+ */
+function palmFacingAngle(
+  body: AvatarBody,
+  frame: Frame,
+  contact: MotionCheckContact,
+): number | null {
+  const side = handSideOf(contact.bone);
+  if (!side) return null;
+  const hand: VRMHumanBoneName = `${side}Hand`;
+  const centre = body.handCentre(frame, side);
+  if (!centre || !frame.rotations.has(hand)) return null;
+  const normal = new Vector3(0, -1, 0).applyQuaternion(body.delta(frame, hand));
+  const aim = facingAim(
+    body,
+    frame,
+    contact.target as VRMHumanBoneName,
+    centre,
+  );
+  if (!aim) return null;
+  const direction = aim.sub(centre);
+  if (direction.lengthSq() < 1e-8) return null;
+  return (normal.angleTo(direction) * 180) / Math.PI;
+}
+
+/** The point of `target` a palm at `from` should face (see `palmFacingAngle`). */
+function facingAim(
+  body: AvatarBody,
+  frame: Frame,
+  target: VRMHumanBoneName,
+  from: Vector3,
+): Vector3 | null {
+  const targetSide = HAND_BONE.exec(target)?.[1] as Side | undefined;
+  if (targetSide) return body.handCentre(frame, targetSide);
+  const joint = frame.positions.get(target);
+  if (!joint) return null;
+  if (/^(head|leftEye|rightEye|jaw)$/.test(target)) {
+    const head = frame.positions.get("head") ?? joint;
+    const left = frame.positions.get("leftEye");
+    const right = frame.positions.get("rightEye");
+    return left && right
+      ? head.clone().lerp(left.clone().add(right).multiplyScalar(0.5), 0.5)
+      : head.clone();
+  }
+  const side = /^(left|right)/.exec(target)?.[1] ?? "";
+  const end = FINGER_BONE.test(target)
+    ? body.point(frame, target, "tip")
+    : (SEGMENT_END[target.slice(side.length)] ?? [])
+        .map((next) =>
+          frame.positions.get(`${side}${next}` as VRMHumanBoneName),
+        )
+        .find(Boolean);
+  if (!end) return joint.clone();
+  const axis = end.clone().sub(joint);
+  const along = clamp01(from.clone().sub(joint).dot(axis) / axis.lengthSq());
+  return joint
+    .clone()
+    .addScaledVector(axis, Number.isFinite(along) ? along : 0);
 }
 
 function checkFeet(
@@ -891,8 +1723,8 @@ function checkFeet(
     for (const side of SIDES)
       for (const part of ["Foot", "Toes"] as const) {
         const bone = `${side}${part}` as VRMHumanBoneName;
-        const now = frame.get(bone);
-        const then = rest.get(bone);
+        const now = frame.positions.get(bone);
+        const then = rest.positions.get(bone);
         if (!now || !then) continue;
         const slide = Math.hypot(now.x - then.x, now.z - then.z);
         const rise = now.y - then.y;
@@ -945,6 +1777,8 @@ const PARITY_BONES: VRMHumanBoneName[] = [
  * Compare each bone's world rotation from rest between every pair of Avatars.
  * Correct VRM 0/1 conversion makes them equal regardless of proportions; a
  * sign or basis error shows as a large difference on the affected bones.
+ * `checkMotion` passes the authored (unsolved) arms, which solved contacts
+ * change per Avatar by design.
  */
 export function checkParity(
   times: readonly number[],
@@ -1074,7 +1908,7 @@ export function formatMotionCheckReport(report: MotionCheckReport): string {
         : `${finding.from.toFixed(2)}–${finding.to.toFixed(2)}s`;
     const who = ` [${finding.avatar ?? "canonical"}]`;
     const where = finding.actualOffset
-      ? `; the bone is at offset [${finding.actualOffset.join(", ")}] m from the target`
+      ? `; the point is at offset [${finding.actualOffset.join(", ")}] m from the target`
       : "";
     return `${finding.severity.toUpperCase()} ${finding.category}${who} ${finding.subject} at ${when}: ${finding.detail} (${finding.value}${finding.unit}, limit ${finding.limit}${finding.unit}${where})`;
   });

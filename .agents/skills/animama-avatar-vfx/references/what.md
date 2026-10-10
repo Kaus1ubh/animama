@@ -72,8 +72,10 @@ underneath** chooses overlay (on) or replace (off). **Hide other face parts**
 hides selected parts while the effect is active.
 
 **Body, sticker and silhouette** effects need no face part, follow the avatar
-through every motion, and coexist with face effects. The silhouette never
-changes the avatar's materials and skips outlines and transparent eye layers.
+through every motion, and coexist with face effects. Art on a hand or foot
+goes wherever the Gesture puts that bone, so check it in that pose
+(`effects check --with-clip`). The silhouette never changes the avatar's
+materials and skips outlines and transparent eye layers.
 
 ## Face parts
 

@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:meme-dab",
   "version": 1,
   "semantic_key": "meme-dab",
-  "name": "meme-dab",
+  "name": "Meme Dab",
   "ai_description": "Strike a dab pose for a goofy celebration, meme reference, or deliberately silly victory.",
   "implementation": {
     "kind": "anima_clip",

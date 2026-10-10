@@ -40,6 +40,9 @@ import {
  *   are in both), otherwise the bare Avatar. Scene layers are captured from
  *   the page as the chat draws them. Somewhere on each Avatar the effect must
  *   change at least `VISIBLE_SHARE` of a tile.
+ * - **Pose:** with a Gesture clip (`--with-clip`), the baseline and effect
+ *   frames both sample it at each time, so art on a bone the Gesture moves
+ *   (a hand, say) is checked where the Gesture puts it rather than arms down.
  */
 
 export const DEFAULT_CHECK_TIMES = [0.25, 1];
@@ -345,8 +348,18 @@ async function differingPixels(applied, baseline, threshold) {
  * `assets` are `{ file, budget, issues }` per image (a clean one reports a
  * PASS line naming its budget); `page` holds the parse error,
  * or each Avatar's diagnostics and differing pixels per frame.
+ * `suggestClip` adds a `--with-clip` hint to "no visible art" (for
+ * bone-attached art checked without a Gesture); poses a `--with-clip`
+ * Gesture names that the app catalog lacks are a WARN.
  */
-export function summarizeCheck({ assets, page, times, views, tile }) {
+export function summarizeCheck({
+  assets,
+  page,
+  times,
+  views,
+  tile,
+  suggestClip = false,
+}) {
   const lines = [];
   for (const { file, budget, issues } of assets) {
     for (const issue of issues)
@@ -390,7 +403,7 @@ export function summarizeCheck({ assets, page, times, views, tile }) {
     if (!visible.length)
       lines.push({
         level: "FAIL",
-        message: `${label}: no visible art (at most ${most.pixels} px changed; ${floor} needed; if it appears later, try --times)`,
+        message: `${label}: no visible art (at most ${most.pixels} px changed; ${floor} needed; if it appears later, try --times${suggestClip ? "; on a bone a Gesture moves, check it in that pose with --with-clip <gesture>" : ""})`,
       });
     else {
       const hidden = times.filter(
@@ -411,12 +424,26 @@ export function summarizeCheck({ assets, page, times, views, tile }) {
       });
     }
   }
+  // As effects:render reports them: a pose the clip names that the app
+  // catalog lacks renders as the base pose, so that frame is not the
+  // Gesture's pose.
+  const missingPoses = [
+    ...new Set(page.avatars.flatMap((avatar) => avatar.missingPoseRefs ?? [])),
+  ];
+  if (missingPoses.length)
+    lines.push({
+      level: "WARN",
+      message: `clip poses not in the app catalog rendered as the base pose: ${missingPoses.join(", ")}`,
+    });
   return lines;
 }
 
 /**
- * Check effect sources (as `resolveEffectSource` returns them). Returns one
- * `{ stem, lines }` per effect; every effect is attempted.
+ * Check Avatar, Particle and Scene effect sources (as
+ * `resolveAnyEffectSource` returns them). `clip` is a Gesture clip
+ * (`resolveClipSource`'s `clip`) that poses both Avatars at each time, or
+ * null for the rest pose. Returns one `{ stem, lines }` per effect; every
+ * effect is attempted.
  */
 export async function checkEffects({
   effects,
@@ -425,6 +452,7 @@ export async function checkEffects({
   tile = DEFAULT_TILE,
   threshold = DEFAULT_THRESHOLD,
   localContent = null,
+  clip = null,
 }) {
   const assetResults = [];
   for (const effect of effects) assetResults.push(await sourceAssets(effect));
@@ -469,10 +497,12 @@ export async function checkEffects({
                   },
                 ]
               : [];
+          // A --with-clip Gesture poses both captures; its effect events
+          // are not played (no clip media), so only the effect differs.
           const common = {
             tile,
             expression: null,
-            clip: null,
+            clip,
             clipMedia: null,
           };
           const after = await captureStage(page, {
@@ -522,6 +552,8 @@ export async function checkEffects({
             times,
             views,
             tile,
+            suggestClip:
+              !clip && effect.definition?.attachment?.kind === "body",
           }),
           ...extraLines,
         ];

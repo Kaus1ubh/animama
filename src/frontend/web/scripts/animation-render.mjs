@@ -25,6 +25,7 @@ export async function renderGestureSheet({
   outFile,
   tile,
   side = "right",
+  view = "body",
 }) {
   const server = await createServer({
     configFile: false,
@@ -78,6 +79,7 @@ export async function renderGestureSheet({
         clip,
         times,
         side,
+        view,
         tile: tile ?? { width: 220, height: 330 },
         avatars: AVATARS.map((id) => ({
           id,
@@ -107,14 +109,22 @@ export function defaultTimes(duration, rows = 8) {
 }
 
 const USAGE = [
-  "Usage: pnpm -s animation:render <clip.json> --out <dir> [--times 0,0.5,1] [--rows 8] [--side right|left] [--tile 220x330]",
+  "Usage: pnpm -s animation:render <clip.json> --out <dir> [--times 0,0.5,1] [--rows 8] [--side right|left] [--view body|hands] [--tile 220x330]",
   "Renders one row per time: per Avatar a front view (its right hand on the viewer's left),",
-  "a 3/4 and a side view from the Avatar's own --side, and a face close-up. Each tile is",
-  "--tile pixels (larger tiles help judge small motions); the sheet adds a 64 px label column",
-  "and a 28 px header.",
+  "a 3/4 and a side view from the Avatar's own --side, and a face close-up. --view hands",
+  "instead shows close-ups of the --side hand from the front, 3/4, below and facing the palm",
+  "(written as <id>.<side>-hand.png). Each tile is --tile pixels (larger tiles help judge",
+  "small motions); the sheet adds a 64 px label column and a 28 px header.",
 ].join("\n");
 
-const OPTIONS = new Set(["--out", "--times", "--rows", "--side", "--tile"]);
+const OPTIONS = new Set([
+  "--out",
+  "--times",
+  "--rows",
+  "--side",
+  "--view",
+  "--tile",
+]);
 
 async function main(argv) {
   const [input, ...rest] = argv;
@@ -133,6 +143,7 @@ async function main(argv) {
     values[name] = value;
   }
   const side = values["--side"] ?? "right";
+  const view = values["--view"] ?? "body";
   const rows = Number(values["--rows"] ?? 8);
   const times = values["--times"]?.split(",").map(Number);
   const tileMatch = /^([1-9]\d{1,3})x([1-9]\d{1,3})$/.exec(
@@ -141,6 +152,7 @@ async function main(argv) {
   if (
     !values["--out"] ||
     !["left", "right"].includes(side) ||
+    !["body", "hands"].includes(view) ||
     !tileMatch ||
     (times &&
       (times.length === 0 ||
@@ -156,13 +168,14 @@ async function main(argv) {
   const outFile = path.resolve(
     cwd,
     values["--out"],
-    `${clip.id ?? "gesture"}.png`,
+    `${clip.id ?? "gesture"}${view === "hands" ? `.${side}-hand` : ""}.png`,
   );
   const result = await renderGestureSheet({
     clip,
     times: times ?? defaultTimes(duration, rows),
     outFile,
     side,
+    view,
     tile: { width: Number(tileMatch[1]), height: Number(tileMatch[2]) },
   });
   console.log(`Wrote ${outFile}`);

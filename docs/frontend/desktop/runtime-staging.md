@@ -415,7 +415,7 @@ exactly matches the tracked manifest with complete private provenance. Without
 the input the stage proceeds without the pack; set
 `ANIMAMA_REQUIRE_MIXAMO_MOTION=1` for release candidates so a missing pack
 fails. The supervisor mounts a staged pack as its own Included source.
-The starter closure contains 21 authored gestures, 72 reactions and no required
+The starter closure contains 20 authored gestures, 72 reactions and no required
 Idle Style. The tracked-only staging gate still fails on an unavailable selected
 dependency, even if an ignored local copy exists. Full native stage and packaged
 acceptance remain separate checks; do not infer them from a passing content test.

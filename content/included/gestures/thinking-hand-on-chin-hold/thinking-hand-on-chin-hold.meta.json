@@ -4,8 +4,8 @@
   "content_id": "builtin:gesture:thinking-hand-on-chin-hold",
   "version": 1,
   "semantic_key": "thinking-hand-on-chin-hold",
-  "name": "thinking-hand-on-chin-hold",
-  "ai_description": "Hold a hand at the chin while considering a question, weighing options, or explaining a thoughtful conclusion.",
+  "name": "Thinking Hand on Chin",
+  "ai_description": "A light, held thinking pose: thumb under the jaw and index finger along the cheek while the eyes wander and the finger taps once. Use while considering a question or weighing options.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

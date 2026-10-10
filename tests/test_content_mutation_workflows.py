@@ -25,6 +25,10 @@ from animama.orm.content_mutation import ORMContentMutationReceipt
 from animama.server.local_runtime import LocalRuntimePaths
 from tests.content_package_helpers import anima_clip, package_services, reviewed_export, reviewed_import, vrma
 
+CLIP_FIXTURES = Path(__file__).parents[1] / "src/frontend/web/src/lib/avatar/poses/animaPoseClip/fixtures"
+HAND_KEYS = json.loads((CLIP_FIXTURES / "hand-keys-v2.json").read_text())
+CONTACTS = json.loads((CLIP_FIXTURES / "contacts-v2.json").read_text())
+
 
 @dataclass
 class _Workflow:
@@ -511,16 +515,23 @@ async def test_gesture_save_and_package_keep_layer_mutes_and_unknown_clip_fields
     assert clips == [json.loads(sequence)] * 2
 
 
-async def test_gesture_with_a_2_0_clip_round_trips_through_a_package(workflow: _Workflow) -> None:
+@pytest.mark.parametrize(
+    "fixture_clip",
+    [
+        json.loads((CLIP_FIXTURES / "compatibility-valid-v2.json").read_text()),
+        # The first shared hand-key case: fitted presets with per-finger offsets.
+        HAND_KEYS["clip"] | {"hands": HAND_KEYS["valid"][0]["hands"]},
+        # The first shared contact case: points, facing and solved windows.
+        CONTACTS["clip"] | {"contacts": CONTACTS["valid"][0]["contacts"]},
+    ],
+    ids=["compatibility", "hand-shapes", "solved-contacts"],
+)
+async def test_gesture_with_a_2_0_clip_round_trips_through_a_package(
+    workflow: _Workflow, fixture_clip: dict[str, Any]
+) -> None:
     """A beat-based clip saves as Local content and survives package export and import unchanged."""
 
-    clip = json.loads(
-        (
-            Path(__file__).parents[1]
-            / "src/frontend/web/src/lib/avatar/poses/animaPoseClip/fixtures/compatibility-valid-v2.json"
-        ).read_text()
-    )
-    clip["id"] = "beat-wave"
+    clip = fixture_clip | {"id": "beat-wave"}
     sequence = json.dumps(clip).encode()
     saved = await workflow.saves.save_descriptor(
         user_id=workflow.owner,

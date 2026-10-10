@@ -45,14 +45,22 @@ first.
    structural problems and values beyond anatomical limits with JSON paths,
    and the saved size against the 2 MB the app loads.
 4. **Check:** `pnpm -s animation check <file>.clip.json`. Fix every FAIL;
-   treat WARN as a prompt to look. See [checks and review](references/checks-and-review.md).
+   treat WARN as a prompt to look. Besides range, smoothness, intersections
+   and feet, it measures each contact at its `point` (a solved one within
+   1.5 cm, naming a target the arm cannot reach), warns when a solved arm is
+   far from its touch before solving or a palm does not turn toward a
+   `facing` target, finds fingers through fingers, palms or the other hand,
+   and warns on rapid oscillation (a joint swinging faster than about 4 Hz
+   for three cycles). See [checks and review](references/checks-and-review.md).
 5. **Preview and look:** `pnpm -s animation:preview <file>.clip.json`
    plays it live on both Avatars, lit like the chat canvas, with live layers,
    beat markers and camera presets (a Library item or project file also plays
    its Avatar, Particle and Scene Effects), and reloads as you edit; its pickers
    switch to other clips and Library items without a restart. Judge timing there; use
    `pnpm -s animation:render <file>.clip.json --out <dir>` for still contact
-   sheets (`--times` for beats, `--side left` for left-handed action). Revise
+   sheets (`--times` for beats, `--side left` for left-handed action) and
+   `--view hands` for close-ups of one hand from four angles, to judge hand
+   shapes, finger contacts and palm direction. Revise
    and repeat from step 2 until it reads clearly and naturally. When the owner
    leaves review notes, apply them and resolve each with
    `pnpm -s animation resolve` (see checks and review).
@@ -70,8 +78,11 @@ first.
    Promote the saved Local item the owner reviewed (`"clip":
    "library:local/<selector>"`): `pnpm -s animation promote <items.json>
    --dry-run`, then without `--dry-run`, writes the Included Gesture, its
-   metadata, licence rule and source-review records. See
-   [promote](references/promote.md).
+   metadata, licence rule and source-review records. An add lists the
+   Included effects its events play as `dependencies` (promote a new effect
+   first); a replace changes the display name or loop kind only with
+   `"rename": true` or `"loopChange": true` for changes the owner approved;
+   rename-only items are edited by hand. See [promote](references/promote.md).
 
 **Several Gestures at once:** follow [batch mode](references/batch.md) for up
 to ten per batch: every animation's interview questions sent at once,
@@ -99,8 +110,21 @@ Included Gesture's bytes is a promotion (step 9) with `mode: "replace"`.
 - Set `"plantFeet": true` (2.0 clips do not plant feet unless asked) and move
   weight through hips offset and small pelvis rotation; the legs are solved
   automatically on each Avatar.
-- Prefer the Hands-tool presets for hand shapes; key finger joints only for
-  shapes presets cannot make.
+- Shape hands with a preset (fitted to each Avatar's fingers) plus
+  `fingers` offsets on the same key; key finger `joints` only for what
+  offsets cannot express (finger twist, splay of the outer segments, the
+  thumb metacarpal). Use `pinch` and `ok` for touching pads rather than
+  aiming the thumb by hand. See [hands and face](references/hands-and-face.md).
+- Declare every intended touch as a contact with the `point` that touches
+  (`palm`, `tip`) and `solve`, so playback lands it on every Avatar despite
+  their different arm lengths. Solving moves only the upper arm and elbow:
+  key the arm within a few centimetres of the touch and turn the palm
+  yourself (add `facing` to have the checks verify it). Mute the head and
+  torso layers when a solved touch is on the head. See
+  [clip format](references/clip-format.md).
+- Repeated pulses (laughs, giggles, bounces) run at 2.5–3.3 Hz, three or
+  four per burst, decaying and staggered across regions; faster, phase-locked
+  pulses read as twitching. See [human movement](references/human-movement.md).
 - A Gesture's keyed emotion expressions replace the emotion face while it
   plays. Key expressions that suit the motion, and leave them out when the
   Gesture should keep the Anima's current emotion.

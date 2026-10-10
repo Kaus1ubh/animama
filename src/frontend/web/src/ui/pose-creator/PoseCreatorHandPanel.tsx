@@ -190,7 +190,11 @@ export function PoseCreatorHandPanel({
             <ChevronDownIcon className="size-4" aria-hidden="true" />
           </button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="start" className="w-56">
+        <DropdownMenuContent
+          align="start"
+          // Twelve presets can outgrow a short window; scroll within it.
+          className="max-h-(--radix-dropdown-menu-content-available-height) w-56 overflow-y-auto overscroll-contain"
+        >
           {HAND_PRESETS.map((preset) => (
             <DropdownMenuItem
               key={preset.id}

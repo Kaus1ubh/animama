@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:right-thumbs-down",
   "version": 1,
   "semantic_key": "right-thumbs-down",
-  "name": "right-thumbs-down",
+  "name": "Right Thumbs Down",
   "ai_description": "Give a right-handed thumbs down to express disapproval, disagreement, or disappointment.",
   "implementation": {
     "kind": "anima_clip",

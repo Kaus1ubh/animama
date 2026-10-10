@@ -10,6 +10,17 @@ import {
   type ResolvedJoint,
   type Side,
 } from "../anatomy/anatomy";
+import {
+  ArmReachSolver,
+  CanonicalSkeleton,
+  SkeletonPose,
+  avatarScale,
+  contactSolveWeight,
+  fitContactSolveRamps,
+  solveArmContacts,
+  type ArmContactSolve,
+  type ContactSolveWindow,
+} from "../anatomy/arms";
 import { ScalarTrack, type ResolvedKey } from "../anatomy/curves";
 import { handShapeRotations } from "../anatomy/handPresets";
 import { PlantedLegSolver } from "../anatomy/legs";
@@ -20,6 +31,7 @@ import type {
   QuaternionTuple,
 } from "./clipVocabulary";
 import {
+  ANIMA_POSE_CLIP_V2_CONTACT_SOLVE,
   type AnimaPoseClipEase,
   type AnimaPoseClipScalarKey,
   type AnimaPoseClipV2,
@@ -28,8 +40,9 @@ import {
 /**
  * A 2.0 clip prepared for one Avatar: tracks resolved to absolute times,
  * `"base"` values read from the base pose, hand presets fitted to the Avatar
- * and the planted-leg solver built from its rig. Sampling then only evaluates
- * curves, so preparation runs once per clip and Avatar, not per frame.
+ * and the planted-leg and arm-contact solvers built from its rig. Sampling
+ * then only evaluates curves and solves, so preparation runs once per clip
+ * and Avatar, not per frame.
  */
 export type PreparedAnimaPoseClipV2 = {
   readonly clip: AnimaPoseClipV2;
@@ -46,6 +59,12 @@ export type PrepareAnimaPoseClipV2Options = {
   vrm?: VRM | null;
   /** Resolves the clip's base pose (the app catalog at runtime). */
   resolvePose?: AnimaPoseClipPoseResolver;
+  /**
+   * Move the arms so contacts with `solve` land on this Avatar (default true;
+   * needs `vrm`). False samples the authored arms, as the motion checks
+   * measure them before solving.
+   */
+  solveContacts?: boolean;
 };
 
 type Segment = { from: number; to: number; progress: number };
@@ -154,6 +173,10 @@ export function prepareAnimaPoseClipV2(
   );
 
   const legSolver = clip.plantFeet && vrm ? plantedLegSolver(vrm) : null;
+  const contactSolver =
+    vrm && options.solveContacts !== false
+      ? armContactSolver(clip, vrm, beatTimes)
+      : null;
   const clipTime = (timeSec: number) => {
     const t = Number.isFinite(timeSec) ? Math.max(0, timeSec) : 0;
     return loopDuration
@@ -198,6 +221,8 @@ export function prepareAnimaPoseClipV2(
         for (const [bone, rotation] of Object.entries(legs))
           set(bone as VRMHumanBoneName, rotation);
       }
+      // Last, from the final pose (legs included): contacts land on it.
+      contactSolver?.(humanoid, t, set);
       return {
         ...(Object.keys(humanoid).length > 0 ? { humanoid } : {}),
         ...(expressions.length > 0
@@ -235,6 +260,94 @@ function plantedLegSolver(vrm: VRM): PlantedLegSolver | null {
   )
     ? new PlantedLegSolver(vrm)
     : null;
+}
+
+const ARM_BONES = ["UpperArm", "LowerArm", "Hand"] as const;
+
+/**
+ * Solves a clip's contacts that declare `solve` on one Avatar: at a clip time
+ * it writes the upper and lower arm of each side with an active contact into
+ * `humanoid`. Null when the clip has no solved contact or the rig lacks the
+ * bones a solve needs (it then plays its authored arms rather than failing).
+ *
+ * Each window runs from its beat's time plus `from` to plus `to`, with the
+ * default blends where `solve` names none; ramps of consecutive windows on
+ * one side are shortened to meet midway (`fitContactSolveRamps`).
+ */
+function armContactSolver(
+  clip: AnimaPoseClipV2,
+  vrm: VRM,
+  beatTimes: ReadonlyMap<string, number>,
+):
+  | ((
+      humanoid: VRMPose,
+      t: number,
+      set: (bone: VRMHumanBoneName, rotation: Quaternion) => void,
+    ) => void)
+  | null {
+  const solved = (clip.contacts ?? []).filter((contact) => contact.solve);
+  if (solved.length === 0) return null;
+  const has = (bone: VRMHumanBoneName) =>
+    Boolean(vrm.humanoid.getNormalizedBoneNode(bone));
+  if (!has("hips") || !has("head") || !has("leftFoot")) return null;
+  const skeleton = new CanonicalSkeleton(vrm);
+  const solvers: Partial<Record<Side, ArmReachSolver>> = {};
+  for (const side of ["left", "right"] as const)
+    if (ARM_BONES.every((bone) => skeleton.has(`${side}${bone}`)))
+      solvers[side] = new ArmReachSolver(skeleton, side);
+  if (!solvers.left && !solvers.right) return null;
+  const scale = avatarScale(skeleton);
+  const pose = new SkeletonPose(skeleton);
+
+  const blend = ANIMA_POSE_CLIP_V2_CONTACT_SOLVE.defaultBlendSeconds;
+  type Window = ContactSolveWindow & { side: Side; contact: ArmContactSolve };
+  const windows: Window[] = [];
+  for (const contact of solved) {
+    const side: Side = contact.bone.startsWith("left") ? "left" : "right";
+    if (!solvers[side]) continue;
+    const beat = beatTimes.get(contact.beat)!;
+    windows.push({
+      side,
+      start: beat + contact.from,
+      end: beat + contact.to,
+      blendIn: contact.solve!.blendIn ?? blend,
+      blendOut: contact.solve!.blendOut ?? blend,
+      // Reused every frame: only `weight` changes.
+      contact: {
+        bone: contact.bone as VRMHumanBoneName,
+        point: contact.point,
+        target: contact.target as VRMHumanBoneName,
+        targetPoint: contact.targetPoint,
+        offset: contact.offset,
+        weight: 0,
+      },
+    });
+  }
+  const loop = clip.loop === true;
+  const fitted = (["left", "right"] as const).flatMap((side) =>
+    fitContactSolveRamps(
+      windows.filter((span) => span.side === side),
+      clip.duration,
+      loop,
+    ),
+  );
+  if (fitted.length === 0) return null;
+  const active: ArmContactSolve[] = [];
+
+  return (humanoid, t, set) => {
+    active.length = 0;
+    for (const span of fitted) {
+      span.contact.weight = contactSolveWeight(span, t, clip.duration, loop);
+      if (span.contact.weight > 0) active.push(span.contact);
+    }
+    if (active.length === 0) return;
+    pose.setPose(humanoid);
+    const solvedSides = solveArmContacts(pose, solvers, active, scale);
+    for (const side of Object.keys(solvedSides) as Side[]) {
+      set(`${side}UpperArm`, pose.localRotation(`${side}UpperArm`)!);
+      set(`${side}LowerArm`, pose.localRotation(`${side}LowerArm`)!);
+    }
+  };
 }
 
 function setJoint(

@@ -168,8 +168,8 @@ describe("Starter action customization", () => {
       isCustomizableStarterAction(
         item({
           intent: "gesture",
-          id: "builtin:gesture:shy-finger-poke",
-          name: "Shy Finger Poke",
+          id: "builtin:gesture:shy-finger-poke-loop",
+          name: "Shy Finger Poke Loop",
         }),
         "gesture",
       ),
@@ -192,8 +192,8 @@ describe("Starter action customization", () => {
         {
           ...item({
             intent: "gesture",
-            id: "builtin:gesture:shy-finger-poke",
-            name: "Shy Finger Poke",
+            id: "builtin:gesture:shy-finger-poke-loop",
+            name: "Shy Finger Poke Loop",
           }),
           portability: "non-portable",
         },
@@ -316,8 +316,8 @@ describe("Starter action customization", () => {
   it("gives a Starter Gesture fork a distinct valid model selector", async () => {
     const starter = item({
       intent: "gesture",
-      id: "builtin:gesture:shy-finger-poke",
-      name: "Shy Finger Poke",
+      id: "builtin:gesture:shy-finger-poke-loop",
+      name: "Shy Finger Poke Loop",
     });
     const document = await actionDocumentFromPreview({
       intent: "gesture",
@@ -325,16 +325,16 @@ describe("Starter action customization", () => {
       preview: preview({
         intent: "gesture",
         id: starter.item_id,
-        key: "shy-finger-poke",
-        semanticKey: "shy-finger-poke",
+        key: "shy-finger-poke-loop",
+        semanticKey: "shy-finger-poke-loop",
       }),
       base: createGestureDocument(),
       customizeStarter: true,
       semanticSuffix: "abcdef12",
     });
 
-    expect(document.semanticKey).toBe("shy_finger_poke_custom_abcdef12");
-    expect(document.semanticKey).not.toBe("shy-finger-poke");
+    expect(document.semanticKey).toBe("shy_finger_poke_loop_custom_abcdef12");
+    expect(document.semanticKey).not.toBe("shy-finger-poke-loop");
     expect(document.semanticKey).toMatch(/^[a-z0-9_]{1,64}$/);
   });
 

@@ -1,15 +1,35 @@
-import { describe, expect, it } from "vitest";
+import { createHash } from "node:crypto";
+import type { VRM, VRMHumanBoneName, VRMPose } from "@pixiv/three-vrm";
+import { beforeAll, describe, expect, it } from "vitest";
 import { Object3D, Quaternion, Vector3 } from "three";
 import type { Avatar } from "@/lib/avatar";
 import {
+  applyCanonicalPose,
+  rawBoneWorldPosition,
+} from "@/lib/avatar/motion-authoring/kinematics";
+import { loadTestAvatar } from "@/lib/avatar/motion-authoring/testing/includedAvatars";
+import {
   AVATAR_POSE_CATALOG,
   RELAXED_REST_POSE_ID,
+  getResolvedAvatarPose,
 } from "@/lib/avatar/poses/catalog";
 import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
 import {
+  JOINT_DEFINITIONS,
+  angularDistanceDegrees,
+  composeJointRotation,
+  decomposeJointRotation,
+  resolveJoint,
+  type JointComponentDefinition,
+} from "./anatomy";
+import {
+  HAND_PRESETS,
   HAND_SEGMENTS,
   handPresetQuaternion,
+  handShapeRotations,
   adjustHandQuaternion,
+  type HandShape,
+  type HandSide,
 } from "./handPresets";
 describe("hand adjustments", () => {
   it("curls normalized fingers in corresponding opposite directions", () => {
@@ -212,7 +232,13 @@ describe("calibrated hand directions", () => {
           .sub(hand.getWorldPosition(new Vector3())),
       );
       target.sub(proximal.getWorldPosition(new Vector3())).normalize();
-      expect(actual.distanceTo(target)).toBeLessThan(1e-7);
+      if (preset === "fist" && angle === 0)
+        // With an unrotated metacarpal, crossing the fist would need a thumb
+        // curl of about 97°; the fit stops at the joint's anatomical limit.
+        expect(
+          decomposeJointRotation(resolveJoint(bone.boneName)!, result).curl,
+        ).toBeCloseTo(JOINT_DEFINITIONS.thumb.components.curl.hard[1], 6);
+      else expect(actual.distanceTo(target)).toBeLessThan(1e-7);
       const directionInHand = actual
         .clone()
         .applyQuaternion(hand.getWorldQuaternion(new Quaternion()).invert());
@@ -298,6 +324,20 @@ describe("additional hand presets", () => {
             expect(actual.toArray()).toEqual(
               handPresetQuaternion(bone, "fist").toArray(),
             );
+          else if (preset === "thumbs-up" && segment.segment === "distal")
+            // The thumbs-up tip bends back, as real ones do.
+            expect(
+              angularDistanceDegrees(
+                actual,
+                adjustHandQuaternion(
+                  new Quaternion(),
+                  side,
+                  "thumb",
+                  "curl",
+                  -25,
+                ),
+              ),
+            ).toBeLessThan(1e-6);
           else if (
             !(preset === "peace" && segment.segment === "proximal") &&
             !(preset === "thumbs-up" && segment.segment === "proximal")
@@ -374,12 +414,398 @@ describe("additional hand presets", () => {
         .applyQuaternion(meta.quaternion)
         .normalize();
       const outward = index.position.clone().sub(little.position).normalize();
-      expect(direction.dot(outward)).toBeGreaterThan(0.97);
+      // It swings toward the index side only as far as the joint's natural
+      // range allows (the distal segment then bends back the rest of the way).
+      expect(
+        decomposeJointRotation(resolveJoint(bone.boneName)!, result).curl,
+      ).toBeCloseTo(JOINT_DEFINITIONS.thumb.components.curl.soft[0], 6);
+      expect(direction.dot(outward)).toBeGreaterThan(0.85);
       proximal.quaternion.copy(result);
       expect(
         handPresetQuaternion(bone, "thumbs-up", avatar).angleTo(result),
       ).toBeCloseTo(0);
       expect(meta.quaternion.toArray()).toEqual(before.toArray());
+    },
+  );
+});
+
+const base = getResolvedAvatarPose(RELAXED_REST_POSE_ID).humanoid ?? {};
+const SIDES = ["left", "right"] as const;
+const AVATAR_IDS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"] as const;
+type AvatarLabel = "none" | (typeof AVATAR_IDS)[number];
+
+/** Rotations of a hand shape with the base pose's thumb metacarpal. */
+const shapeOf = (vrm: VRM | null, side: HandSide, shape: HandShape) =>
+  handShapeRotations(
+    vrm,
+    side,
+    shape,
+    base[`${side}ThumbMetacarpal`]?.rotation,
+  );
+
+describe("hand shapes on the Included Avatars", () => {
+  const avatars = {} as Record<AvatarLabel, VRM | null>;
+  beforeAll(async () => {
+    avatars.none = null;
+    for (const id of AVATAR_IDS) avatars[id] = await loadTestAvatar(id);
+  });
+
+  /**
+   * Digests of both hands' rotations for each original preset, alone and with
+   * Curl 12 and Spread −8, quantized to 1e-6 (w ≥ 0). Computed from the
+   * implementation at `bfc0de4f`, before the offset presets were added: a
+   * change here changes the hands of existing Gestures. Only `thumbs-up`
+   * changed deliberately since then: its fitted thumb reached a curl of about
+   * −70°, past the joint's −60° limit, so its thumb now stops at the natural
+   * range (−50°) and its tip bends back 25°. No Included Gesture uses it.
+   * Other fitted thumbs change only where they were past the anatomical limit,
+   * which these Relaxed Rest metacarpals never are.
+   */
+  const ORIGINAL_PRESET_DIGESTS: Record<AvatarLabel, Record<string, string>> = {
+    none: {
+      fist: "882e3f1e56f37a88",
+      "open-spread": "fb472dc83541b19b",
+      "open-together": "3c61b8a4a0f30521",
+      relaxed: "6407426a36961be2",
+      point: "6db2fd76ed175618",
+      peace: "8a4105c55ef65a11",
+      "thumbs-up": "5df640c4b37f9db2",
+    },
+    AvatarSample_Y_0: {
+      fist: "31338597d0f7499c",
+      "open-spread": "e31722b0ab246a6a",
+      "open-together": "cd19f47770ccce52",
+      relaxed: "6407426a36961be2",
+      point: "20df92a1f8bb414b",
+      peace: "8aff13e1c7fe05a5",
+      "thumbs-up": "11f1d7cd1914577c",
+    },
+    AvatarSample_A_1_New: {
+      fist: "8cc64460c8b066bb",
+      "open-spread": "c96cd3f3c49c9296",
+      "open-together": "bfbecb03c2e57f0e",
+      relaxed: "6407426a36961be2",
+      point: "29fd8cd5ba298dee",
+      peace: "772b821ede66c545",
+      "thumbs-up": "feb9dcb6aaebe6a2",
+    },
+  };
+  const ORIGINAL_PRESETS = Object.keys(ORIGINAL_PRESET_DIGESTS.none);
+  const NEW_PRESETS = HAND_PRESETS.map(({ id }) => id).filter(
+    (id) => !ORIGINAL_PRESETS.includes(id),
+  );
+
+  const presetDigest = (vrm: VRM | null, preset: HandShape["preset"]) => {
+    const lines: string[] = [];
+    for (const shape of [{ preset }, { preset, curl: 12, spread: -8 }])
+      for (const side of SIDES)
+        for (const [bone, q] of shapeOf(vrm, side, shape)) {
+          const sign = q.w < 0 ? -1 : 1;
+          const values = q
+            .toArray()
+            .map((value) => Math.round(sign * value * 1e6) + 0);
+          lines.push(`${JSON.stringify(shape)} ${bone} ${values.join(",")}`);
+        }
+    return createHash("sha256")
+      .update(lines.sort().join("\n"))
+      .digest("hex")
+      .slice(0, 16);
+  };
+
+  it.each(["none", ...AVATAR_IDS] as const)(
+    "keeps the original presets' rotations (%s)",
+    (label) => {
+      expect(
+        Object.fromEntries(
+          ORIGINAL_PRESETS.map((preset) => [
+            preset,
+            presetDigest(avatars[label], preset as HandShape["preset"]),
+          ]),
+        ),
+      ).toEqual(ORIGINAL_PRESET_DIGESTS[label]);
+    },
+  );
+
+  /** Thumb metacarpals to fit around: unrotated and every Library Pose's. */
+  const METACARPALS: Record<
+    string,
+    Record<HandSide, [number, number, number, number] | undefined>
+  > = {
+    identity: { left: [0, 0, 0, 1], right: [0, 0, 0, 1] },
+    ...Object.fromEntries(
+      Object.entries(AVATAR_POSE_CATALOG).map(([id, pose]) => [
+        id,
+        {
+          left: pose.humanoid?.leftThumbMetacarpal?.rotation,
+          right: pose.humanoid?.rightThumbMetacarpal?.rotation,
+        },
+      ]),
+    ),
+  };
+
+  it.each(AVATAR_IDS)(
+    "keeps every preset's finger and thumb joints within their hard limits on %s",
+    (id) => {
+      const outside: string[] = [];
+      for (const side of SIDES)
+        for (const [pose, metacarpal] of Object.entries(METACARPALS))
+          for (const { id: preset } of HAND_PRESETS)
+            for (const [bone, rotation] of handShapeRotations(
+              avatars[id],
+              side,
+              { preset },
+              metacarpal[side],
+            )) {
+              const joint = resolveJoint(bone)!;
+              const values = decomposeJointRotation(joint, rotation);
+              const components: Record<string, JointComponentDefinition> =
+                JOINT_DEFINITIONS[joint.type].components;
+              for (const [name, { hard }] of Object.entries(components))
+                if (
+                  values[name] < hard[0] - 1e-6 ||
+                  values[name] > hard[1] + 1e-6
+                )
+                  outside.push(
+                    `${pose} ${preset} ${bone}.${name} ${values[name].toFixed(1)} (${hard.join("..")})`,
+                  );
+            }
+      expect(outside).toEqual([]);
+    },
+  );
+
+  /** A thumb proximal rotation of `preset` fitted around a Pose's metacarpal. */
+  const fittedThumb = (
+    id: (typeof AVATAR_IDS)[number],
+    side: HandSide,
+    pose: string,
+    preset: HandShape["preset"],
+  ) =>
+    handShapeRotations(
+      avatars[id],
+      side,
+      { preset },
+      METACARPALS[pose][side],
+    ).get(`${side}ThumbProximal`)!;
+
+  it("keeps thumb fits the joint can reach exactly as at bfc0de4f", () => {
+    // Both are outside the natural range but within the anatomical limit
+    // (curl 78.9° and −53.7°), so they must not be clamped.
+    const cases = [
+      {
+        pose: "single-hand-on-heart",
+        side: "right",
+        preset: "fist",
+        expected: [-0.0417048945, -0.635280029, -0.0882344939, 0.7660905042],
+      },
+      {
+        pose: "left-ok-sign",
+        side: "left",
+        preset: "open-together",
+        expected: [-0.2024676902, -0.4078119551, 0.2364227026, 0.8583708694],
+      },
+    ] as const;
+    for (const { pose, side, preset, expected } of cases)
+      expect(
+        angularDistanceDegrees(
+          fittedThumb("AvatarSample_Y_0", side, pose, preset),
+          new Quaternion(...expected),
+        ),
+      ).toBeLessThan(1e-5);
+  });
+
+  it("stops a thumb fit the joint cannot reach at its anatomical limit", () => {
+    // At bfc0de4f, a fist around an unrotated metacarpal needed curl 96.4°.
+    const joint = resolveJoint("leftThumbProximal")!;
+    const before = decomposeJointRotation(
+      joint,
+      new Quaternion(0.1509016834, 0.7262834686, -0.1529950152, 0.6529422107),
+    );
+    expect(before.curl).toBeGreaterThan(96);
+    expect(
+      angularDistanceDegrees(
+        fittedThumb("AvatarSample_Y_0", "left", "identity", "fist"),
+        composeJointRotation(joint, {
+          ...before,
+          curl: JOINT_DEFINITIONS.thumb.components.curl.hard[1],
+        }),
+      ),
+    ).toBeLessThan(1e-5);
+  });
+
+  it("adds five presets that each differ from Relaxed", () => {
+    expect(NEW_PRESETS).toEqual([
+      "cupped",
+      "soft-claw",
+      "palm-flat",
+      "pinch",
+      "ok",
+    ]);
+    for (const label of ["none", ...AVATAR_IDS] as const)
+      for (const side of SIDES) {
+        const relaxed = shapeOf(avatars[label], side, { preset: "relaxed" });
+        for (const preset of NEW_PRESETS) {
+          const shape = shapeOf(avatars[label], side, { preset });
+          expect([...shape.keys()]).toEqual([...relaxed.keys()]);
+          const largest = Math.max(
+            ...[...shape].map(([bone, q]) =>
+              angularDistanceDegrees(q, relaxed.get(bone)!),
+            ),
+          );
+          expect(largest, `${label} ${side} ${preset}`).toBeGreaterThan(10);
+        }
+      }
+  });
+
+  it.each(
+    AVATAR_IDS.flatMap((id) =>
+      (["pinch", "ok"] as const).flatMap((preset) =>
+        SIDES.map((side) => ({ id, preset, side })),
+      ),
+    ),
+  )(
+    "fits $preset so the $side thumb and index tips meet on $id",
+    async ({ id, preset, side }) => {
+      // A fresh copy: posing must not disturb the other tests' Avatars.
+      const vrm = await loadTestAvatar(id);
+      const pose: VRMPose = { ...base };
+      for (const [bone, q] of shapeOf(vrm, side, { preset }))
+        pose[bone] = {
+          rotation: q.toArray() as [number, number, number, number],
+        };
+      applyCanonicalPose(vrm, pose);
+      // Rigs end at the distal joint: extend the last segment by 0.8 of the one before.
+      const tip = (digit: "Thumb" | "Index", previous: string) => {
+        const at = (segment: string) =>
+          rawBoneWorldPosition(
+            vrm,
+            `${side}${digit}${segment}` as VRMHumanBoneName,
+          )!;
+        const distal = at("Distal");
+        return distal
+          .clone()
+          .addScaledVector(distal.clone().sub(at(previous)), 0.8);
+      };
+      const gap = tip("Thumb", "Proximal").distanceTo(
+        tip("Index", "Intermediate"),
+      );
+      expect(gap).toBeLessThan(0.01);
+    },
+  );
+
+  it("falls back to the listed pinch without thumb bones or an Avatar", () => {
+    const vrm = avatars.AvatarSample_A_1_New!;
+    const withoutThumbs = {
+      meta: vrm.meta,
+      humanoid: {
+        getNormalizedBoneNode: (name: VRMHumanBoneName) =>
+          name.includes("Thumb")
+            ? null
+            : vrm.humanoid.getNormalizedBoneNode(name),
+      },
+    } as unknown as VRM;
+    const listed = [40, 46, 28];
+    for (const rig of [withoutThumbs, null]) {
+      const shape = shapeOf(rig, "right", { preset: "pinch" });
+      (["Proximal", "Intermediate", "Distal"] as const).forEach(
+        (segment, index) =>
+          expect(
+            angularDistanceDegrees(
+              shape.get(`rightIndex${segment}`)!,
+              composeJointRotation(resolveJoint(`rightIndex${segment}`)!, {
+                curl: listed[index],
+              }),
+            ),
+          ).toBeLessThan(1e-6),
+      );
+      expect(shape.has("rightThumbProximal")).toBe(rig === null);
+    }
+    // Without an Avatar the thumb starts from the unfitted Open · together.
+    expect(
+      angularDistanceDegrees(
+        shapeOf(null, "right", { preset: "pinch" }).get("rightThumbProximal")!,
+        adjustHandQuaternion(new Quaternion(), "right", "thumb", "curl", 38),
+      ),
+    ).toBeLessThan(1e-6);
+  });
+
+  const OFFSETS: HandShape["fingers"] = {
+    thumb: { curl: [8, -4], palmarAbduction: 5, twist: -3 },
+    index: { curl: [10, -5, 3], splay: 6 },
+    little: { curl: 7 },
+  };
+  /** Expected component changes per bone for `OFFSETS`. */
+  const expectedOffset = (bone: string): Record<string, number> | null => {
+    if (bone.endsWith("ThumbProximal"))
+      return { curl: 8, palmarAbduction: 5, twist: -3 };
+    if (bone.endsWith("ThumbDistal"))
+      return { curl: -4, palmarAbduction: 0, twist: 0 };
+    const index = { Proximal: 0, Intermediate: 1, Distal: 2 }[
+      bone.replace(/^(left|right)(Index|Little)/, "")
+    ];
+    if (bone.includes("Index") && index !== undefined)
+      return {
+        curl: [10, -5, 3][index],
+        splay: index === 0 ? 6 : 0,
+        twist: 0,
+      };
+    if (bone.includes("Little")) return { curl: 7, splay: 0, twist: 0 };
+    return null;
+  };
+
+  it.each(
+    (["none", ...AVATAR_IDS] as const).flatMap((label) =>
+      (["relaxed", "fist", "cupped", "pinch"] as const).map((preset) => ({
+        label,
+        preset,
+      })),
+    ),
+  )(
+    "adds finger offsets to $preset after Curl and Spread ($label)",
+    ({ label, preset }) => {
+      for (const side of SIDES) {
+        const shape: HandShape = { preset, curl: 5, spread: 4 };
+        const before = shapeOf(avatars[label], side, shape);
+        const after = shapeOf(avatars[label], side, {
+          ...shape,
+          fingers: OFFSETS,
+        });
+        expect([...after.keys()]).toEqual([...before.keys()]);
+        for (const [bone, rotation] of after) {
+          const expected = expectedOffset(bone);
+          if (!expected) {
+            expect(rotation.toArray()).toEqual(before.get(bone)!.toArray());
+            continue;
+          }
+          const joint = resolveJoint(bone)!;
+          const from = decomposeJointRotation(joint, before.get(bone)!);
+          const to = decomposeJointRotation(joint, rotation, from);
+          for (const [component, change] of Object.entries(expected))
+            expect(
+              to[component] - from[component],
+              `${bone}.${component}`,
+            ).toBeCloseTo(change, 9);
+        }
+      }
+    },
+  );
+
+  it.each(["none", ...AVATAR_IDS] as const)(
+    "treats zero offsets as no change (%s)",
+    (label) => {
+      for (const side of SIDES) {
+        const shape: HandShape = { preset: "ok", curl: -6 };
+        const before = shapeOf(avatars[label], side, shape);
+        const after = shapeOf(avatars[label], side, {
+          ...shape,
+          fingers: {
+            thumb: { curl: [0, 0], palmarAbduction: 0, twist: 0 },
+            index: { curl: 0, splay: 0 },
+            middle: {},
+          },
+        });
+        for (const [bone, rotation] of after)
+          expect(rotation.toArray()).toEqual(before.get(bone)!.toArray());
+      }
     },
   );
 });

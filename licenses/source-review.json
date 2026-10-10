@@ -382,14 +382,14 @@
     {
       "path": "content/included/gestures/arms-crossed/arms-crossed.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/arms-crossed/arms-crossed.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -422,16 +422,30 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/gestures/blow-a-kiss-2/blow-a-kiss-2.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314); owner-reviewed and approved 2026-10-09; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/blow-a-kiss-2/blow-a-kiss-2.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314); owner-reviewed and approved 2026-10-09; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/gestures/blow-a-kiss/blow-a-kiss.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/blow-a-kiss/blow-a-kiss.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -445,14 +459,14 @@
     {
       "path": "content/included/gestures/cat-monster-rawr/cat-monster-rawr.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/cat-monster-rawr/cat-monster-rawr.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -473,14 +487,14 @@
     {
       "path": "content/included/gestures/cheeky-finger-guns/cheeky-finger-guns.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/cheeky-finger-guns/cheeky-finger-guns.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -536,42 +550,42 @@
     {
       "path": "content/included/gestures/double-peace-pop/double-peace-pop.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/double-peace-pop/double-peace-pop.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/double-thumbs-down/double-thumbs-down.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/double-thumbs-down/double-thumbs-down.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/double-thumbs-up/double-thumbs-up.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/double-thumbs-up/double-thumbs-up.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -592,14 +606,14 @@
     {
       "path": "content/included/gestures/excited-triple-clap/excited-triple-clap.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #267 and #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/excited-triple-clap/excited-triple-clap.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #267 and #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -641,14 +655,14 @@
     {
       "path": "content/included/gestures/finger-heart-pose/finger-heart-pose.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from the owner-authored #337 conversion, starting from its finger pose; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/finger-heart-pose/finger-heart-pose.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from the owner-authored #337 conversion, starting from its finger pose; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -704,14 +718,14 @@
     {
       "path": "content/included/gestures/hands-on-hips/hands-on-hips.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/hands-on-hips/hands-on-hips.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -726,6 +740,20 @@
       "path": "content/included/gestures/happy_walk_backward/happy_walk_backward.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/have-an-idea/have-an-idea.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314); owner-reviewed and approved 2026-10-09; no third-party animation data",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/gestures/have-an-idea/have-an-idea.meta.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314); owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -753,28 +781,28 @@
     {
       "path": "content/included/gestures/hearty-laugh/hearty-laugh.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #267 and #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/hearty-laugh/hearty-laugh.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #267 and #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/hysterical-laughter/hysterical-laughter.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/hysterical-laughter/hysterical-laughter.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -844,28 +872,28 @@
     {
       "path": "content/included/gestures/left-ok-sign/left-ok-sign.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/left-ok-sign/left-ok-sign.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/left-peace-sign/left-peace-sign.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/left-peace-sign/left-peace-sign.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -893,14 +921,14 @@
     {
       "path": "content/included/gestures/medium-laugh/medium-laugh.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/medium-laugh/medium-laugh.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -1047,14 +1075,14 @@
     {
       "path": "content/included/gestures/pout-huff/pout-huff.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/pout-huff/pout-huff.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -1082,56 +1110,56 @@
     {
       "path": "content/included/gestures/right-face-palm/right-face-palm.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/right-face-palm/right-face-palm.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/right-finger-point/right-finger-point.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/right-finger-point/right-finger-point.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/right-thumbs-down/right-thumbs-down.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/right-thumbs-down/right-thumbs-down.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/right-thumbs-up/right-thumbs-up.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/right-thumbs-up/right-thumbs-up.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -1172,20 +1200,6 @@
     },
     {
       "path": "content/included/gestures/shy-finger-poke-loop/shy-finger-poke-loop.meta.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/gestures/shy-finger-poke/shy-finger-poke.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/gestures/shy-finger-poke/shy-finger-poke.meta.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -1243,42 +1257,28 @@
     {
       "path": "content/included/gestures/small-shy-wave/small-shy-wave.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/small-shy-wave/small-shy-wave.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/soldier-salute/soldier-salute.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/soldier-salute/soldier-salute.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/gestures/storytelling/storytelling.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/gestures/storytelling/storytelling.meta.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -1320,28 +1320,28 @@
     {
       "path": "content/included/gestures/thinking-chin-rest/thinking-chin-rest.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #267 and #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/thinking-chin-rest/thinking-chin-rest.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill); owner-reviewed and approved 2026-10-07; no third-party animation data",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #267 and #282, revised in #314); owner-reviewed and approved 2026-10-07, revision approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/thinking-hand-on-chin-hold/thinking-hand-on-chin-hold.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; format-converted from animaPoseClip/1.0 to 2.0 without motion changes (#337)",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
       "path": "content/included/gestures/thinking-hand-on-chin-hold/thinking-hand-on-chin-hold.meta.json",
       "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "basis": "AI-agent-authored under Raymond Van's direction (animama-animation skill, #314), re-animated from scratch to replace the owner-authored #337 conversion; owner-reviewed and approved 2026-10-09; no third-party animation data",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -3299,6 +3299,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/finger_heart_pop/finger_heart_pop.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored effect definition under Raymond Van's direction (animama-avatar-vfx skill, #314); owner-reviewed and approved 2026-10-09; no third-party art",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/finger_heart_pop/finger_heart_pop.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; byte-identical copy of content/included/vfx/avatar/heart_throb/heart_throb.png (#314)",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/gloom_lines/gloom_lines.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -3341,6 +3355,20 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/huff_puff/huff_puff.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored effect definition under Raymond Van's direction (animama-avatar-vfx skill, #314); owner-reviewed and approved 2026-10-09; no third-party art",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/huff_puff/huff_puff.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; byte-identical copy of content/included/vfx/avatar/steam_puffs/steam_puff.png (#314)",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/idea_bulb/idea_bulb.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -3351,6 +3379,20 @@
       "path": "content/included/vfx/avatar/idea_bulb/idea_bulb.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/idea_bulb_fingertip/idea_bulb_fingertip.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "AI-agent-authored effect definition under Raymond Van's direction (animama-avatar-vfx skill, #314); owner-reviewed and approved 2026-10-09; no third-party art",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/idea_bulb_fingertip/idea_bulb_fingertip.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately; byte-identical copy of content/included/vfx/avatar/idea_bulb/idea_bulb.png (#314)",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
@@ -12183,6 +12225,28 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/assets/effect-templates/finger_heart_pop.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an Included Avatar Effect with owner-authored art (agent-authored definition, #314), posed by the Included Gesture Finger Heart Pose; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/assets/effect-templates/gloom_lines.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
@@ -12249,9 +12313,53 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/assets/effect-templates/huff_puff.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an Included Avatar Effect with owner-authored art (agent-authored definition, #314); retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/assets/effect-templates/idea_bulb.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/idea_bulb_fingertip.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an Included Avatar Effect with owner-authored art (agent-authored definition, #314), posed by the Included Gesture Have an Idea; retained under the corresponding model terms like Annie's portrait",
       "source": "https://vrm.dev/licenses/1.0/",
       "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
       "copyright": [

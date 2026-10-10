@@ -1,7 +1,7 @@
 {
   "schema": "animaPoseClip/2.0",
   "id": "right-face-palm",
-  "name": "right-face-palm",
+  "name": "Right Face Palm",
   "duration": 2.8,
   "basePose": "relaxedRest",
   "fadeIn": {
@@ -57,117 +57,39 @@
     }
   ],
   "joints": {
-    "neck": {
+    "spine": {
       "flexion": [
         {
           "v": 0,
           "beat": "start"
         },
         {
-          "v": -3,
+          "v": -1,
           "beat": "sigh"
         },
         {
-          "v": 9,
-          "beat": "palm"
-        },
-        {
-          "v": 10,
-          "beat": "hold"
+          "v": 2.5,
+          "beat": "palm",
+          "dt": -0.05
         },
         {
           "v": 3,
-          "beat": "lower"
-        },
-        {
-          "v": 0,
-          "beat": "settle"
-        }
-      ]
-    },
-    "head": {
-      "flexion": [
-        {
-          "v": 0,
-          "beat": "start"
-        },
-        {
-          "v": -4,
-          "beat": "sigh"
-        },
-        {
-          "v": 10,
-          "beat": "palm",
-          "dt": 0.05
-        },
-        {
-          "v": 11,
           "beat": "hold"
         },
         {
-          "v": 2,
+          "v": 3.3,
+          "beat": "hold",
+          "dt": 0.25
+        },
+        {
+          "v": 1.2,
           "beat": "lower",
           "dt": 0.05
         },
         {
           "v": 0,
           "beat": "settle",
-          "dt": 0.05
-        }
-      ],
-      "rotation": [
-        {
-          "v": 0,
-          "beat": "start"
-        },
-        {
-          "v": 0,
-          "beat": "palm",
-          "dt": 0.1
-        },
-        {
-          "v": -5,
-          "beat": "shake",
-          "dt": -0.2
-        },
-        {
-          "v": 5,
-          "beat": "shake",
-          "dt": 0.05
-        },
-        {
-          "v": -3,
-          "beat": "hold",
-          "dt": -0.25
-        },
-        {
-          "v": 0,
-          "beat": "hold"
-        },
-        {
-          "v": 0,
-          "beat": "settle",
-          "dt": 0.05
-        }
-      ],
-      "lateralFlexion": [
-        {
-          "v": 0,
-          "beat": "start"
-        },
-        {
-          "v": -3,
-          "beat": "palm",
-          "dt": 0.1
-        },
-        {
-          "v": -3,
-          "beat": "hold"
-        },
-        {
-          "v": 0,
-          "beat": "settle",
-          "dt": 0.05
+          "dt": -0.05
         }
       ]
     },
@@ -183,20 +105,46 @@
         },
         {
           "v": 4,
-          "beat": "palm"
+          "beat": "palm",
+          "dt": -0.03
         },
         {
           "v": 5,
           "beat": "hold"
         },
         {
-          "v": 1,
-          "beat": "lower"
+          "v": 5.5,
+          "beat": "hold",
+          "dt": 0.27
+        },
+        {
+          "v": 1.5,
+          "beat": "lower",
+          "dt": 0.08
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "palm"
+        },
+        {
+          "v": -2,
+          "beat": "hold",
+          "dt": 0.3
         },
         {
           "v": 0,
           "beat": "settle",
-          "dt": 0.05
+          "dt": -0.05
         }
       ]
     },
@@ -219,13 +167,204 @@
           "beat": "hold"
         },
         {
+          "v": 3.8,
+          "beat": "hold",
+          "dt": 0.3
+        },
+        {
           "v": 1,
-          "beat": "lower"
+          "beat": "lower",
+          "dt": 0.1
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "sigh",
+          "dt": 0.02
+        },
+        {
+          "v": 9,
+          "beat": "palm",
+          "dt": 0.03
+        },
+        {
+          "v": 10,
+          "beat": "hold"
+        },
+        {
+          "v": 10.5,
+          "beat": "hold",
+          "dt": 0.3
+        },
+        {
+          "v": 3,
+          "beat": "lower",
+          "dt": 0.1
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "palm",
+          "dt": 0.12
+        },
+        {
+          "v": -1.5,
+          "beat": "shake",
+          "dt": -0.18
+        },
+        {
+          "v": 1.5,
+          "beat": "shake",
+          "dt": 0.07
+        },
+        {
+          "v": -1,
+          "beat": "hold",
+          "dt": -0.23
+        },
+        {
+          "v": 0,
+          "beat": "hold",
+          "dt": 0.04
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -4,
+          "beat": "sigh",
+          "dt": 0.03
+        },
+        {
+          "v": 10,
+          "beat": "palm",
+          "dt": 0.06
+        },
+        {
+          "v": 11,
+          "beat": "hold"
+        },
+        {
+          "v": 12,
+          "beat": "hold",
+          "dt": 0.3
+        },
+        {
+          "v": 2,
+          "beat": "lower",
+          "dt": 0.12
         },
         {
           "v": 0,
           "beat": "settle",
-          "dt": 0.05
+          "dt": 0.03
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "palm",
+          "dt": 0.08
+        },
+        {
+          "v": -3,
+          "beat": "hold",
+          "dt": 0.3
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": 0.03
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "palm",
+          "dt": 0.1
+        },
+        {
+          "v": -5,
+          "beat": "shake",
+          "dt": -0.22
+        },
+        {
+          "v": 5,
+          "beat": "shake",
+          "dt": 0.03
+        },
+        {
+          "v": -3,
+          "beat": "hold",
+          "dt": -0.27
+        },
+        {
+          "v": 0,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": 0.03
+        }
+      ]
+    },
+    "eyes": {
+      "pitch": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 6,
+          "beat": "sigh",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "palm",
+          "dt": -0.1
+        },
+        {
+          "v": 0,
+          "beat": "settle"
         }
       ]
     },
@@ -245,12 +384,40 @@
         },
         {
           "v": 6,
-          "beat": "hold"
+          "beat": "hold",
+          "dt": 0.3
         },
         {
           "v": "base",
           "beat": "lower",
           "dt": 0.1
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "sigh"
+        },
+        {
+          "v": -4,
+          "beat": "palm",
+          "dt": 0.05
+        },
+        {
+          "v": -4.5,
+          "beat": "hold",
+          "dt": 0.3
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.1
         }
       ]
     },
@@ -261,22 +428,28 @@
           "beat": "start"
         },
         {
-          "v": 40,
+          "v": 45,
           "beat": "sigh",
           "dt": 0.15
         },
         {
-          "v": 64,
-          "beat": "palm"
+          "v": 62,
+          "beat": "palm",
+          "dt": -0.02
         },
         {
-          "v": 64,
+          "v": 62,
           "beat": "hold"
         },
         {
-          "v": 40,
+          "v": 62,
+          "beat": "hold",
+          "dt": 0.3
+        },
+        {
+          "v": 45,
           "beat": "lower",
-          "dt": -0.15
+          "dt": 0.05
         },
         {
           "v": "base",
@@ -290,22 +463,28 @@
           "beat": "start"
         },
         {
-          "v": 60,
+          "v": 70,
           "beat": "sigh",
           "dt": 0.15
         },
         {
-          "v": 75,
-          "beat": "palm"
+          "v": 102,
+          "beat": "palm",
+          "dt": -0.02
         },
         {
-          "v": 75,
+          "v": 102,
           "beat": "hold"
         },
         {
-          "v": 50,
+          "v": 102,
+          "beat": "hold",
+          "dt": 0.3
+        },
+        {
+          "v": 60,
           "beat": "lower",
-          "dt": -0.1
+          "dt": 0.05
         },
         {
           "v": "base",
@@ -319,22 +498,28 @@
           "beat": "start"
         },
         {
-          "v": 45,
+          "v": 58,
           "beat": "sigh",
           "dt": 0.2
         },
         {
-          "v": 64,
-          "beat": "palm"
+          "v": 76,
+          "beat": "palm",
+          "dt": -0.02
         },
         {
-          "v": 64,
+          "v": 76,
           "beat": "hold"
         },
         {
-          "v": 30,
+          "v": 76,
+          "beat": "hold",
+          "dt": 0.3
+        },
+        {
+          "v": 35,
           "beat": "lower",
-          "dt": -0.1
+          "dt": 0.05
         },
         {
           "v": "base",
@@ -350,22 +535,28 @@
           "beat": "start"
         },
         {
-          "v": 80,
+          "v": 97,
           "beat": "sigh",
           "dt": 0.17
         },
         {
-          "v": 122,
-          "beat": "palm"
+          "v": 127,
+          "beat": "palm",
+          "dt": -0.02
         },
         {
-          "v": 122,
+          "v": 127,
           "beat": "hold"
         },
         {
-          "v": 70,
+          "v": 127,
+          "beat": "hold",
+          "dt": 0.3
+        },
+        {
+          "v": 80,
           "beat": "lower",
-          "dt": -0.1
+          "dt": 0.07
         },
         {
           "v": "base",
@@ -379,12 +570,28 @@
           "beat": "start"
         },
         {
-          "v": 10,
-          "beat": "palm"
+          "v": 42,
+          "beat": "sigh",
+          "dt": 0.2
         },
         {
-          "v": 10,
+          "v": 72,
+          "beat": "palm",
+          "dt": -0.02
+        },
+        {
+          "v": 72,
           "beat": "hold"
+        },
+        {
+          "v": 72,
+          "beat": "hold",
+          "dt": 0.3
+        },
+        {
+          "v": 25,
+          "beat": "lower",
+          "dt": 0.07
         },
         {
           "v": "base",
@@ -400,12 +607,28 @@
           "beat": "start"
         },
         {
-          "v": -5,
-          "beat": "palm"
+          "v": 0,
+          "beat": "sigh",
+          "dt": 0.2
         },
         {
-          "v": -5,
+          "v": -14,
+          "beat": "palm",
+          "dt": -0.02
+        },
+        {
+          "v": -14,
           "beat": "hold"
+        },
+        {
+          "v": -14,
+          "beat": "hold",
+          "dt": 0.3
+        },
+        {
+          "v": 0,
+          "beat": "lower",
+          "dt": 0.1
         },
         {
           "v": "base",
@@ -422,11 +645,13 @@
         },
         {
           "v": 20,
-          "beat": "palm"
+          "beat": "palm",
+          "dt": 0.05
         },
         {
           "v": 20,
-          "beat": "hold"
+          "beat": "hold",
+          "dt": 0.3
         },
         {
           "v": "base",
@@ -443,11 +668,13 @@
         },
         {
           "v": 20,
-          "beat": "palm"
+          "beat": "palm",
+          "dt": 0.08
         },
         {
           "v": 18,
-          "beat": "hold"
+          "beat": "hold",
+          "dt": 0.3
         },
         {
           "v": "base",
@@ -469,7 +696,8 @@
       },
       {
         "v": 0.008,
-        "beat": "hold"
+        "beat": "hold",
+        "dt": 0.3
       },
       {
         "v": 0,
@@ -485,16 +713,44 @@
         "beat": "start"
       },
       {
-        "preset": "open-together",
-        "spread": 6,
+        "preset": "palm-flat",
+        "spread": 5,
+        "fingers": {
+          "index": {
+            "curl": [2, 12, 10]
+          },
+          "middle": {
+            "curl": [2, 12, 10]
+          },
+          "ring": {
+            "curl": [2, 12, 10]
+          },
+          "little": {
+            "curl": [2, 12, 10]
+          }
+        },
         "beat": "palm",
         "dt": -0.15
       },
       {
-        "preset": "open-together",
-        "spread": 6,
+        "preset": "palm-flat",
+        "spread": 5,
+        "fingers": {
+          "index": {
+            "curl": [2, 12, 10]
+          },
+          "middle": {
+            "curl": [2, 12, 10]
+          },
+          "ring": {
+            "curl": [2, 12, 10]
+          },
+          "little": {
+            "curl": [2, 12, 10]
+          }
+        },
         "beat": "hold",
-        "dt": 0.15
+        "dt": 0.3
       },
       {
         "preset": "relaxed",
@@ -544,12 +800,12 @@
       {
         "v": 0.8,
         "beat": "hold",
-        "dt": 0.05
+        "dt": 0.2
       },
       {
         "v": 0,
         "beat": "lower",
-        "dt": -0.1
+        "dt": -0.05
       }
     ],
     "surprised": [
@@ -575,13 +831,19 @@
   },
   "contacts": [
     {
-      "bone": "rightIndexDistal",
+      "bone": "rightHand",
       "target": "head",
       "beat": "palm",
       "from": 0,
-      "to": 1.05,
-      "offset": [-0.008, 0.146, 0.112],
-      "tolerance": 0.05
+      "to": 1.33,
+      "offset": [-0.02, 0.075, 0.127],
+      "tolerance": 0.02,
+      "point": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.2,
+        "blendOut": 0.25
+      }
     }
   ]
 }

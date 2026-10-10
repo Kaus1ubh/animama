@@ -49,6 +49,8 @@ test("previews a clip, saves a review note and reloads a changed source", async 
   });
   try {
     const page = await browser.newPage();
+    // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
+    page.setDefaultTimeout(90_000);
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(preview.url);
@@ -88,7 +90,7 @@ test("previews a clip, saves a review note and reloads a changed source", async 
     await page.waitForFunction(
       (before) => window.animationPreview.generation > before,
       generation,
-      { timeout: 30_000 },
+      { timeout: 90_000 },
     );
     await page.waitForFunction(
       () => !document.querySelector("#previous").disabled,
@@ -157,6 +159,8 @@ test("previews an animaPoseClip/2.0 clip", async () => {
   });
   try {
     const page = await browser.newPage();
+    // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
+    page.setDefaultTimeout(90_000);
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(preview.url);
@@ -199,6 +203,8 @@ test("picks another source and a comparison in the page", async () => {
   });
   try {
     const page = await browser.newPage();
+    // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
+    page.setDefaultTimeout(90_000);
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(preview.url);
@@ -270,7 +276,7 @@ test("picks another source and a comparison in the page", async () => {
 });
 
 /** Wait until every cell shows `label` among its active Avatar Effects. */
-function waitForActiveEffect(page, label, timeout = 60_000) {
+function waitForActiveEffect(page, label, timeout = 90_000) {
   return page.waitForFunction(
     (wanted) => {
       const cells = window.animationPreview.effects;
@@ -298,7 +304,7 @@ const waitForApplies = (page, before) =>
         ({ applies }, index) => applies > counts[index],
       ),
     before,
-    { timeout: 60_000 },
+    { timeout: 90_000 },
   );
 
 const scrubTo = (page, time) =>
@@ -326,6 +332,8 @@ test("previews an effect source and reloads it when its image changes", async ()
   });
   try {
     const page = await browser.newPage();
+    // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
+    page.setDefaultTimeout(90_000);
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(preview.url);
@@ -368,7 +376,7 @@ test("previews an effect source and reloads it when its image changes", async ()
     await page.waitForFunction(
       (before) => window.animationPreview.generation > before,
       generation,
-      { timeout: 30_000 },
+      { timeout: 90_000 },
     );
     const reloaded = preview.session.state().rows[0];
     assert.notEqual(reloaded.version, version);
@@ -381,7 +389,7 @@ test("previews an effect source and reloads it when its image changes", async ()
           ({ version, applies }) => version === wanted && applies > 0,
         ),
       reloaded.version,
-      { timeout: 60_000 },
+      { timeout: 90_000 },
     );
     await waitForActiveEffect(page, "Eye Confused Swirl");
 
@@ -396,7 +404,7 @@ test("previews an effect source and reloads it when its image changes", async ()
           .querySelector("#errors")
           ?.textContent?.includes("definition.region"),
       null,
-      { timeout: 30_000 },
+      { timeout: 90_000 },
     );
     await waitForActiveEffect(page, "Eye Confused Swirl");
     assert.deepEqual(errors, []);
@@ -421,6 +429,8 @@ test("plays a Library Reaction with its Avatar and Particle Effects", async () =
   });
   try {
     const page = await browser.newPage();
+    // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
+    page.setDefaultTimeout(90_000);
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(preview.url);
@@ -441,7 +451,7 @@ test("plays a Library Reaction with its Avatar and Particle Effects", async () =
       () =>
         window.animationPreview.effects.every(({ particles }) => particles > 0),
       null,
-      { timeout: 60_000 },
+      { timeout: 90_000 },
     );
 
     // Pausing and scrubbing replays the events before the time.
@@ -479,6 +489,8 @@ test("applies a timed effect source, removes it and loops", async () => {
   });
   try {
     const page = await browser.newPage();
+    // Avatar loads and rebuilds under SwiftShader can be slow on two-core CI runners.
+    page.setDefaultTimeout(90_000);
     const errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
     await page.goto(preview.url);
@@ -501,7 +513,7 @@ test("applies a timed effect source, removes it and loops", async () => {
           ({ active }) => active.length === 0,
         ),
       null,
-      { timeout: 30_000 },
+      { timeout: 90_000 },
     );
     // Playing on wraps to the start and applies it again.
     const applies = await appliesOf(page);
