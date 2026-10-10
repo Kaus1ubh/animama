@@ -316,7 +316,7 @@ def main() -> int:
 
     backend = work / "backend"
     backend.mkdir()
-    for fixture in ("backend", "contracts", "content", "catalog_seed"):
+    for fixture in ("backend", "contracts", "content", "catalog_seed", "product_http"):
         shutil.copy2(FIXTURES / f"{fixture}.py", backend / f"{fixture}_consumer.py")
     shutil.copy2(wheel, backend / wheel.name)
     run(
@@ -355,7 +355,7 @@ def main() -> int:
         name="backend-consumer",
         env=env,
     )
-    for fixture in ("contracts", "content"):
+    for fixture in ("contracts", "content", "product_http"):
         run(
             [str(python), "-I", f"{fixture}_consumer.py"],
             cwd=backend,

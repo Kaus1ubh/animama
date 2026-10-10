@@ -8,7 +8,6 @@ from dataclasses import dataclass
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_creation_repo import SQLAlchemyAnimaCreationRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
@@ -29,7 +28,7 @@ from animama.local.installation_repository import SQLAlchemyInstallationSettings
 from animama.logging_config import get_logger
 from animama.server.config import Settings
 from animama.server.content_startup import rescan_content_once
-from animama.server.local_runtime import LocalRuntimePaths
+from animama.server.local_runtime import LocalRuntimePaths, local_content_store
 
 _log = get_logger("server.local_installation_bootstrap")
 
@@ -131,12 +130,7 @@ def create_local_installation_bootstrap_service(
 ) -> LocalInstallationBootstrapService:
     """Assemble local SQLAlchemy/filesystem adapters behind neutral owner seams."""
 
-    store = FilesystemContentStore(
-        included_root=paths.included_root,
-        included_sources=paths.included_sources,
-        local_root=paths.local_root,
-        operations_root=paths.operations_root,
-    )
+    store = local_content_store(paths)
 
     def owner_service(session: AsyncSession) -> OwnerBootstrapService:
         aggregate_uow = SQLAlchemyAnimaAggregateUnitOfWork(session)

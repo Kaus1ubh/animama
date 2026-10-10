@@ -25,6 +25,7 @@ from animama.orm.user_profile import ORMUserProfile
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import router
 from tests.content_package_helpers import package_services, reviewed_export, save_wave
+from tests.product_http_support import install_local_ports
 from tests.test_pose_content import pose_document
 
 
@@ -46,6 +47,7 @@ async def test_http_export_reviews_then_streams_the_same_package(async_session: 
 
     app.dependency_overrides[get_async_session] = session
     app.dependency_overrides[get_current_principal] = lambda: RequestPrincipal("package-owner")
+    install_local_ports(app, async_session)
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             summary = await client.post("/v1/content/package-exports:summary", json={"item_ids": [saved.item.id]})
@@ -197,6 +199,7 @@ async def test_http_rejects_non_package_zip_before_library_admission(
 
     app.dependency_overrides[get_async_session] = session
     app.dependency_overrides[get_current_principal] = lambda: RequestPrincipal("package-owner")
+    install_local_ports(app, async_session)
     before = sorted(path.relative_to(paths.local_root) for path in paths.local_root.rglob("*"))
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
@@ -241,6 +244,7 @@ async def test_http_export_names_non_portable_items(async_session: AsyncSession,
 
     app.dependency_overrides[get_async_session] = session
     app.dependency_overrides[get_current_principal] = lambda: RequestPrincipal("package-owner")
+    install_local_ports(app, async_session)
     try:
         async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
             refused = await client.post("/v1/content/package-exports:summary", json={"item_ids": [items[0].id]})
@@ -280,6 +284,7 @@ async def test_http_import_of_a_v1_avatar_effect_package_names_the_conversion(
 
     app.dependency_overrides[get_async_session] = session
     app.dependency_overrides[get_current_principal] = lambda: RequestPrincipal("package-owner")
+    install_local_ports(app, async_session)
     try:
         saved = await saves.save_descriptor(
             user_id="package-owner",

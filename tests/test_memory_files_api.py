@@ -12,6 +12,7 @@ from pydantic import ValidationError
 from sqlalchemy import delete, event, select
 
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.domain.memory_entry import MEMORY_ENTRY_OPERATION_DELETE, MEMORY_ENTRY_OPERATION_MOVE
@@ -21,13 +22,15 @@ from animama.orm import Base, ORMAnima, ORMMemoryEntry, ORMMemoryEntryVersion
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
 from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
+from animama.product_http.routes import memory as memory_entries_router
 from animama.server.app import app
-from animama.server.routers import memory_entries as memory_entries_router, router as api_router
+from animama.server.routers import router as api_router
 from animama.server.schemas.memory_entry import (
     PyMemoryEntryCreateRequest,
     PyMemoryEntryPatchRequest,
     PySearchMemoryFilesDebugRequest,
 )
+from tests.product_http_support import TEST_POLICY
 
 
 def _user(user_id: str) -> RequestPrincipal:
@@ -79,7 +82,8 @@ async def test_authenticated_crud_routes_scope_by_current_user(async_session, cl
             metadata={"source": {"type": "manual"}},
             expected_version=0,
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     assert created.version == 1
@@ -90,32 +94,45 @@ async def test_authenticated_crud_routes_scope_by_current_user(async_session, cl
     assert created.description == "Owner profile"
     assert created.metadata == {"source": {"type": "manual"}}
 
-    fetched = await memory_entries_router.get_memory_entry(created.id, session=async_session, user=_user(owner_id))
+    fetched = await memory_entries_router.get_memory_entry(
+        created.id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(owner_id)
+    )
     assert fetched.id == created.id
     assert fetched.content == "# Owner"
 
     by_path = await memory_entries_router.get_memory_entry_by_path(
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         path="PROFILE.md",
     )
     assert by_path.id == created.id
 
     with pytest.raises(HTTPException) as foreign_get:
-        await memory_entries_router.get_memory_entry(created.id, session=async_session, user=_user(other_id))
+        await memory_entries_router.get_memory_entry(
+            created.id,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
+            user=_user(other_id),
+        )
     assert foreign_get.value.status_code == 404
 
-    owner_list = await memory_entries_router.list_memory_entries(session=async_session, user=_user(owner_id))
+    owner_list = await memory_entries_router.list_memory_entries(
+        repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(owner_id)
+    )
     assert [entry.path for entry in owner_list.entries] == ["profile.md"]
     assert "content" not in owner_list.entries[0].model_dump()
     assert owner_list.entries[0].content_sha256 == created.content_sha256
-    other_list = await memory_entries_router.list_memory_entries(session=async_session, user=_user(other_id))
+    other_list = await memory_entries_router.list_memory_entries(
+        repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(other_id)
+    )
     assert other_list.entries == []
 
     patched = await memory_entries_router.patch_memory_entry(
         created.id,
         PyMemoryEntryPatchRequest(content="# Updated", expected_version=1),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     assert patched.version == 2
@@ -126,7 +143,8 @@ async def test_authenticated_crud_routes_scope_by_current_user(async_session, cl
     described = await memory_entries_router.patch_memory_entry(
         created.id,
         PyMemoryEntryPatchRequest(description="Updated owner profile", expected_version=2),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     assert described.version == 3
@@ -135,7 +153,8 @@ async def test_authenticated_crud_routes_scope_by_current_user(async_session, cl
     cleared = await memory_entries_router.patch_memory_entry(
         created.id,
         PyMemoryEntryPatchRequest(description=" ", metadata=None, expected_version=3),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     assert cleared.version == 4
@@ -158,11 +177,13 @@ async def test_create_route_creates_nested_file_parents(
             expected_version=0,
             create_parents=True,
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     listing = await memory_entries_router.list_memory_entries(
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         recursive=True,
     )
@@ -190,7 +211,8 @@ async def test_version_routes_return_content_free_pages_and_adjacent_details(
             description="Initial",
             metadata={"private_snapshot": True},
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     updated = await memory_entries_router.patch_memory_entry(
@@ -200,19 +222,22 @@ async def test_version_routes_return_content_free_pages_and_adjacent_details(
             content="# Profile\n\nLikes tea.\n",
             description="Durable",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
 
     first_page = await memory_entries_router.list_memory_entry_versions(
         created.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         limit=1,
     )
     second_page = await memory_entries_router.list_memory_entry_versions(
         created.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         before_version=first_page.next_before_version,
         limit=1,
@@ -220,13 +245,15 @@ async def test_version_routes_return_content_free_pages_and_adjacent_details(
     creation = await memory_entries_router.get_memory_entry_version(
         created.id,
         1,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     detail = await memory_entries_router.get_memory_entry_version(
         created.id,
         updated.version,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
 
@@ -254,20 +281,23 @@ async def test_version_routes_return_content_free_pages_and_adjacent_details(
     with pytest.raises(HTTPException) as foreign_history:
         await memory_entries_router.list_memory_entry_versions(
             created.id,
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(other_id),
         )
     assert foreign_history.value.status_code == 404
 
     await memory_entries_router.delete_memory_entry(
         created.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         expected_version=updated.version,
     )
     deleted_history = await memory_entries_router.list_memory_entry_versions(
         created.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     assert deleted_history.versions[0].operation == "delete"
@@ -301,7 +331,8 @@ async def test_directory_create_move_recursive_list_and_path_lookup(async_sessio
     owner_id = f"user-{uuid.uuid4()}"
     notes = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="directory", name="notes"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     profile = await memory_entries_router.create_memory_entry(
@@ -311,29 +342,34 @@ async def test_directory_create_move_recursive_list_and_path_lookup(async_sessio
             name="profile.md",
             content="nested",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
 
     moved = await memory_entries_router.patch_memory_entry(
         notes.id,
         PyMemoryEntryPatchRequest(name="archive", expected_version=1),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     recursive = await memory_entries_router.list_memory_entries(
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         recursive=True,
     )
     by_path = await memory_entries_router.get_memory_entry_by_path(
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         path="archive/profile.md",
     )
     fetched_child = await memory_entries_router.get_memory_entry(
         profile.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     child_move_version = await async_session.scalar(
@@ -364,7 +400,8 @@ async def test_list_memory_entries_does_not_select_markdown_content(async_sessio
             content="Long profile content that should not be selected by list.",
             description="Profile",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     statements: list[str] = []
@@ -376,7 +413,8 @@ async def test_list_memory_entries_does_not_select_markdown_content(async_sessio
     event.listen(engine, "before_cursor_execute", capture_sql)
     try:
         listed = await memory_entries_router.list_memory_entries(
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
             recursive=True,
         )
@@ -401,12 +439,14 @@ async def test_file_reparent_updates_parent_path_version_and_lookup(
     owner_id = f"user-{uuid.uuid4()}"
     notes = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="directory", name="notes"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     archive = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="directory", name="archive"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     file_entry = await memory_entries_router.create_memory_entry(
@@ -416,20 +456,23 @@ async def test_file_reparent_updates_parent_path_version_and_lookup(
             name="todo.md",
             content="todo",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
 
     moved = await memory_entries_router.patch_memory_entry(
         file_entry.id,
         PyMemoryEntryPatchRequest(parent_id=archive.id, expected_version=1),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     moved_to_root = await memory_entries_router.patch_memory_entry(
         file_entry.id,
         PyMemoryEntryPatchRequest(parent_id=None, expected_version=2),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
 
@@ -447,7 +490,8 @@ async def test_file_reparent_updates_parent_path_version_and_lookup(
         ).scalars()
     )
     by_path = await memory_entries_router.get_memory_entry_by_path(
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         path="todo.md",
     )
@@ -471,7 +515,8 @@ async def test_file_reparent_updates_parent_path_version_and_lookup(
     for old_path in ("notes/todo.md", "archive/todo.md"):
         with pytest.raises(HTTPException) as missing:
             await memory_entries_router.get_memory_entry_by_path(
-                session=async_session,
+                repositories=SQLAlchemyProductRepositories(async_session),
+                policy=TEST_POLICY,
                 user=_user(owner_id),
                 path=old_path,
             )
@@ -486,32 +531,38 @@ async def test_nested_directory_move_updates_descendants_and_move_versions(
     owner_id = f"user-{uuid.uuid4()}"
     archive = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="directory", name="archive"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     root = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="directory", name="notes_box"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     project = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(parent_id=root.id, type="directory", name="projects"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     child = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(parent_id=root.id, type="file", name="prefs.md", content="prefs"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     nested = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(parent_id=project.id, type="file", name="roadmap.md", content="roadmap"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     wildcard_sibling = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="directory", name="notesXbox"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     wildcard_child = await memory_entries_router.create_memory_entry(
@@ -521,14 +572,16 @@ async def test_nested_directory_move_updates_descendants_and_move_versions(
             name="untouched.md",
             content="untouched",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
 
     moved = await memory_entries_router.patch_memory_entry(
         root.id,
         PyMemoryEntryPatchRequest(parent_id=archive.id, expected_version=1),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
 
@@ -582,14 +635,16 @@ async def test_nested_directory_move_updates_descendants_and_move_versions(
     }
 
     by_new_path = await memory_entries_router.get_memory_entry_by_path(
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         path="archive/notes_box/projects/roadmap.md",
     )
     assert by_new_path.id == nested.id
     with pytest.raises(HTTPException) as old_path:
         await memory_entries_router.get_memory_entry_by_path(
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
             path="notes_box/projects/roadmap.md",
         )
@@ -604,7 +659,8 @@ async def test_anima_scoped_identity_is_separate_from_user_scope(async_session, 
 
     user_profile = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="file", name="identity.md", content="RequestPrincipal identity-ish"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     anima_identity = await memory_entries_router.create_memory_entry(
@@ -616,17 +672,20 @@ async def test_anima_scoped_identity_is_separate_from_user_scope(async_session, 
             content="Anima identity",
             kind="anima_identity",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
 
     user_lookup = await memory_entries_router.get_memory_entry_by_path(
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         path="identity.md",
     )
     anima_lookup = await memory_entries_router.get_memory_entry_by_path(
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         anima_id=anima_id,
         path="identity.md",
@@ -636,7 +695,11 @@ async def test_anima_scoped_identity_is_separate_from_user_scope(async_session, 
     assert anima_lookup.id == anima_identity.id
     assert anima_lookup.name == anima_lookup.path == "IDENTITY.md"
     uppercase_lookup = await memory_entries_router.get_memory_entry_by_path(
-        session=async_session, user=_user(owner_id), anima_id=anima_id, path="IDENTITY.md"
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
+        user=_user(owner_id),
+        anima_id=anima_id,
+        path="IDENTITY.md",
     )
     assert uppercase_lookup.id == anima_lookup.id
     assert user_lookup.path == "identity.md"
@@ -661,14 +724,16 @@ async def test_anima_scoped_routes_reject_missing_or_foreign_anima(async_session
                     name="identity.md",
                     content="Anima identity",
                 ),
-                session=async_session,
+                repositories=SQLAlchemyProductRepositories(async_session),
+                policy=TEST_POLICY,
                 user=_user(owner_id),
             )
         assert create_error.value.status_code == 404
 
         with pytest.raises(HTTPException) as list_error:
             await memory_entries_router.list_memory_entries(
-                session=async_session,
+                repositories=SQLAlchemyProductRepositories(async_session),
+                policy=TEST_POLICY,
                 user=_user(owner_id),
                 anima_id=anima_id,
             )
@@ -698,7 +763,8 @@ async def test_anima_scoped_routes_reject_missing_or_foreign_anima(async_session
     with pytest.raises(HTTPException) as get_error:
         await memory_entries_router.get_memory_entry(
             foreign_scoped_entry.id,
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
         )
     assert get_error.value.status_code == 404
@@ -707,7 +773,8 @@ async def test_anima_scoped_routes_reject_missing_or_foreign_anima(async_session
         await memory_entries_router.patch_memory_entry(
             foreign_scoped_entry.id,
             PyMemoryEntryPatchRequest(expected_version=1, description="Updated"),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
         )
     assert patch_error.value.status_code == 404
@@ -715,7 +782,8 @@ async def test_anima_scoped_routes_reject_missing_or_foreign_anima(async_session
     with pytest.raises(HTTPException) as delete_error:
         await memory_entries_router.delete_memory_entry(
             foreign_scoped_entry.id,
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
             expected_version=1,
         )
@@ -749,7 +817,8 @@ async def test_debug_search_memory_files_returns_tool_shape_without_private_fiel
             content="Project Atlas lives in user markdown memory.",
             description="Owner profile",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     await memory_entries_router.create_memory_entry(
@@ -760,13 +829,15 @@ async def test_debug_search_memory_files_returns_tool_shape_without_private_fiel
             content="Atlas in anima identity should not be searched.",
             expected_aggregate_revision=1,
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
 
     response = await memory_entries_router.debug_search_memory_files(
         PySearchMemoryFilesDebugRequest(query=" Atlas "),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     payload = response.model_dump()
@@ -804,7 +875,8 @@ async def test_debug_search_memory_files_returns_tool_shape_without_private_fiel
 
     foreign_response = await memory_entries_router.debug_search_memory_files(
         PySearchMemoryFilesDebugRequest(query="Atlas"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(empty_user_id),
     )
     assert foreign_response.memory_results == []
@@ -816,7 +888,8 @@ async def test_stale_writes_and_deletes_return_409(async_session, clean_memory_e
 
     created = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="file", name="conflict.md", content="one", expected_version=0),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
 
@@ -824,7 +897,8 @@ async def test_stale_writes_and_deletes_return_409(async_session, clean_memory_e
         await memory_entries_router.patch_memory_entry(
             created.id,
             PyMemoryEntryPatchRequest(content="two", expected_version=0),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
         )
     assert stale_patch.value.status_code == 409
@@ -832,7 +906,8 @@ async def test_stale_writes_and_deletes_return_409(async_session, clean_memory_e
     with pytest.raises(HTTPException) as stale_delete:
         await memory_entries_router.delete_memory_entry(
             created.id,
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
             expected_version=0,
         )
@@ -870,7 +945,8 @@ async def test_public_routes_reject_episode_log_mutations(async_session, clean_m
                 kind=MEMORY_EPISODE_LOG_ENTRY_KIND,
                 expected_version=0,
             ),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
         )
     with pytest.raises(HTTPException) as create_path_error:
@@ -882,34 +958,39 @@ async def test_public_routes_reject_episode_log_mutations(async_session, clean_m
                 content="# Manual",
                 expected_version=0,
             ),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
         )
     with pytest.raises(HTTPException) as patch_file_error:
         await memory_entries_router.patch_memory_entry(
             episode.id,
             PyMemoryEntryPatchRequest(content="# Edited", expected_version=episode.version),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
         )
     with pytest.raises(HTTPException) as patch_dir_error:
         await memory_entries_router.patch_memory_entry(
             episodes_root.id,
             PyMemoryEntryPatchRequest(name="memories", expected_version=episodes_root.version),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
         )
     with pytest.raises(HTTPException) as delete_file_error:
         await memory_entries_router.delete_memory_entry(
             episode.id,
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
             expected_version=episode.version,
         )
     with pytest.raises(HTTPException) as delete_dir_error:
         await memory_entries_router.delete_memory_entry(
             episodes_root.id,
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
             expected_version=episodes_root.version,
             recursive=True,
@@ -926,7 +1007,8 @@ async def test_public_routes_reject_episode_log_mutations(async_session, clean_m
     assert [error.value.status_code for error in errors] == [403, 403, 403, 403, 403, 403]
     current = await memory_entries_router.get_memory_entry(
         episode.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     assert current.content == "# Episodes"
@@ -978,7 +1060,8 @@ async def test_concurrent_same_path_creates_return_one_success_and_one_409(
                         content="racing",
                         expected_version=0,
                     ),
-                    session=session,
+                    repositories=SQLAlchemyProductRepositories(session),
+                    policy=TEST_POLICY,
                     user=_user(owner_id),
                 )
             except Exception as exc:  # noqa: BLE001
@@ -1028,22 +1111,30 @@ async def test_delete_hides_entry_from_read_and_list_but_keeps_version_rows(
             description="Initial profile",
             expected_version=0,
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     await memory_entries_router.delete_memory_entry(
         created.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         expected_version=1,
     )
 
     with pytest.raises(HTTPException) as deleted_get:
-        await memory_entries_router.get_memory_entry(created.id, session=async_session, user=_user(owner_id))
+        await memory_entries_router.get_memory_entry(
+            created.id,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
+            user=_user(owner_id),
+        )
     assert deleted_get.value.status_code == 404
 
     listing = await memory_entries_router.list_memory_entries(
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         recursive=True,
     )
@@ -1076,19 +1167,22 @@ async def test_non_recursive_directory_delete_conflicts_and_recursive_delete_suc
     owner_id = f"user-{uuid.uuid4()}"
     directory = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="directory", name="notes"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(parent_id=directory.id, type="file", name="todo.md", content="todo"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
 
     with pytest.raises(HTTPException) as conflict:
         await memory_entries_router.delete_memory_entry(
             directory.id,
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
             expected_version=1,
             recursive=False,
@@ -1097,13 +1191,15 @@ async def test_non_recursive_directory_delete_conflicts_and_recursive_delete_suc
 
     await memory_entries_router.delete_memory_entry(
         directory.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         expected_version=1,
         recursive=True,
     )
     listing = await memory_entries_router.list_memory_entries(
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         recursive=True,
     )
@@ -1118,14 +1214,16 @@ async def test_recursive_delete_hides_larger_subtree_and_writes_descendant_delet
     owner_id = f"user-{uuid.uuid4()}"
     root = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="directory", name="notes"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     entry_ids = [root.id]
     for index in range(5):
         directory = await memory_entries_router.create_memory_entry(
             PyMemoryEntryCreateRequest(parent_id=root.id, type="directory", name=f"dir-{index}"),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(owner_id),
         )
         entry_ids.append(directory.id)
@@ -1137,21 +1235,24 @@ async def test_recursive_delete_hides_larger_subtree_and_writes_descendant_delet
                     name=f"file-{file_index}.md",
                     content=f"{index}/{file_index}",
                 ),
-                session=async_session,
+                repositories=SQLAlchemyProductRepositories(async_session),
+                policy=TEST_POLICY,
                 user=_user(owner_id),
             )
             entry_ids.append(child.id)
 
     await memory_entries_router.delete_memory_entry(
         root.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         expected_version=1,
         recursive=True,
     )
 
     listing = await memory_entries_router.list_memory_entries(
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         recursive=True,
     )

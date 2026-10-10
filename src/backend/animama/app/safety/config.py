@@ -16,6 +16,7 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
+from ..ports.settings_port import UserSettingsRepository
 from .ai_notice import DEFAULT_REMINDER_INTERVAL
 
 SAFETY_PREFERENCES_KEY = "safety"
@@ -77,6 +78,13 @@ class SafetyPreferences:
         )
 
 
+async def load_safety_preferences(user_settings: UserSettingsRepository, user_id: str) -> SafetyPreferences:
+    """Read the owner's stored safety choices; an owner without settings gets the defaults."""
+
+    settings = await user_settings.get(user_id)
+    return SafetyPreferences.from_preferences(settings.preferences if settings is not None else None)
+
+
 @dataclass(frozen=True, slots=True)
 class EffectiveCompanionSafety:
     ai_notice_enabled: bool
@@ -130,6 +138,7 @@ __all__ = [
     "EffectiveCompanionSafety",
     "OperatorSafetyConfig",
     "SafetyPreferences",
+    "load_safety_preferences",
     "resolve_companion_safety",
     "safety_override_warnings",
 ]

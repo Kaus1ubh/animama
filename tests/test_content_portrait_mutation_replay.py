@@ -21,12 +21,13 @@ from animama.domain.content_catalog import CatalogContentEntry, ContentKind
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.orm.content_mutation import ORMContentMutationReceipt
-from animama.server.deps import get_async_session, get_current_principal
+from animama.product_http.routes import typed_content
+from animama.server.deps import get_current_principal
 from animama.server.local_runtime import LocalRuntimePaths
-from animama.server.routers import typed_content
 from tests.anima_creation_service_support import image_bytes, vrm
 from tests.content_package_helpers import package_services
 from tests.local_http_client import local_client
+from tests.product_http_support import install_local_ports
 
 
 @dataclass
@@ -87,11 +88,8 @@ async def portrait_workflow(async_session: AsyncSession, tmp_path: Path) -> Asyn
     async def principal() -> RequestPrincipal:
         return RequestPrincipal(id=owner)
 
-    async def session() -> AsyncIterator[AsyncSession]:
-        yield async_session
-
     app.dependency_overrides[get_current_principal] = principal
-    app.dependency_overrides[get_async_session] = session
+    install_local_ports(app, async_session)
     try:
         async with local_client(app) as client:
             yield PortraitWorkflow(owner, paths, content, saves, client, image_bytes(portrait=True, format="WEBP"))

@@ -8,9 +8,17 @@ The local composition resolves the bootstrap-owned principal from server-owned
 admission state. Browser identity and Authorization headers select no owner.
 Tests use explicit fixture bootstrap and dependency overrides.
 
+Shared product routes (ADR 0021) live in `product_http/routes/`. They take owner
+sessions, repositories, policy, content services and byte delivery from the
+`ProductPorts` the composition installs, never from `get_async_session`, so tests
+replace the ports (see `tests/product_http_support.py`) or call handlers with an
+explicit repository bundle. Each composition delivers verified files, runtime JSON
+and package archives under its own caching policy; the paragraphs below describe
+the local one.
+
 Retained product HTTP schemas live under `app/contracts/`, including chat/history,
-manual memory/Memory Manager, model roles, content/loadouts/runtime and profile
-views. Delivery modules reexport those definitions for existing local callers.
+manual memory/Memory Manager, model roles, content/loadouts/runtime, profile and
+crisis-resource (`safety.py`) views. Delivery modules reexport those definitions for existing local callers.
 Consumers reuse the schemas and neutral services with their own admission, tenant
 persistence, provider and byte adapters; importing a schema grants no route access.
 Local setup and host/key administration schemas remain in the server composition.
@@ -20,12 +28,15 @@ Local setup and host/key administration schemas remain in the server composition
 - `server/app.py`: internal `/health` and private desktop readiness.
 - `server/routers/runtime_context.py`: bounded local bootstrap context, repair,
   and first-run completion.
-- `server/routers/runtime_capabilities.py`: owner-protected optional feature
-  availability and document-worker liveness.
+- `product_http/routes/runtime_capabilities.py` (shared): owner-protected
+  optional feature availability, as each composition's ports report it; the
+  local report (`server/runtime_capabilities.py`) includes document-worker liveness.
 - `server/routers/desktop_control.py`: private pack-removal preflight, never
   included in public OpenAPI or mounted in self-host composition.
-- `server/routers/anima.py`: anima CRUD, chat-profile updates, direct chat
-  SSE, and voice catalog uploads.
+- `product_http/routes/animas.py` (shared): Anima list, reads, edits,
+  chat-profile and emotional-state updates, and deletion.
+- `server/routers/anima.py`: direct chat SSE and voice catalog uploads (stages 4
+  and 5 of the shared-route plan).
 - `server/routers/model_provider.py`: active provider/model catalog for
   frontend model selection.
 - `server/routers/model_configuration.py`: owner model connections, models,
@@ -37,28 +48,36 @@ Local setup and host/key administration schemas remain in the server composition
   owner-supplied and Test sends a query to the configured backend.
 - `server/routers/model_assets.py`: pinned downloadable asset install state,
   install, removal and same-origin byte delivery.
-- `server/routers/chats.py`: chat CRUD and persisted chat messages.
-- `server/routers/settings.py`: user settings and per-anima settings.
-- `server/routers/user_profiles.py`: private local display-name reads and edits.
-- `server/routers/content.py`: neutral Included/Local catalog health, Rescan,
-  delete and registered-byte delivery.
-- `server/routers/content_packages.py`: reviewed package import/export,
-  bounded transfer and durable operation status.
-- `server/routers/typed_content.py`: typed product List/Get/Save/Preview routes
-  over the shared catalog.
-- `server/routers/anima_loadouts.py`: typed Anima loadout read plus optimistic,
+- `product_http/routes/chats.py` (shared): chat CRUD and persisted chat messages.
+- `product_http/routes/settings.py` (shared): user settings and per-anima settings.
+- `product_http/routes/profile.py` (shared): the owner's private display-name
+  reads and edits; each composition saves the name through its ports.
+- `product_http/routes/content.py` (shared): Included/Local catalog listing, item
+  reads and deletes, and registered and preview byte delivery under the
+  composition's caching policy.
+- `server/routers/content.py`: the local Rescan (host administration).
+- `product_http/routes/packages.py` (shared): reviewed package import/export,
+  bounded transfer and durable operation status; its route class keeps
+  submitted data and private filesystem errors out of error responses.
+- `product_http/routes/typed_content.py` (shared): typed product
+  List/Get/Save/Preview routes over the shared catalog, Avatar portraits and
+  face parts.
+- `product_http/routes/loadouts.py` (shared): typed Anima loadout read plus optimistic,
   idempotent family plan/commit commands.
-- `server/routers/anima_runtime.py`: exact runtime issuance, lease renewal, and
-  revision-scoped registered-byte streaming.
-- `server/routers/avatar.py`: logical Avatar CRUD and catalog projection.
+- `product_http/routes/anima_runtime.py` (shared): exact runtime issuance, lease
+  renewal, JSON bundles and revision-scoped registered-byte streaming.
+- `product_http/routes/avatars.py` (shared): logical Avatar CRUD and catalog
+  projection over the Avatar repository and the owner's content catalog.
 - `server/routers/user_files.py`: installation-owned file upload initialization,
   finalization, processing enqueue, debug chunk search, listing, abort, and
   delete lifecycle.
-- `server/routers/memory_entries.py`: scoped markdown memory entry tree
-  listing, path lookup, create, patch, move/rename, and soft-delete routes.
-- `server/routers/memory_manager.py`: episodic-memory review, Reflection and
-  manual memory-manager run/message/approval routes.
-- `server/routers/safety.py`: owner-visible crisis-resource regions.
+- `product_http/routes/memory.py` (shared): scoped markdown memory entry tree
+  listing, path lookup, create, patch, move/rename, and soft-delete routes, and
+  the episodic-memory listing.
+- `server/routers/memory_manager.py`: Reflection and manual memory-manager
+  run/message/approval routes.
+- `product_http/routes/safety.py` (shared): owner-visible crisis-resource regions
+  from the composition's crisis-resource table.
 - `server/routers/archive.py`: archive metadata/passages and embedding search.
 - `server/routers/elevenlabs.py`: ElevenLabs clone, text-to-speech, sound
   effects, audio isolation, and realtime TTS session helpers.
@@ -503,7 +522,7 @@ download URL and never renews the lease as a side effect of a GET.
 The manifest GET negotiates gzip or identity and returns the complete
 `PyAnimaRuntime` JSON. Gzip work runs off the event loop; Content-Length is the
 encoded length, Vary includes Accept-Encoding, and ETag hashes the actual wire
-body. The cache policy remains `private, no-cache`. Each request authorizes and
+body. The local cache policy is `private, no-cache`. Each request authorizes and
 issues fresh lease information: If-None-Match never skips issuance with 304,
 since `effective_revision` does not include the changing lease fields. An
 unsupported encoding falls back to identity unless identity is explicitly
@@ -528,7 +547,7 @@ opened and verified on disk, with bounded reads off the event loop. Physical
 changes mark the catalog scan-required; independent good members remain usable.
 
 Complete bundles use the same gzip/identity negotiation, wire ETag/length and
-`Vary: Accept-Encoding` as manifests, with `private, no-cache`. Unlike issuance,
+`Vary: Accept-Encoding` as manifests, with the local `private, no-cache`. Unlike issuance,
 bundle GET does not change a lease, so it may return 304 **after all authorization
 and physical checks**. Mixed-error responses use `no-store`, omit ETag and never
 return 304. Wrong owners/revisions return 404 and expired snapshots return 409.

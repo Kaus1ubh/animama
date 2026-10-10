@@ -7,9 +7,14 @@ specific docs linked from there.
 ## Backend Shape
 
 - `server/` is the FastAPI delivery layer: local app startup, routers,
-  request-principal resolution,
   dependency wiring, direct chat SSE orchestration, notification
   WebSocket handling, asset helpers, and persistence sinks/subscribers.
+- `product_http/` holds the product HTTP shared by every composition (ADR 0021):
+  the route inventory, the request principal, the composition-installed
+  `ProductPorts` and the shared routers of stages 2 and 3 (stages 4 and 5 are
+  still in `server/routers/`). Each composition
+  installs its ports with `install_product_ports`; the local app installs
+  `server/product_ports.py::LocalProductPorts`. It is shared code.
 - `domain/` contains framework-free dataclasses and event types.
 - `app/services/` contains use-case services over repository ports.
 - `app/ports/` defines repository, unit-of-work, and model-provider protocols.
@@ -41,7 +46,7 @@ Do not import FastAPI or SQLAlchemy into `domain/`. Keep provider SDK calls in
 model-client adapters and keep chat orchestration out of route handlers where a
 small app service can own it.
 
-Every transitive import of `domain/` and `app/` must stay independent of
+Every transitive import of `domain/`, `app/` and `product_http/` must stay independent of
 `local/`, `server/`, `runtime/`, `hooks.py`, and `logging_config.py`. Importing a
 shared API must not configure logging, resolve local roots, create database
 engines, register the installation model, or read installation state. Run

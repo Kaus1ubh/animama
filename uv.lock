@@ -306,7 +306,7 @@ requires-dist = [
     { name = "debugpy", specifier = ">=1.8.17" },
     { name = "docling", marker = "extra == 'file-worker'", specifier = "==2.100.0" },
     { name = "elevenlabs", specifier = ">=2.39.0" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.111" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.121" },
     { name = "graphviz", marker = "extra == 'viz'", specifier = ">=0.17" },
     { name = "gruut", marker = "extra == 'server'", specifier = ">=2.4.0" },
     { name = "jinja2", specifier = ">=3.1" },

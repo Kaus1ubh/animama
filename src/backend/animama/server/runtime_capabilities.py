@@ -1,13 +1,16 @@
-"""Local adapter for the shared runtime capability contract.
+"""The local composition's runtime capabilities (ADR 0021).
 
-The response models live in :mod:`animama.app.contracts.runtime_capabilities` so
-other compositions can return the same contract without importing this router.
+The shared route asks each composition's ports what it offers; the local ports
+answer with :func:`local_runtime_capabilities`. The response models live in
+:mod:`animama.app.contracts.runtime_capabilities`.
 """
 
-from datetime import UTC, datetime, timedelta
-from typing import Annotated, Literal
+from __future__ import annotations
 
-from fastapi import APIRouter, Depends, Request
+from datetime import UTC, datetime, timedelta
+from typing import Literal
+
+from fastapi import FastAPI, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.web_search_settings_repo import SQLAlchemyWebSearchSettingsRepository
@@ -18,32 +21,29 @@ from animama.app.contracts.runtime_capabilities import (
     WebSearchCapability,
 )
 from animama.app.services.user_file_service import ALLOWED_USER_FILE_EXTENSIONS
-from animama.domain.request_principal import RequestPrincipal
 from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
 from animama.server.config import Settings, settings
-from animama.server.deps import get_async_session, get_current_principal
 from animama.server.model_assets import parakeet_availability
-from animama.server.routers.model_provider import get_model_catalog_policy
+from animama.server.model_roles import composition_model_policy
 from animama.server.web_search import composition_web_search_enabled, web_search_credential_state
 
-router = APIRouter()
+
+def runtime_settings_for(app: FastAPI) -> Settings:
+    """The app's runtime policy, including explicitly supplied test settings."""
+
+    return getattr(app.state, "runtime_settings", settings)
 
 
 def get_runtime_settings(request: Request) -> Settings:
     """Use the composition's policy, including explicitly supplied test settings."""
 
-    return getattr(request.app.state, "runtime_settings", settings)
+    return runtime_settings_for(request.app)
 
 
-@router.get("/v1/runtime-capabilities", response_model=RuntimeCapabilities)
-async def get_runtime_capabilities(
-    request: Request,
-    principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-    runtime_settings: Annotated[Settings, Depends(get_runtime_settings)],
-) -> RuntimeCapabilities:
-    """A stale worker may still accept durable jobs; an absent pack may not."""
+async def local_runtime_capabilities(app: FastAPI, session: AsyncSession) -> RuntimeCapabilities:
+    """Describe the local app; a stale worker may still accept durable jobs, an absent pack may not."""
 
+    runtime_settings = runtime_settings_for(app)
     enabled = runtime_settings.animama_user_file_processing_enabled
     state: Literal["disabled", "starting", "ready", "stale"] = "disabled"
     last_heartbeat_at = None
@@ -56,10 +56,10 @@ async def get_runtime_capabilities(
             last_heartbeat_at = heartbeat.heartbeat_at
             state = "ready" if heartbeat.heartbeat_at >= datetime.now(UTC) - timedelta(seconds=20) else "stale"
     desktop = bool(runtime_settings.animama_desktop_control_token)
-    speech = parakeet_availability(request.app, runtime_settings)
+    speech = parakeet_availability(app, runtime_settings)
     safety = runtime_settings.companion_safety
     web_search = WebSearchCapability()
-    if composition_web_search_enabled(request.app):
+    if composition_web_search_enabled(app):
         search_settings = await SQLAlchemyWebSearchSettingsRepository(session).get()
         web_search = WebSearchCapability(
             configuration=True,
@@ -71,7 +71,7 @@ async def get_runtime_capabilities(
         chat=True,
         model_selection=True,
         model_role_selection=True,
-        model_configuration=get_model_catalog_policy(request).owner_models_enabled,
+        model_configuration=composition_model_policy(app).owner_models_enabled,
         provider_credentials=True,
         web_search=web_search,
         companion_safety=CompanionSafetyCapability(
@@ -97,3 +97,6 @@ async def get_runtime_capabilities(
             supported_extensions=sorted(ALLOWED_USER_FILE_EXTENSIONS) if enabled else [],
         ),
     )
+
+
+__all__ = ["get_runtime_settings", "local_runtime_capabilities", "runtime_settings_for"]

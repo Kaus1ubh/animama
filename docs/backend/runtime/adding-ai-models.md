@@ -20,7 +20,7 @@ Use this page together with:
 - [Direct chat SSE runtime](chat.md) for the public chat lifecycle.
 - [ADR 0011](../../adr/0011-application-owned-companion-features-and-composition-catalog-policy.md)
   for why companion features must work on any Chat Completions model, and
-  [ADR 0021](../../adr/0021-native-anthropic-messages-provider.md) for when a
+  [ADR 0022](../../adr/0022-native-anthropic-messages-provider.md) for when a
   vendor gets its own native provider type.
 
 When a change depends on current vendor behavior, verify the model ID, endpoint,

@@ -13,6 +13,7 @@ from animama.adapters.repositories.sqlalchemy.anima_chat_profile_repo import (
     SQLAlchemyAnimaChatProfileRepository,
 )
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.anima_creation_contract import CreateAnimaRequest
 from animama.app.services import AnimaChatProfileService
 from animama.domain import AnimaChatProfile, ModelProvider
@@ -25,7 +26,7 @@ from animama.orm import (
     ORMMemoryEntryVersion,
 )
 from animama.orm.base import Base
-from animama.server.routers.anima import update_anima_chat_profile
+from animama.product_http.routes.animas import update_anima_chat_profile
 from animama.server.schemas.anima import PyAnimaChatProfileUpdateRequest
 from tests.anima_creation_service_support import anima_creation_fixture
 
@@ -280,7 +281,7 @@ async def test_update_anima_chat_profile_validates_ownership_and_active_provider
         await update_anima_chat_profile(
             anima_id,
             PyAnimaChatProfileUpdateRequest(default_model_provider_id=inactive_provider.id),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
             user=RequestPrincipal(id="user-1"),
         )
     assert inactive_exc.value.status_code == 400
@@ -288,7 +289,7 @@ async def test_update_anima_chat_profile_validates_ownership_and_active_provider
     response = await update_anima_chat_profile(
         anima_id,
         PyAnimaChatProfileUpdateRequest(default_model_provider_id=active_provider.id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
         user=RequestPrincipal(id="user-1"),
     )
     payload = json.loads(bytes(response.body))
@@ -301,7 +302,7 @@ async def test_update_anima_chat_profile_validates_ownership_and_active_provider
         await update_anima_chat_profile(
             anima_id,
             PyAnimaChatProfileUpdateRequest(default_model_provider_id=active_provider.id),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
             user=RequestPrincipal(id="user-2"),
         )
     assert ownership_exc.value.status_code == 404

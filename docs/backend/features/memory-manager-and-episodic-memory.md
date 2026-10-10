@@ -1176,7 +1176,10 @@ HTTP schemas and routes:
 
 - `src/backend/animama/app/contracts/memory_manager.py` (`server/schemas`
   re-exports it)
-- `src/backend/animama/server/routers/memory_manager.py`
+- `src/backend/animama/server/routers/memory_manager.py` (runs, messages and
+  approvals)
+- `src/backend/animama/product_http/routes/memory.py` (the shared episode listing,
+  `GET /v1/memory/episodes`)
 
 Runtime adapters:
 

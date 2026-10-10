@@ -1,4 +1,4 @@
-# 0021: Native Anthropic Messages provider
+# 0022: Native Anthropic Messages provider
 
 - Status: accepted
 - Recorded: 2026-10-09

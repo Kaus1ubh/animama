@@ -9,20 +9,24 @@ from datetime import UTC, datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from types import SimpleNamespace
+from typing import cast
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi import FastAPI, HTTPException
 from httpx import AsyncClient
+from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.anima_runtime_service import AnimaRuntimeService, RuntimeSnapshotError
 from animama.domain.content_catalog import ContentSource, VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.principal import get_current_principal
+from animama.product_http.routes import anima_runtime
 from animama.server.config import Settings
-from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.routers import anima_runtime
 from tests.local_http_client import local_client
+from tests.product_http_support import install_local_ports
 
 
 @pytest.fixture
@@ -40,9 +44,6 @@ def runtime_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNames
             raise HTTPException(status_code=403)
         return RequestPrincipal(id=state.owner)
 
-    async def session():  # noqa: ANN202
-        yield object()
-
     async def issue(_self, *, user_id: str, anima_id: str):  # noqa: ANN001, ANN202
         state.calls.append((user_id, anima_id))
         if user_id != "owner":
@@ -56,7 +57,8 @@ def runtime_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNames
         }
 
     app.dependency_overrides[get_current_principal] = principal
-    app.dependency_overrides[get_async_session] = session
+    # Runtime services are patched, so no database is reached.
+    install_local_ports(app, cast(AsyncSession, SimpleNamespace(commit=AsyncMock())))
     monkeypatch.setattr(AnimaRuntimeService, "issue", issue)
     return state
 

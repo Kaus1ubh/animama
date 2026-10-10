@@ -563,7 +563,9 @@ class ContentPackageExportService:
             profile = await self._profiles.get_profile(user_id) if self._profiles is not None else None
             label = (profile.display_name if profile is not None else None) or "content"
         filename = _download_filename(label)
-        lease = self._stages.reserve_export(user_id, filename, max(1, selected.summary.estimated_size_bytes))
+        lease = await asyncio.to_thread(
+            self._stages.reserve_export, user_id, filename, max(1, selected.summary.estimated_size_bytes)
+        )
         record = lease.record
         try:
             manifest = await asyncio.to_thread(self._write_reserved, selected, lease)
@@ -590,7 +592,7 @@ class ContentPackageExportService:
                 required_count=selected.summary.required_count,
                 manifest=manifest,
             )
-            published = lease.publish_review(review.model_dump(mode="json"), review.digest)
+            published = await asyncio.to_thread(lease.publish_review, review.model_dump(mode="json"), review.digest)
             review.expires_at = published.expires_at
             return review
         except BaseException as exc:
@@ -599,7 +601,7 @@ class ContentPackageExportService:
                 raise ContentConflictError("package_export_source_changed") from exc
             raise
         finally:
-            lease.close()
+            await asyncio.to_thread(lease.close)
 
     def _write_reserved(self, selected: _Selection, lease: PackageStageLease) -> PackageManifest:
         with lease.write_archive() as handle:
@@ -614,7 +616,7 @@ class ContentPackageExportService:
                 raise ContentConflictError("package_local_path_unavailable")
             return CachedExport(local_path, download.review)
         finally:
-            download.close()
+            await asyncio.to_thread(download.close)
 
     async def download(self, *, user_id: str, export_id: str) -> DownloadLease:
         """Open the exact sealed archive while retaining its cleanup exclusion lease."""
