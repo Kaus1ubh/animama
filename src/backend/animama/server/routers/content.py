@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, HTTPException, Request
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_transition_repo import SQLAlchemyContentTransitionBindings
@@ -15,8 +15,7 @@ from animama.app.services.content_transition_service import ContentTransitionSer
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import WriteContent, WriteSession
 from animama.product_http.routes.content import catalog_response
-from animama.server.config import settings
-from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
+from animama.server.local_runtime import LocalRuntimePaths
 from animama.server.schemas.content import (
     PyContentRescan,
     PyContentScanSummary,
@@ -28,11 +27,10 @@ router = APIRouter(prefix="/v1/content", tags=["content"])
 
 
 def _paths(request: Request) -> LocalRuntimePaths:
+    """The runtime paths startup prepared; a request never creates them."""
     paths = getattr(request.app.state, "local_runtime_paths", None)
-    if isinstance(paths, LocalRuntimePaths):
-        return paths
-    paths = initialize_local_runtime(settings)
-    request.app.state.local_runtime_paths = paths
+    if not isinstance(paths, LocalRuntimePaths):
+        raise HTTPException(status_code=503, detail={"code": "content_unavailable"})
     return paths
 
 

@@ -8,12 +8,32 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from animama.product_http.routes import chats, loadouts, memory, profile, runtime_capabilities, safety, settings
+from animama.product_http.routes import (
+    anima_runtime,
+    animas,
+    avatars,
+    chats,
+    content,
+    loadouts,
+    memory,
+    packages,
+    profile,
+    runtime_capabilities,
+    safety,
+    settings,
+    typed_content,
+)
 
 ROUTERS: tuple[APIRouter, ...] = (
+    animas.router,
     loadouts.router,
+    anima_runtime.router,
     runtime_capabilities.router,
     safety.router,
+    avatars.router,
+    content.router,
+    packages.router,
+    typed_content.router,
     chats.router,
     settings.router,
     profile.router,

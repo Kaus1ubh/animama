@@ -163,11 +163,6 @@ def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> No
                 assert depends_on(route.dependant, expected), (method, route.path, spec.access)
 
 
-# ExecPlan Phase 3 moves stage 3 family by family: each of its shared routes may be
-# served from either place until the stage is served and joins SERVED_STAGES.
-MOVING_STAGES = frozenset({3})
-
-
 def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
     modules: dict[tuple[str, str], str] = {}
     for route in local_app(tmp_path, desktop=True, web_root=True).router.routes:
@@ -179,7 +174,7 @@ def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
         served = modules[(spec.method, spec.path)].startswith("animama.product_http.")
         if spec.disposition != "shared":
             assert not served, (spec.method, spec.path)
-        elif spec.stage not in MOVING_STAGES:
+        else:
             assert served == (spec.stage in SERVED_STAGES), (spec.method, spec.path, spec.stage)
 
 
