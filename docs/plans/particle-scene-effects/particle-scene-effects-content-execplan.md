@@ -5,13 +5,14 @@ Source agreement: [#297](https://github.com/raymond-van/animama/issues/297)
 requirements R9–R14, with the final lists and the R12 change the owner decided
 on 2026-10-10 (Decision Log). The spec's open "Final lists" item is resolved
 by those decisions; Preparation publishes them to #297.
-Authorized scope: none yet. This plan is drafted for owner review; implementation
-starts when the owner authorizes its phases. Gates G1–G4 apply.
+Authorized scope: the plan was approved and P1 authorized by the owner on
+2026-10-10; P2–P7 wait for the owner's go-ahead. Gates G1–G4 apply.
 Starting revision: `f71809f8` (`main` after Plan 1, #441).
 Branch: `feat/particle-scene-effects-content`, in a dedicated task worktree.
 One branch and one PR for this plan.
-Issues: parent #297 (stays open for Plan 3); phase issues are created at
-Preparation. Plan 1:
+Issues: parent #297 (stays open for Plan 3); phases P1 #443, P2 #446,
+P3 #447, P4 #444, P5 #448, P6 #449, P7 #445, sub-issues of #297 with their
+dependencies. Plan 1:
 [particle-scene-effects-execplan.md](particle-scene-effects-execplan.md)
 (#386–#394), whose platform, tooling and skills this plan uses.
 
@@ -29,8 +30,8 @@ built with Plan 1's pipeline, and rewires the Reactions to use it:
   records and attribution go.
 - **R12:** all 72 Reactions on the escalating ladder: intensity 1 has no
   Particle or Scene Effect, intensity 2 a fitting Particle Effect where one
-  fits, intensity 3 a bigger Particle Effect or variant plus the emotion's
-  background.
+  fits, intensity 3 the emotion's background with a bigger Particle Effect
+  where one fits (owner reading at G1, Decision Log).
 - **R13:** every other current Included Particle Effect and every current
   Included Scene Effect is removed or replaced, with bundled duplicates,
   stale tests and unused records.
@@ -118,9 +119,12 @@ backend to `src/backend/animama/`, content to `content/included/`.
 ## Progress
 
 - [x] Plan drafted (2026-10-10) from `f71809f8` with the owner's final lists.
-- [ ] Owner review of this plan and authorization of its phases.
-- [ ] Preparation: spec decisions published to #297; phase issues; task stack.
-- [ ] P1 — Briefs, concept board and Reaction ladder draft. Gate G1.
+- [x] Owner approved the plan and authorized P1 (2026-10-10).
+- [x] Preparation (2026-10-10): decisions published to #297 and read back
+      (2026-10-10T23:09:17Z), spec snapshot refreshed (`dd01692a`); phase
+      issues #443–#449 created. The task stack starts with P2.
+- [x] P1 — Briefs, concept board and Reaction ladder draft. G1 approved
+      (2026-10-10); review passed at round 2.
 - [ ] P2 — Particle library. Gate G2 per batch.
 - [ ] P3 — Scene backgrounds and the sticker art. Gate G2 per family.
 - [ ] P4 — Animama sticker set and Twemoji removal (R11).
@@ -157,12 +161,19 @@ backend to `src/backend/animama/`, content to `content/included/`.
   fine, and sparkles or rings are not required in each.
 - 2026-10-09, owner (Plan 1 G1): the eight family designs, capabilities C1–C6,
   embarrassment in Affection.
-- 2026-10-10, agent proposal for the plan review: **IDs.** Emotion backgrounds
+- 2026-10-10, owner (G1): approved the three proposals below, kept Fume
+  puffs, and chose no intensity-3 variants. With the ladder as drafted, this
+  reads R12 as: intensity 3 escalates through the emotion's background, with
+  a bigger Particle Effect where one fits; where both tiers share an effect,
+  the background is the step up, and fear, nervousness and disapproval have
+  no Particle Effect at either tier (none fit once Sweat Spray was dropped).
+  Published to #297 with the earlier decisions.
+- 2026-10-10, agent proposal, approved at G1: **IDs.** Emotion backgrounds
   are replaced under their existing IDs (`scene-vfx-emotion-<e>`), and the five
   missing ones are added with the same naming, so Reactions' `presetId`s stay
   stable; `rain-cloud` is replaced under its ID; other Particle Effects get new
   stems and the old ones are deleted.
-- 2026-10-10, agent proposal for the plan review: **sticker set delivery.**
+- 2026-10-10, agent proposal, approved at G1: **sticker set delivery.**
   The Scene creator's built-in stickers are Included PNGs under
   `resources/scene-vfx/stickers/` listed in a manifest; choosing one copies the
   PNG into the effect as its own image (as the Particle creator packages a
@@ -170,7 +181,7 @@ backend to `src/backend/animama/`, content to `content/included/`.
   package capability is needed. The alternative, a built-in sticker reference
   resolved like Twemoji, keeps effects smaller but adds a capability and an
   allowlist like the one R11 removes.
-- 2026-10-10, agent proposal for the plan review: **focus presets.** `dark`
+- 2026-10-10, agent proposal, approved at G1: **focus presets.** `dark`
   and `light-streak` hold no Twemoji and Focus Lines are out of scope; they are
   kept under their IDs with presets unchanged unless G1 asks for new ones,
   which satisfies R13's "replaced under the same content ID" with no user
@@ -222,7 +233,7 @@ phase: issue, starting SHA, commits (`<type>(<scope>)[p#]: …`, scopes such as
 `particle`, `scene`, `reactions`, `content`, `effects`, `skills`, `docs`),
 commands and results, review records and remaining gates.
 
-### P1 — Briefs, concept board and Reaction ladder draft (R9, R10, R12 input). Gate G1.
+### P1 — Briefs, concept board and Reaction ladder draft (R9, R10, R12 input). Gate G1. #443
 
 1. **Particle briefs:** one brief per new effect (10, the "New" rows), in the
    `animama-particle-vfx` brief template, at the agreed quality bar. Each names
@@ -251,11 +262,139 @@ approved.
 
 #### P1 record
 
+Starting source and issue: `dd01692a`, #443.
+
+Delivered (drafts under `.animama-drafts/plan2/`, not committed):
+
+- **Particle briefs** for the 10 new effects (`particle/<stem>/brief.md`), each
+  with mechanic, layers, anchor, duration, art direction, budget (16–96
+  declared particles, at most 5 textures) and intended tiers, and a library
+  table covering every mechanic (`particle/README.md`).
+- **Concept board** (`particle-concept-board.jpg`): one generated still per new
+  effect in its brief's direction (Rain cloud regenerated once to avoid
+  teardrop drips), beside live renders of `hearts-v1` and Heart Burst.
+- **Scene preset briefs** for the 23 new presets
+  (`scene/<family>/<emotion>.md`, `family.md` per family, index
+  `scene/README.md`), each with a palette, a layer sketch that passes the
+  shared Scene limits (the busiest uses 4 images and 44 scatter items),
+  stickers, `keepFaceClear` and how it differs from its siblings; all presets
+  are held (`durationMs: null`) and named `<Family> <Emotion>`. Departures
+  from the G1 mocks: nervousness's line tremble becomes a fast sway;
+  confidence's rays stay plain wedges; gratitude's rays throb softly;
+  Revulsion uses two scatter layers; embarrassment's design is new (steam and
+  blush marks); Drive's twinkle becomes an eight-point star (the G1 sample was
+  too close to Esteem's glint). Nervousness keeps its G1 light-topped
+  gradient, unlike the rest of Alarm.
+- **Sticker set** (`scene/stickers.md`): 36 images the presets need (34
+  stickers, 2 tiles; Gloom Sadness provides `raindrop`) plus 8 generic extras
+  for users (`family: generic`), 44 in all; P3 builds the extras as their own
+  batch.
+- **Reaction ladder draft** (`ladder.md`), below.
+
+Risks noted for P2–P5: Fume puffs can read as smoke (keep only if it reads as
+an overheat vent); Rage aura needs the hardest art (a flame sheet) and the
+anger-3 benchmark; Gloom wisps can read as spooky; diagonal drifters cross
+the face where `keepFaceClear` does not apply; some intensity-3 effects repeat
+their background's motif (Halo rays and Esteem rays, Confetti and joy, Stink
+miasma and disgust bubbles), so each brief says what to cut first.
+
+G1 (owner, 2026-10-10): approved as drafted. Fume puffs is kept (annoyance-3
+drops the Avatar `steam_puffs`); no intensity-3 variants (intensity 3 adds the
+background where both tiers share an effect); the three Decision Log
+proposals (IDs, sticker copy-on-pick, focus presets kept) are approved.
+The approved ladder overrides the briefs' **Reactions** lines and the
+"Suggested Reactions" column of `particle/README.md` (pre-G1 proposals), and
+the variants the briefs name (`halo-rays-bright`, `confetti-cannon`,
+`question-orbit-dizzy`, `fume-puffs-boil`, `rage-embers`,
+`stink-miasma-thick`, `rain-cloud-downpour`) are not built.
+
+Approved ladder (R12; intensity 1 unchanged and without Particle or Scene
+Effects; Particle events at 0.12 s for intensity 2 and 0.1 s for intensity 3,
+backgrounds at 0 s):
+
+| Family | Emotion | Intensity 2 (Particle) | Intensity 3 (Particle + background) | Avatar Effect change |
+| --- | --- | --- | --- | --- |
+| Affection | admiration | twinkle-shimmer | heart-burst + bg | — |
+| Affection | caring | hearts-v1 | heart-burst + bg (new bg) | — |
+| Affection | love | hearts-v1 | heart-burst + bg | — |
+| Affection | embarrassment | — (blush already reads) | fume-puffs + bg | — |
+| Esteem | respect | twinkle-shimmer | halo-rays + bg | — |
+| Esteem | confidence | — (idea bulb) | halo-rays + bg | — |
+| Esteem | gratitude | twinkle-shimmer | halo-rays + bg | — |
+| Delight | amusement | — (vv eyes) | confetti + bg | — |
+| Delight | excitement | star-burst | star-burst + bg | — |
+| Delight | joy | confetti | confetti + star-burst + bg | — |
+| Drive | desire | hearts-v1 | heart-burst + bg (new bg) | — |
+| Drive | curiosity | question-orbit | question-orbit + bg | i3 keeps its idea bulb; the old `exclamation` particle goes |
+| Drive | optimism | twinkle-shimmer | halo-rays + bg | — |
+| Alarm | fear | — | bg only (shock flash) | — |
+| Alarm | nervousness | — | bg only | — |
+| Alarm | confusion | question-orbit | question-orbit + bg (new bg) | — |
+| Rejection | anger | fume-puffs | rage-aura + bg | — |
+| Rejection | annoyance | fume-puffs | fume-puffs + bg (new bg) | i3 drops `steam_puffs` (the particle replaces it) |
+| Rejection | disapproval | — (= eyes) | bg only | — |
+| Revulsion | disgust | stink-miasma | stink-miasma + bg | — |
+| Revulsion | remorse | — | gloom-wisps + bg (new bg) | — |
+| Gloom | disappointment | gloom-wisps | rain-cloud + bg | — |
+| Gloom | grief | rain-cloud | rain-cloud + gloom-wisps + bg | — |
+| Gloom | sadness | rain-cloud | rain-cloud + bg (Gloom Sadness) | — |
+
+Every emotion has a background at intensity 3 and every one of the 12
+Particle Effects is used. Benchmark first: joy-3, grief-3, anger-3, and the
+Delight presets (joy and excitement are the busiest backgrounds).
+
 #### Code Review #1 Findings
+
+Round 1 (full review, `sdlc-reviewer`, working tree on `dd01692a`): the
+ladder table matches the draft and today's Reactions, every Scene sketch
+passes the limits, the sticker counts hold. Required:
+
+- **P1-R1-F1:** the briefs' Reactions lines, the README's suggested column
+  and seven named variants contradicted the approved ladder and "no
+  variants", without the plan saying the ladder wins.
+- **P1-R1-F2:** the ladder departs from R12's "bigger Particle Effect or
+  variant" (six shared-effect rows, three background-only rows) without an
+  owner decision recorded or published.
+- **P1-R1-F3:** no phase built or reviewed the 8 generic extra stickers.
+- **P1-R1-F4:** the departures list missed Drive's eight-point twinkle and
+  misdescribed nervousness's gradient.
+
+Optional: F5 "at most 4 images and 44 items" read as limits; F6 the draft's
+coverage counts were wrong; F7 old Particle event `duration` overrides would
+cut new effects short; F8 effects playing together need `can_coexist`.
 
 #### Code Review #1 Revisions
 
-### P2 — Particle library (R9). Gate G2 per batch.
+- **F1 accepted:** the G1 paragraph says the ladder overrides the briefs and
+  README and the variants are not built; P2 tunes to the ladder; the draft
+  README carries a superseded note.
+- **F2 accepted:** the owner's G1 answers (no variants, ladder as drafted,
+  which listed the background-only rows) are recorded as the R12 reading in
+  the Decision Log and Purpose and published to #297 (read back
+  2026-10-10T23:42:21Z, snapshot updated).
+- **F3 accepted:** P3 builds the generic extras as their own G2 batch.
+- **F4 accepted:** departures corrected.
+- **F5–F8 accepted:** wording fixed; draft counts fixed; P5 sets event
+  durations from the briefs; P2 keeps `can_coexist: true` on effects that
+  play together.
+
+#### Code Review #2 Findings
+
+Round 2 (targeted recheck): **pass**; F1–F8 resolved, #297 read back with the
+R12 text. Optional: **P1-R2-F1** `hearts-v1` must keep a short duration
+override; **P1-R2-F2** say how the generic stickers are reviewed;
+**P1-R2-F3** one long line.
+
+#### Code Review #2 Revisions
+
+- **F1, F2 accepted:** P5 keeps a ~3 s override for `hearts-v1`; P3 reviews
+  the extras on a contact sheet and in a test Scene. **F3 accepted:**
+  rewrapped.
+
+P1 is complete: G1 approved and the review passed at round 2 with one repair
+round unused.
+
+### P2 — Particle library (R9). Gate G2 per batch. #446
 
 1. Author the 10 new Particle Effects with `animama-particle-vfx` in batches
    of at most four (its `batch.md`): textures with `animama-effect-assets`
@@ -267,7 +406,11 @@ approved.
    Heart Burst is already saved (imported at Preparation); re-run `effects
    check` on it.
 3. Record per effect: brief, check result, particle estimate and budget, G2
-   outcome and revision count. Drop or revise per the owner.
+   outcome and revision count. Drop or revise per the owner. Tune each effect
+   for the tiers the approved ladder gives it (it overrides the briefs'
+   Reactions lines) and keep `can_coexist: true` on effects that play
+   together (joy-3: confetti and star-burst; grief-3: rain-cloud and
+   gloom-wisps).
 
 Completion: all 11 non-kept effects approved and saved (or the owner's
 changes recorded), each with a clean `effects check`.
@@ -278,7 +421,7 @@ changes recorded), each with a clean `effects check`.
 
 #### Code Review #1 Revisions
 
-### P3 — Scene backgrounds and the sticker art (R10). Gate G2 per family.
+### P3 — Scene backgrounds and the sticker art (R10). Gate G2 per family. #447
 
 1. Per family, with `animama-scene-vfx`: the family's sticker and tile art
    (`animama-effect-assets`, `scene-sticker`, `scene-tile`, flat anime motifs
@@ -289,7 +432,10 @@ changes recorded), each with a clean `effects check`.
    side by side. Save approved presets with `effects save`, each targeting a
    replace of `scene-vfx-emotion-<e>` (or an add for caring, desire,
    confusion, annoyance and remorse).
-3. Collect the approved sticker art and its manifest metadata (label, family,
+3. Build the 8 generic extra stickers (`scene/stickers.md`) as their own batch;
+   the owner reviews them on a contact sheet and in a test Scene (they ship as
+   P4 resources, not as Local effects).
+4. Collect the approved sticker art and its manifest metadata (label, family,
    budget) for P4.
 
 Completion: 24 presets approved and saved; the sticker set's files listed.
@@ -300,7 +446,7 @@ Completion: 24 presets approved and saved; the sticker set's files listed.
 
 #### Code Review #1 Revisions
 
-### P4 — Animama sticker set and Twemoji removal (R11).
+### P4 — Animama sticker set and Twemoji removal (R11). #444
 
 1. **Sticker set:** the approved P3 stickers as Included resources (proposal:
    `resources/scene-vfx/stickers/<id>.png` plus a manifest); the Scene
@@ -334,13 +480,16 @@ ruff check`; a browser check of the creator with a Twemoji-era Local Scene.
 
 #### Code Review #1 Revisions
 
-### P5 — Reaction ladder (R12) and performance. Gate G4.
+### P5 — Reaction ladder (R12) and performance. Gate G4. #448
 
 1. Write each Reaction's change as a creator project file
    (`animamaActionProject/1.0`) from its Included clip, with the effect
    events of the approved ladder and dependencies on the Local effects
    (`animama-animation` conventions; `animaPoseClip/2.0`). Timing works with
-   the Reaction's expression and its Avatar Effects.
+   the Reaction's expression and its Avatar Effects. Today's Particle events
+   override `duration` (1.2–2.4 s); set each from the new effect's brief or
+   drop the override so new effects are not cut short; `hearts-v1` (15 s,
+   looping, no brief) keeps an override of about 3 s.
 2. Save them as Local Reactions on the task stack and equip a test Anima to
    review them in chat and in the headed preview (`animation:preview
    library:local/<reaction>`).
@@ -359,7 +508,7 @@ benchmark is within budget or the owner has decided.
 
 #### Code Review #1 Revisions
 
-### P6 — Promotion and removal (R13, R14). Gate G3.
+### P6 — Promotion and removal (R13, R14). Gate G3. #449
 
 1. Write one `promote.json`: add or replace each approved Particle and Scene
    Effect (Local sources from the task stack), replace each changed Reaction
@@ -405,7 +554,7 @@ for `twemoji` finds only history in `docs/plans/`).
 
 #### Code Review #1 Revisions
 
-### P7 — Documentation and acceptance.
+### P7 — Documentation and acceptance. #445
 
 1. Docs: `docs/frontend/runtime/avatar-particle-vfx.md` (Included library,
    the debug shortcut), `scene-vfx.md` (Included presets, the sticker set,

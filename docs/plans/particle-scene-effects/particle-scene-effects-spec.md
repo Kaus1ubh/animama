@@ -11,7 +11,7 @@ fixed by the named plan or gate: the R2 capability list and R6 budget values by
 Plan 1, the R9 and R10 lists before Plan 2 starts (decided 2026-10-10).
 Authoritative source: [#297](https://github.com/raymond-van/animama/issues/297),
 published 2026-10-09 and updated with the before-Plan-2 decisions (read back
-at 2026-10-10T23:09:17Z). This file is a snapshot of that issue text; refresh
+at 2026-10-10T23:42:21Z). This file is a snapshot of that issue text; refresh
 it from the issue before resuming and do not edit it as a competing source.
 Related: [#298](https://github.com/raymond-van/animama/issues/298) (Avatar
 Effects v2: unified effects creator, effect preview, shared effect-asset skill
@@ -581,6 +581,12 @@ Decisions (owner, before Plan 2):
   effects are fine and sparkles or rings are not required in each.
 - **R12 (2026-10-10).** The `shy-finger-poke` rewiring is dropped (the Gesture
   was deleted by #406); this supersedes that part of the 2026-10-09 decisions.
+
+- **R12 ladder (2026-10-10, Plan 2 gate G1).** Intensity 3 escalates through
+  the emotion's background, with a bigger Particle Effect where one fits; where
+  both tiers share an effect, the background is the step up (no intensity-3
+  variants), and fear, nervousness and disapproval have no Particle Effect.
+  The approved table is in the Plan 2 ExecPlan.
 
 Open: none.
 
