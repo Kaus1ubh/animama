@@ -397,6 +397,13 @@ class ContentPackageExportService:
                 if item.item.kind not in PACKAGE_ENTRY_KINDS:
                     raise ContentConflictError("package_kind_unsupported")
                 entries[item.item.id] = item
+        # An Action that still names a removed Included effect would travel
+        # with events nothing plays; it is repaired in its creator first.
+        outdated = [item.item for item in entries.values() if item.item.missing_dependencies]
+        if outdated:
+            raise ContentConflictError(
+                "package_dependency_missing", items=tuple(item.display_name for item in outdated)
+            )
         portraits = _portraits(
             tuple(item.item for item in entries.values() if item.item.kind is ContentKind.AVATAR), visible
         )

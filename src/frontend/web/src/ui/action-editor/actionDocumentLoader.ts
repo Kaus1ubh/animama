@@ -66,8 +66,13 @@ function dependenciesFromPreview(
   const authored = Array.isArray(closure.root.dependencies)
     ? closure.root.dependencies
     : [];
+  const removed = object(closure.root.missing_references);
   return authored.flatMap((raw) => {
     const value = object(raw);
+    // A removed Included effect is not declared again; its events surface
+    // as unresolved for the person to map or remove.
+    if (typeof value.alias === "string" && Object.hasOwn(removed, value.alias))
+      return [];
     const source = object(value.source);
     const contentType = value.content_type;
     const declaredRef = value.ref;
@@ -150,6 +155,19 @@ function builtinSequence(
       : BUILT_IN_AVATAR_MOTION_CATALOG.getReactionClip(key);
   if (!clip) throw new Error("This Starter Anima Pose Clip is unavailable.");
   return structuredClone(clip) as unknown as Record<string, unknown>;
+}
+
+/**
+ * The removed Included effects an opened Action names, by clip alias: it
+ * plays without them until their events are mapped to other content or
+ * removed.
+ */
+export function removedActionEffects(
+  preview: PyActionPreview,
+): { alias: string; ref: string }[] {
+  return Object.entries(
+    object(actionClosure(preview).root.missing_references),
+  ).map(([alias, ref]) => ({ alias, ref: String(ref) }));
 }
 
 /** Return whether one catalog row is an editable built-in Anima Pose Clip. */

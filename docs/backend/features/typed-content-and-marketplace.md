@@ -266,6 +266,17 @@ back, and package inspection refuses an entry that declares an optional edge
 identity, so an imported copy of a built-in effect is a Local effect without
 the licensed sound, even where this installation has the pack.
 
+### Actions that use a removed Included effect
+
+A Local Gesture or Reaction that names a removed Included effect stays valid
+and plays without it ([data model](../architecture/data-model.md)). Item and
+Anima export refuse it, and anything that includes it, with
+`package_dependency_missing` and the item names in `detail.items`, until its
+creator maps or removes those events. A Save or package import that would
+admit such an Action is refused (`saved_content_invalid` with field
+`dependencies`, `package_catalog_admission_failed`): only Actions saved before
+the removal outlive it.
+
 Resource filenames inside a content directory stay unchanged so embedded image
 and texture references remain valid when the containing item receives a collision
 suffix. Avatar imports also register the logical model used by Library and Anima

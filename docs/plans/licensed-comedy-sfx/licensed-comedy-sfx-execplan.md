@@ -239,6 +239,11 @@ starting revision; implementers re-check them.
   its own ADR 0021 (shared product routes), so this plan's ADR is renumbered
   0022 and its references were updated. `local_runtime.py` keeps main's
   `FilesystemContentStore` import alongside `PRIVATE_PACK_IDS`.
+- 2026-10-10, agent (third `origin/main` merge, `f71809f8`): #441 generalized
+  `effects promote` to Particle and Scene Effects. The licensed-sound handling
+  was reapplied on main's version: only Avatar Effect adds and replaces take
+  `"sound"`, through the planner context. The Scene Effect creator keeps
+  `previewSoundForCopy`; the marketplace doc keeps both new sections.
 - 2026-10-10, owner: G1 by reuse. The pack uses the Mixamo pack's private
   bucket and bucket-scoped tokens (no new secrets or env files) under its own
   prefix `built-in/wow-comedy-sfx`; a shared prefix would collide on each

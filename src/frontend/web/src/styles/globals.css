@@ -32,34 +32,6 @@
   app-region: no-drag;
 }
 
-@keyframes scene-vfx-marquee-shift {
-  from {
-    transform: translate3d(0, 0, 0);
-  }
-  to {
-    transform: translate3d(
-      var(--scene-vfx-marquee-translate-x, 0px),
-      var(--scene-vfx-marquee-translate-y, 0px),
-      0
-    );
-  }
-}
-
-@keyframes scene-vfx-focus-lines-flicker {
-  0%,
-  18%,
-  100% {
-    opacity: 0;
-  }
-  24%,
-  72% {
-    opacity: var(--scene-vfx-focus-line-opacity, 1);
-  }
-  80% {
-    opacity: calc(var(--scene-vfx-focus-line-opacity, 1) * 0.45);
-  }
-}
-
 @property --shine-angle {
   syntax: "<angle>";
   inherits: false;

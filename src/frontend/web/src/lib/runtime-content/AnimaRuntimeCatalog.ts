@@ -84,6 +84,7 @@ export type AnimaRuntimeCatalogDiagnostic = {
     | "motion_resource_failed"
     | "invalid_motion_manifest"
     | "missing_event_reference"
+    | "missing_effect_dependency"
     | "runtime_resource_pending"
     | "avatar_vfx_source_unsupported";
   slot: RuntimeContentSlot;
@@ -1037,7 +1038,41 @@ export class AnimaRuntimeCatalog
       typeof entry.config.runtime_reference_map === "object"
         ? (entry.config.runtime_reference_map as Record<string, unknown>)
         : {};
-    const events = clip.events?.map((event) => {
+    // A Local Action outlives an Included effect removed before launch: its
+    // events for that effect are skipped and the rest of the clip plays.
+    const removed =
+      entry.config.runtime_missing_references &&
+      typeof entry.config.runtime_missing_references === "object"
+        ? (entry.config.runtime_missing_references as Record<string, unknown>)
+        : {};
+    const skipped = new Set<string>();
+    const playable = clip.events?.filter((event) => {
+      const alias =
+        event.kind === "scene_vfx"
+          ? event.presetId
+          : event.kind === "avatar_vfx" || event.kind === "particle_vfx"
+            ? event.effectId
+            : null;
+      if (
+        alias === null ||
+        !Object.hasOwn(removed, alias) ||
+        Object.hasOwn(referenceMap, alias)
+      )
+        return true;
+      skipped.add(String(removed[alias]));
+      return false;
+    });
+    if (skipped.size) {
+      const message = `Playing without removed effects: ${[...skipped].join(", ")}`;
+      this.diagnostics.push({
+        code: "missing_effect_dependency",
+        slot: entry.slot,
+        runtimeId: entry.runtime_id,
+        message,
+      });
+      logger.warn("Playback", message, { runtimeId: entry.runtime_id });
+    }
+    const events = playable?.map((event) => {
       if (event.kind === "sfx") {
         return {
           ...event,

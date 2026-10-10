@@ -15,7 +15,13 @@ import { promisify } from "node:util";
 import { after, before, test } from "node:test";
 import sharp from "sharp";
 
-import { budgetForDefinition, summarizeCheck } from "./effect-check.mjs";
+import {
+  budgetForDefinition,
+  builtInTextureCollisions,
+  particleTextureBudgets,
+  sceneImageLines,
+  summarizeCheck,
+} from "./effect-check.mjs";
 import {
   EffectPromoteError,
   applyEffectPromotion,
@@ -24,11 +30,18 @@ import {
   workingTreeRepo,
 } from "./effect-promote.mjs";
 import {
+  INCLUDED_CONTENT_ROOT,
+  resolveAnyEffectSource,
+} from "./effect-render-sources.mjs";
+import {
   definitionDifference,
   editorImage,
+  importDocumentFor,
   localEntryName,
   parseEffectSaveItems,
   planEffectSave,
+  savedDifference,
+  savedFilesDifference,
 } from "./effect-save.mjs";
 
 let dir;
@@ -94,6 +107,7 @@ test("check results become pass, warn and fail lines", () => {
         file: "/drafts/x/art.png",
         issues: [{ level: "WARN", code: "padding", message: "wide margins" }],
       },
+      { file: "/drafts/x/clean.png", budget: "scene-sticker", issues: [] },
     ],
     page: {
       parseError: null,
@@ -114,9 +128,15 @@ test("check results become pass, warn and fail lines", () => {
   });
   assert.deepEqual(
     lines.map((line) => line.level),
-    ["WARN", "PASS", "WARN"],
+    ["WARN", "PASS", "PASS", "WARN"],
   );
   assert.match(lines[0].message, /^art art\.png: wide margins \[padding\]$/);
+  // Clean art says so, so the summary shows the art was checked.
+  assert.equal(
+    lines[1].message,
+    "art clean.png: within the scene-sticker budget",
+  );
+  lines.splice(1, 1);
   assert.match(
     lines[1].message,
     /^Y_0: visible in 2 of 4 frames, up to 80 px \(front, 1s\) \(not in face 0\.25s, face 1s\)$/,
@@ -248,7 +268,14 @@ test("a save revises the one Local effect with that name", () => {
   ];
   assert.deepEqual(planEffectSave("Blush", library), { itemId: "l1" });
   assert.equal(planEffectSave("New one", library), null);
-  assert.throws(() => planEffectSave("Dup", library), /several Local/);
+  assert.throws(
+    () => planEffectSave("Dup", library),
+    /several Local Avatar Effects/,
+  );
+  assert.throws(
+    () => planEffectSave("Dup", library, "Scene Effect"),
+    /several Local Scene Effects/,
+  );
 });
 
 test("saved definitions compare after normalizing, ignoring image names", () => {
@@ -365,6 +392,14 @@ test("editor image records carry type, size and digest", async () => {
     editorImage(path.join(dir, "art.gif")),
     /PNG, JPEG or WebP/,
   );
+  // Only the Scene creator takes SVG.
+  const svg = path.join(dir, "art.svg");
+  await writeFile(svg, '<svg xmlns="http://www.w3.org/2000/svg"/>');
+  assert.equal(
+    (await editorImage(svg, { svg: true })).contentType,
+    "image/svg+xml",
+  );
+  await assert.rejects(editorImage(svg), /PNG, JPEG or WebP/);
 });
 
 test("promote items are validated", () => {
@@ -1133,6 +1168,937 @@ test("render refuses two sources with one stem for directory output", async () =
   ]).catch((error) => error);
   assert.equal(result.code, 2);
   assert.match(result.stdout, /share the stem "drop"/);
+});
+
+test("a clean Scene definition and image list report a PASS line", () => {
+  assert.deepEqual(
+    sceneImageLines({
+      listedImages: ["drop.png"],
+      imagePaths: { "drop.png": "/x/drop.png" },
+    }),
+    [{ level: "PASS", message: "scene: 1 image shown and listed" }],
+  );
+});
+
+test("holds a Particle texture to the sheet budget when an emitter tiles it", () => {
+  const emitter = (material, uTileCount) => ({
+    type: "ParticleEmitter",
+    ps: { material, uTileCount, vTileCount: 1 },
+  });
+  const manifest = {
+    materials: [
+      { uuid: "m1", map: "t1" },
+      { uuid: "m2", map: "t2" },
+    ],
+    textures: [
+      { uuid: "t1", image: "i1" },
+      { uuid: "t2", image: "i2" },
+    ],
+    images: [
+      { uuid: "i1", url: "textures/glyph.png" },
+      { uuid: "i2", url: "textures/sheet.png" },
+    ],
+    object: {
+      type: "Group",
+      children: [emitter("m1", 1), emitter("m2", 4)],
+    },
+  };
+  assert.deepEqual(Object.fromEntries(particleTextureBudgets(manifest)), {
+    "textures/glyph.png": "particle-texture",
+    "textures/sheet.png": "particle-sheet",
+  });
+});
+
+/** A minimal Quarks manifest whose one emitter draws `texture`. */
+const quarksManifest = (texture) => ({
+  metadata: { version: 4.6, type: "Object", generator: "test" },
+  images: [{ uuid: "image-1", url: texture }],
+  textures: [{ uuid: "texture-1", image: "image-1" }],
+  materials: [{ uuid: "material-1", map: "texture-1" }],
+  object: {
+    type: "Group",
+    children: [
+      {
+        type: "ParticleEmitter",
+        name: "emitter-1",
+        ps: { material: "material-1", uTileCount: 1, vTileCount: 1 },
+      },
+    ],
+  },
+});
+
+const particleSlot = (label) => ({
+  label,
+  description: "Particle source",
+  anchor: "head",
+  duration_seconds: 1.2,
+  max_particles: 64,
+});
+
+/** A saved Local Particle Effect folder, resolved as `effects promote` does. */
+async function particleSource(stem, texture = "textures/glow.png") {
+  const folder = path.join(await mkdtemp(path.join(dir, "particle-")), stem);
+  await mkdir(path.join(folder, path.dirname(texture)), { recursive: true });
+  await writeFile(path.join(folder, texture), await disc([250, 200, 40]));
+  await writeFile(
+    path.join(folder, "particle.json"),
+    `${JSON.stringify(quarksManifest(texture))}\n`,
+  );
+  await writeFile(
+    path.join(folder, `${stem}.json`),
+    JSON.stringify({
+      schema_version: 1,
+      content_type: "particle_effect",
+      id: `local:particle-effect:${stem}`,
+      name: `${stem} source`,
+      description: "Particle source",
+      authoring: { tool: "particle_vfx_creator" },
+      runtime_defaults: {
+        schema_version: 1,
+        runtime_id: "custom-particle-vfx",
+        slots: { particle_vfx: particleSlot(`${stem} source`) },
+      },
+      files: [
+        { path: "particle.json", role: "manifest" },
+        { path: texture, role: "texture" },
+      ],
+    }),
+  );
+  return { ...(await resolveAnyEffectSource(folder)), dependencies: [] };
+}
+
+const backgroundDefinition = (image) => ({
+  schema: "animama/scene-effect/1",
+  kind: "background_layers",
+  durationMs: 2000,
+  marquee: {
+    items: [{ id: "petal", kind: "image", image, label: "Petal" }],
+  },
+});
+
+/** A saved Local Scene Effect folder, resolved as `effects promote` does. */
+async function sceneSource(
+  stem,
+  { image = "petal.png", definition = backgroundDefinition(image) } = {},
+) {
+  const folder = path.join(await mkdtemp(path.join(dir, "scene-")), stem);
+  await mkdir(folder, { recursive: true });
+  await writeFile(path.join(folder, image), await disc([255, 92, 147]));
+  await writeFile(
+    path.join(folder, `${stem}.json`),
+    JSON.stringify({
+      schema_version: 1,
+      content_type: "scene_effect",
+      id: `local:scene-effect:${stem}`,
+      name: `${stem} source`,
+      description: "Scene source",
+      authoring: { schema: "animama/scene-effect-editor/1" },
+      definition,
+      files: [{ path: image, role: "image" }],
+    }),
+  );
+  return { ...(await resolveAnyEffectSource(folder)), dependencies: [] };
+}
+
+const ownerRule = {
+  creator: "Animama project owner",
+  provenance: "The owner confirms they created the avatar-expression assets.",
+  license_id: "LicenseRef-Animama-owner-authored",
+  redistribution_review: "pending",
+};
+
+/**
+ * `fixtureRepo` plus an Included Particle Effect (legacy art with a
+ * third-party record), an Included Scene Effect a Reaction uses, and the
+ * licence rules promotion writes around.
+ */
+async function effectKindsRepo() {
+  const root = await fixtureRepo();
+  const write = async (relative, content) => {
+    await mkdir(path.dirname(path.join(root, relative)), { recursive: true });
+    await writeFile(path.join(root, relative), content);
+  };
+  const spark = "content/included/vfx/particle/quark/old_spark";
+  await write(`${spark}/textures/spark.png`, await disc());
+  await write(
+    `${spark}/particle.json`,
+    JSON.stringify(quarksManifest("textures/spark.png")),
+  );
+  await write(
+    `${spark}/old_spark.json`,
+    `${JSON.stringify(
+      {
+        schema_version: 1,
+        content_type: "particle_effect",
+        content_id: "builtin:particle-effect:old_spark",
+        version: 2,
+        name: "Old spark",
+        description: "Legacy spark",
+        runtime_defaults: {
+          schema_version: 1,
+          runtime_id: "old_spark",
+          slots: { particle_vfx: particleSlot("Old spark") },
+        },
+        files: [
+          { path: "particle.json", role: "manifest" },
+          { path: "textures/spark.png", role: "texture" },
+        ],
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  const bg = "content/included/vfx/scene/old_bg";
+  await write(`${bg}/old.png`, await disc());
+  await write(
+    `${bg}/old_bg.json`,
+    `${JSON.stringify(
+      {
+        schema_version: 1,
+        content_type: "scene_effect",
+        content_id: "builtin:scene-effect:background:old_bg",
+        version: 4,
+        name: "Old background",
+        description: "Legacy background",
+        dependencies: [],
+        definition: backgroundDefinition("old.png"),
+        files: [{ path: "old.png", role: "image" }],
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  await write(
+    "content/included/reactions/cheer/cheer.meta.json",
+    JSON.stringify({
+      content_type: "reaction",
+      dependencies: [
+        { ref: "builtin:scene-effect:background:old_bg", alias: "bg" },
+      ],
+    }),
+  );
+  await write(
+    "content/included/licenses/inventory.json",
+    `${JSON.stringify(
+      {
+        rules: [
+          { glob: "vfx/avatar/**/*", ...ownerRule },
+          { glob: "vfx/particle/quark/**", license_id: "CC0-generated" },
+          { glob: "vfx/scene/**/emoji-*.svg", license_id: "Twemoji" },
+          { glob: "vfx/scene/**/*.png", ...ownerRule },
+          { glob: "**/*", license_id: "legacy" },
+        ],
+      },
+      null,
+      2,
+    )}\n`,
+  );
+  const reviewPath = path.join(root, "licenses/source-review.json");
+  const review = JSON.parse(await readFile(reviewPath, "utf8"));
+  const owner = {
+    candidate_license: "L",
+    basis: "B",
+    copyright: "C",
+    review: "R",
+  };
+  review.files.push(
+    { path: `${spark}/old_spark.json`, ...owner },
+    { path: `${spark}/particle.json`, ...owner },
+    {
+      path: `${spark}/textures/spark.png`,
+      candidate_license: "CC0-1.0",
+      evidence: ["licenses/third-party/art-particles.json"],
+    },
+    { path: `${bg}/old_bg.json`, ...owner },
+    { path: `${bg}/old.png`, ...owner },
+  );
+  await writeFile(reviewPath, `${JSON.stringify(review, null, 2)}\n`);
+  return root;
+}
+
+test("promotion adds Particle and Scene Effects under owner-authored rules", async () => {
+  const root = await effectKindsRepo();
+  const glow = await particleSource("glow");
+  const petals = await sceneSource("petals");
+  const validated = [];
+  const changes = await planEffectPromotion(
+    [
+      {
+        kind: "particle_effect",
+        mode: "add",
+        stem: "glow",
+        name: "Glow",
+        effect: glow,
+      },
+      { kind: "scene_effect", mode: "add", stem: "petals", effect: petals },
+    ],
+    {
+      repo: workingTreeRepo(root),
+      validate,
+      validateParticle: (effect) => validated.push(effect.stem),
+      validateScene: (effect) => validated.push(effect.stem),
+    },
+  );
+  assert.deepEqual(validated, ["glow", "petals"]);
+  assert.deepEqual(
+    changes.map((change) => `${change.action} ${change.path}`).sort(),
+    [
+      "create content/included/vfx/particle/quark/glow/glow.json",
+      "create content/included/vfx/particle/quark/glow/particle.json",
+      "create content/included/vfx/particle/quark/glow/textures/glow.png",
+      "create content/included/vfx/scene/petals/petal.png",
+      "create content/included/vfx/scene/petals/petals.json",
+      "update content/included/licenses/inventory.json",
+      "update licenses/source-review.json",
+    ],
+  );
+  await applyEffectPromotion(root, changes);
+  const read = async (relative) =>
+    JSON.parse(await readFile(path.join(root, relative), "utf8"));
+  const quark = "content/included/vfx/particle/quark/glow";
+  // Included form: no authoring record, the stem as runtime id, and the
+  // Library name and description as the runtime label.
+  assert.deepEqual(await read(`${quark}/glow.json`), {
+    schema_version: 1,
+    content_type: "particle_effect",
+    content_id: "builtin:particle-effect:glow",
+    version: 1,
+    name: "Glow",
+    description: "Particle source",
+    runtime_defaults: {
+      schema_version: 1,
+      runtime_id: "glow",
+      slots: { particle_vfx: particleSlot("Glow") },
+    },
+    files: [
+      { path: "particle.json", role: "manifest" },
+      { path: "textures/glow.png", role: "texture" },
+    ],
+  });
+  assert.equal(
+    await readFile(path.join(root, quark, "particle.json"), "utf8"),
+    await readFile(glow.manifestPath, "utf8"),
+  );
+  assert.deepEqual(
+    await read("content/included/vfx/scene/petals/petals.json"),
+    {
+      schema_version: 1,
+      content_type: "scene_effect",
+      content_id: "builtin:scene-effect:background:petals",
+      version: 1,
+      name: "petals source",
+      description: "Scene source",
+      dependencies: [],
+      definition: backgroundDefinition("petal.png"),
+      files: [{ path: "petal.png", role: "image" }],
+    },
+  );
+  // D1: a per-stem Particle rule ahead of the generated-art rule; Scene PNGs
+  // fall to the existing owner-authored Scene rule.
+  const rules = (await read("content/included/licenses/inventory.json")).rules;
+  assert.deepEqual(
+    rules.map((rule) => rule.glob),
+    [
+      "vfx/avatar/**/*",
+      "vfx/particle/quark/glow/**",
+      "vfx/particle/quark/**",
+      "vfx/scene/**/emoji-*.svg",
+      "vfx/scene/**/*.png",
+      "**/*",
+    ],
+  );
+  assert.deepEqual(rules[1], {
+    glob: "vfx/particle/quark/glow/**",
+    ...ownerRule,
+    provenance: "The owner confirms they created the particle-effect assets.",
+  });
+  const records = (await read("licenses/source-review.json")).files.filter(
+    (record) => /\/(glow|petals)\//.test(record.path),
+  );
+  assert.deepEqual(
+    records.map((record) => record.path),
+    [
+      `${quark}/glow.json`,
+      `${quark}/particle.json`,
+      `${quark}/textures/glow.png`,
+      "content/included/vfx/scene/petals/petal.png",
+      "content/included/vfx/scene/petals/petals.json",
+    ],
+  );
+  assert.ok(records.every((record) => record.basis === "B"));
+  const inventoryChange = changes.find((change) =>
+    change.path.endsWith("inventory.json"),
+  );
+  assert.deepEqual(inventoryChange.notes, [
+    "rule vfx/particle/quark/glow/** (owner-authored)",
+  ]);
+});
+
+test("promotion replaces and deletes Particle and Scene Effects", async () => {
+  const root = await effectKindsRepo();
+  const repo = workingTreeRepo(root);
+  const options = {
+    repo,
+    validate,
+    validateParticle: () => {},
+    validateScene: () => {},
+  };
+  const changes = await planEffectPromotion(
+    [
+      {
+        kind: "particle_effect",
+        mode: "replace",
+        stem: "old_spark",
+        description: "Brighter spark",
+        effect: await particleSource("glow"),
+      },
+      {
+        kind: "scene_effect",
+        mode: "replace",
+        stem: "old_bg",
+        effect: await sceneSource("petals"),
+      },
+    ],
+    options,
+  );
+  const spark = "content/included/vfx/particle/quark/old_spark";
+  const bg = "content/included/vfx/scene/old_bg";
+  assert.deepEqual(
+    changes.map((change) => `${change.action} ${change.path}`).sort(),
+    [
+      `create ${spark}/textures/glow.png`,
+      `create ${bg}/petal.png`,
+      `delete ${spark}/textures/spark.png`,
+      `delete ${bg}/old.png`,
+      "update content/included/licenses/inventory.json",
+      `update ${spark}/old_spark.json`,
+      `update ${spark}/particle.json`,
+      `update ${bg}/old_bg.json`,
+      "update licenses/source-review.json",
+    ],
+  );
+  const reviewChange = changes.find(
+    (change) => change.path === "licenses/source-review.json",
+  );
+  assert.ok(
+    reviewChange.notes.includes(
+      `${spark}/textures/spark.png had a third-party record (licenses/third-party/art-particles.json); update that evidence`,
+    ),
+  );
+  await applyEffectPromotion(root, changes);
+  const read = async (relative) =>
+    JSON.parse(await readFile(path.join(root, relative), "utf8"));
+  // A replace keeps the content ID, version and name.
+  const particle = await read(`${spark}/old_spark.json`);
+  assert.equal(particle.content_id, "builtin:particle-effect:old_spark");
+  assert.equal(particle.version, 2);
+  assert.equal(particle.name, "Old spark");
+  assert.equal(particle.description, "Brighter spark");
+  assert.deepEqual(particle.runtime_defaults, {
+    schema_version: 1,
+    runtime_id: "old_spark",
+    slots: {
+      particle_vfx: {
+        ...particleSlot("Old spark"),
+        description: "Brighter spark",
+      },
+    },
+  });
+  const scene = await read(`${bg}/old_bg.json`);
+  assert.equal(scene.content_id, "builtin:scene-effect:background:old_bg");
+  assert.equal(scene.version, 4);
+  assert.equal(scene.description, "Legacy background");
+  assert.deepEqual(scene.definition, backgroundDefinition("petal.png"));
+  assert.deepEqual(scene.files, [{ path: "petal.png", role: "image" }]);
+
+  // The Particle Effect is deleted with its folder and its own rule.
+  const removal = await planEffectPromotion(
+    [{ kind: "particle_effect", mode: "delete", stem: "old_spark" }],
+    options,
+  );
+  assert.deepEqual(
+    removal.map((change) => `${change.action} ${change.path}`).sort(),
+    [
+      "delete content/included/vfx/particle/quark/old_spark/old_spark.json",
+      "delete content/included/vfx/particle/quark/old_spark/particle.json",
+      "delete content/included/vfx/particle/quark/old_spark/textures/glow.png",
+      "update content/included/licenses/inventory.json",
+      "update licenses/source-review.json",
+    ],
+  );
+  await applyEffectPromotion(root, removal);
+  assert.deepEqual(
+    await readdir(path.join(root, "content/included/vfx/particle/quark")),
+    [],
+  );
+  assert.ok(
+    !(await read("content/included/licenses/inventory.json")).rules.some(
+      (rule) => rule.glob.includes("old_spark"),
+    ),
+  );
+  assert.ok(
+    !(await read("licenses/source-review.json")).files.some((record) =>
+      record.path.includes("old_spark"),
+    ),
+  );
+});
+
+test("promotion refuses unsafe Particle and Scene changes", async () => {
+  const root = await effectKindsRepo();
+  const plan = (items, options = {}) =>
+    planEffectPromotion(items, {
+      repo: workingTreeRepo(root),
+      validate,
+      validateParticle: () => {},
+      validateScene: () => {},
+      ...options,
+    });
+  await assert.rejects(
+    plan([{ kind: "scene_effect", mode: "delete", stem: "old_bg" }]),
+    /still used by .*cheer\.meta\.json/,
+  );
+  await assert.rejects(
+    plan([
+      {
+        kind: "scene_effect",
+        mode: "replace",
+        stem: "old_bg",
+        effect: await sceneSource("lines", {
+          definition: { schema: "animama/scene-effect/1", kind: "focus_lines" },
+        }),
+      },
+    ]),
+    /keeps the Scene kind \(background_layers\)/,
+  );
+  await assert.rejects(
+    plan([
+      {
+        kind: "particle_effect",
+        mode: "add",
+        stem: "petals",
+        effect: await sceneSource("petals"),
+      },
+    ]),
+    /is a Scene Effect, not a Particle Effect/,
+  );
+  await assert.rejects(
+    plan([
+      {
+        kind: "scene_effect",
+        mode: "add",
+        stem: "vector",
+        effect: await sceneSource("vector", { image: "petal.svg" }),
+      },
+    ]),
+    /petal\.svg: Scene art is promoted as PNG/,
+  );
+  const sounding = await sceneSource("sounding");
+  sounding.definition = { ...sounding.definition, soundAlias: "chime" };
+  await assert.rejects(
+    plan([
+      { kind: "scene_effect", mode: "add", stem: "sounding", effect: sounding },
+    ]),
+    /sound or other dependencies/,
+  );
+  await assert.rejects(
+    plan([
+      {
+        kind: "particle_effect",
+        mode: "add",
+        stem: "clash",
+        effect: await particleSource("clash", "clash.json"),
+      },
+    ]),
+    /cannot be named like the descriptor or manifest/,
+  );
+  const opaque = await particleSource("opaque");
+  await writeFile(
+    opaque.texturePaths[0],
+    await sharp({
+      create: { width: 8, height: 8, channels: 3, background: "#ff0000" },
+    })
+      .png()
+      .toBuffer(),
+  );
+  await assert.rejects(
+    plan([
+      { kind: "particle_effect", mode: "add", stem: "opaque", effect: opaque },
+    ]),
+    /opaque: glow\.png fails the art check/,
+  );
+  for (const [kind, effect, option] of [
+    ["particle_effect", await particleSource("bad"), "validateParticle"],
+    ["scene_effect", await sceneSource("bad"), "validateScene"],
+  ])
+    await assert.rejects(
+      plan([{ kind, mode: "add", stem: "bad", effect }], {
+        [option]: () => {
+          throw new Error("over the limit");
+        },
+      }),
+      (error) =>
+        error instanceof EffectPromoteError &&
+        error.message === "bad: over the limit",
+    );
+  // Scene art needs the owner-authored Scene rule (D1).
+  const inventory = path.join(root, "content/included/licenses/inventory.json");
+  const rules = JSON.parse(await readFile(inventory, "utf8")).rules;
+  await writeFile(
+    inventory,
+    JSON.stringify({
+      rules: rules.filter((rule) => rule.glob !== "vfx/scene/**/*.png"),
+    }),
+  );
+  await assert.rejects(
+    plan([
+      {
+        kind: "scene_effect",
+        mode: "add",
+        stem: "petals",
+        effect: await sceneSource("petals"),
+      },
+    ]),
+    /no "vfx\/scene\/\*\*\/\*\.png" rule/,
+  );
+});
+
+test("promotion points a Reaction at promoted Particle and Scene Effects", async () => {
+  const root = await effectKindsRepo();
+  const { clip } = await addReaction(root);
+  const glow = await particleSource("glow");
+  const petals = await sceneSource("petals");
+  const wired = {
+    ...clip,
+    events: [
+      { id: "spark", time: 0, kind: "particle_vfx", effectId: "glow" },
+      {
+        id: "bg",
+        time: 0,
+        kind: "scene_vfx",
+        presetId: "petals",
+        sceneKind: "background_layers",
+      },
+    ],
+  };
+  const changes = await planEffectPromotion(
+    [
+      { kind: "particle_effect", mode: "add", stem: "glow", effect: glow },
+      { kind: "scene_effect", mode: "add", stem: "petals", effect: petals },
+      {
+        kind: "reaction",
+        mode: "replace",
+        stem: "joy-2",
+        project: project(wired, [
+          {
+            ref: glow.contentId,
+            alias: "glow",
+            content_type: "particle_effect",
+          },
+          {
+            ref: petals.contentId,
+            alias: "petals",
+            content_type: "scene_effect",
+          },
+        ]),
+      },
+    ],
+    {
+      repo: workingTreeRepo(root),
+      validate,
+      validateClip,
+      validateParticle: () => {},
+      validateScene: () => {},
+    },
+  );
+  const meta = JSON.parse(
+    changes.find((change) => change.path.endsWith("joy-2.meta.json")).content,
+  );
+  assert.deepEqual(
+    meta.dependencies.map((dependency) => dependency.ref),
+    ["builtin:particle-effect:glow", "builtin:scene-effect:background:petals"],
+  );
+});
+
+test("saved Particle and Scene items compare settings, effect and file bytes", () => {
+  const same = (value) => value;
+  assert.equal(
+    savedDifference({ a: 1, b: null }, { a: 1 }, same, "settings"),
+    null,
+  );
+  assert.equal(
+    savedDifference({ a: 2 }, { a: 1 }, same, "settings"),
+    "settings.a (saved 2, expected 1)",
+  );
+  // The creator's round trip sees both sides, so its defaults compare equal.
+  assert.equal(
+    savedDifference({ a: 1 }, {}, (value) => ({ a: 1, ...value }), "quarks"),
+    null,
+  );
+  const files = [
+    { role: "texture", logical_path: "textures/a.png", sha256: "x" },
+    { role: "manifest", logical_path: "particle.json", sha256: "m" },
+  ];
+  assert.equal(
+    savedFilesDifference(files, { "textures/a.png": "x" }, "texture"),
+    null,
+  );
+  assert.equal(
+    savedFilesDifference(files, { "textures/a.png": "y" }, "texture"),
+    "texture textures/a.png holds other bytes than the source",
+  );
+  assert.equal(
+    savedFilesDifference(files, { "textures/b.png": "x" }, "texture"),
+    "texture textures/b.png is missing",
+  );
+  assert.equal(
+    savedFilesDifference(files, {}, "texture"),
+    "texture textures/a.png is not in the source",
+  );
+});
+
+test("Particle and Scene import documents come from the creators' functions", async () => {
+  const glow = await particleSource("glow");
+  const catalogs = [];
+  const particle = {
+    createParticleVFXEditorDraftFromImport: (quarksJson, catalog) => {
+      catalogs.push(catalog);
+      return { quarksJson, catalog };
+    },
+    buildParticleVFXCreatorDocument: (draft) => ({
+      settings: { label: draft.catalog.label },
+      quarks: draft.quarksJson,
+    }),
+    missingParticleVFXTextureReferences: (draft) =>
+      draft.quarksJson.images.map((image) => image.url),
+    parseParticleVFXRuntimeConfig: (slot) => ({ defaultAnchor: slot.anchor }),
+    PARTICLE_VFX_EDITOR_TEXTURES: [{ relativeUrl: "textures/heart.png" }],
+  };
+  const job = await importDocumentFor(glow, { name: "Glow" }, { particle });
+  assert.equal(job.name, "Glow");
+  assert.deepEqual(catalogs, [
+    { defaultAnchor: "head", label: "Glow", description: "Particle source" },
+  ]);
+  assert.deepEqual(job.expected.settings, { label: "Glow" });
+  // The creator asks for the textures it does not carry, by file name.
+  assert.deepEqual(job.chosen, [
+    { fileName: "glow.png", file: glow.texturePaths[0] },
+  ]);
+  assert.match(job.expected.files["textures/glow.png"], /^[0-9a-f]{64}$/);
+  await assert.rejects(
+    importDocumentFor(
+      glow,
+      {},
+      {
+        particle: {
+          ...particle,
+          missingParticleVFXTextureReferences: () => ["textures/other.png"],
+        },
+      },
+    ),
+    /draws textures\/other\.png, which the folder does not list/,
+  );
+  // An own texture named like a built-in one is refused before saving.
+  await assert.rejects(
+    importDocumentFor(
+      await particleSource("clash", "textures/heart.png"),
+      {},
+      {
+        particle,
+      },
+    ),
+    /textures\/heart\.png is named like the creator's built-in textures/,
+  );
+  await assert.rejects(
+    importDocumentFor(
+      glow,
+      {},
+      {
+        particle: {
+          ...particle,
+          createParticleVFXEditorDraftFromImport: (quarksJson, catalog) => ({
+            quarksJson: { ...quarksJson, images: [] },
+            catalog,
+          }),
+          missingParticleVFXTextureReferences: () => [],
+        },
+      },
+    ),
+    /lists textures\/glow\.png, which no image of the effect uses/,
+  );
+
+  const petals = await sceneSource("petals");
+  const scene = {
+    canonicalSceneEffectImageName: (name) => name,
+    createSceneEffectDocumentFromDefinition: (args) => args,
+    buildSceneEffectEditorExport: (document) => ({ document }),
+    sceneEffectDefinition: (document) => document.definition,
+  };
+  const sceneJob = await importDocumentFor(petals, {}, { scene });
+  assert.equal(sceneJob.name, "petals source");
+  assert.deepEqual(
+    [...sceneJob.exportDocument.document.images.keys()],
+    ["petal.png"],
+  );
+  assert.deepEqual(Object.keys(sceneJob.expected.files), ["petal.png"]);
+  await assert.rejects(
+    importDocumentFor(
+      petals,
+      {},
+      {
+        scene: { ...scene, canonicalSceneEffectImageName: () => "petal-2.png" },
+      },
+    ),
+    /rename the image petal\.png to petal-2\.png/,
+  );
+  petals.definition = { ...petals.definition, soundAlias: "chime" };
+  await assert.rejects(
+    importDocumentFor(petals, {}, { scene }),
+    /saved by hand/,
+  );
+});
+
+test("promotion keeps the record and licence of reused third-party art", async () => {
+  const root = await effectKindsRepo();
+  // The creator's built-in texture, as Included content and its records
+  // already carry it: third-party art under its own licence rule.
+  const builtIn =
+    "content/included/vfx/particle/particle-vfx/textures/glow.png";
+  await mkdir(path.dirname(path.join(root, builtIn)), { recursive: true });
+  await writeFile(path.join(root, builtIn), await disc([250, 200, 40]));
+  const inventoryPath = path.join(
+    root,
+    "content/included/licenses/inventory.json",
+  );
+  const inventory = JSON.parse(await readFile(inventoryPath, "utf8"));
+  const builtInRule = {
+    glob: "vfx/particle/particle-vfx/**",
+    creator: "Kenney",
+    provenance: "CC0 particle pack",
+    license_id: "CC0-1.0",
+    redistribution_review: "pending",
+  };
+  inventory.rules.splice(1, 0, builtInRule);
+  await writeFile(inventoryPath, `${JSON.stringify(inventory, null, 2)}\n`);
+  const reviewPath = path.join(root, "licenses/source-review.json");
+  const review = JSON.parse(await readFile(reviewPath, "utf8"));
+  const thirdParty = {
+    candidate_license: "CC-BY-4.0",
+    copyright: "CodeManu",
+    evidence: ["licenses/third-party/art-particles.json"],
+  };
+  review.files.push({ path: builtIn, ...thirdParty });
+  review.files.sort((a, b) => (a.path < b.path ? -1 : 1));
+  await writeFile(reviewPath, `${JSON.stringify(review, null, 2)}\n`);
+
+  const options = {
+    repo: workingTreeRepo(root),
+    validate,
+    validateParticle: () => {},
+    validateScene: () => {},
+  };
+  // The Local effect saved the same bytes (the creator packages built-ins).
+  const changes = await planEffectPromotion(
+    [
+      {
+        kind: "particle_effect",
+        mode: "add",
+        stem: "glow",
+        effect: await particleSource("glow"),
+      },
+    ],
+    options,
+  );
+  await applyEffectPromotion(root, changes);
+  const quark = "content/included/vfx/particle/quark/glow";
+  const records = JSON.parse(await readFile(reviewPath, "utf8")).files;
+  const record = (file) => records.find((entry) => entry.path === file);
+  assert.deepEqual(record(`${quark}/textures/glow.png`), {
+    path: `${quark}/textures/glow.png`,
+    ...thirdParty,
+  });
+  assert.equal(record(`${quark}/glow.json`).basis, "B");
+  const rules = JSON.parse(await readFile(inventoryPath, "utf8")).rules;
+  // The copy keeps its source's terms, ahead of the effect's owner rule.
+  assert.deepEqual(
+    rules.slice(1, 5).map((rule) => rule.glob),
+    [
+      "vfx/particle/particle-vfx/**",
+      "vfx/particle/quark/glow/textures/glow.png",
+      "vfx/particle/quark/glow/**",
+      "vfx/particle/quark/**",
+    ],
+  );
+  assert.deepEqual(rules[2], {
+    ...builtInRule,
+    glob: "vfx/particle/quark/glow/textures/glow.png",
+  });
+  const notes = changes.flatMap((change) => change.notes ?? []);
+  assert.ok(
+    notes.includes(
+      `record for ${quark}/textures/glow.png carried from ${builtIn}`,
+    ),
+  );
+  assert.ok(
+    notes.includes(
+      `rule vfx/particle/quark/glow/textures/glow.png (carried from ${builtIn})`,
+    ),
+  );
+
+  // Deleting the effect removes both of its rules.
+  await applyEffectPromotion(
+    root,
+    await planEffectPromotion(
+      [{ kind: "particle_effect", mode: "delete", stem: "glow" }],
+      options,
+    ),
+  );
+  assert.ok(
+    !JSON.parse(await readFile(inventoryPath, "utf8")).rules.some((rule) =>
+      rule.glob.includes("quark/glow"),
+    ),
+  );
+});
+
+test("promotion refuses Particle textures nested past what a delete can clear", async () => {
+  // A delete removes a texture's own folder and the effect folder.
+  const root = await effectKindsRepo();
+  const deep = await particleSource("deep", "textures/a/b.png");
+  await assert.rejects(
+    planEffectPromotion(
+      [{ kind: "particle_effect", mode: "add", stem: "deep", effect: deep }],
+      {
+        repo: workingTreeRepo(root),
+        validate,
+        validateParticle: () => {},
+        validateScene: () => {},
+      },
+    ),
+    /texture "textures\/a\/b\.png" must be a file name or one folder deep/,
+  );
+});
+
+test("an own texture named like a built-in creator texture is found", async () => {
+  const builtIns = new Set(["textures/heart.png", "textures/sparkle.png"]);
+  // Different bytes under a built-in's name: the creator would save its own.
+  const own = await particleSource("own", "textures/heart.png");
+  assert.deepEqual(await builtInTextureCollisions(own, builtIns), [
+    "textures/heart.png",
+  ]);
+  // The built-in's own bytes (an effect that copied it) are fine.
+  const copied = await particleSource("copied", "textures/heart.png");
+  await writeFile(
+    copied.texturePaths[0],
+    await readFile(
+      path.join(
+        INCLUDED_CONTENT_ROOT,
+        "vfx/particle/particle-vfx/textures/heart.png",
+      ),
+    ),
+  );
+  assert.deepEqual(await builtInTextureCollisions(copied, builtIns), []);
+  // Any other name is the effect's own.
+  const named = await particleSource("named", "textures/glossy-heart.png");
+  assert.deepEqual(await builtInTextureCollisions(named, builtIns), []);
 });
 
 test("check refuses a --with-clip Gesture it cannot find", async () => {

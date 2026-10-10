@@ -24,7 +24,10 @@ from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.content_kind_registry import handler_for_kind
 from animama.app.services.content_portability import DISTRIBUTION_KEY, DISTRIBUTION_NON_PORTABLE
 from animama.domain.content_catalog import (
+    ACTION_KINDS,
     CONTENT_SOURCE_LOCK_ORDER,
+    MISSING_EFFECT_DEPENDENCY,
+    REMOVABLE_EFFECT_KINDS,
     CatalogContentEntry,
     CatalogContentFile,
     ContentConflictError,
@@ -93,6 +96,29 @@ def _catalog_file_identity(
     """Project persisted canonical files into the rename reconciliation shape."""
 
     return tuple(sorted((row.role, row.media_type, row.size_bytes, row.sha256) for row in rows))
+
+
+def _is_removed_effect(
+    source: ContentSource,
+    kind: ContentKind,
+    ref: str,
+    declared_kind: ContentKind | None,
+    claimed_keys: set[str],
+) -> bool:
+    """Whether an unresolved edge is a Local Action's removed Included effect.
+
+    Only a Local Gesture or Reaction outlives one, only for an Avatar,
+    Particle or Scene Effect, and only when no present entry claims the ref
+    (an invalid or ambiguous target still invalidates the Action).
+    """
+
+    return (
+        source is ContentSource.LOCAL
+        and kind in ACTION_KINDS
+        and declared_kind in REMOVABLE_EFFECT_KINDS
+        and ref.startswith("builtin:")
+        and ref not in claimed_keys
+    )
 
 
 def _mount_source(mount_id: str | None) -> str:
@@ -204,9 +230,27 @@ class SQLAlchemyContentCatalog(ContentCatalog):
         files_by_item: dict[str, list[ORMContentCatalogFile]] = defaultdict(list)
         for file_row in file_result.scalars():
             files_by_item[file_row.item_id].append(file_row)
+        # A valid Action's unresolved edge is a removed Included effect only
+        # when the scan recorded it as one; any other null target stays a
+        # declared dependency, so it cannot pass as a tolerated gap.
+        removed_by_item = {
+            row.id: {
+                diagnostic.get("relative_path")
+                for diagnostic in row.diagnostics or []
+                if diagnostic.get("code") == MISSING_EFFECT_DEPENDENCY
+            }
+            for row in rows
+            if row.status == ContentStatus.VALID.value
+        }
         dependencies_by_item: dict[str, list[str]] = defaultdict(list)
         dependency_ids_by_item: dict[str, list[str]] = defaultdict(list)
+        missing_by_item: dict[str, list[str]] = defaultdict(list)
         for dependency in dependency_result.scalars():
+            if dependency.target_item_id is None and dependency.declared_ref in removed_by_item.get(
+                dependency.item_id, ()
+            ):
+                missing_by_item[dependency.item_id].append(dependency.declared_ref)
+                continue
             dependencies_by_item[dependency.item_id].append(dependency.declared_ref)
             if dependency.target_item_id is not None:
                 dependency_ids_by_item[dependency.item_id].append(dependency.target_item_id)
@@ -243,6 +287,7 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                     logical_key=row.logical_key,
                     dependencies=tuple(dependencies_by_item[row.id]),
                     dependency_item_ids=tuple(dependency_ids_by_item[row.id]),
+                    missing_dependencies=tuple(missing_by_item[row.id]),
                     provenance=dict(row.provenance or {}),
                     metadata=dict(row.content_metadata or {}),
                     diagnostics=_diagnostics(list(row.diagnostics or [])),
@@ -515,6 +560,16 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                 logical_targets[row.logical_key].append(row.id)
             locator_targets[row.relative_locator].append(row.id)
 
+        # Logical keys some present entry still claims, whatever its state: a
+        # dependency on one is invalid or ambiguous, never a removed effect.
+        claimed_result = await self._session.execute(
+            select(ORMContentCatalogItem.logical_key).where(
+                ORMContentCatalogItem.logical_key.is_not(None),
+                ORMContentCatalogItem.status != ContentStatus.MISSING.value,
+            )
+        )
+        claimed_keys = {key for key in claimed_result.scalars() if key is not None}
+
         graph: dict[str, set[str]] = defaultdict(set)
         for index, entry in enumerate(entries):
             row = rows_by_scan_index[index]
@@ -551,7 +606,18 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                 ordinal += 1
                 target_candidates = logical_targets.get(declared_ref, []) or locator_targets.get(declared_ref, [])
                 target_id = target_candidates[0] if len(target_candidates) == 1 else None
-                if target_id is None:
+                if target_id is None and _is_removed_effect(
+                    source, entry.kind, declared_ref, declared_kinds.get(declared_ref), claimed_keys
+                ):
+                    row.diagnostics = [
+                        *list(row.diagnostics or []),
+                        {
+                            "code": MISSING_EFFECT_DEPENDENCY,
+                            "message": "An Included effect this Action uses was removed; it plays without it",
+                            "relative_path": declared_ref,
+                        },
+                    ]
+                elif target_id is None:
                     row.status = ContentStatus.INVALID.value
                     row.diagnostics = [
                         *list(row.diagnostics or []),

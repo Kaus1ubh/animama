@@ -3,30 +3,48 @@ import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
 import {
+  EFFECT_SOURCE_KINDS,
   INCLUDED_CONTENT_ROOT,
   MAX_EFFECT_IMAGE_BYTES,
   containedFile,
   effectSourceFiles,
   effectSourceVersion,
   isInside,
-  resolveEffectDescriptor,
-  resolveEffectRef,
-  resolveEffectSource,
-  resolveParticleRef,
+  loadAnyEffectDescriptor,
+  resolveAnyEffectDescriptor,
+  resolveAnyEffectSource,
+  resolveDependencies,
   scanLibrary,
 } from "./effect-render-sources.mjs";
-import { pageEffect } from "./effect-render.mjs";
+import { pageEffect, pageParticle, pageScene } from "./effect-render.mjs";
 
 /**
- * Avatar Effects for the headed preview (`animation-preview.mjs`): effect
- * sources, the Avatar and Particle Effects a Gesture or Reaction depends on,
- * and the files the page may load. Resolution, including the realpath
+ * Effects for the headed preview (`animation-preview.mjs`): Avatar, Particle
+ * and Scene effect sources, the effects a Gesture or Reaction depends on, and
+ * the files the page may load. Resolution, including the realpath
  * containment checks, is `effect-render-sources.mjs`, shared with
  * `effects:render`.
  */
 
-/** `library:avatar-effect/[included/|local/]<stem|content_id|name>`. */
-export const EFFECT_LIBRARY_PREFIX = "library:avatar-effect/";
+/**
+ * Library specs of effect sources, by kind:
+ * `library:<kind>/[included/|local/]<stem|content_id|name>`.
+ */
+const EFFECT_GROUPS = {
+  effect: "Avatar Effects",
+  particle: "Particle Effects",
+  scene: "Scene Effects",
+};
+export const EFFECT_LIBRARY_KINDS = EFFECT_SOURCE_KINDS.map(
+  ({ segment, kind }) => ({
+    kind,
+    prefix: `library:${segment}/`,
+    group: EFFECT_GROUPS[kind],
+  }),
+);
+const EFFECT_CONTENT_TYPES = new Set(
+  EFFECT_SOURCE_KINDS.map(({ contentType }) => contentType),
+);
 /** URL prefix of files served to the page. */
 export const MEDIA_ROUTE = "/__preview/media/";
 /** Longest `--duration`, in seconds. */
@@ -42,6 +60,7 @@ const CONTENT_TYPES = {
   ".jpeg": "image/jpeg",
   ".webp": "image/webp",
   ".gif": "image/gif",
+  ".svg": "image/svg+xml",
   ".json": "application/json",
 };
 
@@ -118,18 +137,15 @@ export class PreviewMediaFiles {
   }
 }
 
-function isRecord(value) {
-  return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
 /**
- * The `resolveEffectSource` spec for a preview source naming an Avatar Effect
- * (a folder, a descriptor `.json` or `library:avatar-effect/…`), or null when
- * it names something else (a clip, a project or a Gesture or Reaction).
+ * The `resolveAnyEffectSource` spec for a preview source naming an effect of
+ * any kind (a folder, a descriptor `.json` or `library:avatar-effect/…`,
+ * `library:particle-effect/…`, `library:scene-effect/…`), or null when it
+ * names something else (a clip, a project or a Gesture or Reaction).
  */
 export async function effectSpecFor(spec, cwd) {
-  if (spec.startsWith(EFFECT_LIBRARY_PREFIX))
-    return `library:${spec.slice(EFFECT_LIBRARY_PREFIX.length)}`;
+  if (EFFECT_LIBRARY_KINDS.some(({ prefix }) => spec.startsWith(prefix)))
+    return spec;
   if (spec.startsWith("library:")) return null;
   const target = path.resolve(cwd, spec);
   const info = await stat(target).catch(() => null);
@@ -138,17 +154,64 @@ export async function effectSpecFor(spec, cwd) {
   if (!target.endsWith(".json")) return null;
   try {
     const value = JSON.parse(await readFile(target, "utf8"));
-    return value?.content_type === "avatar_effect" ? target : null;
+    return EFFECT_CONTENT_TYPES.has(value?.content_type) ? target : null;
   } catch {
     // Not JSON: the clip resolver reports it.
     return null;
   }
 }
 
-/** The page's view of an effect, with its images served by `files`. */
+/** The page's view of an Avatar Effect, with its images served by `files`. */
 async function servedEffect(effect, files, version) {
   const folder = await realpath(path.dirname(effect.descriptorPath));
   return pageEffect(effect, async (file) => files.url(folder, file, version));
+}
+
+/**
+ * The page's view of a Particle Effect: its manifest and every texture are
+ * served by `files`, so the manifest's relative texture URLs resolve.
+ */
+function servedParticle(
+  particle,
+  files,
+  { alias = particle.contentId, config = {}, version = null } = {},
+) {
+  const url = (file) =>
+    files.url(particle.folder, file, version, MAX_PARTICLE_FILE_BYTES);
+  particle.texturePaths.forEach(url);
+  return pageParticle(particle, url, alias, config);
+}
+
+/** The page's view of a Scene Effect, with its images served by `files`. */
+async function servedScene(
+  scene,
+  files,
+  { alias = scene.contentId, version = null } = {},
+) {
+  const folder = await realpath(path.dirname(scene.descriptorPath));
+  return pageScene(
+    scene,
+    async (file) => files.url(folder, file, version),
+    alias,
+  );
+}
+
+/** An effect source of any kind as the page plays it on its own. */
+async function servedSource(effect, files, version) {
+  if (effect.kind === "particle")
+    return {
+      kind: "particle_effect",
+      ...servedParticle(effect, files, { version }),
+    };
+  if (effect.kind === "scene")
+    return {
+      kind: "scene_effect",
+      ...(await servedScene(effect, files, { version })),
+    };
+  return {
+    kind: "avatar_effect",
+    ...(await servedEffect(effect, files, version)),
+  };
 }
 
 /**
@@ -157,11 +220,11 @@ async function servedEffect(effect, files, version) {
  * `--duration` given to every effect source, or null to loop.
  */
 export function createPreviewMediaAdapter({ files, duration = null }) {
-  /** The descriptor a spec names; its images are read by `load`. */
+  /** The descriptor a spec names; its other files are read by `load`. */
   async function resolve(spec, roots) {
     const effectSpec = await effectSpecFor(spec, roots.cwd);
     if (!effectSpec) return null;
-    const { descriptorPath, descriptor } = await resolveEffectDescriptor(
+    const { descriptorPath, descriptor } = await resolveAnyEffectDescriptor(
       effectSpec,
       { cwd: roots.cwd, localContent: roots.local ?? null },
     );
@@ -197,80 +260,67 @@ export function createPreviewMediaAdapter({ files, duration = null }) {
     },
 
     async load(source, roots) {
-      // Resolve again: the descriptor may now name other images.
+      // Resolve again: the descriptor may now name other files.
       const resolved = await resolve(source.spec, roots);
       if (!resolved) throw new Error(`${source.spec} is no longer an effect.`);
-      const effect = await resolveEffectSource(resolved.descriptorPath);
+      const effect = await loadAnyEffectDescriptor(
+        resolved.descriptorPath,
+        resolved.descriptor,
+      );
       const version = await effectSourceVersion(effect);
       return {
         version,
         text: await readFile(effect.descriptorPath, "utf8"),
         files: effectSourceFiles(effect),
-        effect: { ...(await servedEffect(effect, files, version)), duration },
+        effect: { ...(await servedSource(effect, files, version)), duration },
       };
     },
 
     async media(dependencies, roots) {
-      const media = { avatarEffects: [], particleEffects: [], notices: [] };
-      const notice = (text) => {
-        if (!media.notices.includes(text)) media.notices.push(text);
-      };
-      const options = { localContent: roots.local ?? null, onSkip: notice };
-      for (const dependency of Array.isArray(dependencies)
-        ? dependencies
-        : []) {
-        if (
-          !isRecord(dependency) ||
-          typeof dependency.alias !== "string" ||
-          typeof dependency.ref !== "string"
-        )
-          continue;
-        const { alias, ref, content_type: contentType } = dependency;
-        try {
-          if (contentType === "avatar_effect") {
-            const effect = await resolveEffectRef(ref, options);
-            const version = await effectSourceVersion(effect);
-            media.avatarEffects.push({
+      try {
+        const resolved = await resolveDependencies(dependencies, {
+          localContent: roots.local ?? null,
+        });
+        return {
+          avatarEffects: await Promise.all(
+            resolved.avatarEffects.map(async ({ alias, effect }) => ({
               alias,
-              effect: await servedEffect(effect, files, version),
-            });
-          } else if (contentType === "particle_effect") {
-            const particle = await resolveParticleRef(ref, options);
-            for (const texture of particle.texturePaths)
-              files.url(
-                particle.folder,
-                texture,
-                null,
-                MAX_PARTICLE_FILE_BYTES,
-              );
-            media.particleEffects.push({
-              alias,
-              name: particle.name,
-              description: particle.description,
-              manifestUrl: files.url(
-                particle.folder,
-                particle.manifestPath,
-                null,
-                MAX_PARTICLE_FILE_BYTES,
+              effect: await servedEffect(
+                effect,
+                files,
+                await effectSourceVersion(effect),
               ),
-              // As the runtime projection merges them for a dependency.
-              config: {
-                ...particle.defaults,
-                ...(isRecord(dependency.config) ? dependency.config : {}),
-              },
-            });
-          }
-        } catch (error) {
-          notice(`${alias} (${ref}) does not play: ${error.message}`);
-        }
+            })),
+          ),
+          // As the runtime projection merges them for a dependency.
+          particleEffects: resolved.particleEffects.map(
+            ({ alias, particle, config }) =>
+              servedParticle(particle, files, { alias, config }),
+          ),
+          sceneEffects: await Promise.all(
+            resolved.sceneEffects.map(({ alias, scene }) =>
+              servedScene(scene, files, { alias }),
+            ),
+          ),
+          notices: resolved.notices,
+        };
+      } catch (error) {
+        // An unexpected failure (a file changing under review) is a notice,
+        // so the clip still plays.
+        return {
+          avatarEffects: [],
+          particleEffects: [],
+          sceneEffects: [],
+          notices: [`The dependencies could not be read: ${error.message}`],
+        };
       }
-      return media;
     },
 
     /**
-     * Picker choices for effects: the Library's Avatar Effects, the effect
-     * sources named on the command line, and the other effect folders beside
-     * each named folder, so one preview can review a batch of drafts.
+     * Picker choices for effects: the Library's Avatar, Particle and Scene
+     * Effects, the effect sources named on the command line, and the other
+     * effect folders beside each named folder, so one preview can review a
+     * batch of drafts.
      */
     async choices(roots, specs = []) {
       const choices = [];
@@ -311,7 +361,7 @@ export function createPreviewMediaAdapter({ files, duration = null }) {
           const descriptor = await readFile(resolved.descriptorPath, "utf8")
             .then(JSON.parse)
             .catch(() => null);
-          if (descriptor?.content_type === "avatar_effect")
+          if (EFFECT_CONTENT_TYPES.has(descriptor?.content_type))
             add(resolved.descriptorPath);
         }
       }
@@ -320,20 +370,22 @@ export function createPreviewMediaAdapter({ files, duration = null }) {
         ["local", roots.local],
       ]) {
         if (!root) continue;
-        const items = await scanLibrary(root, "effect").catch(() => []);
-        choices.push(
-          ...items
-            .map((item) => ({
-              spec: `${EFFECT_LIBRARY_PREFIX}${origin}/${item.stem}`,
-              label:
-                typeof item.descriptor.name === "string"
-                  ? item.descriptor.name
-                  : item.stem,
-              group: `${origin === "included" ? "Included" : "Local"} Avatar Effects`,
-              path: item.descriptorPath,
-            }))
-            .sort((a, b) => a.label.localeCompare(b.label)),
-        );
+        for (const { kind, prefix, group } of EFFECT_LIBRARY_KINDS) {
+          const items = await scanLibrary(root, kind).catch(() => []);
+          choices.push(
+            ...items
+              .map((item) => ({
+                spec: `${prefix}${origin}/${item.stem}`,
+                label:
+                  typeof item.descriptor.name === "string"
+                    ? item.descriptor.name
+                    : item.stem,
+                group: `${origin === "included" ? "Included" : "Local"} ${group}`,
+                path: item.descriptorPath,
+              }))
+              .sort((a, b) => a.label.localeCompare(b.label)),
+          );
+        }
       }
       return choices;
     },
@@ -341,11 +393,11 @@ export function createPreviewMediaAdapter({ files, duration = null }) {
 }
 
 /**
- * The version of a reviewed file for `animation resolve`: an Avatar Effect
- * descriptor's covers its images too, as the preview's does; null for other
- * files, which hash their text.
+ * The version of a reviewed file for `animation resolve`: an effect
+ * descriptor's covers the files it plays too, as the preview's does; null for
+ * other files, which hash their text.
  */
 export async function effectVersionForFile(file) {
   if ((await effectSpecFor(file, path.dirname(file))) === null) return null;
-  return effectSourceVersion(await resolveEffectSource(file));
+  return effectSourceVersion(await resolveAnyEffectSource(file));
 }

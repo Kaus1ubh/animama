@@ -16,7 +16,9 @@ import {
 import { AvatarEffectDefinitionError } from "../../vfx/definition";
 import { effectSourceEntry } from "../../vfx/effectSource";
 import {
+  EMPTY_PREVIEW_MEDIA,
   clipUsesMedia,
+  previewSceneEntry,
   type PreviewEffect,
   type PreviewMedia,
 } from "./previewMedia";
@@ -47,7 +49,7 @@ export type PreviewSessionOptions = {
 export type PreviewRow = {
   role: "main" | "compare";
   spec: string;
-  /** A clip (Gesture, Reaction or project) or an Avatar Effect source. */
+  /** A clip (Gesture, Reaction or project) or an effect source of any kind. */
   type: "clip" | "effect";
   label: string;
   path: string;
@@ -298,8 +300,7 @@ export class PreviewSession {
       return await adapter.media(meta?.dependencies, this.options.roots);
     } catch (error) {
       return {
-        avatarEffects: [],
-        particleEffects: [],
+        ...EMPTY_PREVIEW_MEDIA,
         notices: [
           `Cannot read the dependencies in ${source.metaPath}: ${(error as Error).message}`,
         ],
@@ -415,15 +416,26 @@ export class PreviewSession {
 
 /**
  * Parse an effect source as runtime loading would, so a definition problem is
- * reported by field like a clip's, before the page tries to apply it.
+ * reported by field like a clip's, before the page tries to apply it. (A
+ * Particle Effect's manifest is parsed by the page's particle loader, whose
+ * errors the page shows.)
  */
 function validatePreviewEffect(effect: PreviewEffect): void {
   try {
-    effectSourceEntry(effect);
+    if (effect.kind === "avatar_effect") effectSourceEntry(effect);
+    else if (effect.kind === "scene_effect") previewSceneEntry(effect);
   } catch (error) {
-    if (!(error instanceof AvatarEffectDefinitionError)) throw error;
-    throw new PreviewSourceError("The Avatar Effect cannot be played.", [
-      { path: error.field ?? "definition", message: error.message },
+    const kind =
+      effect.kind === "avatar_effect" ? "Avatar Effect" : "Scene Effect";
+    const field =
+      error instanceof AvatarEffectDefinitionError
+        ? (error.field ?? "definition")
+        : "definition";
+    throw new PreviewSourceError(`The ${kind} cannot be played.`, [
+      {
+        path: field,
+        message: error instanceof Error ? error.message : String(error),
+      },
     ]);
   }
 }

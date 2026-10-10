@@ -1,0 +1,12 @@
+/*
+ * What the Scene Effect layers need on a review page, without the app's base
+ * styles (which would restyle the page): Tailwind utilities for the classes
+ * the Scene layer components use, and the Scene keyframes.
+ */
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@import "../../src/styles/scene-vfx.css";
+
+/* The layer components, and the band classes `sceneBands.tsx` passes them. */
+@source "../../src/ui/main/scene-vfx";
+@source "./sceneBands.tsx";

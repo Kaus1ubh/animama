@@ -11,8 +11,10 @@ import { unsupportedAnimaPoseClipFormatMessage } from "@/lib/avatar/poses/animaP
 import {
   isCustomizableStarterAction,
   actionDocumentFromPreview,
+  removedActionEffects,
   starterGestureSemanticKey,
 } from "./actionDocumentLoader";
+import { unresolvedActionReferences } from "./actionProject";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -492,6 +494,61 @@ describe("owned action reopening", () => {
       );
     },
   );
+
+  it("reopens a Local Action that uses a removed Included effect and reports it", async () => {
+    const source = privateReactionPreview();
+    const root = (source.closure as { root: Record<string, unknown> }).root;
+    root.implementation = {
+      kind: "anima_clip",
+      technical_source: { type: "file", file_ref: "sequence-ref" },
+    };
+    root.missing_references = { joy: "builtin:scene-effect:background:joy" };
+    root.reference_map = {};
+    // An authored record in the legacy shape must not declare it again.
+    root.dependencies = [
+      {
+        alias: "joy",
+        content_type: "scene_effect",
+        ref: "builtin:scene-effect:background:joy",
+      },
+    ];
+    const sequence = {
+      schema: "animaPoseClip/2.0",
+      id: "cheer",
+      name: "Cheer",
+      duration: 1,
+      beats: [],
+      events: [
+        {
+          id: "bg",
+          kind: "scene_vfx",
+          time: 0,
+          presetId: "joy",
+          sceneKind: "background_layers",
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(sequence))),
+    );
+    const document = await actionDocumentFromPreview({
+      intent: "reaction",
+      item: ownedReaction(),
+      preview: source,
+      base: createReactionDocument(),
+    });
+    expect(removedActionEffects(source)).toEqual([
+      { alias: "joy", ref: "builtin:scene-effect:background:joy" },
+    ]);
+    expect(document.dependencies).toEqual([]);
+    // The creator's repair check reports the event that now plays nothing.
+    expect(
+      unresolvedActionReferences(document.sequence, document.dependencies),
+    ).toEqual([
+      expect.objectContaining({ alias: "joy", contentType: "scene_effect" }),
+    ]);
+  });
 
   it("reopens an unassigned reaction without inventing a suggestion", async () => {
     const source = privateReactionPreview();

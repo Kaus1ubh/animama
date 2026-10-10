@@ -452,10 +452,16 @@ Avatar through the face-parts route and rebuilds the preview, and **Use detected
 parts** removes it. A draft correction belongs to the Avatar it was made on and
 is discarded when the model changes.
 
-## 9) Tools
+## 9) Effect tools
 
-Run these from `src/frontend/web`. Only `effects save` needs a running stack;
-`library:local/...` sources need its record sourced (or `--local-content`).
+`effects:assets`, `effects check`, `save` and `promote`, `effects:render` and
+`animation:preview` take Avatar, Particle and Scene Effects; picker thumbnails
+are Avatar-only, and `effects:bench` measures Avatar Effects or, with
+`--reaction`, a Reaction's three kinds. The `animama-avatar-vfx`,
+`animama-particle-vfx` and `animama-scene-vfx` skills wrap them into each
+kind's authoring pipeline. Run them from `src/frontend/web`. Only `effects
+save` needs a running stack; `library:local/...` sources need its record
+sourced (or `--local-content`).
 
 ### Effect art
 
@@ -468,17 +474,21 @@ pnpm -s effects:assets flipbook frames/*.png --out art/steam.png --cell 256 --fp
 pnpm -s effects:assets preview art/drop.png --out /tmp/drop-preview.png
 ```
 
-- `check` fails art with no real transparency, a painted checkerboard, no
-  visible pixels, or sizes over the app's limits or the named budget. It warns
+- `check` fails art with no real transparency (Scene tiles and backgrounds may
+  be opaque), a painted checkerboard, no visible pixels, or sizes over the
+  app's limits or the named budget. It warns
   about a flat backdrop, near-opaque alpha (250–254, common in generated
   images), faint alpha noise, see-through patches inside floating art and wide
   margins. An unreadable file fails as `unreadable` without stopping a batch.
 - `fix` removes a painted backdrop, trims, shrinks to the budget, pads (in
   output pixels), clears faint alpha, raises near-opaque alpha to 255 and bleeds
   edge colour into transparent pixels so texture filtering shows no fringe. It
-  never overwrites its input. Face-surface art (`--budget surface`) keeps its size and margins,
-  because it lies over the face texture's UV layout; only art placed by its
-  own framing (iris and decal art) is reframed, with `--canvas`.
+  never overwrites its input. Art whose margins place it keeps its size and
+  margins, and `fix` refuses `--trim`, `--square` and `--pad` for it:
+  face-surface art (`--budget surface`) lies over the face texture's UV
+  layout, and a Scene tile's or background's margins are its spacing and
+  framing. Only art placed by its own framing (iris and decal art) is
+  reframed, with `--canvas`.
 - `flipbook` lays frames out left to right, top to bottom, within the grid
   limits, fitting them into `--cell` when sizes differ and settling their alpha
   after resampling, and prints the `art.flipbook` fragment. `--trim` crops
@@ -487,9 +497,22 @@ pnpm -s effects:assets preview art/drop.png --out /tmp/drop-preview.png
   on a fixed canvas, the framing painted iris and decal art is placed by.
 - `preview` shows the art on dark, light and checkered backdrops.
 
-Budgets: `landmark`, `body` and `sticker` 512 px and 256 KiB; `surface` and
-`silhouette` 1024 px and 512 KiB; `flipbook` 2048 px and 1024 KiB per sheet.
-The `animama-effect-assets` skill wraps these steps around optional image
+Budgets (longest side and file size):
+
+| Budget | Use | Size |
+| --- | --- | --- |
+| `landmark`, `body`, `sticker` | Avatar Effect art floating at the face, on a body point or beside the Avatar | 512 px, 256 KiB |
+| `surface`, `silhouette` | Painted on the face (keeps its layout); silhouette overlay | 1024 px, 512 KiB |
+| `flipbook` | A whole Avatar Effect flipbook sheet | 2048 px, 1024 KiB |
+| `particle-texture` | One Particle sprite | 512 px, 256 KiB |
+| `particle-sheet` | A Particle sprite sheet | 2048 px, 1024 KiB |
+| `scene-sticker` | A Scene marquee or scatter item | 512 px, 256 KiB |
+| `scene-tile` | A repeating Scene tile (may be opaque; keeps its margins) | 512 px, 256 KiB |
+| `scene-background` | A full Scene background (may be opaque; keeps its framing) | 2048 px, 1024 KiB |
+
+Particle budgets also apply the Particle texture limits, and Scene budgets
+the Scene image limits, instead of the Avatar Effect image limits. The
+`animama-effect-assets` skill wraps these steps around optional image
 generation.
 
 ### Check, save and promote
@@ -504,33 +527,62 @@ pnpm -s effects save ./items.json
 pnpm -s effects promote ./promote.json --dry-run
 ```
 
-- `check` runs the art through `effects:assets check` with its attachment's
-  budget, parses the `/2` definition as the runtime does (naming the field),
-  applies it on both Included Avatars (a controller warning, such as a missing
-  face part, fails) and renders each time and view with the effect and
-  against a baseline (for face effects, the same effect with transparent
-  stand-in images, so closed eyes and face cleanup are in both): the art must
-  show on every Avatar in some frame. `--times` defaults to
-  0.25 s and 1 s. `--with-clip <clip.json|Gesture folder|library:<gesture>>`
-  poses both Avatars with that Gesture at each time (resolved as for
-  `effects:render`), so art on a hand or other moving bone is checked where
-  the Gesture puts it. It exits 1 on any FAIL.
-- `save` takes `[{ "source", "name"?, "description"? }]` and saves each source
-  through the Avatar Effect creator in headless Chromium: it imports the
-  editor document, chooses the images, saves, reads the item back and checks
-  the definition, then reopens it. A Local effect with the same name is
-  revised. Names must be valid Local names (letters, digits, spaces, `.`,
-  `_`, `-`); it prints the Local folder each name saves to. Effects with a
-  sound are saved by hand.
-- `promote` writes owner-approved items into `content/included/vfx/avatar/`:
-  `add` (new stem), `replace` (keeps the folder, content ID, version and name)
-  or `delete` (refused while Included content depends on it). Sources are
-  `library:local/<name>` from the sourced stack or a folder; image names must
-  be plain file names, and effects with a sound are refused. It validates the
-  definition and art, adds a `licenses/source-review.json` record per written
-  file in the existing effect form and drops deleted files' records; the
-  `vfx/avatar/**/*` licence rule already covers the files. Templates,
-  thumbnails and pinned tests are updated separately.
+- `check` runs the art through `effects:assets check` with its budget (an
+  Avatar Effect's attachment; a Particle texture's `particle-texture`, or
+  `particle-sheet` when an emitter tiles it; a Scene's PNG tile against
+  `scene-tile` and PNG items against `scene-sticker`, other Scene formats
+  being left to the backend), parses the definition as the runtime does
+  (naming the field), applies it on both Included Avatars (a controller
+  warning, such as a missing face part, fails) and renders each time and view
+  with the effect and against a baseline (for face effects, the same effect
+  with transparent stand-in images, so closed eyes and face cleanup are in
+  both): the art must show on every Avatar in some frame. A Particle Effect
+  also gets Save's readiness rules and particle estimate against its declared
+  budget and the 512-particle limit, and fails an own texture named like a
+  built-in creator texture (Save would keep the built-in art); a Scene Effect
+  gets the shared Scene limits and its image list. Each check prints a PASS
+  or its problems. `--times` defaults to 0.25 s and 1 s.
+  `--with-clip <clip.json|Gesture folder|library:<gesture>>` poses both
+  Avatars with that Gesture at each time (resolved as for `effects:render`),
+  so art on a hand or other moving bone is checked where the Gesture puts it.
+  It exits 1 on any FAIL.
+- `save` takes `[{ "source", "name"?, "description"? }]` and saves each
+  Avatar, Particle or Scene Effect source through its own creator in headless
+  Chromium: it imports the creator document (for a Particle Effect, the
+  `animama/particle-vfx-editor/1` document, which carries the settings),
+  chooses the images (the Avatar art; each Particle texture the creator
+  reports missing, built-in textures excepted; each Scene image, named as the
+  creator names it), saves, reads the item back and compares the definition
+  or settings and Quarks effect and every image's bytes with the source, then
+  reopens it. A Local effect of the same kind and name is revised. Names must
+  be valid Local names (letters, digits, spaces, `.`, `_`, `-`); it prints the
+  Local folder each name saves to. Effects with a sound are saved by hand.
+  `ANIMAMA_EFFECT_SAVE_STACK=1 node --test scripts/effect-save.stack.test.mjs`
+  exercises Particle and Scene saves against the sourced stack and deletes
+  what it saved.
+- `promote` writes owner-approved items into Included content: `add` (new
+  stem), `replace` (keeps the folder, content ID, version and name; a Scene
+  also keeps its kind) or `delete` (refused while Included content depends on
+  it). `"kind"` is `avatar_effect` (the default, `vfx/avatar/<stem>/`),
+  `particle_effect` (`vfx/particle/quark/<stem>/`, ID
+  `builtin:particle-effect:<stem>`) or `scene_effect` (`vfx/scene/<stem>/`, ID
+  `builtin:scene-effect:background|focus:<stem>`). Sources are
+  `library:local/<name>` of that kind from the sourced stack, or a folder;
+  file names must be plain, Scene art must be PNG and effects with a sound
+  are refused. It validates each source as `check` does (definition or
+  settings, particle budget, Scene limits) and re-checks the art against its
+  budget. New art is owner-authored: Avatar files fall under the
+  `vfx/avatar/**/*` licence rule and Scene PNGs under `vfx/scene/**/*.png`,
+  and each promoted Particle Effect gets its own `vfx/particle/quark/<stem>/**`
+  rule ahead of the generated-art rule, removed again by its delete. Every
+  written file gets a `licenses/source-review.json` record in the Avatar
+  Effect form, except a file whose bytes repeat third-party Included art
+  (such as a built-in creator texture, which the creator's Save copies): it
+  keeps that file's record and, in a rule for the copy, its licence terms.
+  Deleted files lose their records and rules, and a removed or replaced
+  third-party record is reported so its evidence can be updated. Particle
+  textures sit at most one folder deep (`textures/<name>.png`).
+  Templates, thumbnails and pinned tests are updated separately.
 - The same run can `replace` the Reactions and Gestures that use the
   effects (`"kind": "reaction" | "gesture"`), from a creator project file
   (`animamaActionProject/1.0`) holding the Included clip with its effect
@@ -561,18 +613,24 @@ pnpm -s effects:render ./my-effect --thumbnail /tmp/my-effect.webp
 pnpm -s effects:render --diff before.png after.png --out diff.png
 ```
 
-- A source is an effect folder, a descriptor `.json` or
-  `library:[included/|local/]<stem|content_id|name>`; `library:local/…` needs
-  `--local-content <content root>`.
+- A source is an Avatar, Particle or Scene effect folder, a descriptor `.json`
+  or `library:[particle-effect/|scene-effect/][included/|local/]<stem|content_id|name>`
+  (without a kind, an Avatar Effect); `library:local/…` needs
+  `--local-content <content root>`. Scene Effects show behind and in front of
+  the Avatar as in chat.
 - Rows are times after applying (`--times`, default 0.1, 0.5, 1 and 2 s);
   each Avatar gets front, ¾ and face tiles (`--views`, `--tile`).
-  `--expression` holds a VRM expression, `--with-clip` samples a Gesture's
-  body and expressions at the same times, and `--together` applies every
-  source on one sheet.
+  `--expression` holds a VRM expression, `--with-clip` plays a Gesture or
+  Reaction clip at the same times; a Library item or folder plays its Avatar,
+  Particle and Scene effect events as in chat and renders without sources (a
+  bare clip `.json` has no dependencies, so its effect events are skipped
+  with a warning), and
+  `--together` applies every source on one sheet.
 - The run exits 1 when an effect leaves a controller warning or no active
   effect.
-- `--thumbnail` renders Annie with the portrait head framing, keeping the
-  effect's own expression state.
+- `--all-included` renders every Included Avatar Effect. `--thumbnail`
+  renders an Avatar Effect on Annie with the portrait head framing, keeping
+  the effect's own expression state.
 - `--diff` counts a pixel when a channel changes by more than `--threshold`
   (default 8 of 255) and writes a diff image. The same source and revision diff
   to 0 pixels.
@@ -599,31 +657,40 @@ review notes:
 ```bash
 pnpm -s animation:preview ./my-effect                # folder or descriptor .json
 pnpm -s animation:preview library:avatar-effect/eye_confused_swirl --duration 2
-pnpm -s animation:preview library:included/confusion-2   # a Reaction with its effects
+pnpm -s animation:preview library:particle-effect/hearts-v1
+pnpm -s animation:preview library:scene-effect/scene-vfx-emotion-joy
+pnpm -s animation:preview library:included/joy-3   # a Reaction with its effects
 ```
 
-- An effect source is resolved like `effects:render`'s, parsed with the `/2`
-  parser and applied through `applyAvatarVFXEffectById`. A field-level problem
-  is shown while the last valid version keeps playing.
-- It re-applies every 4 s, on its own cycle beside a longer Compare row.
-  `--duration <s>` keeps it that long, removes it for 0.5 s and repeats.
-  Seeking re-applies it and steps its frames to the chosen time.
+- An effect source is resolved like `effects:render`'s. An Avatar Effect is
+  parsed with the `/2` parser and applied through `applyAvatarVFXEffectById`;
+  a Particle Effect plays through the Avatar's particle controller; a Scene
+  Effect is drawn in the view's Scene layers, behind and in front of the
+  Avatar as chat draws them. A field-level problem is shown while the last
+  valid version keeps playing.
+- It re-applies every 4 s, on its own cycle beside a longer Compare row; a
+  Particle Effect repeats 0.5 s after its default lifetime ends, and a Scene
+  Effect with its own duration 0.5 s after that. `--duration <s>` keeps it that long, removes it
+  for 0.5 s and repeats. Seeking re-applies it and steps its frames to the
+  chosen time. Scene animations follow the playhead, so pausing and scrubbing
+  hold them too.
 - Keep each effect descriptor in its own `<stem>/` folder. The preview watches
-  that folder recursively, so a new or changed image reloads the effect at once,
-  and unrelated files in a shared folder would reload it too. The version covers
-  the image bytes, so a reload with no change does nothing.
+  that folder recursively, so a new or changed image, manifest or texture
+  reloads the effect at once, and unrelated files in a shared folder would
+  reload it too. The version covers the bytes of every file the effect plays,
+  so a reload with no change does nothing.
 - The picker's **Effect sources** list the named effect folders and every
   other effect folder beside them, so one preview reviews a batch of drafts.
 - Notes go beside the effect's folder (`my-effect.review.json`). For anything
-  inside Library content (under the Included or Local root, a `vfx/avatar/`
-  folder, or a `<stem>/` folder holding `<stem>.meta.json`) they go in the
-  working directory, because the content scanner would count them as item
-  files.
-- A Library Gesture or Reaction, or a project file, plays its Avatar and
-  Particle Effects with their fades, resolved from its dependencies. The
-  **Effect warnings** panel lists what it cannot play (Scene Effects, sounds,
-  unresolved aliases), controller warnings, failed clip events and skipped face
-  parts.
+  inside Library content (under the Included or Local root, a `vfx/avatar/`,
+  `vfx/scene/` or `vfx/particle/[quark/]` item folder, or a `<stem>/` folder
+  holding `<stem>.meta.json`) they go in the working directory, because the
+  content scanner would count them as item files.
+- A Library Gesture or Reaction, or a project file, plays its Avatar,
+  Particle and Scene Effects with their fades, resolved from its dependencies.
+  The **Effect warnings** panel lists what it cannot play (sounds, unresolved
+  aliases), controller warnings, failed clip events (such as a Scene event
+  whose dependency is the other Scene kind) and skipped face parts.
 
 ### Frame-cost benchmark
 
@@ -637,6 +704,14 @@ over `--rounds` passes, and GPU samples voided by a disjoint event are dropped
 and counted. The budget is a mean added frame time of at most 2 ms. A software
 WebGL renderer is refused. Options: `--frames`, `--warmup`, `--rounds`,
 `--clip`, `--effects`, `--headed`, `--json <file>`.
+
+`--reaction <path|library:reaction/...>` measures one Reaction's Avatar,
+Particle and Scene Effects instead: the Reaction replays every `--replay`
+frames (default 90) with and without its effect events, the Scene layers
+draw around the canvas as in chat, and the frame rate is uncapped so the
+interval between frames includes the layers' style, layout and compositing.
+Its budget is a mean added frame interval (and GPU time) of at most 4 ms.
+`library:local/...` Reactions need `--local-content <content root>`.
 
 ## 10) Performance
 

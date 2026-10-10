@@ -1,0 +1,132 @@
+{
+  "description": "Changes to scene-effect-all-layers.json that each break one limit. The creator's check (lib/scene-vfx/limits.ts) and the backend validator must both refuse each, naming the field.",
+  "cases": [
+    {
+      "path": ["durationMs"],
+      "value": 50,
+      "field": "durationMs"
+    },
+    {
+      "path": ["pattern", "opacity"],
+      "value": 1.5,
+      "field": "pattern.opacity"
+    },
+    {
+      "path": ["marquee", "speedPxPerSec"],
+      "value": 5000,
+      "field": "marquee.speed"
+    },
+    {
+      "path": ["gradient", "stops"],
+      "value": [
+        {
+          "color": "#ffffff",
+          "position": 0
+        }
+      ],
+      "field": "gradient.stops"
+    },
+    {
+      "path": ["gradient", "stops"],
+      "value": [
+        {
+          "color": "#ffffff",
+          "position": 0.8
+        },
+        {
+          "color": "#000000",
+          "position": 0.2
+        }
+      ],
+      "field": "gradient.stops"
+    },
+    {
+      "path": ["gradient", "centerX"],
+      "value": 2,
+      "field": "gradient.centerX"
+    },
+    {
+      "path": ["tile", "size"],
+      "value": 4,
+      "field": "tile.size"
+    },
+    {
+      "path": ["screen", "count"],
+      "value": 100,
+      "field": "screen.count"
+    },
+    {
+      "path": ["screen", "turnSeconds"],
+      "value": 1,
+      "field": "screen.turnSeconds"
+    },
+    {
+      "path": ["scatters", 0, "count"],
+      "value": 49,
+      "field": "scatters.0.count"
+    },
+    {
+      "path": ["scatters", 0, "items"],
+      "value": [],
+      "field": "scatters.0.items"
+    },
+    {
+      "path": ["scatters", 1, "minSize"],
+      "value": 40,
+      "field": "scatters.1.size"
+    },
+    {
+      "path": ["scatters", 1, "maxSpinDegPerSec"],
+      "value": 1000,
+      "field": "scatters.1.maxSpinDegPerSec"
+    },
+    {
+      "path": ["flash", "durationMs"],
+      "value": 5000,
+      "field": "flash.duration"
+    }
+  ],
+  "structureDescription": "Changes to scene-effect-all-layers.json that the runtime cannot draw safely: a missing required boolean, or a colour that is not #rrggbb (CSS and SVG paint could fetch it). The runtime parser (sceneEntryFromDefinition) and the backend validator must both refuse each.",
+  "structureCases": [
+    {
+      "path": ["flash", "enabled"],
+      "value": null,
+      "field": "flash.enabled"
+    },
+    {
+      "path": ["gradient", "enabled"],
+      "value": null,
+      "field": "gradient.enabled"
+    },
+    {
+      "path": ["screen", "spiky"],
+      "value": null,
+      "field": "screen.spiky"
+    },
+    {
+      "path": ["scatters", 0, "keepFaceClear"],
+      "value": null,
+      "field": "scatters.0.keepFaceClear"
+    },
+    {
+      "path": ["gradient", "stops", 0, "color"],
+      "value": "#fff 0%, #fff 100%), url(http://127.0.0.1:9/beacon.png), radial-gradient(#000",
+      "field": "gradient.stops.0.color"
+    },
+    {
+      "path": ["screen", "color"],
+      "value": "url(http://127.0.0.1:9/paint.svg#p)",
+      "field": "screen.color"
+    },
+    {
+      "path": ["flash", "color"],
+      "value": "red",
+      "field": "flash.color"
+    },
+    {
+      "path": ["solid", "color"],
+      "value": "url(http://127.0.0.1:9/solid.png)",
+      "field": "solid.color"
+    }
+  ]
+}

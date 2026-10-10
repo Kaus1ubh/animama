@@ -168,6 +168,17 @@ def project_typed_runtime_catalog(
                 result[dependency.alias] = _runtime_id(target)
         return result
 
+    def missing_references(owner_id: str, document: TypedContentDocument) -> dict[str, str]:
+        """Alias → ref of each removed Included effect the owner plays without."""
+
+        owner = visible_by_id.get(owner_id)
+        missing = set(owner.missing_dependencies) if owner is not None else set()
+        return {
+            dependency.alias: dependency.ref
+            for dependency in document.dependencies
+            if dependency.alias and dependency.ref in missing
+        }
+
     def projection_input(
         *,
         root: RuntimeContentRoot,
@@ -187,6 +198,7 @@ def project_typed_runtime_catalog(
             logical_files=logical_files(entry.item_id),
             dependency_files=dependency_files(root, entry.item_id, document),
             reference_map=reference_map(root, entry.item_id, document),
+            missing_references=missing_references(entry.item_id, document),
         )
 
     lanes: dict[str, list[dict[str, Any]]] = {

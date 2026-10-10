@@ -1,0 +1,59 @@
+{
+  "durationMs": [100, 30000],
+  "seed": [0, 4294967295],
+  "pattern": { "size": [1, 512], "spacing": [0, 1024], "opacity": [0, 1] },
+  "marquee": {
+    "items": 64,
+    "itemSize": [1, 1024],
+    "gap": [0, 2048],
+    "rowGap": [0, 2048],
+    "rotationDeg": [-360, 360],
+    "speedPxPerSec": [0, 2000],
+    "opacity": [0, 1]
+  },
+  "focus": {
+    "lineCount": [1, 256],
+    "opacity": [0, 1],
+    "baseThicknessPx": [0.1, 128],
+    "thicknessVariationPx": [0, 128],
+    "lengthVariation": [0, 1],
+    "overscanPx": [0, 4096],
+    "paddingPx": [0, 2048],
+    "animationMs": [0, 10000],
+    "opacityJitter": [0, 1]
+  },
+  "gradient": {
+    "angleDeg": [0, 360],
+    "center": [0, 1],
+    "stops": [2, 4],
+    "position": [0, 1]
+  },
+  "tile": { "size": [16, 1024], "opacity": [0, 1], "speedPxPerSec": [0, 600] },
+  "rays": {
+    "count": [4, 48],
+    "center": [0, 1],
+    "turnSeconds": [4, 600],
+    "throbPerSec": [0, 4],
+    "opacity": [0, 1]
+  },
+  "lines": {
+    "count": [4, 96],
+    "length": [0.05, 1],
+    "widthPx": [0.5, 16],
+    "swaySeconds": [1, 60],
+    "opacity": [0, 1]
+  },
+  "scatter": {
+    "layers": 3,
+    "items": [1, 8],
+    "count": [1, 48],
+    "totalCount": 96,
+    "sizePx": [4, 512],
+    "rotationDeg": [-360, 360],
+    "opacity": [0, 1],
+    "region": [0, 1],
+    "speedPxPerSec": [0, 600],
+    "spinDegPerSec": [0, 720]
+  },
+  "flash": { "durationMs": [50, 2000] }
+}

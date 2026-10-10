@@ -44,6 +44,15 @@ export function writeCreatorRecovery(userId: string, suffix = "draft") {
       displayName: `Private particle ${suffix}`,
       catalog: particle.catalog,
       quarksJson: particle.quarksJson,
+      textures: [
+        {
+          reference: "textures/private-1.png",
+          blob: new Blob([`private particle ${suffix}`], { type: "image/png" }),
+          sha256: "b".repeat(64),
+          width: 1,
+          height: 1,
+        },
+      ],
     }),
     avatarEffectRecoveryStore.save({
       ...common,

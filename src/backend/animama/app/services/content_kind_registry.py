@@ -12,7 +12,7 @@ import json
 import re
 import struct
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
@@ -53,9 +53,11 @@ from .clip_format import validate_action_clip_files
 from .content_file_validation import ContentFileInvalidError
 from .content_gltf import MAX_VRM_SOURCE_BYTES, validate_vrm_stream
 from .content_image import MAX_APPEARANCE_SOURCE_BYTES, validate_appearance_image_stream
+from .content_package_capabilities import validate_scene_effect_definition
 from .content_pose import validate_resolved_pose
 from .content_svg import validate_svg_file
 from .content_voice import validate_pocket_clone_document, validate_pocket_clone_files
+from .effect_art_validation import validate_particle_texture_files, validate_scene_image_files
 
 MAX_JSON_BYTES = 16 * 1024 * 1024
 MAX_DOCUMENT_DEPTH = 32
@@ -104,6 +106,8 @@ class RuntimeProjectionInput:
     logical_files: dict[str, dict[str, Any]]
     dependency_files: dict[str, list[dict[str, Any]]]
     reference_map: dict[str, str]
+    # Alias → ref of each removed Included effect a Local Action plays without.
+    missing_references: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1243,6 +1247,10 @@ class ContentTypeHandler:
             return validate_pocket_clone_files(document, files)
         if isinstance(document, GestureDocumentV1 | ReactionDocumentV1):
             return validate_action_clip_files(document, files)
+        if isinstance(document, ParticleEffectDocumentV1):
+            return validate_particle_texture_files(document, files)
+        if isinstance(document, SceneEffectDocumentV1):
+            return validate_scene_effect_definition(document) + validate_scene_image_files(document, files)
         return ()
 
     def validate_resolved_dependencies(
@@ -1344,6 +1352,7 @@ class ContentTypeHandler:
                     **_mapping(projection.context.get("config")),
                 },
                 "reference_map": projection.reference_map,
+                "missing_references": projection.missing_references,
                 "files": files,
             }
             if isinstance(document, GestureDocumentV1):

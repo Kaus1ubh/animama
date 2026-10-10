@@ -137,6 +137,10 @@ class ContentSaveService:
             if "dependency_optional_not_allowed" in codes:
                 raise ContentConflictError("content_optional_dependency")
             raise ContentConflictError("saved_content_invalid", field=invalid_field)
+        if item.missing_dependencies:
+            # Only an Action saved before an Included effect was removed may
+            # outlive it; a Save names content that exists.
+            raise ContentConflictError("saved_content_invalid", field="dependencies")
         return SavedContent(operation_id=operation_id, item=item)
 
     async def save_standalone(

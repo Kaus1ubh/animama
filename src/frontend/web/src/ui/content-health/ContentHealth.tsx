@@ -27,8 +27,14 @@ export function ContentHealth({
   const rescan = useRescanContent();
   const { data: capabilities } = useRuntimeCapabilities();
   const canScan = capabilities?.local_filesystem_administration === true;
+  // Invalid items, and valid Actions that play without a removed Included
+  // effect until their events are repaired.
   const affected = (catalog.data?.items ?? []).filter(
-    (item) => item.status !== "valid",
+    (item) =>
+      item.status !== "valid" ||
+      item.diagnostics.some(
+        (diagnostic) => diagnostic.code === "missing_effect_dependency",
+      ),
   );
   const needsAttention =
     catalog.isError || affected.length > 0 || catalog.data?.scan_required;

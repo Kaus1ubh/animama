@@ -25,7 +25,9 @@ from animama.app.contracts.avatar_effect import (
     AvatarEffectDefinitionV2,
 )
 from animama.app.contracts.content_package import NON_PORTABLE_REFERENCES_CAPABILITY
-from animama.domain.content_catalog import ContentKind
+from animama.app.contracts.scene_effect_limits import SCENE_EFFECT_LIMITS
+from animama.app.services.effect_art_validation import emitter_grid_issue
+from animama.domain.content_catalog import ContentDiagnostic, ContentKind
 from animama.domain.content_documents import (
     AvatarEffectDocumentV1,
     ContentDocumentError,
@@ -306,30 +308,240 @@ def validate_avatar_effect_document(
     return schema
 
 
+_SCENE_DIRECTIONS = frozenset(
+    {
+        "static",
+        "left",
+        "right",
+        "up",
+        "down",
+        "diagonal-up-left",
+        "diagonal-down-left",
+        "diagonal-up-right",
+        "diagonal-down-right",
+    }
+)
+
+
+def _scene_items(
+    items: Any, document: TypedContentDocument, extra: set[str], field: str, *, path: str | None = None
+) -> list[Any]:
+    """Validate marquee or scatter items: registered images or app emoji."""
+    values = _array(items, field, path=path)
+    for index, raw in enumerate(values):
+        item_path = _child(path, index)
+        item = _object(raw, f"{field} item", path=item_path)
+        _fields(item, "id kind label image emoji provider", f"{field} item", path=item_path)
+        _string(item.get("id"), f"{field} item id")
+        _string(item.get("label"), f"{field} item label")
+        if _enum(item.get("kind"), {"image", "emoji"}, f"{field} item") == "image":
+            _resource(item.get("image"), document, {"image", "texture"}, path=_child(item_path, "image"))
+        else:
+            _enum(item.get("provider", "twemoji"), {"twemoji"}, "emoji provider")
+            glyph = _string(item.get("emoji"), "emoji")
+            codepoint = "-".join(f"{ord(char):x}" for char in glyph)
+            _require(codepoint in BUILTIN_EMOJI, "Emoji resource is unavailable in this app")
+            extra.add(f"animama/twemoji/14.0.2/{codepoint}")
+    return values
+
+
+_SCENE_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
+
+
+def _scene_color(value: Any, field: str) -> None:
+    """Scene colours are six-digit hex: anything else could reach CSS or SVG paint."""
+    _require(isinstance(value, str) and bool(_SCENE_COLOR.fullmatch(value)), f"{field} must be a #rrggbb colour", field)
+
+
+def _scene_flags(owner: dict[str, Any], fields: str, path: str) -> None:
+    """Require booleans the runtime reads (absent ones would make the Scene unplayable)."""
+    for field in fields.split():
+        _require(type(owner.get(field)) is bool, f"{field} must be boolean", f"{path}.{field}")
+
+
+def _scene_range(
+    owner: dict[str, Any], key: str, limits: tuple[float, float], field: str, *, integer: bool = False
+) -> None:
+    """Require ``owner[key]`` inside an inclusive limit range (and whole, if asked)."""
+    value = owner.get(key)
+    minimum, maximum = limits
+    _require(
+        isinstance(value, int | float)
+        and not isinstance(value, bool)
+        and math.isfinite(value)
+        and minimum <= value <= maximum
+        and (not integer or float(value).is_integer()),
+        f"{field} must be between {minimum:g} and {maximum:g}{' in whole steps' if integer else ''}",
+        field,
+    )
+
+
+def _scene_count(items: list[Any], limits: tuple[int, int], field: str) -> None:
+    _require(limits[0] <= len(items) <= limits[1], f"{field} needs {limits[0]} to {limits[1]} entries", field)
+
+
+def _scene_ordered(owner: dict[str, Any], low: str, high: str, field: str) -> None:
+    _require(owner[low] <= owner[high], f"{field}: the minimum cannot exceed the maximum", field)
+
+
+def _scene_background_layers(definition: dict[str, Any], document: TypedContentDocument, extra: set[str]) -> None:
+    """The optional background layers (C1-C6), with the shared limits.
+
+    The creator checks the same ranges (``lib/scene-vfx/limits.ts``); both
+    read ``SCENE_EFFECT_LIMITS``, kept equal by a parity fixture.
+    """
+    limits = SCENE_EFFECT_LIMITS
+    seed = limits["seed"]
+    if "gradient" in definition:
+        gradient = _object(definition["gradient"], "gradient", path="gradient")
+        _fields(gradient, "enabled type angleDeg centerX centerY stops", "gradient", path="gradient")
+        _scene_flags(gradient, "enabled", "gradient")
+        _enum(gradient.get("type"), {"linear", "radial"}, "gradient type")
+        g = limits["gradient"]
+        _scene_range(gradient, "angleDeg", g["angleDeg"], "gradient.angle")
+        _scene_range(gradient, "centerX", g["center"], "gradient.centerX")
+        _scene_range(gradient, "centerY", g["center"], "gradient.centerY")
+        stops = _array(gradient.get("stops"), "gradient stops", path="gradient.stops")
+        _scene_count(stops, g["stops"], "gradient.stops")
+        positions: list[float] = []
+        for index, raw in enumerate(stops):
+            stop = _object(raw, "gradient stop", path=f"gradient.stops[{index}]")
+            _fields(stop, "color position", "gradient stop")
+            _scene_color(stop.get("color"), f"gradient.stops.{index}.color")
+            _scene_range(stop, "position", g["position"], f"gradient.stops.{index}")
+            positions.append(stop["position"])
+        _require(positions == sorted(positions), "gradient.stops must run in ascending position", "gradient.stops")
+    if "tile" in definition:
+        tile = _object(definition["tile"], "tile", path="tile")
+        _fields(tile, "enabled image size opacity direction speedPxPerSec", "tile", path="tile")
+        _scene_flags(tile, "enabled", "tile")
+        _resource(tile.get("image"), document, {"image", "texture"}, path="tile.image")
+        _enum(tile.get("direction"), _SCENE_DIRECTIONS, "tile direction")
+        t = limits["tile"]
+        _scene_range(tile, "size", t["size"], "tile.size")
+        _scene_range(tile, "opacity", t["opacity"], "tile.opacity")
+        _scene_range(tile, "speedPxPerSec", t["speedPxPerSec"], "tile.speed")
+    if "screen" in definition:
+        screen = _object(definition["screen"], "screen", path="screen")
+        kind = _enum(screen.get("kind"), {"rays", "lines"}, "screen kind")
+        _scene_flags(screen, "enabled spiky" if kind == "rays" else "enabled", "screen")
+        _scene_color(screen.get("color"), "screen.color")
+        _scene_range(screen, "seed", seed, "screen.seed", integer=True)
+        if kind == "rays":
+            _fields(
+                screen,
+                "enabled kind color opacity count centerX centerY spiky turnSeconds throbPerSec seed",
+                "rays screen",
+                path="screen",
+            )
+            r = limits["rays"]
+            _scene_range(screen, "count", r["count"], "screen.count", integer=True)
+            _scene_range(screen, "opacity", r["opacity"], "screen.opacity")
+            _scene_range(screen, "centerX", r["center"], "screen.centerX")
+            _scene_range(screen, "centerY", r["center"], "screen.centerY")
+            _scene_range(screen, "throbPerSec", r["throbPerSec"], "screen.throb")
+            _number(screen.get("turnSeconds"), "screen.turnSeconds")
+            if screen["turnSeconds"] != 0:
+                _scene_range({"turn": abs(screen["turnSeconds"])}, "turn", r["turnSeconds"], "screen.turnSeconds")
+        else:
+            _fields(
+                screen,
+                "enabled kind color opacity count minLength maxLength minWidthPx maxWidthPx swaySeconds seed",
+                "lines screen",
+                path="screen",
+            )
+            n = limits["lines"]
+            _scene_range(screen, "count", n["count"], "screen.count", integer=True)
+            _scene_range(screen, "opacity", n["opacity"], "screen.opacity")
+            for key in ("minLength", "maxLength"):
+                _scene_range(screen, key, n["length"], f"screen.{key}")
+            _scene_ordered(screen, "minLength", "maxLength", "screen.length")
+            _scene_range(screen, "minWidthPx", n["widthPx"], "screen.minWidth")
+            _scene_range(screen, "maxWidthPx", n["widthPx"], "screen.maxWidth")
+            _scene_ordered(screen, "minWidthPx", "maxWidthPx", "screen.width")
+            _number(screen.get("swaySeconds"), "screen.swaySeconds")
+            if screen["swaySeconds"] != 0:
+                _scene_range(screen, "swaySeconds", n["swaySeconds"], "screen.sway")
+    if "scatters" in definition:
+        sc = limits["scatter"]
+        layers = _array(definition["scatters"], "scatters", path="scatters")
+        _scene_count(layers, (0, sc["layers"]), "scatters")
+        total = 0
+        for index, raw in enumerate(layers):
+            path = f"scatters[{index}]"
+            field = f"scatters.{index}"
+            layer = _object(raw, "scatter", path=path)
+            _fields(
+                layer,
+                "enabled items count seed minSize maxSize minRotationDeg maxRotationDeg minOpacity maxOpacity "
+                "regionTop regionBottom keepFaceClear direction speedPxPerSec minSpinDegPerSec maxSpinDegPerSec "
+                "alternateSpin pulse",
+                "scatter",
+                path=path,
+            )
+            _scene_flags(layer, "enabled keepFaceClear alternateSpin", field)
+            items = _scene_items(layer.get("items"), document, extra, "scatter", path=f"{path}.items")
+            _scene_count(items, sc["items"], f"{field}.items")
+            _scene_range(layer, "count", sc["count"], f"{field}.count", integer=True)
+            total += int(layer["count"])
+            _scene_range(layer, "seed", seed, f"{field}.seed", integer=True)
+            for low, high, key, name in (
+                ("minSize", "maxSize", "sizePx", "size"),
+                ("minRotationDeg", "maxRotationDeg", "rotationDeg", "rotation"),
+                ("minOpacity", "maxOpacity", "opacity", "opacity"),
+                ("regionTop", "regionBottom", "region", "region"),
+                ("minSpinDegPerSec", "maxSpinDegPerSec", "spinDegPerSec", "spin"),
+            ):
+                _scene_range(layer, low, sc[key], f"{field}.{low}")
+                _scene_range(layer, high, sc[key], f"{field}.{high}")
+                _scene_ordered(layer, low, high, f"{field}.{name}")
+            _scene_range(layer, "speedPxPerSec", sc["speedPxPerSec"], f"{field}.speed")
+            _enum(layer.get("direction"), _SCENE_DIRECTIONS, "scatter direction")
+            _enum(layer.get("pulse"), {"none", "twinkle", "pop", "flicker"}, "scatter pulse")
+        _require(
+            total <= sc["totalCount"], f"Scattered layers can show at most {sc['totalCount']} items in all", "scatters"
+        )
+    if "flash" in definition:
+        flash = _object(definition["flash"], "flash", path="flash")
+        _fields(flash, "enabled color durationMs", "flash", path="flash")
+        _scene_flags(flash, "enabled", "flash")
+        _scene_color(flash.get("color"), "flash.color")
+        _scene_range(flash, "durationMs", limits["flash"]["durationMs"], "flash.duration", integer=True)
+
+
 def _scene_effect(definition: dict[str, Any], document: TypedContentDocument) -> set[str]:
     _fields(
         definition,
         "schema kind durationMs coverUiOverlays dismissOnInput soundAlias solid pattern marquee "
+        "gradient tile screen scatters flash "
         "renderPlacement lineCount color opacity baseThicknessPx thicknessVariationPx lengthVariation "
         "overscanPx target animation seed",
         "Scene Effect",
     )
     kind = _enum(definition.get("kind"), {"background_layers", "focus_lines"}, "Scene Effect kind")
     _booleans(definition, "coverUiOverlays dismissOnInput")
+    limits = SCENE_EFFECT_LIMITS
     if definition.get("durationMs") is not None:
-        _number(definition["durationMs"], "durationMs")
+        _scene_range(definition, "durationMs", limits["durationMs"], "durationMs", integer=True)
     extra: set[str] = set()
     if kind == "focus_lines":
+        f = limits["focus"]
         _enum(definition.get("renderPlacement"), {"behind_avatar", "front_of_avatar"}, "focus placement")
-        _numbers(definition, "lineCount opacity baseThicknessPx thicknessVariationPx lengthVariation overscanPx")
-        _string(definition.get("color"), "focus color")
+        _scene_range(definition, "lineCount", f["lineCount"], "focus.lineCount", integer=True)
+        _scene_range(definition, "opacity", f["opacity"], "focus.opacity")
+        _scene_range(definition, "baseThicknessPx", f["baseThicknessPx"], "focus.baseThickness")
+        _scene_range(definition, "thicknessVariationPx", f["thicknessVariationPx"], "focus.thicknessVariation")
+        _scene_range(definition, "lengthVariation", f["lengthVariation"], "focus.lengthVariation")
+        _scene_range(definition, "overscanPx", f["overscanPx"], "focus.overscan")
+        _scene_color(definition.get("color"), "focus.color")
         if definition.get("seed") is not None:
-            _number(definition["seed"], "seed")
+            _scene_range(definition, "seed", limits["seed"], "focus.seed", integer=True)
         target = _object(definition.get("target"), "target")
         target_kind = _enum(target.get("kind"), {"avatar_face", "manual_box"}, "focus target")
         if target_kind == "avatar_face":
             _fields(target, "kind paddingXPx paddingYPx", "target")
-            _numbers(target, "paddingXPx paddingYPx")
+            _scene_range(target, "paddingXPx", f["paddingPx"], "focus.paddingX")
+            _scene_range(target, "paddingYPx", f["paddingPx"], "focus.paddingY")
         else:
             _fields(target, "kind rect", "target")
             rect = _object(target.get("rect"), "target rectangle")
@@ -338,18 +550,22 @@ def _scene_effect(definition: dict[str, Any], document: TypedContentDocument) ->
         animation = _object(definition.get("animation"), "focus animation")
         fields = "minVisibleMs maxVisibleMs minHiddenMs maxHiddenMs opacityJitter"
         _fields(animation, fields, "focus animation")
-        _numbers(animation, fields)
+        for key in ("minVisibleMs", "maxVisibleMs", "minHiddenMs", "maxHiddenMs"):
+            _scene_range(animation, key, f["animationMs"], f"focus.animation.{key}")
+        _scene_range(animation, "opacityJitter", f["opacityJitter"], "focus.animation.opacityJitter")
         return extra
     solid = _object(definition.get("solid"), "solid")
     _fields(solid, "enabled color", "solid")
     _require(type(solid.get("enabled")) is bool, "Solid enabled must be boolean")
-    _string(solid.get("color"), "solid color")
+    _scene_color(solid.get("color"), "solid.color")
     pattern = _object(definition.get("pattern"), "pattern")
     _fields(pattern, "enabled pattern color size spacing opacity", "pattern")
     _require(type(pattern.get("enabled")) is bool, "Pattern enabled must be boolean")
     _enum(pattern.get("pattern"), {"none", "polkadot", "heart", "star"}, "background pattern")
-    _string(pattern.get("color"), "pattern color")
-    _numbers(pattern, "size spacing opacity")
+    _scene_color(pattern.get("color"), "pattern.color")
+    _scene_range(pattern, "size", limits["pattern"]["size"], "pattern.size")
+    _scene_range(pattern, "spacing", limits["pattern"]["spacing"], "pattern.spacing")
+    _scene_range(pattern, "opacity", limits["pattern"]["opacity"], "pattern.opacity")
     marquee = _object(definition.get("marquee"), "marquee")
     _fields(
         marquee,
@@ -357,37 +573,39 @@ def _scene_effect(definition: dict[str, Any], document: TypedContentDocument) ->
         "marquee",
     )
     _require(type(marquee.get("enabled")) is bool, "Marquee enabled must be boolean")
-    _numbers(marquee, "itemSize gap rowGap itemRotationOffsetDeg speedPxPerSec opacity")
-    _enum(
-        marquee.get("direction"),
-        {
-            "static",
-            "left",
-            "right",
-            "up",
-            "down",
-            "diagonal-up-left",
-            "diagonal-down-left",
-            "diagonal-up-right",
-            "diagonal-down-right",
-        },
-        "marquee direction",
-    )
+    m = limits["marquee"]
+    _scene_range(marquee, "itemSize", m["itemSize"], "marquee.itemSize")
+    _scene_range(marquee, "gap", m["gap"], "marquee.gap")
+    _scene_range(marquee, "rowGap", m["rowGap"], "marquee.rowGap")
+    _scene_range(marquee, "itemRotationOffsetDeg", m["rotationDeg"], "marquee.rotation")
+    _scene_range(marquee, "speedPxPerSec", m["speedPxPerSec"], "marquee.speed")
+    _scene_range(marquee, "opacity", m["opacity"], "marquee.opacity")
+    _enum(marquee.get("direction"), _SCENE_DIRECTIONS, "marquee direction")
     _enum(marquee.get("itemRotationMode"), {"upright", "follow-track"}, "marquee rotation")
-    for raw in _array(marquee.get("items"), "marquee items"):
-        item = _object(raw, "marquee item")
-        _fields(item, "id kind label image emoji provider", "marquee item")
-        _string(item.get("id"), "marquee item id")
-        _string(item.get("label"), "marquee item label")
-        if _enum(item.get("kind"), {"image", "emoji"}, "marquee item") == "image":
-            _resource(item.get("image"), document, {"image", "texture"})
-        else:
-            _enum(item.get("provider", "twemoji"), {"twemoji"}, "emoji provider")
-            glyph = _string(item.get("emoji"), "emoji")
-            codepoint = "-".join(f"{ord(char):x}" for char in glyph)
-            _require(codepoint in BUILTIN_EMOJI, "Emoji resource is unavailable in this app")
-            extra.add(f"animama/twemoji/14.0.2/{codepoint}")
+    items = _scene_items(marquee.get("items"), document, extra, "marquee", path="marquee.items")
+    _scene_count(items, (0, m["items"]), "marquee.items")
+    _scene_background_layers(definition, document, extra)
     return extra
+
+
+SCENE_DEFINITION_INVALID = "scene_definition_invalid"
+
+
+def validate_scene_effect_definition(document: SceneEffectDocumentV1) -> tuple[ContentDiagnostic, ...]:
+    """Check a Scene Effect definition as package export does, at Save and scan.
+
+    A definition outside the shared limits, or one the runtime cannot draw, is
+    reported against the field it names, so Save refuses it and a Local folder
+    shows why it is unavailable.
+    """
+    if document.definition is None:
+        return ()
+    try:
+        derive_document_capabilities(document)
+    except ContentDocumentError as exc:
+        # The diagnostic's path is a file; the message names the JSON field.
+        return (ContentDiagnostic(SCENE_DEFINITION_INVALID, str(exc)),)
+    return ()
 
 
 def derive_document_capabilities(document: TypedContentDocument) -> tuple[str, ...]:
@@ -582,6 +800,8 @@ def _particle(value: dict[str, Any], document: TypedContentDocument) -> None:
         emitters += 1
         ps = _object(node.get("ps"), "Particle system")
         _require(ps.get("version") == "3.0", "Unsupported particle system version")
+        grid_issue = emitter_grid_issue(ps)
+        _require(grid_issue is None, grid_issue or "")
         _require(type(ps.get("renderMode")) is int and ps["renderMode"] in range(6), "Unsupported particle render mode")
         _require(_number(ps.get("duration"), "Particle duration") > 0, "Particle duration must be positive")
         _enum(

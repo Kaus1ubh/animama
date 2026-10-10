@@ -108,18 +108,22 @@ Reusable art drawn on or around an Avatar during a Gesture or Reaction: painted
 on the face, floating in front of it, on a body point, as a sticker beside the
 Avatar or filling its silhouette. The effect owns its art, look and motion; the
 Action event that plays it owns when it starts, ends and fades. It is never
-equipped directly. One image moving as one piece is an Avatar Effect, not a
-Particle Effect.
+equipped directly. Art that only sits on the Avatar and moves as one piece is
+an Avatar Effect, not a Particle Effect.
 
 ## Particle Effect
 
-A three.quarks emitter of many independently moving sprites, such as sparkles,
-hearts or bursts, attached to a point on the Avatar and played by a Gesture or
-Reaction.
+A three.quarks effect of one or more emitters, such as sparkles, hearts or
+bursts, attached to a point on the Avatar and played by a Gesture or Reaction.
+Its textures are its own images or the creator's built-in ones. A single
+long-lived particle is a valid layer when it uses particle behaviour
+(emission, life curves, bursting into other particles), usually alongside
+other layers.
 
 ## Scene Effect
 
-Background layers, marquees or focus lines drawn in page layers behind or in
+Background layers (solid, gradient, pattern, tile, rays or lines, marquee,
+scatter and an entry flash) or focus lines drawn in page layers behind or in
 front of the Avatar, outside its 3D scene, and played by a Gesture or Reaction.
 It never changes the Avatar itself.
 

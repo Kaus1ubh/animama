@@ -213,6 +213,7 @@ describe("PreviewSession", () => {
     const media: PreviewMedia = {
       avatarEffects: [],
       particleEffects: [],
+      sceneEffects: [],
       notices: ["resolved"],
     };
 
@@ -250,6 +251,7 @@ describe("PreviewSession", () => {
               path.join(folder, "swirl.png"),
             ],
             effect: {
+              kind: "avatar_effect",
               stem: "swirl",
               contentId: "local:avatar-effect:swirl",
               name: "Swirl",
@@ -361,7 +363,7 @@ describe("PreviewSession", () => {
       await writeEffect("nowhere");
       await session.reload();
       const row = session.state().rows[0];
-      expect(row.effect?.definition).toMatchObject({ region: "eyes" });
+      expect(row.effect).toMatchObject({ definition: { region: "eyes" } });
       expect(row.error?.issues).toEqual([
         expect.objectContaining({ path: "definition.region" }),
       ]);

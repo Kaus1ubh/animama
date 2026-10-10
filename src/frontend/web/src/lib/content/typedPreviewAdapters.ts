@@ -26,10 +26,44 @@ function targetForDependency(
     return (
       candidates.find((item) => item.item_id === dependency.item_id) ?? null
     );
+  // A typed preview gives every member its ID; a null one is a removed
+  // Included effect, never a similar item.
+  if (dependency.item_id === null) return null;
   return (
     candidates.find((item) => item.logical_key === dependency.ref) ??
-    candidates.find((item) => item.logical_key?.split(":").at(-1) === suffix) ??
+    // Only an item of the dependency's kind may match by name.
+    candidates.find(
+      (item) =>
+        item.kind === dependency.kind &&
+        item.logical_key?.split(":").at(-1) === suffix,
+    ) ??
     null
+  );
+}
+
+const REMOVABLE_EFFECT_KINDS = new Set([
+  "avatar_effect",
+  "particle_effect",
+  "scene_effect",
+]);
+
+/**
+ * Alias → ref of each Included effect the Action names that was removed: no
+ * preview item carries it, and the Action plays without it.
+ */
+function missingReferences(
+  preview: PyTypedContentPreview,
+  dependencies: readonly PyTypedDependency[] | undefined,
+): Record<string, string> {
+  return Object.fromEntries(
+    (dependencies ?? []).flatMap((dependency) =>
+      !targetForDependency(preview, dependency) &&
+      dependency.alias &&
+      REMOVABLE_EFFECT_KINDS.has(dependency.kind) &&
+      dependency.ref.startsWith("builtin:")
+        ? [[dependency.alias, dependency.ref]]
+        : [],
+    ),
   );
 }
 
@@ -232,6 +266,7 @@ export function typedActionPreview(
     config: item.config,
     dependencies: item.dependencies,
     reference_map: referenceMap(preview, item),
+    missing_references: missingReferences(preview, item.dependencies),
     logical_resource_files: typedLogicalResourceFiles(item),
     files: implementationTarget
       ? filesForItem(preview, implementationTarget)
