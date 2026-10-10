@@ -64,7 +64,8 @@ Local setup and host/key administration schemas remain in the server composition
   the episodic-memory listing.
 - `server/routers/memory_manager.py`: Reflection and manual memory-manager
   run/message/approval routes.
-- `server/routers/safety.py`: owner-visible crisis-resource regions.
+- `product_http/routes/safety.py` (shared): owner-visible crisis-resource regions
+  from the composition's crisis-resource table.
 - `server/routers/archive.py`: archive metadata/passages and embedding search.
 - `server/routers/elevenlabs.py`: ElevenLabs clone, text-to-speech, sound
   effects, audio isolation, and realtime TTS session helpers.

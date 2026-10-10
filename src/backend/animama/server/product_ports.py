@@ -9,8 +9,10 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
+from animama.app.safety.crisis_resources import CrisisResourceTable
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import ProductPolicy, ProductRefusal
+from animama.server.companion_safety import runtime_crisis_resources
 from animama.server.deps import get_async_session_factory
 from animama.server.embedding_refresh import wake_embedding_refresh
 from animama.server.installation_personalization import (
@@ -58,6 +60,10 @@ class LocalProductPorts:
         except InstallationPrincipalMismatchError as exc:
             raise ProductRefusal(403, "installation_principal_mismatch") from exc
         return result.display_name
+
+    def crisis_resources(self) -> CrisisResourceTable:
+        # The packaged table, or an operator-supplied one (ANIMAMA_CRISIS_RESOURCES_PATH).
+        return runtime_crisis_resources(self._app.state.runtime_settings)
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         # The embeddings role may have changed; re-check stored vectors now.

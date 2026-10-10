@@ -19,6 +19,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
+from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
 from animama.app.services.user_profile_service import UserProfileService
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfilePatch
@@ -115,6 +116,9 @@ class DeferredCommitPorts:
     async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
         return await save_display_name(session, principal, display_name)
 
+    def crisis_resources(self) -> CrisisResourceTable:
+        return crisis_resource_table()
+
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         self.settings_changes.append(principal.id)
 
@@ -141,6 +145,9 @@ class SessionPorts:
 
     async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
         return await save_display_name(session, principal, display_name)
+
+    def crisis_resources(self) -> CrisisResourceTable:
+        return crisis_resource_table()
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         self.settings_changes.append(principal.id)

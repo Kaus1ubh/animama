@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request, WebSocket
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import (
     ProductPolicy,
@@ -79,6 +80,9 @@ class RecordingPorts:
 
     async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
         return display_name
+
+    def crisis_resources(self) -> CrisisResourceTable:
+        return crisis_resource_table()
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         pass

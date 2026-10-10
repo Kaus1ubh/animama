@@ -25,6 +25,7 @@ from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.ports.settings_port import AnimaSettingsRepository, UserSettingsRepository
 from animama.app.ports.uow_port import UnitOfWork
 from animama.app.ports.user_profile_port import UserProfileRepository
+from animama.app.safety.crisis_resources import CrisisResourceTable
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.principal import get_current_principal
 
@@ -107,6 +108,10 @@ class ProductPorts(Protocol):
         Raises ``UserProfileNotFoundError`` or ``UserProfileInvalidError`` for the
         shared profile rules and ``ProductRefusal`` for the composition's own.
         """
+        ...
+
+    def crisis_resources(self) -> CrisisResourceTable:
+        """The crisis-resource regions this composition offers its owners."""
         ...
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
