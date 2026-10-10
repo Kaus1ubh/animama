@@ -25,6 +25,18 @@ worker with `--no-dev --extra file-worker` when testing the parser directly on
 the host; that replaces the development packages in `.venv` until the next
 plain `uv sync` or `uv run`.
 
+A `.venv` last synced from a lock older than October 9, 2026 holds both
+griffe 1.x and griffelib 2.x, which install the same `griffe` package. Syncing
+the current lock removes griffe 1.x together with griffelib's shared files, so
+importing the OpenAI Agents SDK fails with `ImportError: cannot import name
+'Docstring' from 'griffe'`. Reinstall griffelib once with the same extras:
+
+```bash
+uv sync --extra server --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev --reinstall-package griffelib
+```
+
+A new `.venv` is unaffected.
+
 ## Shared Backend Package
 
 The backend wheel contains both the public local implementation and reusable
