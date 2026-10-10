@@ -433,9 +433,10 @@ test("effects check poses both Avatars with a Gesture clip", async () => {
       JSON.stringify(armsDown),
     );
     const posed = await check(raiseRightHand);
+    // The clean art's budget line, then each Avatar showing the art.
     assert.deepEqual(
       posed.map((line) => line.level),
-      ["PASS", "PASS"],
+      ["PASS", "PASS", "PASS"],
       JSON.stringify(posed),
     );
   } finally {
