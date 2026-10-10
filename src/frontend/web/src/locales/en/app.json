@@ -102,6 +102,10 @@
   },
   "featurePacks": {
     "changeFailed": "The pack change could not finish. Review its status below, then retry.",
+    "guards": {
+      "downloadRunning": "Finish or cancel the model download before changing a feature pack.",
+      "packChangeRunning": "Wait for the feature pack change to finish before starting a download."
+    },
     "unavailable": "Feature packs are unavailable. Check runtime recovery and retry."
   },
   "launch": {

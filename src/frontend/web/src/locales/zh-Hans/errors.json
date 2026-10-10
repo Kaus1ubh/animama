@@ -256,6 +256,8 @@
     "bad_response": "搜索服务返回了意外的响应。",
     "credential_missing": "未设置 Brave Search 密钥。",
     "credential_rejected": "Brave Search 拒绝了密钥。",
+    "invalid_credential_env": "请使用字段下方列出的变量名之一。",
+    "invalid_timeout": "超时时间必须在 1 到 120 秒之间。",
     "json_format_disabled": "SearXNG 拒绝返回 JSON 结果。请在其 settings.yml 的 search.formats 中添加 json；其前端的代理也可能导致此问题。",
     "rate_limited": "搜索服务正在限制请求。请稍后重试。",
     "timeout": "搜索服务未能及时响应。",

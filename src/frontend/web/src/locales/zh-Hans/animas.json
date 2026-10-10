@@ -420,14 +420,14 @@
       "selectFailed": "无法选择 PocketTTS 语音。请刷新后重试。"
     },
     "provider": {
-      "active": "当前提供方",
+      "active": "当前提供商",
       "appDefault": "{{provider}}（应用）",
       "browser": "浏览器",
-      "choose": "选择提供方",
-      "label": "TTS 提供方",
-      "saved": "TTS 提供方已保存。",
-      "saveFailed": "无法保存 TTS 提供方。请重试。",
-      "sectionLabel": "语音提供方",
+      "choose": "选择提供商",
+      "label": "TTS 提供商",
+      "saved": "TTS 提供商已保存。",
+      "saveFailed": "无法保存 TTS 提供商。请重试。",
+      "sectionLabel": "语音提供商",
       "speechOff": "应用设置中已关闭语音。"
     },
     "title": "语音"

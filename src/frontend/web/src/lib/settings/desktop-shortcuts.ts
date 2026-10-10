@@ -103,16 +103,20 @@ const SUPPORTED_ACCELERATOR_CODES = new Set([
   "Tab",
 ]);
 
-export const DESKTOP_SHORTCUT_ACTION_LABELS: Record<
-  DesktopShortcutAction,
-  string
-> = {
-  press_to_talk: "Press to talk",
-  quick_chat: "Quick Chat",
-  toggle_voice_mode: "Voice Mode on/off",
-  toggle_voice_mute: "Toggle mute",
-  skip_tts: "Skip TTS",
-};
+/**
+ * Why a shortcut cannot be saved. The settings UI words each reason; `in_use`
+ * names the action that already has the shortcut.
+ */
+export type DesktopShortcutIssue =
+  | {
+      reason:
+        | "non_modifier_key_required"
+        | "modifier_required"
+        | "unsupported_key"
+        | "unsupported_mouse_button"
+        | "mouse_press_to_talk_only";
+    }
+  | { reason: "in_use"; action: DesktopShortcutAction };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return Boolean(value) && typeof value === "object" && !Array.isArray(value);
@@ -146,28 +150,28 @@ function isSupportedAcceleratorCode(code: string): boolean {
 
 function validateDesktopKeyboardShortcutShape(
   shortcut: DesktopKeyboardShortcut,
-): string | null {
+): DesktopShortcutIssue | null {
   if (!shortcut.code || MODIFIER_CODES.has(shortcut.code)) {
-    return "Choose a non-modifier key.";
+    return { reason: "non_modifier_key_required" };
   }
   if (!hasShortcutModifier(shortcut)) {
-    return "Choose a shortcut with at least one modifier.";
+    return { reason: "modifier_required" };
   }
   if (!isSupportedAcceleratorCode(shortcut.code)) {
-    return "Choose a supported shortcut key.";
+    return { reason: "unsupported_key" };
   }
   return null;
 }
 
 function validateDesktopMouseShortcutShape(
   shortcut: DesktopMouseShortcut,
-): string | null {
+): DesktopShortcutIssue | null {
   if (
     !Number.isSafeInteger(shortcut.button) ||
     shortcut.button <= 0 ||
     shortcut.button > 32
   ) {
-    return "Choose a supported mouse button.";
+    return { reason: "unsupported_mouse_button" };
   }
   return null;
 }
@@ -175,10 +179,10 @@ function validateDesktopMouseShortcutShape(
 function validateDesktopShortcutShape(
   action: DesktopShortcutAction,
   shortcut: DesktopShortcut,
-): string | null {
+): DesktopShortcutIssue | null {
   if (isMouseShortcut(shortcut)) {
     if (action !== "press_to_talk") {
-      return "Mouse buttons can only be used for Press to talk.";
+      return { reason: "mouse_press_to_talk_only" };
     }
     return validateDesktopMouseShortcutShape(shortcut);
   }
@@ -324,11 +328,12 @@ export function desktopShortcutsEquivalent(
   return shortcutSignature(left) === shortcutSignature(right);
 }
 
+/** The first reason `shortcut` cannot be saved for `action`, or null when it can. */
 export function validateDesktopShortcut(
   action: DesktopShortcutAction,
   shortcut: DesktopShortcut,
   shortcuts: DesktopShortcutMap,
-): string | null {
+): DesktopShortcutIssue | null {
   const shapeError = validateDesktopShortcutShape(action, shortcut);
   if (shapeError) return shapeError;
 
@@ -337,7 +342,7 @@ export function validateDesktopShortcut(
   >) {
     if (otherAction === action) continue;
     if (desktopShortcutsEquivalent(shortcut, otherShortcut)) {
-      return `Already used by ${DESKTOP_SHORTCUT_ACTION_LABELS[otherAction]}.`;
+      return { reason: "in_use", action: otherAction };
     }
   }
 
@@ -355,14 +360,21 @@ function codeLabel(code: string, key?: string): string {
   return code.replace(/([a-z])([A-Z])/g, "$1 $2");
 }
 
-export function formatDesktopShortcut(shortcut: DesktopShortcut): string {
+/**
+ * Display text for a shortcut. Key names stay as the OS shows them; the caller
+ * words the mouse button (for example "Mouse Button 4") in the UI Locale.
+ */
+export function formatDesktopShortcut(
+  shortcut: DesktopShortcut,
+  mouseButtonLabel: (button: number) => string,
+): string {
   if (isMouseShortcut(shortcut)) {
     return [
       shortcut.ctrlKey === true ? "Ctrl" : "",
       shortcut.altKey === true ? "Alt" : "",
       shortcut.shiftKey === true ? "Shift" : "",
       shortcut.metaKey === true ? "Meta" : "",
-      `Mouse Button ${shortcut.button}`,
+      mouseButtonLabel(shortcut.button),
     ]
       .filter(Boolean)
       .join(" + ");

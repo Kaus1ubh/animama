@@ -204,6 +204,8 @@
     "bad_response",
     "credential_missing",
     "credential_rejected",
+    "invalid_credential_env",
+    "invalid_timeout",
     "json_format_disabled",
     "rate_limited",
     "timeout",

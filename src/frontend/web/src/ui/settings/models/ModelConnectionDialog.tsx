@@ -7,6 +7,8 @@ import {
   type Ref,
 } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
+import { getI18n, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type {
@@ -82,18 +84,42 @@ const DEFAULT_COMPATIBILITY: Required<PyModelConnectionCompatibility> = {
   reasoning_mode: "openai_effort",
 };
 
-const COMPATIBILITY_OPTIONS: ReadonlyArray<{
-  key: Exclude<keyof PyModelConnectionCompatibility, "reasoning_mode">;
-  label: string;
-}> = [
-  {
-    key: "fold_developer_role",
-    label: "Merge developer instructions into the system message",
-  },
-  { key: "send_openai_extensions", label: "Send OpenAI-only request fields" },
-  { key: "send_stream_usage", label: "Request token usage while streaming" },
-  { key: "strip_function_strict", label: "Remove strict flags from tools" },
+type CompatibilityOption = Exclude<
+  keyof PyModelConnectionCompatibility,
+  "reasoning_mode"
+>;
+
+const COMPATIBILITY_OPTIONS: readonly CompatibilityOption[] = [
+  "fold_developer_role",
+  "send_openai_extensions",
+  "send_stream_usage",
+  "strip_function_strict",
 ];
+
+/** The checkbox label for one compatibility option. */
+function compatibilityLabel(
+  t: TFunction<"models">,
+  option: CompatibilityOption,
+): string {
+  switch (option) {
+    case "fold_developer_role":
+      return t("connectionForm.compatibility.foldDeveloperRole");
+    case "send_openai_extensions":
+      return t("connectionForm.compatibility.sendOpenaiExtensions");
+    case "send_stream_usage":
+      return t("connectionForm.compatibility.sendStreamUsage");
+    case "strip_function_strict":
+      return t("connectionForm.compatibility.stripFunctionStrict");
+    default: {
+      // Every option needs its own label.
+      const unlabelled: never = option;
+      return unlabelled;
+    }
+  }
+}
+
+/** Example variable name for a server that suggests none. */
+const EXAMPLE_KEY_ENV = "MY_SERVER_API_KEY";
 
 function draftFromPreset(preset: PyModelConnectionPreset): Draft {
   return {
@@ -132,14 +158,15 @@ export async function deleteConnectionKey(
   bridge: CredentialsBridge,
   env: string,
 ): Promise<void> {
-  await applyCredentialChanges(bridge, [{ connection: env }]).catch(() =>
-    toast.error("The connection's saved key could not be deleted.", {
+  await applyCredentialChanges(bridge, [{ connection: env }]).catch(() => {
+    const t = getI18n().getFixedT(null, "models");
+    toast.error(t("connectionForm.keyNotDeleted"), {
       action: {
-        label: "Retry",
+        label: t("actions.retry"),
         onClick: () => void deleteConnectionKey(bridge, env),
       },
-    }),
-  );
+    });
+  });
 }
 
 /** Why a saved connection's key was not stored, from main's reported status. */
@@ -147,7 +174,10 @@ function keyFailureMessage(error: unknown, env: string | null): string {
   const statuses = (error as { statuses?: CredentialStatus[] }).statuses ?? [];
   const status = statuses.find((item) => credentialTarget(item) === env);
   const reason = status ? credentialFailureMessage(status) : null;
-  return `The connection was saved, but its key was not stored.${reason ? ` ${reason}` : " Retry from Edit."}`;
+  const t = getI18n().getFixedT(null, "models");
+  return reason
+    ? t("connectionForm.keyNotStored", { reason })
+    : t("connectionForm.keyNotStoredRetry");
 }
 
 /** Busy and validity state a connection form's footer needs. */
@@ -202,6 +232,7 @@ function ModelConnectionFields({
   footer,
   baseUrlPlaceholder = "http://127.0.0.1:11434/v1",
 }: ModelConnectionFormProps) {
+  const { t } = useTranslation("models");
   const formId = useId();
   const platform = useRuntimePlatform();
   const queryClient = useQueryClient();
@@ -302,7 +333,9 @@ function ModelConnectionFields({
         else if (removedEnv) await deleteConnectionKey(bridge, removedEnv);
         await refreshCredentialDependents(queryClient, ownerId);
       }
-      toast.success(connection ? "Connection saved." : "Connection added.");
+      toast.success(
+        connection ? t("connections.saved") : t("connections.added"),
+      );
       onSaved(saved);
       return true;
     } catch (error) {
@@ -327,7 +360,9 @@ function ModelConnectionFields({
     >
       {presets.length > 1 ? (
         <div className="space-y-2">
-          <Label htmlFor={`${formId}-preset`}>Server type</Label>
+          <Label htmlFor={`${formId}-preset`}>
+            {t("connectionForm.serverType")}
+          </Label>
           <Select
             value={draft.preset}
             disabled={saving}
@@ -358,7 +393,7 @@ function ModelConnectionFields({
         </div>
       ) : null}
       <div className="space-y-2">
-        <Label htmlFor={`${formId}-name`}>Name</Label>
+        <Label htmlFor={`${formId}-name`}>{t("connectionForm.name")}</Label>
         <Input
           id={`${formId}-name`}
           value={draft.name}
@@ -368,7 +403,7 @@ function ModelConnectionFields({
         />
       </div>
       <div className="space-y-2">
-        <Label htmlFor={`${formId}-url`}>Base URL</Label>
+        <Label htmlFor={`${formId}-url`}>{t("connectionForm.baseUrl")}</Label>
         <div className="flex gap-2">
           <Input
             id={`${formId}-url`}
@@ -389,11 +424,13 @@ function ModelConnectionFields({
               disabled={saving || detect.isPending}
               onClick={() => void runDetect()}
             >
-              {detect.isPending ? "Detecting…" : "Detect"}
+              {detect.isPending
+                ? t("connectionForm.detecting")
+                : t("connectionForm.detect")}
             </Button>
           ) : null}
         </div>
-        {detection ? (
+        {detection && preset ? (
           <p
             className={cn(
               "text-xs",
@@ -403,19 +440,19 @@ function ModelConnectionFields({
             )}
             role="status"
           >
-            {detectionMessage(detection, preset?.label ?? "the server")}
+            {detectionMessage(detection, preset.label)}
           </p>
         ) : null}
         <p className="text-muted-foreground text-xs">
-          The server&apos;s OpenAI-compatible address, usually ending in /v1.
+          {t("connectionForm.baseUrlHelp")}
         </p>
       </div>
       {managedKeys ? (
         <div className="space-y-2">
           <Label htmlFor={`${formId}-key`}>
-            API key{" "}
+            {t("connectionForm.apiKey")}{" "}
             <span className="text-muted-foreground font-normal">
-              {preset?.expects_key ? "(required)" : "(optional)"}
+              {preset?.expects_key ? t("required") : t("optional")}
             </span>
           </Label>
           <Input
@@ -423,9 +460,7 @@ function ModelConnectionFields({
             type="password"
             autoComplete="off"
             value={draft.key}
-            placeholder={
-              savedManagedKey ? "Saved; enter a new key to replace it" : ""
-            }
+            placeholder={savedManagedKey ? t("keys.replacePlaceholder") : ""}
             disabled={saving}
             onChange={(event) =>
               change({ key: event.target.value, removeKey: false })
@@ -440,28 +475,23 @@ function ModelConnectionFields({
                   change({ removeKey: checked === true })
                 }
               />
-              Remove the saved key
+              {t("connectionForm.removeSavedKey")}
             </label>
           ) : null}
-          <p className="text-muted-foreground text-xs">
-            Encrypted on this computer and never shown again. A saved key
-            applies immediately.
-          </p>
+          <p className="text-muted-foreground text-xs">{t("keys.encrypted")}</p>
         </div>
       ) : (
         <div className="space-y-2">
           <Label htmlFor={`${formId}-env`}>
-            API key variable{" "}
+            {t("connectionForm.apiKeyVariable")}{" "}
             <span className="text-muted-foreground font-normal">
-              {preset?.expects_key ? "(required)" : "(optional)"}
+              {preset?.expects_key ? t("required") : t("optional")}
             </span>
           </Label>
           <Input
             id={`${formId}-env`}
             value={draft.envName}
-            placeholder={
-              preset?.suggested_credential_env ?? "MY_SERVER_API_KEY"
-            }
+            placeholder={preset?.suggested_credential_env ?? EXAMPLE_KEY_ENV}
             autoCapitalize="characters"
             disabled={saving}
             onChange={(event) => change({ envName: event.target.value })}
@@ -469,20 +499,21 @@ function ModelConnectionFields({
           <p className="text-muted-foreground text-xs">
             {connection?.credential_env
               ? connection.credential_state === "configured"
-                ? "Set on the server."
-                : "Not set on the server yet. Set it to your API key."
-              : "Set this variable to your API key on the server."}
+                ? t("connectionForm.env.set")
+                : t("connectionForm.env.notSet")
+              : t("connectionForm.env.setVariable")}
           </p>
         </div>
       )}
       {insecure ? (
         <p className="text-destructive text-xs" role="alert">
-          This address uses plain http on another computer, so the key would
-          cross the network unencrypted. Use https or a local server.
+          {t("connectionForm.insecureKey")}
         </p>
       ) : null}
       <div className="space-y-2">
-        <Label htmlFor={`${formId}-timeout`}>Request timeout (seconds)</Label>
+        <Label htmlFor={`${formId}-timeout`}>
+          {t("connectionForm.timeout")}
+        </Label>
         <Input
           id={`${formId}-timeout`}
           value={draft.timeout}
@@ -491,7 +522,7 @@ function ModelConnectionFields({
           onChange={(event) => change({ timeout: event.target.value })}
         />
         <p className="text-muted-foreground text-xs">
-          Local servers may need longer while a model loads.
+          {t("connectionForm.timeoutHelp")}
         </p>
       </div>
       <div className="space-y-3">
@@ -503,32 +534,33 @@ function ModelConnectionFields({
           aria-expanded={showAdvanced}
           onClick={() => setShowAdvanced((value) => !value)}
         >
-          {showAdvanced ? "Hide advanced options" : "Advanced options"}
+          {showAdvanced
+            ? t("connectionForm.hideAdvanced")
+            : t("connectionForm.advanced")}
         </Button>
         {showAdvanced ? (
           <div className="space-y-3">
             {COMPATIBILITY_OPTIONS.map((option) => (
-              <label
-                key={option.key}
-                className="flex items-center gap-2 text-sm"
-              >
+              <label key={option} className="flex items-center gap-2 text-sm">
                 <Checkbox
-                  checked={draft.compatibility[option.key]}
+                  checked={draft.compatibility[option]}
                   disabled={saving}
                   onCheckedChange={(checked) =>
                     change({
                       compatibility: {
                         ...draft.compatibility,
-                        [option.key]: checked === true,
+                        [option]: checked === true,
                       },
                     })
                   }
                 />
-                {option.label}
+                {compatibilityLabel(t, option)}
               </label>
             ))}
             <div className="space-y-2">
-              <Label htmlFor={`${formId}-reasoning`}>Reasoning effort</Label>
+              <Label htmlFor={`${formId}-reasoning`}>
+                {t("connectionForm.reasoning.label")}
+              </Label>
               <Select
                 value={draft.compatibility.reasoning_mode}
                 disabled={saving}
@@ -547,12 +579,14 @@ function ModelConnectionFields({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="openai_effort">
-                    Send as OpenAI reasoning effort
+                    {t("connectionForm.reasoning.openaiEffort")}
                   </SelectItem>
                   <SelectItem value="deepseek_thinking">
-                    Send as DeepSeek thinking
+                    {t("connectionForm.reasoning.deepseekThinking")}
                   </SelectItem>
-                  <SelectItem value="omit">Do not send</SelectItem>
+                  <SelectItem value="omit">
+                    {t("connectionForm.reasoning.omit")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -581,15 +615,17 @@ export function ModelConnectionDialog({
   connection: PyModelConnection;
   managedKeys: boolean;
 }) {
+  const { t } = useTranslation("models");
   const [saving, setSaving] = useState(false);
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
-          <DialogTitle>Edit {connection.name}</DialogTitle>
+          <DialogTitle>
+            {t("connections.editNamed", { name: connection.name })}
+          </DialogTitle>
           <DialogDescription>
-            An OpenAI-compatible server such as Ollama, LM Studio, llama.cpp or
-            a cloud provider.
+            {t("connectionForm.editDescription")}
           </DialogDescription>
         </DialogHeader>
         <ModelConnectionForm
@@ -606,10 +642,10 @@ export function ModelConnectionDialog({
                 disabled={busy}
                 onClick={() => onOpenChange(false)}
               >
-                Cancel
+                {t("actions.cancel")}
               </Button>
               <Button type="submit" disabled={!valid || busy}>
-                {busy ? "Saving…" : "Save"}
+                {busy ? t("actions.saving") : t("actions.save")}
               </Button>
             </DialogFooter>
           )}

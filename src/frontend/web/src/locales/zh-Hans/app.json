@@ -102,7 +102,11 @@
   },
   "featurePacks": {
     "changeFailed": "功能包更改未能完成。请查看下方状态后重试。",
-    "unavailable": "功能包不可用。请检查运行时恢复情况后重试。"
+    "unavailable": "功能包不可用。请检查运行时恢复情况后重试。",
+    "guards": {
+      "downloadRunning": "更改功能包前，请先完成或取消模型下载。",
+      "packChangeRunning": "请等待功能包更改完成后再开始下载。"
+    }
   },
   "launch": {
     "failed": {

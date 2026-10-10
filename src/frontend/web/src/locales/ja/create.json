@@ -344,7 +344,7 @@
     "voice": {
       "applicationDefault": "アプリの既定値（保存済みのリクエスト）",
       "edit": "音声を編集",
-      "savedClone": "保存済みのボイスクローン",
+      "savedClone": "保存済みの音声クローン",
       "summary": "{{provider}} · {{voice}}",
       "title": "音声"
     },

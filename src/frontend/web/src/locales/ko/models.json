@@ -1,0 +1,360 @@
+{
+  "actions": {
+    "cancel": "취소",
+    "discard": "변경 취소",
+    "edit": "편집",
+    "remove": "삭제",
+    "removing": "삭제하는 중…",
+    "retry": "다시 시도",
+    "save": "저장",
+    "saving": "저장하는 중…",
+    "show": "표시",
+    "test": "테스트",
+    "testing": "테스트하는 중…",
+    "undo": "실행 취소"
+  },
+  "chips": {
+    "appSearch": {
+      "description": "이 앱의 검색 서비스로 웹을 검색합니다",
+      "label": "앱 검색"
+    },
+    "builtInSearch": {
+      "description": "제공자의 자체 검색으로 웹을 검색합니다",
+      "label": "내장 검색"
+    },
+    "context": {
+      "description": "{{tokens, number}}토큰 컨텍스트 창"
+    },
+    "embeddings": {
+      "description": "파일 및 아카이브 검색용 임베딩 모델",
+      "label": "임베딩"
+    },
+    "tools": {
+      "description": "도구를 호출합니다",
+      "label": "도구"
+    },
+    "vision": {
+      "description": "이미지를 받습니다",
+      "label": "비전"
+    }
+  },
+  "connectionForm": {
+    "advanced": "고급 옵션",
+    "apiKey": "API 키",
+    "apiKeyVariable": "API 키 변수",
+    "baseUrl": "기본 URL",
+    "baseUrlHelp": "서버의 OpenAI 호환 주소이며, 보통 /v1로 끝납니다.",
+    "compatibility": {
+      "foldDeveloperRole": "개발자 지침을 시스템 메시지에 병합",
+      "sendOpenaiExtensions": "OpenAI 전용 요청 필드 보내기",
+      "sendStreamUsage": "스트리밍 중 토큰 사용량 요청",
+      "stripFunctionStrict": "도구에서 strict 플래그 제거"
+    },
+    "detect": "감지",
+    "detected_other": "{{baseUrl}}에서 모델 {{count, number}}개를 찾았습니다.",
+    "detecting": "감지하는 중…",
+    "editDescription": "Ollama, LM Studio, llama.cpp 또는 클라우드 제공자 같은 OpenAI 호환 서버입니다.",
+    "env": {
+      "notSet": "아직 서버에 설정되지 않았습니다. API 키로 설정하세요.",
+      "set": "서버에 설정되어 있습니다.",
+      "setVariable": "서버에서 이 변수를 API 키로 설정하세요."
+    },
+    "hideAdvanced": "고급 옵션 숨기기",
+    "insecureKey": "이 주소는 다른 컴퓨터로 암호화되지 않은 http를 사용하므로 키가 암호화되지 않은 상태로 네트워크를 통과합니다. https나 로컬 서버를 사용하세요.",
+    "keyNotDeleted": "연결에 저장된 키를 삭제할 수 없습니다.",
+    "keyNotStored": "연결은 저장되었지만 키는 저장되지 않았습니다. {{reason}}",
+    "keyNotStoredRetry": "연결은 저장되었지만 키는 저장되지 않았습니다. 편집에서 다시 시도하세요.",
+    "name": "이름",
+    "reasoning": {
+      "deepseekThinking": "DeepSeek thinking으로 보내기",
+      "label": "추론 강도",
+      "omit": "보내지 않음",
+      "openaiEffort": "OpenAI reasoning effort로 보내기"
+    },
+    "removeSavedKey": "저장된 키 삭제",
+    "serverType": "서버 유형",
+    "timeout": "요청 시간 제한(초)",
+    "timeoutHelp": "로컬 서버는 모델을 불러오는 동안 더 오래 걸릴 수 있습니다."
+  },
+  "connections": {
+    "addCustomServer": "사용자 지정 서버 추가",
+    "added": "연결을 추가했습니다.",
+    "addModel": "모델 추가",
+    "addModelTo": "{{name}}에 모델 추가",
+    "connect": "연결",
+    "connecting": "연결하는 중…",
+    "detail": "{{host}} · {{status}}",
+    "editNamed": "{{name}} 편집",
+    "hideHidden": "숨긴 모델 접기",
+    "loadFailed": "모델 연결을 불러올 수 없습니다.",
+    "modelsOf": "{{name}} 모델",
+    "noModels": "아직 모델이 없습니다. 채팅하려면 모델을 추가하세요.",
+    "openAiKey": {
+      "managed": "이 컴퓨터에 암호화되어 저장되며 다시 표시되지 않습니다. 앱 설정 → API 키에서도 관리할 수 있습니다.",
+      "server": "이 서버에 설정된 OpenAI 키(OPENAI_API_KEY)를 사용합니다."
+    },
+    "removed": "연결을 삭제했습니다.",
+    "removeNamed": "{{name}} 삭제",
+    "saved": "연결을 저장했습니다.",
+    "showHidden_other": "숨긴 모델 {{count, number}}개 표시",
+    "status": {
+      "checking": "확인하는 중…",
+      "keyMissing": "키 없음",
+      "keyRejected": "키 거부됨",
+      "keySet": "키 설정됨",
+      "noKeyNeeded": "키 필요 없음",
+      "notReachable": "연결할 수 없음",
+      "runningAt": "{{host}}에서 실행 중"
+    }
+  },
+  "credentials": {
+    "allFailed": "변경 사항을 완료할 수 없습니다. 런타임 복구 상태를 확인한 후 다시 시도하세요. 저장된 키는 여기에 표시되지 않습니다.",
+    "connectionKey": "모델 연결 키",
+    "description": "클라우드 채팅용 OpenAI 키나 음성용 ElevenLabs 키를 추가하세요. 다른 모델 서버의 키는 앱 설정 → 모델에서 각 연결에 입력합니다. 키는 이 컴퓨터의 보안 저장소로 암호화되며 다시 표시되지 않습니다. 변경 사항은 저장하는 즉시 적용됩니다. 나중에 앱 설정 → API 키에서 변경할 수 있습니다.",
+    "failure": {
+      "full": "이 컴퓨터에는 모델 연결 키를 최대 {{max, number}}개까지 저장할 수 있으며 이미 한도에 도달했습니다. 더 이상 사용하지 않는 연결의 키를 삭제한 후 다시 시도하세요.",
+      "line": "{{name}}: {{message}}",
+      "restartRequired": "변경을 완료할 수 없습니다. 저장된 키 상태는 위에 표시됩니다. 키를 다시 변경하기 전에 런타임 복구를 열고 다시 시도하세요.",
+      "retry": "키 변경을 완료할 수 없습니다. 저장된 상태를 확인하고 변경을 다시 시도하세요."
+    },
+    "removeNamed": "{{name}} 키 삭제",
+    "replacePlaceholder": "교체할 새 키 입력",
+    "saveChanges_other": "변경 사항 {{count, number}}개 저장",
+    "saved": "저장했습니다.",
+    "someFailed": "일부 변경 사항을 완료할 수 없습니다({{names}}). 다시 시도하세요. 저장된 키는 여기에 표시되지 않습니다.",
+    "status": {
+      "configured": "설정됨",
+      "notSet": "설정 안 됨",
+      "removing": "저장하면 삭제됩니다."
+    },
+    "title": "API 키",
+    "unavailable": "보호된 설정을 사용할 수 없습니다. 런타임 복구를 열고 다시 시도하세요.",
+    "undoRemoveNamed": "{{name}} 키 삭제 취소"
+  },
+  "defaults": {
+    "current": "현재 {{model}}입니다.",
+    "currentOn": "현재 {{model}}({{connection}})입니다.",
+    "loadFailed": "모델을 불러올 수 없습니다.",
+    "noCapableModel": "이 작업을 할 수 있는 모델이 없습니다. 필요한 기능을 갖춘 모델을 선택하세요.",
+    "roleModel": "{{role}} 모델",
+    "roles": {
+      "chat": {
+        "default": "시스템 기본값",
+        "description": "새 Anima가 처음 사용하는 모델입니다. 기존 Anima는 각자의 모델을 유지합니다.",
+        "label": "채팅"
+      },
+      "embeddings": {
+        "default": "끄기",
+        "description": "의미를 기준으로 파일과 아카이브의 구절을 찾습니다. 변경하면 저장된 콘텐츠를 다시 임베딩합니다.",
+        "label": "임베딩"
+      },
+      "memoryManager": {
+        "default": "채팅과 동일",
+        "description": "대화를 검토하고 기억 파일 변경을 제안합니다. 도구 호출이 필요합니다.",
+        "label": "기억 관리자"
+      },
+      "utility": {
+        "default": "채팅과 동일",
+        "description": "채팅 제목을 작성하고 긴 채팅을 압축합니다. 작고 빠른 모델이 적합합니다.",
+        "label": "압축"
+      }
+    },
+    "saveFailed": "{{role}} 모델을 저장할 수 없습니다.",
+    "unavailable": "선택한 모델을 사용할 수 없어 기본값을 사용합니다.",
+    "unavailableChoice": "{{model}} (사용할 수 없음)"
+  },
+  "embeddings": {
+    "current": "저장된 파일과 아카이브가 이 모델로 임베딩되어 있습니다.",
+    "off": "임베딩이 꺼져 있습니다. 파일 및 아카이브 검색에는 키워드를 사용합니다.",
+    "reEmbedding_other": "항목 {{count, number}}개를 다시 임베딩하는 중입니다. 완료될 때까지 검색에는 키워드를 사용합니다.",
+    "retrying_other": "항목 {{count, number}}개의 다시 임베딩이 재시도를 기다리는 중입니다: {{reason}}"
+  },
+  "fields": {
+    "capabilities": "기능",
+    "kind": "종류",
+    "modelId": "모델 ID",
+    "structuredOutput": "구조화된 출력"
+  },
+  "info": {
+    "allowed": "허용",
+    "builtinDescription": "{{name}}의 기본 제공 모델입니다. 세부 정보는 변경할 수 없습니다.",
+    "fields": {
+      "api": "API",
+      "contextWindow": "컨텍스트 창",
+      "images": "이미지",
+      "memoryWrites": "기억 쓰기",
+      "reasoning": "추론",
+      "streaming": "스트리밍",
+      "toolCalls": "도구 호출",
+      "toolsWithSchema": "스키마와 함께 도구 사용"
+    },
+    "no": "아니요",
+    "notAllowed": "허용 안 함",
+    "notSet": "설정 안 됨",
+    "tokens": "{{tokens, number}}토큰",
+    "yes": "예"
+  },
+  "keys": {
+    "encrypted": "이 컴퓨터에 암호화되어 저장되며 다시 표시되지 않습니다. 저장한 키는 즉시 적용됩니다.",
+    "replacePlaceholder": "저장됨. 교체하려면 새 키를 입력하세요"
+  },
+  "locations": {
+    "cloud": "클라우드",
+    "local": "로컬",
+    "tabsLabel": "모델 실행 위치"
+  },
+  "modelKinds": {
+    "chat": "채팅 모델",
+    "embedding": "임베딩 모델"
+  },
+  "modelRow": {
+    "details": "{{name}} 세부 정보",
+    "hidden": "숨김"
+  },
+  "openRouter": {
+    "find": "OpenRouter 모델 찾기",
+    "found_other": "모델 {{count, number}}개를 찾았습니다.",
+    "listLabel": "OpenRouter 모델",
+    "loading": "OpenRouter 모델을 불러오는 중…",
+    "noMatches": "일치하는 모델이 없습니다. 검색어를 바꾸거나 모든 모델을 표시하세요.",
+    "searchPlaceholder": "이름 또는 ID로 검색",
+    "showingFirst": "모델 {{total, number}}개 중 {{shown, number}}개를 표시합니다. 검색해서 목록을 좁히세요.",
+    "toolsOnly": "도구 호출 지원 모델만"
+  },
+  "operatorManaged": {
+    "note": "음성 모델은 호스팅 운영자가 관리합니다."
+  },
+  "optional": "(선택 사항)",
+  "ownerModel": {
+    "addDescription": "모델을 테스트해 지원 기능을 확인한 다음, 기능과 컨텍스트 창을 확정하세요.",
+    "added": "모델을 추가했습니다.",
+    "addTitle": "{{name}}에 모델 추가",
+    "allowMemoryWrites": "이 모델이 기억을 쓰도록 허용",
+    "api": "API: {{api}}",
+    "capabilities": {
+      "acceptsImages": "이미지 받기",
+      "supportsStreaming": "응답 스트리밍",
+      "supportsTools": "도구 호출(기억, 파일 검색)",
+      "toolsWithStructuredOutput": "도구와 응답 스키마를 함께 사용"
+    },
+    "contextWindow": "컨텍스트 창(토큰)",
+    "contextWindowHelp": "필수입니다. 모델의 최대값이 아니라 서버가 모델을 불러올 때 사용하는 컨텍스트 크기(예: Ollama의 num_ctx나 llama.cpp의 -c)를 입력하세요. 긴 채팅은 크기에 맞게 요약됩니다.",
+    "copyFrom": "기능을 복사할 모델",
+    "copyFromHelp": "기본 제공 모델의 새 버전에 유용합니다.",
+    "copyNothing": "없음(아래에서 설정)",
+    "displayName": "표시 이름",
+    "editDescription": {
+      "chat": "{{connection}}의 채팅 모델입니다. 세부 정보를 변경한 후 저장하세요.",
+      "embedding": "{{connection}}의 임베딩 모델입니다. 세부 정보를 변경한 후 저장하세요."
+    },
+    "listed_other": "모델 {{count, number}}개를 찾았습니다. 하나를 선택하거나 ID를 입력하세요.",
+    "listedNone": "서버에 모델이 없습니다. 모델 ID를 입력하세요.",
+    "listing": "목록을 가져오는 중…",
+    "listModels": "모델 목록 보기",
+    "removed": "모델을 삭제했습니다.",
+    "saved": "모델을 저장했습니다.",
+    "showInLists": "모델 목록에 표시",
+    "showNamedInLists": "{{name}}을(를) 모델 목록에 표시",
+    "testModel": "모델 테스트"
+  },
+  "probe": {
+    "contextWindow": "서버가 보고한 컨텍스트 창은 {{tokens, number}}토큰입니다.",
+    "dimensions": "벡터는 {{dimensions, number}}차원입니다.",
+    "failed": "✗ {{step}}",
+    "failureReason": " — {{reason}}",
+    "passed": "✓ {{step}}",
+    "results": "테스트 결과",
+    "steps": {
+      "available": "모델 사용 가능",
+      "embeddings": "임베딩",
+      "jsonMode": "JSON 모드",
+      "streaming": "스트리밍",
+      "structuredOutput": "JSON 스키마",
+      "toolCalls": "도구 호출",
+      "toolsWithStructuredOutput": "스키마와 함께 도구 사용"
+    }
+  },
+  "providers": {
+    "connected": " (연결됨)",
+    "custom": "사용자 지정",
+    "purpose": {
+      "customCloud": "OpenAI 호환 클라우드 서비스에 연결합니다.",
+      "customLocal": "이 컴퓨터나 네트워크의 OpenAI 호환 서버에 연결합니다.",
+      "deepseek": "DeepSeek API 키로 DeepSeek 모델과 채팅합니다.",
+      "huggingface": "액세스 토큰으로 Hugging Face Inference Providers를 통해 오픈 모델과 채팅합니다.",
+      "llamacpp": "이 컴퓨터의 llama.cpp 서버가 제공하는 모델과 채팅합니다.",
+      "lmstudio": "이 컴퓨터의 LM Studio가 제공하는 모델과 채팅합니다.",
+      "ollama": "이 컴퓨터의 Ollama에서 실행 중인 모델과 채팅합니다.",
+      "openai": "API 키로 OpenAI 모델과 채팅합니다.",
+      "openrouter": "OpenRouter 키 하나로 여러 제공자의 모델과 채팅합니다.",
+      "vllm": "이 컴퓨터의 vLLM이 제공하는 모델과 채팅합니다."
+    },
+    "recommended": "추천",
+    "tabsLabel": "{{location}} 제공자"
+  },
+  "removal": {
+    "consequences": {
+      "animas_other": "해당 Anima는 다른 모델을 선택할 때까지 모델을 사용할 수 없다고 표시합니다.",
+      "roles_other": "해당 역할은 기본값으로 돌아갑니다."
+    },
+    "roles": {
+      "chat": "채팅 기본값",
+      "embeddings": "임베딩 모델",
+      "memoryManager": "기억 관리자 모델",
+      "utility": "압축 모델"
+    },
+    "savedKeyDeleted": "저장된 키도 함께 삭제되며 복구할 수 없습니다.",
+    "title": "{{name}}을(를) 삭제할까요?",
+    "usage": {
+      "animas": "{{animas, list}}에서 사용 중입니다.",
+      "animasAndRoles": "{{animas, list}}에서 사용 중이며 {{roles, list}}(으)로도 사용됩니다.",
+      "none": "사용 중이 아닙니다.",
+      "roles": "{{roles, list}}(으)로 사용됩니다."
+    }
+  },
+  "required": "(필수)",
+  "structuredOutput": {
+    "jsonObject": "JSON 모드",
+    "jsonSchema": "JSON 스키마(strict)",
+    "none": "없음"
+  },
+  "webSearch": {
+    "brave": {
+      "apiKey": "Brave Search API 키",
+      "envHelp": "백엔드는 {{managed}} 또는 {{suggested}}에서 Brave Search 키를 읽습니다. 키는 데이터베이스에 저장되지 않습니다.",
+      "envNotSet": "백엔드 환경에 설정되어 있지 않습니다.",
+      "envVariable": "키 환경 변수"
+    },
+    "destination": {
+      "brave": "모델이 검색어를 Brave Search로 보내며, Brave Search는 검색어를 최대 90일 동안 보관합니다.",
+      "searxng": "모델이 검색어를 사용자의 SearXNG 서버로 보냅니다.",
+      "searxngAt": "모델이 검색어를 {{host}}의 SearXNG 서버로 보냅니다."
+    },
+    "keyNotDeleted": "저장된 Brave Search 키를 삭제할 수 없습니다.",
+    "keyNotDeletedReason": "저장된 Brave Search 키를 삭제할 수 없습니다. {{reason}}",
+    "keyNotStored": "Brave Search 키가 저장되지 않았습니다. 다시 입력하고 저장하세요.",
+    "keyNotStoredReason": "Brave Search 키가 저장되지 않았습니다. {{reason}}",
+    "loadFailed": "웹 검색 설정을 불러올 수 없습니다.",
+    "off": "끄기",
+    "saved": "웹 검색을 저장했습니다.",
+    "saveToTest": "새 키를 테스트하려면 저장하세요.",
+    "searxng": {
+      "address": "SearXNG 주소",
+      "deletesKey": "저장하면 저장된 Brave Search 키가 삭제되며 복구할 수 없습니다.",
+      "help": "settings.yml의 search.formats에서 json 형식을 활성화하세요. Docker 스택에서는 이 컴퓨터의 서버 주소가 127.0.0.1이 아니라 host.docker.internal입니다."
+    },
+    "service": {
+      "description": "도구를 호출할 수 있는 모든 모델이 웹을 검색할 수 있게 합니다. 내장 검색이 있는 OpenAI 모델은 계속 내장 검색을 사용합니다.",
+      "label": "검색 서비스"
+    },
+    "testPassed_other": "검색이 작동합니다. 테스트 검색어로 결과 {{count, number}}개를 찾았습니다.",
+    "timeout": "시간 제한(초)",
+    "turnedOff": "웹 검색을 껐습니다.",
+    "turnOff": {
+      "action": "웹 검색 끄기",
+      "deletesKey": "검색을 끄면 저장된 키도 삭제되며 복구할 수 없습니다.",
+      "stopsSearching": "모델이 더 이상 웹을 검색하지 않습니다.",
+      "turningOff": "끄는 중…"
+    }
+  }
+}

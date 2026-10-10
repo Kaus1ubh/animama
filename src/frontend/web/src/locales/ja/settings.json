@@ -1,4 +1,76 @@
 {
+  "about": {
+    "diagnostics": {
+      "copied": "診断情報をコピーしました。",
+      "copy": "概要をコピー",
+      "copyFailed": "診断情報をクリップボードにコピーできませんでした。",
+      "description": "不具合報告用に、バージョン、プラットフォーム、コンポーネントの状態をコピーします。キー、チャット、記憶は含まれません。",
+      "entryLabel": "診断の概要をコピー",
+      "label": "診断"
+    },
+    "logs": {
+      "description": "トラブルシューティング用に Animama のログフォルダーを開きます。",
+      "label": "ログ",
+      "open": "ログフォルダーを開く",
+      "openFailed": "ログフォルダーを開けませんでした。"
+    },
+    "platform": {
+      "desktop": "デスクトップ",
+      "desktopOs": "デスクトップ（{{os}}）",
+      "web": "Web ブラウザー"
+    },
+    "version": "バージョン"
+  },
+  "actions": {
+    "cancel": "キャンセル",
+    "tryAgain": "再試行"
+  },
+  "advanced": {
+    "avatarTransform": {
+      "help": "アバター変形コントロールのヘルプ",
+      "label": "アバター変形コントロールを有効にする",
+      "tooltip": "G で移動、R で回転、S でアバターを拡大縮小します。Esc で変形モードを終了します。アバターモードでは、キャンバスをドラッグまたはスクロールして周回・ズームします。アバターチャットモードでは、Ctrl を押しながらドラッグで周回し、Ctrl + スクロールでズームします。",
+      "updateFailed": "アバター変形コントロールを更新できませんでした。"
+    },
+    "markdown": {
+      "label": "アシスタントの Markdown を表示",
+      "updateFailed": "Markdown の表示設定を更新できませんでした。"
+    }
+  },
+  "animaSettings": {
+    "choices": {
+      "appDefaultOff": "アプリのデフォルト（オフ）",
+      "appDefaultOn": "アプリのデフォルト（オン）",
+      "off": "オフ",
+      "on": "オン"
+    },
+    "headings": {
+      "emotion": "感情",
+      "memory": "記憶"
+    },
+    "rows": {
+      "emotion_updates": {
+        "description": "チャット中に感情の状態を更新します。オフにすると新しい感情のリアクションは止まりますが、ジェスチャーは再生されます。",
+        "tooltip": "オフにすると、今の気分は保たれ、ジェスチャーは引き続き再生されます。"
+      },
+      "memory_influence": {
+        "description": "チャット中に保存された記憶を読み込みます。オフでも IDENTITY.md と会話履歴は有効です。",
+        "tooltip": "オフにすると記憶の更新もオフになります。既存の記憶は削除されません。"
+      },
+      "memory_updates": {
+        "description": "チャット中に新しい記憶を保存します。オフにしてもチャット履歴は保存されます。",
+        "memoryOff": "この Anima の記憶がオフの間はオフになります。",
+        "tooltip": "記憶の更新には、記憶をオンにする必要があります。"
+      }
+    },
+    "updateFailed": {
+      "emotion": "感情の設定を更新できませんでした。",
+      "memory": "記憶の設定を更新できませんでした。"
+    }
+  },
+  "apiKeys": {
+    "label": "API キー"
+  },
   "appearance": {
     "colors": {
       "advanced": {
@@ -105,11 +177,135 @@
       }
     }
   },
+  "audio": {
+    "volume": "音量"
+  },
+  "behavior": {
+    "appDefaultLabel": "{{label}}（アプリのデフォルト）",
+    "blockedByMemory": "記憶の更新を許可するには、記憶をオンにしてください。",
+    "flags": {
+      "emotion_updates": {
+        "description": "チャット中に感情の状態を更新します。",
+        "label": "感情の更新"
+      },
+      "memory_influence": {
+        "description": "チャット中に保存された記憶を読み込みます。オフにすると記憶の更新もオフになります。",
+        "label": "記憶"
+      },
+      "memory_updates": {
+        "description": "チャット中に新しい記憶を保存します。",
+        "label": "記憶の更新"
+      }
+    },
+    "updateFailed": "{{label}}を更新できませんでした。"
+  },
+  "data": {
+    "reset": {
+      "confirm": "リセット",
+      "confirmDescription": "テーマ、色、音声、ショートカット、デフォルトなどのアプリ設定がデフォルトに戻ります。Anima 設定、チャット、記憶、コンテンツ、プロバイダーのキー、表示名は変更されません。",
+      "confirmTitle": "アプリ設定をリセットしますか？",
+      "description": "アプリ設定をデフォルトに戻します。Anima 設定、チャット、記憶、プロバイダーのキーは保持されます。",
+      "failed": "アプリ設定をリセットできませんでした。何も変更されていません。",
+      "label": "アプリ設定をリセット",
+      "open": "リセット…",
+      "resetting": "リセット中…",
+      "succeeded": "アプリ設定をリセットしました。"
+    }
+  },
+  "featurePacks": {
+    "actions": {
+      "confirmRemove": "削除を確定",
+      "install": "インストール",
+      "installCompatible": "互換バージョンをインストール",
+      "remove": "削除"
+    },
+    "cleanupPending": "パックは無効になりましたが、一部のファイルが残っています。それらのファイルを使用しているアプリを閉じてから、もう一度削除してください。",
+    "inUse": "実行中のドキュメント処理を完了し、コンテンツのプレビューを閉じ、Anima のロードアウトからこのパックの項目を外してから再試行してください。",
+    "noCompatiblePack": "このアプリのカタログには、互換性のあるリリース済みパックが含まれていません。",
+    "packs": {
+      "documentProcessing": {
+        "description": "アップロードしたドキュメントを抽出してインデックス化します。削除しても元のファイルと待機中の処理は保持されます。",
+        "name": "ドキュメント処理"
+      },
+      "expandedIncludedContent": {
+        "description": "同梱コンテンツに選択可能なコンテンツを追加します。Anima のロードアウトが自動的に変わることはありません。",
+        "name": "拡張同梱コンテンツ"
+      }
+    },
+    "progress": "{{name}}の進行状況",
+    "reloadWarning": "未保存の編集を先に保存してください。パックを有効化または削除すると、アプリが一時的に再読み込みされ、コンパニオンウィンドウが閉じます。",
+    "sizes": "ダウンロード {{download}} バイト · インストール後 {{installed}} バイト · 必要な空き容量 {{free}} バイト",
+    "states": {
+      "downloading": "ダウンロード中",
+      "failed": "失敗",
+      "installed": "インストール済み",
+      "installing": "インストール中",
+      "not_installed": "未インストール",
+      "update_available": "更新あり",
+      "verifying": "検証中"
+    },
+    "title": "オプションの機能パック"
+  },
+  "groups": {
+    "animaDefaults": "Anima のデフォルト",
+    "animama": "Animama",
+    "appData": "アプリのデータ",
+    "audio": "オーディオ",
+    "avatarControls": "アバターの操作",
+    "defaultModels": "デフォルトのモデル",
+    "desktopShortcuts": "デスクトップのショートカット",
+    "diagnostics": "診断",
+    "messages": "メッセージ",
+    "microphone": "マイク",
+    "profile": "プロフィール",
+    "speechToText": "音声認識",
+    "textToSpeech": "読み上げ",
+    "voiceClone": "音声クローン",
+    "webSearch": "Web 検索"
+  },
   "modal": {
     "close": "アプリ設定を閉じる",
     "description": "アプリ全体の音声とインターフェースを設定します。",
     "navigationLabel": "アプリ",
     "title": "アプリ設定"
+  },
+  "models": {
+    "connections": "接続とモデル",
+    "webSearch": "検索サービス"
+  },
+  "profile": {
+    "displayName": {
+      "count": "{{length}}/{{max}}",
+      "fieldLabel": "表示名",
+      "label": "表示名",
+      "loadFailed": "Animama はローカルのプロフィールを読み込めませんでした。",
+      "loading": "表示名を読み込み中…",
+      "placeholder": "あなたの名前",
+      "required": "1〜{{max}} 文字の表示名を入力してください。",
+      "save": "保存",
+      "saved": "表示名を保存しました。",
+      "saveFailed": "表示名を保存できませんでした。もう一度お試しください。",
+      "unavailable": "表示名を利用できません"
+    }
+  },
+  "safety": {
+    "disabled": {
+      "description": "このインストールの運用者が、AI に関するお知らせと危機サポートをオフにしています。",
+      "label": "安全機能"
+    },
+    "entryLabel": "危機サポート窓口の地域と AI のリマインダー",
+    "region": {
+      "automatic": "自動",
+      "automaticResolved": "自動（{{region}}）",
+      "label": "危機サポート窓口の地域"
+    },
+    "reminder": {
+      "ariaLabel": "AI のリマインダーの間隔",
+      "everyHours_other": "{{count}} 時間ごと",
+      "everyMinutes_other": "{{count}} 分ごと",
+      "label": "長い会話中の AI のリマインダー"
+    },
+    "saveFailed": "安全設定を保存できませんでした。"
   },
   "search": {
     "label": "設定を検索",
@@ -129,5 +325,134 @@
     "safety": "安全",
     "shortcuts": "ショートカット",
     "voice": "音声"
+  },
+  "shortcuts": {
+    "actions": {
+      "press_to_talk": "プッシュトゥトーク",
+      "quick_chat": "クイックチャット",
+      "skip_tts": "読み上げをスキップ",
+      "toggle_voice_mode": "音声モードのオン/オフ",
+      "toggle_voice_mute": "ミュートの切り替え"
+    },
+    "groupDescription": "プッシュトゥトークにはマウスボタンも使えます。",
+    "issues": {
+      "in_use": "{{action}} で既に使われています。",
+      "modifier_required": "修飾キーを 1 つ以上含むショートカットを選んでください。",
+      "mouse_press_to_talk_only": "マウスボタンはプッシュトゥトークにのみ使えます。",
+      "non_modifier_key_required": "修飾キー以外のキーを選んでください。",
+      "unsupported_key": "対応しているショートカットキーを選んでください。",
+      "unsupported_mouse_button": "対応しているマウスボタンを選んでください。"
+    },
+    "mouseButton": "マウスボタン {{button}}",
+    "pressKeys": "キーを押してください",
+    "pressKeysOrMouse": "キーまたはマウスを押してください",
+    "pressToTalkDescription": "押している間、音声モードのミュートを一時的に解除します。",
+    "record": "{{label}}のショートカットを記録",
+    "updateFailed": "ショートカットを更新できませんでした。"
+  },
+  "updates": {
+    "actions": {
+      "check": "アップデートを確認",
+      "confirmRestart": "再起動を確定",
+      "download": "アップデートをダウンロード",
+      "later": "後で",
+      "restart": "再起動してインストール",
+      "retryDownload": "ダウンロードを再試行"
+    },
+    "controlsUnavailable": "アップデートの操作は一時的に利用できません。設定を開き直すか、Animama を再起動してください。",
+    "failures": {
+      "generic": "アップデートを完了できませんでした。現在のアプリとデータは保持されています。接続を確認して再試行してください。",
+      "pack_in_use": "実行中のドキュメント処理を完了し、コンテンツのプレビューを閉じてから再試行してください。",
+      "update_changed_check_again": "確認後にリリースが変更されました。ダウンロードする前にもう一度確認してください。",
+      "update_install_timeout": "インストーラーが時間内に完了しませんでした。Animama を終了して開き直してください。データはリセットしないでください。",
+      "update_insufficient_disk": "ディスクの空き容量を増やしてから再試行してください。現在のアプリとデータは変更されていません。",
+      "update_pack_operation_active": "機能パックの変更が完了するまで待ってから再試行してください。",
+      "update_pack_references_blocked": "このアップデートでは、参照中の拡張同梱コンテンツを維持できません。互換性のあるパックをインストールするか、それらの参照を外してから再試行してください。"
+    },
+    "progress": "アップデートのダウンロード",
+    "restartWarning": "未保存の編集を先に保存してください。再起動するとコンパニオンウィンドウが閉じ、インストール前にローカルサービスが停止します。",
+    "sizes": "ダウンロード {{download}} バイト · 必要な空き容量 {{free}} バイト",
+    "status": {
+      "available": "アップデートがあります。承認するまでダウンロードは行われません。",
+      "checking": "アップデートを確認中…",
+      "downloaded": "アップデートをダウンロードしました。準備ができたら再起動してください。",
+      "downloading": "承認されたアップデートをダウンロード中…",
+      "idle": "確認は起動後に行われます。ダウンロードと再起動には常にあなたの承認が必要です。",
+      "restarting": "処理を終えて Animama を再起動しています…",
+      "up_to_date": "最新の状態です。"
+    },
+    "title": "デスクトップのアップデート",
+    "versionTitle": "Animama {{version}}"
+  },
+  "voice": {
+    "capabilitiesFailed": "音声機能を確認できませんでした。設定を開き直して再試行してください。",
+    "defaultProvidersFailed": "デフォルトの音声プロバイダーを保存できませんでした。",
+    "microphone": {
+      "device": "マイクの入力デバイス",
+      "sensitivity": "マイクの感度",
+      "test": "マイクをテスト"
+    },
+    "stt": {
+      "downloads": "オフライン音声のダウンロード",
+      "entryLabel": "音声認識のプロバイダー",
+      "label": "プロバイダー",
+      "parakeetWebgpu": "Parakeet (WebGPU)",
+      "placeholder": "プロバイダーを選択",
+      "preparing": "プロバイダーのデフォルトを準備中...",
+      "updateFailed": "音声認識のプロバイダーを更新できませんでした。"
+    },
+    "tts": {
+      "elevenLabs": {
+        "grouping": {
+          "ariaLabel": "Eleven v3 の音声のまとめ方",
+          "fallbackDescription": "文単位のまとめ方が最も早く再生を始めます。",
+          "label": "音声のまとめ方",
+          "options": {
+            "paragraph": {
+              "description": "段落単位のリクエストで、長い音声がより滑らかになります。",
+              "label": "段落"
+            },
+            "sentence": {
+              "description": "文ごとに 1 回の確定リクエストを送り、最も早く再生を始めます。",
+              "label": "文"
+            }
+          },
+          "placeholder": "まとめ方を選択",
+          "updateFailed": "Eleven v3 の音声のまとめ方を更新できませんでした。"
+        },
+        "key": {
+          "description": "ElevenLabs の音声に必要です。このコンピューター上で暗号化され、API キーでも設定できます。",
+          "label": "ElevenLabs API キー"
+        },
+        "model": {
+          "descriptions": {
+            "eleven_flash_v2_5": "低遅延のリアルタイム ElevenLabs 音声。",
+            "eleven_multilingual_v2": "定評のある多言語リアルタイムモデル。",
+            "eleven_v3": "応答の完了後に生成される、表現豊かな音声。"
+          },
+          "label": "ElevenLabs モデル",
+          "placeholder": "モデルを選択",
+          "updateFailed": "ElevenLabs モデルを更新できませんでした。"
+        }
+      },
+      "enable": "読み上げを有効にする",
+      "noProvider": "この環境で利用できる読み上げのプロバイダーがありません。",
+      "provider": {
+        "ariaLabel": "読み上げのプロバイダー",
+        "enableFirst": "プロバイダーを選ぶには、読み上げを有効にしてください。",
+        "entryLabel": "デフォルトの読み上げプロバイダー",
+        "label": "デフォルトのプロバイダー",
+        "note": "独自のプロバイダーがない Anima に使われます。Anima ごとのプロバイダーと声は、ロードアウト → 音声 で選べます。",
+        "updateFailed": "読み上げのプロバイダーを更新できませんでした。"
+      },
+      "stream": {
+        "description": "応答全体の準備ができる前に話し始めます。",
+        "label": "読み上げを分割してストリーミング",
+        "unavailable": "Eleven v3 では利用できません。",
+        "updateFailed": "読み上げのストリーミングモードを更新できませんでした。"
+      },
+      "updateFailed": "読み上げの設定を更新できませんでした。"
+    },
+    "voiceClone": "音声クローン"
   }
 }

@@ -1,4 +1,6 @@
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import { cn } from "@/lib/utils";
 import {
@@ -29,6 +31,8 @@ export function MicrophoneLevelMeter({
   stream: MediaStream | null;
   className?: string;
 }) {
+  const { t } = useTranslation("voice");
+  const { number } = useFormatters();
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -65,7 +69,10 @@ export function MicrophoneLevelMeter({
       if (rounded !== lastReported) {
         lastReported = rounded;
         container.setAttribute("aria-valuenow", String(rounded));
-        container.setAttribute("aria-valuetext", `${rounded} dB`);
+        container.setAttribute(
+          "aria-valuetext",
+          t("microphone.meter.value", { level: number(rounded) }),
+        );
       }
       frame = requestAnimationFrame(draw);
     };
@@ -79,17 +86,20 @@ export function MicrophoneLevelMeter({
         segment.style.opacity = "0.18";
       });
     };
-  }, [stream]);
+    // A UI Locale change restarts the meter so its spoken value follows it.
+  }, [stream, t, number]);
 
   return (
     <div
       ref={containerRef}
       role="meter"
-      aria-label="Microphone input level (dB)"
+      aria-label={t("microphone.meter.label")}
       aria-valuemin={METER_MIN_DB}
       aria-valuemax={0}
       aria-valuenow={METER_MIN_DB}
-      aria-valuetext={`${METER_MIN_DB} dB`}
+      aria-valuetext={t("microphone.meter.value", {
+        level: number(METER_MIN_DB),
+      })}
       className={cn("flex h-3 items-stretch gap-[2px]", className)}
     >
       {Array.from({ length: SEGMENTS }, (_, index) => (

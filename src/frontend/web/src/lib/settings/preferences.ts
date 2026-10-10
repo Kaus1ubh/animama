@@ -55,28 +55,25 @@ export const DEFAULT_ELEVENLABS_TTS_MODEL_ID =
 export const DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING =
   "paragraph" satisfies ElevenLabsV3FinalizedChunking;
 
+/** ElevenLabs models; `label` is the vendor's model name, and descriptions are catalog text. */
 export const ELEVENLABS_TTS_MODEL_OPTIONS: Array<{
   id: ElevenLabsTtsModelId;
   label: string;
-  description: string;
   capability: "realtime" | "finalized";
 }> = [
   {
     id: "eleven_flash_v2_5",
     label: "Flash v2.5",
-    description: "Lower-latency realtime ElevenLabs speech.",
     capability: "realtime",
   },
   {
     id: "eleven_multilingual_v2",
     label: "Multilingual v2",
-    description: "The established multilingual realtime model.",
     capability: "realtime",
   },
   {
     id: "eleven_v3",
     label: "Eleven v3",
-    description: "Expressive speech generated after the response is complete.",
     capability: "finalized",
   },
 ];
@@ -88,27 +85,14 @@ export const ELEVENLABS_REALTIME_TTS_MODEL_OPTIONS =
     ): option is {
       id: ElevenLabsRealtimeTtsModelId;
       label: string;
-      description: string;
       capability: "realtime";
     } => option.capability === "realtime",
   );
 
+/** Request groupings for finalized ElevenLabs v3 speech; labels are catalog text. */
 export const ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS: Array<{
   id: ElevenLabsV3FinalizedChunking;
-  label: string;
-  description: string;
-}> = [
-  {
-    id: "sentence",
-    label: "Sentence",
-    description: "Fastest start with one finalized request per sentence.",
-  },
-  {
-    id: "paragraph",
-    label: "Paragraph",
-    description: "Smoother long-form audio with paragraph-sized requests.",
-  },
-];
+}> = [{ id: "sentence" }, { id: "paragraph" }];
 
 export type SpeechPreferences = {
   stt_provider?: SttProviderPreference;

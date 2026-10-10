@@ -1,0 +1,219 @@
+{
+  "cloning": {
+    "attribution": "모델 저작자 표시",
+    "changeFailed": "음성 복제 모델 변경이 완료되지 않았습니다. 잠시 후 다시 시도하세요.",
+    "checking": "음성 복제를 확인하는 중…",
+    "description": "직접 준비한 샘플로 이름이 있는 음성을 만듭니다.",
+    "download": "음성 복제 다운로드",
+    "downloadFailed": "다운로드가 완료되지 않았습니다. 사용 가능한 디스크 공간과 연결을 확인한 다음 다시 시도하세요.",
+    "installed": "설치됨 · 저장된 복제 음성은 이 모델 없이도 작동합니다.",
+    "listUnavailable": "음성 복제 다운로드를 사용할 수 없습니다. 설정을 다시 열어 다시 시도하세요.",
+    "progressLabel": "음성 복제 다운로드 진행률",
+    "remove": "음성 복제 제거",
+    "retry": "복제 다운로드 다시 시도",
+    "verifying": "음성 복제를 확인하는 중…"
+  },
+  "downloads": {
+    "cancel": "다운로드 취소",
+    "confirmRemoval": "제거 확인",
+    "downloading": "다운로드 중 {{percent}}",
+    "installed": "설치됨",
+    "installedWithNote": "설치됨 · {{note}}",
+    "lowSpace": "여유 공간이 부족합니다. 다운로드하려면 {{size}}의 여유 공간이 필요합니다.",
+    "notAvailable": "사용 불가",
+    "progressLabel": "{{label}} 다운로드 진행률",
+    "retry": "다운로드 다시 시도",
+    "sections": {
+      "speechToText": "음성 텍스트 변환",
+      "voiceClone": "음성 복제"
+    },
+    "size": "{{size}} 다운로드",
+    "sizeRetry": "{{size}} 다운로드 · 다시 시도 가능",
+    "verifying": "다운로드를 확인하는 중…",
+    "errors": {
+      "notReady": "설치가 아직 준비되지 않았습니다. 다시 연 후 다시 시도하세요.",
+      "statusUnavailable": "다운로드 상태를 확인할 수 없습니다. 다시 연 후 다시 시도하세요."
+    }
+  },
+  "microphone": {
+    "device": {
+      "accessDenied": "마이크 접근이 허용되지 않았습니다. 브라우저나 시스템 설정에서 허용하세요.",
+      "allowAccess": "마이크 접근 허용",
+      "label": "입력 장치",
+      "missing": "선택한 마이크가 연결되어 있지 않아 시스템 기본값을 사용합니다.",
+      "selectLabel": "마이크 입력 장치",
+      "systemDefault": "시스템 기본값",
+      "systemDefaultNamed": "시스템 기본값({{name}})",
+      "systemRecognizer": "브라우저 음성 인식은 항상 시스템 기본 마이크를 사용합니다.",
+      "systemRecognizerNamed": "브라우저 음성 인식은 항상 시스템 기본 마이크({{name}})를 사용합니다.",
+      "unnamed": "마이크 {{number}}"
+    },
+    "meter": {
+      "label": "마이크 입력 레벨(dB)",
+      "value": "{{level}} dB"
+    },
+    "sensitivity": {
+      "label": "감도",
+      "levels": {
+        "high": {
+          "description": "더 작거나 짧은 말소리도 감지합니다. 다음 듣기 세션부터 적용됩니다.",
+          "label": "높음"
+        },
+        "low": {
+          "description": "작은 소리는 무시하므로 시끄러운 곳에서 유용합니다. 다음 듣기 세션부터 적용됩니다.",
+          "label": "낮음"
+        },
+        "normal": {
+          "description": "균형 잡힌 음성 감지입니다. 다음 듣기 세션부터 적용됩니다.",
+          "label": "보통"
+        }
+      },
+      "saveFailed": "마이크 감도를 업데이트하지 못했습니다.",
+      "selectLabel": "마이크 감도"
+    },
+    "test": {
+      "active": "말하면 입력 레벨이 표시됩니다.",
+      "idle": "입력 레벨을 확인합니다.",
+      "label": "마이크 테스트",
+      "openFailed": "마이크를 열 수 없습니다.",
+      "start": "테스트",
+      "stop": "중지"
+    }
+  },
+  "offlineSpeech": {
+    "checking": "오프라인 음성 인식을 확인하는 중…",
+    "cpu": {
+      "download": "CPU 모델 다운로드",
+      "label": "CPU 모델",
+      "remove": "CPU 모델 제거"
+    },
+    "description": "받아쓰기와 음성 모드가 이 기기에서 음성을 받아 적으므로 오디오가 기기 밖으로 나가지 않습니다.",
+    "developmentAcquire": "이 개발 스택은 호스트에서 음성 모델을 제공합니다. {{cpuCommand}}을(를) 실행하고(GPU 가속에는 {{gpuCommand}}도 실행) {{resetCommand}}을(를) 다시 실행하세요.",
+    "failures": {
+      "downloadFailed": "다운로드가 완료되지 않았습니다. 인터넷 연결을 확인한 다음 다시 시도하세요.",
+      "hashInvalid": "다운로드한 파일이 체크섬과 일치하지 않아 삭제되었습니다.",
+      "hostNotAllowed": "이 빌드에서는 다운로드 소스를 허용하지 않습니다.",
+      "insufficientSpace": "다운로드할 여유 공간이 부족합니다.",
+      "sizeInvalid": "다운로드한 파일의 크기가 예상과 달라 삭제되었습니다.",
+      "storeFailed": "모델을 저장할 수 없습니다. 데이터 디렉터리를 확인한 다음 다시 시도하세요.",
+      "unknown": "다운로드가 완료되지 않았습니다. 준비되면 다시 시도하세요."
+    },
+    "gpu": {
+      "attribution": "모델 저작자 표시(CC BY 4.0)",
+      "blocked": {
+        "checking": "WebGPU 지원을 확인하는 중…",
+        "missing": "이 빌드에서는 GPU 가속을 사용할 수 없습니다.",
+        "needsCpu": "먼저 CPU 모델을 다운로드하세요.",
+        "noWebgpu": "이 브라우저나 기기에서는 WebGPU를 사용할 수 없습니다."
+      },
+      "description": "실시간 미리보기와 함께 더 빠르게 인식합니다. CPU 모델과 WebGPU를 지원하는 기기가 필요합니다.",
+      "download": "GPU 가속 다운로드",
+      "fellBack": "지난번에 WebGPU를 불러오지 못해 음성 인식에 CPU를 사용했습니다.",
+      "label": "GPU 가속",
+      "remove": "GPU 가속 제거",
+      "removeFirst": "먼저 GPU 가속을 제거하세요.",
+      "unavailableNow": "지금은 GPU 가속을 사용할 수 없습니다."
+    },
+    "listUnavailable": "음성 다운로드를 사용할 수 없습니다. 설정을 다시 열어 다시 시도하세요.",
+    "refusals": {
+      "busy": "이 모델은 아직 변경 중입니다. 잠시 후 다시 시도하세요.",
+      "changeFailed": "변경을 완료할 수 없습니다. 잠시 후 다시 시도하세요.",
+      "inUse": "음성 인식이 사용 중입니다. 제거하려면 받아쓰기와 음성 모드를 닫으세요."
+    },
+    "title": "오프라인 음성 인식(Parakeet)",
+    "turnedOff": "이 서버에서는 오프라인 음성 인식이 꺼져 있습니다."
+  },
+  "pocket": {
+    "accents": {
+      "american": "미국 영어",
+      "australian": "호주 영어",
+      "british": "영국 영어",
+      "canadian": "캐나다 영어",
+      "english": "잉글랜드 영어",
+      "irish": "아일랜드 영어",
+      "northernIrish": "북아일랜드 영어",
+      "scottish": "스코틀랜드 영어",
+      "southAfrican": "남아프리카 영어"
+    },
+    "clones": {
+      "defaultName": "음성 복제",
+      "emptyFile": "비어 있지 않은 오디오 파일을 선택하세요.",
+      "fileChanged": "저장된 음성 파일이 변경되었습니다. 음성 라이브러리를 다시 불러오세요.",
+      "fileTooLarge": "각 음성 파일은 25MiB 이하여야 합니다.",
+      "nameLength": "음성 이름을 1~120자로 입력하세요.",
+      "noOriginal": "이 음성에는 재생할 원본 녹음이 없습니다.",
+      "originalUnavailable": "원본 녹음을 사용할 수 없음",
+      "readFailed": "저장된 음성 파일을 읽을 수 없습니다.",
+      "unsupportedType": "WAV, MP3 또는 Ogg 녹음을 선택하세요."
+    },
+    "cloning": {
+      "unsupported": "이 브라우저는 PocketTTS 음성 카탈로그 생성을 지원하지 않습니다.",
+      "webAudioUnsupported": "이 브라우저는 Web Audio API를 지원하지 않습니다."
+    },
+    "encoder": {
+      "downloadRequired": "음성 샘플을 인코딩하기 전에 음성 복제를 다운로드하세요.",
+      "failures": {
+        "downloadFailed": "음성 복제를 다운로드할 수 없습니다. 연결을 확인하고 다시 시도하세요.",
+        "hashInvalid": "음성 복제 다운로드가 검증된 모델과 일치하지 않아 삭제되었습니다. 다운로드를 다시 시도하세요.",
+        "hostNotAllowed": "이 빌드에서는 음성 복제 다운로드를 사용할 수 없습니다.",
+        "insufficientSpace": "음성 복제를 다운로드할 여유 공간이 부족합니다.",
+        "sizeInvalid": "음성 복제 다운로드의 크기가 잘못되어 삭제되었습니다. 다운로드를 다시 시도하세요.",
+        "storeFailed": "음성 복제를 저장할 수 없습니다. 설치 데이터 디렉터리를 확인하고 다시 시도하세요."
+      },
+      "interrupted": "음성 복제 다운로드가 취소되었거나 중단되었습니다. 다운로드를 다시 시도하세요.",
+      "unidentified": "음성 복제 모델을 식별할 수 없습니다. 다시 열고 다시 시도하세요."
+    },
+    "fallback": {
+      "customMissing": "사용자 지정 PocketTTS 음성이 선택되었지만 업로드된 사용자 지정 음성이 없습니다.",
+      "downloadFailed": "음성 \"{{voice}}\"을(를) 다운로드할 수 없어 기본 음성을 사용합니다. 다음 답변 때나 음성을 다시 선택할 때 다운로드를 다시 시도합니다.",
+      "unknownVoice": "저장된 음성 \"{{voice}}\"을(를) 더 이상 사용할 수 없어 기본 음성을 사용합니다. 로드아웃 → 음성에서 다른 음성을 선택하세요."
+    },
+    "sample": {
+      "playFailed": "{{name}} 샘플을 재생할 수 없습니다. 연결을 확인하고 다시 시도하세요."
+    }
+  },
+  "providers": {
+    "stt": {
+      "browserDesktopUnavailable": "데스크톱 앱에서는 브라우저 STT를 사용할 수 없습니다.",
+      "browserExternal": {
+        "description": "공급업체가 처리를 관리하는 브라우저 음성 인식입니다.",
+        "label": "브라우저(외부)",
+        "unsupported": "이 브라우저는 Web Speech API를 지원하지 않습니다."
+      },
+      "browserLocal": {
+        "description": "명시적으로 지원되는 경우 기기 안에서만 처리하는 브라우저 음성 인식입니다.",
+        "label": "브라우저(로컬)",
+        "unsupported": "이 브라우저는 로컬 전용 Web Speech 인식을 지원하지 않습니다."
+      },
+      "parakeet": {
+        "cpuLabel": "Parakeet (CPU)",
+        "descriptionBrowser": "이 브라우저에서 실행되는 로컬 ONNX 음성 인식입니다.",
+        "descriptionDesktop": "데스크톱 앱에서 실행되는 로컬 ONNX 음성 인식입니다.",
+        "notInstalled": "받아쓰기와 음성 모드를 사용하려면 오프라인 음성 인식을 설치하세요.",
+        "unavailableBrowser": "현재 이 브라우저에서는 로컬 Parakeet를 사용할 수 없습니다.",
+        "webgpuDescription": "실시간 미리보기를 제공하는 실험적인 GPU 로컬 음성 인식입니다. 사용할 수 없으면 CPU를 사용합니다.",
+        "webgpuLabel": "Parakeet (WebGPU · 실험적)"
+      }
+    },
+    "tts": {
+      "audioWorkletUnsupported": "이 브라우저는 AudioWorklet을 지원하지 않습니다.",
+      "browser": {
+        "description": "Web Speech API를 통한 브라우저 음성 합성입니다.",
+        "desktopUnavailable": "데스크톱 앱에서는 브라우저 TTS를 사용할 수 없습니다.",
+        "label": "브라우저",
+        "unsupported": "이 브라우저는 음성 합성을 지원하지 않습니다."
+      },
+      "browserOnly": "{{provider}}은(는) 브라우저 환경에서만 실행할 수 있습니다.",
+      "elevenLabs": {
+        "description": "실시간 모델과 최종 모델을 사용하는 ElevenLabs 음성 합성입니다."
+      },
+      "pocket": {
+        "description": "클라이언트에서 실행되는 PocketTTS 음성 합성입니다."
+      },
+      "secureContext": "{{provider}}에는 HTTPS 또는 localhost(보안 컨텍스트)가 필요합니다.",
+      "webAudioUnsupported": "이 브라우저는 Web Audio API를 지원하지 않습니다.",
+      "webSocketUnsupported": "이 브라우저는 WebSocket을 지원하지 않습니다.",
+      "workersUnsupported": "이 브라우저는 Web Workers를 지원하지 않습니다."
+    }
+  }
+}

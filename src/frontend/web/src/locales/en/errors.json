@@ -258,6 +258,8 @@
     "bad_response": "The search service returned an unexpected response.",
     "credential_missing": "No Brave Search key is set.",
     "credential_rejected": "Brave Search rejected the key.",
+    "invalid_credential_env": "Use one of the variable names listed below the field.",
+    "invalid_timeout": "The timeout must be between 1 and 120 seconds.",
     "json_format_disabled": "SearXNG refused JSON results. Add json to search.formats in its settings.yml; a proxy in front of it can also cause this.",
     "rate_limited": "The search service is limiting requests. Try again later.",
     "timeout": "The search service did not answer in time.",

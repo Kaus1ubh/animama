@@ -1,5 +1,6 @@
 import type { Client } from "@animama/runtime-contracts/sdk";
 import type { QueryClient } from "@tanstack/react-query";
+import { getI18n } from "react-i18next";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 import { listModelAssetsV1ModelAssetsGet } from "@animama/runtime-contracts/sdk";
 import type { FeaturePackStatus } from "../../../shared/desktop-runtime";
@@ -9,14 +10,35 @@ import {
   PARAKEET_ASSET_ID,
   PARAKEET_WEBGPU_ASSET_ID,
 } from "@/lib/speech/client-parakeet/assets";
+import { WordedError } from "@/lib/errors/apiError";
 import { queryKeys } from "@/query/keys";
 
 // Feature pack changes restart the backend, so they never overlap a model
 // download in either direction.
-export const ASSET_WORK_BLOCKS_PACK =
-  "Finish or cancel the model download before changing a feature pack.";
-export const PACK_WORK_BLOCKS_ASSET =
-  "Wait for the feature pack change to finish before starting a download.";
+export const ASSET_WORK_BLOCKS_PACK = "asset_work_blocks_pack";
+export const PACK_WORK_BLOCKS_ASSET = "pack_work_blocks_asset";
+export type DownloadGuardReason =
+  | typeof ASSET_WORK_BLOCKS_PACK
+  | typeof PACK_WORK_BLOCKS_ASSET;
+
+/** Wording for why a download or a feature pack change must wait. */
+export function downloadGuardText(reason: DownloadGuardReason): string {
+  const t = getI18n().getFixedT(null, "app");
+  return reason === ASSET_WORK_BLOCKS_PACK
+    ? t("featurePacks.guards.downloadRunning")
+    : t("featurePacks.guards.packChangeRunning");
+}
+
+/** A guard refusal, worded when thrown; `reason` stays stable for comparisons. */
+export class DownloadGuardError extends WordedError {
+  readonly reason: DownloadGuardReason;
+
+  constructor(reason: DownloadGuardReason) {
+    super(downloadGuardText(reason));
+    this.name = "DownloadGuardError";
+    this.reason = reason;
+  }
+}
 export const modelAssetActionKey = (owner: string) =>
   [...queryKeys.modelAssets(owner), "change"] as const;
 export const nativePackActionKey = (owner: string) =>
@@ -80,7 +102,7 @@ export async function assertAssetInstallAllowed(
   desktop: AnimamaDesktopBridge | null,
 ): Promise<void> {
   if (client.isMutating({ mutationKey: nativePackActionKey(owner) }))
-    throw new Error(PACK_WORK_BLOCKS_ASSET);
+    throw new DownloadGuardError(PACK_WORK_BLOCKS_ASSET);
   const snapshot = await loadNativePackSnapshot(desktop);
   client.setQueryData(queryKeys.desktopFeaturePacks(owner), snapshot);
   if (
@@ -88,7 +110,7 @@ export async function assertAssetInstallAllowed(
     snapshot.packs.some(packIsBusy) ||
     client.isMutating({ mutationKey: nativePackActionKey(owner) })
   )
-    throw new Error(PACK_WORK_BLOCKS_ASSET);
+    throw new DownloadGuardError(PACK_WORK_BLOCKS_ASSET);
 }
 export async function assertPackTransitionAllowed(
   apiClient: Client,
@@ -97,23 +119,23 @@ export async function assertPackTransitionAllowed(
   desktop: AnimamaDesktopBridge | null,
 ): Promise<void> {
   if (client.isMutating({ mutationKey: modelAssetActionKey(owner) }))
-    throw new Error(ASSET_WORK_BLOCKS_PACK);
+    throw new DownloadGuardError(ASSET_WORK_BLOCKS_PACK);
   // The calling native mutation counts as one; a second native request must not queue a later transition.
   if (client.isMutating({ mutationKey: nativePackActionKey(owner) }) > 1)
-    throw new Error(PACK_WORK_BLOCKS_ASSET);
+    throw new DownloadGuardError(PACK_WORK_BLOCKS_ASSET);
   const snapshot = await loadNativePackSnapshot(desktop);
   client.setQueryData(queryKeys.desktopFeaturePacks(owner), snapshot);
   if (!snapshot.available)
     throw new Error("Feature packs are unavailable in this window.");
   if (snapshot.transitioning || snapshot.packs.some(packIsBusy))
-    throw new Error(PACK_WORK_BLOCKS_ASSET);
+    throw new DownloadGuardError(PACK_WORK_BLOCKS_ASSET);
   const assets = await loadModelAssets(apiClient, client, owner);
   client.setQueryData(queryKeys.modelAssets(owner), assets);
   if (
     assets.assets.some((asset) => asset.status === "downloading") ||
     client.isMutating({ mutationKey: modelAssetActionKey(owner) })
   )
-    throw new Error(ASSET_WORK_BLOCKS_PACK);
+    throw new DownloadGuardError(ASSET_WORK_BLOCKS_PACK);
 }
 
 const knownAssetIds = new Set([

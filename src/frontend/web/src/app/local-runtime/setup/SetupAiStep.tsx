@@ -51,6 +51,9 @@ import {
   locationProviderGroups,
   MODEL_LOCATION_TABS,
   modelConfigurationErrorMessage,
+  modelLocationLabel,
+  modelProviderLabel,
+  modelProviderPurpose,
   modelSettingsAvailability,
   type ModelProviderEntry,
 } from "@/ui/settings/models/model-configuration-state";
@@ -376,7 +379,9 @@ function ModelChooser({
           >
             {t("ai.openAi.heading")}
           </h3>
-          <p className="text-muted-foreground text-xs">{entry.purpose}</p>
+          <p className="text-muted-foreground text-xs">
+            {modelProviderPurpose(entry)}
+          </p>
           {managedKeys ? (
             openAiKey
           ) : (
@@ -424,7 +429,7 @@ function ModelChooser({
         <ModelLocationTabsList active={location} recommended="cloud" />
         {/* Every location and provider panel stays mounted, so a typed key
             or open form survives a tab switch. */}
-        {MODEL_LOCATION_TABS.map(({ id: where, label }) => (
+        {MODEL_LOCATION_TABS.map((where) => (
           <TabsContent
             key={where}
             value={where}
@@ -440,7 +445,9 @@ function ModelChooser({
               <ModelProviderTabsList
                 groups={groups[where]}
                 active={activeProvider(where)}
-                label={t("ai.providerTabs", { location: label })}
+                label={t("ai.providerTabs", {
+                  location: modelLocationLabel(where),
+                })}
               />
               {groups[where].map(({ entry }) => (
                 <TabsContent
@@ -503,7 +510,9 @@ function ConnectProvider({
   const formOpen = custom ? addingCustom : connections.length === 0;
   return (
     <>
-      <p className="text-muted-foreground text-xs">{entry.purpose}</p>
+      <p className="text-muted-foreground text-xs">
+        {modelProviderPurpose(entry)}
+      </p>
       {connections.map((connection) => (
         <ConnectionRow
           key={connection.id}
@@ -640,7 +649,7 @@ function LocalServer({
   const [detection, setDetection] = useState<Detection>({ state: "idle" });
   const [adding, setAdding] = useState<string | null>(null);
   const preset = presetById(entry.presetId);
-  const label = entry.label;
+  const label = modelProviderLabel(entry);
 
   const search = async () => {
     setDetection({ state: "searching" });
@@ -699,7 +708,9 @@ function LocalServer({
   return (
     <>
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="text-muted-foreground text-xs">{entry.purpose}</p>
+        <p className="text-muted-foreground text-xs">
+          {modelProviderPurpose(entry)}
+        </p>
         <Button
           type="button"
           size="sm"

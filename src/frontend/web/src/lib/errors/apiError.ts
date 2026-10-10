@@ -19,7 +19,20 @@ export type ApiErrorInfo = {
   params: Record<string, unknown>;
   /** The backend's English detail, when it sent one. */
   message: string | null;
+  /** True when `message` is already worded in the UI Locale (`WordedError`). */
+  worded?: boolean;
 };
+
+/**
+ * An error whose message is already worded in the UI Locale. `readApiError`
+ * marks it, so `apiErrorText` shows the message as it is.
+ */
+export class WordedError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "WordedError";
+  }
+}
 
 /** Text to show for a failure: `detail` is secondary technical text, if any. */
 export type ApiErrorText = { message: string; detail: string | null };
@@ -70,6 +83,7 @@ export function readApiError(error: unknown): ApiErrorInfo {
       text(body?.message) ??
       text(detail) ??
       (error instanceof Error ? text(error.message) : null),
+    ...(error instanceof WordedError ? { worded: true } : {}),
   };
 }
 
@@ -112,6 +126,8 @@ export function apiErrorText(
     ((info.code && errorWording(area, info.code, info.params)) ??
       (info.reason && errorWording(area, info.reason, info.params)));
   if (worded) return { message: worded, detail: null };
+  if (info.worded && info.message)
+    return { message: info.message, detail: null };
   if (sourceLocaleActive() && info.message)
     return { message: info.message, detail: null };
   const translate = getI18n().t as (key: string) => string;

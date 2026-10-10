@@ -14,7 +14,7 @@
     "label": "Animama"
   },
   "modelSelector": {
-    "providerLogo": "{{provider}} 제공업체",
+    "providerLogo": "{{provider}} 제공자",
     "title": "모델 선택"
   },
   "toaster": {

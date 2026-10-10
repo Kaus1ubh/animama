@@ -1,13 +1,17 @@
+import { getI18n } from "react-i18next";
+
 /** Public recordings and saved originals share one cancellable audio owner. */
 export type VoiceSampleSource = { id: string; name: string } & (
   | { previewUrl: string }
   | { loadSample: (signal: AbortSignal) => Promise<Blob> }
+  /** Why the sample cannot play, worded in the UI Locale. */
   | { sampleUnavailable: string }
 );
 
 export type VoiceSampleState = {
   voiceId: string | null;
   status: "idle" | "loading" | "playing" | "error";
+  /** A failed sample, worded in the UI Locale. */
   error: string | null;
 };
 
@@ -64,10 +68,11 @@ export function createVoiceSamplePlayer(
     const fail = () => {
       if (controller !== request) return;
       release();
+      const t = getI18n().getFixedT(null, "voice");
       onChange({
         voiceId: voice.id,
         status: "error",
-        error: `${voice.name}'s sample could not play. Check your connection and try again.`,
+        error: t("pocket.sample.playFailed", { name: voice.name }),
       });
     };
     try {

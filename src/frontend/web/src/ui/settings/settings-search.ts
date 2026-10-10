@@ -1,4 +1,8 @@
-/** Searchable text for one setting shown in a sectioned settings modal. */
+/**
+ * Searchable text for one setting shown in a sectioned settings modal. `label`,
+ * `group` and `description` are the displayed text in the active UI Locale (a
+ * group's name, not its grouping key); `keywords` add hidden matches.
+ */
 export type SettingsSearchEntry<Section extends string> = {
   section: Section;
   label: string;

@@ -15,7 +15,10 @@ import {
   POCKET_VOICES,
   type PocketVoiceGender,
 } from "@/lib/speech/pocket/voice-catalog";
-import { pocketVoiceLabel } from "@/lib/speech/pocket/voice-groups";
+import {
+  pocketVoiceAccentLabel,
+  pocketVoiceLabel,
+} from "@/lib/speech/pocket/voice-groups";
 import {
   POCKET_TTS_CUSTOM_VOICE,
   type PocketVoiceAvailability,
@@ -36,7 +39,7 @@ import {
 } from "@/ui/components/popover";
 import { Checkbox } from "@/ui/components/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
-import { OPERATOR_MANAGED_MODELS_NOTE } from "@/ui/settings/operator-managed-models";
+import { operatorManagedModelsNote } from "@/ui/settings/operator-managed-models";
 
 type VoiceFilter = {
   gender: "any" | PocketVoiceGender;
@@ -44,7 +47,10 @@ type VoiceFilter = {
   search: string;
 };
 
-/** The list is metadata-only: browsing never initializes the speech engine. */
+/**
+ * The list is metadata-only: browsing never initializes the speech engine.
+ * Search matches the accent as shown and as authored in English.
+ */
 export function filteredPocketVoices({
   gender,
   recommended,
@@ -55,7 +61,14 @@ export function filteredPocketVoices({
     (voice) =>
       (gender === "any" || voice.gender === gender) &&
       (!recommended || voice.recommended) &&
-      `${voice.name} ${voice.accent ?? ""}`.toLocaleLowerCase().includes(query),
+      [
+        voice.name,
+        voice.accent ?? "",
+        voice.accent ? pocketVoiceAccentLabel(voice.accent) : "",
+      ]
+        .join(" ")
+        .toLocaleLowerCase()
+        .includes(query),
   );
 }
 
@@ -245,7 +258,7 @@ export function PocketVoiceList({
     downloadBlockedReason ||
     downloadError ||
     (voices.some((voice) => notProvided(voice.id))
-      ? OPERATOR_MANAGED_MODELS_NOTE
+      ? operatorManagedModelsNote()
       : null);
   const choose = async (id: string) => {
     try {
@@ -441,7 +454,9 @@ export function PocketVoiceList({
                     <p className="truncate text-sm font-medium">{voice.name}</p>
                     <p className="text-muted-foreground text-xs">
                       {[
-                        voice.accent,
+                        voice.accent
+                          ? pocketVoiceAccentLabel(voice.accent)
+                          : null,
                         voice.recommended
                           ? t("voices.picker.recommended")
                           : null,

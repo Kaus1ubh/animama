@@ -1,4 +1,76 @@
 {
+  "about": {
+    "diagnostics": {
+      "copied": "Diagnostics copied.",
+      "copy": "Copy summary",
+      "copyFailed": "Diagnostics could not be copied to the clipboard.",
+      "description": "Copy version, platform and component status for a bug report. Keys, chats and memories are never included.",
+      "entryLabel": "Copy diagnostics summary",
+      "label": "Diagnostics"
+    },
+    "logs": {
+      "description": "Open the folder with Animama's logs for troubleshooting.",
+      "label": "Logs",
+      "open": "Open logs folder",
+      "openFailed": "The logs folder could not be opened."
+    },
+    "platform": {
+      "desktop": "Desktop",
+      "desktopOs": "Desktop ({{os}})",
+      "web": "Web browser"
+    },
+    "version": "Version"
+  },
+  "actions": {
+    "cancel": "Cancel",
+    "tryAgain": "Try again"
+  },
+  "advanced": {
+    "avatarTransform": {
+      "help": "Avatar transform controls help",
+      "label": "Enable avatar transform controls",
+      "tooltip": "Press G to move, R to rotate, and S to scale the avatar. Press Esc to exit a transform mode. In avatar mode, drag or scroll the canvas to orbit and zoom. In avatar-chat mode, hold Ctrl while dragging to orbit and Ctrl + scroll to zoom.",
+      "updateFailed": "Failed to update avatar transform controls."
+    },
+    "markdown": {
+      "label": "Render assistant Markdown",
+      "updateFailed": "Failed to update Markdown rendering."
+    }
+  },
+  "animaSettings": {
+    "choices": {
+      "appDefaultOff": "App default (Off)",
+      "appDefaultOn": "App default (On)",
+      "off": "Off",
+      "on": "On"
+    },
+    "headings": {
+      "emotion": "Emotion",
+      "memory": "Memory"
+    },
+    "rows": {
+      "emotion_updates": {
+        "description": "Update emotional state during chat. When off, new emotion reactions stop; gestures still play.",
+        "tooltip": "When off, the existing mood is preserved and gestures still play."
+      },
+      "memory_influence": {
+        "description": "Read saved memories during chat. IDENTITY.md and conversation history remain active when off.",
+        "tooltip": "Turning this off also turns memory updates off; existing memories are not deleted."
+      },
+      "memory_updates": {
+        "description": "Save new memories during chat. Turning this off does not stop chat history from being saved.",
+        "memoryOff": "Off while memory is off for this Anima.",
+        "tooltip": "Memory updates require memory to be on."
+      }
+    },
+    "updateFailed": {
+      "emotion": "Failed to update emotion settings.",
+      "memory": "Failed to update memory settings."
+    }
+  },
+  "apiKeys": {
+    "label": "API keys"
+  },
   "appearance": {
     "colors": {
       "advanced": {
@@ -105,11 +177,137 @@
       }
     }
   },
+  "audio": {
+    "volume": "Volume"
+  },
+  "behavior": {
+    "appDefaultLabel": "{{label}} (app default)",
+    "blockedByMemory": "Turn Memory on to allow memory updates.",
+    "flags": {
+      "emotion_updates": {
+        "description": "Update emotional state during chat.",
+        "label": "Emotion updates"
+      },
+      "memory_influence": {
+        "description": "Read saved memories during chat. Turning this off also turns memory updates off.",
+        "label": "Memory"
+      },
+      "memory_updates": {
+        "description": "Save new memories during chat.",
+        "label": "Memory updates"
+      }
+    },
+    "updateFailed": "Failed to update {{label, lowercase}}."
+  },
+  "data": {
+    "reset": {
+      "confirm": "Reset",
+      "confirmDescription": "Theme, colours, voice, shortcuts, defaults and other App Settings return to their defaults. Anima settings, chats, memories, content, provider keys and your display name are not changed.",
+      "confirmTitle": "Reset app settings?",
+      "description": "Restore App Settings to their defaults. Anima settings, chats, memories and provider keys are kept.",
+      "failed": "App settings could not be reset. Nothing was changed.",
+      "label": "Reset app settings",
+      "open": "Reset…",
+      "resetting": "Resetting…",
+      "succeeded": "App settings were reset."
+    }
+  },
+  "featurePacks": {
+    "actions": {
+      "confirmRemove": "Confirm removal",
+      "install": "Install",
+      "installCompatible": "Install compatible version",
+      "remove": "Remove"
+    },
+    "cleanupPending": "The pack is no longer active, but some files remain. Close applications using those files, then retry Remove.",
+    "inUse": "Finish active document jobs, close content previews, and remove this pack’s entries from Anima loadouts before retrying.",
+    "noCompatiblePack": "No compatible released pack is included in this app’s catalog.",
+    "packs": {
+      "documentProcessing": {
+        "description": "Extracts and indexes uploaded documents. Removing it preserves your originals and queued work.",
+        "name": "Document processing"
+      },
+      "expandedIncludedContent": {
+        "description": "Adds selectable content to Included. It never changes your Anima’s loadout automatically.",
+        "name": "Expanded Included content"
+      }
+    },
+    "progress": "{{name}} progress",
+    "reloadWarning": "Save unfinished edits first. Activating or removing a pack briefly reloads the app and closes companion windows.",
+    "sizes": "{{download}} bytes download · {{installed}} bytes installed · {{free}} bytes free space required",
+    "states": {
+      "downloading": "downloading",
+      "failed": "failed",
+      "installed": "installed",
+      "installing": "installing",
+      "not_installed": "not installed",
+      "update_available": "update available",
+      "verifying": "verifying"
+    },
+    "title": "Optional feature packs"
+  },
+  "groups": {
+    "animaDefaults": "Defaults for Animas",
+    "animama": "Animama",
+    "appData": "App data",
+    "audio": "Audio",
+    "avatarControls": "Avatar controls",
+    "defaultModels": "Default models",
+    "desktopShortcuts": "Desktop shortcuts",
+    "diagnostics": "Diagnostics",
+    "messages": "Messages",
+    "microphone": "Microphone",
+    "profile": "Profile",
+    "speechToText": "Speech-to-Text",
+    "textToSpeech": "Text-to-Speech",
+    "voiceClone": "Voice Clone",
+    "webSearch": "Web search"
+  },
   "modal": {
     "close": "Close App Settings",
     "description": "Configure application-level voice and interface settings.",
     "navigationLabel": "Application",
     "title": "App Settings"
+  },
+  "models": {
+    "connections": "Connections and models",
+    "webSearch": "Search service"
+  },
+  "profile": {
+    "displayName": {
+      "count": "{{length}}/{{max}}",
+      "fieldLabel": "Display Name",
+      "label": "Display name",
+      "loadFailed": "Animama could not load the local profile.",
+      "loading": "Loading display name…",
+      "placeholder": "Your name",
+      "required": "Enter a display name between 1 and {{max}} characters.",
+      "save": "Save",
+      "saved": "Display name saved.",
+      "saveFailed": "Could not save your display name. Try again.",
+      "unavailable": "Display name unavailable"
+    }
+  },
+  "safety": {
+    "disabled": {
+      "description": "The operator of this installation has turned off the AI notice and crisis support.",
+      "label": "Safety features"
+    },
+    "entryLabel": "Crisis resources region and AI reminder",
+    "region": {
+      "automatic": "Automatic",
+      "automaticResolved": "Automatic ({{region}})",
+      "label": "Crisis resources region"
+    },
+    "reminder": {
+      "ariaLabel": "AI reminder interval",
+      "everyHours_one": "Every {{count}} hour",
+      "everyHours_other": "Every {{count}} hours",
+      "everyMinutes_one": "Every {{count}} minute",
+      "everyMinutes_other": "Every {{count}} minutes",
+      "label": "AI reminder during long conversations"
+    },
+    "saveFailed": "Safety settings could not be saved."
   },
   "search": {
     "label": "Search settings",
@@ -129,5 +327,134 @@
     "safety": "Safety",
     "shortcuts": "Shortcuts",
     "voice": "Voice"
+  },
+  "shortcuts": {
+    "actions": {
+      "press_to_talk": "Press to talk",
+      "quick_chat": "Quick Chat",
+      "skip_tts": "Skip TTS",
+      "toggle_voice_mode": "Voice Mode on/off",
+      "toggle_voice_mute": "Toggle mute"
+    },
+    "groupDescription": "Press to talk also supports a mouse button.",
+    "issues": {
+      "in_use": "Already used by {{action}}.",
+      "modifier_required": "Choose a shortcut with at least one modifier.",
+      "mouse_press_to_talk_only": "Mouse buttons can only be used for Press to talk.",
+      "non_modifier_key_required": "Choose a non-modifier key.",
+      "unsupported_key": "Choose a supported shortcut key.",
+      "unsupported_mouse_button": "Choose a supported mouse button."
+    },
+    "mouseButton": "Mouse Button {{button}}",
+    "pressKeys": "Press keys",
+    "pressKeysOrMouse": "Press keys or mouse",
+    "pressToTalkDescription": "Temporarily unmute Voice Mode while held.",
+    "record": "Record {{label}} shortcut",
+    "updateFailed": "Failed to update shortcut."
+  },
+  "updates": {
+    "actions": {
+      "check": "Check for updates",
+      "confirmRestart": "Confirm restart",
+      "download": "Download update",
+      "later": "Later",
+      "restart": "Restart to install",
+      "retryDownload": "Retry download"
+    },
+    "controlsUnavailable": "Update controls are temporarily unavailable. Reopen Settings or restart Animama.",
+    "failures": {
+      "generic": "The update could not finish. Your current app and data are preserved. Check your connection and retry.",
+      "pack_in_use": "Finish active document jobs and close content previews before retrying.",
+      "update_changed_check_again": "The release changed since you checked. Check again before downloading.",
+      "update_install_timeout": "The installer did not finish in time. Quit and reopen Animama; do not reset your data.",
+      "update_insufficient_disk": "Free more disk space, then retry. Your current app and data are unchanged.",
+      "update_pack_operation_active": "Wait for the feature pack change to finish, then retry.",
+      "update_pack_references_blocked": "This update cannot keep your referenced Expanded Included content. Install a compatible pack or remove those references before retrying."
+    },
+    "progress": "Update download",
+    "restartWarning": "Save unfinished edits first. Restart closes companion windows and stops local services before installing.",
+    "sizes": "{{download}} bytes download · {{free}} bytes free space required",
+    "status": {
+      "available": "An update is available. Nothing downloads until you approve.",
+      "checking": "Checking for updates…",
+      "downloaded": "Update downloaded. Restart when you’re ready.",
+      "downloading": "Downloading the approved update…",
+      "idle": "Checks run after startup. Downloads and restarts always need your approval.",
+      "restarting": "Finishing work and restarting Animama…",
+      "up_to_date": "You’re up to date."
+    },
+    "title": "Desktop updates",
+    "versionTitle": "Animama {{version}}"
+  },
+  "voice": {
+    "capabilitiesFailed": "Could not check speech capabilities. Reopen Settings to retry.",
+    "defaultProvidersFailed": "Failed to save default speech providers.",
+    "microphone": {
+      "device": "Microphone input device",
+      "sensitivity": "Microphone sensitivity",
+      "test": "Test microphone"
+    },
+    "stt": {
+      "downloads": "Offline speech downloads",
+      "entryLabel": "Speech-to-Text provider",
+      "label": "Provider",
+      "parakeetWebgpu": "Parakeet (WebGPU)",
+      "placeholder": "Select provider",
+      "preparing": "Preparing provider defaults...",
+      "updateFailed": "Failed to update STT provider."
+    },
+    "tts": {
+      "elevenLabs": {
+        "grouping": {
+          "ariaLabel": "Eleven v3 audio grouping",
+          "fallbackDescription": "Sentence grouping starts fastest.",
+          "label": "Audio grouping",
+          "options": {
+            "paragraph": {
+              "description": "Smoother long-form audio with paragraph-sized requests.",
+              "label": "Paragraph"
+            },
+            "sentence": {
+              "description": "Fastest start with one finalized request per sentence.",
+              "label": "Sentence"
+            }
+          },
+          "placeholder": "Select grouping",
+          "updateFailed": "Failed to update Eleven v3 audio grouping."
+        },
+        "key": {
+          "description": "Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys.",
+          "label": "ElevenLabs API key"
+        },
+        "model": {
+          "descriptions": {
+            "eleven_flash_v2_5": "Lower-latency realtime ElevenLabs speech.",
+            "eleven_multilingual_v2": "The established multilingual realtime model.",
+            "eleven_v3": "Expressive speech generated after the response is complete."
+          },
+          "label": "ElevenLabs model",
+          "placeholder": "Select model",
+          "updateFailed": "Failed to update ElevenLabs model."
+        }
+      },
+      "enable": "Enable Text-to-Speech",
+      "noProvider": "No supported TTS provider is available in this environment.",
+      "provider": {
+        "ariaLabel": "Text-to-Speech provider",
+        "enableFirst": "Enable Text-to-Speech to select a provider.",
+        "entryLabel": "Default Text-to-Speech provider",
+        "label": "Default provider",
+        "note": "Used by Animas without their own provider. Choose providers and voices for each Anima in Loadout → Voices.",
+        "updateFailed": "Failed to update TTS provider."
+      },
+      "stream": {
+        "description": "Start speaking before the full response is ready.",
+        "label": "Stream chunked Text-to-Speech",
+        "unavailable": "Unavailable with Eleven v3.",
+        "updateFailed": "Failed to update TTS streaming mode."
+      },
+      "updateFailed": "Failed to update TTS settings."
+    },
+    "voiceClone": "Voice Clone"
   }
 }

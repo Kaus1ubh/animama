@@ -102,7 +102,11 @@
   },
   "featurePacks": {
     "changeFailed": "功能包變更未能完成。請查看下方狀態後重試。",
-    "unavailable": "無法使用功能包。請檢查執行環境的復原狀況後重試。"
+    "unavailable": "無法使用功能包。請檢查執行環境的復原狀況後重試。",
+    "guards": {
+      "downloadRunning": "變更功能包前，請先完成或取消模型下載。",
+      "packChangeRunning": "請等待功能包變更完成後再開始下載。"
+    }
   },
   "launch": {
     "failed": {

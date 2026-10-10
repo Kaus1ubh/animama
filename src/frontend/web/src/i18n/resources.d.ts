@@ -541,6 +541,10 @@ export default interface Resources {
     },
     "featurePacks": {
       "changeFailed": "The pack change could not finish. Review its status below, then retry.",
+      "guards": {
+        "downloadRunning": "Finish or cancel the model download before changing a feature pack.",
+        "packChangeRunning": "Wait for the feature pack change to finish before starting a download."
+      },
       "unavailable": "Feature packs are unavailable. Check runtime recovery and retry."
     },
     "launch": {
@@ -1835,6 +1839,8 @@ export default interface Resources {
       "bad_response": "The search service returned an unexpected response.",
       "credential_missing": "No Brave Search key is set.",
       "credential_rejected": "Brave Search rejected the key.",
+      "invalid_credential_env": "Use one of the variable names listed below the field.",
+      "invalid_timeout": "The timeout must be between 1 and 120 seconds.",
       "json_format_disabled": "SearXNG refused JSON results. Add json to search.formats in its settings.yml; a proxy in front of it can also cause this.",
       "rate_limited": "The search service is limiting requests. Try again later.",
       "timeout": "The search service did not answer in time.",
@@ -2689,6 +2695,376 @@ export default interface Resources {
       "versionLoadFailed": "Failed to load this version."
     }
   },
+  "models": {
+    "actions": {
+      "cancel": "Cancel",
+      "discard": "Discard",
+      "edit": "Edit",
+      "remove": "Remove",
+      "removing": "Removing…",
+      "retry": "Retry",
+      "save": "Save",
+      "saving": "Saving…",
+      "show": "Show",
+      "test": "Test",
+      "testing": "Testing…",
+      "undo": "Undo"
+    },
+    "chips": {
+      "appSearch": {
+        "description": "Searches the web with this app's search service",
+        "label": "App search"
+      },
+      "builtInSearch": {
+        "description": "Searches the web with the provider's own search",
+        "label": "Built-in search"
+      },
+      "context": {
+        "description": "{{tokens, number}}-token context window"
+      },
+      "embeddings": {
+        "description": "Embedding model for file and archive search",
+        "label": "Embeddings"
+      },
+      "tools": {
+        "description": "Calls tools",
+        "label": "Tools"
+      },
+      "vision": {
+        "description": "Accepts images",
+        "label": "Vision"
+      }
+    },
+    "connectionForm": {
+      "advanced": "Advanced options",
+      "apiKey": "API key",
+      "apiKeyVariable": "API key variable",
+      "baseUrl": "Base URL",
+      "baseUrlHelp": "The server's OpenAI-compatible address, usually ending in /v1.",
+      "compatibility": {
+        "foldDeveloperRole": "Merge developer instructions into the system message",
+        "sendOpenaiExtensions": "Send OpenAI-only request fields",
+        "sendStreamUsage": "Request token usage while streaming",
+        "stripFunctionStrict": "Remove strict flags from tools"
+      },
+      "detect": "Detect",
+      "detected_one": "Found {{count, number}} model at {{baseUrl}}.",
+      "detected_other": "Found {{count, number}} models at {{baseUrl}}.",
+      "detecting": "Detecting…",
+      "editDescription": "An OpenAI-compatible server such as Ollama, LM Studio, llama.cpp or a cloud provider.",
+      "env": {
+        "notSet": "Not set on the server yet. Set it to your API key.",
+        "set": "Set on the server.",
+        "setVariable": "Set this variable to your API key on the server."
+      },
+      "hideAdvanced": "Hide advanced options",
+      "insecureKey": "This address uses plain http on another computer, so the key would cross the network unencrypted. Use https or a local server.",
+      "keyNotDeleted": "The connection's saved key could not be deleted.",
+      "keyNotStored": "The connection was saved, but its key was not stored. {{reason}}",
+      "keyNotStoredRetry": "The connection was saved, but its key was not stored. Retry from Edit.",
+      "name": "Name",
+      "reasoning": {
+        "deepseekThinking": "Send as DeepSeek thinking",
+        "label": "Reasoning effort",
+        "omit": "Do not send",
+        "openaiEffort": "Send as OpenAI reasoning effort"
+      },
+      "removeSavedKey": "Remove the saved key",
+      "serverType": "Server type",
+      "timeout": "Request timeout (seconds)",
+      "timeoutHelp": "Local servers may need longer while a model loads."
+    },
+    "connections": {
+      "addCustomServer": "Add a custom server",
+      "addModel": "Add model",
+      "addModelTo": "Add model to {{name}}",
+      "added": "Connection added.",
+      "connect": "Connect",
+      "connecting": "Connecting…",
+      "detail": "{{host}} · {{status}}",
+      "editNamed": "Edit {{name}}",
+      "hideHidden": "Hide hidden models",
+      "loadFailed": "Model connections could not be loaded.",
+      "modelsOf": "{{name}} models",
+      "noModels": "No models yet. Add one to chat with it.",
+      "openAiKey": {
+        "managed": "Encrypted on this computer and never shown again. Also in App Settings → API Keys.",
+        "server": "Uses the OpenAI key configured on this server (OPENAI_API_KEY)."
+      },
+      "removeNamed": "Remove {{name}}",
+      "removed": "Connection removed.",
+      "saved": "Connection saved.",
+      "showHidden_one": "Show {{count, number}} hidden model",
+      "showHidden_other": "Show {{count, number}} hidden models",
+      "status": {
+        "checking": "Checking…",
+        "keyMissing": "Key missing",
+        "keyRejected": "Key rejected",
+        "keySet": "Key set",
+        "noKeyNeeded": "No key needed",
+        "notReachable": "Not reachable",
+        "runningAt": "Running at {{host}}"
+      }
+    },
+    "credentials": {
+      "allFailed": "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
+      "connectionKey": "Model connection key",
+      "description": "Add an OpenAI key for cloud chat or an ElevenLabs key for voices. Keys for other model servers are entered on each connection in App Settings → Models. Keys are encrypted with this computer’s secure storage and never shown again. Changes apply as soon as you save. You can change them later in App Settings → API Keys.",
+      "failure": {
+        "full": "This computer already stores the most model connection keys it allows ({{max, number}}). Remove the key from a connection you no longer use, then retry.",
+        "line": "{{name}}: {{message}}",
+        "restartRequired": "The change could not finish. Saved key status is shown above. Open runtime recovery and retry before changing the key again.",
+        "retry": "The key change could not finish. Check the saved status and retry the change."
+      },
+      "removeNamed": "Remove {{name}} key",
+      "replacePlaceholder": "Enter a new key to replace",
+      "saveChanges_one": "Save {{count, number}} change",
+      "saveChanges_other": "Save {{count, number}} changes",
+      "saved": "Saved.",
+      "someFailed": "Some changes could not finish ({{names}}). Retry them; saved keys are never shown here.",
+      "status": {
+        "configured": "Configured",
+        "notSet": "Not set",
+        "removing": "Will be removed when you save."
+      },
+      "title": "API keys",
+      "unavailable": "Protected settings are unavailable. Open runtime recovery and try again.",
+      "undoRemoveNamed": "Undo removing {{name}} key"
+    },
+    "defaults": {
+      "current": "Currently {{model}}.",
+      "currentOn": "Currently {{model}} ({{connection}}).",
+      "loadFailed": "Models could not be loaded.",
+      "noCapableModel": "No model can do this job; choose one with the capabilities it needs.",
+      "roleModel": "{{role}} model",
+      "roles": {
+        "chat": {
+          "default": "System default",
+          "description": "The model new Animas start with. Existing Animas keep their own.",
+          "label": "Chat"
+        },
+        "embeddings": {
+          "default": "Off",
+          "description": "Finds file and archive passages by meaning. Changing it re-embeds stored content.",
+          "label": "Embeddings"
+        },
+        "memoryManager": {
+          "default": "Same as Chat",
+          "description": "Reviews conversations and proposes memory file changes. Needs tool calling.",
+          "label": "Memory Manager"
+        },
+        "utility": {
+          "default": "Same as Chat",
+          "description": "Writes chat titles and compacts long chats. A small, fast model works well.",
+          "label": "Compaction"
+        }
+      },
+      "saveFailed": "The {{role}} model could not be saved.",
+      "unavailable": "The chosen model is unavailable, so the default is used.",
+      "unavailableChoice": "{{model}} (unavailable)"
+    },
+    "embeddings": {
+      "current": "Stored files and archives are embedded with this model.",
+      "off": "Embeddings are off; file and archive search use keywords.",
+      "reEmbedding_one": "Re-embedding {{count, number}} item; search uses keywords until it finishes.",
+      "reEmbedding_other": "Re-embedding {{count, number}} items; search uses keywords until it finishes.",
+      "retrying_one": "Re-embedding {{count, number}} item is waiting to retry: {{reason}}",
+      "retrying_other": "Re-embedding {{count, number}} items is waiting to retry: {{reason}}"
+    },
+    "fields": {
+      "capabilities": "Capabilities",
+      "kind": "Kind",
+      "modelId": "Model ID",
+      "structuredOutput": "Structured output"
+    },
+    "info": {
+      "allowed": "Allowed",
+      "builtinDescription": "Built-in model on {{name}}. Its details are fixed.",
+      "fields": {
+        "api": "API",
+        "contextWindow": "Context window",
+        "images": "Images",
+        "memoryWrites": "Memory writes",
+        "reasoning": "Reasoning",
+        "streaming": "Streaming",
+        "toolCalls": "Tool calls",
+        "toolsWithSchema": "Tools with a schema"
+      },
+      "no": "No",
+      "notAllowed": "Not allowed",
+      "notSet": "Not set",
+      "tokens": "{{tokens, number}} tokens",
+      "yes": "Yes"
+    },
+    "keys": {
+      "encrypted": "Encrypted on this computer and never shown again. A saved key applies immediately.",
+      "replacePlaceholder": "Saved; enter a new key to replace it"
+    },
+    "locations": {
+      "cloud": "Cloud",
+      "local": "Local",
+      "tabsLabel": "Where models run"
+    },
+    "modelKinds": {
+      "chat": "Chat model",
+      "embedding": "Embedding model"
+    },
+    "modelRow": {
+      "details": "Details for {{name}}",
+      "hidden": "Hidden"
+    },
+    "openRouter": {
+      "find": "Find an OpenRouter model",
+      "found_one": "{{count, number}} model found.",
+      "found_other": "{{count, number}} models found.",
+      "listLabel": "OpenRouter models",
+      "loading": "Loading OpenRouter models…",
+      "noMatches": "No models match. Change the search or show all models.",
+      "searchPlaceholder": "Search by name or ID",
+      "showingFirst": "Showing {{shown, number}} of {{total, number}} models; search to narrow the list.",
+      "toolsOnly": "Tool calling only"
+    },
+    "operatorManaged": {
+      "note": "Speech models are managed by the hosted operator."
+    },
+    "optional": "(optional)",
+    "ownerModel": {
+      "addDescription": "Test the model to check what it supports, then confirm its capabilities and context window.",
+      "addTitle": "Add a model to {{name}}",
+      "added": "Model added.",
+      "allowMemoryWrites": "Allow this model to write memories",
+      "api": "API: {{api}}",
+      "capabilities": {
+        "acceptsImages": "Accepts images",
+        "supportsStreaming": "Streams responses",
+        "supportsTools": "Calls tools (memory, file search)",
+        "toolsWithStructuredOutput": "Combines tools with a response schema"
+      },
+      "contextWindow": "Context window (tokens)",
+      "contextWindowHelp": "Required. Use the context size the server loads the model with (for example Ollama's num_ctx or llama.cpp's -c), not the model's maximum; long chats are summarized to fit.",
+      "copyFrom": "Copy capabilities from",
+      "copyFromHelp": "Useful for a newer version of a built-in model.",
+      "copyNothing": "Nothing (set them below)",
+      "displayName": "Display name",
+      "editDescription": {
+        "chat": "Chat model on {{connection}}. Change its details, then save.",
+        "embedding": "Embedding model on {{connection}}. Change its details, then save."
+      },
+      "listModels": "List models",
+      "listedNone": "The server listed no models; type the model ID.",
+      "listed_one": "{{count, number}} model found; choose one or type an ID.",
+      "listed_other": "{{count, number}} models found; choose one or type an ID.",
+      "listing": "Listing…",
+      "removed": "Model removed.",
+      "saved": "Model saved.",
+      "showInLists": "Show in model lists",
+      "showNamedInLists": "Show {{name}} in model lists",
+      "testModel": "Test model"
+    },
+    "probe": {
+      "contextWindow": "The server reports a context window of {{tokens, number}} tokens.",
+      "dimensions": "Vectors have {{dimensions, number}} dimensions.",
+      "failed": "✗ {{step}}",
+      "failureReason": " — {{reason}}",
+      "passed": "✓ {{step}}",
+      "results": "Test results",
+      "steps": {
+        "available": "Model available",
+        "embeddings": "Embeddings",
+        "jsonMode": "JSON mode",
+        "streaming": "Streaming",
+        "structuredOutput": "JSON schema",
+        "toolCalls": "Tool calls",
+        "toolsWithStructuredOutput": "Tools with a schema"
+      }
+    },
+    "providers": {
+      "connected": " (connected)",
+      "custom": "Custom",
+      "purpose": {
+        "customCloud": "Connect any OpenAI-compatible cloud service.",
+        "customLocal": "Connect any OpenAI-compatible server on this computer or your network.",
+        "deepseek": "Chat with DeepSeek's models using your DeepSeek API key.",
+        "huggingface": "Chat with open models through Hugging Face Inference Providers using your access token.",
+        "llamacpp": "Chat with a model served by llama.cpp's server on this computer.",
+        "lmstudio": "Chat with models served by LM Studio on this computer.",
+        "ollama": "Chat with models running in Ollama on this computer.",
+        "openai": "Chat with OpenAI's models using your API key.",
+        "openrouter": "Chat with models from many providers through one OpenRouter key.",
+        "vllm": "Chat with models served by vLLM on this computer."
+      },
+      "recommended": "Recommended",
+      "tabsLabel": "{{location}} providers"
+    },
+    "removal": {
+      "consequences": {
+        "animas_one": "That Anima shows its model as unavailable until you pick another.",
+        "animas_other": "Those Animas show their model as unavailable until you pick another.",
+        "roles_one": "That role goes back to its default.",
+        "roles_other": "Those roles go back to their defaults."
+      },
+      "roles": {
+        "chat": "the Chat default",
+        "embeddings": "the Embeddings model",
+        "memoryManager": "the Memory Manager model",
+        "utility": "the Compaction model"
+      },
+      "savedKeyDeleted": "Its saved key is deleted too and cannot be recovered.",
+      "title": "Remove {{name}}?",
+      "usage": {
+        "animas": "Used by {{animas, list}}.",
+        "animasAndRoles": "Used by {{animas, list}}, and as {{roles, list}}.",
+        "none": "Not in use.",
+        "roles": "Used as {{roles, list}}."
+      }
+    },
+    "required": "(required)",
+    "structuredOutput": {
+      "jsonObject": "JSON mode",
+      "jsonSchema": "JSON schema (strict)",
+      "none": "None"
+    },
+    "webSearch": {
+      "brave": {
+        "apiKey": "Brave Search API key",
+        "envHelp": "The backend reads the Brave Search key from {{managed}} or {{suggested}}. Keys are never stored in the database.",
+        "envNotSet": "It is not set in the backend environment.",
+        "envVariable": "Key environment variable"
+      },
+      "destination": {
+        "brave": "Models send their search queries to Brave Search, which keeps queries for up to 90 days.",
+        "searxng": "Models send their search queries to your SearXNG server.",
+        "searxngAt": "Models send their search queries to the SearXNG server at {{host}}."
+      },
+      "keyNotDeleted": "The saved Brave Search key could not be deleted.",
+      "keyNotDeletedReason": "The saved Brave Search key could not be deleted. {{reason}}",
+      "keyNotStored": "The Brave Search key was not stored. Enter it again and save.",
+      "keyNotStoredReason": "The Brave Search key was not stored. {{reason}}",
+      "loadFailed": "Web search settings could not be loaded.",
+      "off": "Off",
+      "saveToTest": "Save to test a new key.",
+      "saved": "Web search saved.",
+      "searxng": {
+        "address": "SearXNG address",
+        "deletesKey": "Saving deletes the saved Brave Search key, which cannot be recovered.",
+        "help": "Enable the json format under search.formats in its settings.yml. From a Docker stack, a server on this computer is at host.docker.internal instead of 127.0.0.1."
+      },
+      "service": {
+        "description": "Lets any model that can call tools search the web. OpenAI models with built-in search keep using it.",
+        "label": "Search service"
+      },
+      "testPassed_one": "Search works: {{count, number}} result for a test query.",
+      "testPassed_other": "Search works: {{count, number}} results for a test query.",
+      "timeout": "Timeout (seconds)",
+      "turnOff": {
+        "action": "Turn off web search",
+        "deletesKey": "Turning search off also deletes its saved key, which cannot be recovered.",
+        "stopsSearching": "Models will stop searching the web.",
+        "turningOff": "Turning off…"
+      },
+      "turnedOff": "Web search turned off."
+    }
+  },
   "safety": {
     "aiNotice": {
       "reminder": "A reminder: {{name}} is an AI, not a person.",
@@ -2711,6 +3087,78 @@ export default interface Resources {
     }
   },
   "settings": {
+    "about": {
+      "diagnostics": {
+        "copied": "Diagnostics copied.",
+        "copy": "Copy summary",
+        "copyFailed": "Diagnostics could not be copied to the clipboard.",
+        "description": "Copy version, platform and component status for a bug report. Keys, chats and memories are never included.",
+        "entryLabel": "Copy diagnostics summary",
+        "label": "Diagnostics"
+      },
+      "logs": {
+        "description": "Open the folder with Animama's logs for troubleshooting.",
+        "label": "Logs",
+        "open": "Open logs folder",
+        "openFailed": "The logs folder could not be opened."
+      },
+      "platform": {
+        "desktop": "Desktop",
+        "desktopOs": "Desktop ({{os}})",
+        "web": "Web browser"
+      },
+      "version": "Version"
+    },
+    "actions": {
+      "cancel": "Cancel",
+      "tryAgain": "Try again"
+    },
+    "advanced": {
+      "avatarTransform": {
+        "help": "Avatar transform controls help",
+        "label": "Enable avatar transform controls",
+        "tooltip": "Press G to move, R to rotate, and S to scale the avatar. Press Esc to exit a transform mode. In avatar mode, drag or scroll the canvas to orbit and zoom. In avatar-chat mode, hold Ctrl while dragging to orbit and Ctrl + scroll to zoom.",
+        "updateFailed": "Failed to update avatar transform controls."
+      },
+      "markdown": {
+        "label": "Render assistant Markdown",
+        "updateFailed": "Failed to update Markdown rendering."
+      }
+    },
+    "animaSettings": {
+      "choices": {
+        "appDefaultOff": "App default (Off)",
+        "appDefaultOn": "App default (On)",
+        "off": "Off",
+        "on": "On"
+      },
+      "headings": {
+        "emotion": "Emotion",
+        "memory": "Memory"
+      },
+      "rows": {
+        "emotion_updates": {
+          "description": "Update emotional state during chat. When off, new emotion reactions stop; gestures still play.",
+          "tooltip": "When off, the existing mood is preserved and gestures still play."
+        },
+        "memory_influence": {
+          "description": "Read saved memories during chat. IDENTITY.md and conversation history remain active when off.",
+          "tooltip": "Turning this off also turns memory updates off; existing memories are not deleted."
+        },
+        "memory_updates": {
+          "description": "Save new memories during chat. Turning this off does not stop chat history from being saved.",
+          "memoryOff": "Off while memory is off for this Anima.",
+          "tooltip": "Memory updates require memory to be on."
+        }
+      },
+      "updateFailed": {
+        "emotion": "Failed to update emotion settings.",
+        "memory": "Failed to update memory settings."
+      }
+    },
+    "apiKeys": {
+      "label": "API keys"
+    },
     "appearance": {
       "colors": {
         "advanced": {
@@ -2795,11 +3243,137 @@ export default interface Resources {
         }
       }
     },
+    "audio": {
+      "volume": "Volume"
+    },
+    "behavior": {
+      "appDefaultLabel": "{{label}} (app default)",
+      "blockedByMemory": "Turn Memory on to allow memory updates.",
+      "flags": {
+        "emotion_updates": {
+          "description": "Update emotional state during chat.",
+          "label": "Emotion updates"
+        },
+        "memory_influence": {
+          "description": "Read saved memories during chat. Turning this off also turns memory updates off.",
+          "label": "Memory"
+        },
+        "memory_updates": {
+          "description": "Save new memories during chat.",
+          "label": "Memory updates"
+        }
+      },
+      "updateFailed": "Failed to update {{label, lowercase}}."
+    },
+    "data": {
+      "reset": {
+        "confirm": "Reset",
+        "confirmDescription": "Theme, colours, voice, shortcuts, defaults and other App Settings return to their defaults. Anima settings, chats, memories, content, provider keys and your display name are not changed.",
+        "confirmTitle": "Reset app settings?",
+        "description": "Restore App Settings to their defaults. Anima settings, chats, memories and provider keys are kept.",
+        "failed": "App settings could not be reset. Nothing was changed.",
+        "label": "Reset app settings",
+        "open": "Reset…",
+        "resetting": "Resetting…",
+        "succeeded": "App settings were reset."
+      }
+    },
+    "featurePacks": {
+      "actions": {
+        "confirmRemove": "Confirm removal",
+        "install": "Install",
+        "installCompatible": "Install compatible version",
+        "remove": "Remove"
+      },
+      "cleanupPending": "The pack is no longer active, but some files remain. Close applications using those files, then retry Remove.",
+      "inUse": "Finish active document jobs, close content previews, and remove this pack’s entries from Anima loadouts before retrying.",
+      "noCompatiblePack": "No compatible released pack is included in this app’s catalog.",
+      "packs": {
+        "documentProcessing": {
+          "description": "Extracts and indexes uploaded documents. Removing it preserves your originals and queued work.",
+          "name": "Document processing"
+        },
+        "expandedIncludedContent": {
+          "description": "Adds selectable content to Included. It never changes your Anima’s loadout automatically.",
+          "name": "Expanded Included content"
+        }
+      },
+      "progress": "{{name}} progress",
+      "reloadWarning": "Save unfinished edits first. Activating or removing a pack briefly reloads the app and closes companion windows.",
+      "sizes": "{{download}} bytes download · {{installed}} bytes installed · {{free}} bytes free space required",
+      "states": {
+        "downloading": "downloading",
+        "failed": "failed",
+        "installed": "installed",
+        "installing": "installing",
+        "not_installed": "not installed",
+        "update_available": "update available",
+        "verifying": "verifying"
+      },
+      "title": "Optional feature packs"
+    },
+    "groups": {
+      "animaDefaults": "Defaults for Animas",
+      "animama": "Animama",
+      "appData": "App data",
+      "audio": "Audio",
+      "avatarControls": "Avatar controls",
+      "defaultModels": "Default models",
+      "desktopShortcuts": "Desktop shortcuts",
+      "diagnostics": "Diagnostics",
+      "messages": "Messages",
+      "microphone": "Microphone",
+      "profile": "Profile",
+      "speechToText": "Speech-to-Text",
+      "textToSpeech": "Text-to-Speech",
+      "voiceClone": "Voice Clone",
+      "webSearch": "Web search"
+    },
     "modal": {
       "close": "Close App Settings",
       "description": "Configure application-level voice and interface settings.",
       "navigationLabel": "Application",
       "title": "App Settings"
+    },
+    "models": {
+      "connections": "Connections and models",
+      "webSearch": "Search service"
+    },
+    "profile": {
+      "displayName": {
+        "count": "{{length}}/{{max}}",
+        "fieldLabel": "Display Name",
+        "label": "Display name",
+        "loadFailed": "Animama could not load the local profile.",
+        "loading": "Loading display name…",
+        "placeholder": "Your name",
+        "required": "Enter a display name between 1 and {{max}} characters.",
+        "save": "Save",
+        "saveFailed": "Could not save your display name. Try again.",
+        "saved": "Display name saved.",
+        "unavailable": "Display name unavailable"
+      }
+    },
+    "safety": {
+      "disabled": {
+        "description": "The operator of this installation has turned off the AI notice and crisis support.",
+        "label": "Safety features"
+      },
+      "entryLabel": "Crisis resources region and AI reminder",
+      "region": {
+        "automatic": "Automatic",
+        "automaticResolved": "Automatic ({{region}})",
+        "label": "Crisis resources region"
+      },
+      "reminder": {
+        "ariaLabel": "AI reminder interval",
+        "everyHours_one": "Every {{count}} hour",
+        "everyHours_other": "Every {{count}} hours",
+        "everyMinutes_one": "Every {{count}} minute",
+        "everyMinutes_other": "Every {{count}} minutes",
+        "label": "AI reminder during long conversations"
+      },
+      "saveFailed": "Safety settings could not be saved."
     },
     "search": {
       "label": "Search settings",
@@ -2819,6 +3393,135 @@ export default interface Resources {
       "safety": "Safety",
       "shortcuts": "Shortcuts",
       "voice": "Voice"
+    },
+    "shortcuts": {
+      "actions": {
+        "press_to_talk": "Press to talk",
+        "quick_chat": "Quick Chat",
+        "skip_tts": "Skip TTS",
+        "toggle_voice_mode": "Voice Mode on/off",
+        "toggle_voice_mute": "Toggle mute"
+      },
+      "groupDescription": "Press to talk also supports a mouse button.",
+      "issues": {
+        "in_use": "Already used by {{action}}.",
+        "modifier_required": "Choose a shortcut with at least one modifier.",
+        "mouse_press_to_talk_only": "Mouse buttons can only be used for Press to talk.",
+        "non_modifier_key_required": "Choose a non-modifier key.",
+        "unsupported_key": "Choose a supported shortcut key.",
+        "unsupported_mouse_button": "Choose a supported mouse button."
+      },
+      "mouseButton": "Mouse Button {{button}}",
+      "pressKeys": "Press keys",
+      "pressKeysOrMouse": "Press keys or mouse",
+      "pressToTalkDescription": "Temporarily unmute Voice Mode while held.",
+      "record": "Record {{label}} shortcut",
+      "updateFailed": "Failed to update shortcut."
+    },
+    "updates": {
+      "actions": {
+        "check": "Check for updates",
+        "confirmRestart": "Confirm restart",
+        "download": "Download update",
+        "later": "Later",
+        "restart": "Restart to install",
+        "retryDownload": "Retry download"
+      },
+      "controlsUnavailable": "Update controls are temporarily unavailable. Reopen Settings or restart Animama.",
+      "failures": {
+        "generic": "The update could not finish. Your current app and data are preserved. Check your connection and retry.",
+        "pack_in_use": "Finish active document jobs and close content previews before retrying.",
+        "update_changed_check_again": "The release changed since you checked. Check again before downloading.",
+        "update_install_timeout": "The installer did not finish in time. Quit and reopen Animama; do not reset your data.",
+        "update_insufficient_disk": "Free more disk space, then retry. Your current app and data are unchanged.",
+        "update_pack_operation_active": "Wait for the feature pack change to finish, then retry.",
+        "update_pack_references_blocked": "This update cannot keep your referenced Expanded Included content. Install a compatible pack or remove those references before retrying."
+      },
+      "progress": "Update download",
+      "restartWarning": "Save unfinished edits first. Restart closes companion windows and stops local services before installing.",
+      "sizes": "{{download}} bytes download · {{free}} bytes free space required",
+      "status": {
+        "available": "An update is available. Nothing downloads until you approve.",
+        "checking": "Checking for updates…",
+        "downloaded": "Update downloaded. Restart when you’re ready.",
+        "downloading": "Downloading the approved update…",
+        "idle": "Checks run after startup. Downloads and restarts always need your approval.",
+        "restarting": "Finishing work and restarting Animama…",
+        "up_to_date": "You’re up to date."
+      },
+      "title": "Desktop updates",
+      "versionTitle": "Animama {{version}}"
+    },
+    "voice": {
+      "capabilitiesFailed": "Could not check speech capabilities. Reopen Settings to retry.",
+      "defaultProvidersFailed": "Failed to save default speech providers.",
+      "microphone": {
+        "device": "Microphone input device",
+        "sensitivity": "Microphone sensitivity",
+        "test": "Test microphone"
+      },
+      "stt": {
+        "downloads": "Offline speech downloads",
+        "entryLabel": "Speech-to-Text provider",
+        "label": "Provider",
+        "parakeetWebgpu": "Parakeet (WebGPU)",
+        "placeholder": "Select provider",
+        "preparing": "Preparing provider defaults...",
+        "updateFailed": "Failed to update STT provider."
+      },
+      "tts": {
+        "elevenLabs": {
+          "grouping": {
+            "ariaLabel": "Eleven v3 audio grouping",
+            "fallbackDescription": "Sentence grouping starts fastest.",
+            "label": "Audio grouping",
+            "options": {
+              "paragraph": {
+                "description": "Smoother long-form audio with paragraph-sized requests.",
+                "label": "Paragraph"
+              },
+              "sentence": {
+                "description": "Fastest start with one finalized request per sentence.",
+                "label": "Sentence"
+              }
+            },
+            "placeholder": "Select grouping",
+            "updateFailed": "Failed to update Eleven v3 audio grouping."
+          },
+          "key": {
+            "description": "Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys.",
+            "label": "ElevenLabs API key"
+          },
+          "model": {
+            "descriptions": {
+              "eleven_flash_v2_5": "Lower-latency realtime ElevenLabs speech.",
+              "eleven_multilingual_v2": "The established multilingual realtime model.",
+              "eleven_v3": "Expressive speech generated after the response is complete."
+            },
+            "label": "ElevenLabs model",
+            "placeholder": "Select model",
+            "updateFailed": "Failed to update ElevenLabs model."
+          }
+        },
+        "enable": "Enable Text-to-Speech",
+        "noProvider": "No supported TTS provider is available in this environment.",
+        "provider": {
+          "ariaLabel": "Text-to-Speech provider",
+          "enableFirst": "Enable Text-to-Speech to select a provider.",
+          "entryLabel": "Default Text-to-Speech provider",
+          "label": "Default provider",
+          "note": "Used by Animas without their own provider. Choose providers and voices for each Anima in Loadout → Voices.",
+          "updateFailed": "Failed to update TTS provider."
+        },
+        "stream": {
+          "description": "Start speaking before the full response is ready.",
+          "label": "Stream chunked Text-to-Speech",
+          "unavailable": "Unavailable with Eleven v3.",
+          "updateFailed": "Failed to update TTS streaming mode."
+        },
+        "updateFailed": "Failed to update TTS settings."
+      },
+      "voiceClone": "Voice Clone"
     }
   },
   "setup": {
@@ -3029,6 +3732,263 @@ export default interface Resources {
       "fallbackName": "You",
       "signOut": "Sign out",
       "usage": "Usage and limits"
+    }
+  },
+  "sound": {
+    "preview": {
+      "loadFailed": "Sound preview could not be loaded.",
+      "noAudio": "This sound has no playable audio.",
+      "playFailed": "Sound preview could not be played."
+    },
+    "upload": {
+      "button": "Upload",
+      "defaultName": "Sound",
+      "failed": "Sound could not be saved. Try again.",
+      "inputLabel": "Upload sound files",
+      "listLabel": "Sound uploads",
+      "queued": "Queued",
+      "refresh": "Refresh catalog",
+      "refreshFailed": "Catalog refresh failed.",
+      "retry": "Retry {{name}}",
+      "saved": "Saved to Library",
+      "savedRefreshFailed": "Saved to Library. {{message}}",
+      "unsupportedType": "Choose a WAV, MP3, or Ogg audio file.",
+      "uploading": "Uploading…"
+    },
+    "volume": {
+      "mute": "Mute",
+      "muteAll": "Mute all",
+      "muteAllLabel": "Mute all audio",
+      "sfx": {
+        "label": "SFX",
+        "mute": "Mute sound effects",
+        "slider": "Sound effects volume"
+      },
+      "title": "Volume",
+      "tts": {
+        "label": "TTS",
+        "mute": "Mute text-to-speech",
+        "slider": "Text-to-speech volume"
+      }
+    }
+  },
+  "voice": {
+    "cloning": {
+      "attribution": "Model attribution",
+      "changeFailed": "The cloning model change did not finish. Retry in a moment.",
+      "checking": "Checking voice cloning…",
+      "description": "Create named voices from your own samples.",
+      "download": "Download voice cloning",
+      "downloadFailed": "The download did not finish. Check available disk space and your connection, then retry.",
+      "installed": "Installed · Saved clones work without this model.",
+      "listUnavailable": "Voice cloning downloads are unavailable. Reopen settings to retry.",
+      "progressLabel": "Voice cloning download progress",
+      "remove": "Remove voice cloning",
+      "retry": "Retry cloning download",
+      "verifying": "Verifying voice cloning…"
+    },
+    "downloads": {
+      "cancel": "Cancel download",
+      "confirmRemoval": "Confirm removal",
+      "downloading": "Downloading {{percent}}",
+      "errors": {
+        "notReady": "The installation is not ready. Reopen and retry.",
+        "statusUnavailable": "Download status is unavailable. Reopen and retry."
+      },
+      "installed": "Installed",
+      "installedWithNote": "Installed · {{note}}",
+      "lowSpace": "Not enough free space: downloads need {{size}} free.",
+      "notAvailable": "Not available",
+      "progressLabel": "{{label}} download progress",
+      "retry": "Retry download",
+      "sections": {
+        "speechToText": "Speech-to-Text",
+        "voiceClone": "Voice Clone"
+      },
+      "size": "{{size}} download",
+      "sizeRetry": "{{size}} download · Retry available",
+      "verifying": "Verifying download…"
+    },
+    "microphone": {
+      "device": {
+        "accessDenied": "Microphone access was not granted. Allow it in your browser or system settings.",
+        "allowAccess": "Allow microphone access",
+        "label": "Input device",
+        "missing": "The selected microphone isn't connected; using the system default.",
+        "selectLabel": "Microphone input device",
+        "systemDefault": "System default",
+        "systemDefaultNamed": "System default ({{name}})",
+        "systemRecognizer": "Browser speech recognition always uses the system default microphone.",
+        "systemRecognizerNamed": "Browser speech recognition always uses the system default microphone ({{name}}).",
+        "unnamed": "Microphone {{number}}"
+      },
+      "meter": {
+        "label": "Microphone input level (dB)",
+        "value": "{{level}} dB"
+      },
+      "sensitivity": {
+        "label": "Sensitivity",
+        "levels": {
+          "high": {
+            "description": "Picks up quieter or shorter speech. Applies from the next listening session.",
+            "label": "High"
+          },
+          "low": {
+            "description": "Ignores quieter sounds; useful in noisy rooms. Applies from the next listening session.",
+            "label": "Low"
+          },
+          "normal": {
+            "description": "Balanced speech detection. Applies from the next listening session.",
+            "label": "Normal"
+          }
+        },
+        "saveFailed": "Failed to update microphone sensitivity.",
+        "selectLabel": "Microphone sensitivity"
+      },
+      "test": {
+        "active": "Speak to see the input level.",
+        "idle": "Check your input level.",
+        "label": "Test microphone",
+        "openFailed": "Could not open the microphone.",
+        "start": "Test",
+        "stop": "Stop"
+      }
+    },
+    "offlineSpeech": {
+      "checking": "Checking offline speech recognition…",
+      "cpu": {
+        "download": "Download CPU model",
+        "label": "CPU model",
+        "remove": "Remove CPU model"
+      },
+      "description": "Dictation and Voice Mode transcribe on this device, so audio never leaves it.",
+      "developmentAcquire": "This development stack serves speech models from the host: run {{cpuCommand}} (and {{gpuCommand}} for GPU acceleration), then rerun {{resetCommand}}.",
+      "failures": {
+        "downloadFailed": "The download did not finish. Check the internet connection, then retry.",
+        "hashInvalid": "A downloaded file did not match its checksum and was discarded.",
+        "hostNotAllowed": "This build does not allow the download source.",
+        "insufficientSpace": "Not enough free space for downloads.",
+        "sizeInvalid": "A downloaded file did not have the expected size and was discarded.",
+        "storeFailed": "The model could not be stored. Check the data directory, then retry.",
+        "unknown": "The download did not finish. Retry when ready."
+      },
+      "gpu": {
+        "attribution": "Model attribution (CC BY 4.0)",
+        "blocked": {
+          "checking": "Checking WebGPU support…",
+          "missing": "GPU acceleration is unavailable in this build.",
+          "needsCpu": "Download the CPU model first.",
+          "noWebgpu": "WebGPU is not available in this browser or on this device."
+        },
+        "description": "Faster recognition with live previews. Requires the CPU model and a WebGPU-capable device.",
+        "download": "Download GPU acceleration",
+        "fellBack": "WebGPU failed to load last time, so speech recognition used the CPU.",
+        "label": "GPU acceleration",
+        "remove": "Remove GPU acceleration",
+        "removeFirst": "Remove GPU acceleration first.",
+        "unavailableNow": "GPU acceleration is unavailable right now."
+      },
+      "listUnavailable": "Speech downloads are unavailable. Reopen Settings to retry.",
+      "refusals": {
+        "busy": "This model is still changing. Retry in a moment.",
+        "changeFailed": "The change could not finish. Retry in a moment.",
+        "inUse": "Speech recognition is in use. Close dictation and Voice Mode to remove it."
+      },
+      "title": "Offline speech recognition (Parakeet)",
+      "turnedOff": "Offline speech recognition is turned off on this server."
+    },
+    "pocket": {
+      "accents": {
+        "american": "American",
+        "australian": "Australian",
+        "british": "British",
+        "canadian": "Canadian",
+        "english": "English",
+        "irish": "Irish",
+        "northernIrish": "Northern Irish",
+        "scottish": "Scottish",
+        "southAfrican": "South African"
+      },
+      "clones": {
+        "defaultName": "Voice clone",
+        "emptyFile": "Choose a nonempty audio file.",
+        "fileChanged": "The saved voice file changed. Reload the voice library.",
+        "fileTooLarge": "Each voice file must be 25 MiB or smaller.",
+        "nameLength": "Enter a voice name of 1–120 characters.",
+        "noOriginal": "This voice does not have an original recording to play.",
+        "originalUnavailable": "Original recording unavailable",
+        "readFailed": "The saved voice file could not be read.",
+        "unsupportedType": "Choose a WAV, MP3, or Ogg recording."
+      },
+      "cloning": {
+        "unsupported": "PocketTTS voice catalog generation is not supported in this browser.",
+        "webAudioUnsupported": "Web Audio API is not supported in this browser."
+      },
+      "encoder": {
+        "downloadRequired": "Download voice cloning before encoding a voice sample.",
+        "failures": {
+          "downloadFailed": "Voice cloning could not download. Check your connection and retry.",
+          "hashInvalid": "The voice cloning download did not match the verified model and was discarded. Retry the download.",
+          "hostNotAllowed": "Voice cloning downloads are unavailable in this build.",
+          "insufficientSpace": "Not enough free space to download voice cloning.",
+          "sizeInvalid": "The voice cloning download had the wrong size and was discarded. Retry the download.",
+          "storeFailed": "Voice cloning could not be stored. Check the installation's data directory and retry."
+        },
+        "interrupted": "The voice cloning download was cancelled or interrupted. Retry the download.",
+        "unidentified": "The voice cloning model could not be identified. Reopen and retry."
+      },
+      "fallback": {
+        "customMissing": "Custom PocketTTS voice is selected but no custom voice has been uploaded.",
+        "downloadFailed": "The voice \"{{voice}}\" could not be downloaded, so the default voice is used. The download is retried on the next reply or when you pick the voice again.",
+        "unknownVoice": "The saved voice \"{{voice}}\" is no longer available, so the default voice is used. Choose another voice in Loadout → Voices."
+      },
+      "sample": {
+        "playFailed": "{{name}}'s sample could not play. Check your connection and try again."
+      }
+    },
+    "providers": {
+      "stt": {
+        "browserDesktopUnavailable": "Browser STT is unavailable in the desktop app.",
+        "browserExternal": {
+          "description": "Browser speech recognition with vendor-managed processing.",
+          "label": "Browser (external)",
+          "unsupported": "Web Speech API is not supported in this browser."
+        },
+        "browserLocal": {
+          "description": "Strict on-device browser recognition when explicitly supported.",
+          "label": "Browser (local)",
+          "unsupported": "Local-only Web Speech recognition is not supported in this browser."
+        },
+        "parakeet": {
+          "cpuLabel": "Parakeet (CPU)",
+          "descriptionBrowser": "Local ONNX speech recognition in this browser.",
+          "descriptionDesktop": "Local ONNX speech recognition in the desktop app.",
+          "notInstalled": "Install offline speech recognition to use dictation and Voice Mode.",
+          "unavailableBrowser": "Local Parakeet is currently unavailable in this browser.",
+          "webgpuDescription": "Experimental local speech recognition on the GPU with live previews. Falls back to the CPU when unavailable.",
+          "webgpuLabel": "Parakeet (WebGPU · Experimental)"
+        }
+      },
+      "tts": {
+        "audioWorkletUnsupported": "AudioWorklet is not supported in this browser.",
+        "browser": {
+          "description": "Browser speech synthesis via the Web Speech API.",
+          "desktopUnavailable": "Browser TTS is unavailable in the desktop app.",
+          "label": "Browser",
+          "unsupported": "Speech synthesis is not supported in this browser."
+        },
+        "browserOnly": "{{provider}} can only run in a browser context.",
+        "elevenLabs": {
+          "description": "ElevenLabs synthesis with realtime and finalized models."
+        },
+        "pocket": {
+          "description": "Client-side PocketTTS synthesis."
+        },
+        "secureContext": "{{provider}} requires HTTPS or localhost (secure context).",
+        "webAudioUnsupported": "Web Audio API is not supported in this browser.",
+        "webSocketUnsupported": "WebSocket is not supported in this browser.",
+        "workersUnsupported": "Web Workers are not supported in this browser."
+      }
     }
   }
 }

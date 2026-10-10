@@ -68,7 +68,7 @@ Boundaries:
       passed 2026-10-10.
 - [x] Phase 4: app shell, chat and safety (R7, R9); review #2 passed 2026-10-10.
 - [x] Phase 5: Animas, Library and memory (R7); review #3 passed 2026-10-10.
-- [ ] Phase 6: Settings, profile and sound (R7).
+- [x] Phase 6: Settings, profile and sound (R7); review #2 passed 2026-10-10.
 - [ ] Phase 7: creators (R7).
 - [ ] Phase 8: desktop shell (R8).
 - [ ] Phase 9: completion, guards at full strength and pseudo-locale smoke (R7, R17).
@@ -782,13 +782,114 @@ Issue: #423. Areas: `ui/settings/**` (all panels including models, voices, web
 search, safety, desktop updates and feature packs), profile, `ui/sound*`,
 `lib/speech` labels, `lib/theme`.
 
+Results (2026-10-10, three parallel agents, integrated by the coordinator;
+Phase 5 committed as `d9b0a5d2`):
+
+- New namespaces `models`, `voice` and `sound`; `settings` is extended.
+  - Converted and linted: all of `ui/settings`, `ui/sidebar` and `ui/main`
+    (including the App and Anima settings windows), `ui/profile`, `ui/theme`,
+    `lib/theme`, `lib/user-profile`, `lib/settings/desktop-shortcuts.ts`,
+    `lib/speech` (top level, `pocket`, `client-parakeet`) and `ui/sound*`.
+  - Also converted: the model download coordination, `useModelAssetActions`
+    and `use-pocket-voice-downloads`.
+- **P1-R1-05 resolved.** Settings groups have stable IDs mapped to labels.
+  App Settings search matches the translated title, description, group and
+  section, and still matches the English keywords.
+- **P4-R1-03 resolved.** The model location, provider and connection text,
+  credentials, Pocket option reasons and offline speech downloads that setup
+  shows are now translated.
+- Shortcut validation returns reason codes. Key names stay as the OS shows
+  them; the mouse button is worded.
+- `WordedError` (`lib/errors/apiError.ts`) marks a message already worded in
+  the UI Locale, and `apiErrorText` shows it as it is. Its subclasses:
+  - `PocketVoiceCloningError`;
+  - `DownloadGuardError`, for refusals while a download or a feature pack
+    change is running. Their reasons are stable codes, worded through
+    `downloadGuardText` instead of English sentinel strings.
+- `OPERATOR_MANAGED_MODELS_NOTE` became `operatorManagedModelsNote()`.
+- Term list additions: Provider, Speech-to-Text, Text-to-Speech, Voice Mode,
+  Press to talk, Quick Chat and Voice clone. Provider is aligned in every
+  catalog (제공자, 提供商, 供應商), and Japanese uses 音声クローン.
+- Intentional English changes:
+  - sizes use the shared formatter ("630.7 MB", "37.9 MB");
+  - "Re-embedding 1 item";
+  - three or more names use the locale list style ("A, B, and C");
+  - numbers use the active locale;
+  - the in-use voice clone message matches the Animas wording.
+- Left as data: backend probe notes (no code), shortcut key names, provider and
+  model names, region labels, pack versions and error codes.
+- Checks:
+  - `pnpm i18n:check`, `pnpm --filter animama-web check` and `pnpm web:lint`
+    pass; Prettier is clean on the changed web files.
+  - Web vitest: 3796 pass, with only the 4 port-5173 failures.
+  - Browser under `ja`: every App Settings section is in Japanese; search finds
+    "マイク", "記憶" and the English keyword "theme".
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full review of the Phase 6 working tree on
+`d9b0a5d2`. It found the following sound:
+
+- the error wording, including `WordedError`;
+- the group-ID refactor, with order, merging, search reveal and highlight kept;
+- the shortcut and TTS reason refactors;
+- stored data handling;
+- the deferred P1-R1-05, P4-R1-03 and Phase 5 hand-offs.
+
+Findings:
+
+- **P6-R1-01 (required).** Four Chinese settings strings named Voice clone
+  声音克隆/聲音複製 instead of the term list's 语音克隆/語音複製.
+- Optional:
+  - **P6-R1-02:** `MAX_CONNECTION_KEYS` duplicated the shared
+    `maxConnectionCredentials`.
+  - **P6-R1-03:** the ElevenLabs option lists kept English descriptions and
+    labels that the UI no longer shows.
+  - **P6-R1-04:** worded-error types overlapped. The sound preview had a
+    private error class, and `DownloadGuardError.reason` was never read.
+  - **P6-R1-05:** two English `Error` texts remained in `useModelAssetActions`.
+  - **P6-R1-06:** Provider still had other renderings in product-ui
+    (ko, zh-Hans) and in web `ko/components.json`.
+  - **P6-R1-07:** no unit test covered the shortcut reason codes.
+  - Minor: the provider options are rebuilt on every render.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P6-R1-01 accepted.** The four strings use the term.
+- **P6-R1-02 accepted.** The message uses `maxConnectionCredentials`.
+- **P6-R1-03 accepted.** The unused descriptions and chunking labels are
+  removed. The model `label` stays as the vendor's model name.
+- **P6-R1-04 accepted.**
+  - The sound preview throws `WordedError` and words other failures through
+    `apiErrorText(readApiError(error), null, fallback)`.
+  - `modelChangeErrorText` words a guard by `downloadGuardText(error.reason)`,
+    so it follows the UI Locale.
+  - `PocketVoiceCloningError` stays as the named cloning subclass.
+- **P6-R1-05 accepted.** Both are `WordedError`s from
+  `voice:downloads.errors`.
+- **P6-R1-06 accepted.** All three now use 제공자/服务提供商.
+- **P6-R1-07 accepted.** `desktop-shortcuts.test.ts` covers each reason code
+  and the in-use action.
+- Minor not changed: rebuilding the options is harmless, as the reviewer noted.
+- Checks after repair:
+  - `tsc` and eslint pass;
+  - vitest in settings, sidebar, sound, errors, animas, hooks and setup:
+    42 files, 317 pass;
+  - `pnpm i18n:check` passes;
+  - product-ui tests: 37 pass.
+
+Repair budget: one of two repair rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck. P6-R1-01 to P6-R1-07 are resolved without regressions.
+Result: pass.
+
+Optional suggestions, both applied:
+- The Korean retry hint now reads 제공자가.
+- The guard test now creates the error before switching to `ja`, so it proves
+  the wording follows the locale. The test passes, and the product-ui tests
+  still pass (37).
 
 ### Phase 7 — Creators (R7)
 

@@ -19,8 +19,9 @@ import { useModelAssets } from "@/query/hooks/useModelAssets";
 import { queryKeys } from "@/query/keys";
 import {
   ASSET_WORK_BLOCKS_PACK,
-  PACK_WORK_BLOCKS_ASSET,
+  DownloadGuardError,
   assertPackTransitionAllowed,
+  downloadGuardText,
   loadNativePackSnapshot,
   modelAssetActionKey,
   nativePackActionKey,
@@ -132,13 +133,10 @@ export function useDesktopFeaturePacks() {
           await assertPackTransitionAllowed(apiClient, client, owner, desktop);
         await desktop.featurePacks[operation](id);
       } catch (cause) {
-        // Native exception text can contain paths; expose only our own bounded guard messages.
-        const message = cause instanceof Error ? cause.message : "";
-        throw new Error(
-          [ASSET_WORK_BLOCKS_PACK, PACK_WORK_BLOCKS_ASSET].includes(message)
-            ? message
-            : packChangeFailure(),
-        );
+        // Native exception text can contain paths; expose only our own guard refusals.
+        throw cause instanceof DownloadGuardError
+          ? cause
+          : new Error(packChangeFailure());
       }
     },
     onSettled: () => {
@@ -177,7 +175,7 @@ export function useDesktopFeaturePacks() {
   const blockedReason =
     assetRequests > 0 ||
     assets.data?.assets.some((asset) => asset.status === "downloading")
-      ? ASSET_WORK_BLOCKS_PACK
+      ? downloadGuardText(ASSET_WORK_BLOCKS_PACK)
       : null;
   return {
     available,

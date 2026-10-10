@@ -1,5 +1,7 @@
 "use client";
 
+import { getI18n } from "react-i18next";
+
 import type { TtsProviderPreference } from "@/lib/settings/preferences";
 import {
   getRuntimePlatformSnapshot,
@@ -22,6 +24,7 @@ const TTS_PROVIDER_SET: TtsProviderSet = {
   elevenlabs: true,
 };
 
+/** A provider choice; its text is worded in the UI Locale when it is listed. */
 export type TtsProviderOption = {
   id: TtsProvider;
   label: string;
@@ -139,44 +142,46 @@ export function isElevenLabsTtsSupported(): boolean {
   return "audioWorklet" in AudioContextCtor.prototype;
 }
 
-function getPocketTtsUnsupportedReason(): string | undefined {
+/**
+ * Why this browser cannot run an audio-worklet TTS engine named `provider`
+ * that needs `transport`, or undefined when it can.
+ */
+function audioWorkletTtsUnsupportedReason(
+  provider: string,
+  transport: "worker" | "webSocket",
+): string | undefined {
+  const t = getI18n().getFixedT(null, "voice");
   const speechWindow = asSpeechSynthesisWindow();
-  if (!speechWindow) return "PocketTTS can only run in a browser context.";
+  if (!speechWindow) return t("providers.tts.browserOnly", { provider });
   if (!speechWindow.isSecureContext) {
-    return "PocketTTS requires HTTPS or localhost (secure context).";
+    return t("providers.tts.secureContext", { provider });
   }
-  if (typeof speechWindow.Worker === "undefined") {
-    return "Web Workers are not supported in this browser.";
+  if (transport === "worker" && typeof speechWindow.Worker === "undefined") {
+    return t("providers.tts.workersUnsupported");
+  }
+  if (
+    transport === "webSocket" &&
+    typeof speechWindow.WebSocket === "undefined"
+  ) {
+    return t("providers.tts.webSocketUnsupported");
   }
   const AudioContextCtor =
     speechWindow.AudioContext ?? speechWindow.webkitAudioContext;
   if (!AudioContextCtor || !AudioContextCtor.prototype) {
-    return "Web Audio API is not supported in this browser.";
+    return t("providers.tts.webAudioUnsupported");
   }
   if (!("audioWorklet" in AudioContextCtor.prototype)) {
-    return "AudioWorklet is not supported in this browser.";
+    return t("providers.tts.audioWorkletUnsupported");
   }
   return undefined;
 }
 
+function getPocketTtsUnsupportedReason(): string | undefined {
+  return audioWorkletTtsUnsupportedReason("PocketTTS", "worker");
+}
+
 function getElevenLabsTtsUnsupportedReason(): string | undefined {
-  const speechWindow = asSpeechSynthesisWindow();
-  if (!speechWindow) return "ElevenLabs TTS can only run in a browser context.";
-  if (!speechWindow.isSecureContext) {
-    return "ElevenLabs TTS requires HTTPS or localhost (secure context).";
-  }
-  if (typeof speechWindow.WebSocket === "undefined") {
-    return "WebSocket is not supported in this browser.";
-  }
-  const AudioContextCtor =
-    speechWindow.AudioContext ?? speechWindow.webkitAudioContext;
-  if (!AudioContextCtor || !AudioContextCtor.prototype) {
-    return "Web Audio API is not supported in this browser.";
-  }
-  if (!("audioWorklet" in AudioContextCtor.prototype)) {
-    return "AudioWorklet is not supported in this browser.";
-  }
-  return undefined;
+  return audioWorkletTtsUnsupportedReason("ElevenLabs TTS", "webSocket");
 }
 
 export function isTtsProviderSupported(
@@ -200,29 +205,31 @@ export function getTtsProviderOptions(
   const elevenlabsSupported = isElevenLabsTtsSupported();
   const elevenlabsReason = getElevenLabsTtsUnsupportedReason();
 
+  const t = getI18n().getFixedT(null, "voice");
+
   const options: TtsProviderOption[] = [
     {
       id: "browser",
-      label: "Browser",
-      description: "Browser speech synthesis via the Web Speech API.",
+      label: t("providers.tts.browser.label"),
+      description: t("providers.tts.browser.description"),
       disabled: !browserSupported,
       reason: browserSupported
         ? undefined
         : isDesktop
-          ? "Browser TTS is unavailable in the desktop app."
-          : "Speech synthesis is not supported in this browser.",
+          ? t("providers.tts.browser.desktopUnavailable")
+          : t("providers.tts.browser.unsupported"),
     },
     {
       id: "pocket_tts",
       label: "PocketTTS",
-      description: "Client-side PocketTTS synthesis.",
+      description: t("providers.tts.pocket.description"),
       disabled: !pocketSupported,
       reason: pocketReason,
     },
     {
       id: "elevenlabs",
       label: "ElevenLabs",
-      description: "ElevenLabs synthesis with realtime and finalized models.",
+      description: t("providers.tts.elevenLabs.description"),
       disabled: !elevenlabsSupported,
       reason: elevenlabsReason,
     },

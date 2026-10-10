@@ -1,0 +1,38 @@
+{
+  "preview": {
+    "loadFailed": "Sound preview could not be loaded.",
+    "noAudio": "This sound has no playable audio.",
+    "playFailed": "Sound preview could not be played."
+  },
+  "upload": {
+    "button": "Upload",
+    "defaultName": "Sound",
+    "failed": "Sound could not be saved. Try again.",
+    "inputLabel": "Upload sound files",
+    "listLabel": "Sound uploads",
+    "queued": "Queued",
+    "refresh": "Refresh catalog",
+    "refreshFailed": "Catalog refresh failed.",
+    "retry": "Retry {{name}}",
+    "saved": "Saved to Library",
+    "savedRefreshFailed": "Saved to Library. {{message}}",
+    "unsupportedType": "Choose a WAV, MP3, or Ogg audio file.",
+    "uploading": "Uploading…"
+  },
+  "volume": {
+    "mute": "Mute",
+    "muteAll": "Mute all",
+    "muteAllLabel": "Mute all audio",
+    "sfx": {
+      "label": "SFX",
+      "mute": "Mute sound effects",
+      "slider": "Sound effects volume"
+    },
+    "title": "Volume",
+    "tts": {
+      "label": "TTS",
+      "mute": "Mute text-to-speech",
+      "slider": "Text-to-speech volume"
+    }
+  }
+}

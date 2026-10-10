@@ -1,4 +1,6 @@
 import { useEffect, useId, useState } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type {
@@ -48,6 +50,10 @@ const NO_TEMPLATE = "__no_template__";
 const RESPONSES = "OpenAIResponsesHTTPAgent";
 const CHAT_COMPLETIONS = "OpenAIHTTPAgent";
 const NO_STRUCTURED_OUTPUT = "none";
+/** Example model ID for the empty Model ID field. */
+const MODEL_ID_EXAMPLE = "qwen3:8b";
+/** Example context window for the empty field. */
+const CONTEXT_WINDOW_EXAMPLE = "8192";
 
 type Draft = {
   kind: "chat" | "embedding";
@@ -61,18 +67,39 @@ type Draft = {
   allowMemoryWrites: boolean;
 };
 
-const CAPABILITY_TOGGLES: ReadonlyArray<{
-  key: Exclude<keyof OwnerCapabilitiesDraft, "structured_output_transport">;
-  label: string;
-}> = [
-  { key: "supports_streaming", label: "Streams responses" },
-  { key: "supports_tools", label: "Calls tools (memory, file search)" },
-  {
-    key: "tools_with_structured_output",
-    label: "Combines tools with a response schema",
-  },
-  { key: "accepts_images", label: "Accepts images" },
+type CapabilityToggle = Exclude<
+  keyof OwnerCapabilitiesDraft,
+  "structured_output_transport"
+>;
+
+const CAPABILITY_TOGGLES: readonly CapabilityToggle[] = [
+  "supports_streaming",
+  "supports_tools",
+  "tools_with_structured_output",
+  "accepts_images",
 ];
+
+/** The checkbox label for one capability the owner confirms. */
+function capabilityLabel(
+  t: TFunction<"models">,
+  toggle: CapabilityToggle,
+): string {
+  switch (toggle) {
+    case "supports_streaming":
+      return t("ownerModel.capabilities.supportsStreaming");
+    case "supports_tools":
+      return t("ownerModel.capabilities.supportsTools");
+    case "tools_with_structured_output":
+      return t("ownerModel.capabilities.toolsWithStructuredOutput");
+    case "accepts_images":
+      return t("ownerModel.capabilities.acceptsImages");
+    default: {
+      // Every capability needs its own label.
+      const unlabelled: never = toggle;
+      return unlabelled;
+    }
+  }
+}
 
 function capabilitiesOf(model: PyConfiguredModel): OwnerCapabilitiesDraft {
   const transport = model.capabilities.structured_output_transport;
@@ -148,10 +175,11 @@ export function ModelVisibilitySwitch({
   model: PyConfiguredModel;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation("models");
   const { setHidden, pending } = useSetModelHidden(model);
   return (
     <label className="flex items-center justify-between gap-3 text-sm">
-      Show in model lists
+      {t("ownerModel.showInLists")}
       <Switch
         checked={!model.hidden}
         disabled={disabled || pending}
@@ -169,6 +197,7 @@ export function ShowModelButton({
   model: PyConfiguredModel;
   disabled?: boolean;
 }) {
+  const { t } = useTranslation("models");
   const { setHidden, pending } = useSetModelHidden(model);
   return (
     <Button
@@ -177,19 +206,24 @@ export function ShowModelButton({
       variant="ghost"
       className="h-8 shrink-0"
       disabled={disabled || pending}
-      aria-label={`Show ${model.model_label} in model lists`}
+      aria-label={t("ownerModel.showNamedInLists", {
+        name: model.model_label,
+      })}
       onClick={() => setHidden(false)}
     >
-      Show
+      {t("actions.show")}
     </Button>
   );
 }
 
 /** "API: Responses" for a chat model's details; the API appears nowhere else. */
 function ModelApiLine({ model }: { model: PyConfiguredModel }) {
+  const { t } = useTranslation("models");
   if (model.model_kind !== "chat") return null;
   return (
-    <p className="text-muted-foreground text-sm">API: {modelApiLabel(model)}</p>
+    <p className="text-muted-foreground text-sm">
+      {t("ownerModel.api", { api: modelApiLabel(model) })}
+    </p>
   );
 }
 
@@ -226,6 +260,7 @@ export function OwnerModelDialog({
   /** Prefills a new model's ID, e.g. one a detected server listed. */
   initialModelId?: string;
 }) {
+  const { t } = useTranslation("models");
   const formId = useId();
   const add = useAddOwnerModel();
   const update = useUpdateModel();
@@ -343,7 +378,7 @@ export function OwnerModelDialog({
         });
         onAdded?.(added);
       }
-      toast.success(editing ? "Model saved." : "Model added.");
+      toast.success(editing ? t("ownerModel.saved") : t("ownerModel.added"));
       onOpenChange(false);
     } catch (error) {
       toast.error(modelConfigurationErrorMessage(error));
@@ -369,12 +404,20 @@ export function OwnerModelDialog({
       <DialogContent className="max-h-[85vh] overflow-y-auto sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>
-            {model ? model.model_label : `Add a model to ${connection.name}`}
+            {model
+              ? model.model_label
+              : t("ownerModel.addTitle", { name: connection.name })}
           </DialogTitle>
           <DialogDescription>
             {model
-              ? `${model.model_kind === "embedding" ? "Embedding model" : "Chat model"} on ${connection.name}. Change its details, then save.`
-              : "Test the model to check what it supports, then confirm its capabilities and context window."}
+              ? model.model_kind === "embedding"
+                ? t("ownerModel.editDescription.embedding", {
+                    connection: connection.name,
+                  })
+                : t("ownerModel.editDescription.chat", {
+                    connection: connection.name,
+                  })
+              : t("ownerModel.addDescription")}
           </DialogDescription>
         </DialogHeader>
         {model ? <ModelApiLine model={model} /> : null}
@@ -389,7 +432,7 @@ export function OwnerModelDialog({
         >
           {!editing ? (
             <div className="space-y-2">
-              <Label htmlFor={`${formId}-kind`}>Kind</Label>
+              <Label htmlFor={`${formId}-kind`}>{t("fields.kind")}</Label>
               <Select
                 value={draft.kind}
                 disabled={busy}
@@ -402,8 +445,10 @@ export function OwnerModelDialog({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="chat">Chat model</SelectItem>
-                  <SelectItem value="embedding">Embedding model</SelectItem>
+                  <SelectItem value="chat">{t("modelKinds.chat")}</SelectItem>
+                  <SelectItem value="embedding">
+                    {t("modelKinds.embedding")}
+                  </SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -423,13 +468,13 @@ export function OwnerModelDialog({
             />
           ) : null}
           <div className="space-y-2">
-            <Label htmlFor={`${formId}-model`}>Model ID</Label>
+            <Label htmlFor={`${formId}-model`}>{t("fields.modelId")}</Label>
             <div className="flex gap-2">
               <Input
                 id={`${formId}-model`}
                 value={draft.model}
                 list={`${formId}-available`}
-                placeholder="qwen3:8b"
+                placeholder={MODEL_ID_EXAMPLE}
                 disabled={busy || editing}
                 onChange={(event) => {
                   setReport(null);
@@ -449,7 +494,9 @@ export function OwnerModelDialog({
                       )
                   }
                 >
-                  {discover.isPending ? "Listing…" : "List models"}
+                  {discover.isPending
+                    ? t("ownerModel.listing")
+                    : t("ownerModel.listModels")}
                 </Button>
               ) : null}
             </div>
@@ -461,16 +508,16 @@ export function OwnerModelDialog({
             {discover.isSuccess ? (
               <p className="text-muted-foreground text-xs">
                 {discovered.length
-                  ? `${discovered.length} ${discovered.length === 1 ? "model" : "models"} found; choose one or type an ID.`
-                  : "The server listed no models; type the model ID."}
+                  ? t("ownerModel.listed", { count: discovered.length })
+                  : t("ownerModel.listedNone")}
               </p>
             ) : null}
           </div>
           <div className="space-y-2">
             <Label htmlFor={`${formId}-label`}>
-              Display name{" "}
+              {t("ownerModel.displayName")}{" "}
               <span className="text-muted-foreground font-normal">
-                (optional)
+                {t("optional")}
               </span>
             </Label>
             <Input
@@ -484,7 +531,7 @@ export function OwnerModelDialog({
           {isChat && !editing && templateChoices.length > 0 ? (
             <div className="space-y-2">
               <Label htmlFor={`${formId}-template`}>
-                Copy capabilities from
+                {t("ownerModel.copyFrom")}
               </Label>
               <Select
                 value={draft.templateId ?? NO_TEMPLATE}
@@ -496,7 +543,7 @@ export function OwnerModelDialog({
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value={NO_TEMPLATE}>
-                    Nothing (set them below)
+                    {t("ownerModel.copyNothing")}
                   </SelectItem>
                   {templateChoices.map((template) => (
                     <SelectItem key={template.id} value={template.id}>
@@ -506,7 +553,7 @@ export function OwnerModelDialog({
                 </SelectContent>
               </Select>
               <p className="text-muted-foreground text-xs">
-                Useful for a newer version of a built-in model.
+                {t("ownerModel.copyFromHelp")}
               </p>
             </div>
           ) : null}
@@ -517,37 +564,41 @@ export function OwnerModelDialog({
               disabled={busy || !draft.model.trim()}
               onClick={() => void runProbe()}
             >
-              {probe.isPending ? "Testing…" : "Test model"}
+              {probe.isPending
+                ? t("actions.testing")
+                : t("ownerModel.testModel")}
             </Button>
             <ProbeSummary report={report} />
           </div>
           {isChat ? (
             <>
               <fieldset className="space-y-2">
-                <legend className="text-sm font-medium">Capabilities</legend>
+                <legend className="text-sm font-medium">
+                  {t("fields.capabilities")}
+                </legend>
                 {CAPABILITY_TOGGLES.map((toggle) => (
                   <label
-                    key={toggle.key}
+                    key={toggle}
                     className="flex items-center gap-2 text-sm"
                   >
                     <Checkbox
-                      checked={draft.capabilities[toggle.key]}
+                      checked={draft.capabilities[toggle]}
                       disabled={busy}
                       onCheckedChange={(checked) =>
                         change({
                           capabilities: {
                             ...draft.capabilities,
-                            [toggle.key]: checked === true,
+                            [toggle]: checked === true,
                           },
                         })
                       }
                     />
-                    {toggle.label}
+                    {capabilityLabel(t, toggle)}
                   </label>
                 ))}
                 <div className="space-y-2 pt-1">
                   <Label htmlFor={`${formId}-structured`}>
-                    Structured output
+                    {t("fields.structuredOutput")}
                   </Label>
                   <Select
                     value={
@@ -575,23 +626,27 @@ export function OwnerModelDialog({
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="json_schema">
-                        JSON schema (strict)
+                        {t("structuredOutput.jsonSchema")}
                       </SelectItem>
-                      <SelectItem value="json_object">JSON mode</SelectItem>
-                      <SelectItem value={NO_STRUCTURED_OUTPUT}>None</SelectItem>
+                      <SelectItem value="json_object">
+                        {t("structuredOutput.jsonObject")}
+                      </SelectItem>
+                      <SelectItem value={NO_STRUCTURED_OUTPUT}>
+                        {t("structuredOutput.none")}
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
               </fieldset>
               <div className="space-y-2">
                 <Label htmlFor={`${formId}-context`}>
-                  Context window (tokens)
+                  {t("ownerModel.contextWindow")}
                 </Label>
                 <Input
                   id={`${formId}-context`}
                   value={draft.contextWindow}
                   inputMode="numeric"
-                  placeholder="8192"
+                  placeholder={CONTEXT_WINDOW_EXAMPLE}
                   disabled={busy}
                   aria-invalid={!contextValid}
                   onChange={(event) =>
@@ -599,10 +654,7 @@ export function OwnerModelDialog({
                   }
                 />
                 <p className="text-muted-foreground text-xs">
-                  Required. Use the context size the server loads the model with
-                  (for example Ollama&apos;s num_ctx or llama.cpp&apos;s -c),
-                  not the model&apos;s maximum; long chats are summarized to
-                  fit.
+                  {t("ownerModel.contextWindowHelp")}
                 </p>
               </div>
               <label className="flex items-center gap-2 text-sm">
@@ -613,7 +665,7 @@ export function OwnerModelDialog({
                     change({ allowMemoryWrites: checked === true })
                   }
                 />
-                Allow this model to write memories
+                {t("ownerModel.allowMemoryWrites")}
               </label>
             </>
           ) : null}
@@ -627,7 +679,7 @@ export function OwnerModelDialog({
               disabled={busy}
               onClick={() => onRemove(model)}
             >
-              Remove
+              {t("actions.remove")}
             </Button>
           ) : null}
           <Button
@@ -636,10 +688,14 @@ export function OwnerModelDialog({
             disabled={saving}
             onClick={() => onOpenChange(false)}
           >
-            Cancel
+            {t("actions.cancel")}
           </Button>
           <Button type="submit" form={formId} disabled={!valid || busy}>
-            {saving ? "Saving…" : editing ? "Save" : "Add model"}
+            {saving
+              ? t("actions.saving")
+              : editing
+                ? t("actions.save")
+                : t("connections.addModel")}
           </Button>
         </DialogFooter>
       </DialogContent>
@@ -647,15 +703,27 @@ export function OwnerModelDialog({
   );
 }
 
-const STEP_LABELS: Record<string, string> = {
-  streaming: "Streaming",
-  structured_output: "JSON schema",
-  json_mode: "JSON mode",
-  tool_calls: "Tool calls",
-  tools_with_structured_output: "Tools with a schema",
-  available: "Model available",
-  embeddings: "Embeddings",
-};
+/** A test step's name; a step this app does not know keeps the server's id. */
+function stepLabel(t: TFunction<"models">, step: string): string {
+  switch (step) {
+    case "streaming":
+      return t("probe.steps.streaming");
+    case "structured_output":
+      return t("probe.steps.structuredOutput");
+    case "json_mode":
+      return t("probe.steps.jsonMode");
+    case "tool_calls":
+      return t("probe.steps.toolCalls");
+    case "tools_with_structured_output":
+      return t("probe.steps.toolsWithStructuredOutput");
+    case "available":
+      return t("probe.steps.available");
+    case "embeddings":
+      return t("probe.steps.embeddings");
+    default:
+      return step;
+  }
+}
 
 /** Results of a model test, one line per checked feature. */
 export function ProbeSummary({
@@ -663,35 +731,42 @@ export function ProbeSummary({
 }: {
   report: PyModelProbeReport | null;
 }) {
+  const { t } = useTranslation("models");
   // The live region stays mounted so screen readers announce each result.
   return (
     <div role="status" aria-live="polite">
       {report ? (
-        <ul className="space-y-1 text-xs" aria-label="Test results">
+        <ul className="space-y-1 text-xs" aria-label={t("probe.results")}>
           {report.steps.map((step) => (
             <li key={step.name}>
               <span
                 className={step.ok ? "text-foreground" : "text-destructive"}
               >
-                {step.ok ? "✓" : "✗"} {STEP_LABELS[step.name] ?? step.name}
+                {step.ok
+                  ? t("probe.passed", { step: stepLabel(t, step.name) })
+                  : t("probe.failed", { step: stepLabel(t, step.name) })}
               </span>
               {!step.ok && step.category ? (
                 <span className="text-muted-foreground">
-                  {" "}
-                  — {errorCategoryMessage(step.category)}
+                  {t("probe.failureReason", {
+                    reason: errorCategoryMessage(step.category),
+                  })}
                 </span>
               ) : null}
             </li>
           ))}
           {report.context_window_tokens != null ? (
             <li className="text-muted-foreground">
-              The server reports a context window of{" "}
-              {report.context_window_tokens} tokens.
+              {t("probe.contextWindow", {
+                tokens: report.context_window_tokens,
+              })}
             </li>
           ) : null}
           {report.embedding_dimensions != null ? (
             <li className="text-muted-foreground">
-              Vectors have {report.embedding_dimensions} dimensions.
+              {t("probe.dimensions", {
+                dimensions: report.embedding_dimensions,
+              })}
             </li>
           ) : null}
           {(report.notes ?? []).map((note) => (

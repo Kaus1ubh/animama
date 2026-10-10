@@ -116,7 +116,7 @@
       "restore": "恢复消息",
       "restoreDisabled": "在没有进行中的回复且输入框为空时可用。",
       "restoreHint": "恢复文本以便编辑。不会自动发送任何内容。",
-      "retryAfter_other": "服务提供方建议至少等待{{count}}秒后再试。"
+      "retryAfter_other": "服务提供商建议至少等待{{count}}秒后再试。"
     },
     "service": {
       "guidance": "请稍等片刻再试。如果问题持续，请检查或重启此安装的服务。",

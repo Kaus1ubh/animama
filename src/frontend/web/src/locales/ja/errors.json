@@ -98,7 +98,7 @@
     "starter_policy_stale": "スターターパックが変更されました。下書きをもう一度確認してください。",
     "starter_repair_not_allowed": "修復には、記録された未解決の旧スターターが必要です。",
     "typed_document_invalid": "選択したコンテンツのドキュメントが無効です。",
-    "voice_codec_invalid": "保存済みの PocketTTS ボイスクローンを選んでください。",
+    "voice_codec_invalid": "保存済みの PocketTTS 音声クローンを選んでください。",
     "voice_preset_unavailable": "利用可能な PocketTTS の音声を選んでください。"
   },
   "generic": {
@@ -256,6 +256,8 @@
     "bad_response": "検索サービスが予期しない応答を返しました。",
     "credential_missing": "Brave Search のキーが設定されていません。",
     "credential_rejected": "Brave Search がキーを拒否しました。",
+    "invalid_credential_env": "フィールドの下に記載されている変数名のいずれかを使用してください。",
+    "invalid_timeout": "タイムアウトは 1～120 秒の範囲で指定してください。",
     "json_format_disabled": "SearXNG が JSON の結果を拒否しました。settings.yml の search.formats に json を追加してください。前段のプロキシが原因の場合もあります。",
     "rate_limited": "検索サービスがリクエストを制限しています。後でもう一度お試しください。",
     "timeout": "検索サービスが時間内に応答しませんでした。",

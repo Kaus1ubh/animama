@@ -31,7 +31,7 @@ import {
 } from "@/lib/speech/pocket/voice-cloning-encoder";
 import { VoiceCloningDownload } from "./VoiceCloningDownload";
 import { Button } from "@/ui/components/button";
-import { OPERATOR_MANAGED_MODELS_NOTE } from "@/ui/settings/operator-managed-models";
+import { operatorManagedModelsNote } from "@/ui/settings/operator-managed-models";
 import { Input } from "@/ui/components/input";
 import {
   Dialog,
@@ -44,9 +44,10 @@ import {
 
 /**
  * Text for a failed clone operation. The in-use and changed codes have voice
- * wording; other content save failures arrive worded (`toContentSaveApiError`);
- * any other English stays primary in English and is secondary detail under
- * `fallback` elsewhere.
+ * wording; content save failures arrive worded (`toContentSaveApiError`), as
+ * do `WordedError`s such as cloning and download-guard refusals; any other
+ * English stays primary in English and is secondary detail under `fallback`
+ * elsewhere.
  */
 function cloneError(
   t: TFunction<"animas">,
@@ -175,7 +176,7 @@ export function VoiceCloneLibrary({
           // The operator provides the encoder; this runtime never downloads it.
           setError(
             t("voices.cloning.operatorManaged", {
-              note: OPERATOR_MANAGED_MODELS_NOTE,
+              note: operatorManagedModelsNote(),
             }),
           );
         } else {

@@ -5,7 +5,8 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 import { getI18n } from "react-i18next";
 
-import { errorWording } from "@/lib/errors/apiError";
+import { errorWording, readApiError } from "@/lib/errors/apiError";
+import { modelConfigurationErrorMessage } from "@/ui/settings/models/model-configuration-state";
 
 /** The self-hosted variable suggested for a Brave Search key. */
 export const BRAVE_KEY_ENV = "BRAVE_SEARCH_API_KEY";
@@ -88,11 +89,24 @@ export function webSearchRequest(
 /** Plain-language text for a Test result; server response text is never shown. */
 export function testResultMessage(result: PyWebSearchTestResult): string {
   if (result.ok) {
-    const count = result.result_count ?? 0;
-    return `Search works: ${count} ${count === 1 ? "result" : "results"} for a test query.`;
+    const t = getI18n().getFixedT(null, "models");
+    return t("webSearch.testPassed", { count: result.result_count ?? 0 });
   }
   return (
     (result.category && errorWording("webSearch", result.category)) ||
     getI18n().t("errors:webSearch.bad_response")
+  );
+}
+
+/**
+ * One line for a failed web search request: a search settings code worded
+ * from `errors:webSearch`, else the Models wording (base URL codes and the
+ * generic fallback with any backend English as detail).
+ */
+export function webSearchErrorMessage(error: unknown): string {
+  const { code, params } = readApiError(error);
+  return (
+    (code && errorWording("webSearch", code, params)) ||
+    modelConfigurationErrorMessage(error)
   );
 }

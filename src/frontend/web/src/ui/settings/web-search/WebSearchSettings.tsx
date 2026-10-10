@@ -1,4 +1,6 @@
 import { useEffect, useId, useState } from "react";
+import type { TFunction } from "i18next";
+import { getI18n, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type {
@@ -34,21 +36,37 @@ import type {
   CredentialsBridge,
 } from "../../../../../shared/desktop-runtime";
 import { credentialTarget } from "../../../../../shared/desktop-runtime";
-import { modelConfigurationErrorMessage } from "@/ui/settings/models/model-configuration-state";
 
 import {
+  BRAVE_KEY_ENV,
   draftFromSettings,
   testResultMessage,
+  webSearchErrorMessage,
   webSearchRequest,
   type WebSearchBackendChoice,
   type WebSearchDraft,
 } from "./web-search-state";
 
-const BACKEND_LABELS: Record<WebSearchBackendChoice, string> = {
-  off: "Off",
-  searxng: "SearXNG",
-  brave: "Brave Search",
-};
+const BACKEND_CHOICES: readonly WebSearchBackendChoice[] = [
+  "off",
+  "searxng",
+  "brave",
+];
+
+/** A search backend's name; the services keep their product names. */
+function backendLabel(
+  t: TFunction<"models">,
+  choice: WebSearchBackendChoice,
+): string {
+  if (choice === "searxng") return "SearXNG";
+  if (choice === "brave") return "Brave Search";
+  return t("webSearch.off");
+}
+
+/** Example SearXNG address for the empty field. */
+const SEARXNG_URL_EXAMPLE = "http://127.0.0.1:8888";
+/** Example timeout for the empty field. */
+const TIMEOUT_EXAMPLE = "15";
 
 /** The desktop vault key this app saved for search, if any. */
 function savedVaultKey(
@@ -78,12 +96,15 @@ async function deleteSearchKey(
   env: string,
 ): Promise<void> {
   await applyCredentialChanges(bridge, [{ connection: env }]).catch((error) => {
+    const t = getI18n().getFixedT(null, "models");
     const reason = vaultFailureReason(error, env);
     toast.error(
-      `The saved Brave Search key could not be deleted.${reason ? ` ${reason}` : ""}`,
+      reason
+        ? t("webSearch.keyNotDeletedReason", { reason })
+        : t("webSearch.keyNotDeleted"),
       {
         action: {
-          label: "Retry",
+          label: t("actions.retry"),
           onClick: () => void deleteSearchKey(bridge, env),
         },
       },
@@ -92,7 +113,10 @@ async function deleteSearchKey(
 }
 
 /** Where searches go, in the owner's terms. */
-function destinationNote(draft: WebSearchDraft): string | null {
+function destinationNote(
+  t: TFunction<"models">,
+  draft: WebSearchDraft,
+): string | null {
   if (draft.backend === "searxng") {
     let host = "";
     try {
@@ -100,10 +124,11 @@ function destinationNote(draft: WebSearchDraft): string | null {
     } catch {
       // Not a URL yet; the note stays generic.
     }
-    return `Models send their search queries to ${host ? `the SearXNG server at ${host}` : "your SearXNG server"}.`;
+    return host
+      ? t("webSearch.destination.searxngAt", { host })
+      : t("webSearch.destination.searxng");
   }
-  if (draft.backend === "brave")
-    return "Models send their search queries to Brave Search, which keeps queries for up to 90 days.";
+  if (draft.backend === "brave") return t("webSearch.destination.brave");
   return null;
 }
 
@@ -117,6 +142,7 @@ function destinationNote(draft: WebSearchDraft): string | null {
  * title and link.
  */
 export function WebSearchSettings({ disabled }: { disabled: boolean }) {
+  const { t } = useTranslation("models");
   const formId = useId();
   const platform = useRuntimePlatform();
   const bridge =
@@ -142,7 +168,7 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
   if (settings.isError)
     return (
       <p className="text-muted-foreground py-3 text-sm" role="status">
-        Web search settings could not be loaded.
+        {t("webSearch.loadFailed")}
       </p>
     );
   if (!settings.data || !draft) return null;
@@ -166,7 +192,7 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
     try {
       setTestResult(await test.mutateAsync(request));
     } catch (error) {
-      toast.error(modelConfigurationErrorMessage(error));
+      toast.error(webSearchErrorMessage(error));
     }
   };
 
@@ -177,12 +203,12 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
     try {
       next = await update.mutateAsync(request);
     } catch (error) {
-      toast.error(modelConfigurationErrorMessage(error));
+      toast.error(webSearchErrorMessage(error));
       setSaving(false);
       return;
     }
     setDraft(draftFromSettings(next));
-    toast.success("Web search saved.");
+    toast.success(t("webSearch.saved"));
     try {
       if (managedKeys && bridge) {
         if (newKey && next.credential_env === next.managed_credential_env)
@@ -195,7 +221,9 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
     } catch (error) {
       const reason = vaultFailureReason(error, next.managed_credential_env);
       toast.error(
-        `The Brave Search key was not stored.${reason ? ` ${reason}` : " Enter it again and save."}`,
+        reason
+          ? t("webSearch.keyNotStoredReason", { reason })
+          : t("webSearch.keyNotStored"),
       );
     } finally {
       setSaving(false);
@@ -208,17 +236,17 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
     try {
       await clear.mutateAsync();
     } catch (error) {
-      toast.error(modelConfigurationErrorMessage(error));
+      toast.error(webSearchErrorMessage(error));
       setSaving(false);
       return;
     }
-    toast.success("Web search turned off.");
+    toast.success(t("webSearch.turnedOff"));
     setDraft(draftFromSettings({ ...saved, configured: false, backend: null }));
     setSaving(false);
     if (vaultKey && bridge) await deleteSearchKey(bridge, vaultKey);
   };
 
-  const note = destinationNote(draft);
+  const note = destinationNote(t, draft);
   const keyNotSet =
     saved.configured &&
     saved.backend === draft.backend &&
@@ -229,8 +257,8 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
   return (
     <div className="flex flex-col">
       <SettingsRow
-        label="Search service"
-        description="Lets any model that can call tools search the web. OpenAI models with built-in search keep using it."
+        label={t("webSearch.service.label")}
+        description={t("webSearch.service.description")}
         control={
           <Select
             value={draft.backend}
@@ -242,14 +270,14 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
             <SelectTrigger
               id={`${formId}-backend`}
               className="w-56"
-              aria-label="Search service"
+              aria-label={t("webSearch.service.label")}
             >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              {(["off", "searxng", "brave"] as const).map((choice) => (
+              {BACKEND_CHOICES.map((choice) => (
                 <SelectItem key={choice} value={choice}>
-                  {BACKEND_LABELS[choice]}
+                  {backendLabel(t, choice)}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -261,8 +289,8 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
           <div className="flex justify-end gap-2 py-3">
             <p className="text-muted-foreground mr-auto self-center text-xs">
               {vaultKey
-                ? "Turning search off also deletes its saved key, which cannot be recovered."
-                : "Models will stop searching the web."}
+                ? t("webSearch.turnOff.deletesKey")
+                : t("webSearch.turnOff.stopsSearching")}
             </p>
             <Button
               type="button"
@@ -270,7 +298,9 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
               disabled={busy}
               onClick={() => void turnOff()}
             >
-              {saving ? "Turning off…" : "Turn off web search"}
+              {saving
+                ? t("webSearch.turnOff.turningOff")
+                : t("webSearch.turnOff.action")}
             </Button>
           </div>
         ) : null
@@ -284,46 +314,49 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
         >
           {draft.backend === "searxng" ? (
             <div className="space-y-2">
-              <Label htmlFor={`${formId}-url`}>SearXNG address</Label>
+              <Label htmlFor={`${formId}-url`}>
+                {t("webSearch.searxng.address")}
+              </Label>
               <Input
                 id={`${formId}-url`}
                 value={draft.baseUrl}
-                placeholder="http://127.0.0.1:8888"
+                placeholder={SEARXNG_URL_EXAMPLE}
                 inputMode="url"
                 disabled={busy}
                 onChange={(event) => change({ baseUrl: event.target.value })}
               />
               <p className="text-muted-foreground text-xs">
-                Enable the json format under search.formats in its settings.yml.
-                From a Docker stack, a server on this computer is at
-                host.docker.internal instead of 127.0.0.1.
-                {vaultKey
-                  ? " Saving deletes the saved Brave Search key, which cannot be recovered."
-                  : ""}
+                {[
+                  t("webSearch.searxng.help"),
+                  vaultKey ? t("webSearch.searxng.deletesKey") : null,
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               </p>
             </div>
           ) : managedKeys ? (
             <div className="space-y-2">
-              <Label htmlFor={`${formId}-key`}>Brave Search API key</Label>
+              <Label htmlFor={`${formId}-key`}>
+                {t("webSearch.brave.apiKey")}
+              </Label>
               <Input
                 id={`${formId}-key`}
                 type="password"
                 autoComplete="off"
                 value={draft.key}
-                placeholder={
-                  vaultKey ? "Saved; enter a new key to replace it" : ""
-                }
+                placeholder={vaultKey ? t("keys.replacePlaceholder") : ""}
                 disabled={busy}
                 onChange={(event) => change({ key: event.target.value })}
               />
               <p className="text-muted-foreground text-xs">
-                Encrypted on this computer and never shown again. A saved key
-                applies immediately.
+                {t("keys.encrypted")}
               </p>
             </div>
           ) : (
             <div className="space-y-2">
-              <Label htmlFor={`${formId}-env`}>Key environment variable</Label>
+              <Label htmlFor={`${formId}-env`}>
+                {t("webSearch.brave.envVariable")}
+              </Label>
               <Input
                 id={`${formId}-env`}
                 value={draft.envName}
@@ -332,25 +365,30 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
                 onChange={(event) => change({ envName: event.target.value })}
               />
               <p className="text-muted-foreground text-xs">
-                The backend reads the Brave Search key from{" "}
-                {saved.managed_credential_env} or BRAVE_SEARCH_API_KEY. Keys are
-                never stored in the database.
-                {keyNotSet ? " It is not set in the backend environment." : ""}
+                {[
+                  t("webSearch.brave.envHelp", {
+                    managed: saved.managed_credential_env,
+                    suggested: BRAVE_KEY_ENV,
+                  }),
+                  keyNotSet ? t("webSearch.brave.envNotSet") : null,
+                ]
+                  .filter(Boolean)
+                  .join(" ")}
               </p>
             </div>
           )}
           <div className="flex flex-col gap-2">
             <Label htmlFor={`${formId}-timeout`}>
-              Timeout (seconds){" "}
+              {t("webSearch.timeout")}{" "}
               <span className="text-muted-foreground font-normal">
-                (optional)
+                {t("optional")}
               </span>
             </Label>
             <Input
               id={`${formId}-timeout`}
               value={draft.timeout}
               inputMode="decimal"
-              placeholder="15"
+              placeholder={TIMEOUT_EXAMPLE}
               className="w-32"
               disabled={busy}
               onChange={(event) => change({ timeout: event.target.value })}
@@ -373,7 +411,7 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
           <div className="flex flex-wrap items-center justify-end gap-2">
             {testNeedsSave ? (
               <p className="text-muted-foreground mr-auto text-xs">
-                Save to test a new key.
+                {t("webSearch.saveToTest")}
               </p>
             ) : null}
             <Button
@@ -382,10 +420,10 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
               disabled={busy || !request || testNeedsSave || test.isPending}
               onClick={() => void runTest()}
             >
-              {test.isPending ? "Testing…" : "Test"}
+              {test.isPending ? t("actions.testing") : t("actions.test")}
             </Button>
             <Button type="submit" disabled={busy || !request}>
-              {saving ? "Saving…" : "Save"}
+              {saving ? t("actions.saving") : t("actions.save")}
             </Button>
           </div>
         </form>

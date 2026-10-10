@@ -1,0 +1,370 @@
+{
+  "actions": {
+    "cancel": "Cancel",
+    "discard": "Discard",
+    "edit": "Edit",
+    "remove": "Remove",
+    "removing": "Removing…",
+    "retry": "Retry",
+    "save": "Save",
+    "saving": "Saving…",
+    "show": "Show",
+    "test": "Test",
+    "testing": "Testing…",
+    "undo": "Undo"
+  },
+  "chips": {
+    "appSearch": {
+      "description": "Searches the web with this app's search service",
+      "label": "App search"
+    },
+    "builtInSearch": {
+      "description": "Searches the web with the provider's own search",
+      "label": "Built-in search"
+    },
+    "context": {
+      "description": "{{tokens, number}}-token context window"
+    },
+    "embeddings": {
+      "description": "Embedding model for file and archive search",
+      "label": "Embeddings"
+    },
+    "tools": {
+      "description": "Calls tools",
+      "label": "Tools"
+    },
+    "vision": {
+      "description": "Accepts images",
+      "label": "Vision"
+    }
+  },
+  "connectionForm": {
+    "advanced": "Advanced options",
+    "apiKey": "API key",
+    "apiKeyVariable": "API key variable",
+    "baseUrl": "Base URL",
+    "baseUrlHelp": "The server's OpenAI-compatible address, usually ending in /v1.",
+    "compatibility": {
+      "foldDeveloperRole": "Merge developer instructions into the system message",
+      "sendOpenaiExtensions": "Send OpenAI-only request fields",
+      "sendStreamUsage": "Request token usage while streaming",
+      "stripFunctionStrict": "Remove strict flags from tools"
+    },
+    "detect": "Detect",
+    "detected_one": "Found {{count, number}} model at {{baseUrl}}.",
+    "detected_other": "Found {{count, number}} models at {{baseUrl}}.",
+    "detecting": "Detecting…",
+    "editDescription": "An OpenAI-compatible server such as Ollama, LM Studio, llama.cpp or a cloud provider.",
+    "env": {
+      "notSet": "Not set on the server yet. Set it to your API key.",
+      "set": "Set on the server.",
+      "setVariable": "Set this variable to your API key on the server."
+    },
+    "hideAdvanced": "Hide advanced options",
+    "insecureKey": "This address uses plain http on another computer, so the key would cross the network unencrypted. Use https or a local server.",
+    "keyNotDeleted": "The connection's saved key could not be deleted.",
+    "keyNotStored": "The connection was saved, but its key was not stored. {{reason}}",
+    "keyNotStoredRetry": "The connection was saved, but its key was not stored. Retry from Edit.",
+    "name": "Name",
+    "reasoning": {
+      "deepseekThinking": "Send as DeepSeek thinking",
+      "label": "Reasoning effort",
+      "omit": "Do not send",
+      "openaiEffort": "Send as OpenAI reasoning effort"
+    },
+    "removeSavedKey": "Remove the saved key",
+    "serverType": "Server type",
+    "timeout": "Request timeout (seconds)",
+    "timeoutHelp": "Local servers may need longer while a model loads."
+  },
+  "connections": {
+    "addCustomServer": "Add a custom server",
+    "added": "Connection added.",
+    "addModel": "Add model",
+    "addModelTo": "Add model to {{name}}",
+    "connect": "Connect",
+    "connecting": "Connecting…",
+    "detail": "{{host}} · {{status}}",
+    "editNamed": "Edit {{name}}",
+    "hideHidden": "Hide hidden models",
+    "loadFailed": "Model connections could not be loaded.",
+    "modelsOf": "{{name}} models",
+    "noModels": "No models yet. Add one to chat with it.",
+    "openAiKey": {
+      "managed": "Encrypted on this computer and never shown again. Also in App Settings → API Keys.",
+      "server": "Uses the OpenAI key configured on this server (OPENAI_API_KEY)."
+    },
+    "removed": "Connection removed.",
+    "removeNamed": "Remove {{name}}",
+    "saved": "Connection saved.",
+    "showHidden_one": "Show {{count, number}} hidden model",
+    "showHidden_other": "Show {{count, number}} hidden models",
+    "status": {
+      "checking": "Checking…",
+      "keyMissing": "Key missing",
+      "keyRejected": "Key rejected",
+      "keySet": "Key set",
+      "noKeyNeeded": "No key needed",
+      "notReachable": "Not reachable",
+      "runningAt": "Running at {{host}}"
+    }
+  },
+  "credentials": {
+    "allFailed": "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
+    "connectionKey": "Model connection key",
+    "description": "Add an OpenAI key for cloud chat or an ElevenLabs key for voices. Keys for other model servers are entered on each connection in App Settings → Models. Keys are encrypted with this computer’s secure storage and never shown again. Changes apply as soon as you save. You can change them later in App Settings → API Keys.",
+    "failure": {
+      "full": "This computer already stores the most model connection keys it allows ({{max, number}}). Remove the key from a connection you no longer use, then retry.",
+      "line": "{{name}}: {{message}}",
+      "restartRequired": "The change could not finish. Saved key status is shown above. Open runtime recovery and retry before changing the key again.",
+      "retry": "The key change could not finish. Check the saved status and retry the change."
+    },
+    "removeNamed": "Remove {{name}} key",
+    "replacePlaceholder": "Enter a new key to replace",
+    "saveChanges_one": "Save {{count, number}} change",
+    "saveChanges_other": "Save {{count, number}} changes",
+    "saved": "Saved.",
+    "someFailed": "Some changes could not finish ({{names}}). Retry them; saved keys are never shown here.",
+    "status": {
+      "configured": "Configured",
+      "notSet": "Not set",
+      "removing": "Will be removed when you save."
+    },
+    "title": "API keys",
+    "unavailable": "Protected settings are unavailable. Open runtime recovery and try again.",
+    "undoRemoveNamed": "Undo removing {{name}} key"
+  },
+  "defaults": {
+    "current": "Currently {{model}}.",
+    "currentOn": "Currently {{model}} ({{connection}}).",
+    "loadFailed": "Models could not be loaded.",
+    "noCapableModel": "No model can do this job; choose one with the capabilities it needs.",
+    "roleModel": "{{role}} model",
+    "roles": {
+      "chat": {
+        "default": "System default",
+        "description": "The model new Animas start with. Existing Animas keep their own.",
+        "label": "Chat"
+      },
+      "embeddings": {
+        "default": "Off",
+        "description": "Finds file and archive passages by meaning. Changing it re-embeds stored content.",
+        "label": "Embeddings"
+      },
+      "memoryManager": {
+        "default": "Same as Chat",
+        "description": "Reviews conversations and proposes memory file changes. Needs tool calling.",
+        "label": "Memory Manager"
+      },
+      "utility": {
+        "default": "Same as Chat",
+        "description": "Writes chat titles and compacts long chats. A small, fast model works well.",
+        "label": "Compaction"
+      }
+    },
+    "saveFailed": "The {{role}} model could not be saved.",
+    "unavailable": "The chosen model is unavailable, so the default is used.",
+    "unavailableChoice": "{{model}} (unavailable)"
+  },
+  "embeddings": {
+    "current": "Stored files and archives are embedded with this model.",
+    "off": "Embeddings are off; file and archive search use keywords.",
+    "reEmbedding_one": "Re-embedding {{count, number}} item; search uses keywords until it finishes.",
+    "reEmbedding_other": "Re-embedding {{count, number}} items; search uses keywords until it finishes.",
+    "retrying_one": "Re-embedding {{count, number}} item is waiting to retry: {{reason}}",
+    "retrying_other": "Re-embedding {{count, number}} items is waiting to retry: {{reason}}"
+  },
+  "fields": {
+    "capabilities": "Capabilities",
+    "kind": "Kind",
+    "modelId": "Model ID",
+    "structuredOutput": "Structured output"
+  },
+  "info": {
+    "allowed": "Allowed",
+    "builtinDescription": "Built-in model on {{name}}. Its details are fixed.",
+    "fields": {
+      "api": "API",
+      "contextWindow": "Context window",
+      "images": "Images",
+      "memoryWrites": "Memory writes",
+      "reasoning": "Reasoning",
+      "streaming": "Streaming",
+      "toolCalls": "Tool calls",
+      "toolsWithSchema": "Tools with a schema"
+    },
+    "no": "No",
+    "notAllowed": "Not allowed",
+    "notSet": "Not set",
+    "tokens": "{{tokens, number}} tokens",
+    "yes": "Yes"
+  },
+  "keys": {
+    "encrypted": "Encrypted on this computer and never shown again. A saved key applies immediately.",
+    "replacePlaceholder": "Saved; enter a new key to replace it"
+  },
+  "locations": {
+    "cloud": "Cloud",
+    "local": "Local",
+    "tabsLabel": "Where models run"
+  },
+  "modelKinds": {
+    "chat": "Chat model",
+    "embedding": "Embedding model"
+  },
+  "modelRow": {
+    "details": "Details for {{name}}",
+    "hidden": "Hidden"
+  },
+  "openRouter": {
+    "find": "Find an OpenRouter model",
+    "found_one": "{{count, number}} model found.",
+    "found_other": "{{count, number}} models found.",
+    "listLabel": "OpenRouter models",
+    "loading": "Loading OpenRouter models…",
+    "noMatches": "No models match. Change the search or show all models.",
+    "searchPlaceholder": "Search by name or ID",
+    "showingFirst": "Showing {{shown, number}} of {{total, number}} models; search to narrow the list.",
+    "toolsOnly": "Tool calling only"
+  },
+  "operatorManaged": {
+    "note": "Speech models are managed by the hosted operator."
+  },
+  "optional": "(optional)",
+  "ownerModel": {
+    "addDescription": "Test the model to check what it supports, then confirm its capabilities and context window.",
+    "added": "Model added.",
+    "addTitle": "Add a model to {{name}}",
+    "allowMemoryWrites": "Allow this model to write memories",
+    "api": "API: {{api}}",
+    "capabilities": {
+      "acceptsImages": "Accepts images",
+      "supportsStreaming": "Streams responses",
+      "supportsTools": "Calls tools (memory, file search)",
+      "toolsWithStructuredOutput": "Combines tools with a response schema"
+    },
+    "contextWindow": "Context window (tokens)",
+    "contextWindowHelp": "Required. Use the context size the server loads the model with (for example Ollama's num_ctx or llama.cpp's -c), not the model's maximum; long chats are summarized to fit.",
+    "copyFrom": "Copy capabilities from",
+    "copyFromHelp": "Useful for a newer version of a built-in model.",
+    "copyNothing": "Nothing (set them below)",
+    "displayName": "Display name",
+    "editDescription": {
+      "chat": "Chat model on {{connection}}. Change its details, then save.",
+      "embedding": "Embedding model on {{connection}}. Change its details, then save."
+    },
+    "listed_one": "{{count, number}} model found; choose one or type an ID.",
+    "listed_other": "{{count, number}} models found; choose one or type an ID.",
+    "listedNone": "The server listed no models; type the model ID.",
+    "listing": "Listing…",
+    "listModels": "List models",
+    "removed": "Model removed.",
+    "saved": "Model saved.",
+    "showInLists": "Show in model lists",
+    "showNamedInLists": "Show {{name}} in model lists",
+    "testModel": "Test model"
+  },
+  "probe": {
+    "contextWindow": "The server reports a context window of {{tokens, number}} tokens.",
+    "dimensions": "Vectors have {{dimensions, number}} dimensions.",
+    "failed": "✗ {{step}}",
+    "failureReason": " — {{reason}}",
+    "passed": "✓ {{step}}",
+    "results": "Test results",
+    "steps": {
+      "available": "Model available",
+      "embeddings": "Embeddings",
+      "jsonMode": "JSON mode",
+      "streaming": "Streaming",
+      "structuredOutput": "JSON schema",
+      "toolCalls": "Tool calls",
+      "toolsWithStructuredOutput": "Tools with a schema"
+    }
+  },
+  "providers": {
+    "connected": " (connected)",
+    "custom": "Custom",
+    "purpose": {
+      "customCloud": "Connect any OpenAI-compatible cloud service.",
+      "customLocal": "Connect any OpenAI-compatible server on this computer or your network.",
+      "deepseek": "Chat with DeepSeek's models using your DeepSeek API key.",
+      "huggingface": "Chat with open models through Hugging Face Inference Providers using your access token.",
+      "llamacpp": "Chat with a model served by llama.cpp's server on this computer.",
+      "lmstudio": "Chat with models served by LM Studio on this computer.",
+      "ollama": "Chat with models running in Ollama on this computer.",
+      "openai": "Chat with OpenAI's models using your API key.",
+      "openrouter": "Chat with models from many providers through one OpenRouter key.",
+      "vllm": "Chat with models served by vLLM on this computer."
+    },
+    "recommended": "Recommended",
+    "tabsLabel": "{{location}} providers"
+  },
+  "removal": {
+    "consequences": {
+      "animas_one": "That Anima shows its model as unavailable until you pick another.",
+      "animas_other": "Those Animas show their model as unavailable until you pick another.",
+      "roles_one": "That role goes back to its default.",
+      "roles_other": "Those roles go back to their defaults."
+    },
+    "roles": {
+      "chat": "the Chat default",
+      "embeddings": "the Embeddings model",
+      "memoryManager": "the Memory Manager model",
+      "utility": "the Compaction model"
+    },
+    "savedKeyDeleted": "Its saved key is deleted too and cannot be recovered.",
+    "title": "Remove {{name}}?",
+    "usage": {
+      "animas": "Used by {{animas, list}}.",
+      "animasAndRoles": "Used by {{animas, list}}, and as {{roles, list}}.",
+      "none": "Not in use.",
+      "roles": "Used as {{roles, list}}."
+    }
+  },
+  "required": "(required)",
+  "structuredOutput": {
+    "jsonObject": "JSON mode",
+    "jsonSchema": "JSON schema (strict)",
+    "none": "None"
+  },
+  "webSearch": {
+    "brave": {
+      "apiKey": "Brave Search API key",
+      "envHelp": "The backend reads the Brave Search key from {{managed}} or {{suggested}}. Keys are never stored in the database.",
+      "envNotSet": "It is not set in the backend environment.",
+      "envVariable": "Key environment variable"
+    },
+    "destination": {
+      "brave": "Models send their search queries to Brave Search, which keeps queries for up to 90 days.",
+      "searxng": "Models send their search queries to your SearXNG server.",
+      "searxngAt": "Models send their search queries to the SearXNG server at {{host}}."
+    },
+    "keyNotDeleted": "The saved Brave Search key could not be deleted.",
+    "keyNotDeletedReason": "The saved Brave Search key could not be deleted. {{reason}}",
+    "keyNotStored": "The Brave Search key was not stored. Enter it again and save.",
+    "keyNotStoredReason": "The Brave Search key was not stored. {{reason}}",
+    "loadFailed": "Web search settings could not be loaded.",
+    "off": "Off",
+    "saved": "Web search saved.",
+    "saveToTest": "Save to test a new key.",
+    "searxng": {
+      "address": "SearXNG address",
+      "deletesKey": "Saving deletes the saved Brave Search key, which cannot be recovered.",
+      "help": "Enable the json format under search.formats in its settings.yml. From a Docker stack, a server on this computer is at host.docker.internal instead of 127.0.0.1."
+    },
+    "service": {
+      "description": "Lets any model that can call tools search the web. OpenAI models with built-in search keep using it.",
+      "label": "Search service"
+    },
+    "testPassed_one": "Search works: {{count, number}} result for a test query.",
+    "testPassed_other": "Search works: {{count, number}} results for a test query.",
+    "timeout": "Timeout (seconds)",
+    "turnedOff": "Web search turned off.",
+    "turnOff": {
+      "action": "Turn off web search",
+      "deletesKey": "Turning search off also deletes its saved key, which cannot be recovered.",
+      "stopsSearching": "Models will stop searching the web.",
+      "turningOff": "Turning off…"
+    }
+  }
+}

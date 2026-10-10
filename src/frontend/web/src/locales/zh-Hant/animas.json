@@ -420,14 +420,14 @@
       "selectFailed": "無法選擇 PocketTTS 語音。請重新整理後再試一次。"
     },
     "provider": {
-      "active": "目前的提供者",
+      "active": "目前的供應商",
       "appDefault": "{{provider}}（應用程式）",
       "browser": "瀏覽器",
-      "choose": "選擇提供者",
-      "label": "TTS 提供者",
-      "saved": "TTS 提供者已儲存。",
-      "saveFailed": "無法儲存 TTS 提供者。請再試一次。",
-      "sectionLabel": "語音提供者",
+      "choose": "選擇供應商",
+      "label": "TTS 供應商",
+      "saved": "TTS 供應商已儲存。",
+      "saveFailed": "無法儲存 TTS 供應商。請再試一次。",
+      "sectionLabel": "語音供應商",
       "speechOff": "應用程式設定中已關閉語音。"
     },
     "title": "語音"

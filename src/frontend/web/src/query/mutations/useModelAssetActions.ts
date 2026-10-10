@@ -1,5 +1,6 @@
 import { useProductApiClient } from "@animama/product-ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { getI18n } from "react-i18next";
 
 import {
   installModelAssetV1ModelAssetsAssetIdInstallPost,
@@ -10,11 +11,14 @@ import type {
   PyModelAssetState,
 } from "@animama/runtime-contracts/api-types";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import { WordedError } from "@/lib/errors/apiError";
 import { queryKeys } from "@/query/keys";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
 import {
   assertAssetInstallAllowed,
+  DownloadGuardError,
+  downloadGuardText,
   modelAssetActionKey,
   PACK_WORK_BLOCKS_ASSET,
   pulseAssetAttempts,
@@ -46,18 +50,16 @@ export function useModelAssetAction() {
   >({
     mutationKey: modelAssetActionKey(owner),
     mutationFn: async ({ action, assetId }) => {
-      if (!ownerId)
-        throw new Error("The installation is not ready. Reopen and retry.");
+      const t = getI18n().getFixedT(null, "voice");
+      if (!ownerId) throw new WordedError(t("downloads.errors.notReady"));
       if (action === "install") {
         try {
           await assertAssetInstallAllowed(queryClient, owner, desktop);
         } catch (cause) {
-          // IPC failures may contain host paths. Keep the known guard message only.
-          throw new Error(
-            cause instanceof Error && cause.message === PACK_WORK_BLOCKS_ASSET
-              ? PACK_WORK_BLOCKS_ASSET
-              : "Download status is unavailable. Reopen and retry.",
-          );
+          // IPC failures may contain host paths. Keep the known guard refusal only.
+          throw cause instanceof DownloadGuardError
+            ? cause
+            : new WordedError(t("downloads.errors.statusUnavailable"));
         }
         recordAssetAttempt(queryClient, owner, assetId, true);
       } else {
@@ -104,6 +106,8 @@ export function useModelAssetAction() {
   return {
     ...mutation,
     busy: packs.busy,
-    blockedReason: packs.busy ? PACK_WORK_BLOCKS_ASSET : null,
+    blockedReason: packs.busy
+      ? downloadGuardText(PACK_WORK_BLOCKS_ASSET)
+      : null,
   };
 }

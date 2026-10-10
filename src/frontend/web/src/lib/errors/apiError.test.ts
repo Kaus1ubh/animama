@@ -1,7 +1,12 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { getI18n } from "react-i18next";
 
-import { apiErrorText, errorWording, readApiError } from "./apiError";
+import {
+  apiErrorText,
+  errorWording,
+  readApiError,
+  WordedError,
+} from "./apiError";
 
 afterEach(async () => {
   await getI18n().changeLanguage("en");
@@ -73,5 +78,14 @@ describe("apiErrorText", () => {
     const translated = apiErrorText(info, "loadout");
     expect(translated.detail).toBe("clip.beats[0].time is negative");
     expect(translated.message).not.toBe(translated.detail);
+  });
+
+  it("shows an already worded error as it is in every locale", async () => {
+    await getI18n().changeLanguage("ja");
+    const info = readApiError(new WordedError("翻訳済みのメッセージ"));
+    expect(apiErrorText(info, null, "fallback")).toEqual({
+      message: "翻訳済みのメッセージ",
+      detail: null,
+    });
   });
 });
