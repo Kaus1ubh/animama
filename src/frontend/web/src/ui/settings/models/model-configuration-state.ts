@@ -425,9 +425,9 @@ export type ModelChip = {
  * Vision; an embedding model shows Embeddings only. Web search is "Built-in
  * search" when the model's own search can be requested (OpenAI Responses and
  * Anthropic models advertising it, mirroring the backend's requestable native
- * tools),
- * "App search" when the model calls tools and the installation's search
- * service is ready, and absent otherwise.
+ * tools; Anthropic's description says it bills each search to the owner),
+ * "App search" when a non-Anthropic model calls tools and the installation's
+ * search service is ready, and absent otherwise.
  */
 export function modelCapabilityChips(
   model: Pick<
@@ -457,7 +457,7 @@ export function modelCapabilityChips(
   // PyConfiguredModel lacks requestable_native_tool_support, so mirror the
   // backend's rule (only Responses and Anthropic models may request native
   // web search), then let the chat picker's webSearchAvailability decide,
-  // which reads only these two fields.
+  // which reads only these three fields.
   const requestable =
     HOSTED_SEARCH_PROVIDER_TYPES.has(model.provider_type) &&
     (capabilities.native_tool_support ?? []).includes(WEB_SEARCH_TOOL)
@@ -465,6 +465,7 @@ export function modelCapabilityChips(
       : [];
   const searchState = webSearchAvailability(
     {
+      model_provider: model.provider_type,
       requestable_native_tool_support: requestable,
       supports_tools: capabilities.supports_tools,
     } as PyModelProviderCatalogItem,
@@ -474,7 +475,10 @@ export function modelCapabilityChips(
     chips.push({
       id: "web-search",
       label: "Built-in search",
-      description: "Searches the web with the provider's own search",
+      description:
+        model.provider_type === ANTHROPIC_MESSAGES_PROVIDER_TYPE
+          ? "Searches the web with Anthropic's own search. Anthropic bills each search to your Anthropic account."
+          : "Searches the web with the provider's own search",
     });
   else if (searchState === "application")
     chips.push({

@@ -122,8 +122,12 @@ Each model row shows its name, capability chips (`modelCapabilityChips`) and an
 Info button. Chips are **Tools**, the context window (for example **128K**),
 web search and **Vision** for models that accept images; embedding models show
 **Embeddings**. Web search reads **Built-in search** when the model's own search
-can be requested (OpenAI Responses and Anthropic models), **App search** when the model calls
-tools and the installation's search service is ready, and is absent otherwise.
+can be requested (OpenAI Responses and Anthropic models), **App search** when a model
+other than an Anthropic one calls tools and the installation's search service
+is ready, and is absent otherwise.
+Built-in search runs on the provider's servers and is billed by that provider:
+Anthropic charges each search to the owner's Anthropic account, on top of
+tokens, as the Anthropic chip's description states.
 Model rows and pickers never name the API: the Info panel shows **API:
 Responses**, **API: Anthropic Messages** or **API: Chat Completions**. The app
 picks the API: chat models added to the built-in OpenAI connection use
@@ -171,7 +175,8 @@ flight.
 
 ## Web search
 
-Models → Web search chooses the installation's search backend, shown only when
+Models → Web search chooses the installation's search backend for models
+without built-in search (never Anthropic models), shown only when
 the runtime capability `web_search.configuration` is true (the local
 composition). Off, SearXNG (an address; its `search.formats` must include
 `json`) or Brave Search (a key). On desktop the Brave key goes to the
@@ -194,4 +199,6 @@ last used by `last_model_provider_id`, falling back to the model name for older
 chats. A chat keeps the API standard of its first turn (`responses`,
 `chat_completions` or `anthropic_messages`); choosing a model of another
 standard offers a new chat ([chat runtime](../runtime/chat.md)). Attaching files to a model without tool calling shows that it cannot
-search them.
+search them. Only OpenAI Responses models check messages for the crisis card;
+Anthropic and other models rely on the Companion Guardrails alone (see the
+[safety and crisis protocol](../../safety/crisis-protocol.md)).

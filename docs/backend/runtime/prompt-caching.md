@@ -196,22 +196,17 @@ Measured with `tests/live/test_prompt_cache_layout.py`:
 
 - Method: six scripted turns, a memory map that changes every turn, effort
   `low`.
-- Source: `a94b820b-dirty`, 2026-10-09, after the Phase 4 review fixes.
-- Model: OpenAI `gpt-6-luna`.
+- Source: `76bea118-dirty`, 2026-10-09.
+- Models: OpenAI `gpt-6-luna`; Claude Haiku 5.5 through the real Anthropic
+  adapter with the Anthropic-phrased instructions.
 
 | Path | Cached share by turn | Mean, turns 2–6 | Input tokens, turn 6 |
 | --- | --- | --- | --- |
-| Responses with a cursor | 0, 0.881, 0.892, 0.897, 0.911, 0.913 | 0.90 | 8,424 |
-| Responses without a cursor (`store: false`) | 0, 0, 0.854, 0.857, 0.856, 0.856 | 0.68 | 5,378 |
-| Chat Completions, developer role | 0, 0.864, 0.866, 0.872, 0.868, 0.872 | 0.87 | 5,406 |
-| Chat Completions, `<turn_context>` block | 0, 0.866, 0.851, 0.841, 0.823, 0.808 | 0.84 | 5,442 |
-
-Anthropic Messages (Claude Haiku 5.5, through the real adapter with the
-Anthropic-phrased instructions; source `9330838a-dirty`, 2026-10-09):
-
-| Path | Cached share by turn | Mean, turns 2–6 | Input tokens, turn 6 |
-| --- | --- | --- | --- |
-| Anthropic Messages | 0, 0.88, 0.876, 0.88, 0.881, 0.887 | 0.88 | 9,680 |
+| Responses with a cursor | 0, 0.883, 0.893, 0.905, 0.911, 0.918 | 0.90 | 8,269 |
+| Responses without a cursor (`store: false`) | 0, 0, 0.854, 0.857, 0.858, 0.859 | 0.69 | 5,359 |
+| Chat Completions, developer role | 0, 0.864, 0.866, 0.871, 0.867, 0.872 | 0.87 | 5,416 |
+| Chat Completions, `<turn_context>` block | 0, 0.866, 0.850, 0.838, 0.822, 0.808 | 0.84 | 5,442 |
+| Anthropic Messages | 0, 0.876, 0.877, 0.884, 0.872, 0.890 | 0.88 | 9,789 |
 
 Anthropic counts the same prompt as about 1.8 times OpenAI's tokens, including
 the structured-output schema. Within a turn, a tool round reuses the tools,
@@ -242,8 +237,8 @@ endpoint receives the content-part arrays and must accept them.
 The harness changes the memory map every turn, which is the worst case. In
 production the map changes only when memory files change.
 
-Before this layout (Phase 1 baseline, source `b37abfa5-dirty`, 2026-10-08), the
-per-turn memory map sat in Responses `instructions` and in the system message
-of rows without a developer role. Responses and those rows reused nothing
-(0.00). Chat Completions with a developer role reused only the system prompt
-(0.65).
+Before this layout (source `b37abfa5-dirty`, 2026-10-08), the per-turn memory
+map sat in Responses `instructions` and in the system message of rows without a
+developer role. Responses and those rows reused nothing (0.00). Chat
+Completions with a developer role reused only the system prompt (0.65). A
+direct mapping of that layout to Anthropic also reused nothing.

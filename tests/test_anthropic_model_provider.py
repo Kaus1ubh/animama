@@ -34,6 +34,8 @@ from animama.app.chat.api_standard import (
 )
 from animama.app.chat.direct_turn.constants import DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER
 from animama.app.model_catalog import (
+    DEFAULT_ANTHROPIC_CHAT_EFFORT,
+    default_chat_reasoning_effort,
     early_compaction_available,
     serialize_builtin_model_connections,
     serialize_model_catalog,
@@ -242,6 +244,26 @@ def test_public_haiku_row_names_its_connection_and_api_standard() -> None:
     assert row["model_client"] == "anthropic_messages"
     assert row["requestable_native_tool_support"] == ["web_search"]
     assert "early_compaction" not in row
+
+
+def test_public_rows_report_the_anthropic_chat_default_effort() -> None:
+    rows = {str(row["id"]): row for row in serialize_model_catalog()}
+
+    # The chat picker preselects this effort (D26); requests without one use it too (D22).
+    assert DEFAULT_ANTHROPIC_CHAT_EFFORT == "medium"
+    assert rows[HAIKU_ID]["default_reasoning_effort"] == DEFAULT_ANTHROPIC_CHAT_EFFORT
+    for row in rows.values():
+        if row["model_provider"] != ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+            assert row["default_reasoning_effort"] is None, row["id"]
+
+
+def test_only_anthropic_rows_offering_the_chat_default_effort_report_it() -> None:
+    assert default_chat_reasoning_effort(ANTHROPIC_MESSAGES_PROVIDER_TYPE, ["low", "medium"]) == "medium"
+    assert default_chat_reasoning_effort(ANTHROPIC_MESSAGES_PROVIDER_TYPE, [" medium "]) == "medium"
+    assert default_chat_reasoning_effort(ANTHROPIC_MESSAGES_PROVIDER_TYPE, ["none", "high"]) is None
+    assert default_chat_reasoning_effort(ANTHROPIC_MESSAGES_PROVIDER_TYPE, None) is None
+    assert default_chat_reasoning_effort("OpenAIResponsesHTTPAgent", ["none", "medium"]) is None
+    assert default_chat_reasoning_effort("OpenAIHTTPAgent", ["medium"]) is None
 
 
 def test_only_anthropic_rows_with_a_long_context_price_step_offer_compact_early() -> None:
@@ -577,6 +599,14 @@ async def test_owner_models_on_the_anthropic_connection_use_the_messages_api(asy
                 },
             },
         )
+        without_medium = await client.post(
+            "/v1/model-connections/anthropic/models",
+            json={
+                "model": f"claude-opus-5-5-{uuid4().hex[:8]}",
+                "capabilities": {"supports_tools": True, "supported_reasoning_efforts": ["none", "high"]},
+                "context_window_tokens": 200_000,
+            },
+        )
         catalog = {row["id"]: row for row in (await client.get("/v1/model-providers")).json()}
 
     assert templated.status_code == 201, templated.text
@@ -610,6 +640,13 @@ async def test_owner_models_on_the_anthropic_connection_use_the_messages_api(asy
     assert row["provider_label"] == "Anthropic"
     assert row["logo_provider"] == "anthropic"
     assert row["requestable_native_tool_support"] == ["web_search"]
+    # Owner rows report the Anthropic chat default only when they offer it (D26).
+    assert without_medium.status_code == 201, without_medium.text
+    assert catalog[template_view["id"]]["default_reasoning_effort"] == "medium"
+    assert row["default_reasoning_effort"] == "medium"
+    assert catalog[without_medium.json()["id"]]["default_reasoning_effort"] is None
+    assert catalog[HAIKU_ID]["default_reasoning_effort"] == "medium"
+    assert catalog[LUNA_ID]["default_reasoning_effort"] is None
 
 
 @pytest.mark.parametrize(

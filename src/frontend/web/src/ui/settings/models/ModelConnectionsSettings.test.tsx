@@ -361,6 +361,11 @@ describe("Models connections by where models run", () => {
       "App search",
     ]);
     expect(text(html)).not.toMatch(/\b(Responses|Completions)\b/u);
+    // Only Anthropic's built-in search says who pays for each search.
+    const billing = "Anthropic bills each search to your Anthropic account.";
+    expect(text(panel(html, "anthropic"))).toContain(billing);
+    expect(text(panel(html, "openai"))).not.toContain("bills");
+    expect(text(panel(html, "openrouter"))).not.toContain("bills");
     // The hidden Chat Completions row waits behind a toggle.
     expect(html).not.toContain("gpt-6-luna-cc");
     expect(html).toContain("Show 1 hidden model");

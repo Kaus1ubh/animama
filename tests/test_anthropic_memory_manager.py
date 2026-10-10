@@ -330,6 +330,7 @@ async def test_requests_use_the_memory_tool_medium_effort_and_no_compaction(asyn
     instructions = system["text"]
     assert "Never create or change a file to record your own progress" in instructions
     assert "Files can be neither deleted nor renamed" in instructions
+    assert "When a new fact replaces an older one, also correct or remove the outdated statement" in instructions
     assert "# List of memory files" in instructions
     assert "  - path: /memories/PROFILE.md" in instructions
     assert params["messages"] == [

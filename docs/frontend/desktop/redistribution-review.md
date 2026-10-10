@@ -69,6 +69,17 @@ The approved core inventory in `release-policy.json` predates the removal of
 the `google-genai` and `litellm` runtime dependencies, so the next stage needs a
 fresh inventory review. Allowlist entries in `release-scan.gitleaks.toml` that
 only covered those packages can be dropped once that scan passes without them.
+It also predates two later inventory changes that the owner must re-review
+before the next desktop release:
+
+- the Python license inventory gains the `anthropic` client SDK and its new
+  dependencies (`httpx2`, `httpcore2`, `truststore` and `docstring-parser`;
+  `idna` moves to 3.20). `httpx2` verifies TLS through the operating system's
+  trust store (`truststore`) rather than certifi, so release acceptance should
+  include an Anthropic request from the frozen runtime on each target;
+- the notice inventory changes because the `model-provider-logos` group in
+  `runtime/license-sources.json` now covers ten logos, including the
+  Anthropic mark from models.dev.
 
 The generated `desktop/release/review/redistribution-review.md` packet links the
 current local artifacts for the target last staged. Keep the reviewer's

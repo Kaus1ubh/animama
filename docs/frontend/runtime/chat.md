@@ -182,7 +182,10 @@ switch; it shows a toast directing the user to the main chat.
 Catalog rows advertise `requestable_native_tool_support` and
 `supported_reasoning_efforts` for their settings menu. Users can toggle native tools, currently
 `web_search`, and choose a supported reasoning effort. Supported native tools
-are enabled by default when the active model advertises them.
+are enabled by default when the active model advertises them. The effort starts
+at the row's `default_reasoning_effort` when the row offers it (`medium` on
+Anthropic rows), else at its first supported effort (`defaultReasoningEffort`
+in `lib/chat/model-catalog.ts`).
 
 Web search availability comes from `webSearchAvailability` (product-ui) using
 the row and the runtime capability `web_search`: hosted when the row lists
@@ -190,7 +193,9 @@ the row and the runtime capability `web_search`: hosted when the row lists
 a backend is configured with its key; otherwise a disabled Web search checkbox
 with its reason ("Set up web search in App Settings.", a model without tools,
 or a missing Brave key). Where the composition offers no web search
-configuration, rows without hosted search show no control. Available search
+configuration, rows without hosted search show no control, and neither do
+Anthropic rows without hosted search, which the backend never gives the
+application tool. Available search
 starts on, including when availability changes
 while the same model stays selected (the capability loads after the catalog,
 or the owner configures or removes the backend). The request field is the same

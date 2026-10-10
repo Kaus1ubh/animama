@@ -187,10 +187,13 @@ is applied.
 ## Model connection
 
 An endpoint the installation reaches models through: a base URL, how its key is
-supplied and compatibility options. The built-in OpenAI connection uses the
-OpenAI key and base URL from API Keys or the environment; the owner adds others,
-such as Ollama, LM Studio, llama.cpp or any OpenAI-compatible Chat Completions
-server, in App Settings → Models. Keys never enter the database. A connection's
+supplied and compatibility options. A connection speaks an OpenAI protocol
+(Responses or Chat Completions) or Anthropic's Messages API. The built-in
+OpenAI connection uses the OpenAI key and base URL from API Keys or the
+environment, and the built-in Anthropic connection uses only the Anthropic key
+against Anthropic's API; the owner adds others, such as Ollama, LM Studio,
+llama.cpp or any OpenAI-compatible Chat Completions server, in App Settings →
+Models. Keys never enter the database. A connection's
 **models** are either built-in (read-only templates the owner can hide) or
 owner-added. The hosted composition has no owner connections; see
 [ADR 0011](docs/adr/0011-application-owned-companion-features-and-composition-catalog-policy.md).
@@ -214,9 +217,10 @@ instead. Post-response compaction, after a reply, remains the usual path.
 ## Application web search
 
 Web search that Animama runs itself through the installation's configured
-backend (SearXNG or the Brave Search API), offered to any model that can call
-tools as a `web_search` tool. OpenAI Responses models with hosted search use
-that instead. The per-model Web search control turns either on.
+backend (SearXNG or the Brave Search API), offered as a `web_search` tool to
+tool-calling models other than Anthropic's. OpenAI Responses models with hosted
+search use OpenAI's search instead, and Anthropic models use only Anthropic's
+own search. The per-model Web search control turns either on.
 
 ## Companion guardrail
 

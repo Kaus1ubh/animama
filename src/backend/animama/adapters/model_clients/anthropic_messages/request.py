@@ -45,7 +45,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 
-from animama.app.model_catalog import early_compaction_available
+from animama.app.model_catalog import DEFAULT_ANTHROPIC_CHAT_EFFORT, early_compaction_available, offered_effort
 from animama.app.model_clients import (
     ANTHROPIC_TOOL_RESULT_ITEM_TYPE,
     ANTHROPIC_TOOL_USE_ITEM_TYPE,
@@ -61,10 +61,6 @@ from .support import ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE, clean_str
 
 ANTHROPIC_MAX_TOKENS_PER_REQUEST = 64_000
 """Output cap for one request (thinking included); the row's own limit applies when lower."""
-DEFAULT_ANTHROPIC_CHAT_EFFORT = "medium"
-"""Effort when neither the owner nor the Anima chose one (D22).
-
-At ``low``, Haiku 5.5 often skipped needed memory-tool calls in live tests."""
 DEFAULT_ANTHROPIC_UTILITY_EFFORT = "low"
 """Effort for Utility prompts (titles, other chats' summaries) without a choice (D16)."""
 DEFAULT_ANTHROPIC_MEMORY_MANAGER_EFFORT = "medium"
@@ -205,8 +201,7 @@ def effort_and_thinking(
 
     effort = requested.strip() if isinstance(requested, str) and requested.strip() else None
     if effort is None:
-        supported = {str(value).strip() for value in model_provider.capabilities.supported_reasoning_efforts or ()}
-        effort = default if default in supported else None
+        effort = offered_effort(default, model_provider.capabilities.supported_reasoning_efforts)
     if effort is None:
         return None, None
     if effort == EFFORT_NONE:

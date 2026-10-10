@@ -23,7 +23,8 @@ Owner decision:
 
 Authoritative source: https://github.com/raymond-van/animama/issues/364 (this
 file is a snapshot).
-Snapshot captured: 2026-10-09T16:09:22Z, republished from revision `39d2ffee`.
+Snapshot captured: 2026-10-10T01:52:03Z, republished from revision `76bea118`
+plus the Phase 9 decisions (D26, D27).
 Source baseline: `1bf91d07`. Planning re-based on `2b546185`.
 
 ## Problem and intended users
@@ -517,6 +518,11 @@ Decided 2026-10-09 (owner), during implementation:
   5.5 (D25).
 - **Anthropic logo:** taken from models.dev with recorded provenance and
   license (D25).
+- **Chat picker effort:** choosing a model saves the row's default chat
+  effort, reported by the backend, falling back to the first listed effort.
+  Anthropic rows default to `medium` (D26).
+- **Memory Manager:** on both runtimes, a new fact that replaces an older one
+  also corrects or removes the outdated statement (D27).
 
 ## Spec
 

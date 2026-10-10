@@ -4,8 +4,9 @@ Runs ``MemoryManagerService`` with the real ``AnthropicMemoryManagerRuntime``
 on Claude Haiku 5.5 over a small seeded memory workspace in the test database:
 a request to record a preference must become an approval with a sensible diff,
 approving it (from a freshly built service, as after a restart) must commit
-the change and resume to completion, and no progress, status or scratch file
-may be proposed.
+the change and resume to completion, the outdated preference line must be
+corrected or removed so the files never contradict each other, and no
+progress, status or scratch file may be proposed.
 
 Paid requests: run only with ``ANIMAMA_RUN_LIVE_TESTS=1`` and a real
 ``ANTHROPIC_API_KEY``. Run with ``-s`` to see the measurements; no request,
@@ -209,6 +210,11 @@ async def test_a_preference_becomes_an_approval_that_commits_and_completes(async
     assert snapshot.messages[-1].role == "assistant" and snapshot.messages[-1].content.strip()
     changed = await _entries(async_session).get_entry_by_path(user_id=user_id, path=first.target_path)
     assert "tea" in (changed.content or "").lower()
+    # The older coffee line is corrected too, so the files never contradict each other.
+    profile = await _entries(async_session).get_entry_by_path(user_id=user_id, path="PROFILE.md")
+    coffee_line_removed = "prefers coffee in the morning" not in (profile.content or "").lower()
+    _record("profile", coffee_line_removed=coffee_line_removed)
+    assert coffee_line_removed
     listing = await _entries(async_session).list_entry_headers(user_id=user_id, recursive=True)
     created = sorted(entry.path for entry in listing.entries if entry.type == "file")
     assert not any(_PROGRESS_LIKE.search(path) for path in created)

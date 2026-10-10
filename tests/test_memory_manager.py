@@ -2261,6 +2261,8 @@ async def test_openai_agents_runtime_uses_shared_navigation_and_read_tool_contra
     assert "description verbatim when it remains accurate" in agent.instructions
     assert "synthetic patch document" in agent.instructions
     assert 'description: "Concise overview of the file."' in agent.instructions
+    assert "When a new fact replaces an older one, also correct or remove the outdated statement" in agent.instructions
+    assert "header. When proposing a memory edit" in agent.instructions
     assert "episodes/" not in agent.instructions
     assert "version" not in agent.instructions
     assert "size_bytes" not in agent.instructions

@@ -5,7 +5,7 @@ Status: In progress. All phases authorized by the owner's `/implement` on
 
 - Phase 1 live spend, already authorized;
 - the Phase 2 owner decision, made 2026-10-09 (D19);
-- the Phase 9 owner live smoke.
+- the Phase 9 owner live smoke, accepted by the owner on 2026-10-09.
 
 Source agreement: [spec](anthropic-model-provider-spec.md), published as parent
 issue [#364](https://github.com/raymond-van/animama/issues/364) on 2026-10-08.
@@ -85,8 +85,9 @@ Ownership and boundaries:
       2026-10-09; Review #2 passed; D23 and D24 implemented.
 - [x] Phase 8: Desktop key, App Settings and chat UI. Done 2026-10-09; Review #2
       passed; D25 implemented.
-- [ ] Phase 9: Documentation, ADR, measurements and owner live smoke. Not
-      started. Owner acceptance gate.
+- [x] Phase 9: Documentation, ADR, measurements and owner live smoke. Done
+      2026-10-09; Review #2 passed; the owner smoke was accepted; D26 and D27
+      implemented.
 - [ ] Final integration review.
 
 ## Surprises & Discoveries
@@ -289,6 +290,19 @@ stated:
     download, which supersedes D14's fallback.
   - **Preselection:** "Preselect Haiku 5.5" as the preselected template in the
     Add model dialog is accepted.
+- **D26 (2026-10-09, owner, at Phase 9):** the chat picker's effort default.
+  - The Phase 9 docs audit found that choosing a model in the chat picker
+    saved its first listed effort, `none`, for every row. Anthropic chats
+    therefore ran with thinking off, and D22's `medium` applied only when no
+    effort was saved.
+  - Decision: the backend reports each catalog row's default chat effort
+    (`default_reasoning_effort`), and the picker uses it, falling back to the
+    first listed effort.
+  - Anthropic rows report `medium` when they support it. OpenAI rows report
+    none and keep their current behaviour.
+- **D27 (2026-10-09, owner, at Phase 9):** Memory Manager outdated facts. Both
+  runtimes' instructions say to correct or remove a statement that a new fact
+  replaces, so memory files never contradict each other.
 
 ## Implementation orientation
 
@@ -2642,11 +2656,287 @@ Checks: `docs-sync` review, the final checks below, and the measurement run.
 Completion: docs and ADRs reviewed; measurements and owner smoke recorded;
 failures become in-scope fixes or follow-up issues, per the owner.
 
-Phase record: issue #373; starting source —; commit —.
+Phase record: issue #373; starting source `76bea118`; commit: this phase's commit (see git log for `[p9]`).
+
+Implementation:
+
+- **Docs (delegated agent; reviewed in Code Review #1 below):**
+  - backend: `model-client-providers.md`, `adding-ai-models.md` (Haiku 5.5
+    example), `model-catalog.md` (Compact early section), the Memory Manager
+    and memory feature docs, `data-model.md`, `http-api.md`, `chat.md`,
+    `overview.md`, `local-models.md`, `development.md` (the key in the
+    owner-only secrets file);
+  - frontend: `model-settings.md` (search billing, moderation gap),
+    `installation.md`;
+  - `tests/live/README.md` and `src/backend/AGENTS.md`;
+  - `prompt-caching.md`: final measurements by the coordinator.
+- **ADRs:**
+  - new ADR 0016, "Native Anthropic Messages provider";
+  - ADR 0008 amended for the guardrail placement (D20/D21);
+  - both indexed in the ADR README.
+- **Glossary:** "Model connection" extended (D1), and "Application web search"
+  corrected for Anthropic.
+- **Release gate:** `redistribution-review.md` requires owner re-review of:
+  - the Python license inventory (`anthropic`, `httpx2`, `httpcore2`,
+    `truststore`, `docstring-parser`; `idna` 3.20);
+  - one Anthropic request from the frozen runtime per target, for trust-store
+    TLS;
+  - the desktop notice inventory (the tenth provider logo).
+- **Docs-sync audit:** run over `2b546185...HEAD` plus the working tree. Gaps
+  were fixed in the files above, and links and anchors were checked (0
+  broken).
+- **Gaps between the code and the spec found by the audit:**
+  - **Picker effort:** handled by D26.
+  - **Search shown but never run:** application search was reported for
+    Anthropic rows without native search, although the backend never offers
+    it there.
+  - **Billing copy:** R6 requires settings copy saying that Anthropic bills
+    searches.
+
+  All three are fixed in this phase, by a delegated agent working test-first:
+  - **D26 (picker effort):**
+    - `DEFAULT_ANTHROPIC_CHAT_EFFORT` moves to `app/model_catalog.py`, and
+      `request.py` imports it.
+    - `default_chat_reasoning_effort` computes `default_reasoning_effort` when
+      the catalog is served (`serialize_model_catalog`, the public catalog
+      service, `PyModelProviderCatalogItem`). The SDK is regenerated offline.
+    - The frontend `defaultReasoningEffort` moves to `lib/chat/model-catalog.ts`
+      and uses the reported default, otherwise the first listed effort.
+    - Live: Haiku 5.5 and the owner Sonnet row report `medium`, and
+      `gpt-6-luna` still shows `none`.
+  - **Search availability:** `webSearchAvailability` returns null for Anthropic
+    rows without native `web_search`. The same bug in `modelCapabilityChips`
+    is fixed.
+  - **R6:** the Anthropic "Built-in search" chip's hover and screen-reader text
+    states that Anthropic bills each search to the owner's account. The Web
+    search settings copy now says Anthropic models never use that service.
+  - **Checks:**
+    - `make check-test`: 3,501 passed.
+    - `ruff`, with no forbidden import edges.
+    - `pnpm check`, `web:lint`, `build`, `desktop:check`, `prettier:check`
+      and `openapi-ts:check` pass.
+    - `web:test`: 3,240 passed, plus the same 4 environmental port-5173
+      failures.
+    - Browser tests: 39 of 39 passed.
+
+Memory Manager prompt review: the Phase 7 live run left a contradicting
+`PROFILE.md` line. The Anthropic instructions now say that when a new fact
+replaces an older one, the outdated statement is corrected or removed wherever
+it appears.
+
+- A unit assertion covers the wording.
+- The live test now asserts the coffee line is gone. In the live rerun Haiku
+  viewed both files, searched, and replaced the `PROFILE.md` line ("Prefers
+  green tea in the morning (switched from coffee)"). That took 4 requests, 1
+  approval and no new files.
+- At the owner's request (2026-10-09), the OpenAI Agents runtime's
+  instructions gain the same rule.
+  - A missing space before "When proposing a memory edit" in that prompt is
+    also fixed.
+  - Unit assertions in `tests/test_memory_manager.py` cover both.
+  - A one-off live check on `gpt-6-luna` used the same seed and request. It
+    replaced the `PROFILE.md` line ("Switched from coffee to green tea in the
+    morning") in 7 requests with 1 approval, and left `notes/preferences.md`
+    unchanged. That test was temporary and is not kept.
+
+Final measurements, 2026-10-09, source `76bea118` plus Phase 9 changes
+(`-dirty`), owner-authorized. Command:
+`ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.env" pytest -q -s tests/live/test_prompt_cache_layout.py tests/live/test_anthropic_direct_turn.py tests/live/test_anthropic_messages_contract.py`
+
+- Result: 16 passed in 310 seconds. The local-server row was skipped; no local
+  server was configured.
+- Mean cached share, turns 2–6, through the production assembler:
+
+  | Path | Share |
+  | --- | --- |
+  | Responses with server state | 0.902 |
+  | Responses without a cursor | 0.686 |
+  | Chat Completions, developer role | 0.868 |
+  | Chat Completions, tagged block | 0.837 |
+  | Anthropic Messages (Haiku 5.5) | 0.880 |
+
+- Baselines before this work: Responses 0, Chat Completions with a developer
+  role 0.65, without one 0, and a direct Anthropic mapping 0.
+- Every path matches its Phase 4 or Phase 5 result.
+
+#### Owner live smoke checklist
+
+Run it on the live development stack `animama-anthropic`
+(`http://animama-anthropic.localhost:8820`). The stack was started with the
+owner-only secrets file and without `ANIMAMA_LLM_SKIP`, so both keys are set.
+It already has two owner rows, `claude-sonnet-5-5` and Haiku 4.5. Each item
+names the acceptance criterion it covers.
+
+1. **Chat, quality and latency (D16/D22).** Choose Claude Haiku 5.5 for an
+   Anima, at the default effort (medium), and hold a few turns.
+   - Check: replies stream; emotion and gesture updates apply; quality and
+     latency are acceptable.
+2. **Restart.** Restart the backend
+   (`docker compose -p animama-anthropic restart animama-server`), then
+   continue the same chat.
+   - Check: the reply follows on from the earlier turns.
+3. **Web search.** Turn web search on and ask about a recent event; then turn
+   it off and ask again.
+   - Check: with search on, the answer is grounded. With search off, no search
+     is made (the request log shows no `web_search` tool).
+4. **Compaction.** On request, the coordinator lowers Haiku 5.5's trigger to
+   Anthropic's 50,000-token minimum. This changes
+   `long_context_token_threshold` on the task stack only, and a restart's
+   re-seed restores it. Paste a long document, then keep chatting.
+   - Check: the compaction indicator appears and the chat continues coherently.
+5. **Compact early.** Open model details for Haiku 5.5, then for an owner row.
+   - Check: Haiku 5.5 shows the switch, on by default, and toggling it
+     persists. Owner rows without long-context pricing show no switch.
+6. **Utility.** Set the Utility role to Haiku 5.5 and start a new chat.
+   - Check: the chat gets a sensible title.
+7. **Memory Manager.** Set the Memory Manager to Haiku 5.5 and ask it to record
+   a changed preference.
+   - Check: it proposes an edit that also corrects the older contradicting
+     line.
+   - Approve one proposal. Restart the backend while another is pending, then
+     approve it.
+   - Reject one proposal.
+   - Check: a delete or rename request is refused.
+8. **Owner row.** Chat once with `claude-sonnet-5-5`.
+   - Check: it replies, and the fence prevents switching an existing OpenAI
+     chat to it.
+9. **Missing key.** On the key-less setup stack `animama-anthropic-setup`, start
+   it again with the same stack record and choose Haiku 5.5 in a chat.
+   - Check: the missing-key state and error appear.
+10. **Desktop key (optional).** In a packaged desktop build, add the Anthropic
+    key in App Settings without restarting.
+    - Check: Haiku replies, and the key is not stored in the database or logs.
+    - Automated desktop and IPC tests already cover this path.
+
+Results: on 2026-10-09 the owner tested on the live stack, judged it enough,
+and accepted the smoke. The owner did not report results item by item. The
+two backend-restart steps (items 2 and 7) were waived by the owner; automated replay and resume tests cover them. Item 4
+(compaction at the minimum trigger) and item 10 (desktop key) were not run;
+automated event, replay, desktop and IPC tests cover them.
 
 #### Code Review #1 Findings
 
+Independent `sdlc-reviewer`, full initial review of the uncommitted tree on
+`76bea118`.
+
+Verified:
+
+- the Memory Manager rule in both runtimes, and the space fix;
+- the D26 backend, the generated SDK (current) and the frontend default on the
+  row-click and page-load paths;
+- the search-availability fix against
+  `direct_executor._application_web_search_active`;
+- the R6 copy;
+- ADR 0016 against D1–D26 and the code;
+- the measurements in `prompt-caching.md`;
+- doc claims against the code;
+- the release-gate package list against `git diff 2b546185 -- uv.lock`.
+
+Checks: `ruff`, the import-boundary script, targeted `mypy`,
+`openapi-ts:check`, `pnpm check`, 252 targeted web tests and a link check (0
+broken).
+
+- **P9-R1-F1 (blocking):** in `chat-input.tsx` `applySettingsForModel`,
+  changing a setting in an inactive model's popover saves the previous model's
+  effort instead of the shown default. Haiku could be saved at `none`, and
+  Luna at `medium`.
+- **P9-R1-F2 (blocking):** issue #364 lacked the Phase 9 decision lines that
+  the spec snapshot claims.
+- **Non-blocking:**
+  - the live Memory Manager test printed memory content, contrary to its
+    docstring;
+  - plan status, the smoke itemization, the evidence table, the baseline
+    mapping and the D-number for the Memory Manager rule;
+  - glossary wording for Anthropic rows without search;
+  - the ADR 0016 nit that `none` disables thinking;
+  - the ADR 0008 in-place rewrite;
+  - the duplicated provider-type literal;
+  - the duplicated "default only if offered" rule.
+
 #### Code Review #1 Revisions
+
+- **F2 (fixed):** issue #364 is republished with D26 and D27 (2026-10-10T01:52:03Z,
+  read back). The spec header records the revision as `76bea118` plus the
+  Phase 9 decisions.
+- **Plan record:**
+  - the Status gate and the Phase 9 progress line are updated;
+  - the smoke results say that the owner did not report results item by item;
+  - the evidence table marks the waived restart steps and the unrun smoke
+    items (4 and 10);
+  - the baselines are named by path;
+  - the Memory Manager rule is D27.
+- **Glossary and ADR 0016:** fixed.
+- **ADR 0008:** kept. The old placement is summarized under Consequences,
+  following ADR 0011's in-place amendment.
+- **F1 (fixed, test-first):** when a popover change also selects a model,
+  `applySettingsForModel` ignores the previous model's effort. It uses the
+  chosen effort, or else the new row's default.
+  - `chat-input-model-settings.test.tsx` renders the real selector and covers
+    both scenarios (they failed before the fix), an explicitly chosen effort,
+    and the active model keeping its effort.
+- **Live test (fixed):** records `coffee_line_removed`, and its docstring
+  states the check.
+- **Provider-type literal (fixed):** `ANTHROPIC_MESSAGES_PROVIDER_TYPE` is
+  exported from product-ui and re-exported by web `model-catalog.ts`.
+- **Shared effort rule (done):** `offered_effort` in `app/model_catalog.py` is
+  used by `default_chat_reasoning_effort` and `effort_and_thinking`. The import
+  boundary check finds 0 forbidden edges.
+- **Repair checks:**
+  - backend `ruff` and targeted pytest: 162 passed;
+  - 176 targeted web tests;
+  - `pnpm check`, `web:lint`, `prettier:check` and `packages:check` pass.
+
+#### Code Review #2 Findings
+
+Independent `sdlc-reviewer`, repair round 1. It reviewed the uncommitted tree
+on `76bea118`.
+
+**Result: pass, with no blocking findings.**
+
+Verified:
+
+- **F1:** no other path carries the previous model's effort. That includes
+  row click, keyboard select, external model changes and the
+  search-availability effect.
+- **F2:** the issue body matches the snapshot apart from headings and links.
+- All non-blocking repairs.
+
+Checks:
+
+- 116 DB-backed targeted tests;
+- `ruff`, the format check, the import-boundary script and targeted `mypy`;
+- 286 targeted web tests;
+- `pnpm check` and `packages:check`;
+- eslint and prettier on the repaired files;
+- the link check.
+
+Non-blocking findings:
+
+- the evidence cell overstated the OpenAI live coverage;
+- issue #364 links the Decision Log at `76bea118`, where D26 and D27 do not
+  exist yet;
+- one unwrapped plan line.
+
+#### Code Review #2 Revisions
+
+- **Evidence cell:** reworded to "the Anthropic live test and a one-off OpenAI
+  live check".
+- **Plan line:** wrapped.
+- **Issue links:** issue #364's plan links are re-pointed to the Phase 9
+  commit after it is pushed.
+
+Phase checks on the final Phase 9 tree:
+
+- `make check-test`: 3,501 passed and 27 skipped.
+- `uv lock --check`, `bash -n reset.sh` and both compose config commands pass.
+- `pnpm check`, `web:lint`, `build`, `desktop:check`, `prettier:check` and
+  `openapi-ts:check` pass.
+- `desktop:test`: 468 passed.
+- `web:test`: 3,245 passed. The 4 `tests/local-api-proxy.test.ts` failures
+  are environmental: port 5173 is held by another task's process.
+- Browser tests: 39 of 39 passed.
+- `e2e:test:fast` runs on the final candidate after the final integration
+  review.
 
 ## Final integration review
 
@@ -2674,19 +2964,19 @@ here.
 | Spec criterion | Evidence | Phase |
 | --- | --- | --- |
 | No key → missing-key state and error | backend test; owner smoke | 3, 5, 9 |
-| Key added without restart → streamed structured reply; key not persisted | desktop and IPC tests; persistence test; smoke | 5, 8, 9 |
-| Multi-turn continues after restart | replay test; smoke | 5, 9 |
+| Key added without restart → streamed structured reply; key not persisted | desktop and IPC tests; persistence test (smoke item 10 not run) | 5, 8, 9 |
+| Multi-turn continues after restart | replay test (smoke restart waived) | 5, 9 |
 | Fence mismatch both ways | backend test | 5 |
 | Web search grounded and recorded; absent when off | request-shape test; smoke | 6, 9 |
-| Compaction continues with indicator | event and replay tests; smoke at minimum trigger | 6, 9 |
+| Compaction continues with indicator | event and replay tests; live contract and direct-turn compaction checks (smoke item 4 not run) | 6, 9 |
 | **Compact early** default on, 90k/150k, survives re-seed, hidden for unpriced rows | seed and request tests; smoke | 3, 6, 8, 9 |
 | Utility title on Haiku | test; smoke | 7, 9 |
-| Memory Manager approvals, restart resume, reject, fence, scope | runtime tests; smoke | 7, 9 |
+| Memory Manager approvals, restart resume, reject, fence, scope | runtime tests; the Anthropic live test and a one-off OpenAI live check; smoke (restart step waived) | 7, 9 |
 | Refusal error, no reply persisted | fake-refusal test | 5 |
 | Owner-added `claude-sonnet-5-5` row works | probe test; smoke | 3, 8, 9 |
 | Hosted composition unchanged | default-policy tests | 3 |
 | Guardrails last and unchanged; stable prefix per path | exact-prompt and stability tests | 4, 5 |
-| Caching recommendation documented; ADR 0008 amended if departed | review; owner decision | 2, 9 |
+| Caching recommendation documented; ADR 0008 amended if departed | review; owner decision; ADR 0008 amended, ADR 0016 | 2, 9 |
 | Cached share does not fall on any path, rises where layout caused misses | harness before and after | 1, 4, 9 |
 | Effort defaults and Anthropic phrasing | request tests; prompt review; smoke | 5, 7, 9 |
 | Docs and ADRs | review | 9 |

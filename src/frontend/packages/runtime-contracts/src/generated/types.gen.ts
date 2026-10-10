@@ -7004,6 +7004,12 @@ export type PyModelProviderCatalogItem = {
      */
     context_window_tokens?: number | null;
     /**
+     * Default Reasoning Effort
+     *
+     * Effort a chat picker preselects for this row (one of supported_reasoning_efforts), or null to use the first supported effort. Anthropic Messages rows report their chat default when they offer it.
+     */
+    default_reasoning_effort?: string | null;
+    /**
      * Hidden
      */
     hidden?: boolean;

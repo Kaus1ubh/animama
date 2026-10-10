@@ -74,7 +74,7 @@ Chat Completions server.
 Both make paid requests. They need `ANTHROPIC_API_KEY`, and the harness also
 needs `OPENAI_API_KEY`. A full run of both costs well under US$0.50. It includes
 six web searches, one compaction request of about 57,000 tokens, and 16
-six-turn harness passes across today's layout, the candidates and the owner
+six-turn harness passes across the production layout, the candidates and the owner
 layout. Run a single harness test with `::test_name` to spend less. Use `-s` to
 see the recorded measurements, which contain no request or response content.
 With the owner-only secrets file:
@@ -95,6 +95,16 @@ Anthropic adapter against Claude Haiku 5.5:
 Memory tools and chat storage are the offline fakes. It needs only
 `ANTHROPIC_API_KEY`. A full run costs under US$0.05: one or two web searches,
 billed per search, and one compaction request of about 60,000 tokens.
+
+`test_anthropic_memory_manager.py` runs `MemoryManagerService` with the real
+Anthropic Memory Manager runtime on Claude Haiku 5.5 over a small seeded memory
+workspace in the test database. Asked to record a preference, the run must
+propose an approval through the memory tool; approving it from a freshly built
+service, as after a restart, must commit the change and resume to completion,
+the older contradicting line in `PROFILE.md` must be corrected, and no progress
+or scratch file may be proposed. It needs `ANTHROPIC_API_KEY`
+and Docker for the test database, and costs under US$0.01 (about 10,000 input
+tokens).
 
 ## Manual OpenAI Stream Metadata Smoke
 

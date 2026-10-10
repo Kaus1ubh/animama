@@ -6,6 +6,12 @@ import type {
 /** The request tool name for web search, hosted or application. */
 export const WEB_SEARCH_TOOL = "web_search";
 
+/**
+ * The catalog `model_provider` of Anthropic Messages rows. Anthropic rows
+ * search only with Anthropic's own server tool.
+ */
+export const ANTHROPIC_MESSAGES_PROVIDER_TYPE = "AnthropicMessagesHTTPAgent";
+
 function normalizedTools(values: unknown): string[] {
   if (!Array.isArray(values)) return [];
   return Array.from(
@@ -29,8 +35,9 @@ export function requestableNativeTools(
  * How a chat model row can search the web: the provider's hosted search, the
  * application `web_search` tool through the installation's configured
  * backend, or not at all with a reason for the owner. `null` means the row
- * has no hosted search and this composition offers no application search, so
- * no control is shown.
+ * has no hosted search and cannot use application search, so no control is
+ * shown: this composition offers none, or the row is an Anthropic row, which
+ * the backend never gives the application tool.
  */
 export type WebSearchAvailability =
   | { state: "hosted" }
@@ -43,7 +50,12 @@ export function webSearchAvailability(
 ): WebSearchAvailability | null {
   if (requestableNativeTools(item).includes(WEB_SEARCH_TOOL))
     return { state: "hosted" };
-  if (!item || !search?.configuration) return null;
+  if (
+    !item ||
+    item.model_provider === ANTHROPIC_MESSAGES_PROVIDER_TYPE ||
+    !search?.configuration
+  )
+    return null;
   if (!item.supports_tools)
     return {
       state: "unavailable",

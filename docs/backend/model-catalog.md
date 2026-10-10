@@ -2,7 +2,8 @@
 
 The durable backend model catalog is stored in `model_providers`. Every row
 belongs to one model connection in `model_connections`. Built-in rows and the
-built-in `openai` connection come from `src/backend/animama/app/model_catalog.py`;
+built-in `openai` and `anthropic` connections come from
+`src/backend/animama/app/model_catalog.py`;
 the installation owner adds other connections and models in App Settings →
 Models ([model settings](../frontend/features/model-settings.md)). The design is
 recorded in
@@ -24,9 +25,11 @@ static catalog, which would silently drop owner rows.
 
 ## Connections And Row Ownership
 
-A `model_connections` row names one OpenAI-compatible server: `name`, `preset`,
+A `model_connections` row names one model server: `name`, `preset`,
 `base_url`, `credential_env` (the name of the environment variable that holds
-its key, never the key), `compatibility` options and `timeout_seconds`. Requests
+its key, never the key), `compatibility` options and `timeout_seconds`. A
+connection speaks an OpenAI protocol (Responses or Chat Completions) or, for
+the built-in Anthropic connection, Anthropic's Messages API. Requests
 for a model row go only to its connection's base URL with only that
 connection's key. [Model clients](runtime/model-client-providers.md#connections-and-credentials)
 describes credentials, presets and compatibility options.
@@ -35,11 +38,19 @@ describes credentials, presets and compatibility options.
   `OPENAI_BASE_URL` (default `https://api.openai.com/v1`) and `OPENAI_API_KEY`.
   It is the only connection that serves `OpenAIResponsesHTTPAgent` rows. The
   owner cannot edit or remove it but can add models to it.
+- The built-in `anthropic` connection also stores no base URL or key
+  reference. It uses only `ANTHROPIC_API_KEY`, always against Anthropic's own
+  API, and serves only `AnthropicMessagesHTTPAgent` rows, which no other
+  connection may serve. The owner cannot edit or remove it but can add Claude
+  models to it.
 - Built-in rows (`source="builtin"`) are release-managed. The owner can only
-  hide or show them.
+  hide or show them and, on rows with a long-context price step, change
+  [Compact early](#compact-early).
 - Owner rows (`source="owner"`, ids `owner:<hex>`) are added, edited and removed
-  by the owner. Their capabilities come from a copied built-in template, the
-  connection probe or values the owner enters.
+  by the owner. Their capabilities come from a copied built-in template of the
+  same connection, the connection probe or values the owner enters. On the
+  Anthropic connection the probe reads Anthropic's Models API instead of
+  sending messages.
 - `model_kind` is `chat` or `embedding`. Embedding rows serve only the
   Embeddings model role; chat profiles and direct chat reject them.
 - Removal is soft (`active=false`) because chat profiles reference rows.
@@ -55,11 +66,16 @@ composition; see [HTTP API](architecture/http-api.md).
 
 Shared services receive a `ModelCatalogPolicy`
 (`app/services/model_provider_catalog_service.py`) from the composition:
-`owner_models_enabled` and an optional `builtin_allowlist`. The default exposes
-built-in rows only. `create_local_app` enables owner models, which also applies
-the owner's App Settings model roles. The policy filters the listing and role
-resolution only; a composition that restricts built-in rows must also restrict
-chat profiles and turn setup, which validate the selected row directly.
+`owner_models_enabled`, an optional `builtin_allowlist` and the built-in
+connections whose rows it exposes. The default exposes only the built-in rows
+of the OpenAI connection, so a hosted composition shows no Anthropic rows
+unless its allowlist names them. `create_local_app` uses
+`ModelCatalogPolicy.local()`: owner models, which also apply the owner's App
+Settings model roles, and the built-in rows of every built-in connection. An
+allowlist names exact rows and replaces the connection filter. The policy
+filters the listing and role resolution only; a composition that restricts
+built-in rows must also restrict chat profiles and turn setup, which validate
+the selected row directly.
 
 ## Public Catalog Shape
 
@@ -75,9 +91,9 @@ Each serialized row has:
 - `logo_provider`: frontend logo key; owner rows use their connection preset's
   logo
 - `model_client`: nullable direct model-client profile for chat compatibility,
-  `openai_chat_completions` or `openai_responses`
-- `api_standard`: nullable chat transcript standard, `chat_completions` or
-  `responses`
+  `openai_chat_completions`, `openai_responses` or `anthropic_messages`
+- `api_standard`: nullable chat transcript standard, `chat_completions`,
+  `responses` or `anthropic_messages`
 - `source`: `builtin` or `owner`
 - `connection_id` and `connection_name`
 - `model_kind`: `chat` or `embedding`
@@ -96,6 +112,8 @@ Each serialized row has:
   support metadata
 - `supported_reasoning_efforts`: optional ordered list of allowed
   request-scoped reasoning effort values
+- `default_reasoning_effort`: nullable effort the chat picker preselects;
+  Anthropic Messages rows report `medium` when they offer it, other rows null
 - `native_tool_support`: optional list of native provider tools supported by
   that concrete provider/model row; individual tools may be frontend opt-ins or
   backend-owned capabilities
@@ -183,29 +201,58 @@ no prompt-cache write rate: usage reporting `cache_write_tokens` (parsed from
 both APIs' input token details) produces an unpriced estimate, and those tokens
 are excluded from the uncached input count.
 
+`claude-haiku-5-5` records Anthropic's published rates, checked 2026-10-08:
+$0.10 input, $0.01 cached input (cache reads) and $0.50 output per 1M tokens,
+with batch at half those rates. Above 100,000 prompt tokens every token of the
+request bills at $0.50 input, $0.05 cached and $2.50 output, stored as the
+long-context threshold and rates. The estimator ignores that step, cache writes
+stay unpriced as for `gpt-6-luna`, and Anthropic's per-search web search fee
+is billed to the owner's Anthropic account but not estimated; the row's
+`pricing_notes` say so.
+
+### Compact early
+
+`model_providers.early_compaction` (boolean, default true) is the owner's
+**Compact early** setting. It applies only to Anthropic rows whose pricing has
+a long-context threshold (`early_compaction_available` in `model_catalog.py`):
+with it on, server compaction triggers at 90% of the threshold, never below
+Anthropic's 50,000-token minimum (90,000 for Claude Haiku 5.5), so a chat
+stays below the price step; with it off, or on any other row, the trigger is
+Anthropic's default of 150,000 tokens. Unpriced owner rows therefore always use
+150,000. The owner changes it on built-in rows too, and catalog re-seeding
+keeps the stored value, like `hidden`. See
+[Anthropic Messages](runtime/model-client-providers.md#anthropic-messages) for
+the request.
+
 ## Provider Types
 
-| Provider type              | Provider label                                     | Default logo                              | Notes                                                                                                                                                                                                                                                                                                    |
-| -------------------------- | -------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OpenAIHTTPAgent`          | OpenAI HTTP, or the connection name for owner rows | `openai`, or the connection preset's logo | Chat Completions adapter shared by every connection, including owner connections. Requests go to the row's connection base URL. Built-in embedding rows also use this provider type.                                                                                                                     |
-| `OpenAIResponsesHTTPAgent` | OpenAI Responses HTTP                              | `openai`                                  | OpenAI Python SDK Responses adapter, valid only on the built-in OpenAI connection. Turns call `/responses` directly, support typed SSE text streaming, continue chats through the chat row's `openai_previous_response_id`, and use Anima memory function tools through Responses tool/input item types. |
+| Provider type                | Provider label                                     | Default logo                              | Notes                                                                                                                                                                                                                                                                                                                     |
+| ---------------------------- | -------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OpenAIHTTPAgent`            | OpenAI HTTP, or the connection name for owner rows | `openai`, or the connection preset's logo | Chat Completions adapter shared by every connection, including owner connections. Requests go to the row's connection base URL. Built-in embedding rows also use this provider type.                                                                                                                                      |
+| `OpenAIResponsesHTTPAgent`   | OpenAI Responses HTTP                              | `openai`                                  | OpenAI Python SDK Responses adapter, valid only on the built-in OpenAI connection. Turns call `/responses` directly, support typed SSE text streaming, continue chats through the chat row's `openai_previous_response_id`, and use Anima memory function tools through Responses tool/input item types.                  |
+| `AnthropicMessagesHTTPAgent` | Anthropic                                          | `anthropic`                               | Official `anthropic` Python Client SDK Messages adapter, valid only on the built-in Anthropic connection. Turns stream from the Messages API, replay application-owned history (from the newest server compaction block), and use strict memory tools, strict structured output and Anthropic's `web_search` server tool. |
 
 ## Built-In Provider/Model Pairs
 
-| Provider type              | Model                    | Accepts     | Produces  | Tools | Streaming | Reasoning efforts                               | Native tools                |
-| -------------------------- | ------------------------ | ----------- | --------- | ----- | --------- | ----------------------------------------------- | --------------------------- |
-| `OpenAIHTTPAgent`          | `gpt-6-luna`             | image, text | text      | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`, `max` | none                        |
-| `OpenAIResponsesHTTPAgent` | `gpt-6-luna`             | image, text | text      | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`, `max` | `apply_patch`, `web_search` |
-| `OpenAIHTTPAgent`          | `text-embedding-3-small` | text        | embedding | no    | no        | n/a                                             | none                        |
-| `OpenAIHTTPAgent`          | `text-embedding-3-large` | text        | embedding | no    | no        | n/a                                             | none                        |
+| Provider type                | Model                    | Accepts     | Produces  | Tools | Streaming | Reasoning efforts                               | Native tools                |
+| ---------------------------- | ------------------------ | ----------- | --------- | ----- | --------- | ----------------------------------------------- | --------------------------- |
+| `OpenAIHTTPAgent`            | `gpt-6-luna`             | image, text | text      | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`, `max` | none                        |
+| `OpenAIResponsesHTTPAgent`   | `gpt-6-luna`             | image, text | text      | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`, `max` | `apply_patch`, `web_search` |
+| `AnthropicMessagesHTTPAgent` | `claude-haiku-5-5`       | image, text | text      | yes   | yes       | `none`, `low`, `medium`, `high`, `xhigh`, `max` | `web_search`                |
+| `OpenAIHTTPAgent`            | `text-embedding-3-small` | text        | embedding | no    | no        | n/a                                             | none                        |
+| `OpenAIHTTPAgent`            | `text-embedding-3-large` | text        | embedding | no    | no        | n/a                                             | none                        |
 
 The two `text-embedding-3-*` rows have `model_kind: "embedding"`. The
 `gpt-6-luna` rows are chat rows with a 1,050,000-token context window, 128,000
-max output tokens and a 2026-05-18 knowledge cutoff.
+max output tokens and a 2026-05-18 knowledge cutoff. The `claude-haiku-5-5` row
+is on the built-in Anthropic connection, with a 1,000,000-token context window
+and 128,000 max output tokens; a request asks for at most 64,000 output tokens,
+thinking included. It is visible in a fresh installation, but the application
+default chat model stays `gpt-6-luna`.
 
 The `Tools` column is a broad provider capability flag. Anima memory tools are
 app-layer tools executed by the direct chat runtime when the selected row
-supports tool calling. Responses-native tools are
+supports tool calling. Provider-native tools are
 advertised through `native_tool_support`. Hosted `web_search` is observed
 through model-client stream metadata; backend-owned memory `apply_patch` calls
 are validated and executed by Animama.
@@ -226,7 +273,9 @@ Every built-in chat row supports this kind through schema-backed `json_schema`.
 Owner chat rows take their transport from the template, the probe or the owner:
 `json_schema`, `json_object` (the probe's fallback when schema output fails),
 or none. A row without a transport has no structured kind; it still chats, with
-the reply requested by prompt alone.
+the reply requested by prompt alone. Anthropic rows send `json_schema` as
+strict structured output in `output_config.format`; they never use
+`json_object`, which owner Anthropic rows reject (`invalid_capabilities`).
 
 | Transport | Request | Prompt guidance |
 | --- | --- | --- |
@@ -253,16 +302,26 @@ returning empty capability lists.
 "xhigh", "max")`, so frontend controls receive a stable display order.
 Per-model values are listed in
 [Built-In Provider/Model Pairs](#built-in-providermodel-pairs).
+Anthropic rows may offer only `ANTHROPIC_REASONING_EFFORTS` (`none`, `low`,
+`medium`, `high`, `xhigh`, `max`); owner Anthropic rows that list `minimal`
+are rejected with `invalid_capabilities`.
 
-For both `gpt-6-luna` rows, `none` is first in the normalized list. The
-frontend therefore sends `reasoning.effort: "none"` by default when either row
-is selected, instead of inheriting OpenAI's omitted-field default of `medium`.
+The chat picker preselects a row's `default_reasoning_effort`, else its first
+listed effort, and sends that with each turn unless the owner picks another.
+`default_chat_reasoning_effort` (`app/model_catalog.py`) reports
+`DEFAULT_ANTHROPIC_CHAT_EFFORT` (`medium`) for every Anthropic row, built-in or
+owner, that offers it; the Anthropic adapter applies the same constant to chat
+requests that carry no effort. OpenAI rows report none, so for both
+`gpt-6-luna` rows, whose list starts with `none`, the picker sends `none`
+rather than OpenAI's omitted-field default of `medium`.
 
-`OpenAIHTTPAgent` and `OpenAIResponsesHTTPAgent` honor request-scoped
+All three provider types honor request-scoped
 `reasoning_effort` values when the selected effort is listed for the active
 provider/model pair. `OpenAIResponsesHTTPAgent` sends supported efforts through
-the Responses API `reasoning.effort` request field. `OpenAIHTTPAgent` follows
-the connection's `reasoning_mode`: `openai_effort` sends the effort literally,
+the Responses API `reasoning.effort` request field.
+`AnthropicMessagesHTTPAgent` turns `none` into disabled thinking and sends any
+other effort as `output_config.effort` with adaptive thinking.
+`OpenAIHTTPAgent` follows the connection's `reasoning_mode`: `openai_effort` sends the effort literally,
 `deepseek_thinking` (the DeepSeek preset) turns `none` into disabled thinking
 and sends `high` and `max` with thinking enabled, and `omit` never sends one.
 
@@ -278,10 +337,18 @@ direct-memory writes. Catalog serialization and direct-turn validation derive
 the requestable list from the same backend policy. `OpenAIHTTPAgent:gpt-6-luna`
 uses Chat Completions and advertises neither capability. Native tools are not
 owner-editable: an owner Responses row keeps those of the Responses template it was copied from, and
-Chat Completions rows never advertise them. A requested `web_search` on a row
-without hosted search uses the
+Chat Completions rows never advertise them. A requested `web_search` on an
+OpenAI row without hosted search uses the
 [application web search](runtime/model-client-providers.md#application-web-search)
 tool when the installation has a backend and the row calls tools.
+
+`AnthropicMessagesHTTPAgent:claude-haiku-5-5` advertises requestable
+`web_search`, which runtime turns into Anthropic's `web_search` server tool.
+Anthropic bills each search to the owner's Anthropic account, separately from
+tokens. Owner Anthropic rows take `web_search` from a copied Anthropic
+template or from the Models API probe. An Anthropic row without it runs a
+search-enabled turn without search; Anthropic rows never use the application
+tool.
 
 ## Production Selection
 
@@ -289,6 +356,14 @@ tool when the installation has a backend and the row calls tools.
 the built-in OpenAI connection.
 Use it when Responses behavior, typed SSE streaming, supported native tools,
 and `previous_response_id` continuation are the desired provider boundary.
+
+`AnthropicMessagesHTTPAgent` rows run Claude models natively on the built-in
+Anthropic connection, for chat, Utility and the Memory Manager (never
+Embeddings, because Anthropic offers no embedding model). Claude Haiku 5.5 is
+the built-in row; the owner adds other Claude model IDs on the same
+connection. Their chats use the `anthropic_messages` API standard, so the chat
+fence keeps them apart from OpenAI chats in both directions. Crisis moderation
+is unavailable on these rows.
 
 DeepSeek, Hugging Face router and OpenRouter models have no built-in rows. The
 owner adds a connection from the `deepseek`, `huggingface` or `openrouter`
@@ -313,7 +388,9 @@ advertised parameters and only prefill the form.
 Direct chat, chat-profile updates and model roles read the persisted row by ID.
 Missing, inactive, non-chat, or unsupported rows fail setup before a direct
 model-client call. Direct chat also requires an active connection, a context
-window on owner rows, and the built-in connection for Responses rows.
+window on owner rows, the built-in OpenAI connection for Responses rows, and
+the built-in Anthropic connection for Anthropic Messages rows (which is the
+only kind of row that connection serves).
 
 This resolution is used by:
 
@@ -328,8 +405,12 @@ falling through to provider construction.
 
 A newly released OpenAI model needs no code change: the owner adds it in App
 Settings → Models on the built-in OpenAI connection, copying the capabilities
-of a built-in template such as `gpt-6-luna`. Change `MODEL_CATALOG` only when
-a model should ship as a release-managed built-in row.
+of a built-in template such as `gpt-6-luna`. A Claude model is added the same
+way on the built-in Anthropic connection, from the Claude Haiku 5.5 template
+or from **Test model**, which reads the model's limits, efforts, structured
+output and web search from Anthropic's Models API. Such rows are unpriced, so
+they show no Compact early setting. Change `MODEL_CATALOG` only when a model
+should ship as a release-managed built-in row.
 
 Follow [Adding AI model support](runtime/adding-ai-models.md) when adding or
 changing a built-in model, connection preset, provider type, or public model
@@ -338,10 +419,11 @@ seed regeneration, adapter and API-standard decisions, pricing limitations,
 tests, and live verification.
 
 The generated seed `alembic/seeds/01-seed-model-providers.sql` upserts the
-built-in `openai` connection and the built-in rows. It updates only
-`source='builtin'` rows, never changes their `hidden` flag, and retires built-in
-rows that are no longer in `MODEL_CATALOG`. A newly inserted built-in Chat
-Completions chat row starts hidden (`builtin_hidden_by_default`), so a fresh
+built-in `openai` and `anthropic` connections and the built-in rows. It updates
+only `source='builtin'` rows, never changes their `hidden` or
+`early_compaction` values (a newly inserted row starts with Compact early on),
+and retires built-in rows that are no longer in `MODEL_CATALOG`. A newly
+inserted built-in Chat Completions chat row starts hidden (`builtin_hidden_by_default`), so a fresh
 installation lists the Responses row; embedding rows stay visible. Existing
 databases keep their flags until they are reset. Owner connections and rows are never
 touched, and retired rows keep their IDs, so history stays valid.

@@ -58,9 +58,11 @@ supports streaming, and supports the requested reasoning effort and any
 requested hosted native tool before the provider is invoked. Structured output
 is not required (rows without a schema or JSON-mode transport are asked for
 JSON by prompt), and `web_search` on a row without hosted search is the application
-tool, offered or left out at turn time. Owner-added rows also need a
-context window, and `OpenAIResponsesHTTPAgent` rows are valid only on the
-built-in OpenAI connection. When it is omitted, the route
+tool, offered or left out at turn time (Anthropic rows never get it). Owner-added
+rows also need a context window. `OpenAIResponsesHTTPAgent` rows are valid only
+on the built-in OpenAI connection, and `AnthropicMessagesHTTPAgent` rows only
+on the built-in Anthropic connection, which serves no other rows. When it is
+omitted, the route
 requires an explicit `anima_chat_profiles` row for the anima. Missing
 profiles fail setup before any upstream model call. Unsupported, inactive, or
 unregistered provider IDs are rejected before model invocation. Accepted turns
@@ -73,8 +75,9 @@ provider's `api_standard` on the chat row before memory context, history
 replay, Responses cursor use, or upstream model invocation.
 Subsequent requests may switch models only within the same `api_standard`, on
 any connection. Requests that would switch between OpenAI Chat Completions
-(`chat_completions`) and OpenAI Responses (`responses`) fail setup with
-`409` and detail code `chat_api_standard_mismatch`. Rows whose provider type
+(`chat_completions`), OpenAI Responses (`responses`) and Anthropic Messages
+(`anthropic_messages`) fail setup with `409` and detail code
+`chat_api_standard_mismatch`. Rows whose provider type
 has no direct-chat standard fail setup with `chat_api_standard_unsupported`.
 `dispatch_options` reuses `PyAnimaDispatchOptions`, so the direct path
 receives the same request-level controls used by chat settings: memory
@@ -94,8 +97,9 @@ Provider rows that expose `supports_developer_role: false`, such as rows on
 connections with the `fold_developer_role` option (the default for non-OpenAI
 presets), receive the same text in a `<turn_context>` block at the start of
 the user message instead, so the guardrail remains the final instruction text
-before the user's words. See the
-[turn layout](prompt-caching.md#turn-layout).
+before the user's words. Anthropic rows receive it as a mid-conversation
+`system` message after the user message, because Anthropic accepts one only
+after a user turn. See the [turn layout](prompt-caching.md#turn-layout).
 Memory tools also depend on the selected row. A row without tool calling runs
 the turn without memory tools or attached-file search instead of failing
 setup, and a row whose owner turned off memory writes (`allow_memory_writes`)
@@ -427,8 +431,10 @@ Settings assignment `models.utility_model_provider_id`, else
 hidden title prompt defaults to a low reasoning effort (sent only when the
 utility model supports it) and a 20 second timeout through
 `ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT` and
-`ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`. Incognito turns skip title
-generation.
+`ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`. On an Anthropic utility model,
+title and compaction prompts use effort `low` unless set and are never
+server-compacted ([prompt-only maintenance calls](model-client-providers.md#prompt-only-maintenance-calls)).
+Incognito turns skip title generation.
 
 After a successful non-incognito response and before the normal
 `run.completed` frame, the route runs a hidden compaction check. OpenAI

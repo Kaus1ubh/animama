@@ -21,6 +21,16 @@ const toolRow = {
 const noToolRow = {
   supports_tools: false,
 } as PyModelProviderCatalogItem;
+const anthropicHostedRow = {
+  model_provider: "AnthropicMessagesHTTPAgent",
+  requestable_native_tool_support: ["web_search"],
+  supports_tools: true,
+} as PyModelProviderCatalogItem;
+const anthropicToolRow = {
+  model_provider: "AnthropicMessagesHTTPAgent",
+  requestable_native_tool_support: [],
+  supports_tools: true,
+} as unknown as PyModelProviderCatalogItem;
 
 const configured = {
   configuration: true,
@@ -91,6 +101,17 @@ describe("web search availability", () => {
     ]);
     expect(withWebSearch(["web_search"], true)).toEqual(["web_search"]);
     expect(withWebSearch(undefined, false)).toEqual([]);
+  });
+
+  it("never offers the application tool on Anthropic rows", () => {
+    expect(webSearchAvailability(anthropicHostedRow, configured)).toEqual({
+      state: "hosted",
+    });
+    // Anthropic rows search only with Anthropic's own server tool, so a row
+    // without it shows no search control, whatever the app's backend.
+    for (const search of [configured, notConfigured, undefined])
+      expect(webSearchAvailability(anthropicToolRow, search)).toBeNull();
+    expect(selectableNativeTools(anthropicToolRow, configured)).toEqual([]);
   });
 
   it("does not add search twice to a hosted row", () => {

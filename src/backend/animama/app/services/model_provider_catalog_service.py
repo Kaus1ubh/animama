@@ -8,7 +8,7 @@ from animama.adapters.mappers.model_provider_map import (
     model_provider_domain_to_public_catalog_row,
     model_provider_registry_row_to_domain,
 )
-from animama.app.model_catalog import serialize_model_provider_catalog
+from animama.app.model_catalog import default_chat_reasoning_effort, serialize_model_provider_catalog
 from animama.app.model_provider_native_tools import requestable_native_tool_support
 from animama.domain import ModelProvider
 from animama.domain.model_connection import BUILTIN_CONNECTION_IDS, BUILTIN_OPENAI_CONNECTION_ID, MODEL_SOURCE_OWNER
@@ -84,6 +84,10 @@ class ModelProviderCatalogService:
         public_rows: list[dict[str, Any]] = []
         for model_provider in rows:
             row = model_provider_domain_to_public_catalog_row(model_provider)
+            row["default_reasoning_effort"] = default_chat_reasoning_effort(
+                model_provider.provider_type,
+                model_provider.capabilities.supported_reasoning_efforts,
+            )
             if model_provider.capabilities.native_tool_support is not None:
                 row["requestable_native_tool_support"] = requestable_native_tool_support(
                     model_provider.provider_type,

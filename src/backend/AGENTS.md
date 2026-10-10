@@ -213,7 +213,9 @@ When changing model-provider behavior or OpenAI platform integrations, consult
 current official OpenAI Developer Docs through an available documentation MCP
 server or the official website before changing request fields, model names,
 tool behavior, streaming semantics, or rate-limit/auth assumptions. No imported
-agent skill is required for this workflow.
+agent skill is required for this workflow. Apply the same rule to the Anthropic
+Messages adapter and Memory Manager runtime with Anthropic's current platform
+documentation and the installed `anthropic` SDK types.
 
 ## Commands
 

@@ -15,6 +15,7 @@ Notes
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date
 from decimal import Decimal
 from typing import Any
@@ -57,6 +58,13 @@ STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT = "json_object"
 REASONING_EFFORT_ORDER = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
 ANTHROPIC_REASONING_EFFORTS = frozenset({"none", "low", "medium", "high", "xhigh", "max"})
 """Efforts an Anthropic Messages row may offer; ``none`` sends disabled thinking (D6)."""
+DEFAULT_ANTHROPIC_CHAT_EFFORT = "medium"
+"""Anthropic chat effort when neither the owner nor the Anima chose one (D22).
+
+The Anthropic adapter applies it to chat requests that carry no effort, and the
+public catalog reports it as ``default_reasoning_effort`` so the chat picker
+preselects it (D26). At ``low``, Haiku 5.5 often skipped needed memory-tool
+calls in live tests."""
 PRICE_TIERS = ("standard", "batch", "flex", "priority")
 GPT_6_PRICING_SOURCE_CHECKED_AT = "2026-09-28"
 
@@ -345,6 +353,29 @@ def early_compaction_available(model_provider: ModelProvider) -> bool:
     )
 
 
+def offered_effort(effort: str, supported_efforts: Iterable[object] | None) -> str | None:
+    """Return ``effort`` when the row's supported efforts include it, else ``None``.
+
+    A role's default effort applies only to rows that offer it.
+    """
+
+    supported = {str(value).strip() for value in supported_efforts or ()}
+    return effort if effort in supported else None
+
+
+def default_chat_reasoning_effort(provider_type: str, supported_efforts: Iterable[object] | None) -> str | None:
+    """Return the effort a chat picker preselects for a catalog row, or ``None`` (D26).
+
+    Anthropic Messages rows report :data:`DEFAULT_ANTHROPIC_CHAT_EFFORT` when
+    they offer it, built-in and owner rows alike. Other rows report ``None``,
+    so clients fall back to the row's first supported effort.
+    """
+
+    if provider_type != ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+        return None
+    return offered_effort(DEFAULT_ANTHROPIC_CHAT_EFFORT, supported_efforts)
+
+
 def builtin_hidden_by_default(provider_type: str, model_kind: str) -> bool:
     """Return whether a built-in row starts hidden in a fresh installation.
 
@@ -527,6 +558,10 @@ def serialize_model_catalog() -> list[dict[str, Any]]:
                 row["supported_reasoning_efforts"] = _reasoning_efforts(
                     capabilities.get("supported_reasoning_efforts"),
                 )
+            row["default_reasoning_effort"] = default_chat_reasoning_effort(
+                provider_type,
+                row.get("supported_reasoning_efforts"),
+            )
             if "native_tool_support" in capabilities:
                 native_tools = _native_tool_support(capabilities.get("native_tool_support"))
                 row["native_tool_support"] = native_tools
@@ -630,6 +665,8 @@ def serialize_builtin_model_connections() -> list[dict[str, Any]]:
 
 
 __all__ = [
+    "ANTHROPIC_REASONING_EFFORTS",
+    "DEFAULT_ANTHROPIC_CHAT_EFFORT",
     "MAIN_STRUCTURED_RESPONSE_KIND",
     "MAIN_STRUCTURED_RESPONSE_KINDS",
     "REASONING_EFFORT_ORDER",
@@ -637,7 +674,9 @@ __all__ = [
     "STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT",
     "STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA",
     "builtin_hidden_by_default",
+    "default_chat_reasoning_effort",
     "early_compaction_available",
+    "offered_effort",
     "serialize_builtin_model_connections",
     "serialize_model_catalog",
     "serialize_model_provider_catalog",

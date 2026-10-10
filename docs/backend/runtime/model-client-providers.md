@@ -43,11 +43,13 @@ rows directly.
 
 The provider-neutral contracts live in `src/backend/animama/app/model_clients/types.py`.
 The implementations live under `src/backend/animama/adapters/model_clients/`.
-OpenAI provider SDK types stay inside those adapter modules. Chat Completions
-is organized under `openai_chat_completions/` with separate modules for the SDK
-client lifecycle, request kwargs, typed chunk events, streamed tool-call
-aggregation, and usage conversion. Responses follows the same package pattern
-under `openai_responses/`.
+Provider SDK types (OpenAI and Anthropic) stay inside those adapter modules.
+Chat Completions is organized under `openai_chat_completions/` with separate
+modules for the SDK client lifecycle, request kwargs, typed chunk events,
+streamed tool-call aggregation, and usage conversion. Responses follows the
+same package pattern under `openai_responses/`, and Anthropic Messages under
+`anthropic_messages/` (client, request, stream events, final, errors, the
+Models API probe and strict-schema conversion).
 
 Registered provider families are:
 
@@ -98,6 +100,9 @@ boundary. The supported delta kinds are:
   structured response
 - `event`: internal provider observations represented by typed `MC*` event
   dataclasses from `app/model_clients/event_types.py`
+- `run_status`: provider-side work to show while the reply is pending (an
+  Anthropic-hosted web search or server compaction); the executor forwards it
+  as a `run.status` frame, and every `started` is followed by `finished`
 - `final`: the authoritative `ModelClientFinal` for one provider call
 - `error`: stream-level provider failure
 - `done`: successful adapter completion after the final value
@@ -155,10 +160,10 @@ from its environment, and Electron main replaces the store while it runs.
   adapter refuses one with `responses_connection_unsupported`.
 - **Owner connections.** `StoreModelCredentialResolver` reads only the
   key variable the connection names in `credential_env`. The name must
-  be `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` or
-  match `ANIMAMA_CONNECTION_<NAME>_API_KEY`; desktop-managed keys use
-  `ANIMAMA_CONNECTION_<ID>_API_KEY`. An owner connection never falls back to
-  the OpenAI key.
+  be `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN`,
+  `OPENROUTER_API_KEY` or match `ANIMAMA_CONNECTION_<NAME>_API_KEY`;
+  desktop-managed keys use `ANIMAMA_CONNECTION_<ID>_API_KEY`. An owner
+  connection never falls back to a built-in connection's key.
 - **Isolation.** Owner-connection SDK clients omit the process
   `OpenAI-Organization` and `OpenAI-Project` headers and every header listed in
   `OPENAI_CUSTOM_HEADERS`, and set `Authorization` from the connection's own
@@ -171,14 +176,18 @@ from its environment, and Electron main replaces the store while it runs.
   the environment only at startup, so restart them after changing a variable.
 - **Timeouts.** Owner connections store their own timeout: 60 s by default for
   cloud presets and 300 s for local presets, because a first request may load a
-  model. The built-in connection and `OpenAIResponsesHTTPAgent` use
-  `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS` (default 60). Chat Completions requests
-  also cap connecting at 10 s (`connection_timeout`), so a stopped server fails
-  quickly.
+  model. The built-in connections use `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS`
+  (default 60). Chat Completions requests also cap connecting at 10 s
+  (`connection_timeout`), so a stopped server fails quickly.
 - **Built-in `anthropic` connection.** Uses only `ANTHROPIC_API_KEY`, always
-  against `https://api.anthropic.com`. Without it a turn fails with
-  `missing_api_key` ("No key is configured for Anthropic", category
-  `credential_missing`) before any request.
+  against `https://api.anthropic.com`; it serves only
+  `AnthropicMessagesHTTPAgent` rows, and those rows live only there. Without
+  the key a turn fails with `missing_api_key` ("No key is configured for
+  Anthropic", category `credential_missing`) before any request. SDK clients
+  are built with an explicit key and base URL and no SDK retries, so
+  `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` and other SDK credential
+  sources are never used; the SDK still adds `ANTHROPIC_CUSTOM_HEADERS` from
+  the process environment, which Animama never sets.
 - **Clients.** `OpenAIHTTPAgent` caches one SDK client per connection.
   `OpenAIResponsesHTTPAgent` owns one OpenAI-only SDK client.
   `AnthropicMessagesHTTPAgent` keeps one SDK client per credential, keyed by a
@@ -286,19 +295,25 @@ observations rather than app-executed calls.
 
 ## Anthropic Messages
 
-`AnthropicMessagesModelClient` streams with the beta
-`client.beta.messages.stream` (beta `compact-2026-01-12`) and JSON-shaped
-parameters built in `anthropic_messages/request.py`:
+Rows on the Anthropic connection share the `anthropic_messages` API standard,
+so the [chat fence](#shared-model-clients) keeps their chats apart from OpenAI
+chats both ways. `AnthropicMessagesModelClient` streams with the beta
+`client.beta.messages.stream` (beta `compact-2026-01-12` on chat requests) and
+JSON-shaped parameters built in `anthropic_messages/request.py`:
 
 - **Positions.** The stable instructions are one `system` block; history and
   the user's new message follow; the turn context is a mid-conversation
   `system` message after the user turn. `cache_control` marks the system block,
   a replayed compaction block and the last history block. See
   [turn layout](prompt-caching.md#turn-layout).
-- **Tools and output.** Memory tools become strict tools
-  (`input_schema` converted by `anthropic_strict_schema`) with
-  `tool_choice: {type: auto, disable_parallel_tool_use: true}`; the reply
-  schema goes in `output_config.format`.
+- **Tools and output.** Memory tools become strict tools (`strict: true`)
+  with `tool_choice: {type: auto, disable_parallel_tool_use: true}`, and the
+  reply schema goes in `output_config.format` as strict structured output.
+  `anthropic_strict_schema` (`anthropic_messages/schema.py`) rewrites JSON
+  type lists such as `["string", "null"]` as `anyOf`, then the SDK's
+  `transform_schema` moves constraints Anthropic's strict mode rejects
+  (integer bounds, `maxItems`) into descriptions. Local validation still
+  enforces the original schema on the reply and tool arguments.
 - **Web search.** When the turn asks for web search and the row lists
   `web_search` in its native tools, the request adds Anthropic's server tool
   `{type: web_search_20250305, name: web_search, max_uses: 5,
@@ -325,13 +340,20 @@ parameters built in `anthropic_messages/request.py`:
   `context_tokens` is the last iteration's footprint, which becomes
   `chats.active_context_tokens`. Application pre-send fitting and
   post-response compaction never run for Anthropic chats. Utility prompts
-  (`provider_options.utility_task`) send no `context_management`: a title or
-  summary prompt is read whole, never server-compacted first.
+  (`provider_options.utility_task`) send no `context_management` and no
+  compaction beta: a title or summary prompt is read whole, because its input
+  is already bounded by the source chat's own trigger and compacting it would
+  bill an extra step to summarize a summary.
 - **Effort.** `none` sends `thinking: {type: disabled}` and no effort. Any
-  other effort leaves adaptive thinking on and sets `output_config.effort`.
-  Without a choice, chat requests use `medium` when the row offers it
-  (`low` skipped needed memory-tool calls in live tests) and Utility prompts
-  use `low`.
+  other effort leaves adaptive thinking on and sets `output_config.effort`;
+  requests never send a thinking budget. A request without an effort uses the
+  role's default when the row offers it: `medium` for chat turns (at `low`,
+  Claude Haiku 5.5 skipped needed memory-tool calls in live tests), `low` for
+  Utility prompts and `medium` for
+  [Memory Manager](../features/memory-manager-and-episodic-memory.md#live-anthropic-runtime)
+  runs. The chat picker preselects the chat default from the catalog's
+  `default_reasoning_effort` and sends it unless the owner picks another; see
+  [reasoning capabilities](../model-catalog.md#reasoning-and-native-tool-capabilities).
 - **Limits.** `max_tokens` is the row's output limit, capped at 64,000 per
   request (thinking included). Requests never carry sampling parameters or an
   assistant prefill.
@@ -384,7 +406,11 @@ One request-local `developer` message always sits immediately before the latest
 user message: the user-scope memory file map (when memory influence is
 enabled), the attached-file list and finally the guardrails again, so they are
 the last instruction text before the user's words. An app compaction summary is
-a `developer` message directly after the system message. The
+a `developer` message directly after the system message. The Anthropic adapter
+sends that turn-context message as a mid-conversation `system` message after
+the user's message instead, and Anthropic rows receive Anthropic-phrased
+variants of the non-guardrail sections with the same directives
+(`app/chat/anthropic_instructions.py`). The
 [turn layout](prompt-caching.md#turn-layout) describes each provider path and
 its cache breakpoints.
 
@@ -542,8 +568,11 @@ moderated. The adapter parses the completed response's input moderation into a
 content-free `ModelClientFinal.input_moderation` (`status` `result` or `error`,
 flagged categories and scores). Moderation is report-only: it never blocks or
 alters the reply, and the executor only uses a self-harm signal to add a
-[crisis card](chat.md#sse-events). Chat Completions rows do not support
-moderation and never receive the option.
+[crisis card](chat.md#sse-events). Chat Completions and Anthropic Messages
+rows do not support moderation and never receive the option. Anthropic offers
+no moderation endpoint, so Anthropic turns rely on the Companion Guardrails
+alone and never show a crisis card; that gap is accepted
+([ADR 0016](../../adr/0016-native-anthropic-messages-provider.md)).
 
 The Anthropic adapter classifies SDK errors and stream `error` events by
 Anthropic's `error.type`, then the HTTP status, into `anthropic_authentication_error`,
@@ -776,7 +805,7 @@ the local Responses cursor.
 The same successful non-incognito chat-row update stores the last durable model
 snapshot for frontend restore: `chats.last_model_provider_id` is the exact
 catalog row ID, `chats.last_model_client` is the row's model-client profile
-such as `openai_chat_completions` or `openai_responses`, and
+(`openai_chat_completions`, `openai_responses` or `anthropic_messages`), and
 `chats.last_model_id` is the model slug such as `gpt-6-luna`. The frontend
 restores by row ID, since several connections can serve the same model slug,
 and falls back to the client and slug only for chats without a row ID.

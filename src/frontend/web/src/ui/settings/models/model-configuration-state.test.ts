@@ -690,6 +690,36 @@ describe("model row chips", () => {
       "Vision",
     ]);
   });
+
+  it("says Anthropic bills each built-in search to the owner's account", () => {
+    const searchChip = (item: PyConfiguredModel) =>
+      modelCapabilityChips(item, search).find(
+        (chip) => chip.id === "web-search",
+      );
+    const haiku = model(
+      { provider_type: "AnthropicMessagesHTTPAgent" },
+      { native_tool_support: ["web_search"] },
+    );
+    expect(searchChip(haiku)?.description).toMatch(
+      /Anthropic bills each search to your Anthropic account/u,
+    );
+    const responses = model(
+      { provider_type: "OpenAIResponsesHTTPAgent" },
+      { native_tool_support: ["web_search"] },
+    );
+    expect(searchChip(responses)?.label).toBe("Built-in search");
+    expect(searchChip(responses)?.description).not.toMatch(/bills/u);
+    expect(searchChip(model())?.description).not.toMatch(/bills/u);
+  });
+
+  it("shows no search on Anthropic models without their own search", () => {
+    const owner = model(
+      { provider_type: "AnthropicMessagesHTTPAgent" },
+      { native_tool_support: [] },
+    );
+    // Anthropic models never use the app's search service.
+    expect(labels(owner, search)).toEqual(["Tools", "128K"]);
+  });
 });
 
 describe("built-in connections and the add-model dialog", () => {

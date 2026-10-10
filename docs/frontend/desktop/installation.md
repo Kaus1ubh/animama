@@ -42,8 +42,8 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
 4. Setup has three steps. **Welcome** asks what Animama should call you and
    for the 18+ confirmation; a nonblank name is private personalization, not a
    username or credential.
-5. **AI** chooses the model your Animas chat with: **Cloud** (OpenAI with your
-   key, or another provider) or **Local** (a running Ollama, LM Studio,
+5. **AI** chooses the model your Animas chat with: **Cloud** (OpenAI or
+   Anthropic with your key, or another provider) or **Local** (a running Ollama, LM Studio,
    llama.cpp or vLLM server, or a custom one), each with a tab per provider.
    A local server's tab looks for it when opened. The model you pick becomes the default Chat model, and
    the starter Animas switch to it. **Skip for now** keeps the default.

@@ -4192,6 +4192,10 @@ export const zPyModelProviderCatalogItem = z.object({
         z.int(),
         z.null()
     ])),
+    default_reasoning_effort: z.optional(z.union([
+        z.string(),
+        z.null()
+    ])),
     hidden: z.optional(z.boolean()).default(false),
     id: z.string(),
     logo_provider: z.optional(z.union([

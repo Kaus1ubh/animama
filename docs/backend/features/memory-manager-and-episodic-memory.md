@@ -521,6 +521,9 @@ The agent instructions enforce these policies:
 - treat file descriptions as the birds-eye index, preserving an accurate
   description verbatim and updating it when a content change materially
   changes the file's scope or durable contents;
+- when a new fact replaces an older one, also correct or remove the outdated
+  statement wherever it appears (search finds it), so memory files never
+  contradict each other;
 - calculate Apply Patch diffs against the complete synthetic `content` document
   and keep its reserved three-line header canonical;
 - propose exactly one create or update operation per approval;
@@ -562,7 +565,9 @@ and put `cache_control` on the system prompt plus top-level automatic caching
 of the conversation. The general instructions describe the memory tool, the
 file format and the approval flow, and counter the memory tool's built-in
 prompt, which asks the model to record its progress in the memory directory:
-the files hold only curated facts, never progress, status or scratch notes.
+the files hold only curated facts, never progress, status or scratch notes. As
+on the OpenAI Agents runtime, a new fact that replaces an older one also
+corrects or removes the outdated statement wherever it appears.
 The memory map and search results use `/memories/...` paths; the Reflection
 and episode-processing mandates are worded for the memory tool.
 
@@ -971,7 +976,7 @@ Environment and settings:
   the built-in OpenAI connection.
 - `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS`: request timeout, default `60.0`, for
   connections without their own; a connection's `timeout_seconds` applies when
-  set. Connecting is capped at 10 seconds either way.
+  set. On the OpenAI Agents runtime connecting is also capped at 10 seconds.
 - `ANIMAMA_MEMORY_FILE_MAX_BYTES`: inherited memory file size guard used by
   `MemoryEntryService`.
 
@@ -1208,7 +1213,8 @@ Tests:
 - `tests/test_memory_manager_reflection.py`
 - `tests/test_anthropic_memory_manager.py` and `tests/test_anthropic_memory_tool.py`
 - `tests/live/test_anthropic_memory_manager.py` (opt-in, paid): a preference
-  recorded, approved after a fresh service build and resumed on Claude Haiku 5.5
+  recorded, its outdated predecessor corrected, approved after a fresh service
+  build and resumed on Claude Haiku 5.5
 - `tests/test_memory_files.py`
 
 ## Version History

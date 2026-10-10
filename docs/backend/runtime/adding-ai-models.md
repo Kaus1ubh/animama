@@ -7,7 +7,8 @@ a provider family.
 
 Most new models need no code: the installation owner adds them under a model
 connection in App Settings → Models, including a new OpenAI model on the
-built-in OpenAI connection ([model settings](../../frontend/features/model-settings.md)).
+built-in OpenAI connection or a Claude model on the built-in Anthropic
+connection ([model settings](../../frontend/features/model-settings.md)).
 Use this guide for release-managed catalog and adapter changes.
 
 Use this page together with:
@@ -18,14 +19,18 @@ Use this page together with:
   behavior.
 - [Direct chat SSE runtime](chat.md) for the public chat lifecycle.
 - [ADR 0011](../../adr/0011-application-owned-companion-features-and-composition-catalog-policy.md)
-  for why companion features must work on any Chat Completions model.
+  for why companion features must work on any Chat Completions model, and
+  [ADR 0016](../../adr/0016-native-anthropic-messages-provider.md) for when a
+  vendor gets its own native provider type.
 
 When a change depends on current vendor behavior, verify the model ID, endpoint,
 request fields, reasoning values, tools, context limits, and pricing against the
 provider's authoritative documentation before editing the catalog or adapter.
 For OpenAI changes, use current official OpenAI Developer Docs through an
 available documentation MCP server or the official website; no imported agent
-skill is required.
+skill is required. For Anthropic changes, use Anthropic's current platform
+documentation, and check a model's limits and capabilities with its Models API
+(`models.retrieve`).
 
 ## Mental Model
 
@@ -33,9 +38,9 @@ Animama separates a selectable model row from the code that calls its provider:
 
 - A **model** is a provider-specific model ID such as `gpt-6-luna`.
 - A **model connection** (`model_connections`) is the endpoint and credential
-  boundary a row belongs to: the built-in `openai` connection or an owner
-  connection with its own base URL, key variable, timeout and compatibility
-  options.
+  boundary a row belongs to: the built-in `openai` or `anthropic` connection,
+  or an owner connection with its own base URL, key variable, timeout and
+  compatibility options.
 - A **provider type** is a durable adapter-family identifier such as
   `OpenAIResponsesHTTPAgent`.
 - A **model-provider row** is one supported provider/model pair on one
@@ -45,7 +50,7 @@ Animama separates a selectable model row from the code that calls its provider:
 - A **model client** is the app-scoped adapter implementation registered for a
   provider type.
 - An **API standard** is the persisted chat-transcript compatibility boundary,
-  currently `chat_completions` or `responses` for direct OpenAI-compatible chat.
+  currently `chat_completions`, `responses` or `anthropic_messages`.
 
 Adding a model to an existing provider type normally adds data, not a new
 FastAPI endpoint or a new app-scoped client. For example,
@@ -78,18 +83,20 @@ app/model_catalog.py (built-in rows)  |  App Settings → Models (owner rows)
 ### Catalog And Database
 
 `src/backend/animama/app/model_catalog.py` is the source of built-in model and
-provider metadata for the built-in OpenAI connection.
+provider metadata for the built-in connections; each provider entry belongs to
+the OpenAI connection unless it names another built-in connection.
 `serialize_model_provider_catalog()` expands it into durable rows for
 `model_providers`, and `serialize_builtin_model_connections()` produces the
-built-in `openai` connection row. `serialize_model_catalog()` is the public
-projection of those rows; only tests use it, and the API never falls back to it.
+built-in `openai` and `anthropic` connection rows. `serialize_model_catalog()`
+is the public projection of those rows; only tests use it, and the API never
+falls back to it.
 
 The generated post-schema seed
-`alembic/seeds/01-seed-model-providers.sql` upserts the built-in connection and
-then the built-in rows after Alembic creates the tables. It updates only
-`source='builtin'` rows, never changes `hidden`, `source` or `connection_id`,
-and retires built-in rows missing from the catalog. Owner connections and rows
-are never touched. `animama.server.db_bootstrap` executes it for both
+`alembic/seeds/01-seed-model-providers.sql` upserts the built-in connections
+and then the built-in rows after Alembic creates the tables. It updates only
+`source='builtin'` rows, never changes `hidden`, `early_compaction`, `source`
+or `connection_id`, and retires built-in rows missing from the catalog. Owner
+connections and rows are never touched. `animama.server.db_bootstrap` executes it for both
 `reset.sh` and native/packaged bootstrap. Restarting FastAPI alone does not
 synchronize a changed Python catalog into an existing database.
 
@@ -104,8 +111,9 @@ the local-only `/v1/model-connections` routes. They are never seeded.
 ### Public Catalog And Frontend Discovery
 
 `GET /v1/model-providers` reads active rows on active connections that the
-composition's `ModelCatalogPolicy` allows (built-in rows only by default; the
-local composition adds owner rows) and exposes the public
+composition's `ModelCatalogPolicy` allows (built-in rows of the OpenAI
+connection by default; the local composition adds owner rows and the
+Anthropic built-ins) and exposes the public
 `PyModelProviderCatalogItem` projection. It omits provider credentials, base
 URLs, internal structured-output transport, and pricing. A database failure
 returns `503 model_catalog_unavailable` instead of a static fallback.
@@ -135,16 +143,19 @@ Before opening the SSE stream, setup verifies ownership and validates that the
 persisted row is an active chat row on an active connection and supports
 streaming, the requested reasoning effort, and requested native tools other
 than `web_search` (which falls back to the application tool, or to no search,
-at turn time). Structured output is not required: a row without a schema or
-JSON-mode transport is asked for JSON by prompt and validated locally. Owner rows also need a context
-window, and Responses rows are valid only on the built-in OpenAI connection.
+at turn time; Anthropic rows never get the application tool). Structured
+output is not required: a row without a schema or JSON-mode transport is asked
+for JSON by prompt and validated locally. Owner rows also need a context
+window. Responses rows are valid only on the built-in OpenAI connection, and
+Anthropic Messages rows only on the built-in Anthropic connection, which
+serves nothing else.
 Memory tools are narrowed to the row instead of failing setup: a row without
 tool calling chats without memory tools, and a row with
 `allow_memory_writes=false` gets read tools only.
 
 The provider type also supplies `model_client` and `api_standard`. A chat may
-switch between rows with the same API standard, but switching between
-`chat_completions` and `responses` requires a new chat. The frontend gates this
+switch between rows with the same API standard, but switching to another
+standard requires a new chat. The frontend gates this
 selection for usability; the backend remains authoritative and returns
 `409 chat_api_standard_mismatch` for incompatible turns.
 
@@ -187,7 +198,7 @@ using the client/model pair only for chats without a recorded row ID.
 
 An owner can add any model to an existing connection without a release. Use
 this path only when a model should ship as a release-managed built-in row on
-the built-in OpenAI connection, and the existing adapter already supports the
+a built-in connection, and the existing adapter already supports the
 required endpoint, request shape, stream semantics, structured output, and
 tools. Typical work is:
 
@@ -236,12 +247,18 @@ the provider's lifecycle. This is a larger change:
    `ModelCredentialResolver`, and honor its timeout, without placing secrets in
    the catalog or reading process keys for owner connections;
 5. decide whether the provider shares an existing transcript standard or needs
-   a new `api_standard` mapping;
+   a new `api_standard` mapping in `app/chat/api_standard.py`; a new standard
+   or model-client profile also extends the `chats` `api_standard` and
+   `last_model_client` CHECK constraints in the ORM and
+   `alembic/versions/0001_baseline.sql`;
 6. translate structured output, reasoning, tools, usage, errors, retries, and
    terminal stream events explicitly, mapping failures to the neutral
    categories in `app/model_clients/error_categories.py`;
-7. decide whether owner rows may use it (`ModelConfigurationService` accepts
-   only the two OpenAI provider types);
+7. decide whether owner rows may use it (`OWNER_MODEL_PROVIDER_TYPES` in
+   `ModelConfigurationService`, with the connection each type needs), whether
+   the Memory Manager can run on it (`MemoryManagerRuntimeSelector` picks a
+   runtime by provider type), and, for a new built-in connection, its key
+   variable in the credential store, Compose and the desktop vault;
 8. add focused adapter, registry, direct-turn, route, persistence, and public
    catalog tests;
 9. regenerate the frontend client if public schemas change.
@@ -272,8 +289,9 @@ following the alias is intentional product behavior.
 ### 2. Add The Catalog Entry
 
 Add the model to `MODEL_CATALOG` with only verified, Animama-supported
-capabilities. Every entry becomes a row on the built-in OpenAI connection. A
-schema-backed reasoning model generally resembles:
+capabilities. Each provider entry becomes a row on the built-in OpenAI
+connection unless it sets `connection_id` to another built-in connection, as
+the Anthropic entry does. A schema-backed reasoning model generally resembles:
 
 ```python
 "openai-model-id": {
@@ -326,13 +344,13 @@ creates executable behavior rather than harmless descriptive metadata.
   should not become generic request options.
 - List only reasoning efforts accepted by the concrete provider/model pair.
 
-The frontend currently treats the first ordered supported reasoning effort as
-the model's request default. Ordering is normalized by
-`REASONING_EFFORT_ORDER`, so adding `none` causes the UI to explicitly send
-`none` even when the provider's omitted-field default is `medium`. If product
-defaults must differ from the first supported value, introduce an explicit
-`default_reasoning_effort` catalog field across the domain, ORM, public schema,
-generated client, and selector instead of relying on set order.
+The chat picker preselects the public catalog's `default_reasoning_effort`
+when the row offers it, else the first supported effort in
+`REASONING_EFFORT_ORDER`. Only Anthropic rows report a default (`medium`), so
+adding `none` to another row makes the UI send `none` even when the provider's
+omitted-field default is `medium`. To give another provider a different picker
+default, extend `default_chat_reasoning_effort` in `app/model_catalog.py`
+rather than relying on effort order.
 
 ### 4. Add Pricing Without Inventing Precision
 
@@ -411,6 +429,34 @@ Use [the model catalog](../model-catalog.md) for supported capabilities and
 `MODEL_CATALOG` for source-attributed pricing. Verify current vendor terms
 before adding a row; dated rate-card examples are not integration requirements.
 
+## Anthropic Example: Claude Haiku 5.5
+
+The `claude-haiku-5-5` entry names the built-in Anthropic connection:
+
+```python
+"providers": {
+    "AnthropicMessagesHTTPAgent": {"connection_id": BUILTIN_ANTHROPIC_CONNECTION_ID},
+},
+```
+
+It declares `json_schema` structured output, tools, streaming, `web_search` as
+a native tool and efforts from `ANTHROPIC_REASONING_EFFORTS`; `none` means
+thinking disabled. Its pricing fills the long-context threshold and rates,
+which is what makes the row offer [Compact early](../model-catalog.md#compact-early).
+A new built-in Claude row follows the same shape, with values checked against
+Anthropic's Models API and pricing page; leave the long-context fields empty
+when the model has no price step.
+
+Other Claude models need no catalog row. The owner adds them on the built-in
+Anthropic connection: the dialog offers only Anthropic templates, and **Test
+model** calls `POST /v1/model-connections/anthropic/probe`, which reads
+`models.retrieve` (no tokens spent) and suggests the context window, output
+limit, efforts (`none` first when the model accepts disabled thinking),
+structured output and web search. A row saved from the probe rather than a
+template keeps the probe's `web_search` and output limit. Owner Anthropic rows
+are chat rows only, cannot use JSON mode or the `minimal` effort, and are
+unpriced.
+
 ## Tests And Verification
 
 ### Catalog And Runtime Tests
@@ -425,8 +471,8 @@ At minimum, cover:
 - complete versus requestable native tools;
 - short/long-context pricing and explicitly missing rates;
 - SQL seed parity with the Python serializer;
-- seed reruns that keep owner rows and `hidden` flags and retire removed
-  built-ins;
+- seed reruns that keep owner rows, `hidden` flags and `early_compaction`
+  values and retire removed built-ins;
 - adapter request shape per compatibility option and terminal stream behavior;
 - direct-turn selection, capability rejection, persistence, and API-standard
   fencing;
@@ -445,7 +491,10 @@ uv run pytest -q \
   tests/test_model_configuration_api.py \
   tests/test_model_connection_credentials.py \
   tests/test_model_connection_probe.py \
-  tests/test_model_error_categories.py
+  tests/test_model_error_categories.py \
+  tests/test_anthropic_model_provider.py \
+  tests/test_anthropic_model_probe.py \
+  tests/test_anthropic_messages_client.py
 
 uv run ruff check
 ```
@@ -481,6 +530,8 @@ After applying the seed:
    rate-limit/error classification, and terminal stream handling.
 
 Use `ANIMAMA_LLM_SKIP=1` for local flow checks that must not call providers.
+Opt-in paid provider smokes live in `tests/live/`; their
+[README](../../../tests/live/README.md) lists the keys, cost and commands.
 Never use production credentials in tests or commit provider secrets, raw
 responses, user content, tool arguments, or sensitive stream previews.
 
@@ -489,8 +540,9 @@ responses, user content, tool arguments, or sensitive stream previews.
 - **The model is in Python but absent from the UI:** the database seed was not
   regenerated or applied, or the row is inactive.
 - **A row is in the database but not in a chat picker:** it is hidden, an
-  embedding row, on a removed connection, or an owner row outside a composition
-  whose `ModelCatalogPolicy` enables owner models.
+  embedding row, on a removed connection, an owner row outside a composition
+  whose `ModelCatalogPolicy` enables owner models, or an Anthropic built-in in
+  a composition whose policy exposes only the OpenAI connection.
 - **`GET /v1/model-providers` returns `503 model_catalog_unavailable`:** the
   catalog query failed; check the database and backend logs.
 - **The selector shows the row but send is blocked:** the provider type has no
@@ -498,8 +550,9 @@ responses, user content, tool arguments, or sensitive stream previews.
   owner row has no context window.
 - **Setup returns 400 before SSE opens:** the row is not an active chat row, its
   connection is inactive, an owner row lacks a context window, a Responses row
-  is on an owner connection, or a persisted capability does not cover
-  streaming, structured output, reasoning, or native tools.
+  is on an owner connection, an Anthropic Messages row is off the Anthropic
+  connection, or a persisted capability does not cover streaming, structured
+  output, reasoning, or native tools.
 - **The provider rejects the request:** capability metadata is broader than the
   model actually supports, the connection's compatibility options send a field
   the server rejects, or the SDK/request translation needs updating.
