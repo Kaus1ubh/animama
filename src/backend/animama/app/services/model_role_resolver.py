@@ -170,10 +170,27 @@ def role_preference(preferences: dict[str, Any], section: str, key: str) -> str 
     return value.strip() if isinstance(value, str) and value.strip() else None
 
 
+async def unusable_role_preferences(
+    model_providers: ModelProviderRepository, preferences: dict[str, Any]
+) -> tuple[str, ...]:
+    """The roles whose preference in ``preferences`` names a row that cannot do the role's job."""
+
+    unusable = []
+    for role, path in ROLE_PREFERENCE_PATHS.items():
+        selected = role_preference(preferences, *path)
+        if selected is None:
+            continue
+        row = await model_providers.get(selected)
+        if row is None or not usable_for_role(role, row):
+            unusable.append(role)
+    return tuple(unusable)
+
+
 __all__ = [
     "MODEL_ROLES",
     "role_preference",
     "suits_role",
+    "unusable_role_preferences",
     "usable_for_role",
     "ROLE_CHAT",
     "ROLE_EMBEDDINGS",

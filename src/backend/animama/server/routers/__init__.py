@@ -8,6 +8,7 @@ from animama.product_http.routes import (
     content as shared_content,
     loadouts,
     memory,
+    model_catalog,
     packages,
     profile,
     runtime_capabilities,
@@ -26,7 +27,6 @@ from . import (
     logs,
     memory_manager,
     model_assets,
-    model_provider,
     runtime_context,
     user_files,
 )
@@ -39,7 +39,7 @@ router.include_router(animas.router)
 router.include_router(anima.router)
 router.include_router(loadouts.router)
 router.include_router(anima_runtime.router)
-router.include_router(model_provider.router)
+router.include_router(model_catalog.router)
 router.include_router(model_assets.router)
 router.include_router(runtime_context.router)
 router.include_router(runtime_capabilities.router)

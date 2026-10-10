@@ -129,8 +129,9 @@ ROUTES: tuple[RouteSpec, ...] = (
         "stream_anima_runtime_file",
         "bytes",
     ),
-    # Model catalog
+    # Model catalog and model roles (adding models is host administration)
     _shared(4, "GET", "/v1/model-providers", "list_model_providers", "read"),
+    _shared(4, "GET", "/v1/model-roles", "get_model_roles", "read"),
     # Model custody (installation is host administration)
     _local("GET", "/v1/model-assets", "list_model_assets", "read"),
     _local("GET", "/v1/model-assets/{asset_id}", "get_model_asset", "read"),
@@ -308,7 +309,7 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(4, "POST", "/v1/memory/manager/runs/{run_id}/messages", "append_memory_manager_message", "write"),
     _shared(4, "POST", "/v1/memory/manager/approvals/{approval_id}:decide", "decide_memory_manager_approval", "write"),
     _shared(4, "POST", "/v1/memory/manager/approvals/{approval_id}:undo", "undo_memory_manager_approval", "write"),
-    # Model connections and models (model roles are a catalog read)
+    # Model connections and models
     _excluded("model_configuration", "GET", "/v1/model-connection-presets", "list_model_connection_presets", "read"),
     _excluded(
         "model_configuration",
@@ -341,7 +342,6 @@ ROUTES: tuple[RouteSpec, ...] = (
     ),
     _excluded("model_configuration", "PATCH", "/v1/model-providers/{model_provider_id}", "update_model", "write"),
     _excluded("model_configuration", "DELETE", "/v1/model-providers/{model_provider_id}", "remove_model", "write"),
-    _shared(4, "GET", "/v1/model-roles", "get_model_roles", "read"),
     # Web search settings
     _excluded("web_search.configuration", "GET", "/v1/web-search/settings", "get_web_search_settings", "read"),
     _excluded("web_search.configuration", "PUT", "/v1/web-search/settings", "update_web_search_settings", "write"),

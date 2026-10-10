@@ -20,6 +20,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
+from animama.app.services.embedding_refresh_service import EmbeddingRefreshStatus
+from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
+from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.delivery import PackageDownloadResponse
@@ -70,6 +73,8 @@ class RecordingPorts:
     """Opens placeholder sessions and records whose they are; can fail the deferred commit."""
 
     policy = ProductPolicy(memory_file_max_bytes=1)
+    model_catalog_policy = ModelCatalogPolicy()
+    model_role_defaults = ModelRoleDefaults(chat="chat-model")
 
     def __init__(self, *, fail_commit: bool = False) -> None:
         self.opened: list[tuple[str, str]] = []
@@ -124,6 +129,11 @@ class RecordingPorts:
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         pass
+
+    async def embedding_refresh_status(
+        self, session: AsyncSession, principal: RequestPrincipal, embedding_model_id: str | None
+    ) -> EmbeddingRefreshStatus:
+        raise NotImplementedError
 
 
 def test_shared_routes_fail_closed_without_installed_ports() -> None:

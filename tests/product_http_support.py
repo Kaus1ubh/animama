@@ -26,6 +26,13 @@ from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
 from animama.app.services.content_package_export import DownloadLease
 from animama.app.services.content_package_staging import PackageStageService
+from animama.app.services.embedding_refresh_service import (
+    EMBEDDINGS_STATE_CURRENT,
+    EMBEDDINGS_STATE_OFF,
+    EmbeddingRefreshStatus,
+)
+from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
+from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.app.services.user_profile_service import UserProfileService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
@@ -37,8 +44,9 @@ from animama.server.local_runtime import initialize_local_runtime
 from animama.server.product_ports import LocalProductPorts, local_product_content
 
 OWNER_HEADER = "X-Test-Owner"
-# The local default limits (server/config.py).
+# The local default limits and chat model (server/config.py).
 TEST_POLICY = ProductPolicy(memory_file_max_bytes=32 * 1024)
+TEST_ROLE_DEFAULTS = ModelRoleDefaults(chat="OpenAIResponsesHTTPAgent:gpt-6-luna")
 # What a hosted consumer reports; the test doubles report it too.
 HOSTED_CAPABILITIES = RuntimeCapabilities.model_validate_json(
     (Path(__file__).resolve().parents[1] / "contracts/runtime-capabilities/hosted.json").read_text()
@@ -80,6 +88,8 @@ class DoubleCollaborators:
 
     settings_changes: list[str]
     content_root: Path | None
+    model_catalog_policy: ModelCatalogPolicy
+    model_role_defaults: ModelRoleDefaults
 
     @asynccontextmanager
     async def content(self, session: AsyncSession, principal: RequestPrincipal) -> AsyncIterator[ProductContent]:
@@ -126,6 +136,13 @@ class DoubleCollaborators:
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         self.settings_changes.append(principal.id)
 
+    async def embedding_refresh_status(
+        self, session: AsyncSession, principal: RequestPrincipal, embedding_model_id: str | None
+    ) -> EmbeddingRefreshStatus:
+        # These compositions keep no vectors, so any embeddings role is current.
+        state = EMBEDDINGS_STATE_OFF if embedding_model_id is None else EMBEDDINGS_STATE_CURRENT
+        return EmbeddingRefreshStatus(state=state)
+
 
 @dataclass
 class DeferredCommitPorts(DoubleCollaborators):
@@ -143,6 +160,8 @@ class DeferredCommitPorts(DoubleCollaborators):
 
     session_factory: async_sessionmaker[AsyncSession]
     policy: ProductPolicy = field(default_factory=lambda: TEST_POLICY)
+    model_catalog_policy: ModelCatalogPolicy = field(default_factory=ModelCatalogPolicy)
+    model_role_defaults: ModelRoleDefaults = field(default_factory=lambda: TEST_ROLE_DEFAULTS)
     commits_requested: int = 0
     commits: int = 0
     rollbacks: int = 0
@@ -202,6 +221,8 @@ class SessionPorts(DoubleCollaborators):
 
     session: AsyncSession
     policy: ProductPolicy = field(default_factory=lambda: TEST_POLICY)
+    model_catalog_policy: ModelCatalogPolicy = field(default_factory=ModelCatalogPolicy)
+    model_role_defaults: ModelRoleDefaults = field(default_factory=lambda: TEST_ROLE_DEFAULTS)
     settings_changes: list[str] = field(default_factory=list)
     content_root: Path | None = None
 

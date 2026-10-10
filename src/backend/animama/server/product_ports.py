@@ -26,6 +26,9 @@ from animama.app.services.content_package_export import DownloadLease
 from animama.app.services.content_package_service import ContentPackageService
 from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.content_save_service import ContentSaveService
+from animama.app.services.embedding_refresh_service import EmbeddingRefreshStatus
+from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
+from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.app.services.typed_content_service import TypedContentService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
@@ -34,13 +37,18 @@ from animama.product_http.ports import ProductContent, ProductPolicy, ProductRef
 from animama.server.companion_safety import runtime_crisis_resources
 from animama.server.config import Settings
 from animama.server.deps import get_async_session_factory
-from animama.server.embedding_refresh import wake_embedding_refresh
+from animama.server.embedding_refresh import (
+    embedding_refresh_status,
+    get_embedding_refresh_worker,
+    wake_embedding_refresh,
+)
 from animama.server.installation_personalization import (
     FirstRunIncompleteError,
     InstallationPersonalizationService,
     InstallationPrincipalMismatchError,
 )
 from animama.server.local_runtime import LocalRuntimePaths, local_content_store
+from animama.server.model_roles import composition_model_policy, model_role_defaults
 from animama.server.runtime_capabilities import local_runtime_capabilities, runtime_settings_for
 
 
@@ -122,6 +130,15 @@ class LocalProductPorts:
         settings = runtime_settings_for(self._app)
         return ProductPolicy(memory_file_max_bytes=settings.anima_memory_file_max_bytes)
 
+    @property
+    def model_catalog_policy(self) -> ModelCatalogPolicy:
+        # create_local_app installs ModelCatalogPolicy.local(): owner models, no validation.
+        return composition_model_policy(self._app)
+
+    @property
+    def model_role_defaults(self) -> ModelRoleDefaults:
+        return model_role_defaults(runtime_settings_for(self._app))
+
     @asynccontextmanager
     async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[AsyncSession]:
         async with get_async_session_factory(self._app)() as session:
@@ -184,3 +201,14 @@ class LocalProductPorts:
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         # The embeddings role may have changed; re-check stored vectors now.
         wake_embedding_refresh(self._app)
+
+    async def embedding_refresh_status(
+        self, session: AsyncSession, principal: RequestPrincipal, embedding_model_id: str | None
+    ) -> EmbeddingRefreshStatus:
+        # The app's refresh worker reports why a pass is retrying.
+        return await embedding_refresh_status(
+            session,
+            owner_id=principal.id,
+            embedding_model_id=embedding_model_id,
+            worker=get_embedding_refresh_worker(self._app),
+        )

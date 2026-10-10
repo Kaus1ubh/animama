@@ -2,16 +2,17 @@
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, HTTPException, Response, status
 
 from animama.adapters.mappers.settings_map import anima_settings_domain_to_schema, user_settings_domain_to_schema
 from animama.app.contracts.settings import PyAnimaSettings, PyAnimaSettingsUpdate, PyUserSettings, PyUserSettingsUpdate
+from animama.app.services.model_role_resolver import unusable_role_preferences
 from animama.app.services.settings_service import SettingsService, default_anima_preferences
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import AnimaSettings, UserSettings
-from animama.product_http.ports import Ports, ProductRepositories, ReadRepositories, WriteRepositories
+from animama.product_http.ports import Ports, ProductPorts, ProductRepositories, ReadRepositories, WriteRepositories
 from animama.product_http.principal import get_current_principal
 from animama.product_http.routes._owner import require_owned_anima
 
@@ -24,6 +25,18 @@ def _service(repositories: ProductRepositories) -> SettingsService:
         anima_settings=repositories.anima_settings,
         uow=repositories.unit_of_work,
     )
+
+
+async def _refuse_unusable_model_roles(
+    ports: ProductPorts, repositories: ProductRepositories, patch: dict[str, Any]
+) -> None:
+    """Refuse a role preference naming a row unable to do that role, when the composition validates them."""
+
+    preferences = patch.get("preferences")
+    if not ports.model_catalog_policy.validate_role_preferences or not isinstance(preferences, dict):
+        return
+    if await unusable_role_preferences(repositories.model_providers, preferences):
+        raise HTTPException(status_code=422, detail={"code": "model_role_unavailable"})
 
 
 @router.get("/v1/users/me/settings", response_model=PyUserSettings)
@@ -49,6 +62,7 @@ async def create_user_settings(
     if existing is not None:
         raise HTTPException(status_code=409, detail="User settings already exist")
     patch = req.model_dump(exclude_unset=True) if req is not None else {}
+    await _refuse_unusable_model_roles(ports, repositories, patch)
     settings = await service.patch_user_settings(user_id=user.id, **patch)
     ports.user_settings_changed(user)
     return user_settings_domain_to_schema(settings)
@@ -62,6 +76,7 @@ async def patch_user_settings(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> PyUserSettings:
     patch = req.model_dump(exclude_unset=True)
+    await _refuse_unusable_model_roles(ports, repositories, patch)
     settings = await _service(repositories).patch_user_settings(user_id=user.id, **patch)
     ports.user_settings_changed(user)
     return user_settings_domain_to_schema(settings)

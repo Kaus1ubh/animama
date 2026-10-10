@@ -40,6 +40,9 @@ from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_export import DownloadLease
 from animama.app.services.content_package_service import ContentPackageService
 from animama.app.services.content_save_service import ContentSaveService
+from animama.app.services.embedding_refresh_service import EmbeddingRefreshStatus
+from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
+from animama.app.services.model_role_resolver import ModelRoleDefaults, ModelRoleResolver
 from animama.app.services.typed_content_service import TypedContentService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
@@ -137,13 +140,24 @@ class ProductPolicy:
 class ProductPorts(Protocol):
     """The composition-owned collaborators of shared product handlers.
 
-    Shared dependencies call the synchronous members (``policy``, ``repositories``,
+    Shared dependencies call the synchronous members (``policy``,
+    ``model_catalog_policy``, ``model_role_defaults``, ``repositories``,
     ``content``, ``file_response``, ``download_response``, ``crisis_resources``
     and ``user_settings_changed``) on the event loop, so they must not block.
     """
 
     @property
     def policy(self) -> ProductPolicy: ...
+
+    @property
+    def model_catalog_policy(self) -> ModelCatalogPolicy:
+        """Which catalog rows this composition offers, and whether it validates role preferences."""
+        ...
+
+    @property
+    def model_role_defaults(self) -> ModelRoleDefaults:
+        """The operator's row for each model role, used when an owner assigns none."""
+        ...
 
     def read_session(self, principal: RequestPrincipal) -> AbstractAsyncContextManager[AsyncSession]:
         """Open a session for a handler that only reads ``principal``'s data."""
@@ -227,6 +241,15 @@ class ProductPorts(Protocol):
 
         Called after the handler requested its commit; a composition that defers
         commits acts on it once the commit completes.
+        """
+        ...
+
+    async def embedding_refresh_status(
+        self, session: AsyncSession, principal: RequestPrincipal, embedding_model_id: str | None
+    ) -> EmbeddingRefreshStatus:
+        """Whether ``principal``'s stored vectors match the row doing the embeddings role.
+
+        ``embedding_model_id`` is that row, or ``None`` while embeddings are off.
         """
         ...
 
@@ -319,3 +342,15 @@ async def get_product_policy(ports: Annotated[ProductPorts, Depends(get_product_
 
 
 Policy = Annotated[ProductPolicy, Depends(get_product_policy)]
+
+
+def model_role_resolver(ports: ProductPorts, repositories: ProductRepositories) -> ModelRoleResolver:
+    """Resolve model roles from the owner's settings, the composition's catalog and its operator defaults."""
+
+    return ModelRoleResolver(
+        model_providers=repositories.model_providers,
+        user_settings=repositories.user_settings,
+        defaults=ports.model_role_defaults,
+        # A composition without owner models applies only its operator defaults.
+        owner_roles_enabled=ports.model_catalog_policy.owner_models_enabled,
+    )
