@@ -28,9 +28,9 @@ plain `uv sync` or `uv run`.
 ## Shared Backend Package
 
 The backend wheel contains both the public local implementation and reusable
-`animama.domain`/`animama.app` APIs. Shared imports receive owner IDs, policy, and
-storage/model ports explicitly and cannot import local composition or read
-installation state. Verify the transitive import graph and build the wheel:
+`animama.domain`, `animama.app` and `animama.product_http` APIs. Shared imports
+receive owner IDs, policy, and storage/model ports explicitly and cannot import
+local composition or read installation state. Verify the transitive import graph and build the wheel:
 
 ```bash
 uv run --no-sync python scripts/repository-boundary/check-python-imports.py
