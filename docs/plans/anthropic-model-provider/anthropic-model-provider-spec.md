@@ -23,8 +23,7 @@ Owner decision:
 
 Authoritative source: https://github.com/raymond-van/animama/issues/364 (this
 file is a snapshot).
-Snapshot captured: 2026-10-10T01:52:03Z, republished from revision `76bea118`
-plus the Phase 9 decisions (D26, D27).
+Snapshot captured: 2026-10-10T02:12:24Z, republished from revision `48aeb94f`.
 Source baseline: `1bf91d07`. Planning re-based on `2b546185`.
 
 ## Problem and intended users
