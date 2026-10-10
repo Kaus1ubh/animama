@@ -25,8 +25,9 @@ Local setup and host/key administration schemas remain in the server composition
 - `server/app.py`: internal `/health` and private desktop readiness.
 - `server/routers/runtime_context.py`: bounded local bootstrap context, repair,
   and first-run completion.
-- `server/routers/runtime_capabilities.py`: owner-protected optional feature
-  availability and document-worker liveness.
+- `product_http/routes/runtime_capabilities.py` (shared): owner-protected
+  optional feature availability, as each composition's ports report it; the
+  local report (`server/runtime_capabilities.py`) includes document-worker liveness.
 - `server/routers/desktop_control.py`: private pack-removal preflight, never
   included in public OpenAPI or mounted in self-host composition.
 - `server/routers/anima.py`: anima CRUD, chat-profile updates, direct chat

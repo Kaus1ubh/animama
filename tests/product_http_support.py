@@ -3,6 +3,7 @@
 ``product_app`` mounts routers with explicit ports and a test-only resolver.
 ``DeferredCommitPorts`` mimics a consumer's commit authority, and
 ``TwoOwnerComposition`` serves two owners from one database with separate roots.
+``install_local_ports`` gives local-app tests the local ports on their own session.
 Nothing here is installed outside tests.
 """
 
@@ -19,15 +20,21 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
+from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
 from animama.app.services.user_profile_service import UserProfileService
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfilePatch
 from animama.product_http.ports import ProductPolicy, ProductPorts, install_product_ports
+from animama.server.product_ports import LocalProductPorts
 
 OWNER_HEADER = "X-Test-Owner"
 # The local default limits (server/config.py).
 TEST_POLICY = ProductPolicy(memory_file_max_bytes=32 * 1024)
+# What a hosted consumer reports; the test doubles report it too.
+HOSTED_CAPABILITIES = RuntimeCapabilities.model_validate_json(
+    (Path(__file__).resolve().parents[1] / "contracts/runtime-capabilities/hosted.json").read_text()
+)
 
 
 class HeaderOwnerResolver:
@@ -119,6 +126,9 @@ class DeferredCommitPorts:
     def crisis_resources(self) -> CrisisResourceTable:
         return crisis_resource_table()
 
+    async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
+        return HOSTED_CAPABILITIES
+
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         self.settings_changes.append(principal.id)
 
@@ -149,8 +159,26 @@ class SessionPorts:
     def crisis_resources(self) -> CrisisResourceTable:
         return crisis_resource_table()
 
+    async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
+        return HOSTED_CAPABILITIES
+
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         self.settings_changes.append(principal.id)
+
+
+def install_local_ports(app: FastAPI, session: AsyncSession) -> None:
+    """Serve shared routes through the local composition's ports, on one test session.
+
+    For local-app tests that need local behavior from a shared route (personalization,
+    the local crisis table or capability report) beside local routes on that session.
+    """
+
+    @asynccontextmanager
+    async def session_factory() -> AsyncIterator[AsyncSession]:
+        yield session
+
+    app.state.session_factory = session_factory
+    install_product_ports(app, LocalProductPorts(app))
 
 
 def product_app(*routers: APIRouter, ports: ProductPorts | None, resolver: Any = None) -> FastAPI:

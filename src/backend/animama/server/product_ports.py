@@ -9,6 +9,7 @@ from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
+from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import ProductPolicy, ProductRefusal
@@ -20,6 +21,7 @@ from animama.server.installation_personalization import (
     InstallationPersonalizationService,
     InstallationPrincipalMismatchError,
 )
+from animama.server.runtime_capabilities import local_runtime_capabilities
 
 
 class LocalProductPorts:
@@ -64,6 +66,9 @@ class LocalProductPorts:
     def crisis_resources(self) -> CrisisResourceTable:
         # The packaged table, or an operator-supplied one (ANIMAMA_CRISIS_RESOURCES_PATH).
         return runtime_crisis_resources(self._app.state.runtime_settings)
+
+    async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
+        return await local_runtime_capabilities(self._app, session)
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         # The embeddings role may have changed; re-check stored vectors now.

@@ -13,6 +13,7 @@ from fastapi import FastAPI, Request, WebSocket
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import (
@@ -26,6 +27,7 @@ from animama.product_http.ports import (
 from animama.server.app import create_local_app
 from animama.server.config import Settings
 from animama.server.product_ports import LocalProductPorts
+from tests.product_http_support import HOSTED_CAPABILITIES
 
 OWNER = RequestPrincipal(id="owner")
 
@@ -83,6 +85,9 @@ class RecordingPorts:
 
     def crisis_resources(self) -> CrisisResourceTable:
         return crisis_resource_table()
+
+    async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
+        return HOSTED_CAPABILITIES
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         pass

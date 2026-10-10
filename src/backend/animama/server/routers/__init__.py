@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from animama.product_http.routes import chats, loadouts, memory, profile, safety, settings
+from animama.product_http.routes import chats, loadouts, memory, profile, runtime_capabilities, safety, settings
 
 from . import (
     anima,
@@ -16,7 +16,6 @@ from . import (
     memory_manager,
     model_assets,
     model_provider,
-    runtime_capabilities,
     runtime_context,
     typed_content,
     user_files,

@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
 from datetime import UTC, datetime
 from uuid import uuid4
 
@@ -15,11 +13,10 @@ from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchem
 from animama.app.services.user_profile_service import UserProfileService
 from animama.domain.request_principal import RequestPrincipal
 from animama.local.installation_model import ORMInstallationSettings
-from animama.product_http.ports import install_product_ports
 from animama.product_http.principal import get_current_principal
 from animama.product_http.routes import profile
-from animama.server.product_ports import LocalProductPorts
 from tests.local_http_client import local_client
+from tests.product_http_support import install_local_ports
 
 
 def _app(session: AsyncSession, owner_id: str) -> FastAPI:
@@ -31,12 +28,7 @@ def _app(session: AsyncSession, owner_id: str) -> FastAPI:
     async def principal() -> RequestPrincipal:
         return RequestPrincipal(id=owner_id)
 
-    @asynccontextmanager
-    async def database() -> AsyncIterator[AsyncSession]:
-        yield session
-
-    app.state.session_factory = database
-    install_product_ports(app, LocalProductPorts(app))
+    install_local_ports(app, session)
     app.dependency_overrides[get_current_principal] = principal
     return app
 

@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-from contextlib import asynccontextmanager
 from types import SimpleNamespace
 
 import pytest
@@ -11,13 +10,11 @@ from sqlalchemy import delete
 
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.settings import ORMUserSettings
-from animama.product_http.ports import install_product_ports
-from animama.product_http.routes import safety
+from animama.product_http.routes import runtime_capabilities, safety
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
-from animama.server.product_ports import LocalProductPorts
-from animama.server.routers import runtime_capabilities
 from tests.local_http_client import local_client
+from tests.product_http_support import install_local_ports
 
 OWNER = "safety-owner"
 
@@ -40,9 +37,7 @@ def _app(session, tmp_path, **settings_overrides):  # noqa: ANN001, ANN003
     async def database():
         yield session
 
-    # Shared routes take the test's session through the local composition's ports.
-    app.state.session_factory = asynccontextmanager(database)
-    install_product_ports(app, LocalProductPorts(app))
+    install_local_ports(app, session)
     app.dependency_overrides[get_current_principal] = principal
     app.dependency_overrides[get_async_session] = database
     return app

@@ -17,6 +17,7 @@ from typing import Annotated, Protocol, cast
 from fastapi import Depends, FastAPI, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.chat_port import ChatRepository
@@ -118,6 +119,10 @@ class ProductPorts(Protocol):
 
     def crisis_resources(self) -> CrisisResourceTable:
         """The crisis-resource regions this composition offers its owners."""
+        ...
+
+    async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
+        """What this composition offers ``principal`` now, reading any stored state on ``session``."""
         ...
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
