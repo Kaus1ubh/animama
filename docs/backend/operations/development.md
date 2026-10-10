@@ -1573,17 +1573,24 @@ environment usage.
 
 ## Adding A Route
 
-1. Put the route in the closest existing router or a new router under
-   `server/routers/`.
+1. Put a product route every composition serves in the closest router under
+   `product_http/routes/` (register a new router in its `ROUTERS`); put a
+   local-only route under `server/routers/`. Add the route to
+   `product_http/inventory.py` with its disposition and access class.
 2. Use `get_current_principal` for every local product route. Only the internal
-   `/health` readiness probe is unauthenticated.
+   `/health` readiness probe is unauthenticated. Shared handlers take sessions,
+   repositories and policy from the installed `ProductPorts`, never
+   `get_async_session` or global settings.
 3. Prefer app services and repository ports for persistence.
-4. Keep Pydantic request/response schemas near the router or established schema
-   module.
+4. Keep a shared route's Pydantic request/response schemas in `app/contracts/`;
+   a local route's may stay near its router or established schema module.
 5. Filter by `RequestPrincipal.id` through retained `user_id`/`owner_user_id`
    ownership columns.
-6. Add tests for auth, ownership, success, and error behavior.
-7. Include the router through `server/routers/__init__.py` if it is new.
+6. Add tests for auth, ownership, success, and error behavior. A shared route
+   also gets two-owner isolation and deferred-commit tests
+   (`tests/product_http_support.py`).
+7. Include a new router through `server/routers/__init__.py`, at the position its
+   routes take in the inventory.
 
 ## Adding Runtime Behavior
 

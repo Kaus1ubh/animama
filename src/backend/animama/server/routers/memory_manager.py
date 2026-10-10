@@ -1,4 +1,4 @@
-"""Authenticated episodic-memory and memory-manager workflow routes."""
+"""Authenticated Memory Manager run, message and approval routes, including episode processing."""
 
 from __future__ import annotations
 

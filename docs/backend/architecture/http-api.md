@@ -14,8 +14,8 @@ never from `get_async_session`, so tests replace the ports (see
 `tests/product_http_support.py`) or call handlers with an explicit repository bundle.
 
 Retained product HTTP schemas live under `app/contracts/`, including chat/history,
-manual memory/Memory Manager, model roles, content/loadouts/runtime and profile
-views. Delivery modules reexport those definitions for existing local callers.
+manual memory/Memory Manager, model roles, content/loadouts/runtime, profile and
+crisis-resource (`safety.py`) views. Delivery modules reexport those definitions for existing local callers.
 Consumers reuse the schemas and neutral services with their own admission, tenant
 persistence, provider and byte adapters; importing a schema grants no route access.
 Local setup and host/key administration schemas remain in the server composition.

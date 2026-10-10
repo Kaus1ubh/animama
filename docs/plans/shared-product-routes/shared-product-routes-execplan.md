@@ -33,19 +33,19 @@ named built stack.
 
 ## Progress
 
-- [ ] Phase 1: foundations (package, principal move, route inventory, ports, owner
+- [x] Phase 1: foundations (package, principal move, route inventory, ports, owner
   fix, test harness). Implemented 2026-10-10 in `2e9a02ee` (inventory), `bda5ead5`
   (principal), `2110ad13` (ports), `62f95626` (owner-strict) and `5580c4ec`
   (harness and consumer), with review repairs through `5ed515b2`. The full local
-  validation passed on `908e02d5`. Code Review #2 repairs are applied; the final
-  targeted review #3 is pending.
+  validation passed on `908e02d5`; the final targeted Code Review #3 passed.
 - [ ] Phase 2: thin owner-scoped routers. Implemented 2026-10-10: repository ports
   (`940eedd2`), chats (`f1344a45`), memory (`9028884e`), settings (`846acdd5`
   characterization, then `7a18efa6`), profile (`afa396b9`), safety (`91487685`),
   loadouts (`6c155b42`) and runtime capabilities (`b1e6f4d2`). `33870c72` checks
   that the package serves exactly the 45 stage-2 routes. Each family migrated its
-  tests in its own commit, so no re-export shims were needed. Phase checks and
-  Code Review #1 pending.
+  tests in its own commit, so no re-export shims were needed. `make check-test`
+  passed on `e9dda06d`. Code Review #1 findings are repaired; the targeted review
+  #2 is pending.
 - [ ] Phase 3: content routers. Not started.
 - [ ] Final integration review and PR. Not started.
 
@@ -127,6 +127,15 @@ runtime capabilities did not change between the two.
     doubles report the hosted contract.
   - Local-app tests that need a shared route's local behaviour install the local
     ports on their session (`install_local_ports`); the rest use `SessionPorts`.
+  - Shared handlers take `repositories`, `policy` or `ports` instead of `session`,
+    so direct-call tests pass an explicit bundle
+    (`SQLAlchemyProductRepositories(session)`, `TEST_POLICY`). HTTP parameters,
+    handler names, operation IDs and the SDK are unchanged, which is what #439's
+    "keep its handler names and parameters" protects.
+  - The memory-file limit comes from `ProductPolicy`; the local ports read it from
+    the app's runtime settings, the same value the global settings held in every
+    production entrypoint. User-settings writes report `user_settings_changed`
+    after requesting their commit, and the local ports wake the embedding refresh.
 
 - 2026-10-09, owner: share product routes; write the ExecPlan and ADR; implement
   stages 1–3; the hosted consumer's C7 acceptance follows.
@@ -266,7 +275,8 @@ Code Review #1 Revisions:
   session opens without a principal.
 - P1-03: the double commits only when asked and documents its limits.
 - P1-04: corrected three entries (`get_runtime_json_bundle` to `bytes`, the chat
-  and memory-file searches to `read`); `stream_anima_runtime_file` stays `bytes`.
+  and memory-file searches to `read`); `stream_anima_runtime_file` stays `bytes`
+  because it serves verified file bytes under the caching policy.
   `access` is provisional until a family moves; a test then binds `read` and
   `write` to the handler's session.
 - P1-05: documented the package and consumer.
@@ -299,7 +309,46 @@ Code Review #2 Revisions:
   browser-smoke, package-build, isolated-consumers (the installed-wheel product
   consumer among them), baseline-build and compatibility. Review checks also passed:
   the boundary checker, ruff, mypy and the Phase 1 test files.
-- Repair rounds used: 2 of 2; the final targeted review #3 checks R2-01 to R2-03.
+- Repair rounds used: 2 of 2.
+
+Code Review #3 (final, targeted, at `e9dda06d`): R2-01 to R2-03 are resolved and
+the repairs introduced no regression. Result: pass.
+
+### Phase 2 review record
+
+Code Review #1 Findings (at `e9dda06d`):
+
+- P2-01 (blocking): the two-owner and deferred-commit tests exercised 3 of the 14
+  loadout routes; the memory test lacked a cross-owner create and never checked
+  that the repair commits through the composition.
+- P2-02 (blocking): the Memory Manager guide's route map still placed the episode
+  listing in `server/routers/memory_manager.py`.
+- Optional: O-01 the port dependencies were synchronous, so FastAPI ran them in its
+  threadpool; O-02 `memory.py` defined handlers after `__all__` and aliased
+  `status`; O-03 two copies of the Anima owner check; O-04 the local ports read
+  runtime settings two ways; O-05 nothing checked that the shared repository bundle
+  imports no local code; O-06 the consumer check compared the routers with
+  themselves; O-07 record the handler-parameter, policy and settings-event
+  decisions; O-08 contributor docs did not mention the shared package; O-09 read
+  sessions in the test double could write unnoticed; O-10 a per-principal policy;
+  O-11 the two port doubles repeated five methods.
+
+Code Review #1 Revisions:
+
+- P2-01: every loadout plan and commit route refuses another owner's Anima with 404
+  `anima_not_found` and commits nothing, and every family commits once through the
+  composition; the memory test adds a cross-owner create and list and checks the
+  repair's commit.
+- P2-02: the guide lists the shared episode route, and the manager module's
+  docstring names its own routes.
+- O-01 to O-06, O-08, O-09 and O-11 are applied. The read-session guard confirmed
+  that every loadout plan is read-only. `SERVED_STAGES` in the inventory names the
+  stages the package serves, and the consumer asserts that the mounted routes equal
+  them.
+- O-07 is recorded in the Decision Log.
+- O-10 rejected: the memory-file limit is the composition's, not the owner's; a
+  per-owner limit can add the principal when one exists.
+- Repair rounds used: 1 of 2.
 
 ## Final integration review
 
