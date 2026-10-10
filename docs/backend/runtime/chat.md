@@ -269,12 +269,15 @@ Main structured turns use one JSON shape: `emotional_tone`,
 `emotional_intensity`, nullable `gesture`, `speech`, and nullable `display`.
 All fields are required in the provider JSON schema; `gesture: null` or
 `gesture: ""` means no avatar gesture, and `display: null` means no separate
-visual response. The provider schema constrains non-null `gesture` values to
-the exact effective runtime IDs exposed by this Anima's fenced loadout. No
-separate gesture catalog, label, description, motion type, catalog item/file
-ID, storage locator, package manifest, or resource URL is injected into the
-system prompt. Older unfenced compatibility callers use the packaged Starter
-loadout instead of reading a frontend manifest at request time.
+visual response. Gesture choices come from the Gestures equipped in the mounted
+runtime snapshot. The provider schema's `gesture` enum is `null` plus those
+selectors, and the response guidance appends an
+`Available Gestures for this Anima:` block with one
+`- {selector}: {name} — {description}` line per Gesture. An Anima with no
+equipped Gestures gets a `null`-only enum and no block. Motion types, catalog
+item or file IDs, storage locators, package manifests and resource URLs are not
+sent to the model. The final parsed `gesture` is normalized and dropped unless
+it matches one of the snapshot selectors.
 Normal chat emits `response_format="main_structured_json"` and uses
 `response_part="speech"` or `response_part="display"` for visible
 `user.response` frames. Those visible parts may arrive as sentence-level stream

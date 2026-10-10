@@ -542,7 +542,7 @@ Direct chat requires the canonical `main_structured_response` envelope. SSE
 main structured fields and represents absent optional values with
 `gesture: null`/`display: null`; the parser normalizes `gesture: null` and
 `gesture: ""` to no avatar gesture. Non-null `gesture` values are constrained
-to the current production gesture IDs from the animation manifest. The backend
+to the Gesture selectors in the Anima's mounted runtime snapshot. The backend
 uses the parsed `emotional_tone`, `emotional_intensity`, and `gesture` fields to
 drive avatar state and emits `speech` plus optional distinct `display` to the
 UI. Persistence keeps the raw final structured JSON as one visible assistant
