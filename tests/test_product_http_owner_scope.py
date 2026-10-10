@@ -22,7 +22,10 @@ CALLER = RequestPrincipal(id="caller-owner")
 
 
 def anima_scoped_calls(anima_id: str, session: AsyncSession) -> dict[str, Callable[[], Awaitable[Any]]]:
-    """Every shared Anima-scoped handler, invoked by a caller who does not own the Anima."""
+    """The Anima and Anima-settings handlers, invoked by a caller who does not own the Anima.
+
+    Each moved family's two-owner test covers its other Anima-scoped routes over HTTP.
+    """
 
     return {
         "get_anima": lambda: anima.get_anima(anima_id=anima_id, session=session, user=CALLER),

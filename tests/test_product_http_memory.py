@@ -61,6 +61,8 @@ async def test_an_owner_never_reaches_another_owners_memory(
             await a.patch(f"/v1/memory/entries/{entry_id}", json={"expected_version": 1, "content": f"{marker} v2"})
         ).status_code == 200
         assert (await a.post(f"/v1/memory/anima-memories/{anima_id}:repair")).status_code == 200
+    # Create, patch and repair each committed once, through the composition.
+    assert ports.commits == ports.commits_requested == 3
     commits_before = ports.commits
 
     async with composition.client(owner_b) as b:
@@ -71,6 +73,9 @@ async def test_an_owner_never_reaches_another_owners_memory(
             item["anima_id"] for item in (await b.get("/v1/memory/anima-identities")).json()["identities"]
         }
         assert (await b.post(f"/v1/memory/anima-memories/{anima_id}:repair")).status_code == 404
+        foreign = {"anima_id": anima_id, "type": "file", "name": "identity.md", "content": marker}
+        assert (await b.post("/v1/memory/entries", json=foreign)).status_code == 404
+        assert (await b.get("/v1/memory/entries", params={"anima_id": anima_id})).status_code == 404
         assert (await b.get("/v1/memory/entries/by-path", params={"path": path})).status_code == 404
         assert (await b.get(f"/v1/memory/entries/{entry_id}/versions")).status_code == 404
         assert (await b.get(f"/v1/memory/entries/{entry_id}/versions/1")).status_code == 404
