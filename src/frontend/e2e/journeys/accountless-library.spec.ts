@@ -84,7 +84,7 @@ test("accountless built-in pose playback @surface-library @channel-pose-clip @re
   page,
   animamaEvidence,
 }) => {
-  const name = "accountless-shy-finger-poke";
+  const name = "accountless-have-an-idea";
   const network = new PreviewNetworkRecorder(page);
   const readOnly = new ReadOnlyJourneyGuard(page);
   const blockedMethods: string[] = [];
@@ -106,7 +106,7 @@ test("accountless built-in pose playback @surface-library @channel-pose-clip @re
     await page.goto("/library", { waitUntil: "domcontentloaded" });
     const surface = await openLibraryPreview({
       page,
-      contentName: "shy-finger-poke",
+      contentName: "Have an Idea",
       section: "gesture",
       selectAnnie: false,
     });
@@ -114,25 +114,18 @@ test("accountless built-in pose playback @surface-library @channel-pose-clip @re
     const samples = await provePoseClipPlayback({
       evidence: animamaEvidence,
       evidenceName: name,
-      expectedTarget: { kind: "anima_pose_clip", runtimeId: "shy-finger-poke" },
-      expectedAvatarEffects: ["eye_vv"],
-      expectedEventIds: [
-        "scene-kawaii-sparkles",
-        "avatar-eye-vv",
-        "scene-focus-light-streak",
-      ],
-      // The 0.35-second light-streak event must fire, but this pose-motion
-      // journey does not require a polling sample inside that brief effect.
-      expectedSceneEffects: ["kawaii-sparkles"],
+      expectedTarget: { kind: "anima_pose_clip", runtimeId: "have_idea" },
+      // The bulb event starts 2.6 s into the clip and shows its effect for
+      // 0.95 s; the proof keeps sampling through its observation window until
+      // a sample inside that interval sees the effect. Scene Effect playback
+      // is proven on a Reaction in playback-library.spec.ts.
+      expectedAvatarEffects: ["idea_bulb_fingertip"],
+      expectedEventIds: ["idea-bulb"],
       maxMissingBones: 1,
       surface,
     });
-    await network.waitForPreview("shy-finger-poke");
-    await network.requireResources([
-      "eye_vv_r.png",
-      "emoji-sparkles-2728.svg",
-      "emoji-sparkling-heart-1f496.svg",
-    ]);
+    await network.waitForPreview("have_idea");
+    await network.requireResources(["idea_bulb_fingertip.png"]);
     await network.attach(animamaEvidence, `${name}-preview-network`);
     await attachPlaybackCheckpoint({
       evidence: animamaEvidence,

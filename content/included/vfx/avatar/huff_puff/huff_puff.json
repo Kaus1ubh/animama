@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:huff_puff",
+  "version": 1,
+  "name": "Huff Puff",
+  "description": "The anime \"hmph!\" huff: a little cartoon puff cloud bursts out beside the mouth, drifts away to the side and fades, for a sulky pout or an indignant turn-away.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "mouth",
+      "offset": {
+        "x": 0.04,
+        "y": 0.005,
+        "z": 0.04
+      },
+      "scale": {
+        "x": 1.9,
+        "y": 1.9
+      },
+      "rotationDeg": {
+        "x": 0,
+        "y": -35,
+        "z": -40
+      }
+    },
+    "art": {
+      "image": "huff_puff.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "offset": {
+              "x": -0.014,
+              "y": -0.006
+            },
+            "opacity": 0,
+            "scale": 0.35,
+            "t": 0
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "opacity": 1,
+            "scale": 1.12,
+            "t": 0.08
+          },
+          {
+            "scale": 0.94,
+            "t": 0.16
+          },
+          {
+            "scale": 1,
+            "t": 0.24
+          },
+          {
+            "offset": {
+              "x": 0.018,
+              "y": 0.007
+            },
+            "opacity": 0.9,
+            "scale": 1.1,
+            "t": 0.55
+          },
+          {
+            "offset": {
+              "x": 0.028,
+              "y": 0.011
+            },
+            "opacity": 0,
+            "scale": 1.22,
+            "t": 0.75
+          }
+        ]
+      }
+    },
+    "faceOptions": {
+      "faceCleanup": false
+    }
+  },
+  "files": [
+    {
+      "path": "huff_puff.png",
+      "role": "image"
+    }
+  ]
+}

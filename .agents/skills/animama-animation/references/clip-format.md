@@ -44,8 +44,9 @@ anything is invalid. The full format is described in
 
 Full examples are the Included 2.0 Gestures in
 `content/included/gestures/<slug>/<slug>.json` (for example `wave-hello`,
-the laugh tiers `mild-laugh`, `medium-laugh` and `hysterical-laughter`, and the
-20 s `storytelling`); preview any of them with
+the laugh tiers `mild-laugh`, `medium-laugh` and `hysterical-laughter`, and
+`have-an-idea`, which solves hand contacts and plays an Avatar Effect); preview
+any of them with
 `pnpm -s animation:preview library:included/<slug>`.
 
 ## Fields

@@ -50,9 +50,12 @@ under `.agents/skills/animama-animation/references/`.
 - [x] Phase 1: hand model (R1–R3); review #3 passed 2026-10-09; commit `4939106c`.
 - [x] Phase 2: contact solver, schema and checks (R4, R5, R6 retiming, R7, R8); review #3 passed 2026-10-09.
 - [x] Owner decisions D1–D6 (2026-10-09; D3 re-animate now).
-- [ ] Phase 3: drafts and owner preview review (R10, R11, R13; gate G2) — 26 drafts done, validate/check clean, consistency passes done (2026-10-09); preview session open; awaiting owner review.
+- [x] Phase 3: drafts and owner preview review (R10, R11, R13; gate G2) — 26 drafts and 3 effects; owner notes on Blow a Kiss, Blow a Kiss 2, Finger Heart Pose and Pout Huff applied and resolved; owner approved all Gestures (G2, 2026-10-09).
 - [x] Phase 4: creator write-back for solved arms and promotion tooling (R6 edits, R9); review #2 passed 2026-10-09.
-- [ ] Phase 5: promotion, registries and final validation (R12, R13; gate G3).
+- [x] Phase 5: promotion, registries and final validation (R12, R13; gate G3
+      approved 2026-10-09). 3 effects and 2 Gestures added, 24 Gestures replaced, 5
+      display-name-only edits, `shy-finger-poke` and `storytelling` removed, starters
+      21 → 20; registries, pins, journeys and docs updated.
 - [ ] Final integration review; PR; owner merge approval.
 
 ## Surprises & Discoveries
@@ -105,6 +108,16 @@ under `.agents/skills/animama-animation/references/`.
   now held in the natural range with its tip bent back; other fitted thumbs are
   held within the hard limits, which changes only fits that were past them. No
   Included clip used `thumbs-up` (baseline unchanged). Reported to the owner.
+- 2026-10-09, owner (G3): approved the promotion package (items, identities,
+  Right Finger Point loop change, AI descriptions A1–A8, licence and source-review
+  wording with agent-authored rules, effect records Option B, posed thumbnails via
+  a small template change, held loops `loop_count` 1, Left Peace Sign description
+  kept). Package: `.animama-drafts/hand-animation-gestures/promotion/PACKAGE.md`
+  (working file; the approved items and wording are recorded in the PR).
+- 2026-10-09, owner (G2): approved all new and revised Gestures after one round of
+  four preview notes (straight-finger kisses, reference finger heart with a heart
+  effect, huff puff effect on Pout Huff). Two further new Avatar Effects result:
+  `finger_heart_pop` and `huff_puff` (reusing Included heart and puff art).
 - 2026-10-09, owner: approve spec, plan and D0–D6 with recommendations, except
   D3: re-animate the unlisted legacy clips in this issue. Each animation is drafted
   by its own sub-agent in parallel, from scratch with the `animama-animation`
@@ -586,6 +599,27 @@ Gate G3: the owner approves the licence and source-review wording and the promot
    `clip-format.md` examples.
 6. `git add`/`git rm` before backend tests and desktop staging (they read tracked
    files only).
+
+Evidence 2026-10-09 (staged tree on `d373cd74`; task stack `animama-hands`,
+production build with `ANIMAMA_LLM_SKIP=1`, http://animama-hands.localhost:8300):
+
+- Promotion: each step dry-run first, then written in order (effects promote 11
+  changes; animation promote add 6 files, replace 42 files, replace-after-effects
+  5 files); the 26 written clips matched the G2-approved drafts byte for byte.
+- `pnpm check` exit 0; full web vitest 418 files, 3438 passed; `pnpm web:lint`,
+  prettier and `pnpm e2e:check` clean; `pnpm build` ok; script and browser script
+  tests pass (84 + 43).
+- `make check-test` passed (typed-content audit, ruff, mypy, pytest 3449 passed,
+  10 skipped); `shared_catalogs.py` check clean.
+- `pnpm desktop:runtime:stage` and `desktop:runtime:audit` (darwin-arm64) OK; the
+  release gate stays closed (pending licence records), as before.
+- E2E fast suite: 35 of 36 passed; the failure was the Library pose journey
+  expecting the folder name instead of the Selector ID `have_idea` (spec fixed).
+  Re-runs: the fixed journey, creator discard, generated-gesture round trip and
+  the complete-Anima imported playback passed; two journeys that timed out under
+  parallel load passed serially. `playback-library.spec.ts` is outside the active
+  `testMatch` (type-checked only).
+- Not performed: a live chat check with a paid model.
 
 #### Code Review #1 Findings
 

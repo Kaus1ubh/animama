@@ -23,17 +23,10 @@ import { loadTestAvatar } from "./testing/includedAvatars";
  * on purpose, so the motion checks for authored clips do not apply.
  */
 const MOTION_CHECK_EXEMPT = new Set([
-  "double-thumbs-up",
-  "finger-heart-pose",
   "heart-hands-build",
-  "left-ok-sign",
   "meme-dab",
-  "right-thumbs-up",
-  "shy-finger-poke",
   "shy-finger-poke-loop",
   "single-hand-on-heart",
-  "soldier-salute",
-  "thinking-hand-on-chin-hold",
 ]);
 const directory = fileURLToPath(
   new URL("../../../../../../../content/included/gestures/", import.meta.url),

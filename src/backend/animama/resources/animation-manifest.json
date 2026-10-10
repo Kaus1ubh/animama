@@ -995,7 +995,7 @@
         },
         "base_pose": "relaxedRest",
         "animation_type": "gesture",
-        "duration": 2.4,
+        "duration": 2.48,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
@@ -1027,7 +1027,7 @@
         },
         "base_pose": "double-thumbs-down",
         "animation_type": "gesture",
-        "duration": 2.35,
+        "duration": 2.55,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
@@ -1059,14 +1059,14 @@
         },
         "base_pose": "double-thumbs-up",
         "animation_type": "gesture",
-        "duration": 2.25,
+        "duration": 2.55,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
         "loop_count": 1
       },
       {
-        "name": "Finger Heart",
+        "name": "Finger Heart Pose",
         "file": "finger-heart-pose",
         "type": "animaPoseClip",
         "description": "Form a small finger heart for affectionate, appreciative, or caring moments.",
@@ -1091,14 +1091,14 @@
         },
         "base_pose": "relaxedRest",
         "animation_type": "gesture",
-        "duration": 1.35,
+        "duration": 2.2,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
         "loop_count": 1
       },
       {
-        "name": "Hands On Hips",
+        "name": "Hands on Hips",
         "file": "hands-on-hips",
         "type": "animaPoseClip",
         "description": "Hold a hands-on-hips stance for confident, assertive, or mildly challenging moments.",
@@ -1187,11 +1187,11 @@
         },
         "base_pose": "relaxedRest",
         "animation_type": "gesture",
-        "duration": 1,
+        "duration": 3.2,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
-        "loop_count": 2
+        "loop_count": 1
       },
       {
         "name": "Left Peace Sign",
@@ -1219,11 +1219,11 @@
         },
         "base_pose": "relaxedRest",
         "animation_type": "gesture",
-        "duration": 1,
+        "duration": 3.2,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
-        "loop_count": 2
+        "loop_count": 1
       },
       {
         "name": "Right Face Palm",
@@ -1263,7 +1263,7 @@
         "type": "animaPoseClip",
         "description": "Point forward for emphasis, explanation, or a confident correction.",
         "disabled": false,
-        "loop_type": "repeat",
+        "loop_type": "once",
         "emotions": {
           "confidence": {
             "1": 1,
@@ -1283,11 +1283,11 @@
         },
         "base_pose": "relaxedRest",
         "animation_type": "gesture",
-        "duration": 1,
+        "duration": 2.55,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
-        "loop_count": 2
+        "loop_count": 1
       },
       {
         "name": "Right Thumbs Down",
@@ -1315,11 +1315,11 @@
         },
         "base_pose": "relaxedRest",
         "animation_type": "gesture",
-        "duration": 1,
+        "duration": 3.2,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
-        "loop_count": 2
+        "loop_count": 1
       },
       {
         "name": "Right Thumbs Up",
@@ -1347,39 +1347,7 @@
         },
         "base_pose": "relaxedRest",
         "animation_type": "gesture",
-        "duration": 1,
-        "blend_mode": "override",
-        "time_scale": 1,
-        "weight": 1,
-        "loop_count": 2
-      },
-      {
-        "name": "Shy Finger Poke",
-        "file": "shy-finger-poke",
-        "type": "animaPoseClip",
-        "description": "Play a shy finger-poke gesture with cute VFX for bashful or nervous affection.",
-        "disabled": false,
-        "loop_type": "once",
-        "emotions": {
-          "embarrassment": {
-            "1": 1,
-            "2": 1,
-            "3": 1
-          },
-          "nervousness": {
-            "1": 1,
-            "2": 1,
-            "3": 1
-          },
-          "caring": {
-            "1": 1,
-            "2": 1,
-            "3": 1
-          }
-        },
-        "base_pose": "relaxedRest",
-        "animation_type": "gesture",
-        "duration": 1.2,
+        "duration": 3.2,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
@@ -1418,7 +1386,7 @@
         "loop_count": 2
       },
       {
-        "name": "Thinking Hand On Chin",
+        "name": "Thinking Hand on Chin",
         "file": "thinking-hand-on-chin-hold",
         "type": "animaPoseClip",
         "description": "Hold a hand-on-chin thinking pose for curiosity, consideration, or uncertainty.",
@@ -1438,11 +1406,11 @@
         },
         "base_pose": "relaxedRest",
         "animation_type": "gesture",
-        "duration": 1,
+        "duration": 3.4,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
-        "loop_count": 2
+        "loop_count": 1
       },
       {
         "name": "Thinking Head Scratch",
@@ -1477,7 +1445,7 @@
         "loop_count": 2
       },
       {
-        "name": "Soldier Salute",
+        "name": "Salute",
         "file": "soldier-salute",
         "type": "animaPoseClip",
         "description": "Snap into a salute for respectful, admiring, or confident acknowledgement.",
@@ -1502,7 +1470,7 @@
         },
         "base_pose": "relaxedRest",
         "animation_type": "gesture",
-        "duration": 1.6,
+        "duration": 2.65,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
@@ -1576,14 +1544,14 @@
         },
         "base_pose": "relaxedRest",
         "animation_type": "gesture",
-        "duration": 1.7,
+        "duration": 3.35,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,
         "loop_count": 1
       },
       {
-        "name": "Single Hand On Heart",
+        "name": "Hand on Heart",
         "file": "single-hand-on-heart",
         "type": "animaPoseClip",
         "description": "Hold one hand over the heart for gratitude, caring, love, or sincere remorse.",

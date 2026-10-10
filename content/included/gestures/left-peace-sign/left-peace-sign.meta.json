@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:left-peace-sign",
   "version": 1,
   "semantic_key": "left-peace-sign",
-  "name": "left-peace-sign",
+  "name": "Left Peace Sign",
   "ai_description": "Raise a left-hand peace sign for a friendly greeting, reassurance, or a casual celebratory pose.",
   "implementation": {
     "kind": "anima_clip",

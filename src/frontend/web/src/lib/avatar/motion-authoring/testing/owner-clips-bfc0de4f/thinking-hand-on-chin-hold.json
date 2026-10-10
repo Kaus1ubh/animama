@@ -1,0 +1,154 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "thinking-hand-on-chin-hold",
+  "name": "thinking-hand-on-chin-hold",
+  "duration": 1,
+  "loop": true,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.7,
+    "easing": "easeInOutSine",
+    "interpolation": {
+      "humanoidRotation": "slerp",
+      "humanoidPosition": "linear",
+      "expression": "linear"
+    }
+  },
+  "fadeOut": {
+    "duration": 0.7,
+    "easing": "easeInOutSine",
+    "interpolation": {
+      "humanoidRotation": "slerp",
+      "humanoidPosition": "linear",
+      "expression": "linear"
+    }
+  },
+  "beats": [
+    {
+      "id": "thinking-hand-on-chin",
+      "label": "Thinking hand on chin",
+      "time": 0,
+      "ease": "hold"
+    },
+    {
+      "id": "thinking-hand-on-chin-2",
+      "label": "Thinking hand on chin",
+      "time": 1,
+      "ease": "easeInOutSine"
+    }
+  ],
+  "rotations": {
+    "leftHand": [
+      {
+        "q": [-0.242, 0.06418, -0.14016, 0.95795],
+        "beat": "thinking-hand-on-chin"
+      },
+      {
+        "q": [-0.242, 0.06418, -0.14016, 0.95795],
+        "beat": "thinking-hand-on-chin-2"
+      }
+    ],
+    "leftIndexDistal": [
+      { "q": [0, 0, 0, 1], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, 0, 1], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftIndexIntermediate": [
+      { "q": [0, 0, 0, 1], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, 0, 1], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftIndexProximal": [
+      { "q": [0, 0, 0, 1], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, 0, 1], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftLittleDistal": [
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftLittleIntermediate": [
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftLittleProximal": [
+      { "q": [0, 0, -0.34202, 0.93969], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, -0.34202, 0.93969], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftLowerArm": [
+      {
+        "q": [-0.01136, -0.31503, -0.87742, 0.36161],
+        "beat": "thinking-hand-on-chin"
+      },
+      {
+        "q": [-0.01136, -0.31503, -0.87742, 0.36161],
+        "beat": "thinking-hand-on-chin-2"
+      }
+    ],
+    "leftMiddleDistal": [
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftMiddleIntermediate": [
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftMiddleProximal": [
+      { "q": [0, 0, -0.34202, 0.93969], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, -0.34202, 0.93969], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftRingDistal": [
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftRingIntermediate": [
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, -0.64279, 0.76604], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftRingProximal": [
+      { "q": [0, 0, -0.34202, 0.93969], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, -0.34202, 0.93969], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftShoulder": [
+      {
+        "q": [-0.07298, 0.11464, -0.11095, 0.98449],
+        "beat": "thinking-hand-on-chin"
+      },
+      {
+        "q": [-0.07298, 0.11464, -0.11095, 0.98449],
+        "beat": "thinking-hand-on-chin-2"
+      }
+    ],
+    "leftThumbDistal": [
+      { "q": [0, 0, 0, 1], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, 0, 1], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftThumbMetacarpal": [
+      {
+        "q": [-0.00857, 0.10418, -0.08157, 0.99117],
+        "beat": "thinking-hand-on-chin"
+      },
+      {
+        "q": [-0.00857, 0.10418, -0.08157, 0.99117],
+        "beat": "thinking-hand-on-chin-2"
+      }
+    ],
+    "leftThumbProximal": [
+      { "q": [0, 0, 0, 1], "beat": "thinking-hand-on-chin" },
+      { "q": [0, 0, 0, 1], "beat": "thinking-hand-on-chin-2" }
+    ],
+    "leftUpperArm": [
+      {
+        "q": [-0.44705, -0.21401, -0.51112, 0.70222],
+        "beat": "thinking-hand-on-chin"
+      },
+      {
+        "q": [-0.44705, -0.21401, -0.51112, 0.70222],
+        "beat": "thinking-hand-on-chin-2"
+      }
+    ]
+  },
+  "expressions": {
+    "blink": [
+      { "v": 0.2, "beat": "thinking-hand-on-chin" },
+      { "v": 0.2, "beat": "thinking-hand-on-chin-2" }
+    ]
+  }
+}

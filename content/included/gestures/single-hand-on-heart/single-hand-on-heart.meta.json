@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:single-hand-on-heart",
   "version": 1,
   "semantic_key": "single-hand-on-heart",
-  "name": "single-hand-on-heart",
+  "name": "Hand on Heart",
   "ai_description": "Place one hand over the heart to convey sincerity, heartfelt gratitude, empathy, or a personal promise.",
   "implementation": {
     "kind": "anima_clip",

@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:right-finger-point",
   "version": 1,
   "semantic_key": "right-finger-point",
-  "name": "right-finger-point",
+  "name": "Right Finger Point",
   "ai_description": "Point with the right index finger to emphasize a key point, offer a reminder, or playfully call something out.",
   "implementation": {
     "kind": "anima_clip",

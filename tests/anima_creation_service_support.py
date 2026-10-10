@@ -362,7 +362,6 @@ INCLUDED_POSE_IDS = frozenset(
 # Keep this independent of the loaded policy so accidental policy changes cannot
 # rewrite the test oracle.
 EXPECTED_STARTER_GESTURE_IDS = (
-    "builtin:gesture:shy-finger-poke",
     "builtin:gesture:shy-finger-poke-loop",
     "builtin:gesture:thinking-head-scratch",
     "builtin:gesture:thinking-hand-on-chin-hold",

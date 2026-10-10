@@ -66,10 +66,10 @@ def test_representative_included_entries_are_human_locatable(included: Path) -> 
     by_locator = {entry.relative_locator: entry for entry in _scan_included(included)}
 
     assert "avatars/AvatarSample_A_1_New.vrm" in by_locator
-    assert "gestures/shy-finger-poke" in by_locator
+    assert "gestures/have-an-idea" in by_locator
     assert "reactions/admiration-2" in by_locator
     assert "vfx/particle/quark/hearts" in by_locator
-    assert by_locator["gestures/shy-finger-poke"].logical_key == "builtin:gesture:shy-finger-poke"
+    assert by_locator["gestures/have-an-idea"].logical_key == "builtin:gesture:have-an-idea"
     assert by_locator["reactions/admiration-2"].dependencies
 
     for entry in by_locator.values():

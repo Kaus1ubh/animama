@@ -31,6 +31,9 @@ import { loadTestAvatar } from "./testing/includedAvatars";
 // The laughs as Included on main at bfc0de4f, before their #314 revision.
 import heartyLaugh from "./testing/laughs-bfc0de4f/hearty-laugh.json";
 import mediumLaugh from "./testing/laughs-bfc0de4f/medium-laugh.json";
+// The owner-authored clip as Included at bfc0de4f, before its #314
+// re-animation: its hand rests on the face with no declared contact.
+import legacyThinkingHandOnChin from "./testing/owner-clips-bfc0de4f/thinking-hand-on-chin-hold.json";
 
 let vrm0: VRM;
 let vrm1: VRM;
@@ -246,7 +249,7 @@ describe("checkMotion", () => {
   });
 
   it("lets a declared contact touch the face without an intersection", () => {
-    const clip = getAvatarPoseClip("thinking-hand-on-chin-hold");
+    const clip = legacyThinkingHandOnChin;
     const contact = [
       { bone: "leftHand", target: "head", from: 0, to: 1, tolerance: 0.2 },
     ];

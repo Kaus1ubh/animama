@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:right-thumbs-up",
   "version": 1,
   "semantic_key": "right-thumbs-up",
-  "name": "right-thumbs-up",
+  "name": "Right Thumbs Up",
   "ai_description": "Give a right-handed thumbs up to express approval, agreement, encouragement, or reassurance.",
   "implementation": {
     "kind": "anima_clip",
