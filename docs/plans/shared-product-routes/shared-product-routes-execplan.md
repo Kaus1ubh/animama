@@ -46,14 +46,16 @@ named built stack.
   tests in its own commit, so no re-export shims were needed. Review repairs in
   `35c12694`, `9bb0b98f` and `6e8891bf`; `make check-test` passed on `6e8891bf`,
   and the targeted Code Review #2 passed.
-- [ ] Phase 3: content routers. Implemented 2026-10-10: P3-01 (`e4e999af`), the
+- [x] Phase 3: content routers. Implemented 2026-10-10: P3-01 (`e4e999af`), the
   content port and byte delivery (`55abd1fb`), content (`a2c4f2a8`), typed content
   (`749beeb5`), packages (`38e0dd40`), Avatars (`a2a91a74`), the Anima runtime
   (`20902271`) and Anima CRUD (`2eaa20e1`); `5f20fbac` mounts all 84 stage-3 routes
   from `ROUTERS` and serves stages 2 and 3. Review repairs in `3604a3fb`, `4d16a25f`
   and the review-record commit; the targeted Code Review #2 passed. Phase checks
   and the full browser journeys on the final candidate are recorded below.
-- [ ] Final integration review and PR. Not started.
+- [ ] Final integration review and PR. The final integration review's blocking
+  finding is repaired in `213d45f9`, whose full local validation passed; the
+  targeted recheck and the PR update are in progress.
 
 ## Surprises & Discoveries
 
@@ -463,6 +465,49 @@ builds the local coordinator, whose roots startup already created. Result: pass.
 After Phase 3: one final review of combined acceptance (unchanged local behaviour,
 complete route inventory, isolation, SDK stability), reusing valid phase evidence.
 
+Final integration review findings (at `3d273329`):
+
+- FI-01 (blocking): the installed-wheel consumer enumerated an app's route list,
+  which newer FastAPI releases keep as nested included routers. Installed without
+  the lock, as the packed-artifact check installs it, the consumer found no routes
+  and failed.
+- FI-02: `fastapi[standard]>=0.121` admits those releases; the inventory test's
+  route-table walk will need the same change when the lock moves.
+- FI-03: ADR 0021's Consequences say direct-call tests keep working because handler
+  names and parameters are preserved, and that routes stay byte-for-byte
+  compatible. Handlers' Python parameters changed (see the Decision Log) and two
+  local route-order changes are recorded; HTTP behaviour, operation IDs, the
+  OpenAPI document (sorted) and the SDK are unchanged.
+- FI-04: the recorded evidence was for `905b5f69`, not the final candidate.
+- FI-05: limitations for a consumer adopting `ROUTERS`: it must also install its
+  request-principal resolver; its content port decides Anima package admission;
+  four streamed routes (`stream_content_file`, `stream_content_preview_file`,
+  `stream_anima_runtime_file`, `download_package_export`) hold the request's read
+  session until the body ends; deferred commits collapse local journal steps; three
+  GET routes take write sessions; `ROUTERS` order was not pinned by a test.
+- FI-06: the overview called the local aggregate "shared" and omitted the ports.
+
+Revisions (`213d45f9`):
+
+- FI-01: the consumer enumerates the shared routers' own routes, and a test pins
+  `ROUTERS` to the inventory's order (FI-05's last item).
+- FI-05: the hosted contract names the resolver and package-admission setup; the
+  other items are recorded limitations for the consumer's adoption.
+- FI-06: the overview describes the local app's ports and mixed aggregate.
+- FI-02 and FI-03 are recorded limitations; the ADR text is left for the owner.
+- FI-04: final-candidate evidence:
+  - `make check-test` on `3d273329`: 3,594 passed, 10 skipped.
+  - Full `pnpm e2e:test` on a built stack serving `3d273329` (the application code
+    of `213d45f9`): 37 of 38 passed. `accountless-effect-template-picker` › "Sidebar
+    Effects opens the picker in place" failed once (a sidebar menu item still
+    visible after 10 s) and passed in three isolated reruns; this branch changes no
+    frontend code. A second full run passed 38 of 38.
+  - `scripts/ci/local_validate.py --profile full` on `213d45f9` against baseline
+    `5993bbee` passed every step, including backend-full, frontend-source,
+    browser-smoke, package-build, isolated-consumers (the installed-wheel product
+    consumer on FastAPI 0.143.0 and Starlette 1.7.0, FI-01's case), baseline-build
+    and compatibility.
+
 ## Validation and acceptance
 
 From the repository root: `uv run ruff check`, `make check-test`, the boundary
@@ -484,4 +529,14 @@ planned; if one becomes necessary, it follows the baseline-only migration rule.
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered (2026-10-10): stages 2 and 3 of #379 (129 shared routes) are served once,
+from `animama.product_http`, by every composition through installed
+`ProductPorts`; stages 4 and 5 (20 shared routes) remain in `server/routers/` and
+need separate authorization. Local self-hosted and desktop behaviour, the sorted
+OpenAPI document and the generated SDK are unchanged. The hosted consumer adopts
+`ROUTERS` in its own plan, using FI-05's limitations.
+
+Lessons: test doubles should match the strictest composition (the read-session guard
+and the per-owner content tree found real classification and isolation gaps), and
+the browser journeys catch timing races that in-process ASGI tests buffer away
+(the download discard race).
