@@ -22,6 +22,7 @@ from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.chat_port import ChatRepository
 from animama.app.ports.memory_entry_port import MemoryEntryRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
+from animama.app.ports.settings_port import AnimaSettingsRepository, UserSettingsRepository
 from animama.app.ports.uow_port import UnitOfWork
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.principal import get_current_principal
@@ -44,6 +45,12 @@ class ProductRepositories(Protocol):
 
     @property
     def memory_episodes(self) -> MemoryEpisodeRepository: ...
+
+    @property
+    def user_settings(self) -> UserSettingsRepository: ...
+
+    @property
+    def anima_settings(self) -> AnimaSettingsRepository: ...
 
     @property
     def unit_of_work(self) -> UnitOfWork: ...
@@ -79,6 +86,14 @@ class ProductPorts(Protocol):
 
     def repositories(self, session: AsyncSession) -> ProductRepositories:
         """The product repositories over a session this composition opened."""
+        ...
+
+    def user_settings_changed(self, principal: RequestPrincipal) -> None:
+        """Tell the composition ``principal``'s user settings changed.
+
+        Called after the handler requested its commit; a composition that defers
+        commits acts on it once the commit completes.
+        """
         ...
 
 
@@ -119,6 +134,9 @@ ReadSession = Annotated[AsyncSession, Depends(get_read_session)]
 # is sent, so a failed commit is reported instead of an earlier success. The
 # session is therefore closed before a streaming body runs.
 WriteSession = Annotated[AsyncSession, Depends(get_write_session, scope="function")]
+
+
+Ports = Annotated[ProductPorts, Depends(get_product_ports)]
 
 
 def get_read_repositories(

@@ -77,6 +77,9 @@ class RecordingPorts:
     def repositories(self, session: AsyncSession) -> Any:
         return SimpleNamespace(session=session)
 
+    def user_settings_changed(self, principal: RequestPrincipal) -> None:
+        pass
+
 
 def test_shared_routes_fail_closed_without_installed_ports() -> None:
     with TestClient(session_probe_app()) as client:

@@ -61,6 +61,7 @@ class DeferredCommitPorts:
     commits: int = 0
     rollbacks: int = 0
     owners: list[str] = field(default_factory=list)
+    settings_changes: list[str] = field(default_factory=list)
 
     @asynccontextmanager
     async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[AsyncSession]:
@@ -98,6 +99,9 @@ class DeferredCommitPorts:
     def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
         return SQLAlchemyProductRepositories(session)
 
+    def user_settings_changed(self, principal: RequestPrincipal) -> None:
+        self.settings_changes.append(principal.id)
+
 
 @dataclass
 class SessionPorts:
@@ -108,6 +112,7 @@ class SessionPorts:
 
     session: AsyncSession
     policy: ProductPolicy = field(default_factory=lambda: TEST_POLICY)
+    settings_changes: list[str] = field(default_factory=list)
 
     @asynccontextmanager
     async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[AsyncSession]:
@@ -117,6 +122,9 @@ class SessionPorts:
 
     def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
         return SQLAlchemyProductRepositories(session)
+
+    def user_settings_changed(self, principal: RequestPrincipal) -> None:
+        self.settings_changes.append(principal.id)
 
 
 def product_app(*routers: APIRouter, ports: ProductPorts | None, resolver: Any = None) -> FastAPI:

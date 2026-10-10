@@ -42,7 +42,7 @@ Local setup and host/key administration schemas remain in the server composition
 - `server/routers/model_assets.py`: pinned downloadable asset install state,
   install, removal and same-origin byte delivery.
 - `product_http/routes/chats.py` (shared): chat CRUD and persisted chat messages.
-- `server/routers/settings.py`: user settings and per-anima settings.
+- `product_http/routes/settings.py` (shared): user settings and per-anima settings.
 - `server/routers/user_profiles.py`: private local display-name reads and edits.
 - `server/routers/content.py`: neutral Included/Local catalog health, Rescan,
   delete and registered-byte delivery.

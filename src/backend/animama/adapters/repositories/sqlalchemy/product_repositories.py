@@ -17,6 +17,10 @@ from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
+from animama.adapters.repositories.sqlalchemy.settings_repo import (
+    SQLAlchemyAnimaSettingsRepository,
+    SQLAlchemyUserSettingsRepository,
+)
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 
 
@@ -45,6 +49,14 @@ class SQLAlchemyProductRepositories:
     @cached_property
     def memory_episodes(self) -> SQLAlchemyMemoryEpisodeRepository:
         return SQLAlchemyMemoryEpisodeRepository(self._session)
+
+    @cached_property
+    def user_settings(self) -> SQLAlchemyUserSettingsRepository:
+        return SQLAlchemyUserSettingsRepository(self._session)
+
+    @cached_property
+    def anima_settings(self) -> SQLAlchemyAnimaSettingsRepository:
+        return SQLAlchemyAnimaSettingsRepository(self._session)
 
     @cached_property
     def unit_of_work(self) -> SQLAlchemyUnitOfWork:

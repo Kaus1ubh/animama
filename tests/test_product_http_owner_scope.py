@@ -10,11 +10,13 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.contracts.anima import PyAnimaChatProfileUpdateRequest, PyAnimaUpdateRequest, PyEmotionalState
 from animama.app.contracts.settings import PyAnimaSettingsUpdate
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima
-from animama.server.routers import anima, settings
+from animama.product_http.routes import settings
+from animama.server.routers import anima
 
 CALLER = RequestPrincipal(id="caller-owner")
 
@@ -37,12 +39,17 @@ def anima_scoped_calls(anima_id: str, session: AsyncSession) -> dict[str, Callab
             anima_id=anima_id, emotional_state=PyEmotionalState(), session=session, user=CALLER
         ),
         "delete_anima": lambda: anima.delete_anima(anima_id=anima_id, session=session, user=CALLER),
-        "get_anima_settings": lambda: settings.get_anima_settings(anima_id=anima_id, session=session, user=CALLER),
+        "get_anima_settings": lambda: settings.get_anima_settings(
+            anima_id=anima_id, repositories=SQLAlchemyProductRepositories(session), user=CALLER
+        ),
         "patch_anima_settings": lambda: settings.patch_anima_settings(
-            anima_id=anima_id, req=PyAnimaSettingsUpdate(favorited=True), session=session, user=CALLER
+            anima_id=anima_id,
+            req=PyAnimaSettingsUpdate(favorited=True),
+            repositories=SQLAlchemyProductRepositories(session),
+            user=CALLER,
         ),
         "delete_anima_settings": lambda: settings.delete_anima_settings(
-            anima_id=anima_id, session=session, user=CALLER
+            anima_id=anima_id, repositories=SQLAlchemyProductRepositories(session), user=CALLER
         ),
     }
 

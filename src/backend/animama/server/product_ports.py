@@ -12,6 +12,7 @@ from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlc
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import ProductPolicy
 from animama.server.deps import get_async_session_factory
+from animama.server.embedding_refresh import wake_embedding_refresh
 
 
 class LocalProductPorts:
@@ -40,3 +41,7 @@ class LocalProductPorts:
 
     def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
         return SQLAlchemyProductRepositories(session)
+
+    def user_settings_changed(self, principal: RequestPrincipal) -> None:
+        # The embeddings role may have changed; re-check stored vectors now.
+        wake_embedding_refresh(self._app)
