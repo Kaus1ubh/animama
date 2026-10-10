@@ -917,7 +917,8 @@ export function ActionEditorPage({
           dependency.content_type === initialComponentType &&
           exactSourceKey(dependency.source) === sourceKey,
       );
-      if (!exists)
+      // A licensed built-in sound stays with built-in content.
+      if (!exists && !isNonPortable(initialComponentItem.data))
         addComponent(initialComponentItem.data, initialComponentType);
       return;
     }

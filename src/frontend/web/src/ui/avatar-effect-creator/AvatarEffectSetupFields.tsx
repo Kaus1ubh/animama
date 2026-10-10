@@ -365,6 +365,11 @@ export function AvatarEffectSetupFields({
             size="sm"
             className="w-full text-xs"
             aria-label="Sound when applied"
+            aria-describedby={
+              licensedSoundOmitted
+                ? "avatar-effect-licensed-sound-note"
+                : undefined
+            }
           >
             <SelectValue
               placeholder={soundPending ? "Loading sounds…" : "No sound"}
@@ -397,9 +402,12 @@ export function AvatarEffectSetupFields({
           </SelectContent>
         </Select>
         {licensedSoundOmitted ? (
-          <div className="text-muted-foreground text-xs">
+          <p
+            id="avatar-effect-licensed-sound-note"
+            className="text-muted-foreground text-xs"
+          >
             {LICENSED_SOUND_NOTE}
-          </div>
+          </p>
         ) : null}
       </Field>
       <Field label="Description">

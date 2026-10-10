@@ -379,6 +379,8 @@ export function AvatarEffectCreatorPage({
     busy: guardLeave && contentSave.isBusy,
     discard: contentSave.discardChanges,
   });
+  // A copy of a built-in effect never carries its licensed sound; say so.
+  const [licensedSoundOmitted, setLicensedSoundOmitted] = useState(false);
   const installTemplateStart = useCallback(
     (next: AvatarEffectHistorySnapshot) => {
       setHasAttemptedSave(false);
@@ -440,8 +442,6 @@ export function AvatarEffectCreatorPage({
   const facePartsQuery = useAvatarFaceParts(facePartsItemId);
 
   const soundQuery = useSoundEffects({ limit: 100, sort: "name" });
-  // A copy of a built-in effect never carries its licensed sound; say so.
-  const [licensedSoundOmitted, setLicensedSoundOmitted] = useState(false);
   const soundOptions = useMemo(
     () => soundQuery.data?.pages.flatMap((page) => page.items) ?? [],
     [soundQuery.data?.pages],
@@ -698,6 +698,7 @@ export function AvatarEffectCreatorPage({
       if (isDirty && !window.confirm("Replace the current unsaved document?"))
         return;
       dispatch({ type: "replace", document: parsed }, NO_AVATAR_EFFECT_IMAGES);
+      setLicensedSoundOmitted(false);
       setImportError(null);
       setImportOpen(false);
       restartPreview();

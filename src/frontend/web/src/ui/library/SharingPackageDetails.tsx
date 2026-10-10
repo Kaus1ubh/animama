@@ -104,6 +104,21 @@ export function SharingNonPortableItems({
 }) {
   if (!items.length) return null;
   const importing = items.some((item) => item.outcome);
+  // Built-in effects' licensed sounds are never listed elsewhere; one row
+  // says they stay with the receiver's own built-in effects.
+  const sounds = items.filter(
+    (item) => item.kind === "sound_effect" && !item.outcome,
+  );
+  const rows: typeof items =
+    sounds.length > 1
+      ? [
+          ...items.filter((item) => !sounds.includes(item)),
+          {
+            name: `${sounds.length} built-in effect sounds`,
+            kind: "sound_effect",
+          },
+        ]
+      : items;
   return (
     <section
       className="space-y-2 rounded-xl border p-4"
@@ -118,7 +133,7 @@ export function SharingNonPortableItems({
           : "This content comes with Animama for use here only. The person importing this package uses their own copy if they have one."}
       </p>
       <ul className="divide-y">
-        {items.map((item) => (
+        {rows.map((item) => (
           <li
             key={`${item.kind}:${item.name}`}
             className="flex items-center justify-between gap-3 py-2 text-sm"

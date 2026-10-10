@@ -13,6 +13,7 @@ import {
 } from "@animama/runtime-contracts/sdk";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import type { SharingItem } from "@/lib/content-sharing/types";
+import { isNonPortable } from "@/lib/content/portability";
 import { queryKeys } from "@/query/keys";
 
 /** The typed family endpoints return complete inventories; no catalog metadata decoding. */
@@ -44,15 +45,23 @@ export function useSharingInventory(enabled: boolean) {
       ]);
       return pages
         .flatMap((page) =>
-          page.data.items.map(
-            ({ item_id, name, kind, description, portability }) => ({
+          page.data.items
+            // Licensed built-in sounds travel with nothing; they aren't listed.
+            .filter(
+              (item) =>
+                !(
+                  item.kind === "sound_effect" &&
+                  item.source === "included" &&
+                  isNonPortable(item)
+                ),
+            )
+            .map(({ item_id, name, kind, description, portability }) => ({
               item_id,
               name,
               kind: kind ?? "pose",
               description,
               portability,
-            }),
-          ),
+            })),
         )
         .sort((a, b) => a.name.localeCompare(b.name));
     },

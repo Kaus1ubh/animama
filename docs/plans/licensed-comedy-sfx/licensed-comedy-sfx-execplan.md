@@ -211,6 +211,15 @@ starting revision; implementers re-check them.
   This follows Q1 (Local content never carries a licensed sound) but diverges
   from #399 R3's "rebinds to the receiver's matching sound". **Owner
   confirmation requested** with the PR.
+- 2026-10-10, agent (Phase 3, for owner confirmation with the PR): licensed
+  built-in sounds are hidden from Library, the creator pickers and the export
+  picker instead of being listed with a reason. A Library card that plays a
+  licensed sound on its own would resemble the soundboard or sound library the
+  vendor's terms forbid; the sounds are heard only through their effects
+  (Library effect Preview plays them). Local copies of restricted bytes stay
+  visible so they can be deleted. The export review shows the omitted sounds as
+  one "N built-in effect sounds" row. The Scene Effect creator drops a licensed
+  sound without a note: no built-in Scene Effect has one.
 
 ## Phased implementation
 
@@ -513,8 +522,11 @@ Intended changes:
    sound edges. The creator shows a short, visible note when it dropped one
    ("The built-in sound stays with the built-in effect"). Final wording is
    reviewed with the UI.
-3. **Library.** Non-portable sound cards don't offer "Use in Gesture/Reaction";
-   the sound dialog shows the non-portable reason instead of only "read-only".
+3. **Library.** *Revised 2026-10-10 (Decision Log):* licensed built-in sounds
+   are not listed in Library, the pickers or the export picker at all; they
+   are heard only through their effects. Original text: non-portable sound
+   cards don't offer "Use in Gesture/Reaction"; the sound dialog shows the
+   non-portable reason instead of only "read-only".
 4. **Copy.** The save error for restricted bytes no longer says "motion"
    (generic wording for all licensed built-in content), and the new
    non-portable-dependency error has its own message.
@@ -536,15 +548,68 @@ explains every unavailable action in text; review passes.
 
 #### Phase 3 references
 
-Issue: #404. Commits: none yet.
+Issue: #404. Commits: `2af87a0a` (`feat(content)[p3]: keep licensed sounds out
+of creators and the Library`) and the Code Review #1 revision commit.
+
+#### Phase 3 results
+
+Checks at `2af87a0a`: `pnpm check`, `pnpm web:lint` and `pnpm build` pass;
+`pnpm web:test` 3402 passed and 4 failed, all in
+`tests/local-api-proxy.test.ts` with "Port 5173 is already in use" (another
+session's test process held the port; environment, not this change).
+
+Browser check (2026-10-10, review stack `animama-sfx` at
+`http://animama-sfx.localhost:8400`, 1440×900, candidate pack mounted):
+
+- Library → Sound Effects shows no items (the 26 licensed sounds are hidden).
+- Editing the built-in Sweat Drop opens a Local copy with "No sound" and the
+  note under "Sound when applied"; the picker offers only "No sound".
+- Library Preview of Sweat Drop plays its licensed sound (an `Audio` element
+  created from the preview's blob and played).
+- The export picker listed the licensed sounds as disabled rows, and the
+  Anima export review listed 23 sounds one by one; both are changed in the
+  revisions below.
+- Not run: `pnpm e2e:test:fast` (pending, with the final candidate).
 
 #### Code Review #1 Findings
 
-Not started.
+Independent `sdlc-reviewer`, 2026-10-10, source `2af87a0a` (baseline
+`ee1f38d0`). **Blocked** on two required findings, no code-correctness
+blockers. Checks: 634 targeted tests, prettier, eslint, `tsc`.
+
+- **P3-F1 (required, record):** hiding licensed sounds from Library differed
+  from Phase 3 item 3 and #404 without a recorded decision.
+- **P3-F2 (required, tests):** no tests for the action-copy guard or the
+  creator note.
+- Non-blocking: P3-N1 the Scene Effect creator drops a licensed sound
+  silently; P3-N2 an Action deep link (`?component=<sound>`) could add a
+  licensed sound, and JSON import keeps one (save is refused); P3-N3 the new
+  save errors named `dependencies`, so the sound control wasn't highlighted;
+  P3-N4 the filter also hid Local sounds with restricted bytes; P3-N5 note
+  state edge cases and accessibility; P3-N6 the export picker still listed
+  licensed sounds; P3-N7 review label and e2e evidence; P3-N8 an unreachable
+  authored fallback.
 
 #### Code Review #1 Revisions
 
-Not started.
+- P3-F1 **accepted:** Decision Log entry, item 3 revised, #404 updated, owner
+  confirmation requested with the PR.
+- P3-F2 **accepted:** tests for a customized Reaction leaving a non-portable
+  sound support out, and for the note and its `aria-describedby`.
+- P3-N2 accepted for the deep link (licensed sounds aren't added); JSON import
+  is left to the backend refusal, which now highlights the sound control
+  (P3-N3: the backend omits the field and the frontend maps both codes to
+  `sound`).
+- P3-N4 accepted: only Included licensed sounds are hidden.
+- P3-N5 accepted: the note is a described `<p>`, cleared on JSON import, and
+  its state is declared before use; recovered drafts show no note (they kept
+  no licensed sound).
+- P3-N6 accepted: the export picker hides licensed built-in sounds, and the
+  review collapses omitted sounds into one row (tested).
+- P3-N1 recorded as a limitation (Decision Log); P3-N7 the browser evidence
+  is above, e2e pending; P3-N8 not changed (unreachable for typed previews).
+- Checks after revisions: 706 targeted tests pass; `pnpm check` and
+  `pnpm web:lint` pass.
 
 ### Phase 4: Sound mapping, pack assembly and integration
 
@@ -566,7 +631,43 @@ criteria with real content. Depends on P1–P3. Contains owner gates.
    short variants. None of the former pairings is reused. Draft table below; the
    owner's listening review (G2) is authoritative.
 
-   Draft: recorded here at the start of Phase 4.
+   Draft (2026-10-10, agent; 26 distinct sounds, none of the former pairings):
+
+   | Effect | Sound key | Length | Intent |
+   | --- | --- | --- | --- |
+   | angry | anger_explode_03 | 2.27 s | A comic burst of temper |
+   | blush | cute_chirpy_02 | 1.06 s | A soft, flustered chirp |
+   | blush_band | cute_chirpy_06 | 0.89 s | A shy little chirp |
+   | blush_deep | accidental_kiss_01 | 1.18 s | A squeaky, mortified blush |
+   | despair_shade | funny_downer_02 | 2.40 s | A deflating comic downer |
+   | doki_doki | heartbeat_04v1_faster | 2.56 s | A fast, excited heartbeat |
+   | emote | surprised_02 | 1.66 s | A sharp startled cue |
+   | eye | ng_01 | 1.07 s | A flat, deadpan buzz |
+   | eye_0 | stun_expression_02v1 | 2.60 s | A stunned, shocked sting |
+   | eye_confused_swirl | wobble_riser_01v2 | 2.06 s | A dizzy wobble |
+   | eye_o | surprised_02v2 | 1.86 s | A wide-eyed surprise |
+   | eye_vv | cute_chirpy_03 | 1.32 s | A giggly, bashful chirp |
+   | face_red | cute_short_riser | 1.81 s | A quick rising flush |
+   | gloom_lines | shrink_03 | 1.62 s | A sinking, deflated slide |
+   | heart_eyes | love_bubble_02 | 3.17 s | A smitten, bubbly love cue |
+   | heart_throb | heartbeat_03v1_light | 2.35 s | A gentle, warm heartbeat |
+   | idea_bulb | realization | 2.21 s | A bright 'got it!' ding |
+   | mouth_hover_w | bouncy_bubble_02 | 0.88 s | A bubbly, playful pop |
+   | mouth_w | cute_01v1 | 0.87 s | A tiny cute blip |
+   | star3 | bright_eyes | 2.22 s | A sparkling, starry-eyed shimmer |
+   | steam_puffs | irritated_02 | 2.13 s | A fuming, steaming grumble |
+   | streaming_tears | squirt_01v2 | 1.48 s | A comic gush of tears |
+   | sweat_drop | funny_sweat_02 | 2.27 s | A nervous sweat-drop plip |
+   | texture_black_1 | lame_horror_01v2 | 3.72 s | A gloomy comic horror sting |
+   | texture_sick_1 | wobble_short | 0.88 s | A short queasy wobble |
+   | texture_sick_2 | wobble_riser_02 | 3.85 s | A long uneasy wobble |
+
+   Stacking draft (Reactions that start several effects within 0.3 s keep one
+   sound): anger-3 keeps angry; annoyance-3 steam_puffs; confusion-3
+   eye_confused_swirl; desire-3 heart_eyes; embarrassment-2 blush;
+   embarrassment-3 blush_deep; fear-2 and fear-3 eye_o; gratitude-3
+   heart_throb; grief-3 despair_shade; love-2 doki_doki; love-3 heart_eyes;
+   nervousness-3 sweat_drop; sadness-3 streaming_tears.
 
 4. **Pack assembly** (agent, private workspace). From the owner's licensed copy,
    copy only the mapped sounds into `build-inputs/wow-comedy-sfx/sfx/wow-comedy/`

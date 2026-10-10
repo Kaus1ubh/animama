@@ -240,6 +240,45 @@ describe("Starter action customization", () => {
     expect(document.notes).toContain("Customized from Starter");
   });
 
+  it("leaves a licensed built-in sound out of a customized copy", async () => {
+    const starter = item({
+      intent: "reaction",
+      id: "builtin:reaction:admiration-2",
+      name: "Admiration Reaction 2",
+    });
+    const starterPreview = preview({
+      intent: "reaction",
+      id: starter.item_id,
+      key: "admiration-2",
+    });
+    const closure = starterPreview.closure as unknown as {
+      root: { reference_map: Record<string, string> };
+      supports: unknown[];
+    };
+    closure.root.reference_map.chime = "support-2";
+    closure.supports.push({
+      runtime_id: "support-2",
+      content_type: "sound_effect",
+      portability: "non-portable",
+      source: {
+        type: "catalog",
+        catalog_item_id: "licensed-sound",
+      },
+    });
+    const document = await actionDocumentFromPreview({
+      intent: "reaction",
+      item: starter,
+      preview: starterPreview,
+      base: createReactionDocument(),
+      customizeStarter: true,
+      semanticSuffix: "abcdef12",
+    });
+
+    expect(document.dependencies.map((value) => value.alias)).toEqual([
+      "sparkle",
+    ]);
+  });
+
   it("reconstructs exact sources from readable Included dependency refs", async () => {
     const starter = item({
       intent: "reaction",

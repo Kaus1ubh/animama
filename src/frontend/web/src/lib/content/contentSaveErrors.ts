@@ -59,6 +59,8 @@ const CONTENT_SAVE_MESSAGES: Record<string, string> = {
 };
 
 const CONTENT_SAVE_FIELDS: Record<string, string> = {
+  content_non_portable_dependency: "sound",
+  content_optional_dependency: "sound",
   content_path_exists: "name",
   invalid_entry_name: "name",
   content_file_empty: "files",

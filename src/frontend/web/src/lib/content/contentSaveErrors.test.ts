@@ -221,10 +221,18 @@ describe("toContentSaveApiError", () => {
     ["content_optional_dependency", "Only built-in effects can have"],
     ["content_non_portable", "match content included with this app"],
   ])("explains the %s licensed-content refusal", (code, text) => {
+    expect(toContentSaveApiError({ detail: { code } }, 409).message).toContain(
+      text,
+    );
+  });
+
+  it("targets the sound control for licensed-sound refusals", () => {
     expect(
-      toContentSaveApiError({ detail: { code, field: "dependencies" } }, 409)
-        .message,
-    ).toContain(text);
+      toContentSaveApiError(
+        { detail: { code: "content_non_portable_dependency" } },
+        409,
+      ).field,
+    ).toBe("sound");
   });
 
   it("turns a browser fetch failure into local-stack recovery guidance", () => {
