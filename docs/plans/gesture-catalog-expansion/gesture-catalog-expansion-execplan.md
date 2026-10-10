@@ -48,17 +48,45 @@ the git-ignored `.animama-drafts/gesture-catalog-expansion/` of this worktree.
 - [x] G1: owner agreed the spec and this plan (2026-10-10).
 - [x] Phase 1 (#412): palm-to-palm check, identity guard and authoring brief (R8);
       review #2 passed 2026-10-10.
-- [ ] Phase 2 (#413): 30 new Gesture drafts and their effects; G2a (R1, R2, R3, R6 for
-      new items).
-- [ ] Phase 3 (#414): AI descriptions and the selection evaluation (R6, R7).
-- [ ] Phase 4 (#415): effects on existing Gestures (R3, R4); effect-list approval.
-- [ ] Phase 5 (#416): sounds for new effects and listening review; G2b (R5). Waits
-      for #399.
+- [x] Phase 2 (#413): 64 new drafts (30 R1 Gestures, 12 R10 idles, 22 R1b
+      Gestures), stretched 1.1×, each passing `check` with 0 FAIL (Cover Face
+      and Peek keeps one explained WARN). G2a approved 2026-10-10 in two sets:
+      the first 42 after two note rounds, then the R1b set after one note
+      round and effect removals. Effects ship on 30 of the 52 one-shots and
+      7 of the 12 idles (see `EFFECTS.md`).
+- [ ] Phase 3 (#414): harness committed (`265fc232`); evaluation run 2026-10-10
+      (pass rule met); descriptions and the starter proposal go to G3. AI descriptions and the selection evaluation (R6, R7).
+- [x] Phase 4 (#415): effect list approved; effects on ten existing Gestures
+      drafted and approved 2026-10-10 (Excited Triple Clap keeps only its R8
+      contact cleanup). Sounds follow in Phase 5.
+- [ ] Phase 5 (#416): sounds for new effects and listening review; G2b (R5).
+      #399 merged 2026-10-10 (PR #427).
 - [ ] Phase 6 (#417): promotion, registries, starters and final validation; G3 (R1–R9).
 - [ ] Final integration review.
 - [ ] PR; owner merge approval.
 
 ## Surprises & Discoveries
+
+- 2026-10-10, effects work:
+  - **Event attachment.** An `avatar_vfx` event cannot change an effect's
+    bone, so two-handed effects ship as right and left twins
+    (for example `shake_lines_left`, `drumroll_ticks_left` and
+    `finger_gun_spark_left`). Each twin is a separate Included effect that
+    will need its own sound in Phase 5.
+  - **Project files.** `animation validate` and `check` read clips, not
+    projects, so effect projects are checked through their `sequence`.
+- 2026-10-10, licensing (G3 item): the nine lettering effects are rendered
+  from a script using the macOS system font Arial Rounded Bold. Whether its
+  terms allow shipping the rendered PNGs must be confirmed at G3. Otherwise
+  the set is regenerated with an OFL rounded font, which needs a font download
+  the owner approves; the script makes regeneration quick.
+- 2026-10-10, evaluation:
+  - The owner chose `gpt-6-luna` ("Luna", the accepted main model
+    `OpenAIResponsesHTTPAgent:gpt-6-luna`) at reasoning effort none, low and
+    medium, and approved up to $6.
+  - Haiku 5.5 was the first choice, but this branch has no Anthropic provider
+    (raymond-van/animama#408 is open).
+  - Task stack `gce` (development, base port 8440), from this worktree.
 
 - 2026-10-10 discovery:
   - **No repetition control.** Variety depends only on the instruction "Use a
@@ -95,6 +123,64 @@ the git-ignored `.animama-drafts/gesture-catalog-expansion/` of this worktree.
 
 - 2026-10-10, owner (G1): asked to implement the published spec and this plan
   (`/implement`). The proposals below were accepted as written.
+- 2026-10-10, owner (G2a round 1): all new Gesture motion is approved.
+  Changes requested:
+  - **10% slower.** Every new clip is stretched 1.1× by
+    `work/_stretch/stretch.py`: durations, fades, beats, key offsets, contact
+    windows and blends, and events.
+  - **Effects too brief.** Effects of about 0.5 s are too short to read;
+    effects now hold at least about 1.0 s.
+  - **No romaji lettering.** GOMEN, CHIRA, KYAA, MUKI, NYA and OHOHOHO are
+    replaced with English or non-text manpu. BLEH, HEH and RAWR stay.
+  - **More manpu.** Add more manpu effects, reusing Included ones such as
+    blush. This **relaxes R3's "no emotion face paint" rule**: Gestures may
+    reuse blush, sweat, anger and gloom effects, accepting occasional doubling
+    with Reactions.
+  - **Art.** New manpu art is original work in the style of the owner's
+    reference sheet (inspiration only; not traced).
+- 2026-10-10, owner (R1b G2a): notes on Hand to Ear, Who Me? and Phew Brow
+  Wipe motion and a Pon! idea bulb; asked for more effects on the R1b set,
+  then removed them again from Presenting, Chef's Kiss and Pinky Promise. With
+  that, every new Gesture is approved, and the rest of the plan proceeds.
+- 2026-10-10, owner (G2a round 2 notes):
+  - **Fewer effects.** Excited Triple Clap loses all its effects and keeps
+    only its R8 contact cleanup, so ten existing Gestures gain effects.
+    Apology Bow loses its sweat splash, Head Pat its cloud and sparkle (the
+    hearts stay), Happy Sway its music notes, Drumroll its ta-da sparkles and
+    Fighting! Fist Pump all effects (a chest sparkle, then fist flames).
+  - **Brief flashes are allowed when asked for.** Cheeky Finger Guns plays a
+    short spark at each index fingertip (`finger_gun_spark` and a left twin),
+    an exception to the round 1 hold of about 1 s.
+  - **Motion.** Drumroll drums with the index fingers. Mind Blown puts flat
+    hands with the wrists bent so the fingertips rest on the temples, instead
+    of pointing index fingers.
+- 2026-10-10, owner (G2a): all 42 new drafts (30 Gestures and 12 idles) are
+  approved after the round 2 revisions.
+- 2026-10-10, owner: the effects on the ten existing Gestures (Phase 4) are
+  approved too; only their sounds remain for G2b.
+- 2026-10-10, owner (scope change, R1b): add 22 more one-shot Gestures in this
+  issue rather than a follow-up, since merges are queued anyway: the 15
+  proposed (This Big!, Just a Tiny Bit, Hand to Ear, Who Me?, Zip Lips, Phew
+  Brow Wipe, Fingers Crossed, Flustered Fan, Big Circle, Big X, Tehepero,
+  Scheming Hands, Soul Leaves Body, Virtual Hug, High Five) and seven of the
+  alternates (Pinky Promise, Chef's Kiss, Presenting, Stretch Break, Typing
+  Away, Pon!, Fist Bump). The spec was republished to #409
+  (2026-10-10T21:30:44Z). They are drafted as items 43–64 with the Phase 2
+  pipeline (five agents at a time, authored at the original pace and then
+  stretched 1.1×) and reviewed in their own G2a round. Effects follow the
+  round 1 and 2 rules and are kept sparse.
+- 2026-10-10, owner (scope change, R10): add five VTuber-style idle Gestures
+  (Chat Glance, Off-Screen Look, BGM Bob, Hmm Drift, Hair Tuck & Settle) and
+  an Included "Streamer Idle" Idle Style to this issue.
+  - Default idle for new companions stays out.
+  - The spec was republished to #409 (2026-10-10T14:19:04Z).
+  - Phase 2 drafts them for G2a; Phase 6 writes the Idle Style by hand, since
+    promote tooling doesn't cover Idle Styles.
+- 2026-10-10, owner (R10 extended): add five emotion idles (Downcast Sigh,
+  Simmering Huff, Happy Sway, Nervous Fidget, Dreamy Gaze) plus Bored Wait and
+  Sleepy Nod-off, twelve idles in all.
+  - Emotion cells use them at intensities 2–3; intensity 1 inherits Default.
+  - Overlap with the Mixamo pack's emotion, bored and sleepy idles is accepted.
 - 2026-10-10, owner: go ahead with effect generation without a separate
   approval. The consolidated table (`EFFECTS.md` in the drafts folder) is
   reviewed at G2a and G2b as planned.
@@ -277,7 +363,7 @@ Non-blocking:
 
 Phase 1 is complete. One repair round of two was used.
 
-### Phase 2 — New Gesture drafts and their effects (R1, R2, R3, R6; gate G2a)
+### Phase 2 — New Gesture drafts and their effects (R1, R2, R3, R6, R10 idles; gate G2a)
 
 Issue: #413. Starting revision: the Phase 1 commit, so the R8 allowance applies
 to Prayer Hands, Please Hands and Apology Bow. Gate: G1. Completion: G2a
@@ -316,10 +402,14 @@ approval of every new Gesture and effect by name.
 
    Record each piece of art's provenance (tool and prompt summary) for the
    source review.
-5. **Projects.** A Gesture that plays an effect is previewed as a project file
+5. **Idles (R10).** Twelve more drafts, items 31–42 in `BRIEF.md`,
+   join G2a. They mute `cursorLookAt`, `headNod` and `headSideTilt`, keep
+   `breathing`, and have no `playback` lifetime, so they stay eligible for
+   idle playback.
+6. **Projects.** A Gesture that plays an effect is previewed as a project file
    with a `ref` dependency and `--local-content <root>`, as #314 did with Have
    an Idea.
-6. **Gate G2a.** Run `pnpm -s animation:preview <first draft>`. The owner
+7. **Gate G2a.** Run `pnpm -s animation:preview <first draft>`. The owner
    switches items and compares against related Included Gestures. Notes are
    applied and closed with `pnpm -s animation resolve`. Repeat until the owner
    approves each Gesture and each new effect by name. Effects are reviewed
@@ -387,6 +477,45 @@ set is committed if public-safe.
 
 Completion: results recorded and the proposal ready for G3. Review covers the
 harness code.
+
+#### Evaluation results (2026-10-10)
+
+Setup:
+- **Model:** `OpenAIResponsesHTTPAgent:gpt-6-luna` on task stack `gce` (the
+  owner's choice), incognito.
+- **Inputs:** `eval/` (git-ignored: the generator, the prompt set of 60 items
+  plus 2 × 30-turn chats, and three loadouts).
+- **Runs:** 3 repeats per item and 1 per scripted chat, 720 calls per
+  reasoning level, no errors.
+- **Cost:** about 3.0M input tokens per run, of which about 2.55M cached, and
+  63–87k output tokens per run. That is about $0.35 for all three runs at the
+  catalog's standard rates. The harness reported "unpriced"; billing is the
+  authority.
+
+| Fit rate (null rate) | none | low | medium |
+| --- | --- | --- | --- |
+| Baseline, 20 starters (3.0 KB list) | 64.4% (20.0%) | 62.8% (20.6%) | 62.8% (20.0%) |
+| Candidate, 25 (5.0 KB) | 70.0% (15.0%) | 70.6% (16.1%) | 68.3% (15.6%) |
+| All 73 (15.5 KB) | 87.2% (13.3%) | 84.4% (13.3%) | 83.3% (13.3%) |
+
+- **Pass rule:** met at every level.
+- **Per-group fit, effort none:**
+
+  | Group | Baseline | Candidate | All 73 |
+  | --- | --- | --- | --- |
+  | Emotions | 38/54 | 39/54 | 47/54 |
+  | Beats | 15/48 | 23/48 | 36/48 |
+  | Goodbyes | 6/9 | 9/9 | 9/9 |
+  | Neutral | 30/30 | 26/30 | 29/30 |
+
+- **Variety:** scripted chats show 10–13 distinct Gestures (baseline), 9–13
+  (candidate) and 14–18 (all 73), with the longest run of one Gesture 1–3.
+- **Reasoning:** low and medium effort give no gain over none.
+- **Over-selection:** Explain with Open Palms is picked about 20 of 180 times
+  in the candidate loadout, including neutral turns. Thinking Hand on Chin is
+  the most frequent pick.
+- **Starter proposal for G3:** the five candidates, with tighter "when"
+  descriptions for those two Gestures.
 
 #### Code Review #1 Findings
 
@@ -554,21 +683,33 @@ Steps after G3, each write after its own dry run:
 4. **Starters.** Update starter policy v1 in place,
    `EXPECTED_STARTER_GESTURE_IDS` and the starter count pins, in one commit
    with the content.
-5. **Registries.**
+5. **Streamer Idle (R10).** Write the Included Idle Style by hand under
+   `content/included/idle-styles/streamer-idle/`:
+   - shape: modelled on the Idle Style document schema
+     (`schema_version` 2; `dependencies` on the twelve `builtin:gesture:`
+     IDs);
+   - Default pool: the streaming idles plus Bored and Sleepy;
+   - emotion cells at intensities 2–3: their emotion idles, with curiosity on
+     Off-Screen Look and confusion on Hmm Drift;
+   - its licence-inventory rule and source-review record;
+   - a backend test that the catalog resolves it and that its members pass
+     idle eligibility (`idle_clip_validation.py`);
+   - no change to new companions' idle selection.
+6. **Registries.**
    - manifest names, durations and loop kinds, plus the backend copy sync;
    - removal of re-animated legacy clips from `MOTION_CHECK_EXEMPT`;
    - count pins;
    - effect picker templates and thumbnails (`pnpm -s effects:thumbnails`)
      with their source-review records;
    - re-baselined hashes for touched items only.
-6. **Docs.**
+7. **Docs.**
    - `content/included/README.md` (counts, sounds);
    - `docs/frontend/testing/browser-journeys.md` if journeys change;
    - starter counts wherever documented (#314 found two stale docs);
    - the skill references: the action-bound effect rule in
      `animama-animation` (`SKILL.md` or `references/`) and
      `animama-avatar-vfx`.
-7. **Staging.** Run `git add` before backend tests and desktop staging, which
+8. **Staging.** Run `git add` before backend tests and desktop staging, which
    read tracked files only.
 
 Checks:

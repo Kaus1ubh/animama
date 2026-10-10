@@ -5,7 +5,8 @@ Owner decision: 2026-10-10, the owner asked to implement this spec and its
 ExecPlan (gate G1), after discovery answers Q1–Q14 the same day (see
 Decisions). The plan's proposals were accepted as written.
 Authoritative source: https://github.com/raymond-van/animama/issues/409, first
-published 2026-10-10T05:14:41Z, agreed version read back 2026-10-10T05:24:23Z.
+published 2026-10-10T05:14:41Z, agreed version read back 2026-10-10T05:24:23Z; R10 added and extended, read back 2026-10-10T14:25:26Z; R1 extended by 22
+Gestures (R1b), read back 2026-10-10T21:30:44Z.
 This file is a snapshot of that issue.
 
 ## Problem and intended users
@@ -42,7 +43,8 @@ Users:
 ## Goals, scope and non-goals
 
 In scope:
-- 30 new Included Gestures (R1, R2).
+- 52 new Included Gestures: the first 30 (R1) and a second set of 22 (R1b);
+  coverage (R2).
 - Action-bound Avatar Effects on new and existing Gestures, wherever an effect
   adds meaning: reuse first, new art where nothing fits (R3, R4).
 - Sound only through those effects, using the licensed pack from #399 (R5).
@@ -51,10 +53,14 @@ In scope:
 - A few new starters, chosen with a small selection evaluation (R7).
 - A fix for the capsule check's palm-to-palm false positive (R8).
 - Review and promotion through gates G2a, G2b and G3 (R9).
+- Twelve idle Gestures, and one Included Idle Style that pools them (R10;
+  owner, 2026-10-10). Five are natural VTuber streaming idles, five are
+  emotion idles, and two are Bored and Sleepy.
 
 Non-goals:
-- **Idle Styles.** Core idle loops and an Included Idle Style go to a separate
-  issue (Q8).
+- **Default idle for new companions.** Making an Idle Style the starter
+  selection for new companions (starter idle policy) stays out of scope, as
+  do Idle Styles other than R10's.
 - **Gesture `sfx` events** and any new optional-sound mechanism for Gestures
   (Q10). This includes sound-only cues with no visual effect.
 - **Particle and Scene Effects** on Gestures.
@@ -106,6 +112,19 @@ Non-goals:
   - **Tone:** an expressive anime companion for emotions, tropes and playful
     items, in the same gag style as the Avatar Effects. Conversation beats stay
     natural, so they still look right when repeated.
+- **R1b — Second set (owner, 2026-10-10).** After approving the first 42
+  drafts at G2a, the owner added 22 more one-shots, with the same per-Gesture
+  rules as R1:
+
+  | Group | Gestures |
+  | --- | --- |
+  | Conversation beats (9) | This Big!; Just a Tiny Bit; Hand to Ear; Who, Me?; Zip Lips; Presenting; Pon! (realization); Typing Away; Chef's Kiss |
+  | Emotions and reactions (5) | Phew Brow Wipe (relief); Fingers Crossed (hope); Flustered Fan (flustered); Big Circle "Maru" (approval); Big X "Batsu" (disapproval) |
+  | Anime tropes (3) | Tehepero; Scheming Hands; Soul Leaves Body |
+  | Companion (5) | Virtual Hug; High Five; Pinky Promise; Fist Bump; Stretch Break |
+
+  Accepted overlaps: Flustered Fan sits near the Mixamo pack's "flattered",
+  Stretch Break near its "relax" and "tired", and Pon! near Have an Idea.
 - **R2 — Coverage.** After this issue, each of the nine emotions in R1 and each
   conversation beat in R1 has at least one fitting Included Gesture.
 
@@ -183,8 +202,9 @@ Non-goals:
   - **Authoring.** One sub-agent drafts each Gesture with the
     `animama-animation` skill. The drafts are compared side by side for
     consistency, following the #314 conventions.
-  - **G2a.** One `animation:preview` session covers the 30 new Gestures and
-    their visual effects on both Avatars. Every owner note is resolved.
+  - **G2a.** `animation:preview` sessions cover the new Gestures and their
+    visual effects on both Avatars: the first 42 drafts, then the R1b set.
+    Every owner note is resolved.
   - **G2b.** After #399 merges, a second session covers effects on existing
     Gestures, plus a listening review of every new pairing of effect and sound
     and of the stacking choices. Every owner note is resolved.
@@ -193,6 +213,40 @@ Non-goals:
     loop kinds, dependencies) and the starter changes.
   - **Promotion.** Items are promoted to Included with `animation promote` and
     `effects promote`.
+
+### Idle
+
+- **R10 — Idles.**
+  - **Gestures.** Add twelve Included Gestures for Idle Style playback:
+    - five natural VTuber streaming idles: Chat Glance, Off-Screen Look, BGM
+      Bob, Hmm Drift, Hair Tuck & Settle;
+    - five emotion idles: Downcast Sigh (sadness, grief, disappointment,
+      remorse), Simmering Huff (anger, annoyance, disapproval, disgust),
+      Happy Sway (joy, amusement, excitement, optimism, gratitude), Nervous
+      Fidget (nervousness, fear, embarrassment) and Dreamy Gaze (love,
+      admiration, caring, desire);
+    - Bored Wait and Sleepy Nod-off.
+  - **Shape.** Each is a subtle one-shot of about 7–9 s: upper body, feet
+    planted, soft fades so it blends in from rest.
+  - **Live layers.** While a clip plays it mutes the live layers that would
+    fight its head and eye motion (`cursorLookAt`, `headNod`,
+    `headSideTilt`), and keeps `breathing`.
+  - **Eligibility.** Each passes the Idle Style eligibility rules (finite, no
+    `playback` lifetime) and the motion checks on both Included Avatars. Each
+    has a unique name, a Selector ID that collides with neither core nor the
+    Mixamo pack, and an AI description, in case it is equipped.
+  - **Idle Style.** One Included Idle Style, "Streamer Idle":
+    - its Default pool holds the five streaming idles plus Bored Wait and
+      Sleepy Nod-off;
+    - at intensities 2 and 3, each emotion cell above uses its emotion idle,
+      curiosity uses Off-Screen Look and confusion uses Hmm Drift;
+    - intensity 1 and the remaining emotions inherit Default.
+  - **New companions.** Their idle selection does not change: the style is
+    offered, not selected by default.
+  - **Overlap.** These are upper-body and smaller than the Mixamo pack's
+    idles. The pack's look-around idles overlap only for variety. Its angry,
+    sad, happy, anxious, bored and sleepy idles overlap deliberately (owner,
+    2026-10-10), so self-host gets emotion idles too.
 
 ## Constraints
 
@@ -219,7 +273,8 @@ Non-goals:
   - 25 starters: about 3.75 KB;
   - all 73 equipped: about 11 KB.
 - **Web bundle.** All Included clip JSON is bundled eagerly: 637 KB today.
-  #314 clips are 10–42 KB each, so 30 new clips may add roughly 0.5–0.7 MB.
+  #314 clips are 10–42 KB each; the drafts average about 25 KB, so the 64 new
+  clips may add roughly 1.5–1.7 MB.
   Report the measured growth; lazy loading is not in scope. Each clip stays
   under the 2 MiB limit.
 - **Compatibility.**
@@ -228,13 +283,16 @@ Non-goals:
     existing Anima's implicit starters and invalidates in-progress Anima
     creation drafts (409, then retry). Policy, content and test pins change
     together.
+- **Idle Style promotion.** `animation promote` does not handle Idle Styles,
+  so "Streamer Idle" is written by hand under `content/included/idle-styles/`,
+  with its licence and source-review records.
 - **Untouched clips.** The sampled output of Included clips this issue does not
   touch is unchanged.
 
 ## Acceptance criteria
 
 - [x] **G1.** The owner agrees this spec and the ExecPlan (2026-10-10).
-- [ ] **New Gestures.** All 30 R1 Gestures exist as Included content. Every
+- [ ] **New Gestures.** All 52 R1 and R1b Gestures exist as Included content. Every
       new and revised Gesture passes `animation validate` and
       `animation check` on both Avatars with no FAIL. Any WARN has a recorded
       reason. Body and hand renders exist for both Avatars.
@@ -252,6 +310,10 @@ Non-goals:
 - [ ] **Palm-to-palm check (R8).** Unit tests show palm-to-palm contact during a
       solved hand-to-hand contact is not reported, while a real hand/forearm
       overlap still is. Excited Triple Clap passes without check-only contacts.
+- [ ] **Idles (R10).** The twelve idle Gestures pass `animation check` on both
+      Avatars and are approved at G2a. "Streamer Idle" validates as an
+      Included Idle Style, its members pass idle eligibility, and a test
+      resolves it. New companions' idle selection is unchanged.
 - [ ] **Unique IDs.** Display names are unique, and Selector IDs are unique
       across core and the Mixamo pack manifest. The manifest, test pins,
       starter policy and docs agree.
@@ -281,10 +343,14 @@ Decided by the owner on 2026-10-10 (discovery Q1–Q14):
 - **Q4 — Variants:** distinct meanings first.
 - **Q5 — Tone:** an expressive anime companion, with natural conversation
   beats.
-- **Q6 — Set:** the 30 Gestures in R1, accepted as proposed.
+- **Q6 — Set:** the 30 Gestures in R1, accepted as proposed. Extended on
+  2026-10-10 by the 22 R1b Gestures (15 proposed plus 7 chosen alternates).
 - **Q7 — Mixamo overlap:** keep it small. Overlap only where an animation
   could use variety. The four overlaps in R1 are accepted.
-- **Q8 — Idle Styles:** a separate issue.
+- **Q8 — Idle Styles:** a separate issue at first. Revised by the owner on
+  2026-10-10: twelve idle Gestures and an Included "Streamer Idle" Idle
+  Style join this issue (R10): five VTuber streaming idles, five emotion
+  idles, Bored and Sleepy. Default idle for new companions stays out.
 - **Q9 — Revisions:** only for Gestures this issue touches.
 - **Q10 — Extras:** sound only through effects. A reused effect keeps its
   sound, and a new effect is assigned one. No Gesture `sfx` events, and no
