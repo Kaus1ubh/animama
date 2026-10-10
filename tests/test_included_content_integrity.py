@@ -48,6 +48,61 @@ def test_mixamo_motion_pack_inventory_is_public_safe_and_non_portable() -> None:
     assert all(set(item) == {"path", "size_bytes", "sha256"} for item in manifest["files"])
 
 
+# Public sources of the Mixamo pack's identities: its folder IDs (also its
+# content-ID suffixes), the Selector IDs its descriptor templates started from,
+# and the renames recorded in docs/plans/mixamo-built-in-motion (v1 `dance`,
+# `yawn`, `quick_shrug`; v2 idle loops without the `mixamo-idle-` prefix). The
+# other pack v2 renames are private, so new names are also checked by hand
+# before promotion.
+PACK_IDENTITY_SOURCES = (
+    "src/backend/animama/resources/mixamo-motion-manifest.json",
+    "scripts/mixamo-assets.json",
+)
+DOCUMENTED_PACK_RENAMES = {"dance", "yawn", "quick_shrug"}
+# Core Palms Up Shrug kept `shrug`; the pack's clip became `quick_shrug` (#242).
+ACCEPTED_PACK_OVERLAPS = {("palms-up-shrug", "shrug")}
+
+
+def _identity(value: str) -> str:
+    """Compare snake_case Selector IDs with kebab-case content-ID suffixes."""
+    return value.replace("-", "_")
+
+
+def _mixamo_pack_identities() -> set[str]:
+    manifest = json.loads((ROOT / PACK_IDENTITY_SOURCES[0]).read_text(encoding="utf-8"))
+    folders = {Path(entry["path"]).parts[1] for entry in manifest["files"] if entry["path"].startswith("gestures/")}
+    idle_loops = {folder.removeprefix("mixamo-idle-") for folder in folders if folder.startswith("mixamo-idle-")}
+    templates = json.loads((ROOT / PACK_IDENTITY_SOURCES[1]).read_text(encoding="utf-8"))
+    keys = {asset["document"]["semantic_key"] for asset in templates["assets"]}
+    renames = DOCUMENTED_PACK_RENAMES | {f"idle_{loop}" for loop in idle_loops}
+    return {_identity(value) for value in folders | keys | renames}
+
+
+def _pack_collisions(metas: list[dict[str, Any]], pack: set[str]) -> list[tuple[str, str]]:
+    """Core Gestures whose Selector ID or content-ID suffix is also a pack identity."""
+    collisions = []
+    for meta in metas:
+        folder = meta["content_id"].rsplit(":", 1)[-1]
+        for value in sorted({meta["semantic_key"], folder}):
+            if _identity(value) in pack and (folder, value) not in ACCEPTED_PACK_OVERLAPS:
+                collisions.append((folder, value))
+    return collisions
+
+
+def test_core_gesture_identities_stay_distinct_from_the_mixamo_pack() -> None:
+    pack = _mixamo_pack_identities()
+    assert {"crying", "wave", "telling_secret", "yawn", "idle_bored"} <= pack
+    metas = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted((ROOT / "content/included/gestures").glob("*/*.meta.json"))
+    ]
+    assert len(metas) >= 43
+    assert _pack_collisions(metas, pack) == []
+    assert _pack_collisions([{"content_id": "builtin:gesture:goodbye-wave", "semantic_key": "wave"}], pack) == [
+        ("goodbye-wave", "wave")
+    ]
+
+
 def test_typed_media_moved_but_browser_engine_assets_remained_public(tmp_path: Path) -> None:
     public = ROOT / "src/frontend/web/public"
 

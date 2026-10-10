@@ -18,13 +18,18 @@ import { CanonicalSkeleton, avatarScale } from "../poses/anatomy/arms";
 import { HAND_PRESETS } from "../poses/anatomy/handPresetIds";
 import {
   MOTION_CHECK_THRESHOLDS,
+  checkIntersections,
   checkMotion,
   checkOscillation,
   checkParity,
   segmentDistance,
+  type Capsule,
   type MotionCheckContact,
   type MotionCheckFinding,
+  type TouchingContact,
 } from "./checks";
+import armsCrossed from "../../../../../../../content/included/gestures/arms-crossed/arms-crossed.json";
+import excitedTripleClap from "../../../../../../../content/included/gestures/excited-triple-clap/excited-triple-clap.json";
 import wave from "../../../../../../../content/included/gestures/wave-hello/wave-hello.json";
 import { getAvatarPoseClip, getResolvedAvatarPose } from "../poses/catalog";
 import { loadTestAvatar } from "./testing/includedAvatars";
@@ -826,6 +831,108 @@ describe("contacts", () => {
       expect(
         ofCategory(checkMotion(clip, avatars()).findings, "contact"),
       ).toEqual([]);
+  });
+});
+
+describe("palm-to-palm contact", () => {
+  it("lets the clap's pressed palms pass with only its solved contacts", () => {
+    const clip = parseAnimaPoseClip(excitedTripleClap) as AnimaPoseClipV2;
+    const report = check({
+      ...clip,
+      contacts: (clip.contacts ?? []).filter((contact) => contact.solve),
+    });
+    expect(failures(report.findings, "intersection")).toEqual([]);
+    expect(failures(report.findings, "contact")).toEqual([]);
+    // The fingers may touch through the solve ramps too.
+    expect(ofCategory(report.findings, "fingers")).toEqual([]);
+  });
+
+  it("still reports a hand resting on the other forearm during a hand-to-hand contact", () => {
+    // Arms Crossed rests the right palm on the left forearm, well up from its
+    // wrist. Retargeting that touch to the left hand keeps a hand-to-hand
+    // contact active while the overlap stays on the forearm itself.
+    const clip = parseAnimaPoseClip(armsCrossed) as AnimaPoseClipV2;
+    const report = check({
+      ...clip,
+      contacts: (clip.contacts ?? []).map((contact) =>
+        contact.target === "leftLowerArm"
+          ? { ...contact, target: "leftHand" }
+          : contact,
+      ),
+    });
+    for (const avatar of ["AvatarSample_Y_0", "AvatarSample_A_1_New"])
+      expect(
+        failures(report.findings, "intersection").some(
+          (f) => f.avatar === avatar && f.subject === "rightHand/leftForearm",
+        ),
+        avatar,
+      ).toBe(true);
+  });
+
+  // Synthetic capsules in metres: the left forearm runs along x from the
+  // elbow at the origin to the wrist at 0.25, with a palm length of 0.08.
+  const capsule = (
+    a: [number, number, number],
+    b: [number, number, number],
+    radius: number,
+  ): Capsule => ({ a: new Vector3(...a), b: new Vector3(...b), radius });
+  const far = capsule([-5, 0, 0], [-5, 0.1, 0], 0.05);
+  const pressedPalms = {
+    torso: far,
+    neck: far,
+    head: far,
+    leftForearm: capsule([0, 0, 0], [0.25, 0, 0], 0.035),
+    leftForearmProximal: capsule([0, 0, 0], [0.17, 0, 0], 0.035),
+    leftHand: capsule([0.25, 0, 0], [0.43, 0, 0], 0.03),
+    // The right hand lies along the left one, wrists 3.2 cm apart; its
+    // forearm runs back from its wrist.
+    rightHand: capsule([0.25, 0.032, 0], [0.43, 0.032, 0], 0.03),
+    rightForearm: capsule([0.25, 0.032, -0.25], [0.25, 0.032, 0], 0.035),
+    rightForearmProximal: capsule(
+      [0.25, 0.032, -0.25],
+      [0.25, 0.032, -0.08],
+      0.035,
+    ),
+  };
+  const handToHand = [
+    { bone: "rightHand", target: "leftHand", from: 0, to: 1 },
+  ];
+  const subjects = (
+    frame: Record<string, Capsule>,
+    contacts: TouchingContact[],
+  ) =>
+    checkIntersections("probe", [0.5], [frame], new Map(), contacts, {
+      duration: 1,
+      loop: false,
+    }).map((finding) => finding.subject);
+
+  it("measures each hand against the other forearm short of a palm length from its wrist", () => {
+    expect(subjects(pressedPalms, handToHand)).toEqual([]);
+    expect(subjects(pressedPalms, []).sort()).toEqual([
+      "leftHand/rightForearm",
+      "leftHand/rightHand",
+      "rightHand/leftForearm",
+    ]);
+  });
+
+  it("still reports a hand pressed into the middle of the other forearm", () => {
+    const acrossForearm = {
+      ...pressedPalms,
+      rightHand: capsule([0.12, 0.03, -0.09], [0.12, 0.03, 0.09], 0.03),
+    };
+    expect(subjects(acrossForearm, handToHand)).toEqual([
+      "rightHand/leftForearm",
+    ]);
+  });
+
+  it("allows a solved contact's touch through its blend ramps", () => {
+    const later = [
+      { bone: "rightHand", target: "leftHand", from: 0.55, to: 1 },
+    ];
+    expect(subjects(pressedPalms, later)).toHaveLength(3);
+    expect(
+      subjects(pressedPalms, [{ ...later[0], blendIn: 0.1, blendOut: 0.1 }]),
+    ).toEqual([]);
   });
 });
 
