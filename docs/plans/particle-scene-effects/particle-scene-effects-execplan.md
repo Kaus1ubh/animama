@@ -95,7 +95,9 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [ ] P9 — Documentation and acceptance (R8). Gate G4. Documentation, chat
       check and walkthrough done and the review passed at round 2
       (2026-10-10); G4, the owner's review of the walkthrough, is pending.
-- [ ] Final integration review and PR.
+- [x] Merge of `main` (`0753e9c6`) and final integration review, passed at
+      round 2 (2026-10-10).
+- [ ] PR open for owner review; G4 and merge approval pending.
 
 ## Surprises & Discoveries
 
@@ -2055,7 +2057,7 @@ most two repair rounds. Record findings and revisions here. Agent readiness does
 not replace G4 or merge approval.
 
 Merge of `main` before the review: `0753e9c6` merges `origin/main` `5993bbee`
-(#401, #406, #407, #411). Six files conflicted and were resolved by hand:
+(#395, #398, #401, #406, #407, #411). Six files conflicted and were resolved by hand:
 `effect-check.mjs` keeps the before/after capture and passes `--with-clip`'s
 Gesture into both captures without its effect media; `effect-promote.mjs`
 keeps per-kind promotion over `main`'s `included-dependencies.mjs` helpers;
@@ -2093,12 +2095,55 @@ performance record are met; R1 is met except F2.
 - **F1 accepted:** the test expects the art line (`3989a2cb`).
 - **F3 accepted:** `how.md` says Avatar, Particle and Scene Effects.
 - **F4 accepted** as a Plan 2 input (Surprises & Discoveries).
+- **F2 accepted, evidence added (2026-10-10):** on a local branch that was
+  never pushed and is deleted, the saved Local Heart Burst was promoted to
+  Included (`builtin:particle-effect:heart-burst`, four own textures) and the
+  task stack rescanned. In the Particle creator the Included effect opened
+  with its four textures carried and none missing; a PNG
+  (`r1-glint-1.png`) and a 4 × 1 sprite sheet (`r1-sheet-1.png`, U tiles 4
+  on `burst-sparkles`) were imported into it; a reload restored the draft
+  from recovery with its textures as Blobs; Save created the Local item "R1
+  Included check" with four textures: the two imports, which replaced
+  `heart-ring` and `glint-star`, and the two still-used originals (bytes equal
+  to the imported files, tile count kept); reopening showed Saved with
+  nothing missing; a Portable package export of it, imported back through the
+  package API, produced "R1 Included check-2" with byte-identical textures,
+  which reopens Saved with nothing missing. The branch was then deleted and a
+  rescan returned the 217 Included items of the candidate. Screenshots are in
+  the G4 hand-off.
+
+#### Final Integration Review #2 Findings
+
+Round 2 (targeted recheck): **pass**. F2 is closed (the evidence was checked
+read-only against the stack's catalog rows and both saved folders, byte for
+byte), F3 is fixed and F1 stays fixed; the new records match the e2e run's
+manifest and log. Optional: **FI-R2-F1**, the merge also brought in #395 and
+#398; **FI-R2-F2**, say which textures the imports replaced.
+
+#### Final Integration Review #2 Revisions
+
+- **FI-R2-F1 and FI-R2-F2 accepted:** both records are corrected.
+
+The final integration review passed at round 2 with one repair round unused.
+G4 (the owner's walkthrough review, including the live picture-in-picture
+check and P7's carried check that Save stays disabled after editing a
+hand-written Local Reaction) and merge approval remain with the owner.
+
+Final integration validation (`3989a2cb`; `6de38076` adds only documentation):
+`uv run pytest -q` 3581 passed, 10 skipped; `make check` and `uv run ruff
+check` pass; `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm
+desktop:check` and `pnpm build` pass; `pnpm openapi-ts` leaves the client
+unchanged; `pnpm web:test` on `0753e9c6` passed the packages, source
+scripts, 455 Vitest files and every browser script except the FI-R1-F1
+assertion, and the browser scripts (109) pass on `3989a2cb`; full `pnpm e2e:test`
+on a purged
+built stack from `3989a2cb` (run `run-1010154107`): 40 passed in 10.6 min.
 
 ## Validation and acceptance
 
 | Spec criterion | Evidence | Phase |
 | --- | --- | --- |
-| R1 | Import and refusal unit tests; backend Save and package tests; browser walkthrough (Included and new effect, sprite sheet, recovery, package round-trip) | P3, P9 |
+| R1 | Import and refusal unit tests; backend Save and package tests; the texture-import browser journey (new effect: import, sprite sheet, recovery, Save, reopen, package round trip); the Included-effect check in the final integration revisions | P3, P9 |
 | R2 | G1 record; per-capability parser, validator, render and round-trip tests; chat, creator and preview-dock checks; old Scene Effects still play | P1, P5, P9 |
 | R3 | `effects check` verdicts and `effects:render` sheets for a Particle and a Scene folder on both Avatars; script tests | P4 |
 | R4 | Preview browser tests; headed session record | P6 |
@@ -2142,4 +2187,20 @@ PR states that no hosted checks ran.
 
 ## Outcomes & Retrospective
 
-Not started.
+Plan 1 delivered R1–R8 (2026-10-10), pending the owner's G4 review and merge
+approval. The Particle creator imports and keeps its own PNG textures and
+sprite sheets through Save, reopen, recovery and Portable packages, on new
+and Included effects; Scene Effects gained gradient, tile, rays or lines,
+scatter and flash layers; `effects check`, `effects:render`,
+`animation:preview`, `effects:bench --reaction`, `effects save` and `effects
+promote` work for all three effect kinds; art budgets and shared limits are
+enforced by the scripts, the creators and the backend; the Particle and Scene
+pipeline skills produced the owner-approved Heart Burst and Gloom Sadness
+from fresh-agent briefs; and a Local Action keeps playing when an Included
+effect it names is removed.
+
+Lessons: the full browser journeys found a recovery regression no unit test
+covered, so run them before the final review rather than after; reuse a
+browser-journey stack across a `main` merge only after a purge; and when
+G1-style design decisions fix a capability list early, Plan 2 must restate
+the content items that `main` has since changed (#406).
