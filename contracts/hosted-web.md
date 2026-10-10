@@ -7,6 +7,14 @@ capabilities, private API traffic and closed application/resource delivery. The
 retained actions and their verification boundaries. A consumer implements these
 contracts without importing local routes, installation state or a sibling checkout.
 
+Product routes every composition serves live in `animama.product_http`
+([ADR 0021](../docs/adr/0021-shared-product-http-routes.md)). A consumer mounts
+`animama.product_http.routes.ROUTERS` from the published wheel and installs its own
+`ProductPorts`: owner sessions under its commit authority, repositories, content
+services and byte delivery. The route inventory marks each route shared, local-only
+or withheld by a capability; shared routes of later stages remain consumer-owned
+until they move.
+
 ## Admission and browser lifetime
 
 `ProductRuntimeComposition` in `@animama/runtime-contracts` supplies one transport,

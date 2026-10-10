@@ -9,7 +9,9 @@ shared model clients, streams direct chat events, and persists side effects.
 
 - `product_http/`: product HTTP shared by every composition (ADR 0021): the route
   inventory, the request-principal dependency, the `ProductPorts` each composition
-  installs, and the shared routers as their families move.
+  installs (owner sessions, repositories, content services and byte delivery), and
+  the shared routers of stages 2 and 3. Later stages are still served from
+  `server/routers/`.
 - `server/`: delivery and local-composition layer. Contains the separately named
   local FastAPI app factory, its `LocalProductPorts`, installation
   bootstrap, routers, direct chat SSE orchestration, Content Catalog delivery,
