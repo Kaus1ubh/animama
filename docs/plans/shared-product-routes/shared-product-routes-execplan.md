@@ -46,7 +46,12 @@ named built stack.
   tests in its own commit, so no re-export shims were needed. Review repairs in
   `35c12694`, `9bb0b98f` and `6e8891bf`; `make check-test` passed on `6e8891bf`,
   and the targeted Code Review #2 passed.
-- [ ] Phase 3: content routers. Not started.
+- [ ] Phase 3: content routers. Implemented 2026-10-10: P3-01 (`e4e999af`), the
+  content port and byte delivery (`55abd1fb`), content (`a2c4f2a8`), typed content
+  (`749beeb5`), packages (`38e0dd40`), Avatars (`a2a91a74`), the Anima runtime
+  (`20902271`) and Anima CRUD (`2eaa20e1`); `5f20fbac` mounts all 84 stage-3 routes
+  from `ROUTERS` and serves stages 2 and 3. Phase checks, the full browser journeys
+  and Code Review #1 pending.
 - [ ] Final integration review and PR. Not started.
 
 ## Surprises & Discoveries
@@ -91,6 +96,14 @@ runtime capabilities did not change between the two.
 - Implementation (2026-10-10): the generated SDK carries each handler's docstring
   as its JSDoc, so moved handlers keep their docstrings verbatim. Loadout plan
   routes are POSTs that never write.
+- Phase 3: the SDK is ordered by path, so moving a local route within its family
+  changes no generated file. Runtime issuance persists a lease, runtime JSON
+  bundles and member streaming record drifted files for rescan, package operation
+  status can finish an interrupted publication, and content-evidence resolution
+  only reads. Local content mutations request several commits (journal steps); a
+  deferring composition completes them once, when the write session ends. Local-only
+  upload routes (voice catalogs, a stage-4 family, and user files) still resolve
+  their staging directory with `initialize_local_runtime` per request.
 - #284 deferred P3-01 (shared package services call synchronous stage ports on the
   event loop) and P3-04 (an unused bounded speech service) to this work.
 
@@ -127,6 +140,21 @@ runtime capabilities did not change between the two.
     doubles report the hosted contract.
   - Local-app tests that need a shared route's local behaviour install the local
     ports on their session (`install_local_ports`); the rest use `SessionPorts`.
+  - Phase 3: `ProductPorts.content(session, principal)` yields a per-request
+    `ProductContent` bundle (catalog, save, typed, face-part, package and runtime
+    services and the content store) built only from runtime paths startup
+    prepared, and `file_response` delivers verified bytes under the composition's
+    caching policy (local: revalidated by ETag or never stored; no Range or HEAD).
+    Read content stays open through streamed bodies; write content ends with its
+    session. A runtime member that drifted is recorded in a separate write session.
+  - Access classes now match behaviour: runtime issuance and package operation
+    status are `write`, content evidence is `read`. The runtime JSON bundle takes
+    write content because a read can record drift.
+  - Avatar queries moved into the Avatar repository (with a domain
+    `AvatarNameConflictError`) and the owner's content catalog; Anima CRUD uses the
+    Anima, chat-profile, presentation and model-catalog repositories. The shared
+    Anima routes mount before the local voice and chat routes, and the local Rescan
+    after the shared content routes.
   - Shared handlers take `repositories`, `policy` or `ports` instead of `session`,
     so direct-call tests pass an explicit bundle
     (`SQLAlchemyProductRepositories(session)`, `TEST_POLICY`). HTTP parameters,
