@@ -194,9 +194,11 @@ key. The `baseline_20260908` baseline creates one canonical UUIDv4
 `installation_principal_id`; that durable, non-secret ID owns all local rows.
 Existing `user_id` and `owner_user_id` names remain in shared product code.
 
-Protected routes depend on `server/deps.py::get_current_principal`, which
+Protected routes depend on `get_current_principal`, defined in the shared
+`animama/product_http/principal.py` and re-exported by `server/deps.py`. It
 delegates to the `RequestPrincipalResolver` installed by the application
-composition. The local HTTP boundary checks configured Host/Origin, Fetch
+composition; without one, routes fail closed with 503
+`request_principal_unavailable`. The local HTTP boundary checks configured Host/Origin, Fetch
 Metadata and mutation markers; desktop requests also need the current launch
 capability cookie. Successful admission records an object identity in server
 request state. `AdmittedLocalPrincipalResolver` resolves only that state after
