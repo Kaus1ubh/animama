@@ -193,7 +193,9 @@ class _PackageDownloadResponse(StreamingResponse):
         finally:
             # Completion/cancellation ends the response lease, not proof of a
             # successful user save. Preserve retry bytes until quota needs them.
-            await _finish_owned_work(asyncio.to_thread(self._download.close, reclaimable=True))
+            # Release synchronously, before this loop serves another request: a
+            # client may discard the export as soon as it has the last byte.
+            self._download.close(reclaimable=True)
 
 
 @router.get("/package-exports/{export_id}/file")
