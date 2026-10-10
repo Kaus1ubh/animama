@@ -9,6 +9,7 @@ optional edges and never depends on non-portable sounds.
 from __future__ import annotations
 
 import base64
+import hashlib
 import json
 import shutil
 import zlib
@@ -20,10 +21,13 @@ import pytest
 from sqlalchemy import delete
 
 from animama.adapters.content_store import FilesystemContentStore
+from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.app.contracts.content_package import portable_revision
 from animama.app.services.content_kind_registry import handler_for_kind
 from animama.domain.content_catalog import (
     ContentConflictError,
     ContentKind,
+    ContentScope,
     ContentSource,
     ContentStatus,
 )
@@ -32,8 +36,9 @@ from animama.domain.content_sources import IncludedContentSource
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.runtime.starter_content import starter_inventory
 from tests.anima_creation_service_support import copy_tracked_included, write_json
-from tests.content_package_helpers import package_services
+from tests.content_package_helpers import package_services, reviewed_import
 from tests.test_content_audio import _VORBIS_SILENCE_ZLIB_BASE64
+from tests.test_content_package_v3_archive import inspector, sound_package, write_package
 
 ROOT = Path(__file__).parents[1]
 _RULE = {
@@ -304,6 +309,166 @@ async def test_saving_own_content_with_a_licensed_sound_is_refused_and_rolled_ba
         expected = "content_optional_dependency" if optional else "content_non_portable_dependency"
         assert refused.value.code == expected
         assert not list((paths.local_root / "vfx").rglob("*.json"))
+    finally:
+        await async_session.rollback()
+        await async_session.execute(delete(ORMContentCatalogItem))
+        await async_session.commit()
+
+
+async def test_unmounting_the_pack_keeps_effects_valid_and_remounting_restores_the_sound(  # noqa: ANN001
+    async_session, tmp_path: Path
+) -> None:
+    core, pack, local = tmp_path / "core", tmp_path / "pack", tmp_path / "local"
+    local.mkdir()
+    _inventory(core)
+    _effect(core)
+    _inventory(pack, {"glob": "**", "distribution": "non-portable", **_RULE})
+    _sound(pack)
+    core_source = IncludedContentSource("core", "v1", core, None)
+    pack_source = IncludedContentSource("wow-comedy-sfx", "v1", pack, "wow-comedy-sfx")
+    repository = SQLAlchemyContentCatalog(async_session)
+
+    async def reconcile(*sources: IncludedContentSource) -> dict[str, Any]:
+        store = FilesystemContentStore(
+            included_root=core,
+            local_root=local,
+            operations_root=tmp_path / "operations",
+            included_sources=sources,
+            restricted_sha256=frozenset(),
+        )
+        await repository.lock_source(source=ContentSource.INCLUDED)
+        items = await repository.reconcile_source(
+            source=ContentSource.INCLUDED,
+            entries=store.scan(ContentSource.INCLUDED),
+            active_included_mount_ids=store.included_mount_ids,
+            new_item_scope=ContentScope.INCLUDED,
+            new_item_owner_user_id=None,
+        )
+        await async_session.commit()
+        return _by_locator(items)
+
+    try:
+        mounted = await reconcile(core_source, pack_source)
+        sound = mounted["sfx/wow-comedy/pop.ogg"]
+        assert mounted[EFFECT].dependency_item_ids == (sound.id,)
+
+        # A build without the pack: the effect keeps its identity, stays valid and is silent.
+        unmounted = await reconcile(core_source)
+        effect = unmounted[EFFECT]
+        assert effect.id == mounted[EFFECT].id and effect.status is ContentStatus.VALID
+        assert effect.dependencies == () and "sfx/wow-comedy/pop.ogg" not in unmounted
+
+        remounted = await reconcile(core_source, pack_source)
+        assert remounted[EFFECT].dependencies == (SOUND,)
+        assert remounted[EFFECT].status is ContentStatus.VALID
+    finally:
+        await async_session.rollback()
+        await async_session.execute(delete(ORMContentCatalogItem))
+        await async_session.commit()
+
+
+async def test_a_kept_optional_sound_exports_as_an_ordinary_edge_and_imports(async_session, tmp_path: Path) -> None:  # noqa: ANN001
+    paths, receiver_catalog, content, _saves, packages = package_services(async_session, tmp_path)
+    _inventory(paths.included_root)
+    _sound(paths.included_root)
+    _effect(paths.included_root)
+    owner = "package-owner"
+    try:
+        items = {item.relative_locator: item for item in (await content.rescan(user_id=owner)).items}
+        summary = await packages.summarize(user_id=owner, item_ids=(items[EFFECT].id,))
+        assert summary.omitted == ()
+        review = await packages.prepare_export(
+            user_id=owner, item_ids=(items[EFFECT].id,), expected_digest=summary.digest
+        )
+        cached = await packages.get_export(user_id=owner, export_id=review.export_id)
+        with ZipFile(cached.path) as archive:
+            manifest = json.loads(archive.read("package.json"))
+            effect_entry = next(entry for entry in manifest["entries"] if entry["kind"] == "avatar_effect")
+            [descriptor] = [
+                json.loads(archive.read(file["archive_path"]))
+                for file in effect_entry["files"]
+                if file["role"] == "descriptor"
+            ]
+        [edge] = descriptor["dependencies"]
+        assert "optional" not in edge and descriptor["definition"]["soundAlias"] == edge["alias"]
+
+        command = await reviewed_import(packages, user_id=owner, archive_path=cached.path, operation_id="optional-kept")
+        result = await packages.imports.commit(**command)
+        imported = next(item for item in result.items if item.kind is ContentKind.AVATAR_EFFECT)
+        copy = await receiver_catalog.get_visible_item(item_id=imported.item_id, user_id=owner)
+        assert copy.status is ContentStatus.VALID and len(copy.dependency_item_ids) == 1
+    finally:
+        await async_session.rollback()
+        await async_session.execute(delete(ORMContentCatalogItem))
+        await async_session.commit()
+
+
+def test_package_inspection_refuses_an_optional_edge(tmp_path: Path) -> None:
+    manifest, payloads = sound_package()
+    source = ROOT / "content/included" / EFFECT
+    descriptor = json.loads((source / "sweat_drop.json").read_text(encoding="utf-8"))
+    descriptor.update(
+        content_id="effect",
+        dependencies=[{"ref": "sound", "content_type": "sound_effect", "alias": "on-apply", "optional": True}],
+    )
+    descriptor["definition"]["soundAlias"] = "on-apply"
+    effect_payloads = {
+        "entries/0001/effect.json": json.dumps(descriptor).encode(),
+        "entries/0001/sweat_drop.png": (source / "sweat_drop.png").read_bytes(),
+    }
+    files = [
+        {
+            "archive_path": archive_path,
+            "relative_path": Path(archive_path).name,
+            "role": "descriptor" if archive_path.endswith(".json") else "image",
+            "ordinal": index,
+            "media_type": "application/json" if archive_path.endswith(".json") else "image/png",
+            "size_bytes": len(payload),
+            "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+        for index, (archive_path, payload) in enumerate(effect_payloads.items(), 1)
+    ]
+    manifest["entries"].append(
+        {
+            "package_entry_id": "effect",
+            "kind": "avatar_effect",
+            "logical_key": "effect",
+            "display_name": "Sweat Drop",
+            "portable_revision_sha256": portable_revision(files),
+            "dependencies": [{"ref": "sound", "content_type": "sound_effect"}],
+            "files": files,
+        }
+    )
+    manifest["root_entry_ids"] = ["effect"]
+    archive = tmp_path / "optional.zip"
+    write_package(archive, manifest, {**payloads, **effect_payloads})
+
+    with pytest.raises(ContentConflictError) as refused:
+        inspector(tmp_path).inspect(archive, destination=tmp_path / "inspection")
+    assert refused.value.code == "package_optional_dependency" and refused.value.items == ("Sweat Drop",)
+
+
+async def test_licensed_sound_bytes_cannot_be_saved_as_own_content(  # noqa: ANN001
+    async_session, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    payload = _vorbis()
+    restricted = frozenset({hashlib.sha256(payload).hexdigest()})
+    monkeypatch.setattr("animama.adapters.content_store.filesystem_store.manifest_sha256", lambda: restricted)
+    _paths, _catalog, _content, saves, _packages = package_services(async_session, tmp_path)
+    try:
+        with pytest.raises(ContentConflictError) as refused:
+            await saves.save_standalone(
+                user_id="package-owner",
+                kind=ContentKind.SOUND_EFFECT,
+                entry_name="Copied",
+                filename="copied.ogg",
+                payload=payload,
+                metadata_sidecar=None,
+                operation_id="save-licensed-ogg",
+                catalog_item_id=None,
+                expected_revision=None,
+            )
+        assert refused.value.code == "content_non_portable"
     finally:
         await async_session.rollback()
         await async_session.execute(delete(ORMContentCatalogItem))

@@ -305,6 +305,15 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                 if row.source_mount_id and row.source_mount_id.split("@", 1)[0] not in active_sources
             ]
             if withdrawn:
+                # Included edges are rebuilt from this scan below, so they never
+                # hold a pack in place: a built-in effect whose optional sound
+                # left loses the edge, and a required one becomes unresolved.
+                # Local items, bindings and leases still block withdrawal.
+                await self._session.execute(
+                    delete(ORMContentCatalogDependency).where(
+                        ORMContentCatalogDependency.item_id.in_([row.id for row in existing])
+                    )
+                )
                 await self._withdraw_included_sources(withdrawn, now=now)
                 withdrawn_ids = {row.id for row in withdrawn}
                 existing = [row for row in existing if row.id not in withdrawn_ids]

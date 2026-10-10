@@ -204,6 +204,13 @@ starting revision; implementers re-check them.
   (`strict=True`), so an unresolved edge anywhere downstream would break that
   invariant in a dozen places. Local content may not declare optional edges,
   so the scan of Included content is the only place they need resolving.
+- 2026-10-10, agent (Phase 2 review, P2-F4): import never binds a package entry
+  to the receiver's Included item; it installs a fresh Local copy. An exported
+  built-in effect therefore arrives as a silent Local effect even where the
+  receiver has the pack, and no bytes-free reference is recorded for sounds.
+  This follows Q1 (Local content never carries a licensed sound) but diverges
+  from #399 R3's "rebinds to the receiver's matching sound". **Owner
+  confirmation requested** with the PR.
 
 ## Phased implementation
 
@@ -386,9 +393,11 @@ Log):
 3. **Local content never uses optional edges or non-portable sounds.** Catalog
    reconciliation marks a Local entry INVALID when it declares an optional edge
    (`dependency_optional_not_allowed`) or when an edge resolves to a
-   non-portable Sound Effect (`non_portable_dependency`). Typed save and import
-   then fail through the existing `saved_content_invalid` and import checks,
-   and loose files dropped into the Local library are covered too.
+   non-portable Sound Effect (`non_portable_dependency`). Typed save maps these
+   to `content_optional_dependency` and `content_non_portable_dependency` and
+   rolls back; package inspection refuses an entry that declares an optional
+   edge (`package_optional_dependency`); loose files dropped into the Local
+   library are covered too.
 4. **Export.** An optional edge to a non-portable sound is not part of the
    package closure. `portable_json` removes optional edges whose target isn't a
    package entry, with the `soundAlias` that names them, and writes the kept
@@ -421,15 +430,73 @@ test changes meaning; review passes.
 
 #### Phase 2 references
 
-Issue: #403. Commits: none yet.
+Issue: #403. Commits: `125849f8` (`feat(content)[p2]: keep built-in effects
+silent without their licensed sound`) and the Code Review #1 revision commit.
+
+#### Phase 2 results
+
+Implemented with the revised design (Decision Log, 2026-10-10). Checks at
+`125849f8`: `uv run pytest -q` 3366 passed, 10 skipped; `uv run ruff check`,
+`make format-check` and `make mypy` pass. No OpenAPI change (error codes and
+omitted-item kinds are strings).
+
+Live evidence on the review stack (`animama-sfx`, Phase 4 candidate pack
+mounted, 2026-10-10): all 26 built-in effects VALID with their sound resolved,
+26 sounds non-portable, no invalid catalog item; the starter Anima's export
+summary omits 23 sounds, and the prepared package (22 MB) has 23 Avatar Effects
+without sound edges, no Sound Effect entries and no non-portable references.
 
 #### Code Review #1 Findings
 
-Not started.
+Independent `sdlc-reviewer`, 2026-10-10, source `125849f8` (baseline
+`5b381eec`). **Blocked**, four required findings. Checks: 47 targeted backend
+tests, ruff, format, the import-boundary check, `audit-typed-content.sh`, and
+scratch probes outside the repository.
+
+- **P2-F1 (required, defect):** after the pack had been mounted, a reconcile
+  without it failed with `included_source_in_use`. The previous scan's
+  Included-to-pack dependency rows counted as external blockers before this
+  reconcile rebuilt them, so desktop builds without the pack, and every byte
+  read after a build change, would fail.
+- **P2-F2 (required, tests):** planned tests were missing: catalog-level mount
+  and unmount, Anima export, import of an optional edge, the kept-edge export
+  without `optional`, restricted `.ogg` bytes and the runtime closure. The
+  Included sound guard passed without checking optional edges.
+- **P2-F3 (required, docs):** the backend non-portable export docs became
+  misleading and didn't describe the Local policy codes.
+- **P2-F4 (required, record):** the Decision Log assumed import binds to the
+  receiver's Included effect; import gives every entry a fresh Local identity,
+  so imported effects are silent Local copies even where the pack exists.
+- Non-blocking: an imported optional edge failed only at commit with a generic
+  error; plan item 3 named the wrong save code; the publication port didn't
+  mention optional-edge resolution; `local-content-storage.md` named only the
+  Mixamo pack; the export helper's third out-parameter.
 
 #### Code Review #1 Revisions
 
-Not started.
+- P2-F1 **accepted:** before withdrawing an unmounted source, reconciliation
+  deletes the Included items' own dependency rows, which it rebuilds from the
+  scan anyway; Local items, bindings and leases still block. Regression test:
+  a catalog-level mount, unmount and remount keeps the effect's identity, valid
+  and silent without the pack, and restores the sound.
+- P2-F2 **accepted:** tests added for the kept optional edge (exported as an
+  ordinary edge and re-imported valid), package inspection refusing an optional
+  edge, restricted `.ogg` bytes on save, and the unmount case; the Included
+  sound guard now checks every optional edge in the raw descriptors against
+  the pack manifest. The runtime closure and Anima export are covered by the
+  existing starter and catalog tests running over the Phase 4 content (every
+  Reaction uses effects whose optional sound is absent in tests) and by the
+  live export above; a dedicated Anima fixture was not added (the reviewer's
+  probe showed the creation fixture rejects ad hoc Reaction bindings).
+- P2-F3 **accepted:** `typed-content-and-marketplace.md` and
+  `local-content-storage.md` describe optional sounds, the Local policy codes,
+  inspection refusal and unmount behaviour.
+- P2-F4 **accepted:** recorded in the Decision Log; the owner is asked to
+  confirm the divergence from #399 R3 for sounds.
+- Non-blocking: inspection now refuses optional edges with
+  `package_optional_dependency`; plan item 3 corrected; the publication port
+  documents the resolution requirement. The export out-parameter is kept,
+  matching `uses`.
 
 ### Phase 3: Frontend affordances
 
