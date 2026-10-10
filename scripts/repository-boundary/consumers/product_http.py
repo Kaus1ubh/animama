@@ -9,6 +9,8 @@ from __future__ import annotations
 import importlib.abc
 import json
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 FORBIDDEN = ("animama.local", "animama.server", "animama.runtime", "animama.hooks", "animama.logging_config")
 
@@ -25,28 +27,58 @@ class LocalImportBlocker(importlib.abc.MetaPathFinder):
 # Block local modules before the shared package (and anything it imports) loads.
 sys.meta_path.insert(0, LocalImportBlocker())
 
-from fastapi import FastAPI  # noqa: E402
+from fastapi import FastAPI, Request, WebSocket  # noqa: E402
 from fastapi.routing import APIRoute  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
+from animama.domain.request_principal import RequestPrincipal  # noqa: E402
 from animama.product_http.inventory import ROUTES  # noqa: E402
-from animama.product_http.ports import ReadSession, WriteSession  # noqa: E402
+from animama.product_http.ports import ReadSession, WriteSession, install_product_ports  # noqa: E402
 from animama.product_http.routes import ROUTERS  # noqa: E402
 
+OWNER = RequestPrincipal(id="consumer-owner")
 
-def main() -> None:
-    # Every mounted shared route is a shared inventory route.
-    shared = {(spec.method, spec.path, spec.handler) for spec in ROUTES if spec.disposition == "shared"}
+
+class Owner:
+    """A consumer's resolver: every request belongs to OWNER."""
+
+    async def resolve_http(self, request: Request) -> RequestPrincipal:
+        return OWNER
+
+    async def resolve_websocket(self, websocket: WebSocket) -> RequestPrincipal:
+        return OWNER
+
+
+class Ports:
+    """A consumer's ports with placeholder sessions; it can fail its deferred commit."""
+
+    def __init__(self, *, fail_commit: bool = False) -> None:
+        self.opened: list[tuple[str, str]] = []
+        self.fail_commit = fail_commit
+
+    @asynccontextmanager
+    async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[object]:
+        self.opened.append(("read", principal.id))
+        yield object()
+
+    @asynccontextmanager
+    async def write_session(self, principal: RequestPrincipal) -> AsyncIterator[object]:
+        self.opened.append(("write", principal.id))
+        yield object()
+        if self.fail_commit:
+            raise RuntimeError("deferred commit failed")
+
+
+def consumer_app(*, ports: Ports | None, resolver: Owner | None) -> FastAPI:
+    """Mount every shared router, plus session probes, the way a consumer would."""
+
     app = FastAPI()
     for router in ROUTERS:
         app.include_router(router)
-    mounted = {
-        (method, route.path, route.endpoint.__name__)
-        for route in app.routes
-        if isinstance(route, APIRoute)
-        for method in route.methods
-    }
-    assert mounted <= shared, sorted(mounted - shared)
+    if resolver is not None:
+        app.state.request_principal_resolver = resolver
+    if ports is not None:
+        install_product_ports(app, ports)  # type: ignore[arg-type]
 
     @app.get("/probe/read")
     async def read(session: ReadSession) -> dict[str, bool]:
@@ -56,10 +88,40 @@ def main() -> None:
     async def write(session: WriteSession) -> dict[str, bool]:
         return {"ok": True}
 
-    with TestClient(app) as client:
-        for response in (client.get("/probe/read"), client.post("/probe/write")):
-            assert response.status_code == 503, response.text
-            assert response.json() == {"detail": {"code": "product_ports_unavailable"}}
+    return app
+
+
+def probe(app: FastAPI) -> list[tuple[int, object]]:
+    with TestClient(app, raise_server_exceptions=False) as client:
+        responses = [client.get("/probe/read"), client.post("/probe/write")]
+    return [(response.status_code, response.json() if response.status_code != 500 else None) for response in responses]
+
+
+def main() -> None:
+    # Every mounted shared route is a shared inventory route.
+    shared = {(spec.method, spec.path, spec.handler) for spec in ROUTES if spec.disposition == "shared"}
+    mounted = {
+        (method, route.path, route.endpoint.__name__)
+        for route in consumer_app(ports=None, resolver=None).routes
+        if isinstance(route, APIRoute) and not route.path.startswith("/probe/")
+        for method in route.methods
+    }
+    assert mounted <= shared, sorted(mounted - shared)
+
+    missing_ports = {"detail": {"code": "product_ports_unavailable"}}
+    assert probe(consumer_app(ports=None, resolver=Owner())) == [(503, missing_ports)] * 2
+
+    # No session opens for a request whose owner is unknown.
+    ports = Ports()
+    missing_principal = {"detail": {"code": "request_principal_unavailable"}}
+    assert probe(consumer_app(ports=ports, resolver=None)) == [(503, missing_principal)] * 2
+    assert ports.opened == []
+
+    assert probe(consumer_app(ports=ports, resolver=Owner())) == [(200, {"ok": True})] * 2
+    assert ports.opened == [("read", OWNER.id), ("write", OWNER.id)]
+
+    # A failed deferred commit replaces the handler's success.
+    assert [status for status, _ in probe(consumer_app(ports=Ports(fail_commit=True), resolver=Owner()))] == [200, 500]
 
     leaked = sorted(name for name in sys.modules if any(name == p or name.startswith(p + ".") for p in FORBIDDEN))
     assert not leaked, leaked
