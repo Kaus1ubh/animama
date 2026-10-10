@@ -24,9 +24,12 @@ def anima_writer() -> APIRouter:
     router = APIRouter()
 
     @router.post("/probe/animas/{anima_id}")
-    async def create(anima_id: str, session: WriteSession, principal: Principal, fail: bool = False) -> dict[str, str]:
+    async def create(
+        anima_id: str, session: WriteSession, principal: Principal, fail: bool = False, commit: bool = True
+    ) -> dict[str, str]:
         session.add(ORMAnima(id=anima_id, user_id=principal.id))
-        await session.commit()
+        if commit:
+            await session.commit()
         if fail:
             raise HTTPException(status_code=409, detail={"code": "probe_failed"})
         return {"owner": principal.id}
@@ -66,15 +69,28 @@ async def test_deferred_commit_is_rolled_back_when_the_handler_fails_afterwards(
     assert await stored_owner(async_session_factory, anima_id) is None
 
 
+async def test_uncommitted_work_is_rolled_back_when_the_session_ends(
+    async_session_factory: async_sessionmaker[AsyncSession], tmp_path: Path
+) -> None:
+    ports = DeferredCommitPorts(async_session_factory)
+    composition = TwoOwnerComposition(product_app(anima_writer(), ports=ports), tmp_path)
+    anima_id = f"anima-{uuid4().hex}"
+    async with composition.client("owner-a") as client:
+        response = await client.post(f"/probe/animas/{anima_id}", params={"commit": False})
+    assert response.status_code == 200
+    assert (ports.commits_requested, ports.commits, ports.rollbacks) == (0, 0, 1)
+    assert await stored_owner(async_session_factory, anima_id) is None
+
+
 async def test_two_owner_clients_resolve_their_own_principal_and_root(
     async_session_factory: async_sessionmaker[AsyncSession], tmp_path: Path
 ) -> None:
-    composition = TwoOwnerComposition(
-        product_app(anima_writer(), ports=DeferredCommitPorts(async_session_factory)), tmp_path
-    )
+    ports = DeferredCommitPorts(async_session_factory)
+    composition = TwoOwnerComposition(product_app(anima_writer(), ports=ports), tmp_path)
     for owner in composition.owners:
         async with composition.client(owner) as client:
             response = await client.post(f"/probe/animas/anima-{uuid4().hex}")
         assert response.json() == {"owner": owner}
         assert composition.roots[owner].is_dir()
     assert composition.roots["owner-a"] != composition.roots["owner-b"]
+    assert ports.owners == ["owner-a", "owner-b"]
