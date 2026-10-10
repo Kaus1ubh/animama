@@ -1,0 +1,469 @@
+# Particle and Scene Effect launch library (Plan 2, content)
+
+Source agreement: [#297](https://github.com/raymond-van/animama/issues/297)
+(snapshot: [particle-scene-effects-spec.md](particle-scene-effects-spec.md)),
+requirements R9–R14, with the final lists and the R12 change the owner decided
+on 2026-10-10 (Decision Log). The spec's open "Final lists" item is resolved
+by those decisions; Preparation publishes them to #297.
+Authorized scope: none yet. This plan is drafted for owner review; implementation
+starts when the owner authorizes its phases. Gates G1–G4 apply.
+Starting revision: `f71809f8` (`main` after Plan 1, #441).
+Branch: `feat/particle-scene-effects-content`, in a dedicated task worktree.
+One branch and one PR for this plan.
+Issues: parent #297 (stays open for Plan 3); phase issues are created at
+Preparation. Plan 1:
+[particle-scene-effects-execplan.md](particle-scene-effects-execplan.md)
+(#386–#394), whose platform, tooling and skills this plan uses.
+
+## Purpose and context
+
+Plan 2 replaces the Included Particle and Scene content with a launch library
+built with Plan 1's pipeline, and rewires the Reactions to use it:
+
+- **R9:** 12 Particle Effects (the final list below), at the Heart Burst
+  quality level.
+- **R10:** eight Scene background families (the G1 designs from Plan 1), with
+  a preset per emotion, 24 in all, each with its own art and colour.
+- **R11:** an Animama sticker set, made from the R10 art, replaces Twemoji in
+  the Scene creator; Twemoji files, catalog entries, allowlist, licence
+  records and attribution go.
+- **R12:** all 72 Reactions on the escalating ladder: intensity 1 has no
+  Particle or Scene Effect, intensity 2 a fitting Particle Effect where one
+  fits, intensity 3 a bigger Particle Effect or variant plus the emotion's
+  background.
+- **R13:** every other current Included Particle Effect and every current
+  Included Scene Effect is removed or replaced, with bundled duplicates,
+  stale tests and unused records.
+- **R14:** each item enters `content/included/` only after the owner approves
+  it in the live preview, under owner-authored licence rules.
+
+The content is authored as Local content on a task stack with the
+`animama-particle-vfx`, `animama-scene-vfx` and `animama-effect-assets` skills,
+reviewed by the owner in the headed preview, and promoted with `pnpm -s
+effects promote` in one owner-approved run. Code changes are limited to R11
+(sticker set, emoji handling, Twemoji removal) and to what R13 removal
+requires (bundled catalogs, creator defaults, debug panels, tests).
+
+Commands run from the repository root unless stated. Frontend scripts run from
+`src/frontend/web`. The build, tests and app must not depend on Codex,
+`image-gen` or any skill; skills and generated drafts are authoring aids.
+
+### Final lists (owner, 2026-10-10)
+
+Particle Effects (R9), 12 of the 13 proposed; Sweat Spray is dropped.
+
+| # | Effect | Stem | Mechanic and layers | Emotions (proposal) | State |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Heart stream | `hearts-v1` | Steady stream of hearts from the head | love, caring, desire | Kept unchanged (spec) |
+| 2 | Heart burst | `heart-burst` | Large heart swells and beats, bursts into small hearts over a glow | love, caring, desire, admiration | Approved Local item (Plan 1 G2) |
+| 3 | Twinkle shimmer | `twinkle-shimmer` | Long-lived glints scale in and out among soft bokeh | admiration, gratitude, optimism | New |
+| 4 | Halo rays | `halo-rays` | Slow rotating light rays with rising gold motes | respect, confidence, gratitude, optimism | New |
+| 5 | Star burst | `star-burst` | Gacha-pull flash, expanding ring, star shards, glitter | excitement, joy | New |
+| 6 | Confetti | `confetti` | Confetti and ribbons burst and flutter down | joy, amusement, excitement | New |
+| 7 | Question orbit | `question-orbit` | Question marks orbit and bob around the head | curiosity, confusion | New |
+| 8 | Fume puffs | `fume-puffs` | Steam puffs vent from the head | annoyance, embarrassment, disapproval | New |
+| 9 | Rage aura | `rage-aura` | Layered flame aura with rising embers from the chest | anger | New |
+| 10 | Stink miasma | `stink-miasma` | Green wisps and bubbles drifting up | disgust | New |
+| 11 | Rain cloud | `rain-cloud` | Cloud with drizzle and splashes over the head | sadness, grief, disappointment | New, replaces the Included `rain-cloud` under its ID |
+| 12 | Gloom wisps | `gloom-wisps` | Pale will-o'-wisps drift slowly around the Avatar | grief, remorse, disappointment | New |
+
+Quality bar (owner, 2026-10-10): the level of Heart Burst — glossy, layered
+art with a coherent style — not its specific ingredients; an effect may be
+simpler, and faint sparkles or rings are not required in every effect.
+
+Scene backgrounds (R10): the eight G1 families (Plan 1, P1 record), with
+embarrassment in Affection for its Scene design (the domain group in
+`src/backend/animama/domain/emotions.py` is unchanged).
+
+| Family | Direction | Emotions | Layers (G1) |
+| --- | --- | --- | --- |
+| Affection | Shoujo bloom | admiration, caring, love, embarrassment | radial glow, drifting bokeh tile, tumbling petals with twinkling sparkles |
+| Esteem | Radiance | respect, confidence, gratitude | radial back-light, rotating rays, rising twinkling glints |
+| Delight | Festive pop | amusement, excitement, joy | diagonal pop gradient, halftone dots, bouncing stars and confetti |
+| Drive | Anticipation | desire, curiosity, optimism | sky gradient, drifting star-field tile, rising twinkles |
+| Alarm | Shock | fear, nervousness, confusion | entry flash, dark gradient, shock lines, flickering lightning |
+| Rejection | Rage | anger, annoyance, disapproval | hot radial vignette, throbbing spiky rays, popping anger marks |
+| Revulsion | Queasy | disgust, remorse | sickly gradient, spinning spirals, rising bubbles |
+| Gloom | Gloom | disappointment, grief, sadness | overcast gradient, swaying gloom lines, falling drops |
+
+Gloom Sadness (approved Local item, Plan 1 G2) is the Gloom family's sadness
+preset and the reference for its siblings.
+
+R12 change (owner, 2026-10-10): the clause rewiring `shy-finger-poke` is
+dropped. `main`'s #406 deleted that Gesture, and no Included Gesture plays a
+Particle or Scene Effect, so `kawaii-sparkles` and `light-streak` are simply
+removed under R13. More Gesture use stays allowed, not required.
+
+### Implementation orientation
+
+Survey of `f71809f8`. Paths: frontend relative to `src/frontend/web/`,
+backend to `src/backend/animama/`, content to `content/included/`.
+
+| Area | Current state and significance |
+| --- | --- |
+| Particle content | 19 folders in `vfx/particle/quark/`. Six are used, all by Reactions: `hearts` (admiration, caring, desire, love at 2–3), `sparkles` (respect, confidence, gratitude, optimism at 2–3; amusement, excitement, joy at 3), `stars` (amusement, excitement, joy at 2), `question-marks` (curiosity-2, confusion-2/3), `exclamation` (curiosity-3), `rain-cloud` (disappointment, grief, sadness at 2–3). Events are `particle-<stem>` at 0.12 s (i2) or 0.1 s (i3). `hearts-v1`, which the spec keeps, is used by nothing. |
+| Scene content | 24 folders in `vfx/scene/`: focus presets `dark` and `light-streak`; backgrounds `comic-pop`, `shoujo-hearts`, `kawaii-sparkles` and 19 `scene-vfx-emotion-<e>` (none for caring, desire, confusion, annoyance, remorse). Each emotion background is played only by `<e>-3`, as event `scene-emotion-background` at 0 s with `presetId: scene-vfx-emotion-<e>`. Their marquees use 26 local `emoji-*.svg` image copies. Nothing uses `comic-pop`, `dark`, `kawaii-sparkles`, `light-streak` or `shoujo-hearts`. |
+| Reactions | 72 Reactions (`reactions/<emotion>-<1..3>/`, `animaPoseClip/2.0`). Intensity 1 has no events except embarrassment-1 (blush band). Intensity 2–3 Avatar Effects are kept unless an assignment conflicts. `tests/test_included_content_integrity.py:95-111` requires every emotion to have a Reaction that plays an Avatar Effect. |
+| Starter content | `resources/starter-loadout.v1.json` names the 72 Reactions (version 1) and 20 Gestures, no effects. Effects reach the desktop core partition through Reaction dependency closure (`runtime/starter_content.py:144-171`), and `resolve_roots` fails on diagnostics, so Reactions must be re-pointed in the same change that removes their effects. Promote `replace` keeps a Reaction's ID and version, so the loadout needs no edit. |
+| Bundled duplicates | `lib/avatar/particle-vfx/catalog.ts` lists all 19 Particle Effects (asset paths `/effects/vfx/quark/<stem>/particle.json`); consumers: `particle-vfx/runtime.ts`, `editor/draft.ts:145` (falls back to entry 0, `hearts`), `AnimaRuntimeMediaCatalog.ts:949-975`, `ui/debug/AnimationDebugModal.tsx:1520-1533` (`flame-loop` hard-coded). `assets/effects/scene-vfx/catalog.json`: 22 background presets, 2 focus presets and 28 Twemoji `backgroundLineItems`, loaded by `lib/scene-vfx/catalog.ts`; consumers include the Scene creator's templates and defaults (`lib/scene-vfx/editor/defaults.ts:25-43`, fallback to `kawaii-sparkles` at :212, default focus `dark` at :83), `lib/effects/effectTemplates.ts:161-167`, `ui/action-editor/actionDependencies.ts`, the debug VRM editor's scene drafts and `AnimaRuntimeMediaCatalog.ts`. |
+| Twemoji | 26 copies under `vfx/scene/*`, 28 mirrors in `resources/scene-vfx/twemoji/` (Vite alias `vite.config.ts:46-49`), the `twemoji` npm dependency (`web/package.json`, `vite.config.ts:132`). Creator list `SCENE_BACKGROUND_EMOJI_LINE_ITEMS` (`lib/scene-vfx/assets.ts`), picker in `ui/scene-effect-creator/sceneLayerControls.tsx:327-395`, resolver `lib/scene-vfx/emoji.ts`, editor hydrate/serialize `lib/scene-vfx/editor/document.ts:765-797`. Backend `BUILTIN_EMOJI` (28 code points) and capabilities `animama/twemoji/14.0.2/<cp>` in `app/services/content_package_capabilities.py:71-89`; `_scene_items` (:326-346) refuses unknown code points. Records: inventory rules `vfx/scene/**/emoji-*.svg` and `resources/scene-vfx/twemoji/**`, `licenses/third-party/art-twemoji.json` (54 records), `art-NOTICES.md` (keep `art-CC-BY-4.0.txt`: CodeManu's `spark-pop-6x5` also uses it), `desktop/runtime/notices/included-content-attribution.txt`, 55 source-review records. |
+| Emoji items today | A Local Scene with an emoji item fails `validate_scene_effect_definition` with `scene_definition_invalid` (Save and scan); a package declaring a Twemoji capability is refused (`package_capability_unsupported`); the frontend would request a missing SVG. R11's "marked missing in the creator, skipped in chat" needs new code on both sides. |
+| Curated textures | 38 built-in creator textures (`vfx/particle/particle-vfx/textures/`, `editor/textureManifest.ts`). After R13 only `heart.png` stays used by an Included effect (`hearts-v1`); the rest stay needed by the creator's built-in list, its emitter templates and `DEFAULT_TEXTURE_ID = "soft-dot"`. R13 removes only textures that neither a remaining effect nor the built-in list needs, so none is removed unless the built-in list changes. |
+| Pinned tests | `tests/avatar/reactionClips.test.ts` (:29-66 emotion→effect map; :445-480 checks events against the bundled catalogs), `tests/avatar/particleVfx.test.ts` (:343-402 Included IDs and looping set; `flame-loop` cases), `lib/scene-vfx/catalog.test.ts` (:70-140 emotion presets, absence of five backgrounds, Twemoji list), `editor/creatorDocument.test.ts` and `editor/particleEstimate.test.ts` (read `flame-loop`), script tests reading `hearts-v1`, `question-marks`, `sparkles`, `light-streak`, `kawaii-sparkles` and the joy background, e2e `playback-library.spec.ts` and `playback-anima-loadout.spec.ts`, backend `tests/test_included_content_catalog.py` (:71 `hearts`, :127 Twemoji), `tests/test_removed_effect_dependency.py`, `tests/test_scene_svg_content.py`, `tests/test_content_package_capabilities.py`, and the boundary consumer `scripts/repository-boundary/consumers/hosted-app/clip-api.mjs`/`clips.mjs` (`hearts`). |
+| Legacy generator | `src/frontend/scripts/generate-particle-vfx-assets.mjs` defines 14 of the old effects and writes a stale flat layout; it is removed or reduced to the curated textures it still owns. |
+| Licences | Per-stem Particle rules (`vfx/particle/quark/<stem>/**`) go ahead of the legacy `vfx/particle/quark/**` rule (promote writes them); Scene PNGs fall under the D1 rule `vfx/scene/**/*.png`; the Twemoji rules go. Once no legacy Particle effect remains except `hearts-v1`, the legacy rule narrows to `hearts-v1`. |
+| Tooling and skills | Plan 1's `effects check`, `effects:render`, `animation:preview`, `effects:bench --reaction`, `effects save` and `effects promote` (add, replace, delete; Reactions replaced from creator project files in the same run; dependencies on Local effects re-pointed to Included IDs). Skills: `animama-particle-vfx`, `animama-scene-vfx` (each with `batch.md` and `promote.md`), `animama-effect-assets`, `animama-animation` (Reaction edits). |
+| Drafts | Plan 1's G1 briefs (`scene-families/<family>/brief.md`, `families.json`, sample stickers), the approved Heart Burst and Gloom Sadness folders and their package (`exports/heart-burst-gloom-sadness.zip`) are in the primary checkout's ignored `.animama-drafts/particle-scene-effects-plan1/`; copy what a phase needs into this worktree's `.animama-drafts/`. The Revulsion brief still lists embarrassment. |
+
+## Progress
+
+- [x] Plan drafted (2026-10-10) from `f71809f8` with the owner's final lists.
+- [ ] Owner review of this plan and authorization of its phases.
+- [ ] Preparation: spec decisions published to #297; phase issues; task stack.
+- [ ] P1 — Briefs, concept board and Reaction ladder draft. Gate G1.
+- [ ] P2 — Particle library. Gate G2 per batch.
+- [ ] P3 — Scene backgrounds and the sticker art. Gate G2 per family.
+- [ ] P4 — Animama sticker set and Twemoji removal (R11).
+- [ ] P5 — Reaction ladder (R12) and performance. Gate G4.
+- [ ] P6 — Promotion and removal (R13, R14). Gate G3.
+- [ ] P7 — Documentation and acceptance.
+- [ ] Final integration review and PR.
+
+## Surprises & Discoveries
+
+- 2026-10-10 (planning): `hearts-v1`, the one Particle Effect the spec keeps,
+  is used by no Reaction; the Reactions use `hearts`, which R13 removes. Love,
+  caring, desire and admiration must be re-pointed regardless.
+- 2026-10-10 (planning): the emotion backgrounds' marquee items are `image`
+  items naming local `emoji-*.svg` copies, not `emoji` items, so replacing the
+  backgrounds removes those copies; the creator's emoji list and the backend
+  allowlist are a separate R11 change.
+- 2026-10-10 (planning): `reactionClips.test.ts` validates Reaction events
+  against the bundled catalogs, so new effects need either bundled entries or
+  a test that resolves Included dependencies, as Avatar Effects already do
+  (:68-108). The plan prefers the latter (P6).
+- 2026-10-10 (planning): today a removed emoji fails a Local Scene's Save and
+  scan as invalid; R11's missing-item behaviour is new code.
+
+## Decision Log
+
+- 2026-10-10, owner: R9 final set is the 12 proposed candidates except Sweat
+  Spray (rejected in Plan 1's dry run for its idea and art).
+- 2026-10-10, owner: the approved Local Heart Burst and Gloom Sadness are used
+  as R9 #2 and the Gloom family's sadness preset, as saved.
+- 2026-10-10, owner: R12's `shy-finger-poke` clause is dropped (the Gesture was
+  deleted by #406).
+- 2026-10-10, owner: quality bar is Heart Burst's level; simpler effects are
+  fine, and sparkles or rings are not required in each.
+- 2026-10-09, owner (Plan 1 G1): the eight family designs, capabilities C1–C6,
+  embarrassment in Affection.
+- 2026-10-10, agent proposal for the plan review: **IDs.** Emotion backgrounds
+  are replaced under their existing IDs (`scene-vfx-emotion-<e>`), and the five
+  missing ones are added with the same naming, so Reactions' `presetId`s stay
+  stable; `rain-cloud` is replaced under its ID; other Particle Effects get new
+  stems and the old ones are deleted.
+- 2026-10-10, agent proposal for the plan review: **sticker set delivery.**
+  The Scene creator's built-in stickers are Included PNGs under
+  `resources/scene-vfx/stickers/` listed in a manifest; choosing one copies the
+  PNG into the effect as its own image (as the Particle creator packages a
+  built-in texture). Saved effects and packages stay self-contained and no new
+  package capability is needed. The alternative, a built-in sticker reference
+  resolved like Twemoji, keeps effects smaller but adds a capability and an
+  allowlist like the one R11 removes.
+- 2026-10-10, agent proposal for the plan review: **focus presets.** `dark`
+  and `light-streak` hold no Twemoji and Focus Lines are out of scope; they are
+  kept under their IDs with presets unchanged unless G1 asks for new ones,
+  which satisfies R13's "replaced under the same content ID" with no user
+  change. `comic-pop`, `shoujo-hearts` and `kawaii-sparkles` are deleted.
+
+## Gates
+
+| Gate | When | Who | Effect |
+| --- | --- | --- | --- |
+| G1 | End of P1 | Owner reviews the Particle briefs with their concept stills, the 24 Scene preset briefs, the sticker list, the draft Reaction ladder and the three agent proposals above | Fixes what P2–P5 build; changes are recorded here |
+| G2 | P2 and P3, per batch | Owner reviews each effect in the headed preview on both Included Avatars | Approved effects are saved as Local content; others are revised (at most twice) or dropped by the owner |
+| G3 | P6, before writing | Owner approves the `effects promote --dry-run` list item by item | Nothing is written under `content/included/` before this; the run writes exactly the approved list |
+| G4 | P5 | Owner reviews the wired Reactions (the ladder table and the live preview) | Acceptance of R12; merge approval stays separate |
+
+Image generation needs the owner's Codex login; a failed or quota-limited
+generation pauses the affected effect, not the plan. If the heaviest
+intensity-3 Reaction exceeds the 4 ms budget after reasonable optimization,
+the measurement goes to the owner before P5 completes.
+
+## Preparation (workspace setup)
+
+1. Recheck the root and scoped `AGENTS.md`, branch, HEAD and dirty state; run
+   `git lfs pull` if a PNG reads as a pointer.
+2. `workspace-setup`, once implementation is authorized:
+   - publish the owner's 2026-10-10 decisions to #297 (final lists, the
+     dropped R12 clause; R12 and acceptance text no longer name
+     `shy-finger-poke`), read it back and refresh the spec snapshot;
+   - create phase issues P1–P7 as sub-issues of #297, each blocked by its
+     predecessor (P3 also by P1, P4 by P3, P6 by P2–P5); record them here.
+     Do not create gate-only issues.
+3. Dependencies: from `src/frontend`, `pnpm install --frozen-lockfile`,
+   `pnpm packages:build`, `pnpm e2e:install`; backend `uv sync --python
+   3.12.13`.
+4. Task stack (P2 onwards): `./reset.sh --name particle-content --base-port
+   <free port>`, `source .animama-stack.env`; record the URL here. Import
+   `heart-burst-gloom-sadness.zip` through Library → Import (or the package
+   API) and check both items open in their creators. The main stack on :3000
+   is not changed. Stop the stack after its last use.
+5. Wrap delegated test runs in `timeout`. Work test-first (`tdd`) for code in
+   P4 and P6.
+
+## Phased implementation
+
+Each phase starts after its predecessor's checks and bounded review pass (one
+full `sdlc-reviewer` review, at most two repair rounds), and after its gate
+where one applies. Content phases (P1–P3) are reviewed on their records,
+briefs and check results; their art is judged at G1 and G2. Record per
+phase: issue, starting SHA, commits (`<type>(<scope>)[p#]: …`, scopes such as
+`particle`, `scene`, `reactions`, `content`, `effects`, `skills`, `docs`),
+commands and results, review records and remaining gates.
+
+### P1 — Briefs, concept board and Reaction ladder draft (R9, R10, R12 input). Gate G1.
+
+1. **Particle briefs:** one brief per new effect (10, the "New" rows), in the
+   `animama-particle-vfx` brief template, at the agreed quality bar. Each names
+   its mechanic, layers, anchor, duration, art direction and budget, and which
+   Reactions and tiers it is meant for.
+2. **Concept board:** one generated still per new effect in its brief's art
+   direction (the owner asked to see the candidates), with `hearts-v1` and
+   Heart Burst renders beside them, on one review page. Stills are direction,
+   not textures.
+3. **Scene preset briefs:** from the G1 family briefs, one brief per emotion
+   (23 new; sadness is Gloom Sadness): colours, motifs and the family's layers,
+   embarrassment moved into Affection's brief. List the stickers each family
+   needs; together they are the Animama sticker set (R11), with per-item
+   budgets `scene-sticker`/`scene-tile`.
+4. **Reaction ladder draft:** a table of all 72 Reactions: intensity 1 none;
+   intensity 2 a fitting Particle Effect where one fits (or none); intensity 3
+   the bigger effect or variant plus the emotion's background; the Avatar
+   Effects each keeps; event times. Every emotion has a background at
+   intensity 3.
+5. Present G1: the review page, briefs, sticker list, ladder table and the
+   three Decision Log proposals.
+
+Briefs and the board live in `.animama-drafts/` (not committed); the plan
+records the approved list, ladder table and any G1 changes. Completion: G1
+approved.
+
+#### P1 record
+
+#### Code Review #1 Findings
+
+#### Code Review #1 Revisions
+
+### P2 — Particle library (R9). Gate G2 per batch.
+
+1. Author the 10 new Particle Effects with `animama-particle-vfx` in batches
+   of at most four (its `batch.md`): textures with `animama-effect-assets`
+   (`particle-texture`, `particle-sheet`), effect folders, `pnpm -s effects
+   check` clean on both Avatars, `effects:render` sheets, then the headed
+   preview for the owner (G2). `rain-cloud`'s folder targets a replace of the
+   Included item.
+2. Save each approved effect as Local content with `pnpm -s effects save`.
+   Heart Burst is already saved (imported at Preparation); re-run `effects
+   check` on it.
+3. Record per effect: brief, check result, particle estimate and budget, G2
+   outcome and revision count. Drop or revise per the owner.
+
+Completion: all 11 non-kept effects approved and saved (or the owner's
+changes recorded), each with a clean `effects check`.
+
+#### P2 record
+
+#### Code Review #1 Findings
+
+#### Code Review #1 Revisions
+
+### P3 — Scene backgrounds and the sticker art (R10). Gate G2 per family.
+
+1. Per family, with `animama-scene-vfx`: the family's sticker and tile art
+   (`animama-effect-assets`, `scene-sticker`, `scene-tile`, flat anime motifs
+   distinct from Particle art), then one effect folder per emotion using the
+   family's layers, checked (`effects check`, Scene limits) and rendered on a
+   chat-shaped sheet. Gloom Sadness sets the Gloom family's reference.
+2. Owner review per family in the headed preview (G2): the family's presets
+   side by side. Save approved presets with `effects save`, each targeting a
+   replace of `scene-vfx-emotion-<e>` (or an add for caring, desire,
+   confusion, annoyance and remorse).
+3. Collect the approved sticker art and its manifest metadata (label, family,
+   budget) for P4.
+
+Completion: 24 presets approved and saved; the sticker set's files listed.
+
+#### P3 record
+
+#### Code Review #1 Findings
+
+#### Code Review #1 Revisions
+
+### P4 — Animama sticker set and Twemoji removal (R11).
+
+1. **Sticker set:** the approved P3 stickers as Included resources (proposal:
+   `resources/scene-vfx/stickers/<id>.png` plus a manifest); the Scene
+   creator's built-in picker lists them instead of Twemoji; choosing one adds
+   it as the effect's own image (per the G1 decision on delivery). Users can
+   still add their own images.
+2. **Emoji items:** a Local Scene Effect with an `emoji` item opens in the
+   creator with that item marked missing and asks for a replacement; Save is
+   refused until it is replaced or removed; chat and previews skip the item
+   without errors; there is no conversion. Backend: scan admits the
+   definition with a diagnostic (as P7 of Plan 1 did for removed effects)
+   instead of `scene_definition_invalid`; Save and package import refuse the
+   emoji item with a named error. Tests first.
+3. **Twemoji removal:** `BUILTIN_EMOJI` and the Twemoji capabilities, the
+   resolver and provider type, `SCENE_BACKGROUND_EMOJI_LINE_ITEMS` and the
+   catalog's `backgroundLineItems`, the mirror folder and its Vite alias, the
+   `twemoji` npm dependency and lockfile entry, the inventory rules, the
+   third-party records, NOTICES and desktop attribution entries, the
+   source-review records, and the docs and skill text that name Twemoji. The
+   26 `emoji-*.svg` copies go with their backgrounds in P6.
+4. Regenerate the API client if a backend contract changes (`pnpm
+   openapi-ts`).
+
+Checks: backend and frontend unit tests for the new handling; `pnpm check`,
+`pnpm web:lint`, `pnpm web:test`, `uv run pytest -q` affected tests, `uv run
+ruff check`; a browser check of the creator with a Twemoji-era Local Scene.
+
+#### P4 record
+
+#### Code Review #1 Findings
+
+#### Code Review #1 Revisions
+
+### P5 — Reaction ladder (R12) and performance. Gate G4.
+
+1. Write each Reaction's change as a creator project file
+   (`animamaActionProject/1.0`) from its Included clip, with the effect
+   events of the approved ladder and dependencies on the Local effects
+   (`animama-animation` conventions; `animaPoseClip/2.0`). Timing works with
+   the Reaction's expression and its Avatar Effects.
+2. Save them as Local Reactions on the task stack and equip a test Anima to
+   review them in chat and in the headed preview (`animation:preview
+   library:local/<reaction>`).
+3. Measure the heaviest intensity-3 Reactions with `pnpm -s effects:bench
+   --reaction` (budget 4 ms added frame interval and GPU time, the owner's
+   development Mac); record the numbers.
+4. G4: the owner reviews the final ladder table and the wired Reactions in
+   the live preview.
+
+Completion: G4 approved; every emotion has a background at intensity 3; the
+benchmark is within budget or the owner has decided.
+
+#### P5 record
+
+#### Code Review #1 Findings
+
+#### Code Review #1 Revisions
+
+### P6 — Promotion and removal (R13, R14). Gate G3.
+
+1. Write one `promote.json`: add or replace each approved Particle and Scene
+   Effect (Local sources from the task stack), replace each changed Reaction
+   from its project file (dependencies re-pointed to Included IDs in the same
+   run), and delete every removed effect: `confusion-orbit-marks`,
+   `exclamation`, `exclamation-v1`, `flame-loop`, `hearts`, `hearts-v2`,
+   `magic-sparkle-burst`, `question-marks`, `question-v1`, `sad-rain-puff`,
+   `sleep-bubbles`, `soft-heart-pop`, `sparkles`, `star-v2`, `stars`,
+   `surprise-shock-pop`, `zzz`; `comic-pop`, `shoujo-hearts`,
+   `kawaii-sparkles`.
+2. `pnpm -s effects promote promote.json --dry-run`; show the owner the full
+   list (G3); then run it and `git add` the result. Deletes are refused while
+   a dependant remains, so a failed delete shows a missed Reaction.
+3. **Bundled duplicates and code that names removed content:** remove the
+   removed entries from `lib/avatar/particle-vfx/catalog.ts` and
+   `assets/effects/scene-vfx/catalog.json`; prefer resolving Included content
+   over adding new bundled copies, and keep a bundled entry only where a
+   consumer has no catalog access (record which). Update `editor/draft.ts`'s
+   fallback, the Scene creator's templates and defaults (`defaults.ts`,
+   `effectTemplates.ts`) to new presets, the debug modal's `flame-loop`
+   shortcut (switch to a remaining effect or drop it, per R13), the debug VRM
+   scene drafts, `actionDependencies.ts`, and the legacy generator.
+4. **Tests:** switch `reactionClips.test.ts` to the Included aliases and the
+   new map; update `particleVfx.test.ts`, `lib/scene-vfx/catalog.test.ts`
+   (the five new backgrounds exist; no Twemoji), the script, e2e and backend
+   tests listed in the orientation, and the boundary consumer's `hearts`
+   reference.
+5. **Licences:** per-stem Particle rules from promote; narrow the legacy
+   `vfx/particle/quark/**` rule to what remains; drop records of deleted files
+   (promote reports third-party records removed, such as `art-particles.json`
+   entries for quark copies); keep curated textures the built-in list needs.
+6. Run `uv run pytest -q tests/test_included_content_integrity.py
+   tests/test_included_content_catalog.py tests/test_starter_content_closure.py
+   scripts/public-release/test_prepare_source.py`, then the full checks.
+
+Completion: G3 approved and written; no removed item, bundled duplicate,
+stale test or record remains (a repository search for each removed stem and
+for `twemoji` finds only history in `docs/plans/`).
+
+#### P6 record
+
+#### Code Review #1 Findings
+
+#### Code Review #1 Revisions
+
+### P7 — Documentation and acceptance.
+
+1. Docs: `docs/frontend/runtime/avatar-particle-vfx.md` (Included library,
+   the debug shortcut), `scene-vfx.md` (Included presets, the sticker set,
+   emoji handling), `avatar-animation.md` and Reaction docs that list effects,
+   `local-content-runtime.md`, the redistribution and attribution docs, and
+   the effect skills' examples that named removed content.
+2. Full checks (Validation) and the full `pnpm e2e:test` on a purged built
+   stack.
+3. Chat check on the task stack: one Reaction per family at intensities 2 and
+   3, with screenshots for the PR.
+
+#### P7 record
+
+#### Code Review #1 Findings
+
+#### Code Review #1 Revisions
+
+## Final integration review
+
+`sdlc-reviewer` reviews the combined scope against R9–R14 and the spec's
+acceptance criteria, reusing still-valid phase evidence, with one full review
+and at most two repair rounds. Agent readiness does not replace the gates or
+merge approval.
+
+## Validation and acceptance
+
+| Spec criterion | Evidence | Phase |
+| --- | --- | --- |
+| R9, R10 | Briefs for every listed effect; G2 approval of each on both Avatars; clean `effects check` | P1–P3 |
+| R11 | Creator offers the sticker set and no Twemoji; emoji-item tests (creator, chat, Save, scan, import); repository search for Twemoji | P4, P6 |
+| R12 | Ladder table in this plan; G4 approval; every emotion has an intensity-3 background | P5 |
+| R13, R14 | G3 list; promote run; repository search for removed stems; Included-content, catalog and starter closure tests | P6 |
+| Performance | `effects:bench --reaction` on the heaviest intensity-3 Reactions within 4 ms | P5 |
+| Checks | Full local suites and full `pnpm e2e:test` | P7 |
+
+Before the PR, run from the repository root `uv run pytest -q`, `make check`,
+`uv run ruff check`; from `src/frontend` `pnpm check`, `pnpm web:lint`, `pnpm
+prettier:check`, `pnpm desktop:check`, `pnpm web:test`, `pnpm build` and
+`pnpm openapi-ts` freshness; and the full `pnpm e2e:test` on a purged built
+stack (a stack reused across Included-content changes keeps stale Animas and
+package stages). The hosted validation workflow is disabled today; if it
+stays so, the PR states that no hosted checks ran.
+
+## Idempotence and recovery
+
+- **Drafts:** briefs, art and effect folders live in `.animama-drafts/` and
+  the task stack's Local content; export approved Local items to a package
+  before the worktree or stack is cleaned up.
+- **Promotion:** `--dry-run` first; writes are reviewable Git changes on the
+  task branch and are reverted with Git.
+- **Removal order:** Reactions are replaced in the same promote run as the
+  deletes, so starter closure never sees a missing effect.
+- **Local content of users:** a Local Action naming a deleted Included effect
+  keeps playing without it and asks for repair (Plan 1); a Local Scene with
+  an emoji item behaves as P4 defines.
+- **Database:** no schema change is expected; if one is needed, update the ORM
+  and `alembic/versions/0001_baseline.sql` directly.
+
+## Outcomes & Retrospective
+
+Not started.
