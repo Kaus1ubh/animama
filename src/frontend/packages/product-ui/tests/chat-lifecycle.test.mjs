@@ -92,7 +92,7 @@ after(async () => {
 /** Each test owns a fresh DOM, hook instance, transport and event transcript. */
 async function consumer(t) {
   const page = await browser.newPage();
-  // Generous for two-core CI runners; timing assertions keep their own bounds.
+  // Generous for two-core CI runners.
   page.setDefaultTimeout(30_000);
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));

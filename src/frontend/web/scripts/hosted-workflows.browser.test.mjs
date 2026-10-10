@@ -91,7 +91,7 @@ async function mount(route = "/", owner, { waitForSettings = true } = {}) {
           window.workflowFixture &&
           (!waitForSettings || !window.workflowFixture.settings.isLoading),
         waitForSettings,
-        { timeout: 15000 },
+        { timeout: BROWSER_STEP_TIMEOUT_MS },
       ),
   });
   return { page, errors, ...admission };
@@ -913,7 +913,7 @@ test("a Library import resolves its lost commit receipt after a real same-tab re
   await page.getByRole("button", { name: "Import", exact: true }).click();
   await page
     .getByRole("heading", { name: "Import complete", exact: true })
-    .waitFor({ timeout: 5000 });
+    .waitFor({ timeout: BROWSER_STEP_TIMEOUT_MS });
   assert.equal(
     api.calls.filter(
       (call) => call.owner === owner && call.path.endsWith("/commit"),

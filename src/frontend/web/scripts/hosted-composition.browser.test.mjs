@@ -535,6 +535,8 @@ for (const viewport of [
         await dialog.waitFor({ state: "detached" });
 
         // A dismissed modal must release the page for ordinary pointer navigation.
+        // Playwright retries the hit-target check until this bound, so a page the
+        // modal leaves blocked still fails; the bound allows for slow CI runners.
         await page
           .getByRole("link", { name: "Open Library" })
           .click({ timeout: 10_000 });
