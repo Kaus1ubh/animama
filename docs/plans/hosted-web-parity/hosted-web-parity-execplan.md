@@ -1979,6 +1979,22 @@ newer session live) is applied in `70ce8675` with a test that fails first. Its
 consumer nit (send `recovery_session_id` for every live session state) belongs to
 the consumer. Repair rounds used: 2 of 2, plus that one-line recommended fix.
 
+### Post-merge validation run (2026-10-09)
+
+The owner approved one full Portable product validation run on the #284 merge
+(`42d38faf`). [Run 37988103093](https://github.com/raymond-van/animama/actions/runs/37988103093)
+passed every check except the whole-application harness, which had never run on a
+GitHub runner before: on two vCPUs, after #377 made Pocket TTS warm on every Anima
+page, a navigation exceeded its 15-second bound. The unchanged harness also failed
+locally under `docker --cpus=2`, at other 15-second steps. Repair #395 admits new
+fixture owners with Text-to-Speech off and gives every browser step 45 seconds,
+replacing the earlier 15-second save deadline recorded above. It also fixes the
+product defect the harness exposed (#396): the browser warmed Pocket TTS from the
+default preferences before the owner's settings were read, so every Anima page
+loaded Pocket even for owners who had turned speech off. The PR records the
+validated revision and local evidence. A successful main run is still required
+before promotion.
+
 ## Final integration review
 
 A6's review closes integration of A1–A6; do not reopen those reviews. A7 has the new scope's separately bounded review above, reusing valid inherited evidence.

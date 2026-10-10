@@ -53,6 +53,8 @@ export type SettingsContextValue = {
   animaPreferences: SettingsPreferences | null;
   effectivePreferences: SettingsPreferences;
   isLoading: boolean;
+  /** The owner's user (and current Anima) settings were read successfully. */
+  settingsLoaded: boolean;
   isUpdating: boolean;
   updateUserSettings: (
     patch: PyUserSettingsUpdate,
@@ -318,6 +320,9 @@ export function SettingsProvider({
       animaPreferences,
       effectivePreferences,
       isLoading: userSettingsQuery.isLoading || animaSettingsQuery.isLoading,
+      settingsLoaded:
+        userSettingsQuery.isSuccess &&
+        (!resolvedAnimaId || animaSettingsQuery.isSuccess),
       isUpdating:
         updateUserSettingsMutation.isPending ||
         mergeUserPreferencesMutation.isPending ||
@@ -339,6 +344,7 @@ export function SettingsProvider({
       animaPreferences,
       animaSettings,
       animaSettingsQuery.isLoading,
+      animaSettingsQuery.isSuccess,
       resolvedAnimaId,
       updateAnimaPreferences,
       updateAnimaSettings,
@@ -350,6 +356,7 @@ export function SettingsProvider({
       userPreferences,
       userSettings,
       userSettingsQuery.isLoading,
+      userSettingsQuery.isSuccess,
       setChatRequestOverrides,
     ],
   );

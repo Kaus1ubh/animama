@@ -18,6 +18,7 @@ import {
   isElevenLabsTtsSupported,
   isPocketTtsSupported,
   resolvePreferredTtsProvider,
+  shouldPreparePocketTts,
   toTtsProvider,
   type TtsProvider,
 } from "@/lib/speech/tts-provider";
@@ -201,7 +202,7 @@ export function useTtsPlayback(
   const logger = useMemo(() => createLogger("TTSPlayback"), []);
   const { masterMuted, ttsMuted, ttsVolume } = useSoundController();
   const effectiveTtsVolume = masterMuted || ttsMuted ? 0 : ttsVolume;
-  const { effectivePreferences } = useSettings();
+  const { effectivePreferences, settingsLoaded } = useSettings();
   const platform = useRuntimePlatform();
   const [isAudioActive, setIsAudioActive] = useState(false);
   const shouldStreamTtsChunks =
@@ -1525,10 +1526,14 @@ export function useTtsPlayback(
   ]);
 
   useEffect(() => {
-    if (effectivePreferences.speech?.tts_enabled !== true) return;
-    const provider = toTtsProvider(effectivePreferences.speech?.tts_provider);
-    if (provider !== "pocket_tts") return;
-    if (!isPocketTtsSupported()) return;
+    if (
+      !shouldPreparePocketTts(
+        settingsLoaded,
+        effectivePreferences.speech?.tts_enabled,
+        effectivePreferences.speech?.tts_provider,
+      )
+    )
+      return;
 
     void warmupPocketRuntime().catch((error) => {
       logger.warn("Warmup", "PocketTTS warmup failed", {
@@ -1536,6 +1541,7 @@ export function useTtsPlayback(
       });
     });
   }, [
+    settingsLoaded,
     effectivePreferences.speech?.tts_enabled,
     effectivePreferences.speech?.tts_provider,
     logger,
@@ -1543,10 +1549,14 @@ export function useTtsPlayback(
   ]);
 
   useEffect(() => {
-    if (effectivePreferences.speech?.tts_enabled !== true) return;
-    const provider = toTtsProvider(effectivePreferences.speech?.tts_provider);
-    if (provider !== "pocket_tts") return;
-    if (!isPocketTtsSupported()) return;
+    if (
+      !shouldPreparePocketTts(
+        settingsLoaded,
+        effectivePreferences.speech?.tts_enabled,
+        effectivePreferences.speech?.tts_provider,
+      )
+    )
+      return;
 
     const animaCatalogReference =
       resolvePocketAnimaCatalogReferenceForPreload();
@@ -1572,6 +1582,7 @@ export function useTtsPlayback(
         });
       });
   }, [
+    settingsLoaded,
     effectivePreferences.speech?.tts_enabled,
     effectivePreferences.speech?.tts_provider,
     logger,
