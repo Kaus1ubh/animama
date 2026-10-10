@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_presentation_repo import SQLAlchemyAnimaPresentationRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.chat.memory_context import DirectChatMemoryContextError, DirectChatMemoryContextService
 from animama.app.services.anima_presentation_service import AnimaPresentationService
 from animama.app.services.content_catalog_service import ContentCatalogService
@@ -49,13 +50,15 @@ from animama.orm import (
 )
 from animama.orm.content_catalog import ORMContentCatalogDependency, ORMContentCatalogItem
 from animama.orm.model_provider import ORMModelProvider
+from animama.product_http.ports import install_product_ports
+from animama.product_http.routes.animas import patch_anima, router as anima_router
+from animama.product_http.routes.avatars import delete_avatar
+from animama.product_http.routes.memory import router as memory_router
 from animama.server.deps import get_async_session, get_current_principal
-from animama.server.routers.anima import patch_anima, router as anima_router
-from animama.server.routers.avatar import delete_avatar
-from animama.server.routers.memory_entries import router as memory_router
 from animama.server.schemas.anima import PyAnimaUpdate, PyAnimaUpdateRequest
 from tests.anima_creation_support import creation_fixture
 from tests.local_http_client import local_client
+from tests.product_http_support import SessionPorts
 
 _T = TypeVar("_T")
 
@@ -369,7 +372,7 @@ async def test_name_guard_invalidates_reviewed_loadout_without_rewriting_identit
             anima=PyAnimaUpdate(display_name="Owner Name"),
             expected_aggregate_revision=1,
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
         user=user,
     )
     assert json.loads(bytes(response.body))["aggregate_revision"] == 2
@@ -380,7 +383,7 @@ async def test_name_guard_invalidates_reviewed_loadout_without_rewriting_identit
                 anima=PyAnimaUpdate(display_name="Stale"),
                 expected_aggregate_revision=1,
             ),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
             user=user,
         )
     assert stale.value.status_code == 409
@@ -466,7 +469,11 @@ async def test_required_identity_cannot_bypass_guards_or_be_removed(async_sessio
             content_set=True,
         )
     with pytest.raises(HTTPException) as retained:
-        await delete_avatar(anima.avatar.id, user=RequestPrincipal(id=fixture.user_id), session=async_session)
+        await delete_avatar(
+            anima.avatar.id,
+            user=RequestPrincipal(id=fixture.user_id),
+            repositories=SQLAlchemyProductRepositories(async_session),
+        )
     assert retained.value.status_code == 409
     await uow.rollback()
     assert (_required(await uow.animas.get(anima.id))).aggregate_revision == 1
@@ -641,7 +648,7 @@ async def test_avatar_changes_and_stale_chat_writes_preserve_live_definition(asy
             anima=PyAnimaUpdate(avatar_id=None, display_name="My renamed Anima"),
             expected_aggregate_revision=2,
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
         user=user,
     )
     assert json.loads(bytes(response.body))["aggregate_revision"] == 3
@@ -801,6 +808,8 @@ async def test_identity_http_edits_and_revert_share_the_owned_aggregate_guard(as
 
     app.dependency_overrides[get_current_principal] = user
     app.dependency_overrides[get_async_session] = session
+    # Shared memory routes take the same test session through the ports.
+    install_product_ports(app, SessionPorts(async_session))
     async with local_client(app) as client:
         path = f"/v1/memory/entries/{identity.id}"
         initial = await client.get(path)

@@ -1,34 +1,19 @@
-"""Private installation-owner personalization endpoints."""
+"""The owner's private profile routes, shared by every composition (ADR 0021)."""
 
 from __future__ import annotations
 
 from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
-from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
+from animama.app.contracts.user_profile import PyUserProfile, PyUserProfileUpdate
 from animama.app.services.user_profile_service import UserProfileService
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfile, UserProfileInvalidError, UserProfileNotFoundError
-from animama.server.installation_personalization import (
-    FirstRunIncompleteError,
-    InstallationPersonalizationService,
-    InstallationPrincipalMismatchError,
-)
-
-from ..deps import get_async_session, get_current_principal
-from ..schemas.user_profile import PyUserProfile, PyUserProfileUpdate
+from animama.product_http.ports import Ports, ProductRefusal, ReadRepositories, WriteSession
+from animama.product_http.principal import get_current_principal
 
 router = APIRouter()
-
-
-def _service(session: AsyncSession) -> UserProfileService:
-    return UserProfileService(
-        profiles=SQLAlchemyUserProfileRepository(session),
-        uow=SQLAlchemyUnitOfWork(session),
-    )
 
 
 def _profile_response(profile: UserProfile) -> PyUserProfile:
@@ -48,11 +33,12 @@ def _raise_profile_error(exc: Exception) -> NoReturn:
 
 @router.get("/v1/users/me/profile", response_model=PyUserProfile)
 async def get_user_profile(
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: ReadRepositories,
     principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> PyUserProfile:
+    service = UserProfileService(profiles=repositories.user_profiles, uow=repositories.unit_of_work)
     try:
-        profile = await _service(session).require_profile(principal.id)
+        profile = await service.require_profile(principal.id)
     except UserProfileNotFoundError as exc:
         _raise_profile_error(exc)
     return _profile_response(profile)
@@ -61,21 +47,18 @@ async def get_user_profile(
 @router.patch("/v1/users/me/profile", response_model=PyUserProfile)
 async def update_user_profile(
     request: PyUserProfileUpdate,
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    ports: Ports,
+    session: WriteSession,
     principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> PyUserProfile:
+    # Each composition owns where a display name is stored and what else it updates.
     try:
-        result = await InstallationPersonalizationService(session).update_display_name(
-            principal_id=principal.id,
-            display_name=request.display_name,
-        )
+        display_name = await ports.update_display_name(session, principal, request.display_name)
     except (UserProfileNotFoundError, UserProfileInvalidError) as exc:
         _raise_profile_error(exc)
-    except FirstRunIncompleteError as exc:
-        raise HTTPException(status_code=409, detail={"code": "first_run_incomplete"}) from exc
-    except InstallationPrincipalMismatchError as exc:
-        raise HTTPException(status_code=403, detail={"code": "installation_principal_mismatch"}) from exc
-    return PyUserProfile(display_name=result.display_name)
+    except ProductRefusal as exc:
+        raise HTTPException(status_code=exc.status_code, detail={"code": exc.code}) from exc
+    return PyUserProfile(display_name=display_name)
 
 
 __all__ = ["router"]

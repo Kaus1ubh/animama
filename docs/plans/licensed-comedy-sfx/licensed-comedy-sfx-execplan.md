@@ -94,7 +94,7 @@ starting revision; implementers re-check them.
       (2026-10-10; branch merged with `origin/main` `5993bbee` first). Hosted CI
       is disabled; local checks are the evidence. Both task stacks torn down.
 - [ ] G3 desktop playback (skipped for now by the owner), owner confirmations
-      (R3 divergence, hidden sounds, Avatar Effects only, ADR 0021) and merge
+      (R3 divergence, hidden sounds, Avatar Effects only, ADR 0022) and merge
       approval of the exact candidate.
 - [ ] Release gate G4: WOW Sound's written confirmation, recorded in the release
       review before the first public release containing the pack. Not part of
@@ -194,7 +194,7 @@ starting revision; implementers re-check them.
     `src/backend/animama/resources/wow-comedy-sfx-preview-deny.json` lists their SHA-256 hashes
     (hashes only, no audio). It joins the backend's restricted set and the
     release scan, with no allowed location.
-  - **A new ADR (0021)** records optional accompanying sounds and the
+  - **A new ADR (0022)** records optional accompanying sounds and the
     non-portable sound policy, amending ADR 0018's scope.
 - 2026-10-09, owner (plan review): the optional sound link is accepted. Don't
   reuse the sounds the effects had before the 2026-09-02 cleanup; they were
@@ -235,6 +235,10 @@ starting revision; implementers re-check them.
   were updated. Main also promoted three new built-in Avatar Effects
   (`finger_heart_pop`, `huff_puff`, `idea_bulb_fingertip`) that need sounds in
   the G2 mapping.
+- 2026-10-10, agent (second `origin/main` merge, `d42eaad9`): #429 accepted
+  its own ADR 0021 (shared product routes), so this plan's ADR is renumbered
+  0022 and its references were updated. `local_runtime.py` keeps main's
+  `FilesystemContentStore` import alongside `PRIVATE_PACK_IDS`.
 - 2026-10-10, owner: G1 by reuse. The pack uses the Mixamo pack's private
   bucket and bucket-scoped tokens (no new secrets or env files) under its own
   prefix `built-in/wow-comedy-sfx`; a shared prefix would collide on each
@@ -816,7 +820,7 @@ criteria with real content. Depends on P1–P3. Contains owner gates.
    `content/mixamo-motion/` file only the Mixamo licence, and no
    `content/included-core/` file a pack licence (Phase 1 deferral). Confirm
    self-host `./reset.sh` starts with every effect VALID and silent.
-10. **Documentation.** ADR 0021 (optional accompanying sounds and the
+10. **Documentation.** ADR 0022 (optional accompanying sounds and the
     non-portable sound policy); a pack guide beside
     `docs/backend/operations/mixamo-motion-pack.md` (or a shared private-packs
     guide if that reads better); `content/included/README.md` (replace the
@@ -965,7 +969,7 @@ list). Checks: 163 backend tests on the snapshot (165 with Phase 4 content),
 ruff and format, 706 web, 93 + 69 desktop and 15 effect-script tests,
 prettier, `pnpm -s check`, both `scan --git` runs, `verify` and `fetch`.
 
-- **FI-F1 (required):** ADR 0021 still gave the disproved "receiver keeps the
+- **FI-F1 (required):** ADR 0022 still gave the disproved "receiver keeps the
   sound" rationale and described a review list.
 - **FI-F2 (required before merge):** desktop docs and the release workflow
   described only the Mixamo pack.
@@ -979,7 +983,7 @@ prettier, `pnpm -s check`, both `scan --git` runs, `verify` and `fetch`.
 
 Revisions:
 
-- FI-F1 accepted: ADR 0021 states the silent Local copy, the count-only review
+- FI-F1 accepted: ADR 0022 states the silent Local copy, the count-only review
   note and the pending owner confirmation of the R3 divergence.
 - FI-F2 accepted for docs (`runtime-staging.md`, `platforms.md`,
   `feature-packs.md`, `redistribution-review.md`); the release workflow,

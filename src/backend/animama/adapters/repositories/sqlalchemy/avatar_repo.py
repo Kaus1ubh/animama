@@ -2,16 +2,20 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from uuid import uuid4
 
 from sqlalchemy import or_, select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.domain.anima_definition import AnimaDefinitionError
 from animama.domain.content_catalog import CatalogContentEntry, ContentKind, ContentSource, ContentStatus
 
 from ....app.ports.avatar_port import AvatarRepository
-from ....domain.avatar import Avatar
+from ....domain.avatar import Avatar, AvatarNameConflictError
+from ....orm.anima import ORMAnima
 from ....orm.avatar import ORMAvatar
 from ...mappers.avatar_map import avatar_domain_to_orm, avatar_orm_to_domain
 from .content_catalog_repo import SQLAlchemyContentCatalog
@@ -21,11 +25,50 @@ class SQLAlchemyAvatarRepository(AvatarRepository):
     def __init__(self, session: AsyncSession) -> None:
         self._s = session
 
-    async def get(self, avatar_id: str) -> Avatar | None:
-        orm = await self._s.get(ORMAvatar, avatar_id)
+    async def get(self, avatar_id: str, *, for_update: bool = False) -> Avatar | None:
+        if for_update:
+            orm = await self._s.get(ORMAvatar, avatar_id, with_for_update=True, populate_existing=True)
+        else:
+            orm = await self._s.get(ORMAvatar, avatar_id)
         if orm is None:
             return None
         return avatar_orm_to_domain(orm)
+
+    async def get_by_catalog_item(self, catalog_item_id: str) -> Avatar | None:
+        orm = (
+            await self._s.execute(select(ORMAvatar).where(ORMAvatar.catalog_item_id == catalog_item_id))
+        ).scalar_one_or_none()
+        return avatar_orm_to_domain(orm) if orm is not None else None
+
+    async def list_readable(self, user_id: str) -> list[Avatar]:
+        result = await self._s.execute(
+            select(ORMAvatar)
+            .where(or_(ORMAvatar.private.is_(False), ORMAvatar.user_id == user_id))
+            .order_by(ORMAvatar.name, ORMAvatar.id)
+        )
+        return [avatar_orm_to_domain(orm) for orm in result.scalars()]
+
+    async def is_in_use(self, avatar_id: str) -> bool:
+        used_by = await self._s.execute(select(ORMAnima.id).where(ORMAnima.avatar_id == avatar_id).limit(1))
+        return used_by.scalar_one_or_none() is not None
+
+    @asynccontextmanager
+    async def _owner_name_unique(self) -> AsyncIterator[None]:
+        # The database constraint is authoritative, so concurrent writes cannot race a pre-check.
+        try:
+            yield
+        except IntegrityError as exc:
+            if "uq_avatar_owner_name" in str(exc.orig):
+                raise AvatarNameConflictError from exc
+            raise
+
+    async def create_owned(self, avatar: Avatar) -> Avatar:
+        async with self._owner_name_unique():
+            return await self.create(avatar)
+
+    async def update_owned(self, avatar: Avatar) -> Avatar:
+        async with self._owner_name_unique():
+            return await self.update(avatar)
 
     async def resolve_catalog_avatar(self, *, user_id: str, item: CatalogContentEntry) -> Avatar:
         """Serialize mapping/retention against the selected catalog parent row."""

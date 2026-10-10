@@ -675,12 +675,15 @@ async def test_catalog_failures_are_reported_instead_of_a_static_catalog(tmp_pat
 
 
 async def test_runtime_capabilities_report_model_configuration_from_the_composition(async_session, tmp_path, owner_id):
-    from animama.server.routers import runtime_capabilities
+    from animama.product_http.routes import runtime_capabilities
+    from tests.product_http_support import install_local_ports
 
     local = _app(async_session, tmp_path, owner_id, animama_user_file_processing_enabled=False)
     local.include_router(runtime_capabilities.router)
+    install_local_ports(local, async_session)
     hosted = _app(async_session, tmp_path, owner_id, animama_user_file_processing_enabled=False)
     hosted.include_router(runtime_capabilities.router)
+    install_local_ports(hosted, async_session)
     del hosted.state.model_catalog_policy
     async with local_client(local) as client:
         local_view = (await client.get("/v1/runtime-capabilities")).json()

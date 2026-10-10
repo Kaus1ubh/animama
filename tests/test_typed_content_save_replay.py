@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import replace
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -21,8 +23,9 @@ from animama.domain.content_catalog import (
     SavedContent,
 )
 from animama.domain.request_principal import RequestPrincipal
-from animama.server.deps import get_async_session, get_current_principal
-from animama.server.routers import content, typed_content
+from animama.product_http.ports import install_product_ports
+from animama.product_http.principal import get_current_principal
+from animama.product_http.routes import typed_content
 from tests.local_http_client import local_client
 
 
@@ -87,7 +90,24 @@ class _LiveTypedCatalog:
         return TypedContentService.parse(item)
 
 
-def _app(monkeypatch: pytest.MonkeyPatch, saved: CatalogContentEntry, live: _LiveTypedCatalog) -> FastAPI:
+class _StandInPorts:
+    """Serve the stand-ins as the owner's content, with no sessions or database I/O."""
+
+    def __init__(self, saves: _CompletedSave, typed: _LiveTypedCatalog) -> None:
+        self._content = SimpleNamespace(saves=saves, typed=typed)
+
+    @asynccontextmanager
+    async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[None]:
+        yield None
+
+    write_session = read_session
+
+    @asynccontextmanager
+    async def content(self, session: None, principal: RequestPrincipal) -> AsyncIterator[SimpleNamespace]:
+        yield self._content
+
+
+def _app(saved: CatalogContentEntry, live: _LiveTypedCatalog) -> FastAPI:
     """Exercise real HTTP parsing and response projection with no database I/O."""
 
     app = FastAPI()
@@ -96,27 +116,20 @@ def _app(monkeypatch: pytest.MonkeyPatch, saved: CatalogContentEntry, live: _Liv
     async def principal() -> RequestPrincipal:
         return RequestPrincipal(id="replay-owner")
 
-    async def session() -> AsyncIterator[None]:
-        yield None
-
     app.dependency_overrides[get_current_principal] = principal
-    app.dependency_overrides[get_async_session] = session
-    save = _CompletedSave(saved)
-    monkeypatch.setattr(content, "_save_service", lambda request, session: save)
-    monkeypatch.setattr(typed_content, "_save_service", lambda request, session: save)
-    monkeypatch.setattr(typed_content, "_typed_service", lambda request, session: live)
+    install_product_ports(app, _StandInPorts(_CompletedSave(saved), live))  # type: ignore[arg-type]
     return app
 
 
 @pytest.mark.parametrize("later_change", ["edited", "deleted"])
 @pytest.mark.parametrize("portrait", [False, True], ids=["gesture", "avatar-portrait"])
 async def test_save_replay_returns_original_typed_snapshot_after_catalog_change(
-    monkeypatch: pytest.MonkeyPatch, later_change: str, portrait: bool
+    later_change: str, portrait: bool
 ) -> None:
     original = _entry(ContentKind.APPEARANCE if portrait else ContentKind.GESTURE, item_id="saved-item")
     avatar = _entry(ContentKind.AVATAR, item_id="avatar-item")
     live = _LiveTypedCatalog({original.id: original, avatar.id: avatar})
-    app = _app(monkeypatch, original, live)
+    app = _app(original, live)
     route = "/v1/avatar-content/avatar-item/portrait" if portrait else "/v1/gestures/Original"
     current_route = f"/v1/appearance-content/{original.id}" if portrait else f"/v1/gestures/{original.id}"
     form = {"operation_id": "completed-save"}
@@ -156,11 +169,11 @@ async def test_save_replay_returns_original_typed_snapshot_after_catalog_change(
 @pytest.mark.parametrize(
     "kind,family", [(ContentKind.POSE_CLIP, "pose-clips"), (ContentKind.MUSIC_TRACK, "music-tracks")]
 )
-async def test_retired_family_hidden_put_replays_without_public_read_routes(monkeypatch, kind, family):
+async def test_retired_family_hidden_put_replays_without_public_read_routes(kind, family):
     original = _entry(kind, item_id="saved-retired-item")
     if kind is ContentKind.POSE_CLIP:
         original = replace(original, metadata={**original.metadata, "schema": "animaPoseClip/1.0"})
-    application = _app(monkeypatch, original, _LiveTypedCatalog({}))
+    application = _app(original, _LiveTypedCatalog({}))
     async with local_client(application) as client:
         result = await client.put(
             f"/v1/{family}/Original",

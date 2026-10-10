@@ -30,6 +30,7 @@ from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
 from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlchemyMemoryManagerRepository
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.model_clients.credentials import StoreModelCredentialResolver, static_credential_resolver
 from animama.app.ports.memory_manager_port import MemoryManagerRepositoryConflictError
@@ -73,8 +74,9 @@ from animama.orm import (
     ORMMemoryManagerRun,
     ORMUserSettings,
 )
+from animama.product_http.routes import memory as memory_entries_router
 from animama.server.model_roles import ModelRoleSettings
-from animama.server.routers import memory_entries as memory_entries_router, memory_manager as memory_manager_router
+from animama.server.routers import memory_manager as memory_manager_router
 from animama.server.schemas.memory_entry import PyMemoryEntryCreateRequest, PyMemoryEntryRevertRequest
 from animama.server.schemas.memory_manager import (
     PyMemoryManagerApprovalDecisionRequest,
@@ -83,6 +85,7 @@ from animama.server.schemas.memory_manager import (
     PyMemoryManagerRun,
     PyMemoryManagerRunCreateRequest,
 )
+from tests.product_http_support import TEST_POLICY
 
 _T = TypeVar("_T")
 
@@ -264,8 +267,9 @@ async def test_episode_listing_is_owner_scoped_and_supports_binary_statuses(
         local_date=date(2026, 7, 7),
     )
 
-    listed = await memory_manager_router.list_memory_episodes(
-        session=async_session,
+    listed = await memory_entries_router.list_memory_episodes(
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     assert [item.id for item in listed.items] == [owner_item.id]
@@ -277,14 +281,16 @@ async def test_episode_listing_is_owner_scoped_and_supports_binary_statuses(
         processed_by_run_id="mmr-test",
     )
 
-    pending_after = await memory_manager_router.list_memory_episodes(
-        session=async_session,
+    pending_after = await memory_entries_router.list_memory_episodes(
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
     )
     assert pending_after.items == []
 
-    processed = await memory_manager_router.list_memory_episodes(
-        session=async_session,
+    processed = await memory_entries_router.list_memory_episodes(
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(owner_id),
         status="processed",
     )
@@ -1291,7 +1297,8 @@ async def test_memory_manager_update_preview_uses_current_version_without_mutati
             content="# Profile\n\nOriginal content.\n",
             description="Profile",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     created = await memory_manager_router.create_memory_manager_run(
@@ -1312,7 +1319,9 @@ async def test_memory_manager_update_preview_uses_current_version_without_mutati
     assert approval.preview.new_description == "Profile"
     assert "--- a/profile.md" in approval.preview.unified_diff
 
-    unchanged = await memory_entries_router.get_memory_entry(profile.id, session=async_session, user=_user(user_id))
+    unchanged = await memory_entries_router.get_memory_entry(
+        profile.id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(user_id)
+    )
     assert unchanged.content == "# Profile\n\nOriginal content.\n"
     assert unchanged.version == 1
 
@@ -1419,7 +1428,8 @@ async def test_memory_manager_approved_update_commits_current_file(async_session
             content="# Profile\n\nOriginal content.\n",
             description="Profile",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     run = await memory_manager_router.create_memory_manager_run(
@@ -1439,7 +1449,9 @@ async def test_memory_manager_approved_update_commits_current_file(async_session
 
     assert approved.status == "approved"
     assert approved.target_entry_id == profile.id
-    updated = await memory_entries_router.get_memory_entry(profile.id, session=async_session, user=_user(user_id))
+    updated = await memory_entries_router.get_memory_entry(
+        profile.id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(user_id)
+    )
     assert updated.version == 2
     assert updated.content is not None
     assert "Original content." in updated.content
@@ -1460,7 +1472,8 @@ async def test_latest_approved_update_can_be_undone_idempotently(
             description="Stable description",
             metadata={"stable": True},
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     run = await memory_manager_router.create_memory_manager_run(
@@ -1493,7 +1506,8 @@ async def test_latest_approved_update_can_be_undone_idempotently(
     assert approved.can_undo is True
     applied = await memory_entries_router.get_memory_entry(
         profile.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     assert applied.description == "Temporary description from the approved patch"
@@ -1510,7 +1524,8 @@ async def test_latest_approved_update_can_be_undone_idempotently(
 
     restored = await memory_entries_router.get_memory_entry(
         profile.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     assert restored.version == 3
@@ -1688,7 +1703,8 @@ async def test_later_edit_blocks_undo(
             name="profile.md",
             content="Original",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     run = await memory_manager_router.create_memory_manager_run(
@@ -1734,7 +1750,8 @@ async def test_undone_latest_approval_does_not_make_older_approval_eligible(
             name="profile.md",
             content="Original",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     run = await memory_manager_router.create_memory_manager_run(
@@ -1791,7 +1808,8 @@ async def test_undo_rolls_back_entry_and_approval_when_version_append_fails(
     user_id = f"user-{uuid.uuid4()}"
     profile = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="file", name="profile.md", content="Original"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     run = await memory_manager_router.create_memory_manager_run(
@@ -1809,7 +1827,8 @@ async def test_undo_rolls_back_entry_and_approval_when_version_append_fails(
     )
     applied = await memory_entries_router.get_memory_entry(
         profile.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     original_append = SQLAlchemyMemoryEntryRepository.append_version
@@ -1827,7 +1846,8 @@ async def test_undo_rolls_back_entry_and_approval_when_version_append_fails(
 
     current = await memory_entries_router.get_memory_entry(
         profile.id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     assert current.version == applied.version
@@ -1886,7 +1906,8 @@ async def test_revert_route_restores_historical_content_and_description(
     reverted = await memory_entries_router.revert_memory_entry(
         profile.id,
         PyMemoryEntryRevertRequest(target_version=1, expected_version=3),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     assert reverted.version == 4
@@ -1900,7 +1921,8 @@ async def test_revert_route_restores_historical_content_and_description(
         await memory_entries_router.revert_memory_entry(
             profile.id,
             PyMemoryEntryRevertRequest(target_version=2, expected_version=3),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(user_id),
         )
     assert stale.value.status_code == 409
@@ -1908,7 +1930,8 @@ async def test_revert_route_restores_historical_content_and_description(
         await memory_entries_router.revert_memory_entry(
             profile.id,
             PyMemoryEntryRevertRequest(target_version=2, expected_version=4),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=_user(f"user-{uuid.uuid4()}"),
         )
     assert foreign.value.status_code == 404
@@ -1989,7 +2012,8 @@ async def test_memory_manager_stale_version_conflict_leaves_approval_pending(
             content="# Profile\n\nOriginal content.\n",
             description="Profile",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     run = await memory_manager_router.create_memory_manager_run(
@@ -2023,7 +2047,9 @@ async def test_memory_manager_stale_version_conflict_leaves_approval_pending(
     )
     assert snapshot.run.status == "waiting_approval"
     assert snapshot.approvals[0].status == "pending"
-    unchanged = await memory_entries_router.get_memory_entry(profile.id, session=async_session, user=_user(user_id))
+    unchanged = await memory_entries_router.get_memory_entry(
+        profile.id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(user_id)
+    )
     assert unchanged.version == 2
     assert unchanged.content == "# Profile\n\nExternal edit.\n"
 

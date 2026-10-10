@@ -42,7 +42,7 @@ import {
  * override the source's for an add; `description` for a replace.
  *
  * Every built-in Avatar Effect plays one licensed sound from the private
- * comedy sound pack as an optional dependency (ADR 0021). An add names it
+ * comedy sound pack as an optional dependency (ADR 0022). An add names it
  * with `"sound": "<key>"`, a sound in the tracked pack manifest; a replace
  * keeps the effect's current sound unless it names another. The source effect
  * itself must have no sound.

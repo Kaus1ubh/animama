@@ -10,13 +10,15 @@ from sqlalchemy import CheckConstraint, ForeignKeyConstraint
 
 from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.services import ModelProviderCatalogService
 from animama.domain.chat import Chat, MessageRole
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMChat, ORMChatMessage, ORMMemoryEpisodeItem
 from animama.orm.base import Base
-from animama.server.routers import chats as chats_router, router as api_router
+from animama.product_http.routes import chats as chats_router
+from animama.server.routers import router as api_router
 from animama.server.schemas.chat_history import PyChatCreate, PyChatSearchRequest, PyChatUpdate
 
 
@@ -140,7 +142,7 @@ async def test_create_chat_for_owned_anima_succeeds(async_session) -> None:
     response = await chats_router.create_chat(
         PyChatCreate(anima_id=anima_id, title="New chat", metadata={"topic": "test"}),
         user=_user(owner_id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
 
     assert response.id.startswith("chat-")
@@ -241,7 +243,7 @@ async def test_create_chat_missing_or_foreign_anima_returns_404(async_session) -
         await chats_router.create_chat(
             PyChatCreate(anima_id=f"anima-{uuid.uuid4()}"),
             user=_user(owner_id),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
         )
     assert missing.value.status_code == 404
 
@@ -249,7 +251,7 @@ async def test_create_chat_missing_or_foreign_anima_returns_404(async_session) -
         await chats_router.create_chat(
             PyChatCreate(anima_id=foreign_anima_id),
             user=_user(owner_id),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
         )
     assert foreign.value.status_code == 404
 
@@ -267,7 +269,9 @@ async def test_list_chats_returns_only_current_user_chats(async_session) -> None
     await _create_chat(async_session, chat_id=owner_chat_id, anima_id=owner_anima_id, user_id=owner_id)
     await _create_chat(async_session, chat_id=other_chat_id, anima_id=other_anima_id, user_id=other_id)
 
-    response = await chats_router.list_chats(user=_user(owner_id), session=async_session)
+    response = await chats_router.list_chats(
+        user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session)
+    )
 
     chats_by_id = {chat.id: chat for chat in response}
     assert owner_chat_id in chats_by_id
@@ -297,7 +301,9 @@ async def test_get_update_delete_enforce_chat_ownership(async_session) -> None:
     )
     await _create_chat(async_session, chat_id=other_chat_id, anima_id=other_anima_id, user_id=other_id)
 
-    fetched = await chats_router.get_chat(owner_chat_id, user=_user(owner_id), session=async_session)
+    fetched = await chats_router.get_chat(
+        owner_chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session)
+    )
     assert fetched.id == owner_chat_id
     assert "model_client" not in fetched.model_dump()
     assert fetched.api_standard is None
@@ -308,7 +314,7 @@ async def test_get_update_delete_enforce_chat_ownership(async_session) -> None:
         owner_chat_id,
         PyChatUpdate(title="After", metadata={"updated": True}),
         user=_user(owner_id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
     assert updated.title == "After"
     assert "model_client" not in updated.model_dump()
@@ -318,7 +324,9 @@ async def test_get_update_delete_enforce_chat_ownership(async_session) -> None:
     assert updated.metadata == {"updated": True}
 
     with pytest.raises(HTTPException) as foreign_get:
-        await chats_router.get_chat(other_chat_id, user=_user(owner_id), session=async_session)
+        await chats_router.get_chat(
+            other_chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session)
+        )
     assert foreign_get.value.status_code == 404
 
     with pytest.raises(HTTPException) as foreign_update:
@@ -326,15 +334,19 @@ async def test_get_update_delete_enforce_chat_ownership(async_session) -> None:
             other_chat_id,
             PyChatUpdate(title="Nope"),
             user=_user(owner_id),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
         )
     assert foreign_update.value.status_code == 404
 
     with pytest.raises(HTTPException) as foreign_delete:
-        await chats_router.delete_chat(other_chat_id, user=_user(owner_id), session=async_session)
+        await chats_router.delete_chat(
+            other_chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session)
+        )
     assert foreign_delete.value.status_code == 404
 
-    deleted = await chats_router.delete_chat(owner_chat_id, user=_user(owner_id), session=async_session)
+    deleted = await chats_router.delete_chat(
+        owner_chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session)
+    )
     assert deleted.status_code == 204
 
 
@@ -395,7 +407,9 @@ async def test_chat_messages_hide_internal_by_default_and_do_not_expose_session_
     )
     await async_session.commit()
 
-    visible = await chats_router.list_chat_messages(chat_id, user=_user(owner_id), session=async_session)
+    visible = await chats_router.list_chat_messages(
+        chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session)
+    )
     assert [message.content for message in visible.messages] == ["Display visible"]
     assert visible.messages[0].chat_id == chat_id
     assert visible.messages[0].model == "gpt-6-luna"
@@ -416,7 +430,7 @@ async def test_chat_messages_hide_internal_by_default_and_do_not_expose_session_
     with_internal = await chats_router.list_chat_messages(
         chat_id,
         user=_user(owner_id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
         include_internal=True,
     )
     assert [message.content for message in with_internal.messages] == ["Display visible", "internal"]
@@ -485,7 +499,9 @@ async def test_chat_messages_return_memory_cue_from_stored_changes_and_linked_ep
     )
     await async_session.commit()
 
-    response = await chats_router.list_chat_messages(chat_id, user=_user(owner_id), session=async_session)
+    response = await chats_router.list_chat_messages(
+        chat_id, user=_user(owner_id), repositories=SQLAlchemyProductRepositories(async_session)
+    )
 
     cues = {
         message.content: message.memory_cue.model_dump() if message.memory_cue is not None else None
@@ -568,7 +584,7 @@ async def test_search_chat_messages_scopes_to_user_visible_messages_and_returns_
     response = await chats_router.search_chat_messages(
         PyChatSearchRequest(query="React", limit=10, offset=0),
         user=_user(owner_id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
 
     assert response.query == "React"
@@ -628,12 +644,12 @@ async def test_search_chat_messages_indexes_structured_speech_and_display(async_
     speech_response = await chats_router.search_chat_messages(
         PyChatSearchRequest(query="spoken", limit=10, offset=0),
         user=_user(owner_id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
     display_response = await chats_router.search_chat_messages(
         PyChatSearchRequest(query="Obsidian", limit=10, offset=0),
         user=_user(owner_id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
 
     assert len(speech_response.results) == 1
@@ -674,7 +690,7 @@ async def test_search_chat_messages_supports_prefix_terms(async_session) -> None
     response = await chats_router.search_chat_messages(
         PyChatSearchRequest(query="Reac", limit=10, offset=0),
         user=_user(owner_id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
 
     assert len(response.results) == 1
@@ -730,7 +746,7 @@ async def test_search_chat_messages_prefers_plain_prefix_terms_over_web_syntax(a
     response = await chats_router.search_chat_messages(
         PyChatSearchRequest(query="React OR Vue", limit=10, offset=0),
         user=_user(owner_id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
 
     assert [result.chat_id for result in response.results] == [combined_chat_id]
@@ -767,7 +783,7 @@ async def test_search_chat_messages_returns_one_best_result_per_chat(async_sessi
     response = await chats_router.search_chat_messages(
         PyChatSearchRequest(query="DuplicateTerm", limit=10, offset=0),
         user=_user(owner_id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
 
     assert len(response.results) == 1
@@ -812,12 +828,12 @@ async def test_search_chat_messages_uses_chat_limit_offset_and_has_more(async_se
     first_page = await chats_router.search_chat_messages(
         PyChatSearchRequest(query="PaginationTerm", limit=1, offset=0),
         user=_user(owner_id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
     second_page = await chats_router.search_chat_messages(
         PyChatSearchRequest(query="PaginationTerm", limit=1, offset=1),
         user=_user(owner_id),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
 
     assert len(first_page.results) == 1

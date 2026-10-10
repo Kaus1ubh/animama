@@ -18,6 +18,7 @@ from openai.types.chat import ChatCompletionFunctionToolParam, ChatCompletionToo
 from pydantic import ValidationError
 from sqlalchemy import select
 
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.chat.memory_context import ANIMA_MEMORIES_WRITE_GUIDANCE
 from animama.app.main_structured_response import MAIN_STRUCTURED_RESPONSE_FORMAT, MAIN_STRUCTURED_RESPONSE_KIND
 from animama.app.model_clients import (
@@ -51,8 +52,9 @@ from animama.orm import (
 from animama.orm.anima import ORMAnima
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
+from animama.product_http.routes import chats as chats_router
 from animama.server.deps import get_current_principal
-from animama.server.routers import chats as chats_router, router as api_router
+from animama.server.routers import router as api_router
 from animama.server.routers.anima import chat_anima_direct_sse, router
 from animama.server.routers.chat import (
     chat_sse,
@@ -4691,7 +4693,9 @@ async def test_chat_sse_memory_updated_carries_the_cue_the_history_api_returns(
     await async_session.refresh(stored)
     assert stored.content == memories_body.replace("lake.\n", "lake.\nMira calls me her lake twin.\n")
 
-    history = await chats_router.list_chat_messages(chat_id, user=RequestPrincipal(id="user-1"), session=async_session)
+    history = await chats_router.list_chat_messages(
+        chat_id, user=RequestPrincipal(id="user-1"), repositories=SQLAlchemyProductRepositories(async_session)
+    )
     cues = [message.memory_cue for message in history.messages]
     assert cues[0] is None  # The user message never carries a cue.
     assert cues[-1] is not None

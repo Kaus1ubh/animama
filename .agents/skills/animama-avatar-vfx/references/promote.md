@@ -42,7 +42,7 @@ pnpm -s effects promote promote.json
 
 The source effect must have no sound. Every built-in effect plays one licensed
 sound from the private comedy pack, as an optional dependency
-([ADR 0021](../../../../docs/adr/0021-optional-licensed-effect-sounds.md)): an
+([ADR 0022](../../../../docs/adr/0022-optional-licensed-effect-sounds.md)): an
 add names it with `"sound": "<key>"`, a key in the tracked pack manifest
 (`src/backend/animama/resources/wow-comedy-sfx-manifest.json`), and a replace
 keeps the effect's current sound unless it names another. A sound not yet in

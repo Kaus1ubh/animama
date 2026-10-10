@@ -11,12 +11,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_service import ContentPackageService, ExportedContentPackage
 from animama.domain.content_catalog import ContentConflictError, ContentKind
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMAvatar
-from animama.server.routers.avatar import list_avatar_catalog
+from animama.product_http.routes.avatars import list_avatar_catalog
 from tests.anima_creation_service_support import AnimaCreationFixture, anima_creation_fixture, write_json
 from tests.content_package_helpers import reviewed_export, reviewed_import
 
@@ -63,7 +64,7 @@ async def test_standalone_avatar_copies_are_listed_with_portraits_and_delete_wit
             assert copied is not None and copied.revision_sha256 is not None
             page = await list_avatar_catalog(
                 user=RequestPrincipal(id=fixture.owner),
-                session=async_session,
+                repositories=SQLAlchemyProductRepositories(async_session),
                 q=copied.display_name,
                 origin="local",
                 sort="name",
@@ -79,7 +80,7 @@ async def test_standalone_avatar_copies_are_listed_with_portraits_and_delete_wit
                 assert image.handle.read() == (fixture.paths.local_root / "appearances/picture.png").read_bytes()
             hidden = await list_avatar_catalog(
                 user=RequestPrincipal(id="other-owner"),
-                session=async_session,
+                repositories=SQLAlchemyProductRepositories(async_session),
                 q=copied.display_name,
                 origin="local",
                 sort="name",

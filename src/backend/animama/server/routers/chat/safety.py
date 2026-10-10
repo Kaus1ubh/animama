@@ -19,12 +19,13 @@ from animama.adapters.repositories.sqlalchemy.companion_safety_repo import (
     ai_notice_state,
     apply_ai_notice_state,
 )
+from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
 from animama.app.safety.ai_notice import AiNoticeKind, decide_ai_notice
-from animama.app.safety.config import SafetyPreferences, resolve_companion_safety
+from animama.app.safety.config import SafetyPreferences, load_safety_preferences, resolve_companion_safety
 from animama.app.safety.crisis_resources import resolve_crisis_region
 from animama.app.safety.turn import TurnSafety, resolve_turn_time_zone
 from animama.logging_config import get_logger
-from animama.server.companion_safety import load_safety_preferences, runtime_crisis_resources
+from animama.server.companion_safety import runtime_crisis_resources
 from animama.server.config import Settings
 from animama.server.schemas.chat import PyChatClientContext
 from animama.server.sse_events import SseTextState, format_ai_notice_event
@@ -48,7 +49,7 @@ async def prepare_turn_safety(
     """Resolve safety configuration and crisis resources before prompt assembly."""
 
     try:
-        preferences = await load_safety_preferences(session, user_id)
+        preferences = await load_safety_preferences(SQLAlchemyUserSettingsRepository(session), user_id)
     except Exception as exc:
         # Owner preferences only choose resources or shorten reminders; defaults are safe.
         _log.warning("Safety preferences unavailable; using defaults", error_type=type(exc).__name__)

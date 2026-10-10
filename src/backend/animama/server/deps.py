@@ -3,11 +3,18 @@ from __future__ import annotations
 from collections.abc import AsyncGenerator, Callable
 from typing import cast
 
-from fastapi import FastAPI, Request, WebSocket
+from fastapi import FastAPI, Request
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from animama.domain.request_principal import RequestPrincipal
-from animama.server.request_principal import principal_resolver
+# Shared routes and local tests depend on, and override, these same objects.
+from animama.product_http.principal import get_current_principal, resolve_websocket_principal
+
+__all__ = [
+    "get_async_session",
+    "get_async_session_factory",
+    "get_current_principal",
+    "resolve_websocket_principal",
+]
 
 
 async def get_async_session(request: Request) -> AsyncGenerator[AsyncSession, None]:
@@ -27,15 +34,3 @@ def get_async_session_factory(app: FastAPI) -> async_sessionmaker[AsyncSession]:
         raise RuntimeError("Application session factory is not configured")
     # App factories own both forms of this dynamically stored dependency.
     return cast(Callable[[], async_sessionmaker[AsyncSession]], provider)()
-
-
-async def get_current_principal(request: Request) -> RequestPrincipal:
-    """Delegate ownership resolution to the current application composition."""
-
-    return await principal_resolver(request).resolve_http(request)
-
-
-async def resolve_websocket_principal(websocket: WebSocket) -> RequestPrincipal:
-    """Resolve a WebSocket owner before the route accepts the connection."""
-
-    return await principal_resolver(websocket).resolve_websocket(websocket)

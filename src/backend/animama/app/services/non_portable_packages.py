@@ -8,7 +8,7 @@ Pool names are ``default`` or ``<emotion>.<intensity>``.
 A built-in effect's optional accompanying sound may be non-portable. Export
 removes that edge and the ``soundAlias`` naming it without a reference: Local
 content never carries a licensed sound, so an imported copy of the effect plays
-without it (ADR 0021).
+without it (ADR 0022).
 """
 
 from __future__ import annotations

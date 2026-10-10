@@ -8,7 +8,7 @@ from contextlib import suppress
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from animama.adapters.content_store import ContentWatcher, FilesystemContentStore
+from animama.adapters.content_store import ContentWatcher
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.adapters.repositories.sqlalchemy.content_transition_repo import SQLAlchemyContentTransitionBindings
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
@@ -17,18 +17,9 @@ from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.content_transition_service import ContentTransitionService
 from animama.logging_config import get_logger
 from animama.server.deps import get_async_session_factory
-from animama.server.local_runtime import LocalRuntimePaths
+from animama.server.local_runtime import LocalRuntimePaths, local_content_store
 
 _log = get_logger("server.content_startup")
-
-
-def _store(paths: LocalRuntimePaths) -> FilesystemContentStore:
-    return FilesystemContentStore(
-        included_root=paths.included_root,
-        included_sources=paths.included_sources,
-        local_root=paths.local_root,
-        operations_root=paths.operations_root,
-    )
 
 
 async def rescan_content_once(
@@ -43,7 +34,7 @@ async def rescan_content_once(
     async with session_factory() as session:
         catalog = SQLAlchemyContentCatalog(session)
         service = ContentCatalogService(
-            store=_store(paths),
+            store=local_content_store(paths),
             catalog=catalog,
         )
         await ContentTransitionService(
@@ -119,7 +110,7 @@ async def start_content_runtime(
             session_factory = get_async_session_factory(app)
             async with session_factory() as session:
                 await ContentCatalogService(
-                    store=_store(paths), catalog=SQLAlchemyContentCatalog(session)
+                    store=local_content_store(paths), catalog=SQLAlchemyContentCatalog(session)
                 ).invalidate_watched_changes(
                     source=source,
                     relative_paths=relative_paths,

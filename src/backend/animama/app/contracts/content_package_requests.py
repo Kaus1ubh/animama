@@ -1,4 +1,4 @@
-"""Owner-admitted package operations expose review facts, never staging paths."""
+"""Package request and stage-status views: review facts, never staging paths."""
 
 from __future__ import annotations
 
@@ -61,3 +61,12 @@ class PackageStageStatus(BaseModel):
     part_size_bytes: int
     expires_at: datetime
     review: ReviewedPackageImport | None = None
+
+
+__all__ = [
+    "PackageExportRequest",
+    "PackageImportCommitRequest",
+    "PackageImportCreateRequest",
+    "PackageSelectionRequest",
+    "PackageStageStatus",
+]
