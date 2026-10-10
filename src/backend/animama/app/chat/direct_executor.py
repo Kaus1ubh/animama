@@ -91,6 +91,7 @@ from .direct_turn.response_format import (
     response_model_agent_id,
     turn_response_format,
     turn_response_schema_name,
+    with_gesture_guidance,
 )
 from .direct_turn.types import (
     DirectChatAttachmentContext,
@@ -522,7 +523,7 @@ class DirectChatTurnExecutor:
                 memory_tool_specs=memory_tool_specs,
                 visible_history=compiled_history,
                 response_format=response_format,
-                response_format_guidance=self._gesture_guidance(
+                response_format_guidance=with_gesture_guidance(
                     main_structured_response_guidance(model_provider, output_type),
                     request.runtime_gesture_descriptors,
                 ),
@@ -989,7 +990,7 @@ class DirectChatTurnExecutor:
             memory_tool_specs=prepared.memory_tool_specs,
             visible_history=visible_history,
             response_format=cast(dict[str, Any] | None, model_request.prompt.response_format),
-            response_format_guidance=self._gesture_guidance(
+            response_format_guidance=with_gesture_guidance(
                 main_structured_response_guidance(model_request.model_provider, prepared.output_type),
                 prepared.request.runtime_gesture_descriptors,
             ),
@@ -1145,16 +1146,6 @@ class DirectChatTurnExecutor:
                 f"Anima default model provider not found: {profile.default_model_provider_id}"
             )
         return model_provider
-
-    @staticmethod
-    def _gesture_guidance(
-        guidance: str,
-        descriptors: tuple[RuntimeGestureDescriptor, ...],
-    ) -> str:
-        if not descriptors:
-            return guidance
-        rows = "\n".join(f"- {row.selector}: {row.name} — {row.description}" for row in descriptors)
-        return f"{guidance}\n\nAvailable Gestures for this Anima:\n{rows}"
 
     def _build_prompt(
         self,

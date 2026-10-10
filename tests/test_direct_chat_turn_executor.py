@@ -16,6 +16,7 @@ from animama.app.chat import (
     DirectChatTurnExecutor,
     DirectChatTurnRequest,
     DirectChatTurnSetupError,
+    RuntimeGestureDescriptor,
 )
 from animama.app.chat.api_standard import (
     CHAT_API_STANDARD_CHAT_COMPLETIONS,
@@ -23,6 +24,7 @@ from animama.app.chat.api_standard import (
     MODEL_CLIENT_OPENAI_CHAT_COMPLETIONS,
     MODEL_CLIENT_OPENAI_RESPONSES,
 )
+from animama.app.chat.direct_turn.response_format import render_available_gestures, with_gesture_guidance
 from animama.app.chat.memory_context import (
     ANIMA_MEMORIES_WRITE_GUIDANCE,
     MAIN_STRUCTURED_OUTPUT_GUIDANCE,
@@ -839,6 +841,47 @@ async def test_direct_turn_uses_exact_runtime_gesture_ids_and_revision() -> None
     assert isinstance(system_text, str)
     assert "Available Anima gestures" not in system_text
     assert "Victory Dance" not in system_text
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_lists_runtime_gesture_descriptors_after_response_guidance() -> None:
+    model_client = _FinalModelClient(_structured_response())
+    executor, _chats = _executor(client=model_client)
+    descriptors = (
+        RuntimeGestureDescriptor(selector="wave", name="Wave", description="Greet the user."),
+        RuntimeGestureDescriptor(selector="victory-dance", name="Victory Dance", description="Celebrate a win."),
+    )
+
+    await _collect(
+        executor.stream_turn(
+            _request(
+                runtime_gesture_ids=("wave", "victory-dance"),
+                runtime_gesture_descriptors=descriptors,
+            )
+        )
+    )
+
+    system_text = _text(model_client.seen_specs[0].prompt.messages[0]["content"])
+    assert system_text.endswith(
+        "# Response Guidance\n\n"
+        f"{MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()}\n\n"
+        "Available Gestures for this Anima:\n"
+        "- wave: Wave — Greet the user.\n"
+        "- victory-dance: Victory Dance — Celebrate a win."
+    )
+
+
+def test_gesture_guidance_appends_the_equipped_gesture_list_only_when_gestures_exist() -> None:
+    descriptors = (RuntimeGestureDescriptor(selector="wave", name="Wave", description="Greet the user."),)
+
+    assert render_available_gestures(()) == ""
+    assert (
+        render_available_gestures(descriptors) == "Available Gestures for this Anima:\n- wave: Wave — Greet the user."
+    )
+    assert with_gesture_guidance("Guidance.", ()) == "Guidance."
+    assert with_gesture_guidance("Guidance.", descriptors) == (
+        "Guidance.\n\nAvailable Gestures for this Anima:\n- wave: Wave — Greet the user."
+    )
 
 
 @pytest.mark.asyncio

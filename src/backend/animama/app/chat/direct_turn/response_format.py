@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any
 
 from pydantic import BaseModel
@@ -15,6 +16,7 @@ from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
 from animama.domain import ModelProvider
 
 from ..options import DirectChatOptions
+from .types import RuntimeGestureDescriptor
 
 
 def build_main_structured_response_format(
@@ -83,6 +85,26 @@ def main_structured_response_guidance(
     return guidance
 
 
+def render_available_gestures(descriptors: Sequence[RuntimeGestureDescriptor]) -> str:
+    """Render the equipped Gesture list the model chooses from, or ``""`` when none are equipped.
+
+    Each row pairs the exact selector allowed by the reply schema's ``gesture``
+    enum with the Gesture's name and AI description.
+    """
+
+    if not descriptors:
+        return ""
+    rows = "\n".join(f"- {row.selector}: {row.name} — {row.description}" for row in descriptors)
+    return f"Available Gestures for this Anima:\n{rows}"
+
+
+def with_gesture_guidance(guidance: str, descriptors: Sequence[RuntimeGestureDescriptor]) -> str:
+    """Append the equipped Gesture list to the turn's response guidance."""
+
+    gesture_list = render_available_gestures(descriptors)
+    return f"{guidance}\n\n{gesture_list}" if gesture_list else guidance
+
+
 def response_model_agent_id(node_id: str) -> str:
     return "".join(char if char.isalnum() else "_" for char in node_id).strip("_") or "direct_chat"
 
@@ -101,8 +123,10 @@ __all__ = [
     "build_main_structured_response_format",
     "main_structured_response_format_for_model",
     "main_structured_response_guidance",
+    "render_available_gestures",
     "response_model_agent_id",
     "supports_structured_reply",
     "turn_response_format",
     "turn_response_schema_name",
+    "with_gesture_guidance",
 ]

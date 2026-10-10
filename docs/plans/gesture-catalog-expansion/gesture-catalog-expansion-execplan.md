@@ -35,7 +35,7 @@ the git-ignored `.animama-drafts/gesture-catalog-expansion/` of this worktree.
 | Skills | `.agents/skills/animama-animation/`, `animama-avatar-vfx/`, `animama-effect-assets/` (art through the global `image-gen` skill) |
 | Content and records | `content/included/gestures/<slug>/`, `content/included/vfx/avatar/<id>/`, `content/included/licenses/inventory.json`, `licenses/source-review.json`, `assets/effect-templates/<id>.webp` |
 | Registries | `assets/vrm/animations/manifest.json` (backend copy via `uv run --no-sync python src/backend/packaging/shared_catalogs.py --write`), `src/backend/animama/resources/starter-loadout.v1.json`, `tests/anima_creation_service_support.py` (`EXPECTED_STARTER_GESTURE_IDS`), count pins in `includedGestures.test.ts`, `catalog.content.test.ts`, `tests/test_included_content_catalog.py` |
-| Chat selection | `src/backend/animama/app/chat/direct_executor.py` (`_gesture_guidance`), `app/main_structured_response.py` (gesture enum), `app/chat/memory_context.py` (gesture instruction) |
+| Chat selection | `src/backend/animama/app/chat/direct_executor.py` and `direct_turn/response_format.py` (`render_available_gestures`, `with_gesture_guidance`), `app/main_structured_response.py` (gesture enum), `app/chat/memory_context.py` (gesture instruction) |
 | Mixamo pack identities | `src/backend/animama/resources/mixamo-motion-manifest.json` (public paths of the 30 pack Gestures) |
 | Sound pack (after #399) | `src/backend/animama/resources/wow-comedy-sfx-manifest.json`; `effects promote` `"sound": "<key>"`; #405's integrity test |
 | Precedent | [hand-animation-gestures spec](../hand-animation-gestures/hand-animation-gestures-spec.md) and [ExecPlan](../hand-animation-gestures/hand-animation-gestures-execplan.md); the #314 working package (brief, consistency notes and promotion package) is kept privately by the maintainer and copied as needed into this task's drafts folder |
@@ -95,6 +95,12 @@ the git-ignored `.animama-drafts/gesture-catalog-expansion/` of this worktree.
 
 - 2026-10-10, owner (G1): asked to implement the published spec and this plan
   (`/implement`). The proposals below were accepted as written.
+- 2026-10-10, owner: go ahead with effect generation without a separate
+  approval. The consolidated table (`EFFECTS.md` in the drafts folder) is
+  reviewed at G2a and G2b as planned.
+- 2026-10-10, owner: run at most five drafting agents at a time, not ten. The
+  five most recently started (items 16 and 18–21) were stopped and resume
+  first.
 - 2026-10-10, owner (Phase 4 effect list): approved the core list as
   proposed. Eleven existing Gestures gain effects:
   - Blow a Kiss and Blow a Kiss 2: `kiss_heart`, a new descriptor reusing the
@@ -143,8 +149,8 @@ review and at most two repair rounds. Draft phases commit only plan evidence.
 Promotion is the only phase that writes to `content/included`.
 
 Each Gesture is drafted by its own sub-agent with the `animama-animation` skill,
-authored from scratch. Drafting runs in batches of up to ten concurrent agents
-to limit host load, because renders and checks time out under heavy load. Each
+authored from scratch. Drafting runs at most five concurrent agents (owner,
+2026-10-10; it started at ten) to limit host load, because renders and checks time out under heavy load. Each
 draft needs:
 - `animation validate` and `check` with no FAIL and every WARN explained;
 - body and `--view hands` render sheets on both Avatars;
@@ -345,7 +351,7 @@ Owner input:
    - takes a loadout file (selector, name, description), a prompt-set file and
      a model connection name;
    - builds the chat prompt with the production assembly
-     (`DirectChatPromptAssembler`, `_gesture_guidance`) and the structured
+     (through the real `DirectChatTurnExecutor`) and the structured
      response schema with the gesture enum;
    - sends each prompt as a fresh single-turn chat, plus two long scripted
      chats (about 30 turns each) for repetition;
@@ -384,11 +390,72 @@ harness code.
 
 #### Code Review #1 Findings
 
-Not started.
+Reviewed 2026-10-10: the uncommitted harness tree on `44c16bff` (`scripts/evals/`,
+its tests, and the `response_format.py` / `direct_executor.py` refactor). The
+independent `sdlc-reviewer` used offline probes only.
+
+What held up:
+- **Faithfulness.** Every turn runs through the real `DirectChatTurnExecutor`.
+- **Refactor.** It is byte-identical to the old `_gesture_guidance`.
+- **Budget, dry run, incognito, scoring, credentials, no data writes and import
+  boundaries.**
+- **Checks.** The full backend suite passed: 3549 passed, 10 skipped.
+
+- **P3-R1-01 (required).** Scripted chats repeated with `--repeats`, so the
+  planned run needed 1080 calls against the plan's budget of about 700, and
+  the documented command refused to start.
+- **P3-R1-02 to 09 (optional).**
+  - 02: a wrong salvage docstring, and unflagged replay mismatches.
+  - 03: "no compaction" wording, and the native Responses compaction setting
+    not recorded.
+  - 04: inputs hashed after the run.
+  - 05: no partial results on abort.
+  - 06: budget headroom and message wording.
+  - 07: no cost-estimate guidance.
+  - 08: missing tests (refused repair, `main` refusal before the database) and
+    a misnamed test.
+  - 09: the documented commands, the compose selection and loadout ordering.
 
 #### Code Review #1 Revisions
 
-Not started.
+Repair round #1 (one of two allowed), 2026-10-10. Every finding was accepted.
+- **P3-R1-01.** A separate `--scripted-repeats` (default 1) makes the plan
+  720 calls.
+- **02–09.** Fixed as listed in the findings.
+- **The plan's stale references** to `_gesture_guidance` were corrected.
+
+Evidence after the repair:
+- pytest (eval and executor): 111 passed;
+- ruff check and format, `make format-check`, mypy and the boundary check:
+  clean.
+
+The implementer also corrected a review note: production lists equipped
+Gestures sorted by `slot_key` (`gesture:<selector>`), which the reviewer
+confirmed.
+
+#### Code Review #2 Findings
+
+Targeted recheck 2026-10-10: **pass.** P3-R1-01 to 09 and the style note are
+resolved.
+- **Budget.** A plan-size dry run is 720 calls, within `--max-calls 800`.
+- **Salvage.** It now follows chat's stream parser.
+- **Abort.** SIGINT writes partial results.
+- **Interleaving.** Single-turn coverage stays equal across loadouts when the
+  cap stops a run.
+
+The production refactor is unchanged since review #1.
+
+Optional findings, both deferred:
+- **P3-R2-01.** After a context-exceeded retry, salvage reads the failed first
+  call's deltas. This needs a rare combination of conditions (found by
+  reading the code, not probed). It is recorded as a known limitation.
+- **P3-R2-02.** Scripted chats alternate between loadouts chat by chat, so a
+  cap stop can leave scripted coverage uneven. The fit pass rule uses
+  single-turn items, which do interleave, and the paid run keeps headroom
+  under the cap.
+
+The harness code review passed with one repair round of two used. Phase 3
+stays open for the paid run, the descriptions and the starter proposal.
 
 ### Phase 4 — Effects on existing Gestures (R3, R4; effect-list approval)
 
