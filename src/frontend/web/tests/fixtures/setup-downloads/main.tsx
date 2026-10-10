@@ -8,6 +8,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { AppProviders } from "@/app/providers/AppProviders";
+import { createWebI18n } from "@/i18n/web-i18n";
 import { createLocalComposition } from "@/app/local-runtime/local-composition";
 import { RuntimeController } from "@/app/runtime/runtime-controller";
 import { useRuntimeAdmission } from "@/app/runtime/RuntimeAdmissionProvider";
@@ -71,8 +72,10 @@ function FixtureRouter() {
     <p>Preparing local runtime</p>
   );
 }
+// Fixtures render in English, like the browser journeys.
+const i18n = await createWebI18n("en");
 createRoot(document.getElementById("root")!).render(
-  <AppProviders controller={controller}>
+  <AppProviders controller={controller} i18n={i18n}>
     <FixtureRouter />
   </AppProviders>,
 );

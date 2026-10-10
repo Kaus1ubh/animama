@@ -2,6 +2,7 @@ import { installLocalGatewayFetchInterceptor } from "@/lib/local-gateway/fetch-i
 import { createLocalComposition } from "@/app/local-runtime/local-composition";
 import { createRoot } from "react-dom/client";
 import { AppProviders } from "@/app/providers/AppProviders";
+import { createWebI18n } from "@/i18n/web-i18n";
 import { AppRouter } from "@/app/router";
 import { createHostedComposition } from "@/app/hosted-runtime/hosted-composition";
 import { RuntimeController } from "@/app/runtime/runtime-controller";
@@ -40,8 +41,10 @@ Object.assign(window, {
     },
   },
 });
+// Fixtures render in English, like the browser journeys.
+const i18n = await createWebI18n("en");
 createRoot(document.getElementById("root")!).render(
-  <AppProviders controller={controller}>
+  <AppProviders controller={controller} i18n={i18n}>
     <AppRouter />
   </AppProviders>,
 );
