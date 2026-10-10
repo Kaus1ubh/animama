@@ -86,7 +86,9 @@ Paths: frontend relative to `src/frontend/web/`, backend to
       check of the new layers is a G4 item.
 - [x] P6 — Headed preview for Particle and Scene Effects (R4). Review passed
       at round 2.
-- [ ] P7 — Save and promote (R5). Gate G3.
+- [x] P7 — Save and promote (R5). Review passed at round 2; G3 demonstration
+      passed on a deleted throwaway branch. Includes the owner's graceful
+      removal of Included effects under Local Actions.
 - [ ] P8 — Pipeline skills and fresh-agent dry runs (R7). Gate G2.
 - [ ] P9 — Documentation and acceptance (R8). Gate G4.
 - [ ] Final integration review and PR.
@@ -129,6 +131,15 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - 2026-10-09 (planning): `effects:assets check` fails any PNG without alpha, so
   an opaque full Scene background cannot pass today; the background budget needs
   an opaque-allowed mode.
+
+- P7: the spec assumed a Local Action referencing a removed Included effect
+  plays without it; the catalog instead invalidated it (it left chat and its
+  creator could not open it). The owner chose to implement the assumed
+  behaviour (Decision Log).
+- P7: the Particle creator's Save copies every built-in texture an effect
+  draws into the Local item, and most built-ins are third-party (CC0, one
+  CC-BY), so promotion must carry their records rather than claim them as
+  owner art.
 
 ## Decision Log
 
@@ -1493,6 +1504,27 @@ Evidence (local, uncommitted tree on `fbb84e99`):
   removed-effects warning, and the Library attention list names it with the
   ref. Save stays disabled after an edit on this hand-written Reaction and on
   a healthy one alike, so that is not from this change; noted for the owner.
+
+G3 demonstration (after commit `7820661b`): on the throwaway local branch
+`throwaway/p7-promote-demo` (never pushed), `effects promote` added the saved
+Local "P7 save glow" (a non-built-in texture) as `p7-demo-glow` and "P7 save
+scene" (PNG tile and scatter images) as `p7-demo-layers`: 6 files, the
+per-stem rule `vfx/particle/quark/p7-demo-glow/**`, and 6 owner-form
+records. Committed there, `tests/test_included_content_integrity.py`,
+`tests/test_included_content_catalog.py` and
+`scripts/public-release/test_prepare_source.py`: 26 passed. Every promoted
+file has exactly one source-review record; the repository-wide gap of 1209
+tracked files without records is the same on the task branch head, so it
+predates P7. A rescan of the task stack listed both as valid Included
+content (`builtin:particle-effect:p7-demo-glow`,
+`builtin:scene-effect:background:p7-demo-layers`). The branch was then
+deleted (it was `d9c56630`) and the stack rescanned. No Included content was
+written on the task branch other than the approved D1 Scene rule.
+
+P7 is complete: required checks, review (pass after one repair round) and G3
+are satisfied. Owner check carried forward: Save stays disabled after editing
+a hand-written Local Reaction on the task stack, with or without removed
+effects.
 
 #### Code Review #1 Findings
 
