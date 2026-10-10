@@ -422,7 +422,7 @@ async def get_anima(
     repo = SQLAlchemyAnimaRepository(session)
     # Ownership check
     orm_check = await session.get(ORMAnima, anima_id)
-    if orm_check is None or (orm_check.user_id is not None and orm_check.user_id != user.id):
+    if orm_check is None or orm_check.user_id != user.id:
         raise HTTPException(status_code=404, detail="Anima not found")
     dom = await repo.get(anima_id)
     if dom is None:
@@ -443,7 +443,7 @@ async def update_anima_chat_profile(
     """Update the anima-level direct chat model selector."""
 
     orm_check = await session.get(ORMAnima, anima_id)
-    if orm_check is None or (orm_check.user_id is not None and orm_check.user_id != user.id):
+    if orm_check is None or orm_check.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anima not found")
 
     service = AnimaChatProfileService(
@@ -550,7 +550,7 @@ async def delete_anima(
     repo = SQLAlchemyAnimaRepository(session)
     service = AnimaService(animas=repo, uow=SQLAlchemyUnitOfWork(session))
     orm_check = await session.get(ORMAnima, anima_id)
-    if orm_check is None or (orm_check.user_id is not None and orm_check.user_id != user.id):
+    if orm_check is None or orm_check.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anima not found")
     deleted = await service.delete(anima_id)
     if not deleted:
@@ -571,7 +571,7 @@ async def update_anima_emotional_state(
     service = AnimaService(animas=repo, uow=uow)
 
     orm_check = await session.get(ORMAnima, anima_id)
-    if orm_check is None or (orm_check.user_id is not None and orm_check.user_id != user.id):
+    if orm_check is None or orm_check.user_id != user.id:
         raise HTTPException(status_code=404, detail="Anima not found")
 
     dom = await repo.get(anima_id)

@@ -103,7 +103,7 @@ async def get_anima_settings(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> PyAnimaSettings:
     orm = await session.get(ORMAnima, anima_id)
-    if orm is None or (orm.user_id is not None and orm.user_id != user.id):
+    if orm is None or orm.user_id != user.id:
         raise HTTPException(status_code=404, detail="Anima not found")
     service = SettingsService(
         user_settings=SQLAlchemyUserSettingsRepository(session),
@@ -128,7 +128,7 @@ async def patch_anima_settings(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> PyAnimaSettings:
     orm = await session.get(ORMAnima, anima_id)
-    if orm is None or (orm.user_id is not None and orm.user_id != user.id):
+    if orm is None or orm.user_id != user.id:
         raise HTTPException(status_code=404, detail="Anima not found")
     service = SettingsService(
         user_settings=SQLAlchemyUserSettingsRepository(session),
@@ -147,7 +147,7 @@ async def delete_anima_settings(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> Response:
     orm = await session.get(ORMAnima, anima_id)
-    if orm is None or (orm.user_id is not None and orm.user_id != user.id):
+    if orm is None or orm.user_id != user.id:
         raise HTTPException(status_code=404, detail="Anima not found")
     service = SettingsService(
         user_settings=SQLAlchemyUserSettingsRepository(session),
