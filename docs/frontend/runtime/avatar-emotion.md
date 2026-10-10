@@ -200,10 +200,18 @@ Relevant files:
 
 The emotional analyst does not select gestures or VFX. Response-matched gesture
 selection is part of the primary chat agent's structured response and is
-delivered separately through `avatar.gesture.requested`. The backend validates
-that gesture id against non-disabled `Animations.gesture` entries in
-`src/frontend/web/src/assets/vrm/animations/manifest.json` before the frontend
-sees it.
+delivered separately through `avatar.gesture.requested`. The backend accepts
+only Gesture selectors from the Anima's mounted runtime snapshot and drops
+unknown IDs before delivery. The frontend resolves the selector from the mounted
+`AnimaRuntimeCatalog`; an ID missing from that catalog, or whose asset is still
+loading, plays no Gesture. There is no fallback to the bundled animation
+manifest.
+
+Relevant files:
+
+- `src/backend/animama/server/routers/chat/turn_setup.py`
+- `src/frontend/web/src/lib/runtime-content/AnimaRuntimeCatalog.ts`
+- `src/frontend/web/src/lib/avatar/planner/AvatarPlanner.ts`
 
 ## 4) Frontend runtime model
 
