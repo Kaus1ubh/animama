@@ -138,6 +138,7 @@ def test_every_included_avatar_effect_has_one_optional_licensed_sound() -> None:
     shipped = {item["path"] for item in manifest["files"]}
     effects = sorted((ROOT / "content/included/vfx/avatar").glob("*/*.json"))
     assert effects
+    referenced: set[str] = set()
     for path in effects:
         document = json.loads(path.read_text(encoding="utf-8"))
         [edge] = document["dependencies"]
@@ -145,6 +146,9 @@ def test_every_included_avatar_effect_has_one_optional_licensed_sound() -> None:
         assert document["definition"]["soundAlias"] == edge["alias"], path.name
         key = edge["ref"].removeprefix("builtin:sound-effect:")
         assert {f"sfx/wow-comedy/{key}.ogg", f"sfx/wow-comedy/{key}.meta.json"} <= shipped, path.name
+        referenced.add(key)
+    # Only sounds that built-in effects use are shipped (owner decision Q3).
+    assert {Path(item).stem for item in shipped if item.endswith(".ogg")} == referenced
 
 
 def test_stacked_avatar_effects_play_one_accompanying_sound_at_a_time() -> None:

@@ -433,6 +433,23 @@ describe("private pack definitions", () => {
     expect(packCredentials(MIXAMO_MOTION, env).keyPrefix).toBe(
       "built-in/mixamo-motion",
     );
+    expect(
+      packCredentials(
+        WOW_COMEDY_SFX,
+        {
+          ...env,
+          ANIMAMA_MIXAMO_R2_WRITE_ACCESS_KEY_ID: "write-key",
+          ANIMAMA_MIXAMO_R2_WRITE_SECRET_ACCESS_KEY: "write-secret",
+        },
+        "write",
+      ).accessKeyId,
+    ).toBe("write-key");
+    expect(() =>
+      packCredentials(WOW_COMEDY_SFX, {
+        ...env,
+        ANIMAMA_WOW_COMEDY_SFX_R2_PREFIX: "../escape",
+      }),
+    ).toThrow(/ANIMAMA_WOW_COMEDY_SFX_R2_PREFIX/u);
     expect(() =>
       packCredentials(MIXAMO_MOTION, {
         ...env,

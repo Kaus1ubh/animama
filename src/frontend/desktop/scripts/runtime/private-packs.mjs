@@ -416,7 +416,7 @@ export function packCredentials(pack, env = process.env, role = "read") {
     !isSafeRelative(keyPrefix)
   )
     throw new PackError(
-      `Set ANIMAMA_R2_ACCOUNT_ID, ${prefix}_ACCESS_KEY_ID, ${prefix}_SECRET_ACCESS_KEY and ${pack.envPrefix}_BUCKET${pack.defaultPrefix ? "" : ` and ${pack.prefixEnv}`} from the owner-only file`,
+      `Set ANIMAMA_R2_ACCOUNT_ID, ${prefix}_ACCESS_KEY_ID, ${prefix}_SECRET_ACCESS_KEY, ${pack.envPrefix}_BUCKET and ${pack.defaultPrefix ? `optionally ${pack.prefixEnv} (a safe relative prefix)` : pack.prefixEnv} from the owner-only file`,
     );
   return { accountId, accessKeyId, secretAccessKey, bucket, keyPrefix };
 }

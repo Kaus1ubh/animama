@@ -85,14 +85,16 @@ starting revision; implementers re-check them.
       (#403). Reviews #1–#2 and the final recheck passed.
 - [x] Phase 3: Frontend affordances (#404). Reviews #1–#2 and the final recheck
       passed.
-- [ ] Phase 4: Sound mapping, pack assembly and integration (#405; owner gates
-      G1–G3). Tooling and docs committed; content awaits G2, publish awaits G1.
+- [x] Phase 4: Sound mapping, pack assembly and integration (#405). G1 (reuse)
+      and G2 (approval) recorded; pack `v1` published; content committed;
+      review #1 findings fixed. G3 skipped for now by the owner.
 - [x] Final integration review of Phases 1–3 and the committed Phase 4 part
       (2026-10-10); Phase 4 content is reviewed after G2.
 - [x] PR opened: [#427](https://github.com/raymond-van/animama/pull/427)
       (2026-10-10; branch merged with `origin/main` `5993bbee` first). Hosted CI
       is disabled; local checks are the evidence. Both task stacks torn down.
-- [ ] Phase 4 content after G1 and G2, then merge approval.
+- [ ] Owner confirmations (R3 divergence, hidden sounds, Avatar Effects only,
+      ADR 0021) and merge approval of the exact candidate.
 - [ ] Release gate G4: WOW Sound's written confirmation, recorded in the release
       review before the first public release containing the pack. Not part of
       the PR.
@@ -842,8 +844,10 @@ content; review passes.
 #### Phase 4 references
 
 Issue: #405. Commits: `50cdb5dd` (`feat(content)[p4]: let promotion attach
-licensed sounds and document the sound pack`). Content, manifest and stacking
-changes are committed after G2.
+licensed sounds and document the sound pack`), `19dd02bd` (final-review
+docs), the merge of `origin/main` `5993bbee`, `3a2938e0`
+(`feat(content)[p4]: give every built-in Avatar Effect its licensed sound`) and
+the Code Review #1 revision commit.
 
 #### Phase 4 results (2026-10-10, after G1 and G2)
 
@@ -874,11 +878,47 @@ changes are committed after G2.
   `.dockerignore`), the self-host `animama-server` image (1.1 GB export) or
   the stage outside each pack's own `runtime/content/<pack>/` (58 and 71
   findings only there); the build input is the positive control. Self-host
-  without the pack: every Included entry is VALID in the tracked-copy catalog
-  tests, and the earlier built e2e stack ran with the optional edges and no
-  pack. Task images and containers were removed afterwards.
+  without the pack (after Code Review #1, on the final content): a fresh
+  disposable production stack (`ANIMAMA_WEB_BUILD_MODE=production ./reset.sh
+  --name selfhost-sfx --base-port 8800`, no pack mounted) became ready with 217
+  catalog items and none invalid; all 29 Avatar Effects VALID with no sound
+  edge, no Sound Effects, all 72 Reactions VALID. The stack and its volumes
+  were removed afterwards, as were the task images.
 - **Not performed:** G3 desktop playback (skipped for now by the owner); a
   live hosted check (Cloud).
+
+#### Code Review #1 Findings
+
+Independent `sdlc-reviewer`, 2026-10-10, source `3a2938e0` (baseline
+`3efefc5b`; Phase 4 commits against their parents). Content, manifest
+(regenerated identically), credential sharing, workflow env (the sound fetch
+can't read the Mixamo prefix), promote dry runs against the real repository,
+the ADR renumbering and public safety (no emails, order IDs, purchase data or
+keys in the branch diff) verified; FI-F1 to FI-F3 resolved. Checks: 99 + 82 + 4
+backend, 29 desktop, 16 + 82 web tests, prettier, both `scan --git`, `verify`.
+**Blocked** on three findings:
+
+- **P4-F1 (required):** `desktop-runtime.md` still listed only
+  `mixamo-motion` as an accepted private `pack_id`.
+- **P4-F2 (required, records outside Git):** PR #427 and #405 describe the
+  state before publishing (content pending, stale ADR number, G3 and the
+  `reset.sh` check as acceptance).
+- **P4-F3 (required, record):** Progress and references were stale, and the
+  self-host `reset.sh` start was claimed through substitute evidence.
+- Optional: P4-N1 the credential error omitted an unsafe prefix override and
+  read awkwardly; P4-N2 nothing enforced Q3 (only referenced sounds ship).
+
+#### Code Review #1 Revisions
+
+- P4-F1 accepted: the row names both private packs.
+- P4-F2 accepted: PR #427 body and #405 updated after this revision is pushed.
+- P4-F3 accepted: Progress and references updated, and the self-host start
+  was actually run on the final content (results above).
+- P4-N1 accepted: the message names the prefix override; tests cover the write
+  role and an unsafe override. P4-N2 accepted: the integrity test requires the
+  shipped sounds to equal the referenced ones.
+- Checks after revisions: 29 desktop pack tests, 10 integrity tests pass.
+  Repair budget: one round used.
 
 #### Phase 4 progress (2026-10-10)
 
