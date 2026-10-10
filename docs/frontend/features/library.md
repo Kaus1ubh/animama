@@ -45,7 +45,8 @@ It opens the selected item in its creator: Local content updates that
 item, while Included content starts a Local copy. Gesture/Reaction rows can Add or Manage Anima
 loadout selections. Sounds offer Play/Stop and Manage for Local rename, same-format replacement and
 guarded deletion. Included Sounds are read-only. Licensed built-in sounds are not
-listed: they play only through their built-in effects. Effects and Sounds offer “Use in Gesture/Reaction” because
+listed: they play only through their built-in effects. A Local file with the same
+licensed bytes is hidden too; remove it from the Local folder by hand. Effects and Sounds offer “Use in Gesture/Reaction” because
 they are action ingredients, not independent equipment.
 
 Actions contains All, Gestures, Reactions, Poses and Idle Styles. Idle Styles offer

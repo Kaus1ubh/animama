@@ -81,10 +81,14 @@ starting revision; implementers re-check them.
       a phase first needs it.
 - [x] Phase 1: Generalized private packs and the empty sound pack (#402).
       Review #1 passed; revisions recorded.
-- [ ] Phase 2: Optional accompanying sounds and the non-portable sound policy (backend).
-- [ ] Phase 3: Frontend affordances.
-- [ ] Phase 4: Sound mapping, pack assembly and integration (owner gates G1–G3).
-- [ ] Final integration review.
+- [x] Phase 2: Optional accompanying sounds and the non-portable sound policy
+      (#403). Reviews #1–#2 and the final recheck passed.
+- [x] Phase 3: Frontend affordances (#404). Reviews #1–#2 and the final recheck
+      passed.
+- [ ] Phase 4: Sound mapping, pack assembly and integration (#405; owner gates
+      G1–G3). Tooling and docs committed; content awaits G2, publish awaits G1.
+- [x] Final integration review of Phases 1–3 and the committed Phase 4 part
+      (2026-10-10); Phase 4 content is reviewed after G2.
 - [ ] PR opened and merge approval.
 - [ ] Release gate G4: WOW Sound's written confirmation, recorded in the release
       review before the first public release containing the pack. Not part of
@@ -441,7 +445,8 @@ test changes meaning; review passes.
 
 Issue: #403. Commits: `125849f8` (`feat(content)[p2]: keep built-in effects
 silent without their licensed sound`) and `00372a73` (`fix(content)[p2]: let
-an unmounted sound pack withdraw and cover review findings`).
+an unmounted sound pack withdraw and cover review findings`) and `2217e1e7`
+(`docs(content)[p2]: state why exported effects lose their licensed sound`).
 
 #### Phase 2 results
 
@@ -585,7 +590,9 @@ explains every unavailable action in text; review passes.
 Issue: #404. Commits: `2af87a0a` (`feat(content)[p3]: keep licensed sounds out
 of creators and the Library`) and `fc90142d` (`feat(content)[p3]: hide licensed
 sounds everywhere and cover review findings`; first committed as `144eb3db`,
-re-split before push because it had swept in Phase 4 script changes).
+re-split before push because it had swept in Phase 4 script changes) and
+`e9e30287` (`fix(content)[p3]: hide every licensed sound and note omitted sounds
+in export review`).
 
 #### Phase 3 results
 
@@ -607,7 +614,11 @@ Browser check (2026-10-10, review stack `animama-sfx` at
   this record said the Anima export review listed 23 sounds one by one. That
   came from the API summary (`omitted`), not the UI, which showed nothing
   about the omitted sounds.
-- Not run: `pnpm e2e:test:fast` (pending, with the final candidate).
+- `pnpm e2e:test:fast` (2026-10-10, disposable built stack `animama-browser-sfx`
+  on port 8600, source `e9e30287` plus the uncommitted Phase 4 content): 34
+  passed, 2 failed (the effect-template picker's sidebar menu and an imported
+  PCM sound's media clock). Rerunning both specs on the same stack: 5 passed
+  (including the @complete-anima journey), so the failures were load flakes.
 
 #### Code Review #1 Findings
 
@@ -837,9 +848,43 @@ Not started.
 
 ## Final integration review
 
-Not started. Covers the combined acceptance of #399 using still-valid phase
-evidence: Mixamo unchanged, sound pack staged and mounted, self-host silent and
-valid, creators blocked, export and import consistent, leak scans clean.
+Independent `sdlc-reviewer`, 2026-10-10, source `e9e30287` (baseline
+`995dc4fa`), on a `git archive` snapshot and the worktree. It also served as the
+final targeted recheck of Phase 2 (`2217e1e7`) and Phase 3 (`e9e30287`): both
+**pass**. Cross-phase story consistent; Mixamo unchanged; safe to merge with the
+empty manifest for code (no sound hashes restricted, no pack staged or mounted,
+`fetch` refuses, effects without optional edges unchanged); tracked files
+public-safe (0 of 3615 tracked files match the candidate manifest or deny
+list). Checks: 163 backend tests on the snapshot (165 with Phase 4 content),
+ruff and format, 706 web, 93 + 69 desktop and 15 effect-script tests,
+prettier, `pnpm -s check`, both `scan --git` runs, `verify` and `fetch`.
+
+- **FI-F1 (required):** ADR 0019 still gave the disproved "receiver keeps the
+  sound" rationale and described a review list.
+- **FI-F2 (required before merge):** desktop docs and the release workflow
+  described only the Mixamo pack.
+- **FI-F3 (required at PR time):** #399 R3/R7, #403 and #404 texts diverge
+  from the implementation.
+- Optional: FI-N1 record hashes and progress; FI-N2 docs describe content that
+  lands with G2 (same PR); FI-N3 promotion refuses new adds until the pack is
+  published; FI-N4 inventory cites only ADR 0018; FI-N5 `effect-save.mjs`
+  unchanged; FI-N6 Local licensed copies hidden without a user-facing note;
+  FI-N7 keep `.animama-stack.browser.env` out of commits; FI-N8 test counts.
+
+Revisions:
+
+- FI-F1 accepted: ADR 0019 states the silent Local copy, the count-only review
+  note and the pending owner confirmation of the R3 divergence.
+- FI-F2 accepted for docs (`runtime-staging.md`, `platforms.md`,
+  `feature-packs.md`, `redistribution-review.md`); the release workflow,
+  `release-process.md` and the `releases.md` secrets land with the publish
+  step after G1 (Phase 4 step 7), because a required fetch fails until the
+  pack is published and its secrets exist.
+- FI-F3 accepted: #403 and #404 updated; the PR lists each divergence for
+  owner confirmation.
+- FI-N1, N4 and N6 applied; FI-N5 recorded here (Local items can't declare
+  optional edges, so the save script needs no change); FI-N7 the file stays
+  untracked; FI-N2, N3 and N8 noted.
 
 ## Validation and acceptance
 

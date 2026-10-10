@@ -41,9 +41,13 @@ every Reaction and Gesture that uses it.
    built-in effect leaves its sound behind with a note. Users can still use the
    built-in effects, sound included, in their own Gestures and Reactions.
 4. **Export leaves the sound out.** A package never carries a licensed sound. An
-   exported effect loses the optional edge and its `soundAlias`, and the review
-   lists the sound as not included. No bytes-free reference is recorded: the
-   receiver's own built-in effect already has its sound.
+   exported effect loses the optional edge and its `soundAlias`, and the export
+   review says how many built-in effect sounds stay with this app. No bytes-free
+   reference is recorded: import installs every entry as a fresh Local copy,
+   and Local content never carries a licensed sound, so an imported copy of a
+   built-in effect plays without its sound even where the receiving
+   installation has the pack. This diverges from issue #399's R3 ("rebinds to
+   the receiver's matching sound") and awaits the owner's confirmation.
 5. **Watermarked previews are denied by hash.** The vendor's preview files may
    ship nowhere. Their hashes are a tracked backend resource that joins the
    restricted set and the release scan.
