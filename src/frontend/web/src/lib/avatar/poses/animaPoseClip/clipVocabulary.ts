@@ -45,6 +45,9 @@ const TIME_FIELDS: ReadonlySet<string> = new Set([
   "to",
   // 2.0 key offsets from their beat.
   "dt",
+  // 2.0 solved-contact blends.
+  "blendIn",
+  "blendOut",
 ]);
 
 /** Round to fixed decimal places without emitting negative zero. */

@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:right-face-palm",
   "version": 1,
   "semantic_key": "right-face-palm",
-  "name": "right-face-palm",
+  "name": "Right Face Palm",
   "ai_description": "Cover the face with the right hand to react to an obvious mistake, awkward moment, or exasperating situation.",
   "implementation": {
     "kind": "anima_clip",

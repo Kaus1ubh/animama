@@ -328,4 +328,85 @@ describe("hosted denials", () => {
     expect(failure.code).toBe("openai_quota_exceeded");
     expect(failure.title).toBe("OpenAI's account has reached its usage limit.");
   });
+
+  describe("completed trial", () => {
+    const download = "https://animama.example/download";
+    const trialComplete = (fields: Record<string, unknown> = {}) =>
+      denial("trial_complete", { limit: "account_trial_ai", ...fields });
+    const expectTrialComplete = (failure: ReturnType<typeof failureFor>) => {
+      expect(failure).toMatchObject({
+        code: "trial_complete",
+        title: "Your Animama trial is complete.",
+        guidance: "Download Animama to keep chatting with your Animas.",
+      });
+      expectHostedCopy(failure);
+    };
+
+    it.each([
+      ["chat creation", trialComplete({ download_url: download })],
+      [
+        "the chat request",
+        new ChatSseHttpError(
+          403,
+          "Forbidden",
+          trialComplete({ download_url: download }),
+        ),
+      ],
+      [
+        "a detail-wrapped body",
+        { detail: { code: "trial_complete", download_url: download } },
+      ],
+    ])("links %s's denial to the desktop download", (_, error) => {
+      const failure = failureFor(error);
+      expectTrialComplete(failure);
+      expect(failure.link).toEqual({
+        label: "Download Animama",
+        href: download,
+      });
+    });
+
+    it("links a denial frame that ends a started reply, with fields in details", () => {
+      const failure = failureFor(
+        {
+          run_id: "run-1",
+          error: "trial_complete",
+          code: "trial_complete",
+          details: { limit: "account_trial_ai", download_url: download },
+        },
+        "Partial reply",
+      );
+      expectTrialComplete(failure);
+      expect(failure.partialText).toBe("Partial reply");
+      expect(failure.link?.href).toBe(download);
+    });
+
+    it.each([
+      undefined,
+      null,
+      42,
+      "",
+      "not a url",
+      "/download",
+      "//animama.example/download",
+      "http://animama.example/download",
+      "https://user:secret@animama.example/download",
+      "javascript:alert(1)",
+      "data:text/html,download",
+    ])("keeps the copy but withholds the link for download_url %s", (url) => {
+      const failure = failureFor(trialComplete({ download_url: url }));
+      expectTrialComplete(failure);
+      expect(failure.link).toBeUndefined();
+    });
+
+    it("adds no link to other failures, even with a download_url", () => {
+      for (const error of [
+        denial("quota_exceeded", { download_url: download }),
+        denial("chat_limit_reached", { limit: 5, download_url: download }),
+        { code: "missing_api_key", download_url: download },
+        { code: "secret_code", download_url: download },
+      ]) {
+        expect(failureFor(error).link).toBeUndefined();
+      }
+    });
+  });
 });

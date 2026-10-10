@@ -129,7 +129,7 @@ in `local-http` version **3.0.0** with capability `schema_version: 2`. The gener
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
 surface, not another wire schema. `runtime-contracts` is version 0.3.1 and
-`product-ui` is version 0.6.0. Consumers explicitly admit
+`product-ui` is version 0.7.0. Consumers explicitly admit
 the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:
@@ -183,10 +183,11 @@ Hosted account and service limits refuse a request with a stable JSON body. Its
 code is in `code`, repeated in `error` for compatibility; a FastAPI-style body may
 instead nest it as `detail.code`. Optional fields sit beside the code: `limit`
 names the exhausted limit (a string, except the count described below),
-`retry_after_seconds` (number) is the wait before a retry can succeed and
-`max_characters` (number) is the longest accepted message. A 429 or 503 denial
-with a known wait also sends `Retry-After`, which the browser reads when the body
-omits `retry_after_seconds`.
+`retry_after_seconds` (number) is the wait before a retry can succeed,
+`max_characters` (number) is the longest accepted message and `download_url`
+(string) is where the user can download the desktop app after the trial. A 429 or 503
+denial with a known wait also sends `Retry-After`, which the browser reads when
+the body omits `retry_after_seconds`.
 
 | Code                 | Status | Meaning and browser copy                                                                                                                                                                                                                |
 | -------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -195,6 +196,13 @@ omits `retry_after_seconds`.
 | `budget_paused`      | 503    | The hosted service budget is paused: the same busy copy.                                                                                                                                                                                |
 | `message_too_long`   | 400    | The message exceeds `max_characters`, which the copy states.                                                                                                                                                                            |
 | `chat_limit_reached` | 409    | The account reached its chat allowance; `limit` is that count, as a JSON integer or decimal string, and the copy states it.                                                                                                             |
+| `trial_complete`     | 403    | The account's one-time trial AI allowance is used up (`limit: "account_trial_ai"`): the trial is complete, and the copy asks the user to download Animama to keep chatting.                                                             |
+
+A `trial_complete` denial may add `download_url`: an absolute `https:` URL without
+credentials, chosen by the consumer. The browser shows it as a "Download Animama"
+link in the failed turn's notice, opened in a new tab with `noopener noreferrer`.
+Any other value, such as an `http:` or relative URL, is ignored and the copy shows
+without a link.
 
 Chat creation rejects with the denial body and the `chat:sse` request returns it
 as an HTTP error. A denial after a turn has started ends it with an error frame that
@@ -220,8 +228,8 @@ close audio resources on failure or teardown, and preserve text fallback.
 
 A speech error frame with `code: "speech_allowance_exhausted"` (`tts.session.error`
 for realtime sessions, `tts.error` for finalized `eleven_v3` audio, each with
-`run_id`, `provider: "elevenlabs"` and a human `error`) means the owner's monthly
-voice allowance cannot cover that reply, and no provider audio plays for it. A
+`run_id`, `provider: "elevenlabs"` and a human `error`) means the owner's voice
+allowance cannot cover that reply, and no provider audio plays for it. A
 decline known before the turn precedes all reply text and no `tts.session` is
 sent for the run; one found while reserving the reply's speech may follow the
 reply text. Either must precede `run.completed`. Where Pocket TTS runs, the

@@ -144,3 +144,69 @@ test("effects check passes visible art and fails invisible or invalid effects", 
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+// Art on a hand is out of frame arms down; posed by a Gesture that raises
+// the hand beside the head (as --with-clip does), it is checked where the
+// Gesture puts it.
+test("effects check poses both Avatars with a Gesture clip", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-effect-check-clip-"));
+  try {
+    const effect = await resolveEffectSource(
+      await writeEffect(dir, "fingertip", {
+        definition: {
+          region: "body",
+          // Past the fingertips of a raised right index finger.
+          attachment: {
+            kind: "body",
+            bone: "rightHand",
+            offset: { x: -0.21, z: 0.02 },
+            size: 0.1,
+            facing: "camera",
+          },
+        },
+      }),
+    );
+    const raiseRightHand = {
+      schema: "animaPoseClip/2.0",
+      id: "raise-right-hand",
+      name: "Raise Right Hand",
+      duration: 1,
+      beats: [{ id: "up", label: "Hand up", time: 0 }],
+      joints: {
+        rightUpperArm: {
+          elevation: [{ beat: "up", v: 75 }],
+          planeOfElevation: [{ beat: "up", v: 40 }],
+          rotation: [{ beat: "up", v: 82 }],
+        },
+        rightLowerArm: { flexion: [{ beat: "up", v: 102 }] },
+      },
+    };
+    const check = (clip) =>
+      checkEffects({
+        effects: [effect],
+        times: [0.5],
+        views: ["front"],
+        tile: { width: 96, height: 120 },
+        clip,
+      }).then(([result]) => result.lines);
+
+    const armsDown = await check(null);
+    assert.equal(
+      armsDown.filter(
+        (line) =>
+          line.level === "FAIL" &&
+          /no visible art .*--with-clip <gesture>/.test(line.message),
+      ).length,
+      2,
+      JSON.stringify(armsDown),
+    );
+    const posed = await check(raiseRightHand);
+    assert.deepEqual(
+      posed.map((line) => line.level),
+      ["PASS", "PASS"],
+      JSON.stringify(posed),
+    );
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

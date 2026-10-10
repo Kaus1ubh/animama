@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createServer } from "vite";
 import { selfHostedRuntimeCapabilities } from "./fixtures/runtime-capabilities.mjs";
+import { BROWSER_STEP_TIMEOUT_MS } from "./fixtures/browser-timeouts.mjs";
 
 // Real interaction coverage for the stepped first-run setup: step navigation,
 // focus, the unsaved-key prompt, model choice, voice choices, downloads and
@@ -80,7 +81,7 @@ async function mount(options = {}) {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 900 },
   });
-  page.setDefaultTimeout(10000);
+  page.setDefaultTimeout(BROWSER_STEP_TIMEOUT_MS);
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const operations = [];

@@ -1,7 +1,7 @@
 {
   "schema": "animaPoseClip/2.0",
   "id": "thinking-head-scratch",
-  "name": "thinking-head-scratch",
+  "name": "Thinking Head Scratch",
   "duration": 2.4,
   "loop": true,
   "basePose": "relaxedRest",

@@ -45,7 +45,32 @@ Real joints rarely move alone. Add the partners:
   raise) and shift the hips away (toward the Avatar's left, +x) as
   counterbalance. The wave example does all three.
 - **Laughing or excitement:** chest flexion/extension pulses 3–6° with
-  shoulder elevation pulses; head tilts back 5–10° at the peak.
+  shoulder elevation pulses; head tilts back 5–10° at the peak. Pace the
+  pulses as in [Laughing and bouncing](#laughing-and-bouncing).
+
+## Laughing and bouncing
+
+Repeated pulses (laughs, giggles, bounces, sobs) read as shivering above
+about 4 Hz; the checks warn when three cycles or more run that fast
+(`oscillation`). Pace them like breathing:
+
+- **Rhythm:** 2.5–3.3 Hz, so 0.15–0.2 s from each peak to the next trough.
+  Key every turn explicitly; a pulse is a peak and a trough, not a value at
+  every frame.
+- **Bursts:** 3–4 cycles per burst, each about a third smaller than the one
+  before, then a breath (0.3–0.6 s of slower recovery) before any next
+  burst. A long laugh is several such bursts, not one steady buzz.
+- **Staggered chain:** the trunk leads and the rest follows, 0.03–0.06 s
+  apart down the chain (spine and chest, then upperChest and shoulders, then
+  neck and head), so the pulse travels instead of every joint ticking
+  together. Arms ride the torso: keep elbows and wrists still or give them one
+  slow drift per burst, not a flap per pulse.
+- **Shape:** a quick contraction (forward chest flexion, shoulders up) and a
+  slightly slower release reads as a laugh. The checks rate whole cycles, so
+  the asymmetry is fine as long as each contraction plus release takes
+  0.3–0.4 s.
+- Pulse offsets keyed with `dt` on one beat do not change when the beat is
+  retimed; give each burst its own beat so it can be moved.
 
 ## Arm orientation
 
@@ -56,8 +81,24 @@ Real joints rarely move alone. Add the partners:
   brings it in front of the body.
 - **Palm direction** comes from forearm `supination` plus upper-arm rotation:
   arm hanging, supination 0 → palm faces the thigh; +80 → palm forward;
-  −60 → palm back. For a palm-out wave, keep supination near 10–20 and rely
-  on external arm rotation.
+  −60 → palm back. Declare `facing` on the contact (or a large-tolerance
+  contact on the part the palm should face) and the checks warn when the palm
+  turns more than 45° away. Measured on both Included Avatars:
+  - **Wave, palm to the viewer:** external rotation ~80 and elbow 90–110,
+    then either plane 0 with supination 0 (about 16° from the viewer at
+    elevation 60–90), or plane ~20 with supination −20 and elbow ~110 (8° at
+    elevation 90, 13° at 75, 18° at 60). Mixing the two (plane 20 with
+    supination 0, or plane 0 with −20) lands 20–31° off, and positive
+    supination turns the palm further away (about 45° at +20 with plane 20).
+    For a small wave keep the wrist out from the body centre, about shoulder
+    width.
+  - **Face palm, palm on the face:** elevation 75–90, plane 80–110, external
+    rotation 60–80, elbow ~125, supination ~60, wrist 0 to −20 put the palm
+    over the eyes, facing the face.
+  - **Kiss, fingertips at the lips with the palm toward the mouth:**
+    elevation ~35, plane ~110, external rotation ~80, elbow ~140,
+    supination ~40, wrist 0 to −30 (bent back). Keep the palm turned toward
+    the mouth on the way up as well.
 - **Reaching forward:** `planeOfElevation` 70–100 with elevation 60–90 and
   elbow 20–60; across the body uses plane 110–135.
 - **Palms up, forearms out (shrug, "who knows"):** upper arm elevation ~20,

@@ -8,7 +8,7 @@
 - Amended: 2026-10-09, placement updated for provider prefix caching (owner
   decisions of 2026-10-09 in the spec for
   [Anthropic models and cache-friendly instruction assembly](https://github.com/raymond-van/animama/issues/364);
-  see [ADR 0019](0019-native-anthropic-messages-provider.md)). The guardrail
+  see [ADR 0021](0021-native-anthropic-messages-provider.md)). The guardrail
   text, its precedence and its last position before the user's words are
   unchanged.
 

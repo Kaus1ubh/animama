@@ -10,7 +10,8 @@ import type { AnimaPoseClipV2 } from "./schemaV2";
 
 /**
  * What a player needs from a clip, prepared once when it starts for the
- * Avatar (hand presets fitted, planted legs solved on its rig).
+ * Avatar (hand presets fitted, planted legs and solved contacts solved on its
+ * rig).
  */
 export type AnimaPoseClipProgram = {
   /** Whether the clip moves the body or face (otherwise it only times events). */
@@ -29,19 +30,32 @@ export type AnimaPoseClipProgram = {
 };
 
 export type AnimaPoseClipProgramOptions = {
-  /** The Avatar that plays the clip (needed for 2.0 hands and planted feet). */
+  /**
+   * The Avatar that plays the clip (needed for 2.0 hands, planted feet and
+   * solved contacts).
+   */
   vrm?: VRM | null;
   resolvePose: AnimaPoseClipPoseResolver;
+  /**
+   * Solve contacts that declare `solve` on the Avatar's arms (default true).
+   * False plays the authored arms, as the motion checks measure them before
+   * solving.
+   */
+  solveContacts?: boolean;
 };
 
 /** Prepare a parsed clip for playback. */
 export function createAnimaPoseClipProgram(
   clip: AnimaPoseClipV2,
-  { vrm, resolvePose }: AnimaPoseClipProgramOptions,
+  { vrm, resolvePose, solveContacts }: AnimaPoseClipProgramOptions,
 ): AnimaPoseClipProgram {
   const missingPoseRefs =
     clip.basePose && !resolvePose(clip.basePose) ? [clip.basePose] : [];
-  const prepared = prepareAnimaPoseClipV2(clip, { vrm, resolvePose });
+  const prepared = prepareAnimaPoseClipV2(clip, {
+    vrm,
+    resolvePose,
+    solveContacts,
+  });
   // Just before the cycle's end: a loop would otherwise wrap to its start.
   const end = Math.max(0, clip.duration - 1e-6);
   return {

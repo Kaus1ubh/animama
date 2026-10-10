@@ -2632,8 +2632,8 @@ owner's live smoke establishes acceptance.
      secrets file and compose.
    - Cover the moderation gap, the fence, search billing and **Compact early**.
 2. **ADRs.**
-   - New ADR 0019 "Native Anthropic Messages provider" (drafted as 0016 and
-     renumbered when main added ADRs 0016–0018) records:
+   - New ADR 0021 "Native Anthropic Messages provider" (drafted as 0016 and
+     renumbered when main added ADRs 0016–0020) records:
      - the reversal of #165's exclusion;
      - the Client SDK over the Agent SDK;
      - native features under ADR 0011.
@@ -2673,7 +2673,7 @@ Implementation:
   - `tests/live/README.md` and `src/backend/AGENTS.md`;
   - `prompt-caching.md`: final measurements by the coordinator.
 - **ADRs:**
-  - new ADR 0019, "Native Anthropic Messages provider" (drafted as 0016;
+  - new ADR 0021, "Native Anthropic Messages provider" (drafted as 0016;
     renumbered after merging main);
   - ADR 0008 amended for the guardrail placement (D20/D21);
   - both indexed in the ADR README.
@@ -3032,6 +3032,13 @@ Checks on the merge (`fb50fc55`):
 - `e2e:test:fast`: 36 passed in 5.5 minutes on the rebuilt
   `animama-anthropic-e2e` (run `run-1009224457`).
 
+#### Second merge with main (2026-10-10)
+
+PR #408 later conflicted with main (`5be960f0`, 20 more commits), which had
+added ADRs 0019 and 0020. A second ordinary merge renumbered the Anthropic ADR
+to 0021, with its index row, ADR 0008's pointer and the doc links. The ADR
+index was the only conflict. The checks for this merge are recorded in the PR.
+
 #### Final Integration Review Code Review #1 Findings
 
 Independent `sdlc-reviewer`, full review of `1470e675...fb50fc55`, including
@@ -3186,7 +3193,7 @@ The final integration review is complete.
 | Owner-added `claude-sonnet-5-5` row works | probe test; smoke | 3, 8, 9 |
 | Hosted composition unchanged | default-policy tests | 3 |
 | Guardrails last and unchanged; stable prefix per path | exact-prompt and stability tests | 4, 5 |
-| Caching recommendation documented; ADR 0008 amended if departed | review; owner decision; ADR 0008 amended, ADR 0019 | 2, 9 |
+| Caching recommendation documented; ADR 0008 amended if departed | review; owner decision; ADR 0008 amended, ADR 0021 | 2, 9 |
 | Cached share does not fall on any path, rises where layout caused misses | harness before and after | 1, 4, 9 |
 | Effort defaults and Anthropic phrasing | request tests; prompt review; smoke | 5, 7, 9 |
 | Docs and ADRs | review | 9 |

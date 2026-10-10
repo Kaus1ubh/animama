@@ -43,10 +43,12 @@ it and name the Anthropic connection; `anthropic_context_exceeded` and
 does. `model_refused` means a Claude model declined the turn:
 the notice says so and suggests rephrasing, and no other model is tried. Local admission errors describe
 installation access, without treating every HTTP 403 as an invalid provider key.
-Unknown errors use a safe fallback. The only URL a notice shows is the base URL
-the owner configured for a non-built-in connection; provider response text,
+Unknown errors use a safe fallback. The only URL text a notice shows is the base
+URL the owner configured for a non-built-in connection; provider response text,
 provider-returned URLs, credentials and exception messages are never inserted
-into the notice. Details show only an allowlisted error code. A valid provider retry delay is shown as guidance.
+into the notice. A hosted `trial_complete` denial may add a "Download Animama"
+link, only for an absolute `https:` URL without credentials
+([hosted denials](../../../contracts/hosted-web.md#hosted-denials)). Details show only an allowlisted error code. A valid provider retry delay is shown as guidance.
 
 Any received partial reply remains visible and is labelled incomplete. The notice
 makes no claim that an uncertain turn was saved. Failed turns are local to the

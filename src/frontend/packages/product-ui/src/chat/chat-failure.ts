@@ -1,3 +1,5 @@
+import { safeNavigationUrl } from "../lib/safe-url";
+
 /** Safe presentation for a failed turn; never render raw provider payloads. */
 export type ChatFailure = {
   title: string;
@@ -6,7 +8,12 @@ export type ChatFailure = {
   originalText: string;
   partialText: string;
   retryAfterSeconds?: number;
+  /** A next step outside the chat, such as downloading the desktop app. */
+  link?: ChatFailureLink;
 };
+
+/** A link whose `href` is an `https:` URL without credentials (`safeNavigationUrl`). */
+export type ChatFailureLink = { label: string; href: string };
 
 function record(value: unknown): Record<string, unknown> {
   return value && typeof value === "object" && !Array.isArray(value)
@@ -171,8 +178,9 @@ const RETRY_AFTER_CODES = new Set([
 
 /**
  * Hosted account and service limits ("Hosted denials" in
- * contracts/hosted-web.md). Their copy names the limit and the wait, and never
- * refers the user to an installation owner or its service.
+ * contracts/hosted-web.md). Their copy names the limit and the wait (for a
+ * completed trial, the desktop download), and never refers the user to an
+ * installation owner or its service.
  */
 const HOSTED_DENIAL_CODES = new Set([
   "quota_exceeded",
@@ -180,6 +188,7 @@ const HOSTED_DENIAL_CODES = new Set([
   "budget_paused",
   "message_too_long",
   "chat_limit_reached",
+  "trial_complete",
 ]);
 
 type HostedDenial = {
@@ -282,6 +291,11 @@ function describeHostedDenial(denial: HostedDenial): readonly [string, string] {
         "Continue one of your existing chats.",
       ];
     }
+    case "trial_complete":
+      return [
+        "Your Animama trial is complete.",
+        "Download Animama to keep chatting with your Animas.",
+      ];
     default:
       // capacity_busy and budget_paused: temporary hosted capacity.
       return [
@@ -343,6 +357,11 @@ export function describeChatFailure(
     "Restore your message to try again. If this continues, share the error code with the installation owner.",
   ];
   const delay = details.retry_after_seconds;
+  // A completed trial links to the desktop download only when its URL is safe.
+  const downloadUrl =
+    denial?.code === "trial_complete"
+      ? safeNavigationUrl(denial.field("download_url"))
+      : null;
   return {
     title,
     guidance,
@@ -354,6 +373,9 @@ export function describeChatFailure(
     Number.isFinite(delay) &&
     delay > 0
       ? { retryAfterSeconds: Math.min(Math.ceil(delay), 86400) }
+      : {}),
+    ...(downloadUrl
+      ? { link: { label: "Download Animama", href: downloadUrl } }
       : {}),
   };
 }

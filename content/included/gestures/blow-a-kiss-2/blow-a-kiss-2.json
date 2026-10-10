@@ -1,0 +1,1076 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "blow-a-kiss-2",
+  "name": "Blow a Kiss 2",
+  "duration": 2.3,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.2
+  },
+  "fadeOut": {
+    "duration": 0.4
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "lips",
+      "label": "Fingers to lips",
+      "time": 0.55
+    },
+    {
+      "id": "kiss",
+      "label": "Kiss",
+      "time": 0.85
+    },
+    {
+      "id": "release",
+      "label": "Release",
+      "time": 1.3
+    },
+    {
+      "id": "hold",
+      "label": "Hold",
+      "time": 1.75
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 2.25
+    }
+  ],
+  "joints": {
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.5,
+          "beat": "lips"
+        },
+        {
+          "v": 2,
+          "beat": "kiss"
+        },
+        {
+          "v": 4,
+          "beat": "release"
+        },
+        {
+          "v": 3,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "lips",
+          "dt": -0.1
+        },
+        {
+          "v": 2.5,
+          "beat": "kiss"
+        },
+        {
+          "v": -2,
+          "beat": "release"
+        },
+        {
+          "v": -1.5,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "lips",
+          "dt": -0.1
+        },
+        {
+          "v": 3.5,
+          "beat": "kiss",
+          "dt": -0.12
+        },
+        {
+          "v": 3,
+          "beat": "kiss"
+        },
+        {
+          "v": -3,
+          "beat": "release",
+          "dt": -0.05
+        },
+        {
+          "v": -2,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "kiss"
+        },
+        {
+          "v": 4,
+          "beat": "release"
+        },
+        {
+          "v": 3.5,
+          "beat": "hold"
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -6,
+          "beat": "lips"
+        },
+        {
+          "v": -6,
+          "beat": "kiss"
+        },
+        {
+          "v": 7,
+          "beat": "release"
+        },
+        {
+          "v": 6,
+          "beat": "hold"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -12,
+          "beat": "lips"
+        },
+        {
+          "v": -12,
+          "beat": "kiss"
+        },
+        {
+          "v": 9,
+          "beat": "release"
+        },
+        {
+          "v": 8,
+          "beat": "hold"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 34,
+          "beat": "start",
+          "dt": 0.275
+        },
+        {
+          "v": 47,
+          "beat": "lips"
+        },
+        {
+          "v": 47,
+          "beat": "kiss"
+        },
+        {
+          "v": 50,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 72,
+          "beat": "release"
+        },
+        {
+          "v": 70,
+          "beat": "hold"
+        },
+        {
+          "v": 35,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 45,
+          "beat": "start",
+          "dt": 0.275
+        },
+        {
+          "v": 60,
+          "beat": "lips"
+        },
+        {
+          "v": 60,
+          "beat": "kiss"
+        },
+        {
+          "v": 56,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 58,
+          "beat": "release"
+        },
+        {
+          "v": 56,
+          "beat": "hold"
+        },
+        {
+          "v": 40,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 55,
+          "beat": "start",
+          "dt": 0.275
+        },
+        {
+          "v": 56,
+          "beat": "lips"
+        },
+        {
+          "v": 56,
+          "beat": "kiss"
+        },
+        {
+          "v": 58,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 88,
+          "beat": "release",
+          "dt": 0.15
+        },
+        {
+          "v": 82,
+          "beat": "hold"
+        },
+        {
+          "v": 20,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 44,
+          "beat": "start",
+          "dt": 0.165
+        },
+        {
+          "v": 98,
+          "beat": "start",
+          "dt": 0.374
+        },
+        {
+          "v": 136,
+          "beat": "lips"
+        },
+        {
+          "v": 136,
+          "beat": "kiss"
+        },
+        {
+          "v": 75,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 26,
+          "beat": "release",
+          "dt": 0.15
+        },
+        {
+          "v": 30,
+          "beat": "hold"
+        },
+        {
+          "v": 25,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 32,
+          "beat": "start",
+          "dt": 0.275
+        },
+        {
+          "v": 76,
+          "beat": "lips"
+        },
+        {
+          "v": 76,
+          "beat": "kiss"
+        },
+        {
+          "v": 70,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 80,
+          "beat": "release"
+        },
+        {
+          "v": 74,
+          "beat": "hold"
+        },
+        {
+          "v": 20,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 9,
+          "beat": "lips"
+        },
+        {
+          "v": 9,
+          "beat": "kiss"
+        },
+        {
+          "v": -25,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": -20,
+          "beat": "release"
+        },
+        {
+          "v": -16,
+          "beat": "hold"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -25,
+          "beat": "lips"
+        },
+        {
+          "v": -25,
+          "beat": "kiss"
+        },
+        {
+          "v": 0,
+          "beat": "release"
+        },
+        {
+          "v": 0,
+          "beat": "hold"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -6,
+          "beat": "lips"
+        },
+        {
+          "v": -6,
+          "beat": "kiss"
+        },
+        {
+          "v": 7,
+          "beat": "release"
+        },
+        {
+          "v": 6,
+          "beat": "hold"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -12,
+          "beat": "lips"
+        },
+        {
+          "v": -12,
+          "beat": "kiss"
+        },
+        {
+          "v": 9,
+          "beat": "release"
+        },
+        {
+          "v": 8,
+          "beat": "hold"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 34,
+          "beat": "start",
+          "dt": 0.275
+        },
+        {
+          "v": 47,
+          "beat": "lips"
+        },
+        {
+          "v": 47,
+          "beat": "kiss"
+        },
+        {
+          "v": 50,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 72,
+          "beat": "release"
+        },
+        {
+          "v": 70,
+          "beat": "hold"
+        },
+        {
+          "v": 35,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 45,
+          "beat": "start",
+          "dt": 0.275
+        },
+        {
+          "v": 60,
+          "beat": "lips"
+        },
+        {
+          "v": 60,
+          "beat": "kiss"
+        },
+        {
+          "v": 56,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 58,
+          "beat": "release"
+        },
+        {
+          "v": 56,
+          "beat": "hold"
+        },
+        {
+          "v": 40,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 55,
+          "beat": "start",
+          "dt": 0.275
+        },
+        {
+          "v": 56,
+          "beat": "lips"
+        },
+        {
+          "v": 56,
+          "beat": "kiss"
+        },
+        {
+          "v": 58,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 88,
+          "beat": "release",
+          "dt": 0.15
+        },
+        {
+          "v": 82,
+          "beat": "hold"
+        },
+        {
+          "v": 20,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 44,
+          "beat": "start",
+          "dt": 0.165
+        },
+        {
+          "v": 98,
+          "beat": "start",
+          "dt": 0.374
+        },
+        {
+          "v": 136,
+          "beat": "lips"
+        },
+        {
+          "v": 136,
+          "beat": "kiss"
+        },
+        {
+          "v": 75,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 26,
+          "beat": "release",
+          "dt": 0.15
+        },
+        {
+          "v": 30,
+          "beat": "hold"
+        },
+        {
+          "v": 25,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 32,
+          "beat": "start",
+          "dt": 0.275
+        },
+        {
+          "v": 76,
+          "beat": "lips"
+        },
+        {
+          "v": 76,
+          "beat": "kiss"
+        },
+        {
+          "v": 70,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": 80,
+          "beat": "release"
+        },
+        {
+          "v": 74,
+          "beat": "hold"
+        },
+        {
+          "v": 20,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 9,
+          "beat": "lips"
+        },
+        {
+          "v": 9,
+          "beat": "kiss"
+        },
+        {
+          "v": -25,
+          "beat": "release",
+          "dt": -0.15
+        },
+        {
+          "v": -20,
+          "beat": "release"
+        },
+        {
+          "v": -16,
+          "beat": "hold"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -25,
+          "beat": "lips"
+        },
+        {
+          "v": -25,
+          "beat": "kiss"
+        },
+        {
+          "v": 0,
+          "beat": "release"
+        },
+        {
+          "v": 0,
+          "beat": "hold"
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "open-together",
+        "fingers": {
+          "index": {
+            "curl": [45, 0, 0]
+          },
+          "middle": {
+            "curl": [45, 0, 0]
+          },
+          "ring": {
+            "curl": [49, 0, 0]
+          },
+          "little": {
+            "curl": [53, 0, 0]
+          }
+        },
+        "beat": "lips",
+        "dt": -0.12
+      },
+      {
+        "preset": "open-together",
+        "fingers": {
+          "index": {
+            "curl": [45, 0, 0]
+          },
+          "middle": {
+            "curl": [45, 0, 0]
+          },
+          "ring": {
+            "curl": [49, 0, 0]
+          },
+          "little": {
+            "curl": [53, 0, 0]
+          }
+        },
+        "beat": "kiss",
+        "dt": 0.1
+      },
+      {
+        "preset": "open-spread",
+        "beat": "release"
+      },
+      {
+        "preset": "open-together",
+        "spread": 10,
+        "beat": "hold",
+        "dt": 0.05
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle",
+        "dt": -0.05
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "open-together",
+        "fingers": {
+          "index": {
+            "curl": [45, 0, 0]
+          },
+          "middle": {
+            "curl": [45, 0, 0]
+          },
+          "ring": {
+            "curl": [49, 0, 0]
+          },
+          "little": {
+            "curl": [53, 0, 0]
+          }
+        },
+        "beat": "lips",
+        "dt": -0.12
+      },
+      {
+        "preset": "open-together",
+        "fingers": {
+          "index": {
+            "curl": [45, 0, 0]
+          },
+          "middle": {
+            "curl": [45, 0, 0]
+          },
+          "ring": {
+            "curl": [49, 0, 0]
+          },
+          "little": {
+            "curl": [53, 0, 0]
+          }
+        },
+        "beat": "kiss",
+        "dt": 0.1
+      },
+      {
+        "preset": "open-spread",
+        "beat": "release"
+      },
+      {
+        "preset": "open-together",
+        "spread": 10,
+        "beat": "hold",
+        "dt": 0.05
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle",
+        "dt": -0.05
+      }
+    ]
+  },
+  "expressions": {
+    "ou": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.5,
+        "beat": "lips",
+        "dt": -0.05
+      },
+      {
+        "v": 0.55,
+        "beat": "kiss",
+        "dt": -0.12
+      },
+      {
+        "v": 0.5,
+        "beat": "kiss"
+      },
+      {
+        "v": 0,
+        "beat": "release",
+        "dt": -0.12
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.32,
+        "beat": "lips",
+        "dt": -0.1
+      },
+      {
+        "v": 0.38,
+        "beat": "kiss"
+      },
+      {
+        "v": 0.58,
+        "beat": "release",
+        "dt": -0.05
+      },
+      {
+        "v": 0.55,
+        "beat": "hold",
+        "dt": 0.1
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "blinkLeft": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "release",
+        "dt": -0.05
+      },
+      {
+        "v": 0.9,
+        "beat": "release",
+        "dt": 0.1
+      },
+      {
+        "v": 0.9,
+        "beat": "hold",
+        "dt": -0.1
+      },
+      {
+        "v": 0,
+        "beat": "hold",
+        "dt": 0.05
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightIndexDistal",
+      "target": "head",
+      "beat": "lips",
+      "from": 0.06,
+      "to": 0.3,
+      "offset": [-0.022, 0.004, 0.115],
+      "tolerance": 0.015,
+      "point": "tip",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.16,
+        "blendOut": 0.14
+      }
+    },
+    {
+      "bone": "leftIndexDistal",
+      "target": "head",
+      "beat": "lips",
+      "from": 0.06,
+      "to": 0.3,
+      "offset": [0.022, 0.004, 0.115],
+      "tolerance": 0.015,
+      "point": "tip",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.16,
+        "blendOut": 0.14
+      }
+    },
+    {
+      "bone": "leftMiddleDistal",
+      "target": "rightMiddleDistal",
+      "beat": "lips",
+      "from": -0.02,
+      "to": 0.38,
+      "tolerance": 0.06,
+      "point": "tip",
+      "targetPoint": "tip"
+    }
+  ]
+}

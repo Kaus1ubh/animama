@@ -575,7 +575,7 @@ alters the reply, and the executor only uses a self-harm signal to add a
 rows do not support moderation and never receive the option. Anthropic offers
 no moderation endpoint, so Anthropic turns rely on the Companion Guardrails
 alone and never show a crisis card; that gap is accepted
-([ADR 0019](../../adr/0019-native-anthropic-messages-provider.md)).
+([ADR 0021](../../adr/0021-native-anthropic-messages-provider.md)).
 
 The Anthropic adapter classifies SDK errors and stream `error` events by
 Anthropic's `error.type`, then the HTTP status, into `anthropic_authentication_error`,
