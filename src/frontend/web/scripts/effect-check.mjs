@@ -131,7 +131,7 @@ async function checkFiles(entries) {
 }
 
 /** Art checks for one source of any kind. */
-async function sourceAssets(effect) {
+export async function sourceAssets(effect) {
   if (effect.kind === "particle") {
     const manifest = JSON.parse(await readFile(effect.manifestPath, "utf8"));
     const budgets = particleTextureBudgets(manifest);
@@ -176,7 +176,7 @@ async function sourceAssets(effect) {
  * a listed texture) and Save's conservative estimate of live particles
  * against the declared budget and the runtime limit.
  */
-async function particleSourceLines(effect, server) {
+export async function particleSourceLines(effect, server) {
   const manifest = JSON.parse(await readFile(effect.manifestPath, "utf8"));
   const editor = await server.ssrLoadModule(
     "/src/lib/avatar/particle-vfx/editor/index.ts",
@@ -225,7 +225,7 @@ async function particleSourceLines(effect, server) {
  * the creator and the backend apply at Save, so a folder over them fails here
  * rather than at `effects save`.
  */
-async function sceneLimitLines(effect, server) {
+export async function sceneLimitLines(effect, server) {
   const { sceneDefinitionLimitIssues } = await server.ssrLoadModule(
     "/src/lib/scene-vfx/limits.ts",
   );

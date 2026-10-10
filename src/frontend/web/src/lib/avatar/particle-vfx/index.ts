@@ -48,6 +48,7 @@ export {
   importParticleVFXTextureFile,
   loadParticleVFXTextureFiles,
   missingParticleVFXTextureReferences,
+  readParticleVFXCreatorDocument,
   readParticleVFXTextureFile,
   referencedParticleVFXTextureFiles,
   supplyParticleVFXTextureFile,

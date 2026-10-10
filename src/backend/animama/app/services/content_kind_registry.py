@@ -11,7 +11,7 @@ import json
 import re
 import struct
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
@@ -99,6 +99,8 @@ class RuntimeProjectionInput:
     logical_files: dict[str, dict[str, Any]]
     dependency_files: dict[str, list[dict[str, Any]]]
     reference_map: dict[str, str]
+    # Alias → ref of each removed Included effect a Local Action plays without.
+    missing_references: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -1271,6 +1273,7 @@ class ContentTypeHandler:
                     **_mapping(projection.context.get("config")),
                 },
                 "reference_map": projection.reference_map,
+                "missing_references": projection.missing_references,
                 "files": files,
             }
             if isinstance(document, GestureDocumentV1):

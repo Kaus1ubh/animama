@@ -93,6 +93,14 @@ validation, import/export tools, and Three.quarks preview lifecycle. Save uses
 Local entry. It never equips the effect to an Anima; Gesture and Reaction
 creators reference it as a dependency.
 
+Import takes three.quarks JSON or the creator document Export offers
+(`animama/particle-vfx-editor/1`: name, description, settings in the stored
+`runtime_defaults.slots.particle_vfx` form, and the Quarks effect). Quarks JSON
+keeps the current name and settings and the textures the effect already
+carries; a creator document replaces them, so its textures that are neither
+embedded nor built in show as missing until their files are chosen. `effects
+save` imports this document ([Avatar VFX tools](avatar-vfx.md#9-tools)).
+
 The left panel separates emitter selection from whole-effect defaults. Name lives
 in the header; internal IDs, resource JSON and clip-event snippets are available
 in the export dialog. Existing descriptions are retained without a main-editor

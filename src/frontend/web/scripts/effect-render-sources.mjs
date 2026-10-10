@@ -627,7 +627,8 @@ export async function resolveSceneRef(
 /**
  * Resolve any effect source (a folder, a descriptor `.json` or a `library:`
  * spec) to its kind and files: `kind` is `avatar`, `particle` or `scene`.
- * A `library:` spec without a kind names an Avatar Effect.
+ * A `library:` spec without a kind names an Avatar Effect unless
+ * `options.defaultKind` says otherwise.
  */
 export async function resolveAnyEffectSource(spec, options = {}) {
   const { descriptorPath, descriptor } = await resolveAnyEffectDescriptor(
@@ -640,14 +641,15 @@ export async function resolveAnyEffectSource(spec, options = {}) {
 /**
  * Find the descriptor an effect source of any kind names, without reading its
  * files, so a source whose files are still missing can be watched until they
- * appear.
+ * appear. `defaultKind` (`effect`, `particle` or `scene`) is the kind a
+ * `library:` spec without a kind segment names.
  */
 export async function resolveAnyEffectDescriptor(
   spec,
-  { cwd = process.cwd(), localContent = null } = {},
+  { cwd = process.cwd(), localContent = null, defaultKind = "effect" } = {},
 ) {
   if (parseLibrarySpec(spec))
-    return resolveLibraryItem(spec, "effect", { localContent });
+    return resolveLibraryItem(spec, defaultKind, { localContent });
   const { target, isDirectory } = await resolvePath(spec, cwd);
   const descriptorPath = isDirectory
     ? await descriptorInFolder(target, ".json")

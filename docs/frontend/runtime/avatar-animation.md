@@ -520,6 +520,15 @@ and atomically updates readable Local files. Save & Equip uses the saved catalog
 selection in the reviewed Anima loadout flow. Existing and starter Actions use
 typed preview reads to hydrate protected files and dependency runtime.
 
+A Local Action that names a removed Included effect still opens and plays
+without it (see the catalog exception in
+[the data model](../../backend/architecture/data-model.md)). The editor warns
+which effects were removed, does not declare them again, and lists their
+events as unknown event IDs, so Save waits until they are mapped to other
+effects or removed. In chat, `AnimaRuntimeCatalog` skips those events
+(`runtime_missing_references`) with a `missing_effect_dependency` diagnostic,
+and the Library's content-attention list names the Action.
+
 Gesture Pose mode's Hands tool edits ordinary finger-bone drafts. Presets replace
 the chosen whole hand(s); Curl and Spread apply relative deltas to selected
 segments. Returning a control to zero after release leaves the pose unchanged.

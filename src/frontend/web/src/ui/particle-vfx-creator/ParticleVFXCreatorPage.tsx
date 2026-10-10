@@ -73,6 +73,7 @@ import {
   loadParticleVFXTextureFiles,
   missingParticleVFXTextureReferences,
   parseParticleVFXEditorExportJsonForViewer,
+  readParticleVFXCreatorDocument,
   parseParticleVFXEditorJson,
   readParticleVFXTextureFile,
   removeParticleVFXEditorEmitter,
@@ -760,6 +761,11 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       setImportError(parsed.message);
       return;
     }
+    const creatorDocument = readParticleVFXCreatorDocument(parsed);
+    if (creatorDocument && "severity" in creatorDocument) {
+      setImportError(creatorDocument.message);
+      return;
+    }
     if (
       isDirty &&
       !window.confirm(
@@ -768,32 +774,38 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     ) {
       return;
     }
-    // Embedded PNG data becomes texture files; references to textures this
-    // draft already carries keep resolving.
+    // Embedded PNG data becomes texture files. Plain Quarks JSON keeps the
+    // current name and settings, and references to textures this draft
+    // already carries keep resolving; a creator document is a whole effect,
+    // so it sets both and its other textures are chosen afresh.
+    const carried = creatorDocument ? {} : (draft?.textureFiles ?? {});
     const embedded = await extractEmbeddedParticleVFXTextures(
-      parsed,
-      Object.keys(draft?.textureFiles ?? {}),
+      creatorDocument?.quarksJson ?? parsed,
+      Object.keys(carried),
     );
     const nextId = draft?.catalog.id ?? "custom-particle-vfx";
     const nextDraft = createParticleVFXEditorDraftFromImport(
       embedded.json,
       {
         id: nextId,
-        label: draft?.catalog.label ?? "Custom Particle VFX",
-        description: draft?.catalog.description ?? "Imported particle effect.",
         assetPath:
           draft?.catalog.assetPath ?? `/effects/vfx/quark/${nextId}.json`,
-        defaultAnchor: draft?.catalog.defaultAnchor ?? "head",
-        defaultFollowAnchor: draft?.catalog.defaultFollowAnchor ?? true,
-        defaultDurationSec: draft?.catalog.defaultDurationSec ?? 2,
-        defaultTransform:
-          draft?.catalog.defaultTransform ??
-          createDefaultParticleVFXTransform(),
-        preloadTier: draft?.catalog.preloadTier ?? "none",
-        performanceBudget: draft?.catalog.performanceBudget,
-        shapeAutoFit: draft?.catalog.shapeAutoFit,
+        ...(creatorDocument?.catalog ?? {
+          label: draft?.catalog.label ?? "Custom Particle VFX",
+          description:
+            draft?.catalog.description ?? "Imported particle effect.",
+          defaultAnchor: draft?.catalog.defaultAnchor ?? "head",
+          defaultFollowAnchor: draft?.catalog.defaultFollowAnchor ?? true,
+          defaultDurationSec: draft?.catalog.defaultDurationSec ?? 2,
+          defaultTransform:
+            draft?.catalog.defaultTransform ??
+            createDefaultParticleVFXTransform(),
+          preloadTier: draft?.catalog.preloadTier ?? "none",
+          performanceBudget: draft?.catalog.performanceBudget,
+          shapeAutoFit: draft?.catalog.shapeAutoFit,
+        }),
       },
-      { ...draft?.textureFiles, ...embedded.textureFiles },
+      { ...carried, ...embedded.textureFiles },
     );
     commit(nextDraft);
     setActiveEmitterPath(nextDraft.emitters[0]?.path ?? null);
@@ -1482,7 +1494,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             open={importDialogOpen}
             onOpenChange={setImportDialogOpen}
             title="Import Particle VFX JSON"
-            description="Paste a three.quarks effect. Valid JSON replaces the current document after the unsaved-change confirmation. Embedded PNG textures are kept; other textures that are not built in show as missing until you choose their files."
+            description="Paste a three.quarks effect, or a creator document from Export, which also sets the name and settings. Valid JSON replaces the current document after the unsaved-change confirmation. Embedded PNG textures are kept. Other textures that are not built in show as missing until you choose their files; plain Quarks JSON keeps using textures this effect already carries."
             text={importText}
             error={importError}
             busy={contentSave.isBusy}
@@ -1722,9 +1734,15 @@ function ParticleVFXExportJsonDialog({
       {bundle ? (
         <details className="rounded-md border p-3">
           <summary className="cursor-pointer text-sm font-medium">
-            Catalog settings and clip event
+            Creator document, catalog settings and clip event
           </summary>
           <div className="mt-3 space-y-4">
+            <ExportBlock
+              title="Creator document (Import keeps the name and settings)"
+              value={bundle.creatorDocument}
+              copied={copiedTarget === "document"}
+              onCopy={() => onCopy("document", bundle.creatorDocument)}
+            />
             <ExportBlock
               title="Catalog settings"
               value={bundle.catalogEntrySnippet}

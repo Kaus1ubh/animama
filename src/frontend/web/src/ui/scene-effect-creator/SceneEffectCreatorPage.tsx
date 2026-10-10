@@ -556,13 +556,14 @@ export function SceneEffectCreatorPage({
   const choosePrivateImage = useCallback(
     async (source: File, target: SceneEffectImageTarget) => {
       setImageError(null);
-      const inspection = await inspectSceneEffectImage(source);
-      if (!inspection.ok) {
-        setImageError(inspection.message);
-        return;
-      }
+      // Busy from the first check, so no other image or Save starts meanwhile.
       setImageBusy(true);
       try {
+        const inspection = await inspectSceneEffectImage(source);
+        if (!inspection.ok) {
+          setImageError(inspection.message);
+          return;
+        }
         const preflight = await preflightContentFile("image", source);
         if (preflight.error) throw new Error(preflight.error);
         const sha256 = await sha256File(source);

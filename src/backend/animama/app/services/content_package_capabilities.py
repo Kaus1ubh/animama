@@ -366,7 +366,8 @@ def _scene_range(
     value = owner.get(key)
     minimum, maximum = limits
     _require(
-        type(value) in (int, float)
+        isinstance(value, int | float)
+        and not isinstance(value, bool)
         and math.isfinite(value)
         and minimum <= value <= maximum
         and (not integer or float(value).is_integer()),

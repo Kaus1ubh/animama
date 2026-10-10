@@ -60,6 +60,15 @@ class ContentKind(str, Enum):
     ANIMA = "anima"
 
 
+# Pre-launch, Included effects are removed outright once Included content no
+# longer uses them. A Local Action that still names a removed one stays valid
+# and plays without it: its catalog row carries this diagnostic per removed
+# effect, and the edge is reported as a missing dependency, not a member.
+MISSING_EFFECT_DEPENDENCY = "missing_effect_dependency"
+REMOVABLE_EFFECT_KINDS = frozenset({ContentKind.AVATAR_EFFECT, ContentKind.PARTICLE_EFFECT, ContentKind.SCENE_EFFECT})
+ACTION_KINDS = frozenset({ContentKind.GESTURE, ContentKind.REACTION})
+
+
 @dataclass(frozen=True, slots=True)
 class ContentDiagnostic:
     """Safe reason-coded scan result; paths are library-relative only."""
@@ -132,6 +141,9 @@ class CatalogContentEntry:
     logical_key: str | None = None
     dependencies: tuple[str, ...] = ()
     dependency_item_ids: tuple[str, ...] = ()
+    # Declared refs of removed Included effects a valid Local Action outlives
+    # (``MISSING_EFFECT_DEPENDENCY``); they are not in ``dependencies``.
+    missing_dependencies: tuple[str, ...] = ()
     provenance: dict[str, Any] = field(default_factory=dict)
     metadata: dict[str, Any] = field(default_factory=dict)
     diagnostics: tuple[ContentDiagnostic, ...] = ()

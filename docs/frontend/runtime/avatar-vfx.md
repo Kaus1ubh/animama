@@ -509,22 +509,43 @@ pnpm -s effects promote ./promote.json --dry-run
   stand-in images, so closed eyes and face cleanup are in both): the art must
   show on every Avatar in some frame. `--times` defaults to
   0.25 s and 1 s. It exits 1 on any FAIL.
-- `save` takes `[{ "source", "name"?, "description"? }]` and saves each source
-  through the Avatar Effect creator in headless Chromium: it imports the
-  editor document, chooses the images, saves, reads the item back and checks
-  the definition, then reopens it. A Local effect with the same name is
-  revised. Names must be valid Local names (letters, digits, spaces, `.`,
-  `_`, `-`); it prints the Local folder each name saves to. Effects with a
-  sound are saved by hand.
-- `promote` writes owner-approved items into `content/included/vfx/avatar/`:
-  `add` (new stem), `replace` (keeps the folder, content ID, version and name)
-  or `delete` (refused while Included content depends on it). Sources are
-  `library:local/<name>` from the sourced stack or a folder; image names must
-  be plain file names, and effects with a sound are refused. It validates the
-  definition and art, adds a `licenses/source-review.json` record per written
-  file in the existing effect form and drops deleted files' records; the
-  `vfx/avatar/**/*` licence rule already covers the files. Templates,
-  thumbnails and pinned tests are updated separately.
+- `save` takes `[{ "source", "name"?, "description"? }]` and saves each
+  Avatar, Particle or Scene Effect source through its own creator in headless
+  Chromium: it imports the creator document (for a Particle Effect, the
+  `animama/particle-vfx-editor/1` document, which carries the settings),
+  chooses the images (the Avatar art; each Particle texture the creator
+  reports missing, built-in textures excepted; each Scene image, named as the
+  creator names it), saves, reads the item back and compares the definition
+  or settings and Quarks effect and every image's bytes with the source, then
+  reopens it. A Local effect of the same kind and name is revised. Names must
+  be valid Local names (letters, digits, spaces, `.`, `_`, `-`); it prints the
+  Local folder each name saves to. Effects with a sound are saved by hand.
+  `ANIMAMA_EFFECT_SAVE_STACK=1 node --test scripts/effect-save.stack.test.mjs`
+  exercises Particle and Scene saves against the sourced stack and deletes
+  what it saved.
+- `promote` writes owner-approved items into Included content: `add` (new
+  stem), `replace` (keeps the folder, content ID, version and name; a Scene
+  also keeps its kind) or `delete` (refused while Included content depends on
+  it). `"kind"` is `avatar_effect` (the default, `vfx/avatar/<stem>/`),
+  `particle_effect` (`vfx/particle/quark/<stem>/`, ID
+  `builtin:particle-effect:<stem>`) or `scene_effect` (`vfx/scene/<stem>/`, ID
+  `builtin:scene-effect:background|focus:<stem>`). Sources are
+  `library:local/<name>` of that kind from the sourced stack, or a folder;
+  file names must be plain, Scene art must be PNG and effects with a sound
+  are refused. It validates each source as `check` does (definition or
+  settings, particle budget, Scene limits) and re-checks the art against its
+  budget. New art is owner-authored: Avatar files fall under the
+  `vfx/avatar/**/*` licence rule and Scene PNGs under `vfx/scene/**/*.png`,
+  and each promoted Particle Effect gets its own `vfx/particle/quark/<stem>/**`
+  rule ahead of the generated-art rule, removed again by its delete. Every
+  written file gets a `licenses/source-review.json` record in the Avatar
+  Effect form, except a file whose bytes repeat third-party Included art
+  (such as a built-in creator texture, which the creator's Save copies): it
+  keeps that file's record and, in a rule for the copy, its licence terms.
+  Deleted files lose their records and rules, and a removed or replaced
+  third-party record is reported so its evidence can be updated. Particle
+  textures sit at most one folder deep (`textures/<name>.png`).
+  Templates, thumbnails and pinned tests are updated separately.
 - The same run can `replace` the Reactions and Gestures that use the
   effects (`"kind": "reaction" | "gesture"`), from a creator project file
   (`animamaActionProject/1.0`) holding the Included clip with its effect

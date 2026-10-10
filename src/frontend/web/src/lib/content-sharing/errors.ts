@@ -25,6 +25,8 @@ export class SharingError extends Error {
 const messages: Record<string, string> = {
   package_non_portable:
     "Some content comes with Animama for use only where it is installed, so it can't be exported or imported:",
+  package_dependency_missing:
+    "Some content uses an Included effect that was removed. Open it in its creator, map or remove those effect events, then export:",
   package_transport_unavailable:
     "Animama could not be reached. Check the local app and retry.",
   package_invalid:

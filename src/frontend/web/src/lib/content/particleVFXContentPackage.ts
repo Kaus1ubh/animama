@@ -4,9 +4,8 @@ import {
   validateParticleVFXContentReadiness,
   type ParticleVFXEditorCatalogDraft,
   type ParticleVFXEditorDraft,
-  type ParticleVFXShapeAutoFit,
-  type ParticleVFXTransform,
 } from "@/lib/avatar/particle-vfx";
+import { particleVFXRuntimeSlotConfig } from "@/lib/avatar/particle-vfx/runtimeConfig";
 import { readParticleVFXTextureFile } from "@/lib/avatar/particle-vfx/editor/textureFiles";
 import type { ParticleVFXEditorTextureFile } from "@/lib/avatar/particle-vfx/editor/types";
 import {
@@ -482,48 +481,9 @@ function buildAuthoringManifest(
       schema_version: 1,
       runtime_id: safeRuntimeId(catalog.id),
       slots: {
-        particle_vfx: {
-          label: catalog.label,
-          description: catalog.description,
-          anchor: catalog.defaultAnchor,
-          duration_seconds: catalog.defaultDurationSec,
-          max_duration_seconds: catalog.performanceBudget.maxDurationSec,
-          preload_tier:
-            catalog.preloadTier === "tierA"
-              ? "tier_a"
-              : catalog.preloadTier === "tierB"
-                ? "tier_b"
-                : "none",
-          follow_anchor: catalog.defaultFollowAnchor,
-          transform: transformConfig(catalog.defaultTransform),
-          looping_allowed: catalog.performanceBudget.loopingAllowed,
-          can_coexist: catalog.performanceBudget.canCoexist,
-          max_particles: catalog.performanceBudget.maxParticles,
-          ...(catalog.shapeAutoFit
-            ? { shape_auto_fit: shapeAutoFitConfig(catalog.shapeAutoFit) }
-            : {}),
-        },
+        particle_vfx: particleVFXRuntimeSlotConfig(catalog),
       },
     },
-  };
-}
-
-function transformConfig(value: ParticleVFXTransform) {
-  return {
-    offset: value.offset,
-    depth_offset: value.depthOffset,
-    rotation: value.rotation,
-    scale: value.scale,
-  };
-}
-
-function shapeAutoFitConfig(value: ParticleVFXShapeAutoFit) {
-  return {
-    kind: "avatar_bounds_rectangle",
-    ...(value.padding ? { padding: value.padding } : {}),
-    ...(value.minSize ? { min_size: value.minSize } : {}),
-    ...(value.maxSize ? { max_size: value.maxSize } : {}),
-    ...(value.emitterNames ? { emitter_names: value.emitterNames } : {}),
   };
 }
 

@@ -24,6 +24,12 @@ export {
   updateParticleVFXEditorCatalogDraft,
 } from "./draft";
 export {
+  PARTICLE_VFX_CREATOR_DOCUMENT_SCHEMA,
+  buildParticleVFXCreatorDocument,
+  readParticleVFXCreatorDocument,
+  type ParticleVFXCreatorDocument,
+} from "./creatorDocument";
+export {
   buildParticleVFXEditorExport,
   parseParticleVFXEditorExportJsonForViewer,
 } from "./export";

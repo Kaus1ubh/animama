@@ -538,6 +538,8 @@ export type ParticleVFXEditorExport = {
   assetFileName: string;
   assetPath: string;
   quarksJson: string;
+  /** The effect with its name and settings, for the creator's Import. */
+  creatorDocument: string;
   catalogEntrySnippet: string;
   clipEventSnippet: string;
 };

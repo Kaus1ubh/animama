@@ -108,7 +108,7 @@ def test_a_texture_that_is_not_an_image_is_refused(tmp_path: Path) -> None:
 
 def test_a_sprite_sheet_grid_over_the_limit_is_refused(tmp_path: Path) -> None:
     with pytest.raises(ContentValidationError, match="16 tiles"):
-        _save(_store(tmp_path), {"textures/sheet.png": _png(64, 64)}, tiles=PARTICLE_TEXTURE_LIMITS.max_grid + 1)
+        _save(_store(tmp_path), {"textures/sheet.png": _png(64, 64)}, tiles=(PARTICLE_TEXTURE_LIMITS.max_grid or 0) + 1)
 
 
 def test_package_validation_refuses_a_sprite_sheet_grid_over_the_limit() -> None:

@@ -195,6 +195,17 @@ Paths: frontend relative to `src/frontend/web/`, backend to
   - Scene: one kind-wide rule `vfx/scene/**/*.png` before `**/*`, added in P7.
   - Source-review records use the owner-authored form of the `vfx/avatar`
     records, not the CC0 or Twemoji forms.
+- **2026-10-09, owner — graceful removal (P7 step 3).** The spec's
+  pre-launch removal constraint assumed a Local Action that references a
+  removed Included effect plays without it; in fact the catalog marks it
+  invalid (`unresolved_dependency`), so it leaves chat and its creator cannot
+  open it. The owner chose to implement the spec's behaviour rather than
+  amend it: a Local Reaction or Gesture whose `builtin:` Avatar, Particle or
+  Scene Effect dependency no longer exists stays valid with a
+  `missing_effect_dependency` diagnostic, plays without those effect events,
+  opens in its creator, which reports the removed effect, and is refused by
+  Portable export until repaired. Every other unresolved dependency stays
+  invalidating.
 
 ## Gates
 
@@ -1413,9 +1424,179 @@ task branch.
 
 #### P7 record
 
+Starting source and issue: `fbb84e99`, #392.
+
+Implementation:
+
+- **Save** (`scripts/effect-save.mjs`, `effects.mjs`): each source's
+  descriptor picks its creator (`SAVE_CREATORS`). Particle sources import a
+  new creator document, `animama/particle-vfx-editor/1` (name, description,
+  settings in the stored `runtime_defaults.slots.particle_vfx` form, Quarks
+  effect; `editor/creatorDocument.ts`, offered by Export, accepted by Import
+  beside plain Quarks JSON; the slot serializer moved to
+  `particleVFXRuntimeSlotConfig` and the content package reuses it). The
+  script supplies each texture the creator reports missing (built-in textures
+  are drawn from the creator's copies) per emitter, and each Scene image
+  through the Tile input, which fills a missing image of the same name. Read
+  back compares the definition, or the settings and the Quarks manifest
+  (fetched through a content preview), after each creator's own round trip,
+  and every image or texture's digest. The Scene creator now marks itself
+  busy from the first image check, so a second pick cannot start before the
+  first lands.
+- **Promote** (`scripts/effect-promote.mjs`): `particle_effect` and
+  `scene_effect` items with add, replace and delete; Scene IDs carry their
+  lane (`background`/`focus`), a replace keeps the Scene kind; sources are
+  validated with the `effects check` lines (`particleSourceLines`,
+  `sceneImageLines`, `sceneLimitLines`, plus the runtime parse) and the art
+  with `sourceAssets`; Scene art must be PNG. D1: a per-stem owner-authored
+  Particle rule is inserted before `vfx/particle/quark/**` (removed by a
+  delete); the kind-wide `vfx/scene/**/*.png` rule is added to
+  `content/included/licenses/inventory.json` on this branch (the approved
+  licence-rule write) and required by promotion. Records use the Avatar
+  Effect form; removed or replaced third-party records are reported with
+  their evidence files. Deletes remove nested folders deepest first.
+- **Removed dependencies** (owner decision, Decision Log): the catalog keeps a
+  Local Gesture or Reaction valid when a `builtin:` Avatar, Particle or Scene
+  Effect it names no longer exists (`missing_effect_dependency`,
+  `CatalogContentEntry.missing_dependencies`, a null-target edge that is not a
+  member); typed closures, runtime closure and loadouts see only the
+  remaining dependencies; the runtime projection adds `missing_references`
+  (alias → ref, also built for creator previews) and `AnimaRuntimeCatalog`
+  skips those effect events with a warning diagnostic while undeclared
+  aliases still reject the clip; the action creator opens the Action, warns
+  which effects were removed and leaves their events unresolved for repair;
+  the Library attention list names it; Portable export refuses it
+  (`package_dependency_missing`). API client regenerated.
+- Mypy findings in earlier phases' code fixed (`_scene_range`, a P3 test).
+
+Evidence (local, uncommitted tree on `fbb84e99`):
+
+- `node --test scripts/effects.test.mjs`: 22 pass (promotion for both kinds:
+  add, replace, delete, refusals, Reaction re-pointing; save documents and
+  comparisons).
+- `ANIMAMA_EFFECT_SAVE_STACK=1 node --test scripts/effect-save.stack.test.mjs`
+  on the task stack: pass (Particle with a non-built-in texture and the
+  every-layer Scene saved, revised, refused name; its items deleted). Manual
+  `effects save` runs also saved a Particle with a built-in texture and an
+  Avatar Effect (regression).
+- `effects promote --dry-run` on saved Local Particle and Scene items lists
+  the files, the per-stem rule and the records; deliberately broken sources
+  are refused by the real validators.
+- `uv run pytest -q`: 3399 passed, 10 skipped (includes
+  `tests/test_removed_effect_dependency.py`: graceful removal, strict cases,
+  restore). `ruff check`, `ruff format --check`, `make mypy` clean.
+- `pnpm check`, `pnpm web:lint`, `pnpm -s openapi-ts:check` and
+  `pnpm -s test:source` (447 vitest files, 3424 tests, and the node and
+  browser suites) pass.
+- Browser, task stack: a Local Reaction naming a non-existent
+  `builtin:particle-effect` stays listed, opens in its creator with the
+  removed-effects warning, and the Library attention list names it with the
+  ref. Save stays disabled after an edit on this hand-written Reaction and on
+  a healthy one alike, so that is not from this change; noted for the owner.
+
 #### Code Review #1 Findings
 
+Two independent reviewers of the uncommitted tree on `fbb84e99`, split by
+scope: Save and promote (P7-R1), and graceful removal (P7-G1).
+
+- **P7-R1-1 (required).** `effect-promote.mjs` recorded copies of the
+  creator's built-in third-party textures (CC0 Kenney and Brackeys, CC-BY
+  CodeManu), which the creator's Save copies into a Local Particle Effect, as
+  owner-authored art under the per-stem rule and the AGPL record; a replace
+  could overwrite a correct third-party record (D1 covers new art only).
+- **P7-R1-2 (optional).** `effects save` expected every listed texture, but
+  the creator saves only textures the effect's images use, so an unused
+  listed texture failed only after the item was saved.
+- **P7-R1-3 (optional).** The per-kind planner ran before the validator, so an
+  Avatar source without `art` reported `image "undefined"` instead of the
+  validator's reason.
+- **P7-R1-4 (optional).** A texture nested two folders deep left an empty
+  folder after a delete, and a later add of the stem then failed.
+- **P7-R1-5 (optional).** The inserted rule's key order differed from the
+  other rules; `buildParticleVFXCreatorDocument` had no JSDoc.
+- **P7-G1-1 (required).** The removal exception also applied to Save's
+  reconcile: a new or edited Local Action naming a `builtin:` effect that
+  never existed (a typo) was accepted as valid instead of
+  `saved_content_invalid` (reproduced with a scratch Save probe).
+- **P7-G1-2 (optional).** `typedPreviewAdapters.targetForDependency` still
+  matched a removed dependency (`item_id: null`) to a same-kind item with the
+  same last key segment (a Local `local:particle-effect:<name>`), pinning the
+  alias to a different effect in the creator.
+- **P7-G1-3 (optional).** The new `removedActionEffects` JSDoc displaced the
+  `isCustomizableStarterAction` comment.
+- **P7-G1-4 (optional).** Untested strict cases: an Included Action naming a
+  removed effect; a Save refusal once P7-G1-1 is fixed.
+- **P7-G1-5 (optional).** `package_dependency_missing` was not documented
+  with the other export refusal codes; `in` on plain objects in
+  `AnimaRuntimeCatalog` (style).
+
+Verified without defect: Scene IDs and kind-keeping replaces, dependents
+checks, re-pointing, inventory/source-review round trips, write-then-delete
+order, path safety, the single D1 inventory addition (G3), CSRF via the app's
+fetch interceptor, the Scene busy change, texture reset on document import;
+edges stay non-members, export refusal covers item, Anima and Idle Style
+exports, restore, the reconcile window and SET NULL rows fall back to strict
+or transient behaviour, every other `dependencies`/`dependency_item_ids`
+consumer is safe.
+
 #### Code Review #1 Revisions
+
+- **P7-R1-1 accepted.** Promotion keeps the record and licence of reused
+  third-party art: a written file whose bytes repeat an Included file with a
+  non-owner record gets that record and, in an exact-path inventory rule ahead
+  of the effect's own rule, the terms of the rule governing the original
+  (matched like the store's `fnmatch`); exact-path rules of deleted or
+  rewritten effect files are removed; inventory notes are diffed from the
+  original rules. Owner-form copies (such as `heart.png`) keep the owner
+  record. Test: "promotion keeps the record and licence of reused third-party
+  art" (carried record and rule, notes, removal on delete).
+- **P7-R1-2 accepted.** `importDocumentFor` refuses a listed texture no image
+  uses before anything is saved (unit test).
+- **P7-R1-3 accepted.** Validation runs before the per-kind planner.
+- **P7-R1-4 accepted.** Particle textures are limited to one folder deep
+  (`textures/<name>.png`), which deepest-first deletes clear (test).
+- **P7-R1-5 accepted.** Rule keys in the inventory's order; JSDoc added.
+- **P7-G1-1 accepted.** `ContentSaveService` refuses a saved item with
+  `missing_dependencies` (`saved_content_invalid`, field `dependencies`), and
+  package import admission refuses one (`package_catalog_admission_failed`).
+  Test: "a save naming a missing effect is refused".
+- **P7-G1-2 accepted.** A typed dependency with `item_id: null` resolves to no
+  item; the adapter test adds a removed `builtin:` effect beside a same-named
+  Local one.
+- **P7-G1-3 accepted.** Comment restored to its function.
+- **P7-G1-4 accepted.** Tests for an Included Action naming a removed effect
+  (invalid) and the Save refusal. Anima and Idle Style export refusals share
+  `_selection` with the tested item export and are not separately tested.
+- **P7-G1-5 accepted.** Documented in
+  `docs/backend/features/typed-content-and-marketplace.md` and the data model;
+  `Object.hasOwn` used.
+- The reviewer's note on the disabled Save after editing a hand-written Local
+  Reaction stays an owner check (it also happens without removed effects).
+
+Evidence after the revisions: `node --test scripts/effects.test.mjs` 24 pass;
+`tests/test_removed_effect_dependency.py` 6 pass; ruff, ruff format, mypy
+clean; `pnpm check`, `pnpm web:lint`, `pnpm -s test:source` pass; the stack
+save test and a promote dry run pass.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1): every Code Review #1 finding verified
+fixed, including scratch edge cases for carried records (same-source replace
+writes nothing; a legacy third-party texture keeps its record with an exact
+rule; owner art at the same path drops the rule; mixed record forms pick the
+third-party one; no redundant rules) and a rollback probe showing a refused
+Save leaves no Local files or rows. Result: pass. Optional: the module header
+did not describe carried records (P7-R2-1); inventory notes omitted an exact
+rule whose terms changed (P7-R2-2); one `in` on a plain object in
+`actionDocumentLoader.ts`; a stale comment in `typedPreviewAdapters.ts`.
+
+#### Code Review #2 Revisions
+
+All four optional items applied (header, notes for changed rule terms,
+`Object.hasOwn`, comment). Evidence: `effects.test.mjs` 24 pass, affected
+vitest files pass, `pnpm check` passes; the full backend suite on the revised
+tree: 3401 passed, 10 skipped. Review budget used: one full review and one
+repair round; P7 review passes.
 
 ### P8 — Pipeline skills and fresh-agent dry runs (R7). Gate G2. #393
 

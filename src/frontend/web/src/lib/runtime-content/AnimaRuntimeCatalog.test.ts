@@ -714,6 +714,85 @@ describe("AnimaRuntimeCatalog", () => {
     );
   });
 
+  it("plays an Action without the effects of removed Included dependencies", async () => {
+    const reaction = runtimeEntry({
+      slot: "reaction",
+      runtimeId: "cheer",
+      kind: "anima_pose_clip",
+      config: {
+        runtime_reference_map: { ding: "opaque-sfx" },
+        runtime_missing_references: {
+          hearts: "builtin:particle-effect:hearts",
+          joy: "builtin:scene-effect:background:joy",
+        },
+      },
+    });
+    const sfx = runtimeEntry({
+      slot: "sfx",
+      runtimeId: "opaque-sfx",
+      kind: "audio",
+      role: "audio",
+    });
+    const clip = (extra: Record<string, unknown>[] = []) =>
+      poseClip({
+        events: [
+          { id: "sound", time: 0, kind: "sfx", cueId: "ding" },
+          { id: "spark", time: 0, kind: "particle_vfx", effectId: "hearts" },
+          {
+            id: "bg",
+            time: 0,
+            kind: "scene_vfx",
+            presetId: "joy",
+            sceneKind: "background_layers",
+          },
+          ...extra,
+        ],
+      });
+    let payload = clip();
+    const catalog = new AnimaRuntimeCatalog(
+      runtimeContent({ reactions: [reaction], sfx: [sfx] }),
+      {
+        fetcher: async (input) =>
+          authorizedSource(input)
+            ? new Response(JSON.stringify(payload), { status: 200 })
+            : authorizedDownload(String(input)),
+      },
+    );
+
+    const played = await catalog.loadReactionClip("cheer");
+    expect(played?.events).toEqual([
+      expect.objectContaining({ kind: "sfx", cueId: "opaque-sfx" }),
+    ]);
+    expect(catalog.diagnostics).toEqual([
+      expect.objectContaining({
+        code: "missing_effect_dependency",
+        runtimeId: "cheer",
+        message:
+          "Playing without removed effects: builtin:particle-effect:hearts, builtin:scene-effect:background:joy",
+      }),
+    ]);
+
+    // An effect alias no dependency declares still rejects the clip.
+    payload = clip([
+      { id: "other", time: 0, kind: "avatar_vfx", effectId: "undeclared" },
+    ]);
+    const strict = new AnimaRuntimeCatalog(
+      runtimeContent({ reactions: [reaction], sfx: [sfx] }),
+      {
+        fetcher: async (input) =>
+          authorizedSource(input)
+            ? new Response(JSON.stringify(payload), { status: 200 })
+            : authorizedDownload(String(input)),
+      },
+    );
+    await expect(strict.loadReactionClip("cheer")).resolves.toBeNull();
+    expect(strict.diagnostics).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: "missing_event_reference" }),
+      ]),
+    );
+  });
+
   it("keeps missing effect references playable only for an isolated Library preview", async () => {
     const clipEntry = runtimeEntry({
       slot: "pose",

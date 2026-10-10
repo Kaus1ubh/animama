@@ -7811,6 +7811,12 @@ export type PyRuntimeAction = {
      */
     intensity?: number | null;
     /**
+     * Missing References
+     */
+    missing_references?: {
+        [key: string]: string;
+    };
+    /**
      * Name
      */
     name: string;
@@ -8305,6 +8311,12 @@ export type PyRuntimeIdleGesture = {
      * Intensity
      */
     intensity?: number | null;
+    /**
+     * Missing References
+     */
+    missing_references?: {
+        [key: string]: string;
+    };
     /**
      * Name
      */
