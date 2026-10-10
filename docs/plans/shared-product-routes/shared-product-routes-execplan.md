@@ -39,7 +39,13 @@ named built stack.
   (harness and consumer), with review repairs through `5ed515b2`. The full local
   validation passed on `908e02d5`. Code Review #2 repairs are applied; the final
   targeted review #3 is pending.
-- [ ] Phase 2: thin owner-scoped routers. Not started.
+- [ ] Phase 2: thin owner-scoped routers. Implemented 2026-10-10: repository ports
+  (`940eedd2`), chats (`f1344a45`), memory (`9028884e`), settings (`846acdd5`
+  characterization, then `7a18efa6`), profile (`afa396b9`), safety (`91487685`),
+  loadouts (`6c155b42`) and runtime capabilities (`b1e6f4d2`). `33870c72` checks
+  that the package serves exactly the 45 stage-2 routes. Each family migrated its
+  tests in its own commit, so no re-export shims were needed. Phase checks and
+  Code Review #1 pending.
 - [ ] Phase 3: content routers. Not started.
 - [ ] Final integration review and PR. Not started.
 
@@ -82,6 +88,9 @@ runtime capabilities did not change between the two.
   paths are part of the public contract.
 - Route order matters: `/v1/animas/creation-options` (local-only) must match before
   `/v1/animas/{anima_id}`.
+- Implementation (2026-10-10): the generated SDK carries each handler's docstring
+  as its JSDoc, so moved handlers keep their docstrings verbatim. Loadout plan
+  routes are POSTs that never write.
 - #284 deferred P3-01 (shared package services call synchronous stage ports on the
   event loop) and P3-04 (an unused bounded speech service) to this work.
 
@@ -102,6 +111,22 @@ runtime capabilities did not change between the two.
     by `native_features`.
   - The owner-strict fix covers the Anima and Anima-settings routes. Archive, chat
     setup and speech keep their checks until their stages move.
+  - Phase 2: handlers take the owner's repositories from
+    `ProductPorts.repositories(session)`. The bundle also carries the Anima loadout
+    service, which works on the session directly.
+  - The display-name edit goes through `update_display_name`. The local ports keep
+    installation personalization (the owner's profile memory) and report first-run
+    and owner refusals as `ProductRefusal`; reads use the shared repository.
+  - Safety preferences load through the user-settings repository in the app layer;
+    the crisis table comes from `crisis_resources()`, so an operator-supplied table
+    stays the composition's choice.
+  - Loadout plans take read sessions because they never write; commits keep write
+    sessions.
+  - Runtime capabilities: the route asks `runtime_capabilities(session, principal)`.
+    The local report moved unchanged to `server/runtime_capabilities.py`; the test
+    doubles report the hosted contract.
+  - Local-app tests that need a shared route's local behaviour install the local
+    ports on their session (`install_local_ports`); the rest use `SessionPorts`.
 
 - 2026-10-09, owner: share product routes; write the ExecPlan and ADR; implement
   stages 1–3; the hosted consumer's C7 acceptance follows.
