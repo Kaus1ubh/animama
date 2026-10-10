@@ -49,7 +49,10 @@ it does not perform a fresh ElevenLabs `voices.get` call when the cache says the
 voice was recently valid.
 
 If session setup fails, `chat:sse` emits `tts.session.error` and continues
-streaming assistant text. The frontend marks TTS skipped for that run.
+streaming assistant text. The frontend marks TTS skipped for that run, except
+that a hosted `speech_allowance_exhausted` decline (on this frame or a v3
+`tts.error`) moves the run to [Pocket TTS](voice.md#elevenlabs-tts) where it is
+supported.
 
 ## Eleven v3 Finalized Streaming
 

@@ -218,6 +218,20 @@ transport) with its backend-issued short-lived token. Direct playback additional
 requires `provider_credentials: true`. Both paths fence late session/audio work,
 close audio resources on failure or teardown, and preserve text fallback.
 
+A speech error frame with `code: "speech_allowance_exhausted"` (`tts.session.error`
+for realtime sessions, `tts.error` for finalized `eleven_v3` audio, each with
+`run_id`, `provider: "elevenlabs"` and a human `error`) means the owner's monthly
+voice allowance cannot cover that reply, and no provider audio plays for it. A
+decline known before the turn precedes all reply text and no `tts.session` is
+sent for the run; one found while reserving the reply's speech may follow the
+reply text. Either must precede `run.completed`. Where Pocket TTS runs, the
+browser speaks that reply with it (the Anima's Pocket voice or the default voice)
+without a notice; preferences are unchanged and the next turn asks the server
+again. It switches only before the run plays audio or ends its speech, so a
+realtime decline must also arrive within the browser's 1.5 s session wait (from
+the turn's start) and before any speech socket failure. Otherwise, and for every
+other code, the reply's speech ends with the existing notice showing `error`.
+
 ## Static application format (A5 producer / consumer contract)
 
 Package-set format **2** retains the format-1 source/build/packages/contracts
