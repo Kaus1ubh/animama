@@ -36,7 +36,9 @@ named built stack.
 - [ ] Phase 1: foundations (package, principal move, route inventory, ports, owner
   fix, test harness). Implemented 2026-10-10 in `2e9a02ee` (inventory), `bda5ead5`
   (principal), `2110ad13` (ports), `62f95626` (owner-strict) and `5580c4ec`
-  (harness and consumer); phase checks and Code Review #1 pending.
+  (harness and consumer), with review repairs through `5ed515b2`. The full local
+  validation passed on `908e02d5`. Code Review #2 repairs are applied; the final
+  targeted review #3 is pending.
 - [ ] Phase 2: thin owner-scoped routers. Not started.
 - [ ] Phase 3: content routers. Not started.
 - [ ] Final integration review and PR. Not started.
@@ -238,8 +240,10 @@ Code Review #1 Revisions:
 - P1-02: sessions depend on the principal, and the ports receive it; tests prove no
   session opens without a principal.
 - P1-03: the double commits only when asked and documents its limits.
-- P1-04: corrected the four entries; `access` is provisional until a family moves,
-  when a test binds it to the handler's session.
+- P1-04: corrected three entries (`get_runtime_json_bundle` to `bytes`, the chat
+  and memory-file searches to `read`); `stream_anima_runtime_file` stays `bytes`.
+  `access` is provisional until a family moves; a test then binds `read` and
+  `write` to the handler's session.
 - P1-05: documented the package and consumer.
 - P1-06: runtime capabilities are shared in stage 2, behind a capabilities port.
 - O-01 to O-04 and O-07 are applied.
@@ -249,7 +253,28 @@ Code Review #1 Revisions:
 - O-08 is recorded here: a request-scoped `yield` dependency cannot depend on
   `WriteSession` (FastAPI raises `DependencyScopeError`); the write session closes
   before a streaming body runs; and a handler using both sessions opens two.
-- Repair rounds used: 1 of 2.
+- Commits: `1ab1d23e` (P1-01, P1-04, P1-06, O-01), `6e6b29de` (P1-02, P1-03, O-02,
+  O-03), `264da08d` (O-04) and `908e02d5` (P1-05, O-07, O-08).
+
+Code Review #2 Findings (targeted, at `908e02d5`):
+
+- R2-01: issue #439 did not list the runtime-capabilities family the plan added.
+- R2-02: this record claimed four corrected entries, cited no revision commits or
+  validation, and Progress still said the review was pending.
+- R2-03: the development guide still named only `animama.domain` and `animama.app`
+  as the wheel's reusable APIs.
+
+Code Review #2 Revisions:
+
+- R2-01: #439 lists runtime capabilities, behind a capabilities port.
+- R2-02: this record and Progress are corrected, with commits and validation below.
+- R2-03: the development guide names `animama.product_http` (`5ed515b2`).
+- Validation on `908e02d5`: `scripts/ci/local_validate.py --profile full` against
+  baseline `5993bbee` passed every step, including backend-full, frontend-source,
+  browser-smoke, package-build, isolated-consumers (the installed-wheel product
+  consumer among them), baseline-build and compatibility. Review checks also passed:
+  the boundary checker, ruff, mypy and the Phase 1 test files.
+- Repair rounds used: 2 of 2; the final targeted review #3 checks R2-01 to R2-03.
 
 ## Final integration review
 
