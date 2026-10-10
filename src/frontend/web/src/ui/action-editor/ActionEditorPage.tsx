@@ -927,7 +927,8 @@ export function ActionEditorPage({
           dependency.content_type === initialComponentType &&
           exactSourceKey(dependency.source) === sourceKey,
       );
-      if (!exists)
+      // Non-portable components (such as licensed sounds) are never added.
+      if (!exists && !isNonPortable(initialComponentItem.data))
         addComponent(initialComponentItem.data, initialComponentType);
       return;
     }

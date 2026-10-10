@@ -20,6 +20,7 @@ import type {
   PyContentPage,
 } from "@/lib/content/catalogTypes";
 import { typedComponentCatalogViewItem } from "@/lib/content/catalogTypes";
+import { isNonPortable } from "@/lib/content/portability";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
@@ -104,20 +105,37 @@ async function effectPage(
   kind: ActionComponentType,
   input: EffectCatalogInput,
 ): Promise<PyContentPage> {
+  return {
+    items: listedEffectRows(kind, await effectRows(apiClient, kind), input),
+    next_cursor: null,
+    query: {},
+  };
+}
+
+/** Filter and sort one family's rows for the Library and creator pickers. */
+export function listedEffectRows(
+  kind: ActionComponentType,
+  rows: PyCatalogViewItem[],
+  input: EffectCatalogInput,
+): PyCatalogViewItem[] {
   const origin = input.origin ?? "all";
   const needle = (input.query ?? "").trim().toLocaleLowerCase();
-  const rows = (await effectRows(apiClient, kind)).filter(
-    (item) =>
-      (origin === "all" ||
-        (origin === "builtin"
-          ? item.catalog_source === "included"
-          : item.catalog_source === "local")) &&
-      (!needle ||
-        item.name.toLocaleLowerCase().includes(needle) ||
-        (item.description ?? "").toLocaleLowerCase().includes(needle)),
-  );
-  rows.sort((left, right) => left.name.localeCompare(right.name));
-  return { items: rows, next_cursor: null, query: {} };
+  return rows
+    .filter(
+      (item) =>
+        // Licensed sounds play only through their built-in effects: Library
+        // and the creator pickers never list or preview them alone. A Local
+        // file with the same bytes is non-portable too, and equally hidden.
+        !(kind === "sound_effect" && isNonPortable(item)) &&
+        (origin === "all" ||
+          (origin === "builtin"
+            ? item.catalog_source === "included"
+            : item.catalog_source === "local")) &&
+        (!needle ||
+          item.name.toLocaleLowerCase().includes(needle) ||
+          (item.description ?? "").toLocaleLowerCase().includes(needle)),
+    )
+    .sort((left, right) => left.name.localeCompare(right.name));
 }
 
 function useEffectPage(

@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Gloom Lines",
   "description": "Dark blue-purple vertical gloom lines that slide down over the brow like a curtain, for deflated, disappointed or remorseful moments.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:shrink_03",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "emote",
@@ -47,7 +54,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

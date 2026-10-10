@@ -7,15 +7,22 @@ rewriting. The filesystem/catalog layers remain intentionally generic.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import struct
 from collections.abc import Iterable, Iterator, Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal
 
-from animama.domain.content_catalog import ContentDiagnostic, ContentKind, ContentSource
+from animama.domain.content_catalog import (
+    ContentDiagnostic,
+    ContentKind,
+    ContentSource,
+    ContentStatus,
+    ScannedContentEntry,
+)
 from animama.domain.content_documents import (
     ActionImplementationV1,
     AppearanceDocumentV1,
@@ -576,13 +583,84 @@ def _dependencies(raw: Mapping[str, Any], kind: ContentKind) -> tuple[ContentDep
         seen_refs.add(reference)
         alias: str | None = None
         config: dict[str, Any] = {}
+        optional = False
         if isinstance(item, dict):
             raw_alias = item.get("alias")
             if raw_alias is not None:
                 alias = _string(raw_alias, field_name="dependencies.alias", maximum=128)
             config = _object(item.get("config"), field_name="dependencies.config")
-        result.append(ContentDependencyV1(reference, dependency_kind, alias, config))
+            optional = _optional_edge(item.get("optional", False), kind=kind, dependency_kind=dependency_kind)
+        result.append(ContentDependencyV1(reference, dependency_kind, alias, config, optional))
     return tuple(result)
+
+
+# Effects whose accompanying sound may come from a private pack absent in some
+# builds; see ``resolve_optional_dependencies``.
+_OPTIONAL_SOUND_OWNERS = frozenset({ContentKind.AVATAR_EFFECT, ContentKind.SCENE_EFFECT})
+
+
+def resolve_optional_dependencies(entries: Iterable[ScannedContentEntry]) -> list[ScannedContentEntry]:
+    """Drop optional edges whose target isn't a VALID entry in ``entries``.
+
+    Run over every Included entry a build mounts (or stages), so an effect
+    whose accompanying sound lives in an absent private pack stays a plain,
+    valid effect without that sound: its effective metadata loses the edge and
+    the ``definition.soundAlias`` naming it, and its revision records the
+    omission. Downstream code then never meets an unresolved edge.
+    """
+
+    entries = list(entries)
+    available = {
+        (identity, entry.kind)
+        for entry in entries
+        if entry.status is ContentStatus.VALID
+        for identity in (entry.relative_locator, entry.logical_key)
+        if identity is not None
+    }
+    return [_without_unavailable_optional(entry, available) for entry in entries]
+
+
+def _without_unavailable_optional(
+    entry: ScannedContentEntry, available: set[tuple[str, ContentKind]]
+) -> ScannedContentEntry:
+    raw = entry.metadata.get("dependencies")
+    if entry.status is not ContentStatus.VALID or not isinstance(raw, list):
+        return entry
+    kept: list[Any] = []
+    omitted: dict[str, str] = {}
+    for item in raw:
+        reference, kind = _dependency_reference(item), _dependency_kind(item)
+        if isinstance(item, dict) and item.get("optional") is True and reference and (reference, kind) not in available:
+            omitted[reference] = item.get("alias") or reference
+        else:
+            kept.append(item)
+    if not omitted:
+        return entry
+    metadata = {**entry.metadata, "dependencies": kept}
+    definition = metadata.get("definition")
+    if isinstance(definition, dict) and definition.get("soundAlias") in omitted.values():
+        metadata["definition"] = {key: value for key, value in definition.items() if key != "soundAlias"}
+    revision = entry.revision_sha256
+    if revision is not None:
+        marker = json.dumps({"revision": revision, "optional_omitted": sorted(omitted)}, sort_keys=True)
+        revision = hashlib.sha256(marker.encode()).hexdigest()
+    return replace(
+        entry,
+        metadata=metadata,
+        dependencies=tuple(ref for ref in entry.dependencies if ref not in omitted),
+        revision_sha256=revision,
+    )
+
+
+def _optional_edge(value: Any, *, kind: ContentKind, dependency_kind: ContentKind) -> bool:
+    if not isinstance(value, bool):
+        raise ContentDocumentError("invalid_dependencies", "dependencies.optional must be a boolean")
+    if value and (kind not in _OPTIONAL_SOUND_OWNERS or dependency_kind is not ContentKind.SOUND_EFFECT):
+        raise ContentDocumentError(
+            "dependency_optional_not_allowed",
+            "Only an Avatar or Scene Effect's Sound Effect dependency can be optional",
+        )
+    return value
 
 
 def _action_implementation(raw: Mapping[str, Any], *, default_kind: str) -> ActionImplementationV1:
@@ -995,6 +1073,7 @@ class ContentTypeHandler:
                     "content_type": item.kind.value,
                     **({"alias": item.alias} if item.alias else {}),
                     **({"config": item.config} if item.config else {}),
+                    **({"optional": True} if item.optional else {}),
                 }
                 for item in document.dependencies
             ]

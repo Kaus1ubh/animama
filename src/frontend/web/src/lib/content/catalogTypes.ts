@@ -402,6 +402,7 @@ export function typedComponentCatalogViewItem(
         ? particleThumbnailSource(item.files ?? [], item.revision_sha256)
         : undefined,
     editable: item.editable,
+    portability: item.portability,
     metadata,
     created_at: null,
     updated_at: null,

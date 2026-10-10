@@ -42,6 +42,8 @@ function dependenciesFromPreview(
       const support = supports.get(String(runtimeId));
       const source = support?.source;
       const contentType = support?.content_type;
+      // A licensed built-in sound stays with built-in content.
+      if (isNonPortable(support)) return [];
       return source &&
         typeof source === "object" &&
         [

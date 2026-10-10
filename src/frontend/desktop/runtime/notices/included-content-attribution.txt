@@ -10,6 +10,15 @@ Source and terms:
 https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html
 https://wwwimages2.adobe.com/content/dam/cc/en/legal/servicetou/Mixamo-Addl-Terms-en_US-20210623.pdf
 
+WOW Sound: Anime Comedy Sound Effects Pack
+Builds that include the comedy sound pack contain sound effects by WOW Sound
+(https://wowsound.com), licensed to the Animama project owner under the Media
+license. They play with the built-in Avatar Effects only: they are not offered
+as reusable files, cannot be exported, copied or used in your own content, and
+grant no redistribution rights. Do not use them to create, train, test, or
+improve machine-learning systems.
+Terms: https://wowsound.com/terms/
+
 Twemoji graphics 14.0.2
 Copyright 2020 Twitter, Inc and other contributors.
 Graphics licensed under Creative Commons Attribution 4.0 International.

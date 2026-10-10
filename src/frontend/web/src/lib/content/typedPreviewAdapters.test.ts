@@ -381,6 +381,7 @@ describe("typed preview adapters", () => {
           duration_seconds: 1,
           codec: "audio/mpeg",
           defaults: { volume: 0.5 },
+          portability: "non-portable",
           files: [
             {
               file_ref: "audio-ref",
@@ -430,6 +431,7 @@ describe("typed preview adapters", () => {
             type: "catalog",
             catalog_item_id: "sound-item",
           },
+          portability: "non-portable",
         },
       ],
       reference_map: { Bright_Idea: "bright-idea" },
@@ -437,6 +439,7 @@ describe("typed preview adapters", () => {
         {
           runtime_id: "bright-idea",
           content_type: "sound_effect",
+          portability: "non-portable",
           files: [{ file_ref: "audio-ref" }],
         },
       ],

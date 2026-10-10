@@ -60,7 +60,9 @@ def test_included_effects_not_redrawn_are_the_converted_golden_definition() -> N
     }
     assert sorted(kept) == ["eye_0", "texture_black_1", "texture_sick_1", "texture_sick_2"]
     for stem, definition in kept.items():
-        assert definition == golden[stem], stem
+        # The licensed sound was attached after conversion (issue #399).
+        converted = {key: value for key, value in definition.items() if key != "soundAlias"}
+        assert converted == golden[stem], stem
 
 
 @pytest.mark.parametrize(

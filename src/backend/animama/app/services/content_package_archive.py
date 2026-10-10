@@ -438,6 +438,9 @@ class ContentPackageArchive:
             (edge.ref, edge.content_type) for edge in entry.dependencies
         }:
             raise ContentConflictError("package_dependency_manifest_mismatch")
+        if any(edge.optional for edge in document.dependencies):
+            # Optional sounds exist only in built-in effects; export never writes them.
+            raise ContentConflictError("package_optional_dependency", items=(entry.display_name,))
         return InspectedPackageEntry(document, item, files, root)
 
     @staticmethod

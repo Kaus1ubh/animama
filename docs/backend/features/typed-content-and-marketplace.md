@@ -234,15 +234,18 @@ facts accompany the independent editable copies.
 
 [Non-portable](../architecture/local-content-storage.md) items never enter a
 package. Content export refuses a non-portable root, and any non-portable item
-reached other than through an Idle Style pool, with `package_non_portable` and
-the item names in `detail.items`. A portable Idle Style that pools non-portable
-Gestures exports without them: their references, and any pool they empty, are
-removed. An Anima export likewise omits non-portable Gesture and Idle Style
+reached other than through an Idle Style pool or an effect's optional sound,
+with `package_non_portable` and the item names in `detail.items`. A portable
+Idle Style that pools non-portable Gestures exports without them: their
+references, and any pool they empty, are removed. A built-in effect exports
+without its optional non-portable sound: the edge and the `soundAlias` naming it
+are removed, kept optional edges are written as ordinary edges, and no reference
+is recorded. An Anima export likewise omits non-portable Gesture and Idle Style
 bindings, explicit or implicit starter choices. Any other non-portable binding
 (for example an Avatar) blocks the export. The summary lists omitted items
-(`omitted`), and the manifest's `non_portable_references` record each one's kind,
-logical key, name and uses, with the `animama/non-portable-references/1`
-capability. Packages without references omit the field and stay readable by
+(`omitted`), and the manifest's `non_portable_references` record each omitted
+Gesture or Idle Style's kind, logical key, name and uses, with the
+`animama/non-portable-references/1` capability. Packages without references omit the field and stay readable by
 earlier versions.
 
 On import, the review lists each reference as `rebound` when this installation
@@ -253,6 +256,15 @@ no Idle Style. Import and typed save reject any file whose SHA-256 matches a
 non-portable payload (`package_non_portable`, `content_non_portable`) without
 echoing its contents. Matching files added to the Local folder by hand are
 scanned as non-portable instead.
+
+Local content never uses optional edges or non-portable Sound Effects. Catalog
+reconciliation marks such Local items invalid (`dependency_optional_not_allowed`,
+`non_portable_dependency`), so typed save fails with
+`content_optional_dependency` or `content_non_portable_dependency` and rolls
+back, and package inspection refuses an entry that declares an optional edge
+(`package_optional_dependency`). Import gives every entry a fresh Local
+identity, so an imported copy of a built-in effect is a Local effect without
+the licensed sound, even where this installation has the pack.
 
 ### Actions that use a removed Included effect
 

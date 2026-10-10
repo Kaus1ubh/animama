@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Mouth Hover w",
   "description": "Floating w-mouth hover for bubbly amusement, squealing joy, or playful excitement.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:bouncy_bubble_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "mouth",
@@ -22,7 +29,8 @@
     },
     "faceOptions": {
       "skinBackdrop": true
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

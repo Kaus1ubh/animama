@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Angry",
   "description": "Comic anger glyph that sharpens irritated, disapproving, or combative reactions.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:anger_explode_03",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "emote",
@@ -49,7 +56,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Blush Band",
   "description": "A shy pink blush band across both cheeks and the nose for sheepish embarrassment.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:cute_chirpy_06",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "blush",
@@ -29,7 +36,8 @@
     },
     "appearance": {
       "opacity": 0.75
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

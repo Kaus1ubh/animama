@@ -63,7 +63,9 @@ From `src/frontend`, the candidate sequence is:
 
 ```sh
 pnpm desktop:mixamo-motion fetch
-ANIMAMA_REQUIRE_MIXAMO_MOTION=1 pnpm desktop:runtime:stage -- --platform darwin --arch arm64
+pnpm desktop:private-pack --pack wow-comedy-sfx fetch
+ANIMAMA_REQUIRE_MIXAMO_MOTION=1 ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1 \
+  pnpm desktop:runtime:stage -- --platform darwin --arch arm64
 pnpm desktop:runtime:audit -- --platform darwin --arch arm64
 pnpm desktop:dist:mac
 ```
@@ -71,9 +73,11 @@ pnpm desktop:dist:mac
 `fetch` needs the read-only [Mixamo-motion pack](../../backend/operations/mixamo-motion-pack.md)
 credentials in the environment; the release workflow reads
 `ANIMAMA_R2_ACCOUNT_ID` and the `ANIMAMA_MIXAMO_R2_*` read secrets from the
-`desktop-macos-signing` environment. `ANIMAMA_REQUIRE_MIXAMO_MOTION=1` makes the
-stage fail without the verified pack, so a candidate cannot silently ship
-without it.
+`desktop-macos-signing` environment. The
+[comedy sound pack](../../backend/operations/comedy-sound-pack.md) uses the same
+bucket and read-only token under its own prefix. `ANIMAMA_REQUIRE_MIXAMO_MOTION=1`
+and `ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1` make the stage fail without the verified
+packs, so a candidate cannot silently ship without them.
 
 The signed helper and reviewed pack/core inputs must already be configured.
 Public visibility and release-repository API availability are not candidate build
@@ -175,7 +179,9 @@ the exact commit, with the same `ANIMAMA_RELEASE_DISTRIBUTION` throughout:
 
 ```powershell
 pnpm desktop:mixamo-motion fetch
+pnpm desktop:private-pack --pack wow-comedy-sfx fetch
 $env:ANIMAMA_REQUIRE_MIXAMO_MOTION = "1"
+$env:ANIMAMA_REQUIRE_WOW_COMEDY_SFX = "1"
 pnpm desktop:runtime:stage -- --platform win32 --arch x64
 pnpm desktop:runtime:audit -- --platform win32 --arch x64
 pnpm desktop:dist:windows
