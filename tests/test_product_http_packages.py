@@ -2,12 +2,16 @@
 
 from __future__ import annotations
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from dataclasses import dataclass, field
 from pathlib import Path
 from uuid import uuid4
 
 from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.product_http.routes import packages
 from tests.product_http_support import DeferredCommitPorts, TwoOwnerComposition, product_app
@@ -40,12 +44,18 @@ async def test_an_owner_never_reaches_another_owners_exports_or_import_stages(
 
         async with composition.client(owner_b) as b:
             # Another owner's item is refused like any item the caller cannot select.
-            foreign = await b.post(f"{EXPORTS}:summary", json={"item_ids": [item.id]})
-            assert (foreign.status_code, foreign.json()) == (409, {"detail": {"code": "package_root_invalid"}})
+            for path, body in (
+                (f"{EXPORTS}:summary", {"item_ids": [item.id]}),
+                (EXPORTS, {"item_ids": [item.id], "expected_digest": summary["digest"]}),
+            ):
+                foreign = await b.post(path, json=body)
+                assert (foreign.status_code, foreign.json()) == (409, {"detail": {"code": "package_root_invalid"}})
             assert (await b.get(f"{EXPORTS}/{export_id}/file")).status_code == 404
             assert (await b.get(stage)).status_code == 404
             assert (await b.put(f"{stage}/parts/0", content=archive)).status_code == 404
             assert (await b.post(f"{stage}/review")).status_code == 404
+            commit = {"operation_id": "import-a", "review_digest": "0" * 64}
+            assert (await b.post(f"{stage}/commit", json=commit)).status_code == 404
             unknown = await b.get("/v1/content/package-operations/import-a")
             assert unknown.json()["state"] == "not_found"
             # Discards address only the caller's own stages.
@@ -70,3 +80,36 @@ async def test_an_owner_never_reaches_another_owners_exports_or_import_stages(
         async with async_session_factory() as session:
             await session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.owner_user_id == owner_a))
             await session.commit()
+
+
+@dataclass
+class ExitRecordingPorts(DeferredCommitPorts):
+    """Records how each write session ended."""
+
+    exits: list[str] = field(default_factory=list)
+
+    @asynccontextmanager
+    async def write_session(self, principal: RequestPrincipal) -> AsyncIterator[AsyncSession]:
+        try:
+            async with super().write_session(principal) as session:
+                yield session
+        except BaseException:
+            self.exits.append("failed")
+            raise
+        self.exits.append("completed")
+
+
+async def test_a_failed_package_request_ends_its_write_session_with_the_failure(
+    async_session_factory: async_sessionmaker[AsyncSession], tmp_path: Path
+) -> None:
+    ports = ExitRecordingPorts(async_session_factory, content_root=tmp_path)
+    composition = TwoOwnerComposition(
+        product_app(packages.router, ports=ports), tmp_path, owners=("owner-a", "owner-b")
+    )
+    async with composition.client("owner-a") as a:
+        refused = await a.post(
+            f"{IMPORTS}/missing-stage/commit", json={"operation_id": "op", "review_digest": "0" * 64}
+        )
+    # The public error is unchanged, and the composition can tell the request failed.
+    assert (refused.status_code, refused.json()) == (404, {"detail": {"code": "package_stage_unavailable"}})
+    assert ports.exits == ["failed"]

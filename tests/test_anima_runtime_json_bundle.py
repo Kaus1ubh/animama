@@ -21,6 +21,7 @@ from animama.app.services.anima_runtime_service import RuntimeFileAuthorization,
 from animama.domain.content_catalog import ContentSource
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.runtime_json_bundle import select_runtime_json_members
+from animama.product_http.delivery import encoded_json_response
 from animama.product_http.ports import install_product_ports
 from animama.product_http.principal import get_current_principal
 from animama.product_http.routes import anima_runtime
@@ -150,6 +151,10 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
         @asynccontextmanager
         async def content(self, session: Any, principal: RequestPrincipal) -> AsyncIterator[Any]:
             yield SimpleNamespace(runtime=Runtime(session), store=self.store)
+
+        async def json_response(self, request: Any, body: bytes, **options: Any) -> Any:
+            # The local delivery policy.
+            return await encoded_json_response(body, **options)
 
     original_open = FilesystemContentStore.open_verified_file
 

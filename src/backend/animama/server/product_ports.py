@@ -8,7 +8,6 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import SQLAlchemyAnimaPackageSourceRepository
 from animama.adapters.repositories.sqlalchemy.avatar_face_part_override_repo import (
@@ -23,12 +22,14 @@ from animama.app.services.anima_package_source_service import AnimaPackageSource
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.app.services.avatar_face_parts_service import AvatarFacePartsService
 from animama.app.services.content_catalog_service import ContentCatalogService
+from animama.app.services.content_package_export import DownloadLease
 from animama.app.services.content_package_service import ContentPackageService
+from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.content_save_service import ContentSaveService
 from animama.app.services.typed_content_service import TypedContentService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.delivery import verified_file_response
+from animama.product_http.delivery import PackageDownloadResponse, encoded_json_response, verified_file_response
 from animama.product_http.ports import ProductContent, ProductPolicy, ProductRefusal
 from animama.server.companion_safety import runtime_crisis_resources
 from animama.server.config import Settings
@@ -39,28 +40,27 @@ from animama.server.installation_personalization import (
     InstallationPersonalizationService,
     InstallationPrincipalMismatchError,
 )
-from animama.server.local_runtime import LocalRuntimePaths
+from animama.server.local_runtime import LocalRuntimePaths, local_content_store
 from animama.server.runtime_capabilities import local_runtime_capabilities, runtime_settings_for
 
 
-def local_product_content(session: AsyncSession, paths: LocalRuntimePaths, settings: Settings) -> ProductContent:
-    """Build the local content services over ``session`` and existing runtime paths.
+def local_product_content(
+    session: AsyncSession, paths: LocalRuntimePaths, settings: Settings, stages: PackageStageService
+) -> ProductContent:
+    """Build the local content services over ``session``, existing runtime paths and ``stages``.
 
-    Nothing here creates directories: startup prepared ``paths``.
+    Nothing here touches the filesystem: startup prepared ``paths``, and the caller
+    reuses one package-stage coordinator rather than building one per request.
     """
 
-    store = FilesystemContentStore(
-        included_root=paths.included_root,
-        included_sources=paths.included_sources,
-        local_root=paths.local_root,
-        operations_root=paths.operations_root,
-    )
+    store = local_content_store(paths)
     catalog = SQLAlchemyContentCatalog(session)
     content = ContentCatalogService(store=store, catalog=catalog)
     saves = ContentSaveService(content=content)
     overrides = SQLAlchemyAvatarFacePartOverrideRepository(session)
     packages = ContentPackageService(
         content=content,
+        stages=stages,
         exports_root=paths.exports_staging_root,
         imports_root=paths.imports_staging_root,
         anima_sources=AnimaPackageSourceService(
@@ -104,6 +104,17 @@ class LocalProductPorts:
 
     def __init__(self, app: FastAPI) -> None:
         self._app = app
+        self._stages: tuple[LocalRuntimePaths, PackageStageService] | None = None
+
+    def _package_stages(self, paths: LocalRuntimePaths) -> PackageStageService:
+        # Building a coordinator ensures its roots exist, so build one per runtime
+        # layout rather than per request.
+        if self._stages is None or self._stages[0] is not paths:
+            self._stages = (
+                paths,
+                PackageStageService(imports_root=paths.imports_staging_root, exports_root=paths.exports_staging_root),
+            )
+        return self._stages[1]
 
     @property
     def policy(self) -> ProductPolicy:
@@ -127,12 +138,29 @@ class LocalProductPorts:
         paths = getattr(self._app.state, "local_runtime_paths", None)
         if not isinstance(paths, LocalRuntimePaths):
             raise HTTPException(status_code=503, detail={"code": "content_unavailable"})
-        yield local_product_content(session, paths, runtime_settings_for(self._app))
+        yield local_product_content(session, paths, runtime_settings_for(self._app), self._package_stages(paths))
 
     def file_response(
         self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool
     ) -> Response:
         return local_file_response(file, if_none_match=if_none_match, revalidate=revalidate)
+
+    async def json_response(
+        self,
+        request: Request,
+        body: bytes,
+        *,
+        encoding: str,
+        headers: dict[str, str],
+        if_none_match: str | None,
+        cacheable: bool,
+    ) -> Response:
+        return await encoded_json_response(
+            body, encoding=encoding, headers=headers, if_none_match=if_none_match, cacheable=cacheable
+        )
+
+    def download_response(self, request: Request, download: DownloadLease) -> Response:
+        return PackageDownloadResponse(download)
 
     async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
         # The installation owner's name also personalizes its memory files.

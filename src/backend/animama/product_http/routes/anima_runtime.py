@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-import gzip
-import hashlib
 import json
 from typing import Annotated, NoReturn
 
@@ -47,45 +45,6 @@ def _manifest_encoding(accept_encoding: str) -> str:
     raise HTTPException(status_code=406, detail={"code": "runtime_encoding_not_acceptable"})
 
 
-async def _manifest_response(runtime: PyAnimaRuntime, response: Response, encoding: str) -> Response:
-    """Serialize once, compress off the event loop, and validate the actual wire representation."""
-    body = runtime.model_dump_json(by_alias=True).encode("utf-8")
-    # Manifest issuance must always return a fresh lease, even with If-None-Match.
-    return await _json_response(body, encoding=encoding, headers=dict(response.headers))
-
-
-async def _json_response(
-    body: bytes,
-    *,
-    encoding: str,
-    headers: dict[str, str],
-    if_none_match: str | None = None,
-    cacheable: bool = True,
-) -> Response:
-    """Encode bounded JSON with wire validators; callers establish authorization first."""
-    if encoding == "gzip":
-        body = await asyncio.to_thread(gzip.compress, body, compresslevel=6, mtime=0)
-        headers["content-encoding"] = "gzip"
-    vary = [value.strip() for value in headers.get("vary", "").split(",") if value.strip()]
-    if not any(value.lower() in {"accept-encoding", "*"} for value in vary):
-        vary.append("Accept-Encoding")
-    headers.update(
-        {
-            "vary": ", ".join(vary),
-            "cache-control": "private, no-cache" if cacheable else "no-store",
-            "etag": f'"{hashlib.sha256(body).hexdigest()}"',
-            "content-length": str(len(body)),
-        }
-    )
-    headers["x-content-type-options"] = "nosniff"
-    if cacheable and if_none_match == headers["etag"]:
-        headers.pop("content-length")
-        return Response(status_code=304, headers=headers)
-    if not cacheable:
-        headers.pop("etag")
-    return Response(body, media_type="application/json", headers=headers)
-
-
 def _raise_runtime(exc: RuntimeSnapshotError) -> NoReturn:
     status_code = 404 if exc.code in {"anima_not_found", "runtime_file_not_found"} else 409
     raise HTTPException(status_code=status_code, detail={"code": exc.code}) from exc
@@ -98,6 +57,7 @@ async def get_anima_runtime(
     anima_id: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     content: WriteContent,
+    ports: Ports,
 ) -> Response:
     """Compile and issue the exact current Content Catalog mount."""
 
@@ -106,7 +66,11 @@ async def get_anima_runtime(
         runtime = await content.runtime.issue(user_id=user.id, anima_id=anima_id)
     except RuntimeSnapshotError as exc:
         _raise_runtime(exc)
-    return await _manifest_response(PyAnimaRuntime.model_validate(runtime), response, encoding)
+    body = PyAnimaRuntime.model_validate(runtime).model_dump_json(by_alias=True).encode("utf-8")
+    # Manifest issuance must always return a fresh lease, even with If-None-Match.
+    return await ports.json_response(
+        request, body, encoding=encoding, headers=dict(response.headers), if_none_match=None, cacheable=True
+    )
 
 
 @router.post(
@@ -139,6 +103,7 @@ async def get_runtime_json_bundle(
     revision: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     content: WriteContent,
+    ports: Ports,
     if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
 ) -> Response:
     """Revalidate every selected file before returning a bundle or its conditional 304."""
@@ -153,7 +118,8 @@ async def get_runtime_json_bundle(
     except RuntimeSnapshotError as exc:
         _raise_runtime(exc)
     body = json.dumps(bundle, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
-    return await _json_response(
+    return await ports.json_response(
+        request,
         body,
         encoding=encoding,
         headers={},
@@ -198,8 +164,10 @@ async def stream_anima_runtime_file(
     except (ContentIntegrityError, ContentPathError, OSError) as exc:
         if source is not None and relative_path is not None:
             # The member changed on disk: record it for rescan in a write session of its own.
-            async with ports.write_session(user) as session, ports.content(session, user) as writable:
-                await writable.catalog.mark_scan_required(source=source, relative_paths=(relative_path,))
+            async with ports.write_session(user) as session:
+                await ports.repositories(session).content_catalog.mark_scan_required(
+                    source=source, relative_paths=(relative_path,)
+                )
                 await session.commit()
         raise HTTPException(
             status_code=409,

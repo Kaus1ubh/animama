@@ -37,6 +37,7 @@ from animama.app.services.anima_loadout_service import AnimaLoadoutService
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.app.services.avatar_face_parts_service import AvatarFacePartsService
 from animama.app.services.content_catalog_service import ContentCatalogService
+from animama.app.services.content_package_export import DownloadLease
 from animama.app.services.content_package_service import ContentPackageService
 from animama.app.services.content_save_service import ContentSaveService
 from animama.app.services.typed_content_service import TypedContentService
@@ -137,8 +138,8 @@ class ProductPorts(Protocol):
     """The composition-owned collaborators of shared product handlers.
 
     Shared dependencies call the synchronous members (``policy``, ``repositories``,
-    ``content``, ``file_response``, ``crisis_resources`` and
-    ``user_settings_changed``) on the event loop, so they must not block.
+    ``content``, ``file_response``, ``download_response``, ``crisis_resources``
+    and ``user_settings_changed``) on the event loop, so they must not block.
     """
 
     @property
@@ -168,8 +169,9 @@ class ProductPorts(Protocol):
     ) -> AbstractAsyncContextManager[ProductContent]:
         """Content services for ``principal`` over a session this composition opened.
 
-        The context stays open until the response ends, so streamed bytes remain
-        readable; a composition releases its content resources on exit.
+        Through ``ReadContent`` the context stays open until the response ends, so
+        streamed bytes remain readable; ``WriteContent`` ends it with its write
+        session. A composition releases its content resources on exit.
         """
         ...
 
@@ -181,6 +183,27 @@ class ProductPorts(Protocol):
         ``revalidate`` marks bytes a client may keep and revalidate by ETag; other
         bytes must not be stored. The response owns ``file`` and closes its handle.
         """
+        ...
+
+    async def json_response(
+        self,
+        request: Request,
+        body: bytes,
+        *,
+        encoding: str,
+        headers: dict[str, str],
+        if_none_match: str | None,
+        cacheable: bool,
+    ) -> Response:
+        """Deliver private runtime JSON under this composition's caching policy.
+
+        ``encoding`` is the negotiated ``gzip`` or ``identity``; ``cacheable`` marks a
+        body a client may keep and revalidate by ETag.
+        """
+        ...
+
+    def download_response(self, request: Request, download: DownloadLease) -> Response:
+        """Deliver a sealed package archive; the response owns and releases ``download``."""
         ...
 
     async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:

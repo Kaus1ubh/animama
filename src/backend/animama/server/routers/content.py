@@ -15,7 +15,7 @@ from animama.app.services.content_transition_service import ContentTransitionSer
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import WriteContent, WriteSession
 from animama.product_http.routes.content import catalog_response
-from animama.server.local_runtime import LocalRuntimePaths
+from animama.server.local_runtime import LocalRuntimePaths, local_content_store
 from animama.server.schemas.content import (
     PyContentRescan,
     PyContentScanSummary,
@@ -35,13 +35,7 @@ def _paths(request: Request) -> LocalRuntimePaths:
 
 
 def _store(request: Request) -> FilesystemContentStore:
-    paths = _paths(request)
-    return FilesystemContentStore(
-        included_root=paths.included_root,
-        included_sources=paths.included_sources,
-        local_root=paths.local_root,
-        operations_root=paths.operations_root,
-    )
+    return local_content_store(_paths(request))
 
 
 @router.post(":rescan", response_model=PyContentRescan)

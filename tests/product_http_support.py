@@ -24,11 +24,13 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
+from animama.app.services.content_package_export import DownloadLease
+from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.user_profile_service import UserProfileService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfilePatch
-from animama.product_http.delivery import verified_file_response
+from animama.product_http.delivery import PackageDownloadResponse, encoded_json_response, verified_file_response
 from animama.product_http.ports import ProductContent, ProductPolicy, ProductPorts, install_product_ports
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
@@ -73,7 +75,7 @@ class DoubleCollaborators:
     """The non-session collaborators both port doubles share.
 
     Content comes from a separate local tree per owner under ``content_root``, as a
-    consumer keeps each owner's bytes apart; bytes are never stored by clients.
+    consumer keeps each owner's bytes apart; clients never store its bytes or JSON.
     """
 
     settings_changes: list[str]
@@ -85,12 +87,29 @@ class DoubleCollaborators:
             raise AssertionError("pass content_root to serve content routes")
         root = self.content_root / principal.id
         settings = Settings(animama_content_root=root / "content", animama_data_root=root / "data")
-        yield local_product_content(session, initialize_local_runtime(settings), settings)
+        paths = initialize_local_runtime(settings)
+        stages = PackageStageService(imports_root=paths.imports_staging_root, exports_root=paths.exports_staging_root)
+        yield local_product_content(session, paths, settings, stages)
 
     def file_response(
         self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool
     ) -> Response:
         return verified_file_response(file, if_none_match=if_none_match, cache_control="private, no-store")
+
+    async def json_response(
+        self,
+        request: Request,
+        body: bytes,
+        *,
+        encoding: str,
+        headers: dict[str, str],
+        if_none_match: str | None,
+        cacheable: bool,
+    ) -> Response:
+        return await encoded_json_response(body, encoding=encoding, headers=headers, cacheable=False)
+
+    def download_response(self, request: Request, download: DownloadLease) -> Response:
+        return PackageDownloadResponse(download)
 
     def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
         return SQLAlchemyProductRepositories(session)

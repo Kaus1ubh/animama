@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 from pathlib import Path
 from uuid import uuid4
 
@@ -10,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.product_http.routes import typed_content
+from tests.anima_creation_service_support import image_bytes, vrm
 from tests.content_package_helpers import vrma
 from tests.product_http_support import DeferredCommitPorts, TwoOwnerComposition, product_app
 
@@ -55,7 +57,6 @@ async def test_an_owner_never_reaches_another_owners_typed_content(
             assert (unresolved["complete"], unresolved["roots"]) == (False, [])
             prepared = (await b.post("/v1/content/previews:prepare", json=previews(item))).json()
             assert (prepared["roots"], prepared["lease"]) == ([], None)
-            assert (await b.get(f"/v1/avatar-content/{item_id}/face-parts")).status_code == 404
         assert ports.commits == commits_before
 
         async with composition.client(owner_a) as a:
@@ -67,6 +68,79 @@ async def test_an_owner_never_reaches_another_owners_typed_content(
             assert (await a.post("/v1/content/previews:prepare", json=previews(item))).json()["lease"] is not None
         # Each issued preview committed through the composition.
         assert ports.commits == commits_before + 2
+    finally:
+        async with async_session_factory() as session:
+            await session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.owner_user_id == owner_a))
+            await session.commit()
+
+
+async def test_avatar_face_parts_portraits_and_saves_stay_with_their_owner(
+    async_session_factory: async_sessionmaker[AsyncSession], tmp_path: Path
+) -> None:
+    ports = DeferredCommitPorts(async_session_factory, content_root=tmp_path)
+    owner_a, owner_b = f"owner-a-{uuid4().hex[:8]}", f"owner-b-{uuid4().hex[:8]}"
+    app = product_app(typed_content.router, ports=ports)
+    composition = TwoOwnerComposition(app, tmp_path, owners=(owner_a, owner_b))
+    model_bytes = vrm("Owner A")
+    model = ("model.vrm", model_bytes, "model/gltf-binary")
+    try:
+        async with composition.client(owner_a) as a:
+            avatar = await a.put(
+                "/v1/avatar-content/Model", data={"operation_id": "save-avatar"}, files={"files": model}
+            )
+            assert avatar.status_code == 200, avatar.text
+            gesture = await a.put(
+                "/v1/gestures/Wave",
+                data={"operation_id": "save-wave"},
+                files={"files": ("wave.vrma", vrma("Wave A"), "model/gltf-binary")},
+            )
+            assert gesture.status_code == 200, gesture.text
+        avatar_id, avatar_revision = avatar.json()["item_id"], avatar.json()["revision_sha256"]
+        faces = f"/v1/avatar-content/{avatar_id}/face-parts"
+        portrait = f"/v1/avatar-content/{avatar_id}/portrait"
+        portrait_form = {"entry_name": "Portrait", "expected_avatar_revision": avatar_revision}
+        portrait_file = {"file": ("portrait.webp", image_bytes(portrait=True, format="WEBP"), "image/webp")}
+        correction = {
+            "expected_revision": avatar_revision,
+            "face_parts": {
+                "schema": "animama/avatar-face-parts/1",
+                "vrm_sha256": hashlib.sha256(model_bytes).hexdigest(),
+                "parts": {"face_skin": ["0:0:0"], "eye_left": ["0:0:0"], "eye_right": ["0:0:0"]},
+            },
+        }
+        commits_before = ports.commits
+
+        async with composition.client(owner_b) as b:
+            assert (await b.get(faces)).status_code == 404
+            assert (await b.put(faces, json=correction)).status_code == 404
+            stolen = await b.put(portrait, data={**portrait_form, "operation_id": "portrait-b"}, files=portrait_file)
+            assert stolen.status_code == 404, stolen.text
+            # A save naming another owner's item replaces nothing.
+            overwrite = await b.put(
+                "/v1/gestures/Wave",
+                data={
+                    "operation_id": "overwrite-b",
+                    "catalog_item_id": gesture.json()["item_id"],
+                    "expected_revision": gesture.json()["revision_sha256"],
+                },
+                files={"files": ("wave.vrma", vrma("Wave B"), "model/gltf-binary")},
+            )
+            assert overwrite.status_code == 404, overwrite.text
+        assert ports.commits == commits_before
+
+        async with composition.client(owner_a) as a:
+            assert (await a.get(faces)).status_code == 200
+            saved = await a.put(portrait, data={**portrait_form, "operation_id": "portrait-a"}, files=portrait_file)
+            assert saved.status_code == 200, saved.text
+            portrait_commits = ports.commits
+            assert portrait_commits > commits_before
+            corrected = await a.put(faces, json=correction)
+            assert corrected.status_code == 200, corrected.text
+            assert (await a.get(f"/v1/gestures/{gesture.json()['item_id']}")).json()["revision_sha256"] == (
+                gesture.json()["revision_sha256"]
+            )
+        # The portrait and the face-part save each committed through the composition.
+        assert ports.commits > portrait_commits
     finally:
         async with async_session_factory() as session:
             await session.execute(delete(ORMContentCatalogItem).where(ORMContentCatalogItem.owner_user_id == owner_a))

@@ -31,7 +31,7 @@ from animama.product_http.routes.content import router
 from animama.product_http.routes.loadouts import router as anima_loadout_router
 from animama.product_http.routes.typed_content import router as typed_content_router
 from animama.server.config import Settings
-from animama.server.deps import get_async_session, get_current_principal
+from animama.server.deps import get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.schemas.content import PyContentPreview
 from tests.local_http_client import local_client
@@ -154,11 +154,7 @@ async def test_preview_freezes_exact_owner_scoped_file_facts(async_session, tmp_
     async def override_user() -> RequestPrincipal:
         return RequestPrincipal(id=current_user["id"])
 
-    async def override_session():  # noqa: ANN202
-        yield async_session
-
     app.dependency_overrides[get_current_principal] = override_user
-    app.dependency_overrides[get_async_session] = override_session
     install_local_ports(app, async_session)
     client = local_client(app)
     try:
@@ -247,11 +243,7 @@ async def test_equip_selects_a_logical_catalog_item_for_the_next_loadout_revisio
     async def override_user() -> RequestPrincipal:
         return RequestPrincipal(id="owner-equip")
 
-    async def override_session():  # noqa: ANN202
-        yield async_session
-
     app.dependency_overrides[get_current_principal] = override_user
-    app.dependency_overrides[get_async_session] = override_session
     install_local_ports(app, async_session)
     client = local_client(app)
     try:

@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import io
-from collections.abc import AsyncIterator
+import shutil
+from collections.abc import AsyncIterator, MutableMapping
 from contextlib import asynccontextmanager
 from pathlib import Path
 from types import SimpleNamespace
@@ -20,6 +22,7 @@ from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.delivery import PackageDownloadResponse
 from animama.product_http.ports import (
     ProductPolicy,
     ReadContent,
@@ -99,6 +102,21 @@ class RecordingPorts:
     def file_response(
         self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool
     ) -> Response:
+        raise NotImplementedError
+
+    async def json_response(
+        self,
+        request: Request,
+        body: bytes,
+        *,
+        encoding: str,
+        headers: dict[str, str],
+        if_none_match: str | None,
+        cacheable: bool,
+    ) -> Response:
+        raise NotImplementedError
+
+    def download_response(self, request: Request, download: Any) -> Response:
         raise NotImplementedError
 
     async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
@@ -296,3 +314,56 @@ def test_local_files_are_revalidated_or_never_stored() -> None:
 
     never_stored = local_file_response(verified(b"abc"), if_none_match=None, revalidate=False)
     assert never_stored.headers["cache-control"] == "private, no-store"
+
+
+def test_content_requests_never_recreate_the_staging_directories(tmp_path: Path) -> None:
+    app = session_probe_app()
+    app.state.session_factory = MagicMock()
+    app.state.runtime_settings = Settings(
+        animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data"
+    )
+    paths = initialize_local_runtime(app.state.runtime_settings)
+    app.state.local_runtime_paths = paths
+    install_product_ports(app, LocalProductPorts(app))
+
+    @app.get("/content")
+    async def read(content: ReadContent) -> dict[str, str]:
+        return {"store": type(content.store).__name__}
+
+    with TestClient(app) as client:
+        assert client.get("/content").status_code == 200
+        shutil.rmtree(paths.data_staging_root)
+        assert client.get("/content").status_code == 200
+    # One package-stage coordinator serves every request; none recreated its roots.
+    assert not paths.data_staging_root.exists()
+
+
+async def test_a_download_releases_its_lease_before_the_last_chunk_is_sent() -> None:
+    events: list[str] = []
+    archive = b"z" * (1024 * 1024 + 7)
+
+    class Download:
+        handle = io.BytesIO(archive)
+        review = SimpleNamespace(filename="wave.zip", size_bytes=len(archive), package_sha256="0" * 64)
+
+        def close(self, *, reclaimable: bool = False) -> None:
+            events.append(f"release reclaimable={reclaimable}")
+
+    async def receive() -> MutableMapping[str, Any]:
+        # The client never disconnects; the response stops listening when it ends.
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+    async def send(message: MutableMapping[str, Any]) -> None:
+        if message["type"] == "http.response.body":
+            events.append(f"body {len(message.get('body', b''))} more={message.get('more_body', False)}")
+
+    response = PackageDownloadResponse(Download())  # type: ignore[arg-type]
+    await response({"type": "http", "method": "GET", "path": "/"}, receive, send)
+    # The lease is released, once, before the client can receive the last byte.
+    assert events == [
+        "body 1048576 more=True",
+        "release reclaimable=True",
+        "body 7 more=True",
+        "body 0 more=False",
+    ]

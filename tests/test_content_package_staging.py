@@ -357,3 +357,19 @@ def test_particular_archive_expansion_still_rejects_insufficient_disk_and_config
             with lease.expansion():
                 pytest.fail("the configured expansion ceiling remains enforced")
         assert not lease.inspection_path.exists()
+
+
+def test_one_owner_never_reaches_another_owners_stage_on_shared_roots(tmp_path: Path) -> None:
+    stages = PackageStageService(tmp_path / "imports", tmp_path / "exports")
+    record = stages.create_import(user_id="owner-a", operation_id="op-a", filename="a.zip", expected_bytes=10)
+    for attempt in (
+        lambda: stages.status("owner-b", record.stage_id),
+        lambda: stages.acquire("owner-b", record.stage_id),
+        lambda: stages.discard("owner-b", record.stage_id),
+    ):
+        with pytest.raises(ContentConflictError) as refused:
+            attempt()
+        assert refused.value.code == "package_stage_unavailable"
+    assert stages.find_import("owner-b", "op-a") is None
+    # Owner a's stage is untouched.
+    assert stages.status("owner-a", record.stage_id)[0].stage_id == record.stage_id

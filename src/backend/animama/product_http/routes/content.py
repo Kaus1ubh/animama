@@ -20,7 +20,7 @@ from animama.domain.content_catalog import (
 )
 from animama.domain.content_documents import ContentDocumentError
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.ports import Ports, ReadContent, WriteContent
+from animama.product_http.ports import Ports, ReadContent, ReadRepositories, WriteContent
 from animama.product_http.principal import get_current_principal
 
 router = APIRouter(prefix="/v1/content", tags=["content"])
@@ -100,11 +100,11 @@ async def list_content_catalog(
 async def get_content_item(
     item_id: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    content: ReadContent,
+    repositories: ReadRepositories,
 ) -> PyContentItem:
     """Return one visible neutral catalog item by its opaque identity."""
 
-    item = await content.catalog.mutations.catalog.get_visible_item(item_id=item_id, user_id=user.id)
+    item = await repositories.content_catalog.get_visible_item(item_id=item_id, user_id=user.id)
     if item is None or item.kind in RETIRED_CONTENT_KINDS:
         raise HTTPException(status_code=404, detail={"code": "content_not_found"})
     return PyContentItem.from_domain(item)

@@ -5,8 +5,12 @@ from __future__ import annotations
 from pathlib import Path
 from uuid import uuid4
 
+from sqlalchemy import delete
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
+from animama.domain import ModelProvider
+from animama.orm import ORMModelProvider
 from animama.product_http.routes import animas
 from tests.product_http_support import DeferredCommitPorts, TwoOwnerComposition, product_app
 from tests.typed_loadout_support import cleanup_loadout_fixture, create_loadout_fixture
@@ -17,8 +21,19 @@ NOT_FOUND = (404, {"detail": "Anima not found"})
 async def test_an_owner_never_reaches_another_owners_animas(
     async_session_factory: async_sessionmaker[AsyncSession], tmp_path: Path
 ) -> None:
+    model = f"model-{uuid4().hex[:8]}"
+    provider = ModelProvider(
+        id=f"Provider:{model}",
+        provider_type="Provider",
+        model=model,
+        model_label=model,
+        provider_label="Provider",
+        active=True,
+    )
     async with async_session_factory() as session:
         fixture = await create_loadout_fixture(session)
+        await SQLAlchemyModelProviderRepository(session).upsert_many([provider])
+        await session.commit()
     ports = DeferredCommitPorts(async_session_factory)
     owner, other = fixture.user_id, f"owner-b-{uuid4().hex[:8]}"
     composition = TwoOwnerComposition(product_app(animas.router, ports=ports), tmp_path, owners=(owner, other))
@@ -47,11 +62,16 @@ async def test_an_owner_never_reaches_another_owners_animas(
                 },
             )
             assert renamed.status_code == 200, renamed.text
+            chosen = await a.patch(f"{base}/chat-profile", json={"default_model_provider_id": provider.id})
+            assert chosen.json()["chat_profile"]["default_model_provider_id"] == provider.id
             assert (await a.put(f"{base}/emotional-state", json={})).status_code == 200
             assert (await a.delete(base)).status_code == 204
             assert (await a.get(base)).status_code == 404
-        # The rename, the emotional state and the delete each committed through the composition.
-        assert ports.commits == 3
+        # The rename, the chat model, the emotional state and the delete each committed
+        # through the composition.
+        assert ports.commits == 4
     finally:
         async with async_session_factory() as session:
             await cleanup_loadout_fixture(session, fixture)
+            await session.execute(delete(ORMModelProvider).where(ORMModelProvider.id == provider.id))
+            await session.commit()

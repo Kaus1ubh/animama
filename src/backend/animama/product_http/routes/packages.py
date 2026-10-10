@@ -4,17 +4,14 @@ from __future__ import annotations
 
 import asyncio
 import errno
-from collections.abc import AsyncIterator, Callable, Coroutine, Iterator
+from collections.abc import AsyncIterator, Callable, Coroutine
 from contextlib import asynccontextmanager
 from tempfile import TemporaryFile
 from typing import Annotated, Any, BinaryIO, cast
-from urllib.parse import quote
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.exceptions import RequestValidationError
-from fastapi.responses import JSONResponse, StreamingResponse
 from fastapi.routing import APIRoute
-from starlette.types import Receive, Scope, Send
 
 from animama.app.contracts.content_package_import import (
     PackageImportResult,
@@ -32,7 +29,7 @@ from animama.app.contracts.content_package_staging import PartAck, StageRecord
 from animama.app.ports.content_package_staging import PackageStageLease, PackageStages
 from animama.app.services.avatar_effect_conversion import CONVERSION_REQUIRED, PACKAGE_CONVERSION_HINT
 from animama.app.services.clip_format import CLIP_FORMAT_UNSUPPORTED, PACKAGE_CLIP_FORMAT_HINT
-from animama.app.services.content_package_export import DownloadLease, ExportReview, ExportSummary
+from animama.app.services.content_package_export import ExportReview, ExportSummary
 from animama.app.services.local_content_mutations import _finish_owned_work
 from animama.app.services.typed_content_service import TypedContentAdmissionError
 from animama.domain.anima_definition import AnimaDefinitionError
@@ -46,14 +43,18 @@ from animama.domain.content_catalog import (
 from animama.domain.content_documents import ContentDocumentError
 from animama.domain.request_principal import RequestPrincipal
 from animama.logging import get_logger
-from animama.product_http.ports import ReadContent, WriteContent
+from animama.product_http.ports import Ports, ReadContent, WriteContent
 from animama.product_http.principal import get_current_principal
 
 _log = get_logger("product_http.packages")
 
 
 class PackageRoute(APIRoute):
-    """Keep submitted metadata and private filesystem errors out of error responses."""
+    """Keep submitted metadata and private filesystem errors out of error responses.
+
+    Failures are raised as HTTP errors rather than returned, so they pass through the
+    request's write session and its composition sees the failure.
+    """
 
     def get_route_handler(self) -> Callable[[Request], Coroutine[Any, Any, Response]]:
         original = super().get_route_handler()
@@ -63,10 +64,10 @@ class PackageRoute(APIRoute):
                 return await original(request)
             except HTTPException:
                 raise
-            except RequestValidationError:
-                return JSONResponse(status_code=422, content={"detail": {"code": "package_request_invalid"}})
-            except ContentNotFoundError:
-                return JSONResponse(status_code=404, content={"detail": {"code": "package_not_found"}})
+            except RequestValidationError as exc:
+                raise HTTPException(status_code=422, detail={"code": "package_request_invalid"}) from exc
+            except ContentNotFoundError as exc:
+                raise HTTPException(status_code=404, detail={"code": "package_not_found"}) from exc
             except (
                 ContentConflictError,
                 ContentDocumentError,
@@ -89,18 +90,18 @@ class PackageRoute(APIRoute):
                     detail["message"] = PACKAGE_CONVERSION_HINT
                 elif code == CLIP_FORMAT_UNSUPPORTED:
                     detail["message"] = PACKAGE_CLIP_FORMAT_HINT
-                return JSONResponse(status_code=status, content={"detail": detail})
-            except (ContentIntegrityError, ContentPathError, ContentValidationError, ValueError):
-                return JSONResponse(status_code=422, content={"detail": {"code": "package_invalid"}})
+                raise HTTPException(status_code=status, detail=detail) from exc
+            except (ContentIntegrityError, ContentPathError, ContentValidationError, ValueError) as exc:
+                raise HTTPException(status_code=422, detail={"code": "package_invalid"}) from exc
             except OSError as exc:
                 full = exc.errno in {errno.ENOSPC, errno.EDQUOT}
-                return JSONResponse(
+                raise HTTPException(
                     status_code=507 if full else 503,
-                    content={"detail": {"code": "package_disk_full" if full else "package_storage_unavailable"}},
-                )
+                    detail={"code": "package_disk_full" if full else "package_storage_unavailable"},
+                ) from exc
             except Exception as exc:
                 _log.error("Package operation could not be confirmed", error_type=type(exc).__name__)
-                return JSONResponse(status_code=503, content={"detail": {"code": "package_operation_unknown"}})
+                raise HTTPException(status_code=503, detail={"code": "package_operation_unknown"}) from exc
 
         return handler
 
@@ -164,44 +165,12 @@ async def prepare_package_export(req: PackageExportRequest, user: Owner, content
     )
 
 
-class _PackageDownloadResponse(StreamingResponse):
-    """Close the opened file and OS lease even if response startup/disconnect fails."""
-
-    def __init__(self, download: DownloadLease) -> None:
-        self._download = download
-
-        def chunks() -> Iterator[bytes]:
-            while chunk := download.handle.read(1024 * 1024):
-                yield chunk
-
-        review = download.review
-        super().__init__(
-            chunks(),
-            media_type="application/zip",
-            headers={
-                "Content-Disposition": f"attachment; filename*=utf-8''{quote(review.filename, safe='')}",
-                "Content-Length": str(review.size_bytes),
-                "X-Content-SHA256": review.package_sha256,
-                "Cache-Control": "private, no-store",
-                "X-Content-Type-Options": "nosniff",
-            },
-        )
-
-    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
-        try:
-            await super().__call__(scope, receive, send)
-        finally:
-            # Completion/cancellation ends the response lease, not proof of a
-            # successful user save. Preserve retry bytes until quota needs them.
-            # Release synchronously, before this loop serves another request: a
-            # client may discard the export as soon as it has the last byte.
-            self._download.close(reclaimable=True)
-
-
 @router.get("/package-exports/{export_id}/file")
-async def download_package_export(export_id: str, user: Owner, content: ReadContent) -> Response:
+async def download_package_export(
+    export_id: str, request: Request, user: Owner, content: ReadContent, ports: Ports
+) -> Response:
     download = await content.packages.exports.download(user_id=user.id, export_id=export_id)
-    return _PackageDownloadResponse(download)
+    return ports.download_response(request, download)
 
 
 @router.delete("/package-exports/{export_id}", status_code=204)
