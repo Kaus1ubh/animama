@@ -31,3 +31,106 @@
     opacity: calc(var(--scene-vfx-focus-line-opacity, 1) * 0.45);
   }
 }
+
+/* C2: a tile layer drifts one tile per cycle. */
+@keyframes scene-vfx-tile-drift {
+  from {
+    background-position: 0 0;
+  }
+  to {
+    background-position: var(--scene-vfx-tile-x, 0px)
+      var(--scene-vfx-tile-y, 0px);
+  }
+}
+
+/* C3 rays and C5 spinning items. */
+@keyframes scene-vfx-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* C3: rays throb. */
+@keyframes scene-vfx-throb {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.08);
+  }
+}
+
+/* C3: lines sway from the top edge. */
+@keyframes scene-vfx-sway {
+  from {
+    transform: rotate(-1.2deg);
+  }
+  to {
+    transform: rotate(1.2deg);
+  }
+}
+
+/* C4: a scattered item drifts along its track. */
+@keyframes scene-vfx-drift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(
+      var(--scene-vfx-drift-x, 0px),
+      var(--scene-vfx-drift-y, 0px),
+      0
+    );
+  }
+}
+
+/* C5: item pulses. */
+@keyframes scene-vfx-twinkle {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.25;
+  }
+}
+
+@keyframes scene-vfx-pop {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.25);
+  }
+}
+
+@keyframes scene-vfx-flicker {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  20% {
+    opacity: 0.2;
+  }
+  25% {
+    opacity: 1;
+  }
+  60% {
+    opacity: 0.5;
+  }
+  65% {
+    opacity: 1;
+  }
+}
+
+/* C6: the entry flash fades out once. */
+@keyframes scene-vfx-flash {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}

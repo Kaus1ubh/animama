@@ -142,11 +142,145 @@ export type ResolvedSceneBackgroundMarqueeLayer = Omit<
   items: ResolvedSceneBackgroundLineItem[];
 };
 
+export const SCENE_BACKGROUND_GRADIENT_TYPES = ["linear", "radial"] as const;
+export type SceneBackgroundGradientType =
+  (typeof SCENE_BACKGROUND_GRADIENT_TYPES)[number];
+
+export type SceneBackgroundGradientStop = {
+  color: string;
+  /** 0 at the start (or centre), 1 at the end (or edge). */
+  position: number;
+};
+
+/** C1: a linear or radial gradient over the solid fill. */
+export type SceneBackgroundGradientLayer = {
+  enabled: boolean;
+  type: SceneBackgroundGradientType;
+  /** Linear only: the CSS gradient angle (0 runs bottom to top). */
+  angleDeg: number;
+  /** Radial only: the centre, as fractions of the view. */
+  centerX: number;
+  centerY: number;
+  stops: SceneBackgroundGradientStop[];
+};
+
+/** C2: one image repeated over the view, drifting in a marquee direction. */
+export type SceneBackgroundTileLayer = {
+  enabled: boolean;
+  /** The image URL (a stored definition names the image instead). */
+  src: string;
+  size: number;
+  opacity: number;
+  direction: SceneBackgroundDirection;
+  speedPxPerSec: number;
+};
+
+export const SCENE_BACKGROUND_SCREEN_KINDS = ["rays", "lines"] as const;
+export type SceneBackgroundScreenKind =
+  (typeof SCENE_BACKGROUND_SCREEN_KINDS)[number];
+
+/** C3: rays radiating from a centre, optionally turning and throbbing. */
+export type SceneBackgroundRaysScreen = {
+  enabled: boolean;
+  kind: "rays";
+  color: string;
+  opacity: number;
+  count: number;
+  centerX: number;
+  centerY: number;
+  /** A spiky starburst instead of separate wedges. */
+  spiky: boolean;
+  /** Seconds per turn; 0 is still, negative turns counter-clockwise. */
+  turnSeconds: number;
+  /** Throbs (scale pulses) per second; 0 is none. */
+  throbPerSec: number;
+  seed: number;
+};
+
+/** C3: lines hanging from the top edge (1 is full height), optionally swaying. */
+export type SceneBackgroundLinesScreen = {
+  enabled: boolean;
+  kind: "lines";
+  color: string;
+  opacity: number;
+  count: number;
+  minLength: number;
+  maxLength: number;
+  minWidthPx: number;
+  maxWidthPx: number;
+  /** Seconds per sway; 0 is still. */
+  swaySeconds: number;
+  seed: number;
+};
+
+export type SceneBackgroundScreenLayer =
+  | SceneBackgroundRaysScreen
+  | SceneBackgroundLinesScreen;
+
+export const SCENE_BACKGROUND_SCATTER_PULSES = [
+  "none",
+  "twinkle",
+  "pop",
+  "flicker",
+] as const;
+export type SceneBackgroundScatterPulse =
+  (typeof SCENE_BACKGROUND_SCATTER_PULSES)[number];
+
+/**
+ * C4 and C5: items scattered over the view with per-item size, rotation and
+ * opacity, drifting, spinning and pulsing. The seed fixes every placement and
+ * variation, so a Scene looks the same wherever it plays.
+ */
+export type SceneBackgroundScatterLayer = {
+  enabled: boolean;
+  items: SceneBackgroundLineItem[];
+  count: number;
+  seed: number;
+  minSize: number;
+  maxSize: number;
+  minRotationDeg: number;
+  maxRotationDeg: number;
+  minOpacity: number;
+  maxOpacity: number;
+  /** Where items start, as fractions of the view height. */
+  regionTop: number;
+  regionBottom: number;
+  /** Keep items out of the column behind the head. */
+  keepFaceClear: boolean;
+  direction: SceneBackgroundDirection;
+  speedPxPerSec: number;
+  minSpinDegPerSec: number;
+  maxSpinDegPerSec: number;
+  /** Every other item spins the other way. */
+  alternateSpin: boolean;
+  pulse: SceneBackgroundScatterPulse;
+};
+
+export type ResolvedSceneBackgroundScatterLayer = Omit<
+  SceneBackgroundScatterLayer,
+  "items"
+> & {
+  items: ResolvedSceneBackgroundLineItem[];
+};
+
+/** C6: one fade from a colour when the Scene starts. */
+export type SceneBackgroundFlashLayer = {
+  enabled: boolean;
+  color: string;
+  durationMs: number;
+};
+
 export type SceneBackgroundLayersVFXEntry = SceneVFXBaseEntry & {
   kind: "background_layers";
   solid: SceneBackgroundSolidLayer;
   pattern: SceneBackgroundPatternLayer;
   marquee: SceneBackgroundMarqueeLayer;
+  /** Optional layers (an absent one is off), drawn in this order. */
+  gradient?: SceneBackgroundGradientLayer;
+  tile?: SceneBackgroundTileLayer;
+  screen?: SceneBackgroundScreenLayer;
+  scatters?: SceneBackgroundScatterLayer[];
+  flash?: SceneBackgroundFlashLayer;
 };
 
 export type SceneNormalizedRect = {
@@ -209,10 +343,11 @@ export type ResolvedSceneVFXBaseEntry = Omit<
 
 export type ResolvedSceneBackgroundLayersVFXEntry = Omit<
   SceneBackgroundLayersVFXEntry,
-  "durationMs" | "coverUiOverlays" | "dismissOnInput" | "marquee"
+  "durationMs" | "coverUiOverlays" | "dismissOnInput" | "marquee" | "scatters"
 > &
   ResolvedSceneVFXBaseEntry & {
     marquee: ResolvedSceneBackgroundMarqueeLayer;
+    scatters?: ResolvedSceneBackgroundScatterLayer[];
   };
 
 export type ResolvedSceneFocusLinesVFXEntry = Omit<

@@ -85,12 +85,15 @@ The explicit allowlist selects `accountless-library`, `accountless-journeys`,
 `accountless-numeric-input`, `accountless-creator-discard(-local)`,
 `accountless-effect-template-picker`,
 `accountless-avatar-effect-direct-manipulation`,
-`accountless-creator-generated-gesture` and
-`accountless-particle-texture-import` specs. They cover Library, companion
+`accountless-creator-generated-gesture`,
+`accountless-particle-texture-import` and `accountless-scene-layers` specs.
+They cover Library, companion
 selection, chat Stop/recovery, creator JSON import/preview, Save/reload revision
 integrity, package sharing, the Effects template picker and template drafts,
 Avatar Effect direct manipulation and face-part correction, Particle texture
-import through recovery, Save, reopen and packages, responsive access to
+import through recovery, Save, reopen and packages, the optional Scene layers
+through the creator, Save, reopen, the preview dock and packages, responsive
+access to
 review and recovery controls, and `animaPoseClip/2.0` creator round trips (a
 generated Gesture retimed, posed, saved and reopened with its detail; 1.0
 Gestures and Reactions saved as 2.0).

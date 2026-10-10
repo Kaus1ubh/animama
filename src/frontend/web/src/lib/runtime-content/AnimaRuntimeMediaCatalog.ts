@@ -28,6 +28,7 @@ import { sceneEntryFromDefinition } from "@/lib/scene-vfx/sceneDefinition";
 import type { SceneVFXEntry, SceneVFXKind } from "@/lib/scene-vfx/types";
 import {
   PARTICLE_TEXTURE_LIMITS,
+  SCENE_IMAGE_LIMITS,
   inspectEffectArt,
 } from "@/lib/effects/effectArtLimits";
 import { createLogger } from "@/lib/logger";
@@ -720,6 +721,9 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
     );
     if (packageBytes > MAX_SCENE_EFFECT_BYTES)
       throw new Error("scene_vfx_package_limit");
+    // The shared Scene image limits, as Save and import apply them.
+    if (Object.keys(logicalResourceUrls).length > SCENE_IMAGE_LIMITS.count)
+      throw new Error("scene_vfx_image_limit");
     this.reservePrivateBytes(packageBytes);
     const createdUrls: string[] = [];
     try {
@@ -741,6 +745,14 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
           },
           "effect",
         );
+        // Raster art is checked from its header before anything decodes it;
+        // SVG art is checked for bytes (its content is validated at Save).
+        if (
+          blob.size > SCENE_IMAGE_LIMITS.bytes ||
+          (file.content_type !== "image/svg+xml" &&
+            !(await inspectEffectArt(blob, SCENE_IMAGE_LIMITS)).ok)
+        )
+          throw new Error("scene_vfx_image_limit");
         const objectUrl = this.ownedObjectUrl(blob);
         createdUrls.push(objectUrl);
         objectUrlByLogicalName.set(logicalName, objectUrl);

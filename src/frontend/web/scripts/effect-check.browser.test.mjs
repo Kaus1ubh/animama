@@ -275,3 +275,97 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+// Each optional Scene layer (C1–C6) alone, drawn as the chat draws it, is
+// visible on both Avatars; the entry flash only while it fades.
+test("effects check sees each optional Scene layer on its own", async () => {
+  const dir = await mkdtemp(
+    path.join(tmpdir(), "animama-effect-check-layers-"),
+  );
+  try {
+    const allLayers = JSON.parse(
+      await readFile(
+        new URL(
+          "../src/lib/content/fixtures/scene-effect-all-layers.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
+    const base = {
+      ...allLayers,
+      solid: { ...allLayers.solid, enabled: false },
+      pattern: { ...allLayers.pattern, enabled: false },
+    };
+    delete base.gradient;
+    delete base.tile;
+    delete base.screen;
+    delete base.scatters;
+    delete base.flash;
+    const linesScreen = {
+      enabled: true,
+      kind: "lines",
+      color: "#1d2a40",
+      opacity: 0.8,
+      count: 40,
+      minLength: 0.3,
+      maxLength: 0.9,
+      minWidthPx: 2,
+      maxWidthPx: 4,
+      swaySeconds: 5,
+      seed: 5,
+    };
+    const variants = {
+      gradient: { gradient: allLayers.gradient },
+      tile: { tile: allLayers.tile },
+      rays: { screen: allLayers.screen },
+      lines: { screen: linesScreen },
+      scatter: { scatters: [allLayers.scatters[0]] },
+      flash: { flash: { ...allLayers.flash, durationMs: 2000 } },
+    };
+    const sources = [];
+    for (const [stem, layers] of Object.entries(variants)) {
+      const folder = path.join(dir, stem);
+      await mkdir(folder, { recursive: true });
+      await writeFile(path.join(folder, "petal.png"), await disc(255));
+      await writeFile(path.join(folder, "bokeh.png"), await disc(160));
+      await writeFile(
+        path.join(folder, `${stem}.json`),
+        JSON.stringify({
+          schema_version: 1,
+          content_type: "scene_effect",
+          name: stem,
+          definition: { ...base, ...layers },
+          files: [
+            ...(layers.scatters ? [{ path: "petal.png", role: "image" }] : []),
+            ...(layers.tile ? [{ path: "bokeh.png", role: "image" }] : []),
+          ],
+        }),
+      );
+      sources.push(await resolveAnyEffectSource(folder));
+    }
+    const results = await checkEffects({
+      effects: sources,
+      times: [0.1, 1],
+      views: ["front"],
+      tile: { width: 96, height: 120 },
+    });
+    for (const result of results) {
+      const lines = JSON.stringify(result.lines);
+      assert.deepEqual(
+        result.lines.filter((line) => line.level === "FAIL"),
+        [],
+        `${result.stem}: ${lines}`,
+      );
+      assert.equal(
+        result.lines.filter((line) =>
+          /visible in [12] of 2 frames/.test(line.message),
+        ).length,
+        2,
+        `${result.stem}: ${lines}`,
+      );
+    }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

@@ -1,9 +1,10 @@
-"""Admission limits for Particle Effect textures.
+"""Admission limits for Particle Effect textures and Scene Effect images.
 
-Textures arrive from creator Saves, Local folders and Portable packages, and the
-browser decodes and uploads them to the GPU, so every path checks them against
-the shared limits (``app/contracts/effect_art_limits.py``). Only image headers
-are read here; nothing is decoded in full.
+Textures and Scene art arrive from creator Saves, Local folders and Portable
+packages, and the browser decodes them (and uploads textures to the GPU), so
+every path checks them against the shared limits
+(``app/contracts/effect_art_limits.py``). Only image headers are read here;
+nothing is decoded in full.
 """
 
 from __future__ import annotations
@@ -16,11 +17,12 @@ from typing import Any
 
 from PIL import Image, UnidentifiedImageError
 
-from animama.app.contracts.effect_art_limits import PARTICLE_TEXTURE_LIMITS, EffectArtLimits
+from animama.app.contracts.effect_art_limits import PARTICLE_TEXTURE_LIMITS, SCENE_IMAGE_LIMITS, EffectArtLimits
 from animama.domain.content_catalog import ContentDiagnostic
-from animama.domain.content_documents import ParticleEffectDocumentV1
+from animama.domain.content_documents import ParticleEffectDocumentV1, SceneEffectDocumentV1
 
 PARTICLE_TEXTURE_LIMIT = "particle_texture_limit"
+SCENE_IMAGE_LIMIT = "scene_image_limit"
 _IMAGE_FORMATS = frozenset({"PNG", "JPEG", "WEBP"})
 _MIB = 1024 * 1024
 
@@ -59,10 +61,10 @@ def particle_grid_issue(manifest: Any) -> str | None:
     return None
 
 
-def _image_issue(path: Path, limits: EffectArtLimits) -> str | None:
+def _image_issue(path: Path, limits: EffectArtLimits, *, noun: str = "Textures") -> str | None:
     size = path.stat().st_size
     if size > limits.max_bytes:
-        return f"Texture files must be at most {limits.max_bytes // _MIB} MiB"
+        return f"{noun} must be at most {limits.max_bytes // _MIB} MiB"
     try:
         with warnings.catch_warnings():
             warnings.simplefilter("error", Image.DecompressionBombWarning)
@@ -71,13 +73,13 @@ def _image_issue(path: Path, limits: EffectArtLimits) -> str | None:
                 width, height = image.size
     except (Image.DecompressionBombError, Image.DecompressionBombWarning):
         # Pillow refuses huge declared sizes before reading them.
-        return f"Textures must be at most {limits.max_dimension} px on each side"
+        return f"{noun} must be at most {limits.max_dimension} px on each side"
     except (UnidentifiedImageError, OSError, ValueError):
-        return "Texture files must be PNG, JPEG or WebP images"
+        return f"{noun} must be PNG, JPEG or WebP images"
     if image_format not in _IMAGE_FORMATS:
-        return "Texture files must be PNG, JPEG or WebP images"
+        return f"{noun} must be PNG, JPEG or WebP images"
     if max(width, height) > limits.max_dimension or width * height > limits.max_pixels:
-        return f"Textures must be at most {limits.max_dimension} px on each side"
+        return f"{noun} must be at most {limits.max_dimension} px on each side"
     return None
 
 
@@ -95,6 +97,44 @@ def _manifest_paths(document: ParticleEffectDocumentV1, files: Mapping[str, Path
     if document.files:
         return [file.path for file in document.files if file.role == "manifest" and file.path in files]
     return [relative for relative in files if PurePosixPath(relative).suffix.lower() == ".json"]
+
+
+def validate_scene_image_files(
+    document: SceneEffectDocumentV1, files: Mapping[str, Path]
+) -> tuple[ContentDiagnostic, ...]:
+    """Check a Scene Effect's images against the limits.
+
+    Every companion except JSON and text notes counts. SVG art is checked for
+    bytes here and for content by the SVG validator; raster art also for its
+    format and size.
+    """
+
+    limits = SCENE_IMAGE_LIMITS
+    diagnostics: list[ContentDiagnostic] = []
+    images = _texture_paths(files)
+    if len(images) > limits.max_count:
+        diagnostics.append(
+            ContentDiagnostic(SCENE_IMAGE_LIMIT, f"A Scene Effect can carry at most {limits.max_count} images")
+        )
+    total = 0
+    for relative in images:
+        path = files[relative]
+        size = path.stat().st_size
+        total += size
+        if PurePosixPath(relative).suffix.lower() == ".svg":
+            issue = f"Scene images must be at most {limits.max_bytes // _MIB} MiB" if size > limits.max_bytes else None
+        else:
+            issue = _image_issue(path, limits, noun="Scene images")
+        if issue:
+            diagnostics.append(ContentDiagnostic(SCENE_IMAGE_LIMIT, issue, relative))
+    if total > limits.max_total_bytes:
+        diagnostics.append(
+            ContentDiagnostic(
+                SCENE_IMAGE_LIMIT,
+                f"Images in one Scene Effect must total at most {limits.max_total_bytes // _MIB} MiB",
+            )
+        )
+    return tuple(diagnostics)
 
 
 def validate_particle_texture_files(

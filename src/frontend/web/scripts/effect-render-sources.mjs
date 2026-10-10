@@ -544,8 +544,37 @@ async function loadParticleDescriptor(descriptorPath, descriptor, contentId) {
 }
 
 /**
+ * The logical image names a Scene definition shows, with the layer that shows
+ * each: marquee and scatter items and the tile. Scene review checks hold a
+ * tile to the `scene-tile` budget and items to `scene-sticker`.
+ */
+export function sceneDefinitionImageUses(definition) {
+  const uses = [];
+  const items = (list, layer) => {
+    for (const item of Array.isArray(list) ? list : [])
+      if (item?.kind === "image" && typeof item.image === "string")
+        uses.push({ image: item.image, layer });
+  };
+  items(definition?.marquee?.items, "marquee");
+  for (const scatter of Array.isArray(definition?.scatters)
+    ? definition.scatters
+    : [])
+    items(scatter?.items, "scatter");
+  if (typeof definition?.tile?.image === "string")
+    uses.push({ image: definition.tile.image, layer: "tile" });
+  return uses;
+}
+
+/** The distinct logical image names a Scene definition shows. */
+function sceneDefinitionImages(definition) {
+  return [
+    ...new Set(sceneDefinitionImageUses(definition).map((use) => use.image)),
+  ];
+}
+
+/**
  * A Scene Effect descriptor's `animama/scene-effect/1` definition and the
- * image files its items name, each inside the descriptor's folder.
+ * image files its layers show, each inside the descriptor's folder.
  */
 async function loadSceneDescriptor(descriptorPath, descriptor) {
   const definition = descriptor?.definition;
@@ -554,17 +583,13 @@ async function loadSceneDescriptor(descriptorPath, descriptor) {
       `${descriptorPath} has no animama/scene-effect/1 definition.`,
     );
   const folder = await realpath(path.dirname(descriptorPath));
-  const items = Array.isArray(definition.marquee?.items)
-    ? definition.marquee.items
-    : [];
   const imagePaths = {};
   let bytes = 0;
-  for (const item of items) {
-    if (item?.kind !== "image" || typeof item.image !== "string") continue;
-    if (imagePaths[item.image]) continue;
-    const file = await containedFile(folder, item.image, "Scene image");
+  for (const image of sceneDefinitionImages(definition)) {
+    if (imagePaths[image]) continue;
+    const file = await containedFile(folder, image, "Scene image");
     bytes += (await stat(file)).size;
-    imagePaths[item.image] = file;
+    imagePaths[image] = file;
   }
   if (bytes > MAX_SCENE_EFFECT_BYTES)
     throw new EffectSourceError(

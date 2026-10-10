@@ -83,7 +83,8 @@ function clampRectToViewport(
   };
 }
 
-function createMulberry32(seed: number) {
+/** Deterministic random numbers in [0, 1) from a seed (mulberry32). */
+export function createMulberry32(seed: number) {
   let state = seed >>> 0;
   return () => {
     state += 0x6d2b79f5;

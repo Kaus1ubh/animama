@@ -15,6 +15,7 @@ import {
   sourceRoots,
   withRendererPage,
 } from "./effect-render.mjs";
+import { sceneDefinitionImageUses } from "./effect-render-sources.mjs";
 
 /**
  * `pnpm -s effects check`: the checks an Avatar, Particle or Scene Effect
@@ -144,16 +145,23 @@ async function sourceAssets(effect) {
       }),
     );
   }
-  if (effect.kind === "scene")
-    return checkFiles(
-      Object.values(effect.imagePaths)
-        // The restricted SVG art is checked by the backend, not the scripts.
-        .filter((file) => file.toLowerCase().endsWith(".png"))
-        .map((file) => ({
-          file,
-          budget: { name: "scene-sticker", ...BUDGETS["scene-sticker"] },
-        })),
+  if (effect.kind === "scene") {
+    // A tile is held to the tile budget, every other image to the sticker's.
+    const tiles = new Set(
+      sceneDefinitionImageUses(effect.definition)
+        .filter((use) => use.layer === "tile")
+        .map((use) => use.image),
     );
+    return checkFiles(
+      Object.entries(effect.imagePaths)
+        // The restricted SVG art is checked by the backend, not the scripts.
+        .filter(([, file]) => file.toLowerCase().endsWith(".png"))
+        .map(([image, file]) => {
+          const name = tiles.has(image) ? "scene-tile" : "scene-sticker";
+          return { file, budget: { name, ...BUDGETS[name] } };
+        }),
+    );
+  }
   const budget = budgetForDefinition(effect.definition);
   return checkFiles(
     [effect.imagePath, effect.otherImagePath]
@@ -210,6 +218,21 @@ async function particleSourceLines(effect, server) {
     message: `particles: ${Number.isFinite(estimate) ? `up to ${estimate}` : "unbounded"} live (declared budget ${declared}, runtime limit ${RUNTIME_PARTICLE_LIMIT})`,
   });
   return lines;
+}
+
+/**
+ * Report lines on a Scene Effect's definition against the shared Scene limits
+ * the creator and the backend apply at Save, so a folder over them fails here
+ * rather than at `effects save`.
+ */
+async function sceneLimitLines(effect, server) {
+  const { sceneDefinitionLimitIssues } = await server.ssrLoadModule(
+    "/src/lib/scene-vfx/limits.ts",
+  );
+  return sceneDefinitionLimitIssues(effect.definition).map((issue) => ({
+    level: "FAIL",
+    message: `scene: ${issue.message}`,
+  }));
 }
 
 /**
@@ -365,7 +388,10 @@ export async function checkEffects({
               ])),
             );
           if (effect.kind === "scene")
-            extraLines.push(...sceneImageLines(effect));
+            extraLines.push(
+              ...sceneImageLines(effect),
+              ...(await sceneLimitLines(effect, server)),
+            );
           const applied = await pageSources([effect], { fsUrl, imageUrl });
           // Face effects change the face (closed eyes, cleanup) whatever the
           // art: compare against transparent stand-ins. Other attachments,

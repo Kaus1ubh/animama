@@ -2,6 +2,7 @@ import {
   createCreatorRecoveryStore,
   creatorRecoveryTextBytes,
 } from "@/lib/content/creatorRecoveryStore";
+import { normalizeSceneEffectDocument } from "./document";
 import type {
   SceneEffectEditorDocument,
   SceneEffectEditorImageResource,
@@ -102,7 +103,8 @@ function parseSceneEffectRecovery(
     userId: identity.userId,
     documentKey: identity.documentKey,
     operationId: record.operationId,
-    document: record.document,
+    // A draft from before the optional layers gains them switched off.
+    document: normalizeSceneEffectDocument(record.document),
     imageResources: resources,
     contentFingerprint: record.contentFingerprint,
     updatedAt: record.updatedAt,

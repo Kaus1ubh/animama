@@ -82,7 +82,8 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [x] P3 — Particle texture import (R1). Review passed at round 2.
 - [x] P4 — Check, render and bench for Particle and Scene Effects (R3). Review
       passed at an owner-authorized extra round 4.
-- [ ] P5 — Scene layer capabilities (R2). Waits for G1.
+- [x] P5 — Scene layer capabilities (R2). Review passed at round 2; the chat
+      check of the new layers is a G4 item.
 - [x] P6 — Headed preview for Particle and Scene Effects (R4). Review passed
       at round 2.
 - [ ] P7 — Save and promote (R5). Gate G3.
@@ -154,6 +155,11 @@ Paths: frontend relative to `src/frontend/web/`, backend to
     a hard limit.
   - Dry-run effects (P8) stay Local drafts. They may become Plan 2 candidates
     but are not promoted in Plan 1.
+- **2026-10-09, owner (P5 review):** Scene image limits are enforced
+  everywhere, as for Particle textures: Save, package import, Local scan and
+  the runtime loader. An existing Local Scene whose image is over the limits
+  shows a diagnostic until the image is replaced; recovery is documented in
+  `scene-vfx.md`.
 - **2026-10-09, owner — G1:** the eight Scene family designs are approved as
   drafted; P5 builds capabilities C1–C6 (gradient fill, drifting image tile,
   procedural rays and lines, scatter layout with per-item variation, per-item
@@ -992,9 +998,211 @@ Completion: the R2 acceptance items pass for every capability on the G1 list.
 
 #### P5 record
 
+Starting source and issue: `8388dd89`, #390.
+
+Capability list and data shapes (recorded before coding, from G1). All are
+optional fields of a `background_layers` definition, so existing
+`animama/scene-effect/1` definitions are unchanged and keep `/1`; an absent
+field is a disabled layer. The stored definition names images by logical name
+(`image`), as marquee items do; the runtime entry carries `src`. Ranges and
+counts live in one shared fixture
+(`src/frontend/web/src/lib/content/fixtures/scene-effect-limits.json`), read by
+the creator's validation and mirrored by the backend validator with a parity
+test; the same ranges now also cover the existing fields.
+
+- **C1 `gradient`** `{ enabled, type: "linear" | "radial", angleDeg 0–360,
+  centerX 0–1, centerY 0–1, stops: [{ color, position 0–1 }] }`, 2–4 stops in
+  ascending position. Drawn above the solid fill, below the pattern.
+- **C2 `tile`** `{ enabled, image, size 16–1024 px, opacity 0–1, direction,
+  speedPxPerSec 0–600 }`: one image repeated over the view, drifting in a
+  marquee direction. Drawn above the pattern.
+- **C3 `screen`**, one per effect, by kind:
+  - rays `{ enabled, kind: "rays", color, opacity 0–1, count 4–48, centerX
+    0–1, centerY 0–1, spiky, turnSeconds 0 or 4–600 (signed: negative turns
+    counter-clockwise), throbPerSec 0–4, seed }`;
+  - lines `{ enabled, kind: "lines", color, opacity 0–1, count 4–96,
+    minLength ≤ maxLength 0.05–1 (fractions of the height, hanging from the
+    top; 1 is full height), minWidthPx ≤ maxWidthPx 0.5–16, swaySeconds 0 or
+    1–60, seed }`.
+  Drawn above the tile.
+- **C4 + C5 `scatters`**, up to 3 layers, each `{ enabled, items (1–8, image
+  or emoji as marquee items), count 1–48, seed, minSize ≤ maxSize 4–512 px,
+  minRotationDeg ≤ maxRotationDeg −360–360, minOpacity ≤ maxOpacity 0–1,
+  regionTop ≤ regionBottom 0–1, keepFaceClear, direction, speedPxPerSec
+  0–600, minSpinDegPerSec ≤ maxSpinDegPerSec 0–720, alternateSpin, pulse:
+  "none" | "twinkle" | "pop" | "flicker" }`; at most 96 items in all layers.
+  Placement and per-item variation come from the seed, so a Scene looks the
+  same everywhere. Drawn above the marquee, in order.
+- **C6 `flash`** `{ enabled, color, durationMs 50–2000 }`: one fade from the
+  colour when the Scene starts, above the other background layers (behind the
+  Avatar).
+
+Motion is CSS animation, so the review tools and the headed preview seek it
+(P4, P6).
+
+Delivered:
+
+- **Limits** (`lib/scene-vfx/limits.ts`, `app/contracts/scene_effect_limits.py`,
+  fixture `scene-effect-limits.json`): one table of ranges and counts for every
+  Scene field, old and new. The creator's checks (`sceneDefinitionLimitIssues`,
+  replacing its own ranges) and the backend's `_scene_effect` apply it; the
+  backend had no ranges or counts for existing fields before. Shared fixtures
+  `scene-effect-all-layers.json` (a valid definition using every layer) and
+  `scene-effect-limit-cases.json` (one broken limit each) are run on both sides.
+- **Runtime** (`lib/scene-vfx/types.ts`, `catalog.ts`, `sceneDefinition.ts`,
+  `runtime-state.ts`, `layerGeometry.ts`): the optional layers parse, project
+  stored images (`tile.image`, scatter items) to URLs, and resolve scatter
+  emoji; the geometry (gradient CSS, rays path, lines, scatter placement) is
+  pure and seeded. Drifting scatter items run on off-screen tracks.
+- **Renderer** (`ui/main/scene-vfx/SceneVFX{Gradient,Tile,Screen,Scatter,
+  Flash}Layer.tsx`, keyframes in `styles/scene-vfx.css`): drawn in order by
+  `SceneVFXBackgroundLayersEffect`, so chat, the creator, the preview dock,
+  picture-in-picture and the review tools all show them.
+- **Backend** (`content_package_capabilities.py`, `effect_art_validation.py`):
+  the new layers' structure, ranges, registered images and emoji capabilities;
+  Scene images are now held to the P2 limits at Save, scan and import
+  (`validate_scene_image_files`), raster by header, SVG by bytes.
+- **Creator** (`lib/scene-vfx/editor`, `ui/scene-effect-creator`): the document
+  carries the layers (older drafts and exports gain them switched off); Save
+  writes them and reopen hydrates them; Scene Setup lists every layer front to
+  back with Add scatter layer; new inspectors in `sceneLayerControls.tsx`
+  (the item list is shared with the marquee). A chosen image is checked before
+  decoding (`inspectSceneEffectImage`, P2 limits) and goes to the marquee, a
+  scatter layer or the tile.
+- **Fixed on the way** (plan step 3): the creator saved PNG and JPEG images
+  under `.webp` names; names now follow the bytes' format
+  (`canonicalSceneEffectImageName`).
+- **Surfaces** (plan step 3): the Library preview dock resolves private Scenes
+  through `loadPrivateSceneVFX` → `sceneEntryFromDefinition` → the shared
+  layers, in its own window, so the new layers and images draw there (browser
+  journey below). Desktop picture-in-picture receives the main window's
+  resolved `activeByKind` by IPC (structured clone, unfiltered), so the new
+  fields arrive unchanged; clip Scenes inside the PiP resolve through its own
+  catalog and Blob URLs. A main-window Blob URL forwarded to the PiP shares the
+  origin and session partition, and the main scene is suspended while the PiP
+  is open, so none was found broken; a live desktop check is an owner check
+  (G4). Pre-existing and unchanged: snapshots replace the PiP's Scene state,
+  and transparent PiP hides background layers by design.
+- **Review tools** (`effect-render-sources.mjs`, `effect-check.mjs`): Scene
+  sources include tile and scatter images; a tile is held to the
+  `scene-tile` budget.
+- **Docs:** `docs/frontend/runtime/scene-vfx.md` (layers, limits, image naming,
+  performance), `browser-journeys.md` (the new journey).
+
+Performance (agent, 2026-10-09, Apple M5, DPR 2, headless, `effects:bench
+--reaction` on Reactions whose only event is the Scene, at each capability's
+densest allowed setting, Y_0/A_1_New added mean frame): gradient (4 stops)
++0.05/+0.08 ms; tile (16 px, 600 px/s diagonal) +0.33/+0.14; rays (48 spiky,
+4 s turn, 4 throbs/s) +0.05/−0.19; lines (96 at 16 px, 1 s sway) +0.08/−0.19;
+scatter (3 layers, 96 items of 64–512 px, drifting at 600 px/s, spinning to
+720°/s, pulsing) +1.30/+1.84; flash (2 s) +0.06/−0.20; all together
++1.76/+2.08. GPU differences are within noise. All within 4 ms.
+
+Checks (agent, 2026-10-09): vitest over `lib/scene-vfx`,
+`ui/scene-effect-creator`, `ui/main/scene-vfx` 59+ pass (new: limits parity
+and cases, projection of every layer, document round trip, older-draft
+normalization, image naming); backend `pytest -k "content or package or
+particle or scene or catalog or effect"` 957 pass (new
+`tests/test_scene_effect_limits.py`: parity, the full definition, every limit
+case, registered images, older definitions, Scene image limits at Save);
+`ruff check`, `ruff format --check`; `pnpm check`, `pnpm web:lint`;
+`effect-check.browser.test.mjs` (new: each optional layer alone is visible on
+both Avatars); browser journey `accountless-scene-layers` (creator, Save,
+reopen from the backend, Library preview dock, Portable package round trip,
+cleanup) on the task stack; the existing Included Scene Effects still pass the
+Included content integrity and catalog tests. Chat with the new layers is
+part of the owner's walkthrough (G4); until then that acceptance item is
+open, not passed.
+
 #### Code Review #1 Findings
 
+Reviewer: independent `sdlc-reviewer`, full initial review of the P5 working
+tree on `8388dd89`. No Cloud imports, Alembic revisions, generated-client edits
+or boundary violations; all Included Scenes pass the new validator. Result:
+blocked on:
+
+- **P5-F1** (backend Save and scan): Scene definition limits ran only at
+  package import and export; a Local folder or a Save admitted 100 scatter
+  layers of 100,000 items, and the docs and comments claimed otherwise.
+  Required.
+- **P5-F2** (`layerGeometry.ts`, `SceneVFXScreenLayer.tsx`, backend, parser):
+  colours were checked only by the creator; a gradient stop colour
+  `#fff 0%, …), url(http://…), radial-gradient(#000` or an SVG
+  `fill="url(http://…)"` made Chromium fetch the URL (spec: effects make no
+  network requests). Required.
+- **P5-F3** (backend): the new layers' booleans were not required, so a
+  package missing `flash.enabled` imported but could not be drawn. Required.
+- **P5-F4** (`SceneVFXFlashLayer`): the entry flash played only when its
+  element first mounted, so it did not replay when a new Scene start reused
+  it (creator edits, back-to-back Reactions). Required.
+- **P5-F5** (scan): the new Scene image check at Local scan made an existing
+  Scene with a 4500 px image invalid; record the owner's decision or narrow
+  it, and the private loader lacked the P3-style pre-decode check. Required.
+- Optional: no unit tests for `layerGeometry.ts`; `keepFaceClear`'s text
+  overstated its effect on sideways and diagonal drift; a replaced tile kept
+  its old bytes; the backend limit test did not assert field names (and two
+  names differed); a stale scatter selection fell through to the Solid
+  inspector; `effects check` did not apply the Scene limits; the chat check
+  stays open until G4.
+
 #### Code Review #1 Revisions
+
+- **P5-F1 accepted.** `validate_scene_effect_definition` (the export rules)
+  runs in the Scene companion-file hook, which serves Save and Local scan, so
+  an out-of-limit definition is refused at Save and reported at scan
+  (`scene_definition_invalid`); the claims now match. Test: four scatter
+  layers are refused at Save. The renderer also caps scatter layers.
+- **P5-F2 accepted.** Every Scene colour (solid, pattern, focus lines,
+  gradient stops, screen, flash) must be `#rrggbb` in the runtime parser
+  (`readSceneColor`) and the backend (`_scene_color`). Shared
+  `structureCases` in the limit-cases fixture (the two injection colours,
+  `red`, a solid `url(…)`) are refused on both sides.
+- **P5-F3 accepted.** The new layers' booleans are required on the backend
+  (`_scene_flags`); missing `flash.enabled`, `gradient.enabled`, rays `spiky`
+  and a scatter `keepFaceClear` are structure cases refused on both sides.
+- **P5-F4 accepted.** The flash is keyed by the entry's runtime id and start
+  time, so each new start replays it; the review and preview tools build a
+  Scene's runtime entry once when it is shown. Test
+  (`SceneVFXFlashLayer.test.tsx`): the same start keeps the element, a new
+  start replaces it.
+- **P5-F5 accepted: owner decision (Decision Log).** Enforced everywhere: the
+  scan check stays, the private Scene loader now checks each image's bytes
+  and (raster) header against the limits before use (test: a 4097 px image
+  fails closed), and `scene-vfx.md` documents the diagnostic and recovery.
+- Optional, taken: `layerGeometry.test.ts` (determinism, off-screen track ends
+  in six directions, the face column, clamping); the `keepFaceClear` text;
+  image bytes the document no longer shows are dropped when an image is
+  chosen; backend field names now equal the creator's and the limit test
+  asserts them; a missing scatter selection shows the marquee; `effects check`
+  FAILs a Scene over the limits. The chat check remains a G4 item.
+
+#### Code Review #2 Findings
+
+Reviewer: the same `sdlc-reviewer`, targeted recheck (repair round 1).
+Result: pass. F1 (Save refuses; scan reports 150 scatter layers and a non-hex
+colour; the 24 Included Scenes scan clean), F2 (all seven colour reads and the
+backend), F3, F4 (every caller builds a runtime entry once per start, so the
+key is stable), F5 (owner decision; the loader check releases what it
+reserved) and the optional items are verified, with no regressions and no
+boundary edges.
+
+- Optional: the definition diagnostic put a JSON field path where a file path
+  belongs; the parser's structure test checks only that it throws; the docs
+  did not name `scene_definition_invalid`.
+
+#### Code Review #2 Revisions
+
+- Optional, taken: the diagnostic names the field in its message only; the
+  docs name `scene_definition_invalid`. Not taken: the bare `toThrow` (the
+  backend test asserts each field, and the parser's messages are its own).
+
+Final checks (agent, 2026-10-09, after the revisions): the full backend suite
+3395 pass, 10 skipped; vitest over `src` 3019 pass; `pnpm check`,
+`pnpm web:lint`, ruff, `ruff format --check`; scripts browser suites
+`effect-render`, `effect-check`, `animation-preview` 15 pass; browser journeys
+on the task stack "Scene JSON import", "Particle texture import" and
+"Scene layers" pass (4 with setup) with nothing unresolved in the content
+ledger.
 
 ### P6 — Headed preview for Particle and Scene Effects (R4). #391
 

@@ -644,7 +644,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
   });
 
   it("loads private Scene background images without leaking logical filenames", async () => {
-    const image = new Uint8Array([4, 5, 6]);
+    const image = pngHeader(64, 64);
     const entry = privateEntry({
       slot: "scene_background_vfx",
       runtimeId: "private-scene-effect",
@@ -653,13 +653,13 @@ describe("AnimaRuntimeMediaCatalog", () => {
         {
           role: "image",
           ordinal: 1,
-          filename: "mark.webp",
-          contentType: "image/webp",
+          filename: "mark.png",
+          contentType: "image/png",
           bytes: image.byteLength,
           url: "/runtime/scene-image",
         },
       ],
-      logicalResourceUrls: { "mark.webp": "/runtime/scene-image" },
+      logicalResourceUrls: { "mark.png": "/runtime/scene-image" },
       definition: {
         schema: "animama/scene-effect/1",
         kind: "background_layers",
@@ -678,7 +678,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
         marquee: {
           enabled: true,
           items: [
-            { id: "mark", kind: "image", label: "Mark", image: "mark.webp" },
+            { id: "mark", kind: "image", label: "Mark", image: "mark.png" },
           ],
           itemSize: 64,
           gap: 8,
@@ -710,6 +710,73 @@ describe("AnimaRuntimeMediaCatalog", () => {
       id: entry.runtime_id,
       marquee: { items: [{ kind: "png", src: "blob:scene-mark" }] },
     });
+  });
+
+  it("fails closed on a private Scene image over the size limits", async () => {
+    // Larger than the Scene image limit on one side (4096 px).
+    const image = pngHeader(4097, 16);
+    const entry = privateEntry({
+      slot: "scene_background_vfx",
+      runtimeId: "private-scene-effect",
+      kind: "scene_vfx",
+      files: [
+        {
+          role: "image",
+          ordinal: 1,
+          filename: "mark.png",
+          contentType: "image/png",
+          bytes: image.byteLength,
+          url: "/runtime/scene-image",
+        },
+      ],
+      logicalResourceUrls: { "mark.png": "/runtime/scene-image" },
+      definition: {
+        schema: "animama/scene-effect/1",
+        kind: "background_layers",
+        durationMs: 1000,
+        coverUiOverlays: false,
+        dismissOnInput: false,
+        solid: { enabled: true, color: "#ffffff" },
+        pattern: {
+          enabled: false,
+          pattern: "none",
+          color: "#000000",
+          size: 16,
+          spacing: 8,
+          opacity: 0.5,
+        },
+        marquee: {
+          enabled: true,
+          items: [
+            { id: "mark", kind: "image", label: "Mark", image: "mark.png" },
+          ],
+          itemSize: 64,
+          gap: 8,
+          rowGap: 8,
+          direction: "left",
+          itemRotationMode: "upright",
+          itemRotationOffsetDeg: 0,
+          speedPxPerSec: 80,
+          opacity: 1,
+        },
+      },
+    });
+    const catalog = new AnimaRuntimeMediaCatalog(
+      mediaCatalog({ sceneBackgroundVfx: [entry] }),
+      {
+        fetcher: async (input) =>
+          authorizedSource(input)
+            ? new Response(image, {
+                headers: { "content-length": String(image.byteLength) },
+              })
+            : authorizedDownload(String(input)),
+        createObjectURL: () => "blob:scene-mark",
+      },
+    );
+
+    await expect(
+      catalog.loadSceneVFX("background_layers", entry.runtime_id),
+    ).resolves.toBeNull();
   });
 
   it("shares one eager particle budget across priority tiers", () => {

@@ -7,7 +7,11 @@ import {
   buildSceneVFXRuntimeEntry,
   type SceneVFXActiveByKind,
 } from "@/lib/scene-vfx/runtime-state";
-import type { SceneVFXEntry, SceneVFXKind } from "@/lib/scene-vfx/types";
+import type {
+  SceneVFXEntry,
+  SceneVFXKind,
+  SceneVFXRuntimeEntry,
+} from "@/lib/scene-vfx/types";
 import { CanvasViewportProvider } from "@/ui/main/canvas/CanvasViewportContext";
 import { resolveClipOwnedSceneVFXEntry } from "@/ui/main/canvas/clip-owned-scene-vfx";
 import { SceneRuntimeProvider } from "@/ui/main/canvas/SceneRuntimeContext";
@@ -22,11 +26,14 @@ export function missingSceneMessage(alias: string, kind: SceneVFXKind): string {
 }
 
 /**
- * A shown Scene: its start (session seconds), the id diagnostics report and,
- * for a Scene a clip started, the Scene its clear brings back.
+ * A shown Scene: its runtime entry (built once, so a one-shot layer such as
+ * the entry flash starts once), its start (session seconds), the id
+ * diagnostics report and, for a Scene a clip started, the Scene its clear
+ * brings back.
  */
 type ShownScene = {
   entry: SceneVFXEntry;
+  runtime: SceneVFXRuntimeEntry;
   startedAt: number;
   effectId: string;
   clip: { restores: ShownScene | null } | null;
@@ -78,7 +85,13 @@ export class SceneBands {
     startedAt: number,
     effectId: string = entry.id,
   ): void {
-    this.scenes.set(entry.kind, { entry, startedAt, effectId, clip: null });
+    this.scenes.set(entry.kind, {
+      entry,
+      runtime: buildSceneVFXRuntimeEntry(entry),
+      startedAt,
+      effectId,
+      clip: null,
+    });
     this.render();
   }
 
@@ -110,8 +123,14 @@ export class SceneBands {
           return;
         }
         const shown = this.scenes.get(event.sceneKind) ?? null;
+        const entry = resolveClipOwnedSceneVFXEntry(
+          event,
+          context,
+          () => scene,
+        );
         this.scenes.set(event.sceneKind, {
-          entry: resolveClipOwnedSceneVFXEntry(event, context, () => scene),
+          entry,
+          runtime: buildSceneVFXRuntimeEntry(entry),
           startedAt: now(),
           effectId: event.presetId,
           clip: { restores: shown?.clip ? shown.clip.restores : shown },
@@ -174,8 +193,7 @@ export class SceneBands {
   /** Draw the shown Scenes now. */
   render(): void {
     const activeByKind: SceneVFXActiveByKind = {};
-    for (const { entry } of this.scenes.values()) {
-      const runtime = buildSceneVFXRuntimeEntry(entry);
+    for (const { entry, runtime } of this.scenes.values()) {
       if (entry.kind === "focus_lines")
         activeByKind.focus_lines = runtime as NonNullable<
           SceneVFXActiveByKind["focus_lines"]
