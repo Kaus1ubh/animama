@@ -1,5 +1,5 @@
 /**
- * Stable speech error code (contracts/hosted-web.md): the owner's monthly voice
+ * Stable speech error code (contracts/hosted-web.md): the owner's voice
  * allowance cannot cover this reply's provider speech. It arrives on a
  * `tts.session.error` or `tts.error` frame, and no provider audio was produced
  * for the reply.
