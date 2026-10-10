@@ -304,7 +304,7 @@ requires-dist = [
     { name = "debugpy", specifier = ">=1.8.17" },
     { name = "docling", marker = "extra == 'file-worker'", specifier = "==2.100.0" },
     { name = "elevenlabs", specifier = ">=2.39.0" },
-    { name = "fastapi", extras = ["standard"], specifier = ">=0.111" },
+    { name = "fastapi", extras = ["standard"], specifier = ">=0.121" },
     { name = "graphviz", marker = "extra == 'viz'", specifier = ">=0.17" },
     { name = "gruut", marker = "extra == 'server'", specifier = ">=2.4.0" },
     { name = "jinja2", specifier = ">=3.1" },
@@ -2235,7 +2235,7 @@ name = "macholib"
 version = "1.16.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "altgraph" },
+    { name = "altgraph", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/10/2f/97589876ea967487978071c9042518d28b958d87b17dceb7cdc1d881f963/macholib-1.16.4.tar.gz", hash = "sha256:f408c93ab2e995cd2c46e34fe328b130404be143469e41bc366c807448979362", size = 59427, upload-time = "2025-11-22T08:28:38.373Z" }
 wheels = [
@@ -3729,10 +3729,10 @@ name = "pyobjc-framework-applicationservices"
 version = "12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-coretext", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-core", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-cocoa", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-coretext", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-quartz", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8c/79/0b7a00bcc7561c816281382c933a46aa7a90acca48b942054b7d32d0caf7/pyobjc_framework_applicationservices-12.0.tar.gz", hash = "sha256:eabbf6c57573158714aa656e5d0112330a87692db336aae7e94e216db89e93be", size = 103595, upload-time = "2025-10-21T08:26:32.651Z" }
 wheels = [
@@ -3748,7 +3748,7 @@ name = "pyobjc-framework-cocoa"
 version = "12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-core", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/37/6f/89837da349fe7de6476c426f118096b147de923139556d98af1832c64b97/pyobjc_framework_cocoa-12.0.tar.gz", hash = "sha256:02d69305b698015a20fcc8e1296e1528e413d8cf9fdcd590478d359386d76e8a", size = 2771906, upload-time = "2025-10-21T08:30:51.765Z" }
 wheels = [
@@ -3764,9 +3764,9 @@ name = "pyobjc-framework-coretext"
 version = "12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-quartz", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-core", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-cocoa", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-quartz", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b1/36/32ec183e555b73152d7813f6f7c277fd018440f70a1f142bd75b04946089/pyobjc_framework_coretext-12.0.tar.gz", hash = "sha256:8cc0c7dd2b7e68ad1c760784e422722550c77cbdbd60eb455170ec444ca1cfd2", size = 90546, upload-time = "2025-10-21T08:32:31.291Z" }
 wheels = [
@@ -3782,8 +3782,8 @@ name = "pyobjc-framework-quartz"
 version = "12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pyobjc-core", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
-    { name = "pyobjc-framework-cocoa", marker = "sys_platform == 'darwin' or extra != 'extra-15-animama-backend-file-worker' or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-core", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
+    { name = "pyobjc-framework-cocoa", marker = "(python_full_version < '3.13' and extra != 'extra-15-animama-backend-file-worker') or sys_platform == 'darwin' or (sys_platform != 'win32' and extra != 'extra-15-animama-backend-file-worker') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'extra-15-animama-backend-server') or (extra == 'extra-15-animama-backend-file-worker' and extra == 'group-15-animama-backend-dev')" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/91/0b/3c34fc9de790daff5ca49d1f36cb8dcc353ac10e4e29b4759e397a3831f4/pyobjc_framework_quartz-12.0.tar.gz", hash = "sha256:5bcb9e78d671447e04d89e2e3c39f3135157892243facc5f8468aa333e40d67f", size = 3159509, upload-time = "2025-10-21T08:40:01.918Z" }
 wheels = [

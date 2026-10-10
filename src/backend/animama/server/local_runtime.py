@@ -8,6 +8,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
+from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.content_portability import MIXAMO_MOTION_PACK_ID
 from animama.domain.content_sources import IncludedContentSource
 from animama.server.config import Settings
@@ -258,3 +259,14 @@ def initialize_local_runtime(settings: Settings) -> LocalRuntimePaths:
     _assert_writable(paths.local_root, label="Local content root")
     _assert_writable(paths.data_root, label="private data root")
     return paths
+
+
+def local_content_store(paths: LocalRuntimePaths) -> FilesystemContentStore:
+    """The content store over the Included and Local roots startup prepared."""
+
+    return FilesystemContentStore(
+        included_root=paths.included_root,
+        included_sources=paths.included_sources,
+        local_root=paths.local_root,
+        operations_root=paths.operations_root,
+    )

@@ -1,3 +1,5 @@
+"""Owner-scoped chat history routes shared by every composition (ADR 0021)."""
+
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -5,20 +7,9 @@ from datetime import datetime
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
-from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
-from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
-from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.chat.memory_cue import memory_cue_payload, stored_memories_cue
-from animama.app.services import ChatService
-from animama.domain.chat import Chat, ChatMessage, ChatSearchResult
-from animama.domain.request_principal import RequestPrincipal
-from animama.domain.usage import Usage
-from animama.orm import ORMAnima
-from animama.server.deps import get_async_session, get_current_principal
-from animama.server.schemas.chat_history import (
+from animama.app.contracts.chat_history import (
     PyChatCreate,
     PyChatMessage,
     PyChatMessagesResponse,
@@ -32,6 +23,14 @@ from animama.server.schemas.chat_history import (
     PyUsageInputDetails,
     PyUsageOutputDetails,
 )
+from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
+from animama.app.services import ChatService
+from animama.domain.chat import Chat, ChatMessage, ChatSearchResult
+from animama.domain.request_principal import RequestPrincipal
+from animama.domain.usage import Usage
+from animama.product_http.ports import ProductRepositories, ReadRepositories, WriteRepositories
+from animama.product_http.principal import get_current_principal
+from animama.product_http.routes._owner import require_owned_anima
 
 router = APIRouter()
 
@@ -116,7 +115,7 @@ def _memory_cue(message: ChatMessage, *, episode_text: str | None) -> PyMemoryCu
 
 
 async def _episode_texts_by_message_id(
-    session: AsyncSession,
+    episodes: MemoryEpisodeRepository,
     *,
     user_id: str,
     messages: list[ChatMessage],
@@ -126,7 +125,7 @@ async def _episode_texts_by_message_id(
     message_ids = [
         str(message.id) for message in messages if message.id is not None and _is_visible_assistant_message(message)
     ]
-    items = await SQLAlchemyMemoryEpisodeRepository(session).list_items_by_source_message_ids(
+    items = await episodes.list_items_by_source_message_ids(
         user_id=user_id,
         source_message_ids=message_ids,
     )
@@ -172,27 +171,18 @@ def _search_result_to_schema(result: ChatSearchResult) -> PyChatSearchResult:
     )
 
 
-async def _require_owned_anima(session: AsyncSession, *, anima_id: str, user_id: str) -> None:
-    anima = await session.get(ORMAnima, anima_id)
-    if anima is None or anima.user_id != user_id:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anima not found")
-
-
-def _chat_service(session: AsyncSession) -> ChatService:
-    return ChatService(
-        chats=SQLAlchemyChatRepository(session),
-        uow=SQLAlchemyUnitOfWork(session),
-    )
+def _chat_service(repositories: ProductRepositories) -> ChatService:
+    return ChatService(chats=repositories.chats, uow=repositories.unit_of_work)
 
 
 @router.post("/v1/chats", response_model=PyChatResponse, status_code=status.HTTP_201_CREATED)
 async def create_chat(
     req: PyChatCreate,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: WriteRepositories,
 ) -> PyChatResponse:
-    await _require_owned_anima(session, anima_id=req.anima_id, user_id=user.id)
-    chat = await _chat_service(session).create(
+    await require_owned_anima(repositories.animas, anima_id=req.anima_id, user_id=user.id)
+    chat = await _chat_service(repositories).create(
         anima_id=req.anima_id,
         user_id=user.id,
         title=req.title,
@@ -204,11 +194,11 @@ async def create_chat(
 @router.get("/v1/chats", response_model=list[PyChatResponse])
 async def list_chats(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: ReadRepositories,
     include_last_message_at: Annotated[bool, Query()] = False,
 ) -> list[PyChatResponse]:
-    message_repo = SQLAlchemyChatMessageRepository(session) if include_last_message_at else None
-    chats = await _chat_service(session).list_for_user(user_id=user.id)
+    message_repo = repositories.chat_messages if include_last_message_at else None
+    chats = await _chat_service(repositories).list_for_user(user_id=user.id)
     if message_repo is None:
         return [_to_schema(chat) for chat in chats]
 
@@ -226,9 +216,9 @@ async def list_chats(
 async def search_chat_messages(
     req: PyChatSearchRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: ReadRepositories,
 ) -> PyChatSearchResponse:
-    results = await SQLAlchemyChatMessageRepository(session).search_for_user(
+    results = await repositories.chat_messages.search_for_user(
         user_id=user.id,
         query=req.query,
         limit=req.limit + 1,
@@ -249,9 +239,9 @@ async def search_chat_messages(
 async def get_chat(
     chat_id: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: ReadRepositories,
 ) -> PyChatResponse:
-    chat = await _chat_service(session).get(chat_id)
+    chat = await _chat_service(repositories).get(chat_id)
     if chat is None or chat.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
     return _to_schema(chat)
@@ -262,9 +252,9 @@ async def update_chat(
     chat_id: str,
     req: PyChatUpdate,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: WriteRepositories,
 ) -> PyChatResponse:
-    chat = await _chat_service(session).update(
+    chat = await _chat_service(repositories).update(
         chat_id=chat_id,
         user_id=user.id,
         title=req.title,
@@ -283,9 +273,9 @@ async def update_chat(
 async def delete_chat(
     chat_id: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: WriteRepositories,
 ) -> Response:
-    ok = await _chat_service(session).delete(chat_id=chat_id, user_id=user.id)
+    ok = await _chat_service(repositories).delete(chat_id=chat_id, user_id=user.id)
     if not ok:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -295,24 +285,24 @@ async def delete_chat(
 async def list_chat_messages(
     chat_id: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: ReadRepositories,
     limit: Annotated[int, Query(ge=1, le=500)] = 200,
     offset: Annotated[int, Query(ge=0)] = 0,
     order: Annotated[Literal["asc", "desc"], Query()] = "asc",
     include_internal: Annotated[bool, Query()] = False,
 ) -> PyChatMessagesResponse:
-    chat = await _chat_service(session).get(chat_id)
+    chat = await _chat_service(repositories).get(chat_id)
     if chat is None or chat.user_id != user.id:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Chat not found")
 
-    messages = await SQLAlchemyChatMessageRepository(session).list_by_chat(
+    messages = await repositories.chat_messages.list_by_chat(
         chat_id,
         limit=limit,
         offset=offset,
         order="desc" if order == "desc" else "asc",
         include_internal=include_internal,
     )
-    episode_texts = await _episode_texts_by_message_id(session, user_id=user.id, messages=messages)
+    episode_texts = await _episode_texts_by_message_id(repositories.memory_episodes, user_id=user.id, messages=messages)
     return PyChatMessagesResponse(
         chat_id=chat_id,
         messages=[

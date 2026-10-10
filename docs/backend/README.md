@@ -74,7 +74,9 @@ frozen-runtime inputs.
 
 ## Important Source Files
 
-Start with `server/app.py` for composition, `server/routers/` for delivery,
+Start with `server/app.py` for composition, `product_http/routes/` for product
+routes every composition shares, `server/routers/` for the local composition's
+routers (including shared families that have not moved yet),
 `app/services/` for use cases, and `app/chat/` for direct turns. The
 [architecture overview](architecture/overview.md#package-layout) maps the package
 boundaries; feature guides identify their implementation entrypoints.
