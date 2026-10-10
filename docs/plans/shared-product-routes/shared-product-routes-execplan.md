@@ -6,8 +6,8 @@ Source agreement: [issue #379](https://github.com/raymond-van/animama/issues/379
 instruction of 2026-10-10 to continue with stages 4 and 5 once this plan's Phase 4
 and Phase 5 sections are approved.
 Authorized scope: Phases 1–3 (issue stages 1–3), approved 2026-10-10 and delivered
-in #429. Phases 4 (paid utilities) and 5 (chat streaming) are proposed below and
-await the owner's approval; no implementation starts before it.
+in #429; Phases 4 (paid utilities) and 5 (chat streaming), approved by the owner on
+2026-10-10 with the four proposed defaults in the Decision Log.
 
 ## Purpose and context
 
@@ -62,10 +62,10 @@ journeys on a named built stack.
 - [x] PR #429 merged on 2026-10-10 as `d42eaad9` (ordinary merge commit), after one
   owner-approved full hosted `Validation` run (38082652779, passed). Phase issues
   #438–#440 are closed; #379 stays open for stages 4 and 5.
-- [ ] Phase 4: paid utilities and catalog reads (19 routes). Proposed below; awaits
-  the owner's approval.
-- [ ] Phase 5: chat streaming with the chat-turn guard. Proposed below; awaits the
-  owner's approval and depends on Phase 4.
+- [ ] Phase 4: paid utilities and catalog reads (18 shared routes; the unused audio
+  isolation route is removed), issue #451. Approved 2026-10-10; in progress.
+- [ ] Phase 5: chat streaming with the chat-turn guard, issue #452. Approved
+  2026-10-10; depends on Phase 4.
 - [ ] Final integration review of Phases 4 and 5.
 
 ## Surprises & Discoveries
@@ -167,8 +167,14 @@ models, which changed chat, compaction and the Memory Manager):
   approve them before implementation; keep local behaviour, status codes, bodies,
   operation IDs, the sorted OpenAPI document and the SDK unchanged; no hosted
   `Validation` run, merge or package promotion without the owner's approval.
-- 2026-10-10, agent proposal (for owner review), Phases 4 and 5 (the question, then
-  the proposed default in brackets):
+- 2026-10-10, owner: approved the Phase 4 and Phase 5 sections at `2358264f`,
+  including the four defaults below. Phase issues: #451 (Phase 4), #452 (Phase 5).
+- 2026-10-10, owner: ElevenLabs audio isolation is not needed. No client calls
+  `POST /v1/elevenlabs/audio-isolation` (only the generated SDK exports it), so
+  Phase 4 removes the route, its service function and tests instead of sharing it.
+  This is the one intended OpenAPI and SDK change; stage 4 has 18 shared routes.
+- Proposed defaults for Phases 4 and 5, approved by the owner on 2026-10-10 (the
+  question, then the decision in brackets):
   1. How owner default 5 (model-role validation) is applied [shared settings writes
      run the hosted rule, `usable_for_role` over the composition's catalog, when the
      composition's `ModelCatalogPolicy` asks for it; the local policy does not, so
@@ -345,15 +351,16 @@ passes.
 
 ### Phase 4: Paid utilities and catalog reads
 
-Gate: stages 4 and 5 needed separate authorization after Phase 3; this section and
-Phase 5 take effect only after the owner approves them.
+Gate: stages 4 and 5 needed separate authorization after Phase 3; the owner
+approved this section and Phase 5 on 2026-10-10.
 
-Requirements: #379 stage 4, the 19 inventory routes marked stage 4: voice-catalog
-uploads (4); ElevenLabs voice cloning, text-to-speech, sound effects and audio
-isolation (4); `GET /v1/model-providers` and `GET /v1/model-roles` (2); Memory
-Manager runs and approvals (9). Owner default 5 (model-role validation through the
-model-catalog port) also lands here. Issue: created after approval. Starting source:
-`main` at `1ef26b35`.
+Requirements: #379 stage 4, the inventory routes marked stage 4: voice-catalog
+uploads (4); ElevenLabs voice cloning, text-to-speech and sound effects (3);
+`GET /v1/model-providers` and `GET /v1/model-roles` (2); Memory Manager runs and
+approvals (9). The unused audio isolation route is removed (owner, 2026-10-10).
+Owner default 5 (model-role validation through the model-catalog port) also lands
+here. Issue: [#451](https://github.com/raymond-van/animama/issues/451). Starting
+source: `main` at `1ef26b35`.
 
 New ports, each added with its family. `LocalProductPorts` implements them from
 today's local collaborators; the doubles in `tests/product_http_support.py` implement
@@ -370,8 +377,8 @@ them for the two-owner and deferred-commit compositions.
   URL, timeouts); a consumer can wrap each operation with its own admission. The
   shared routes keep the request and response mapping, the error mapping and the
   owner's time zone for Reflection.
-- **Speech.** `speech`, a protocol for voice cloning, text-to-speech, sound effects
-  and audio isolation, plus the audio upload limit. The local port delegates to
+- **Speech.** `speech`, a protocol for voice cloning, text-to-speech and sound
+  effects, plus the audio upload limit. The local port delegates to
   `server/elevenlabs_service.py`, where credentials, retries, the concurrency
   semaphore and the voice-access cache stay. Phase 5 adds the chat TTS operations.
 - **Voice-catalog uploads.** An owner-scoped upload repository on
@@ -391,18 +398,21 @@ Phases 2 and 3:
    `{"code": "model_role_unavailable"}`; the local policy does not ask, so local
    writes are unchanged.
 2. Memory Manager runs and approvals.
-3. ElevenLabs utilities, keeping the `elevenlabs` tag and today's error bodies.
+3. ElevenLabs utilities, keeping the `elevenlabs` tag and today's error bodies;
+   the audio isolation route, `isolate_audio` and their tests are removed first, in
+   their own commit, with the regenerated SDK.
 4. Voice-catalog uploads, with request-time directory creation removed.
-5. `SERVED_STAGES` becomes `{2, 3, 4}`; the consumer and inventory tests pin the 148
+5. `SERVED_STAGES` becomes `{2, 3, 4}`; the consumer and inventory tests pin the 147
    served routes and the `ROUTERS` order.
 
 Checks per family: its suites; two-owner isolation and deferred-commit tests for
 every route (another owner's upload, run, approval or Anima is not found and commits
 nothing; owner writes commit once through the composition); the read-session guard
 for the GET routes; `pnpm openapi-ts:check` with no SDK diff; the OpenAPI document
-unchanged; ruff, mypy, the boundary checker and the in-repo installed-wheel consumer.
-Access classes are bound as each family moves (P1-04): the four speech utilities
-open no session, so their class is corrected to match.
+unchanged except for the removed audio isolation operation; ruff, mypy, the
+boundary checker and the in-repo installed-wheel consumer. Access classes are bound
+as each family moves (P1-04): the three speech utilities open no session, so their
+class is corrected to match.
 
 Risks and mitigations:
 
@@ -415,7 +425,8 @@ Risks and mitigations:
   `server.elevenlabs_service` internals; they keep testing the local adapter, while
   the route tests use a fake speech port.
 
-Completion: the 19 routes are served from `product_http`, owner default 5 is applied,
+Completion: the 18 routes are served from `product_http`, audio isolation is
+removed, owner default 5 is applied,
 the checks pass and Code Review #1 for the phase passes within its bound.
 
 ### Phase 5: Chat streaming
@@ -425,8 +436,8 @@ shared package with a chat-turn guard port that the local composition implements
 a no-op. The shared route passes the Anima's stored emotional state and emits the
 same SSE frames as local, including phoneme payloads.
 `server/routers/chat/turn_setup.py` and `server/elevenlabs_service.py` drop their
-nullable-owner checks. Issue: created after approval. Depends on Phase 4 (model-role
-and speech ports).
+nullable-owner checks. Issue: [#452](https://github.com/raymond-van/animama/issues/452).
+Depends on Phase 4 (model-role and speech ports).
 
 The chat-turn guard (proposed contract):
 
@@ -480,7 +491,7 @@ Steps, each commit keeping the app releasable:
    including a disconnect and a setup failure.
 5. Mount the shared route in `ROUTERS` (after the Anima and voice-catalog routes, in
    inventory order), retarget the chat suites' patches of `server.routers.chat`
-   internals to test ports, and set `SERVED_STAGES` to `{2, 3, 4, 5}` (149 routes).
+   internals to test ports, and set `SERVED_STAGES` to `{2, 3, 4, 5}` (148 routes).
 
 Checks: the Phase 4 checks; the golden transcripts unchanged; two-owner isolation for
 the chat route (another owner's Anima, chat and runtime revision); deferred-commit
@@ -764,9 +775,10 @@ Phases 4 and 5 add, run locally with output written to files and exit codes chec
 `uv run ruff check`, `uv run mypy` (the configured targets), `make check-test`,
 `uv run --no-sync python scripts/repository-boundary/check-python-imports.py`, the
 in-repo installed-wheel consumer (`tests/test_product_http_consumer.py`),
-`pnpm openapi-ts:check` (no SDK diff), the golden chat transcripts, and the full
+`pnpm openapi-ts:check` (no SDK diff after the regenerated audio isolation removal),
+the golden chat transcripts, and the full
 `pnpm e2e:test` on a named built stack (distinct `--name` and `--base-port`, torn
-down after its last use). Acceptance: all 149 shared routes are served from
+down after its last use). Acceptance: all 148 shared routes are served from
 `product_http`; `SERVED_STAGES` is `{2, 3, 4, 5}`; the shared chat route passes the
 stored emotional state and emits the local frames, including phoneme payloads; the
 local guard is a no-op and a test guard proves admission, stops and exactly-once
