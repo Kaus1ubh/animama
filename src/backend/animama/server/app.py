@@ -21,6 +21,7 @@ from animama.server.local_http import local_assets, local_http_config, local_tel
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.model_assets import close_model_asset_service, model_asset_service_for
+from animama.server.product_ports import LocalProductPorts
 from animama.server.routers import router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
 from animama.server.routers.model_configuration import router as model_configuration_router
@@ -54,6 +55,8 @@ def create_local_app(
     application.state.session_factory = session_factory
     if database is not None:
         application.state.session_factory_provider = database.session_factory
+    # Shared product routes resolve sessions through these ports (ADR 0021).
+    application.state.product_ports = LocalProductPorts(application)
     setup_telemetry(application, service_name="animama-server", service_version=application.version)
 
     @application.get("/health")
