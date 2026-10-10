@@ -58,8 +58,8 @@ Local setup and host/key administration schemas remain in the server composition
   face parts.
 - `product_http/routes/loadouts.py` (shared): typed Anima loadout read plus optimistic,
   idempotent family plan/commit commands.
-- `server/routers/anima_runtime.py`: exact runtime issuance, lease renewal, and
-  revision-scoped registered-byte streaming.
+- `product_http/routes/anima_runtime.py` (shared): exact runtime issuance, lease
+  renewal, JSON bundles and revision-scoped registered-byte streaming.
 - `product_http/routes/avatars.py` (shared): logical Avatar CRUD and catalog
   projection over the Avatar repository and the owner's content catalog.
 - `server/routers/user_files.py`: installation-owned file upload initialization,

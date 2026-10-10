@@ -1,6 +1,7 @@
 from fastapi import APIRouter
 
 from animama.product_http.routes import (
+    anima_runtime,
     avatars,
     chats,
     content as shared_content,
@@ -17,7 +18,6 @@ from animama.product_http.routes import (
 from . import (
     anima,
     anima_creation,
-    anima_runtime,
     archive,
     content,
     elevenlabs,

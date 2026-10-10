@@ -1,4 +1,4 @@
-"""Exact Anima runtime issuance and revision-scoped local byte delivery."""
+"""Exact Anima runtime issuance and revision-scoped byte delivery, shared by every composition (ADR 0021)."""
 
 from __future__ import annotations
 
@@ -6,23 +6,17 @@ import asyncio
 import gzip
 import hashlib
 import json
-from collections.abc import Iterator
 from typing import Annotated, NoReturn
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request, Response
-from fastapi.responses import StreamingResponse
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.content_store import FilesystemContentStore
-from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
-from animama.app.services.anima_runtime_service import AnimaRuntimeService, RuntimeSnapshotError
+from animama.app.contracts.runtime_content import PyAnimaRuntime, PyRuntimeLease
+from animama.app.services.anima_runtime_service import RuntimeSnapshotError
 from animama.app.services.runtime_json_bundle_service import RuntimeJsonBundleService
-from animama.domain.content_catalog import ContentIntegrityError, ContentPathError, ContentSource, VerifiedContentFile
+from animama.domain.content_catalog import ContentIntegrityError, ContentPathError, ContentSource
 from animama.domain.request_principal import RequestPrincipal
-from animama.server.config import settings
-from animama.server.deps import get_async_session, get_current_principal
-from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
-from animama.server.schemas.runtime_content import PyAnimaRuntime, PyRuntimeLease
+from animama.product_http.ports import Ports, ReadContent, WriteContent
+from animama.product_http.principal import get_current_principal
 
 router = APIRouter(tags=["anima-runtime"])
 
@@ -97,35 +91,19 @@ def _raise_runtime(exc: RuntimeSnapshotError) -> NoReturn:
     raise HTTPException(status_code=status_code, detail={"code": exc.code}) from exc
 
 
-def _paths(request: Request) -> LocalRuntimePaths:
-    paths = getattr(request.app.state, "local_runtime_paths", None)
-    if isinstance(paths, LocalRuntimePaths):
-        return paths
-    paths = initialize_local_runtime(settings)
-    request.app.state.local_runtime_paths = paths
-    return paths
-
-
 @router.get("/v1/animas/{anima_id}/runtime", response_model=PyAnimaRuntime)
 async def get_anima_runtime(
     request: Request,
     response: Response,
     anima_id: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    content: WriteContent,
 ) -> Response:
     """Compile and issue the exact current Content Catalog mount."""
 
     encoding = _manifest_encoding(",".join(request.headers.getlist("accept-encoding")))
     try:
-        paths = _paths(request)
-        store = FilesystemContentStore(
-            included_root=paths.included_root,
-            included_sources=paths.included_sources,
-            local_root=paths.local_root,
-            operations_root=paths.operations_root,
-        )
-        runtime = await AnimaRuntimeService(session, store=store).issue(user_id=user.id, anima_id=anima_id)
+        runtime = await content.runtime.issue(user_id=user.id, anima_id=anima_id)
     except RuntimeSnapshotError as exc:
         _raise_runtime(exc)
     return await _manifest_response(PyAnimaRuntime.model_validate(runtime), response, encoding)
@@ -139,12 +117,12 @@ async def renew_anima_runtime(
     anima_id: str,
     revision: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    content: WriteContent,
 ) -> PyRuntimeLease:
     """Renew an unexpired prepared runtime revision without remounting it."""
 
     try:
-        expires_at = await AnimaRuntimeService(session).renew(
+        expires_at = await content.runtime.renew(
             user_id=user.id,
             anima_id=anima_id,
             revision=revision,
@@ -160,20 +138,14 @@ async def get_runtime_json_bundle(
     anima_id: str,
     revision: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    content: WriteContent,
     if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
 ) -> Response:
     """Revalidate every selected file before returning a bundle or its conditional 304."""
     encoding = _manifest_encoding(",".join(request.headers.getlist("accept-encoding")))
-    paths = _paths(request)
-    store = FilesystemContentStore(
-        included_root=paths.included_root,
-        included_sources=paths.included_sources,
-        local_root=paths.local_root,
-        operations_root=paths.operations_root,
-    )
     try:
-        bundle = await RuntimeJsonBundleService(AnimaRuntimeService(session), store).read(
+        # Reading also records drifted members for rescan, so the bundle takes write content.
+        bundle = await RuntimeJsonBundleService(content.runtime, content.store).read(
             user_id=user.id,
             anima_id=anima_id,
             revision=revision,
@@ -197,7 +169,8 @@ async def stream_anima_runtime_file(
     revision: str,
     file_ref: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    content: ReadContent,
+    ports: Ports,
     if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
 ) -> Response:
     """Authorize and stream one pinned runtime member in a single request."""
@@ -205,8 +178,7 @@ async def stream_anima_runtime_file(
     source: ContentSource | None = None
     relative_path: str | None = None
     try:
-        service = AnimaRuntimeService(session)
-        authorization = await service.authorize_file(
+        authorization = await content.runtime.authorize_file(
             user_id=user.id,
             anima_id=anima_id,
             revision=revision,
@@ -214,14 +186,8 @@ async def stream_anima_runtime_file(
         )
         source = authorization.source
         relative_path = authorization.relative_path
-        paths = _paths(request)
         file = await asyncio.to_thread(
-            FilesystemContentStore(
-                included_root=paths.included_root,
-                included_sources=paths.included_sources,
-                local_root=paths.local_root,
-                operations_root=paths.operations_root,
-            ).open_verified_file,
+            content.store.open_verified_file,
             source=source,
             source_mount_id=authorization.source_mount_id,
             relative_path=relative_path,
@@ -230,40 +196,18 @@ async def stream_anima_runtime_file(
             media_type=authorization.media_type,
         )
     except (ContentIntegrityError, ContentPathError, OSError) as exc:
-        await session.rollback()
         if source is not None and relative_path is not None:
-            await SQLAlchemyContentCatalog(session).mark_scan_required(
-                source=source,
-                relative_paths=(relative_path,),
-            )
-            await session.commit()
+            # The member changed on disk: record it for rescan in a write session of its own.
+            async with ports.write_session(user) as session, ports.content(session, user) as writable:
+                await writable.catalog.mark_scan_required(source=source, relative_paths=(relative_path,))
+                await session.commit()
         raise HTTPException(
             status_code=409,
             detail={"code": "runtime_file_changed_remount_required"},
         ) from exc
     except RuntimeSnapshotError as exc:
-        await session.rollback()
         _raise_runtime(exc)
-
-    etag = f'"{file.sha256}"'
-    headers = {
-        "Cache-Control": "private, no-cache",
-        "ETag": etag,
-        "X-Content-Type-Options": "nosniff",
-    }
-    if if_none_match == etag:
-        file.handle.close()
-        return Response(status_code=304, headers=headers)
-    headers["Content-Length"] = str(file.size_bytes)
-    return StreamingResponse(_stream_file(file), media_type=file.media_type, headers=headers)
-
-
-def _stream_file(file: VerifiedContentFile) -> Iterator[bytes]:
-    try:
-        while chunk := file.handle.read(1024 * 1024):
-            yield chunk
-    finally:
-        file.handle.close()
+    return ports.file_response(request, file, if_none_match=if_none_match, revalidate=True)
 
 
 __all__ = ["router"]
