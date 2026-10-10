@@ -1540,7 +1540,7 @@ export function useTtsPlayback(
    * ElevenLabs speech (an exhausted voice allowance), before or after the reply
    * text arrived. The declined path closes without a failure notice or an
    * audio end, and Pocket speaks the whole reply at completion like any Pocket
-   * run, with the Anima's Pocket voice or the default voice. Returns false and
+   * run, choosing its voice the same way. Returns false and
    * changes nothing for an inactive run or one `canFallBackToPocketTts`
    * refuses. Stop, the next run and teardown (`cancelAll`) end the switch.
    */

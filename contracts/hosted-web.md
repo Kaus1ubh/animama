@@ -129,7 +129,7 @@ in `local-http` version **3.0.0** with capability `schema_version: 2`. The gener
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
 surface, not another wire schema. `runtime-contracts` is version 0.3.1 and
-`product-ui` is version 0.5.0. Consumers explicitly admit
+`product-ui` is version 0.6.0. Consumers explicitly admit
 the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:
@@ -225,12 +225,15 @@ voice allowance cannot cover that reply, and no provider audio plays for it. A
 decline known before the turn precedes all reply text and no `tts.session` is
 sent for the run; one found while reserving the reply's speech may follow the
 reply text. Either must precede `run.completed`. Where Pocket TTS runs, the
-browser speaks that reply with it (the Anima's Pocket voice or the default voice)
+browser speaks that reply with it, choosing the voice as for any Pocket reply,
 without a notice; preferences are unchanged and the next turn asks the server
-again. It switches only before the run plays audio or ends its speech, so a
-realtime decline must also arrive within the browser's 1.5 s session wait (from
-the turn's start) and before any speech socket failure. Otherwise, and for every
-other code, the reply's speech ends with the existing notice showing `error`.
+again. It switches only before the run plays audio or ends its speech and before
+any speech socket failure. A decline sent instead of `tts.session` must also
+arrive within the browser's 1.5 s session wait (from the turn's start); after an
+accepted session, a decline may come at any time before `run.completed`.
+Otherwise, and for every other code, the reply's speech ends with the existing
+notice, which shows `error` (or the session timeout message). Because `error` is
+shown only when the browser cannot fall back, it never promises the fallback.
 
 ## Static application format (A5 producer / consumer contract)
 

@@ -354,6 +354,72 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     );
   });
 
+  it("speaks a realtime reply declined after its session and text were accepted", () => {
+    const { playback } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().acceptElevenLabsSession("run-1", {
+        voice_id: "voice-1",
+        model_id: "eleven_flash_v2_5",
+        output_format: "pcm_24000",
+        sync_alignment: false,
+        transport: "server",
+        websocket_url: "/v1/voice/streams/run-1",
+      });
+      playback().appendToken(
+        "run-1",
+        "This first sentence is long enough to stream. ",
+      );
+      playback().appendToken("run-1", "Then the reply ends.");
+      playback().completeRun("run-1");
+    });
+    expect(fixture.realtime.acceptSession).toHaveBeenCalledTimes(1);
+    expect(fixture.realtime.completeRun).toHaveBeenCalledTimes(1);
+    expect(fixture.pocket.generateAndWait).not.toHaveBeenCalled();
+    fixture.realtime.stop.mockClear();
+
+    // The server declines while reserving the reply's speech; no audio played.
+    let switched = false;
+    act(() => {
+      switched = playback().fallBackToPocketTts("run-1");
+    });
+    expect(switched).toBe(true);
+    expect(fixture.realtime.stop).toHaveBeenCalledTimes(1);
+    expect(fixture.realtime.markSessionFailed).not.toHaveBeenCalled();
+    expect(fixture.pocket.generateAndWait).toHaveBeenCalledWith(
+      "This first sentence is long enough to stream. Then the reply ends.",
+      expect.objectContaining({ endStream: true }),
+    );
+    expect(fixture.toast.error).not.toHaveBeenCalled();
+  });
+
+  it("ignores finalized audio or completion that arrives after the switch", () => {
+    const { playback } = renderPlayback({ modelId: "eleven_v3" });
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "Hello there.", {
+        textBasis: "gruut_text_with_ws",
+      });
+      playback().completeRun("run-1");
+      playback().fallBackToPocketTts("run-1");
+    });
+    expect(fixture.pocket.generateAndWait).toHaveBeenCalledTimes(1);
+
+    act(() => {
+      playback().acceptElevenLabsFinalizedAudio("run-1", {
+        run_id: "run-1",
+        model_id: "eleven_v3",
+        output_format: "mp3_44100_128",
+        audio_base64: "AAA=",
+      });
+      playback().completeElevenLabsFinalizedAudio("run-1");
+    });
+    // The reply is spoken once, by Pocket only.
+    expect(fixture.finalized.acceptAudioChunk).not.toHaveBeenCalled();
+    expect(fixture.finalized.finishPushedStream).not.toHaveBeenCalled();
+    expect(fixture.pocket.generateAndWait).toHaveBeenCalledTimes(1);
+  });
+
   it("uses the Anima's downloadable Pocket voice once its install state is read", () => {
     fixture.speech = { tts_pocket_anima_voice: "anna" };
     const { playback } = renderPlayback();
