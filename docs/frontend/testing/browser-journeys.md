@@ -194,12 +194,12 @@ single unresolved sample-avatar bone is allowed. `playback-library.spec.ts` is
 outside the active `chromium` project and is only type-checked: its
 `library-gesture-have-an-idea` repeats the Gesture Avatar Effect proof, and
 `library-reaction-curiosity-3` would check Scene Effect playback on Curiosity
-Reaction 3, because no Included Gesture plays a Scene Effect. Active Scene Effect
-coverage comes from the imported Gesture and Reaction in
+Reaction 3, because no Included Gesture plays a Scene Effect. Active Scene
+Effect coverage comes from the imported Gesture and Reaction in
 `accountless-imported-playback.spec.ts`. The focused pose test permits only
 reads and gesture-preview preparation requests; it does not select an Anima
-through saved settings, chat, upload or play audio. Optional Local Mixamo VRMA playback and imported animation
-acceptance remain separate. Run this focused check on an already initialized
+through saved settings, chat, upload or play audio. Optional Local Mixamo VRMA
+playback and imported animation acceptance remain separate. Run this focused check on an already initialized
 named stack with the tracked avatar inputs:
 
 ```bash

@@ -1155,7 +1155,7 @@
         },
         "base_pose": "relaxedRest",
         "animation_type": "gesture",
-        "duration": 1.55,
+        "duration": 1.85,
         "blend_mode": "override",
         "time_scale": 1,
         "weight": 1,

@@ -57,7 +57,8 @@ under `.agents/skills/animama-animation/references/`.
       approved 2026-10-09). 3 effects and 2 Gestures added, 24 Gestures replaced, 5
       display-name-only edits, `shy-finger-poke` and `storytelling` removed, starters
       21 → 20; registries, pins, journeys and docs updated.
-- [ ] Final integration review; PR; owner merge approval.
+- [x] Final integration review: review #2 passed 2026-10-09 (one repair round).
+- [ ] PR; owner merge approval.
 
 ## Surprises & Discoveries
 
@@ -670,7 +671,9 @@ re-baselined); licence rules and records; the merge; ownership boundaries.
   commit; a separate commit would add nothing.
 - FIR-R1-04 accepted for the PR text; history is not rewritten.
 - FIR-R1-05 accepted: recorded above and in the PR.
-- FIR-R1-06 deferred: pre-existing and outside #314; offered as a follow-up.
+- FIR-R1-06 accepted at the owner's request: the manifest and its backend copy
+  give Heart Hands 1.85 s, and `includedGestures.test.ts` now requires every
+  clip-backed manifest entry to match its clip's name, duration and loop.
 - FIR-R1-07 rejected: test fixtures follow the existing practice for code and
   test files; they are byte-identical to their `bfc0de4f` sources.
 
@@ -679,6 +682,24 @@ Evidence on `73d62314` before the repairs (docs and one comment only):
 `pnpm web:test` 447 files, 3723 passed, 1 skipped; `pnpm build` ok;
 `pnpm openapi-ts` regenerated with no drift; `make check-test` (typed-content
 audit, ruff, mypy, pytest 3533 passed, 10 skipped).
+
+#### Code Review #2 Findings
+
+Targeted recheck of `5f88cad5`: FIR-R1-01 to FIR-R1-03 resolved; no regression
+or inaccurate statement. Result: pass, with one repair round used.
+
+Browser journeys on the task stack built from `73d62314` (`animama-hands`,
+production build, `ANIMAMA_LLM_SKIP=1`): full `pnpm e2e:test` 34 passed, 4 failed
+while other stacks and test containers loaded the host (load average about 8;
+the run took 1 h). The four failures (chat Stop and reply, avatar creator Save,
+pose content save and reopen, pose detail-load recovery) were timeouts and all
+passed when re-run serially (`--workers 1`, 36 s).
+
+After the owner asked to include FIR-R1-06: `includedGestures.test.ts`,
+`includedClipBaseline.test.ts` and `animationManifest.test.ts` 118 passed; the new
+manifest test fails on the old 1.55 s value; `tsc -b`, eslint and prettier
+clean; `shared_catalogs.py` check clean; starter, catalog and boundary pytest 48
+passed.
 
 ## Validation and acceptance
 

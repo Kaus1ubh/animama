@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import type { VRM } from "@pixiv/three-vrm";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { getManifestGestureEntries } from "../animationManifest";
 import {
   MAX_ANIMA_POSE_CLIP_BYTES,
   serializeAnimaPoseClipFile,
@@ -71,5 +72,33 @@ describe("Included 2.0 Gestures", () => {
       expect(checks.findings.filter((f) => f.severity === "fail")).toEqual([]);
     },
     60000,
+  );
+});
+
+/**
+ * The motion manifest repeats each clip-backed Gesture's name, duration and
+ * loop kind for chat playback, so they must agree with the clip.
+ */
+describe("Included Gesture manifest entries", () => {
+  const entries = getManifestGestureEntries().filter(
+    (entry) => entry.type === "animaPoseClip",
+  );
+
+  it.each(entries.map((entry) => [entry.file, entry] as const))(
+    "%s matches its clip's name, duration and loop",
+    (file, entry) => {
+      const clip = JSON.parse(
+        readFileSync(`${directory}${file}/${file}.json`, "utf8"),
+      );
+      expect({
+        name: entry.name,
+        duration: entry.duration,
+        loops: entry.loopType === "repeat",
+      }).toEqual({
+        name: clip.name,
+        duration: clip.duration,
+        loops: clip.loop === true,
+      });
+    },
   );
 });
