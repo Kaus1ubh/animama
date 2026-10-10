@@ -76,7 +76,8 @@ Paths: frontend relative to `src/frontend/web/`, backend to
       issues #386–#394 created as sub-issues with dependencies; worktree
       `animama-particle-scene-effects` on `feat/particle-scene-effects`. No task
       stack yet.
-- [ ] P1 — Scene family designs (R2 input). Briefs, mocks and capability list ready (2026-10-09); waiting for G1.
+- [x] P1 — Scene family designs (R2 input). G1 approved 2026-10-09: all eight
+      families, capabilities C1–C6, embarrassment moved to Affection.
 - [x] P2 — Art budgets and shared import limits (R6). Review passed at round 3.
 - [x] P3 — Particle texture import (R1). Review passed at round 2.
 - [x] P4 — Check, render and bench for Particle and Scene Effects (R3). Review
@@ -109,14 +110,16 @@ Paths: frontend relative to `src/frontend/web/`, backend to
   receives Scene state as JSON that may carry window-local blob URLs. P5 checks
   both before relying on image capabilities there.
 - 2026-10-09 (P4): there are two particle estimates. The creator's Save
-  gating (`estimateParticleVFXContentParticles`, matching the backend) counts
+  gating (`estimateParticleVFXContentParticles`, now
+  `estimateParticleVFXParticles`) counts
   a looping system's emission over the longest system's duration and puts
   `flame-loop` at 79 against its declared 64, the figure the spec quotes; the
   editor's display and warning (`estimateParticleVFXDraftParticles`) say 52.
   `effects check` uses Save's estimate, so it fails the Included `flame-loop`,
   which the creator would refuse to save as it is. Plan 1 writes no Included
-  content (G3); its budget is fixed with the Plan 2 library. The creator
-  showing a different estimate from the one Save enforces is a separate fix.
+  content (G3); its budget is fixed with the Plan 2 library. The backend
+  checks a manifest's structure but estimates no particle count, so Save's
+  estimate is the only enforcement.
 - 2026-10-09 (P4): every current intensity-3 Reaction's effects add at most
   about 2 ms of frame time on the owner's Mac at DPR 2 (up to 2.3 ms in a
   run beside other work; see the P4 record), so the 4 ms budget leaves room
@@ -151,6 +154,21 @@ Paths: frontend relative to `src/frontend/web/`, backend to
     a hard limit.
   - Dry-run effects (P8) stay Local drafts. They may become Plan 2 candidates
     but are not promoted in Plan 1.
+- **2026-10-09, owner — G1:** the eight Scene family designs are approved as
+  drafted; P5 builds capabilities C1–C6 (gradient fill, drifting image tile,
+  procedural rays and lines, scatter layout with per-item variation, per-item
+  motion, entry flash); embarrassment moves from Revulsion to Affection.
+- **2026-10-09, owner:** fold the creator's particle estimate into this PR.
+  The Particle creator's display and budget warning now use Save's estimator
+  (`estimateParticleVFXParticles`, `editor/particleEstimate.ts`), so the
+  creator, Save and `effects check` agree (`flame-loop`: 79 against 64, where
+  the creator showed 52); the old draft estimator is removed; Save promotes
+  the editor's budget warning, so its error states the same numbers, and adds
+  the 512-particle private limit; the `animama-particle-vfx` creator reference
+  states the shared estimate and the P2 texture limits. Independent review:
+  pass at round 1 (optional notes taken: Save's error now carries the numbers,
+  the "cannot be estimated" wording names every cause, this record's
+  contradiction removed; no browser check of the creator's Settings text).
 - **2026-10-09, agent (implementation order):** while G1 is open, P6 (headed
   preview) runs before P5. P6 draws Scene Effects through the shared layer
   hosts, so P5's capabilities appear in it without further work; P5 still
@@ -301,7 +319,9 @@ Proposed capability list for G1 (all additive to `animama/scene-effect/1`):
 Recommendation for G1: move embarrassment from Revulsion to Affection (its
 blush-and-steam fluster trope fits Affection's layers, not a nausea swirl).
 
-Remaining: **G1** (owner approval of the families and the capability list).
+G1 (owner, 2026-10-09): approved. All eight family designs as drafted; P5
+builds all of C1–C6; embarrassment moves from Revulsion to Affection. Plan 2
+builds the library from these briefs.
 
 #### Code Review #1 Findings
 
@@ -1004,7 +1024,7 @@ Completion: the R4 acceptance items pass.
 
 #### P6 record
 
-Starting source and issue: `27401d64`, #391. P6 runs before P5 while G1 is
+Starting source and issue: `27401d64`, #391. Commit: `351f63ff`. P6 runs before P5 while G1 is
 open (Decision Log).
 
 Delivered:
