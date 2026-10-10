@@ -60,7 +60,8 @@ Local setup and host/key administration schemas remain in the server composition
   idempotent family plan/commit commands.
 - `server/routers/anima_runtime.py`: exact runtime issuance, lease renewal, and
   revision-scoped registered-byte streaming.
-- `server/routers/avatar.py`: logical Avatar CRUD and catalog projection.
+- `product_http/routes/avatars.py` (shared): logical Avatar CRUD and catalog
+  projection over the Avatar repository and the owner's content catalog.
 - `server/routers/user_files.py`: installation-owned file upload initialization,
   finalization, processing enqueue, debug chunk search, listing, abort, and
   delete lifecycle.

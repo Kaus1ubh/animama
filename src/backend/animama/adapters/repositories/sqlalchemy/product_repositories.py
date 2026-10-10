@@ -13,8 +13,10 @@ from functools import cached_property
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
+from animama.adapters.repositories.sqlalchemy.avatar_repo import SQLAlchemyAvatarRepository
 from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
 from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
+from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
 from animama.adapters.repositories.sqlalchemy.settings_repo import (
@@ -63,6 +65,14 @@ class SQLAlchemyProductRepositories:
     @cached_property
     def user_profiles(self) -> SQLAlchemyUserProfileRepository:
         return SQLAlchemyUserProfileRepository(self._session)
+
+    @cached_property
+    def avatars(self) -> SQLAlchemyAvatarRepository:
+        return SQLAlchemyAvatarRepository(self._session)
+
+    @cached_property
+    def content_catalog(self) -> SQLAlchemyContentCatalog:
+        return SQLAlchemyContentCatalog(self._session)
 
     @cached_property
     def anima_loadouts(self) -> AnimaLoadoutService:

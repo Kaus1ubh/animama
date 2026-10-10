@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_presentation_repo import SQLAlchemyAnimaPresentationRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.chat.memory_context import DirectChatMemoryContextError, DirectChatMemoryContextService
 from animama.app.services.anima_presentation_service import AnimaPresentationService
 from animama.app.services.content_catalog_service import ContentCatalogService
@@ -50,10 +51,10 @@ from animama.orm import (
 from animama.orm.content_catalog import ORMContentCatalogDependency, ORMContentCatalogItem
 from animama.orm.model_provider import ORMModelProvider
 from animama.product_http.ports import install_product_ports
+from animama.product_http.routes.avatars import delete_avatar
 from animama.product_http.routes.memory import router as memory_router
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers.anima import patch_anima, router as anima_router
-from animama.server.routers.avatar import delete_avatar
 from animama.server.schemas.anima import PyAnimaUpdate, PyAnimaUpdateRequest
 from tests.anima_creation_support import creation_fixture
 from tests.local_http_client import local_client
@@ -468,7 +469,11 @@ async def test_required_identity_cannot_bypass_guards_or_be_removed(async_sessio
             content_set=True,
         )
     with pytest.raises(HTTPException) as retained:
-        await delete_avatar(anima.avatar.id, user=RequestPrincipal(id=fixture.user_id), session=async_session)
+        await delete_avatar(
+            anima.avatar.id,
+            user=RequestPrincipal(id=fixture.user_id),
+            repositories=SQLAlchemyProductRepositories(async_session),
+        )
     assert retained.value.status_code == 409
     await uow.rollback()
     assert (_required(await uow.animas.get(anima.id))).aggregate_revision == 1
