@@ -65,7 +65,8 @@ Particle and Scene Effects from its dependencies, with their fades; sounds are
 not played, and the page's **Effect warnings** panel says so. The preview also
 takes an Avatar, Particle or Scene Effect source (an effect folder, its
 descriptor, or `library:avatar-effect/`, `library:particle-effect/` or
-`library:scene-effect/<name>`); see the `animama-avatar-vfx` skill. Use it to
+`library:scene-effect/<name>`); see the `animama-avatar-vfx`,
+`animama-particle-vfx` or `animama-scene-vfx` skill. Use it to
 judge timing, which still frames miss:
 
 - play at 0.25–1× speed, loop, scrub, or click a beat marker;

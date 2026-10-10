@@ -130,6 +130,16 @@ single-effect state value, its own viewport provider, and its own Avatar
 context. Preview Stop/Minimize/Close therefore cannot mutate scene effects in a
 simultaneously mounted live Anima scene.
 
+## Tools
+
+`pnpm -s effects check`, `effects:render` and `animation:preview` take Scene
+Effect folders and Library items (`library:scene-effect/…`) and draw the
+Scene layers as chat does; `effects save` takes folders, and `effects
+promote` folders or `library:local/<name>` items. `effects:bench --reaction`
+measures a Reaction's Scene Effects. See the [effect
+tools](avatar-vfx.md#9-effect-tools); the `animama-scene-vfx` skill wraps
+them into the authoring pipeline, with the layer fields and ranges.
+
 ## Product creator behavior
 
 Routes:
@@ -141,8 +151,8 @@ New Scene Effects start from the Effects template picker (the sidebar Create
 menu's **Effects** item, the Create page's Scene FX card or `/effects/new`).
 
 Background Layers combines Solid, Gradient, Pattern, Tile, Screen, Marquee,
-up to three Scatter layers and an Entry flash, listed front to back in Scene
-Setup; each has an inspector. Marquee and scatter items can be reordered and
+up to three Scatter layers and an Entry flash; Scene Setup lists them front
+to back, Entry flash first, and each has an inspector. Marquee and scatter items can be reordered and
 use allowlisted Twemoji or private PNG/JPEG/WebP/SVG sources; a tile uses one
 private image. A chosen image is checked before it is decoded against the
 Scene image limits (`lib/effects/effectArtLimits.ts`: 8 MiB and 4096 px per

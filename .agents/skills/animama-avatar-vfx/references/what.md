@@ -33,8 +33,9 @@ JSON export as a complete transferable image package. `animama/avatar-effect/1`
 is refused everywhere until converted; Local content converts automatically at
 startup or Rescan (see the runtime guide for the commands).
 
-Avatar Effects differ from **Particle Effects**, which emit many independently
-moving sprites, and **Scene Effects**, which draw backgrounds and focus lines
+Avatar Effects differ from **Particle Effects**, three.quarks emitters with
+particle behaviour (the `animama-particle-vfx` skill), and **Scene Effects**,
+which draw backgrounds and focus lines (the `animama-scene-vfx` skill)
 around the Avatar. A single heart hovering above the head is an Avatar Effect; a
 stream of hearts is a Particle Effect. Reusing a PNG does not make these content
 types interchangeable.

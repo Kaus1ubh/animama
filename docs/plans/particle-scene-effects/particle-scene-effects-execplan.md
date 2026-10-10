@@ -92,7 +92,9 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [x] P8 — Pipeline skills and fresh-agent dry runs (R7). Review passed at
       round 2; G2 approved Gloom Sadness and Heart Burst (saved as Local
       content); three other drafts were not approved.
-- [ ] P9 — Documentation and acceptance (R8). Gate G4.
+- [ ] P9 — Documentation and acceptance (R8). Gate G4. Documentation, chat
+      check and walkthrough done and the review passed at round 2
+      (2026-10-10); G4, the owner's review of the walkthrough, is pending.
 - [ ] Final integration review and PR.
 
 ## Surprises & Discoveries
@@ -1880,9 +1882,150 @@ the review passed.
 
 #### P9 record
 
+Starting source and issue: `4708045d`, #394.
+
+Documentation (step 1): `avatar-vfx.md` §9 is now "Effect tools", the one
+tool reference for all three kinds that the Particle and Scene guides link,
+and its `check` bullet names each kind's budgets and checks;
+`avatar-particle-vfx.md` gains "Effect textures" (own and built-in textures,
+import, the limits table) and "Tools"; `scene-vfx.md` gains "Tools";
+`GLOSSARY.md` Particle Effect admits a single long-lived particle with
+particle behaviour and the Avatar Effect and Scene Effect entries are aligned;
+`animama-avatar-vfx` (description, `what.md`) and `animama-animation`
+(description, `checks-and-review.md`) say the preview plays all three kinds.
+`animama-effect-assets` already carried the Particle and Scene budgets (P2,
+P8).
+
+Chat on the task stack (step 2, 2026-10-10), stack `animama-particle-fx`
+(development, `http://animama-particle-fx.localhost:8620`), Annie with two
+Local test Reactions equipped through `reactions:plan`/`reactions:commit` and
+played from the animation debug modal in a new chat (chat turns choose
+Reactions nondeterministically; an earlier chat turn had already shown love-3):
+
+- love-3 "P9 love check": Heart Burst (Local Particle Effect with four
+  imported textures) above the head, Heart Eyes and Blush, and a Local Scene
+  with every new background capability (radial gradient, drifting tile, rays
+  screen, two scatter layers with per-item motion, entry flash);
+- sadness-3 "P9 sadness check": Gloom Sadness (linear gradient, lines screen,
+  a scatter of its own drop art), the Included Rain Cloud and tears.
+
+Both played as authored; the header stays above the Scene layers. On Gloom's
+dark backdrop the inactive header icons have low contrast (observation for
+the owner).
+
+G4 walkthrough screenshots (step 3), handed to the owner: chat (love-3,
+sadness-3), the Particle creator's texture section (desktop, tablet), the
+Scene creator's layer list (desktop, phone) and the Reaction editor's preview
+dock playing the every-layer Scene (desktop; tablet layout). Narrow widths
+show no regression from this plan; two pre-existing layout limits were seen
+and are unchanged by this branch (no layout changes in either page): at
+375 × 812 the Particle inspector leaves its scroll area 27 px tall, and at
+768 px the Reaction editor's content starts under the navigation rail.
+The preview dock cleared the every-layer Scene at the 0.1 s test Reaction's
+end, sooner than chat: both clear clip-owned Avatar, Particle and Scene
+Effects when the clip ends, and only chat holds them through the clip's
+fade-out (`PoseCreatorClipPreviewSync.tsx` stop path; `ReactionClipPlayer.ts`
+fade-out). That shared behaviour predates this branch and matches the
+runtime guides.
+
+Checks (2026-10-10, on `4708045d` plus the P9 working tree; the code is
+unchanged from `4708045d`): `uv run pytest -q` 3401 passed, 10 skipped;
+`make check` (format, ruff, mypy) and `uv run ruff check` pass; from
+`src/frontend` `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm
+desktop:check`, `pnpm web:test` (447 files, 3424 tests) and `pnpm build`
+pass; `pnpm openapi-ts` leaves the generated client unchanged; from
+`src/frontend/web` `pnpm -s test:source` 106 passed.
+
 #### Code Review #1 Findings
 
+Round 1 (full initial review, `sdlc-reviewer`, working tree on `4708045d`):
+
+- **P9-R1-F1** (required): §9's intro said every tool takes all three kinds,
+  but thumbnails, `--all-included` and the default benchmark are Avatar-only,
+  and `effects:bench --reaction` (4 ms budget), which the Scene guide and the
+  Particle skill rely on, was undocumented.
+- **P9-R1-F2** (required): the `effects:render` source syntax omitted the
+  kind segment (`library:hearts-v1` fails; `library:particle-effect/hearts-v1`
+  resolves), and `--with-clip` was described without its effect events.
+- **P9-R1-F3** (required): Effect art listed only the six Avatar budgets
+  (P2-R1-F9, deferred to P9); "no real transparency" fails and the
+  no-trim rule were stated for Avatar art only, though Scene tiles and
+  backgrounds may be opaque and keep their framing.
+- **P9-R1-F4** (required): the Particle and Scene "Tools" sections said
+  `effects save` takes Library items; it takes folders and descriptors only.
+- **P9-R1-F5** (required, low): textures were documented as PNG only; only
+  import is, while Save, scan, packages and the runtime also accept JPEG and
+  WebP within the same limits.
+- **P9-R1-F6** (optional): `animama-avatar-vfx` `what.md` kept the old
+  "many independently moving sprites" wording.
+- **P9-R1-F7** (optional): the Particle draft recovery bound (R1's stated
+  storage bound) was not documented.
+- **P9-R1-F8** (optional): `scene-vfx.md` "Main files" and the
+  `avatar-vfx.md` tools row do not list the new files.
+- **P9-R1-F9** (optional): Scene budget checks cover PNG images only.
+- **P9-R1-F10** (integration note): `origin/main` (#406) changed the same §9
+  `check` bullet (`--with-clip`) and the thumbnails paragraph, and the
+  `animama-avatar-vfx` and `animama-animation` skill files; the merge must
+  keep both.
+- **P9-R1-F11** (minor): the Scene layer sentence read as back to front while
+  saying "front to back"; the §9 intro carried navigation commentary.
+
+The P9 record's claims were spot-checked against `git diff origin/main...HEAD`
+and hold.
+
 #### Code Review #1 Revisions
+
+- **F1 accepted:** the intro names the tools that take all three kinds, says
+  thumbnails are Avatar-only and that `effects:bench` measures Avatar Effects
+  or, with `--reaction`, a Reaction's three kinds; the benchmark section
+  documents `--reaction`, `--replay`, `--local-content` and the 4 ms budget;
+  the navigation commentary is gone (F11).
+- **F2 accepted:** the source syntax carries `[particle-effect/|scene-effect/]`
+  (no kind means an Avatar Effect); `--with-clip` plays a Gesture or Reaction
+  with its effect events as in chat; `--all-included` and `--thumbnail` are
+  stated as Avatar-only.
+- **F3 accepted:** Effect art has a table of all eleven budgets with their
+  uses; `check` and `fix` state the opaque and keep-framing rules for Scene
+  tiles and backgrounds; the Particle guide links the table instead of the
+  skill.
+- **F4 accepted:** both Tools sections separate check/render/preview (folders
+  and Library items) from save (folders) and promote (folders or
+  `library:local/<name>`), mention `effects:bench --reaction`, and say only
+  the first three draw the Scene layers.
+- **F5 accepted:** the limits table reads "PNG on import; saved items and
+  packages may also carry JPEG or WebP", and the texture paragraph and
+  glossary say images.
+- **F6 accepted:** `what.md` describes Particle Effects as three.quarks
+  emitters with particle behaviour.
+- **F7 accepted:** "Effect textures" states the 37 MiB recovery bound and the
+  textureless fallback.
+- **F8 declined:** file lists are orientation, not a P9 requirement; the
+  tools are found through §9.
+- **F9 accepted:** the `check` bullet says PNG Scene images are budgeted and
+  other formats are left to the backend.
+- **F10 deferred** to the final integration: `origin/main` is merged before
+  the PR and the merged §9 keeps `--with-clip`.
+- **F11 accepted:** "Scene Setup lists them front to back, Entry flash first".
+
+Verification: `git diff --check` clean; Prettier `--check` on the edited
+Markdown passes; every relative link and anchor in the three runtime guides
+resolves.
+
+#### Code Review #2 Findings
+
+Round 2 (targeted recheck): **pass**. F1–F7, F9 and F11 are resolved and the
+revisions add no inaccuracy (claims rechecked in `effect-bench.mjs`,
+`effect-render.mjs`, `effect-assets.mjs`, `particleVFXRecovery.ts`,
+`creatorRecoveryStore.ts` and `SceneEffectCreatorPage.tsx`). Two optional
+notes: **P9-R2-F1**, the localStorage fallback keeps a textureless draft only
+up to 1 MiB of JSON; **P9-R2-F2**, `--with-clip` plays effect events only for
+a Library item or folder, since a bare clip `.json` has no dependencies.
+
+#### Code Review #2 Revisions
+
+- **F1 and F2 accepted:** both sentences now state those conditions.
+
+The review passed at round 2 with one repair round unused.
 
 ## Final integration review
 
