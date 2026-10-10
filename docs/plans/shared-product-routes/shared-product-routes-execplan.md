@@ -3,7 +3,7 @@
 Source agreement: [issue #379](https://github.com/raymond-van/animama/issues/379)
 (opened 2026-10-09 at the owner's request) and the owner's dated instruction of
 2026-10-09: write the ExecPlan and ADR, then implement stages 1–3.
-Authorized scope: Phases 1–3 (issue stages 1–3) after owner review of this plan.
+Authorized scope: Phases 1–3 (issue stages 1–3); the owner approved the plan on 2026-10-10.
 Stages 4 (paid utilities) and 5 (chat streaming) are described for orientation
 only and are not authorized.
 
@@ -15,7 +15,7 @@ consumer reuses Animama's services but re-implements every product route, so
 behaviour drifts (about 25 differences at the last audit) and each new endpoint
 needs a hosted twin. The outcome: product routes live once in a shared HTTP
 package that each composition mounts with its own adapters
-([ADR 0021](../../adr/0021-shared-product-http-routes.md), proposed). Self-hosted
+([ADR 0021](../../adr/0021-shared-product-http-routes.md), accepted). Self-hosted
 and desktop behaviour, the public OpenAPI operations and the generated SDK stay
 unchanged.
 
@@ -34,7 +34,7 @@ named built stack.
 ## Progress
 
 - [ ] Phase 1: foundations (package, principal move, route inventory, ports, owner
-  fix, test harness). Not started; awaits plan review.
+  fix, test harness). In progress since 2026-10-10.
 - [ ] Phase 2: thin owner-scoped routers. Not started.
 - [ ] Phase 3: content routers. Not started.
 - [ ] Final integration review and PR. Not started.
@@ -82,7 +82,9 @@ runtime capabilities did not change between the two.
 - 2026-10-09, agent proposal (for owner review): the package is
   `animama.product_http`; ports are one typed `ProductPorts` object; write sessions
   keep commit authority with the composition. See ADR 0021.
-- Open questions for owner review (proposed defaults in brackets):
+- 2026-10-10, owner: approved this plan, ADR 0021 and all five proposed defaults
+  below. Implementation of Phases 1–3 may start.
+- Owner-approved defaults (2026-10-10; the question, then the decision in brackets):
   1. Anima CRUD routes are not named in #379 [Phase 3, with content].
   2. Model catalog reads (`/v1/model-providers`, `/v1/model-roles`), memory-manager
      run routes and ElevenLabs voice routes [stage 4, because they need model or
@@ -99,8 +101,8 @@ runtime capabilities did not change between the two.
 
 ### Phase 1: Foundations
 
-Requirements: #379 stage 1. Issue: one phase issue under #379 (created when
-implementation starts). Starting source: latest `main`.
+Requirements: #379 stage 1. Issue: [#438](https://github.com/raymond-van/animama/issues/438).
+Starting source: latest `main`.
 
 Changes, each as a separate commit with its tests:
 
@@ -141,7 +143,8 @@ for the phase passes within its bound.
 
 ### Phase 2: Thin owner-scoped routers
 
-Requirements: #379 stage 2. One family per commit, in this order: chats; memory
+Requirements: #379 stage 2. Issue: [#439](https://github.com/raymond-van/animama/issues/439).
+One family per commit, in this order: chats; memory
 entries and episodes; settings (add HTTP characterization tests first); profile;
 safety (move its response models into `app/contracts`); loadouts. For each family:
 
@@ -157,7 +160,8 @@ shims for migrated tests removed, Code Review #1 for the phase passes.
 
 ### Phase 3: Content routers
 
-Requirements: #379 stage 3. Steps:
+Requirements: #379 stage 3. Issue: [#440](https://github.com/raymond-van/animama/issues/440).
+Steps:
 
 1. Content ports: route content construction through the package facade, remove
    request-time directory creation and fix P3-01 (synchronous stage ports run off

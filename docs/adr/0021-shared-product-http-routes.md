@@ -1,6 +1,6 @@
 # 0021: Shared product HTTP routes for every composition
 
-- Status: proposed
+- Status: accepted (owner, 2026-10-10)
 - Recorded: 2026-10-09
 - Retrospective: no
 - Decision basis: [issue #379](https://github.com/raymond-van/animama/issues/379),
