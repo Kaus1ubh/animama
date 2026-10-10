@@ -14,6 +14,9 @@ from starlette.types import Receive, Scope, Send
 
 from animama.app.services.content_package_export import DownloadLease
 from animama.domain.content_catalog import VerifiedContentFile
+from animama.logging import get_logger
+
+_log = get_logger("product_http.delivery")
 
 
 def stream_verified_file(file: VerifiedContentFile) -> Iterator[bytes]:
@@ -91,7 +94,12 @@ class PackageDownloadResponse(StreamingResponse):
             while chunk:
                 following = download.handle.read(1024 * 1024)
                 if not following:
-                    self._release()
+                    try:
+                        self._release()
+                    except Exception as exc:
+                        # The archive is complete in memory: deliver it, and leave the
+                        # stage unreclaimed rather than truncating a verified download.
+                        _log.warning("Package download lease release failed", error_type=type(exc).__name__)
                 yield chunk
                 chunk = following
 

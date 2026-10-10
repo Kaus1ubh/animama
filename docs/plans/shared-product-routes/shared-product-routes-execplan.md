@@ -50,8 +50,9 @@ named built stack.
   content port and byte delivery (`55abd1fb`), content (`a2c4f2a8`), typed content
   (`749beeb5`), packages (`38e0dd40`), Avatars (`a2a91a74`), the Anima runtime
   (`20902271`) and Anima CRUD (`2eaa20e1`); `5f20fbac` mounts all 84 stage-3 routes
-  from `ROUTERS` and serves stages 2 and 3. Phase checks, the full browser journeys
-  and Code Review #1 pending.
+  from `ROUTERS` and serves stages 2 and 3. Review repairs in `3604a3fb`, `4d16a25f`
+  and the review-record commit; the targeted Code Review #2 passed. Phase checks
+  and the full browser journeys on the final candidate are recorded below.
 - [ ] Final integration review and PR. Not started.
 
 ## Surprises & Discoveries
@@ -440,7 +441,22 @@ Code Review #1 Revisions:
 - O-05 and O-06 are deferred: the Avatar catalog's output is unchanged and its
   reads are bounded by the owner's visible catalog; the remaining synchronous IO
   predates this plan. O-08 needs no change; nothing filters on logger names.
+- Commits: `3604a3fb` (download discard race), `4d16a25f` (P3R-01, P3R-02, P3R-03,
+  the download release, O-01 to O-03, O-07, O-09, O-10, O-12) and `905b5f69` (O-04,
+  O-11 and this record).
+- Validation at `905b5f69`: `make check-test` passed (3,593 passed, 10 skipped);
+  the full `pnpm e2e:test` on a built stack passed (38 of 38); ruff, mypy, the
+  boundary checker, the installed-wheel consumer and `pnpm openapi-ts:check` (no
+  SDK diff) passed.
 - Repair rounds used: 1 of 2.
+
+Code Review #2 (targeted, at `905b5f69`): P3R-01 to P3R-03, the download release and
+O-03 are resolved; injected leaks fail each new two-owner check. Its non-blocking
+notes are applied: a failed lease release no longer truncates a complete download
+(it is logged and the stage stays unreclaimed), the content builder's docstring is
+corrected, the last inert session overrides and duplicate store builders are gone,
+and this record cites its commits and validation. The first content request still
+builds the local coordinator, whose roots startup already created. Result: pass.
 
 ## Final integration review
 

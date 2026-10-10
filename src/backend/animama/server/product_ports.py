@@ -49,7 +49,7 @@ def local_product_content(
 ) -> ProductContent:
     """Build the local content services over ``session``, existing runtime paths and ``stages``.
 
-    Nothing here touches the filesystem: startup prepared ``paths``, and the caller
+    Nothing here creates directories: startup prepared ``paths``, and the caller
     reuses one package-stage coordinator rather than building one per request.
     """
 

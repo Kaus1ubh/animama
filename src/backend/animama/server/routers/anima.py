@@ -16,7 +16,6 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import definition_for_kind
@@ -42,7 +41,7 @@ from animama.server.avatar_uploads import (
 from animama.server.config import settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.gruut_text import build_gruut_sse_text
-from animama.server.local_runtime import initialize_local_runtime
+from animama.server.local_runtime import initialize_local_runtime, local_content_store
 from animama.server.local_upload_stream import LocalUploadError, spool_bounded_request
 from animama.server.model_clients import get_model_client_registry
 from animama.server.pocket_voice_catalog import validate_pocket_voice_catalog_bytes
@@ -184,12 +183,7 @@ async def finalize_anima_voice_catalog_upload(
         raise HTTPException(status_code=404, detail="Voice catalog upload not found")
     logical_key = f"local:voice:{upload.id}"
     paths = initialize_local_runtime(settings)
-    store = FilesystemContentStore(
-        included_root=paths.included_root,
-        included_sources=paths.included_sources,
-        local_root=paths.local_root,
-        operations_root=paths.operations_root,
-    )
+    store = local_content_store(paths)
     catalog = SQLAlchemyContentCatalog(session)
     content = ContentCatalogService(
         store=store,

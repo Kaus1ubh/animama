@@ -367,3 +367,28 @@ async def test_a_download_releases_its_lease_before_the_last_chunk_is_sent() -> 
         "body 7 more=True",
         "body 0 more=False",
     ]
+
+
+async def test_a_failed_lease_release_still_delivers_the_whole_archive() -> None:
+    sent: list[bytes] = []
+    archive = b"z" * (1024 * 1024 + 7)
+
+    class Download:
+        handle = io.BytesIO(archive)
+        review = SimpleNamespace(filename="wave.zip", size_bytes=len(archive), package_sha256="0" * 64)
+
+        def close(self, *, reclaimable: bool = False) -> None:
+            raise OSError("disk full")
+
+    async def receive() -> MutableMapping[str, Any]:
+        await asyncio.Event().wait()
+        raise AssertionError("unreachable")
+
+    async def send(message: MutableMapping[str, Any]) -> None:
+        if message["type"] == "http.response.body":
+            sent.append(message.get("body", b""))
+
+    response = PackageDownloadResponse(Download())  # type: ignore[arg-type]
+    await response({"type": "http", "method": "GET", "path": "/"}, receive, send)
+    # The verified archive is delivered in full; the stage merely stays unreclaimed.
+    assert b"".join(sent) == archive

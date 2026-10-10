@@ -19,7 +19,7 @@ from animama.orm.content_catalog import ORMAnimaContentBinding, ORMContentCatalo
 from animama.product_http.routes.content import router
 from animama.product_http.routes.typed_content import router as typed_content_router
 from animama.server.config import Settings
-from animama.server.deps import get_async_session, get_current_principal
+from animama.server.deps import get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.schemas.typed_content import PyReaction, typed_content_response
 from tests.local_http_client import local_client
@@ -199,11 +199,7 @@ async def test_direct_save_http_route_streams_into_the_readable_local_library(as
     async def override_user() -> RequestPrincipal:
         return RequestPrincipal(id="owner-http")
 
-    async def override_session():  # noqa: ANN202
-        yield async_session
-
     app.dependency_overrides[get_current_principal] = override_user
-    app.dependency_overrides[get_async_session] = override_session
     install_local_ports(app, async_session)
     client = local_client(app)
     try:
