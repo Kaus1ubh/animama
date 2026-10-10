@@ -20,6 +20,7 @@ import {
   DialogTitle,
 } from "@/ui/components/dialog";
 import { Input } from "@/ui/components/input";
+import { contentEntryName } from "@/lib/content/nameIdentifiers";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { itemReference } from "./createAnimaContent";
 import { sameRef, type CreateAnimaDraft } from "./createAnimaDraft";
@@ -30,11 +31,9 @@ export function avatarCollisionTarget(
   name: string,
   items: PyAvatarContent[],
 ): PyAvatarContent | undefined {
-  const filename = `${name
-    .trim()
-    .replace(/[ _]+/g, "-")
-    .replace(/^[-.]+|[-.]+$/g, "")
-    .toLowerCase()}.vrm`;
+  const entryName = contentEntryName(name);
+  if (!entryName) return undefined;
+  const filename = `${entryName}.vrm`;
   const matches = items.filter(
     (item) =>
       item.source === "local" &&

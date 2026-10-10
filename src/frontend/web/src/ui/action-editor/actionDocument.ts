@@ -1,3 +1,4 @@
+import { withNameHash } from "@/lib/content/nameIdentifiers";
 import { ANIMA_POSE_CLIP_V2_SCHEMA } from "@/lib/avatar/poses/animaPoseClip/schemaV2";
 import { RELAXED_REST_POSE_ID } from "@/lib/avatar/poses/catalog";
 import type { PyContentDependency } from "@/lib/content/catalogTypes";
@@ -74,15 +75,23 @@ export function actionAuthoringSnapshotsEqual(
   return JSON.stringify(left) === JSON.stringify(right);
 }
 
-/** Generate the stable, model-facing selector proposed for a new Gesture. */
+/**
+ * Generate the stable, model-facing selector proposed for a new Gesture. Names
+ * in other scripts get a name hash so different names never share a selector.
+ */
 export function gestureSemanticKey(name: string): string {
-  const value = name
+  const folded = name
     .normalize("NFKD")
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 64);
-  return value || "new_gesture";
+  return withNameHash(name, folded, {
+    separator: "_",
+    stem: "gesture",
+    empty: "new_gesture",
+    maxLength: 64,
+  });
 }
 
 /** An empty `animaPoseClip/2.0` clip: no beats or events yet. */

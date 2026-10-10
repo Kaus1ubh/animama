@@ -1,0 +1,82 @@
+{
+  "description": "Names and the identifiers derived from them by the web app (nameIdentifiers.ts, gestureSemanticKey) and the backend (readable_entry_name). Both sides test against this file.",
+  "names": [
+    {
+      "name": "Heart Hands",
+      "hash": "0buj2xx",
+      "semanticKey": "heart_hands",
+      "slug": "heart-hands",
+      "entryName": "heart-hands"
+    },
+    {
+      "name": "Café Wave",
+      "hash": "0lyz52y",
+      "semanticKey": "cafe_wave",
+      "slug": "cafe-wave",
+      "entryName": "cafe-wave"
+    },
+    {
+      "name": "Pokémon Dance",
+      "hash": "1ry7ncm",
+      "semanticKey": "poke_mon_dance",
+      "slug": "poke-mon-dance",
+      "entryName": "pokemon-dance"
+    },
+    {
+      "name": "おじぎ",
+      "hash": "04tkfzn",
+      "semanticKey": "gesture_04tkfzn",
+      "slug": "untitled-04tkfzn",
+      "entryName": "item-04tkfzn"
+    },
+    {
+      "name": "お辞儀",
+      "hash": "0f2f10u",
+      "semanticKey": "gesture_0f2f10u",
+      "slug": "untitled-0f2f10u",
+      "entryName": "item-0f2f10u"
+    },
+    {
+      "name": "인사",
+      "hash": "1rq2ni8",
+      "semanticKey": "gesture_1rq2ni8",
+      "slug": "untitled-1rq2ni8",
+      "entryName": "item-1rq2ni8"
+    },
+    {
+      "name": "鞠躬",
+      "hash": "1g9xux4",
+      "semanticKey": "gesture_1g9xux4",
+      "slug": "untitled-1g9xux4",
+      "entryName": "item-1g9xux4"
+    },
+    {
+      "name": "鞠躬 2",
+      "hash": "0kj0yim",
+      "semanticKey": "2_0kj0yim",
+      "slug": "2-0kj0yim",
+      "entryName": "2-0kj0yim"
+    },
+    {
+      "name": "Bow おじぎ",
+      "hash": "0kupwcv",
+      "semanticKey": "bow_0kupwcv",
+      "slug": "bow-0kupwcv",
+      "entryName": "bow-0kupwcv"
+    },
+    {
+      "name": "ガ",
+      "hash": "0ogflck",
+      "semanticKey": "gesture_0ogflck",
+      "slug": "untitled-0ogflck",
+      "entryName": "item-0ogflck"
+    },
+    {
+      "name": "Ünïcödé 名前 mix",
+      "hash": "0hlr2jx",
+      "semanticKey": "u_ni_co_de_mix_0hlr2jx",
+      "slug": "u-ni-co-de-mix-0hlr2jx",
+      "entryName": "unicode-mix-0hlr2jx"
+    }
+  ]
+}

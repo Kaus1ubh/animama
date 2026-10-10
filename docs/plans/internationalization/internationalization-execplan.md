@@ -61,8 +61,9 @@ Boundaries:
 - [x] 2026-10-10 Code, contract and tooling map (backend, frontend, desktop, Cloud).
 - [x] 2026-10-10 Workspace setup: spec published to #385, phase issues #418–#426,
       branch renamed to `feat/internationalization`, fast-forwarded to `5993bbee`.
-- [x] Phase 1: foundation (R1–R6, R16–R18); review #2 passed 2026-10-10.
-- [ ] Phase 2: names in any script (R11).
+- [x] Phase 1: foundation (R1–R6, R16–R18); review #2 passed 2026-10-10; commits
+      `1766cc8f`, `4ef6786a` (browser fixtures render with the i18n provider).
+- [x] Phase 2: names in any script (R11); review #3 passed 2026-10-10.
 - [ ] Phase 3: backend diagnostics and shared error wording (R10).
 - [ ] Phase 4: app shell, chat and safety (R7, R9).
 - [ ] Phase 5: Animas, Library and memory (R7).
@@ -344,13 +345,94 @@ Issue: #419. Dependencies: none beyond Phase 1 tooling.
 
 Checks: `pnpm web:test`, backend tests for content save and Loadout, `pnpm check`.
 
+#### Phase 2 results (2026-10-10)
+
+Source: `4ef6786a` plus the Phase 2 working tree.
+
+- Web: `lib/content/nameIdentifiers.ts` (`nameHash`, `withNameHash`,
+  `contentSlug`, `contentEntryName`) used by Gesture semantic keys, action and
+  Local logical-key slugs, appearance image logical keys and the Create Anima
+  avatar collision check. Backend: `app/services/content_names.py` shared by
+  `readable_entry_name` (Save and voice-catalog uploads) and package import
+  path names. The shared fixture `lib/content/fixtures/name-identifiers.json`
+  pins hash, semantic key, slug and entry name on both sides.
+- Checks: web vitest (content, create-anima, mutations, action-editor) 104
+  files / 746 tests pass; web `tsc` pass; backend name, save, package import
+  and HTTP tests 72 pass; `test_name_identifiers.py` 19 pass; ruff, format and
+  mypy pass.
+- Browser (task stack): a Pose named お辞儀 saved as `poses/item-0f2f10u`;
+  Gestures おじぎ and お辞儀 saved with semantic keys `gesture_04tkfzn` and
+  `gesture_0f2f10u`, logical keys `local:gesture:untitled-<hash>`, and both
+  equipped on Annie without `gesture_semantic_key_conflict` ("Loadout updated").
+  Limitation: the model selecting them in chat was not exercised (needs a paid
+  provider turn); the model receives each Gesture's name, description and
+  selector.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full review of `4ef6786a` plus the working tree.
+
+- **P2-R1-01 (required).** `CreateAnimaAvatarStep.avatarCollisionTarget` copied
+  the old entry-name rule, so a second `ミク.vrm` upload got `content_path_exists`
+  without the offered replacement.
+- **P2-R1-02 (required).** `useAppearanceContentActions.logicalName` gave every
+  image name in another script the same logical key (`local:appearance:image`),
+  which made dependency resolution ambiguous.
+- **P2-R1-03 (required).** Package import `_path_name` folded every name in
+  another script to `content` and renamed a differently named second item.
+- **P2-R1-04 (optional).** Hashing the untrimmed name changed keys for names
+  with trailing (including ideographic) spaces.
+- **P2-R1-05 (optional).** A Python test compared a string with itself.
+- **P2-R1-06 (optional).** Redundant entry-name condition; marks removed twice.
+- **P2-R1-07 (optional).** Docs overclaimed that different names never share
+  an entry.
+- Noted, outside the rule: emoji-only names still fall back; JSON download
+  names for other scripts stay generic; `toLocaleLowerCase` on a Turkish host
+  and Windows device names on Save are pre-existing; Python (Unicode 15) and
+  Node (Unicode 17) classify a few thousand newly assigned characters
+  differently. Verified: hash parity for every code point and 20,000 random
+  strings; unchanged identifiers for names that fold losslessly.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P2-R1-01 accepted.** `contentEntryName` mirrors `readable_entry_name`
+  (tested against the fixture's `entryName` column); the collision check uses it.
+- **P2-R1-02 accepted.** `logicalName` keeps its ASCII output and adds the name
+  hash when folding drops characters.
+- **P2-R1-03 accepted.** Name helpers moved to `app/services/content_names.py`;
+  `_path_name` appends the hash (`content-<hash>`), tested.
+- **P2-R1-04 accepted.** Both hashes trim first; tested with U+3000.
+- **P2-R1-05/06 accepted.** NFD test; `readable_entry_name` folds only non-ASCII
+  names through `portable_name`.
+- **P2-R1-07 accepted.** Storage docs state the `Café`/`Cafe` case and the
+  package import paths.
+- Out-of-rule notes are recorded here; emoji-only names and download file names
+  keep their current fallbacks.
+
+Repair budget: one of two repair rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck: P2-R1-01..07 fixed. **P2-R2-01 (required)** the new
+`contentEntryName` ASCII test `/^[\x00-\x7f]*$/` failed ESLint
+`no-control-regex` (`pnpm web:lint`). **P2-R2-02 (optional)** JavaScript `trim()`
+and Python `strip()` differ for U+001C–U+001F, U+0085 and U+FEFF at the ends of
+a name, so such names hash differently on each side.
+
+#### Code Review #2 Revisions
+
+- **P2-R2-01 accepted.** `/^\p{ASCII}*$/u`; `pnpm lint` (web) passes; content and
+  create-anima tests 107 pass.
+- **P2-R2-02 deferred.** Real names rarely start or end with those control or
+  BOM characters; the mismatch only weakens the avatar collision hint.
+
+Repair budget: two of two repair rounds used.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of P2-R2-01: fixed; ESLint on the Phase 2 web files
+passes; `contentEntryName` returns the same result as before the fix for
+249,475 generated names. Result: pass.
 
 ### Phase 3 — Backend diagnostics and shared error wording (R10)
 

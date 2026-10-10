@@ -1,5 +1,6 @@
 "use client";
 
+import { contentSlug } from "@/lib/content/nameIdentifiers";
 import { useProductApiClient } from "@animama/product-ui";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
@@ -56,17 +57,6 @@ const pendingActions = new Map<string, PendingAction>();
 // Staged VRMA files and pending saves belong to the session that made them.
 registerPrivateStateReset(() => pendingActions.clear());
 
-function slug(value: string): string {
-  return (
-    value
-      .normalize("NFKD")
-      .toLocaleLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(0, 96) || "untitled"
-  );
-}
-
 function dependencyReference(source: PyExactContentSource): string {
   if (source.type === "builtin") return source.content_id;
   return source.logical_key || source.catalog_item_id;
@@ -79,8 +69,8 @@ export function actionDescriptorFor(
 ) {
   const companionName =
     document.implementation === "vrma"
-      ? `${slug(document.name)}.vrma`
-      : `${slug(document.name)}.json`;
+      ? `${contentSlug(document.name)}.vrma`
+      : `${contentSlug(document.name)}.json`;
   return {
     companionName,
     descriptor: {
@@ -170,7 +160,7 @@ export function useActionEditorActions(intent: ActionIntent) {
       ? await getTypedActionCatalogItem(apiClient, intent, existingId)
       : null;
     const logicalKey =
-      existing?.logical_key ?? `local:${intent}:${slug(document.name)}`;
+      existing?.logical_key ?? `local:${intent}:${contentSlug(document.name)}`;
     const { companionName, descriptor } = actionDescriptorFor(
       document,
       logicalKey,
