@@ -87,7 +87,7 @@ starting revision; implementers re-check them.
       passed.
 - [x] Phase 4: Sound mapping, pack assembly and integration (#405). G1 (reuse)
       and G2 (approval) recorded; pack `v1` published; content committed;
-      review #1 findings fixed. G3 skipped for now by the owner.
+      reviews #1–#3 passed. G3 skipped for now by the owner.
 - [x] Final integration review of Phases 1–3 and the committed Phase 4 part
       (2026-10-10); Phase 4 content is reviewed after G2.
 - [x] PR opened: [#427](https://github.com/raymond-van/animama/pull/427)
@@ -847,8 +847,9 @@ the acceptance criteria in #399 hold with real content; review passes.
 Issue: #405. Commits: `50cdb5dd` (`feat(content)[p4]: let promotion attach
 licensed sounds and document the sound pack`), `19dd02bd` (final-review
 docs), the merge of `origin/main` `5993bbee`, `3a2938e0`
-(`feat(content)[p4]: give every built-in Avatar Effect its licensed sound`) and
-the Code Review #1 revision commit.
+(`feat(content)[p4]: give every built-in Avatar Effect its licensed sound`),
+`ba82eff4` (Code Review #1 revisions) and `fd8261b0` (Code Review #2
+revisions).
 
 #### Phase 4 results (2026-10-10, after G1 and G2)
 
@@ -941,6 +942,15 @@ credential message). **Blocked** on one record fix:
   catches unpaired sidecars, #405 scope, and G3 shown as open in Progress and
   Completion.
 - Repair budget: two rounds used.
+
+#### Code Review #3
+
+Independent `sdlc-reviewer`, 2026-10-10, final targeted recheck of
+`fd8261b0`: **pass**. P4-R2-F1 resolved; plan, PR #427 and #405 agree on G3
+(open) and on 29 effects and sounds; the full-path Q3 assertion fails on an
+unreferenced or unpaired file. Checks: 10 integrity tests, ruff, format,
+`git diff --check`. Optional: step 5's original "26 Avatar Effects" wording is
+kept as history (explained by the later note).
 
 ## Final integration review
 
