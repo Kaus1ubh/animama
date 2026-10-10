@@ -447,7 +447,7 @@ async def test_supplied_fixture_content_can_materialize_both_starters(async_sess
             assert {gesture.source.logical_key for gesture in loadout.gestures if gesture.source} == set(
                 EXPECTED_STARTER_GESTURE_IDS
             )
-            assert len(loadout.gestures) == 21
+            assert len(loadout.gestures) == 20
             assert loadout.idle_style.state == "empty"
             assert all(cell.source is not None for cell in loadout.reactions)
 
@@ -473,6 +473,6 @@ async def test_tracked_checkout_materializes_both_starters_without_optional_loca
             loadout = await AnimaLoadoutService(async_session).read_model(
                 user_id=fixture.owner, anima_id=starter["anima_id"]
             )
-            assert len(loadout.gestures) == 21
+            assert len(loadout.gestures) == 20
             assert all(cell.source is not None for cell in loadout.reactions)
             assert loadout.idle_style.state == "empty"

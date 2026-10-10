@@ -24,14 +24,34 @@ type RenderRequest = {
   tile: { width: number; height: number };
   /** Which of the Avatar's own sides the ¾ and side views look from. */
   side: "left" | "right";
+  /** `body` (whole Avatar and face) or `hands` (close-ups of the `side` hand). */
+  view?: "body" | "hands";
+};
+
+type View = {
+  name: string;
+  angle: number;
+  face?: boolean;
+  /** Hand close-ups: around the Avatar at `angle`, from below the front, or facing the palm. */
+  hand?: "world" | "below" | "palm";
 };
 
 /**
  * Camera angles around the Avatar (0 = facing it). The Avatar's own left is
  * +X, so the front view shows its right hand on the viewer's left.
  */
-const viewsFor = (side: "left" | "right") => {
+const viewsFor = (
+  side: "left" | "right",
+  view: "body" | "hands" = "body",
+): View[] => {
   const sign = side === "left" ? 1 : -1;
+  if (view === "hands")
+    return [
+      { name: `${side} hand front`, angle: 0, hand: "world" },
+      { name: `${side} hand 3/4`, angle: (sign * Math.PI) / 4, hand: "world" },
+      { name: `${side} hand below`, angle: 0, hand: "below" },
+      { name: `${side} palm`, angle: 0, hand: "palm" },
+    ];
   return [
     { name: "front", angle: 0, face: false },
     { name: `3/4 ${side}`, angle: (sign * Math.PI) / 4, face: false },
@@ -88,7 +108,7 @@ async function render(
       return null;
     }
   };
-  const VIEWS = viewsFor(request.side);
+  const VIEWS = viewsFor(request.side, request.view);
   const columns = request.avatars.length * VIEWS.length;
   const header = 28;
   const label = 64;
@@ -133,7 +153,41 @@ async function render(
       applyExpressions(vrm, sample.expressions ?? {});
       vrm.springBoneManager?.reset();
       VIEWS.forEach((view, viewIndex) => {
-        if (view.face) {
+        if (view.hand) {
+          // Close-up centred on the palm, wide enough to show what it touches.
+          const bone = (name: string) =>
+            vrm.humanoid
+              .getNormalizedBoneNode(name as never)
+              ?.getWorldPosition(new THREE.Vector3());
+          const wrist = bone(`${request.side}Hand`)!;
+          const middle = bone(`${request.side}MiddleProximal`) ?? wrist;
+          const index = bone(`${request.side}IndexProximal`) ?? middle;
+          const little = bone(`${request.side}LittleProximal`) ?? middle;
+          const palm = wrist.clone().lerp(middle, 0.7);
+          const forward = middle.clone().sub(wrist).normalize();
+          const across = index.clone().sub(little).normalize();
+          // Toward the palm side (fingers curl this way) for either hand.
+          const palmward =
+            request.side === "right"
+              ? across.clone().cross(forward)
+              : forward.clone().cross(across);
+          const direction =
+            view.hand === "palm"
+              ? palmward.normalize().add(forward.clone().multiplyScalar(0.25))
+              : view.hand === "below"
+                ? new THREE.Vector3(0, -0.7, 1)
+                : new THREE.Vector3(
+                    Math.sin(view.angle),
+                    0.15,
+                    Math.cos(view.angle),
+                  );
+          const reach = head.y * 0.32;
+          camera.position
+            .copy(palm)
+            .addScaledVector(direction.normalize(), reach);
+          camera.up.set(0, 1, 0);
+          camera.lookAt(palm);
+        } else if (view.face) {
           // Close-up on the current head position so expressions are readable.
           const face = vrm.humanoid
             .getRawBoneNode("head")!

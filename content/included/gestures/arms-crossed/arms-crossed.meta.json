@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:arms-crossed",
   "version": 1,
   "semantic_key": "arms-crossed",
-  "name": "arms-crossed",
+  "name": "Arms Crossed",
   "ai_description": "Cross both arms to express skepticism, disagreement, or a firm stance.",
   "implementation": {
     "kind": "anima_clip",

@@ -60,11 +60,44 @@
     "relaxed",
     "point",
     "peace",
-    "thumbs-up"
+    "thumbs-up",
+    "cupped",
+    "soft-claw",
+    "palm-flat",
+    "pinch",
+    "ok"
   ],
   "handAdjustmentLimits": {
     "curl": 90,
     "spread": 30
+  },
+  "handDigitOffsets": {
+    "thumb": {
+      "fields": ["curl", "palmarAbduction", "twist"],
+      "segments": ["proximal", "distal"]
+    },
+    "index": {
+      "fields": ["curl", "splay"],
+      "segments": ["proximal", "intermediate", "distal"]
+    },
+    "middle": {
+      "fields": ["curl", "splay"],
+      "segments": ["proximal", "intermediate", "distal"]
+    },
+    "ring": {
+      "fields": ["curl", "splay"],
+      "segments": ["proximal", "intermediate", "distal"]
+    },
+    "little": {
+      "fields": ["curl", "splay"],
+      "segments": ["proximal", "intermediate", "distal"]
+    }
+  },
+  "handFingerOffsetLimit": 90,
+  "contactPoints": ["joint", "tip", "palm"],
+  "contactSolve": {
+    "defaultBlendSeconds": 0.15,
+    "maxBlendSeconds": 2
   },
   "eases": [
     "smooth",

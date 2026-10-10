@@ -1,0 +1,929 @@
+{
+  "description": "animaPoseClip/2.0 contacts (points, palm facing and solved windows) shared by the frontend parser (schemaV2.test.ts) and the backend validator (tests/test_pose_clip_v2.py). Each case replaces `contacts` in `clip` (and sets `loop` when the case has it). Valid cases list the contacts the frontend parser keeps (`parsed`): fields stay as written, blends at the saved time precision. Invalid cases hold one fault, reported at `path` by both sides.",
+  "clip": {
+    "schema": "animaPoseClip/2.0",
+    "id": "contacts",
+    "name": "Contacts",
+    "duration": 2,
+    "beats": [
+      {
+        "id": "start",
+        "label": "Start",
+        "time": 0
+      },
+      {
+        "id": "touch",
+        "label": "Touch",
+        "time": 0.5
+      },
+      {
+        "id": "clap",
+        "label": "Clap",
+        "time": 1
+      },
+      {
+        "id": "release",
+        "label": "Release",
+        "time": 1.5
+      }
+    ],
+    "expressions": {
+      "happy": [
+        {
+          "beat": "start",
+          "v": 0
+        }
+      ]
+    }
+  },
+  "valid": [
+    {
+      "name": "solved palm and tip contacts beside a check-only pinch",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "head",
+          "offset": [0, -0.06, 0.09],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "tolerance": 0.02,
+          "facing": true,
+          "solve": {
+            "blendIn": 0.25,
+            "blendOut": 0.3
+          }
+        },
+        {
+          "bone": "leftIndexDistal",
+          "point": "tip",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "clap",
+          "from": 0,
+          "to": 0.05,
+          "solve": {}
+        },
+        {
+          "bone": "rightThumbDistal",
+          "point": "tip",
+          "target": "rightIndexDistal",
+          "targetPoint": "tip",
+          "beat": "release",
+          "from": 0,
+          "to": 0.3
+        }
+      ],
+      "parsed": [
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "head",
+          "offset": [0, -0.06, 0.09],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "tolerance": 0.02,
+          "facing": true,
+          "solve": {
+            "blendIn": 0.25,
+            "blendOut": 0.3
+          }
+        },
+        {
+          "bone": "leftIndexDistal",
+          "point": "tip",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "clap",
+          "from": 0,
+          "to": 0.05,
+          "solve": {}
+        },
+        {
+          "bone": "rightThumbDistal",
+          "point": "tip",
+          "target": "rightIndexDistal",
+          "targetPoint": "tip",
+          "beat": "release",
+          "from": 0,
+          "to": 0.3
+        }
+      ]
+    },
+    {
+      "name": "one-sided claps chain: solved windows on one side 0.2 s apart or touching",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "clap",
+          "from": -0.3,
+          "to": -0.25,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "clap",
+          "from": -0.05,
+          "to": 0,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "clap",
+          "from": 0,
+          "to": 0.05,
+          "solve": {
+            "blendIn": 0
+          }
+        }
+      ],
+      "parsed": [
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "clap",
+          "from": -0.3,
+          "to": -0.25,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "clap",
+          "from": -0.05,
+          "to": 0,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "clap",
+          "from": 0,
+          "to": 0.05,
+          "solve": {
+            "blendIn": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "blend limits are inclusive and kept at time precision",
+      "contacts": [
+        {
+          "bone": "leftHand",
+          "target": "spine",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.2,
+          "solve": {
+            "blendIn": 0.123456,
+            "blendOut": 2
+          }
+        },
+        {
+          "bone": "rightMiddleIntermediate",
+          "point": "joint",
+          "target": "leftLowerArm",
+          "targetPoint": "joint",
+          "beat": "release",
+          "from": 0,
+          "to": 0.5,
+          "facing": false,
+          "solve": {
+            "blendIn": 0,
+            "blendOut": 0
+          }
+        }
+      ],
+      "parsed": [
+        {
+          "bone": "leftHand",
+          "target": "spine",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.2,
+          "solve": {
+            "blendIn": 0.1235,
+            "blendOut": 2
+          }
+        },
+        {
+          "bone": "rightMiddleIntermediate",
+          "point": "joint",
+          "target": "leftLowerArm",
+          "targetPoint": "joint",
+          "beat": "release",
+          "from": 0,
+          "to": 0.5,
+          "facing": false,
+          "solve": {
+            "blendIn": 0,
+            "blendOut": 0
+          }
+        }
+      ]
+    },
+    {
+      "name": "crossed arms solve both sides onto the other arm",
+      "contacts": [
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightLowerArm",
+          "offset": [-0.12, 0, 0.03],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftLowerArm",
+          "offset": [0.12, 0, 0.03],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        }
+      ],
+      "parsed": [
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightLowerArm",
+          "offset": [-0.12, 0, 0.03],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftLowerArm",
+          "offset": [0.12, 0, 0.03],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        }
+      ]
+    },
+    {
+      "name": "each hand solved onto the other at separate times",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.05,
+          "solve": {}
+        },
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "release",
+          "from": 0,
+          "to": 0.05,
+          "solve": {}
+        }
+      ],
+      "parsed": [
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.05,
+          "solve": {}
+        },
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "release",
+          "from": 0,
+          "to": 0.05,
+          "solve": {}
+        }
+      ]
+    },
+    {
+      "name": "a one-shot's blends do not wrap across its ends",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "start",
+          "from": 0,
+          "to": 0.05,
+          "solve": {}
+        },
+        {
+          "bone": "leftIndexDistal",
+          "point": "tip",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "release",
+          "from": 0.45,
+          "to": 0.5,
+          "solve": {}
+        }
+      ],
+      "parsed": [
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "start",
+          "from": 0,
+          "to": 0.05,
+          "solve": {}
+        },
+        {
+          "bone": "leftIndexDistal",
+          "point": "tip",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "release",
+          "from": 0.45,
+          "to": 0.5,
+          "solve": {}
+        }
+      ]
+    },
+    {
+      "name": "crossed arms onto an upper arm and a forearm",
+      "contacts": [
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightUpperArm",
+          "offset": [-0.1, 0, 0.04],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftLowerArm",
+          "offset": [0.12, 0, 0.03],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        }
+      ],
+      "parsed": [
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightUpperArm",
+          "offset": [-0.1, 0, 0.04],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftLowerArm",
+          "offset": [0.12, 0, 0.03],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        }
+      ]
+    },
+    {
+      "name": "a palm onto the other palm while that hand rests on the chest",
+      "contacts": [
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "chest",
+          "offset": [-0.05, 0.1, 0.12],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        }
+      ],
+      "parsed": [
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "chest",
+          "offset": [-0.05, 0.1, 0.12],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        }
+      ]
+    }
+  ],
+  "invalid": [
+    {
+      "name": "unknown point",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "point": "fingertip",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1
+        }
+      ],
+      "path": "contacts[0].point"
+    },
+    {
+      "name": "point is not a string",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "point": 1,
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1
+        }
+      ],
+      "path": "contacts[0].point"
+    },
+    {
+      "name": "palm point on a finger bone",
+      "contacts": [
+        {
+          "bone": "rightIndexDistal",
+          "point": "palm",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1
+        }
+      ],
+      "path": "contacts[0].point"
+    },
+    {
+      "name": "tip point on a hand bone",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "point": "tip",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1
+        }
+      ],
+      "path": "contacts[0].point"
+    },
+    {
+      "name": "palm target point on a non-hand bone",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "target": "head",
+          "targetPoint": "palm",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1
+        }
+      ],
+      "path": "contacts[0].targetPoint"
+    },
+    {
+      "name": "tip target point on a hand bone",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "target": "leftHand",
+          "targetPoint": "tip",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1
+        }
+      ],
+      "path": "contacts[0].targetPoint"
+    },
+    {
+      "name": "facing is not a boolean",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "facing": "yes"
+        }
+      ],
+      "path": "contacts[0].facing"
+    },
+    {
+      "name": "facing on a bone without a palm",
+      "contacts": [
+        {
+          "bone": "rightLowerArm",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "facing": true
+        }
+      ],
+      "path": "contacts[0].facing"
+    },
+    {
+      "name": "solve is not an object",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "solve": true
+        }
+      ],
+      "path": "contacts[0].solve"
+    },
+    {
+      "name": "solve is null",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "solve": null
+        }
+      ],
+      "path": "contacts[0].solve"
+    },
+    {
+      "name": "unknown solve field",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "solve": {
+            "blend": 0.1
+          }
+        }
+      ],
+      "path": "contacts[0].solve.blend"
+    },
+    {
+      "name": "negative blend",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "solve": {
+            "blendIn": -0.1
+          }
+        }
+      ],
+      "path": "contacts[0].solve.blendIn"
+    },
+    {
+      "name": "blend above the limit",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "solve": {
+            "blendOut": 2.5
+          }
+        }
+      ],
+      "path": "contacts[0].solve.blendOut"
+    },
+    {
+      "name": "blend is a string",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "solve": {
+            "blendIn": "0.2"
+          }
+        }
+      ],
+      "path": "contacts[0].solve.blendIn"
+    },
+    {
+      "name": "a solved contact moves a bone above the hand",
+      "contacts": [
+        {
+          "bone": "rightLowerArm",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "solve": {}
+        }
+      ],
+      "path": "contacts[0].bone"
+    },
+    {
+      "name": "a solved fingertip targets its own palm",
+      "contacts": [
+        {
+          "bone": "rightIndexDistal",
+          "point": "tip",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "solve": {}
+        }
+      ],
+      "path": "contacts[0].target"
+    },
+    {
+      "name": "a solved hand targets its own upper arm",
+      "contacts": [
+        {
+          "bone": "leftHand",
+          "target": "leftUpperArm",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "solve": {}
+        }
+      ],
+      "path": "contacts[0].target"
+    },
+    {
+      "name": "overlapping solved windows on one side",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        },
+        {
+          "bone": "rightIndexDistal",
+          "point": "tip",
+          "target": "leftHand",
+          "beat": "clap",
+          "from": -0.2,
+          "to": 0.1,
+          "solve": {}
+        }
+      ],
+      "path": "contacts[1].solve"
+    },
+    {
+      "name": "the later-starting window is reported whatever the order",
+      "contacts": [
+        {
+          "bone": "leftHand",
+          "target": "rightLowerArm",
+          "beat": "clap",
+          "from": -0.2,
+          "to": 0.1,
+          "solve": {}
+        },
+        {
+          "bone": "leftHand",
+          "target": "head",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        }
+      ],
+      "path": "contacts[0].solve"
+    },
+    {
+      "name": "a solved window inside a longer one",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "target": "chest",
+          "beat": "start",
+          "from": 0,
+          "to": 1.5,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "target": "head",
+          "beat": "clap",
+          "from": 0,
+          "to": 0.1,
+          "solve": {
+            "blendIn": 0.1
+          }
+        }
+      ],
+      "path": "contacts[1].solve"
+    },
+    {
+      "name": "mutual palm-to-palm solves",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "clap",
+          "from": 0,
+          "to": 0.05,
+          "solve": {}
+        },
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "clap",
+          "from": 0,
+          "to": 0.05,
+          "solve": {}
+        }
+      ],
+      "path": "contacts[1].solve"
+    },
+    {
+      "name": "hand-to-hand solves whose blends overlap",
+      "contacts": [
+        {
+          "bone": "rightIndexDistal",
+          "point": "tip",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.1,
+          "solve": {}
+        },
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightIndexDistal",
+          "targetPoint": "tip",
+          "beat": "touch",
+          "from": 0.3,
+          "to": 0.4,
+          "solve": {}
+        }
+      ],
+      "path": "contacts[1].solve"
+    },
+    {
+      "name": "hand-to-hand blends wrap across a loop's seam",
+      "loop": true,
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftHand",
+          "targetPoint": "palm",
+          "beat": "start",
+          "from": 0,
+          "to": 0.05,
+          "solve": {}
+        },
+        {
+          "bone": "leftIndexDistal",
+          "point": "tip",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "release",
+          "from": 0.45,
+          "to": 0.5,
+          "solve": {}
+        }
+      ],
+      "path": "contacts[1].solve"
+    },
+    {
+      "name": "a palm onto the other palm while that hand rests on this forearm",
+      "contacts": [
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        },
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftLowerArm",
+          "offset": [0.12, 0, 0.03],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        }
+      ],
+      "path": "contacts[1].solve"
+    },
+    {
+      "name": "a palm onto the other palm that starts while that hand rests on this upper arm",
+      "contacts": [
+        {
+          "bone": "rightHand",
+          "point": "palm",
+          "target": "leftUpperArm",
+          "offset": [0.1, 0, 0.04],
+          "beat": "touch",
+          "from": 0,
+          "to": 0.4,
+          "solve": {}
+        },
+        {
+          "bone": "leftHand",
+          "point": "palm",
+          "target": "rightHand",
+          "targetPoint": "palm",
+          "beat": "touch",
+          "from": 0.2,
+          "to": 0.4,
+          "solve": {}
+        }
+      ],
+      "path": "contacts[1].solve"
+    }
+  ]
+}

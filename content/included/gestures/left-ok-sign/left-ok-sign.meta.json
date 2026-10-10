@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:left-ok-sign",
   "version": 1,
   "semantic_key": "left-ok-sign",
-  "name": "left-ok-sign",
+  "name": "Left OK Sign",
   "ai_description": "Make an OK sign with the left hand to confirm that something is correct, ready, or going well.",
   "implementation": {
     "kind": "anima_clip",

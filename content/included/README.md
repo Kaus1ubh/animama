@@ -50,8 +50,8 @@ This library holds no non-portable content. See
 [ADR 0018](../../docs/adr/0018-non-portable-included-content.md).
 
 The private comedy sound pack under ignored `sfx/comedy/1/` has no distribution
-license. Shipped effects and the shy-finger-poke gesture intentionally omit its
-decorative audio cues while retaining their visuals and motion. Desktop staging
+license. Shipped effects and Gestures intentionally omit its decorative audio
+cues while retaining their visuals and motion. Desktop staging
 admits tracked inputs only, so neither those sounds nor their metadata enter the
 core or expanded-content pack. Existing private development files are not
 deleted. Owner-provided typed Sound Effects remain supported.

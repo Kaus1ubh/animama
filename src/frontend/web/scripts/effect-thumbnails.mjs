@@ -9,6 +9,7 @@ import {
 } from "./effect-render.mjs";
 import {
   EffectSourceError,
+  resolveClipSource,
   resolveEffectSource,
 } from "./effect-render-sources.mjs";
 
@@ -21,10 +22,11 @@ import {
  * Each template in `src/lib/effects/effectTemplates.ts` is rendered on Annie
  * with the `effects:render --thumbnail` renderer (portrait head framing, or
  * `WIDE_FRAMING_SCALE` times wider for a `wide` template; live expression;
- * 1 s after applying unless the template names another time) into
- * `src/assets/effect-templates/<id>.webp`. A full run also removes thumbnails
- * whose template no longer exists. Renders are deterministic, so unchanged
- * effects reproduce identical files.
+ * 1 s after applying unless the template names another time; posed by the
+ * template's Included Gesture `clip`, sampled at that time, when it names
+ * one) into `src/assets/effect-templates/<id>.webp`. A full run also removes
+ * thumbnails whose template no longer exists. Renders are deterministic, so
+ * unchanged effects reproduce identical files.
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 export const THUMBNAIL_DIR = path.join(webRoot, "src/assets/effect-templates");
@@ -44,6 +46,30 @@ export function selectTemplates(ids) {
       throw new EffectSourceError(`Unknown Avatar FX template ${id}.`);
     return template;
   });
+}
+
+/**
+ * Resolve one template into a `renderEffectThumbnails` job: its Included
+ * effect and, when `thumbnail.clip` names an Included Gesture by folder stem,
+ * that Gesture's clip. An unknown effect or Gesture throws
+ * `EffectSourceError`.
+ */
+export async function thumbnailJob(template) {
+  const sourceOptions = { cwd: webRoot, localContent: null };
+  const { framing, time, clip } = template.thumbnail ?? {};
+  return {
+    effect: await resolveEffectSource(
+      `library:included/${template.contentId}`,
+      sourceOptions,
+    ),
+    clip: clip
+      ? (await resolveClipSource(`library:included/${clip}`, sourceOptions))
+          .clip
+      : null,
+    outFile: path.join(THUMBNAIL_DIR, `${template.id}.webp`),
+    framingScale: framing === "wide" ? WIDE_FRAMING_SCALE : 1,
+    time,
+  };
 }
 
 async function removeStaleThumbnails() {
@@ -66,30 +92,25 @@ async function main(argv) {
   try {
     const templates = selectTemplates(argv);
     const jobs = [];
-    for (const template of templates)
-      jobs.push({
-        effect: await resolveEffectSource(
-          `library:included/${template.contentId}`,
-          {
-            cwd: webRoot,
-            localContent: null,
-          },
-        ),
-        outFile: path.join(THUMBNAIL_DIR, `${template.id}.webp`),
-        framingScale:
-          template.thumbnail?.framing === "wide" ? WIDE_FRAMING_SCALE : 1,
-        time: template.thumbnail?.time,
-      });
+    for (const template of templates) jobs.push(await thumbnailJob(template));
     await renderEffectThumbnails({
       jobs,
       time: THUMBNAIL_TIME,
       size: THUMBNAIL_SIZE,
-      onResult: (result) =>
+      onResult: (result) => {
         console.log(
           result.failures.length
             ? `FAILED ${result.stem}: ${result.failures.join("; ")}`
             : `Wrote ${path.relative(webRoot, result.outFile)}`,
-        ),
+        );
+        const missing = new Set(
+          result.avatars?.flatMap((avatar) => avatar.missingPoseRefs) ?? [],
+        );
+        if (missing.size)
+          console.log(
+            `Warning: ${result.stem} clip poses not in the app catalog rendered as the base pose: ${[...missing].join(", ")}`,
+          );
+      },
     });
     if (argv.length === 0)
       for (const name of await removeStaleThumbnails())

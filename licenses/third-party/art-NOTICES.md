@@ -66,8 +66,8 @@ terms. Do not edit its embedded permission flags.
 
 The Avatar FX template thumbnails in
 `src/frontend/web/src/assets/effect-templates/` are also direct Animama renderer
-captures of Annie, each wearing an owner-authored Included Avatar Effect and no
-other artwork. Like Annie's portrait, they follow Annie's model terms and retain
+captures of Annie, each wearing an Included Avatar Effect with owner-authored art
+and no other artwork. Like Annie's portrait, they follow Annie's model terms and retain
 pixiv VRoid Project credit. Their provenance and regeneration command are in
 that folder's README.
 

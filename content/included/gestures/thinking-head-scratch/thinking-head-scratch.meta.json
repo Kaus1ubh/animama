@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:thinking-head-scratch",
   "version": 1,
   "semantic_key": "thinking-head-scratch",
-  "name": "thinking-head-scratch",
+  "name": "Thinking Head Scratch",
   "ai_description": "Scratch the head to express puzzlement, uncertainty, or an attempt to work something out.",
   "implementation": {
     "kind": "anima_clip",

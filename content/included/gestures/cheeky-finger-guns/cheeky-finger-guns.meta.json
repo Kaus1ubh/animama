@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:cheeky-finger-guns",
   "version": 1,
   "semantic_key": "cheeky-finger-guns",
-  "name": "cheeky-finger-guns",
+  "name": "Cheeky Finger Guns",
   "ai_description": "Point playful finger guns to punctuate a joke, cheeky compliment, or confident agreement.",
   "implementation": {
     "kind": "anima_clip",

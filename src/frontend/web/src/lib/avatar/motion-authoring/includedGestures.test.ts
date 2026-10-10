@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import type { VRM } from "@pixiv/three-vrm";
 import { beforeAll, describe, expect, it } from "vitest";
 
+import { getManifestGestureEntries } from "../animationManifest";
 import {
   MAX_ANIMA_POSE_CLIP_BYTES,
   serializeAnimaPoseClipFile,
@@ -23,17 +24,10 @@ import { loadTestAvatar } from "./testing/includedAvatars";
  * on purpose, so the motion checks for authored clips do not apply.
  */
 const MOTION_CHECK_EXEMPT = new Set([
-  "double-thumbs-up",
-  "finger-heart-pose",
   "heart-hands-build",
-  "left-ok-sign",
   "meme-dab",
-  "right-thumbs-up",
-  "shy-finger-poke",
   "shy-finger-poke-loop",
   "single-hand-on-heart",
-  "soldier-salute",
-  "thinking-hand-on-chin-hold",
 ]);
 const directory = fileURLToPath(
   new URL("../../../../../../../content/included/gestures/", import.meta.url),
@@ -78,5 +72,33 @@ describe("Included 2.0 Gestures", () => {
       expect(checks.findings.filter((f) => f.severity === "fail")).toEqual([]);
     },
     60000,
+  );
+});
+
+/**
+ * The motion manifest repeats each clip-backed Gesture's name, duration and
+ * loop kind for chat playback, so they must agree with the clip.
+ */
+describe("Included Gesture manifest entries", () => {
+  const entries = getManifestGestureEntries().filter(
+    (entry) => entry.type === "animaPoseClip",
+  );
+
+  it.each(entries.map((entry) => [entry.file, entry] as const))(
+    "%s matches its clip's name, duration and loop",
+    (file, entry) => {
+      const clip = JSON.parse(
+        readFileSync(`${directory}${file}/${file}.json`, "utf8"),
+      );
+      expect({
+        name: entry.name,
+        duration: entry.duration,
+        loops: entry.loopType === "repeat",
+      }).toEqual({
+        name: clip.name,
+        duration: clip.duration,
+        loops: clip.loop === true,
+      });
+    },
   );
 });

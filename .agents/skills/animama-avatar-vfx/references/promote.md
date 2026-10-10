@@ -9,7 +9,8 @@ promote.
 
 - The owner reviewed the saved Local item in the live preview on both
   Included Avatars, and that item has not changed since.
-- `pnpm -s effects check library:local/<name>` passes.
+- `pnpm -s effects check library:local/<name>` passes (for art on a hand or
+  foot, with `--with-clip <gesture> --times …` in the pose it is used in).
 - Decide each item's mode with the owner:
   - `add`: a new Included effect at a new stem;
   - `replace`: new art and settings for an existing Included effect (it
@@ -56,6 +57,12 @@ one promoted in the run is re-pointed at its Included ID. The Included meta
 (ID, version, name, placement hint) and the clip's id, role and lifetime are
 kept, and Reactions stay expression-only. Deleting an effect is allowed once
 the same run re-points every Reaction or Gesture that used it.
+
+A **new** Gesture that uses a new effect is not added here: promote the
+effect with `mode: "add"` first, then add the Gesture with
+`pnpm -s animation promote` (`mode: "add"` with `dependencies` naming the
+effect's `builtin:avatar-effect:<stem>` ID; see the `animama-animation`
+skill's promote reference).
 
 The tool validates each definition, its image names and its art, writes
 `content/included/vfx/avatar/<stem>/`, removes files a replacement no longer
