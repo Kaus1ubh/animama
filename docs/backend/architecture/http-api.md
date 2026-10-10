@@ -51,7 +51,7 @@ Local setup and host/key administration schemas remain in the server composition
   bounded transfer and durable operation status.
 - `server/routers/typed_content.py`: typed product List/Get/Save/Preview routes
   over the shared catalog.
-- `server/routers/anima_loadouts.py`: typed Anima loadout read plus optimistic,
+- `product_http/routes/loadouts.py` (shared): typed Anima loadout read plus optimistic,
   idempotent family plan/commit commands.
 - `server/routers/anima_runtime.py`: exact runtime issuance, lease renewal, and
   revision-scoped registered-byte streaming.

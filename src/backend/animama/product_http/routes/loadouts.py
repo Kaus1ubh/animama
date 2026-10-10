@@ -1,4 +1,4 @@
-"""Typed Anima loadout reads and optimistic plan/commit commands."""
+"""Typed Anima loadout reads and optimistic plan/commit commands, shared by every composition (ADR 0021)."""
 
 from __future__ import annotations
 
@@ -6,13 +6,8 @@ from typing import Annotated, Literal, NoReturn
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.app.services.anima_loadout_service import AnimaLoadoutService, LoadoutFamily
-from animama.domain.anima_loadout import AnimaLoadoutError
-from animama.domain.request_principal import RequestPrincipal
-from animama.server.deps import get_async_session, get_current_principal
-from animama.server.schemas.anima_loadout import (
+from animama.app.contracts.anima_loadout import (
     LegacyMusicTrackCommitRequest,
     PyAnimaLoadout,
     PyAppearanceCommitRequest,
@@ -28,6 +23,11 @@ from animama.server.schemas.anima_loadout import (
     PySingleSelectionCommitRequest,
     PySingleSelectionPlanRequest,
 )
+from animama.app.services.anima_loadout_service import LoadoutFamily
+from animama.domain.anima_loadout import AnimaLoadoutError
+from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.ports import ProductRepositories, ReadRepositories, WriteRepositories
+from animama.product_http.principal import get_current_principal
 
 router = APIRouter(prefix="/v1/animas", tags=["anima-loadout"])
 
@@ -44,9 +44,9 @@ def _raise_loadout(exc: AnimaLoadoutError) -> NoReturn:
 async def get_anima_loadout(
     anima_id: str,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: ReadRepositories,
 ) -> PyAnimaLoadout:
-    service = AnimaLoadoutService(session)
+    service = repositories.anima_loadouts
     try:
         value = await service.read_model(user_id=user.id, anima_id=anima_id)
     except AnimaLoadoutError as exc:
@@ -63,11 +63,11 @@ async def _plan(
     anima_id: str,
     body: BaseModel,
     user: RequestPrincipal,
-    session: AsyncSession,
+    repositories: ProductRepositories,
 ) -> PyLoadoutPlan:
     data = body.model_dump(exclude_none=True)
     try:
-        value = await AnimaLoadoutService(session).plan(
+        value = await repositories.anima_loadouts.plan(
             user_id=user.id,
             anima_id=anima_id,
             family=family,
@@ -85,11 +85,11 @@ async def _commit(
     anima_id: str,
     body: BaseModel,
     user: RequestPrincipal,
-    session: AsyncSession,
+    repositories: ProductRepositories,
 ) -> PyLoadoutCommitResult:
     data = body.model_dump(exclude_none=True)
     try:
-        value = await AnimaLoadoutService(session).commit(
+        value = await repositories.anima_loadouts.commit(
             user_id=user.id,
             anima_id=anima_id,
             family=family,
@@ -100,7 +100,7 @@ async def _commit(
         )
         return PyLoadoutCommitResult.from_domain(value)
     except AnimaLoadoutError as exc:
-        await session.rollback()
+        await repositories.unit_of_work.rollback()
         _raise_loadout(exc)
 
 
@@ -109,9 +109,9 @@ async def plan_gesture(
     anima_id: str,
     body: PyGesturePlanRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: ReadRepositories,
 ) -> PyLoadoutPlan:
-    return await _plan(family="gesture", anima_id=anima_id, body=body, user=user, session=session)
+    return await _plan(family="gesture", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 
 @router.post("/{anima_id}/gestures:commit", response_model=PyLoadoutCommitResult)
@@ -119,9 +119,9 @@ async def commit_gesture(
     anima_id: str,
     body: PyGestureCommitRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: WriteRepositories,
 ) -> PyLoadoutCommitResult:
-    return await _commit(family="gesture", anima_id=anima_id, body=body, user=user, session=session)
+    return await _commit(family="gesture", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 
 @router.post("/{anima_id}/reactions:plan", response_model=PyLoadoutPlan)
@@ -129,9 +129,9 @@ async def plan_reaction(
     anima_id: str,
     body: PyReactionPlanRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: ReadRepositories,
 ) -> PyLoadoutPlan:
-    return await _plan(family="reaction", anima_id=anima_id, body=body, user=user, session=session)
+    return await _plan(family="reaction", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 
 @router.post("/{anima_id}/reactions:commit", response_model=PyLoadoutCommitResult)
@@ -139,9 +139,9 @@ async def commit_reaction(
     anima_id: str,
     body: PyReactionCommitRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: WriteRepositories,
 ) -> PyLoadoutCommitResult:
-    return await _commit(family="reaction", anima_id=anima_id, body=body, user=user, session=session)
+    return await _commit(family="reaction", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 
 @router.post("/{anima_id}/idle-style:plan", response_model=PyLoadoutPlan)
@@ -149,9 +149,9 @@ async def plan_idle_style(
     anima_id: str,
     body: PyIdleStylePlanRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: ReadRepositories,
 ) -> PyLoadoutPlan:
-    return await _plan(family="idle_style", anima_id=anima_id, body=body, user=user, session=session)
+    return await _plan(family="idle_style", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 
 @router.post("/{anima_id}/idle-style:commit", response_model=PyLoadoutCommitResult)
@@ -159,9 +159,9 @@ async def commit_idle_style(
     anima_id: str,
     body: PyIdleStyleCommitRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: WriteRepositories,
 ) -> PyLoadoutCommitResult:
-    return await _commit(family="idle_style", anima_id=anima_id, body=body, user=user, session=session)
+    return await _commit(family="idle_style", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 
 @router.post("/{anima_id}/music-tracks:commit", response_model=PyLoadoutCommitResult, include_in_schema=False)
@@ -169,11 +169,11 @@ async def replay_music_track_commit(
     anima_id: str,
     body: LegacyMusicTrackCommitRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: WriteRepositories,
 ) -> PyLoadoutCommitResult:
     """Resolve an old successful commit without restoring Music equipment admission."""
 
-    return await _commit(family="music_track", anima_id=anima_id, body=body, user=user, session=session)
+    return await _commit(family="music_track", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 
 def _install_single_selection_routes(
@@ -186,17 +186,17 @@ def _install_single_selection_routes(
         anima_id: str,
         body: PySingleSelectionPlanRequest,
         user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-        session: Annotated[AsyncSession, Depends(get_async_session)],
+        repositories: ReadRepositories,
     ) -> PyLoadoutPlan:
-        return await _plan(family=family, anima_id=anima_id, body=body, user=user, session=session)
+        return await _plan(family=family, anima_id=anima_id, body=body, user=user, repositories=repositories)
 
     async def commit_selection(
         anima_id: str,
         body: PySingleSelectionCommitRequest,
         user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-        session: Annotated[AsyncSession, Depends(get_async_session)],
+        repositories: WriteRepositories,
     ) -> PyLoadoutCommitResult:
-        return await _commit(family=family, anima_id=anima_id, body=body, user=user, session=session)
+        return await _commit(family=family, anima_id=anima_id, body=body, user=user, repositories=repositories)
 
     plan_selection.__name__ = f"plan_{singular}"
     commit_selection.__name__ = f"commit_{singular}"
@@ -225,9 +225,9 @@ async def plan_appearance(
     anima_id: str,
     body: PyAppearancePlanRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: ReadRepositories,
 ) -> PyLoadoutPlan:
-    return await _plan(family="appearance", anima_id=anima_id, body=body, user=user, session=session)
+    return await _plan(family="appearance", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 
 @router.post("/{anima_id}/appearance:commit", response_model=PyLoadoutCommitResult)
@@ -235,9 +235,9 @@ async def commit_appearance(
     anima_id: str,
     body: PyAppearanceCommitRequest,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    repositories: WriteRepositories,
 ) -> PyLoadoutCommitResult:
-    return await _commit(family="appearance", anima_id=anima_id, body=body, user=user, session=session)
+    return await _commit(family="appearance", anima_id=anima_id, body=body, user=user, repositories=repositories)
 
 
 __all__ = ["router"]

@@ -22,14 +22,16 @@ from animama.domain.content_catalog import (
 )
 from animama.domain.content_documents import ContentDocumentError
 from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.ports import install_product_ports
+from animama.product_http.routes.loadouts import router as loadout_router
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.routers.anima_loadouts import router as loadout_router
 from animama.server.routers.content import router as content_router
 from animama.server.routers.typed_content import router as typed_router
 from animama.server.schemas.runtime_content import PyAnimaRuntime
 from tests.local_http_client import local_client
+from tests.product_http_support import SessionPorts
 from tests.typed_loadout_support import cleanup_loadout_fixture, create_loadout_fixture
 
 
@@ -262,6 +264,7 @@ async def test_clone_library_retains_bytes_rename_ownership_and_protected_deleti
 
     app.dependency_overrides[get_current_principal] = current_owner
     app.dependency_overrides[get_async_session] = session_override
+    install_product_ports(app, SessionPorts(async_session))
     client = local_client(app)
     companions = [
         ("files", ("original.wav", source_audio(), "audio/wav")),

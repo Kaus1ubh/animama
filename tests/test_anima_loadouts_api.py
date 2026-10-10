@@ -4,9 +4,11 @@ import pytest
 from fastapi import FastAPI
 
 from animama.domain.request_principal import RequestPrincipal
-from animama.server.deps import get_async_session, get_current_principal
-from animama.server.routers.anima_loadouts import router
+from animama.product_http.ports import install_product_ports
+from animama.product_http.principal import get_current_principal
+from animama.product_http.routes.loadouts import router
 from tests.local_http_client import local_client
+from tests.product_http_support import SessionPorts
 from tests.typed_loadout_support import (
     add_typed_item,
     catalog_source,
@@ -35,11 +37,8 @@ async def test_typed_gesture_plan_commit_and_loadout_http_contract(async_session
     async def user() -> RequestPrincipal:
         return RequestPrincipal(id=fixture.user_id)
 
-    async def session():  # noqa: ANN202
-        yield async_session
-
     app.dependency_overrides[get_current_principal] = user
-    app.dependency_overrides[get_async_session] = session
+    install_product_ports(app, SessionPorts(async_session))
     client = local_client(app)
     intent = {
         "operation": "add",

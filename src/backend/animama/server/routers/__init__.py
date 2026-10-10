@@ -1,11 +1,10 @@
 from fastapi import APIRouter
 
-from animama.product_http.routes import chats, memory, profile, safety, settings
+from animama.product_http.routes import chats, loadouts, memory, profile, safety, settings
 
 from . import (
     anima,
     anima_creation,
-    anima_loadouts,
     anima_runtime,
     archive,
     avatar,
@@ -28,7 +27,7 @@ router = APIRouter()
 
 router.include_router(anima_creation.router)
 router.include_router(anima.router)
-router.include_router(anima_loadouts.router)
+router.include_router(loadouts.router)
 router.include_router(anima_runtime.router)
 router.include_router(model_provider.router)
 router.include_router(model_assets.router)

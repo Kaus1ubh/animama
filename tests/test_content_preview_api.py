@@ -27,14 +27,16 @@ from animama.orm.anima import ORMAnima
 from animama.orm.anima_loadout import ORMAnimaLoadout
 from animama.orm.avatar import ORMAvatar
 from animama.orm.content_catalog import ORMContentCatalogItem
+from animama.product_http.ports import install_product_ports
+from animama.product_http.routes.loadouts import router as anima_loadout_router
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.routers.anima_loadouts import router as anima_loadout_router
 from animama.server.routers.content import router
 from animama.server.routers.typed_content import router as typed_content_router
 from animama.server.schemas.content import PyContentPreview
 from tests.local_http_client import local_client
+from tests.product_http_support import SessionPorts
 
 
 def _glb(label: str) -> bytes:
@@ -250,6 +252,7 @@ async def test_equip_selects_a_logical_catalog_item_for_the_next_loadout_revisio
 
     app.dependency_overrides[get_current_principal] = override_user
     app.dependency_overrides[get_async_session] = override_session
+    install_product_ports(app, SessionPorts(async_session))
     client = local_client(app)
     try:
         before = await client.get(f"/v1/animas/{anima_id}/loadout")

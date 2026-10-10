@@ -26,6 +26,7 @@ from animama.app.ports.settings_port import AnimaSettingsRepository, UserSetting
 from animama.app.ports.uow_port import UnitOfWork
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.safety.crisis_resources import CrisisResourceTable
+from animama.app.services.anima_loadout_service import AnimaLoadoutService
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.principal import get_current_principal
 
@@ -56,6 +57,11 @@ class ProductRepositories(Protocol):
 
     @property
     def user_profiles(self) -> UserProfileRepository: ...
+
+    @property
+    def anima_loadouts(self) -> AnimaLoadoutService:
+        """The Anima loadout aggregate, which works on the session directly."""
+        ...
 
     @property
     def unit_of_work(self) -> UnitOfWork: ...
