@@ -8,6 +8,11 @@ The local composition resolves the bootstrap-owned principal from server-owned
 admission state. Browser identity and Authorization headers select no owner.
 Tests use explicit fixture bootstrap and dependency overrides.
 
+Shared product routes (ADR 0021) live in `product_http/routes/`. They take owner
+sessions, repositories and policy from the `ProductPorts` the composition installs,
+never from `get_async_session`, so tests replace the ports (see
+`tests/product_http_support.py`) or call handlers with an explicit repository bundle.
+
 Retained product HTTP schemas live under `app/contracts/`, including chat/history,
 manual memory/Memory Manager, model roles, content/loadouts/runtime and profile
 views. Delivery modules reexport those definitions for existing local callers.
@@ -36,7 +41,7 @@ Local setup and host/key administration schemas remain in the server composition
   owner-supplied and Test sends a query to the configured backend.
 - `server/routers/model_assets.py`: pinned downloadable asset install state,
   install, removal and same-origin byte delivery.
-- `server/routers/chats.py`: chat CRUD and persisted chat messages.
+- `product_http/routes/chats.py` (shared): chat CRUD and persisted chat messages.
 - `server/routers/settings.py`: user settings and per-anima settings.
 - `server/routers/user_profiles.py`: private local display-name reads and edits.
 - `server/routers/content.py`: neutral Included/Local catalog health, Rescan,
@@ -53,10 +58,11 @@ Local setup and host/key administration schemas remain in the server composition
 - `server/routers/user_files.py`: installation-owned file upload initialization,
   finalization, processing enqueue, debug chunk search, listing, abort, and
   delete lifecycle.
-- `server/routers/memory_entries.py`: scoped markdown memory entry tree
-  listing, path lookup, create, patch, move/rename, and soft-delete routes.
-- `server/routers/memory_manager.py`: episodic-memory review, Reflection and
-  manual memory-manager run/message/approval routes.
+- `product_http/routes/memory.py` (shared): scoped markdown memory entry tree
+  listing, path lookup, create, patch, move/rename, and soft-delete routes, and
+  the episodic-memory listing.
+- `server/routers/memory_manager.py`: Reflection and manual memory-manager
+  run/message/approval routes.
 - `server/routers/safety.py`: owner-visible crisis-resource regions.
 - `server/routers/archive.py`: archive metadata/passages and embedding search.
 - `server/routers/elevenlabs.py`: ElevenLabs clone, text-to-speech, sound

@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import (
+    ProductPolicy,
     ReadRepositories,
     ReadSession,
     WriteRepositories,
@@ -54,6 +55,8 @@ def session_probe_app(*, resolver: object | None = FixedOwner()) -> FastAPI:
 
 class RecordingPorts:
     """Opens placeholder sessions and records whose they are; can fail the deferred commit."""
+
+    policy = ProductPolicy(memory_file_max_bytes=1)
 
     def __init__(self, *, fail_commit: bool = False) -> None:
         self.opened: list[tuple[str, str]] = []
@@ -161,3 +164,15 @@ def test_repositories_come_from_the_ports_over_the_opened_session() -> None:
         assert client.post("/repositories").json() == {"same_session": True}
     # Each request opened one session, shared by its repositories.
     assert ports.opened == [("read", "owner"), ("write", "owner")]
+
+
+def test_local_policy_follows_the_apps_runtime_settings(tmp_path: Path) -> None:
+    app = create_local_app(
+        runtime_settings=Settings(
+            animama_content_root=tmp_path / "content",
+            animama_data_root=tmp_path / "data",
+            anima_memory_file_max_bytes=1234,
+        ),
+        session_factory=MagicMock(),
+    )
+    assert app.state.product_ports.policy == ProductPolicy(memory_file_max_bytes=1234)

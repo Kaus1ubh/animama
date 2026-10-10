@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
 from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
+from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 
@@ -36,6 +37,10 @@ class SQLAlchemyProductRepositories:
     @cached_property
     def chat_messages(self) -> SQLAlchemyChatMessageRepository:
         return SQLAlchemyChatMessageRepository(self._session)
+
+    @cached_property
+    def memory_entries(self) -> SQLAlchemyMemoryEntryRepository:
+        return SQLAlchemyMemoryEntryRepository(self._session)
 
     @cached_property
     def memory_episodes(self) -> SQLAlchemyMemoryEpisodeRepository:

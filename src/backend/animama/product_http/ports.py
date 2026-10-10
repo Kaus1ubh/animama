@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import AbstractAsyncContextManager
+from dataclasses import dataclass
 from typing import Annotated, Protocol, cast
 
 from fastapi import Depends, FastAPI, HTTPException, Request
@@ -19,6 +20,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.chat_port import ChatRepository
+from animama.app.ports.memory_entry_port import MemoryEntryRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.ports.uow_port import UnitOfWork
 from animama.domain.request_principal import RequestPrincipal
@@ -38,14 +40,27 @@ class ProductRepositories(Protocol):
     def chat_messages(self) -> ChatMessageRepository: ...
 
     @property
+    def memory_entries(self) -> MemoryEntryRepository: ...
+
+    @property
     def memory_episodes(self) -> MemoryEpisodeRepository: ...
 
     @property
     def unit_of_work(self) -> UnitOfWork: ...
 
 
+@dataclass(frozen=True)
+class ProductPolicy:
+    """Owner limits a composition enforces on the shared routes."""
+
+    memory_file_max_bytes: int
+
+
 class ProductPorts(Protocol):
     """The composition-owned collaborators of shared product handlers."""
+
+    @property
+    def policy(self) -> ProductPolicy: ...
 
     def read_session(self, principal: RequestPrincipal) -> AbstractAsyncContextManager[AsyncSession]:
         """Open a session for a handler that only reads ``principal``'s data."""
@@ -121,3 +136,10 @@ def get_write_repositories(
 # Shared handlers take repositories rather than sessions, so they never build one.
 ReadRepositories = Annotated[ProductRepositories, Depends(get_read_repositories)]
 WriteRepositories = Annotated[ProductRepositories, Depends(get_write_repositories)]
+
+
+def get_product_policy(ports: Annotated[ProductPorts, Depends(get_product_ports)]) -> ProductPolicy:
+    return ports.policy
+
+
+Policy = Annotated[ProductPolicy, Depends(get_product_policy)]

@@ -8,6 +8,6 @@ from __future__ import annotations
 
 from fastapi import APIRouter
 
-from animama.product_http.routes import chats
+from animama.product_http.routes import chats, memory
 
-ROUTERS: tuple[APIRouter, ...] = (chats.router,)
+ROUTERS: tuple[APIRouter, ...] = (chats.router, memory.router)

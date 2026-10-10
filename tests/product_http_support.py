@@ -20,9 +20,11 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.ports import ProductPorts, install_product_ports
+from animama.product_http.ports import ProductPolicy, ProductPorts, install_product_ports
 
 OWNER_HEADER = "X-Test-Owner"
+# The local default limits (server/config.py).
+TEST_POLICY = ProductPolicy(memory_file_max_bytes=32 * 1024)
 
 
 class HeaderOwnerResolver:
@@ -54,6 +56,7 @@ class DeferredCommitPorts:
     """
 
     session_factory: async_sessionmaker[AsyncSession]
+    policy: ProductPolicy = field(default_factory=lambda: TEST_POLICY)
     commits_requested: int = 0
     commits: int = 0
     rollbacks: int = 0
@@ -91,6 +94,26 @@ class DeferredCommitPorts:
             else:
                 await session.rollback()
                 self.rollbacks += 1
+
+    def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
+        return SQLAlchemyProductRepositories(session)
+
+
+@dataclass
+class SessionPorts:
+    """Ports that hand every shared route one existing session.
+
+    For tests that mount shared routers beside local routers sharing one test session.
+    """
+
+    session: AsyncSession
+    policy: ProductPolicy = field(default_factory=lambda: TEST_POLICY)
+
+    @asynccontextmanager
+    async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[AsyncSession]:
+        yield self.session
+
+    write_session = read_session
 
     def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
         return SQLAlchemyProductRepositories(session)

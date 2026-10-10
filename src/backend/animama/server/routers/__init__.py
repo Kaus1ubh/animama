@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from animama.product_http.routes import chats
+from animama.product_http.routes import chats, memory
 
 from . import (
     anima,
@@ -14,7 +14,6 @@ from . import (
     elevenlabs,
     events,
     logs,
-    memory_entries,
     memory_manager,
     model_assets,
     model_provider,
@@ -51,7 +50,7 @@ router.include_router(archive.router)
 router.include_router(settings.router)
 router.include_router(user_files.router)
 router.include_router(user_profiles.router)
-router.include_router(memory_entries.router)
+router.include_router(memory.router)
 router.include_router(memory_manager.router)
 
 __all__ = ["router"]

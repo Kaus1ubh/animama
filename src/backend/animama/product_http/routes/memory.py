@@ -1,37 +1,13 @@
-"""Authenticated CRUD routes for scoped markdown memory entries."""
+"""Owner-scoped markdown memory entries and episodes, shared by every composition (ADR 0021)."""
 
 from __future__ import annotations
 
 from collections.abc import Sequence
 from typing import Annotated, Literal, NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
-from sqlalchemy.ext.asyncio import AsyncSession
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status, status as status_codes
 
-from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
-from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
-from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
-from animama.app.services.memory_entry_service import (
-    MemoryEntryConflictError,
-    MemoryEntryNotFoundError,
-    MemoryEntryProtectedError,
-    MemoryEntryService,
-    MemoryEntryValidationError,
-)
-from animama.app.services.user_memory_read_tools import UserMemorySearchResult, search_user_memory_files
-from animama.domain.memory_entry import (
-    MemoryEntry,
-    MemoryEntryHeader,
-    MemoryEntryHeaderListing,
-    MemoryEntryListing,
-    MemoryEntryVersion,
-    MemoryEntryVersionDetail,
-    MemoryEntryVersionListing,
-)
-from animama.domain.request_principal import RequestPrincipal
-from animama.server.config import settings
-from animama.server.deps import get_async_session, get_current_principal
-from animama.server.schemas.memory_entry import (
+from animama.app.contracts.memory_entry import (
     PyAnimaIdentityItem,
     PyAnimaIdentityListResponse,
     PyMemoryEntryCreateRequest,
@@ -48,18 +24,44 @@ from animama.server.schemas.memory_entry import (
     PySearchMemoryFilesDebugRequest,
     PySearchMemoryFilesDebugResponse,
 )
+from animama.app.contracts.memory_manager import PyMemoryEpisodeItem, PyMemoryEpisodeListResponse
+from animama.app.services.memory_entry_service import (
+    MemoryEntryConflictError,
+    MemoryEntryNotFoundError,
+    MemoryEntryProtectedError,
+    MemoryEntryService,
+    MemoryEntryValidationError,
+)
+from animama.app.services.memory_episode_service import (
+    MemoryEpisodeNotFoundError,
+    MemoryEpisodeService,
+    MemoryEpisodeValidationError,
+)
+from animama.app.services.user_memory_read_tools import UserMemorySearchResult, search_user_memory_files
+from animama.domain.memory_entry import (
+    MemoryEntry,
+    MemoryEntryHeader,
+    MemoryEntryHeaderListing,
+    MemoryEntryListing,
+    MemoryEntryVersion,
+    MemoryEntryVersionDetail,
+    MemoryEntryVersionListing,
+)
+from animama.domain.memory_episode import MemoryEpisodeItem
+from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.ports import Policy, ProductPolicy, ProductRepositories, ReadRepositories, WriteRepositories
+from animama.product_http.principal import get_current_principal
 
 router = APIRouter()
-SessionDep = Annotated[AsyncSession, Depends(get_async_session)]
 UserDep = Annotated[RequestPrincipal, Depends(get_current_principal)]
 
 
-def _service(session: AsyncSession) -> MemoryEntryService:
+def _service(repositories: ProductRepositories, policy: ProductPolicy) -> MemoryEntryService:
     return MemoryEntryService(
-        memory_entries=SQLAlchemyMemoryEntryRepository(session),
-        uow=SQLAlchemyUnitOfWork(session),
-        animas=SQLAlchemyAnimaRepository(session),
-        max_file_bytes=settings.anima_memory_file_max_bytes,
+        memory_entries=repositories.memory_entries,
+        uow=repositories.unit_of_work,
+        animas=repositories.animas,
+        max_file_bytes=policy.memory_file_max_bytes,
     )
 
 
@@ -187,7 +189,8 @@ def _raise_http_error(exc: Exception) -> NoReturn:
     status_code=status.HTTP_200_OK,
 )
 async def list_memory_entries(
-    session: SessionDep,
+    repositories: ReadRepositories,
+    policy: Policy,
     user: UserDep,
     anima_id: Annotated[str | None, Query()] = None,
     parent_id: Annotated[str | None, Query()] = None,
@@ -196,7 +199,7 @@ async def list_memory_entries(
     """List current-user live memory entries under a scope parent."""
 
     try:
-        listing = await _service(session).list_entry_headers(
+        listing = await _service(repositories, policy).list_entry_headers(
             user_id=user.id,
             anima_id=anima_id,
             parent_id=parent_id,
@@ -212,10 +215,12 @@ async def list_memory_entries(
     response_model=PyAnimaIdentityListResponse,
     status_code=status.HTTP_200_OK,
 )
-async def list_anima_identities(session: SessionDep, user: UserDep) -> PyAnimaIdentityListResponse:
+async def list_anima_identities(
+    repositories: ReadRepositories, policy: Policy, user: UserDep
+) -> PyAnimaIdentityListResponse:
     """List every owned Anima in creation order with its IDENTITY.md and MEMORIES.md headers."""
 
-    summaries = await _service(session).list_anima_identities(user_id=user.id)
+    summaries = await _service(repositories, policy).list_anima_identities(user_id=user.id)
     return PyAnimaIdentityListResponse(
         identities=[
             PyAnimaIdentityItem(
@@ -237,11 +242,13 @@ async def list_anima_identities(session: SessionDep, user: UserDep) -> PyAnimaId
     response_model=PyMemoryEntryHeader,
     status_code=status.HTTP_200_OK,
 )
-async def repair_anima_memories(anima_id: str, session: SessionDep, user: UserDep) -> PyMemoryEntryHeader:
+async def repair_anima_memories(
+    anima_id: str, repositories: WriteRepositories, policy: Policy, user: UserDep
+) -> PyMemoryEntryHeader:
     """Recreate an owned Anima's missing MEMORIES.md from the template; existing files are unchanged."""
 
     try:
-        entry = await _service(session).repair_anima_memories(user_id=user.id, anima_id=anima_id)
+        entry = await _service(repositories, policy).repair_anima_memories(user_id=user.id, anima_id=anima_id)
     except (MemoryEntryNotFoundError, MemoryEntryConflictError) as exc:
         _raise_http_error(exc)
     return _to_header(entry)
@@ -253,7 +260,8 @@ async def repair_anima_memories(anima_id: str, session: SessionDep, user: UserDe
     status_code=status.HTTP_200_OK,
 )
 async def get_memory_entry_by_path(
-    session: SessionDep,
+    repositories: ReadRepositories,
+    policy: Policy,
     user: UserDep,
     path: Annotated[str, Query()],
     anima_id: Annotated[str | None, Query()] = None,
@@ -262,7 +270,7 @@ async def get_memory_entry_by_path(
     """Read one current-user memory entry by cached path within a scope."""
 
     try:
-        entry = await _service(session).get_entry_by_path(
+        entry = await _service(repositories, policy).get_entry_by_path(
             user_id=user.id,
             anima_id=anima_id,
             path=path,
@@ -280,7 +288,8 @@ async def get_memory_entry_by_path(
 )
 async def list_memory_entry_versions(
     entry_id: str,
-    session: SessionDep,
+    repositories: ReadRepositories,
+    policy: Policy,
     user: UserDep,
     before_version: Annotated[int | None, Query(ge=1)] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 50,
@@ -288,7 +297,7 @@ async def list_memory_entry_versions(
     """List content-free immutable versions for one owned memory entry."""
 
     try:
-        listing = await _service(session).list_versions(
+        listing = await _service(repositories, policy).list_versions(
             user_id=user.id,
             entry_id=entry_id,
             before_version=before_version,
@@ -307,13 +316,14 @@ async def list_memory_entry_versions(
 async def get_memory_entry_version(
     entry_id: str,
     version: Annotated[int, Path(ge=1)],
-    session: SessionDep,
+    repositories: ReadRepositories,
+    policy: Policy,
     user: UserDep,
 ) -> PyMemoryEntryVersionDetail:
     """Read Version N and its immutable Version N-1 adjacent diff."""
 
     try:
-        detail = await _service(session).get_version_detail(
+        detail = await _service(repositories, policy).get_version_detail(
             user_id=user.id,
             entry_id=entry_id,
             version=version,
@@ -330,13 +340,14 @@ async def get_memory_entry_version(
 )
 async def get_memory_entry(
     entry_id: str,
-    session: SessionDep,
+    repositories: ReadRepositories,
+    policy: Policy,
     user: UserDep,
 ) -> PyMemoryEntryResponse:
     """Read one current-user memory entry by stable ID."""
 
     try:
-        entry = await _service(session).get_entry(user_id=user.id, entry_id=entry_id)
+        entry = await _service(repositories, policy).get_entry(user_id=user.id, entry_id=entry_id)
     except MemoryEntryNotFoundError as exc:
         _raise_http_error(exc)
     return _to_response(entry)
@@ -349,7 +360,8 @@ async def get_memory_entry(
 )
 async def debug_search_memory_files(
     req: PySearchMemoryFilesDebugRequest,
-    session: SessionDep,
+    repositories: ReadRepositories,
+    policy: Policy,
     user: UserDep,
 ) -> PySearchMemoryFilesDebugResponse:
     """Search the same current-user markdown memory files exposed to the AI tool."""
@@ -357,7 +369,7 @@ async def debug_search_memory_files(
     results = await search_user_memory_files(
         user_id=user.id,
         query=req.query,
-        memory_entries=_service(session),
+        memory_entries=_service(repositories, policy),
     )
     return _to_debug_search_response(req.query, results)
 
@@ -369,13 +381,14 @@ async def debug_search_memory_files(
 )
 async def create_memory_entry(
     req: PyMemoryEntryCreateRequest,
-    session: SessionDep,
+    repositories: WriteRepositories,
+    policy: Policy,
     user: UserDep,
 ) -> PyMemoryEntryResponse:
     """Create an entry, optionally creating missing parents for a file path."""
 
     try:
-        entry = await _service(session).create_entry(
+        entry = await _service(repositories, policy).create_entry(
             user_id=user.id,
             anima_id=req.anima_id,
             parent_id=req.parent_id,
@@ -407,14 +420,15 @@ async def create_memory_entry(
 async def patch_memory_entry(
     entry_id: str,
     req: PyMemoryEntryPatchRequest,
-    session: SessionDep,
+    repositories: WriteRepositories,
+    policy: Policy,
     user: UserDep,
 ) -> PyMemoryEntryResponse:
     """Patch file content/metadata or move/rename one memory entry."""
 
     fields_set = req.model_fields_set
     try:
-        entry = await _service(session).patch_entry(
+        entry = await _service(repositories, policy).patch_entry(
             user_id=user.id,
             entry_id=entry_id,
             expected_version=req.expected_version,
@@ -450,13 +464,14 @@ async def patch_memory_entry(
 async def revert_memory_entry(
     entry_id: str,
     req: PyMemoryEntryRevertRequest,
-    session: SessionDep,
+    repositories: WriteRepositories,
+    policy: Policy,
     user: UserDep,
 ) -> PyMemoryEntryResponse:
     """Copy an older Version's content and description into a new Version."""
 
     try:
-        entry = await _service(session).revert_entry(
+        entry = await _service(repositories, policy).revert_entry(
             user_id=user.id,
             entry_id=entry_id,
             target_version=req.target_version,
@@ -480,7 +495,8 @@ async def revert_memory_entry(
 )
 async def delete_memory_entry(
     entry_id: str,
-    session: SessionDep,
+    repositories: WriteRepositories,
+    policy: Policy,
     user: UserDep,
     expected_version: Annotated[int, Query(ge=0)],
     recursive: Annotated[bool, Query()] = False,
@@ -488,7 +504,7 @@ async def delete_memory_entry(
     """Soft-delete one memory entry after a version check."""
 
     try:
-        await _service(session).delete_entry(
+        await _service(repositories, policy).delete_entry(
             user_id=user.id,
             entry_id=entry_id,
             expected_version=expected_version,
@@ -518,3 +534,53 @@ __all__ = [
     "revert_memory_entry",
     "router",
 ]
+
+
+def _to_episode_item(item: MemoryEpisodeItem) -> PyMemoryEpisodeItem:
+    return PyMemoryEpisodeItem(
+        id=item.id,
+        source_anima_id=item.source_anima_id,
+        source_chat_id=item.source_chat_id,
+        source_run_id=item.source_run_id,
+        source_message_id=item.source_message_id,
+        occurred_at=item.occurred_at,
+        local_date=item.local_date,
+        local_timezone=item.local_timezone,
+        episode_path=item.episode_path,
+        kind=item.kind,
+        text=item.text,
+        status=item.status,
+        processed_at=item.processed_at,
+        processed_by_run_id=item.processed_by_run_id,
+        metadata=dict(item.metadata or {}),
+        created_at=item.created_at,
+        updated_at=item.updated_at,
+    )
+
+
+@router.get(
+    "/v1/memory/episodes",
+    response_model=PyMemoryEpisodeListResponse,
+    status_code=status.HTTP_200_OK,
+)
+async def list_memory_episodes(
+    repositories: ReadRepositories,
+    policy: Policy,
+    user: UserDep,
+    status: Annotated[Literal["pending", "processed"] | None, Query()] = "pending",
+    limit: Annotated[int, Query(ge=1, le=1000)] = 100,
+) -> PyMemoryEpisodeListResponse:
+    """List current-user episodic-memory items for manual review."""
+
+    episodes = MemoryEpisodeService(
+        memory_episodes=repositories.memory_episodes,
+        memory_entries=_service(repositories, policy),
+        uow=repositories.unit_of_work,
+    )
+    try:
+        items = await episodes.list_episode_items(user_id=user.id, status=status, limit=limit)
+    except MemoryEpisodeValidationError as exc:
+        raise HTTPException(status_code=status_codes.HTTP_400_BAD_REQUEST, detail=exc.detail) from exc
+    except MemoryEpisodeNotFoundError as exc:
+        raise HTTPException(status_code=status_codes.HTTP_404_NOT_FOUND, detail=exc.detail) from exc
+    return PyMemoryEpisodeListResponse(items=[_to_episode_item(item) for item in items])

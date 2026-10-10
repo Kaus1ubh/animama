@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.ports import ProductPolicy
 from animama.server.deps import get_async_session_factory
 
 
@@ -23,6 +24,12 @@ class LocalProductPorts:
 
     def __init__(self, app: FastAPI) -> None:
         self._app = app
+
+    @property
+    def policy(self) -> ProductPolicy:
+        # The app's own runtime settings, read per request like the sessions.
+        settings = self._app.state.runtime_settings
+        return ProductPolicy(memory_file_max_bytes=settings.anima_memory_file_max_bytes)
 
     @asynccontextmanager
     async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[AsyncSession]:

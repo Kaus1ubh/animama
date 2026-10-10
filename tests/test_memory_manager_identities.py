@@ -18,6 +18,7 @@ from animama.adapters.memory_manager import (
 from animama.adapters.memory_manager.openai_agents_runtime import _instructions
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.app.services.anima_identity_memory import (
@@ -42,10 +43,10 @@ from animama.orm import (
     ORMMemoryManagerMessage,
     ORMMemoryManagerRun,
 )
+from animama.product_http.routes import memory as memory_entries_router
 from animama.server.model_roles import ModelRoleSettings
 from animama.server.routers import (
     anima as anima_router,
-    memory_entries as memory_entries_router,
     memory_manager as memory_manager_router,
 )
 from animama.server.schemas.memory_entry import PyMemoryEntryCreateRequest, PyMemoryEntryPatchRequest
@@ -53,6 +54,7 @@ from animama.server.schemas.memory_manager import (
     PyMemoryManagerApprovalDecisionRequest,
     PyMemoryManagerRunCreateRequest,
 )
+from tests.product_http_support import TEST_POLICY
 
 _LOCAL_ROLES = ModelRoleSettings(owner_roles_enabled=True)
 
@@ -103,24 +105,30 @@ async def _anima_with_identity(async_session, *, user_id: str, name: str = "Anni
             content=f"# {name}\n\nCalm and curious.\n",
             description=f"Who {name} is",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     return anima_id, identity.id
 
 
 async def _identity(async_session, *, user_id: str, entry_id: str):
-    return await memory_entries_router.get_memory_entry(entry_id, session=async_session, user=_user(user_id))
+    return await memory_entries_router.get_memory_entry(
+        entry_id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(user_id)
+    )
 
 
 @pytest.mark.asyncio
 async def test_manager_navigation_lists_anima_files_only_when_enabled(async_session, clean_rows) -> None:
     user_id = f"user-{uuid.uuid4()}"
     anima_id, _identity_id = await _anima_with_identity(async_session, user_id=user_id)
-    await memory_entries_router.repair_anima_memories(anima_id, session=async_session, user=_user(user_id))
+    await memory_entries_router.repair_anima_memories(
+        anima_id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(user_id)
+    )
     await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="file", name="PROFILE.md", content="# Me", description="Owner profile"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     manager_path = f"animas/{anima_id}/IDENTITY.md"
@@ -290,7 +298,8 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
             expected_version=current.version,
             expected_aggregate_revision=current.aggregate_revision,
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     with pytest.raises(HTTPException) as stale_error:
