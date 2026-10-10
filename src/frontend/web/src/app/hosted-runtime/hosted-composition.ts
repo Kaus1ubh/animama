@@ -3,6 +3,7 @@ import type {
   RuntimeUsage,
 } from "@animama/runtime-contracts";
 import { zRuntimeCapabilities } from "@animama/runtime-contracts/validators";
+import { safeNavigationUrl } from "@animama/product-ui";
 import type { AdmissionRefresh, AppComposition } from "../runtime/composition";
 import type { SessionRequestScope } from "../runtime/session-requests";
 import { traceProductRequest } from "../runtime/product-request-tracing";
@@ -362,21 +363,8 @@ export function createHostedComposition(
       typeof context.csrf_token === "string" && context.csrf_token
         ? context.csrf_token
         : null;
-    accountUrl = null;
-    if (typeof context.account_url === "string") {
-      try {
-        const url = new URL(context.account_url, origin);
-        if (
-          !url.username &&
-          !url.password &&
-          (url.protocol === "https:" ||
-            (url.protocol === "http:" && url.origin === origin))
-        )
-          accountUrl = url.href;
-      } catch {
-        /* An invalid optional account URL withholds navigation. */
-      }
-    }
+    // A missing or unsafe optional account URL withholds navigation.
+    accountUrl = safeNavigationUrl(context.account_url, origin);
     const states: Record<
       string,
       Exclude<RuntimeAdmission["status"], "ready">
@@ -691,11 +679,11 @@ export function createHostedComposition(
             authorization_url?: string;
           };
           controller.signal.throwIfAborted();
-          const url = new URL(result.authorization_url ?? "");
-          if (url.protocol !== "https:" || url.username || url.password)
+          const url = safeNavigationUrl(result.authorization_url);
+          if (!url)
             throw new Error("Sign-in requires a secure identity endpoint");
           signInFailed = false;
-          options.navigate(url.href);
+          options.navigate(url);
         })().catch(() => {
           if (!controller.signal.aborted) {
             signInError = true;

@@ -309,12 +309,10 @@ window.fixture = {
   stopOnToken: () => {
     stopOnToken = true;
   },
-  respond: (index, status = 200) =>
+  respond: (index, status = 200, body = { detail: "fixture error" }) =>
     requests[index].resolve(
       new Response(
-        status === 200
-          ? requests[index].stream
-          : JSON.stringify({ detail: "fixture error" }),
+        status === 200 ? requests[index].stream : JSON.stringify(body),
         {
           status,
           headers: {
