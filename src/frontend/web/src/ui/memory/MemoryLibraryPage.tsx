@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 import { useBlocker } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { getI18n, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 import { useFormatters } from "@animama/product-ui/i18n";
 
@@ -326,12 +326,14 @@ export function MemoryLibraryPage({
 
   useEffect(() => {
     if (identitiesQuery.isError) {
+      // Worded here so a UI Locale change does not show the toast again.
+      const t = getI18n().getFixedT(null, "memory");
       toast.error(t("library.identitiesFailed"), {
         id: "anima-identities-error",
         description: t("library.identitiesFailedDescription"),
       });
     }
-  }, [identitiesQuery.isError, t]);
+  }, [identitiesQuery.isError]);
 
   useEffect(() => {
     if (!workspaceLoaded || moveReconciliationRef.current) return;

@@ -5,6 +5,7 @@ import {
   errorWording,
   readApiError,
   sourceLocaleActive,
+  WordedError,
 } from "@/lib/errors/apiError";
 
 export type ContentApiErrorDetail = {
@@ -130,7 +131,7 @@ function isNetworkFailure(error: Error): boolean {
 }
 
 /** Actionable failure exposed consistently by every typed content creator. */
-export class ContentSaveApiError extends Error {
+export class ContentSaveApiError extends WordedError {
   readonly status: number | null;
   readonly code: string | null;
   readonly reason: string | null;

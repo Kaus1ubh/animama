@@ -1,0 +1,502 @@
+{
+  "anchors": {
+    "chest": "胸",
+    "head": "頭",
+    "hips": "腰",
+    "inherit": "既定のアンカーを継承",
+    "leftFoot": "左足",
+    "leftHand": "左手",
+    "neck": "首",
+    "rightFoot": "右足",
+    "rightHand": "右手",
+    "root": "ルート",
+    "spine": "背骨"
+  },
+  "autoFit": {
+    "description": "放出範囲の幅と高さを、カメラやキャンバスではなくアバターの範囲に合わせます。エミッターの位置は各アンカーからの相対位置のままです。",
+    "emitters": "合わせる長方形エミッター",
+    "heightPadding": "高さの余白 (m)",
+    "maxHeight": "最大の高さ (m)",
+    "maxHint": "最大サイズ: 0 は制限なしを表します。",
+    "maxWidth": "最大の幅 (m)",
+    "minHeight": "最小の高さ (m)",
+    "minWidth": "最小の幅 (m)",
+    "title": "長方形をアバターに合わせる",
+    "widthPadding": "幅の余白 (m)"
+  },
+  "behavior": {
+    "axis": "軸",
+    "colorFadeOverLife": "寿命に応じた色のフェード",
+    "forceAxis": "力 {{axis}}",
+    "forceOverLife": "寿命に応じた力",
+    "limitSpeed": {
+      "dampen": "減衰",
+      "speed": "速度",
+      "title": "寿命に応じた速度制限"
+    },
+    "noise": {
+      "frequency": "周波数",
+      "positionAmount": "位置の量",
+      "power": "強さ",
+      "rotationAmount": "回転の量",
+      "title": "ノイズ"
+    },
+    "orbit": {
+      "speed": "周回速度",
+      "title": "寿命に応じた周回"
+    },
+    "rotation3D": {
+      "angle": "角度 (rad)",
+      "angleAxis": "角度 {{axis}}",
+      "eulerOrder": "オイラー角の順序",
+      "modes": {
+        "axisAngle": "軸と角度",
+        "euler": "オイラー角",
+        "off": "オフ",
+        "random": "ランダム"
+      },
+      "title": "3D 回転"
+    },
+    "rotationOverLife": "寿命に応じた回転",
+    "sizeOverLife": "寿命に応じたサイズ",
+    "speedOverLife": "寿命に応じた速度",
+    "turbulence": {
+      "octaves": "オクターブ",
+      "scale": "スケール",
+      "timeScale": "時間スケール",
+      "title": "乱流",
+      "velocity": "速度"
+    },
+    "unsupported": "未対応のビヘイビア（{{label}}）は編集するまで保持されます。",
+    "widthOverLength": "長さに応じた幅"
+  },
+  "color": {
+    "channels": {
+      "alpha": "A",
+      "blue": "B",
+      "green": "G",
+      "red": "R"
+    },
+    "missingGenerator": "色のジェネレーターがありません",
+    "mode": "モード",
+    "overLife": {
+      "applyTheme": "テーマのグラデーションを適用",
+      "description": "パーティクルの経過時間に応じて色を乗算します。",
+      "fadeStops": "フェードの分岐点",
+      "gradientStops": "グラデーションの分岐点",
+      "modes": {
+        "fade": "フェード",
+        "gradient": "グラデーション",
+        "off": "オフ",
+        "randomGradient": "ランダムグラデーション"
+      },
+      "randomGradient": "ランダムグラデーション {{name}}",
+      "title": "寿命に応じた色"
+    },
+    "picker": "{{label}}の色",
+    "start": {
+      "description": "各パーティクルの生成時に選ばれる初期の色です。",
+      "fixed": "固定",
+      "modes": {
+        "fixed": "固定",
+        "range": "範囲",
+        "theme": "テーマ"
+      },
+      "rangeEnd": "範囲の終わり",
+      "rangeStart": "範囲の始まり",
+      "theme": "テーマ",
+      "title": "開始時の色"
+    },
+    "stops": {
+      "add": "分岐点",
+      "alpha": "アルファ",
+      "color": "分岐点 {{index}} の色",
+      "position": "位置",
+      "remove": "分岐点 {{index}} を削除"
+    },
+    "themes": {
+      "affection": {
+        "description": "やわらかな金色に移る温かいピンク。",
+        "label": "愛情"
+      },
+      "magicSparkle": {
+        "description": "シアン、バイオレット、やわらかな白のきらめき。",
+        "label": "魔法/きらめき"
+      },
+      "neutralSoft": {
+        "description": "パール、ミント、淡い空色の汎用カラー。",
+        "label": "ニュートラル/ソフト"
+      },
+      "sadness": {
+        "description": "冷たい青とラベンダーの雨の色調。",
+        "label": "悲しみ"
+      },
+      "sleep": {
+        "description": "月明かりのような淡い青と紫のもや。",
+        "label": "眠り"
+      },
+      "surprise": {
+        "description": "明るい黄色とオレンジのはじける色。",
+        "label": "驚き"
+      }
+    },
+    "title": "色"
+  },
+  "contentLabel": "パーティクルエフェクト",
+  "emission": {
+    "burst": {
+      "count": "バースト数",
+      "interval": "繰り返し間隔 (s)",
+      "probability": "バーストの確率 (0–1)",
+      "repetitions": "バーストの繰り返し回数",
+      "time": "バーストの時刻 (s)",
+      "title": "バースト放出"
+    },
+    "initialRotation": "初期回転 (rad)",
+    "initialSize": "初期サイズ (m)",
+    "initialSpeed": "初速 (m/s)",
+    "lifetime": "パーティクルの寿命 (s)",
+    "perMeter": "1 メートルあたりのパーティクル数",
+    "perSecond": "1 秒あたりのパーティクル数"
+  },
+  "emitters": {
+    "add": "追加",
+    "count_other": "{{count}} 個のエミッター",
+    "duplicate": "複製",
+    "duplicateSelected": "選択したエミッターを複製",
+    "noMatches": "検索に一致するエミッターはありません。",
+    "removeSelected": "選択したエミッターを削除",
+    "search": "エミッターを検索",
+    "summary": {
+      "custom": "カスタム",
+      "range": "{{min}}–{{max}}",
+      "rate": "{{shape}} · {{rate}}/秒",
+      "withBurst": "{{shape}} · {{rate}}/秒 · バースト {{burst}}"
+    },
+    "title": "エミッター"
+  },
+  "export": {
+    "catalogSettings": "カタログ設定",
+    "clipEvent": "クリップイベント",
+    "collapseAll": "すべて折りたたむ",
+    "copied": "コピーしました",
+    "copy": "コピー",
+    "currentPayload": "現在のエクスポート内容",
+    "download": "JSON をダウンロード",
+    "exactJson": "エクスポートされる JSON",
+    "expandAll": "すべて展開",
+    "parseFailed": "エクスポート JSON を解析できませんでした: {{detail}}",
+    "parseFailedUnexplained": "エクスポート JSON を解析できませんでした。",
+    "resetView": "表示をリセット",
+    "snippets": "カタログ設定とクリップイベント",
+    "title": "パーティクルエフェクトのエクスポート",
+    "unavailable": "エクスポートできる JSON がありません。"
+  },
+  "generator": {
+    "convert": "変換",
+    "end": "終了",
+    "max": "最大",
+    "min": "最小",
+    "modes": {
+      "constant": "定数",
+      "linear": "線形",
+      "range": "範囲"
+    },
+    "start": "開始",
+    "unsupported": "未対応のジェネレーター（{{label}}）",
+    "unsupportedPreserved": "未対応のジェネレーター（{{label}}）は編集するまで保持されます。",
+    "untyped": "未対応",
+    "value": "値"
+  },
+  "import": {
+    "ariaLabel": "パーティクルエフェクトの JSON",
+    "confirm": "エフェクトをインポート",
+    "confirmReplace": "現在のパーティクルエフェクトの変更を破棄して、この JSON を読み込みますか？",
+    "description": "three.quarks のエフェクトを貼り付けてください。有効な JSON は、未保存の変更の確認後に現在のドキュメントを置き換えます。",
+    "title": "パーティクルエフェクトの JSON をインポート"
+  },
+  "inspector": {
+    "applyPreset": "エミッターのプリセットを適用",
+    "emitterName": "エミッター名",
+    "empty": "エミッターを選択するか追加してください。",
+    "presetHint": "選択したエミッターの設定を置き換えます。",
+    "presets": {
+      "aura": "オーラ",
+      "pop": "ポップ",
+      "smokeFade": "煙のフェード",
+      "sparkleBurst": "きらめきバースト",
+      "speedStreak": "スピードライン"
+    },
+    "selectEmitter": "エミッターを選択",
+    "selectEmitterPlaceholder": "エミッターを選択",
+    "tabs": {
+      "appearance": "外観",
+      "behavior": "挙動",
+      "emission": "放出",
+      "position": "位置",
+      "shape": "形状"
+    }
+  },
+  "issues": {
+    "ambiguousTextureFilename": "テクスチャのパス {{first}} と {{second}} は、移植時に同じファイル名になります。",
+    "atlasMetadataMismatch": "レンダラーのタイル数が、選択したアトラステクスチャのメタデータと一致しません。",
+    "atlasTilesMissing": "選択したアトラステクスチャでは、レンダラーで複数のタイルを使ってください。",
+    "blobTextureUrl": "Blob のテクスチャ URL はプレビュー専用で、エクスポートできません。",
+    "durationLimit": "すべてのエミッターの長さを、保存された最大再生時間の範囲内にしてください。",
+    "durationOverBudget": "エミッターの長さがカタログの最大再生時間を超えています。",
+    "embeddedTextureUrl": "埋め込みデータのテクスチャ URL は動作しますが、管理されている公開アセットに移行してください。",
+    "emptyTextureUrl": "テクスチャ画像の URL は空でない文字列にしてください。",
+    "frameAnimationNeedsTiles": "フレームアニメーションには、レンダラーのタイルが複数必要です。",
+    "frameAnimationWithoutAtlas": "フレームアニメーションが有効ですが、選択したテクスチャはアトラスではありません。",
+    "frameRangeOutOfBounds": "フレームアニメーションの範囲が、選択したアトラステクスチャのフレーム数を超えています。",
+    "invalidDuration": "エミッターの長さは 0 より大きくしてください。",
+    "invalidEmitterAnchor": "対応しているエミッターのアンカーか、継承を選んでください。",
+    "invalidRuntimeDefaults": "既定の長さは正の値で、最大 {{seconds}} 秒以下にしてください。",
+    "loopingMetadata": "ループするエミッターを使うには、ランタイムの既定値でループを許可してください。",
+    "loopingNotAllowed": "このカタログの上限ではループするエミッターは許可されていません。",
+    "manifestLimit": "パーティクルエフェクトのマニフェストがコンテンツの上限 {{size}} MiB を超えています。",
+    "missingEmitter": "Quarks JSON には ParticleEmitter が少なくとも 1 つ必要です。",
+    "missingObject": "Quarks JSON には object のルートが必要です。",
+    "missingTexture": "Quarks JSON にはテクスチャ画像が少なくとも 1 つ必要です。",
+    "nodeLimit": "パーティクルエフェクトのオブジェクトノードが {{max}} 個を超えています。",
+    "particleBudgetExceeded": "推定パーティクル数 {{estimated, number}} が、カタログの上限 {{budget, number}} を超えています。",
+    "particleLimit": "推定パーティクル数は、保存された上限と非公開コンテンツの上限 {{max}} 個の両方に収めてください。",
+    "remoteTextureUrl": "リモートのテクスチャ URL は、配布する VFX アセットでは使えません。",
+    "resourceLimit": "{{key}} は {{max}} 個以下の要素を持つ配列にしてください。",
+    "rotation3DWithoutMesh": "「3D 回転」をプレビューするには、メッシュ描画モードが必要です。",
+    "runtimeId": "ランタイム ID には、英小文字、数字、1 つずつのハイフンまたはアンダースコアを使ってください。",
+    "systemLimit": "パーティクルエフェクトのエミッターは {{min}}〜{{max}} 個にしてください。",
+    "tooManyTextures": "パーティクルエフェクトが参照する固有のテクスチャが {{max}} 個を超えています。",
+    "trailSettingsMissing": "トレイル描画モードには、編集できる開始長さのジェネレーターが必要です。",
+    "unportableEmitter": "このエミッターには、移植可能なクリエイター形式の範囲外の設定が保持されています。",
+    "unresolvedTexture": "テクスチャ {{texture}} はこのコンテンツで利用できません。",
+    "unsafeTextureReference": "アセットのテクスチャには、パッケージ内の安全な相対パスを使ってください。",
+    "unsupportedBehaviorSettings": "高度なビヘイビアの設定は保持されますが、完全には編集できません: {{items, list}}。",
+    "unsupportedNodes": "非公開のパーティクルエフェクトでは、Group と ParticleEmitter のノードだけが使えます。",
+    "unsupportedRenderMode": "このエミッターは、クリエイターで編集できない描画モードを使っています。",
+    "unsupportedShape": "このエミッターは、クリエイターで編集できない形状を使っています。",
+    "unsupportedTextureUrl": "テクスチャ URL は、相対パス、ルート相対パス、data:image、blob のいずれかにしてください。",
+    "widthOverLengthWithoutTrail": "「長さに応じた幅」はトレイル描画モードでのみ有効です。",
+    "worldSpaceEmitter": "ワールド空間のエミッターはアンカーの位置で生成されますが、その後はアンカーに追従しません。"
+  },
+  "json": {
+    "notObject": "Quarks JSON はオブジェクトにしてください。",
+    "parseFailed": "Quarks JSON を解析できませんでした: {{detail}}",
+    "parseFailedUnexplained": "Quarks JSON を解析できませんでした。"
+  },
+  "load": {
+    "failed": "パーティクルエフェクトを読み込めませんでした。",
+    "loading": "パーティクルエフェクトを読み込み中…",
+    "manifestMissing": "パーティクルエフェクトのマニフェストがありません。"
+  },
+  "position": {
+    "anchorAndPosition": "アンカーと位置",
+    "anchorOverride": "アンカーの上書き",
+    "axisMeters": "位置 {{axis}} (m)",
+    "cycle": "サイクル",
+    "cycleDuration": "エミッターのサイクルの長さ (s)",
+    "loop": "このエミッターをループ",
+    "offsetHint": "オフセットは、このエミッターが解決したアンカーからの相対位置です。",
+    "worldSpace": "放出したパーティクルをワールド空間に残す"
+  },
+  "preview": {
+    "avatar": "アバター",
+    "avatarStatus": {
+      "error": "アバターのエラー",
+      "idle": "アバター待機中",
+      "loading": "アバターを読み込み中",
+      "ready": "アバター準備完了"
+    },
+    "fitNeedsAvatar": "長方形の調整には、アバターがある場合にアバターの範囲が使われます。",
+    "loadingModels": "モデルを読み込み中…",
+    "loadMoreAvatars": "さらにアバターを読み込む",
+    "model": "モデル",
+    "modelSource": "{{source}}: {{name}}",
+    "modelSources": {
+      "builtInAvatar": "同梱アバター",
+      "myAvatar": "マイアバター",
+      "previewAnima": "プレビュー用 Anima"
+    },
+    "outline": "輪郭",
+    "quarksFailed": "プレビューで three.quarks を読み込めませんでした。",
+    "resourcesUnavailable": "パーティクルエフェクトのプレビュー用リソースを利用できません。",
+    "retryModel": "プレビュー用アバターモデルを再試行",
+    "selectingModel": "アバターモデルを選択中…",
+    "selectModel": "プレビューモデルを選択",
+    "showAvatar": "アバターを表示",
+    "showOutline": "エミッターの形状の輪郭を表示",
+    "status": {
+      "error": "プレビューのエラー",
+      "idle": "プレビュー待機中",
+      "loading": "プレビューを読み込み中",
+      "ready": "プレビュー準備完了"
+    }
+  },
+  "recoveryLabel": "パーティクルエフェクト",
+  "renderer": {
+    "advanced": "高度な描画設定",
+    "alphaTest": "アルファテスト",
+    "blending": "ブレンド",
+    "blendings": {
+      "additive": "加算",
+      "normal": "通常"
+    },
+    "depthTest": "深度テスト",
+    "depthWrite": "深度書き込み",
+    "farFade": "遠方のフェード距離 (m)",
+    "followLocalOrigin": "ローカル原点に追従",
+    "lengthFactor": "長さの係数",
+    "mode": "描画モード",
+    "modes": {
+      "billboard": "ビルボード",
+      "horizontal": "水平ビルボード",
+      "mesh": "メッシュ",
+      "stretched": "引き伸ばしビルボード",
+      "trail": "トレイル",
+      "vertical": "垂直ビルボード"
+    },
+    "nearFade": "近くのフェード距離 (m)",
+    "opacity": "不透明度",
+    "renderOrder": "描画順",
+    "softParticles": "ソフトパーティクル",
+    "speedFactor": "速度の係数",
+    "title": "レンダラー",
+    "trailStartLength": "トレイルの開始長さ"
+  },
+  "save": {
+    "busy": {
+      "hashing": "非公開コンテンツのハッシュを計算中…",
+      "preparing": "非公開コンテンツを準備中…",
+      "uploading": "非公開コンテンツをアップロード中…",
+      "validating": "非公開コンテンツを検証中…"
+    },
+    "defaultName": "新しいパーティクルエフェクト",
+    "nameLength": "このパーティクルエフェクトには {{min}}〜{{max}} 文字の名前を付けてください。",
+    "paused": "保存を一時停止しました。再試行すると、保持された下書きから続行します。",
+    "reviewNotice": "{{notice}} 調整内容を確認してから、もう一度保存してください。",
+    "saved": "パーティクルエフェクトを保存しました。"
+  },
+  "settings": {
+    "advanced": "詳細設定",
+    "allowCoexist": "ほかのエフェクトとの同時再生を許可",
+    "allowLooping": "エミッターのループを許可",
+    "defaultAnchor": "既定のアンカー",
+    "estimatedTotal_other": "推定合計: 約 {{count, number}} 個のパーティクル",
+    "limitsHint": "パフォーマンスの上限はエフェクト全体に適用されます。ここでループを許可すると、各エミッターがサイクルを繰り返せるようになります。",
+    "maxDuration": "最大再生時間 (s)",
+    "maxParticles": "最大パーティクル数",
+    "playbackDuration": "エフェクトの再生時間 (s)",
+    "preload": "プリロード",
+    "preloadTiers": {
+      "none": "なし",
+      "tierA": "ティア A",
+      "tierB": "ティア B"
+    },
+    "title": "設定"
+  },
+  "shape": {
+    "angle": "角度 (rad)",
+    "arc": "円弧 (rad)",
+    "height": "高さ (m)",
+    "mode": "モード",
+    "modes": {
+      "burst": "バースト",
+      "loop": "ループ",
+      "pingPong": "ピンポン",
+      "random": "ランダム"
+    },
+    "radius": "半径 (m)",
+    "speed": "形状の速度",
+    "spread": "拡散",
+    "thickness": "厚さ",
+    "title": "形状",
+    "types": {
+      "cone": "円錐",
+      "point": "点",
+      "rectangle": "長方形",
+      "sphere": "球",
+      "unsupported": "未対応"
+    },
+    "width": "幅 (m)"
+  },
+  "texture": {
+    "animateFrames": "フレームをアニメーション",
+    "atlas": "アトラス",
+    "blendTiles": "タイルをブレンド",
+    "frameEnd": "終了フレーム",
+    "frameStart": "開始フレーム",
+    "names": {
+      "brackeysFlare": "フレア",
+      "brackeysSmoke": "煙",
+      "brackeysSpark": "火花",
+      "cloud": "雲",
+      "dustSoft": "ソフトな粉じん",
+      "exclamation": "感嘆符",
+      "fire8x8": "炎 8x8",
+      "flame16x4": "火炎 16x4",
+      "flareStar": "フレアスター",
+      "glowSharp": "シャープな光",
+      "glowSoft": "ソフトな光",
+      "heart": "ハート",
+      "heartV2": "ハート v2",
+      "kenneyEmberSpark": "Kenney 火の粉",
+      "kenneyFireGlow": "Kenney 炎の光",
+      "kenneyFlameCore": "Kenney 炎の芯",
+      "kenneyFlameTongue": "Kenney 炎の舌",
+      "kenneySmokeWisp": "Kenney 煙のすじ",
+      "magicRing": "魔法の輪",
+      "question": "疑問符",
+      "raindrop": "雨粒",
+      "runeCircle": "ルーン円",
+      "shockRing": "衝撃の輪",
+      "slashArc": "斬撃の弧",
+      "smoke8x8": "煙 8x8",
+      "smokePuff": "煙のかたまり",
+      "smokeWisp": "煙のすじ",
+      "softDot": "ソフトな点",
+      "sparkCross": "十字の火花",
+      "sparkDot": "火花の点",
+      "sparkle": "きらめき",
+      "sparkPop6x5": "火花ポップ 6x5",
+      "sparkStreak": "火花の筋",
+      "speedLine": "スピードライン",
+      "star": "星",
+      "starV2": "星 v2",
+      "trailTaper": "先細りのトレイル",
+      "zzz": "Zzz"
+    },
+    "roles": {
+      "glow": "光",
+      "smoke": "煙/粉じん",
+      "spark": "火花",
+      "symbol": "記号",
+      "trail": "トレイル/筋"
+    },
+    "title": "テクスチャ",
+    "uTiles": "U タイル数",
+    "vTiles": "V タイル数"
+  },
+  "timeline": {
+    "loading": "読み込み中",
+    "paused": "一時停止中",
+    "playing": "再生中",
+    "selectEmitter": "エミッター {{name}} を選択",
+    "target": "エフェクトのプレビュー",
+    "time": "エフェクトのプレビュー時刻",
+    "title": "プレビューのタイムライン"
+  },
+  "toolbar": {
+    "confirmNew": "現在のパーティクルエフェクトの変更を破棄して、新しいエフェクトを始めますか？"
+  },
+  "transform": {
+    "depthOffset": "奥行きのオフセット (m)",
+    "offset": "オフセット (m)",
+    "rotation": "回転 (rad)",
+    "scale": "スケール (倍率)",
+    "title": "トランスフォーム"
+  },
+  "typeLabel": "パーティクルエフェクト",
+  "validation": {
+    "onTarget": "{{target}}: {{message}}"
+  }
+}

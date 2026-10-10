@@ -15,4 +15,31 @@ describe("application entrypoints", () => {
     for (const entry of [local, hosted])
       expect(entry).toContain('import "@fontsource-variable/dm-sans";');
   });
+
+  it("import application modules only after i18n exists", async () => {
+    // Code that runs while a module loads may translate; a static import of the
+    // application would run it before i18n exists and blank the app.
+    const allowed = [
+      "@fontsource-variable/dm-sans",
+      "react",
+      "react-dom/client",
+      "@web/i18n/locale-preference",
+      "@web/i18n/web-i18n",
+      "./i18n/locale-preference",
+      "./i18n/web-i18n",
+      "./index.css",
+    ];
+    for (const entry of await Promise.all([
+      source("../main.local.tsx"),
+      source("../main.hosted.tsx"),
+    ])) {
+      const staticImports = [
+        ...entry.matchAll(/^import\s+(?:[^"']*\sfrom\s+)?["']([^"']+)["']/gm),
+      ].map((match) => match[1]);
+      expect(staticImports.length).toBeGreaterThan(0);
+      for (const specifier of staticImports)
+        expect(allowed, specifier).toContain(specifier);
+      expect(entry).toMatch(/import\("(?:@web|\.)\/app\/router"\)/);
+    }
+  });
 });

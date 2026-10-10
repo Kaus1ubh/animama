@@ -11,6 +11,7 @@ import {
   UploadIcon,
 } from "lucide-react";
 import { useEffect, useRef, type ReactNode, type Ref } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   CreatorHistoryShortcut,
@@ -105,10 +106,12 @@ export function CreatorToolbar({
   saveDisabled,
   saveBusy,
   saveLabel,
-  libraryLabel = "Library",
+  libraryLabel: libraryLabelProp,
   domainActions,
   contentHealth,
 }: CreatorToolbarProps) {
+  const { t } = useTranslation("creator");
+  const libraryLabel = libraryLabelProp ?? t("toolbar.library");
   const shortcuts = getCreatorHistoryShortcutLabels();
   const inputRef = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -130,14 +133,14 @@ export function CreatorToolbar({
         <Button
           type="button"
           variant="outline"
-          aria-label="New"
-          title="New"
+          aria-label={t("toolbar.new")}
+          title={t("toolbar.new")}
           className="dark:bg-background dark:hover:bg-accent col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
           disabled={newDisabled}
           onClick={onNew}
         >
           <FilePlus2Icon className="size-4" />
-          <span className="hidden 2xl:inline">New</span>
+          <span className="hidden 2xl:inline">{t("toolbar.new")}</span>
         </Button>
         {contentType ? (
           <CreatorLoadPicker
@@ -160,13 +163,13 @@ export function CreatorToolbar({
         )}
         <div className="border-border/70 bg-background col-start-4 row-start-1 hidden h-12 shrink-0 items-center rounded-xl border px-1 shadow-sm lg:flex">
           <CreatorIconAction
-            label="Import"
+            label={t("toolbar.import")}
             icon={<UploadIcon />}
             disabled={importDisabled}
             onClick={onImport}
           />
           <CreatorIconAction
-            label="View JSON"
+            label={t("toolbar.viewJson")}
             icon={<Code2Icon />}
             disabled={jsonDisabled}
             onClick={onJson}
@@ -174,13 +177,17 @@ export function CreatorToolbar({
           {history ? (
             <>
               <CreatorIconAction
-                label={`Undo · ${shortcuts.undo}`}
+                label={t("toolbar.undoShortcut", {
+                  shortcut: shortcuts.undo,
+                })}
                 icon={<Undo2Icon />}
                 disabled={historyDisabled || saveBusy || !history.canUndo}
                 onClick={history.undo}
               />
               <CreatorIconAction
-                label={`Redo · ${shortcuts.redo}`}
+                label={t("toolbar.redoShortcut", {
+                  shortcut: shortcuts.redo,
+                })}
                 icon={<Redo2Icon />}
                 disabled={historyDisabled || saveBusy || !history.canRedo}
                 onClick={history.redo}
@@ -204,7 +211,7 @@ export function CreatorToolbar({
                 <>
                   <span className="text-muted-foreground text-2xs inline-flex shrink-0 items-center gap-1 font-medium">
                     <PencilIcon className="size-3" />
-                    Name
+                    {t("toolbar.name")}
                   </span>
                   <Input
                     ref={(element) => {
@@ -218,10 +225,10 @@ export function CreatorToolbar({
                     onChange={(event) =>
                       onDocumentNameChange(event.target.value)
                     }
-                    aria-label={`${typeLabel} name`}
+                    aria-label={t("toolbar.documentName", { type: typeLabel })}
                     aria-invalid={documentNameInvalid}
                     disabled={documentNameDisabled}
-                    placeholder={`New ${typeLabel}`}
+                    placeholder={t("toolbar.newDocument", { type: typeLabel })}
                     className="h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
                   />
                 </>
@@ -241,7 +248,7 @@ export function CreatorToolbar({
               type="button"
               variant="outline"
               className="dark:bg-background dark:hover:bg-accent col-start-3 row-start-2 size-11 rounded-xl p-0 shadow-sm lg:hidden"
-              aria-label="More creator actions"
+              aria-label={t("toolbar.moreActions")}
             >
               <MoreHorizontalIcon className="size-5" />
             </Button>
@@ -257,7 +264,7 @@ export function CreatorToolbar({
               onSelect={onNew}
             >
               <FilePlus2Icon className="size-4" />
-              New
+              {t("toolbar.new")}
             </DropdownMenuItem>
             <DropdownMenuItem
               className="min-h-11 gap-3 rounded-lg"
@@ -265,7 +272,7 @@ export function CreatorToolbar({
               onSelect={onImport}
             >
               <UploadIcon className="size-4" />
-              Import
+              {t("toolbar.import")}
             </DropdownMenuItem>
             <DropdownMenuItem
               className="min-h-11 gap-3 rounded-lg"
@@ -273,7 +280,7 @@ export function CreatorToolbar({
               onSelect={onJson}
             >
               <Code2Icon className="size-4" />
-              View JSON
+              {t("toolbar.viewJson")}
             </DropdownMenuItem>
             {history ? (
               <>
@@ -283,7 +290,7 @@ export function CreatorToolbar({
                   onSelect={history.undo}
                 >
                   <Undo2Icon className="size-4" />
-                  <span>Undo</span>
+                  <span>{t("toolbar.undo")}</span>
                   <span className="text-muted-foreground ml-auto text-xs">
                     {shortcuts.undo}
                   </span>
@@ -294,7 +301,7 @@ export function CreatorToolbar({
                   onSelect={history.redo}
                 >
                   <Redo2Icon className="size-4" />
-                  <span>Redo</span>
+                  <span>{t("toolbar.redo")}</span>
                   <span className="text-muted-foreground ml-auto text-xs">
                     {shortcuts.redo}
                   </span>
@@ -329,9 +336,13 @@ export function CreatorToolbar({
 
 /** Keep save state compact while retaining its full accessible explanation. */
 function CreatorToolbarStatus({ status }: { status: CreatorDocumentStatus }) {
+  const { t } = useTranslation("creator");
   const label =
     typeof status.tooltip === "string"
-      ? `${status.label}: ${status.tooltip}`
+      ? t("toolbar.statusDetail", {
+          label: status.label,
+          detail: status.tooltip,
+        })
       : status.label;
   return (
     <Tooltip>

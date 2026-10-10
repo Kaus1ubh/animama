@@ -75,8 +75,12 @@
       "unavailable": "浏览器崩溃恢复不可用。请在保存完成前保持此标签页打开。"
     },
     "source": {
-      "fileUnavailable": "所选的 {{role}} 文件不可用。",
-      "missingFile": "所选内容没有 {{role}} 文件。"
+      "fileUnavailable": "所选的{{role}}文件不可用。",
+      "missingFile": "所选内容没有{{role}}文件。",
+      "roles": {
+        "animation": "动画",
+        "audio": "音频"
+      }
     }
   },
   "filters": {
@@ -248,7 +252,7 @@
       "acknowledgementIncomplete": "上传确认不完整。请使用同一文件重试。",
       "addAnima": "添加新的 Anima",
       "addToLibrary": "添加到你的资源库",
-      "alreadyReviewed": "此文件已有检查记录。选择替换文件前请先放弃它。",
+      "alreadyReviewed": "此文件已有检查记录。选择替换文件前请先丢弃它。",
       "animaNote": "使用已检查的内容和配置创建全新伙伴。",
       "animaUnavailable": "此处无法导入 Anima 包。请改为导入内容或导出现有的 Anima。",
       "beingProcessed": "此导入正在处理中。继续前请检查其结果。",
@@ -267,7 +271,7 @@
       "contentNote": "内容会添加到你的资源库，但不会自动装备。",
       "copiesNote": "每个项目都会作为独立副本添加。现有内容会保留。",
       "didNotComplete": "此导入未完成。再次导入前请准备新的检查。",
-      "discard": "放弃导入",
+      "discard": "丢弃导入",
       "dropZip": "将 .zip 文件拖放到此处",
       "enableStorage": "导入前请启用浏览器存储。",
       "fileRequirements": "请选择不超过 4 GiB 的非空 .zip 文件，文件名不超过 255 个字符。",
@@ -279,7 +283,7 @@
       "needsRecoveryBeforeUpload": "此导入需要先恢复，才能上传文件。",
       "needsStorageRecovery": "此导入需要恢复本地存储。现有内容已保留。解决存储冲突后请再次检查。",
       "new": "新建",
-      "noActiveImport": "未找到进行中的导入。重新选择文件前请放弃此恢复记录。",
+      "noActiveImport": "未找到进行中的导入。重新选择文件前请丢弃此恢复记录。",
       "oneFileAtATime": "请一次选择一个 .zip 文件",
       "openAnima": "打开 Anima",
       "otherWindow": "另一个窗口中有正在进行的导入。请先完成或恢复该导入。",
@@ -299,8 +303,8 @@
       "retryUpload": "重试上传",
       "reviewMismatch": "此检查属于另一个导入操作。",
       "runtimeUnavailable": "你的 Anima 已导入，但部分运行时内容不可用。请重新打开，或前往 Anima 列表修复其内容。",
-      "sameFileOrDiscard": "请选择同一文件以继续，或在选择其他文件前放弃此导入。",
-      "sameFileToResume": "请选择同一文件以继续，或放弃此导入。",
+      "sameFileOrDiscard": "请选择同一文件以继续，或在选择其他文件前丢弃此导入。",
+      "sameFileToResume": "请选择同一文件以继续，或丢弃此导入。",
       "selectedCount_other": "已选择 {{count}} 个",
       "sessionEnded": "此浏览器会话已结束。请重新登录以恢复导入。",
       "stageChanged": "导入暂存区的标识已更改。",

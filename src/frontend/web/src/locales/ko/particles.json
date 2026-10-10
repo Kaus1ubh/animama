@@ -1,0 +1,502 @@
+{
+  "anchors": {
+    "chest": "가슴",
+    "head": "머리",
+    "hips": "엉덩이",
+    "inherit": "기본 앵커 상속",
+    "leftFoot": "왼발",
+    "leftHand": "왼손",
+    "neck": "목",
+    "rightFoot": "오른발",
+    "rightHand": "오른손",
+    "root": "루트",
+    "spine": "척추"
+  },
+  "autoFit": {
+    "description": "방출 너비와 높이를 카메라나 캔버스가 아닌 아바타 경계에 맞춥니다. 이미터 위치는 각 앵커를 기준으로 유지됩니다.",
+    "emitters": "맞출 사각형 이미터",
+    "heightPadding": "높이 여백 (m)",
+    "maxHeight": "최대 높이 (m)",
+    "maxHint": "최대 크기: 0은 제한 없음을 뜻합니다.",
+    "maxWidth": "최대 너비 (m)",
+    "minHeight": "최소 높이 (m)",
+    "minWidth": "최소 너비 (m)",
+    "title": "사각형을 아바타에 맞추기",
+    "widthPadding": "너비 여백 (m)"
+  },
+  "behavior": {
+    "axis": "축",
+    "colorFadeOverLife": "수명에 따른 색상 페이드",
+    "forceAxis": "힘 {{axis}}",
+    "forceOverLife": "수명에 따른 힘",
+    "limitSpeed": {
+      "dampen": "감쇠",
+      "speed": "속도",
+      "title": "수명에 따른 속도 제한"
+    },
+    "noise": {
+      "frequency": "주파수",
+      "positionAmount": "위치 변화량",
+      "power": "세기",
+      "rotationAmount": "회전 변화량",
+      "title": "노이즈"
+    },
+    "orbit": {
+      "speed": "공전 속도",
+      "title": "수명에 따른 공전"
+    },
+    "rotation3D": {
+      "angle": "각도 (rad)",
+      "angleAxis": "각도 {{axis}}",
+      "eulerOrder": "오일러 순서",
+      "modes": {
+        "axisAngle": "축 각도",
+        "euler": "오일러",
+        "off": "끄기",
+        "random": "무작위"
+      },
+      "title": "3D 회전"
+    },
+    "rotationOverLife": "수명에 따른 회전",
+    "sizeOverLife": "수명에 따른 크기",
+    "speedOverLife": "수명에 따른 속도",
+    "turbulence": {
+      "octaves": "옥타브",
+      "scale": "스케일",
+      "timeScale": "시간 스케일",
+      "title": "난류",
+      "velocity": "속도"
+    },
+    "unsupported": "지원되지 않는 동작({{label}})은 편집할 때까지 유지됩니다.",
+    "widthOverLength": "길이에 따른 너비"
+  },
+  "color": {
+    "channels": {
+      "alpha": "A",
+      "blue": "B",
+      "green": "G",
+      "red": "R"
+    },
+    "missingGenerator": "색상 생성기 없음",
+    "mode": "모드",
+    "overLife": {
+      "applyTheme": "테마 그라데이션 적용",
+      "description": "파티클이 나이 들수록 색상을 곱합니다.",
+      "fadeStops": "페이드 정지점",
+      "gradientStops": "그라데이션 정지점",
+      "modes": {
+        "fade": "페이드",
+        "gradient": "그라데이션",
+        "off": "끄기",
+        "randomGradient": "무작위 그라데이션"
+      },
+      "randomGradient": "무작위 그라데이션 {{name}}",
+      "title": "수명에 따른 색상"
+    },
+    "picker": "{{label}} 색상",
+    "start": {
+      "description": "각 파티클이 생성될 때 선택되는 초기 색상입니다.",
+      "fixed": "고정",
+      "modes": {
+        "fixed": "고정",
+        "range": "범위",
+        "theme": "테마"
+      },
+      "rangeEnd": "범위 끝",
+      "rangeStart": "범위 시작",
+      "theme": "테마",
+      "title": "시작 색상"
+    },
+    "stops": {
+      "add": "정지점",
+      "alpha": "알파",
+      "color": "정지점 {{index}} 색상",
+      "position": "위치",
+      "remove": "정지점 {{index}} 제거"
+    },
+    "themes": {
+      "affection": {
+        "description": "부드러운 금빛 꼬리가 있는 따뜻한 분홍색.",
+        "label": "애정"
+      },
+      "magicSparkle": {
+        "description": "청록, 보라, 부드러운 흰색의 반짝임.",
+        "label": "마법/반짝임"
+      },
+      "neutralSoft": {
+        "description": "진주, 민트, 옅은 하늘색의 범용 색상.",
+        "label": "중립/부드러움"
+      },
+      "sadness": {
+        "description": "차가운 파랑과 라벤더빛 비의 색조.",
+        "label": "슬픔"
+      },
+      "sleep": {
+        "description": "달빛 같은 흐린 파랑과 보라색 안개.",
+        "label": "잠"
+      },
+      "surprise": {
+        "description": "밝은 노랑과 주황의 터지는 색.",
+        "label": "놀람"
+      }
+    },
+    "title": "색상"
+  },
+  "contentLabel": "파티클 효과",
+  "emission": {
+    "burst": {
+      "count": "버스트 수",
+      "interval": "반복 간격 (s)",
+      "probability": "버스트 확률 (0–1)",
+      "repetitions": "버스트 반복 횟수",
+      "time": "버스트 시간 (s)",
+      "title": "버스트 방출"
+    },
+    "initialRotation": "초기 회전 (rad)",
+    "initialSize": "초기 크기 (m)",
+    "initialSpeed": "초기 속도 (m/s)",
+    "lifetime": "파티클 수명 (s)",
+    "perMeter": "미터당 파티클 수",
+    "perSecond": "초당 파티클 수"
+  },
+  "emitters": {
+    "add": "추가",
+    "count_other": "이미터 {{count}}개",
+    "duplicate": "복제",
+    "duplicateSelected": "선택한 이미터 복제",
+    "noMatches": "검색과 일치하는 이미터가 없습니다.",
+    "removeSelected": "선택한 이미터 제거",
+    "search": "이미터 검색",
+    "summary": {
+      "custom": "사용자 지정",
+      "range": "{{min}}–{{max}}",
+      "rate": "{{shape}} · {{rate}}/초",
+      "withBurst": "{{shape}} · {{rate}}/초 · 버스트 {{burst}}"
+    },
+    "title": "이미터"
+  },
+  "export": {
+    "catalogSettings": "카탈로그 설정",
+    "clipEvent": "클립 이벤트",
+    "collapseAll": "모두 접기",
+    "copied": "복사됨",
+    "copy": "복사",
+    "currentPayload": "현재 내보내기 내용",
+    "download": "JSON 다운로드",
+    "exactJson": "내보낼 JSON 원문",
+    "expandAll": "모두 펼치기",
+    "parseFailed": "내보내기 JSON을 구문 분석할 수 없습니다: {{detail}}",
+    "parseFailedUnexplained": "내보내기 JSON을 구문 분석할 수 없습니다.",
+    "resetView": "보기 초기화",
+    "snippets": "카탈로그 설정 및 클립 이벤트",
+    "title": "파티클 효과 내보내기",
+    "unavailable": "내보낼 수 있는 JSON이 없습니다."
+  },
+  "generator": {
+    "convert": "변환",
+    "end": "끝",
+    "max": "최대",
+    "min": "최소",
+    "modes": {
+      "constant": "상수",
+      "linear": "선형",
+      "range": "범위"
+    },
+    "start": "시작",
+    "unsupported": "지원되지 않는 생성기({{label}})",
+    "unsupportedPreserved": "지원되지 않는 생성기({{label}})는 편집할 때까지 유지됩니다.",
+    "untyped": "지원되지 않음",
+    "value": "값"
+  },
+  "import": {
+    "ariaLabel": "파티클 효과 JSON",
+    "confirm": "효과 가져오기",
+    "confirmReplace": "현재 파티클 효과 변경 사항을 삭제하고 이 JSON을 불러오시겠습니까?",
+    "description": "three.quarks 효과를 붙여 넣으세요. 유효한 JSON은 저장되지 않은 변경 사항을 확인한 후 현재 문서를 대체합니다.",
+    "title": "파티클 효과 JSON 가져오기"
+  },
+  "inspector": {
+    "applyPreset": "이미터 프리셋 적용",
+    "emitterName": "이미터 이름",
+    "empty": "이미터를 선택하거나 추가하세요.",
+    "presetHint": "선택한 이미터의 설정을 대체합니다.",
+    "presets": {
+      "aura": "오라",
+      "pop": "팝",
+      "smokeFade": "연기 페이드",
+      "sparkleBurst": "반짝임 버스트",
+      "speedStreak": "스피드 라인"
+    },
+    "selectEmitter": "이미터 선택",
+    "selectEmitterPlaceholder": "이미터 선택",
+    "tabs": {
+      "appearance": "모양",
+      "behavior": "동작",
+      "emission": "방출",
+      "position": "위치",
+      "shape": "형태"
+    }
+  },
+  "issues": {
+    "ambiguousTextureFilename": "텍스처 경로 {{first}}와 {{second}}는 이식 시 같은 파일 이름이 됩니다.",
+    "atlasMetadataMismatch": "렌더러 타일 수가 선택한 아틀라스 텍스처 메타데이터와 일치하지 않습니다.",
+    "atlasTilesMissing": "선택한 아틀라스 텍스처는 렌더러에서 타일을 두 개 이상 사용해야 합니다.",
+    "blobTextureUrl": "Blob 텍스처 URL은 미리 보기 전용이며 내보낼 수 없습니다.",
+    "durationLimit": "모든 이미터 길이는 저장된 최대 재생 시간 안에 들어가야 합니다.",
+    "durationOverBudget": "이미터 길이가 카탈로그의 최대 재생 시간을 초과합니다.",
+    "embeddedTextureUrl": "내장 데이터 텍스처 URL은 작동하지만 관리되는 공개 에셋으로 옮겨야 합니다.",
+    "emptyTextureUrl": "텍스처 이미지 URL은 비어 있지 않은 문자열이어야 합니다.",
+    "frameAnimationNeedsTiles": "프레임 애니메이션에는 렌더러 타일이 두 개 이상 필요합니다.",
+    "frameAnimationWithoutAtlas": "프레임 애니메이션이 켜져 있지만 선택한 텍스처가 아틀라스가 아닙니다.",
+    "frameRangeOutOfBounds": "프레임 애니메이션 범위가 선택한 아틀라스 텍스처의 프레임 수를 초과합니다.",
+    "invalidDuration": "이미터 길이는 0보다 커야 합니다.",
+    "invalidEmitterAnchor": "지원되는 이미터 앵커 또는 상속을 선택하세요.",
+    "invalidRuntimeDefaults": "기본 길이는 양수이고 최대 {{seconds}}초 이하여야 합니다.",
+    "loopingMetadata": "반복 이미터를 사용하려면 런타임 기본값에서 반복을 허용해야 합니다.",
+    "loopingNotAllowed": "이 카탈로그 한도에서는 반복 이미터를 사용할 수 없습니다.",
+    "manifestLimit": "파티클 효과 매니페스트가 콘텐츠 한도 {{size}} MiB를 초과합니다.",
+    "missingEmitter": "Quarks JSON에는 ParticleEmitter가 하나 이상 있어야 합니다.",
+    "missingObject": "Quarks JSON에는 object 루트가 있어야 합니다.",
+    "missingTexture": "Quarks JSON에는 텍스처 이미지가 하나 이상 있어야 합니다.",
+    "nodeLimit": "파티클 효과의 오브젝트 노드가 {{max}}개를 초과합니다.",
+    "particleBudgetExceeded": "예상 파티클 수 {{estimated, number}}개가 카탈로그 한도 {{budget, number}}개를 초과합니다.",
+    "particleLimit": "예상 파티클 사용량은 저장된 한도와 비공개 콘텐츠 한도 {{max}}개를 모두 넘지 않아야 합니다.",
+    "remoteTextureUrl": "원격 텍스처 URL은 배포되는 VFX 에셋에서 사용할 수 없습니다.",
+    "resourceLimit": "{{key}}은(는) 항목이 {{max}}개 이하인 배열이어야 합니다.",
+    "rotation3DWithoutMesh": "3D 회전을 미리 보려면 메시 렌더 모드가 필요합니다.",
+    "runtimeId": "런타임 ID에는 영문 소문자, 숫자, 하나씩 쓰인 하이픈 또는 밑줄만 사용하세요.",
+    "systemLimit": "파티클 효과의 이미터는 {{min}}~{{max}}개여야 합니다.",
+    "tooManyTextures": "파티클 효과가 참조하는 고유 텍스처가 {{max}}개를 초과합니다.",
+    "trailSettingsMissing": "트레일 렌더 모드에는 편집 가능한 시작 길이 생성기가 필요합니다.",
+    "unportableEmitter": "이 이미터에는 이식 가능한 크리에이터 형식을 벗어나는 설정이 유지되어 있습니다.",
+    "unresolvedTexture": "텍스처 {{texture}}을(를) 이 콘텐츠에서 사용할 수 없습니다.",
+    "unsafeTextureReference": "에셋 텍스처는 패키지 내의 안전한 상대 경로를 사용해야 합니다.",
+    "unsupportedBehaviorSettings": "고급 동작 설정은 유지되지만 완전히 편집할 수는 없습니다: {{items, list}}.",
+    "unsupportedNodes": "비공개 파티클 효과는 Group 및 ParticleEmitter 노드만 지원합니다.",
+    "unsupportedRenderMode": "이 이미터는 크리에이터에서 편집할 수 없는 렌더 모드를 사용합니다.",
+    "unsupportedShape": "이 이미터는 크리에이터에서 편집할 수 없는 형태를 사용합니다.",
+    "unsupportedTextureUrl": "텍스처 URL은 상대 경로, 루트 상대 경로, data:image 또는 blob이어야 합니다.",
+    "widthOverLengthWithoutTrail": "길이에 따른 너비는 트레일 렌더 모드에서만 적용됩니다.",
+    "worldSpaceEmitter": "월드 공간 이미터는 앵커 위치에서 생성되지만 이후 앵커를 계속 따라가지 않습니다."
+  },
+  "json": {
+    "notObject": "Quarks JSON은 객체여야 합니다.",
+    "parseFailed": "Quarks JSON을 구문 분석할 수 없습니다: {{detail}}",
+    "parseFailedUnexplained": "Quarks JSON을 구문 분석할 수 없습니다."
+  },
+  "load": {
+    "failed": "파티클 효과를 불러올 수 없습니다.",
+    "loading": "파티클 효과를 불러오는 중…",
+    "manifestMissing": "파티클 효과 매니페스트가 없습니다."
+  },
+  "position": {
+    "anchorAndPosition": "앵커 및 위치",
+    "anchorOverride": "앵커 재정의",
+    "axisMeters": "위치 {{axis}} (m)",
+    "cycle": "주기",
+    "cycleDuration": "이미터 주기 길이 (s)",
+    "loop": "이 이미터 반복",
+    "offsetHint": "오프셋은 이 이미터에 적용된 앵커를 기준으로 합니다.",
+    "worldSpace": "방출된 파티클을 월드 공간에 유지"
+  },
+  "preview": {
+    "avatar": "아바타",
+    "avatarStatus": {
+      "error": "아바타 오류",
+      "idle": "아바타 대기 중",
+      "loading": "아바타 불러오는 중",
+      "ready": "아바타 준비됨"
+    },
+    "fitNeedsAvatar": "사각형 맞춤은 아바타가 있을 때 아바타 경계를 사용합니다.",
+    "loadingModels": "모델을 불러오는 중…",
+    "loadMoreAvatars": "아바타 더 불러오기",
+    "model": "모델",
+    "modelSource": "{{source}}: {{name}}",
+    "modelSources": {
+      "builtInAvatar": "기본 제공 아바타",
+      "myAvatar": "내 아바타",
+      "previewAnima": "미리 보기 Anima"
+    },
+    "outline": "윤곽선",
+    "quarksFailed": "미리 보기에서 three.quarks를 불러올 수 없습니다.",
+    "resourcesUnavailable": "파티클 효과 미리 보기 리소스를 사용할 수 없습니다.",
+    "retryModel": "미리 보기 아바타 모델 다시 시도",
+    "selectingModel": "아바타 모델을 선택하는 중…",
+    "selectModel": "미리 보기 모델 선택",
+    "showAvatar": "아바타 표시",
+    "showOutline": "이미터 형태 윤곽선 표시",
+    "status": {
+      "error": "미리 보기 오류",
+      "idle": "미리 보기 대기 중",
+      "loading": "미리 보기 불러오는 중",
+      "ready": "미리 보기 준비됨"
+    }
+  },
+  "recoveryLabel": "파티클 효과",
+  "renderer": {
+    "advanced": "고급 렌더링",
+    "alphaTest": "알파 테스트",
+    "blending": "블렌딩",
+    "blendings": {
+      "additive": "가산",
+      "normal": "일반"
+    },
+    "depthTest": "깊이 테스트",
+    "depthWrite": "깊이 쓰기",
+    "farFade": "원거리 페이드 거리 (m)",
+    "followLocalOrigin": "로컬 원점 따라가기",
+    "lengthFactor": "길이 계수",
+    "mode": "렌더 모드",
+    "modes": {
+      "billboard": "빌보드",
+      "horizontal": "수평 빌보드",
+      "mesh": "메시",
+      "stretched": "늘어난 빌보드",
+      "trail": "트레일",
+      "vertical": "수직 빌보드"
+    },
+    "nearFade": "근거리 페이드 거리 (m)",
+    "opacity": "불투명도",
+    "renderOrder": "렌더 순서",
+    "softParticles": "소프트 파티클",
+    "speedFactor": "속도 계수",
+    "title": "렌더러",
+    "trailStartLength": "트레일 시작 길이"
+  },
+  "save": {
+    "busy": {
+      "hashing": "비공개 콘텐츠 해시 계산 중…",
+      "preparing": "비공개 콘텐츠 준비 중…",
+      "uploading": "비공개 콘텐츠 업로드 중…",
+      "validating": "비공개 콘텐츠 검증 중…"
+    },
+    "defaultName": "새 파티클 효과",
+    "nameLength": "이 파티클 효과의 이름을 {{min}}~{{max}}자로 지정하세요.",
+    "paused": "저장이 일시 중지되었습니다. 다시 시도하면 보존된 초안에서 계속합니다.",
+    "reviewNotice": "{{notice}} 조정 내용을 확인한 후 다시 저장하세요.",
+    "saved": "파티클 효과를 저장했습니다."
+  },
+  "settings": {
+    "advanced": "고급 설정",
+    "allowCoexist": "다른 효과와 동시 재생 허용",
+    "allowLooping": "이미터 반복 허용",
+    "defaultAnchor": "기본 앵커",
+    "estimatedTotal_other": "예상 합계: 약 {{count, number}}개 파티클",
+    "limitsHint": "성능 한도는 효과 전체에 적용됩니다. 여기에서 반복을 허용하면 개별 이미터가 주기를 반복할 수 있습니다.",
+    "maxDuration": "최대 재생 시간 (s)",
+    "maxParticles": "최대 파티클 수",
+    "playbackDuration": "효과 재생 시간 (s)",
+    "preload": "미리 불러오기",
+    "preloadTiers": {
+      "none": "없음",
+      "tierA": "티어 A",
+      "tierB": "티어 B"
+    },
+    "title": "설정"
+  },
+  "shape": {
+    "angle": "각도 (rad)",
+    "arc": "호 (rad)",
+    "height": "높이 (m)",
+    "mode": "모드",
+    "modes": {
+      "burst": "버스트",
+      "loop": "반복",
+      "pingPong": "핑퐁",
+      "random": "무작위"
+    },
+    "radius": "반지름 (m)",
+    "speed": "형태 속도",
+    "spread": "분산",
+    "thickness": "두께",
+    "title": "형태",
+    "types": {
+      "cone": "원뿔",
+      "point": "점",
+      "rectangle": "사각형",
+      "sphere": "구",
+      "unsupported": "지원되지 않음"
+    },
+    "width": "너비 (m)"
+  },
+  "texture": {
+    "animateFrames": "프레임 애니메이션",
+    "atlas": "아틀라스",
+    "blendTiles": "타일 블렌딩",
+    "frameEnd": "끝 프레임",
+    "frameStart": "시작 프레임",
+    "names": {
+      "brackeysFlare": "플레어",
+      "brackeysSmoke": "연기",
+      "brackeysSpark": "불꽃",
+      "cloud": "구름",
+      "dustSoft": "부드러운 먼지",
+      "exclamation": "느낌표",
+      "fire8x8": "불 8x8",
+      "flame16x4": "화염 16x4",
+      "flareStar": "플레어 별",
+      "glowSharp": "선명한 빛",
+      "glowSoft": "부드러운 빛",
+      "heart": "하트",
+      "heartV2": "하트 v2",
+      "kenneyEmberSpark": "Kenney 불씨",
+      "kenneyFireGlow": "Kenney 불빛",
+      "kenneyFlameCore": "Kenney 불꽃 심지",
+      "kenneyFlameTongue": "Kenney 불길",
+      "kenneySmokeWisp": "Kenney 연기 줄기",
+      "magicRing": "마법 고리",
+      "question": "물음표",
+      "raindrop": "빗방울",
+      "runeCircle": "룬 원",
+      "shockRing": "충격 고리",
+      "slashArc": "베기 호",
+      "smoke8x8": "연기 8x8",
+      "smokePuff": "연기 뭉치",
+      "smokeWisp": "연기 줄기",
+      "softDot": "부드러운 점",
+      "sparkCross": "십자 불꽃",
+      "sparkDot": "불꽃 점",
+      "sparkle": "반짝임",
+      "sparkPop6x5": "불꽃 팝 6x5",
+      "sparkStreak": "불꽃 줄기",
+      "speedLine": "스피드 라인",
+      "star": "별",
+      "starV2": "별 v2",
+      "trailTaper": "가늘어지는 트레일",
+      "zzz": "Zzz"
+    },
+    "roles": {
+      "glow": "빛",
+      "smoke": "연기/먼지",
+      "spark": "불꽃",
+      "symbol": "기호",
+      "trail": "트레일/줄기"
+    },
+    "title": "텍스처",
+    "uTiles": "U 타일 수",
+    "vTiles": "V 타일 수"
+  },
+  "timeline": {
+    "loading": "불러오는 중",
+    "paused": "일시 정지됨",
+    "playing": "재생 중",
+    "selectEmitter": "이미터 {{name}} 선택",
+    "target": "효과 미리 보기",
+    "time": "효과 미리 보기 시간",
+    "title": "미리 보기 타임라인"
+  },
+  "toolbar": {
+    "confirmNew": "현재 파티클 효과 변경 사항을 삭제하고 새 효과를 시작하시겠습니까?"
+  },
+  "transform": {
+    "depthOffset": "깊이 오프셋 (m)",
+    "offset": "오프셋 (m)",
+    "rotation": "회전 (rad)",
+    "scale": "스케일 (배율)",
+    "title": "트랜스폼"
+  },
+  "typeLabel": "파티클 효과",
+  "validation": {
+    "onTarget": "{{target}}: {{message}}"
+  }
+}

@@ -2,21 +2,22 @@
  * Hands-tool preset ids, adjustment limits and the per-finger offset
  * vocabulary. Kept free of imports so the clip schema can validate hand keys
  * without loading the pose catalog. The backend validator mirrors these
- * through the shared `animaPoseClip/fixtures/v2-vocabulary.json`.
+ * through the shared `animaPoseClip/fixtures/v2-vocabulary.json`. The Hands
+ * tool's display names live in the `pose` catalog (`hands.presetNames`).
  */
 export const HAND_PRESETS = [
-  { id: "fist", name: "Fist" },
-  { id: "open-spread", name: "Open · spread" },
-  { id: "open-together", name: "Open · together" },
-  { id: "relaxed", name: "Relaxed" },
-  { id: "point", name: "Point" },
-  { id: "peace", name: "Peace" },
-  { id: "thumbs-up", name: "Thumbs up" },
-  { id: "cupped", name: "Cupped" },
-  { id: "soft-claw", name: "Soft claw" },
-  { id: "palm-flat", name: "Palm flat" },
-  { id: "pinch", name: "Pinch" },
-  { id: "ok", name: "OK" },
+  { id: "fist" },
+  { id: "open-spread" },
+  { id: "open-together" },
+  { id: "relaxed" },
+  { id: "point" },
+  { id: "peace" },
+  { id: "thumbs-up" },
+  { id: "cupped" },
+  { id: "soft-claw" },
+  { id: "palm-flat" },
+  { id: "pinch" },
+  { id: "ok" },
 ] as const;
 
 export type HandPreset = (typeof HAND_PRESETS)[number]["id"];

@@ -77,7 +77,11 @@
     },
     "source": {
       "fileUnavailable": "The selected {{role}} file is unavailable.",
-      "missingFile": "The selected content has no {{role}} file."
+      "missingFile": "The selected content has no {{role}} file.",
+      "roles": {
+        "animation": "animation",
+        "audio": "audio"
+      }
     }
   },
   "filters": {

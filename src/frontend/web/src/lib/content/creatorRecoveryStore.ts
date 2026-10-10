@@ -9,6 +9,7 @@
  */
 
 import { getI18n } from "react-i18next";
+import { WordedError } from "@/lib/errors/apiError";
 import {
   recoverySessionIsActive,
   writeSessionRecovery,
@@ -251,7 +252,9 @@ export function createCreatorRecoveryStore<
       } catch (cause) {
         if (options.strict) {
           const t = getI18n().getFixedT(null, "library");
-          throw new Error(t("content.recovery.discardFailed"), { cause });
+          throw new WordedError(t("content.recovery.discardFailed"), {
+            cause,
+          });
         }
         // Save cleanup remains best-effort when browser storage is unavailable.
       }

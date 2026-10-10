@@ -1,4 +1,4 @@
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { useFormatters } from "@animama/product-ui/i18n";
 
@@ -34,6 +34,16 @@ export function MicrophoneLevelMeter({
   const { t } = useTranslation("voice");
   const { number } = useFormatters();
   const containerRef = useRef<HTMLDivElement>(null);
+  const valueText = useCallback(
+    (level: number) => t("microphone.meter.value", { level: number(level) }),
+    [number, t],
+  );
+  // Frames read the latest wording, so a UI Locale change does not restart
+  // the meter's audio graph.
+  const valueTextRef = useRef(valueText);
+  useEffect(() => {
+    valueTextRef.current = valueText;
+  }, [valueText]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -51,6 +61,7 @@ export function MicrophoneLevelMeter({
     const samples = new Float32Array(analyser.fftSize);
     let displayed = METER_MIN_DB;
     let lastReported = -1;
+    let reportedWith: ((level: number) => string) | null = null;
     let frame = 0;
 
     const draw = () => {
@@ -66,13 +77,12 @@ export function MicrophoneLevelMeter({
       });
       // Keep the accessible value coarse so screen readers aren't flooded.
       const rounded = Math.round(displayed / 6) * 6;
-      if (rounded !== lastReported) {
+      const text = valueTextRef.current;
+      if (rounded !== lastReported || text !== reportedWith) {
         lastReported = rounded;
+        reportedWith = text;
         container.setAttribute("aria-valuenow", String(rounded));
-        container.setAttribute(
-          "aria-valuetext",
-          t("microphone.meter.value", { level: number(rounded) }),
-        );
+        container.setAttribute("aria-valuetext", text(rounded));
       }
       frame = requestAnimationFrame(draw);
     };
@@ -86,8 +96,7 @@ export function MicrophoneLevelMeter({
         segment.style.opacity = "0.18";
       });
     };
-    // A UI Locale change restarts the meter so its spoken value follows it.
-  }, [stream, t, number]);
+  }, [stream]);
 
   return (
     <div
@@ -97,9 +106,7 @@ export function MicrophoneLevelMeter({
       aria-valuemin={METER_MIN_DB}
       aria-valuemax={0}
       aria-valuenow={METER_MIN_DB}
-      aria-valuetext={t("microphone.meter.value", {
-        level: number(METER_MIN_DB),
-      })}
+      aria-valuetext={valueText(METER_MIN_DB)}
       className={cn("flex h-3 items-stretch gap-[2px]", className)}
     >
       {Array.from({ length: SEGMENTS }, (_, index) => (

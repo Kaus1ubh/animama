@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import { useTranslation } from "react-i18next";
+import { getI18n, useTranslation } from "react-i18next";
 
 import type {
   AnimaCreationDiagnostic,
@@ -136,14 +136,16 @@ export function useCreateAnimaController(
     setStorageError(apiErrorLine(creatorErrorText(error)));
     if (error instanceof CreationDraftConflict) setConflict(true);
   }, []);
-  const persist = useCallback(
-    (next: CreateAnimaDraft) => {
-      if (!store.current) throw new CreatorError(t("storage.unavailable"));
-      store.current.save(next);
-      setStorageError(null);
-    },
-    [t],
-  );
+  // Stable across a UI Locale change: the draft-seeding effect depends on it
+  // through `update` and `dispatch`, and must not save the draft again.
+  const persist = useCallback((next: CreateAnimaDraft) => {
+    if (!store.current) {
+      const t = getI18n().getFixedT(null, "create");
+      throw new CreatorError(t("storage.unavailable"));
+    }
+    store.current.save(next);
+    setStorageError(null);
+  }, []);
   const update = useCallback(
     (next: CreateAnimaDraft, save = true) => {
       const previous = latest.current;

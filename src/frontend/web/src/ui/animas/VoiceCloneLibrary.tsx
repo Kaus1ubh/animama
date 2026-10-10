@@ -17,11 +17,7 @@ import {
   ContentSaveApiError,
   parseContentApiErrorDetail,
 } from "@/lib/content/contentSaveErrors";
-import {
-  apiErrorLine,
-  apiErrorText,
-  readApiError,
-} from "@/lib/errors/apiError";
+import { failureLine } from "@/lib/errors/apiError";
 import { useOperatorManagedModelAssets } from "@/query/hooks/useModelAssets";
 import { useVoiceCloneActions } from "@/query/mutations/useVoiceCloneActions";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
@@ -62,7 +58,7 @@ function cloneError(
   if (code === "catalog_revision_conflict")
     return t("voices.cloning.errors.changed");
   if (error instanceof ContentSaveApiError) return error.message;
-  return apiErrorLine(apiErrorText(readApiError(error), null, fallback));
+  return failureLine(error, fallback);
 }
 
 /** Named originals and encoded voices are saved together, independently of selection. */

@@ -1,5 +1,6 @@
 import { XIcon } from "lucide-react";
 import { useEffect, useId, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type {
   AvatarEffectEditorAction,
@@ -25,6 +26,7 @@ import {
   placementOffsetPatch,
   placementRotationPatch,
   placementScalePatch,
+  placementUnitLabel,
   positionHint,
   positionUnit,
   resolvedPlacement,
@@ -61,6 +63,7 @@ export function AvatarEffectInspector({
   invalidField: string | null;
   onDispatch: Dispatch;
 }) {
+  const { t } = useTranslation("effects");
   const [tab, setTab] = useState<AvatarEffectInspectorTab>("placement");
   // A failed Save opens the tab that holds the named setting.
   const fieldTab = inspectorTabForField(invalidField);
@@ -80,13 +83,13 @@ export function AvatarEffectInspector({
           disabled={!hasPlacement}
           className="min-w-0 px-1 text-xs"
         >
-          Placement
+          {t("avatar.inspector.tabs.placement")}
         </TabsTrigger>
         <TabsTrigger value="look" className="min-w-0 px-1 text-xs">
-          Look
+          {t("avatar.inspector.tabs.look")}
         </TabsTrigger>
         <TabsTrigger value="motion" className="min-w-0 px-1 text-xs">
-          Motion
+          {t("avatar.inspector.tabs.motion")}
         </TabsTrigger>
       </TabsList>
       <TabsContent value="placement" className="mt-3 space-y-3">
@@ -124,6 +127,7 @@ function PlacementFields({
   invalidField: string | null;
   onDispatch: Dispatch;
 }) {
+  const { t } = useTranslation("effects");
   const attachment = document.attachment;
   const placement = resolvedPlacement(attachment);
   if (!placement) return null;
@@ -145,16 +149,24 @@ function PlacementFields({
   // neutrally (texture y grows downward).
   const viewerFrame = attachment.kind !== "face_surface";
   const axes = [
-    ["x", viewerFrame ? "Right" : "Sideways"],
-    ["y", viewerFrame ? "Up" : "Down"],
-    ...(has3d ? ([["z", "Forward"]] as const) : []),
+    [
+      "x",
+      viewerFrame
+        ? t("avatar.inspector.axes.right")
+        : t("avatar.inspector.axes.sideways"),
+    ],
+    [
+      "y",
+      viewerFrame
+        ? t("avatar.inspector.axes.up")
+        : t("avatar.inspector.axes.down"),
+    ],
+    ...(has3d ? ([["z", t("avatar.inspector.axes.forward")]] as const) : []),
   ] as const;
   return (
     <>
       <p className="text-muted-foreground text-xs">
-        Drag the art on the preview, or use its corner handles to resize and its
-        round handle to turn it. With the preview focused, arrow keys nudge it;
-        hold Shift to move further.
+        {t("avatar.inspector.placementHelp")}
       </p>
       <fieldset
         className={cn(
@@ -164,7 +176,9 @@ function PlacementFields({
         )}
       >
         <legend className="mb-2 text-sm leading-none font-medium">
-          Position ({unit.label})
+          {t("avatar.inspector.position", {
+            unit: placementUnitLabel(t, unit),
+          })}
         </legend>
         <div
           className={cn("grid gap-2", has3d ? "grid-cols-3" : "grid-cols-2")}
@@ -186,7 +200,7 @@ function PlacementFields({
           ))}
         </div>
         <p className="text-muted-foreground text-xs">
-          {positionHint(attachment.kind)}
+          {positionHint(t, attachment.kind)}
         </p>
       </fieldset>
       {placement.scale ? (
@@ -198,13 +212,17 @@ function PlacementFields({
           )}
         >
           <legend className="mb-2 text-sm leading-none font-medium">
-            Size (×)
+            {t("avatar.inspector.scale")}
           </legend>
           <div className="grid grid-cols-2 gap-2">
             {(["x", "y"] as const).map((axis) => (
               <NumberField
                 key={axis}
-                label={axis === "x" ? "Width" : "Height"}
+                label={
+                  axis === "x"
+                    ? t("avatar.inspector.width")
+                    : t("avatar.inspector.height")
+                }
                 compact
                 value={placement.scale![axis]}
                 min={0.01}
@@ -228,7 +246,9 @@ function PlacementFields({
         </fieldset>
       ) : sizeUnits ? (
         <NumberField
-          label={`Size (${sizeUnits.label})`}
+          label={t("avatar.inspector.size", {
+            unit: placementUnitLabel(t, sizeUnits),
+          })}
           className={cn(
             path.startsWith("attachment.size") &&
               "ring-destructive/40 rounded-lg p-2 ring-1",
@@ -247,7 +267,7 @@ function PlacementFields({
         />
       ) : null}
       <NumberField
-        label="Rotation (°)"
+        label={t("avatar.inspector.rotation")}
         className={cn(
           path.startsWith("attachment.rotationDeg") &&
             "ring-destructive/40 rounded-lg p-2 ring-1",
@@ -265,13 +285,17 @@ function PlacementFields({
       {placement.tilt && attachment.kind === "face_landmark" ? (
         <details className="space-y-2">
           <summary className="cursor-pointer text-xs font-medium">
-            Tilt (°)
+            {t("avatar.inspector.tilt")}
           </summary>
           <div className="grid grid-cols-2 gap-2">
             {(["x", "y"] as const).map((axis) => (
               <NumberField
                 key={axis}
-                label={axis === "x" ? "Tilt forward" : "Turn sideways"}
+                label={
+                  axis === "x"
+                    ? t("avatar.inspector.tiltForward")
+                    : t("avatar.inspector.turnSideways")
+                }
                 compact
                 value={placement.tilt![axis]}
                 min={-3600}
@@ -309,13 +333,14 @@ function LookFields({
   invalidField: string | null;
   onDispatch: Dispatch;
 }) {
+  const { t } = useTranslation("effects");
   const tintId = useId();
   const appearance = document.appearance;
   const path = invalidField?.replace(/^definition\.?/, "") ?? "";
   return (
     <>
       <NumberField
-        label="Opacity (%)"
+        label={t("avatar.inspector.opacity")}
         value={appearance.opacity * 100}
         min={0}
         max={100}
@@ -329,7 +354,7 @@ function LookFields({
         }
       />
       <Field
-        label="Tint"
+        label={t("avatar.inspector.tint")}
         htmlFor={tintId}
         invalid={path.startsWith("appearance.tint")}
       >
@@ -337,7 +362,7 @@ function LookFields({
           <Input
             id={tintId}
             type="color"
-            aria-label="Tint colour"
+            aria-label={t("avatar.inspector.tintColour")}
             className="h-8 w-14 cursor-pointer p-1"
             value={appearance.tint ?? "#ffffff"}
             onChange={(event) =>
@@ -349,15 +374,15 @@ function LookFields({
           />
           <span className="text-muted-foreground flex-1 text-xs">
             {appearance.tint
-              ? `Multiplied into the art (${appearance.tint})`
-              : "No tint"}
+              ? t("avatar.inspector.tintApplied", { color: appearance.tint })
+              : t("avatar.inspector.noTint")}
           </span>
           {appearance.tint ? (
             <Button
               type="button"
               size="icon-sm"
               variant="ghost"
-              aria-label="Remove tint"
+              aria-label={t("avatar.inspector.removeTint")}
               onClick={() =>
                 onDispatch({ type: "patch-appearance", patch: { tint: null } })
               }
@@ -367,7 +392,7 @@ function LookFields({
           ) : null}
         </div>
       </Field>
-      <Field label="Blend">
+      <Field label={t("avatar.inspector.blend")}>
         <Select
           value={appearance.blend}
           onValueChange={(blend) =>
@@ -380,14 +405,20 @@ function LookFields({
           <SelectTrigger
             size="sm"
             className="w-full text-xs"
-            aria-label="Blend"
+            aria-label={t("avatar.inspector.blend")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="normal">Normal</SelectItem>
-            <SelectItem value="additive">Glow (add light)</SelectItem>
-            <SelectItem value="multiply">Shade (multiply)</SelectItem>
+            <SelectItem value="normal">
+              {t("avatar.inspector.blends.normal")}
+            </SelectItem>
+            <SelectItem value="additive">
+              {t("avatar.inspector.blends.additive")}
+            </SelectItem>
+            <SelectItem value="multiply">
+              {t("avatar.inspector.blends.multiply")}
+            </SelectItem>
           </SelectContent>
         </Select>
       </Field>

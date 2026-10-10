@@ -6,13 +6,6 @@
 
 import { getI18n } from "react-i18next";
 
-/**
- * English reason for screens not yet worded from the catalog; display code
- * uses `nonPortableReason()`.
- */
-export const NON_PORTABLE_REASON =
-  "Included with this app for use here only. It can't be customized, copied or exported.";
-
 /** Plain-language reason shown wherever an action is unavailable, in the UI Locale. */
 export function nonPortableReason(): string {
   const t = getI18n().getFixedT(null, "library");

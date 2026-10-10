@@ -2,6 +2,7 @@
 
 import { SaveIcon, WandSparklesIcon } from "lucide-react";
 import { useIsMutating } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
@@ -9,6 +10,7 @@ import { Button } from "@/ui/components/button";
 
 /** Shared pose Save actions; no Gesture/Reaction document provider is required. */
 export function PosePrimaryActions({ busy = false }: { busy?: boolean }) {
+  const { t } = useTranslation("pose");
   const owner = useRuntimeCacheKey();
   const saving =
     useIsMutating({ mutationKey: queryKeys.poses.save(owner ?? "__anon__") }) >
@@ -26,10 +28,10 @@ export function PosePrimaryActions({ busy = false }: { busy?: boolean }) {
         variant="outline"
         className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:h-12 lg:w-auto lg:min-w-[88px] lg:px-3"
         disabled={saveDisabled || !selectedSource}
-        aria-label="Save pose"
+        aria-label={t("actions.saveLabel")}
       >
         <SaveIcon className="size-4" />
-        <span className="hidden lg:inline">Save</span>
+        <span className="hidden lg:inline">{t("actions.save")}</span>
       </Button>
       <Button
         type="submit"
@@ -39,10 +41,10 @@ export function PosePrimaryActions({ busy = false }: { busy?: boolean }) {
         variant="default"
         className="hover:bg-primary disabled:text-muted-foreground size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:h-12 lg:w-auto lg:min-w-[160px] lg:px-3"
         disabled={saveDisabled || !selectedSource || !activeAvatar}
-        aria-label="Save and branch pose"
+        aria-label={t("actions.saveAndBranchLabel")}
       >
         <WandSparklesIcon className="size-4" />
-        <span className="hidden lg:inline">Save &amp; Branch</span>
+        <span className="hidden lg:inline">{t("actions.saveAndBranch")}</span>
       </Button>
     </div>
   );

@@ -1,0 +1,158 @@
+{
+  "actions": {
+    "cancel": "取消",
+    "tryAgain": "重試"
+  },
+  "avatar": {
+    "noRuntimeFile": "所選虛擬形象模型沒有執行階段檔案。",
+    "notAuthorized": "無法取得所選虛擬形象模型的存取授權。",
+    "renderFailed": "無法算繪所選虛擬形象。"
+  },
+  "canvas": {
+    "controls": "預覽控制項",
+    "guides": "參考線",
+    "restart": "從頭播放預覽",
+    "select": "預覽{{label}}",
+    "showGuides": "顯示放置參考線"
+  },
+  "handoff": {
+    "gesture": "在動作中使用",
+    "reaction": "在反應中使用",
+    "useIn": "用於…"
+  },
+  "import": {
+    "ariaLabel": "創作器 JSON",
+    "confirm": "匯入文件"
+  },
+  "leave": {
+    "busy": {
+      "confirm": "離開並保留復原資料",
+      "description": "此{{label}}仍在儲存中。返回時仍可使用本機復原資料。",
+      "title": "內容正在儲存，確定要離開嗎？"
+    },
+    "dirty": {
+      "confirm": "捨棄並繼續",
+      "description": "此{{label}}有本機編輯的變更。捨棄會移除這些變更及其瀏覽器復原草稿。已儲存的內容不會變更。",
+      "title": "要捨棄編輯中的變更嗎？"
+    },
+    "discardFailed": "無法捨棄草稿。",
+    "discarding": "正在捨棄…",
+    "stay": "留下"
+  },
+  "load": {
+    "button": "開啟",
+    "description": "開啟你可編輯的本機內容。",
+    "editable": "可編輯的本機內容",
+    "empty": "尚無可編輯的特效。",
+    "loadFailed": "無法載入特效。",
+    "loading": "載入中…",
+    "noMatches": "沒有相符的特效。",
+    "openFailed": "無法開啟此特效。請再試一次。",
+    "opening": "正在開啟…",
+    "searchLabel": "搜尋{{type}}",
+    "searchPlaceholder": "搜尋特效",
+    "title": "開啟{{type}}",
+    "types": {
+      "avatarEffect": "形象特效",
+      "particleEffect": "粒子特效",
+      "sceneEffect": "場景特效"
+    }
+  },
+  "modelPreview": {
+    "animaModel": "{{name}}（Anima）",
+    "animasFailed": "無法載入你的 Anima。",
+    "includedFailed": "無法準備所選的內建虛擬形象。",
+    "includedListFailed": "無法載入內建虛擬形象。",
+    "noAnima": "請先建立 Anima，再於虛擬形象上預覽此特效。",
+    "noAvatar": "所選 Anima 沒有可用的虛擬形象。",
+    "releaseUnavailable": "所選虛擬形象版本已無法使用。",
+    "runtimeFailed": "無法載入預覽 Anima 的執行階段。",
+    "unnamedAnimaModel": "你的 Anima"
+  },
+  "panel": {
+    "authoringTools": "創作工具",
+    "collapse": "收合{{label}}",
+    "expand": "展開{{label}}",
+    "inspector": "檢閱器",
+    "preview": "預覽",
+    "setup": "配置"
+  },
+  "preview": {
+    "duration": "時長",
+    "durationSeconds": "{{label}}（秒）",
+    "playing": "播放中",
+    "secondsUnit": "秒",
+    "stopped": "已停止",
+    "target": "預覽",
+    "title": "預覽",
+    "untilStopped": "直到停止"
+  },
+  "recovery": {
+    "discard": "捨棄復原資料",
+    "discardServerDraft": "捨棄保留的伺服器草稿",
+    "recovered": "已復原未儲存的{{label}}變更。",
+    "recoveredDraft": "已復原本機草稿"
+  },
+  "save": {
+    "retry": "重試儲存",
+    "save": "儲存",
+    "stages": {
+      "hashing": "正在計算雜湊",
+      "preparing": "正在準備",
+      "uploading": "正在上傳",
+      "validating": "正在驗證"
+    }
+  },
+  "status": {
+    "saved": "已儲存",
+    "saveFailed": "儲存失敗",
+    "unsaved": "未儲存"
+  },
+  "templateDraft": {
+    "continue": "繼續草稿",
+    "description": "你有一個從{{template}}開始、尚未儲存的{{label}}。可以繼續編輯，或捨棄後從範本重新開始。已儲存的內容不會變更。",
+    "openFailed": "無法開啟範本。",
+    "seedFailed": "無法開啟範本：{{reason}}",
+    "title": "要繼續未儲存的草稿嗎？",
+    "useTemplate": "捨棄並使用範本"
+  },
+  "timeline": {
+    "defaultTarget": "片段預覽",
+    "loadingResources": "正在載入預覽資源",
+    "pause": "暫停",
+    "pauseTarget": "暫停{{target}}",
+    "play": "播放",
+    "playhead": "目前播放位置",
+    "playTarget": "播放{{target}}",
+    "restart": "從頭播放",
+    "restartTarget": "從頭播放{{target}}",
+    "stop": "停止",
+    "stopTarget": "停止{{target}}"
+  },
+  "toolbar": {
+    "documentName": "{{type}}名稱",
+    "import": "匯入",
+    "library": "資源庫",
+    "moreActions": "更多操作",
+    "name": "名稱",
+    "new": "新增",
+    "newDocument": "新{{type}}",
+    "redo": "重做",
+    "redoShortcut": "重做 · {{shortcut}}",
+    "statusDetail": "{{label}}：{{detail}}",
+    "undo": "復原",
+    "undoShortcut": "復原 · {{shortcut}}",
+    "viewJson": "檢視 JSON"
+  },
+  "unavailable": {
+    "goToCreate": "前往建立",
+    "notFound": "找不到此{{label}}。它可能已被刪除，或連結已過期。",
+    "openLibrary": "開啟資源庫",
+    "title": "無法開啟此{{label}}",
+    "unavailable": "此{{label}}無法使用。請在資源庫中查看。"
+  },
+  "validation": {
+    "count_other": "{{count}} 個驗證問題",
+    "title": "驗證問題"
+  }
+}

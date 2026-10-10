@@ -12,6 +12,7 @@ export {
 export { AnimamaI18nProvider } from "./i18n/provider";
 export {
   createFormatters,
+  formattersForLanguage,
   systemPreferredLanguages,
   useFormatters,
   type LocaleFormatters,

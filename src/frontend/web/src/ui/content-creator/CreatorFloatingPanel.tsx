@@ -47,7 +47,7 @@ export function CreatorFloatingPanel({
             </div>
             {headerActions}
             <CreatorPanelCollapseButton
-              label={title.toLowerCase()}
+              label={title}
               expanded={expanded}
               collapseDirection="up"
               onExpandedChange={setExpanded}

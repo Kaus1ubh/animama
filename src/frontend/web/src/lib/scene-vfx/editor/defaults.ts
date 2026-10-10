@@ -18,6 +18,11 @@ export const DEFAULT_SCENE_SOLID_COLOR = "#faf9f5";
 /** Default Anima-theme primary blue used by the Scene pattern layer. */
 export const DEFAULT_SCENE_PATTERN_COLOR = "#87ceeb";
 
+/**
+ * The starting templates. Their labels are names, like Included content
+ * names: they stay as written in every UI Locale, and a draft started from a
+ * template is named after it.
+ */
 export const SCENE_EFFECT_TEMPLATE_OPTIONS: Array<{
   id: SceneEffectTemplateId;
   label: string;

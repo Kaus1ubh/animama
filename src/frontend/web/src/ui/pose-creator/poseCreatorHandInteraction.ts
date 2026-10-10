@@ -1,5 +1,11 @@
 import type { VRMHumanBoneName } from "@pixiv/three-vrm";
+import { getI18n } from "react-i18next";
 import { Euler, MathUtils, Quaternion } from "three";
+import {
+  apiErrorLine,
+  uncodedErrorText,
+  WordedError,
+} from "@/lib/errors/apiError";
 import { convertPoseQuaternionBasis } from "@/lib/avatar/poses/poseRetargeting";
 import type { QuaternionTuple } from "@/lib/avatar/poses/animaPoseClip/clipVocabulary";
 import {
@@ -27,6 +33,35 @@ import {
 } from "@/lib/avatar/poses/anatomy/handPresets";
 
 type Store = ReturnType<typeof usePoseCreatorStore.getState>;
+
+/** Hands-tool refusals, worded in the UI Locale. */
+type HandRefusal =
+  | "waitForAvatar"
+  | "invalidRotation"
+  | "bonesChanged"
+  | "selectAvailable"
+  | "finishEditAdjust"
+  | "noFingerBones"
+  | "finishEditPreset";
+function handError(refusal: HandRefusal): WordedError {
+  const t = getI18n().getFixedT(null, "pose");
+  switch (refusal) {
+    case "waitForAvatar":
+      return new WordedError(t("hands.errors.waitForAvatar"));
+    case "invalidRotation":
+      return new WordedError(t("hands.errors.invalidRotation"));
+    case "bonesChanged":
+      return new WordedError(t("hands.errors.bonesChanged"));
+    case "selectAvailable":
+      return new WordedError(t("hands.errors.selectAvailable"));
+    case "finishEditAdjust":
+      return new WordedError(t("hands.errors.finishEditAdjust"));
+    case "noFingerBones":
+      return new WordedError(t("hands.errors.noFingerBones"));
+    case "finishEditPreset":
+      return new WordedError(t("hands.errors.finishEditPreset"));
+  }
+}
 type Capture = {
   bone: HandBone;
   quaternion: Quaternion;
@@ -198,7 +233,7 @@ export function createHandInteractionController() {
       state.loadStatus !== "ready" ||
       (state.authoringMode !== "pose" && !state.clipInlineEdit)
     )
-      throw new Error("Wait for the Avatar to load before editing hands.");
+      throw handError("waitForAvatar");
     return resolveHandBones(state.activeAvatar, target, ids).available.map(
       (bone) => {
         const existing = state.boneDrafts[bone.boneName];
@@ -214,9 +249,7 @@ export function createHandInteractionController() {
           !quaternion.toArray().every(Number.isFinite) ||
           quaternion.lengthSq() < 1e-12
         )
-          throw new Error(
-            "Invalid hand rotation. The pose was left unchanged.",
-          );
+          throw handError("invalidRotation");
         if (existing) draft.rotationDegrees = { ...existing.rotationDegrees };
         return { bone, quaternion, draft, originalDraft: existing ?? null };
       },
@@ -242,7 +275,7 @@ export function createHandInteractionController() {
         !quaternion.toArray().every(Number.isFinite) ||
         quaternion.lengthSq() < 1e-12
       )
-        throw new Error("Hand bones changed. Start the adjustment again.");
+        throw handError("bonesChanged");
       return {
         ...entry,
         node,
@@ -272,7 +305,7 @@ export function createHandInteractionController() {
     ownWrite = true;
     try {
       if (!state.setBoneDraftBatch(updates, handShapes))
-        throw new Error("Invalid hand rotation. The pose was left unchanged.");
+        throw handError("invalidRotation");
       for (const entry of prepared)
         entry.node.quaternion.copy(
           convertPoseQuaternionBasis(state.activeAvatar?.vrm, entry.quaternion),
@@ -283,9 +316,19 @@ export function createHandInteractionController() {
     }
     return true;
   };
+  // Refusals arrive worded; other English (such as an anatomy error) stays
+  // primary in English and is detail under a worded message elsewhere.
   const fail = (error: unknown) => {
+    const t = getI18n().getFixedT(null, "pose");
     lastError =
-      error instanceof Error ? error.message : "Unable to adjust hands.";
+      error instanceof WordedError
+        ? error.message
+        : apiErrorLine(
+            uncodedErrorText(
+              error instanceof Error ? error.message : null,
+              t("hands.errors.adjustFailed"),
+            ),
+          );
     end();
     return false;
   };
@@ -302,13 +345,9 @@ export function createHandInteractionController() {
         const eligible = (entry: Capture) =>
           adjustment !== "spread" || entry.bone.segment.spread;
         const selected = capture(target, ids).filter(eligible);
-        if (!selected.length)
-          throw new Error("Select available finger bones for this adjustment.");
+        if (!selected.length) throw handError("selectAvailable");
         const state = usePoseCreatorStore.getState();
-        if (state.undoGroup)
-          throw new Error(
-            "Finish the current pose edit before adjusting hands.",
-          );
+        if (state.undoGroup) throw handError("finishEditAdjust");
         // At a clip beat, a hand with a shape (recorded, or its hand keys)
         // keeps it: the adjustment changes the shape instead of turning the
         // bones the shape drives. Only selected bones move.
@@ -409,15 +448,9 @@ export function createHandInteractionController() {
       lastError = null;
       try {
         const captures = capture(target);
-        if (!captures.length)
-          throw new Error(
-            "No finger bones are available on the selected hand.",
-          );
+        if (!captures.length) throw handError("noFingerBones");
         const state = usePoseCreatorStore.getState();
-        if (state.undoGroup)
-          throw new Error(
-            "Finish the current pose edit before applying a hand preset.",
-          );
+        if (state.undoGroup) throw handError("finishEditPreset");
         // Presets explicitly replace all available finger channels, including
         // identity rotations needed to override a later clip's inherited base.
         if (!state.clipInlineEdit?.keyframeId)

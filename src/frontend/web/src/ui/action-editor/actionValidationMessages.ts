@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import type { PoseCreatorClipPreviewDiagnostics } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 
 /** Show authoring validation only after the user asks to save. */
@@ -25,27 +27,38 @@ export function actionValidationMessages(
 function getClipPreviewDiagnosticSummary(
   diagnostics: PoseCreatorClipPreviewDiagnostics,
 ): string | null {
+  const t = getI18n().getFixedT(null, "actionEditor");
   const parts: string[] = [];
   if (diagnostics.missingPoseRefs.length > 0) {
-    parts.push(`Missing poses: ${diagnostics.missingPoseRefs.join(", ")}`);
+    parts.push(
+      t("validation.missing.poses", { ids: diagnostics.missingPoseRefs }),
+    );
   }
   if (diagnostics.missingAvatarVFXIds.length > 0) {
     parts.push(
-      `Missing avatar VFX: ${diagnostics.missingAvatarVFXIds.join(", ")}`,
+      t("validation.missing.avatarEffects", {
+        ids: diagnostics.missingAvatarVFXIds,
+      }),
     );
   }
   if (diagnostics.missingSceneVFXPresetIds.length > 0) {
     parts.push(
-      `Missing scene VFX: ${diagnostics.missingSceneVFXPresetIds.join(", ")}`,
+      t("validation.missing.sceneEffects", {
+        ids: diagnostics.missingSceneVFXPresetIds,
+      }),
     );
   }
   if (diagnostics.missingParticleVFXIds.length > 0) {
     parts.push(
-      `Missing particle VFX: ${diagnostics.missingParticleVFXIds.join(", ")}`,
+      t("validation.missing.particleEffects", {
+        ids: diagnostics.missingParticleVFXIds,
+      }),
     );
   }
   if (diagnostics.missingSFXCueIds.length > 0) {
-    parts.push(`Missing SFX: ${diagnostics.missingSFXCueIds.join(", ")}`);
+    parts.push(
+      t("validation.missing.sounds", { ids: diagnostics.missingSFXCueIds }),
+    );
   }
   parts.push(...diagnostics.eventAdapterWarnings);
   return parts.length > 0 ? parts.join(" / ") : null;

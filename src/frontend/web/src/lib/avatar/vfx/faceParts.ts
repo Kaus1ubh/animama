@@ -44,7 +44,10 @@ export const AVATAR_FACE_PART_ROLES = [
 ] as const;
 export type AvatarFacePartRole = (typeof AVATAR_FACE_PART_ROLES)[number];
 
-/** Lowercase part names for diagnostics and the creator. */
+/**
+ * Lowercase part names for English runtime diagnostics. The creator words
+ * parts in the UI Locale instead (`facePartRoleName`).
+ */
 export const AVATAR_FACE_PART_LABELS: Record<AvatarFacePartRole, string> = {
   face_skin: "face skin",
   eye_left: "left eye",

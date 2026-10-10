@@ -1,0 +1,536 @@
+{
+  "components": {
+    "avatarEffects": "アバターエフェクト",
+    "particleEffects": "パーティクルエフェクト",
+    "sceneEffects": "シーンエフェクト",
+    "soundEffects": "効果音"
+  },
+  "drag": {
+    "cancelled": "ドラッグをキャンセルしました。",
+    "finished": "ドラッグが終了しました。",
+    "handle": "{{name}} をタイムラインにドラッグ",
+    "started": "カタログ項目をドラッグしています。タイムラインにドロップするか、Esc キーでキャンセルします。"
+  },
+  "effects": {
+    "addAtPlayhead": "{{name}} を現在の再生ヘッド位置に追加",
+    "addAtPlayheadTitle": "現在の再生ヘッド位置に追加",
+    "added": "追加済み",
+    "addedTimes": "追加済み ×{{times}}",
+    "addToTimeline": "{{name}} をタイムラインに追加",
+    "contentUnavailable": "コンテンツを利用できません",
+    "differentSearch": "別のキーワードで検索してください。",
+    "empty": "エフェクトが見つかりません",
+    "loadingMore": "さらに読み込んでいます…",
+    "mine": "自分のもの",
+    "play": "{{name}} を再生",
+    "poses": {
+      "create": "ポーズを作成",
+      "createHint": "ポーズを作成して保存すると、ジェスチャーのキーフレームとして再利用できます。",
+      "createHintOrIncluded": "ポーズを作成して保存すると、ジェスチャーのキーフレームとして再利用できます。または同梱のポーズを表示してください。",
+      "differentSearchOrIncluded": "別のキーワードで検索するか、同梱のポーズを表示してください。",
+      "edit": "編集",
+      "editNamed": "{{name}} を編集",
+      "included": "同梱",
+      "insert": "再生ヘッド位置に挿入",
+      "insertNamed": "{{name}} を現在の再生ヘッド位置に挿入",
+      "loadFailed": "ポーズを読み込めませんでした。",
+      "loading": "ポーズを読み込んでいます…",
+      "local": "ローカル",
+      "noMatches": "ポーズが見つかりません",
+      "none": "保存済みのポーズはまだありません",
+      "search": "ポーズを検索",
+      "showIncluded": "同梱を表示",
+      "tab": "ポーズ"
+    },
+    "showTimelineEvents": "タイムラインのイベントを表示",
+    "stop": "{{name}} を停止",
+    "summary": {
+      "added_other": "{{count}} 件追加済み",
+      "effects_other": "エフェクト {{count}} 件",
+      "poses_other": "ポーズ {{count}} 件",
+      "posesAndEffects": "{{poses}} · {{effects}}"
+    },
+    "title": "エフェクト",
+    "titleWithPoses": "ポーズとエフェクト",
+    "tryAgain": "再試行",
+    "types": {
+      "avatar": {
+        "empty": "利用できるアバターエフェクトはありません。",
+        "loadFailed": "アバターエフェクトを読み込めませんでした",
+        "loading": "アバターエフェクトを読み込んでいます…",
+        "search": "アバターエフェクトを検索",
+        "showMore": "アバターエフェクトをさらに表示",
+        "tab": "アバター"
+      },
+      "particle": {
+        "empty": "利用できるパーティクルエフェクトはありません。",
+        "loadFailed": "パーティクルエフェクトを読み込めませんでした",
+        "loading": "パーティクルエフェクトを読み込んでいます…",
+        "search": "パーティクルエフェクトを検索",
+        "showMore": "パーティクルエフェクトをさらに表示",
+        "tab": "パーティクル"
+      },
+      "scene": {
+        "empty": "利用できるシーンエフェクトはありません。",
+        "loadFailed": "シーンエフェクトを読み込めませんでした",
+        "loading": "シーンエフェクトを読み込んでいます…",
+        "search": "シーンエフェクトを検索",
+        "showMore": "シーンエフェクトをさらに表示",
+        "tab": "シーン"
+      },
+      "sound": {
+        "empty": "利用できる効果音はありません。",
+        "loadFailed": "効果音を読み込めませんでした",
+        "loading": "効果音を読み込んでいます…",
+        "search": "効果音を検索",
+        "showMore": "効果音をさらに表示",
+        "tab": "効果音"
+      }
+    }
+  },
+  "events": {
+    "beats": {
+      "base": "ベース",
+      "expression": "表情"
+    },
+    "delete": "タイムラインの項目を削除",
+    "deleteAt": "{{time}} の {{label}} を削除",
+    "label": "タイムラインのイベント",
+    "title": "タイムライン"
+  },
+  "gate": {
+    "backToLibrary": "ライブラリに戻る",
+    "loading": "読み込んでいます…",
+    "preview": "プレビュー",
+    "previewFailed": "この項目をプレビューできませんでした。",
+    "previewOnly": "プレビューのみ"
+  },
+  "header": {
+    "aiDescription": {
+      "guidance": "AI の選択ガイド",
+      "label": "AI 選択用の説明",
+      "placeholder": "ジェスチャーの説明",
+      "short": "AI 説明",
+      "tooltip": "チャット中にこのジェスチャーを<strong>いつ</strong>使うかを AI が判断するための説明です。"
+    },
+    "confirmNew": "この下書きを破棄して新しく始めますか？",
+    "import": "インポート",
+    "intent": {
+      "gesture": "ジェスチャー",
+      "reaction": "リアクション"
+    },
+    "modes": {
+      "clip": "クリップ",
+      "pose": "ポーズ"
+    },
+    "moreActions": "その他のクリエイター操作",
+    "name": "名前",
+    "nameLabel": {
+      "gesture": "ジェスチャー名",
+      "reaction": "リアクション名"
+    },
+    "namePlaceholder": {
+      "gesture": "新しいジェスチャー",
+      "reaction": "新しいリアクション"
+    },
+    "new": "新規",
+    "redo": "やり直す",
+    "redoShortcut": "やり直す · {{shortcut}}",
+    "save": {
+      "button": "保存",
+      "label": "コンテンツを保存"
+    },
+    "saveAndEquip": {
+      "button": "保存して装備",
+      "label": "コンテンツを保存して装備"
+    },
+    "saveFailed": "保存できませんでした: {{error}}",
+    "status": {
+      "preparing": "準備中",
+      "saved": "保存済み",
+      "saving": "保存中",
+      "unsaved": "未保存",
+      "updatingAnimas": "Anima を更新中",
+      "uploading": "アップロード中"
+    },
+    "undo": "元に戻す",
+    "undoShortcut": "元に戻す · {{shortcut}}",
+    "viewJson": "JSON を表示"
+  },
+  "history": {
+    "eitherShortcut": "{{shortcuts, list(type: disjunction)}}"
+  },
+  "idleStyle": {
+    "add": {
+      "choose": "ジェスチャーを選択",
+      "label": "既存のジェスチャーを追加",
+      "optionClip": "{{name}} · クリップ",
+      "optionVrma": "{{name}} · VRMA",
+      "search": "ジェスチャーを検索",
+      "submit": "プールに追加"
+    },
+    "cells": {
+      "caption": "強さ別の感情プール",
+      "cellLabel": "{{emotion}} の強さ {{intensity}}: {{state}}",
+      "default": "デフォルト",
+      "defaultHint": "未設定のセルはデフォルトを使います。デフォルトが空の場合、待機ジェスチャーは再生されませんが、手続き的な呼吸や休息の動きは続きます。",
+      "defaultNeutral": "デフォルト · ニュートラル",
+      "emotion": "感情",
+      "gestures_other": "ジェスチャー {{count}} 件",
+      "label": "待機スタイルのセル",
+      "noIdle": "待機なし",
+      "selected": "{{emotion}} · 強さ {{intensity}}",
+      "useDefault": "デフォルトを使用"
+    },
+    "checkPools": "ジェスチャーのプールを確認してください。",
+    "copyNotice": "保存すると独立したローカルのスタイルが作成されます。元のスタイルは変更されません。",
+    "createHub": "作成ハブ",
+    "description": "説明",
+    "gestures": {
+      "loadFailed": "ジェスチャーを読み込めませんでした。",
+      "loading": "ジェスチャーを読み込んでいます…"
+    },
+    "gestureUnavailable": "このジェスチャーは利用できません。ライブラリを更新して、スタイルを確認してください。",
+    "intro": "静かなひとときに使う既存のジェスチャーを選びます。アニメーション、サウンド、エフェクトはそのまま保たれます。ここに追加しても、AI が呼び出せるように装備されるわけではありません。",
+    "loadFailed": "待機スタイルを読み込めませんでした。既存のコンテンツは変更されていません。",
+    "loading": "待機スタイルを読み込んでいます…",
+    "name": "名前",
+    "playback": {
+      "checkFailed": "再生を確認できませんでした。",
+      "checking": "有限の再生を確認しています…",
+      "finite": "有限の再生です。作成したサウンドとエフェクトは保たれます。",
+      "finiteFor": "有限の再生 · {{seconds}} 秒。作成したサウンドとエフェクトは保たれます。",
+      "retryCheck": "もう一度確認"
+    },
+    "pool": {
+      "behavior": "動作",
+      "choose": "ジェスチャーを選ぶ",
+      "empty": "このプールにジェスチャーはありません。",
+      "inherits": "このセルはデフォルトのプールを引き継ぎます。",
+      "label": "{{cell}} のプール",
+      "none": "この感情と強さで予定された待機ジェスチャーはありません。",
+      "previewMember": "{{name}} をプレビュー",
+      "previewSaved": "保存済みのプールをプレビュー",
+      "removeMember": "{{name}} を削除"
+    },
+    "previewFailed": "プレビューできませんでした。",
+    "previewing": "{{name}} をプレビュー中",
+    "retry": "再試行",
+    "save": "待機スタイルを保存",
+    "saveCopy": "ローカルのコピーを保存",
+    "saved": "待機スタイルを保存しました。",
+    "savedCopy": "待機スタイルのローカルコピーを保存しました。使うには Anima のロードアウトで選択してください。",
+    "saving": "保存しています…",
+    "sharedNotice": "この共有スタイルを編集すると、使用中のすべての Anima に次回のランタイム更新時に反映されます。別のバリエーションにするには、ロードアウトで複製してください。",
+    "studio": "Creator Studio",
+    "title": {
+      "copy": "待機スタイルをコピー",
+      "edit": "待機スタイルを編集",
+      "new": "新しい待機スタイル"
+    }
+  },
+  "importDialog": {
+    "chooseFile": "JSON ファイルを選択",
+    "clipImported": "Anima ポーズクリップをインポートしました。",
+    "clipImportedDetail": "Anima ポーズクリップをインポートしました。未解決のエフェクトやサウンドは下で割り当ててください。",
+    "description": "animaPoseClip/2.0 ファイルを直接開くか、依存関係を正確に固定した Animama の型付きプロジェクトを復元します。",
+    "failed": "JSON をインポートできませんでした。",
+    "importPasted": "貼り付けた JSON をインポート",
+    "pasteLabel": "クリエイター JSON のインポート",
+    "projectImported": "型付きプロジェクトをインポートしました。",
+    "projectImportedDetail": "依存関係を正確に固定した型付きプロジェクトをインポートしました。",
+    "reactionHumanoid": "リアクションには人型のポーズやボーンのトラックをインポートできません。",
+    "repair": {
+      "choose": "正確なコンテンツを選択",
+      "description": "クリップの各エイリアスを特定のコンテンツ項目に割り当てるか、そのイベントを削除してください。",
+      "map": "{{alias}} を割り当て",
+      "remove": "イベントを削除",
+      "search": "エフェクトとサウンドを検索",
+      "title": "参照されているコンポーネントを修復"
+    },
+    "title": "インポート",
+    "vrma": {
+      "description": "十分にサポート・テストされていません。インポートすると、このジェスチャーはタイムラインでの作成から VRMA に切り替わります。",
+      "label": "VRMA アニメーション（試験運用）"
+    }
+  },
+  "jsonDialog": {
+    "clip": "クリップ JSON",
+    "clipCopied": "クリップ JSON をコピーしました。",
+    "copy": "コピー",
+    "description": "クリップ JSON は持ち運び可能な animaPoseClip/2.0 です。型付きプロジェクト JSON には、エフェクトとサウンドの正確な参照も含まれます。",
+    "download": "ダウンロード",
+    "format": "JSON の形式",
+    "preview": "クリエイター JSON のプレビュー",
+    "project": "型付きプロジェクト JSON",
+    "projectCopied": "プロジェクト JSON をコピーしました。",
+    "title": "クリエイター JSON",
+    "unavailable": "この実装には Anima ポーズクリップの JSON がありません。"
+  },
+  "load": {
+    "button": "読み込む",
+    "confirmCustomize": {
+      "gesture": "現在の変更を破棄して、「{{name}}」を新しいジェスチャーとしてカスタマイズしますか？",
+      "reaction": "現在の変更を破棄して、「{{name}}」を新しいリアクションとしてカスタマイズしますか？"
+    },
+    "confirmLoad": "現在の変更を破棄して「{{name}}」を読み込みますか？",
+    "description": "自分のコンテンツを開くか、変更できない同梱クリップをカスタマイズします。",
+    "loading": "読み込んでいます…",
+    "mine": {
+      "detail": "編集できるローカルコンテンツ",
+      "empty": {
+        "gesture": "準備済みのジェスチャーはまだありません。",
+        "reaction": "準備済みのリアクションはまだありません。"
+      },
+      "label": "自分のもの",
+      "more": "自分のものをさらに読み込む"
+    },
+    "starter": {
+      "detail": "同梱 · 新規としてカスタマイズ",
+      "empty": "カスタマイズできる同梱の Anima ポーズクリップはありません。",
+      "label": "同梱",
+      "more": "同梱クリップをさらに読み込む"
+    },
+    "title": {
+      "gesture": "ジェスチャーを読み込む",
+      "reaction": "リアクションを読み込む"
+    }
+  },
+  "loader": {
+    "downloadFailed": "このアクションをダウンロードできませんでした。",
+    "noSequence": "このアクションには読み取れるシーケンスがありません。",
+    "starterUnavailable": "この同梱の Anima ポーズクリップは利用できません。"
+  },
+  "page": {
+    "catalogUnavailable": "このエフェクトカタログを読み込めませんでした。",
+    "leave": {
+      "busyDescription": "今離れると実行中の操作は一時停止します。戻ったときには型付きの復元ドキュメントを利用できます。",
+      "busyTitle": "コンテンツの保存中に離れますか？",
+      "dirtyDescription": "このジェスチャーまたはリアクションには、ローカルで作成中の変更があります。離れると作業中のワークスペースから破棄されます。",
+      "dirtyTitle": "作成中の変更を破棄しますか？",
+      "discard": "破棄して続行",
+      "leaveKeep": "復元データを残して離れる",
+      "stay": "とどまる"
+    },
+    "load": {
+      "failed": "このコンテンツを再度開けませんでした。",
+      "incompletePreview": "保存済みアクションのプレビューが不完全でした。",
+      "noSource": "この保存済みアクションにはカタログのソースがありません。",
+      "starterOnly": "カスタマイズできるのは同梱の Anima ポーズクリップだけです。",
+      "unavailable": "この保存済みアクションは利用できません。"
+    },
+    "recovery": {
+      "discardFailed": "ブラウザーの復元データを破棄できませんでした。もう一度お試しください。",
+      "restoreFailed": "ブラウザーの復元データを復元できませんでした。"
+    },
+    "save": {
+      "chooseVrma": "保存する前に VRMA ファイルを選択してください。",
+      "incomplete": {
+        "gesture": "ジェスチャーの必須項目を入力してください。",
+        "reaction": "リアクションの必須項目を入力してください。"
+      },
+      "saved": {
+        "gesture": "ジェスチャーを保存しました。",
+        "reaction": "リアクションを保存しました。"
+      },
+      "savedDescription": "読み取り可能なローカルファイルを更新しました。開いているチャットは、開き直すまで読み込み済みのデータを使い続けます。"
+    }
+  },
+  "persistence": {
+    "invalidTimeline": "タイムラインに無効なキーフレームまたはイベントがあります。保存する前に、強調表示されたタイムラインの問題を修正してください。"
+  },
+  "preview": {
+    "anima": {
+      "animasUnavailable": "このプレビュー用に Anima を読み込めませんでした。",
+      "catalogUnavailable": "選択した Anima のプレビューカタログを読み込めませんでした。",
+      "catalogUnavailableNamed": "{{name}} のプレビューカタログを読み込めませんでした。",
+      "required": "このコンテンツをプレビューする前に Anima を作成してください。"
+    },
+    "close": "プレビューを閉じる",
+    "closed": "コンテンツのプレビューを閉じました。",
+    "createAnima": "Anima を作成",
+    "dependencies": {
+      "hint": "クリップのモーションは、これらのイベントなしで続行します。プレビューを再試行してください。解決しない場合は、リリースが利用できないリソースを参照している可能性があります。",
+      "item": "{{label}}:",
+      "kinds": {
+        "avatarEffect": "アバター VFX",
+        "backgroundSceneEffect": "背景シーン VFX",
+        "focusSceneEffect": "集中線シーン VFX",
+        "particleEffect": "パーティクル VFX",
+        "sound": "効果音"
+      },
+      "label": "コンテンツプレビューの依存関係に関する警告",
+      "missing": "一部の同梱リソースを読み込めませんでした。",
+      "missingFor": "{{name}} 用の一部の同梱リソースを読み込めませんでした。"
+    },
+    "errors": {
+      "animationUnavailable": "選択したアニメーションは利用できません。",
+      "avatarEffectFailed": "選択したアバターエフェクトを再生できませんでした。",
+      "avatarEffectUnavailable": "選択したアバターエフェクトは利用できません。",
+      "avatarNoFile": "プレビュー用アバターモデルにランタイムファイルがありません。",
+      "avatarUnauthorized": "プレビュー用アバターを承認できませんでした。",
+      "fileUnauthorized": "非公開のプレビューファイルが承認されていません。",
+      "idleAnimationUnavailable": "選択した待機アニメーションは利用できません。",
+      "idlePlaybackUnavailable": "このジェスチャーでは有限の待機再生を利用できません。スタイルを更新してもう一度お試しください。",
+      "invalidClosure": "アクションのプレビューが無効な依存関係のまとまりを返しました。",
+      "particleFailed": "選択したパーティクルエフェクトを再生できませんでした。",
+      "particlesUnsupported": "プレビュー用アバターではパーティクルを再生できません。",
+      "particleUnavailable": "選択したパーティクルエフェクトは利用できません。",
+      "playFailed": "選択したコンテンツをプレビューできませんでした。",
+      "poseClipUnavailable": "選択したポーズクリップは利用できません。",
+      "prepareFailed": "選択したコンテンツをプレビュー用に準備できませんでした。",
+      "reactionUnavailable": "選択したリアクションは利用できません。",
+      "sceneEffectUnavailable": "選択したシーンエフェクトは利用できません。",
+      "soundLoadFailed": "サウンドのプレビューを読み込めませんでした。",
+      "unsupportedComponent": "サポートされていないプレビューコンポーネント {{type}} です。"
+    },
+    "expand": "プレビューを拡大",
+    "loading": "プレビューを読み込んでいます…",
+    "loadingAvatar": "アバターを読み込んでいます…",
+    "loadingResources": "同梱リソースを読み込んでいます…",
+    "loop": {
+      "button": "ループ",
+      "label": "プレビューをループ"
+    },
+    "minimize": "プレビューを最小化",
+    "moveAvatar": {
+      "button": "移動",
+      "label": "プレビュー用アバターを移動",
+      "title": "アバターを移動"
+    },
+    "movePanel": "コンテンツプレビューを移動",
+    "openLoadout": "Anima のロードアウトを開く",
+    "openLoadoutNamed": "{{name}} のロードアウトを開く",
+    "preparingPlayback": "再生を準備しています…",
+    "replay": "もう一度再生",
+    "resetCamera": {
+      "button": "リセット",
+      "label": "プレビューのカメラをリセット",
+      "title": "カメラをリセット"
+    },
+    "restore": "プレビューを元に戻す",
+    "restoreDock": "ドックのサイズに戻す",
+    "retry": "再試行",
+    "retryPreview": "プレビューを再試行",
+    "status": {
+      "idle": "プレビュー",
+      "loading": "プレビューを読み込み中",
+      "playing": "再生中",
+      "ready": "準備完了",
+      "unavailable": "プレビューを利用できません"
+    },
+    "statusAnnouncement": "{{name}} のプレビュー: {{status}}。",
+    "stop": "停止",
+    "title": "コンテンツのプレビュー",
+    "unavailableSentence": "プレビューを利用できません。",
+    "versions": {
+      "exactSaved": "保存済みのコンテンツそのもの",
+      "idleStyleGesture": "保存済みの待機スタイルのジェスチャーそのもの",
+      "localPose": "ローカルのポーズ",
+      "starterPose": "同梱のポーズ"
+    }
+  },
+  "project": {
+    "errors": {
+      "aliasRepeats": "依存関係のエイリアス「{{alias}}」が重複しています。",
+      "aliasRequired": "依存関係のエイリアスは必須です。",
+      "aliasTypeConflict": "エイリアス「{{alias}}」が複数の種類のコンポーネントで使われています。",
+      "dependenciesNotArray": "依存関係は配列である必要があります。",
+      "dependencyInvalid": "依存関係の宣言が無効です。",
+      "intensity": "リアクションの推奨強度は 1、2、3 のいずれかにしてください。",
+      "nameRequired": "プロジェクト名は必須です。",
+      "notObject": "JSON にはオブジェクトが含まれている必要があります。",
+      "sourceInvalid": "依存関係のソースが無効です。",
+      "sourceUnavailable": "依存関係のソースでは、利用可能なカタログのコンテンツを選択する必要があります。",
+      "unsupportedType": "依存関係「{{alias}}」の種類はサポートされていません。",
+      "vrmaProject": "VRMA ジェスチャーには Anima ポーズクリップのプロジェクト JSON がありません。",
+      "wrongEditor": {
+        "gesture": "このプロジェクトには {{found}} が含まれているため、ジェスチャーエディターでは開けません。",
+        "reaction": "このプロジェクトには {{found}} が含まれているため、リアクションエディターでは開けません。"
+      }
+    }
+  },
+  "reactionSettings": {
+    "emotion": "感情",
+    "hint": "任意です。実際の感情スロットは装備するときに選びます。",
+    "intensity": "強さ",
+    "none": "なし",
+    "suggestedEmotion": "推奨する感情",
+    "suggestedIntensity": "推奨する強さ",
+    "title": "感情の推奨"
+  },
+  "savedPose": {
+    "avatarChanged": "アバターが変更されたか、利用できません。読み込みが終わってから、もう一度ポーズを挿入してください。",
+    "avatarRequiredToEdit": "ポーズを編集する前にアバターモデルを読み込んでください。",
+    "avatarRequiredToInsert": "ポーズを挿入する前にアバターモデルを読み込んでください。",
+    "inserted": "ポーズをクリップにコピーしました。",
+    "insertFailed": "このポーズを挿入できませんでした。クリップは変更されていません。",
+    "insertInvalid": "このポーズ、またはクリップ内の既存のポーズが無効か利用できません。該当するコンテンツを再読み込みしてもう一度お試しください。クリップは変更されていません。",
+    "loadFailed": "このポーズを読み込めませんでした。下書きは保持されています。"
+  },
+  "scene": {
+    "loading": "アバターを読み込んでいます…",
+    "retry": "再試行",
+    "selectAvatar": "プレビュー用のアバターを選択してください",
+    "unavailable": "アバターのプレビューを利用できません"
+  },
+  "time": {
+    "seconds": "{{value}}秒"
+  },
+  "timeline": {
+    "expressionLane": "表情",
+    "poseLane": "ポーズ"
+  },
+  "validation": {
+    "aiDescriptionRequired": "AI がこのジェスチャーを選ぶタイミングを説明してください。",
+    "missing": {
+      "avatarEffects": "見つからないアバター VFX: {{ids, list(style: narrow)}}",
+      "particleEffects": "見つからないパーティクル VFX: {{ids, list(style: narrow)}}",
+      "poses": "見つからないポーズ: {{ids, list(style: narrow)}}",
+      "sceneEffects": "見つからないシーン VFX: {{ids, list(style: narrow)}}",
+      "sounds": "見つからない効果音: {{ids, list(style: narrow)}}"
+    },
+    "nameRequired": "名前は必須です。",
+    "reactionHumanoid": "リアクションには人型のポーズやボーンのトラックを含められません。",
+    "reactionTimelinesOnly": "リアクションでは表情、エフェクト、サウンドのタイムラインを使います。",
+    "selectorRequired": "セレクター ID は必須です。",
+    "unknownEvent": "不明なイベント ID「{{alias}}」を割り当てるか削除してください。"
+  },
+  "workspace": {
+    "capture": {
+      "failed": "現在のクリップのポーズを取得できませんでした。",
+      "posesUnavailable": "クリップの一部のポーズを利用できません。"
+    },
+    "expressions": {
+      "addKeyframe": "+ 表情",
+      "addKeyframeTitle": "再生ヘッド位置に表情のキーフレームを追加",
+      "interpolatedAt": "{{time}} の補間値",
+      "keyframeAt": "{{time}} のキーフレーム"
+    },
+    "hands": {
+      "hide": "手の編集を隠す",
+      "show": "手の編集を表示",
+      "title": "手の編集"
+    },
+    "panels": {
+      "bones": "ボーン",
+      "bonesSummary": "ポーズの操作",
+      "expressions": "表情",
+      "expressionsSummary": "アバターのブレンドシェイプ"
+    },
+    "tools": {
+      "bones": "ボーン",
+      "effects": "エフェクト",
+      "expressions": "表情",
+      "inspector": "インスペクター",
+      "label": "作成ツール",
+      "preview": "プレビュー",
+      "settings": "設定",
+      "timeline": "タイムライン"
+    },
+    "vrma": {
+      "description": "VRMA ジェスチャーではアバターの没入型プレビューを使いますが、ポーズ、クリップ、コンポーネントの作成は使えません。",
+      "label": "VRMA アニメーション"
+    }
+  }
+}

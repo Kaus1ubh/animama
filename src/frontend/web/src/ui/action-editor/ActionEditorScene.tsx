@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Avatar } from "@/lib/avatar";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
@@ -20,6 +21,7 @@ export function ActionEditorScene({
 }: {
   capabilities: ActionEditorCapabilities;
 }) {
+  const { t } = useTranslation("actionEditor");
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
   const loadStatus = usePoseCreatorStore((state) => state.loadStatus);
   const loadError = usePoseCreatorStore((state) => state.loadError);
@@ -98,10 +100,10 @@ export function ActionEditorScene({
           >
             <p className="text-sm font-medium">
               {visibleError
-                ? "Avatar preview unavailable"
+                ? t("scene.unavailable")
                 : isPreparing || loadStatus === "loading"
-                  ? "Loading Avatar…"
-                  : "Select a preview Avatar"}
+                  ? t("scene.loading")
+                  : t("scene.selectAvatar")}
             </p>
             {visibleError ? (
               <p className="text-muted-foreground mt-1 text-xs">
@@ -116,7 +118,7 @@ export function ActionEditorScene({
                 className="mt-3"
                 onClick={() => void retry()}
               >
-                Retry
+                {t("scene.retry")}
               </Button>
             ) : null}
           </div>

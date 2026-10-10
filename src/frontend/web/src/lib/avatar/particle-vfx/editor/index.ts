@@ -7,7 +7,6 @@ export {
 } from "./constants";
 export {
   PARTICLE_VFX_EDITOR_TEXTURE_MANIFEST,
-  PARTICLE_VFX_EDITOR_TEXTURE_ROLE_LABELS,
   PARTICLE_VFX_EDITOR_TEXTURE_ROLE_ORDER,
 } from "./textureManifest";
 export { PARTICLE_VFX_EDITOR_EMITTER_TEMPLATES } from "./emitterTemplates";

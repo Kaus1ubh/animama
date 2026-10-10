@@ -1,3 +1,4 @@
+import type { TFunction } from "i18next";
 import { ScanFaceIcon } from "lucide-react";
 import {
   useCallback,
@@ -8,6 +9,7 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Avatar } from "@/lib/avatar";
 import type { AvatarVFXController } from "@/lib/avatar/vfx/AvatarVFXController";
@@ -52,9 +54,15 @@ export function AvatarEffectUvPreview({
   );
 }
 
-function surfaceLabel(surface: AvatarVFXGuideSurface): string {
-  const slot = surface.slot === "map" ? "Base color" : "Shade color";
-  return `${surface.materialName || "Material"} · ${slot}`;
+/** A texture surface named by its material and colour slot. */
+function surfaceLabel(
+  t: TFunction<"effects">,
+  surface: AvatarVFXGuideSurface,
+): string {
+  const material = surface.materialName || t("avatar.uv.material");
+  return surface.slot === "map"
+    ? t("avatar.uv.baseColor", { material })
+    : t("avatar.uv.shadeColor", { material });
 }
 
 function AvailableUvPreview({
@@ -66,6 +74,7 @@ function AvailableUvPreview({
   effect: AvatarVFXCatalogEntry;
   appliedId: string;
 }) {
+  const { t } = useTranslation("effects");
   const [open, setOpen] = useState(false);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [showCoverage, setShowCoverage] = useState(false);
@@ -107,8 +116,8 @@ function AvailableUvPreview({
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label="UV preview"
-          title="UV preview"
+          aria-label={t("avatar.uv.title")}
+          title={t("avatar.uv.title")}
         >
           <ScanFaceIcon className="size-3.5" />
         </Button>
@@ -134,32 +143,31 @@ function AvailableUvPreview({
       >
         <div>
           <p id={headingId} className="text-sm font-medium">
-            UV preview
+            {t("avatar.uv.title")}
           </p>
           <p id={descriptionId} className="text-muted-foreground mt-1 text-xs">
-            Reference areas guide placement; they do not clip artwork. Left and
-            right follow the avatar.
+            {t("avatar.uv.help")}
           </p>
         </div>
         {projection.surfaces.length > 1 ? (
           <Select value={surface.key} onValueChange={setSelectedKey}>
             <SelectTrigger
               className="h-8 w-full text-xs"
-              aria-label="UV preview material and texture"
+              aria-label={t("avatar.uv.surfaceSelect")}
             >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {projection.surfaces.map((item) => (
                 <SelectItem key={item.key} value={item.key}>
-                  {surfaceLabel(item)}
+                  {surfaceLabel(t, item)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         ) : (
           <p className="text-muted-foreground text-xs break-words">
-            {surfaceLabel(surface)}
+            {surfaceLabel(t, surface)}
           </p>
         )}
         {open ? (
@@ -171,17 +179,20 @@ function AvailableUvPreview({
         ) : null}
         <div
           className="text-muted-foreground text-2xs flex flex-wrap gap-x-3 gap-y-1"
-          aria-label="UV guide legend"
+          aria-label={t("avatar.uv.legend")}
         >
           <span>
             <span className="mr-1 inline-block w-3 border-t border-dashed border-sky-600 align-middle" />
-            Reference
+            {t("avatar.uv.reference")}
           </span>
           <span>
             <span className="mr-1 inline-block w-3 border-t-2 border-pink-600 align-middle" />
-            Artwork
+            {t("avatar.uv.artwork")}
           </span>
-          <span>◇ Pivot</span>
+          <span>
+            <span aria-hidden="true">◇ </span>
+            {t("avatar.uv.pivot")}
+          </span>
         </div>
         {hasCoverage ? (
           <label
@@ -193,12 +204,12 @@ function AvailableUvPreview({
               checked={showCoverage}
               onCheckedChange={(checked) => setShowCoverage(checked === true)}
             />
-            Skin coverage
+            {t("avatar.uv.coverage")}
           </label>
         ) : null}
         {!projection.active ? (
           <p className="text-muted-foreground text-xs">
-            No live artwork while the effect is inactive.
+            {t("avatar.uv.inactive")}
           </p>
         ) : null}
         {projection.messages.length > 0 ? (
@@ -220,6 +231,7 @@ function UvCanvas({
   surface: AvatarVFXGuideSurface;
   showCoverage: boolean;
 }) {
+  const { t } = useTranslation("effects");
   const canvasRef = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -234,7 +246,7 @@ function UvCanvas({
       ref={canvasRef}
       className="border-border bg-muted/30 block h-auto w-full rounded-md border"
       style={{ aspectRatio: `${surface.width} / ${surface.height}` }}
-      aria-label={`${surfaceLabel(surface)} texture with selected placement guides`}
+      aria-label={t("avatar.uv.canvas", { surface: surfaceLabel(t, surface) })}
       role="img"
     />
   );

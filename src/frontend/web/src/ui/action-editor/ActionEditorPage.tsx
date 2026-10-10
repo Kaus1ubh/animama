@@ -2,15 +2,18 @@
 
 import { useBlocker, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getI18n, useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { toast } from "sonner";
 
-import { isNonPortable, NON_PORTABLE_REASON } from "@/lib/content/portability";
+import { isNonPortable, nonPortableReason } from "@/lib/content/portability";
 import type {
   PyCatalogViewItem,
   PyGesture,
   PyReaction,
 } from "@/lib/content/catalogTypes";
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
+import { failureLine, WordedError } from "@/lib/errors/apiError";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import {
@@ -110,11 +113,13 @@ function componentRows(value: unknown): PyCatalogViewItem[] {
   return pages?.flatMap((page) => page.items) ?? [];
 }
 
-function queryErrorMessage(error: unknown): string | null {
+/** A catalog failure as one line; English without wording follows the uncoded-error rule. */
+function queryErrorMessage(
+  t: TFunction<"actionEditor">,
+  error: unknown,
+): string | null {
   if (!error) return null;
-  return error instanceof Error
-    ? error.message
-    : "This effect catalog could not be loaded.";
+  return failureLine(error, t("page.catalogUnavailable"));
 }
 
 function exactSourceKey(source: unknown): string | null {
@@ -143,6 +148,7 @@ export function ActionEditorPage({
   initialComponent?: string;
   initialComponentType?: ActionComponentType;
 }) {
+  const { t } = useTranslation("actionEditor");
   const createDocument = useCallback(
     () =>
       intent === "gesture" ? createGestureDocument() : createReactionDocument(),
@@ -249,7 +255,11 @@ export function ActionEditorPage({
     [],
   );
 
-  const issues = useMemo(() => validateActionDocument(document), [document]);
+  // `t` changes with the UI Locale, so the issues are worded again.
+  const issues = useMemo(
+    () => validateActionDocument(document, t),
+    [document, t],
+  );
   const busy =
     actions.beginSession.isPending ||
     actions.updateSession.isPending ||
@@ -338,12 +348,11 @@ export function ActionEditorPage({
       clearSaveFailure();
       try {
         if (item.state !== "ready") {
-          throw new Error("This saved action is not available.");
+          throw new WordedError(t("page.load.unavailable"));
         }
-        if (!item.source)
-          throw new Error("This saved action has no catalog source.");
+        if (!item.source) throw new WordedError(t("page.load.noSource"));
         // Non-portable motion never loads into a draft that could be saved.
-        if (isNonPortable(item)) throw new Error(NON_PORTABLE_REASON);
+        if (isNonPortable(item)) throw new WordedError(nonPortableReason());
         const preview = await actions.starterPreview.mutateAsync({
           source: item.source,
         });
@@ -356,7 +365,7 @@ export function ActionEditorPage({
         });
         const target = actionPreviewTarget(preview, next.name);
         if (target.sourceType !== "resolved_action") {
-          throw new Error("The saved action preview was incomplete.");
+          throw new WordedError(t("page.load.incompletePreview"));
         }
         const animation =
           next.implementation === "vrma"
@@ -388,11 +397,7 @@ export function ActionEditorPage({
       } catch (cause) {
         if (!mounted.current || generation !== loadGeneration.current)
           return false;
-        setFailureMessage(
-          cause instanceof Error
-            ? cause.message
-            : "This content could not be reopened.",
-        );
+        setFailureMessage(failureLine(cause, t("page.load.failed")));
         throw cause;
       }
     },
@@ -404,6 +409,7 @@ export function ActionEditorPage({
       itemId,
       replaceLoadedDocument,
       setFailureMessage,
+      t,
       userId,
     ],
   );
@@ -446,12 +452,10 @@ export function ActionEditorPage({
       );
     } catch (cause) {
       // An unsupported recovery (such as a retired 1.0 clip) is discarded;
-      // the saved item opens instead.
-      toast.error(
-        cause instanceof Error
-          ? cause.message
-          : "Browser recovery could not be restored.",
-      );
+      // the saved item opens instead. Worded here so a UI Locale change does
+      // not rerun this effect and show the toast again.
+      const t = getI18n().getFixedT(null, "actionEditor");
+      toast.error(failureLine(cause, t("page.recovery.restoreFailed")));
     }
     if (!recovery) {
       // `/new` is already initialized from createDocument(). Mark it hydrated
@@ -513,11 +517,11 @@ export function ActionEditorPage({
   const loadStarter = useCallback(
     async (item: PyGesture | PyReaction) => {
       if (!isCustomizableStarterAction(item, intent) || !item.source) {
-        throw new Error("Only Starter Anima Pose Clips can be customized.");
+        throw new WordedError(t("page.load.starterOnly"));
       }
       await hydrateCatalogAction(item, true);
     },
-    [hydrateCatalogAction, intent],
+    [hydrateCatalogAction, intent, t],
   );
 
   useEffect(() => {
@@ -583,6 +587,7 @@ export function ActionEditorPage({
     const next = await captureActionDocumentForSave(
       () => documentRef.current,
       () => usePoseCreatorStore.getState().clipDraft,
+      // A stored default name, so it stays English like other saved data.
       () => actions.allocateDefaultName("New Reaction"),
     );
     documentRef.current = next;
@@ -624,15 +629,15 @@ export function ActionEditorPage({
       setSaveStage("idle");
       throw captureSaveFailure(cause);
     }
-    const currentIssues = validateActionDocument(currentDocument);
+    const currentIssues = validateActionDocument(currentDocument, t);
     if (currentIssues.length) {
       setSaveStage("idle");
       const description = currentIssues.map((issue) => issue.message).join(" ");
       toast.error(
-        `Complete the required ${intent === "gesture" ? "Gesture" : "Reaction"} details.`,
-        {
-          description,
-        },
+        intent === "gesture"
+          ? t("page.save.incomplete.gesture")
+          : t("page.save.incomplete.reaction"),
+        { description },
       );
       throw new Error(description);
     }
@@ -648,10 +653,7 @@ export function ActionEditorPage({
               { type: "application/json" },
             );
       if (!file)
-        throw contentSaveFieldError(
-          "Choose a VRMA file before saving.",
-          "files",
-        );
+        throw contentSaveFieldError(t("page.save.chooseVrma"), "files");
       const sha256 = await sha256File(file);
       const fingerprint = contentFileFingerprint(file, sha256);
       if (
@@ -690,11 +692,12 @@ export function ActionEditorPage({
       setIdentity(null);
       setUploadedRootFile(null);
       setSaveStage("idle");
-      const label = intent === "gesture" ? "Gesture" : "Reaction";
-      toast.success(`${label} saved.`, {
-        description:
-          "The readable Local files were updated. Active chats keep their mounted bytes until reopened.",
-      });
+      toast.success(
+        intent === "gesture"
+          ? t("page.save.saved.gesture")
+          : t("page.save.saved.reaction"),
+        { description: t("page.save.savedDescription") },
+      );
       return {
         kind: intent,
         itemId: ready.item_id,
@@ -841,9 +844,7 @@ export function ActionEditorPage({
             },
       );
       if (intent === "reaction" && hasHumanoidTracks(next.sequence)) {
-        throw new Error(
-          "Reactions cannot import humanoid pose or bone tracks.",
-        );
+        throw new WordedError(t("importDialog.reactionHumanoid"));
       }
       setVrma(null);
       setValidationAttempted(false);
@@ -862,7 +863,7 @@ export function ActionEditorPage({
       historyRef.current.commit(actionAuthoringSnapshot(next));
       setTimelineSession((value) => value + 1);
     },
-    [identity, intent],
+    [identity, intent, t],
   );
   const startNew = useCallback(async () => {
     recoveryGeneration.current += 1;
@@ -947,44 +948,44 @@ export function ActionEditorPage({
   const dependencySections = useMemo<ActionDependencySection[]>(
     () => [
       {
-        label: "Particle Effects",
+        label: t("components.particleEffects"),
         contentType: "particle_effect",
         items: particleRows,
         isPending: particles.isPending,
-        errorMessage: queryErrorMessage(particles.error),
+        errorMessage: queryErrorMessage(t, particles.error),
         hasNextPage: Boolean(particles.hasNextPage),
         isFetchingNextPage: particles.isFetchingNextPage,
         fetchNextPage: particles.fetchNextPage,
         retry: particles.refetch,
       },
       {
-        label: "Sound Effects",
+        label: t("components.soundEffects"),
         contentType: "sound_effect",
         items: soundRows,
         isPending: sounds.isPending,
-        errorMessage: queryErrorMessage(sounds.error),
+        errorMessage: queryErrorMessage(t, sounds.error),
         hasNextPage: Boolean(sounds.hasNextPage),
         isFetchingNextPage: sounds.isFetchingNextPage,
         fetchNextPage: sounds.fetchNextPage,
         retry: sounds.refetch,
       },
       {
-        label: "Avatar Effects",
+        label: t("components.avatarEffects"),
         contentType: "avatar_effect",
         items: avatarRows,
         isPending: avatars.isPending,
-        errorMessage: queryErrorMessage(avatars.error),
+        errorMessage: queryErrorMessage(t, avatars.error),
         hasNextPage: Boolean(avatars.hasNextPage),
         isFetchingNextPage: avatars.isFetchingNextPage,
         fetchNextPage: avatars.fetchNextPage,
         retry: avatars.refetch,
       },
       {
-        label: "Scene Effects",
+        label: t("components.sceneEffects"),
         contentType: "scene_effect",
         items: sceneRows,
         isPending: scenes.isPending,
-        errorMessage: queryErrorMessage(scenes.error),
+        errorMessage: queryErrorMessage(t, scenes.error),
         hasNextPage: Boolean(scenes.hasNextPage),
         isFetchingNextPage: scenes.isFetchingNextPage,
         fetchNextPage: scenes.fetchNextPage,
@@ -1020,6 +1021,7 @@ export function ActionEditorPage({
       sounds.isPending,
       sounds.error,
       sounds.refetch,
+      t,
     ],
   );
 
@@ -1078,19 +1080,17 @@ export function ActionEditorPage({
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {busy
-                ? "Leave while content is being saved?"
-                : "Discard authoring changes?"}
+              {busy ? t("page.leave.busyTitle") : t("page.leave.dirtyTitle")}
             </DialogTitle>
             <DialogDescription>
               {busy
-                ? "Leaving now pauses the active operation. The typed recovery document remains available when you return."
-                : "This Gesture or Reaction has local authoring changes. Leaving will discard them from the active workspace."}
+                ? t("page.leave.busyDescription")
+                : t("page.leave.dirtyDescription")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="outline" onClick={() => blocker.reset?.()}>
-              Stay
+              {t("page.leave.stay")}
             </Button>
             <Button
               onClick={() => {
@@ -1107,16 +1107,14 @@ export function ActionEditorPage({
                     );
                   } catch {
                     recoveryDiscarded.current = false;
-                    toast.error(
-                      "Browser recovery could not be discarded. Please retry.",
-                    );
+                    toast.error(t("page.recovery.discardFailed"));
                     return;
                   }
                 }
                 blocker.proceed?.();
               }}
             >
-              {busy ? "Leave and keep recovery" : "Discard and continue"}
+              {busy ? t("page.leave.leaveKeep") : t("page.leave.discard")}
             </Button>
           </DialogFooter>
         </DialogContent>

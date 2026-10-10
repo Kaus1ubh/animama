@@ -1,4 +1,7 @@
+import { getI18n } from "react-i18next";
+
 import type { PyAnimaListItem } from "@/lib/content/catalogTypes";
+import { WordedError } from "@/lib/errors/apiError";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 import type { AnimaRuntimeCatalogSnapshot } from "@/lib/runtime-content/types";
 
@@ -104,7 +107,8 @@ export function contentCreatorModelSourceFromAnima(
 ): ContentCreatorAnimaModelSource {
   const entry = runtime.avatar_model;
   if (!entry) {
-    throw new Error("The selected Anima does not have an available Avatar.");
+    const t = getI18n().getFixedT(null, "creator");
+    throw new WordedError(t("modelPreview.noAvatar"));
   }
   return {
     key: `resolved:${animaId}:${runtime.effective_revision}:${entry.content_revision}`,

@@ -69,13 +69,15 @@ Boundaries:
 - [x] Phase 4: app shell, chat and safety (R7, R9); review #2 passed 2026-10-10.
 - [x] Phase 5: Animas, Library and memory (R7); review #3 passed 2026-10-10.
 - [x] Phase 6: Settings, profile and sound (R7); review #2 passed 2026-10-10.
-- [ ] Phase 7: creators (R7).
+- [x] Phase 7: creators (R7); review #2 passed 2026-10-10.
 - [ ] Phase 8: desktop shell (R8).
 - [ ] Phase 9: completion, guards at full strength and pseudo-locale smoke (R7, R17).
 - [ ] Final integration review.
 - [ ] PR; owner gates G1–G3; owner merge approval.
 
 ## Handoff
+
+Paused by the owner during Phase 7 and resumed the same day (2026-10-10).
 
 - Worktree `worktrees/animama/i18n-intent-discovery-42bc7e`, branch
   `feat/internationalization`, based on `5993bbee`. Each phase is committed
@@ -900,13 +902,166 @@ Issue: #424. Areas: `ui/pose-creator`, `ui/action-editor`,
 `lib/effects/effectTemplates`. Persisted labels stay in English data; their
 display is mapped.
 
+Results (2026-10-10, four parallel agents, integrated by the coordinator;
+Phase 6 committed as `9ffa159e`):
+
+- New namespaces `pose`, `actionEditor`, `effects`, `creator` (the shared
+  creator chrome) and `particles`.
+- Converted and linted:
+  - creator UI: `ui/pose-creator`, `ui/pose-editor`, `ui/action-editor`,
+    `ui/gesture-editor`, `ui/reaction-editor`, `ui/creator-history`,
+    `ui/creator`, `ui/content-preview`, `ui/content-creator`,
+    `ui/avatar-effect-creator`, `ui/scene-effect-creator`,
+    `ui/particle-vfx-creator` and `ui/avatar-preview`;
+  - libraries: `lib/content-preview`, `lib/effects`, `lib/avatar/poses`,
+    `lib/avatar/particle-vfx`, `lib/avatar/vfx/editor` and
+    `lib/scene-vfx/editor`.
+- Stored labels and defaults stay English data. Beat labels are mapped to
+  translated labels for display. Emitter names show as stored, because Auto Fit
+  refers to emitters by name. "New Clip" and other stored names are not
+  displayed through a mapping.
+- Phase 5 deferrals resolved:
+  - `NON_PORTABLE_REASON` is removed.
+  - The `{{role}}` sentences use translated role names.
+  - `lib/content-preview` messages are converted.
+  - The unused English template labels in `lib/effects` are removed.
+- New default names for unnamed Poses and for Avatar, Scene and Particle
+  Effects use the UI Locale. These are new owner content, not stored data being
+  translated.
+- Creator errors the frontend words are `WordedError`s, which now accept a
+  `cause`. Other failures follow `apiErrorText(readApiError(e), null, fallback)`.
+- Load order found by the browser check: the Pose creator store words
+  validation while its module loads. With the router imported statically, that
+  ran before i18n existed and blanked the whole app.
+  - Both entry files now import the application only after `createWebI18n`
+    resolves.
+  - The browser fixtures load through `tests/fixtures/with-i18n.ts`.
+  - Two fixtures that never set up i18n now do.
+  - `i18n.md` documents the rule.
+- Term list additions: Clip, Keyframe, Timeline, Expression, Bone, Sound
+  Effect, Emitter, Focus Lines and Marquee.
+- Intentional English changes:
+  - reaction intensity "Medium" reads "Moderate", matching Animas;
+  - singular counts for one item;
+  - locale number and list formatting;
+  - readable dropdown labels instead of raw IDs ("Left hand", "Additive");
+  - notices name behaviors by their control names ("Orbit over life");
+  - catalog emoji labels lose the trailing emoji ("✨ Sparkles").
+- Checks:
+  - `pnpm i18n:check`, `pnpm --filter animama-web check`, `pnpm web:lint` and
+    `vite build` pass.
+  - Web vitest: 3805 pass. 4 fail in `tests/local-api-proxy.test.ts`, the port
+    5173 conflict.
+  - Browser under `ja`: the particle, avatar and scene effect creators, the
+    Effect picker, and the Gesture (Pose) and Reaction editors render Japanese
+    chrome. Included content names stay as authored, and there are no console
+    errors.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full review of the Phase 7 working tree on
+`9ffa159e`. It found the following sound:
+
+- the hosted fetch-authority ordering and the entry-point load order;
+- the CLIs and harnesses, which never call translating functions;
+- stored data, including marquee items, which keep English labels and are
+  worded by emoji.
+
+Findings:
+
+- **P7-R1-01 (required, R3).** A locale switch re-ran effects through callbacks
+  that depend on `t`:
+  - the Avatar and Scene `onRestore`, through the `useCreatorSave` recovery
+    effect: undo history was cleared, recent edits were lost and image bytes
+    could be dropped;
+  - `ContentPreviewHost.handleStatusChange`: playback stuck at "Preparing".
+- Optional:
+  - **P7-R1-02:** Pose clip validation issues stored in the zustand store did
+    not follow a switch.
+  - **P7-R1-03:** five copies of the failure-line helper and a copy of
+    `useFormatters`. Some sentences are duplicated across namespaces, with
+    diverging translations (ja ブラウザ/ブラウザー, zh 放弃/丢弃, zh root
+    根/根节点).
+  - **P7-R1-04:** a misplaced JSDoc in `managementPreview.ts`.
+  - **P7-R1-05:** English left without comment: the emitter "Copy" suffix and
+    the Avatar Effect definition errors.
+  - **P7-R1-06:** the Results text was inaccurate.
+  - **P7-R1-07:** no test guards the entry-point import order.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P7-R1-01 accepted.** A delegated audit checked every hook whose
+  dependencies include `t`, formatters or a callback built from them.
+  - Fixed:
+    - `useCreatorSave` reads `onRestore` through `useEffectEvent`.
+    - The Avatar and Scene `onRestore` and saved-item load effects word text
+      with `getFixedT` and no longer depend on `t`.
+    - `ContentPreviewHost.handleStatusChange` has empty deps.
+    - The Action editor recovery toast, the Memory identities-error toast,
+      `useCreateAnimaController` `persist` and `MicrophoneLevelMeter` read their
+      text from a ref or `getFixedT`.
+  - Kept, as harmless: event-handler callbacks, display memos, effects that
+    only re-bind listeners, and guarded effects.
+  - New tests, each failing without its fix, in `useCreatorSave.hook`,
+    `AvatarEffectCreatorPage`, `SceneEffectCreatorPage`, `ContentPreviewHost`
+    and `pose-creator-store`.
+- **P7-R1-02 accepted.** The Pose creator store re-validates its clip draft on
+  `languageChanged`, without marking it dirty or touching history.
+- **P7-R1-03 accepted in part.**
+  - `failureLine` in `apiError.ts` replaces the five copies, and the preview
+    and effect helper files are removed.
+  - product-ui exports `formattersForLanguage`, which `useFormatters` uses.
+  - `ContentSaveApiError` extends `WordedError`, so it is never worded twice.
+  - Translations aligned: ja ブラウザー, zh-Hans 丢弃 for "discard", zh root
+    根节点/根節點.
+  - Deferred to Phase 9: removing the duplicated sentences across namespaces
+    (`effects`/`creator` recovered draft, `pose`/`creator` Avatar Model errors)
+    and moving the shared preview and history keys out of `actionEditor`.
+    Namespaces load per use, so this only affects organization.
+- **P7-R1-04 accepted.** The JSDoc is moved.
+- **P7-R1-05 accepted.** Comments explain the English emitter suffix (a stored
+  identifier) and the definition errors (`pnpm effects save` runs without
+  i18n). The unreachable store `loadError` is left as it is.
+- **P7-R1-06 accepted.** The Results text above is corrected.
+- **P7-R1-07 accepted.** `entrypoints.test.ts` allows only i18n, React, fonts
+  and CSS as static imports, and requires the dynamic router import.
+- Checks after repair:
+  - the fix agent's runs: `tsc` and eslint pass; vitest in the 14 affected
+    directories: 135 files, 988 pass; no extraction drift;
+  - coordinator: `tsc` passes after the helper changes; `entrypoints.test.ts`
+    passes (2 tests); `pnpm packages:build` passes.
+  - Not yet rerun: the full `pnpm i18n:check`, web check, lint and full vitest
+    on the combined tree; browser re-check of a locale switch inside a creator.
+
+Repair budget: one of two repair rounds used.
+
+Checks on the combined tree after resuming (2026-10-10):
+- `pnpm i18n:check`, `pnpm --filter animama-web check` and `pnpm web:lint` pass;
+  Prettier is clean.
+- Web vitest: 461 files, 3815 pass and none fail; the port conflict is gone.
+- Product-ui tests: 37 pass.
+- Browser: on `/scene-effects/new` with a typed name, switching the UI Locale
+  from `ja` to `ko` in App Settings kept the name, showed no recovered-draft
+  notice and re-rendered the creator in Korean.
+
+#### Code Review #2 Findings
+
+Targeted recheck. P7-R1-01 to P7-R1-07 are resolved without regressions.
+Verified: React 19.2's stable `useEffectEvent`; the recovery effect still
+re-runs for its real inputs; the "harmless" sites are safe;
+`ContentSaveApiError` consumers are consistent. Result: pass.
+
+Optional suggestions, all applied:
+- **P7-R2-01:** `useFormatters` had lost its JSDoc to `formattersForLanguage`.
+  The doc is restored.
+- Duplicate `apiError` imports in three files are merged.
+- Seven remaining inline copies of the failure line (Action editor, Idle Style
+  editor, leave guard, template start, creator Avatar, voice clone) use
+  `failureLine`.
+- Checks after these edits:
+  - `tsc` and `pnpm web:lint` pass;
+  - vitest in the touched directories: 72 files, 504 pass;
+  - `pnpm i18n:check` and `pnpm packages:build` pass.
 
 ### Phase 8 — Desktop shell (R8)
 

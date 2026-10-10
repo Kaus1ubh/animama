@@ -34,11 +34,13 @@ import {
   type ChangeEvent,
   type ReactNode,
 } from "react";
+import { getI18n, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { AVATAR_POSE_IDS, parseAnimaPose, type AnimaPose } from "@/lib/avatar";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
+import { failureLine, WordedError } from "@/lib/errors/apiError";
 import { fetchPoseNames, usePoses } from "@/query/hooks/usePoses";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { registerPrivateStateReset } from "@/app/runtime/private-module-state";
@@ -102,6 +104,11 @@ import {
   type PoseCreatorPoseExportMode,
 } from "./poseCreatorAuthoring";
 
+/** Example payloads shown in the import fields; JSON, not interface text. */
+const POSE_JSON_EXAMPLE = '{"schema":"animaPose/1.0","humanoid":{…}}';
+const POSE_JSON_PANEL_EXAMPLE =
+  '{"schema":"animaPose/1.0","humanoid":{"rightHand":{"rotationEulerDegrees":[0,0,0]}}}';
+
 // One transient editor session survives toolbar remounts (for example switching to Clip).
 // Retain ambiguous Save requests so an identical retry cannot create a second Local item.
 let poseSaveAttempt: {
@@ -149,14 +156,13 @@ function parsePoseJson(rawValue: string): AnimaPose {
 function getImportPoseParent(pose: AnimaPose): string {
   const parent = pose.parent;
   if (!parent) return POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID;
+  const t = getI18n().getFixedT(null, "pose");
   if (parent.inheritHumanoid === false || parent.inheritExpressions === true) {
-    throw new Error(
-      "Parented pose imports currently require humanoid inheritance on and expression inheritance off.",
-    );
+    throw new WordedError(t("library.import.parentInheritance"));
   }
   if (!AVATAR_POSE_IDS.includes(parent.ref)) {
-    throw new Error(
-      `Parent pose "${parent.ref}" is unavailable in the compatibility pose resolver.`,
+    throw new WordedError(
+      t("library.import.parentUnavailable", { parent: parent.ref }),
     );
   }
   return parent.ref;
@@ -194,15 +200,18 @@ function SavedDraftRow({
   onCreateBranch,
   onDelete,
 }: SavedDraftRowProps) {
+  const { t } = useTranslation("pose");
   return (
     <div className="border-border/70 bg-background group relative min-h-20 rounded-md border px-3 py-2 lg:min-h-0">
       <button
         type="button"
         className="hover:bg-muted/50 focus-visible:ring-ring absolute inset-0 rounded-md transition-colors focus-visible:ring-[3px] focus-visible:outline-none"
         onClick={() => onLoad(draft)}
-        aria-label={`Edit ${draft.name}`}
+        aria-label={t("library.row.editLabel", { name: draft.name })}
       >
-        <span className="sr-only">Load {draft.name}</span>
+        <span className="sr-only">
+          {t("library.row.load", { name: draft.name })}
+        </span>
       </button>
       <div className="pointer-events-none relative z-[1] flex min-w-0 items-start justify-between gap-2">
         <div className="min-w-0">
@@ -212,12 +221,14 @@ function SavedDraftRow({
             </p>
             {isCurrent ? (
               <span className="bg-primary/10 text-primary text-2xs rounded px-1.5 py-0.5">
-                Current
+                {t("library.current")}
               </span>
             ) : null}
           </div>
           <p className="text-muted-foreground text-2xs mt-0.5">
-            {draft.source === "included" ? "Included" : "Local"}
+            {draft.source === "included"
+              ? t("library.sources.included")
+              : t("library.sources.local")}
           </p>
         </div>
         <div className="pointer-events-auto flex shrink-0 items-center gap-1">
@@ -229,7 +240,9 @@ function SavedDraftRow({
             onClick={() => onCreateBranch(draft)}
           >
             <SplitIcon className="size-3.5" />
-            {draft.source === "included" ? "Edit" : "Copy"}
+            {draft.source === "included"
+              ? t("library.row.edit")
+              : t("library.row.copy")}
           </Button>
           {draft.source === "local" ? (
             <Button
@@ -238,7 +251,7 @@ function SavedDraftRow({
               variant="ghost"
               className="text-destructive hover:text-destructive h-11 px-2 text-xs lg:h-7"
               onClick={() => onDelete(draft)}
-              aria-label={`Delete ${draft.name}`}
+              aria-label={t("library.row.delete", { name: draft.name })}
             >
               <Trash2Icon className="size-3.5" />
             </Button>
@@ -268,6 +281,7 @@ function SavedDraftLoadButton({
   onCreateBranch: (draft: PyPose) => void;
   onDelete: (draft: PyPose) => void;
 }) {
+  const { t } = useTranslation("pose");
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -276,10 +290,10 @@ function SavedDraftLoadButton({
           type="button"
           variant="outline"
           className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-2 row-start-1 size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:col-start-3 lg:h-12 2xl:w-auto 2xl:min-w-[88px] 2xl:px-4"
-          aria-label="Load pose"
+          aria-label={t("library.loadLabel")}
         >
           <FolderOpenIcon className="size-4" />
-          <span className="hidden 2xl:inline">Load</span>
+          <span className="hidden 2xl:inline">{t("library.load")}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -291,19 +305,21 @@ function SavedDraftLoadButton({
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <p className="text-sm font-semibold">Pose Library</p>
+            <p className="text-sm font-semibold">{t("library.title")}</p>
           </div>
           <span className="text-muted-foreground text-xs">
             {savedDrafts.length}
           </span>
         </div>
         {pending ? (
-          <p className="text-muted-foreground text-xs">Loading poses…</p>
+          <p className="text-muted-foreground text-xs">
+            {t("library.loading")}
+          </p>
         ) : error ? (
           <div role="alert" className="text-destructive text-xs">
             {error}
             <Button onClick={onRetry} variant="ghost">
-              Try again
+              {t("library.tryAgain")}
             </Button>
           </div>
         ) : savedDrafts.length > 0 ? (
@@ -324,7 +340,7 @@ function SavedDraftLoadButton({
           </div>
         ) : (
           <p className="text-muted-foreground rounded-lg border border-dashed px-3 py-6 text-center text-xs">
-            No Included or Local poses are available.
+            {t("library.empty")}
           </p>
         )}
       </PopoverContent>
@@ -341,6 +357,7 @@ export function PoseCreatorLibrarySection({
   hideNew?: boolean;
 }) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("pose");
 
   const runtimePlatform = useRuntimePlatform();
   const alive = useRef(true);
@@ -466,7 +483,7 @@ export function PoseCreatorLibrarySection({
         (previous && !previous.submittedDraft.draftName.trim()
           ? previous.attempt.input.name
           : createUniqueContentName(
-              "New Pose",
+              t("library.defaultName"),
               await fetchPoseNames(apiClient),
             ));
       if (usePoseCreatorStore.getState().poseSessionToken !== sessionToken)
@@ -482,9 +499,7 @@ export function PoseCreatorLibrarySection({
         },
       );
       if (!pose) {
-        setImportError(
-          "Choose a base or adjust bones or expressions before saving a pose.",
-        );
+        setImportError(t("library.save.empty"));
         return null;
       }
       let attempt = preparePoseSaveAttempt(
@@ -524,7 +539,7 @@ export function PoseCreatorLibrarySection({
       });
       if (!applied) return null;
       poseSaveAttempt = null;
-      toast.success("Pose saved to Local content.");
+      toast.success(t("library.save.saved"));
       return { item: saved, pose: attempt.input.pose, sessionToken };
     } catch (error) {
       if (usePoseCreatorStore.getState().poseSessionToken === sessionToken) {
@@ -539,10 +554,7 @@ export function PoseCreatorLibrarySection({
         ) {
           poseSaveAttempt = null;
         }
-        const message =
-          error instanceof Error
-            ? error.message
-            : "Could not save this pose. Your draft is preserved.";
+        const message = failureLine(error, t("library.save.failed"));
         setImportError(message);
         toast.error(message);
       }
@@ -561,10 +573,10 @@ export function PoseCreatorLibrarySection({
         throw new Error("Clipboard unavailable.");
       }
       await navigator.clipboard.writeText(currentJson);
-      toast.success("Pose JSON copied.");
+      toast.success(t("library.json.copied"));
     } catch {
-      setImportError("Could not copy pose JSON to the clipboard.");
-      toast.error("Could not copy pose JSON.");
+      setImportError(t("library.json.copyFailed"));
+      toast.error(t("library.json.copyFailedToast"));
     }
   };
 
@@ -583,7 +595,7 @@ export function PoseCreatorLibrarySection({
 
   const replaceFromPose = (pose: AnimaPose) => {
     if (!activeAvatar) {
-      setImportError("Load a VRM before importing pose JSON.");
+      setImportError(t("library.import.needsModel"));
       return;
     }
 
@@ -591,12 +603,8 @@ export function PoseCreatorLibrarySection({
     try {
       nextBasePose = getImportPoseParent(pose);
     } catch (error) {
-      const message =
-        error instanceof Error
-          ? error.message
-          : "Could not validate the imported pose parent.";
-      setImportError(message);
-      toast.error("Could not import pose parent.");
+      setImportError(failureLine(error, t("library.import.parentFailed")));
+      toast.error(t("library.import.parentFailedToast"));
       return;
     }
 
@@ -616,10 +624,10 @@ export function PoseCreatorLibrarySection({
         importError: null,
       });
       setImportText("");
-      toast.success("Pose JSON imported.");
+      toast.success(t("library.import.imported"));
     } catch {
-      setImportError("Could not apply the imported pose to this avatar.");
-      toast.error("Could not apply imported pose.");
+      setImportError(t("library.import.applyFailed"));
+      toast.error(t("library.import.applyFailedToast"));
     }
   };
 
@@ -628,7 +636,7 @@ export function PoseCreatorLibrarySection({
       const pose = parsePoseJson(importText);
       replaceFromPose(pose);
     } catch {
-      setImportError("Import JSON must be a valid animaPose/1.0 payload.");
+      setImportError(t("library.import.jsonInvalid"));
     }
   };
 
@@ -641,7 +649,7 @@ export function PoseCreatorLibrarySection({
       const pose = parsePoseJson(await file.text());
       replaceFromPose(pose);
     } catch {
-      setImportError("Import file must contain valid animaPose/1.0 JSON.");
+      setImportError(t("library.import.fileInvalid"));
     }
   };
 
@@ -655,10 +663,10 @@ export function PoseCreatorLibrarySection({
   const createPoseBranch = async (
     pose: AnimaPose,
     sourceName: string,
-    successMessage = "New unsaved pose branch created.",
+    successMessage: string = t("library.branch.created"),
   ) => {
     if (!activeAvatar) {
-      setImportError("Load a VRM before branching a pose.");
+      setImportError(t("library.branch.needsModel"));
       return false;
     }
 
@@ -691,8 +699,8 @@ export function PoseCreatorLibrarySection({
       toast.success(successMessage);
       return true;
     } catch {
-      setImportError("Could not resolve this pose into a branch.");
-      toast.error("Could not create pose branch.");
+      setImportError(t("library.branch.failed"));
+      toast.error(t("library.branch.failedToast"));
       return false;
     }
   };
@@ -714,13 +722,14 @@ export function PoseCreatorLibrarySection({
     await createPoseBranch(
       saved.pose,
       saved.item.name,
-      "Pose saved and a Local copy started.",
+      t("library.branch.savedAndCopied"),
     );
   };
 
   const handleDeleteSavedDraft = async (item: PyPose) => {
     if (item.source !== "local" || deletePose.isPending) return;
-    if (!window.confirm(`Delete "${item.name}" from Local content?`)) return;
+    if (!window.confirm(t("library.delete.confirm", { name: item.name })))
+      return;
     try {
       await deletePose.mutateAsync(item);
       const current = usePoseCreatorStore.getState();
@@ -730,21 +739,14 @@ export function PoseCreatorLibrarySection({
           capturePoseCreatorSubmittedDraft(current),
         );
       }
-      toast.success("Local pose deleted.");
+      toast.success(t("library.delete.deleted"));
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Could not delete this pose.",
-      );
+      toast.error(failureLine(error, t("library.delete.failed")));
     }
   };
 
   const handleNewPose = () => {
-    if (
-      !confirmPoseCreatorDirtyReplacement(
-        isDirty,
-        "Discard unsaved pose changes and start a new pose?",
-      )
-    ) {
+    if (!confirmPoseCreatorDirtyReplacement(isDirty, t("dirty.newPose"))) {
       return;
     }
     startNewPose();
@@ -754,6 +756,7 @@ export function PoseCreatorLibrarySection({
 
   if (variant === "toolbar") {
     const isSaved = Boolean(selectedSavedDraftId) && !isDirty;
+    const saveStatus = isSaved ? t("library.saved") : t("library.unsaved");
     return (
       <>
         <CreatorHeaderDocument
@@ -776,21 +779,21 @@ export function PoseCreatorLibrarySection({
           >
             <span className="text-muted-foreground text-2xs ml-1 inline-flex shrink-0 items-center gap-1 font-medium">
               <PencilIcon className="size-3" />
-              Name&nbsp;&nbsp;&nbsp;&nbsp;
+              {t("library.name")}&nbsp;&nbsp;&nbsp;&nbsp;
             </span>
             <Input
               value={draftName}
               onChange={(event) => setDraftName(event.currentTarget.value)}
-              placeholder="New Pose"
-              aria-label="Pose name"
+              placeholder={t("library.defaultName")}
+              aria-label={t("library.nameLabel")}
               className="h-7 min-w-0 flex-1 border-0 bg-transparent px-2 text-sm font-medium shadow-none focus-visible:ring-0 dark:bg-transparent"
             />
-            <PoseDataActionTooltip label={isSaved ? "Saved" : "Unsaved"}>
+            <PoseDataActionTooltip label={saveStatus}>
               <span
                 className="ml-2 inline-flex size-5 shrink-0 items-center justify-center"
                 role="status"
-                aria-label={isSaved ? "Saved" : "Unsaved"}
-                title={isSaved ? "Saved" : "Unsaved"}
+                aria-label={saveStatus}
+                title={saveStatus}
               >
                 <span
                   className={cn(
@@ -807,44 +810,46 @@ export function PoseCreatorLibrarySection({
           <Button
             type="button"
             variant="outline"
-            aria-label="New"
-            title="New"
+            aria-label={t("library.new")}
+            title={t("library.new")}
             className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-2 row-start-1 hidden size-12 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:inline-flex 2xl:w-auto 2xl:min-w-[82px] 2xl:px-3"
             onClick={handleNewPose}
           >
             <FilePlus2Icon className="size-4" />
-            <span className="hidden 2xl:inline">New</span>
+            <span className="hidden 2xl:inline">{t("library.new")}</span>
           </Button>
         ) : null}
 
         <div className="col-start-4 row-start-1 hidden shrink-0 items-center gap-2 lg:flex">
           <div className="border-border/70 bg-background flex h-12 items-center rounded-xl border px-1 shadow-sm">
-            <PoseDataActionTooltip label="Import pose JSON">
+            <PoseDataActionTooltip label={t("library.import.title")}>
               <Button
                 type="button"
                 size="icon-sm"
                 variant="ghost"
                 onClick={() => setImportDialogOpen(true)}
                 disabled={!activeAvatar}
-                aria-label="Import pose JSON"
+                aria-label={t("library.import.title")}
               >
                 <UploadIcon className="size-3.5" />
               </Button>
             </PoseDataActionTooltip>
-            <PoseDataActionTooltip label="View pose JSON">
+            <PoseDataActionTooltip label={t("library.json.view")}>
               <Button
                 type="button"
                 size="icon-sm"
                 variant="ghost"
                 onClick={() => setJsonDialogOpen(true)}
                 disabled={!hasPoseContent}
-                aria-label="View pose JSON"
+                aria-label={t("library.json.view")}
               >
                 <Code2Icon className="size-3.5" />
               </Button>
             </PoseDataActionTooltip>
             <PoseDataActionTooltip
-              label={`Undo last pose edit · ${historyShortcuts.undo}`}
+              label={t("library.undoShortcut", {
+                shortcut: historyShortcuts.undo,
+              })}
             >
               <Button
                 type="button"
@@ -852,13 +857,15 @@ export function PoseCreatorLibrarySection({
                 variant="ghost"
                 onClick={undoPose}
                 disabled={!canUndoPose}
-                aria-label="Undo last pose edit"
+                aria-label={t("library.undo")}
               >
                 <Undo2Icon className="size-3.5" />
               </Button>
             </PoseDataActionTooltip>
             <PoseDataActionTooltip
-              label={`Redo last pose edit · ${historyShortcuts.redo}`}
+              label={t("library.redoShortcut", {
+                shortcut: historyShortcuts.redo,
+              })}
             >
               <Button
                 type="button"
@@ -866,7 +873,7 @@ export function PoseCreatorLibrarySection({
                 variant="ghost"
                 onClick={redoPose}
                 disabled={!canRedoPose}
-                aria-label="Redo last pose edit"
+                aria-label={t("library.redo")}
               >
                 <Redo2Icon className="size-3.5" />
               </Button>
@@ -880,7 +887,7 @@ export function PoseCreatorLibrarySection({
               type="button"
               variant="outline"
               className="bg-background dark:bg-background dark:hover:bg-accent disabled:text-muted-foreground col-start-3 row-start-2 size-11 rounded-xl p-0 shadow-sm disabled:opacity-100 lg:hidden"
-              aria-label="More pose actions"
+              aria-label={t("library.moreActions")}
             >
               <MoreHorizontalIcon className="size-5" />
             </Button>
@@ -896,7 +903,7 @@ export function PoseCreatorLibrarySection({
                 onSelect={handleNewPose}
               >
                 <FilePlus2Icon className="size-4" />
-                New pose
+                {t("library.newPose")}
               </DropdownMenuItem>
             ) : null}
             <DropdownMenuItem
@@ -905,7 +912,7 @@ export function PoseCreatorLibrarySection({
               onSelect={() => setImportDialogOpen(true)}
             >
               <UploadIcon className="size-4" />
-              Import pose JSON
+              {t("library.import.title")}
             </DropdownMenuItem>
             <DropdownMenuItem
               className="min-h-11 gap-3 rounded-lg"
@@ -913,7 +920,7 @@ export function PoseCreatorLibrarySection({
               onSelect={() => setJsonDialogOpen(true)}
             >
               <Code2Icon className="size-4" />
-              View pose JSON
+              {t("library.json.view")}
             </DropdownMenuItem>
             <DropdownMenuItem
               className="min-h-11 gap-3 rounded-lg"
@@ -921,7 +928,7 @@ export function PoseCreatorLibrarySection({
               onSelect={undoPose}
             >
               <Undo2Icon className="size-4" />
-              Undo last pose edit
+              {t("library.undo")}
             </DropdownMenuItem>
             <DropdownMenuItem
               className="min-h-11 gap-3 rounded-lg"
@@ -929,7 +936,7 @@ export function PoseCreatorLibrarySection({
               onSelect={redoPose}
             >
               <Redo2Icon className="size-4" />
-              Redo last pose edit
+              {t("library.redo")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -941,15 +948,19 @@ export function PoseCreatorLibrarySection({
         ) : null}
         {posesQuery.isError ? (
           <p role="alert" className="text-destructive col-span-full text-xs">
-            Could not load poses.{" "}
+            {t("library.loadFailed")}{" "}
             <button type="button" onClick={() => void posesQuery.refetch()}>
-              Try again
+              {t("library.tryAgain")}
             </button>
           </p>
         ) : null}
         <SavedDraftLoadButton
           pending={posesQuery.isPending}
-          error={posesQuery.error?.message}
+          error={
+            posesQuery.error
+              ? failureLine(posesQuery.error, t("library.loadFailed"))
+              : null
+          }
           onRetry={() => void posesQuery.refetch()}
           savedDrafts={savedDrafts}
           selectedSavedDraftId={selectedSavedDraftId}
@@ -969,9 +980,9 @@ export function PoseCreatorLibrarySection({
         <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
           <DialogContent className="max-h-[calc(100dvh-1rem)] gap-0 overflow-hidden p-0 sm:max-w-xl">
             <DialogHeader className="border-border/70 border-b px-5 py-4 pr-12">
-              <DialogTitle>Import pose JSON</DialogTitle>
+              <DialogTitle>{t("library.import.title")}</DialogTitle>
               <DialogDescription>
-                Choose an animaPose/1.0 file or paste its JSON payload.
+                {t("library.import.description")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 overflow-y-auto p-4 sm:p-5">
@@ -982,21 +993,21 @@ export function PoseCreatorLibrarySection({
                 onClick={() => jsonFileInputRef.current?.click()}
               >
                 <UploadIcon className="size-4" />
-                Choose JSON file
+                {t("library.import.chooseFile")}
               </Button>
               <div className="flex items-center gap-3">
                 <span className="bg-border h-px flex-1" />
                 <span className="text-muted-foreground text-2xs uppercase">
-                  or paste JSON
+                  {t("library.import.orPaste")}
                 </span>
                 <span className="bg-border h-px flex-1" />
               </div>
               <Textarea
                 value={importText}
                 onChange={(event) => setImportText(event.currentTarget.value)}
-                placeholder='{"schema":"animaPose/1.0","humanoid":{…}}'
+                placeholder={POSE_JSON_EXAMPLE}
                 className="min-h-52 resize-none font-mono text-xs"
-                aria-label="Import animaPose JSON"
+                aria-label={t("library.import.textLabel")}
               />
               {importError ? (
                 <p className="text-destructive text-xs" role="alert">
@@ -1010,7 +1021,7 @@ export function PoseCreatorLibrarySection({
                 disabled={!activeAvatar || importText.trim().length === 0}
               >
                 <FileJsonIcon className="size-4" />
-                Import pasted JSON
+                {t("library.import.pasted")}
               </Button>
             </div>
           </DialogContent>
@@ -1019,15 +1030,15 @@ export function PoseCreatorLibrarySection({
         <Dialog open={jsonDialogOpen} onOpenChange={setJsonDialogOpen}>
           <DialogContent className="max-h-[calc(100dvh-1rem)] gap-0 overflow-hidden p-0 sm:max-w-2xl">
             <DialogHeader className="border-border/70 border-b px-5 py-4 pr-12">
-              <DialogTitle>Pose JSON</DialogTitle>
+              <DialogTitle>{t("library.json.title")}</DialogTitle>
               <DialogDescription>
-                Preview the exact animaPose/1.0 payload for this draft.
+                {t("library.json.description")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-4 overflow-y-auto p-4 sm:p-5">
               <label className="grid gap-1.5">
                 <span className="text-muted-foreground text-xs font-medium">
-                  Export mode
+                  {t("library.export.mode")}
                 </span>
                 <Select
                   value={exportMode}
@@ -1035,14 +1046,16 @@ export function PoseCreatorLibrarySection({
                     setExportMode(mode as PoseCreatorPoseExportMode)
                   }
                 >
-                  <SelectTrigger aria-label="Pose export mode">
+                  <SelectTrigger aria-label={t("library.export.modeLabel")}>
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="inherited">
-                      Inherited sparse JSON
+                      {t("library.export.inherited")}
                     </SelectItem>
-                    <SelectItem value="baked">Baked standalone JSON</SelectItem>
+                    <SelectItem value="baked">
+                      {t("library.export.baked")}
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </label>
@@ -1050,7 +1063,7 @@ export function PoseCreatorLibrarySection({
                 value={currentJson ?? ""}
                 readOnly
                 className="min-h-[240px] resize-none font-mono text-xs sm:min-h-[360px]"
-                aria-label="Pose JSON preview"
+                aria-label={t("library.json.preview")}
               />
               <div className="flex justify-end gap-2">
                 <Button
@@ -1060,7 +1073,7 @@ export function PoseCreatorLibrarySection({
                   disabled={!currentJson}
                 >
                   <CopyIcon className="size-4" />
-                  Copy JSON
+                  {t("library.copyJson")}
                 </Button>
                 <Button
                   type="button"
@@ -1068,7 +1081,7 @@ export function PoseCreatorLibrarySection({
                   disabled={!currentJson}
                 >
                   <DownloadIcon className="size-4" />
-                  Download
+                  {t("library.download")}
                 </Button>
               </div>
             </div>
@@ -1080,19 +1093,19 @@ export function PoseCreatorLibrarySection({
 
   return (
     <PoseCreatorPanelSection
-      title="Pose Library"
-      subtitle={`${savedDrafts.length} Included and Local poses`}
+      title={t("library.title")}
+      subtitle={t("library.panelSubtitle", { count: savedDrafts.length })}
       defaultOpen
     >
       <div className="space-y-1.5">
         <label className="text-muted-foreground text-xs font-medium">
-          Draft name
+          {t("library.draftName")}
         </label>
         <Input
           value={draftName}
           onChange={(event) => setDraftName(event.currentTarget.value)}
-          placeholder="New Pose"
-          aria-label="Draft name"
+          placeholder={t("library.defaultName")}
+          aria-label={t("library.draftName")}
         />
       </div>
 
@@ -1105,7 +1118,9 @@ export function PoseCreatorLibrarySection({
           className="h-8"
         >
           <SaveIcon className="size-3.5" />
-          {selectedSavedDraftId ? "Update" : "Save"}
+          {selectedSavedDraftId
+            ? t("library.save.update")
+            : t("library.save.save")}
         </Button>
         <Button
           type="button"
@@ -1116,7 +1131,7 @@ export function PoseCreatorLibrarySection({
           className="h-8"
         >
           <CopyIcon className="size-3.5" />
-          Copy JSON
+          {t("library.copyJson")}
         </Button>
         <Button
           type="button"
@@ -1127,7 +1142,7 @@ export function PoseCreatorLibrarySection({
           className="h-8"
         >
           <DownloadIcon className="size-3.5" />
-          Download
+          {t("library.download")}
         </Button>
         <Button
           type="button"
@@ -1138,13 +1153,13 @@ export function PoseCreatorLibrarySection({
           className="h-8"
         >
           <UploadIcon className="size-3.5" />
-          Import file
+          {t("library.import.file")}
         </Button>
       </div>
 
       <label className="grid gap-1.5">
         <span className="text-muted-foreground text-xs font-medium">
-          Export mode
+          {t("library.export.mode")}
         </span>
         <Select
           value={exportMode}
@@ -1152,12 +1167,17 @@ export function PoseCreatorLibrarySection({
             setExportMode(mode as PoseCreatorPoseExportMode)
           }
         >
-          <SelectTrigger className="w-full" aria-label="Pose export mode">
+          <SelectTrigger
+            className="w-full"
+            aria-label={t("library.export.modeLabel")}
+          >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="inherited">Inherited sparse JSON</SelectItem>
-            <SelectItem value="baked">Baked standalone JSON</SelectItem>
+            <SelectItem value="inherited">
+              {t("library.export.inherited")}
+            </SelectItem>
+            <SelectItem value="baked">{t("library.export.baked")}</SelectItem>
           </SelectContent>
         </Select>
       </label>
@@ -1172,14 +1192,14 @@ export function PoseCreatorLibrarySection({
 
       <div className="space-y-1.5">
         <label className="text-muted-foreground text-xs font-medium">
-          Import JSON
+          {t("library.import.json")}
         </label>
         <Textarea
           value={importText}
           onChange={(event) => setImportText(event.currentTarget.value)}
-          placeholder='{"schema":"animaPose/1.0","humanoid":{"rightHand":{"rotationEulerDegrees":[0,0,0]}}}'
+          placeholder={POSE_JSON_PANEL_EXAMPLE}
           className="min-h-24 font-mono text-xs"
-          aria-label="Import animaPose JSON"
+          aria-label={t("library.import.textLabel")}
         />
         <Button
           type="button"
@@ -1190,7 +1210,7 @@ export function PoseCreatorLibrarySection({
           className="h-8 w-full"
         >
           <FileJsonIcon className="size-3.5" />
-          Import pasted JSON
+          {t("library.import.pasted")}
         </Button>
       </div>
 
@@ -1201,10 +1221,10 @@ export function PoseCreatorLibrarySection({
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground text-xs font-medium">
-            Poses
+            {t("library.poses")}
           </span>
           <span className="text-muted-foreground text-2xs">
-            Included / Local
+            {t("library.sources.both")}
           </span>
         </div>
         {savedDrafts.length > 0 ? (
@@ -1222,7 +1242,7 @@ export function PoseCreatorLibrarySection({
           </div>
         ) : (
           <p className="text-muted-foreground text-xs">
-            Pose Library will appear here.
+            {t("library.emptyPanel")}
           </p>
         )}
       </div>

@@ -10,6 +10,8 @@ import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 import { buildLibraryPreviewRuntime } from "@/lib/content-preview/targets";
 import { contentPreviewFileUrl } from "@/lib/content/contentPreview";
 import { findLogicalResourceFile } from "@/lib/content/typedLogicalResources";
+import { WordedError } from "@/lib/errors/apiError";
+import { getI18n } from "react-i18next";
 import { actionClosure } from "./ActionPreviewSession";
 
 type ClosureNode = Record<string, unknown>;
@@ -45,6 +47,7 @@ function previewFiles(
   preview: PyActionPreview,
   node: ClosureNode,
 ): PyRuntimeFile[] {
+  const t = getI18n().getFixedT(null, "actionEditor");
   const inlineDocument = node.inline_document;
   if (inlineDocument && typeof inlineDocument === "object") {
     const encoded = encodeURIComponent(JSON.stringify(inlineDocument));
@@ -64,7 +67,7 @@ function previewFiles(
   return files.map((raw) => {
     const file = object(raw);
     const fileRef = String(file.file_ref ?? "");
-    if (!fileRef) throw new Error("A private preview file is unauthorized.");
+    if (!fileRef) throw new WordedError(t("preview.errors.fileUnauthorized"));
     return {
       file_ref: fileRef,
       role: String(file.role),
@@ -130,6 +133,7 @@ function nodeEntry(
 }
 
 function supportSlot(node: ClosureNode): RuntimeContentSlot {
+  const t = getI18n().getFixedT(null, "actionEditor");
   const contentType = String(node.content_type ?? "");
   if (contentType === "scene_effect") {
     const definitionKind = String(object(node.definition).kind ?? "");
@@ -140,7 +144,10 @@ function supportSlot(node: ClosureNode): RuntimeContentSlot {
       : "scene_background_vfx";
   }
   const slot = slotsByType[contentType];
-  if (!slot) throw new Error(`Unsupported preview component ${contentType}.`);
+  if (!slot)
+    throw new WordedError(
+      t("preview.errors.unsupportedComponent", { type: contentType }),
+    );
   return slot;
 }
 
@@ -166,6 +173,7 @@ export function actionPreviewTarget(
   preview: PyActionPreview,
   label: string,
 ): ContentPreviewTarget {
+  const t = getI18n().getFixedT(null, "actionEditor");
   const closure = actionClosure(preview);
   const root = closure.root;
   const rootType = String(root.content_type);
@@ -184,7 +192,7 @@ export function actionPreviewTarget(
     key: `typed-action:${preview.preview_id}:${preview.revision}`,
     kind: rootKind,
     displayName: label,
-    versionLabel: "Exact saved content",
+    versionLabel: t("preview.versions.exactSaved"),
     slot: rootSlot,
     runtimeId: rootRuntimeId,
     configSchemaVersion: 1,

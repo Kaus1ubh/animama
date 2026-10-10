@@ -2,6 +2,7 @@
 
 import { useFrame, useThree } from "@react-three/fiber";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { getI18n } from "react-i18next";
 import type { Object3D } from "three";
 
 import { Avatar } from "@/lib/avatar";
@@ -14,6 +15,11 @@ import {
   type RuntimeContentUrlLease,
 } from "@/lib/runtime-content/runtimeContentDelivery";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
+import {
+  apiErrorLine,
+  uncodedErrorText,
+  WordedError,
+} from "@/lib/errors/apiError";
 import { createLogger } from "@/lib/logger";
 import { redactUrlForLogging } from "@/lib/utils";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
@@ -33,11 +39,19 @@ type PoseCreatorAvatarActorProps = {
   showHumanoidTools?: boolean;
 };
 
+/**
+ * The load failure shown over the canvas. Loader English stays primary in
+ * English and becomes detail under the worded message elsewhere.
+ */
 function formatLoadError(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) {
-    return error.message;
-  }
-  return "The selected Avatar could not be rendered.";
+  if (error instanceof WordedError) return error.message;
+  const t = getI18n().getFixedT(null, "pose");
+  return apiErrorLine(
+    uncodedErrorText(
+      error instanceof Error ? error.message.trim() || null : null,
+      t("avatar.renderFailed"),
+    ),
+  );
 }
 
 export function PoseCreatorAvatarActor({
@@ -88,13 +102,15 @@ export function PoseCreatorAvatarActor({
       let download: RuntimeContentUrlLease | null = null;
       try {
         if (!logicalUrl) {
-          throw new Error("The selected Avatar Model has no runtime file.");
+          const t = getI18n().getFixedT(null, "pose");
+          throw new WordedError(t("avatar.noRuntimeFile"));
         }
         download = await runtimeContentDownloadUrl(entry, logicalUrl, {
           signal: controller.signal,
         });
         if (!download) {
-          throw new Error("The selected Avatar Model could not be authorized.");
+          const t = getI18n().getFixedT(null, "pose");
+          throw new WordedError(t("avatar.unauthorized"));
         }
         controller.signal.throwIfAborted();
         await avatar.load(

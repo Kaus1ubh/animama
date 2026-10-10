@@ -1,0 +1,159 @@
+{
+  "actions": {
+    "cancel": "Cancel",
+    "tryAgain": "Try again"
+  },
+  "avatar": {
+    "noRuntimeFile": "The selected Avatar Model has no runtime file.",
+    "notAuthorized": "The selected Avatar Model could not be authorized.",
+    "renderFailed": "The selected Avatar could not be rendered."
+  },
+  "canvas": {
+    "controls": "Preview controls",
+    "guides": "Guides",
+    "restart": "Restart preview",
+    "select": "Preview {{label, lowercase}}",
+    "showGuides": "Show placement guides"
+  },
+  "handoff": {
+    "gesture": "Use in a Gesture",
+    "reaction": "Use in a Reaction",
+    "useIn": "Use in…"
+  },
+  "import": {
+    "ariaLabel": "Creator JSON",
+    "confirm": "Import document"
+  },
+  "leave": {
+    "busy": {
+      "confirm": "Leave and keep recovery",
+      "description": "This {{label}} is still being saved. Local recovery remains available when you return.",
+      "title": "Leave while content is being saved?"
+    },
+    "dirty": {
+      "confirm": "Discard and continue",
+      "description": "This {{label}} has local authoring changes. Discarding removes these changes and their browser recovery draft. Saved content is unchanged.",
+      "title": "Discard authoring changes?"
+    },
+    "discardFailed": "The draft could not be discarded.",
+    "discarding": "Discarding…",
+    "stay": "Stay"
+  },
+  "load": {
+    "button": "Load",
+    "description": "Open your editable Local content.",
+    "editable": "Editable Local content",
+    "empty": "No editable effects yet.",
+    "loadFailed": "Effects could not be loaded.",
+    "loading": "Loading…",
+    "noMatches": "No matching effects.",
+    "openFailed": "This effect could not be opened. Try again.",
+    "opening": "Opening…",
+    "searchLabel": "Search {{type}}",
+    "searchPlaceholder": "Search effects",
+    "title": "Load {{type}}",
+    "types": {
+      "avatarEffect": "Avatar FX",
+      "particleEffect": "Particle FX",
+      "sceneEffect": "Scene FX"
+    }
+  },
+  "modelPreview": {
+    "animaModel": "{{name}} (Anima)",
+    "animasFailed": "Could not load your Animas.",
+    "includedFailed": "The selected Included Avatar could not be prepared.",
+    "includedListFailed": "Could not load the Included Avatars.",
+    "noAnima": "Create an Anima before previewing this effect on an Avatar.",
+    "noAvatar": "The selected Anima does not have an available Avatar.",
+    "releaseUnavailable": "The selected Avatar release is no longer available.",
+    "runtimeFailed": "Could not load the preview Anima's runtime.",
+    "unnamedAnimaModel": "Your (Anima)"
+  },
+  "panel": {
+    "authoringTools": "Authoring tools",
+    "collapse": "Collapse {{label, lowercase}}",
+    "expand": "Expand {{label, lowercase}}",
+    "inspector": "Inspector",
+    "preview": "Preview",
+    "setup": "Setup"
+  },
+  "preview": {
+    "duration": "Duration",
+    "durationSeconds": "{{label}} in seconds",
+    "playing": "Playing",
+    "secondsUnit": "s",
+    "stopped": "Stopped",
+    "target": "preview",
+    "title": "Preview",
+    "untilStopped": "Until stopped"
+  },
+  "recovery": {
+    "discard": "Discard recovery",
+    "discardServerDraft": "Discard preserved server draft",
+    "recovered": "Recovered unsaved {{label}} changes.",
+    "recoveredDraft": "Recovered local draft"
+  },
+  "save": {
+    "retry": "Retry Save",
+    "save": "Save",
+    "stages": {
+      "hashing": "Hashing",
+      "preparing": "Preparing",
+      "uploading": "Uploading",
+      "validating": "Validating"
+    }
+  },
+  "status": {
+    "saved": "Saved",
+    "saveFailed": "Save failed",
+    "unsaved": "Unsaved"
+  },
+  "templateDraft": {
+    "continue": "Continue draft",
+    "description": "You have an unsaved {{label}} started from {{template}}. Continue it, or discard it and start again from the template. Saved content is unchanged.",
+    "openFailed": "The template could not be opened.",
+    "seedFailed": "The template could not be opened: {{reason}}",
+    "title": "Continue your unsaved draft?",
+    "useTemplate": "Discard and use template"
+  },
+  "timeline": {
+    "defaultTarget": "clip preview",
+    "loadingResources": "Loading preview resources",
+    "pause": "Pause",
+    "pauseTarget": "Pause {{target}}",
+    "play": "Play",
+    "playhead": "Current playhead time",
+    "playTarget": "Play {{target}}",
+    "restart": "Restart",
+    "restartTarget": "Restart {{target}}",
+    "stop": "Stop",
+    "stopTarget": "Stop {{target}}"
+  },
+  "toolbar": {
+    "documentName": "{{type}} name",
+    "import": "Import",
+    "library": "Library",
+    "moreActions": "More creator actions",
+    "name": "Name",
+    "new": "New",
+    "newDocument": "New {{type}}",
+    "redo": "Redo",
+    "redoShortcut": "Redo · {{shortcut}}",
+    "statusDetail": "{{label}}: {{detail}}",
+    "undo": "Undo",
+    "undoShortcut": "Undo · {{shortcut}}",
+    "viewJson": "View JSON"
+  },
+  "unavailable": {
+    "goToCreate": "Go to Create",
+    "notFound": "This {{label}} could not be found. It may have been deleted, or the link may be out of date.",
+    "openLibrary": "Open Library",
+    "title": "Can’t open this {{label}}",
+    "unavailable": "This {{label}} is unavailable. Check it in the Library."
+  },
+  "validation": {
+    "count_one": "{{count}} validation issue",
+    "count_other": "{{count}} validation issues",
+    "title": "Validation issues"
+  }
+}

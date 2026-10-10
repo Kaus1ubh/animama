@@ -1,3 +1,4 @@
+import { getI18n } from "react-i18next";
 import { Vector3, type Camera, type Object3D } from "three";
 import type { AvatarFaceLandmarkVector } from "@/lib/avatar/vfx/landmark-types";
 import type { AvatarVFXPlacementGuides } from "@/lib/avatar/vfx/placement-guide-types";
@@ -57,9 +58,13 @@ export function drawPlacementGuides(
   if (!ctx) return;
   ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
   ctx.clearRect(0, 0, width, height);
+  const t = getI18n().getFixedT(null, "effects");
   const labels = guides?.spatial.map((guide) => guide.label) ?? [];
   const messages = guides?.messages ?? [];
-  const description = ["Placement guides", ...labels, ...messages].join(". ");
+  const details = [...labels, ...messages];
+  const description = details.length
+    ? t("avatar.guides.canvasDetails", { items: details })
+    : t("avatar.guides.canvas");
   if (canvas.getAttribute("aria-label") !== description)
     canvas.setAttribute("aria-label", description);
   canvas.dataset.guideCount = String(labels.length);
@@ -137,7 +142,9 @@ export function drawPlacementGuides(
     // Below the point and the art: the art's rotate handle sits above it.
     badge(
       ctx,
-      guide.label + (guide.source === "fallback" ? " · estimated" : ""),
+      guide.source === "fallback"
+        ? t("avatar.guides.estimated", { label: guide.label })
+        : guide.label,
       reference.x,
       Math.max(
         reference.y + GUIDE_LABEL_OFFSET,

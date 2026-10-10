@@ -1,5 +1,6 @@
 import { RefreshCwIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
@@ -37,8 +38,8 @@ export function CreatorCanvasControls({
   model,
   view,
   guides,
-  guidesLabel = "Guides",
-  guidesAriaLabel = "Show placement guides",
+  guidesLabel,
+  guidesAriaLabel,
   guidesDisabled,
   onGuidesChange,
   domainControl,
@@ -59,10 +60,11 @@ export function CreatorCanvasControls({
   onRestart?: () => void;
   className?: string;
 } & CreatorGuidesControl) {
+  const { t } = useTranslation("creator");
   return (
     <div
       role="group"
-      aria-label="Preview controls"
+      aria-label={t("canvas.controls")}
       data-creator-preview-controls=""
       className={cn(
         "bg-background border-border/70 flex max-w-full flex-wrap items-center gap-2 rounded-xl border p-2 shadow-sm",
@@ -78,10 +80,10 @@ export function CreatorCanvasControls({
             checked={guides}
             disabled={guidesDisabled}
             onCheckedChange={onGuidesChange}
-            aria-label={guidesAriaLabel}
+            aria-label={guidesAriaLabel ?? t("canvas.showGuides")}
           />
           <span className="text-muted-foreground shrink-0 text-xs">
-            {guidesLabel}
+            {guidesLabel ?? t("canvas.guides")}
           </span>
         </label>
       ) : null}
@@ -94,8 +96,8 @@ export function CreatorCanvasControls({
             variant="ghost"
             disabled={restartDisabled}
             onClick={onRestart}
-            aria-label="Restart preview"
-            title="Restart preview"
+            aria-label={t("canvas.restart")}
+            title={t("canvas.restart")}
           >
             <RefreshCwIcon />
           </Button>
@@ -109,6 +111,7 @@ function CreatorCanvasSelectControl({
 }: {
   control: CreatorCanvasSelect;
 }) {
+  const { t } = useTranslation("creator");
   return (
     <div className="flex min-w-0 items-center gap-1">
       <span className="text-muted-foreground shrink-0 pl-1 text-xs">
@@ -124,7 +127,7 @@ function CreatorCanvasSelectControl({
             "h-8 max-w-32 border-0 bg-transparent text-xs shadow-none focus-visible:ring-0 dark:bg-transparent",
             control.triggerClassName,
           )}
-          aria-label={`Preview ${control.label.toLowerCase()}`}
+          aria-label={t("canvas.select", { label: control.label })}
         >
           <SelectValue placeholder={control.placeholder} />
         </SelectTrigger>

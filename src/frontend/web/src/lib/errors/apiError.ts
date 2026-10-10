@@ -28,8 +28,8 @@ export type ApiErrorInfo = {
  * marks it, so `apiErrorText` shows the message as it is.
  */
 export class WordedError extends Error {
-  constructor(message: string) {
-    super(message);
+  constructor(message: string, options?: ErrorOptions) {
+    super(message, options);
     this.name = "WordedError";
   }
 }
@@ -158,6 +158,14 @@ export function uncodedErrorText(
     null,
     fallback,
   );
+}
+
+/**
+ * One line for a failure outside a coded area: a `WordedError` as it is, other
+ * English primary in English and secondary detail under `fallback` elsewhere.
+ */
+export function failureLine(error: unknown, fallback: string): string {
+  return apiErrorLine(apiErrorText(readApiError(error), null, fallback));
 }
 
 /** One string for places that show a single line: the message, then any detail. */

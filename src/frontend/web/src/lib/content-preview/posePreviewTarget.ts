@@ -9,6 +9,7 @@ import {
 import { loadPoseContent } from "@/lib/content/poseContent";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import type { ContentPreviewTarget } from "./types";
+import { getI18n } from "react-i18next";
 
 type PosePreviewTarget = Extract<
   ContentPreviewTarget,
@@ -17,6 +18,7 @@ type PosePreviewTarget = Extract<
 
 /** Open the dock immediately; exact registered bytes are admitted during preparation. */
 export function posePreviewTarget(item: PyPose): PosePreviewTarget {
+  const t = getI18n().getFixedT(null, "actionEditor");
   return {
     key: `pose:${item.item_id}:${item.revision_sha256}`,
     sourceType: "pose_content",
@@ -26,7 +28,10 @@ export function posePreviewTarget(item: PyPose): PosePreviewTarget {
     slot: "pose",
     runtimeId: `pose-preview:${item.item_id}`,
     displayName: item.name,
-    versionLabel: item.source === "included" ? "Starter Pose" : "Local Pose",
+    versionLabel:
+      item.source === "included"
+        ? t("preview.versions.starterPose")
+        : t("preview.versions.localPose"),
     configSchemaVersion: 1,
     config: {},
   };

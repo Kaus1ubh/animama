@@ -1,5 +1,6 @@
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import type { PreparedContentPreview } from "./preparation";
+import { getI18n } from "react-i18next";
 import type { ContentPreviewLoadStatus, ContentPreviewTarget } from "./types";
 
 export type PreparedAnimaStagePreview = PreparedContentPreview;
@@ -78,6 +79,12 @@ export function selectAnimaStageAvatarEntry(input: {
   return { entry: preview, temporary: true };
 }
 
+/** The generic preview failure, in the UI Locale. */
+function unavailableSentence(): string {
+  const t = getI18n().getFixedT(null, "actionEditor");
+  return t("preview.unavailableSentence");
+}
+
 /** Pure route-local state transitions for the management-canvas preview. */
 export function reduceAnimaStagePreview(
   state: AnimaStagePreviewState,
@@ -121,7 +128,7 @@ export function reduceAnimaStagePreview(
             status: event.status,
             error:
               event.status === "error"
-                ? (event.error ?? "Preview unavailable.")
+                ? (event.error ?? unavailableSentence())
                 : null,
           }
         : state;

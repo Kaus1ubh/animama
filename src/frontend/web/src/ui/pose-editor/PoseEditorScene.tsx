@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import type { Avatar } from "@/lib/avatar";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
@@ -10,6 +11,7 @@ import { usePoseCreatorPreview } from "@/ui/pose-creator/PoseCreatorPreviewProvi
 
 /** Render one full-body editing Avatar without an Action document or timeline. */
 export function PoseEditorScene({ editable }: { editable: boolean }) {
+  const { t } = useTranslation("pose");
   const preview = usePoseCreatorPreview();
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
   const loadError = usePoseCreatorStore((state) => state.loadError);
@@ -57,12 +59,12 @@ export function PoseEditorScene({ editable }: { editable: boolean }) {
           >
             <p className="text-sm font-medium">
               {error
-                ? "Avatar preview unavailable"
+                ? t("scene.unavailable")
                 : preview.selectedModel ||
                     preview.isAnimaPending ||
                     preview.isRuntimePending
-                  ? "Loading Avatar…"
-                  : "Select a preview Avatar"}
+                  ? t("scene.loading")
+                  : t("scene.select")}
             </p>
             {error ? (
               <>
@@ -72,7 +74,7 @@ export function PoseEditorScene({ editable }: { editable: boolean }) {
                   variant="outline"
                   onClick={() => void retry()}
                 >
-                  Retry Avatar
+                  {t("scene.retry")}
                 </Button>
               </>
             ) : null}

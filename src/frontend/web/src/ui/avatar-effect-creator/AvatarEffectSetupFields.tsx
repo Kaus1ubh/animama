@@ -1,5 +1,8 @@
+import { useFormatters } from "@animama/product-ui/i18n";
+import type { TFunction } from "i18next";
 import { FileImageIcon, LoaderCircleIcon } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { PyExactContentSource } from "@/lib/content/catalogTypes";
 import {
@@ -12,7 +15,11 @@ import {
   type AvatarEffectEditorImageResources,
   type AvatarEffectEditorImageSlot,
 } from "@/lib/avatar/vfx/editor";
-import { AVATAR_VFX_TARGET_ROLES } from "@/lib/avatar/vfx/types";
+import { MAX_AVATAR_EFFECT_IMAGE_BYTES } from "@/lib/avatar/vfx/effect-image-limits";
+import {
+  AVATAR_VFX_TARGET_ROLES,
+  type AvatarVFXTargetRole,
+} from "@/lib/avatar/vfx/types";
 import { cn } from "@/lib/utils";
 import {
   CreatorField as Field,
@@ -29,12 +36,12 @@ import {
 import { Textarea } from "@/ui/components/textarea";
 import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
 import {
-  ATTACHMENT_OPTIONS,
-  SIDES_LABELS,
+  ATTACHMENT_KINDS,
+  attachmentKindText,
   sidesChoice,
   sidesChoicePatch,
   sidesChoices,
-  type SidesChoice,
+  sidesLabel,
 } from "./avatarEffectPlacement";
 
 type Dispatch = (action: AvatarEffectEditorAction) => void;
@@ -46,57 +53,169 @@ type SoundOption = {
 };
 
 /** Plain names for the face parts art can be painted on or hide. */
-export const FACE_PART_NAMES: Record<
-  (typeof AVATAR_VFX_TARGET_ROLES)[number],
-  string
-> = {
-  face_skin: "Face skin",
-  eye_iris: "Eyes (iris)",
-  eye_highlight: "Eye highlights",
-  eyeline: "Eye lines",
-  eyelash: "Eyelashes",
-};
+function targetPartName(
+  t: TFunction<"effects">,
+  role: AvatarVFXTargetRole,
+): string {
+  switch (role) {
+    case "face_skin":
+      return t("avatar.targetParts.face_skin");
+    case "eye_iris":
+      return t("avatar.targetParts.eye_iris");
+    case "eye_highlight":
+      return t("avatar.targetParts.eye_highlight");
+    case "eyeline":
+      return t("avatar.targetParts.eyeline");
+    case "eyelash":
+      return t("avatar.targetParts.eyelash");
+  }
+}
 
-const BODY_POINTS = [
-  ["root", "Feet (whole avatar)"],
-  ["hips", "Hips"],
-  ["spine", "Waist"],
-  ["chest", "Chest"],
-  ["neck", "Neck"],
-  ["head", "Head"],
-  ["leftHand", "Left hand"],
-  ["rightHand", "Right hand"],
-  ["leftFoot", "Left foot"],
-  ["rightFoot", "Right foot"],
-] as const;
+type BodyPoint =
+  | "root"
+  | "hips"
+  | "spine"
+  | "chest"
+  | "neck"
+  | "head"
+  | "leftHand"
+  | "rightHand"
+  | "leftFoot"
+  | "rightFoot";
 
-const LANDMARKS = [
-  ["eyes", "Eyes"],
-  ["mouth", "Mouth"],
-  ["forehead", "Forehead"],
-  ["top", "Top of the head"],
-  ["top_edge", "Above the head"],
-] as const;
+const BODY_POINTS: readonly BodyPoint[] = [
+  "root",
+  "hips",
+  "spine",
+  "chest",
+  "neck",
+  "head",
+  "leftHand",
+  "rightHand",
+  "leftFoot",
+  "rightFoot",
+];
 
-const SURFACE_AREAS = [
-  ["full", "Whole part"],
-  ["eyes", "Eyes"],
-  ["undereye", "Under the eyes"],
-  ["blush", "Cheeks"],
-  ["mouth", "Mouth"],
-] as const;
+function bodyPointName(t: TFunction<"effects">, point: BodyPoint): string {
+  switch (point) {
+    case "root":
+      return t("avatar.bodyPoints.root");
+    case "hips":
+      return t("avatar.bodyPoints.hips");
+    case "spine":
+      return t("avatar.bodyPoints.spine");
+    case "chest":
+      return t("avatar.bodyPoints.chest");
+    case "neck":
+      return t("avatar.bodyPoints.neck");
+    case "head":
+      return t("avatar.bodyPoints.head");
+    case "leftHand":
+      return t("avatar.bodyPoints.leftHand");
+    case "rightHand":
+      return t("avatar.bodyPoints.rightHand");
+    case "leftFoot":
+      return t("avatar.bodyPoints.leftFoot");
+    case "rightFoot":
+      return t("avatar.bodyPoints.rightFoot");
+  }
+}
 
-const PIVOTS = [
-  ["top-left", "Top left"],
-  ["top-center", "Top"],
-  ["top-right", "Top right"],
-  ["center-left", "Left"],
-  ["center", "Centre"],
-  ["center-right", "Right"],
-  ["bottom-left", "Bottom left"],
-  ["bottom-center", "Bottom"],
-  ["bottom-right", "Bottom right"],
-] as const;
+type Landmark = "eyes" | "mouth" | "forehead" | "top" | "top_edge";
+
+const LANDMARKS: readonly Landmark[] = [
+  "eyes",
+  "mouth",
+  "forehead",
+  "top",
+  "top_edge",
+];
+
+function landmarkName(t: TFunction<"effects">, landmark: Landmark): string {
+  switch (landmark) {
+    case "eyes":
+      return t("avatar.landmarks.eyes");
+    case "mouth":
+      return t("avatar.landmarks.mouth");
+    case "forehead":
+      return t("avatar.landmarks.forehead");
+    case "top":
+      return t("avatar.landmarks.top");
+    case "top_edge":
+      return t("avatar.landmarks.top_edge");
+  }
+}
+
+type SurfaceArea = "full" | "eyes" | "undereye" | "blush" | "mouth";
+
+const SURFACE_AREAS: readonly SurfaceArea[] = [
+  "full",
+  "eyes",
+  "undereye",
+  "blush",
+  "mouth",
+];
+
+function surfaceAreaName(t: TFunction<"effects">, area: SurfaceArea): string {
+  switch (area) {
+    case "full":
+      return t("avatar.surfaceAreas.full");
+    case "eyes":
+      return t("avatar.surfaceAreas.eyes");
+    case "undereye":
+      return t("avatar.surfaceAreas.undereye");
+    case "blush":
+      return t("avatar.surfaceAreas.blush");
+    case "mouth":
+      return t("avatar.surfaceAreas.mouth");
+  }
+}
+
+type Pivot =
+  | "top-left"
+  | "top-center"
+  | "top-right"
+  | "center-left"
+  | "center"
+  | "center-right"
+  | "bottom-left"
+  | "bottom-center"
+  | "bottom-right";
+
+const PIVOTS: readonly Pivot[] = [
+  "top-left",
+  "top-center",
+  "top-right",
+  "center-left",
+  "center",
+  "center-right",
+  "bottom-left",
+  "bottom-center",
+  "bottom-right",
+];
+
+function pivotName(t: TFunction<"effects">, pivot: Pivot): string {
+  switch (pivot) {
+    case "top-left":
+      return t("avatar.pivots.topLeft");
+    case "top-center":
+      return t("avatar.pivots.top");
+    case "top-right":
+      return t("avatar.pivots.topRight");
+    case "center-left":
+      return t("avatar.pivots.left");
+    case "center":
+      return t("avatar.pivots.centre");
+    case "center-right":
+      return t("avatar.pivots.right");
+    case "bottom-left":
+      return t("avatar.pivots.bottomLeft");
+    case "bottom-center":
+      return t("avatar.pivots.bottom");
+    case "bottom-right":
+      return t("avatar.pivots.bottomRight");
+  }
+}
 
 /** Small select used throughout the setup panel. */
 function ChoiceField<T extends string>({
@@ -152,6 +271,7 @@ function ImageField({
   onChoose: (file: File) => void;
   onClear?: () => void;
 }) {
+  const { t } = useTranslation("effects");
   const [dragActive, setDragActive] = useState(false);
   return (
     <Field label={label} invalid={invalid}>
@@ -183,12 +303,12 @@ function ImageField({
         </div>
         <div className="min-w-0 flex-1">
           <div className="truncate text-sm font-medium">
-            {name ?? "Choose image"}
+            {name ?? t("avatar.setup.chooseImage")}
           </div>
           <div className="text-muted-foreground text-xs">{hint}</div>
         </div>
         <span className="border-border rounded-md border px-2 py-1 text-xs">
-          {hasImage ? "Replace" : "Browse"}
+          {hasImage ? t("avatar.setup.replaceImage") : t("avatar.setup.browse")}
         </span>
         <input
           className="sr-only"
@@ -209,7 +329,7 @@ function ImageField({
           className="text-muted-foreground hover:text-foreground self-start text-xs underline"
           onClick={onClear}
         >
-          Use the mirrored main image instead
+          {t("avatar.setup.useMirroredImage")}
         </button>
       ) : null}
       {error ? <p className="text-destructive mt-1 text-xs">{error}</p> : null}
@@ -245,13 +365,18 @@ export function AvatarEffectSetupFields({
   onChooseImage: (slot: AvatarEffectEditorImageSlot, file: File) => void;
   onClearOtherEyeImage: () => void;
 }) {
+  const { t } = useTranslation("effects");
+  const formatters = useFormatters();
   const attachment = document.attachment;
   const invalid = (prefix: string) =>
     Boolean(invalidField && invalidField.startsWith(prefix));
   const otherEye = avatarEffectAcceptsOtherEyeImage(attachment);
   return (
     <div className="space-y-3">
-      <Field label="Attach to" invalid={invalid("attachment.kind")}>
+      <Field
+        label={t("avatar.setup.attachTo")}
+        invalid={invalid("attachment.kind")}
+      >
         <Select
           value={attachment.kind}
           onValueChange={(kind) =>
@@ -264,24 +389,20 @@ export function AvatarEffectSetupFields({
           <SelectTrigger
             size="sm"
             className="w-full text-xs"
-            aria-label="Attach to"
+            aria-label={t("avatar.setup.attachTo")}
           >
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            {ATTACHMENT_OPTIONS.map((option) => (
-              <SelectItem key={option.value} value={option.value}>
-                {option.label}
+            {ATTACHMENT_KINDS.map((kind) => (
+              <SelectItem key={kind} value={kind}>
+                {attachmentKindText(t, kind).label}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <p className="text-muted-foreground text-xs">
-          {
-            ATTACHMENT_OPTIONS.find(
-              (option) => option.value === attachment.kind,
-            )?.description
-          }
+          {attachmentKindText(t, attachment.kind).description}
         </p>
       </Field>
 
@@ -292,8 +413,10 @@ export function AvatarEffectSetupFields({
       />
 
       <ImageField
-        label="Image"
-        hint="PNG, JPEG, or WebP · up to 16 MiB"
+        label={t("avatar.setup.image")}
+        hint={t("avatar.setup.imageHint", {
+          size: formatters.fileSize(MAX_AVATAR_EFFECT_IMAGE_BYTES),
+        })}
         name={
           imageResources.image?.file.name ??
           document.art.image?.originalName ??
@@ -307,8 +430,8 @@ export function AvatarEffectSetupFields({
       />
       {otherEye ? (
         <ImageField
-          label="Other side image (optional)"
-          hint="Drawn as is on the mirrored side, for a wink or other uneven art."
+          label={t("avatar.setup.otherImage")}
+          hint={t("avatar.setup.otherImageHint")}
           name={
             imageResources.otherEyeImage?.file.name ??
             document.art.otherEyeImage?.originalName ??
@@ -332,7 +455,7 @@ export function AvatarEffectSetupFields({
 
       <FaceOptionFields document={document} onDispatch={onDispatch} />
 
-      <Field label="Sound when applied" invalid={invalid("sound")}>
+      <Field label={t("creator.sound.label")} invalid={invalid("sound")}>
         <SoundUploadButton />
         <Select
           value={soundSourceKey(document.sound?.source ?? null)}
@@ -360,14 +483,18 @@ export function AvatarEffectSetupFields({
           <SelectTrigger
             size="sm"
             className="w-full text-xs"
-            aria-label="Sound when applied"
+            aria-label={t("creator.sound.label")}
           >
             <SelectValue
-              placeholder={soundPending ? "Loading sounds…" : "No sound"}
+              placeholder={
+                soundPending
+                  ? t("creator.sound.loading")
+                  : t("creator.sound.none")
+              }
             />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="none">No sound</SelectItem>
+            <SelectItem value="none">{t("creator.sound.none")}</SelectItem>
             {document.sound &&
             !soundOptions.some(
               (item) =>
@@ -375,7 +502,7 @@ export function AvatarEffectSetupFields({
                 soundSourceKey(document.sound?.source ?? null),
             ) ? (
               <SelectItem value={soundSourceKey(document.sound.source)}>
-                {document.sound.label} · exact content
+                {t("creator.sound.exact", { name: document.sound.label })}
               </SelectItem>
             ) : null}
             {soundOptions.flatMap((item) =>
@@ -393,11 +520,11 @@ export function AvatarEffectSetupFields({
           </SelectContent>
         </Select>
       </Field>
-      <Field label="Description">
+      <Field label={t("creator.description")}>
         <Textarea
           className="min-h-16 text-xs"
           rows={2}
-          aria-label="Description"
+          aria-label={t("creator.description")}
           value={document.description}
           onChange={(event) =>
             onDispatch({
@@ -419,24 +546,21 @@ function SidesField({
   attachment: AvatarEffectEditorAttachment;
   onDispatch: Dispatch;
 }) {
+  const { t } = useTranslation("effects");
   const choices = sidesChoices(attachment);
   const current = sidesChoice(attachment);
   if (!choices.length || !current) return null;
   const eyes =
     attachment.kind === "face_landmark" ||
     (attachment.kind === "face_surface" && attachment.area === "eyes");
-  const label = (choice: SidesChoice) =>
-    choice === "mirrored" && eyes
-      ? "Both eyes, mirrored"
-      : choice === "across" && eyes
-        ? "One image across both eyes"
-        : SIDES_LABELS[choice];
   return (
     <>
       <ChoiceField
-        label={eyes ? "Which eyes" : "Which side"}
+        label={eyes ? t("avatar.setup.whichEyes") : t("avatar.setup.whichSide")}
         value={current}
-        options={choices.map((choice) => [choice, label(choice)] as const)}
+        options={choices.map(
+          (choice) => [choice, sidesLabel(t, choice, eyes)] as const,
+        )}
         onValue={(choice) =>
           onDispatch({
             type: "patch-attachment",
@@ -446,12 +570,18 @@ function SidesField({
       />
       {current === "mirrored" && "side" in attachment ? (
         <ChoiceField
-          label="Art is drawn for the"
+          label={t("avatar.setup.drawnFor")}
           // The runtime draws a sideless mirrored pair for the right eye.
           value={attachment.side ?? "right"}
           options={[
-            ["left", eyes ? "Left eye" : "Left side"],
-            ["right", eyes ? "Right eye" : "Right side"],
+            [
+              "left",
+              eyes ? t("avatar.setup.leftEye") : t("avatar.setup.leftSide"),
+            ],
+            [
+              "right",
+              eyes ? t("avatar.setup.rightEye") : t("avatar.setup.rightSide"),
+            ],
           ]}
           onValue={(side) =>
             onDispatch({ type: "patch-attachment", patch: { side } })
@@ -471,6 +601,7 @@ function AttachmentFields({
   invalid: (prefix: string) => boolean;
   onDispatch: Dispatch;
 }) {
+  const { t } = useTranslation("effects");
   const patch = (value: Record<string, unknown>) =>
     onDispatch({ type: "patch-attachment", patch: value });
   switch (attachment.kind) {
@@ -478,25 +609,29 @@ function AttachmentFields({
       return (
         <>
           <ChoiceField
-            label="Where"
+            label={t("avatar.setup.where")}
             value={attachment.landmark}
-            options={LANDMARKS}
+            options={LANDMARKS.map(
+              (landmark) => [landmark, landmarkName(t, landmark)] as const,
+            )}
             invalid={invalid("attachment.landmark")}
             onValue={(landmark) => patch({ landmark })}
           />
           {attachment.position ? (
             <ChoiceField
-              label="Position"
+              label={t("avatar.setup.position")}
               value={attachment.position}
               options={[
                 ...(attachment.landmark === "top_edge"
-                  ? ([["left_corner", "Far left"]] as const)
+                  ? ([["left_corner", t("avatar.positions.farLeft")]] as const)
                   : []),
-                ["left", "Left"],
-                ["middle", "Middle"],
-                ["right", "Right"],
+                ["left", t("avatar.positions.left")],
+                ["middle", t("avatar.positions.middle")],
+                ["right", t("avatar.positions.right")],
                 ...(attachment.landmark === "top_edge"
-                  ? ([["right_corner", "Far right"]] as const)
+                  ? ([
+                      ["right_corner", t("avatar.positions.farRight")],
+                    ] as const)
                   : []),
               ]}
               invalid={invalid("attachment.position")}
@@ -505,7 +640,7 @@ function AttachmentFields({
           ) : null}
           <SidesField attachment={attachment} onDispatch={onDispatch} />
           <p className="text-muted-foreground text-xs">
-            Left and right are the avatar&apos;s own.
+            {t("avatar.setup.avatarSides")}
           </p>
         </>
       );
@@ -514,9 +649,11 @@ function AttachmentFields({
       return (
         <>
           <ChoiceField
-            label="Where on the face"
+            label={t("avatar.setup.whereOnFace")}
             value={attachment.area}
-            options={SURFACE_AREAS}
+            options={SURFACE_AREAS.map(
+              (area) => [area, surfaceAreaName(t, area)] as const,
+            )}
             invalid={invalid("attachment.area")}
             onValue={(area) =>
               patch({
@@ -529,10 +666,10 @@ function AttachmentFields({
           />
           {!decal ? (
             <ChoiceField
-              label="Paint on"
+              label={t("avatar.setup.paintOn")}
               value={attachment.part}
               options={AVATAR_VFX_TARGET_ROLES.map(
-                (role) => [role, FACE_PART_NAMES[role]] as const,
+                (role) => [role, targetPartName(t, role)] as const,
               )}
               invalid={invalid("attachment.part")}
               onValue={(part) => patch({ part })}
@@ -541,16 +678,18 @@ function AttachmentFields({
           <SidesField attachment={attachment} onDispatch={onDispatch} />
           {decal ? (
             <ChoiceField
-              label="Image point placed on the face"
+              label={t("avatar.setup.pivot")}
               value={attachment.pivot ?? "center"}
-              options={PIVOTS}
+              options={PIVOTS.map(
+                (pivot) => [pivot, pivotName(t, pivot)] as const,
+              )}
               invalid={invalid("attachment.pivot")}
               onValue={(pivot) => patch({ pivot })}
             />
           ) : (
             <SwitchRow
-              label="Keep the original underneath"
-              description="Off replaces the part's own texture where the art is."
+              label={t("avatar.setup.keepOriginal")}
+              description={t("avatar.setup.keepOriginalHint")}
               checked={(attachment.mode ?? "overlay") === "overlay"}
               onChecked={(keep) =>
                 patch({ mode: keep ? "overlay" : "replace" })
@@ -558,7 +697,7 @@ function AttachmentFields({
             />
           )}
           <p className="text-muted-foreground text-xs">
-            Left and right are the avatar&apos;s own.
+            {t("avatar.setup.avatarSides")}
           </p>
         </>
       );
@@ -567,15 +706,17 @@ function AttachmentFields({
       return (
         <>
           <ChoiceField
-            label="Body point"
+            label={t("avatar.setup.bodyPoint")}
             value={attachment.bone}
-            options={BODY_POINTS}
+            options={BODY_POINTS.map(
+              (point) => [point, bodyPointName(t, point)] as const,
+            )}
             invalid={invalid("attachment.bone")}
             onValue={(bone) => patch({ bone })}
           />
           <SwitchRow
-            label="Always face the camera"
-            description="Off keeps the art turned with the body point."
+            label={t("avatar.setup.faceCamera")}
+            description={t("avatar.setup.faceCameraHint")}
             checked={(attachment.facing ?? "camera") === "camera"}
             onChecked={(camera) =>
               patch({ facing: camera ? "camera" : "bone" })
@@ -586,11 +727,11 @@ function AttachmentFields({
     case "sticker":
       return (
         <ChoiceField
-          label="Beside the"
+          label={t("avatar.setup.besideThe")}
           value={attachment.around ?? "head"}
           options={[
-            ["head", "Head"],
-            ["body", "Body"],
+            ["head", t("avatar.setup.besideHead")],
+            ["body", t("avatar.setup.besideBody")],
           ]}
           invalid={invalid("attachment.around")}
           onValue={(around) => patch({ around })}
@@ -600,11 +741,11 @@ function AttachmentFields({
       return (
         <>
           <ChoiceField
-            label="Fill"
+            label={t("avatar.setup.fill")}
             value={attachment.fill ?? "pattern"}
             options={[
-              ["pattern", "Repeat the image as a pattern"],
-              ["tint", "Tint with the image's colour"],
+              ["pattern", t("avatar.setup.fillPattern")],
+              ["tint", t("avatar.setup.fillTint")],
             ]}
             invalid={invalid("attachment.fill")}
             onValue={(fill) => patch({ fill })}
@@ -612,7 +753,7 @@ function AttachmentFields({
           {(attachment.fill ?? "pattern") === "pattern" ? (
             <div className="grid grid-cols-3 gap-2">
               <NumberField
-                label="Tile size (×)"
+                label={t("avatar.setup.tileSize")}
                 compact
                 value={attachment.patternScale ?? 1}
                 min={0.01}
@@ -624,7 +765,7 @@ function AttachmentFields({
                 }
               />
               <NumberField
-                label="Scroll X (tiles/s)"
+                label={t("avatar.setup.scrollX")}
                 compact
                 value={attachment.scroll?.x ?? 0}
                 min={-10}
@@ -636,7 +777,7 @@ function AttachmentFields({
                 }
               />
               <NumberField
-                label="Scroll Y (tiles/s)"
+                label={t("avatar.setup.scrollY")}
                 compact
                 value={attachment.scroll?.y ?? 0}
                 min={-10}
@@ -664,6 +805,7 @@ function FlipbookFields({
   invalid: boolean;
   onDispatch: Dispatch;
 }) {
+  const { t } = useTranslation("effects");
   const flipbook = document.art.flipbook;
   const set = (value: typeof flipbook) =>
     onDispatch({ type: "patch-art", patch: { flipbook: value } });
@@ -677,8 +819,8 @@ function FlipbookFields({
       )}
     >
       <SwitchRow
-        label="Animated sprite sheet"
-        description="The image holds frames on a grid, played in order."
+        label={t("avatar.flipbook.title")}
+        description={t("avatar.flipbook.description")}
         checked={Boolean(flipbook)}
         onChecked={(enabled) =>
           set(
@@ -691,7 +833,7 @@ function FlipbookFields({
       {flipbook ? (
         <div className="grid grid-cols-2 gap-2">
           <NumberField
-            label="Columns"
+            label={t("avatar.flipbook.columns")}
             compact
             value={flipbook.columns}
             min={1}
@@ -708,7 +850,7 @@ function FlipbookFields({
             }}
           />
           <NumberField
-            label="Rows"
+            label={t("avatar.flipbook.rows")}
             compact
             value={flipbook.rows}
             min={1}
@@ -725,7 +867,7 @@ function FlipbookFields({
             }}
           />
           <NumberField
-            label="Frames"
+            label={t("avatar.flipbook.frames")}
             compact
             value={flipbook.frames}
             min={1}
@@ -740,7 +882,7 @@ function FlipbookFields({
             }
           />
           <NumberField
-            label="Frames per second"
+            label={t("avatar.flipbook.fps")}
             compact
             value={flipbook.fps}
             min={0.1}
@@ -753,12 +895,12 @@ function FlipbookFields({
           />
           <div className="col-span-2">
             <ChoiceField
-              label="Playback"
+              label={t("avatar.flipbook.playback")}
               value={flipbook.loop ?? "loop"}
               options={[
-                ["loop", "Repeat"],
-                ["once", "Play once"],
-                ["pingpong", "Back and forth"],
+                ["loop", t("avatar.flipbook.loop")],
+                ["once", t("avatar.flipbook.once")],
+                ["pingpong", t("avatar.flipbook.pingpong")],
               ]}
               onValue={(loop) => set({ ...flipbook, loop })}
             />
@@ -777,6 +919,7 @@ function FaceOptionFields({
   document: AvatarEffectEditorDocument;
   onDispatch: Dispatch;
 }) {
+  const { t } = useTranslation("effects");
   const names = avatarEffectFaceOptionNames(document.attachment);
   if (!names.size) return null;
   const options = document.faceOptions;
@@ -790,32 +933,36 @@ function FaceOptionFields({
     <div className="space-y-2 border-t pt-3">
       {names.has("forceBlink") ? (
         <SwitchRow
-          label="Close the eyes"
-          description="Blink the avatar's eyes behind the art."
+          label={t("avatar.faceOptions.closeEyes")}
+          description={t("avatar.faceOptions.closeEyesHint")}
           checked={options.forceBlink ?? true}
           onChecked={(forceBlink) => set({ forceBlink })}
         />
       ) : null}
       {names.has("hideEyeDetails") ? (
         <SwitchRow
-          label="Hide eye details"
-          description="Hide eye highlights, eye lines and eyelashes."
+          label={t("avatar.faceOptions.hideEyeDetails")}
+          description={t("avatar.faceOptions.hideEyeDetailsHint")}
           checked={options.hideEyeDetails ?? true}
           onChecked={(hideEyeDetails) => set({ hideEyeDetails })}
         />
       ) : null}
       {names.has("faceCleanup") ? (
         <SwitchRow
-          label={eyes ? "Clean up the eye area" : "Clean up the mouth area"}
-          description="Cover painted detail with the sampled skin colour."
+          label={
+            eyes
+              ? t("avatar.faceOptions.cleanUpEyes")
+              : t("avatar.faceOptions.cleanUpMouth")
+          }
+          description={t("avatar.faceOptions.cleanUpHint")}
           checked={options.faceCleanup ?? true}
           onChecked={(faceCleanup) => set({ faceCleanup })}
         />
       ) : null}
       {names.has("skinBackdrop") ? (
         <SwitchRow
-          label="Skin-coloured backing"
-          description="Place skin colour behind transparent parts of the art."
+          label={t("avatar.faceOptions.skinBackdrop")}
+          description={t("avatar.faceOptions.skinBackdropHint")}
           checked={options.skinBackdrop ?? false}
           onChecked={(skinBackdrop) => set({ skinBackdrop })}
         />
@@ -823,16 +970,17 @@ function FaceOptionFields({
       {names.has("hideParts") ? (
         <details className="space-y-2">
           <summary className="cursor-pointer text-xs font-medium">
-            Hide other face parts ({hidden.length})
+            {t("avatar.faceOptions.hideParts", { hidden: hidden.length })}
           </summary>
           <p className="text-muted-foreground text-xs">
-            Hide these parts while the effect plays. The part the art is on
-            stays visible.
+            {t("avatar.faceOptions.hidePartsHint")}
           </p>
           {AVATAR_VFX_TARGET_ROLES.map((role) => (
             <SwitchRow
               key={role}
-              label={`Hide ${FACE_PART_NAMES[role].toLowerCase()}`}
+              label={t("avatar.faceOptions.hidePart", {
+                part: targetPartName(t, role),
+              })}
               checked={hidden.includes(role)}
               onChecked={(checked) =>
                 set({
@@ -849,14 +997,32 @@ function FaceOptionFields({
   );
 }
 
-const REGION_LABELS: Record<string, string> = {
-  eyes: "Effects on the eyes",
-  undereye: "Effects under the eyes",
-  blush: "Effects on the cheeks",
-  mouth: "Effects on the mouth",
-  emote: "Nothing; it plays alongside others",
-  full_face: "Nothing; it plays alongside other whole-face art",
-};
+/** What an effect in each region replaces, as the Replaces field words it. */
+function regionLabel(
+  t: TFunction<"effects">,
+  region: AvatarEffectEditorDocument["region"],
+): string {
+  switch (region) {
+    case "eyes":
+      return t("avatar.regions.eyes");
+    case "undereye":
+      return t("avatar.regions.undereye");
+    case "blush":
+      return t("avatar.regions.blush");
+    case "mouth":
+      return t("avatar.regions.mouth");
+    case "emote":
+      return t("avatar.regions.emote");
+    case "full_face":
+      return t("avatar.regions.full_face");
+    case "body":
+      return t("avatar.regions.body");
+    case "sticker":
+      return t("avatar.regions.sticker");
+    case "silhouette":
+      return t("avatar.regions.silhouette");
+  }
+}
 
 /**
  * Which other effects this one replaces when both play. Face effects in the
@@ -869,33 +1035,36 @@ function ReplacesField({
   document: AvatarEffectEditorDocument;
   onDispatch: Dispatch;
 }) {
+  const { t } = useTranslation("effects");
   const kind = document.attachment.kind;
   if (kind === "body" || kind === "sticker" || kind === "silhouette")
     return null;
   const automatic = suggestedAvatarEffectRegion(document.attachment);
   const stacking = automatic === "full_face" ? "full_face" : "emote";
   const options: Array<readonly [string, string]> = [
-    ["automatic", `Automatic: ${REGION_LABELS[automatic]?.toLowerCase()}`],
-    ["eyes", REGION_LABELS.eyes],
-    ["undereye", REGION_LABELS.undereye],
-    ["blush", REGION_LABELS.blush],
-    ["mouth", REGION_LABELS.mouth],
-    [stacking, REGION_LABELS[stacking]!],
+    [
+      "automatic",
+      t("avatar.regions.automatic", { region: regionLabel(t, automatic) }),
+    ],
+    ["eyes", regionLabel(t, "eyes")],
+    ["undereye", regionLabel(t, "undereye")],
+    ["blush", regionLabel(t, "blush")],
+    ["mouth", regionLabel(t, "mouth")],
+    [stacking, regionLabel(t, stacking)],
   ];
   // A saved custom region is always offered, so the select never shows blank.
   if (
     document.regionMode === "custom" &&
     !options.some(([value]) => value === document.region)
   )
-    options.push([
-      document.region,
-      REGION_LABELS[document.region] ?? document.region,
-    ]);
+    options.push([document.region, regionLabel(t, document.region)]);
   return (
     <details className="space-y-2 border-t pt-3">
-      <summary className="cursor-pointer text-xs font-medium">Advanced</summary>
+      <summary className="cursor-pointer text-xs font-medium">
+        {t("avatar.regions.advanced")}
+      </summary>
       <ChoiceField
-        label="Replaces"
+        label={t("avatar.regions.replaces")}
         value={
           document.regionMode === "automatic" ? "automatic" : document.region
         }
@@ -911,8 +1080,7 @@ function ReplacesField({
         }
       />
       <p className="text-muted-foreground text-xs">
-        When two effects on the same area play together, the newer one replaces
-        the older.
+        {t("avatar.regions.replacesHint")}
       </p>
     </details>
   );

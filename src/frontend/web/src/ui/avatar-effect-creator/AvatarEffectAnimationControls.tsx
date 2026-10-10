@@ -4,6 +4,7 @@ import type {
 } from "@animama/runtime-contracts/api-types";
 import { PlusIcon, Trash2Icon } from "lucide-react";
 import { useId } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import {
@@ -28,7 +29,10 @@ import {
   toggleAvatarEffectMotion,
   updateAvatarEffectKeyframe,
 } from "./animationControls";
-import type { PlacementUnit } from "./avatarEffectPlacement";
+import {
+  placementUnitLabel,
+  type PlacementUnit,
+} from "./avatarEffectPlacement";
 
 /** Edit the effect's own motion: presets and keyframes, as playback reads them. */
 export function AvatarEffectAnimationControls({
@@ -44,6 +48,7 @@ export function AvatarEffectAnimationControls({
   invalidField?: string | null;
   onChange: (motion: AvatarEffectMotion) => void;
 }) {
+  const { t } = useTranslation("effects");
   const resolved = resolvedAvatarEffectMotion(motion);
   const patch = <K extends "pulse" | "spin" | "drift">(
     preset: K,
@@ -52,8 +57,8 @@ export function AvatarEffectAnimationControls({
   return (
     <>
       <Toggle
-        label="Pulse"
-        description="Grow and shrink in a loop."
+        label={t("avatar.motion.pulse")}
+        description={t("avatar.motion.pulseHint")}
         checked={resolved.pulse.enabled}
         onChecked={(enabled) =>
           onChange(toggleAvatarEffectMotion(motion, "pulse", enabled))
@@ -62,7 +67,7 @@ export function AvatarEffectAnimationControls({
       {resolved.pulse.enabled && (
         <div className="grid grid-cols-2 gap-3">
           <NumberField
-            label="Smallest size (×)"
+            label={t("avatar.motion.smallest")}
             value={resolved.pulse.scaleMin}
             min={0.01}
             step={0.05}
@@ -77,7 +82,7 @@ export function AvatarEffectAnimationControls({
             }
           />
           <NumberField
-            label="Largest size (×)"
+            label={t("avatar.motion.largest")}
             value={resolved.pulse.scaleMax}
             min={resolved.pulse.scaleMin}
             max={20}
@@ -93,7 +98,7 @@ export function AvatarEffectAnimationControls({
             }
           />
           <NumberField
-            label="Pulses per second"
+            label={t("avatar.motion.pulsesPerSecond")}
             value={resolved.pulse.cyclesPerSecond}
             min={0}
             max={30}
@@ -108,8 +113,8 @@ export function AvatarEffectAnimationControls({
         </div>
       )}
       <Toggle
-        label="Spin"
-        description="Turn continuously, or rock back and forth."
+        label={t("avatar.motion.spin")}
+        description={t("avatar.motion.spinHint")}
         checked={resolved.spin.enabled}
         onChecked={(enabled) =>
           onChange(toggleAvatarEffectMotion(motion, "spin", enabled))
@@ -119,7 +124,7 @@ export function AvatarEffectAnimationControls({
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <NumberField
-              label="Speed (°/s)"
+              label={t("avatar.motion.spinSpeed")}
               value={resolved.spin.degreesPerSecond}
               min={0}
               max={36000}
@@ -132,7 +137,7 @@ export function AvatarEffectAnimationControls({
               }
             />
             <NumberField
-              label="Range (turns)"
+              label={t("avatar.motion.spinRange")}
               value={resolved.spin.amountTurns}
               min={0}
               max={1}
@@ -143,7 +148,7 @@ export function AvatarEffectAnimationControls({
               }
             />
           </div>
-          <Field label="Direction">
+          <Field label={t("avatar.motion.direction")}>
             <Select
               value={resolved.spin.direction}
               onValueChange={(value) =>
@@ -155,27 +160,28 @@ export function AvatarEffectAnimationControls({
               <SelectTrigger
                 size="sm"
                 className="w-full text-xs"
-                aria-label="Spin direction"
+                aria-label={t("avatar.motion.spinDirection")}
               >
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="clockwise">Clockwise</SelectItem>
+                <SelectItem value="clockwise">
+                  {t("avatar.motion.clockwise")}
+                </SelectItem>
                 <SelectItem value="counterclockwise">
-                  Counterclockwise
+                  {t("avatar.motion.counterclockwise")}
                 </SelectItem>
               </SelectContent>
             </Select>
           </Field>
           <p className="text-muted-foreground text-xs">
-            Below one turn, the art rocks back and forth. One turn spins
-            continuously.
+            {t("avatar.motion.spinRangeHint")}
           </p>
         </div>
       )}
       <Toggle
-        label="Drift"
-        description="Keep moving in one direction."
+        label={t("avatar.motion.drift")}
+        description={t("avatar.motion.driftHint")}
         checked={resolved.drift.enabled}
         onChecked={(enabled) =>
           onChange(toggleAvatarEffectMotion(motion, "drift", enabled))
@@ -185,7 +191,7 @@ export function AvatarEffectAnimationControls({
         <div className="space-y-3">
           <div className="grid grid-cols-2 gap-3">
             <NumberField
-              label="Sideways (art widths/s)"
+              label={t("avatar.motion.driftX")}
               value={resolved.drift.x}
               min={-10}
               max={10}
@@ -194,7 +200,7 @@ export function AvatarEffectAnimationControls({
               onChange={(value) => patch("drift", { x: value })}
             />
             <NumberField
-              label="Up/down (art heights/s)"
+              label={t("avatar.motion.driftY")}
               value={resolved.drift.y}
               min={-10}
               max={10}
@@ -231,11 +237,12 @@ function AvatarEffectKeyframeList({
   invalid: boolean;
   onChange: (motion: AvatarEffectMotion) => void;
 }) {
+  const { t } = useTranslation("effects");
   const frames = motion.keyframes?.frames ?? [];
   const orderError = avatarEffectKeyframeOrderError(motion);
   return (
     <section
-      aria-label="Keyframes"
+      aria-label={t("avatar.keyframes.title")}
       className={cn(
         "space-y-2 border-t pt-3",
         invalid && "ring-destructive/40 rounded-lg p-2 ring-1",
@@ -243,10 +250,9 @@ function AvatarEffectKeyframeList({
     >
       <div className="flex items-center justify-between gap-2">
         <div>
-          <h3 className="text-xs font-medium">Keyframes</h3>
+          <h3 className="text-xs font-medium">{t("avatar.keyframes.title")}</h3>
           <p className="text-muted-foreground text-xs">
-            Change size, turn, position or opacity over time. Leave a value
-            empty to blend from the neighbours.
+            {t("avatar.keyframes.help")}
           </p>
         </div>
         <Button
@@ -256,13 +262,13 @@ function AvatarEffectKeyframeList({
           disabled={frames.length >= MAX_AVATAR_EFFECT_KEYFRAMES}
           onClick={() => onChange(addAvatarEffectKeyframe(motion))}
         >
-          <PlusIcon /> Add
+          <PlusIcon /> {t("avatar.keyframes.add")}
         </Button>
       </div>
       {frames.length ? (
         <>
           <Toggle
-            label="Repeat the keyframes"
+            label={t("avatar.keyframes.repeat")}
             checked={Boolean(motion.keyframes?.loop)}
             onChecked={(loop) =>
               onChange({
@@ -287,7 +293,10 @@ function AvatarEffectKeyframeList({
           </ol>
           {orderError >= 0 ? (
             <p className="text-destructive text-xs" role="alert">
-              Keyframe {orderError + 1} must come after keyframe {orderError}.
+              {t("avatar.keyframes.order", {
+                index: orderError + 1,
+                previous: orderError,
+              })}
             </p>
           ) : null}
         </>
@@ -309,7 +318,9 @@ function KeyframeRow({
   outOfOrder: boolean;
   onChange: (frame: AvatarEffectKeyframe | null) => void;
 }) {
-  const label = `Keyframe ${index + 1}`;
+  const { t } = useTranslation("effects");
+  const label = t("avatar.keyframes.label", { index: index + 1 });
+  const unit = placementUnitLabel(t, offsetUnit);
   const setOffset = (axis: "x" | "y", value: number | null) => {
     const offset = { x: frame.offset?.x ?? 0, y: frame.offset?.y ?? 0 };
     if (value === null && (frame.offset?.[axis === "x" ? "y" : "x"] ?? 0) === 0)
@@ -330,7 +341,7 @@ function KeyframeRow({
           type="button"
           size="icon-sm"
           variant="ghost"
-          aria-label={`Remove ${label.toLowerCase()}`}
+          aria-label={t("avatar.keyframes.remove", { index: index + 1 })}
           onClick={() => onChange(null)}
         >
           <Trash2Icon />
@@ -338,7 +349,7 @@ function KeyframeRow({
       </div>
       <div className="grid grid-cols-3 gap-2">
         <OptionalNumber
-          label="Time (s)"
+          label={t("avatar.keyframes.time")}
           value={frame.t}
           required
           min={0}
@@ -347,7 +358,7 @@ function KeyframeRow({
           onChange={(value) => onChange({ ...frame, t: value ?? 0 })}
         />
         <OptionalNumber
-          label="Opacity (%)"
+          label={t("avatar.keyframes.opacity")}
           value={frame.opacity == null ? null : frame.opacity * 100}
           min={0}
           max={100}
@@ -361,7 +372,7 @@ function KeyframeRow({
           }
         />
         <OptionalNumber
-          label="Size (×)"
+          label={t("avatar.keyframes.scale")}
           value={frame.scale ?? null}
           min={0.01}
           max={20}
@@ -375,7 +386,7 @@ function KeyframeRow({
           }
         />
         <OptionalNumber
-          label="Turn (°)"
+          label={t("avatar.keyframes.turn")}
           value={frame.rotationDeg ?? null}
           min={-3600}
           max={3600}
@@ -383,7 +394,7 @@ function KeyframeRow({
           onChange={(value) => onChange({ ...frame, rotationDeg: value })}
         />
         <OptionalNumber
-          label={`Move X (${offsetUnit.label})`}
+          label={t("avatar.keyframes.moveX", { unit })}
           value={
             frame.offset ? (frame.offset.x ?? 0) * offsetUnit.factor : null
           }
@@ -393,7 +404,7 @@ function KeyframeRow({
           }
         />
         <OptionalNumber
-          label={`Move Y (${offsetUnit.label})`}
+          label={t("avatar.keyframes.moveY", { unit })}
           value={
             frame.offset ? (frame.offset.y ?? 0) * offsetUnit.factor : null
           }

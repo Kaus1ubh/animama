@@ -1,0 +1,158 @@
+{
+  "actions": {
+    "cancel": "취소",
+    "tryAgain": "다시 시도"
+  },
+  "avatar": {
+    "noRuntimeFile": "선택한 아바타 모델에 런타임 파일이 없습니다.",
+    "notAuthorized": "선택한 아바타 모델에 대한 접근을 승인받지 못했습니다.",
+    "renderFailed": "선택한 아바타를 표시할 수 없습니다."
+  },
+  "canvas": {
+    "controls": "미리 보기 컨트롤",
+    "guides": "가이드",
+    "restart": "미리 보기 처음부터 재생",
+    "select": "미리 보기 {{label}}",
+    "showGuides": "배치 가이드 표시"
+  },
+  "handoff": {
+    "gesture": "제스처에 사용",
+    "reaction": "리액션에 사용",
+    "useIn": "다음에 사용…"
+  },
+  "import": {
+    "ariaLabel": "크리에이터 JSON",
+    "confirm": "문서 가져오기"
+  },
+  "leave": {
+    "busy": {
+      "confirm": "복구 데이터를 유지하고 나가기",
+      "description": "이 {{label}}은(는) 아직 저장 중입니다. 돌아오면 로컬 복구 데이터를 사용할 수 있습니다.",
+      "title": "저장 중에 나가시겠습니까?"
+    },
+    "dirty": {
+      "confirm": "삭제하고 계속",
+      "description": "이 {{label}}에 로컬에서 편집한 변경 사항이 있습니다. 삭제하면 이 변경 사항과 브라우저 복구 초안이 제거됩니다. 저장된 콘텐츠는 변경되지 않습니다.",
+      "title": "편집 중인 변경 사항을 삭제하시겠습니까?"
+    },
+    "discardFailed": "초안을 삭제할 수 없습니다.",
+    "discarding": "삭제하는 중…",
+    "stay": "머무르기"
+  },
+  "load": {
+    "button": "불러오기",
+    "description": "편집할 수 있는 로컬 콘텐츠를 엽니다.",
+    "editable": "편집 가능한 로컬 콘텐츠",
+    "empty": "아직 편집할 수 있는 효과가 없습니다.",
+    "loadFailed": "효과를 불러올 수 없습니다.",
+    "loading": "불러오는 중…",
+    "noMatches": "일치하는 효과가 없습니다.",
+    "openFailed": "이 효과를 열 수 없습니다. 다시 시도하세요.",
+    "opening": "여는 중…",
+    "searchLabel": "{{type}} 검색",
+    "searchPlaceholder": "효과 검색",
+    "title": "{{type}} 불러오기",
+    "types": {
+      "avatarEffect": "아바타 효과",
+      "particleEffect": "파티클 효과",
+      "sceneEffect": "장면 효과"
+    }
+  },
+  "modelPreview": {
+    "animaModel": "{{name}} (Anima)",
+    "animasFailed": "Anima를 불러올 수 없습니다.",
+    "includedFailed": "선택한 기본 제공 아바타를 준비할 수 없습니다.",
+    "includedListFailed": "기본 제공 아바타를 불러올 수 없습니다.",
+    "noAnima": "아바타에서 이 효과를 미리 보려면 먼저 Anima를 만드세요.",
+    "noAvatar": "선택한 Anima에 사용할 수 있는 아바타가 없습니다.",
+    "releaseUnavailable": "선택한 아바타 릴리스를 더 이상 사용할 수 없습니다.",
+    "runtimeFailed": "미리 보기 Anima의 런타임을 불러올 수 없습니다.",
+    "unnamedAnimaModel": "내 Anima"
+  },
+  "panel": {
+    "authoringTools": "편집 도구",
+    "collapse": "{{label}} 접기",
+    "expand": "{{label}} 펼치기",
+    "inspector": "인스펙터",
+    "preview": "미리 보기",
+    "setup": "구성"
+  },
+  "preview": {
+    "duration": "길이",
+    "durationSeconds": "{{label}}(초)",
+    "playing": "재생 중",
+    "secondsUnit": "초",
+    "stopped": "정지됨",
+    "target": "미리 보기",
+    "title": "미리 보기",
+    "untilStopped": "정지할 때까지"
+  },
+  "recovery": {
+    "discard": "복구 데이터 삭제",
+    "discardServerDraft": "보존된 서버 초안 삭제",
+    "recovered": "저장되지 않은 {{label}} 변경 사항을 복구했습니다.",
+    "recoveredDraft": "로컬 초안을 복구했습니다"
+  },
+  "save": {
+    "retry": "저장 다시 시도",
+    "save": "저장",
+    "stages": {
+      "hashing": "해시 계산 중",
+      "preparing": "준비 중",
+      "uploading": "업로드 중",
+      "validating": "검증 중"
+    }
+  },
+  "status": {
+    "saved": "저장됨",
+    "saveFailed": "저장 실패",
+    "unsaved": "저장 안 됨"
+  },
+  "templateDraft": {
+    "continue": "초안 계속하기",
+    "description": "{{template}}에서 시작한 저장되지 않은 {{label}}이(가) 있습니다. 계속하거나, 삭제하고 템플릿에서 다시 시작하세요. 저장된 콘텐츠는 변경되지 않습니다.",
+    "openFailed": "템플릿을 열 수 없습니다.",
+    "seedFailed": "템플릿을 열 수 없습니다: {{reason}}",
+    "title": "저장되지 않은 초안을 계속하시겠습니까?",
+    "useTemplate": "삭제하고 템플릿 사용"
+  },
+  "timeline": {
+    "defaultTarget": "클립 미리 보기",
+    "loadingResources": "미리 보기 리소스를 불러오는 중",
+    "pause": "일시 정지",
+    "pauseTarget": "{{target}} 일시 정지",
+    "play": "재생",
+    "playhead": "현재 재생 위치",
+    "playTarget": "{{target}} 재생",
+    "restart": "처음부터 재생",
+    "restartTarget": "{{target}} 처음부터 재생",
+    "stop": "정지",
+    "stopTarget": "{{target}} 정지"
+  },
+  "toolbar": {
+    "documentName": "{{type}} 이름",
+    "import": "가져오기",
+    "library": "라이브러리",
+    "moreActions": "더 많은 작업",
+    "name": "이름",
+    "new": "새로 만들기",
+    "newDocument": "새 {{type}}",
+    "redo": "다시 실행",
+    "redoShortcut": "다시 실행 · {{shortcut}}",
+    "statusDetail": "{{label}}: {{detail}}",
+    "undo": "실행 취소",
+    "undoShortcut": "실행 취소 · {{shortcut}}",
+    "viewJson": "JSON 보기"
+  },
+  "unavailable": {
+    "goToCreate": "만들기로 이동",
+    "notFound": "이 {{label}}을(를) 찾을 수 없습니다. 삭제되었거나 링크가 오래되었을 수 있습니다.",
+    "openLibrary": "라이브러리 열기",
+    "title": "이 {{label}}을(를) 열 수 없습니다",
+    "unavailable": "이 {{label}}을(를) 사용할 수 없습니다. 라이브러리에서 확인하세요."
+  },
+  "validation": {
+    "count_other": "검증 문제 {{count}}개",
+    "title": "검증 문제"
+  }
+}

@@ -1,0 +1,536 @@
+{
+  "components": {
+    "avatarEffects": "形象特效",
+    "particleEffects": "粒子特效",
+    "sceneEffects": "場景特效",
+    "soundEffects": "音效"
+  },
+  "drag": {
+    "cancelled": "已取消拖曳。",
+    "finished": "拖曳已完成。",
+    "handle": "將 {{name}} 拖曳到時間軸",
+    "started": "正在拖曳目錄項目。將其放到時間軸上，或按 Esc 鍵取消。"
+  },
+  "effects": {
+    "addAtPlayhead": "將 {{name}} 加到目前播放頭位置",
+    "addAtPlayheadTitle": "加到目前播放頭位置",
+    "added": "已加入",
+    "addedTimes": "已加入 ×{{times}}",
+    "addToTimeline": "將 {{name}} 加到時間軸",
+    "contentUnavailable": "內容無法使用",
+    "differentSearch": "請試試其他搜尋字詞。",
+    "empty": "找不到特效",
+    "loadingMore": "正在載入更多…",
+    "mine": "我的",
+    "play": "播放 {{name}}",
+    "poses": {
+      "create": "建立姿勢",
+      "createHint": "建立並儲存姿勢後，即可將其作為動作的關鍵影格重複使用。",
+      "createHintOrIncluded": "建立並儲存姿勢後，即可將其作為動作的關鍵影格重複使用；也可以顯示內建姿勢。",
+      "differentSearchOrIncluded": "請試試其他搜尋字詞，或顯示內建姿勢。",
+      "edit": "編輯",
+      "editNamed": "編輯 {{name}}",
+      "included": "內建",
+      "insert": "插入到播放頭位置",
+      "insertNamed": "將 {{name}} 插入到目前播放頭位置",
+      "loadFailed": "無法載入姿勢。",
+      "loading": "正在載入姿勢…",
+      "local": "本機",
+      "noMatches": "找不到姿勢",
+      "none": "還沒有已儲存的姿勢",
+      "search": "搜尋姿勢",
+      "showIncluded": "顯示內建",
+      "tab": "姿勢"
+    },
+    "showTimelineEvents": "顯示時間軸事件",
+    "stop": "停止 {{name}}",
+    "summary": {
+      "added_other": "已加入 {{count}} 個",
+      "effects_other": "{{count}} 個特效",
+      "poses_other": "{{count}} 個姿勢",
+      "posesAndEffects": "{{poses}} · {{effects}}"
+    },
+    "title": "特效",
+    "titleWithPoses": "姿勢與特效",
+    "tryAgain": "重試",
+    "types": {
+      "avatar": {
+        "empty": "沒有可用的形象特效。",
+        "loadFailed": "無法載入形象特效",
+        "loading": "正在載入形象特效…",
+        "search": "搜尋形象特效",
+        "showMore": "顯示更多形象特效",
+        "tab": "形象"
+      },
+      "particle": {
+        "empty": "沒有可用的粒子特效。",
+        "loadFailed": "無法載入粒子特效",
+        "loading": "正在載入粒子特效…",
+        "search": "搜尋粒子特效",
+        "showMore": "顯示更多粒子特效",
+        "tab": "粒子"
+      },
+      "scene": {
+        "empty": "沒有可用的場景特效。",
+        "loadFailed": "無法載入場景特效",
+        "loading": "正在載入場景特效…",
+        "search": "搜尋場景特效",
+        "showMore": "顯示更多場景特效",
+        "tab": "場景"
+      },
+      "sound": {
+        "empty": "沒有可用的音效。",
+        "loadFailed": "無法載入音效",
+        "loading": "正在載入音效…",
+        "search": "搜尋音效",
+        "showMore": "顯示更多音效",
+        "tab": "音效"
+      }
+    }
+  },
+  "events": {
+    "beats": {
+      "base": "基礎",
+      "expression": "表情"
+    },
+    "delete": "刪除時間軸項目",
+    "deleteAt": "刪除 {{time}} 處的 {{label}}",
+    "label": "時間軸事件",
+    "title": "時間軸"
+  },
+  "gate": {
+    "backToLibrary": "返回資源庫",
+    "loading": "正在載入…",
+    "preview": "預覽",
+    "previewFailed": "無法預覽此項目。",
+    "previewOnly": "僅供預覽"
+  },
+  "header": {
+    "aiDescription": {
+      "guidance": "AI 選擇指引",
+      "label": "AI 選擇說明",
+      "placeholder": "動作說明",
+      "short": "AI 說明",
+      "tooltip": "供 AI 判斷聊天時<strong>何時</strong>使用此動作的說明。"
+    },
+    "confirmNew": "要捨棄此草稿並重新開始嗎？",
+    "import": "匯入",
+    "intent": {
+      "gesture": "動作",
+      "reaction": "反應"
+    },
+    "modes": {
+      "clip": "片段",
+      "pose": "姿勢"
+    },
+    "moreActions": "更多創作者操作",
+    "name": "名稱",
+    "nameLabel": {
+      "gesture": "動作名稱",
+      "reaction": "反應名稱"
+    },
+    "namePlaceholder": {
+      "gesture": "新動作",
+      "reaction": "新反應"
+    },
+    "new": "新增",
+    "redo": "重做",
+    "redoShortcut": "重做 · {{shortcut}}",
+    "save": {
+      "button": "儲存",
+      "label": "儲存內容"
+    },
+    "saveAndEquip": {
+      "button": "儲存並裝備",
+      "label": "儲存並裝備內容"
+    },
+    "saveFailed": "儲存失敗：{{error}}",
+    "status": {
+      "preparing": "正在準備",
+      "saved": "已儲存",
+      "saving": "正在儲存",
+      "unsaved": "未儲存",
+      "updatingAnimas": "正在更新 Anima",
+      "uploading": "正在上傳"
+    },
+    "undo": "復原",
+    "undoShortcut": "復原 · {{shortcut}}",
+    "viewJson": "檢視 JSON"
+  },
+  "history": {
+    "eitherShortcut": "{{shortcuts, list(type: disjunction)}}"
+  },
+  "idleStyle": {
+    "add": {
+      "choose": "選擇動作",
+      "label": "加入現有動作",
+      "optionClip": "{{name}} · 片段",
+      "optionVrma": "{{name}} · VRMA",
+      "search": "搜尋動作",
+      "submit": "加入池"
+    },
+    "cells": {
+      "caption": "依強度劃分的情緒池",
+      "cellLabel": "{{emotion}} 強度 {{intensity}}：{{state}}",
+      "default": "預設",
+      "defaultHint": "未設定的儲存格會使用預設值。預設池為空時不會安排待機動作，但程式化的呼吸和休息動作會繼續。",
+      "defaultNeutral": "預設 · 中性",
+      "emotion": "情緒",
+      "gestures_other": "{{count}} 個動作",
+      "label": "待機風格儲存格",
+      "noIdle": "無待機",
+      "selected": "{{emotion}} · 強度 {{intensity}}",
+      "useDefault": "使用預設"
+    },
+    "checkPools": "請檢查動作池。",
+    "copyNotice": "儲存後會建立一個獨立的本機風格，原風格保持不變。",
+    "createHub": "創作中心",
+    "description": "描述",
+    "gestures": {
+      "loadFailed": "無法載入動作。",
+      "loading": "正在載入動作…"
+    },
+    "gestureUnavailable": "此動作無法使用。請重新整理資源庫並檢查該風格。",
+    "intro": "選擇用於安靜時刻的現有動作。其動畫、聲音和特效會保持不變。在此加入並不會將其裝備給 AI 呼叫。",
+    "loadFailed": "無法載入待機風格。你現有的內容未受影響。",
+    "loading": "正在載入待機風格…",
+    "name": "名稱",
+    "playback": {
+      "checkFailed": "無法檢查播放。",
+      "checking": "正在檢查有限播放…",
+      "finite": "有限播放。創作的聲音和特效會保留。",
+      "finiteFor": "有限播放 · {{seconds}} 秒。創作的聲音和特效會保留。",
+      "retryCheck": "重新檢查"
+    },
+    "pool": {
+      "behavior": "行為方式",
+      "choose": "選擇動作",
+      "empty": "此池中沒有動作。",
+      "inherits": "此儲存格沿用預設池。",
+      "label": "{{cell}} 池",
+      "none": "此情緒和強度下沒有安排待機動作。",
+      "previewMember": "預覽 {{name}}",
+      "previewSaved": "預覽已儲存的池",
+      "removeMember": "移除 {{name}}"
+    },
+    "previewFailed": "預覽失敗。",
+    "previewing": "正在預覽 {{name}}",
+    "retry": "重試",
+    "save": "儲存待機風格",
+    "saveCopy": "儲存本機副本",
+    "saved": "已儲存待機風格。",
+    "savedCopy": "已儲存待機風格的本機副本。若要使用，請在 Anima 的裝備中選擇它。",
+    "saving": "正在儲存…",
+    "sharedNotice": "編輯此共用風格會在下次執行階段重新整理時影響所有使用它的 Anima。如需另外的變化版本，請在裝備中複製它。",
+    "studio": "Creator Studio",
+    "title": {
+      "copy": "複製待機風格",
+      "edit": "編輯待機風格",
+      "new": "新增待機風格"
+    }
+  },
+  "importDialog": {
+    "chooseFile": "選擇 JSON 檔案",
+    "clipImported": "已匯入 Anima 姿勢片段。",
+    "clipImportedDetail": "已匯入 Anima 姿勢片段。請在下方對應任何未解析的特效或聲音。",
+    "description": "直接開啟 animaPoseClip/2.0 檔案，或還原已精確固定相依項目的 Animama 型別化專案。",
+    "failed": "無法匯入此 JSON。",
+    "importPasted": "匯入貼上的 JSON",
+    "pasteLabel": "創作者 JSON 匯入",
+    "projectImported": "已匯入型別化專案。",
+    "projectImportedDetail": "已匯入精確固定相依項目的型別化專案。",
+    "reactionHumanoid": "反應無法匯入人形姿勢或骨骼軌道。",
+    "repair": {
+      "choose": "選擇確切內容",
+      "description": "將每個片段別名對應到確切的內容項目，或移除其事件。",
+      "map": "對應 {{alias}}",
+      "remove": "移除事件",
+      "search": "搜尋特效和聲音",
+      "title": "修復參照的元件"
+    },
+    "title": "匯入",
+    "vrma": {
+      "description": "尚未完整支援或測試。匯入後，此動作會從時間軸創作切換為 VRMA。",
+      "label": "VRMA 動畫（實驗性）"
+    }
+  },
+  "jsonDialog": {
+    "clip": "片段 JSON",
+    "clipCopied": "已複製片段 JSON。",
+    "copy": "複製",
+    "description": "片段 JSON 是可攜式的 animaPoseClip/2.0。型別化專案 JSON 還會保留特效和聲音的確切參照。",
+    "download": "下載",
+    "format": "JSON 格式",
+    "preview": "創作者 JSON 預覽",
+    "project": "型別化專案 JSON",
+    "projectCopied": "已複製專案 JSON。",
+    "title": "創作者 JSON",
+    "unavailable": "此實作沒有 Anima 姿勢片段 JSON。"
+  },
+  "load": {
+    "button": "載入",
+    "confirmCustomize": {
+      "gesture": "要捨棄目前的變更，並將「{{name}}」自訂為新動作嗎？",
+      "reaction": "要捨棄目前的變更，並將「{{name}}」自訂為新反應嗎？"
+    },
+    "confirmLoad": "要捨棄目前的變更並載入「{{name}}」嗎？",
+    "description": "開啟你的內容，或自訂無法變更的內建片段。",
+    "loading": "正在載入…",
+    "mine": {
+      "detail": "可編輯的本機內容",
+      "empty": {
+        "gesture": "還沒有就緒的動作。",
+        "reaction": "還沒有就緒的反應。"
+      },
+      "label": "我的",
+      "more": "載入更多我的內容"
+    },
+    "starter": {
+      "detail": "內建 · 自訂為新內容",
+      "empty": "沒有可自訂的內建 Anima 姿勢片段。",
+      "label": "內建",
+      "more": "載入更多內建片段"
+    },
+    "title": {
+      "gesture": "載入動作",
+      "reaction": "載入反應"
+    }
+  },
+  "loader": {
+    "downloadFailed": "無法下載此行為。",
+    "noSequence": "此行為沒有可讀取的序列。",
+    "starterUnavailable": "此內建 Anima 姿勢片段無法使用。"
+  },
+  "page": {
+    "catalogUnavailable": "無法載入此特效目錄。",
+    "leave": {
+      "busyDescription": "現在離開會暫停進行中的操作。返回時仍可使用型別化復原文件。",
+      "busyTitle": "要在儲存內容時離開嗎？",
+      "dirtyDescription": "此動作或反應有本機創作變更。離開後，這些變更將從目前的工作區中捨棄。",
+      "dirtyTitle": "要捨棄創作變更嗎？",
+      "discard": "捨棄並繼續",
+      "leaveKeep": "離開並保留復原資料",
+      "stay": "留下"
+    },
+    "load": {
+      "failed": "無法重新開啟此內容。",
+      "incompletePreview": "已儲存行為的預覽不完整。",
+      "noSource": "此已儲存行為沒有目錄來源。",
+      "starterOnly": "只能自訂內建 Anima 姿勢片段。",
+      "unavailable": "此已儲存行為無法使用。"
+    },
+    "recovery": {
+      "discardFailed": "無法捨棄瀏覽器復原資料。請重試。",
+      "restoreFailed": "無法還原瀏覽器復原資料。"
+    },
+    "save": {
+      "chooseVrma": "儲存前請選擇一個 VRMA 檔案。",
+      "incomplete": {
+        "gesture": "請填寫動作的必填資訊。",
+        "reaction": "請填寫反應的必填資訊。"
+      },
+      "saved": {
+        "gesture": "已儲存動作。",
+        "reaction": "已儲存反應。"
+      },
+      "savedDescription": "可讀取的本機檔案已更新。進行中的聊天會繼續使用已載入的資料，直到重新開啟。"
+    }
+  },
+  "persistence": {
+    "invalidTimeline": "時間軸包含無效的關鍵影格或事件。儲存前請修正醒目提示的時間軸問題。"
+  },
+  "preview": {
+    "anima": {
+      "animasUnavailable": "無法為此預覽載入你的 Anima。",
+      "catalogUnavailable": "無法載入所選 Anima 的預覽目錄。",
+      "catalogUnavailableNamed": "無法載入 {{name}} 的預覽目錄。",
+      "required": "預覽此內容前，請先建立一個 Anima。"
+    },
+    "close": "關閉預覽",
+    "closed": "內容預覽已關閉。",
+    "createAnima": "建立 Anima",
+    "dependencies": {
+      "hint": "片段動作會在缺少這些事件的情況下繼續播放。請重試預覽；如果問題持續，發行版本可能參照了無法使用的資源。",
+      "item": "{{label}}：",
+      "kinds": {
+        "avatarEffect": "形象 VFX",
+        "backgroundSceneEffect": "背景場景 VFX",
+        "focusSceneEffect": "集中線場景 VFX",
+        "particleEffect": "粒子 VFX",
+        "sound": "音效"
+      },
+      "label": "內容預覽相依項目警告",
+      "missing": "部分包含的資源無法載入。",
+      "missingFor": "無法為 {{name}} 載入部分包含的資源。"
+    },
+    "errors": {
+      "animationUnavailable": "所選動畫無法使用。",
+      "avatarEffectFailed": "所選形象特效無法播放。",
+      "avatarEffectUnavailable": "所選形象特效無法使用。",
+      "avatarNoFile": "預覽虛擬形象模型沒有執行階段檔案。",
+      "avatarUnauthorized": "無法授權預覽虛擬形象。",
+      "fileUnauthorized": "私人預覽檔案未獲授權。",
+      "idleAnimationUnavailable": "所選待機動畫無法使用。",
+      "idlePlaybackUnavailable": "此動作無法進行有限待機播放。請重新整理風格後再試一次。",
+      "invalidClosure": "行為預覽傳回了無效的相依集合。",
+      "particleFailed": "所選粒子特效無法播放。",
+      "particlesUnsupported": "預覽虛擬形象無法播放粒子。",
+      "particleUnavailable": "所選粒子特效無法使用。",
+      "playFailed": "無法預覽所選內容。",
+      "poseClipUnavailable": "所選姿勢片段無法使用。",
+      "prepareFailed": "無法為預覽準備所選內容。",
+      "reactionUnavailable": "所選反應無法使用。",
+      "sceneEffectUnavailable": "所選場景特效無法使用。",
+      "soundLoadFailed": "無法載入聲音預覽。",
+      "unsupportedComponent": "不支援的預覽元件 {{type}}。"
+    },
+    "expand": "展開預覽",
+    "loading": "正在載入預覽…",
+    "loadingAvatar": "正在載入虛擬形象…",
+    "loadingResources": "正在載入包含的資源…",
+    "loop": {
+      "button": "循環",
+      "label": "循環預覽"
+    },
+    "minimize": "最小化預覽",
+    "moveAvatar": {
+      "button": "移動",
+      "label": "移動預覽虛擬形象",
+      "title": "移動虛擬形象"
+    },
+    "movePanel": "移動內容預覽",
+    "openLoadout": "開啟 Anima 裝備",
+    "openLoadoutNamed": "開啟 {{name}} 的裝備",
+    "preparingPlayback": "正在準備播放…",
+    "replay": "重新播放",
+    "resetCamera": {
+      "button": "重設",
+      "label": "重設預覽鏡頭",
+      "title": "重設鏡頭"
+    },
+    "restore": "還原預覽",
+    "restoreDock": "還原停靠大小",
+    "retry": "重試",
+    "retryPreview": "重試預覽",
+    "status": {
+      "idle": "預覽",
+      "loading": "正在載入預覽",
+      "playing": "正在播放",
+      "ready": "就緒",
+      "unavailable": "預覽無法使用"
+    },
+    "statusAnnouncement": "{{name}} 預覽：{{status}}。",
+    "stop": "停止",
+    "title": "內容預覽",
+    "unavailableSentence": "預覽無法使用。",
+    "versions": {
+      "exactSaved": "已儲存內容原樣",
+      "idleStyleGesture": "已儲存待機風格動作原樣",
+      "localPose": "本機姿勢",
+      "starterPose": "內建姿勢"
+    }
+  },
+  "project": {
+    "errors": {
+      "aliasRepeats": "相依項目別名「{{alias}}」重複。",
+      "aliasRequired": "相依項目別名為必填。",
+      "aliasTypeConflict": "別名「{{alias}}」被多種元件類型使用。",
+      "dependenciesNotArray": "相依項目必須是陣列。",
+      "dependencyInvalid": "相依項目宣告無效。",
+      "intensity": "反應的建議強度必須是 1、2 或 3。",
+      "nameRequired": "專案名稱為必填。",
+      "notObject": "JSON 必須包含一個物件。",
+      "sourceInvalid": "相依項目來源無效。",
+      "sourceUnavailable": "相依項目來源必須選擇可用的目錄內容。",
+      "unsupportedType": "相依項目「{{alias}}」的類型不受支援。",
+      "vrmaProject": "VRMA 動作沒有 Anima 姿勢片段專案 JSON。",
+      "wrongEditor": {
+        "gesture": "此專案包含 {{found}}，無法在動作編輯器中開啟。",
+        "reaction": "此專案包含 {{found}}，無法在反應編輯器中開啟。"
+      }
+    }
+  },
+  "reactionSettings": {
+    "emotion": "情緒",
+    "hint": "選填。裝備時再選擇實際的情緒欄位。",
+    "intensity": "強度",
+    "none": "無",
+    "suggestedEmotion": "建議情緒",
+    "suggestedIntensity": "建議強度",
+    "title": "情緒建議"
+  },
+  "savedPose": {
+    "avatarChanged": "虛擬形象已變更或無法使用。請等待載入完成後再次插入姿勢。",
+    "avatarRequiredToEdit": "編輯姿勢前，請先載入虛擬形象模型。",
+    "avatarRequiredToInsert": "插入姿勢前，請先載入虛擬形象模型。",
+    "inserted": "已將姿勢複製到片段中。",
+    "insertFailed": "無法插入此姿勢。片段未變更。",
+    "insertInvalid": "此姿勢或片段中已有的姿勢無效或無法使用。請重新載入相關內容後再試一次。片段未變更。",
+    "loadFailed": "無法載入此姿勢。你的草稿已保留。"
+  },
+  "scene": {
+    "loading": "正在載入虛擬形象…",
+    "retry": "重試",
+    "selectAvatar": "請選擇一個預覽虛擬形象",
+    "unavailable": "虛擬形象預覽無法使用"
+  },
+  "time": {
+    "seconds": "{{value}}秒"
+  },
+  "timeline": {
+    "expressionLane": "表情",
+    "poseLane": "姿勢"
+  },
+  "validation": {
+    "aiDescriptionRequired": "請說明 AI 應在何時選擇此動作。",
+    "missing": {
+      "avatarEffects": "缺少形象 VFX：{{ids, list(style: narrow)}}",
+      "particleEffects": "缺少粒子 VFX：{{ids, list(style: narrow)}}",
+      "poses": "缺少姿勢：{{ids, list(style: narrow)}}",
+      "sceneEffects": "缺少場景 VFX：{{ids, list(style: narrow)}}",
+      "sounds": "缺少音效：{{ids, list(style: narrow)}}"
+    },
+    "nameRequired": "名稱為必填。",
+    "reactionHumanoid": "反應不能包含人形姿勢或骨骼軌道。",
+    "reactionTimelinesOnly": "反應使用表情、特效和聲音時間軸。",
+    "selectorRequired": "選擇器 ID 為必填。",
+    "unknownEvent": "請對應或移除未知的事件 ID「{{alias}}」。"
+  },
+  "workspace": {
+    "capture": {
+      "failed": "無法擷取目前的片段姿勢。",
+      "posesUnavailable": "部分片段姿勢無法使用。"
+    },
+    "expressions": {
+      "addKeyframe": "+ 表情",
+      "addKeyframeTitle": "在播放頭位置加入表情關鍵影格",
+      "interpolatedAt": "{{time}} 處的內插值",
+      "keyframeAt": "{{time}} 處的關鍵影格"
+    },
+    "hands": {
+      "hide": "隱藏手部創作",
+      "show": "顯示手部創作",
+      "title": "手部創作"
+    },
+    "panels": {
+      "bones": "骨骼",
+      "bonesSummary": "姿勢控制",
+      "expressions": "表情",
+      "expressionsSummary": "虛擬形象混合形狀"
+    },
+    "tools": {
+      "bones": "骨骼",
+      "effects": "特效",
+      "expressions": "表情",
+      "inspector": "檢查器",
+      "label": "創作工具",
+      "preview": "預覽",
+      "settings": "設定",
+      "timeline": "時間軸"
+    },
+    "vrma": {
+      "description": "VRMA 動作使用沉浸式虛擬形象預覽，但不提供姿勢、片段或元件創作。",
+      "label": "VRMA 動畫"
+    }
+  }
+}

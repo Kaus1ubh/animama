@@ -1,0 +1,758 @@
+{
+  "avatar": {
+    "attachments": {
+      "body": {
+        "description": "跟隨胸口或手等身體部位。",
+        "label": "附在身上"
+      },
+      "face_landmark": {
+        "description": "浮在眼睛、嘴巴或額頭前方的平面圖片。",
+        "label": "浮在臉前"
+      },
+      "face_surface": {
+        "description": "直接畫在皮膚或眼睛上，隨臉部一起動。",
+        "label": "畫在臉上"
+      },
+      "silhouette": {
+        "description": "只覆蓋在虛擬形象上的圖案或色調。",
+        "label": "填滿輪廓"
+      },
+      "sticker": {
+        "description": "始終保持清楚易讀的漫畫狀聲字或貼紙。",
+        "label": "虛擬形象旁的貼紙"
+      }
+    },
+    "bodyPoints": {
+      "chest": "胸口",
+      "head": "頭部",
+      "hips": "臀部",
+      "leftFoot": "左腳",
+      "leftHand": "左手",
+      "neck": "頸部",
+      "rightFoot": "右腳",
+      "rightHand": "右手",
+      "root": "腳下（整個虛擬形象）",
+      "spine": "腰部"
+    },
+    "confirmNew": "要捨棄目前的變更並開始新的形象特效嗎？",
+    "faceOptions": {
+      "cleanUpEyes": "整理眼部區域",
+      "cleanUpHint": "用取樣的膚色蓋住已繪製的細節。",
+      "cleanUpMouth": "整理嘴部區域",
+      "closeEyes": "閉上眼睛",
+      "closeEyesHint": "讓虛擬形象在圖案後面閉上眼睛。",
+      "hideEyeDetails": "隱藏眼部細節",
+      "hideEyeDetailsHint": "隱藏眼睛高光、眼線和睫毛。",
+      "hidePart": "隱藏{{part, lowercase}}",
+      "hideParts": "隱藏其他臉部部件（{{hidden, number}}）",
+      "hidePartsHint": "特效播放時隱藏這些部件。圖案所在的部件會保持顯示。",
+      "skinBackdrop": "膚色襯底",
+      "skinBackdropHint": "在圖案的透明部分後面墊上膚色。"
+    },
+    "flipbook": {
+      "columns": "欄數",
+      "description": "圖片中以格狀排列影格，並依序播放。",
+      "fps": "每秒影格數",
+      "frames": "影格數",
+      "loop": "重複",
+      "once": "播放一次",
+      "pingpong": "來回播放",
+      "playback": "播放方式",
+      "rows": "列數",
+      "title": "動畫拼貼圖"
+    },
+    "guides": {
+      "canvas": "放置參考線",
+      "canvasDetails": "放置參考線：{{items, list(type: unit)}}",
+      "estimated": "{{label}} · 推估"
+    },
+    "image": {
+      "tooLarge": "特效圖片不可超過 {{size}}。",
+      "tooWide": "特效圖片每邊不可超過 {{pixels, number}} 像素。",
+      "typeInvalid": "請選擇一張 PNG、JPEG 或 WebP 圖片。"
+    },
+    "import": {
+      "description": "貼上 Animama 形象特效編輯文件。需要重新選擇圖片資料。",
+      "earlierFormat": "這份文件使用舊版形象特效編輯格式，本創作器已無法開啟。請改從資源庫開啟已儲存的特效。",
+      "notDocument": "這不是 Animama 形象特效編輯文件。",
+      "reselectImages": "儲存前請重新選擇匯入文件中的圖片。",
+      "title": "匯入形象特效 JSON"
+    },
+    "inspector": {
+      "axes": {
+        "down": "下",
+        "forward": "前",
+        "right": "右",
+        "sideways": "橫向",
+        "up": "上"
+      },
+      "blend": "混合",
+      "blends": {
+        "additive": "發光（相加）",
+        "multiply": "陰影（色彩增值）",
+        "normal": "正常"
+      },
+      "height": "高度",
+      "noTint": "無著色",
+      "opacity": "不透明度（%）",
+      "placementHelp": "在預覽中拖曳圖案，或用四角控點調整大小、用圓形控點旋轉。預覽取得焦點時，可用方向鍵微調位置；按住 Shift 可移動更遠。",
+      "position": "位置（{{unit}}）",
+      "removeTint": "移除著色",
+      "rotation": "旋轉（°）",
+      "scale": "大小（×）",
+      "size": "大小（{{unit}}）",
+      "tabs": {
+        "look": "外觀",
+        "motion": "動態",
+        "placement": "放置"
+      },
+      "tilt": "傾斜（°）",
+      "tiltForward": "向前傾斜",
+      "tint": "著色",
+      "tintApplied": "與圖案相乘（{{color}}）",
+      "tintColour": "著色顏色",
+      "turnSideways": "側向轉動",
+      "width": "寬度"
+    },
+    "json": {
+      "description": "這份文件包含編輯數值和精確的相依內容來源，但不包含本機 Blob URL 或存取權限。",
+      "title": "可攜式形象特效 JSON"
+    },
+    "keyframes": {
+      "add": "新增",
+      "help": "隨時間改變大小、旋轉、位置或不透明度。留空的值會依前後關鍵影格插補。",
+      "label": "關鍵影格 {{index, number}}",
+      "moveX": "X 移動（{{unit}}）",
+      "moveY": "Y 移動（{{unit}}）",
+      "opacity": "不透明度（%）",
+      "order": "關鍵影格 {{index, number}} 必須在關鍵影格 {{previous, number}} 之後。",
+      "remove": "刪除關鍵影格 {{index, number}}",
+      "repeat": "重複關鍵影格",
+      "scale": "大小（×）",
+      "time": "時間（秒）",
+      "title": "關鍵影格",
+      "turn": "旋轉（°）"
+    },
+    "landmarks": {
+      "eyes": "眼睛",
+      "forehead": "額頭",
+      "mouth": "嘴巴",
+      "top": "頭頂",
+      "top_edge": "頭頂上方"
+    },
+    "loading": "正在載入形象特效…",
+    "missingPart": "這個虛擬形象未偵測到{{part, lowercase}}，因此不會顯示特效。請在「臉部部件」中修正該部件，或換一個虛擬形象預覽。",
+    "motion": {
+      "clockwise": "順時針",
+      "counterclockwise": "逆時針",
+      "direction": "方向",
+      "drift": "漂移",
+      "driftHint": "朝同一方向持續移動。",
+      "driftX": "橫向（圖案寬度/秒）",
+      "driftY": "上下（圖案高度/秒）",
+      "largest": "最大尺寸（×）",
+      "pulse": "脈動",
+      "pulseHint": "反覆放大縮小。",
+      "pulsesPerSecond": "每秒脈動次數",
+      "smallest": "最小尺寸（×）",
+      "spin": "旋轉",
+      "spinDirection": "旋轉方向",
+      "spinHint": "持續旋轉，或來回搖擺。",
+      "spinRange": "範圍（圈）",
+      "spinRangeHint": "不到一圈時圖案會來回搖擺；滿一圈時會持續旋轉。",
+      "spinSpeed": "速度（°/秒）"
+    },
+    "open": {
+      "imageDownloadFailed": "無法下載內容圖片。",
+      "noImage": "這項內容沒有可編輯的圖片檔案。"
+    },
+    "openFailed": "無法開啟形象特效。",
+    "pivots": {
+      "bottom": "下",
+      "bottomLeft": "左下",
+      "bottomRight": "右下",
+      "centre": "中心",
+      "left": "左",
+      "right": "右",
+      "top": "上",
+      "topLeft": "左上",
+      "topRight": "右上"
+    },
+    "positionHints": {
+      "body": "距身體部位的公分數。",
+      "face_landmark": "距臉部定位點的公分數。",
+      "face_surface": "佔繪製紋理的百分比。",
+      "silhouette": "佔圖案拼貼單元的百分比。",
+      "sticker": "佔虛擬形象身高的百分比。"
+    },
+    "positions": {
+      "farLeft": "最左",
+      "farRight": "最右",
+      "left": "左",
+      "middle": "中間",
+      "right": "右"
+    },
+    "recovery": {
+      "metadataOnly": "無法為當機復原儲存圖片資料。復原這份草稿後請重新選擇圖片。",
+      "needsImages": "這份復原的草稿需要在儲存前重新選擇圖片。",
+      "oldDraft": "來自本創作器舊版本的未儲存形象特效草稿無法開啟，已捨棄。",
+      "tooLarge": "這張圖片太大，無法用於瀏覽器當機復原。請在儲存完成前保持此分頁開啟。"
+    },
+    "regions": {
+      "advanced": "進階",
+      "automatic": "自動：{{region, lowercase}}",
+      "blush": "臉頰上的特效",
+      "body": "身上的特效",
+      "emote": "無；與其他特效同時播放",
+      "eyes": "眼睛上的特效",
+      "full_face": "無；與其他整張臉的圖案同時播放",
+      "mouth": "嘴巴上的特效",
+      "replaces": "取代對象",
+      "replacesHint": "同一區域的兩個特效同時播放時，較新的特效會取代較舊的特效。",
+      "silhouette": "輪廓特效",
+      "sticker": "貼紙特效",
+      "undereye": "眼睛下方的特效"
+    },
+    "save": {
+      "chooseImage": "儲存前請選擇一張圖片。",
+      "defaultName": "新形象特效",
+      "reselectOtherSide": "儲存前請重新選擇另一側的圖片。",
+      "saved": "已儲存形象特效。"
+    },
+    "settings": {
+      "effect": "特效",
+      "faceOptions": "臉部選項",
+      "flipbook": "逐格動畫",
+      "image": "圖片",
+      "keyframes": "關鍵影格",
+      "look": "外觀",
+      "motion": "動態",
+      "otherEyeImage": "另一隻眼睛的圖片",
+      "patternSize": "圖案大小",
+      "placement": "放置",
+      "position": "位置",
+      "replaces": "取代對象",
+      "rotation": "旋轉",
+      "scrollSpeed": "捲動速度",
+      "size": "大小",
+      "tint": "著色"
+    },
+    "setup": {
+      "attachTo": "附著位置",
+      "avatarSides": "左右以虛擬形象自身為準。",
+      "besideBody": "身體",
+      "besideHead": "頭部",
+      "besideThe": "放在旁邊的位置",
+      "bodyPoint": "身體部位",
+      "browse": "瀏覽",
+      "chooseImage": "選擇圖片",
+      "drawnFor": "圖案繪製的一側",
+      "faceCamera": "一律面向鏡頭",
+      "faceCameraHint": "關閉後，圖案會隨身體部位一起轉動。",
+      "fill": "填滿",
+      "fillPattern": "將圖片當作圖案重複",
+      "fillTint": "用圖片的顏色著色",
+      "image": "圖片",
+      "imageHint": "PNG、JPEG 或 WebP · 最大 {{size}}",
+      "keepOriginal": "在下方保留原貌",
+      "keepOriginalHint": "關閉後，圖案所在處會取代部件本身的紋理。",
+      "leftEye": "左眼",
+      "leftSide": "左側",
+      "otherImage": "另一側圖片（選用）",
+      "otherImageHint": "原樣繪製在鏡像的一側，適合眨眼等左右不同的圖案。",
+      "paintOn": "繪製部件",
+      "pivot": "對齊臉部的圖片基準點",
+      "position": "位置",
+      "replaceImage": "取代",
+      "rightEye": "右眼",
+      "rightSide": "右側",
+      "scrollX": "X 捲動（拼貼單元/秒）",
+      "scrollY": "Y 捲動（拼貼單元/秒）",
+      "tileSize": "拼貼單元大小（×）",
+      "useMirroredImage": "改用鏡像的主圖片",
+      "where": "位置",
+      "whereOnFace": "臉上的繪製位置",
+      "whichEyes": "哪隻眼睛",
+      "whichSide": "哪一側"
+    },
+    "setupTitle": "特效設定",
+    "sides": {
+      "across": "一張圖橫跨兩側",
+      "acrossEyes": "一張圖橫跨雙眼",
+      "between": "一張圖位於雙眼之間",
+      "both": "雙眼",
+      "left": "僅左側",
+      "mirrored": "兩側（鏡像）",
+      "mirroredEyes": "雙眼（鏡像）",
+      "right": "僅右側"
+    },
+    "stage": {
+      "chooseImage": "請在設定中選擇圖片以預覽特效。",
+      "label": "特效預覽。拖曳圖案可移動，拖曳四角可調整大小，拖曳圓形控點可旋轉。方向鍵可微調位置；按住 Shift 可移動更遠。",
+      "picking": "點選虛擬形象的某個部分，將它加入或移出所選的臉部部件。"
+    },
+    "summary": {
+      "body": "附在身上",
+      "face_landmark": "浮在臉前",
+      "face_surface": "畫在臉上",
+      "silhouette": "輪廓填滿",
+      "sticker": "貼紙"
+    },
+    "surfaceAreas": {
+      "blush": "臉頰",
+      "eyes": "眼睛",
+      "full": "整個部件",
+      "mouth": "嘴巴",
+      "undereye": "眼睛下方"
+    },
+    "targetParts": {
+      "eye_highlight": "眼睛高光",
+      "eye_iris": "眼睛（虹膜）",
+      "eyelash": "睫毛",
+      "eyeline": "眼線",
+      "face_skin": "臉部皮膚"
+    },
+    "template": {
+      "notInstalled": "此安裝無法使用 {{name}}。",
+      "unavailable": "無法使用這個形象特效範本。"
+    },
+    "thisAvatar": "這個虛擬形象",
+    "units": {
+      "cm": "cm",
+      "percent": "%"
+    },
+    "uv": {
+      "artwork": "圖案",
+      "baseColor": "{{material}} · 基本色",
+      "canvas": "含所選放置參考線的 {{surface}} 紋理",
+      "coverage": "膚色覆蓋範圍",
+      "help": "參考區域只用來引導放置，不會裁切圖案。左右以虛擬形象為準。",
+      "inactive": "特效未啟用時沒有即時圖案。",
+      "legend": "UV 參考線圖例",
+      "material": "材質",
+      "pivot": "基準點",
+      "reference": "參考",
+      "shadeColor": "{{material}} · 陰影色",
+      "surfaceSelect": "UV 預覽材質與紋理",
+      "title": "UV 預覽"
+    },
+    "validation": {
+      "flipbookFrames": "逐格動畫的影格數不可超過欄數 × 列數。",
+      "modelIncompatible": "這個特效有效，但所選虛擬形象未提供所需的即時繫結或臉部錨點。",
+      "nameTooLong": "形象特效名稱不可超過 {{max, number}} 個字元。",
+      "reselectImage": "請重新選擇圖片，以便儲存其資料。",
+      "reselectOtherEyeImage": "請重新選擇另一隻眼睛的圖片，以便儲存其資料。",
+      "settingInvalid": "{{setting}}：設定不相容。",
+      "settingProblem": "{{setting}}：{{detail}}"
+    },
+    "views": {
+      "face": "臉部",
+      "fullBody": "全身",
+      "portrait": "半身",
+      "threeQuarter": "四分之三側面"
+    }
+  },
+  "creator": {
+    "aTemplate": "範本",
+    "description": "說明",
+    "discardFailed": "無法捨棄草稿。",
+    "imageReadFailed": "無法讀取圖片。",
+    "importFailed": "無法匯入 JSON。",
+    "json": {
+      "copied": "已複製 JSON。",
+      "copy": "複製 JSON",
+      "import": "匯入"
+    },
+    "loading": "載入中…",
+    "loadingSaved": "正在載入已儲存的內容…",
+    "loadingTemplate": "正在載入範本…",
+    "model": "模型",
+    "modelPlaceholder": "虛擬形象",
+    "openFailed": "無法開啟特效。",
+    "panels": {
+      "inspector": "檢閱器",
+      "setup": "設定"
+    },
+    "previewAvatarFailed": "無法載入預覽虛擬形象。",
+    "previewNoun": "預覽",
+    "previewWarning": "預覽虛擬形象回報了這個特效的問題。",
+    "recoveredDraft": "已復原本機草稿",
+    "recovery": {
+      "unavailable": "瀏覽器當機復原無法使用。請在儲存完成前保持此分頁開啟。"
+    },
+    "replaceUnsaved": "要取代目前未儲存的文件嗎？",
+    "save": {
+      "label": "儲存",
+      "paused": "儲存已暫停。重試時會重新使用保留的草稿。",
+      "uploading": "正在上傳 {{progress, number(style: percent)}}",
+      "validating": "正在驗證"
+    },
+    "sound": {
+      "exact": "{{name}} · 指定內容",
+      "label": "套用時的聲音",
+      "loading": "正在載入聲音…",
+      "none": "無聲音"
+    },
+    "status": {
+      "saved": "已儲存",
+      "saveFailed": "儲存失敗",
+      "unsaved": "未儲存"
+    },
+    "validation": {
+      "reselectSound": "請重新選擇音效，以便儲存指定的目錄內容。"
+    },
+    "view": "檢視"
+  },
+  "faceParts": {
+    "cancel": "取消",
+    "done": "完成",
+    "edit": "編輯",
+    "editPart": "編輯{{part, lowercase}}",
+    "heading": "{{model}} 的臉部部件",
+    "help": "特效會透過這些部件找到臉和眼睛。如果特效沒有出現或位置不對，請在這裡修正部件。修正會隨這個虛擬形象儲存，並在所有地方使用。",
+    "meshFallback": "網格",
+    "meshList": "{{items, list(style: narrow)}}",
+    "meshName": "{{name}}（{{key}}）",
+    "meshPartsFor": "{{part, lowercase}}的網格部件",
+    "noMesh": "無網格部件",
+    "noneDetected": "這個虛擬形象未偵測到臉部部件。",
+    "optional": "{{part}}（選用）",
+    "pick": "在虛擬形象上點選",
+    "picking": "點選虛擬形象以新增或移除部件",
+    "problems": {
+      "noDigest": "無法取得這個虛擬形象的檔案摘要，因此無法儲存修正。",
+      "required": "請為{{part, lowercase}}至少選擇一個網格部件。",
+      "unknownMesh": "這項修正包含這個虛擬形象沒有的網格部件。請取消並重新選擇部件。"
+    },
+    "readFailed": "無法讀取這個虛擬形象已儲存的修正。",
+    "roles": {
+      "eye_highlight": "眼睛高光",
+      "eye_left": "左眼",
+      "eye_right": "右眼",
+      "eyelash": "睫毛",
+      "eyeline": "眼線",
+      "face_skin": "臉部皮膚",
+      "hair": "頭髮"
+    },
+    "saveCorrection": "儲存修正",
+    "saveFailed": "無法儲存修正。",
+    "saving": "正在儲存",
+    "status": {
+      "absent": "已標示為無",
+      "changed": "已變更，未儲存",
+      "corrected": "已修正",
+      "detected": "已偵測 · {{confidence, number(style: percent)}}",
+      "foundByName": "依名稱找到 · {{confidence, number(style: percent)}}，請檢查",
+      "missing": "缺少",
+      "uncertain": "已偵測 · {{confidence, number(style: percent)}}，請檢查"
+    },
+    "title": "臉部部件",
+    "useDetected": "使用偵測到的部件"
+  },
+  "guides": {
+    "labels": {
+      "blushLeft": "左臉頰",
+      "blushRight": "右臉頰",
+      "blushSpan": "橫跨兩頰",
+      "eyeCenter": "雙眼中間",
+      "eyeLeft": "左眼",
+      "eyeRight": "右眼",
+      "face": "臉部",
+      "flattenEye": "眼部覆蓋",
+      "flattenEyeLeft": "左眼覆蓋",
+      "flattenEyeRight": "右眼覆蓋",
+      "flattenMouth": "嘴部覆蓋",
+      "foreheadLeft": "額頭左側",
+      "foreheadMiddle": "額頭中間",
+      "foreheadRight": "額頭右側",
+      "irisBoth": "雙眼虹膜",
+      "irisLeft": "左眼虹膜",
+      "irisRight": "右眼虹膜",
+      "mouth": "嘴巴",
+      "skinSample": "膚色取樣",
+      "topEdgeLeft": "頭頂上方左側",
+      "topEdgeLeftCorner": "頭頂上方最左側",
+      "topEdgeMiddle": "頭頂上方中間",
+      "topEdgeRight": "頭頂上方右側",
+      "topEdgeRightCorner": "頭頂上方最右側",
+      "topLeft": "頭頂左側",
+      "topMiddle": "頭頂中間",
+      "topRight": "頭頂右側",
+      "undereyeLeft": "左眼下方",
+      "undereyeRight": "右眼下方",
+      "undereyeSpan": "橫跨雙眼下方"
+    },
+    "messages": {
+      "anchorWarning": "這個虛擬形象無法使用此放置所需的臉部錨點。",
+      "estimatedAnchor": "這個虛擬形象的此放置使用推估的錨點。",
+      "estimatedFlatten": "這個虛擬形象的膚色覆蓋使用推估的區域。",
+      "hoverAnchorUnavailable": "這個虛擬形象無法使用所選的懸浮錨點。",
+      "landmarksUnavailable": "這個虛擬形象無法使用臉部特徵點。",
+      "liveAnchorUnavailable": "無法使用虛擬形象的即時臉部錨點，因此無法顯示空間參考線。",
+      "noMaterialTarget": "這個虛擬形象沒有相容的材質目標。",
+      "noTextureSurface": "所選材質沒有可讀取的紋理。",
+      "target": "目標：{{materials, list}}。",
+      "textureAnchorsUnavailable": "這個虛擬形象無法使用臉部紋理錨點。"
+    },
+    "selectedMaterial": "所選材質"
+  },
+  "kinds": {
+    "avatarEffect": "形象特效",
+    "avatarFx": "形象特效",
+    "sceneEffect": "場景特效",
+    "sceneFx": "場景特效"
+  },
+  "scene": {
+    "checks": {
+      "previewAvatar": "預覽虛擬形象",
+      "ready": "可以儲存",
+      "readyDetail": "場景設定已就緒。",
+      "states": {
+        "error": "發生錯誤",
+        "idle": "閒置",
+        "loading": "載入中",
+        "ready": "就緒"
+      },
+      "title": "檢查"
+    },
+    "common": {
+      "opacity": "不透明度"
+    },
+    "confirmNew": "要捨棄目前的變更並開始新的場景特效嗎？",
+    "directions": {
+      "down": "向下",
+      "downLeft": "往左下斜",
+      "downRight": "往右下斜",
+      "left": "向左",
+      "right": "向右",
+      "static": "靜止",
+      "up": "向上",
+      "upLeft": "往左上斜",
+      "upRight": "往右上斜"
+    },
+    "emoji": {
+      "angerSymbol": "生氣符號",
+      "cherryBlossom": "櫻花",
+      "cloudWithRain": "下雨",
+      "collision": "碰撞",
+      "crown": "皇冠",
+      "cryingFace": "哭泣",
+      "disappointedFace": "失望",
+      "dizzy": "頭暈",
+      "flushedFace": "臉紅",
+      "foldedHands": "雙手合十",
+      "huggingFace": "抱抱",
+      "medal": "獎牌",
+      "nauseatedFace": "噁心",
+      "partyPopper": "拉炮",
+      "pleadingFace": "拜託臉",
+      "questionMark": "問號",
+      "ribbon": "蝴蝶結",
+      "sparkles": "閃閃發亮",
+      "sparklingHeart": "閃亮的心",
+      "star": "星星",
+      "starStruck": "星星眼",
+      "sunrise": "日出",
+      "sweatDroplets": "汗珠",
+      "target": "正中紅心",
+      "tearsOfJoy": "笑到哭",
+      "thinkingFace": "思考",
+      "thumbsDown": "倒讚",
+      "warning": "警告"
+    },
+    "fields": {
+      "baseThickness": "基本粗細",
+      "definition": "特效設定",
+      "description": "說明",
+      "duration": "持續時間",
+      "flicker": "閃爍時機",
+      "gap": "間距",
+      "images": "私人圖片",
+      "itemSize": "項目大小",
+      "lengthVariation": "長度變化",
+      "lineColor": "線條顏色",
+      "lineCount": "線條數量",
+      "lineOpacity": "線條不透明度",
+      "marqueeItems": "跑馬燈項目",
+      "marqueeOpacity": "跑馬燈不透明度",
+      "maxHiddenMs": "最長隱藏時間（毫秒）",
+      "maxVisibleMs": "最長顯示時間（毫秒）",
+      "minHiddenMs": "最短隱藏時間（毫秒）",
+      "minVisibleMs": "最短顯示時間（毫秒）",
+      "name": "名稱",
+      "opacityJitter": "不透明度抖動",
+      "overscan": "超出邊緣",
+      "paddingX": "水平留白",
+      "paddingY": "垂直留白",
+      "patternColor": "圖案顏色",
+      "patternOpacity": "圖案不透明度",
+      "patternSize": "圖案大小",
+      "patternSpacing": "圖案間距",
+      "rotationOffset": "旋轉偏移",
+      "rowGap": "列距",
+      "solidColor": "純色顏色",
+      "sound": "聲音",
+      "speed": "速度",
+      "target": "目標",
+      "thicknessVariation": "粗細變化"
+    },
+    "focus": {
+      "avatarFace": "虛擬形象的臉",
+      "behindAvatar": "虛擬形象後方",
+      "box": {
+        "height": "高度",
+        "width": "寬度",
+        "x": "X",
+        "y": "Y"
+      },
+      "frontOfAvatar": "虛擬形象前方",
+      "manualBox": "手動區域",
+      "placement": "算繪位置",
+      "seed": "隨機種子",
+      "tabs": {
+        "lines": "線條",
+        "motion": "動態",
+        "style": "樣式",
+        "target": "目標"
+      },
+      "target": "目標"
+    },
+    "image": {
+      "typeInvalid": "請選擇 PNG、JPEG、WebP 或靜態 SVG 圖片。"
+    },
+    "import": {
+      "description": "貼上 Animama 場景特效編輯文件。需要重新選擇私人圖片資料。",
+      "notDocument": "這不是 Animama 場景特效編輯文件。",
+      "reselectImages": "儲存前請重新選擇匯入文件中的私人圖片。",
+      "title": "匯入場景特效 JSON",
+      "unsupportedSchema": "不支援這個場景特效編輯結構描述。"
+    },
+    "json": {
+      "description": "這份編輯文件包含本機邏輯圖片名稱和精確的相依內容來源，絕不包含 Blob URL 或儲存空間存取權限。",
+      "title": "可攜式場景特效 JSON"
+    },
+    "kinds": {
+      "background": "背景",
+      "focusLines": "集中線"
+    },
+    "layers": {
+      "enabled": "啟用{{layer}}",
+      "marquee": "跑馬燈",
+      "marqueeSummary_other": "{{count, number}} 個項目 · {{direction}}",
+      "pattern": "圖案",
+      "patternSummary": "{{pattern}} · {{size, number}}px",
+      "solid": "純色",
+      "summary": "{{layer}}圖層",
+      "title": "圖層"
+    },
+    "loading": "正在載入場景特效…",
+    "marquee": {
+      "addEmoji": "新增表情符號",
+      "addImage": "新增私人圖片",
+      "chooseEmoji": "選擇表情符號",
+      "direction": "方向",
+      "emojiOption": "{{emoji}} {{name}}",
+      "empty": "新增表情符號或私人圖片。",
+      "gap": "間距",
+      "items": "項目",
+      "itemSize": "項目大小",
+      "moveDown": "將{{name}}下移",
+      "moveUp": "將{{name}}上移",
+      "remove": "移除{{name}}",
+      "rotation": "旋轉",
+      "rotationOffset": "旋轉偏移（度）",
+      "rowGap": "列距",
+      "speed": "速度（像素/秒）",
+      "tabs": {
+        "appearance": "外觀",
+        "content": "內容",
+        "motion": "動態"
+      },
+      "twemoji": "Twemoji"
+    },
+    "open": {
+      "backgroundIncomplete": "背景圖層定義不完整。",
+      "contentImageDownloadFailed": "無法下載內容圖片 {{file}}。",
+      "contentImageUnavailable": "無法使用內容圖片 {{file}}。",
+      "definitionUnavailable": "無法使用場景特效定義。",
+      "focusIncomplete": "集中線定義不完整。",
+      "imageUnavailable": "無法使用發布版圖片 {{file}}。",
+      "itemImageUnavailable": "無法使用跑馬燈項目 {{index, number}} 的圖片。",
+      "itemInvalid": "跑馬燈項目 {{index, number}} 無效。",
+      "itemUnsupported": "不支援跑馬燈項目 {{index, number}}。",
+      "kindUnsupported": "不支援這種場景特效類型。"
+    },
+    "openFailed": "無法開啟場景特效。",
+    "pattern": {
+      "color": "顏色",
+      "enabled": "啟用圖案",
+      "kind": "圖案類型",
+      "size": "大小",
+      "spacing": "間距"
+    },
+    "patterns": {
+      "heart": "愛心",
+      "none": "無",
+      "polkadot": "圓點",
+      "star": "星星"
+    },
+    "recovery": {
+      "metadataOnly": "無法為當機復原儲存圖片資料。復原這份草稿後請重新選擇私人圖片。",
+      "needsImages": "這份復原的草稿需要在儲存前重新選擇私人圖片。",
+      "tooLarge": "這些圖片太大，無法用於瀏覽器當機復原。請在儲存完成前保持此分頁開啟。"
+    },
+    "rotationModes": {
+      "followTrack": "跟隨軌跡",
+      "upright": "保持直立"
+    },
+    "save": {
+      "defaultName": "新場景特效",
+      "reselectImage": "儲存前請重新選擇 {{file}}。",
+      "saved": "已儲存場景特效。"
+    },
+    "setup": {
+      "behavior": "特效行為",
+      "coverUi": "覆蓋介面元素",
+      "coverUiHint": "在支援時，將特效覆蓋在應用程式介面上預覽。",
+      "custom": "自訂",
+      "dismissOnInput": "輸入時關閉",
+      "duration": "持續時間（秒）",
+      "focusLinesHint": "強調虛擬形象的臉或所選區域。",
+      "startingTemplate": "起始範本",
+      "sticky": "持續顯示",
+      "title": "場景設定"
+    },
+    "solid": {
+      "color": "純色顏色",
+      "enabled": "啟用純色"
+    },
+    "template": {
+      "unavailable": "無法使用這個場景特效範本。"
+    },
+    "validation": {
+      "bounds": "{{setting}}必須介於 {{min, number}} 和 {{max, number}} 之間。",
+      "boundsWhole": "{{setting}}必須是介於 {{min, number}} 和 {{max, number}} 之間的整數。",
+      "definitionInvalid": "場景特效設定無效。",
+      "descriptionTooLong": "說明不可超過 {{max, number}} 個字元。",
+      "duplicateItemIds": "每個跑馬燈項目都需要唯一的 ID。",
+      "duration": "持續時間必須設為持續顯示，或介於 {{min, number}} 到 {{max, number}} 秒之間。",
+      "flickerOrder": "閃爍的最短時間不可超過最長時間。",
+      "imagesTooLarge": "場景私人圖片總計不可超過 {{size}}。",
+      "imageType": "{{file}} 不是 PNG、JPEG、WebP 或 SVG。",
+      "lineColor": "請為線條選擇六位數十六進位顏色。",
+      "manualTarget": "手動區域必須位於正規化的檢視區之內。",
+      "nameTooLong": "場景特效名稱不可超過 {{max, number}} 個字元。",
+      "patternColor": "請為圖案選擇六位數十六進位顏色。",
+      "reselectForPreview": "請重新選擇 {{file}} 以進行預覽。",
+      "reselectImage": "請重新選擇 {{file}}，以便儲存其資料。",
+      "solidColor": "請為純色選擇六位數十六進位顏色。",
+      "tooManyImages": "一個場景特效最多可包含 {{max, number}} 張私人圖片。",
+      "tooManyItems": "跑馬燈最多可包含 {{max, number}} 個項目。",
+      "unusedImages": "集中線不會儲存未使用的背景圖片資料。"
+    },
+    "views": {
+      "fullScene": "整個場景",
+      "portrait": "半身"
+    }
+  }
+}

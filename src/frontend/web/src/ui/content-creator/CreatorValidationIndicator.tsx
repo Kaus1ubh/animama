@@ -1,4 +1,5 @@
 import { AlertTriangleIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   Popover,
@@ -12,9 +13,10 @@ export function CreatorValidationIndicator({
 }: {
   messages: readonly string[];
 }) {
+  const { t } = useTranslation("creator");
   const uniqueMessages = [...new Set(messages.filter(Boolean))];
   if (!uniqueMessages.length) return null;
-  const label = `${uniqueMessages.length} validation ${uniqueMessages.length === 1 ? "issue" : "issues"}`;
+  const label = t("validation.count", { count: uniqueMessages.length });
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -34,7 +36,7 @@ export function CreatorValidationIndicator({
         sideOffset={8}
         collisionPadding={8}
         className="max-h-[min(24rem,var(--radix-popover-content-available-height))] w-80 max-w-[calc(100vw-1rem)] space-y-2 overflow-y-auto text-left text-xs break-words"
-        aria-label="Validation issues"
+        aria-label={t("validation.title")}
       >
         {uniqueMessages.map((message) => (
           <p key={message}>{message}</p>

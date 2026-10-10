@@ -96,8 +96,8 @@
   },
   "library": {
     "blocker": {
-      "description_other": "离开记忆工作区前，请保存或放弃 {{count}} 个未保存的草稿。",
-      "discardAndLeave": "放弃并离开",
+      "description_other": "离开记忆工作区前，请保存或丢弃 {{count}} 个未保存的草稿。",
+      "discardAndLeave": "丢弃并离开",
       "saveAndLeave": "保存并离开",
       "stay": "留下",
       "title": "未保存的记忆草稿"
@@ -112,7 +112,7 @@
       "directoryDeleted": "已删除文件夹。",
       "directoryFailed": "无法删除文件夹。",
       "directoryTitle": "删除文件夹？",
-      "dirtyDrafts_other": "{{count}} 个未保存的草稿也将被放弃。",
+      "dirtyDrafts_other": "{{count}} 个未保存的草稿也将被丢弃。",
       "emptyDirectory": "{{path}} 为空，将被永久删除。",
       "file": "{{path}} 将被永久删除。",
       "fileDeleted": "已删除记忆文件。",
@@ -160,7 +160,7 @@
     },
     "removedAnimaFile": {
       "deleted": "{{name}} 已被删除。",
-      "discarded": "{{file}} 中未保存的更改无法保存，已被放弃。",
+      "discarded": "{{file}} 中未保存的更改无法保存，已被丢弃。",
       "unavailable": "{{name}} 的 {{file}} 不可用。"
     },
     "repair": {
@@ -259,7 +259,7 @@
   "manual": {
     "discard": {
       "description": "对 {{path}} 的未保存更改将被移除。",
-      "title": "放弃更改？"
+      "title": "丢弃更改？"
     },
     "generatedEpisode": "生成的经历",
     "openManager": "打开记忆管理器",
@@ -320,7 +320,7 @@
     "conflictNotice": "服务器上有此文件的更新版本。你的草稿已保留。",
     "delete": "删除",
     "description": "描述",
-    "discard": "放弃",
+    "discard": "丢弃",
     "draftSaved": "已保存草稿。",
     "draftStillOpen": "你的草稿仍处于打开状态。",
     "enterName": "请输入名称。",
@@ -349,9 +349,9 @@
     "currentContent": "当前内容",
     "currentVersion": "{{path}} · 当前版本 {{version}}",
     "detailLabel": "所选版本的更改",
-    "discardAndContinue": "放弃草稿并继续",
-    "discardFirst": "先放弃手动草稿？",
-    "discardFirstDescription": "此文件有未保存或冲突的草稿时，无法继续还原。放弃草稿会先恢复当前服务器上的内容，然后你再查看最终确认。",
+    "discardAndContinue": "丢弃草稿并继续",
+    "discardFirst": "先丢弃手动草稿？",
+    "discardFirstDescription": "此文件有未保存或冲突的草稿时，无法继续还原。丢弃草稿会先恢复当前服务器上的内容，然后你再查看最终确认。",
     "emptyContent": "（空）",
     "entryFallback": "记忆条目",
     "history": "版本历史",

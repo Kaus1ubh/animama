@@ -1,9 +1,31 @@
 "use client";
 
 import { useProductApiClient } from "@animama/product-ui";
+import { useFormatters } from "@animama/product-ui/i18n";
+import type { TFunction } from "i18next";
+import { getI18n, useTranslation } from "react-i18next";
 import { particleVFXValidationMessages } from "./particleVFXValidationMessages";
+import {
+  particleVFXAnchorLabel,
+  particleVFXBlendingLabel,
+  particleVFXColorOverLifeModeLabel,
+  particleVFXColorThemeDescription,
+  particleVFXColorThemeLabel,
+  particleVFXEmitterModeLabel,
+  particleVFXEmitterTemplateLabel,
+  particleVFXModelSourceLabel,
+  particleVFXPreloadTierLabel,
+  particleVFXRenderModeLabel,
+  particleVFXRotation3DModeLabel,
+  particleVFXShapeLabel,
+  particleVFXStartColorModeLabel,
+  particleVFXTextureLabel,
+  particleVFXTextureRoleLabel,
+} from "./particleVFXLabels";
 
+import { particleVFXQuarksTypeLabel } from "@/lib/avatar/particle-vfx/editor/advancedBehaviors";
 import { createParticleVFXEditorDraftFromContent } from "@/lib/avatar/particle-vfx/editor/content";
+import { failureLine, WordedError } from "@/lib/errors/apiError";
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 import {
   createParticleVFXEffectContainer,
@@ -54,7 +76,6 @@ import {
   PARTICLE_VFX_EDITOR_EMITTER_TEMPLATES,
   PARTICLE_VFX_EDITOR_RENDER_MODES,
   PARTICLE_VFX_EDITOR_SHAPES,
-  PARTICLE_VFX_EDITOR_TEXTURE_ROLE_LABELS,
   PARTICLE_VFX_EDITOR_TEXTURE_ROLE_ORDER,
   PARTICLE_VFX_EDITOR_TEXTURES,
   PARTICLE_VFX_ANCHORS,
@@ -138,6 +159,7 @@ import {
   RULER_HEIGHT_PX,
   TRACK_LABEL_RAIL_PX,
   TRACK_RIGHT_INSET_PX,
+  formatTimelineTime,
 } from "@/ui/content-creator/creatorTimelineGeometry";
 import { ContentHealth } from "@/ui/content-health/ContentHealth";
 import { Button } from "@/ui/components/button";
@@ -162,7 +184,10 @@ import {
   JsonTreeNode,
   type JsonExpandMode,
 } from "@/ui/debug/vrm-editor/json-tree";
-import { useCreatorLeaveGuard } from "@/ui/content-creator/useCreatorLeaveGuard";
+import {
+  creatorDiscardFailureText,
+  useCreatorLeaveGuard,
+} from "@/ui/content-creator/useCreatorLeaveGuard";
 import { useCreatorDocumentHistory } from "@/ui/creator-history/useCreatorDocumentHistory";
 import {
   equalParticleVFXDrafts,
@@ -203,22 +228,35 @@ const PARTICLE_VFX_CREATOR_EMITTER_CAMERA_SETTINGS: SceneCameraSettings = {
 const PARTICLE_VFX_TEXTURE_GROUPS = PARTICLE_VFX_EDITOR_TEXTURE_ROLE_ORDER.map(
   (role) => ({
     role,
-    label: PARTICLE_VFX_EDITOR_TEXTURE_ROLE_LABELS[role],
     textures: PARTICLE_VFX_EDITOR_TEXTURES.filter(
       (texture) => texture.role === role,
     ),
   }),
 ).filter((group) => group.textures.length > 0);
 
-function saveStageLabel(stage: ReturnType<typeof useParticleVFXSave>["stage"]) {
-  if (stage === "preparing") return "Preparing";
-  if (stage === "hashing") return "Hashing";
-  if (stage === "uploading") return "Uploading";
-  if (stage === "validating") return "Validating";
-  return "Save";
+type SaveStage = ReturnType<typeof useParticleVFXSave>["stage"];
+
+/** The Save button label for a stage of the shared Save. */
+function saveStageLabel(t: TFunction<"creator">, stage: SaveStage) {
+  if (stage === "preparing") return t("save.stages.preparing");
+  if (stage === "hashing") return t("save.stages.hashing");
+  if (stage === "uploading") return t("save.stages.uploading");
+  if (stage === "validating") return t("save.stages.validating");
+  return t("save.save");
+}
+
+/** The save notice while a Save stage runs. */
+function saveBusyMessage(t: TFunction<"particles">, stage: SaveStage) {
+  if (stage === "hashing") return t("save.busy.hashing");
+  if (stage === "uploading") return t("save.busy.uploading");
+  if (stage === "validating") return t("save.busy.validating");
+  return t("save.busy.preparing");
 }
 
 export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
+  const { t, i18n } = useTranslation("particles");
+  const { t: tCreator } = useTranslation("creator");
+  const formatters = useFormatters();
   const navigate = useNavigate();
   const userId = useRuntimeCacheKey();
   const apiClient = useProductApiClient();
@@ -328,12 +366,12 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   });
   const unavailableMessage = creatorItemUnavailableMessage({
     itemId,
-    label: "Particle Effect",
+    label: t("contentLabel"),
     item: existing,
     readFailed: existingQuery.isError,
     loadError:
       loadState.state === "error"
-        ? (loadState.message ?? "The Particle Effect could not be loaded.")
+        ? (loadState.message ?? t("load.failed"))
         : null,
   });
   // The unavailable state has no leave dialog, so it must never block navigation.
@@ -367,7 +405,9 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     const load = loadedItemRef.current.begin(itemId);
     if (!load) return;
     const controller = new AbortController();
-    setLoadState({ state: "loading", message: "Loading Particle Effect…" });
+    // Read at failure time so a locale change does not restart the load.
+    const tLoad = getI18n().getFixedT(null, "particles");
+    setLoadState({ state: "loading", message: null });
     void (async () => {
       try {
         const preview = await previewCatalogItem(
@@ -377,13 +417,11 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           "particle_effect",
         );
         const manifest = contentPreviewPrimaryFile(preview, "manifest");
-        if (!manifest)
-          throw new Error("The Particle Effect manifest is missing.");
+        if (!manifest) throw new WordedError(tLoad("load.manifestMissing"));
         const response = await fetchContentPreviewFile(preview, manifest, {
           signal: controller.signal,
         });
-        if (!response.ok)
-          throw new Error("The Particle Effect could not be loaded.");
+        if (!response.ok) throw new WordedError(tLoad("load.failed"));
         const payload: unknown = await response.json();
         if (controller.signal.aborted) return;
         load.complete();
@@ -397,10 +435,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
         if (!controller.signal.aborted) {
           setLoadState({
             state: "error",
-            message:
-              error instanceof Error
-                ? error.message
-                : "The Particle Effect could not be loaded.",
+            message: failureLine(error, tLoad("load.failed")),
           });
         }
       }
@@ -460,7 +495,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       modelPreview.isModelCatalogPending ||
       !modelPreview.modelEntry
     ) {
-      const message = selectedModel?.displayName ?? "Selecting Avatar Model…";
+      const message = selectedModel?.displayName ?? t("preview.selectingModel");
       setAvatarPreviewStatus((current) =>
         current.state === "loading" && current.message === message
           ? current
@@ -478,8 +513,11 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     modelPreview.runtimeError,
     selectedModel?.displayName,
     showAvatar,
+    t,
   ]);
 
+  // Issues are worded in the UI Locale, so they are rechecked when it changes.
+  const language = i18n.resolvedLanguage;
   const issues = useMemo(() => {
     if (!draft) return [];
     const exactReferences = new Set<string>();
@@ -490,8 +528,9 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     return validateParticleVFXContentReadiness(draft, {
       resolvableTextureReferences: resolvable,
       trustedLegacyTextureReferences: exactReferences,
+      language,
     }).issues;
-  }, [draft]);
+  }, [draft, language]);
   const exportBundle = useMemo(
     () => (draft ? buildParticleVFXEditorExport(draft) : null),
     [draft],
@@ -500,23 +539,27 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     () => parseParticleVFXEditorExportJsonForViewer(exportBundle?.quarksJson),
     [exportBundle?.quarksJson],
   );
-  const previewResolution = useMemo(() => {
-    if (!draft) return { json: null, error: null };
+  const previewJson = useMemo(() => {
+    if (!draft) return { json: null, failure: null };
     try {
       return {
         json: resolveParticleVFXEditorPreviewJson(draft, undefined),
-        error: null,
+        failure: null,
       };
     } catch (error) {
-      return {
-        json: null,
-        error:
-          error instanceof Error
-            ? error.message
-            : "Particle VFX preview resources are unavailable.",
-      };
+      return { json: null, failure: { error } };
     }
   }, [draft]);
+  // Worded at render, so a locale change does not rebuild the preview.
+  const previewResolution = {
+    json: previewJson.json,
+    error: previewJson.failure
+      ? failureLine(
+          previewJson.failure.error,
+          t("preview.resourcesUnavailable"),
+        )
+      : null,
+  };
   const activeEmitter = useMemo(
     () =>
       draft?.emitters.find((emitter) => emitter.path === activeEmitterPath) ??
@@ -555,11 +598,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       try {
         return (await discard()) !== false;
       } catch (error) {
-        toast.error(
-          error instanceof Error
-            ? error.message
-            : "The draft could not be discarded.",
-        );
+        toast.error(creatorDiscardFailureText(error));
         return false;
       } finally {
         setDiscarding(false);
@@ -636,12 +675,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       setImportError(parsed.message);
       return;
     }
-    if (
-      isDirty &&
-      !window.confirm(
-        "Discard the current Particle VFX changes and load this JSON?",
-      )
-    ) {
+    if (isDirty && !window.confirm(t("import.confirmReplace"))) {
       return;
     }
     const nextId = draft?.catalog.id ?? "custom-particle-vfx";
@@ -669,12 +703,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
 
   const handleNewDocument = useCallback(async () => {
     if (contentSave.isBusy || discarding) return;
-    if (
-      isDirty &&
-      !window.confirm(
-        "Discard the current Particle Effect changes and start a new effect?",
-      )
-    ) {
+    if (isDirty && !window.confirm(t("toolbar.confirmNew"))) {
       return;
     }
 
@@ -713,6 +742,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     itemId,
     navigate,
     runDiscard,
+    t,
     userId,
   ]);
 
@@ -744,23 +774,19 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   if (unavailableMessage)
     return (
       <CreatorUnavailableState
-        label="Particle Effect"
+        label={t("contentLabel")}
         message={unavailableMessage}
       />
     );
   // Never show the blank starter document in place of the saved item.
   if (itemId && loadState.state === "loading")
-    return (
-      <CreatorLoading
-        message={loadState.message ?? "Loading Particle Effect…"}
-      />
-    );
+    return <CreatorLoading message={loadState.message ?? t("load.loading")} />;
 
   return (
     <CreatorWorkspaceShell
       busy={contentSave.isBusy || discardPending}
-      leftPanelLabel="Emitters"
-      rightPanelLabel="Inspector"
+      leftPanelLabel={t("emitters.title")}
+      rightPanelLabel={tCreator("panel.inspector")}
       leftPanelWidth={340}
       rightPanelWidth={392}
       bottomChromeHeight={152}
@@ -779,7 +805,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
               particleVFXValidationMessages(issues, draft?.emitters ?? []),
             ),
           )}
-          typeLabel="Particle FX"
+          typeLabel={t("typeLabel")}
           contentType="particle_effect"
           typeIcon={<SparklesIcon />}
           documentName={draft?.catalog.label ?? ""}
@@ -793,12 +819,15 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           status={
             contentSave.error
               ? {
-                  label: "Save failed",
+                  label: tCreator("status.saveFailed"),
                   tone: "error",
                   tooltip: contentSave.error,
                 }
               : {
-                  label: itemId && !isDirty ? "Saved" : "Unsaved",
+                  label:
+                    itemId && !isDirty
+                      ? tCreator("status.saved")
+                      : tCreator("status.unsaved"),
                   tone: itemId && !isDirty ? "saved" : "dirty",
                 }
           }
@@ -813,10 +842,10 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           saveBusy={contentSave.isBusy}
           saveLabel={
             contentSave.isBusy
-              ? saveStageLabel(contentSave.stage)
+              ? saveStageLabel(tCreator, contentSave.stage)
               : contentSave.stage === "error" && contentSave.recovered
-                ? "Retry Save"
-                : "Save"
+                ? tCreator("save.retry")
+                : tCreator("save.save")
           }
           domainActions={
             <CreatorEffectHandoffActions
@@ -832,8 +861,8 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       }
       leftPanel={
         <CreatorFloatingPanel
-          title="Emitters"
-          summary={`${draft?.emitters.length ?? 0} emitter${(draft?.emitters.length ?? 0) === 1 ? "" : "s"}`}
+          title={t("emitters.title")}
+          summary={t("emitters.count", { count: draft?.emitters.length ?? 0 })}
           bodyClassName="p-0"
         >
           <section className="border-border border-b p-3">
@@ -842,8 +871,8 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
               <Input
                 value={emitterQuery}
                 onChange={(event) => setEmitterQuery(event.target.value)}
-                placeholder="Search emitters"
-                aria-label="Search emitters"
+                placeholder={t("emitters.search")}
+                aria-label={t("emitters.search")}
                 className="pl-9"
               />
             </div>
@@ -868,14 +897,14 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                       {emitter.name}
                     </span>
                     <span className="text-muted-foreground block truncate text-xs">
-                      {emitterSummary(emitter)}
+                      {emitterSummary(t, formatters.number, emitter)}
                     </span>
                   </span>
                 </button>
               ))}
               {filteredEmitters.length === 0 ? (
                 <p className="text-muted-foreground py-3 text-center text-xs">
-                  No emitters match this search.
+                  {t("emitters.noMatches")}
                 </p>
               ) : null}
             </div>
@@ -887,7 +916,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 onClick={addEmitter}
                 disabled={!draft}
               >
-                <PlusIcon /> Add
+                <PlusIcon /> {t("emitters.add")}
               </Button>
               <Button
                 type="button"
@@ -895,9 +924,9 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 variant="outline"
                 onClick={duplicateEmitter}
                 disabled={!activeEmitter}
-                aria-label="Duplicate selected emitter"
+                aria-label={t("emitters.duplicateSelected")}
               >
-                <CopyIcon /> Duplicate
+                <CopyIcon /> {t("emitters.duplicate")}
               </Button>
               <Button
                 type="button"
@@ -905,8 +934,8 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 variant="outline"
                 onClick={removeEmitter}
                 disabled={!activeEmitter || (draft?.emitters.length ?? 0) <= 1}
-                aria-label="Remove selected emitter"
-                title="Remove selected emitter"
+                aria-label={t("emitters.removeSelected")}
+                title={t("emitters.removeSelected")}
               >
                 <Trash2Icon />
               </Button>
@@ -914,20 +943,21 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           </section>
 
           <section className="border-border border-b p-3">
-            <h2 className="text-sm font-semibold">Settings</h2>
+            <h2 className="text-sm font-semibold">{t("settings.title")}</h2>
             <p className="text-muted-foreground mt-1 text-xs">
-              Estimated total: ~{estimatedParticles} particles
+              {t("settings.estimatedTotal", { count: estimatedParticles })}
             </p>
             <div className="mt-3 space-y-3">
               <SelectField
-                label="Default anchor"
+                label={t("settings.defaultAnchor")}
                 value={draft?.catalog.defaultAnchor ?? "head"}
                 values={PARTICLE_VFX_ANCHORS}
+                optionLabel={(anchor) => particleVFXAnchorLabel(t, anchor)}
                 onChange={(value) => patchCatalog({ defaultAnchor: value })}
                 disabled={!draft}
               />
               <NumberField
-                label="Effect playback duration (s)"
+                label={t("settings.playbackDuration")}
                 value={draft?.catalog.defaultDurationSec ?? 0}
                 min={0.05}
                 step={0.05}
@@ -951,7 +981,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
 
           <section className="border-border border-b p-3">
             <h2 className="text-xs font-semibold tracking-wide uppercase">
-              Transform
+              {t("transform.title")}
             </h2>
             <TransformControls
               transform={
@@ -967,24 +997,24 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
 
           <details className="border-border border-b p-3">
             <summary className="cursor-pointer text-sm font-semibold">
-              Advanced settings
+              {t("settings.advanced")}
             </summary>
             <div className="mt-3 space-y-3">
               <SelectField
-                label="Preload"
+                label={t("settings.preload")}
                 value={draft?.catalog.preloadTier ?? "none"}
                 values={PARTICLE_VFX_PRELOAD_TIERS}
+                optionLabel={(tier) => particleVFXPreloadTierLabel(t, tier)}
                 onChange={(value) =>
                   patchCatalog({ preloadTier: value as ParticleVFXPreloadTier })
                 }
                 disabled={!draft}
               />
               <p className="text-muted-foreground text-xs">
-                Performance limits apply to the whole effect. Enabling looping
-                here permits individual emitters to repeat their cycles.
+                {t("settings.limitsHint")}
               </p>
               <NumberField
-                label="Maximum playback duration (s)"
+                label={t("settings.maxDuration")}
                 value={draft?.catalog.performanceBudget.maxDurationSec ?? 0}
                 min={0.05}
                 step={0.05}
@@ -1000,7 +1030,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 disabled={!draft}
               />
               <NumberField
-                label="Maximum total particles"
+                label={t("settings.maxParticles")}
                 value={draft?.catalog.performanceBudget.maxParticles ?? 0}
                 min={1}
                 step={1}
@@ -1016,7 +1046,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 disabled={!draft}
               />
               <CheckboxField
-                label="Allow emitter looping"
+                label={t("settings.allowLooping")}
                 checked={
                   draft?.catalog.performanceBudget.loopingAllowed ?? false
                 }
@@ -1032,7 +1062,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 disabled={!draft}
               />
               <CheckboxField
-                label="Allow simultaneous effects"
+                label={t("settings.allowCoexist")}
                 checked={draft?.catalog.performanceBudget.canCoexist ?? true}
                 onChange={(value) =>
                   draft &&
@@ -1106,12 +1136,12 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             >
               <div className="font-medium">
                 {previewStatus.state === "ready"
-                  ? "Preview ready"
+                  ? t("preview.status.ready")
                   : previewStatus.state === "loading"
-                    ? "Loading preview"
+                    ? t("preview.status.loading")
                     : previewStatus.state === "error"
-                      ? "Preview error"
-                      : "Preview idle"}
+                      ? t("preview.status.error")
+                      : t("preview.status.idle")}
               </div>
               {previewStatus.message ? (
                 <div className="text-muted-foreground mt-1 max-w-[340px]">
@@ -1127,27 +1157,32 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 <div className="border-border text-muted-foreground mt-2 border-t pt-2">
                   <span className="text-foreground font-medium">
                     {avatarPreviewStatus.state === "ready"
-                      ? "Avatar ready"
+                      ? t("preview.avatarStatus.ready")
                       : avatarPreviewStatus.state === "loading"
-                        ? "Avatar loading"
+                        ? t("preview.avatarStatus.loading")
                         : avatarPreviewStatus.state === "error"
-                          ? "Avatar error"
-                          : "Avatar idle"}
+                          ? t("preview.avatarStatus.error")
+                          : t("preview.avatarStatus.idle")}
                   </span>
                   {avatarPreviewStatus.message ? (
                     <span className="ml-1">{avatarPreviewStatus.message}</span>
                   ) : null}
                   {selectedModel ? (
                     <div className="mt-1">
-                      {selectedModel.sourceLabel}: {selectedModel.displayName}
+                      {t("preview.modelSource", {
+                        source: particleVFXModelSourceLabel(
+                          t,
+                          selectedModel.sourceLabel,
+                        ),
+                        name: selectedModel.displayName,
+                      })}
                     </div>
                   ) : null}
                 </div>
               ) : null}
               {!showAvatar && draft?.catalog.shapeAutoFit ? (
                 <div className="border-border text-muted-foreground mt-2 border-t pt-2">
-                  Rectangle fitting uses avatar bounds when an avatar is
-                  available.
+                  {t("preview.fitNeedsAvatar")}
                 </div>
               ) : null}
             </div>
@@ -1171,11 +1206,11 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           model={
             showAvatar
               ? {
-                  label: "Model",
+                  label: t("preview.model"),
                   value: selectedModel?.key ?? "",
                   placeholder: modelPreview.isModelCatalogPending
-                    ? "Loading models…"
-                    : "Select preview model",
+                    ? t("preview.loadingModels")
+                    : t("preview.selectModel"),
                   options: [
                     ...(selectedModel &&
                     !modelPreview.modelOptions.some(
@@ -1207,8 +1242,8 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
               : undefined
           }
           guides={showAvatar}
-          guidesLabel="Avatar"
-          guidesAriaLabel="Show Avatar"
+          guidesLabel={t("preview.avatar")}
+          guidesAriaLabel={t("preview.showAvatar")}
           guidesDisabled={!draft}
           onGuidesChange={setShowAvatar}
           domainControl={
@@ -1220,7 +1255,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                   variant="ghost"
                   disabled={modelPreview.isLoadingMoreModels}
                   onClick={() => void modelPreview.loadMoreModels()}
-                  aria-label="Load more Avatars"
+                  aria-label={t("preview.loadMoreAvatars")}
                 >
                   <PlusIcon />
                 </Button>
@@ -1242,16 +1277,16 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                       modelPreview.retrySelectedModel(),
                     ])
                   }
-                  aria-label="Retry preview Avatar Model"
+                  aria-label={t("preview.retryModel")}
                 >
                   <RefreshCwIcon />
                 </Button>
               ) : null}
               <span className="text-muted-foreground ml-1 shrink-0 text-xs font-medium">
-                Outline
+                {t("preview.outline")}
               </span>
               <Switch
-                aria-label="Show emitter shape outline"
+                aria-label={t("preview.showOutline")}
                 checked={showEmitterOutline}
                 onCheckedChange={setShowEmitterOutline}
                 disabled={!activeEmitter}
@@ -1294,15 +1329,15 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                 contentSave.error ??
                 contentSave.recoveryWarning ??
                 (contentSave.notices[0]
-                  ? `${contentSave.notices[0]}${
-                      contentSave.noticeConfirmationRequired
-                        ? " Review the adjustment, then Save again."
-                        : ""
-                    }`
+                  ? contentSave.noticeConfirmationRequired
+                    ? t("save.reviewNotice", {
+                        notice: contentSave.notices[0],
+                      })
+                    : contentSave.notices[0]
                   : null) ??
                 (contentSave.isBusy
-                  ? `${saveStageLabel(contentSave.stage)} private content…`
-                  : creatorRecoveredMessage("Particle VFX"))
+                  ? saveBusyMessage(t, contentSave.stage)
+                  : creatorRecoveredMessage(t("recoveryLabel")))
               }
               actions={
                 contentSave.recovered && !contentSave.isBusy ? (
@@ -1314,7 +1349,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
                         disabled={discardPending}
                         onClick={() => void contentSave.save()}
                       >
-                        Retry Save
+                        {tCreator("save.retry")}
                       </Button>
                     ) : null}
                     <CreatorDiscardRecoveryButton
@@ -1329,13 +1364,13 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           <CreatorImportDialog
             open={importDialogOpen}
             onOpenChange={setImportDialogOpen}
-            title="Import Particle VFX JSON"
-            description="Paste a three.quarks effect. Valid JSON replaces the current document after the unsaved-change confirmation."
+            title={t("import.title")}
+            description={t("import.description")}
             text={importText}
             error={importError}
             busy={contentSave.isBusy}
-            ariaLabel="Particle VFX JSON"
-            importLabel="Import effect"
+            ariaLabel={t("import.ariaLabel")}
+            importLabel={t("import.confirm")}
             onTextChange={setImportText}
             onImport={handleImportJson}
           />
@@ -1354,7 +1389,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           />
           <CreatorLeaveDialog
             guard={leaveGuard}
-            contentLabel="Particle Effect"
+            contentLabel={t("contentLabel")}
           />
         </>
       }
@@ -1388,6 +1423,7 @@ function ParticleVFXPreviewTimeline({
   onRestart: () => void;
   onPlaybackEnded: () => void;
 }) {
+  const { t } = useTranslation("particles");
   const [timeSec, setTimeSec] = useState(0);
   const timeRef = useRef(0);
 
@@ -1424,9 +1460,9 @@ function ParticleVFXPreviewTimeline({
         <CreatorTimelineToolbar
           leading={
             <div className="min-w-0">
-              <h2 className="text-sm font-semibold">Preview Timeline</h2>
+              <h2 className="text-sm font-semibold">{t("timeline.title")}</h2>
               <p className="text-muted-foreground text-2xs">
-                {emitters.length} emitter{emitters.length === 1 ? "" : "s"}
+                {t("emitters.count", { count: emitters.length })}
               </p>
             </div>
           }
@@ -1437,16 +1473,16 @@ function ParticleVFXPreviewTimeline({
               onStop={onStop}
               onRestart={onRestart}
               playDisabled={!ready}
-              label="effect preview"
+              label={t("timeline.target")}
             />
           }
           trailing={
             <div className="flex items-center gap-3">
               <output
                 className="text-sm font-medium tabular-nums"
-                aria-label="Effect preview time"
+                aria-label={t("timeline.time")}
               >
-                {timeSec.toFixed(2)}s
+                {formatTimelineTime(timeSec)}
               </output>
               <span className="text-muted-foreground flex items-center gap-2 text-xs">
                 <span
@@ -1455,7 +1491,11 @@ function ParticleVFXPreviewTimeline({
                     playing && ready ? "bg-primary" : "bg-muted-foreground/50",
                   )}
                 />
-                {!ready ? "Loading" : playing ? "Playing" : "Paused"}
+                {!ready
+                  ? t("timeline.loading")
+                  : playing
+                    ? t("timeline.playing")
+                    : t("timeline.paused")}
               </span>
             </div>
           }
@@ -1482,7 +1522,7 @@ function ParticleVFXPreviewTimeline({
             >
               <button
                 type="button"
-                aria-label={`Select emitter ${emitter.name}`}
+                aria-label={t("timeline.selectEmitter", { name: emitter.name })}
                 aria-pressed={emitter.path === activeEmitterPath}
                 onClick={() => onSelectEmitter(emitter.path)}
                 className="bg-primary/20 border-primary/25 pointer-events-auto absolute inset-y-1 rounded border"
@@ -1528,18 +1568,19 @@ function ParticleVFXExportJsonDialog({
   onCopy: (target: string, value: string) => void;
   onDownload: () => void;
 }) {
+  const { t } = useTranslation("particles");
   return (
     <CreatorJsonDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Particle VFX export"
-      description={assetPath ?? "Current export payload"}
+      title={t("export.title")}
+      description={assetPath ?? t("export.currentPayload")}
       contentClassName="max-h-[86vh] max-w-[calc(100vw-2rem)] sm:max-w-[980px]"
       bodyClassName="space-y-3"
     >
       <div className="flex flex-wrap items-center gap-2 pt-1">
         <Button type="button" size="sm" onClick={onDownload} disabled={!bundle}>
-          <DownloadIcon /> Download JSON
+          <DownloadIcon /> {t("export.download")}
         </Button>
         <Button
           type="button"
@@ -1547,7 +1588,7 @@ function ParticleVFXExportJsonDialog({
           variant="outline"
           onClick={() => onReset("smart")}
         >
-          Reset view
+          {t("export.resetView")}
         </Button>
         <Button
           type="button"
@@ -1555,7 +1596,7 @@ function ParticleVFXExportJsonDialog({
           variant="outline"
           onClick={() => onReset("all")}
         >
-          Expand all
+          {t("export.expandAll")}
         </Button>
         <Button
           type="button"
@@ -1563,24 +1604,24 @@ function ParticleVFXExportJsonDialog({
           variant="outline"
           onClick={() => onReset("collapsed")}
         >
-          Collapse all
+          {t("export.collapseAll")}
         </Button>
       </div>
 
       {bundle ? (
         <details className="rounded-md border p-3">
           <summary className="cursor-pointer text-sm font-medium">
-            Catalog settings and clip event
+            {t("export.snippets")}
           </summary>
           <div className="mt-3 space-y-4">
             <ExportBlock
-              title="Catalog settings"
+              title={t("export.catalogSettings")}
               value={bundle.catalogEntrySnippet}
               copied={copiedTarget === "catalog"}
               onCopy={() => onCopy("catalog", bundle.catalogEntrySnippet)}
             />
             <ExportBlock
-              title="Clip event"
+              title={t("export.clipEvent")}
               value={bundle.clipEventSnippet}
               copied={copiedTarget === "clip"}
               onCopy={() => onCopy("clip", bundle.clipEventSnippet)}
@@ -1595,7 +1636,7 @@ function ParticleVFXExportJsonDialog({
       ) : payload.value ? (
         <div className="border-border/60 bg-background/80 rounded-md border p-3">
           <div className="text-muted-foreground mb-3 font-mono text-xs">
-            Exact export JSON
+            {t("export.exactJson")}
           </div>
           <div className="max-h-[60vh] overflow-auto pr-2">
             <JsonTreeNode
@@ -1609,7 +1650,7 @@ function ParticleVFXExportJsonDialog({
         </div>
       ) : (
         <div className="text-muted-foreground rounded-md border p-3 text-sm">
-          No export JSON is available.
+          {t("export.unavailable")}
         </div>
       )}
     </CreatorJsonDialog>
@@ -1811,12 +1852,11 @@ function QuarksPreviewObject({
       })
       .catch((error) => {
         if (disposed) return;
+        // Worded when loading fails, so a locale change keeps the preview.
+        const t = getI18n().getFixedT(null, "particles");
         onStatusChange({
           state: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "Preview could not load three.quarks.",
+          message: failureLine(error, t("preview.quarksFailed")),
         });
       });
 
@@ -2198,16 +2238,31 @@ function disposePreviewObject(
 }
 
 /** Summarize the selected emitter's own emission, without repeating the effect budget. */
-function emitterSummary(emitter: ParticleVFXEmitterDraft): string {
+function emitterSummary(
+  t: TFunction<"particles">,
+  formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string,
+  emitter: ParticleVFXEmitterDraft,
+): string {
+  const number = (value: number) =>
+    formatNumber(value, { maximumFractionDigits: 6 });
   const range = (value: ParticleVFXEditorValueRange | null) =>
     value
       ? value.min === value.max
-        ? `${value.min}`
-        : `${value.min}–${value.max}`
-      : "custom";
-  const shape =
-    emitter.shape.type[0].toUpperCase() + emitter.shape.type.slice(1);
-  return `${shape} · ${range(emitter.emissionOverTime)}/s${emitter.burstCount && emitter.burstCount.max > 0 ? ` · burst ${range(emitter.burstCount)}` : ""}`;
+        ? number(value.min)
+        : t("emitters.summary.range", {
+            min: number(value.min),
+            max: number(value.max),
+          })
+      : t("emitters.summary.custom");
+  const shape = particleVFXShapeLabel(t, emitter.shape.type);
+  const rate = range(emitter.emissionOverTime);
+  return emitter.burstCount && emitter.burstCount.max > 0
+    ? t("emitters.summary.withBurst", {
+        shape,
+        rate,
+        burst: range(emitter.burstCount),
+      })
+    : t("emitters.summary.rate", { shape, rate });
 }
 
 function EmitterAuthoringTabs({
@@ -2223,14 +2278,16 @@ function EmitterAuthoringTabs({
   onSelectEmitter: (path: string) => void;
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
 }) {
+  const { t } = useTranslation("particles");
+  const { t: tCreator } = useTranslation("creator");
   return (
     <CreatorFloatingPanel
-      title="Inspector"
+      title={tCreator("panel.inspector")}
       headerActions={
         <Input
-          aria-label="Emitter name"
+          aria-label={t("inspector.emitterName")}
           value={activeEmitter?.name ?? ""}
-          placeholder="Select an emitter"
+          placeholder={t("inspector.selectEmitterPlaceholder")}
           disabled={!activeEmitter}
           onChange={(event) => onPatch({ name: event.target.value })}
           className="h-8 min-w-0 flex-1 text-sm"
@@ -2250,20 +2307,20 @@ function EmitterAuthoringTabs({
           <SelectTrigger
             className="w-full"
             size="sm"
-            aria-label="Apply emitter preset"
+            aria-label={t("inspector.applyPreset")}
           >
-            <SelectValue placeholder="Apply emitter preset" />
+            <SelectValue placeholder={t("inspector.applyPreset")} />
           </SelectTrigger>
           <SelectContent>
             {PARTICLE_VFX_EDITOR_EMITTER_TEMPLATES.map((template) => (
               <SelectItem key={template.id} value={template.id}>
-                {template.label}
+                {particleVFXEmitterTemplateLabel(t, template.id)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
         <p className="text-muted-foreground mt-2 text-xs">
-          Replaces settings on the selected emitter.
+          {t("inspector.presetHint")}
         </p>
       </div>
       <div className="border-border border-b p-3 lg:hidden">
@@ -2273,7 +2330,7 @@ function EmitterAuthoringTabs({
           disabled={!draft || draft.emitters.length === 0}
         >
           <SelectTrigger className="w-[220px] lg:hidden" size="sm">
-            <SelectValue placeholder="Select emitter" />
+            <SelectValue placeholder={t("inspector.selectEmitter")} />
           </SelectTrigger>
           <SelectContent>
             {draft?.emitters.map((emitter) => (
@@ -2287,7 +2344,7 @@ function EmitterAuthoringTabs({
 
       {!activeEmitter ? (
         <div className="text-muted-foreground flex min-h-[240px] flex-1 items-center justify-center p-6 text-sm">
-          Select or add an emitter.
+          {t("inspector.empty")}
         </div>
       ) : (
         <Tabs
@@ -2297,19 +2354,19 @@ function EmitterAuthoringTabs({
           <div className="border-border overflow-x-auto border-b px-3 py-2">
             <TabsList className="grid h-8 w-full grid-cols-5 p-0.5">
               <TabsTrigger className="text-2xs h-7 px-1" value="appearance">
-                Appearance
+                {t("inspector.tabs.appearance")}
               </TabsTrigger>
               <TabsTrigger className="text-2xs h-7 px-1" value="position">
-                Position
+                {t("inspector.tabs.position")}
               </TabsTrigger>
               <TabsTrigger className="text-2xs h-7 px-1" value="emission">
-                Emission
+                {t("inspector.tabs.emission")}
               </TabsTrigger>
               <TabsTrigger className="text-2xs h-7 px-1" value="shape">
-                Shape
+                {t("inspector.tabs.shape")}
               </TabsTrigger>
               <TabsTrigger className="text-2xs h-7 px-1" value="behavior">
-                Behavior
+                {t("inspector.tabs.behavior")}
               </TabsTrigger>
             </TabsList>
           </div>
@@ -2330,7 +2387,7 @@ function EmitterAuthoringTabs({
             <TabsContent value="appearance" className="mt-0 space-y-6">
               <section>
                 <h3 className="mb-3 text-xs font-semibold tracking-wide uppercase">
-                  Texture
+                  {t("texture.title")}
                 </h3>
                 <EmitterTexturePanel
                   emitter={activeEmitter}
@@ -2339,13 +2396,13 @@ function EmitterAuthoringTabs({
               </section>
               <section className="border-border border-t pt-5">
                 <h3 className="mb-3 text-xs font-semibold tracking-wide uppercase">
-                  Color
+                  {t("color.title")}
                 </h3>
                 <EmitterColorPanel emitter={activeEmitter} onPatch={onPatch} />
               </section>
               <section className="border-border border-t pt-5">
                 <h3 className="mb-3 text-xs font-semibold tracking-wide uppercase">
-                  Renderer
+                  {t("renderer.title")}
                 </h3>
                 <EmitterRendererPanel
                   emitter={activeEmitter}
@@ -2367,32 +2424,35 @@ function EmitterSystemPanel({
   emitter: ParticleVFXEmitterDraft;
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
 }) {
+  const { t } = useTranslation("particles");
   return (
     <div className="space-y-5">
       <fieldset className="space-y-3">
-        <legend className="mb-2 text-xs font-semibold">Cycle</legend>
+        <legend className="mb-2 text-xs font-semibold">
+          {t("position.cycle")}
+        </legend>
         <NumberField
-          label="Emitter cycle duration (s)"
+          label={t("position.cycleDuration")}
           value={emitter.durationSec ?? 0}
           min={0.01}
           step={0.01}
           onChange={(value) => onPatch({ durationSec: value })}
         />
         <CheckboxField
-          label="Loop this emitter"
+          label={t("position.loop")}
           checked={emitter.looping}
           onChange={(value) => onPatch({ looping: value })}
         />
       </fieldset>
       <fieldset className="space-y-3">
         <legend className="mb-2 text-xs font-semibold">
-          Anchor and position
+          {t("position.anchorAndPosition")}
         </legend>
         <SelectField
-          label="Anchor override"
+          label={t("position.anchorOverride")}
           value={emitter.anchor ?? "inherit"}
           values={["inherit", ...PARTICLE_VFX_ANCHORS]}
-          labels={{ inherit: "Inherit default anchor" }}
+          optionLabel={(anchor) => particleVFXAnchorLabel(t, anchor)}
           onChange={(value) =>
             onPatch({
               anchor: value === "inherit" ? null : (value as ParticleVFXAnchor),
@@ -2400,19 +2460,19 @@ function EmitterSystemPanel({
           }
         />
         <p className="text-muted-foreground text-xs">
-          Offsets are relative to this emitter’s resolved anchor.
+          {t("position.offsetHint")}
         </p>
         {(["x", "y", "z"] as const).map((axis) => (
           <NumberField
             key={axis}
-            label={`Position ${axis.toUpperCase()} (m)`}
+            label={t("position.axisMeters", { axis: axis.toUpperCase() })}
             value={emitter.localPosition[axis]}
             step={0.05}
             onChange={(value) => onPatch({ localPosition: { [axis]: value } })}
           />
         ))}
         <CheckboxField
-          label="Keep emitted particles in world space"
+          label={t("position.worldSpace")}
           checked={emitter.worldSpace}
           onChange={(value) => onPatch({ worldSpace: value })}
         />
@@ -2428,6 +2488,7 @@ function EmitterTexturePanel({
   emitter: ParticleVFXEmitterDraft;
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
 }) {
+  const { t } = useTranslation("particles");
   const selectedTexture = PARTICLE_VFX_EDITOR_TEXTURES.find(
     (texture) => texture.id === emitter.textureId,
   );
@@ -2474,7 +2535,7 @@ function EmitterTexturePanel({
         {PARTICLE_VFX_TEXTURE_GROUPS.map((group) => (
           <section key={group.role} className="grid gap-2">
             <div className="text-muted-foreground text-xs font-semibold uppercase">
-              {group.label}
+              {particleVFXTextureRoleLabel(t, group.role)}
             </div>
             <div className="grid grid-cols-2 gap-2">
               {group.textures.map((texture) => (
@@ -2497,7 +2558,7 @@ function EmitterTexturePanel({
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate font-medium">
-                      {texture.label}
+                      {particleVFXTextureLabel(t, texture)}
                     </span>
                     <span className="text-muted-foreground block truncate text-xs">
                       {texture.fileName}
@@ -2512,10 +2573,10 @@ function EmitterTexturePanel({
       <div className="grid content-start gap-3 sm:grid-cols-2">
         <div className="flex items-center gap-2 text-sm font-medium sm:col-span-2">
           <ImageIcon className="text-primary size-4" />
-          Atlas
+          {t("texture.atlas")}
         </div>
         <NumberField
-          label="U tiles"
+          label={t("texture.uTiles")}
           value={emitter.renderer.uTileCount}
           min={1}
           step={1}
@@ -2524,7 +2585,7 @@ function EmitterTexturePanel({
           }
         />
         <NumberField
-          label="V tiles"
+          label={t("texture.vTiles")}
           value={emitter.renderer.vTileCount}
           min={1}
           step={1}
@@ -2533,17 +2594,17 @@ function EmitterTexturePanel({
           }
         />
         <CheckboxField
-          label="Blend tiles"
+          label={t("texture.blendTiles")}
           checked={emitter.renderer.blendTiles}
           onChange={(value) => onPatch({ renderer: { blendTiles: value } })}
         />
         <CheckboxField
-          label="Animate frames"
+          label={t("texture.animateFrames")}
           checked={frameOverLifeEnabled}
           onChange={setFrameOverLifeEnabled}
         />
         <NumberField
-          label="Frame start"
+          label={t("texture.frameStart")}
           value={frameStart}
           min={0}
           step={1}
@@ -2553,7 +2614,7 @@ function EmitterTexturePanel({
           }
         />
         <NumberField
-          label="Frame end"
+          label={t("texture.frameEnd")}
           value={frameEnd}
           min={0}
           step={1}
@@ -2574,53 +2635,56 @@ function EmitterEmissionPanel({
   emitter: ParticleVFXEmitterDraft;
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
 }) {
+  const { t } = useTranslation("particles");
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <ValueRangeField
-        label="Particle lifetime (s)"
+        label={t("emission.lifetime")}
         value={emitter.startLife}
         min={0}
         step={0.01}
         onChange={(value) => onPatch({ startLife: value })}
       />
       <ValueRangeField
-        label="Initial speed (m/s)"
+        label={t("emission.initialSpeed")}
         value={emitter.startSpeed}
         min={0}
         step={0.01}
         onChange={(value) => onPatch({ startSpeed: value })}
       />
       <ValueRangeField
-        label="Initial size (m)"
+        label={t("emission.initialSize")}
         value={emitter.startSize}
         min={0}
         step={0.01}
         onChange={(value) => onPatch({ startSize: value })}
       />
       <ValueRangeField
-        label="Initial rotation (rad)"
+        label={t("emission.initialRotation")}
         value={emitter.startRotation}
         step={0.01}
         onChange={(value) => onPatch({ startRotation: value })}
       />
       <ValueRangeField
-        label="Particles per second"
+        label={t("emission.perSecond")}
         value={emitter.emissionOverTime}
         min={0}
         step={0.1}
         onChange={(value) => onPatch({ emissionOverTime: value })}
       />
       <ValueRangeField
-        label="Particles per meter"
+        label={t("emission.perMeter")}
         value={emitter.emissionOverDistance}
         min={0}
         step={0.1}
         onChange={(value) => onPatch({ emissionOverDistance: value })}
       />
       <fieldset className="border-border space-y-3 border-t pt-3 sm:col-span-2">
-        <legend className="text-xs font-semibold">Burst emission</legend>
+        <legend className="text-xs font-semibold">
+          {t("emission.burst.title")}
+        </legend>
         <ValueRangeField
-          label="Burst count"
+          label={t("emission.burst.count")}
           value={emitter.burstCount}
           min={0}
           step={1}
@@ -2629,14 +2693,14 @@ function EmitterEmissionPanel({
         {(emitter.burstCount?.max ?? 0) > 0 ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <NumberField
-              label="Burst time (s)"
+              label={t("emission.burst.time")}
               value={emitter.burst?.time ?? 0}
               min={0}
               step={0.01}
               onChange={(value) => onPatch({ burst: { time: value } })}
             />
             <NumberField
-              label="Burst repetitions"
+              label={t("emission.burst.repetitions")}
               value={emitter.burst?.cycle ?? 1}
               min={1}
               step={1}
@@ -2645,7 +2709,7 @@ function EmitterEmissionPanel({
             {(emitter.burst?.cycle ?? 1) > 1 ? (
               <>
                 <NumberField
-                  label="Repeat interval (s)"
+                  label={t("emission.burst.interval")}
                   value={emitter.burst?.interval ?? 0.01}
                   min={0}
                   step={0.01}
@@ -2654,7 +2718,7 @@ function EmitterEmissionPanel({
               </>
             ) : null}
             <NumberField
-              label="Burst probability (0–1)"
+              label={t("emission.burst.probability")}
               value={emitter.burst?.probability ?? 1}
               min={0}
               step={0.05}
@@ -2674,14 +2738,16 @@ function EmitterShapePanel({
   emitter: ParticleVFXEmitterDraft;
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
 }) {
+  const { t } = useTranslation("particles");
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <SelectField
-        label="Shape"
+        label={t("shape.title")}
         value={
           emitter.shape.type === "unsupported" ? "sphere" : emitter.shape.type
         }
         values={PARTICLE_VFX_EDITOR_SHAPES}
+        optionLabel={(shape) => particleVFXShapeLabel(t, shape)}
         onChange={(value) =>
           onPatch({ shape: { type: value as ParticleVFXEditorShapeType } })
         }
@@ -2691,14 +2757,14 @@ function EmitterShapePanel({
           {emitter.shape.type === "rectangle" ? (
             <>
               <NumberField
-                label="Width (m)"
+                label={t("shape.width")}
                 value={emitter.shape.width}
                 min={0}
                 step={0.01}
                 onChange={(value) => onPatch({ shape: { width: value } })}
               />
               <NumberField
-                label="Height (m)"
+                label={t("shape.height")}
                 value={emitter.shape.height}
                 min={0}
                 step={0.01}
@@ -2708,14 +2774,14 @@ function EmitterShapePanel({
           ) : (
             <>
               <NumberField
-                label="Radius (m)"
+                label={t("shape.radius")}
                 value={emitter.shape.radius}
                 min={0}
                 step={0.01}
                 onChange={(value) => onPatch({ shape: { radius: value } })}
               />
               <NumberField
-                label="Arc (rad)"
+                label={t("shape.arc")}
                 value={emitter.shape.arc}
                 min={0}
                 step={0.01}
@@ -2724,14 +2790,14 @@ function EmitterShapePanel({
             </>
           )}
           <NumberField
-            label="Thickness"
+            label={t("shape.thickness")}
             value={emitter.shape.thickness}
             min={0}
             step={0.01}
             onChange={(value) => onPatch({ shape: { thickness: value } })}
           />
           <NumberField
-            label="Spread"
+            label={t("shape.spread")}
             value={emitter.shape.spread}
             step={0.01}
             onChange={(value) => onPatch({ shape: { spread: value } })}
@@ -2741,7 +2807,7 @@ function EmitterShapePanel({
             onChange={(value) => onPatch({ shape: { mode: value } })}
           />
           <ValueRangeField
-            label="Shape speed"
+            label={t("shape.speed")}
             value={emitter.shape.speed}
             min={0}
             step={0.01}
@@ -2751,7 +2817,7 @@ function EmitterShapePanel({
       ) : null}
       {emitter.shape.type === "cone" ? (
         <NumberField
-          label="Angle (rad)"
+          label={t("shape.angle")}
           value={emitter.shape.angle}
           min={0}
           step={0.01}
@@ -2769,9 +2835,10 @@ function EmitterModeField({
   value: ParticleVFXEditorEmitterMode;
   onChange: (value: ParticleVFXEditorEmitterMode) => void;
 }) {
+  const { t } = useTranslation("particles");
   return (
     <div>
-      <Label className="text-xs">Mode</Label>
+      <Label className="text-xs">{t("shape.mode")}</Label>
       <Select
         value={`${value}`}
         onValueChange={(nextValue) =>
@@ -2782,10 +2849,11 @@ function EmitterModeField({
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem value="0">Random</SelectItem>
-          <SelectItem value="1">Loop</SelectItem>
-          <SelectItem value="2">PingPong</SelectItem>
-          <SelectItem value="3">Burst</SelectItem>
+          {([0, 1, 2, 3] as const).map((mode) => (
+            <SelectItem key={mode} value={`${mode}`}>
+              {particleVFXEmitterModeLabel(t, mode)}
+            </SelectItem>
+          ))}
         </SelectContent>
       </Select>
     </div>
@@ -2799,22 +2867,23 @@ function EmitterBehaviorPanel({
   emitter: ParticleVFXEmitterDraft;
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
 }) {
+  const { t } = useTranslation("particles");
   const advanced = emitter.advancedBehaviors;
   return (
     <div className="space-y-4">
       <div className="grid gap-3">
         <CheckboxField
-          label="Force over life"
+          label={t("behavior.forceOverLife")}
           checked={!!emitter.forceOverLife}
           onChange={(value) => onPatch({ forceOverLifeEnabled: value })}
         />
         <CheckboxField
-          label="Size over life"
+          label={t("behavior.sizeOverLife")}
           checked={emitter.hasSizeOverLife}
           onChange={(value) => onPatch({ sizeOverLife: value })}
         />
         <CheckboxField
-          label="Color fade over life"
+          label={t("behavior.colorFadeOverLife")}
           checked={emitter.hasColorOverLife}
           onChange={(value) => onPatch({ colorOverLife: value })}
         />
@@ -2824,7 +2893,7 @@ function EmitterBehaviorPanel({
           {(["x", "y", "z"] as const).map((axis) => (
             <ValueRangeField
               key={axis}
-              label={`Force ${axis.toUpperCase()}`}
+              label={t("behavior.forceAxis", { axis: axis.toUpperCase() })}
               value={emitter.forceOverLife?.[axis] ?? null}
               step={0.01}
               onChange={(value) =>
@@ -2837,14 +2906,14 @@ function EmitterBehaviorPanel({
       ) : null}
       <div className="grid gap-3">
         <ValueBehaviorControls
-          title="Speed over life"
+          title={t("behavior.speedOverLife")}
           draft={advanced.speedOverLife}
           onChange={(value) =>
             onPatch({ advancedBehaviors: { speedOverLife: value } })
           }
         />
         <ValueBehaviorControls
-          title="Rotation over life"
+          title={t("behavior.rotationOverLife")}
           draft={advanced.rotationOverLife}
           onChange={(value) =>
             onPatch({ advancedBehaviors: { rotationOverLife: value } })
@@ -2857,7 +2926,7 @@ function EmitterBehaviorPanel({
           }
         />
         <ValueBehaviorControls
-          title="Width over length"
+          title={t("behavior.widthOverLength")}
           draft={advanced.widthOverLength}
           onChange={(value) =>
             onPatch({ advancedBehaviors: { widthOverLength: value } })
@@ -2899,6 +2968,7 @@ function ValueBehaviorControls({
   draft: ParticleVFXEditorValueBehaviorDraft;
   onChange: (draft: ParticleVFXEditorValueBehaviorDraft) => void;
 }) {
+  const { t } = useTranslation("particles");
   const enabled = draft.mode !== "off";
   const value = draft.value;
   const setEnabled = (nextEnabled: boolean) => {
@@ -2922,7 +2992,7 @@ function ValueBehaviorControls({
         />
       ) : null}
       <ValueGeneratorField
-        label="Value"
+        label={t("generator.value")}
         value={value}
         disabled={!enabled}
         onChange={(nextValue) =>
@@ -2943,6 +3013,7 @@ function LimitSpeedControls({
   draft: ParticleVFXEditorLimitSpeedOverLifeDraft;
   onChange: (draft: ParticleVFXEditorLimitSpeedOverLifeDraft) => void;
 }) {
+  const { t } = useTranslation("particles");
   const enabled = draft.mode !== "off";
   const setEnabled = (nextEnabled: boolean) => {
     onChange({
@@ -2954,7 +3025,7 @@ function LimitSpeedControls({
   return (
     <div className="grid content-start gap-3 rounded-md border p-3">
       <CheckboxField
-        label="Limit speed over life"
+        label={t("behavior.limitSpeed.title")}
         checked={enabled}
         onChange={setEnabled}
       />
@@ -2971,7 +3042,7 @@ function LimitSpeedControls({
         />
       ) : null}
       <ValueGeneratorField
-        label="Speed"
+        label={t("behavior.limitSpeed.speed")}
         value={draft.speed}
         disabled={!enabled}
         onChange={(speed) =>
@@ -2983,7 +3054,7 @@ function LimitSpeedControls({
         }
       />
       <NumberField
-        label="Dampen"
+        label={t("behavior.limitSpeed.dampen")}
         value={draft.dampen}
         min={0}
         step={0.05}
@@ -3007,6 +3078,7 @@ function OrbitControlsPanel({
   draft: ParticleVFXEditorOrbitOverLifeDraft;
   onChange: (draft: ParticleVFXEditorOrbitOverLifeDraft) => void;
 }) {
+  const { t } = useTranslation("particles");
   const enabled = draft.mode !== "off";
   const setEnabled = (nextEnabled: boolean) => {
     onChange({
@@ -3018,7 +3090,7 @@ function OrbitControlsPanel({
   return (
     <div className="grid content-start gap-3 rounded-md border p-3">
       <CheckboxField
-        label="Orbit over life"
+        label={t("behavior.orbit.title")}
         checked={enabled}
         onChange={setEnabled}
       />
@@ -3035,7 +3107,7 @@ function OrbitControlsPanel({
         />
       ) : null}
       <ValueGeneratorField
-        label="Orbit speed"
+        label={t("behavior.orbit.speed")}
         value={draft.orbitSpeed}
         disabled={!enabled}
         onChange={(orbitSpeed) =>
@@ -3047,7 +3119,7 @@ function OrbitControlsPanel({
         }
       />
       <AxisTripleFields
-        label="Axis"
+        label={t("behavior.axis")}
         value={draft.axis}
         disabled={!enabled}
         onChange={(axis) =>
@@ -3069,6 +3141,7 @@ function Rotation3DControlsPanel({
   draft: ParticleVFXEditorRotation3DOverLifeDraft;
   onChange: (draft: ParticleVFXEditorRotation3DOverLifeDraft) => void;
 }) {
+  const { t } = useTranslation("particles");
   const mode = draft.mode === "unsupported" ? "off" : draft.mode;
   const setMode = (nextMode: string) => {
     if (nextMode === "off") onChange({ mode: "off" });
@@ -3105,9 +3178,10 @@ function Rotation3DControlsPanel({
   return (
     <div className="grid content-start gap-3 rounded-md border p-3">
       <SelectField
-        label="Rotation 3D"
+        label={t("behavior.rotation3D.title")}
         value={mode}
         values={["off", "axis-angle", "euler", "random"] as const}
+        optionLabel={(option) => particleVFXRotation3DModeLabel(t, option)}
         onChange={setMode}
       />
       {draft.mode === "unsupported" ? (
@@ -3119,12 +3193,12 @@ function Rotation3DControlsPanel({
       {draft.mode === "axis-angle" ? (
         <>
           <AxisTripleFields
-            label="Axis"
+            label={t("behavior.axis")}
             value={draft.axis}
             onChange={(axis) => onChange({ ...draft, axis })}
           />
           <ValueGeneratorField
-            label="Angle (rad)"
+            label={t("behavior.rotation3D.angle")}
             value={draft.angle}
             onChange={(angle) => onChange({ ...draft, angle })}
           />
@@ -3133,23 +3207,23 @@ function Rotation3DControlsPanel({
       {draft.mode === "euler" ? (
         <>
           <SelectField
-            label="Euler order"
+            label={t("behavior.rotation3D.eulerOrder")}
             value={draft.eulerOrder}
             values={["XYZ", "XZY", "YXZ", "YZX", "ZXY", "ZYX"] as const}
             onChange={(eulerOrder) => onChange({ ...draft, eulerOrder })}
           />
           <ValueGeneratorField
-            label="Angle X"
+            label={t("behavior.rotation3D.angleAxis", { axis: "X" })}
             value={draft.angleX}
             onChange={(angleX) => onChange({ ...draft, angleX })}
           />
           <ValueGeneratorField
-            label="Angle Y"
+            label={t("behavior.rotation3D.angleAxis", { axis: "Y" })}
             value={draft.angleY}
             onChange={(angleY) => onChange({ ...draft, angleY })}
           />
           <ValueGeneratorField
-            label="Angle Z"
+            label={t("behavior.rotation3D.angleAxis", { axis: "Z" })}
             value={draft.angleZ}
             onChange={(angleZ) => onChange({ ...draft, angleZ })}
           />
@@ -3166,6 +3240,7 @@ function NoiseControlsPanel({
   draft: ParticleVFXEditorNoiseDraft;
   onChange: (draft: ParticleVFXEditorNoiseDraft) => void;
 }) {
+  const { t } = useTranslation("particles");
   const enabled = draft.mode !== "off";
   const setEnabled = (nextEnabled: boolean) => {
     onChange({
@@ -3190,7 +3265,11 @@ function NoiseControlsPanel({
     };
   return (
     <div className="grid content-start gap-3 rounded-md border p-3">
-      <CheckboxField label="Noise" checked={enabled} onChange={setEnabled} />
+      <CheckboxField
+        label={t("behavior.noise.title")}
+        checked={enabled}
+        onChange={setEnabled}
+      />
       {draft.mode === "unsupported" ? (
         <UnsupportedBehaviorNotice
           label={draft.label}
@@ -3198,25 +3277,25 @@ function NoiseControlsPanel({
         />
       ) : null}
       <ValueGeneratorField
-        label="Frequency"
+        label={t("behavior.noise.frequency")}
         value={draft.frequency}
         disabled={!enabled}
         onChange={patch("frequency")}
       />
       <ValueGeneratorField
-        label="Power"
+        label={t("behavior.noise.power")}
         value={draft.power}
         disabled={!enabled}
         onChange={patch("power")}
       />
       <ValueGeneratorField
-        label="Position amount"
+        label={t("behavior.noise.positionAmount")}
         value={draft.positionAmount}
         disabled={!enabled}
         onChange={patch("positionAmount")}
       />
       <ValueGeneratorField
-        label="Rotation amount"
+        label={t("behavior.noise.rotationAmount")}
         value={draft.rotationAmount}
         disabled={!enabled}
         onChange={patch("rotationAmount")}
@@ -3232,6 +3311,7 @@ function TurbulenceControlsPanel({
   draft: ParticleVFXEditorTurbulenceFieldDraft;
   onChange: (draft: ParticleVFXEditorTurbulenceFieldDraft) => void;
 }) {
+  const { t } = useTranslation("particles");
   const enabled = draft.mode !== "off";
   const setEnabled = (nextEnabled: boolean) => {
     onChange({
@@ -3245,7 +3325,7 @@ function TurbulenceControlsPanel({
   return (
     <div className="grid content-start gap-3 rounded-md border p-3">
       <CheckboxField
-        label="Turbulence"
+        label={t("behavior.turbulence.title")}
         checked={enabled}
         onChange={setEnabled}
       />
@@ -3256,7 +3336,7 @@ function TurbulenceControlsPanel({
         />
       ) : null}
       <AxisTripleFields
-        label="Scale"
+        label={t("behavior.turbulence.scale")}
         value={draft.scale}
         disabled={!enabled}
         onChange={(scale) =>
@@ -3264,7 +3344,7 @@ function TurbulenceControlsPanel({
         }
       />
       <NumberField
-        label="Octaves"
+        label={t("behavior.turbulence.octaves")}
         value={draft.octaves}
         min={1}
         step={1}
@@ -3278,7 +3358,7 @@ function TurbulenceControlsPanel({
         }
       />
       <AxisTripleFields
-        label="Velocity"
+        label={t("behavior.turbulence.velocity")}
         value={draft.velocityMultiplier}
         disabled={!enabled}
         onChange={(velocityMultiplier) =>
@@ -3290,7 +3370,7 @@ function TurbulenceControlsPanel({
         }
       />
       <AxisTripleFields
-        label="Time scale"
+        label={t("behavior.turbulence.timeScale")}
         value={draft.timeScale}
         disabled={!enabled}
         onChange={(timeScale) =>
@@ -3312,6 +3392,7 @@ function EmitterColorPanel({
   emitter: ParticleVFXEmitterDraft;
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
 }) {
+  const { t } = useTranslation("particles");
   const startColor = emitter.startColorGenerator;
   const colorOverLife = emitter.colorOverLife;
   const selectedThemeId =
@@ -3390,9 +3471,9 @@ function EmitterColorPanel({
       <div className="space-y-3">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-medium">Start Color</h3>
+            <h3 className="text-sm font-medium">{t("color.start.title")}</h3>
             <p className="text-muted-foreground text-xs">
-              Initial particle color sampled when each particle spawns.
+              {t("color.start.description")}
             </p>
           </div>
           <ColorPreviewStrip
@@ -3415,18 +3496,22 @@ function EmitterColorPanel({
         ) : null}
         <div className="grid gap-3">
           <SelectField
-            label="Mode"
+            label={t("color.mode")}
             value={
               startColor.mode === "unsupported" ? "fixed" : startColor.mode
             }
             values={START_COLOR_MODE_VALUES}
+            optionLabel={(mode) => particleVFXStartColorModeLabel(t, mode)}
             onChange={setStartColorMode}
           />
           {startColor.mode === "theme" ? (
             <SelectField
-              label="Theme"
+              label={t("color.start.theme")}
               value={startColor.presetId}
               values={COLOR_THEME_PRESET_IDS}
+              optionLabel={(presetId) =>
+                particleVFXColorThemeLabel(t, presetId)
+              }
               onChange={(presetId) => {
                 const preset = getColorThemePreset(presetId) ?? selectedTheme;
                 onPatch({
@@ -3443,7 +3528,7 @@ function EmitterColorPanel({
         </div>
         {startColor.mode === "fixed" ? (
           <ColorRgbaFields
-            label="Fixed"
+            label={t("color.start.fixed")}
             color={startColor.color}
             onChange={(color) =>
               onPatch({ startColorGenerator: { mode: "fixed", color } })
@@ -3453,7 +3538,7 @@ function EmitterColorPanel({
         {startColor.mode === "range" || startColor.mode === "theme" ? (
           <div className="grid gap-3">
             <ColorRgbaFields
-              label="Range start"
+              label={t("color.start.rangeStart")}
               color={startColor.from}
               onChange={(color) =>
                 onPatch({
@@ -3465,7 +3550,7 @@ function EmitterColorPanel({
               }
             />
             <ColorRgbaFields
-              label="Range end"
+              label={t("color.start.rangeEnd")}
               color={startColor.to}
               onChange={(color) =>
                 onPatch({
@@ -3496,7 +3581,9 @@ function EmitterColorPanel({
               }
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium">{preset.label}</span>
+                <span className="text-xs font-medium">
+                  {particleVFXColorThemeLabel(t, preset.id)}
+                </span>
                 <ColorPreviewStrip
                   stops={[
                     { position: 0, color: preset.from },
@@ -3506,7 +3593,8 @@ function EmitterColorPanel({
                 />
               </div>
               <p className="text-muted-foreground text-2xs mt-1 line-clamp-2">
-                {preset.description}
+                {particleVFXColorThemeDescription(t, preset.id) ??
+                  preset.description}
               </p>
             </button>
           ))}
@@ -3516,9 +3604,9 @@ function EmitterColorPanel({
       <div className="border-t pt-5">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <h3 className="text-sm font-medium">Color Over Life</h3>
+            <h3 className="text-sm font-medium">{t("color.overLife.title")}</h3>
             <p className="text-muted-foreground text-xs">
-              Multiplies particle color as particles age.
+              {t("color.overLife.description")}
             </p>
           </div>
           {colorOverLife.mode === "gradient" ||
@@ -3555,13 +3643,14 @@ function EmitterColorPanel({
         ) : null}
         <div className="mt-3 grid gap-3">
           <SelectField
-            label="Mode"
+            label={t("color.mode")}
             value={
               colorOverLife.mode === "unsupported"
                 ? "gradient"
                 : colorOverLife.mode
             }
             values={COLOR_OVER_LIFE_MODE_VALUES}
+            optionLabel={(mode) => particleVFXColorOverLifeModeLabel(t, mode)}
             onChange={setColorOverLifeMode}
           />
         </div>
@@ -3588,14 +3677,16 @@ function EmitterColorPanel({
               }
             >
               <div className="flex items-center justify-between gap-2">
-                <span className="text-xs font-medium">{preset.label}</span>
+                <span className="text-xs font-medium">
+                  {particleVFXColorThemeLabel(t, preset.id)}
+                </span>
                 <ColorPreviewStrip
                   stops={preset.gradientStops}
                   className="h-4 w-16"
                 />
               </div>
               <p className="text-muted-foreground text-2xs mt-1">
-                Apply theme gradient
+                {t("color.overLife.applyTheme")}
               </p>
             </button>
           ))}
@@ -3603,7 +3694,9 @@ function EmitterColorPanel({
         {colorOverLife.mode === "fade" || colorOverLife.mode === "gradient" ? (
           <GradientStopEditor
             title={
-              colorOverLife.mode === "fade" ? "Fade Stops" : "Gradient Stops"
+              colorOverLife.mode === "fade"
+                ? t("color.overLife.fadeStops")
+                : t("color.overLife.gradientStops")
             }
             stops={colorOverLife.stops}
             onChange={(stops) =>
@@ -3619,7 +3712,7 @@ function EmitterColorPanel({
         {colorOverLife.mode === "random-gradient" ? (
           <div className="mt-4 grid gap-4">
             <GradientStopEditor
-              title="Random Gradient A"
+              title={t("color.overLife.randomGradient", { name: "A" })}
               stops={colorOverLife.gradientA}
               onChange={(gradientA) =>
                 onPatch({
@@ -3632,7 +3725,7 @@ function EmitterColorPanel({
               }
             />
             <GradientStopEditor
-              title="Random Gradient B"
+              title={t("color.overLife.randomGradient", { name: "B" })}
               stops={colorOverLife.gradientB}
               onChange={(gradientB) =>
                 onPatch({
@@ -3692,6 +3785,7 @@ function ColorRgbaFields({
   color: ParticleVFXEditorColor;
   onChange: (color: ParticleVFXEditorColor) => void;
 }) {
+  const { t } = useTranslation("particles");
   const patchColor = (patch: Partial<ParticleVFXEditorColor>) =>
     onChange(clampEditorColor({ ...color, ...patch }));
   return (
@@ -3706,12 +3800,13 @@ function ColorRgbaFields({
       <div className="mt-2 grid gap-2 sm:grid-cols-[80px_1fr_1fr_1fr_1fr]">
         <Input
           type="color"
+          aria-label={t("color.picker", { label })}
           value={colorToHex(color)}
           className="h-10 p-1"
           onChange={(event) => patchColor(hexToColorPatch(event.target.value))}
         />
         <NumberField
-          label="R"
+          label={t("color.channels.red")}
           value={color.r}
           min={0}
           step={0.01}
@@ -3719,7 +3814,7 @@ function ColorRgbaFields({
           onChange={(value) => patchColor({ r: value })}
         />
         <NumberField
-          label="G"
+          label={t("color.channels.green")}
           value={color.g}
           min={0}
           step={0.01}
@@ -3727,7 +3822,7 @@ function ColorRgbaFields({
           onChange={(value) => patchColor({ g: value })}
         />
         <NumberField
-          label="B"
+          label={t("color.channels.blue")}
           value={color.b}
           min={0}
           step={0.01}
@@ -3735,7 +3830,7 @@ function ColorRgbaFields({
           onChange={(value) => patchColor({ b: value })}
         />
         <NumberField
-          label="A"
+          label={t("color.channels.alpha")}
           value={color.a}
           min={0}
           step={0.05}
@@ -3756,6 +3851,7 @@ function GradientStopEditor({
   stops: ParticleVFXEditorColorStop[];
   onChange: (stops: ParticleVFXEditorColorStop[]) => void;
 }) {
+  const { t } = useTranslation("particles");
   const sortedStops = sortColorStops(stops);
   const patchStop = (index: number, patch: ColorStopPatch) => {
     onChange(
@@ -3803,7 +3899,7 @@ function GradientStopEditor({
           }
         >
           <PlusIcon />
-          Stop
+          {t("color.stops.add")}
         </Button>
       </div>
       <div className="mt-3 space-y-2">
@@ -3814,6 +3910,7 @@ function GradientStopEditor({
           >
             <Input
               type="color"
+              aria-label={t("color.stops.color", { index: index + 1 })}
               value={colorToHex(stop.color)}
               className="h-10 p-1"
               onChange={(event) =>
@@ -3821,7 +3918,7 @@ function GradientStopEditor({
               }
             />
             <NumberField
-              label="Position"
+              label={t("color.stops.position")}
               value={stop.position}
               min={0}
               step={0.01}
@@ -3829,7 +3926,7 @@ function GradientStopEditor({
               onChange={(value) => patchStop(index, { position: value })}
             />
             <NumberField
-              label="Alpha"
+              label={t("color.stops.alpha")}
               value={stop.color.a}
               min={0}
               step={0.05}
@@ -3841,6 +3938,7 @@ function GradientStopEditor({
               size="icon"
               variant="ghost"
               className="self-end"
+              aria-label={t("color.stops.remove", { index: index + 1 })}
               disabled={sortedStops.length <= 2}
               onClick={() =>
                 onChange(
@@ -3868,12 +3966,17 @@ function ValueGeneratorField({
   disabled?: boolean;
   onChange: (value: ParticleVFXEditorValueGeneratorDraft) => void;
 }) {
+  const { t } = useTranslation("particles");
   if (value.mode === "unsupported") {
     return (
       <div className={cn(disabled && "opacity-60")}>
         <Label className="text-xs">{label}</Label>
         <div className="border-warning/40 text-warning mt-1 flex items-center justify-between gap-2 rounded-md border p-2 text-xs">
-          <span>Unsupported generator ({value.label})</span>
+          <span>
+            {t("generator.unsupported", {
+              label: particleVFXQuarksTypeLabel(value.label),
+            })}
+          </span>
           <Button
             type="button"
             size="sm"
@@ -3883,7 +3986,7 @@ function ValueGeneratorField({
               onChange({ mode: "constant", value: value.fallbackValue })
             }
           >
-            Convert
+            {t("generator.convert")}
           </Button>
         </div>
       </div>
@@ -3915,14 +4018,18 @@ function ValueGeneratorField({
             <SelectValue />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="constant">Constant</SelectItem>
-            <SelectItem value="range">Range</SelectItem>
-            <SelectItem value="linear">Linear</SelectItem>
+            <SelectItem value="constant">
+              {t("generator.modes.constant")}
+            </SelectItem>
+            <SelectItem value="range">{t("generator.modes.range")}</SelectItem>
+            <SelectItem value="linear">
+              {t("generator.modes.linear")}
+            </SelectItem>
           </SelectContent>
         </Select>
         {value.mode === "constant" ? (
           <NumberField
-            label="Value"
+            label={t("generator.value")}
             value={value.value}
             step={0.05}
             disabled={disabled}
@@ -3935,7 +4042,7 @@ function ValueGeneratorField({
         {value.mode === "range" ? (
           <div className="grid grid-cols-2 gap-2">
             <NumberField
-              label="Min"
+              label={t("generator.min")}
               value={value.min}
               step={0.05}
               disabled={disabled}
@@ -3949,7 +4056,7 @@ function ValueGeneratorField({
               }
             />
             <NumberField
-              label="Max"
+              label={t("generator.max")}
               value={value.max}
               step={0.05}
               disabled={disabled}
@@ -3967,7 +4074,7 @@ function ValueGeneratorField({
         {value.mode === "linear" ? (
           <div className="grid grid-cols-2 gap-2">
             <NumberField
-              label="Start"
+              label={t("generator.start")}
               value={value.start}
               step={0.05}
               disabled={disabled}
@@ -3977,7 +4084,7 @@ function ValueGeneratorField({
               }
             />
             <NumberField
-              label="End"
+              label={t("generator.end")}
               value={value.end}
               step={0.05}
               disabled={disabled}
@@ -4031,11 +4138,16 @@ function UnsupportedBehaviorNotice({
   label: string;
   onConvert: () => void;
 }) {
+  const { t } = useTranslation("particles");
   return (
     <div className="border-warning/40 text-warning flex items-center justify-between gap-2 rounded-md border p-2 text-xs">
-      <span>Unsupported behavior ({label}) is preserved until edited.</span>
+      <span>
+        {t("behavior.unsupported", {
+          label: particleVFXQuarksTypeLabel(label),
+        })}
+      </span>
       <Button type="button" size="sm" variant="outline" onClick={onConvert}>
-        Convert
+        {t("generator.convert")}
       </Button>
     </div>
   );
@@ -4064,11 +4176,16 @@ function UnsupportedColorNotice({
   label: string;
   onConvert: () => void;
 }) {
+  const { t } = useTranslation("particles");
   return (
     <div className="border-warning/40 text-warning mt-3 flex flex-wrap items-center justify-between gap-3 rounded-md border p-3 text-xs">
-      <span>Unsupported generator ({label}) is preserved until edited.</span>
+      <span>
+        {t("generator.unsupportedPreserved", {
+          label: particleVFXQuarksTypeLabel(label),
+        })}
+      </span>
       <Button type="button" size="sm" variant="outline" onClick={onConvert}>
-        Convert
+        {t("generator.convert")}
       </Button>
     </div>
   );
@@ -4096,20 +4213,21 @@ function EmitterRendererPanel({
   emitter: ParticleVFXEmitterDraft;
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
 }) {
+  const { t } = useTranslation("particles");
   const isStretched = emitter.renderer.renderMode === 1;
   const isTrail = emitter.renderer.renderMode === 3;
   return (
     <div className="grid gap-3 sm:grid-cols-2">
       <SelectField
-        label="Render mode"
+        label={t("renderer.mode")}
         value={`${emitter.renderer.renderMode}`}
         values={PARTICLE_VFX_EDITOR_RENDER_MODES.map((mode) => `${mode.value}`)}
-        labels={Object.fromEntries(
-          PARTICLE_VFX_EDITOR_RENDER_MODES.map((mode) => [
-            `${mode.value}`,
-            mode.label,
-          ]),
-        )}
+        optionLabel={(value) =>
+          particleVFXRenderModeLabel(
+            t,
+            Number(value) as ParticleVFXEditorRenderMode,
+          )
+        }
         onChange={(value) =>
           onPatch({
             renderer: {
@@ -4119,9 +4237,10 @@ function EmitterRendererPanel({
         }
       />
       <SelectField
-        label="Blending"
+        label={t("renderer.blending")}
         value={emitter.renderer.blending}
         values={PARTICLE_VFX_EDITOR_BLENDINGS}
+        optionLabel={(blending) => particleVFXBlendingLabel(t, blending)}
         onChange={(value) =>
           onPatch({
             renderer: { blending: value as ParticleVFXEditorBlending },
@@ -4129,7 +4248,7 @@ function EmitterRendererPanel({
         }
       />
       <NumberField
-        label="Opacity"
+        label={t("renderer.opacity")}
         value={emitter.renderer.opacity}
         min={0}
         step={0.05}
@@ -4137,11 +4256,11 @@ function EmitterRendererPanel({
       />
       <details className="sm:col-span-2">
         <summary className="cursor-pointer text-xs font-semibold">
-          Advanced rendering
+          {t("renderer.advanced")}
         </summary>
         <div className="mt-3 grid gap-3 sm:grid-cols-2">
           <NumberField
-            label="Render order"
+            label={t("renderer.renderOrder")}
             value={emitter.renderer.renderOrder}
             step={1}
             onChange={(value) =>
@@ -4149,24 +4268,24 @@ function EmitterRendererPanel({
             }
           />
           <NumberField
-            label="Alpha test"
+            label={t("renderer.alphaTest")}
             value={emitter.renderer.alphaTest}
             min={0}
             step={0.01}
             onChange={(value) => onPatch({ renderer: { alphaTest: value } })}
           />
           <CheckboxField
-            label="Depth write"
+            label={t("renderer.depthWrite")}
             checked={emitter.renderer.depthWrite}
             onChange={(value) => onPatch({ renderer: { depthWrite: value } })}
           />
           <CheckboxField
-            label="Depth test"
+            label={t("renderer.depthTest")}
             checked={emitter.renderer.depthTest}
             onChange={(value) => onPatch({ renderer: { depthTest: value } })}
           />
           <CheckboxField
-            label="Soft particles"
+            label={t("renderer.softParticles")}
             checked={emitter.renderer.softParticles}
             onChange={(value) =>
               onPatch({ renderer: { softParticles: value } })
@@ -4175,7 +4294,7 @@ function EmitterRendererPanel({
           {emitter.renderer.softParticles ? (
             <>
               <NumberField
-                label="Near fade distance (m)"
+                label={t("renderer.nearFade")}
                 value={emitter.renderer.softNearFade}
                 min={0}
                 step={0.05}
@@ -4184,7 +4303,7 @@ function EmitterRendererPanel({
                 }
               />
               <NumberField
-                label="Far fade distance (m)"
+                label={t("renderer.farFade")}
                 value={emitter.renderer.softFarFade}
                 min={0}
                 step={0.05}
@@ -4199,14 +4318,14 @@ function EmitterRendererPanel({
       {isStretched ? (
         <>
           <NumberField
-            label="Speed factor"
+            label={t("renderer.speedFactor")}
             value={emitter.renderer.speedFactor}
             min={0}
             step={0.01}
             onChange={(value) => onPatch({ renderer: { speedFactor: value } })}
           />
           <NumberField
-            label="Length factor"
+            label={t("renderer.lengthFactor")}
             value={emitter.renderer.lengthFactor}
             min={0}
             step={0.1}
@@ -4217,7 +4336,7 @@ function EmitterRendererPanel({
       {isTrail ? (
         <>
           <CheckboxField
-            label="Follow local origin"
+            label={t("renderer.followLocalOrigin")}
             checked={emitter.renderer.trailFollowLocalOrigin}
             onChange={(value) =>
               onPatch({ renderer: { trailFollowLocalOrigin: value } })
@@ -4225,7 +4344,7 @@ function EmitterRendererPanel({
           />
           <div className="md:col-span-2">
             <ValueGeneratorField
-              label="Trail start length"
+              label={t("renderer.trailStartLength")}
               value={emitter.renderer.trailStartLength}
               onChange={(value) =>
                 onPatch({ renderer: { trailStartLength: value } })
@@ -4249,6 +4368,7 @@ function ExportBlock({
   copied: boolean;
   onCopy: () => void;
 }) {
+  const { t } = useTranslation("particles");
   return (
     <div>
       <div className="mb-2 flex items-center justify-between gap-2">
@@ -4261,7 +4381,7 @@ function ExportBlock({
           disabled={!value}
         >
           {copied ? <CheckIcon /> : <ClipboardIcon />}
-          {copied ? "Copied" : "Copy"}
+          {copied ? t("export.copied") : t("export.copy")}
         </Button>
       </div>
       <Textarea
@@ -4283,6 +4403,7 @@ function TransformControls({
   disabled?: boolean;
   onChange: (transform: ParticleVFXTransform) => void;
 }) {
+  const { t } = useTranslation("particles");
   const patchAxis = (
     field: keyof Pick<ParticleVFXTransform, "offset" | "rotation" | "scale">,
     axis: keyof ParticleVFXTransformAxisTriple,
@@ -4302,10 +4423,10 @@ function TransformControls({
         <div key={field}>
           <Label className="text-muted-foreground text-xs capitalize">
             {field === "offset"
-              ? "Offset (m)"
+              ? t("transform.offset")
               : field === "rotation"
-                ? "Rotation (rad)"
-                : "Scale (multiplier)"}
+                ? t("transform.rotation")
+                : t("transform.scale")}
           </Label>
           <div className="mt-2 grid grid-cols-3 gap-2">
             {(["x", "y", "z"] as const).map((axis) => (
@@ -4324,7 +4445,7 @@ function TransformControls({
         </div>
       ))}
       <NumberField
-        label="Depth offset (m)"
+        label={t("transform.depthOffset")}
         value={transform.depthOffset}
         step={0.05}
         onChange={(value) => onChange({ ...transform, depthOffset: value })}
@@ -4345,6 +4466,7 @@ function CatalogShapeAutoFitControls({
   disabled?: boolean;
   onChange: (shapeAutoFit: ParticleVFXShapeAutoFit | undefined) => void;
 }) {
+  const { t } = useTranslation("particles");
   if (rectangleEmitters.length === 0) return null;
   const enabled = shapeAutoFit?.kind === "avatarBoundsRectangle";
   const setEnabled = (nextEnabled: boolean) => {
@@ -4400,7 +4522,7 @@ function CatalogShapeAutoFitControls({
           htmlFor="particle-vfx-creator-auto-fit"
           className="text-xs font-medium"
         >
-          Fit rectangle to avatar
+          {t("autoFit.title")}
         </Label>
         <Switch
           id="particle-vfx-creator-auto-fit"
@@ -4410,14 +4532,13 @@ function CatalogShapeAutoFitControls({
         />
       </div>
       <p className="text-muted-foreground mt-2 text-xs">
-        Fits emission width and height to avatar bounds, not the camera or
-        canvas. Emitter positions stay relative to their anchors.
+        {t("autoFit.description")}
       </p>
       {enabled ? (
         <div className="mt-3 space-y-3">
           <div className="grid grid-cols-2 gap-2">
             <NumberField
-              label="Width padding (m)"
+              label={t("autoFit.widthPadding")}
               value={shapeAutoFit?.padding?.width ?? 0}
               min={0}
               step={0.01}
@@ -4433,7 +4554,7 @@ function CatalogShapeAutoFitControls({
               }
             />
             <NumberField
-              label="Height padding (m)"
+              label={t("autoFit.heightPadding")}
               value={shapeAutoFit?.padding?.height ?? 0}
               min={0}
               step={0.01}
@@ -4449,7 +4570,7 @@ function CatalogShapeAutoFitControls({
               }
             />
             <NumberField
-              label="Minimum width (m)"
+              label={t("autoFit.minWidth")}
               value={shapeAutoFit?.minSize?.width ?? 0.1}
               min={0.01}
               step={0.01}
@@ -4465,7 +4586,7 @@ function CatalogShapeAutoFitControls({
               }
             />
             <NumberField
-              label="Minimum height (m)"
+              label={t("autoFit.minHeight")}
               value={shapeAutoFit?.minSize?.height ?? 0.1}
               min={0.01}
               step={0.01}
@@ -4481,7 +4602,7 @@ function CatalogShapeAutoFitControls({
               }
             />
             <NumberField
-              label="Maximum width (m)"
+              label={t("autoFit.maxWidth")}
               value={shapeAutoFit?.maxSize?.width ?? 0}
               min={0}
               step={0.01}
@@ -4490,7 +4611,7 @@ function CatalogShapeAutoFitControls({
               onChange={(value) => patchMaxSize("width", value)}
             />
             <NumberField
-              label="Maximum height (m)"
+              label={t("autoFit.maxHeight")}
               value={shapeAutoFit?.maxSize?.height ?? 0}
               min={0}
               step={0.01}
@@ -4500,11 +4621,11 @@ function CatalogShapeAutoFitControls({
             />
           </div>
           <p className="text-muted-foreground text-xs">
-            Maximum size: 0 means no limit.
+            {t("autoFit.maxHint")}
           </p>
           <fieldset className="space-y-2">
             <legend className="mb-2 text-xs font-semibold">
-              Rectangle emitters to fit
+              {t("autoFit.emitters")}
             </legend>
             {rectangleEmitters.map((emitter) => (
               <CheckboxField
@@ -4539,14 +4660,15 @@ function SelectField<T extends string>({
   label,
   value,
   values,
-  labels,
+  optionLabel,
   disabled = false,
   onChange,
 }: {
   label: string;
   value: T;
   values: readonly T[];
-  labels?: Partial<Record<T, string>>;
+  /** Display label for a stored value; values without one show as stored. */
+  optionLabel?: (value: T) => string;
   disabled?: boolean;
   onChange: (value: T) => void;
 }) {
@@ -4564,7 +4686,7 @@ function SelectField<T extends string>({
         <SelectContent>
           {values.map((item) => (
             <SelectItem key={item} value={item}>
-              {labels?.[item] ?? item}
+              {optionLabel?.(item) ?? item}
             </SelectItem>
           ))}
         </SelectContent>

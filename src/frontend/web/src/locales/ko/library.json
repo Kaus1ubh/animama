@@ -76,7 +76,11 @@
     },
     "source": {
       "fileUnavailable": "선택한 {{role}} 파일을 사용할 수 없습니다.",
-      "missingFile": "선택한 콘텐츠에 {{role}} 파일이 없습니다."
+      "missingFile": "선택한 콘텐츠에 {{role}} 파일이 없습니다.",
+      "roles": {
+        "animation": "애니메이션",
+        "audio": "오디오"
+      }
     }
   },
   "filters": {

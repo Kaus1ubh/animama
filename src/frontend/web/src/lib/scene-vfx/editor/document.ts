@@ -1,7 +1,10 @@
+import { getI18n } from "react-i18next";
+
 import type {
   PyContentDependency,
   PyExactContentSource,
 } from "@/lib/content/catalogTypes";
+import { failureLine, WordedError } from "@/lib/errors/apiError";
 import { parseSceneVFXEntry } from "@/lib/scene-vfx/catalog";
 import type { SceneVFXEntry } from "@/lib/scene-vfx/types";
 import {
@@ -20,6 +23,7 @@ import {
   type SceneEffectTemplateId,
   type SceneEffectValidationIssue,
 } from "./types";
+import { formattersForLanguage } from "@animama/product-ui/i18n";
 
 const COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 export const SCENE_EFFECT_IMAGE_TYPES = new Set([
@@ -190,8 +194,14 @@ export function sceneEffectRuntimeEntry(
     marquee.items = document.background.marquee.items.map((item) => {
       if (item.kind === "emoji") return { ...item };
       const src = imageUrls.get(item.image.logicalName);
-      if (!src)
-        throw new Error(`Reselect ${item.image.originalName} for preview.`);
+      if (!src) {
+        const t = getI18n().getFixedT(null, "effects");
+        throw new WordedError(
+          t("scene.validation.reselectForPreview", {
+            file: item.image.originalName,
+          }),
+        );
+      }
       return { id: item.id, kind: "png", label: item.label, src };
     });
   }
@@ -234,14 +244,15 @@ export function validateSceneEffectDocument(
   document: SceneEffectEditorDocument,
   resources: readonly SceneEffectEditorImageResource[],
 ): SceneEffectValidationIssue[] {
+  const t = getI18n().getFixedT(null, "effects");
   const issues: SceneEffectValidationIssue[] = [];
   if (document.name.trim().length > 120)
-    issue(issues, "name", "Keep the Scene Effect name within 120 characters.");
+    issue(issues, "name", t("scene.validation.nameTooLong", { max: 120 }));
   if (document.description.length > 2000)
     issue(
       issues,
       "description",
-      "Description must be 2,000 characters or shorter.",
+      t("scene.validation.descriptionTooLong", { max: 2000 }),
     );
   if (
     document.durationMs !== null &&
@@ -252,14 +263,10 @@ export function validateSceneEffectDocument(
     issue(
       issues,
       "duration",
-      "Duration must be sticky or between 0.1 and 30 seconds.",
+      t("scene.validation.duration", { min: 0.1, max: 30 }),
     );
   if (document.sound && !isExactContentSource(document.sound.source))
-    issue(
-      issues,
-      "sound",
-      "Reselect the Sound Effect so exact catalog content can be saved.",
-    );
+    issue(issues, "sound", t("creator.validation.reselectSound"));
 
   if (document.kind === "background_layers") {
     validateBackground(document, resources, issues);
@@ -269,8 +276,7 @@ export function validateSceneEffectDocument(
       issues.push({
         field: "images",
         severity: "warning",
-        message:
-          "Unused background image bytes will not be saved with Focus Lines.",
+        message: t("scene.validation.unusedImages"),
       });
   }
   try {
@@ -285,12 +291,88 @@ export function validateSceneEffectDocument(
     issue(
       issues,
       "definition",
-      error instanceof Error
-        ? error.message
-        : "The Scene Effect definition is invalid.",
+      failureLine(error, t("scene.validation.definitionInvalid")),
     );
   }
   return issues;
+}
+
+/**
+ * The plain label for a validation field (`name`, `pattern.size`,
+ * `focus.animation.minVisibleMs`), as the Checks list and messages name it.
+ */
+export function sceneEffectFieldLabel(field: string): string {
+  const t = getI18n().getFixedT(null, "effects");
+  switch (field) {
+    case "name":
+      return t("scene.fields.name");
+    case "description":
+      return t("scene.fields.description");
+    case "duration":
+      return t("scene.fields.duration");
+    case "sound":
+      return t("scene.fields.sound");
+    case "images":
+      return t("scene.fields.images");
+    case "solid.color":
+      return t("scene.fields.solidColor");
+    case "pattern.color":
+      return t("scene.fields.patternColor");
+    case "pattern.size":
+      return t("scene.fields.patternSize");
+    case "pattern.spacing":
+      return t("scene.fields.patternSpacing");
+    case "pattern.opacity":
+      return t("scene.fields.patternOpacity");
+    case "marquee.items":
+      return t("scene.fields.marqueeItems");
+    case "marquee.itemSize":
+      return t("scene.fields.itemSize");
+    case "marquee.gap":
+      return t("scene.fields.gap");
+    case "marquee.rowGap":
+      return t("scene.fields.rowGap");
+    case "marquee.rotation":
+      return t("scene.fields.rotationOffset");
+    case "marquee.speed":
+      return t("scene.fields.speed");
+    case "marquee.opacity":
+      return t("scene.fields.marqueeOpacity");
+    case "focus.color":
+      return t("scene.fields.lineColor");
+    case "focus.lineCount":
+      return t("scene.fields.lineCount");
+    case "focus.opacity":
+      return t("scene.fields.lineOpacity");
+    case "focus.baseThickness":
+      return t("scene.fields.baseThickness");
+    case "focus.thicknessVariation":
+      return t("scene.fields.thicknessVariation");
+    case "focus.lengthVariation":
+      return t("scene.fields.lengthVariation");
+    case "focus.overscan":
+      return t("scene.fields.overscan");
+    case "focus.paddingX":
+      return t("scene.fields.paddingX");
+    case "focus.paddingY":
+      return t("scene.fields.paddingY");
+    case "focus.target":
+      return t("scene.fields.target");
+    case "focus.animation":
+      return t("scene.fields.flicker");
+    case "focus.animation.minVisibleMs":
+      return t("scene.fields.minVisibleMs");
+    case "focus.animation.maxVisibleMs":
+      return t("scene.fields.maxVisibleMs");
+    case "focus.animation.minHiddenMs":
+      return t("scene.fields.minHiddenMs");
+    case "focus.animation.maxHiddenMs":
+      return t("scene.fields.maxHiddenMs");
+    case "focus.animation.opacityJitter":
+      return t("scene.fields.opacityJitter");
+    default:
+      return t("scene.fields.definition");
+  }
 }
 
 function validateBackground(
@@ -298,20 +380,25 @@ function validateBackground(
   resources: readonly SceneEffectEditorImageResource[],
   issues: SceneEffectValidationIssue[],
 ) {
+  const t = getI18n().getFixedT(null, "effects");
   const { solid, pattern, marquee } = document.background;
   if (!COLOR_PATTERN.test(solid.color))
-    issue(issues, "solid.color", "Choose a six-digit hex solid color.");
+    issue(issues, "solid.color", t("scene.validation.solidColor"));
   if (!COLOR_PATTERN.test(pattern.color))
-    issue(issues, "pattern.color", "Choose a six-digit hex pattern color.");
+    issue(issues, "pattern.color", t("scene.validation.patternColor"));
   bounded(issues, "pattern.size", pattern.size, 1, 512);
   bounded(issues, "pattern.spacing", pattern.spacing, 0, 1024);
   bounded(issues, "pattern.opacity", pattern.opacity, 0, 1);
   if (marquee.items.length > 64)
-    issue(issues, "marquee.items", "A marquee can contain at most 64 items.");
+    issue(
+      issues,
+      "marquee.items",
+      t("scene.validation.tooManyItems", { max: 64 }),
+    );
   if (
     new Set(marquee.items.map((item) => item.id)).size !== marquee.items.length
   )
-    issue(issues, "marquee.items", "Every marquee item needs a unique id.");
+    issue(issues, "marquee.items", t("scene.validation.duplicateItemIds"));
   bounded(issues, "marquee.itemSize", marquee.itemSize, 1, 1024);
   bounded(issues, "marquee.gap", marquee.gap, 0, 2048);
   bounded(issues, "marquee.rowGap", marquee.rowGap, 0, 2048);
@@ -323,7 +410,7 @@ function validateBackground(
     issue(
       issues,
       "images",
-      "A Scene Effect can contain at most 16 private images.",
+      t("scene.validation.tooManyImages", { max: MAX_SCENE_IMAGE_COUNT }),
     );
   const resourcesByName = new Map(
     resources.map((resource) => [resource.logicalName, resource]),
@@ -333,27 +420,38 @@ function validateBackground(
       issue(
         issues,
         "images",
-        `${image.originalName} is not PNG, JPEG, WebP, or SVG.`,
+        t("scene.validation.imageType", { file: image.originalName }),
       );
     if (!resourcesByName.has(image.logicalName))
       issue(
         issues,
         "images",
-        `Reselect ${image.originalName} so its bytes can be saved.`,
+        t("scene.validation.reselectImage", { file: image.originalName }),
       );
   }
   const totalBytes = metadata.reduce((sum, image) => sum + image.sizeBytes, 0);
   if (totalBytes > MAX_SCENE_IMAGE_BYTES)
-    issue(issues, "images", "Private Scene images must total 32 MiB or less.");
+    issue(issues, "images", sceneImagesTooLargeMessage());
+}
+
+/** The private image budget, shared by validation and the image chooser. */
+export function sceneImagesTooLargeMessage(): string {
+  const t = getI18n().getFixedT(null, "effects");
+  return t("scene.validation.imagesTooLarge", {
+    size: formattersForLanguage(getI18n().resolvedLanguage).fileSize(
+      MAX_SCENE_IMAGE_BYTES,
+    ),
+  });
 }
 
 function validateFocus(
   document: SceneEffectEditorDocument,
   issues: SceneEffectValidationIssue[],
 ) {
+  const t = getI18n().getFixedT(null, "effects");
   const focus = document.focus;
   if (!COLOR_PATTERN.test(focus.color))
-    issue(issues, "focus.color", "Choose a six-digit hex line color.");
+    issue(issues, "focus.color", t("scene.validation.lineColor"));
   bounded(issues, "focus.lineCount", focus.lineCount, 1, 256, true);
   bounded(issues, "focus.opacity", focus.opacity, 0, 1);
   bounded(issues, "focus.baseThickness", focus.baseThicknessPx, 0.1, 128);
@@ -379,11 +477,7 @@ function validateFocus(
       x + width > 1 ||
       y + height > 1
     )
-      issue(
-        issues,
-        "focus.target",
-        "The manual target must stay within the normalized viewport.",
-      );
+      issue(issues, "focus.target", t("scene.validation.manualTarget"));
   }
   const animation = focus.animation;
   for (const [field, value] of Object.entries(animation))
@@ -398,11 +492,7 @@ function validateFocus(
     animation.minVisibleMs > animation.maxVisibleMs ||
     animation.minHiddenMs > animation.maxHiddenMs
   )
-    issue(
-      issues,
-      "focus.animation",
-      "Minimum flicker times cannot exceed their maximums.",
-    );
+    issue(issues, "focus.animation", t("scene.validation.flickerOrder"));
 }
 
 export function sceneEffectDocumentFingerprint(
@@ -425,11 +515,12 @@ export function parseSceneEffectEditorExport(
 ): SceneEffectEditorDocument {
   const record = object(value);
   const raw = object(record?.document);
+  const t = getI18n().getFixedT(null, "effects");
   if (record?.schema !== SCENE_EFFECT_EDITOR_SCHEMA || !raw)
-    throw new Error("This is not an Animama Scene Effect editor document.");
+    throw new WordedError(t("scene.import.notDocument"));
   const document = raw as unknown as SceneEffectEditorDocument;
   if (document.schema !== SCENE_EFFECT_EDITOR_SCHEMA)
-    throw new Error("The Scene Effect editor schema is unsupported.");
+    throw new WordedError(t("scene.import.unsupportedSchema"));
   const clone = cloneSceneEffectDocument(document);
   const images = sceneEffectImageMetadata(clone);
   sceneEffectRuntimeEntry(
@@ -451,12 +542,13 @@ export function createSceneEffectDocumentFromDefinition(args: {
   images: ReadonlyMap<string, SceneEffectEditorImage>;
   sound: SceneEffectEditorSound | null;
 }): SceneEffectEditorDocument {
+  const t = getI18n().getFixedT(null, "effects");
   const raw = object(args.definition);
-  if (!raw) throw new Error("The Scene Effect definition is unavailable.");
+  if (!raw) throw new WordedError(t("scene.open.definitionUnavailable"));
   const defaults = createDefaultSceneEffectDocument();
   const kind = raw.kind;
   if (kind !== "background_layers" && kind !== "focus_lines")
-    throw new Error("The Scene Effect kind is unsupported.");
+    throw new WordedError(t("scene.open.kindUnsupported"));
   const durationMs =
     raw.durationMs === null
       ? null
@@ -479,7 +571,7 @@ export function createSceneEffectDocumentFromDefinition(args: {
     const pattern = object(raw.pattern);
     const marquee = object(raw.marquee);
     if (!solid || !pattern || !marquee || !Array.isArray(marquee.items))
-      throw new Error("The background layer definition is incomplete.");
+      throw new WordedError(t("scene.open.backgroundIncomplete"));
     const items = marquee.items.map((value, index) =>
       hydrateMarqueeItem(value, index, args.images),
     );
@@ -500,7 +592,7 @@ export function createSceneEffectDocumentFromDefinition(args: {
     const target = object(raw.target);
     const animation = object(raw.animation);
     if (!target || !animation)
-      throw new Error("The focus-line definition is incomplete.");
+      throw new WordedError(t("scene.open.focusIncomplete"));
     document.focus = {
       renderPlacement:
         raw.renderPlacement as SceneEffectEditorDocument["focus"]["renderPlacement"],
@@ -530,14 +622,18 @@ function hydrateMarqueeItem(
   index: number,
   images: ReadonlyMap<string, SceneEffectEditorImage>,
 ): SceneEffectEditorMarqueeItem {
+  const t = getI18n().getFixedT(null, "effects");
   const item = object(value);
-  if (!item) throw new Error(`Marquee item ${index + 1} is invalid.`);
+  if (!item)
+    throw new WordedError(t("scene.open.itemInvalid", { index: index + 1 }));
   if (item.kind === "image") {
     const logicalName = String(item.image ?? "");
     const image = images.get(logicalName);
     if (!image)
-      throw new Error(
-        `The release image ${logicalName || index + 1} is unavailable.`,
+      throw new WordedError(
+        logicalName
+          ? t("scene.open.imageUnavailable", { file: logicalName })
+          : t("scene.open.itemImageUnavailable", { index: index + 1 }),
       );
     return {
       id: String(item.id),
@@ -547,7 +643,9 @@ function hydrateMarqueeItem(
     };
   }
   if (item.kind !== "emoji")
-    throw new Error(`Marquee item ${index + 1} is unsupported.`);
+    throw new WordedError(
+      t("scene.open.itemUnsupported", { index: index + 1 }),
+    );
   return {
     id: String(item.id),
     kind: "emoji",
@@ -601,8 +699,20 @@ function bounded(
     issue(
       issues,
       field,
-      `${field} must be between ${minimum} and ${maximum}${integer ? " in whole steps" : ""}.`,
+      boundsMessage(sceneEffectFieldLabel(field), minimum, maximum, integer),
     );
+}
+
+function boundsMessage(
+  setting: string,
+  min: number,
+  max: number,
+  integer: boolean,
+): string {
+  const t = getI18n().getFixedT(null, "effects");
+  return integer
+    ? t("scene.validation.boundsWhole", { setting, min, max })
+    : t("scene.validation.bounds", { setting, min, max });
 }
 
 function isExactContentSource(value: unknown): value is PyExactContentSource {

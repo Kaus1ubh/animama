@@ -3,7 +3,9 @@ import {
   validateAnimaPoseClipEventCatalogRefs,
   type AnimaPoseClipV2,
 } from "@/lib/avatar/poses/animaPoseClip";
+import { WordedError } from "@/lib/errors/apiError";
 import type { PreviewRuntimeCatalogDelegate } from "./PreviewRuntimeCatalogSession";
+import { getI18n } from "react-i18next";
 import type { ContentPreviewTarget } from "./types";
 
 export type ContentPreviewMissingDependency = {
@@ -16,6 +18,25 @@ export type ContentPreviewMissingDependency = {
   label: string;
   runtimeId: string;
 };
+
+/** Display name of a dependency kind, in the UI Locale. */
+export function contentPreviewDependencyLabel(
+  kind: ContentPreviewMissingDependency["kind"],
+): string {
+  const t = getI18n().getFixedT(null, "actionEditor");
+  switch (kind) {
+    case "avatar_vfx":
+      return t("preview.dependencies.kinds.avatarEffect");
+    case "scene_background_vfx":
+      return t("preview.dependencies.kinds.backgroundSceneEffect");
+    case "scene_focus_vfx":
+      return t("preview.dependencies.kinds.focusSceneEffect");
+    case "particle_vfx":
+      return t("preview.dependencies.kinds.particleEffect");
+    case "sfx":
+      return t("preview.dependencies.kinds.sound");
+  }
+}
 
 export type ContentPreviewPlaybackCommand =
   | { type: "avatar_model" }
@@ -94,27 +115,27 @@ function allContentPreviewDependencies(
   return [
     ...references.missingAvatarVFXIds.map((runtimeId) => ({
       kind: "avatar_vfx" as const,
-      label: "Avatar VFX",
+      label: contentPreviewDependencyLabel("avatar_vfx"),
       runtimeId,
     })),
     ...references.missingSceneBackgroundLayerPresetIds.map((runtimeId) => ({
       kind: "scene_background_vfx" as const,
-      label: "Background Scene VFX",
+      label: contentPreviewDependencyLabel("scene_background_vfx"),
       runtimeId,
     })),
     ...references.missingSceneFocusLinePresetIds.map((runtimeId) => ({
       kind: "scene_focus_vfx" as const,
-      label: "Focus Scene VFX",
+      label: contentPreviewDependencyLabel("scene_focus_vfx"),
       runtimeId,
     })),
     ...references.missingParticleVFXIds.map((runtimeId) => ({
       kind: "particle_vfx" as const,
-      label: "Particle VFX",
+      label: contentPreviewDependencyLabel("particle_vfx"),
       runtimeId,
     })),
     ...references.missingSFXCueIds.map((runtimeId) => ({
       kind: "sfx" as const,
-      label: "SFX",
+      label: contentPreviewDependencyLabel("sfx"),
       runtimeId,
     })),
   ];
@@ -203,27 +224,27 @@ export function collectContentPreviewMissingDependencies(
   return [
     ...missing.missingAvatarVFXIds.map((runtimeId) => ({
       kind: "avatar_vfx" as const,
-      label: "Avatar VFX",
+      label: contentPreviewDependencyLabel("avatar_vfx"),
       runtimeId,
     })),
     ...missing.missingSceneBackgroundLayerPresetIds.map((runtimeId) => ({
       kind: "scene_background_vfx" as const,
-      label: "Background Scene VFX",
+      label: contentPreviewDependencyLabel("scene_background_vfx"),
       runtimeId,
     })),
     ...missing.missingSceneFocusLinePresetIds.map((runtimeId) => ({
       kind: "scene_focus_vfx" as const,
-      label: "Focus Scene VFX",
+      label: contentPreviewDependencyLabel("scene_focus_vfx"),
       runtimeId,
     })),
     ...missing.missingParticleVFXIds.map((runtimeId) => ({
       kind: "particle_vfx" as const,
-      label: "Particle VFX",
+      label: contentPreviewDependencyLabel("particle_vfx"),
       runtimeId,
     })),
     ...missing.missingSFXCueIds.map((runtimeId) => ({
       kind: "sfx" as const,
-      label: "SFX",
+      label: contentPreviewDependencyLabel("sfx"),
       runtimeId,
     })),
   ];
@@ -244,6 +265,7 @@ export async function playContentPreviewMotion({
   onMissingDependencies,
   onDependenciesLoadingChange,
 }: ContentPreviewMotionPlayback): Promise<boolean> {
+  const t = getI18n().getFixedT(null, "actionEditor");
   const command = contentPreviewPlaybackCommand(target);
   if (!command || command.type === "avatar_model") return false;
 
@@ -255,7 +277,7 @@ export async function playContentPreviewMotion({
   if (command.type === "gesture_animation") {
     const gesture = catalog.getGesture(command.runtimeId);
     if (!gesture || gesture.type !== "vrma") {
-      throw new Error("The selected animation is unavailable.");
+      throw new WordedError(t("preview.errors.animationUnavailable"));
     }
     await avatar.playAnimationWithName(gesture.entry.file, gesture.name, {
       isCurrent,
@@ -273,7 +295,7 @@ export async function playContentPreviewMotion({
       .getIdleAnimations()
       .find((candidate) => candidate.id === command.runtimeId);
     if (!idle || idle.type !== "vrma") {
-      throw new Error("The selected idle animation is unavailable.");
+      throw new WordedError(t("preview.errors.idleAnimationUnavailable"));
     }
     await avatar.playAnimationWithName(idle.file, idle.name, {
       loopType: loop ? "repeat" : "once",
@@ -287,7 +309,7 @@ export async function playContentPreviewMotion({
   }
   if (command.type === "reaction_clip") {
     const clip = await catalog.loadReactionClip(command.runtimeId);
-    if (!clip) throw new Error("The selected reaction is unavailable.");
+    if (!clip) throw new WordedError(t("preview.errors.reactionUnavailable"));
     onDependenciesLoadingChange?.(true);
     try {
       const missing = await prepareContentPreviewDependencies(clip, catalog);
@@ -297,12 +319,13 @@ export async function playContentPreviewMotion({
     }
     if (!isCurrent()) return false;
     const didPlay = await avatar.playDebugReactionClip(command.runtimeId);
-    if (!didPlay) throw new Error("The selected reaction is unavailable.");
+    if (!didPlay)
+      throw new WordedError(t("preview.errors.reactionUnavailable"));
     return true;
   }
 
   const clip = await catalog.loadPoseClip(command.runtimeId);
-  if (!clip) throw new Error("The selected pose clip is unavailable.");
+  if (!clip) throw new WordedError(t("preview.errors.poseClipUnavailable"));
   onDependenciesLoadingChange?.(true);
   try {
     const missing = await prepareContentPreviewDependencies(clip, catalog);

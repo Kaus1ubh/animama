@@ -5,6 +5,7 @@ import {
   ScanEyeIcon,
 } from "lucide-react";
 import { useId, useMemo, useState, useSyncExternalStore } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Avatar } from "@/lib/avatar";
 import type { AvatarFacePartRole } from "@/lib/avatar/vfx/faceParts";
@@ -28,6 +29,7 @@ import {
   type FacePartStatus,
 } from "./facePartsPanel";
 import { useFacePartDraft } from "./useFacePartDraft";
+import { failureLine } from "@/lib/errors/apiError";
 
 const STATUS_CLASS: Record<FacePartStatus, string> = {
   detected:
@@ -66,6 +68,7 @@ export function AvatarEffectFacePartsPanel({
   onPickingRoleChange: (role: AvatarFacePartRole | null) => void;
   onApplied: (correction: AvatarFacePartCorrection | null) => Promise<void>;
 }) {
+  const { t } = useTranslation("effects");
   const [open, setOpen] = useState(false);
   const {
     editing,
@@ -91,9 +94,13 @@ export function AvatarEffectFacePartsPanel({
     if (!avatar?.vrm) return [];
     return buildRuntimePrimitiveBindings(avatar).entries.map((entry) => ({
       key: entry.bindingKey,
-      name: `${entry.materialName ?? entry.objectName ?? "Mesh"} (${entry.bindingKey})`,
+      name: t("faceParts.meshName", {
+        name:
+          entry.materialName ?? entry.objectName ?? t("faceParts.meshFallback"),
+        key: entry.bindingKey,
+      }),
     }));
-  }, [avatar, version]);
+  }, [avatar, t, version]);
 
   // A pick on the avatar toggles that mesh part for the part being edited.
   if (
@@ -139,11 +146,7 @@ export function AvatarEffectFacePartsPanel({
       // A conflict means the Avatar changed: read its current revision so a
       // retry is fenced against it.
       void query.refetch();
-      setError(
-        cause instanceof Error
-          ? cause.message
-          : "The correction could not be saved.",
-      );
+      setError(failureLine(cause, t("faceParts.saveFailed")));
     }
   };
 
@@ -163,10 +166,10 @@ export function AvatarEffectFacePartsPanel({
           variant="ghost"
           className="h-8 gap-1.5 px-2 text-xs"
           disabled={!avatar}
-          aria-label="Face parts"
+          aria-label={t("faceParts.title")}
         >
           <ScanEyeIcon />
-          <span className="hidden sm:inline">Face parts</span>
+          <span className="hidden sm:inline">{t("faceParts.title")}</span>
         </Button>
       </PopoverTrigger>
       <PopoverContent
@@ -186,23 +189,21 @@ export function AvatarEffectFacePartsPanel({
       >
         <div>
           <h2 id={headingId} className="text-sm font-semibold">
-            Face parts on {modelName}
+            {t("faceParts.heading", { model: modelName })}
           </h2>
           <p
             hidden={Boolean(pickingRole)}
             className="text-muted-foreground text-xs"
           >
-            Effects find the face and eyes through these parts. If an effect is
-            missing or lands on the wrong place, correct the part here. The
-            correction is saved with this Avatar and used everywhere.
+            {t("faceParts.help")}
           </p>
         </div>
         {!map ? (
           <p className="text-muted-foreground text-xs">
-            {avatar ? "This Avatar has no detected face parts." : "Loading…"}
+            {avatar ? t("faceParts.noneDetected") : t("creator.loading")}
           </p>
         ) : (
-          <ul className="space-y-2" aria-label="Face parts">
+          <ul className="space-y-2" aria-label={t("faceParts.title")}>
             {/* While picking, only the part being edited shows, so the
                 panel stays small and the avatar stays clickable. */}
             {rows
@@ -217,8 +218,9 @@ export function AvatarEffectFacePartsPanel({
                 >
                   <div className="flex items-center gap-2">
                     <span className="flex-1 text-xs font-medium">
-                      {row.label}
-                      {row.required ? "" : " (optional)"}
+                      {row.required
+                        ? row.label
+                        : t("faceParts.optional", { part: row.label })}
                     </span>
                     <span
                       className={cn(
@@ -233,20 +235,24 @@ export function AvatarEffectFacePartsPanel({
                       size="sm"
                       variant="outline"
                       className="h-7 px-2 text-xs"
-                      aria-label={`Edit ${row.label.toLowerCase()}`}
+                      aria-label={t("faceParts.editPart", { part: row.label })}
                       aria-expanded={editing === row.role}
                       onClick={() => {
                         onPickingRoleChange(null);
                         setEditing(editing === row.role ? null : row.role);
                       }}
                     >
-                      {editing === row.role ? "Done" : "Edit"}
+                      {editing === row.role
+                        ? t("faceParts.done")
+                        : t("faceParts.edit")}
                     </Button>
                   </div>
                   <p className="text-muted-foreground mt-1 truncate text-[11px]">
                     {row.bindings.length
-                      ? row.bindings.map((binding) => binding.name).join(", ")
-                      : "No mesh part"}
+                      ? t("faceParts.meshList", {
+                          items: row.bindings.map((binding) => binding.name),
+                        })
+                      : t("faceParts.noMesh")}
                   </p>
                   {editing === row.role ? (
                     <div className="mt-2 space-y-2">
@@ -266,13 +272,15 @@ export function AvatarEffectFacePartsPanel({
                       >
                         <MousePointerClickIcon />
                         {pickingRole === row.role
-                          ? "Click the avatar to add or remove a part"
-                          : "Pick on the avatar"}
+                          ? t("faceParts.picking")
+                          : t("faceParts.pick")}
                       </Button>
                       <ul
                         hidden={pickingRole === row.role}
                         className="max-h-36 space-y-1 overflow-y-auto"
-                        aria-label={`Mesh parts for ${row.label.toLowerCase()}`}
+                        aria-label={t("faceParts.meshPartsFor", {
+                          part: row.label,
+                        })}
                       >
                         {primitives.map((primitive) => {
                           const checked = row.bindings.some(
@@ -323,14 +331,14 @@ export function AvatarEffectFacePartsPanel({
         ) : null}
         {query.isError ? (
           <p className="text-destructive text-xs" role="alert">
-            The saved correction for this Avatar could not be read.
+            {t("faceParts.readFailed")}
           </p>
         ) : null}
         <div className="flex flex-wrap items-center justify-end gap-2">
           {busy ? (
             <LoaderCircleIcon
               className="text-muted-foreground size-4 animate-spin"
-              aria-label="Saving"
+              aria-label={t("faceParts.saving")}
             />
           ) : null}
           {corrected && !dirty ? (
@@ -341,7 +349,7 @@ export function AvatarEffectFacePartsPanel({
               disabled={busy || !query.data}
               onClick={() => void commit(null)}
             >
-              Use detected parts
+              {t("faceParts.useDetected")}
             </Button>
           ) : null}
           {dirty ? (
@@ -356,7 +364,7 @@ export function AvatarEffectFacePartsPanel({
                   stopEditing();
                 }}
               >
-                Cancel
+                {t("faceParts.cancel")}
               </Button>
               <Button
                 type="button"
@@ -374,7 +382,7 @@ export function AvatarEffectFacePartsPanel({
                   );
                 }}
               >
-                Save correction
+                {t("faceParts.saveCorrection")}
               </Button>
             </>
           ) : null}

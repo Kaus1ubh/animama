@@ -24,11 +24,13 @@ import {
   Trash2Icon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { getI18n, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { listCatalogItems, previewCatalogItem } from "@/lib/content/catalogApi";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { isSceneEffectTemplateId } from "@/lib/effects/effectTemplates";
+import { failureLine, WordedError } from "@/lib/errors/apiError";
 import type {
   PyContentDependency,
   PyContentPreview,
@@ -47,8 +49,10 @@ import {
   parseSceneEffectEditorExport,
   SCENE_EFFECT_TEMPLATE_OPTIONS,
   sceneEffectEditorReducer,
+  sceneEffectFieldLabel,
   sceneEffectTemplateLabel,
   sceneEffectImageMetadata,
+  sceneImagesTooLargeMessage,
   sceneEffectRecoveryStore,
   sceneEffectRuntimeEntry,
   SCENE_EFFECT_IMAGE_TYPES,
@@ -129,6 +133,16 @@ import {
   sceneEffectSnapshotFingerprint,
   type SceneEffectHistorySnapshot,
 } from "./sceneEffectCreatorBehavior";
+import {
+  manualBoxFieldName,
+  previewStateName,
+  sceneDirectionName,
+  sceneEmojiName,
+  sceneLayerName,
+  scenePatternName,
+  sceneRotationModeName,
+  type SceneBackgroundLayer,
+} from "./sceneEffectLabels";
 import { useSceneEffectSave } from "./useSceneEffectSave";
 
 const MAX_SCENE_IMAGE_BYTES = 32 * 1024 * 1024;
@@ -137,7 +151,7 @@ type PreviewStatus = {
   message: string | null;
 };
 
-type BackgroundLayer = "marquee" | "pattern" | "solid";
+type BackgroundLayer = SceneBackgroundLayer;
 
 /**
  * Product Scene Effect creator backed by ordinary editable catalog files.
@@ -151,6 +165,7 @@ export function SceneEffectCreatorPage({
   itemId?: string;
   templateId?: SceneEffectTemplateId;
 }) {
+  const { t, i18n } = useTranslation("effects");
   const navigate = useNavigate();
   const userId = useRuntimeCacheKey();
   const apiClient = useProductApiClient();
@@ -268,21 +283,25 @@ export function SceneEffectCreatorPage({
     };
   }, [apiClient, document.sound]);
 
-  const validation = useMemo(
-    () => validateSceneEffectDocument(document, imageResources),
-    [document, imageResources],
-  );
+  // Validation text is worded in the UI Locale, so it is rebuilt when that changes.
+  const uiLocale = i18n.resolvedLanguage;
+  const validation = useMemo(() => {
+    void uiLocale;
+    return validateSceneEffectDocument(document, imageResources);
+  }, [document, imageResources, uiLocale]);
   const hasBlockingIssues = validation.some(
     (issue) => issue.severity === "error",
   );
+  // Text is worded when called, so a UI Locale change keeps this callback.
   const onRestore = useCallback(
     (recovered: SceneEffectHistorySnapshot) => {
       if (templateId) {
         setTemplateDraft(recovered);
         return;
       }
+      const t = getI18n().getFixedT(null, "effects");
       resetDocument(recovered.document, recovered.imageResources);
-      setHydration({ state: "ready", message: "Recovered local draft" });
+      setHydration({ state: "ready", message: t("creator.recoveredDraft") });
       setPreviewRevision((value) => value + 1);
     },
     [resetDocument, templateId],
@@ -316,14 +335,15 @@ export function SceneEffectCreatorPage({
     )
       setSelectedLayer("marquee");
   }, [contentSave.errorField, document.kind]);
+  const contentLabel = t("kinds.sceneEffect");
   const unavailableMessage = creatorItemUnavailableMessage({
     itemId,
-    label: "Scene Effect",
+    label: contentLabel,
     item: existingQuery.data,
     readFailed: existingQuery.isError,
     loadError:
       hydration.state === "error"
-        ? (hydration.message ?? "The Scene Effect could not be opened.")
+        ? (hydration.message ?? t("scene.openFailed"))
         : null,
   });
   // The unavailable state has no leave dialog, so it must never block navigation.
@@ -360,9 +380,11 @@ export function SceneEffectCreatorPage({
   const templateDraftDialog = (
     <CreatorTemplateDraftDialog
       start={templateStart}
-      contentLabel="Scene Effect"
+      contentLabel={contentLabel}
       templateName={
-        templateId ? sceneEffectTemplateLabel(templateId) : "a template"
+        templateId
+          ? sceneEffectTemplateLabel(templateId)
+          : t("creator.aTemplate")
       }
     />
   );
@@ -371,14 +393,10 @@ export function SceneEffectCreatorPage({
     try {
       return await contentSave.discardChanges();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "The draft could not be discarded.",
-      );
+      toast.error(failureLine(error, t("creator.discardFailed")));
       return false;
     }
-  }, [contentSave]);
+  }, [contentSave, t]);
 
   useEffect(() => {
     if (
@@ -394,7 +412,9 @@ export function SceneEffectCreatorPage({
     const load = hydratedItemRef.current.begin(itemId);
     if (!load) return;
     const controller = new AbortController();
-    setHydration({ state: "loading", message: "Loading saved content…" });
+    // Read here so a UI Locale change does not restart the load.
+    const t = getI18n().getFixedT(null, "effects");
+    setHydration({ state: "loading", message: t("creator.loadingSaved") });
     void hydrateSceneEffect(apiClient, {
       itemId: item.item_id,
       name: item.name,
@@ -419,10 +439,7 @@ export function SceneEffectCreatorPage({
         if (controller.signal.aborted) return;
         setHydration({
           state: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "The Scene Effect could not be opened.",
+          message: failureLine(error, t("scene.openFailed")),
         });
       });
     return () => {
@@ -504,17 +521,18 @@ export function SceneEffectCreatorPage({
     async (source: File) => {
       setImageError(null);
       if (!SCENE_EFFECT_IMAGE_TYPES.has(source.type)) {
-        setImageError("Choose a PNG, JPEG, WebP, or static SVG image.");
+        setImageError(t("scene.image.typeInvalid"));
         return;
       }
       if (source.size > MAX_SCENE_IMAGE_BYTES) {
-        setImageError("Private Scene images must total 32 MiB or less.");
+        setImageError(sceneImagesTooLargeMessage());
         return;
       }
       setImageBusy(true);
       try {
         const preflight = await preflightContentFile("image", source);
-        if (preflight.error) throw new Error(preflight.error);
+        // Preflight failures are already worded in the UI Locale.
+        if (preflight.error) throw new WordedError(preflight.error);
         const sha256 = await sha256File(source);
         const { document, imageResources } = getSnapshot();
         const baseLogicalName = canonicalSceneEffectImageName(source.name);
@@ -584,39 +602,28 @@ export function SceneEffectCreatorPage({
         ]);
         restartPreview();
       } catch (error) {
-        setImageError(
-          error instanceof Error
-            ? error.message
-            : "The image could not be read.",
-        );
+        setImageError(failureLine(error, t("creator.imageReadFailed")));
       } finally {
         setImageBusy(false);
       }
     },
-    [dispatch, getSnapshot, restartPreview],
+    [dispatch, getSnapshot, restartPreview, t],
   );
 
   const importDocument = useCallback(() => {
     try {
       const parsed = parseSceneEffectEditorExport(JSON.parse(importText));
-      if (isDirty && !window.confirm("Replace the current unsaved document?"))
-        return;
+      if (isDirty && !window.confirm(t("creator.replaceUnsaved"))) return;
       dispatch({ type: "replace", document: parsed }, []);
       setImportError(null);
       setImportOpen(false);
       restartPreview();
       if (sceneEffectImageMetadata(parsed).length)
-        toast.info(
-          "Reselect the imported document's private images before saving.",
-        );
+        toast.info(t("scene.import.reselectImages"));
     } catch (error) {
-      setImportError(
-        error instanceof Error
-          ? error.message
-          : "The JSON could not be imported.",
-      );
+      setImportError(failureLine(error, t("creator.importFailed")));
     }
-  }, [dispatch, importText, isDirty, restartPreview]);
+  }, [dispatch, importText, isDirty, restartPreview, t]);
 
   const exportText = useMemo(
     () => JSON.stringify(buildSceneEffectEditorExport(document), null, 2),
@@ -656,23 +663,13 @@ export function SceneEffectCreatorPage({
       if (itemId) await contentSave.discardRecovery();
       else await resetToBlank();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "The draft could not be discarded.",
-      );
+      toast.error(failureLine(error, t("creator.discardFailed")));
     }
-  }, [contentSave, imageBusy, itemId, resetToBlank]);
+  }, [contentSave, imageBusy, itemId, resetToBlank, t]);
 
   const startNewDocument = useCallback(async () => {
     if (contentSave.isBusy || imageBusy) return;
-    if (
-      isDirty &&
-      !window.confirm(
-        "Discard the current changes and start a new Scene Effect?",
-      )
-    )
-      return;
+    if (isDirty && !window.confirm(t("scene.confirmNew"))) return;
 
     try {
       // A saved item or a template draft starts over on the plain `/new` route.
@@ -692,11 +689,7 @@ export function SceneEffectCreatorPage({
 
       await resetToBlank();
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "The draft could not be discarded.",
-      );
+      toast.error(failureLine(error, t("creator.discardFailed")));
     }
   }, [
     contentSave,
@@ -706,6 +699,7 @@ export function SceneEffectCreatorPage({
     itemId,
     navigate,
     resetToBlank,
+    t,
     templateId,
     userId,
   ]);
@@ -728,7 +722,7 @@ export function SceneEffectCreatorPage({
   if (unavailableMessage)
     return (
       <CreatorUnavailableState
-        label="Scene Effect"
+        label={contentLabel}
         message={unavailableMessage}
       />
     );
@@ -742,7 +736,7 @@ export function SceneEffectCreatorPage({
         <CreatorLoading
           message={
             hydration.message ??
-            (templateId ? "Loading template…" : "Loading Scene Effect…")
+            (templateId ? t("creator.loadingTemplate") : t("scene.loading"))
           }
         />
         {templateDraftDialog}
@@ -815,7 +809,7 @@ export function SceneEffectCreatorPage({
             hydration.state !== "ready" ||
             !contentSave.recoveryReady
           }
-          typeLabel="Scene FX"
+          typeLabel={t("kinds.sceneFx")}
           contentType="scene_effect"
           typeIcon={<SparklesIcon />}
           documentName={document.name}
@@ -828,12 +822,14 @@ export function SceneEffectCreatorPage({
           status={
             contentSave.error
               ? {
-                  label: "Save failed",
+                  label: t("creator.status.saveFailed"),
                   tone: "error",
                   tooltip: contentSave.error,
                 }
               : {
-                  label: isDirty ? "Unsaved" : "Saved",
+                  label: isDirty
+                    ? t("creator.status.unsaved")
+                    : t("creator.status.saved"),
                   tone: isDirty ? "dirty" : "saved",
                 }
           }
@@ -851,10 +847,12 @@ export function SceneEffectCreatorPage({
           saveBusy={contentSave.isBusy}
           saveLabel={
             contentSave.stage === "uploading"
-              ? `Uploading ${contentSave.uploadProgress}%`
+              ? t("creator.save.uploading", {
+                  progress: contentSave.uploadProgress / 100,
+                })
               : contentSave.stage === "validating"
-                ? "Validating"
-                : "Save"
+                ? t("creator.save.validating")
+                : t("creator.save.label")
           }
           domainActions={
             <CreatorEffectHandoffActions
@@ -869,8 +867,8 @@ export function SceneEffectCreatorPage({
           }
         />
       }
-      leftPanelLabel="Setup"
-      rightPanelLabel="Inspector"
+      leftPanelLabel={t("creator.panels.setup")}
+      rightPanelLabel={t("creator.panels.inspector")}
       leftPanel={
         <SceneSetupPanel
           document={document}
@@ -908,9 +906,9 @@ export function SceneEffectCreatorPage({
       canvasControls={
         <CreatorCanvasControls
           model={{
-            label: "Model",
+            label: t("creator.model"),
             value: selectedModel?.key ?? "",
-            placeholder: "Avatar",
+            placeholder: t("creator.modelPlaceholder"),
             options: modelPreview.modelOptions.map((source) => ({
               value: source.key,
               label: source.displayName,
@@ -924,11 +922,11 @@ export function SceneEffectCreatorPage({
             triggerClassName: "w-[150px]",
           }}
           view={{
-            label: "View",
+            label: t("creator.view"),
             value: cameraProfile,
             options: [
-              { value: "full-body", label: "Full scene" },
-              { value: "portrait", label: "Portrait" },
+              { value: "full-body", label: t("scene.views.fullScene") },
+              { value: "portrait", label: t("scene.views.portrait") },
             ],
             onValueChange: (value) =>
               setCameraProfile(value as typeof cameraProfile),
@@ -936,7 +934,7 @@ export function SceneEffectCreatorPage({
           }}
           playbackControl={
             <CreatorTimelineTransport
-              label="preview"
+              label={t("creator.previewNoun")}
               playing={playing}
               onTogglePlayback={() => setPreviewPlaying(!playing)}
               onStop={() => setPreviewPlaying(false)}
@@ -949,7 +947,7 @@ export function SceneEffectCreatorPage({
         <>
           {hydration.state === "error" ? (
             <CreatorInlineError
-              message={hydration.message ?? "Unable to open effect."}
+              message={hydration.message ?? t("creator.openFailed")}
             />
           ) : null}
           <CreatorRecoveryNotice
@@ -959,15 +957,15 @@ export function SceneEffectCreatorPage({
             // A template route asks about its draft in a dialog instead.
             recovered={contentSave.recovered && !templateId}
             busy={contentSave.isBusy || imageBusy}
-            contentLabel="Scene Effect"
+            contentLabel={contentLabel}
             onDiscardServerDraft={() => void contentSave.discardRecovery()}
             onDiscardRecovery={() => void discardRecoveredDraft()}
           />
           <CreatorJsonDialog
             open={jsonOpen}
             onOpenChange={setJsonOpen}
-            title="Portable Scene Effect JSON"
-            description="The authoring document contains local logical image names and exact dependency sources, never Blob URLs or storage capabilities."
+            title={t("scene.json.title")}
+            description={t("scene.json.description")}
             actions={
               <>
                 <Button
@@ -978,15 +976,15 @@ export function SceneEffectCreatorPage({
                     setImportOpen(true);
                   }}
                 >
-                  <FolderOpenIcon /> Import
+                  <FolderOpenIcon /> {t("creator.json.import")}
                 </Button>
                 <Button
                   onClick={() => {
                     void navigator.clipboard.writeText(exportText);
-                    toast.success("JSON copied.");
+                    toast.success(t("creator.json.copied"));
                   }}
                 >
-                  <Code2Icon /> Copy JSON
+                  <Code2Icon /> {t("creator.json.copy")}
                 </Button>
               </>
             }
@@ -1000,14 +998,14 @@ export function SceneEffectCreatorPage({
           <CreatorImportDialog
             open={importOpen}
             onOpenChange={setImportOpen}
-            title="Import Scene Effect JSON"
-            description="Paste an Animama Scene Effect editor document. Private image bytes must be reselected."
+            title={t("scene.import.title")}
+            description={t("scene.import.description")}
             text={importText}
             error={importError}
             onTextChange={setImportText}
             onImport={importDocument}
           />
-          <CreatorLeaveDialog guard={leaveGuard} contentLabel="Scene Effect" />
+          <CreatorLeaveDialog guard={leaveGuard} contentLabel={contentLabel} />
           {templateDraftDialog}
         </>
       }
@@ -1038,8 +1036,12 @@ function SceneSetupPanel({
   onSelectedLayer: (layer: BackgroundLayer) => void;
   onDispatch: React.Dispatch<Parameters<typeof sceneEffectEditorReducer>[1]>;
 }) {
+  const { t } = useTranslation("effects");
   return (
-    <FloatingPanel title="Scene Setup" bodyClassName="overflow-y-auto">
+    <FloatingPanel
+      title={t("scene.setup.title")}
+      bodyClassName="overflow-y-auto"
+    >
       <Tabs
         value={document.kind}
         onValueChange={(kind) =>
@@ -1054,15 +1056,15 @@ function SceneSetupPanel({
             value="background_layers"
             className="min-w-0 px-1 text-xs"
           >
-            Background
+            {t("scene.kinds.background")}
           </TabsTrigger>
           <TabsTrigger value="focus_lines" className="min-w-0 px-1 text-xs">
-            Focus Lines
+            {t("scene.kinds.focusLines")}
           </TabsTrigger>
         </TabsList>
       </Tabs>
       <div className="mt-3 space-y-3">
-        <Field label="Starting template">
+        <Field label={t("scene.setup.startingTemplate")}>
           <Select
             // The template shows while the document is still of its kind.
             value={
@@ -1086,7 +1088,7 @@ function SceneSetupPanel({
             }}
           >
             <SelectTrigger size="sm" className="w-full text-xs">
-              <SelectValue placeholder="Custom" />
+              <SelectValue placeholder={t("scene.setup.custom")} />
             </SelectTrigger>
             <SelectContent>
               {SCENE_EFFECT_TEMPLATE_OPTIONS.filter(
@@ -1101,11 +1103,17 @@ function SceneSetupPanel({
         </Field>
         {document.kind === "background_layers" ? (
           <div className="space-y-2">
-            <Label className="text-xs">Layers</Label>
+            <Label className="text-xs">{t("scene.layers.title")}</Label>
             <LayerCard
               selected={selectedLayer === "marquee"}
-              title="Marquee"
-              subtitle={`${document.background.marquee.items.length} items · ${humanize(document.background.marquee.direction)}`}
+              title={sceneLayerName(t, "marquee")}
+              subtitle={t("scene.layers.marqueeSummary", {
+                count: document.background.marquee.items.length,
+                direction: sceneDirectionName(
+                  t,
+                  document.background.marquee.direction,
+                ),
+              })}
               enabled={document.background.marquee.enabled}
               onSelect={() => onSelectedLayer("marquee")}
               onEnabled={(enabled) =>
@@ -1114,8 +1122,14 @@ function SceneSetupPanel({
             />
             <LayerCard
               selected={selectedLayer === "pattern"}
-              title="Pattern"
-              subtitle={`${humanize(document.background.pattern.pattern)} · ${document.background.pattern.size}px`}
+              title={sceneLayerName(t, "pattern")}
+              subtitle={t("scene.layers.patternSummary", {
+                pattern: scenePatternName(
+                  t,
+                  document.background.pattern.pattern,
+                ),
+                size: document.background.pattern.size,
+              })}
               enabled={document.background.pattern.enabled}
               onSelect={() => onSelectedLayer("pattern")}
               onEnabled={(enabled) =>
@@ -1124,7 +1138,7 @@ function SceneSetupPanel({
             />
             <LayerCard
               selected={selectedLayer === "solid"}
-              title="Solid"
+              title={sceneLayerName(t, "solid")}
               subtitle={document.background.solid.color}
               enabled={document.background.solid.enabled}
               onSelect={() => onSelectedLayer("solid")}
@@ -1135,18 +1149,20 @@ function SceneSetupPanel({
           </div>
         ) : (
           <div className="border-border/70 bg-background/55 rounded-lg border p-3">
-            <div className="text-xs font-medium">Focus Lines</div>
+            <div className="text-xs font-medium">
+              {t("scene.kinds.focusLines")}
+            </div>
             <p className="text-muted-foreground text-xs">
-              Emphasize the Avatar’s face or a selected area.
+              {t("scene.setup.focusLinesHint")}
             </p>
           </div>
         )}
 
         <div className="border-border/70 space-y-3 border-t pt-3">
-          <Label>Effect behavior</Label>
+          <Label>{t("scene.setup.behavior")}</Label>
           <div className="grid grid-cols-2 gap-2">
             <NumberField
-              label="Duration (s)"
+              label={t("scene.setup.duration")}
               value={
                 document.durationMs === null ? 5 : document.durationMs / 1000
               }
@@ -1162,7 +1178,7 @@ function SceneSetupPanel({
               }
             />
             <ToggleRow
-              label="Sticky"
+              label={t("scene.setup.sticky")}
               checked={document.durationMs === null}
               onChecked={(sticky) =>
                 onDispatch({
@@ -1173,21 +1189,21 @@ function SceneSetupPanel({
             />
           </div>
           <ToggleRow
-            label="Cover UI overlays"
-            description="Preview the effect over app chrome when supported."
+            label={t("scene.setup.coverUi")}
+            description={t("scene.setup.coverUiHint")}
             checked={document.coverUiOverlays}
             onChecked={(coverUiOverlays) =>
               onDispatch({ type: "patch", patch: { coverUiOverlays } })
             }
           />
           <ToggleRow
-            label="Dismiss on input"
+            label={t("scene.setup.dismissOnInput")}
             checked={document.dismissOnInput}
             onChecked={(dismissOnInput) =>
               onDispatch({ type: "patch", patch: { dismissOnInput } })
             }
           />
-          <Field label="Sound when applied">
+          <Field label={t("creator.sound.label")}>
             <SoundUploadButton />
             <Select
               value={soundSourceKey(document.sound?.source ?? null)}
@@ -1214,11 +1230,15 @@ function SceneSetupPanel({
             >
               <SelectTrigger size="sm" className="w-full text-xs">
                 <SelectValue
-                  placeholder={soundPending ? "Loading sounds…" : "No sound"}
+                  placeholder={
+                    soundPending
+                      ? t("creator.sound.loading")
+                      : t("creator.sound.none")
+                  }
                 />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="none">No sound</SelectItem>
+                <SelectItem value="none">{t("creator.sound.none")}</SelectItem>
                 {document.sound &&
                 !soundOptions.some(
                   (item) =>
@@ -1226,7 +1246,7 @@ function SceneSetupPanel({
                     soundSourceKey(document.sound?.source ?? null),
                 ) ? (
                   <SelectItem value={soundSourceKey(document.sound.source)}>
-                    {document.sound.label} · exact content
+                    {t("creator.sound.exact", { name: document.sound.label })}
                   </SelectItem>
                 ) : null}
                 {soundOptions.flatMap((item) =>
@@ -1244,7 +1264,7 @@ function SceneSetupPanel({
               </SelectContent>
             </Select>
           </Field>
-          <Field label="Description">
+          <Field label={t("creator.description")}>
             <Textarea
               className="min-h-16 text-xs"
               rows={2}
@@ -1279,6 +1299,7 @@ function LayerCard({
   onSelect: () => void;
   onEnabled: (enabled: boolean) => void;
 }) {
+  const { t } = useTranslation("effects");
   return (
     <div
       className={cn(
@@ -1299,7 +1320,7 @@ function LayerCard({
       <Switch
         checked={enabled}
         onCheckedChange={onEnabled}
-        aria-label={`${title} enabled`}
+        aria-label={t("scene.layers.enabled", { layer: title })}
       />
     </div>
   );
@@ -1332,13 +1353,16 @@ function SceneInspectorPanel({
   onChooseImage: (file: File) => void;
   onClearSaveErrorField: (field: string) => void;
 }) {
+  const { t } = useTranslation("effects");
   return (
     <FloatingPanel
-      title="Inspector"
+      title={t("creator.panels.inspector")}
       summary={
         document.kind === "background_layers"
-          ? `${humanize(selectedLayer)} layer`
-          : "Focus Lines"
+          ? t("scene.layers.summary", {
+              layer: sceneLayerName(t, selectedLayer),
+            })
+          : t("scene.kinds.focusLines")
       }
       bodyClassName="overflow-y-auto"
     >
@@ -1369,28 +1393,32 @@ function SceneInspectorPanel({
           validation.some((issue) => issue.severity === "error") || undefined
         }
       >
-        <summary className="cursor-pointer text-xs font-medium">Checks</summary>
+        <summary className="cursor-pointer text-xs font-medium">
+          {t("scene.checks.title")}
+        </summary>
         <div className="mt-3 space-y-3">
           {validation.length ? (
             validation.map((issue, index) => (
               <StatusRow
                 key={`${issue.field}:${index}`}
                 good={issue.severity !== "error"}
-                label={humanize(issue.field)}
+                label={sceneEffectFieldLabel(issue.field)}
                 detail={issue.message}
               />
             ))
           ) : (
             <StatusRow
               good
-              label="Ready to save"
-              detail="Scene settings are ready."
+              label={t("scene.checks.ready")}
+              detail={t("scene.checks.readyDetail")}
             />
           )}
           <StatusRow
             good={avatarStatus.state === "ready"}
-            label="Preview Avatar"
-            detail={avatarStatus.message ?? humanize(avatarStatus.state)}
+            label={t("scene.checks.previewAvatar")}
+            detail={
+              avatarStatus.message ?? previewStateName(t, avatarStatus.state)
+            }
           />
         </div>
       </details>
@@ -1419,6 +1447,7 @@ function MarqueeInspector({
   onChooseImage: (file: File) => void;
   onClearSaveErrorField: (field: string) => void;
 }) {
+  const { t } = useTranslation("effects");
   const marquee = document.background.marquee;
   const [emojiId, setEmojiId] = useState(
     SCENE_BACKGROUND_EMOJI_LINE_ITEMS[0]?.id ?? "",
@@ -1427,17 +1456,17 @@ function MarqueeInspector({
     <Tabs defaultValue="content">
       <TabsList className="grid h-9 w-full grid-cols-3">
         <TabsTrigger value="content" className="min-w-0 px-1 text-xs">
-          Content
+          {t("scene.marquee.tabs.content")}
         </TabsTrigger>
         <TabsTrigger value="motion" className="min-w-0 px-1 text-xs">
-          Motion
+          {t("scene.marquee.tabs.motion")}
         </TabsTrigger>
         <TabsTrigger value="appearance" className="min-w-0 px-1 text-xs">
-          Appearance
+          {t("scene.marquee.tabs.appearance")}
         </TabsTrigger>
       </TabsList>
       <TabsContent value="content" className="mt-3 space-y-3">
-        <Label>Items</Label>
+        <Label>{t("scene.marquee.items")}</Label>
         {marquee.items.length ? (
           <div className="space-y-2">
             {marquee.items.map((item, index) => (
@@ -1464,18 +1493,21 @@ function MarqueeInspector({
           </div>
         ) : (
           <p className="text-muted-foreground text-sm">
-            Add an emoji or private image.
+            {t("scene.marquee.empty")}
           </p>
         )}
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <Select value={emojiId} onValueChange={setEmojiId}>
             <SelectTrigger size="sm" className="w-full text-xs">
-              <SelectValue placeholder="Choose emoji" />
+              <SelectValue placeholder={t("scene.marquee.chooseEmoji")} />
             </SelectTrigger>
             <SelectContent>
               {SCENE_BACKGROUND_EMOJI_LINE_ITEMS.map((item) => (
                 <SelectItem key={item.id} value={item.id}>
-                  {item.emoji} {item.label}
+                  {t("scene.marquee.emojiOption", {
+                    emoji: item.emoji,
+                    name: sceneEmojiName(t, item.emoji) ?? item.label,
+                  })}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -1500,7 +1532,7 @@ function MarqueeInspector({
               ]);
             }}
           >
-            Add emoji
+            {t("scene.marquee.addEmoji")}
           </Button>
         </div>
         <label
@@ -1515,7 +1547,7 @@ function MarqueeInspector({
           ) : (
             <ImagePlusIcon className="size-4" />
           )}
-          Add private image
+          {t("scene.marquee.addImage")}
           <input
             className="sr-only"
             type="file"
@@ -1536,7 +1568,7 @@ function MarqueeInspector({
         ) : null}
       </TabsContent>
       <TabsContent value="motion" className="mt-3 space-y-3">
-        <Field label="Direction">
+        <Field label={t("scene.marquee.direction")}>
           <Select
             value={marquee.direction}
             onValueChange={(direction) =>
@@ -1552,14 +1584,14 @@ function MarqueeInspector({
             <SelectContent>
               {SCENE_BACKGROUND_DIRECTIONS.map((direction) => (
                 <SelectItem key={direction} value={direction}>
-                  {humanize(direction)}
+                  {sceneDirectionName(t, direction)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </Field>
         <NumberField
-          label="Speed (px/s)"
+          label={t("scene.marquee.speed")}
           value={marquee.speedPxPerSec}
           min={0}
           max={2000}
@@ -1568,7 +1600,7 @@ function MarqueeInspector({
             onDispatch({ type: "patch-marquee", patch: { speedPxPerSec } })
           }
         />
-        <Field label="Rotation">
+        <Field label={t("scene.marquee.rotation")}>
           <Select
             value={marquee.itemRotationMode}
             onValueChange={(itemRotationMode) =>
@@ -1587,14 +1619,14 @@ function MarqueeInspector({
             <SelectContent>
               {SCENE_BACKGROUND_ITEM_ROTATION_MODES.map((mode) => (
                 <SelectItem key={mode} value={mode}>
-                  {humanize(mode)}
+                  {sceneRotationModeName(t, mode)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </Field>
         <NumberField
-          label="Rotation offset (deg)"
+          label={t("scene.marquee.rotationOffset")}
           value={marquee.itemRotationOffsetDeg}
           min={-360}
           max={360}
@@ -1609,7 +1641,7 @@ function MarqueeInspector({
       </TabsContent>
       <TabsContent value="appearance" className="mt-3 grid grid-cols-2 gap-3">
         <NumberField
-          label="Item size"
+          label={t("scene.marquee.itemSize")}
           value={marquee.itemSize}
           min={1}
           max={1024}
@@ -1619,7 +1651,7 @@ function MarqueeInspector({
           }
         />
         <NumberField
-          label="Gap"
+          label={t("scene.marquee.gap")}
           value={marquee.gap}
           min={0}
           max={2048}
@@ -1629,7 +1661,7 @@ function MarqueeInspector({
           }
         />
         <NumberField
-          label="Row gap"
+          label={t("scene.marquee.rowGap")}
           value={marquee.rowGap}
           min={0}
           max={2048}
@@ -1639,7 +1671,7 @@ function MarqueeInspector({
           }
         />
         <NumberField
-          label="Opacity"
+          label={t("scene.common.opacity")}
           value={marquee.opacity}
           min={0}
           max={1}
@@ -1668,6 +1700,11 @@ function MarqueeItemRow({
   onMove: (offset: -1 | 1) => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation("effects");
+  // Catalog emoji keep their English label as data; show their worded name.
+  const name =
+    (item.kind === "emoji" ? sceneEmojiName(t, item.emoji) : null) ??
+    item.label;
   return (
     <div className="border-border/70 bg-background/55 flex items-center gap-2 rounded-lg border p-2">
       <GripVerticalIcon className="text-muted-foreground size-4" />
@@ -1681,9 +1718,11 @@ function MarqueeItemRow({
         )}
       </div>
       <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{item.label}</div>
+        <div className="truncate text-sm font-medium">{name}</div>
         <div className="text-muted-foreground text-2xs truncate">
-          {item.kind === "image" ? item.image.logicalName : "Twemoji"}
+          {item.kind === "image"
+            ? item.image.logicalName
+            : t("scene.marquee.twemoji")}
         </div>
       </div>
       <Button
@@ -1691,7 +1730,7 @@ function MarqueeItemRow({
         size="icon-sm"
         variant="ghost"
         disabled={first}
-        aria-label={`Move ${item.label} up`}
+        aria-label={t("scene.marquee.moveUp", { name })}
         onClick={() => onMove(-1)}
       >
         <ArrowUpIcon />
@@ -1701,7 +1740,7 @@ function MarqueeItemRow({
         size="icon-sm"
         variant="ghost"
         disabled={last}
-        aria-label={`Move ${item.label} down`}
+        aria-label={t("scene.marquee.moveDown", { name })}
         onClick={() => onMove(1)}
       >
         <ArrowDownIcon />
@@ -1710,7 +1749,7 @@ function MarqueeItemRow({
         type="button"
         size="icon-sm"
         variant="ghost"
-        aria-label={`Remove ${item.label}`}
+        aria-label={t("scene.marquee.remove", { name })}
         onClick={onRemove}
       >
         <Trash2Icon />
@@ -1720,17 +1759,18 @@ function MarqueeItemRow({
 }
 
 function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
+  const { t } = useTranslation("effects");
   const pattern = document.background.pattern;
   return (
     <div className="space-y-3">
       <ToggleRow
-        label="Pattern enabled"
+        label={t("scene.pattern.enabled")}
         checked={pattern.enabled}
         onChecked={(enabled) =>
           onDispatch({ type: "patch-pattern", patch: { enabled } })
         }
       />
-      <Field label="Pattern kind">
+      <Field label={t("scene.pattern.kind")}>
         <Select
           value={pattern.pattern}
           onValueChange={(value) =>
@@ -1746,14 +1786,14 @@ function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
           <SelectContent>
             {SCENE_BACKGROUND_PATTERN_KINDS.map((kind) => (
               <SelectItem key={kind} value={kind}>
-                {humanize(kind)}
+                {scenePatternName(t, kind)}
               </SelectItem>
             ))}
           </SelectContent>
         </Select>
       </Field>
       <ColorField
-        label="Color"
+        label={t("scene.pattern.color")}
         value={pattern.color}
         onChange={(color) =>
           onDispatch({ type: "patch-pattern", patch: { color } })
@@ -1761,7 +1801,7 @@ function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
       />
       <div className="grid grid-cols-2 gap-3">
         <NumberField
-          label="Size"
+          label={t("scene.pattern.size")}
           value={pattern.size}
           min={1}
           max={512}
@@ -1771,7 +1811,7 @@ function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
           }
         />
         <NumberField
-          label="Spacing"
+          label={t("scene.pattern.spacing")}
           value={pattern.spacing}
           min={0}
           max={1024}
@@ -1781,7 +1821,7 @@ function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
           }
         />
         <NumberField
-          label="Opacity"
+          label={t("scene.common.opacity")}
           value={pattern.opacity}
           min={0}
           max={1}
@@ -1796,17 +1836,18 @@ function PatternInspector({ document, onDispatch }: InspectorFieldsProps) {
 }
 
 function SolidInspector({ document, onDispatch }: InspectorFieldsProps) {
+  const { t } = useTranslation("effects");
   return (
     <div className="space-y-3">
       <ToggleRow
-        label="Solid enabled"
+        label={t("scene.solid.enabled")}
         checked={document.background.solid.enabled}
         onChecked={(enabled) =>
           onDispatch({ type: "patch-solid", patch: { enabled } })
         }
       />
       <ColorField
-        label="Solid color"
+        label={t("scene.solid.color")}
         value={document.background.solid.color}
         onChange={(color) =>
           onDispatch({ type: "patch-solid", patch: { color } })
@@ -1817,25 +1858,26 @@ function SolidInspector({ document, onDispatch }: InspectorFieldsProps) {
 }
 
 function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
+  const { t } = useTranslation("effects");
   const focus = document.focus;
   return (
     <Tabs defaultValue="target">
       <TabsList className="grid h-9 w-full grid-cols-4">
         <TabsTrigger value="target" className="min-w-0 px-1 text-xs">
-          Target
+          {t("scene.focus.tabs.target")}
         </TabsTrigger>
         <TabsTrigger value="geometry" className="min-w-0 px-1 text-xs">
-          Lines
+          {t("scene.focus.tabs.lines")}
         </TabsTrigger>
         <TabsTrigger value="animation" className="min-w-0 px-1 text-xs">
-          Motion
+          {t("scene.focus.tabs.motion")}
         </TabsTrigger>
         <TabsTrigger value="appearance" className="min-w-0 px-1 text-xs">
-          Style
+          {t("scene.focus.tabs.style")}
         </TabsTrigger>
       </TabsList>
       <TabsContent value="target" className="mt-3 space-y-3">
-        <Field label="Render placement">
+        <Field label={t("scene.focus.placement")}>
           <Select
             value={focus.renderPlacement}
             onValueChange={(renderPlacement) =>
@@ -1852,12 +1894,16 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="behind_avatar">Behind Avatar</SelectItem>
-              <SelectItem value="front_of_avatar">Front of Avatar</SelectItem>
+              <SelectItem value="behind_avatar">
+                {t("scene.focus.behindAvatar")}
+              </SelectItem>
+              <SelectItem value="front_of_avatar">
+                {t("scene.focus.frontOfAvatar")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </Field>
-        <Field label="Target">
+        <Field label={t("scene.focus.target")}>
           <Select
             value={focus.target.kind}
             onValueChange={(kind) =>
@@ -1877,15 +1923,19 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="avatar_face">Avatar face</SelectItem>
-              <SelectItem value="manual_box">Manual box</SelectItem>
+              <SelectItem value="avatar_face">
+                {t("scene.focus.avatarFace")}
+              </SelectItem>
+              <SelectItem value="manual_box">
+                {t("scene.focus.manualBox")}
+              </SelectItem>
             </SelectContent>
           </Select>
         </Field>
         {focus.target.kind === "avatar_face" ? (
           <div className="grid grid-cols-2 gap-3">
             <NumberField
-              label="Padding X"
+              label={t("scene.fields.paddingX")}
               value={focus.target.paddingXPx}
               min={0}
               max={2048}
@@ -1905,7 +1955,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
               }
             />
             <NumberField
-              label="Padding Y"
+              label={t("scene.fields.paddingY")}
               value={focus.target.paddingYPx}
               min={0}
               max={2048}
@@ -1930,7 +1980,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
             {(["x", "y", "width", "height"] as const).map((field) => (
               <NumberField
                 key={field}
-                label={humanize(field)}
+                label={manualBoxFieldName(t, field)}
                 value={
                   focus.target.kind === "manual_box"
                     ? focus.target.rect[field]
@@ -1956,7 +2006,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
       </TabsContent>
       <TabsContent value="geometry" className="mt-3 grid grid-cols-2 gap-3">
         <NumberField
-          label="Line count"
+          label={t("scene.fields.lineCount")}
           value={focus.lineCount}
           min={1}
           max={256}
@@ -1966,7 +2016,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           }
         />
         <NumberField
-          label="Base thickness"
+          label={t("scene.fields.baseThickness")}
           value={focus.baseThicknessPx}
           min={0.1}
           max={128}
@@ -1976,7 +2026,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           }
         />
         <NumberField
-          label="Thickness variation"
+          label={t("scene.fields.thicknessVariation")}
           value={focus.thicknessVariationPx}
           min={0}
           max={128}
@@ -1986,7 +2036,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           }
         />
         <NumberField
-          label="Length variation"
+          label={t("scene.fields.lengthVariation")}
           value={focus.lengthVariation}
           min={0}
           max={1}
@@ -1996,7 +2046,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           }
         />
         <NumberField
-          label="Overscan"
+          label={t("scene.fields.overscan")}
           value={focus.overscanPx}
           min={0}
           max={4096}
@@ -2006,7 +2056,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           }
         />
         <NumberField
-          label="Seed"
+          label={t("scene.focus.seed")}
           value={focus.seed ?? 0}
           min={0}
           max={2147483647}
@@ -2027,7 +2077,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
         ).map((field) => (
           <NumberField
             key={field}
-            label={humanize(field)}
+            label={sceneEffectFieldLabel(`focus.animation.${field}`)}
             value={focus.animation[field]}
             min={0}
             max={10000}
@@ -2041,7 +2091,7 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
           />
         ))}
         <NumberField
-          label="Opacity jitter"
+          label={t("scene.fields.opacityJitter")}
           value={focus.animation.opacityJitter}
           min={0}
           max={1}
@@ -2056,14 +2106,14 @@ function FocusInspector({ document, onDispatch }: InspectorFieldsProps) {
       </TabsContent>
       <TabsContent value="appearance" className="mt-3 space-y-3">
         <ColorField
-          label="Line color"
+          label={t("scene.fields.lineColor")}
           value={focus.color}
           onChange={(color) =>
             onDispatch({ type: "patch-focus", patch: { color } })
           }
         />
         <NumberField
-          label="Opacity"
+          label={t("scene.common.opacity")}
           value={focus.opacity}
           min={0}
           max={1}
@@ -2175,6 +2225,7 @@ async function hydrateSceneEffect(
   const metadata = object(preview.metadata);
   const definition = metadata?.definition ?? object(metadata?.spec)?.definition;
   const logicalFiles = object(metadata?.logical_resource_files) ?? {};
+  const t = getI18n().getFixedT(null, "effects");
   const imageMetadata = new Map<string, SceneEffectEditorImage>();
   const resources: SceneEffectEditorImageResource[] = [];
   for (const [logicalName, rawIdentity] of Object.entries(logicalFiles)) {
@@ -2183,13 +2234,15 @@ async function hydrateSceneEffect(
       preview.files.find((candidate) => candidate.filename === logicalName) ??
       findLogicalResourceFile(preview.files, identity ?? {});
     if (!file)
-      throw new Error(`The content image ${logicalName} is unavailable.`);
+      throw new WordedError(
+        t("scene.open.contentImageUnavailable", { file: logicalName }),
+      );
     const response = await fetchContentPreviewFile(preview, file, {
       signal: args.signal,
     });
     if (!response.ok)
-      throw new Error(
-        `The content image ${logicalName} could not be downloaded.`,
+      throw new WordedError(
+        t("scene.open.contentImageDownloadFailed", { file: logicalName }),
       );
     const blob = await response.blob();
     const imageFile = new File([blob], file.filename, {
@@ -2262,13 +2315,6 @@ function soundSourceKey(source: PyExactContentSource | null): string {
     : `catalog:${source.catalog_item_id}`;
 }
 
-function humanize(value: string): string {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
-
 function object(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as Record<string, unknown>)
@@ -2284,8 +2330,10 @@ async function loadSceneEffectTemplate(
   templateId: string,
   signal: AbortSignal,
 ): Promise<SceneEffectHistorySnapshot> {
-  if (!isSceneEffectTemplateId(templateId))
-    throw new Error("This Scene Effect template is unavailable.");
+  if (!isSceneEffectTemplateId(templateId)) {
+    const t = getI18n().getFixedT(null, "effects");
+    throw new WordedError(t("scene.template.unavailable"));
+  }
   const items = await listCatalogItems(apiClient, "scene_effect", signal);
   return {
     document: {

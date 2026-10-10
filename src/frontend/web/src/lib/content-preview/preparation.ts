@@ -1,6 +1,9 @@
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
+import { getI18n } from "react-i18next";
+
 import { buildContentPreviewRuntime } from "./targets";
 import type { ContentPreviewTarget } from "./types";
+import { failureLine } from "@/lib/errors/apiError";
 
 export type PreparedContentPreview = {
   target: ContentPreviewTarget;
@@ -34,6 +37,6 @@ export function prepareContentPreview(
 
 /** Normalize preparation failures for either preview presentation. */
 export function contentPreviewPreparationError(error: unknown): string {
-  if (error instanceof Error && error.message.trim()) return error.message;
-  return "The selected content could not be prepared for preview.";
+  const t = getI18n().getFixedT(null, "actionEditor");
+  return failureLine(error, t("preview.errors.prepareFailed"));
 }

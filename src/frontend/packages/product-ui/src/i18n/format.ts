@@ -76,6 +76,14 @@ export function systemPreferredLanguages(): readonly string[] {
   );
 }
 
+/** Formatters for a UI Locale tag (English for anything else), outside React. */
+export function formattersForLanguage(
+  language: string | undefined,
+): LocaleFormatters {
+  const locale = language && isUiLocale(language) ? language : SOURCE_LOCALE;
+  return createFormatters(formattingLocale(locale, systemPreferredLanguages()));
+}
+
 /**
  * Formatters for the active UI Locale. The system region applies when its
  * language matches the active locale; the pseudo-locale formats as English.
@@ -83,10 +91,5 @@ export function systemPreferredLanguages(): readonly string[] {
 export function useFormatters(): LocaleFormatters {
   const { i18n } = useTranslation();
   const language = i18n.resolvedLanguage ?? i18n.language;
-  return useMemo(() => {
-    const locale = isUiLocale(language) ? language : SOURCE_LOCALE;
-    return createFormatters(
-      formattingLocale(locale, systemPreferredLanguages()),
-    );
-  }, [language]);
+  return useMemo(() => formattersForLanguage(language), [language]);
 }

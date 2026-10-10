@@ -257,20 +257,20 @@ function TemplateStep({
         <div className={TEMPLATE_GRID_CLASS_NAME}>{scratch}</div>
         {AVATAR_EFFECT_TEMPLATE_GROUPS.map((group) => {
           const templates = AVATAR_EFFECT_TEMPLATES.filter(
-            (template) => template.group === group.id,
+            (template) => template.group === group,
           );
           if (templates.length === 0) return null;
           return (
             <section
-              key={group.id}
-              aria-labelledby={`effect-template-group-${group.id}`}
+              key={group}
+              aria-labelledby={`effect-template-group-${group}`}
               className="space-y-3"
             >
               <h3
-                id={`effect-template-group-${group.id}`}
+                id={`effect-template-group-${group}`}
                 className="text-muted-foreground text-sm font-semibold"
               >
-                {avatarGroupLabel(t, group.id)}
+                {avatarGroupLabel(t, group)}
               </h3>
               <div className={TEMPLATE_GRID_CLASS_NAME}>
                 {templates.map((template) => (

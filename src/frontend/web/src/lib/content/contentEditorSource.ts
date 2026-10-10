@@ -7,6 +7,7 @@ import type {
 } from "./catalogTypes";
 import { localContentLogicalKey } from "./catalogApi";
 import { contentPreviewPrimaryFile } from "./contentPreview";
+import { WordedError } from "@/lib/errors/apiError";
 import { PreviewByteSession } from "@/lib/runtime-content/PreviewByteSession";
 
 /** Included editor sources create Local content; only Local sources carry update authority. */
@@ -23,15 +24,32 @@ export function contentEditorSaveTarget(
   };
 }
 
+/** File roles a creator reopens from saved content. */
+export type CreatorFileRole = "animation" | "audio";
+
+/** The role's name as it reads inside a sentence, in the UI Locale. */
+function creatorFileRoleName(role: CreatorFileRole): string {
+  const t = getI18n().getFixedT(null, "library");
+  switch (role) {
+    case "animation":
+      return t("content.source.roles.animation");
+    case "audio":
+      return t("content.source.roles.audio");
+  }
+}
+
 /** Hydrate a creator's existing binary input through the same verified preview lease. */
 export async function loadCreatorPreviewFile(
   preview: PyContentPreview,
-  role: string,
+  role: CreatorFileRole,
   signal?: AbortSignal,
 ): Promise<File> {
   const t = getI18n().getFixedT(null, "library");
   const file = contentPreviewPrimaryFile(preview, role);
-  if (!file) throw new Error(t("content.source.missingFile", { role }));
+  if (!file)
+    throw new WordedError(
+      t("content.source.missingFile", { role: creatorFileRoleName(role) }),
+    );
   const source = preview.files.find(
     (candidate) => candidate.file_ref === file.file_ref,
   )!;
@@ -41,7 +59,12 @@ export async function loadCreatorPreviewFile(
   );
   try {
     const loaded = session.files.get(file.file_ref);
-    if (!loaded) throw new Error(t("content.source.fileUnavailable", { role }));
+    if (!loaded)
+      throw new WordedError(
+        t("content.source.fileUnavailable", {
+          role: creatorFileRoleName(role),
+        }),
+      );
     signal?.throwIfAborted();
     return new File([loaded.blob], file.filename, { type: file.media_type });
   } finally {

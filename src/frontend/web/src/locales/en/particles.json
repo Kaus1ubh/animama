@@ -1,0 +1,504 @@
+{
+  "anchors": {
+    "chest": "Chest",
+    "head": "Head",
+    "hips": "Hips",
+    "inherit": "Inherit default anchor",
+    "leftFoot": "Left foot",
+    "leftHand": "Left hand",
+    "neck": "Neck",
+    "rightFoot": "Right foot",
+    "rightHand": "Right hand",
+    "root": "Root",
+    "spine": "Spine"
+  },
+  "autoFit": {
+    "description": "Fits emission width and height to avatar bounds, not the camera or canvas. Emitter positions stay relative to their anchors.",
+    "emitters": "Rectangle emitters to fit",
+    "heightPadding": "Height padding (m)",
+    "maxHeight": "Maximum height (m)",
+    "maxHint": "Maximum size: 0 means no limit.",
+    "maxWidth": "Maximum width (m)",
+    "minHeight": "Minimum height (m)",
+    "minWidth": "Minimum width (m)",
+    "title": "Fit rectangle to avatar",
+    "widthPadding": "Width padding (m)"
+  },
+  "behavior": {
+    "axis": "Axis",
+    "colorFadeOverLife": "Color fade over life",
+    "forceAxis": "Force {{axis}}",
+    "forceOverLife": "Force over life",
+    "limitSpeed": {
+      "dampen": "Dampen",
+      "speed": "Speed",
+      "title": "Limit speed over life"
+    },
+    "noise": {
+      "frequency": "Frequency",
+      "positionAmount": "Position amount",
+      "power": "Power",
+      "rotationAmount": "Rotation amount",
+      "title": "Noise"
+    },
+    "orbit": {
+      "speed": "Orbit speed",
+      "title": "Orbit over life"
+    },
+    "rotation3D": {
+      "angle": "Angle (rad)",
+      "angleAxis": "Angle {{axis}}",
+      "eulerOrder": "Euler order",
+      "modes": {
+        "axisAngle": "Axis angle",
+        "euler": "Euler",
+        "off": "Off",
+        "random": "Random"
+      },
+      "title": "Rotation 3D"
+    },
+    "rotationOverLife": "Rotation over life",
+    "sizeOverLife": "Size over life",
+    "speedOverLife": "Speed over life",
+    "turbulence": {
+      "octaves": "Octaves",
+      "scale": "Scale",
+      "timeScale": "Time scale",
+      "title": "Turbulence",
+      "velocity": "Velocity"
+    },
+    "unsupported": "Unsupported behavior ({{label}}) is preserved until edited.",
+    "widthOverLength": "Width over length"
+  },
+  "color": {
+    "channels": {
+      "alpha": "A",
+      "blue": "B",
+      "green": "G",
+      "red": "R"
+    },
+    "missingGenerator": "Missing color generator",
+    "mode": "Mode",
+    "overLife": {
+      "applyTheme": "Apply theme gradient",
+      "description": "Multiplies particle color as particles age.",
+      "fadeStops": "Fade Stops",
+      "gradientStops": "Gradient Stops",
+      "modes": {
+        "fade": "Fade",
+        "gradient": "Gradient",
+        "off": "Off",
+        "randomGradient": "Random gradient"
+      },
+      "randomGradient": "Random Gradient {{name}}",
+      "title": "Color Over Life"
+    },
+    "picker": "{{label}} color",
+    "start": {
+      "description": "Initial particle color sampled when each particle spawns.",
+      "fixed": "Fixed",
+      "modes": {
+        "fixed": "Fixed",
+        "range": "Range",
+        "theme": "Theme"
+      },
+      "rangeEnd": "Range end",
+      "rangeStart": "Range start",
+      "theme": "Theme",
+      "title": "Start Color"
+    },
+    "stops": {
+      "add": "Stop",
+      "alpha": "Alpha",
+      "color": "Stop {{index}} color",
+      "position": "Position",
+      "remove": "Remove stop {{index}}"
+    },
+    "themes": {
+      "affection": {
+        "description": "Warm pinks with a soft golden tail.",
+        "label": "Affection"
+      },
+      "magicSparkle": {
+        "description": "Cyan, violet, and soft white shimmer.",
+        "label": "Magic/Sparkle"
+      },
+      "neutralSoft": {
+        "description": "Pearl, mint, and pale sky utility colors.",
+        "label": "Neutral/Soft"
+      },
+      "sadness": {
+        "description": "Cool blue and lavender rain tones.",
+        "label": "Sadness"
+      },
+      "sleep": {
+        "description": "Dim moonlit blue and purple haze.",
+        "label": "Sleep"
+      },
+      "surprise": {
+        "description": "Bright yellow and orange burst colors.",
+        "label": "Surprise"
+      }
+    },
+    "title": "Color"
+  },
+  "contentLabel": "Particle Effect",
+  "emission": {
+    "burst": {
+      "count": "Burst count",
+      "interval": "Repeat interval (s)",
+      "probability": "Burst probability (0–1)",
+      "repetitions": "Burst repetitions",
+      "time": "Burst time (s)",
+      "title": "Burst emission"
+    },
+    "initialRotation": "Initial rotation (rad)",
+    "initialSize": "Initial size (m)",
+    "initialSpeed": "Initial speed (m/s)",
+    "lifetime": "Particle lifetime (s)",
+    "perMeter": "Particles per meter",
+    "perSecond": "Particles per second"
+  },
+  "emitters": {
+    "add": "Add",
+    "count_one": "{{count}} emitter",
+    "count_other": "{{count}} emitters",
+    "duplicate": "Duplicate",
+    "duplicateSelected": "Duplicate selected emitter",
+    "noMatches": "No emitters match this search.",
+    "removeSelected": "Remove selected emitter",
+    "search": "Search emitters",
+    "summary": {
+      "custom": "custom",
+      "range": "{{min}}–{{max}}",
+      "rate": "{{shape}} · {{rate}}/s",
+      "withBurst": "{{shape}} · {{rate}}/s · burst {{burst}}"
+    },
+    "title": "Emitters"
+  },
+  "export": {
+    "catalogSettings": "Catalog settings",
+    "clipEvent": "Clip event",
+    "collapseAll": "Collapse all",
+    "copied": "Copied",
+    "copy": "Copy",
+    "currentPayload": "Current export payload",
+    "download": "Download JSON",
+    "exactJson": "Exact export JSON",
+    "expandAll": "Expand all",
+    "parseFailed": "Export JSON could not parse: {{detail}}",
+    "parseFailedUnexplained": "Export JSON could not parse.",
+    "resetView": "Reset view",
+    "snippets": "Catalog settings and clip event",
+    "title": "Particle VFX export",
+    "unavailable": "No export JSON is available."
+  },
+  "generator": {
+    "convert": "Convert",
+    "end": "End",
+    "max": "Max",
+    "min": "Min",
+    "modes": {
+      "constant": "Constant",
+      "linear": "Linear",
+      "range": "Range"
+    },
+    "start": "Start",
+    "unsupported": "Unsupported generator ({{label}})",
+    "unsupportedPreserved": "Unsupported generator ({{label}}) is preserved until edited.",
+    "untyped": "Unsupported",
+    "value": "Value"
+  },
+  "import": {
+    "ariaLabel": "Particle VFX JSON",
+    "confirm": "Import effect",
+    "confirmReplace": "Discard the current Particle VFX changes and load this JSON?",
+    "description": "Paste a three.quarks effect. Valid JSON replaces the current document after the unsaved-change confirmation.",
+    "title": "Import Particle VFX JSON"
+  },
+  "inspector": {
+    "applyPreset": "Apply emitter preset",
+    "emitterName": "Emitter name",
+    "empty": "Select or add an emitter.",
+    "presetHint": "Replaces settings on the selected emitter.",
+    "presets": {
+      "aura": "Aura",
+      "pop": "Pop",
+      "smokeFade": "Smoke Fade",
+      "sparkleBurst": "Sparkle Burst",
+      "speedStreak": "Speed Streak"
+    },
+    "selectEmitter": "Select emitter",
+    "selectEmitterPlaceholder": "Select an emitter",
+    "tabs": {
+      "appearance": "Appearance",
+      "behavior": "Behavior",
+      "emission": "Emission",
+      "position": "Position",
+      "shape": "Shape"
+    }
+  },
+  "issues": {
+    "ambiguousTextureFilename": "Texture paths {{first}} and {{second}} share one portable filename.",
+    "atlasMetadataMismatch": "Renderer tile counts do not match the selected atlas texture metadata.",
+    "atlasTilesMissing": "Selected atlas texture should use more than one tile in the renderer.",
+    "blobTextureUrl": "Blob texture URLs are preview-only and cannot be exported.",
+    "durationLimit": "Every emitter duration must fit the saved maximum duration budget.",
+    "durationOverBudget": "Emitter duration exceeds the catalog max duration budget.",
+    "embeddedTextureUrl": "Embedded data texture URLs work but should be migrated to tracked public assets.",
+    "emptyTextureUrl": "Texture image URL must be a non-empty string.",
+    "frameAnimationNeedsTiles": "Frame animation needs more than one renderer tile.",
+    "frameAnimationWithoutAtlas": "Frame animation is enabled but the selected texture is not an atlas.",
+    "frameRangeOutOfBounds": "Frame animation range exceeds the selected atlas texture frames.",
+    "invalidDuration": "Emitter duration must be greater than zero.",
+    "invalidEmitterAnchor": "Choose a supported emitter anchor or Inherit.",
+    "invalidRuntimeDefaults": "Default duration must be positive and no greater than a {{seconds}}-second maximum duration.",
+    "loopingMetadata": "A looping emitter requires looping to be allowed in runtime defaults.",
+    "loopingNotAllowed": "Looping emitters are not allowed by this catalog budget.",
+    "manifestLimit": "Particle VFX manifest exceeds the {{size}} MiB content limit.",
+    "missingEmitter": "Quarks JSON must include at least one ParticleEmitter.",
+    "missingObject": "Quarks JSON must include an object root.",
+    "missingTexture": "Quarks JSON must include at least one texture image.",
+    "nodeLimit": "Particle VFX contains more than {{max}} object nodes.",
+    "particleBudgetExceeded": "Estimated {{estimated, number}} particles exceeds the catalog budget of {{budget, number}}.",
+    "particleLimit": "Estimated particle use must fit both the saved budget and the {{max}}-particle private limit.",
+    "remoteTextureUrl": "Remote texture URLs are not allowed in shipped VFX assets.",
+    "resourceLimit": "{{key}} must be an array with no more than {{max}} entries.",
+    "rotation3DWithoutMesh": "Rotation3DOverLife needs Mesh render mode to preview.",
+    "runtimeId": "Runtime ID must use lowercase letters, numbers, single hyphens, or underscores.",
+    "systemLimit": "Particle VFX must contain between {{min}} and {{max}} emitters.",
+    "tooManyTextures": "Particle VFX references more than {{max}} unique textures.",
+    "trailSettingsMissing": "Trail render mode needs an editable start length generator.",
+    "unportableEmitter": "This emitter preserves settings outside the portable creator contract.",
+    "unresolvedTexture": "Texture {{texture}} is not available to the content entry.",
+    "unsafeTextureReference": "Asset textures must use a safe package-relative path.",
+    "unsupportedBehaviorSettings": "Advanced behavior settings are preserved but not fully editable: {{items, list}}.",
+    "unsupportedNodes": "Private Particle Effects support only Group and ParticleEmitter nodes.",
+    "unsupportedRenderMode": "This emitter uses a render mode that the creator cannot edit.",
+    "unsupportedShape": "This emitter uses a shape that the creator cannot edit.",
+    "unsupportedTextureUrl": "Texture URL must be relative, root-relative, data:image, or blob.",
+    "widthOverLengthWithoutTrail": "WidthOverLength only affects Trail render mode.",
+    "worldSpaceEmitter": "World-space emitters spawn at the anchor but do not continuously follow it."
+  },
+  "json": {
+    "notObject": "Quarks JSON must be an object.",
+    "parseFailed": "Quarks JSON could not parse: {{detail}}",
+    "parseFailedUnexplained": "Quarks JSON could not parse."
+  },
+  "load": {
+    "failed": "The Particle Effect could not be loaded.",
+    "loading": "Loading Particle Effect…",
+    "manifestMissing": "The Particle Effect manifest is missing."
+  },
+  "position": {
+    "anchorAndPosition": "Anchor and position",
+    "anchorOverride": "Anchor override",
+    "axisMeters": "Position {{axis}} (m)",
+    "cycle": "Cycle",
+    "cycleDuration": "Emitter cycle duration (s)",
+    "loop": "Loop this emitter",
+    "offsetHint": "Offsets are relative to this emitter’s resolved anchor.",
+    "worldSpace": "Keep emitted particles in world space"
+  },
+  "preview": {
+    "avatar": "Avatar",
+    "avatarStatus": {
+      "error": "Avatar error",
+      "idle": "Avatar idle",
+      "loading": "Avatar loading",
+      "ready": "Avatar ready"
+    },
+    "fitNeedsAvatar": "Rectangle fitting uses avatar bounds when an avatar is available.",
+    "loadingModels": "Loading models…",
+    "loadMoreAvatars": "Load more Avatars",
+    "model": "Model",
+    "modelSource": "{{source}}: {{name}}",
+    "modelSources": {
+      "builtInAvatar": "Built-in Avatar",
+      "myAvatar": "My Avatar",
+      "previewAnima": "Preview Anima"
+    },
+    "outline": "Outline",
+    "quarksFailed": "Preview could not load three.quarks.",
+    "resourcesUnavailable": "Particle VFX preview resources are unavailable.",
+    "retryModel": "Retry preview Avatar Model",
+    "selectingModel": "Selecting Avatar Model…",
+    "selectModel": "Select preview model",
+    "showAvatar": "Show Avatar",
+    "showOutline": "Show emitter shape outline",
+    "status": {
+      "error": "Preview error",
+      "idle": "Preview idle",
+      "loading": "Loading preview",
+      "ready": "Preview ready"
+    }
+  },
+  "recoveryLabel": "Particle VFX",
+  "renderer": {
+    "advanced": "Advanced rendering",
+    "alphaTest": "Alpha test",
+    "blending": "Blending",
+    "blendings": {
+      "additive": "Additive",
+      "normal": "Normal"
+    },
+    "depthTest": "Depth test",
+    "depthWrite": "Depth write",
+    "farFade": "Far fade distance (m)",
+    "followLocalOrigin": "Follow local origin",
+    "lengthFactor": "Length factor",
+    "mode": "Render mode",
+    "modes": {
+      "billboard": "Billboard",
+      "horizontal": "Horizontal Billboard",
+      "mesh": "Mesh",
+      "stretched": "Stretched Billboard",
+      "trail": "Trail",
+      "vertical": "Vertical Billboard"
+    },
+    "nearFade": "Near fade distance (m)",
+    "opacity": "Opacity",
+    "renderOrder": "Render order",
+    "softParticles": "Soft particles",
+    "speedFactor": "Speed factor",
+    "title": "Renderer",
+    "trailStartLength": "Trail start length"
+  },
+  "save": {
+    "busy": {
+      "hashing": "Hashing private content…",
+      "preparing": "Preparing private content…",
+      "uploading": "Uploading private content…",
+      "validating": "Validating private content…"
+    },
+    "defaultName": "New Particle FX",
+    "nameLength": "Give this Particle VFX a name between {{min}} and {{max}} characters.",
+    "paused": "Save paused. Retry will continue from the preserved draft.",
+    "reviewNotice": "{{notice}} Review the adjustment, then Save again.",
+    "saved": "Particle Effect saved."
+  },
+  "settings": {
+    "advanced": "Advanced settings",
+    "allowCoexist": "Allow simultaneous effects",
+    "allowLooping": "Allow emitter looping",
+    "defaultAnchor": "Default anchor",
+    "estimatedTotal_one": "Estimated total: ~{{count, number}} particle",
+    "estimatedTotal_other": "Estimated total: ~{{count, number}} particles",
+    "limitsHint": "Performance limits apply to the whole effect. Enabling looping here permits individual emitters to repeat their cycles.",
+    "maxDuration": "Maximum playback duration (s)",
+    "maxParticles": "Maximum total particles",
+    "playbackDuration": "Effect playback duration (s)",
+    "preload": "Preload",
+    "preloadTiers": {
+      "none": "None",
+      "tierA": "Tier A",
+      "tierB": "Tier B"
+    },
+    "title": "Settings"
+  },
+  "shape": {
+    "angle": "Angle (rad)",
+    "arc": "Arc (rad)",
+    "height": "Height (m)",
+    "mode": "Mode",
+    "modes": {
+      "burst": "Burst",
+      "loop": "Loop",
+      "pingPong": "PingPong",
+      "random": "Random"
+    },
+    "radius": "Radius (m)",
+    "speed": "Shape speed",
+    "spread": "Spread",
+    "thickness": "Thickness",
+    "title": "Shape",
+    "types": {
+      "cone": "Cone",
+      "point": "Point",
+      "rectangle": "Rectangle",
+      "sphere": "Sphere",
+      "unsupported": "Unsupported"
+    },
+    "width": "Width (m)"
+  },
+  "texture": {
+    "animateFrames": "Animate frames",
+    "atlas": "Atlas",
+    "blendTiles": "Blend tiles",
+    "frameEnd": "Frame end",
+    "frameStart": "Frame start",
+    "names": {
+      "brackeysFlare": "Flare",
+      "brackeysSmoke": "Smoke",
+      "brackeysSpark": "Spark",
+      "cloud": "Cloud",
+      "dustSoft": "Dust Soft",
+      "exclamation": "Exclamation",
+      "fire8x8": "Fire 8x8",
+      "flame16x4": "Flame 16x4",
+      "flareStar": "Flare Star",
+      "glowSharp": "Glow Sharp",
+      "glowSoft": "Glow Soft",
+      "heart": "Heart",
+      "heartV2": "Heart-v2",
+      "kenneyEmberSpark": "Kenney Ember Spark",
+      "kenneyFireGlow": "Kenney Fire Glow",
+      "kenneyFlameCore": "Kenney Flame Core",
+      "kenneyFlameTongue": "Kenney Flame Tongue",
+      "kenneySmokeWisp": "Kenney Smoke Wisp",
+      "magicRing": "Magic Ring",
+      "question": "Question",
+      "raindrop": "Raindrop",
+      "runeCircle": "Rune Circle",
+      "shockRing": "Shock Ring",
+      "slashArc": "Slash Arc",
+      "smoke8x8": "Smoke 8x8",
+      "smokePuff": "Smoke Puff",
+      "smokeWisp": "Smoke Wisp",
+      "softDot": "Soft Dot",
+      "sparkCross": "Spark Cross",
+      "sparkDot": "Spark Dot",
+      "sparkle": "Sparkle",
+      "sparkPop6x5": "Spark Pop 6x5",
+      "sparkStreak": "Spark Streak",
+      "speedLine": "Speed Line",
+      "star": "Star",
+      "starV2": "Star-v2",
+      "trailTaper": "Trail Taper",
+      "zzz": "Zzz"
+    },
+    "roles": {
+      "glow": "Glow",
+      "smoke": "Smoke/Dust",
+      "spark": "Spark",
+      "symbol": "Symbol",
+      "trail": "Trail/Streak"
+    },
+    "title": "Texture",
+    "uTiles": "U tiles",
+    "vTiles": "V tiles"
+  },
+  "timeline": {
+    "loading": "Loading",
+    "paused": "Paused",
+    "playing": "Playing",
+    "selectEmitter": "Select emitter {{name}}",
+    "target": "effect preview",
+    "time": "Effect preview time",
+    "title": "Preview Timeline"
+  },
+  "toolbar": {
+    "confirmNew": "Discard the current Particle Effect changes and start a new effect?"
+  },
+  "transform": {
+    "depthOffset": "Depth offset (m)",
+    "offset": "Offset (m)",
+    "rotation": "Rotation (rad)",
+    "scale": "Scale (multiplier)",
+    "title": "Transform"
+  },
+  "typeLabel": "Particle FX",
+  "validation": {
+    "onTarget": "{{target}}: {{message}}"
+  }
+}

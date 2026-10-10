@@ -1,14 +1,17 @@
 "use client";
 
+import { getI18n } from "react-i18next";
+
 import {
   avatarEffectDefinition,
   avatarEffectDependencies,
+  avatarEffectOldDraftNotice,
   avatarEffectRecoveryStore,
   avatarEffectUsesOtherEyeImage,
-  AVATAR_EFFECT_OLD_DRAFT_NOTICE,
   AVATAR_EFFECT_RECOVERY_SCHEMA,
   type AvatarEffectRecovery,
 } from "@/lib/avatar/vfx/editor";
+import { WordedError } from "@/lib/errors/apiError";
 import { useAvatarEffect } from "@/query/hooks/useEffects";
 import {
   CreatorRecoveryDroppedError,
@@ -26,9 +29,19 @@ export const avatarEffectSaveAdapter: CreatorSaveAdapter<
   AvatarEffectRecovery
 > = {
   kind: "avatar_effect",
-  defaultName: "New Avatar FX",
-  savedMessage: "Avatar Effect saved.",
-  pausedMessage: "Save paused. Retry will reuse the preserved draft.",
+  // Worded when read, so they follow the UI Locale at Save time.
+  get defaultName() {
+    const t = getI18n().getFixedT(null, "effects");
+    return t("avatar.save.defaultName");
+  },
+  get savedMessage() {
+    const t = getI18n().getFixedT(null, "effects");
+    return t("avatar.save.saved");
+  },
+  get pausedMessage() {
+    const t = getI18n().getFixedT(null, "effects");
+    return t("creator.save.paused");
+  },
   store: avatarEffectRecoveryStore,
   fingerprint: avatarEffectSnapshotFingerprint,
   name: (snapshot) => snapshot.document.name,
@@ -38,13 +51,14 @@ export const avatarEffectSaveAdapter: CreatorSaveAdapter<
   }),
   async buildPayload({ snapshot, name, target, signal, progress }) {
     const { document, imageResources } = snapshot;
+    const t = getI18n().getFixedT(null, "effects");
     const image = imageResources.image;
-    if (!image) throw new Error("Choose an image before saving.");
+    if (!image) throw new WordedError(t("avatar.save.chooseImage"));
     const otherEye = avatarEffectUsesOtherEyeImage(document)
       ? imageResources.otherEyeImage
       : null;
     if (avatarEffectUsesOtherEyeImage(document) && !otherEye)
-      throw new Error("Reselect the other side image before saving.");
+      throw new WordedError(t("avatar.save.reselectOtherSide"));
     progress("uploading");
     signal.throwIfAborted();
     const imagePath = document.art.image?.logicalName ?? image.file.name;
@@ -89,7 +103,8 @@ export const avatarEffectSaveAdapter: CreatorSaveAdapter<
   }),
   fromRecovery: (record) => {
     if (record.dropped)
-      throw new CreatorRecoveryDroppedError(AVATAR_EFFECT_OLD_DRAFT_NOTICE);
+      throw new CreatorRecoveryDroppedError(avatarEffectOldDraftNotice());
+    const t = getI18n().getFixedT(null, "effects");
     const missingImage =
       (record.document.art.image && !record.imageResource) ||
       (record.document.art.otherEyeImage && !record.otherEyeImageResource);
@@ -103,9 +118,7 @@ export const avatarEffectSaveAdapter: CreatorSaveAdapter<
       },
       operationId: record.operationId,
       contentFingerprint: record.contentFingerprint,
-      warning: missingImage
-        ? "This recovered draft needs its images reselected before Save."
-        : null,
+      warning: missingImage ? t("avatar.recovery.needsImages") : null,
     };
   },
   editRoute: (itemId) => ({

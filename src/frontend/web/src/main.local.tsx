@@ -2,19 +2,9 @@ import "@fontsource-variable/dm-sans";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 
-import { AppProviders } from "@web/app/providers/AppProviders";
-import { AppRouter } from "@web/app/router";
 import { initialLocale } from "@web/i18n/locale-preference";
 import { createWebI18n } from "@web/i18n/web-i18n";
-import { installLocalGatewayFetchInterceptor } from "@web/lib/local-gateway/fetch-interceptor";
 import "./index.css";
-import { createLocalComposition } from "./app/local-runtime/local-composition";
-import { RuntimeController } from "./app/runtime/runtime-controller";
-import { installBrowserSessionResources } from "./app/runtime/browser-session-resources";
-
-installLocalGatewayFetchInterceptor();
-const controller = new RuntimeController(createLocalComposition());
-installBrowserSessionResources(window, () => controller.getSnapshot().scope);
 
 // Keep development profiling cleanup out of all built application artifacts.
 if (__ANIMAMA_DEV_BUILD__) {
@@ -22,7 +12,27 @@ if (__ANIMAMA_DEV_BUILD__) {
 }
 
 // Text renders in the first-paint locale; App settings may switch it once loaded.
-void createWebI18n(initialLocale()).then((i18n) => {
+// Application modules load only once i18n exists, so code that runs while a
+// module loads (such as a store's initial state) can translate.
+void createWebI18n(initialLocale()).then(async (i18n) => {
+  const [
+    { installLocalGatewayFetchInterceptor },
+    { createLocalComposition },
+    { RuntimeController },
+    { installBrowserSessionResources },
+    { AppProviders },
+    { AppRouter },
+  ] = await Promise.all([
+    import("@web/lib/local-gateway/fetch-interceptor"),
+    import("./app/local-runtime/local-composition"),
+    import("./app/runtime/runtime-controller"),
+    import("./app/runtime/browser-session-resources"),
+    import("@web/app/providers/AppProviders"),
+    import("@web/app/router"),
+  ]);
+  installLocalGatewayFetchInterceptor();
+  const controller = new RuntimeController(createLocalComposition());
+  installBrowserSessionResources(window, () => controller.getSnapshot().scope);
   createRoot(document.getElementById("root")!).render(
     <StrictMode>
       <AppProviders controller={controller} i18n={i18n}>

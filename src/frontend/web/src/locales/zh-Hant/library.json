@@ -75,8 +75,12 @@
       "unavailable": "瀏覽器當機復原無法使用。請在儲存完成前保持此分頁開啟。"
     },
     "source": {
-      "fileUnavailable": "所選的 {{role}} 檔案無法使用。",
-      "missingFile": "所選內容沒有 {{role}} 檔案。"
+      "fileUnavailable": "所選的{{role}}檔案無法使用。",
+      "missingFile": "所選內容沒有{{role}}檔案。",
+      "roles": {
+        "animation": "動畫",
+        "audio": "音訊"
+      }
     }
   },
   "filters": {

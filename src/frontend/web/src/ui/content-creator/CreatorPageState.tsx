@@ -1,4 +1,5 @@
 import { Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/ui/components/button";
 import { CreatorSaveNotice } from "./CreatorSaveNotice";
@@ -15,6 +16,7 @@ export function CreatorUnavailableState({
   label: string;
   message: string;
 }) {
+  const { t } = useTranslation("creator");
   return (
     <div className="bg-background flex h-full items-center justify-center p-4">
       <CreatorSaveNotice
@@ -22,17 +24,19 @@ export function CreatorUnavailableState({
         tone="error"
         message={
           <>
-            <span className="block font-medium">Can’t open this {label}</span>
+            <span className="block font-medium">
+              {t("unavailable.title", { label })}
+            </span>
             <span className="text-muted-foreground">{message}</span>
           </>
         }
         actions={
           <div className="flex w-full justify-end gap-2">
             <Button asChild size="sm" variant="outline">
-              <Link to="/library">Open Library</Link>
+              <Link to="/library">{t("unavailable.openLibrary")}</Link>
             </Button>
             <Button asChild size="sm">
-              <Link to="/create">Go to Create</Link>
+              <Link to="/create">{t("unavailable.goToCreate")}</Link>
             </Button>
           </div>
         }

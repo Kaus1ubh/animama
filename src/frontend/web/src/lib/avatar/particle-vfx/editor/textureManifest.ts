@@ -17,14 +17,6 @@ export const PARTICLE_VFX_EDITOR_TEXTURE_ROLE_ORDER = [
   "symbol",
 ] as const satisfies readonly ParticleVFXEditorTextureRole[];
 
-export const PARTICLE_VFX_EDITOR_TEXTURE_ROLE_LABELS = {
-  glow: "Glow",
-  spark: "Spark",
-  smoke: "Smoke/Dust",
-  trail: "Trail/Streak",
-  symbol: "Symbol",
-} as const satisfies Record<ParticleVFXEditorTextureRole, string>;
-
 export const PARTICLE_VFX_EDITOR_TEXTURE_MANIFEST = [
   texture("soft-dot", "Soft Dot", "soft-dot.png", "glow", "additive", 0),
   texture("glow-soft", "Glow Soft", "glow-soft.png", "glow", "additive", 0),
