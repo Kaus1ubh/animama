@@ -5940,7 +5940,16 @@ export const zPyUserSettings = z.object({
         z.string(),
         z.null()
     ])),
-    locale: z.optional(z.string()).default('en-US'),
+    locale: z.optional(z.union([
+        z.enum([
+            'en',
+            'ja',
+            'ko',
+            'zh-Hans',
+            'zh-Hant'
+        ]),
+        z.null()
+    ])),
     preferences: z.optional(z.record(z.string(), z.unknown())),
     theme: z.optional(z.string()).default('anima'),
     user_id: z.string()
@@ -5955,7 +5964,13 @@ export const zPyUserSettingsUpdate = z.object({
         z.null()
     ])),
     locale: z.optional(z.union([
-        z.string(),
+        z.enum([
+            'en',
+            'ja',
+            'ko',
+            'zh-Hans',
+            'zh-Hant'
+        ]),
         z.null()
     ])),
     preferences: z.optional(z.union([

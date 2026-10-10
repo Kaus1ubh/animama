@@ -27,6 +27,11 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
+import {
+  localeNativeName,
+  SUPPORTED_LOCALES,
+} from "@animama/runtime-contracts/locale";
 import { SafetySettingsSection } from "@/ui/settings/SafetySettingsSection";
 import { WebSearchSettings } from "@/ui/settings/web-search/WebSearchSettings";
 
@@ -60,10 +65,7 @@ import {
   type DesktopShortcutMap,
 } from "@/lib/settings/desktop-shortcuts";
 import { useDesktopUpdates } from "@/hooks/useDesktopUpdates";
-import {
-  APPEARANCE_COLOR_GROUP_LABELS,
-  APPEARANCE_COLOR_TOKENS,
-} from "@/lib/theme/appearance-overrides";
+import { APPEARANCE_COLOR_TOKENS } from "@/lib/theme/appearance-overrides";
 import { BEHAVIOR_FLAGS } from "@/lib/settings/behavior-defaults";
 import {
   AboutVersionSetting,
@@ -85,6 +87,9 @@ import {
   AppearanceColorSetting,
   ResetColorsSetting,
   AppearanceModeSetting,
+  LanguageSetting,
+  colorGroupLabel,
+  colorTokenLabel,
 } from "@/ui/settings/AppearanceSettings";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
@@ -227,6 +232,21 @@ const sections = [
   "About",
 ] as const;
 type ApplicationSettingsSection = (typeof sections)[number];
+
+/** Catalog keys for section names; section IDs stay stable English identifiers. */
+const SECTION_LABEL_KEYS = {
+  General: "sections.general",
+  Models: "sections.models",
+  Appearance: "sections.appearance",
+  Voice: "sections.voice",
+  Shortcuts: "sections.shortcuts",
+  "Memory & Emotion": "sections.memoryEmotion",
+  Safety: "sections.safety",
+  "API Keys": "sections.apiKeys",
+  Data: "sections.data",
+  Advanced: "sections.advanced",
+  About: "sections.about",
+} as const satisfies Record<ApplicationSettingsSection, string>;
 
 /**
  * One searchable setting. Consecutive entries sharing a `group` render inside
@@ -381,6 +401,10 @@ export function ApplicationSettingsModal({
   onOpenChange,
 }: ApplicationSettingsModalProps) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("settings");
+  const sectionLabels = Object.fromEntries(
+    sections.map((section) => [section, t(SECTION_LABEL_KEYS[section])]),
+  ) as Record<ApplicationSettingsSection, string>;
 
   const {
     chatMarkdownEnabled,
@@ -1258,36 +1282,81 @@ export function ApplicationSettingsModal({
       render: () => <CopyDiagnosticsSetting />,
     },
     {
+      id: "appearance-language",
+      section: "Appearance",
+      group: t("appearance.language.label"),
+      label: t("appearance.language.label"),
+      // English terms and native names keep the picker findable from any language.
+      keywords: [
+        ...t("appearance.language.keywords", { returnObjects: true }),
+        "language",
+        "locale",
+        ...SUPPORTED_LOCALES.map(localeNativeName),
+      ],
+      render: () => <LanguageSetting />,
+    },
+    {
       id: "appearance-mode",
       section: "Appearance",
-      group: "Theme",
-      label: "Theme",
-      keywords: ["theme", "mode", "dark", "light", "system", "dark mode"],
+      group: t("appearance.theme.group"),
+      label: t("appearance.theme.label"),
+      keywords: [
+        ...t("appearance.theme.keywords", { returnObjects: true }),
+        "theme",
+        "mode",
+        "dark",
+        "light",
+        "system",
+        "dark mode",
+      ],
       render: () => <AppearanceModeSetting />,
     },
     ...APPEARANCE_COLOR_TOKENS.filter((token) => token.group === "basic").map(
       (token): SettingEntry => ({
         id: `appearance-${token.key}`,
         section: "Appearance",
-        group: APPEARANCE_COLOR_GROUP_LABELS.basic,
-        label: `${token.label} colour`,
-        keywords: ["theme", "color", "colour", "override", "hex"],
+        group: colorGroupLabel(t, "basic"),
+        label: t("appearance.colors.entryLabel", {
+          label: colorTokenLabel(t, token),
+        }),
+        keywords: [
+          ...t("appearance.colors.keywords", { returnObjects: true }),
+          "theme",
+          "color",
+          "colour",
+          "override",
+          "hex",
+        ],
         render: () => <AppearanceColorSetting token={token} />,
       }),
     ),
     {
       id: "appearance-reset-colours",
       section: "Appearance",
-      group: APPEARANCE_COLOR_GROUP_LABELS.basic,
-      label: "Reset colours",
-      keywords: ["theme", "color", "colour", "reset", "default"],
+      group: colorGroupLabel(t, "basic"),
+      label: t("appearance.colors.resetAll.label"),
+      keywords: [
+        ...t("appearance.colors.resetAll.keywords", { returnObjects: true }),
+        "theme",
+        "color",
+        "colour",
+        "reset",
+        "default",
+      ],
       render: () => <ResetColorsSetting />,
     },
     {
       id: "appearance-advanced-toggle",
       section: "Appearance",
-      label: "Advanced colours",
-      keywords: ["theme", "color", "colour", "custom", "advanced"],
+      label: t("appearance.colors.advanced.label"),
+      keywords: [
+        ...t("appearance.colors.advanced.keywords", { returnObjects: true }),
+        "theme",
+        "color",
+        "colour",
+        "custom",
+        "advanced",
+      ],
       render: () => (
         <AdvancedColorsToggleSetting
           open={advancedColorsOpen}
@@ -1299,9 +1368,20 @@ export function ApplicationSettingsModal({
       (token): SettingEntry => ({
         id: `appearance-${token.key}`,
         section: "Appearance",
-        group: `Advanced · ${APPEARANCE_COLOR_GROUP_LABELS[token.group]}`,
-        label: `${token.label} colour`,
-        keywords: ["theme", "color", "colour", "advanced", "hex"],
+        group: t("appearance.colors.advanced.entryGroup", {
+          group: colorGroupLabel(t, token.group),
+        }),
+        label: t("appearance.colors.entryLabel", {
+          label: colorTokenLabel(t, token),
+        }),
+        keywords: [
+          ...t("appearance.colors.keywords", { returnObjects: true }),
+          "theme",
+          "color",
+          "colour",
+          "advanced",
+          "hex",
+        ],
         collapsed: true,
         render: () => <AppearanceColorSetting token={token} />,
       }),
@@ -1754,13 +1834,14 @@ export function ApplicationSettingsModal({
       <Dialog.Portal>
         <DialogOverlay />
         <SectionedModalFrame<ApplicationSettingsSection>
-          title="App Settings"
-          description="Configure application-level voice and interface settings."
-          closeLabel="Close App Settings"
-          sidebarLabel="Application"
-          sidebarTitle="App Settings"
+          title={t("modal.title")}
+          description={t("modal.description")}
+          closeLabel={t("modal.close")}
+          sidebarLabel={t("modal.navigationLabel")}
+          sidebarTitle={t("modal.title")}
           sections={availableSections}
           sectionIcons={SECTION_ICONS}
+          sectionLabels={sectionLabels}
           activeSection={shownSection}
           onSectionChange={setActiveSection}
           avoidSidebar
@@ -1771,6 +1852,7 @@ export function ApplicationSettingsModal({
               entries={visibleEntries}
               sections={availableSections}
               sectionIcons={SECTION_ICONS}
+              sectionLabels={sectionLabels}
               onSelectSection={setActiveSection}
               onSelectEntry={handleSearchSelectEntry}
             />
@@ -1781,7 +1863,7 @@ export function ApplicationSettingsModal({
             event.preventDefault();
             setSearchQuery("");
           }}
-          headerTitle={shownSection}
+          headerTitle={sectionLabels[shownSection]}
           gridClassName="md:grid-cols-[240px_minmax(0,1fr)]"
           contentClassName="gap-6"
         >

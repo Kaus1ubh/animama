@@ -3,6 +3,8 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { AppProviders } from "./app/providers/AppProviders";
 import { AppRouter } from "./app/router";
+import { initialLocale } from "./i18n/locale-preference";
+import { createWebI18n } from "./i18n/web-i18n";
 import { createHostedComposition } from "./app/hosted-runtime/hosted-composition";
 import { RuntimeController } from "./app/runtime/runtime-controller";
 import { installBrowserSessionResources } from "./app/runtime/browser-session-resources";
@@ -17,10 +19,13 @@ const composition = createHostedComposition({
 window.fetch = composition.browserFetch;
 const controller = new RuntimeController(composition);
 installBrowserSessionResources(window, () => controller.getSnapshot().scope);
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <AppProviders controller={controller}>
-      <AppRouter />
-    </AppProviders>
-  </StrictMode>,
-);
+// Text renders in the first-paint locale; App settings may switch it once loaded.
+void createWebI18n(initialLocale()).then((i18n) => {
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <AppProviders controller={controller} i18n={i18n}>
+        <AppRouter />
+      </AppProviders>
+    </StrictMode>,
+  );
+});

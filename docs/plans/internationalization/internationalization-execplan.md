@@ -61,7 +61,7 @@ Boundaries:
 - [x] 2026-10-10 Code, contract and tooling map (backend, frontend, desktop, Cloud).
 - [x] 2026-10-10 Workspace setup: spec published to #385, phase issues #418–#426,
       branch renamed to `feat/internationalization`, fast-forwarded to `5993bbee`.
-- [ ] Phase 1: foundation (R1–R6, R16–R18).
+- [x] Phase 1: foundation (R1–R6, R16–R18); review #2 passed 2026-10-10.
 - [ ] Phase 2: names in any script (R11).
 - [ ] Phase 3: backend diagnostics and shared error wording (R10).
 - [ ] Phase 4: app shell, chat and safety (R7, R9).
@@ -120,6 +120,15 @@ Boundaries:
   versioned `userData` file written through a new `animama:locale:*` IPC
   channel; the shell resolves its first-launch locale from
   `app.getPreferredSystemLanguages()` with the shared resolver.
+- 2026-10-10, agent (Phase 1, within the agreed outcome): product-ui loads each
+  locale's catalog through internal `import()` chunks emitted by its build
+  rather than per-locale export subpaths, so consumers get one-locale loading
+  without wiring; `i18n:types` is part of `i18n:extract`. Dependency versions
+  `i18next` 26.4.2, `react-i18next` 17.0.15 and `i18next-cli` 1.74.1 were each
+  published more than two weeks earlier (npm registry, 2026-10-10).
+- 2026-10-10, agent: the wheel now stores `locale` as NULL for "System default";
+  Cloud's hosted baseline (`NOT NULL DEFAULT 'en-US'`) must allow NULL before it
+  repins this package set. Recorded for the linked Cloud issue.
 - Proposed, agent: #385 closes with this PR; AC12 evidence belongs to the linked
   Cloud issue, which #385 links. To confirm with the owner at PR time.
 
@@ -213,13 +222,110 @@ Completion: switching the language in Appearance changes the converted UI
 without losing a composer draft; restart keeps it; System default follows the
 browser; AC2, AC4 and AC5 tests pass.
 
+#### Phase 1 results (2026-10-10)
+
+Source: `7550f192` plus the Phase 1 working tree. Local evidence:
+
+- `pnpm check` (web and desktop type checks plus `pnpm i18n:check`): pass.
+- `pnpm web:lint`, `pnpm packages:check`: pass. `pnpm packages:test`:
+  runtime-contracts 9, product-ui 36, discover-client 1 passed.
+- `pnpm web:test`: 3744 passed, 1 skipped; 4 failed in
+  `tests/local-api-proxy.test.ts` with "Port 5173 is already in use" because
+  another task's animation-preview server holds host port 5173 (environmental;
+  not stopped). The browser script tests after vitest were run separately.
+- Backend: `uv run pytest -q` 3544 passed, 10 skipped; `uv run ruff check` and
+  `make format-check` pass; `pnpm openapi-ts:check` current.
+- Browser (task stack `animama-i18n`, `http://animama-i18n.localhost:8300`,
+  development mode, desktop 1280×800): Appearance shows "System default
+  (English)" and each locale in its own script with Beta; switching to 日本語,
+  한국어, 简体中文 and 繁體中文 updates the open settings live, sets
+  `<html lang>`/`dir`, and keeps an unsent composer draft; the choice persists
+  across reload; System default follows the browser; searching "language"
+  under 한국어 finds 언어.
+- Discovery: in the first dev session after a stack start, the first switch to
+  a locale whose catalog was not yet loaded left mounted text in the previous
+  language. Both i18n packages showed separate Vite dependency-optimization
+  batches; pre-bundling and deduping `i18next` and `react-i18next` in
+  `vite.config.ts` fixed it on a restarted dev server (same sequence verified).
+  `web/src/i18n/LocaleSync.test.tsx` covers the saved-locale switch with a
+  memoized consumer.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full initial review of `7550f192` plus the working
+tree (2026-10-10).
+
+- **P1-R1-01 (required).** `web/i18next.lint.config.ts` set `acceptedAttributes`
+  without `acceptedTags`, so the lint checked only plain HTML tags and missed
+  text and `label`/`description` on components such as `SettingsRow` and
+  `SelectItem` (R17). Evidence: a fixture and `AboutSettings.tsx` found 2 of 7
+  raw strings.
+- **P1-R1-02 (required).** AC4 fixtures for the CLI steps were missing: no test
+  showed `i18n:check` failing on a raw string, a key missing from English or an
+  unused English key.
+- **P1-R1-03 (required before PR).** Structural OpenAPI change and changed
+  package declarations without version bumps (`scripts/package-sets/README.md`
+  compatibility policy).
+- **P1-R1-04 (required).** AC5 coverage incomplete: no time formatting, numbers
+  only for `en-US`, dates skipped `zh-Hant`, plurals only `en`/`ja`, and no test
+  that `<html lang>`/`dir` follow the locale.
+- **P1-R1-05 (optional).** Settings group names still double as grouping keys;
+  Appearance entries now group by translated text.
+- **P1-R1-06 (optional).** `token.key as …` cast meant a new colour token without
+  a catalog key would render the raw key.
+- Other notes: plan deviations to record; a failed catalog load shows English
+  under the requested `lang` (acceptable under R5); the pseudo-locale also marks
+  interpolated values; "主色颜色"-style doubled wording in Chinese; boundary docs
+  did not list `/i18n` and `/locale`; Cloud's `NOT NULL` locale column will
+  reject the NULL the wheel now writes until Cloud's schema changes.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P1-R1-01 accepted.** `acceptedTags: "all"` plus `description`; converted
+  files still lint clean. The i18n guide describes the coverage.
+- **P1-R1-02 accepted.** `scripts/i18n-check.test.mjs` runs the CLI on temporary
+  fixtures: clean source passes without writing; raw text in a component's
+  children or `label` fails the lint; a missing and an unused English key each
+  fail `extract --ci --dry-run`. Added to `i18n:check` (4 tests pass).
+- **P1-R1-03 accepted.** `local-http` 3.0.0 → 4.0.0, `@animama/runtime-contracts`
+  0.3.1 → 0.4.0, `@animama/product-ui` 0.7.0 → 0.8.0; `contracts/hosted-web.md`
+  and `http-api.md` updated. Consumer bounds derive from `versions.json`.
+- **P1-R1-04 accepted.** Table-driven formatting test (date, time, number,
+  relative time, list) for `en-US`, `en-GB`, `ja`, `ko`, `zh-Hans`, `zh-Hant`;
+  plurals for every beta locale; `applyDocumentLocale` sets `lang`/`dir`; the
+  LocaleSync test asserts `dir`.
+- **P1-R1-05 deferred to Phase 6**, which converts every Settings group and
+  separates group IDs from labels; Appearance renders without group headings.
+- **P1-R1-06 accepted.** `AppearanceColorToken.key` is typed
+  (`AppearanceColorTokenKey`) and `colorTokenLabel` maps each key with a literal
+  catalog call.
+- Chinese token names no longer end in 色 ("主要颜色", "强调颜色"). Boundary docs
+  list `/i18n` and `/locale`; "Adding a locale" names `loadProductCatalog` and
+  the version bump. The pseudo-locale marking interpolated values is noted for
+  the Phase 9 smoke. The Cloud `NOT NULL` column is recorded for the Cloud issue.
+- Checks after revisions: `pnpm i18n:check`, `pnpm packages:check`,
+  `pnpm packages:test`, web `tsc`, targeted vitest and ESLint pass.
+
+Repair budget: one of two repair rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck of the accepted findings and regressions (2026-10-10): pass.
+All accepted findings fixed; the Vite pre-bundle change keeps one react-i18next
+copy. Optional: **P1-R2-01** the colour-label switch was not exhaustive (a new
+named key would render "Chart NaN"); **P1-R2-02** the CLI fixture test copied
+the lint settings instead of reading them; **P1-R2-03** formatter expectations
+depend on Node's ICU data (CI pins the same Node 24.15.0).
+
+#### Code Review #2 Revisions
+
+- **P1-R2-01 accepted.** Chart keys are handled by a type guard first, and the
+  switch over named keys ends in a `never` check.
+- **P1-R2-02 accepted.** Lint settings live in `web/i18n-scope.json`; the lint
+  config and `scripts/i18n-check.test.mjs` both read them.
+- **P1-R2-03 noted.** A Node/ICU upgrade may need updated expected strings.
+- Checks: `pnpm i18n:check` (9 tests, extract, types, lint, catalogs) and web
+  `tsc` pass. Phase 1 complete; review passed in round #2.
 
 ### Phase 2 — Names in any script (R11)
 

@@ -1,0 +1,32 @@
+{
+  "description": "Product terms for machine translation of UI catalogs. Every translation uses these renderings; terms with \"keep\": true stay in Latin script in every locale. Add a term before translating a string that introduces it.",
+  "terms": [
+    { "en": "Animama", "keep": true, "note": "Product name." },
+    { "en": "Animama Cloud", "keep": true, "note": "Product name." },
+    { "en": "Anima", "keep": true, "note": "A companion character; plural \"Animas\" in English, unchanged elsewhere." },
+    { "en": "Avatar", "ja": "アバター", "ko": "아바타", "zh-Hans": "虚拟形象", "zh-Hant": "虛擬形象", "note": "The 3D model an Anima wears." },
+    { "en": "Gesture", "ja": "ジェスチャー", "ko": "제스처", "zh-Hans": "动作", "zh-Hant": "動作", "note": "A body-and-face motion clip, not only a hand gesture." },
+    { "en": "Reaction", "ja": "リアクション", "ko": "리액션", "zh-Hans": "反应", "zh-Hant": "反應" },
+    { "en": "Pose", "ja": "ポーズ", "ko": "포즈", "zh-Hans": "姿势", "zh-Hant": "姿勢" },
+    { "en": "Idle Style", "ja": "待機スタイル", "ko": "대기 스타일", "zh-Hans": "待机风格", "zh-Hant": "待機風格" },
+    { "en": "Avatar Effect", "ja": "アバターエフェクト", "ko": "아바타 효과", "zh-Hans": "形象特效", "zh-Hant": "形象特效" },
+    { "en": "Particle Effect", "ja": "パーティクルエフェクト", "ko": "파티클 효과", "zh-Hans": "粒子特效", "zh-Hant": "粒子特效" },
+    { "en": "Scene Effect", "ja": "シーンエフェクト", "ko": "장면 효과", "zh-Hans": "场景特效", "zh-Hant": "場景特效" },
+    { "en": "Library", "ja": "ライブラリ", "ko": "라이브러리", "zh-Hans": "资源库", "zh-Hant": "資源庫" },
+    { "en": "Loadout", "ja": "ロードアウト", "ko": "로드아웃", "zh-Hans": "装备", "zh-Hant": "裝備", "note": "The content selected for one Anima." },
+    { "en": "Included content", "ja": "同梱コンテンツ", "ko": "기본 제공 콘텐츠", "zh-Hans": "内置内容", "zh-Hant": "內建內容" },
+    { "en": "Local content", "ja": "ローカルコンテンツ", "ko": "로컬 콘텐츠", "zh-Hans": "本地内容", "zh-Hant": "本機內容" },
+    { "en": "Chat", "ja": "チャット", "ko": "채팅", "zh-Hans": "聊天", "zh-Hant": "聊天" },
+    { "en": "Memory", "ja": "記憶", "ko": "기억", "zh-Hans": "记忆", "zh-Hant": "記憶", "note": "An Anima's memories, not computer memory." },
+    { "en": "Memory Manager", "ja": "記憶マネージャー", "ko": "기억 관리자", "zh-Hans": "记忆管理器", "zh-Hant": "記憶管理器" },
+    { "en": "App Settings", "ja": "アプリ設定", "ko": "앱 설정", "zh-Hans": "应用设置", "zh-Hant": "應用程式設定" },
+    { "en": "Anima Settings", "ja": "Anima 設定", "ko": "Anima 설정", "zh-Hans": "Anima 设置", "zh-Hant": "Anima 設定" },
+    { "en": "Voice", "ja": "音声", "ko": "음성", "zh-Hans": "语音", "zh-Hant": "語音" },
+    { "en": "Model", "ja": "モデル", "ko": "모델", "zh-Hans": "模型", "zh-Hant": "模型", "note": "An AI model." },
+    { "en": "Feature pack", "ja": "機能パック", "ko": "기능 팩", "zh-Hans": "功能包", "zh-Hant": "功能包" },
+    { "en": "AI notice", "ja": "AI に関するお知らせ", "ko": "AI 안내", "zh-Hans": "AI 提示", "zh-Hant": "AI 提示" },
+    { "en": "Beta", "ja": "ベータ", "ko": "베타", "zh-Hans": "测试版", "zh-Hant": "測試版" },
+    { "en": "colour", "ja": "色", "ko": "색상", "zh-Hans": "颜色", "zh-Hant": "顏色" },
+    { "en": "System default", "ja": "システムのデフォルト", "ko": "시스템 기본값", "zh-Hans": "系统默认", "zh-Hant": "系統預設" }
+  ]
+}

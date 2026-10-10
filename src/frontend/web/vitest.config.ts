@@ -23,5 +23,6 @@ export default defineConfig({
       "tests/**/*.{test,spec}.{ts,tsx}",
     ],
     restoreMocks: true,
+    setupFiles: ["src/test/i18n-setup.ts"],
   },
 });

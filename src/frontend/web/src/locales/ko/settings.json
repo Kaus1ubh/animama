@@ -1,0 +1,131 @@
+{
+  "appearance": {
+    "colors": {
+      "advanced": {
+        "description": "표면, 선, 상태, 사이드바, 차트 색상입니다.",
+        "entryGroup": "고급 · {{group}}",
+        "keywords": [
+          "색상",
+          "고급",
+          "사용자 지정"
+        ],
+        "label": "고급 색상"
+      },
+      "customForMode": {
+        "dark": "다크 모드용으로 사용자 지정됨.",
+        "light": "라이트 모드용으로 사용자 지정됨."
+      },
+      "entryLabel": "{{label}} 색상",
+      "groups": {
+        "basic": "시각 스타일",
+        "charts": "차트",
+        "lines": "선",
+        "sidebar": "사이드바",
+        "status": "상태",
+        "surfaces": "표면"
+      },
+      "hexDefault": "기본값",
+      "hexLabel": "{{label}} 색상 16진수 값",
+      "invalidHex": "#ff6600과 같은 16진수 색상을 입력하세요.",
+      "keywords": [
+        "색상",
+        "테마",
+        "재정의"
+      ],
+      "pick": "{{label}} 색상 선택",
+      "reset": "{{label}} 색상 초기화",
+      "resetAll": {
+        "description": {
+          "dark_other": "다크 모드의 사용자 지정 색상 {{count}}개를 모두 복원합니다.",
+          "light_other": "라이트 모드의 사용자 지정 색상 {{count}}개를 모두 복원합니다."
+        },
+        "failed": "색상을 초기화하지 못했습니다.",
+        "keywords": [
+          "색상",
+          "초기화",
+          "기본값"
+        ],
+        "label": "색상 초기화",
+        "none": {
+          "dark": "다크 모드에 사용자 지정 색상이 없습니다.",
+          "light": "라이트 모드에 사용자 지정 색상이 없습니다."
+        }
+      },
+      "tokens": {
+        "accent": "강조",
+        "background": "배경",
+        "border": "테두리",
+        "card": "카드",
+        "chart": "차트 {{index}}",
+        "destructive": "위험",
+        "foreground": "전경",
+        "input": "입력란 테두리",
+        "muted": "흐림",
+        "muted_foreground": "흐린 텍스트",
+        "popover": "팝오버",
+        "primary": "기본",
+        "ring": "포커스 링",
+        "secondary": "보조",
+        "sidebar": "사이드바",
+        "sidebar_accent": "사이드바 강조",
+        "sidebar_border": "사이드바 테두리",
+        "sidebar_foreground": "사이드바 텍스트",
+        "sidebar_primary": "사이드바 기본"
+      },
+      "updateFailed": "{{label}} 색상을 업데이트하지 못했습니다."
+    },
+    "language": {
+      "description": "Animama의 메뉴, 버튼, 메시지에 사용되는 언어입니다. Anima가 말하는 언어는 바뀌지 않습니다. 베타 언어는 기계 번역입니다.",
+      "keywords": [
+        "언어",
+        "로케일",
+        "번역"
+      ],
+      "label": "언어",
+      "saveFailed": "언어를 변경하지 못했습니다.",
+      "systemDefaultResolved": "시스템 기본값 ({{language}})"
+    },
+    "theme": {
+      "group": "테마",
+      "keywords": [
+        "모드",
+        "다크",
+        "라이트",
+        "시스템",
+        "다크 모드"
+      ],
+      "label": "테마",
+      "modeLabel": "테마 모드",
+      "modes": {
+        "dark": "다크",
+        "light": "라이트",
+        "system": "시스템"
+      }
+    }
+  },
+  "modal": {
+    "close": "앱 설정 닫기",
+    "description": "앱 전체의 음성 및 인터페이스 설정을 구성합니다.",
+    "navigationLabel": "앱",
+    "title": "앱 설정"
+  },
+  "search": {
+    "label": "설정 검색",
+    "noMatch": "“{{query}}”와(과) 일치하는 설정이 없습니다.",
+    "placeholder": "검색",
+    "results": "일치하는 설정"
+  },
+  "sections": {
+    "about": "정보",
+    "advanced": "고급",
+    "apiKeys": "API 키",
+    "appearance": "모양",
+    "data": "데이터",
+    "general": "일반",
+    "memoryEmotion": "기억 및 감정",
+    "models": "모델",
+    "safety": "안전",
+    "shortcuts": "단축키",
+    "voice": "음성"
+  }
+}

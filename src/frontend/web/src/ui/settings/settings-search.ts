@@ -13,17 +13,19 @@ export function tokenizeSettingsQuery(query: string): string[] {
 }
 
 /**
- * Match when every query token appears somewhere in the entry's section,
+ * Match when every query token appears somewhere in the entry's section label,
  * group, label, description or keywords, so "tts stream" finds
- * "Stream chunked TTS" regardless of word order.
+ * "Stream chunked TTS" regardless of word order. The section label defaults to
+ * the section ID and is the displayed (possibly translated) name otherwise.
  */
 export function matchesSettingsQuery<Section extends string>(
   entry: SettingsSearchEntry<Section>,
   tokens: readonly string[],
+  sectionLabel: string = entry.section,
 ): boolean {
   if (tokens.length === 0) return true;
   const haystack = [
-    entry.section,
+    sectionLabel,
     entry.group,
     entry.label,
     entry.description,
@@ -55,17 +57,20 @@ export function buildSettingsSearchOptions<
   entries: readonly Entry[],
   sections: readonly Section[],
   tokens: readonly string[],
+  sectionLabel: (section: Section) => string = (section) => section,
 ): SettingsSearchOption<Section, Entry>[] {
   if (tokens.length === 0) return [];
   const options: SettingsSearchOption<Section, Entry>[] = [];
   for (const section of sections) {
+    const label = sectionLabel(section);
     const matches = entries.filter(
       (entry) =>
-        entry.section === section && matchesSettingsQuery(entry, tokens),
+        entry.section === section && matchesSettingsQuery(entry, tokens, label),
     );
     const sectionMatches = matchesSettingsQuery(
-      { section, label: section },
+      { section, label },
       tokens,
+      label,
     );
     if (matches.length === 0 && !sectionMatches) continue;
     options.push({ kind: "section", key: `section:${section}`, section });

@@ -24,6 +24,8 @@ type SectionedModalFrameProps<T extends string> = {
   sidebarHeader?: ReactNode;
   /** Optional leading icon for each navigation item. */
   sectionIcons?: Partial<Record<T, SectionIcon>>;
+  /** Displayed section names; sections are shown by ID when absent. */
+  sectionLabels?: Partial<Record<T, string>>;
   onEscapeKeyDown?: Dialog.DialogContentProps["onEscapeKeyDown"];
   /**
    * Centre the modal in the area beside the desktop sidebar (which stays above
@@ -49,6 +51,7 @@ export function SectionedModalFrame<T extends string>({
   onSectionChange,
   sidebarHeader,
   sectionIcons,
+  sectionLabels,
   onEscapeKeyDown,
   avoidSidebar = false,
   headerTitle,
@@ -119,7 +122,7 @@ export function SectionedModalFrame<T extends string>({
                   )}
                 >
                   {Icon ? <Icon className="h-4 w-4 shrink-0" /> : null}
-                  {section}
+                  {sectionLabels?.[section] ?? section}
                 </button>
               );
             })}

@@ -1,0 +1,131 @@
+{
+  "appearance": {
+    "colors": {
+      "advanced": {
+        "description": "表面、線條、狀態、側邊欄和圖表的顏色。",
+        "entryGroup": "進階 · {{group}}",
+        "keywords": [
+          "顏色",
+          "進階",
+          "自訂"
+        ],
+        "label": "進階顏色"
+      },
+      "customForMode": {
+        "dark": "已為深色模式自訂。",
+        "light": "已為淺色模式自訂。"
+      },
+      "entryLabel": "{{label}}顏色",
+      "groups": {
+        "basic": "視覺風格",
+        "charts": "圖表",
+        "lines": "線條",
+        "sidebar": "側邊欄",
+        "status": "狀態",
+        "surfaces": "表面"
+      },
+      "hexDefault": "預設",
+      "hexLabel": "{{label}}顏色的十六進位值",
+      "invalidHex": "請輸入十六進位顏色，例如 #ff6600。",
+      "keywords": [
+        "顏色",
+        "主題",
+        "覆寫"
+      ],
+      "pick": "選擇{{label}}顏色",
+      "reset": "重設{{label}}顏色",
+      "resetAll": {
+        "description": {
+          "dark_other": "還原深色模式下全部 {{count}} 個自訂顏色。",
+          "light_other": "還原淺色模式下全部 {{count}} 個自訂顏色。"
+        },
+        "failed": "無法重設顏色。",
+        "keywords": [
+          "顏色",
+          "重設",
+          "預設"
+        ],
+        "label": "重設顏色",
+        "none": {
+          "dark": "深色模式下沒有自訂顏色。",
+          "light": "淺色模式下沒有自訂顏色。"
+        }
+      },
+      "tokens": {
+        "accent": "強調",
+        "background": "背景",
+        "border": "邊框",
+        "card": "卡片",
+        "chart": "圖表 {{index}}",
+        "destructive": "危險操作",
+        "foreground": "前景",
+        "input": "輸入框邊框",
+        "muted": "柔和",
+        "muted_foreground": "柔和文字",
+        "popover": "彈出框",
+        "primary": "主要",
+        "ring": "焦點環",
+        "secondary": "次要",
+        "sidebar": "側邊欄",
+        "sidebar_accent": "側邊欄強調",
+        "sidebar_border": "側邊欄邊框",
+        "sidebar_foreground": "側邊欄文字",
+        "sidebar_primary": "側邊欄主要"
+      },
+      "updateFailed": "無法更新{{label}}顏色。"
+    },
+    "language": {
+      "description": "Animama 選單、按鈕和訊息使用的語言。不會改變你的 Anima 說話的語言。測試版語言為機器翻譯。",
+      "keywords": [
+        "語言",
+        "地區設定",
+        "翻譯"
+      ],
+      "label": "語言",
+      "saveFailed": "無法變更語言。",
+      "systemDefaultResolved": "系統預設（{{language}}）"
+    },
+    "theme": {
+      "group": "主題",
+      "keywords": [
+        "模式",
+        "深色",
+        "淺色",
+        "系統",
+        "深色模式"
+      ],
+      "label": "主題",
+      "modeLabel": "主題模式",
+      "modes": {
+        "dark": "深色",
+        "light": "淺色",
+        "system": "跟隨系統"
+      }
+    }
+  },
+  "modal": {
+    "close": "關閉應用程式設定",
+    "description": "設定應用程式層級的語音和介面。",
+    "navigationLabel": "應用程式",
+    "title": "應用程式設定"
+  },
+  "search": {
+    "label": "搜尋設定",
+    "noMatch": "沒有符合「{{query}}」的設定。",
+    "placeholder": "搜尋",
+    "results": "符合的設定"
+  },
+  "sections": {
+    "about": "關於",
+    "advanced": "進階",
+    "apiKeys": "API 金鑰",
+    "appearance": "外觀",
+    "data": "資料",
+    "general": "一般",
+    "memoryEmotion": "記憶與情緒",
+    "models": "模型",
+    "safety": "安全",
+    "shortcuts": "快速鍵",
+    "voice": "語音"
+  }
+}

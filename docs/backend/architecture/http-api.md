@@ -129,7 +129,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 3.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 4.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -1177,6 +1177,12 @@ Settings routes manage:
 
 - user-level settings
 - anima-level settings
+
+User `locale` is the UI Locale: `en`, `ja`, `ko`, `zh-Hans` or `zh-Hant`, or
+`null` for "System default" (the client resolves it from the OS or browser).
+It controls interface text and formatting only, never the Conversation language
+or crisis region. `POST`/`PATCH` accept `null` to clear it; any other tag,
+including `en-US`, returns 422. Stored unsupported values read as `null`.
 
 Anima settings include runtime preferences such as memory influence, memory
 updates, emotional analysis, and presentation flags for animation or visual

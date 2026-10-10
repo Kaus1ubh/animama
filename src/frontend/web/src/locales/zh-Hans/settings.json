@@ -1,0 +1,131 @@
+{
+  "appearance": {
+    "colors": {
+      "advanced": {
+        "description": "表面、线条、状态、侧边栏和图表的颜色。",
+        "entryGroup": "高级 · {{group}}",
+        "keywords": [
+          "颜色",
+          "高级",
+          "自定义"
+        ],
+        "label": "高级颜色"
+      },
+      "customForMode": {
+        "dark": "已为深色模式自定义。",
+        "light": "已为浅色模式自定义。"
+      },
+      "entryLabel": "{{label}}颜色",
+      "groups": {
+        "basic": "视觉风格",
+        "charts": "图表",
+        "lines": "线条",
+        "sidebar": "侧边栏",
+        "status": "状态",
+        "surfaces": "表面"
+      },
+      "hexDefault": "默认",
+      "hexLabel": "{{label}}颜色的十六进制值",
+      "invalidHex": "请输入十六进制颜色，例如 #ff6600。",
+      "keywords": [
+        "颜色",
+        "主题",
+        "覆盖"
+      ],
+      "pick": "选择{{label}}颜色",
+      "reset": "重置{{label}}颜色",
+      "resetAll": {
+        "description": {
+          "dark_other": "恢复深色模式下全部 {{count}} 个自定义颜色。",
+          "light_other": "恢复浅色模式下全部 {{count}} 个自定义颜色。"
+        },
+        "failed": "无法重置颜色。",
+        "keywords": [
+          "颜色",
+          "重置",
+          "默认"
+        ],
+        "label": "重置颜色",
+        "none": {
+          "dark": "深色模式下没有自定义颜色。",
+          "light": "浅色模式下没有自定义颜色。"
+        }
+      },
+      "tokens": {
+        "accent": "强调",
+        "background": "背景",
+        "border": "边框",
+        "card": "卡片",
+        "chart": "图表 {{index}}",
+        "destructive": "危险操作",
+        "foreground": "前景",
+        "input": "输入框边框",
+        "muted": "柔和",
+        "muted_foreground": "柔和文字",
+        "popover": "弹出框",
+        "primary": "主要",
+        "ring": "焦点环",
+        "secondary": "次要",
+        "sidebar": "侧边栏",
+        "sidebar_accent": "侧边栏强调",
+        "sidebar_border": "侧边栏边框",
+        "sidebar_foreground": "侧边栏文字",
+        "sidebar_primary": "侧边栏主要"
+      },
+      "updateFailed": "无法更新{{label}}颜色。"
+    },
+    "language": {
+      "description": "Animama 菜单、按钮和消息使用的语言。不会改变你的 Anima 说话的语言。测试版语言为机器翻译。",
+      "keywords": [
+        "语言",
+        "区域设置",
+        "翻译"
+      ],
+      "label": "语言",
+      "saveFailed": "无法更改语言。",
+      "systemDefaultResolved": "系统默认（{{language}}）"
+    },
+    "theme": {
+      "group": "主题",
+      "keywords": [
+        "模式",
+        "深色",
+        "浅色",
+        "系统",
+        "深色模式"
+      ],
+      "label": "主题",
+      "modeLabel": "主题模式",
+      "modes": {
+        "dark": "深色",
+        "light": "浅色",
+        "system": "跟随系统"
+      }
+    }
+  },
+  "modal": {
+    "close": "关闭应用设置",
+    "description": "配置应用级的语音和界面设置。",
+    "navigationLabel": "应用",
+    "title": "应用设置"
+  },
+  "search": {
+    "label": "搜索设置",
+    "noMatch": "没有与“{{query}}”匹配的设置。",
+    "placeholder": "搜索",
+    "results": "匹配的设置"
+  },
+  "sections": {
+    "about": "关于",
+    "advanced": "高级",
+    "apiKeys": "API 密钥",
+    "appearance": "外观",
+    "data": "数据",
+    "general": "通用",
+    "memoryEmotion": "记忆与情绪",
+    "models": "模型",
+    "safety": "安全",
+    "shortcuts": "快捷键",
+    "voice": "语音"
+  }
+}

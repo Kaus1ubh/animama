@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Search } from "lucide-react";
 
 import { cn } from "@/lib/utils";
@@ -26,6 +27,8 @@ type SettingsSearchProps<
   entries: readonly Entry[];
   sections: readonly Section[];
   sectionIcons?: Partial<Record<Section, SectionIcon>>;
+  /** Displayed section names; sections are shown by ID when absent. */
+  sectionLabels?: Partial<Record<Section, string>>;
   onSelectSection: (section: Section) => void;
   onSelectEntry: (entry: Entry) => void;
 };
@@ -64,9 +67,13 @@ export function SettingsSearch<
   entries,
   sections,
   sectionIcons,
+  sectionLabels,
   onSelectSection,
   onSelectEntry,
 }: SettingsSearchProps<Section, Entry>) {
+  const { t } = useTranslation("settings");
+  const sectionLabel = (section: Section) =>
+    sectionLabels?.[section] ?? section;
   const [focused, setFocused] = useState(false);
   const [activeIndex, setActiveIndex] = useState(0);
   const optionRefs = useRef(new Map<string, HTMLElement>());
@@ -74,7 +81,12 @@ export function SettingsSearch<
 
   const tokens = tokenizeSettingsQuery(query);
   const open = focused && tokens.length > 0;
-  const options = buildSettingsSearchOptions(entries, sections, tokens);
+  const options = buildSettingsSearchOptions(
+    entries,
+    sections,
+    tokens,
+    sectionLabel,
+  );
   const activeOption = options[activeIndex];
   const optionId = (option: SettingsSearchOption<Section, Entry>) =>
     `${listId}-${option.key}`;
@@ -98,14 +110,14 @@ export function SettingsSearch<
       <Input
         type="search"
         role="combobox"
-        aria-label="Search settings"
+        aria-label={t("search.label")}
         aria-expanded={open}
         aria-controls={open && options.length > 0 ? listId : undefined}
         aria-autocomplete="list"
         aria-activedescendant={
           open && activeOption ? optionId(activeOption) : undefined
         }
-        placeholder="Search"
+        placeholder={t("search.placeholder")}
         className="h-9 pl-8"
         value={query}
         onFocus={() => setFocused(true)}
@@ -135,13 +147,13 @@ export function SettingsSearch<
               role="status"
               className="text-muted-foreground px-3 py-6 text-center text-sm"
             >
-              No settings match &ldquo;{query.trim()}&rdquo;.
+              {t("search.noMatch", { query: query.trim() })}
             </p>
           ) : (
             <div
               id={listId}
               role="listbox"
-              aria-label="Matching settings"
+              aria-label={t("search.results")}
               className="max-h-[min(55vh,24rem)] overflow-y-auto"
             >
               {options.map((option, index) => {
@@ -178,7 +190,7 @@ export function SettingsSearch<
                       <Highlighted
                         text={
                           option.kind === "section"
-                            ? option.section
+                            ? sectionLabel(option.section)
                             : option.entry.label
                         }
                         tokens={tokens}

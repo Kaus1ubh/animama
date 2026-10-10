@@ -173,6 +173,23 @@ they are defaults that every Anima follows unless it sets its own value.
 Per-machine choices such as the microphone device are local to that machine,
 not App settings.
 
+## Locale (UI Locale)
+
+The language and regional conventions Animama uses for its own interface text
+and for date, number and plural formatting: `en`, or the beta `ja`, `ko`,
+`zh-Hans` and `zh-Hant`. Saved in App settings, where unset means "System
+default". It never changes what an Anima says, hears or remembers, and it is not
+the crisis-resource region; see
+[ADR 0021](docs/adr/0021-ui-locale-separate-from-conversation-language.md).
+Code that names the browser's language tag `locale` (for example the chat client
+context) is not the UI Locale.
+
+## Conversation language
+
+The language an Anima speaks, understands and remembers in: reply language,
+text-to-speech, speech recognition, lip-sync and memory. It is independent of
+the **Locale**. Defined for the internationalization work; not yet a setting.
+
 ## Anima settings
 
 Per-Anima preferences stored in `anima_settings`. A memory or emotion value

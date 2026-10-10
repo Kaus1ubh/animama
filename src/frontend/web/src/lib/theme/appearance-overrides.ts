@@ -17,14 +17,36 @@ export type AppearanceColorGroup =
   | "sidebar"
   | "charts";
 
+/** Named overridable colours; chart colours are numbered `chart_<n>`. */
+export type AppearanceColorTokenKey =
+  | "primary"
+  | "secondary"
+  | "accent"
+  | "background"
+  | "foreground"
+  | "card"
+  | "popover"
+  | "muted"
+  | "muted_foreground"
+  | "border"
+  | "input"
+  | "ring"
+  | "destructive"
+  | "sidebar"
+  | "sidebar_foreground"
+  | "sidebar_primary"
+  | "sidebar_accent"
+  | "sidebar_border"
+  | `chart_${number}`;
+
 /**
- * One overridable theme colour. `cssVar` is the token shown as the default;
+ * One overridable theme colour; its display name comes from the settings
+ * catalog by `key`. `cssVar` is the token shown as the default;
  * `also` receives the same value (unless separately overridden) and `textVars`
  * receive black or white, whichever reads better on the colour.
  */
 export type AppearanceColorToken = {
-  key: string;
-  label: string;
+  key: AppearanceColorTokenKey;
   group: AppearanceColorGroup;
   cssVar: string;
   also?: readonly string[];
@@ -35,7 +57,6 @@ export type AppearanceColorToken = {
 export const APPEARANCE_COLOR_TOKENS: readonly AppearanceColorToken[] = [
   {
     key: "primary",
-    label: "Primary",
     group: "basic",
     cssVar: "primary",
     also: ["ring", "sidebar-primary", "sidebar-ring"],
@@ -43,14 +64,12 @@ export const APPEARANCE_COLOR_TOKENS: readonly AppearanceColorToken[] = [
   },
   {
     key: "secondary",
-    label: "Secondary",
     group: "basic",
     cssVar: "secondary",
     textVars: ["secondary-foreground"],
   },
   {
     key: "accent",
-    label: "Accent",
     group: "basic",
     cssVar: "accent",
     also: ["sidebar-accent"],
@@ -58,90 +77,68 @@ export const APPEARANCE_COLOR_TOKENS: readonly AppearanceColorToken[] = [
   },
   {
     key: "background",
-    label: "Background",
     group: "basic",
     cssVar: "background",
   },
   {
     key: "foreground",
-    label: "Foreground",
     group: "basic",
     cssVar: "foreground",
     also: ["card-foreground", "popover-foreground", "sidebar-foreground"],
   },
-  { key: "card", label: "Card", group: "surfaces", cssVar: "card" },
-  { key: "popover", label: "Popover", group: "surfaces", cssVar: "popover" },
-  { key: "muted", label: "Muted", group: "surfaces", cssVar: "muted" },
+  { key: "card", group: "surfaces", cssVar: "card" },
+  { key: "popover", group: "surfaces", cssVar: "popover" },
+  { key: "muted", group: "surfaces", cssVar: "muted" },
   {
     key: "muted_foreground",
-    label: "Muted text",
     group: "surfaces",
     cssVar: "muted-foreground",
   },
-  { key: "border", label: "Border", group: "lines", cssVar: "border" },
-  { key: "input", label: "Input border", group: "lines", cssVar: "input" },
+  { key: "border", group: "lines", cssVar: "border" },
+  { key: "input", group: "lines", cssVar: "input" },
   {
     key: "ring",
-    label: "Focus ring",
     group: "lines",
     cssVar: "ring",
     also: ["sidebar-ring"],
   },
   {
     key: "destructive",
-    label: "Destructive",
     group: "status",
     cssVar: "destructive",
     textVars: ["destructive-foreground"],
   },
-  { key: "sidebar", label: "Sidebar", group: "sidebar", cssVar: "sidebar" },
+  { key: "sidebar", group: "sidebar", cssVar: "sidebar" },
   {
     key: "sidebar_foreground",
-    label: "Sidebar text",
     group: "sidebar",
     cssVar: "sidebar-foreground",
   },
   {
     key: "sidebar_primary",
-    label: "Sidebar primary",
     group: "sidebar",
     cssVar: "sidebar-primary",
     textVars: ["sidebar-primary-foreground"],
   },
   {
     key: "sidebar_accent",
-    label: "Sidebar accent",
     group: "sidebar",
     cssVar: "sidebar-accent",
     textVars: ["sidebar-accent-foreground"],
   },
   {
     key: "sidebar_border",
-    label: "Sidebar border",
     group: "sidebar",
     cssVar: "sidebar-border",
   },
   ...[1, 2, 3, 4, 5].map(
     (index): AppearanceColorToken => ({
-      key: `chart_${index}`,
-      label: `Chart ${index}`,
+      key: `chart_${index}` as const,
       group: "charts",
       cssVar: `chart-${index}`,
     }),
   ),
 ];
-
-export const APPEARANCE_COLOR_GROUP_LABELS: Record<
-  AppearanceColorGroup,
-  string
-> = {
-  basic: "Visual style",
-  surfaces: "Surfaces",
-  lines: "Lines",
-  status: "Status",
-  sidebar: "Sidebar",
-  charts: "Charts",
-};
 
 export type AppearanceColorKey = string;
 export type AppearanceModeOverrides = Partial<

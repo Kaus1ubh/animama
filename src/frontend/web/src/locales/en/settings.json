@@ -1,0 +1,133 @@
+{
+  "appearance": {
+    "colors": {
+      "advanced": {
+        "description": "Surfaces, lines, status, sidebar and chart colours.",
+        "entryGroup": "Advanced · {{group}}",
+        "keywords": [
+          "colour",
+          "advanced",
+          "custom"
+        ],
+        "label": "Advanced colours"
+      },
+      "customForMode": {
+        "dark": "Custom for dark mode.",
+        "light": "Custom for light mode."
+      },
+      "entryLabel": "{{label}} colour",
+      "groups": {
+        "basic": "Visual style",
+        "charts": "Charts",
+        "lines": "Lines",
+        "sidebar": "Sidebar",
+        "status": "Status",
+        "surfaces": "Surfaces"
+      },
+      "hexDefault": "Default",
+      "hexLabel": "{{label}} colour hex value",
+      "invalidHex": "Enter a hex colour such as #ff6600.",
+      "keywords": [
+        "colour",
+        "theme",
+        "override"
+      ],
+      "pick": "Pick {{label, lowercase}} colour",
+      "reset": "Reset {{label, lowercase}} colour",
+      "resetAll": {
+        "description": {
+          "dark_one": "Restore {{count}} custom colour for dark mode.",
+          "dark_other": "Restore all {{count}} custom colours for dark mode.",
+          "light_one": "Restore {{count}} custom colour for light mode.",
+          "light_other": "Restore all {{count}} custom colours for light mode."
+        },
+        "failed": "Failed to reset colours.",
+        "keywords": [
+          "colour",
+          "reset",
+          "default"
+        ],
+        "label": "Reset colours",
+        "none": {
+          "dark": "No custom colours in dark mode.",
+          "light": "No custom colours in light mode."
+        }
+      },
+      "tokens": {
+        "accent": "Accent",
+        "background": "Background",
+        "border": "Border",
+        "card": "Card",
+        "chart": "Chart {{index}}",
+        "destructive": "Destructive",
+        "foreground": "Foreground",
+        "input": "Input border",
+        "muted": "Muted",
+        "muted_foreground": "Muted text",
+        "popover": "Popover",
+        "primary": "Primary",
+        "ring": "Focus ring",
+        "secondary": "Secondary",
+        "sidebar": "Sidebar",
+        "sidebar_accent": "Sidebar accent",
+        "sidebar_border": "Sidebar border",
+        "sidebar_foreground": "Sidebar text",
+        "sidebar_primary": "Sidebar primary"
+      },
+      "updateFailed": "Failed to update the {{label, lowercase}} colour."
+    },
+    "language": {
+      "description": "The language of Animama's menus, buttons and messages. It does not change the language your Animas speak. Beta languages are machine-translated.",
+      "keywords": [
+        "language",
+        "locale",
+        "translation"
+      ],
+      "label": "Language",
+      "saveFailed": "Failed to change the language.",
+      "systemDefaultResolved": "System default ({{language}})"
+    },
+    "theme": {
+      "group": "Theme",
+      "keywords": [
+        "mode",
+        "dark",
+        "light",
+        "system",
+        "dark mode"
+      ],
+      "label": "Theme",
+      "modeLabel": "Theme mode",
+      "modes": {
+        "dark": "Dark",
+        "light": "Light",
+        "system": "System"
+      }
+    }
+  },
+  "modal": {
+    "close": "Close App Settings",
+    "description": "Configure application-level voice and interface settings.",
+    "navigationLabel": "Application",
+    "title": "App Settings"
+  },
+  "search": {
+    "label": "Search settings",
+    "noMatch": "No settings match “{{query}}”.",
+    "placeholder": "Search",
+    "results": "Matching settings"
+  },
+  "sections": {
+    "about": "About",
+    "advanced": "Advanced",
+    "apiKeys": "API Keys",
+    "appearance": "Appearance",
+    "data": "Data",
+    "general": "General",
+    "memoryEmotion": "Memory & Emotion",
+    "models": "Models",
+    "safety": "Safety",
+    "shortcuts": "Shortcuts",
+    "voice": "Voice"
+  }
+}

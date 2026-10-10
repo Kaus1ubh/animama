@@ -1,0 +1,33 @@
+{
+  "converted": [
+    "src/app/providers/AppProviders.tsx",
+    "src/i18n/**",
+    "src/ui/components/sectioned-modal-frame.tsx",
+    "src/ui/settings/AppearanceSettings.tsx",
+    "src/ui/settings/SettingsSearch.tsx"
+  ],
+  "exempt": [
+    "src/dev/**",
+    "src/lib/development/**",
+    "src/lib/voice/voiceDebugSink.ts",
+    "src/hooks/pocket-tts-runtime-debug.ts",
+    "src/routes/_app/avatar-portrait-debug.tsx",
+    "src/ui/debug/**",
+    "src/ui/library/LibraryChatUploadsDebugPanel.tsx"
+  ],
+  "lint": {
+    "acceptedTags": "all",
+    "acceptedAttributes": [
+      "alt",
+      "aria-description",
+      "aria-label",
+      "aria-placeholder",
+      "aria-roledescription",
+      "aria-valuetext",
+      "description",
+      "label",
+      "placeholder",
+      "title"
+    ]
+  }
+}

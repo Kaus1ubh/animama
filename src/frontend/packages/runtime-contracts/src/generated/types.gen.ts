@@ -9463,8 +9463,10 @@ export type PyUserSettings = {
     last_active_anima_id?: string | null;
     /**
      * Locale
+     *
+     * UI Locale for interface text and formatting; null follows the system language.
      */
-    locale?: string;
+    locale?: 'en' | 'ja' | 'ko' | 'zh-Hans' | 'zh-Hant' | null;
     /**
      * Preferences
      */
@@ -9491,8 +9493,10 @@ export type PyUserSettingsUpdate = {
     last_active_anima_id?: string | null;
     /**
      * Locale
+     *
+     * UI Locale for interface text and formatting; null follows the system language.
      */
-    locale?: string | null;
+    locale?: 'en' | 'ja' | 'ko' | 'zh-Hans' | 'zh-Hant' | null;
     /**
      * Preferences
      */

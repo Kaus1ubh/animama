@@ -34,6 +34,7 @@ production readiness or publication rights.
 | 0018 | [Non-portable Included content for licensed built-in motion](0018-non-portable-included-content.md)                                                | accepted                                     |
 | 0019 | [Hand keys with fitted presets and per-finger offsets](0019-hand-keys-with-fitted-presets-and-finger-offsets.md)                                   | accepted                                     |
 | 0020 | [Solved hand contacts](0020-solved-hand-contacts.md)                                                                                               | accepted                                     |
+| 0021 | [UI Locale separate from conversation language](0021-ui-locale-separate-from-conversation-language.md)                                             | accepted                                     |
 
 ## When and how to record a decision
 

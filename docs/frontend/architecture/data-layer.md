@@ -140,8 +140,11 @@ Frontend env access should go through `src/frontend/web/src/platform/env.ts`.
 `@animama/product-ui` owns the existing Anima selection, chat session, SSE
 classification, transcript, and composer primitives. It exports query hooks via
 `/query`, session and pure stream helpers via `/chat`, presentation via
-`/components`, and compiled `/styles.css`. The local paths re-export
-these implementations, so the ordinary application uses the packed core.
+`/components`, the UI Locale runtime and formatters via `/i18n`, and compiled
+`/styles.css`. The local paths re-export these implementations, so the ordinary
+application uses the packed core. `@animama/runtime-contracts/locale` holds the
+supported UI Locales and their resolution
+([internationalization](i18n.md)).
 
 `ProductRuntimeProvider` takes an explicit `RuntimeOwner`, chat capability,
 `ProductApiTransport`, optional session key and diagnostics adapter. The host

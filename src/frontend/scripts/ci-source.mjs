@@ -17,6 +17,7 @@ export function sourceCommands(e2eTests) {
     ["node", "--test", "scripts/ci-source.test.mjs", ...e2eTests],
     ["node", "--test", "scripts/generate-openapi-client.test.mjs"],
     ["pnpm", "openapi-ts:check"],
+    ["pnpm", "i18n:check"],
     ["pnpm", "--filter", "animama-web", "check:source"],
     ["pnpm", "desktop:check"],
     ["pnpm", "packages:check"],

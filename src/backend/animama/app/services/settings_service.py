@@ -5,7 +5,7 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, cast
 
-from ...domain.settings import AnimaSettings, UserSettings
+from ...domain.settings import AnimaSettings, UiLocale, UserSettings
 from ...logging import get_logger
 from ..ports import AnimaSettingsRepository, UnitOfWork, UserSettingsRepository
 
@@ -55,20 +55,21 @@ class SettingsService:
         *,
         user_id: str,
         theme: str | None | _Unset = _UNSET,
-        locale: str | None | _Unset = _UNSET,
+        locale: UiLocale | None | _Unset = _UNSET,
         last_active_anima_id: str | None | _Unset = _UNSET,
         preferences: dict[str, Any] | None | _Unset = _UNSET,
     ) -> UserSettings:
         current = await self._user_settings.get(user_id)
         if current is None:
             current = UserSettings(user_id=user_id)
-        # Keep explicit null patches distinct from omitted fields. The repository
-        # normalizes preferences and preserves database rejection/default behavior
-        # for null theme/locale; only its returned record is fully materialized.
+        # Keep explicit null patches distinct from omitted fields: a null locale
+        # stores NULL ("System default"). The repository normalizes preferences and
+        # preserves database rejection/default behavior for a null theme; only its
+        # returned record is fully materialized.
         updated = UserSettings(
             user_id=user_id,
             theme=current.theme if theme is _UNSET else cast(str, theme),
-            locale=current.locale if locale is _UNSET else cast(str, locale),
+            locale=current.locale if locale is _UNSET else locale,
             last_active_anima_id=(
                 current.last_active_anima_id if last_active_anima_id is _UNSET else last_active_anima_id
             ),
