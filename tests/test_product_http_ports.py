@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import MagicMock
 
 from fastapi import FastAPI, Request, WebSocket
@@ -12,7 +14,13 @@ from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.ports import ReadSession, WriteSession, install_product_ports
+from animama.product_http.ports import (
+    ReadRepositories,
+    ReadSession,
+    WriteRepositories,
+    WriteSession,
+    install_product_ports,
+)
 from animama.server.app import create_local_app
 from animama.server.config import Settings
 from animama.server.product_ports import LocalProductPorts
@@ -62,6 +70,9 @@ class RecordingPorts:
         yield MagicMock(spec=AsyncSession)
         if self.fail_commit:
             raise RuntimeError("deferred commit failed")
+
+    def repositories(self, session: AsyncSession) -> Any:
+        return SimpleNamespace(session=session)
 
 
 def test_shared_routes_fail_closed_without_installed_ports() -> None:
@@ -129,3 +140,24 @@ def test_a_write_session_ends_before_the_response_is_sent() -> None:
     with TestClient(app, raise_server_exceptions=False) as client:
         assert client.post("/write").status_code == 500
         assert client.get("/read").status_code == 200
+
+
+def test_repositories_come_from_the_ports_over_the_opened_session() -> None:
+    app = FastAPI()
+    app.state.request_principal_resolver = FixedOwner()
+
+    @app.get("/repositories")
+    async def read(repositories: ReadRepositories, session: ReadSession) -> dict[str, bool]:
+        return {"same_session": repositories.session is session}  # type: ignore[attr-defined]
+
+    @app.post("/repositories")
+    async def write(repositories: WriteRepositories, session: WriteSession) -> dict[str, bool]:
+        return {"same_session": repositories.session is session}  # type: ignore[attr-defined]
+
+    ports = RecordingPorts()
+    install_product_ports(app, ports)
+    with TestClient(app) as client:
+        assert client.get("/repositories").json() == {"same_session": True}
+        assert client.post("/repositories").json() == {"same_session": True}
+    # Each request opened one session, shared by its repositories.
+    assert ports.opened == [("read", "owner"), ("write", "owner")]

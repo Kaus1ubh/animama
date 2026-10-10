@@ -18,6 +18,7 @@ from fastapi import APIRouter, FastAPI, HTTPException, Request, WebSocket
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import ProductPorts, install_product_ports
 
@@ -90,6 +91,9 @@ class DeferredCommitPorts:
             else:
                 await session.rollback()
                 self.rollbacks += 1
+
+    def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
+        return SQLAlchemyProductRepositories(session)
 
 
 def product_app(*routers: APIRouter, ports: ProductPorts | None, resolver: Any = None) -> FastAPI:

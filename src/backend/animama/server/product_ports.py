@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.deps import get_async_session_factory
 
@@ -29,3 +30,6 @@ class LocalProductPorts:
             yield session
 
     write_session = read_session
+
+    def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
+        return SQLAlchemyProductRepositories(session)

@@ -16,8 +16,32 @@ from typing import Annotated, Protocol, cast
 from fastapi import Depends, FastAPI, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.app.ports.anima_port import AnimaRepository
+from animama.app.ports.chat_message_port import ChatMessageRepository
+from animama.app.ports.chat_port import ChatRepository
+from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
+from animama.app.ports.uow_port import UnitOfWork
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.principal import get_current_principal
+
+
+class ProductRepositories(Protocol):
+    """Repositories over one owner session; families add theirs as they move."""
+
+    @property
+    def animas(self) -> AnimaRepository: ...
+
+    @property
+    def chats(self) -> ChatRepository: ...
+
+    @property
+    def chat_messages(self) -> ChatMessageRepository: ...
+
+    @property
+    def memory_episodes(self) -> MemoryEpisodeRepository: ...
+
+    @property
+    def unit_of_work(self) -> UnitOfWork: ...
 
 
 class ProductPorts(Protocol):
@@ -36,6 +60,10 @@ class ProductPorts(Protocol):
         the context exits. That exit runs after the handler returns and before the
         response is sent.
         """
+        ...
+
+    def repositories(self, session: AsyncSession) -> ProductRepositories:
+        """The product repositories over a session this composition opened."""
         ...
 
 
@@ -76,3 +104,20 @@ ReadSession = Annotated[AsyncSession, Depends(get_read_session)]
 # is sent, so a failed commit is reported instead of an earlier success. The
 # session is therefore closed before a streaming body runs.
 WriteSession = Annotated[AsyncSession, Depends(get_write_session, scope="function")]
+
+
+def get_read_repositories(
+    ports: Annotated[ProductPorts, Depends(get_product_ports)], session: ReadSession
+) -> ProductRepositories:
+    return ports.repositories(session)
+
+
+def get_write_repositories(
+    ports: Annotated[ProductPorts, Depends(get_product_ports)], session: WriteSession
+) -> ProductRepositories:
+    return ports.repositories(session)
+
+
+# Shared handlers take repositories rather than sessions, so they never build one.
+ReadRepositories = Annotated[ProductRepositories, Depends(get_read_repositories)]
+WriteRepositories = Annotated[ProductRepositories, Depends(get_write_repositories)]
