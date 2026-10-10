@@ -34,7 +34,9 @@ named built stack.
 ## Progress
 
 - [ ] Phase 1: foundations (package, principal move, route inventory, ports, owner
-  fix, test harness). In progress since 2026-10-10.
+  fix, test harness). Implemented 2026-10-10 in `2e9a02ee` (inventory), `bda5ead5`
+  (principal), `2110ad13` (ports), `62f95626` (owner-strict) and `5580c4ec`
+  (harness and consumer); phase checks and Code Review #1 pending.
 - [ ] Phase 2: thin owner-scoped routers. Not started.
 - [ ] Phase 3: content routers. Not started.
 - [ ] Final integration review and PR. Not started.
@@ -48,6 +50,11 @@ runtime capabilities did not change between the two.
 - 200 router routes in `src/backend/animama/server/routers/` plus 5 app-level
   routes (`/health`, `/_desktop/health`, `/_desktop/runtime:quiesce`,
   `/api/telemetry/{signal}` and the asset catch-all), all of which stay local.
+  Running the app (2026-10-10): the web route table has 200 entries, including
+  `/health` and the telemetry route; desktop credentials add four `/_desktop/`
+  routes; the asset catch-all is not a route. The inventory classifies all 204:
+  148 shared (44 in stage 2, 84 in stage 3, 19 in stage 4, 1 in stage 5), 36 withheld
+  from hosted, 20 local.
 - Handlers are coupled to the local composition: they construct repositories per
   request (chats, settings, avatar, Anima CRUD), build `FilesystemContentStore`
   (content, typed content, runtime), read the global `settings` object (memory
@@ -76,6 +83,21 @@ runtime capabilities did not change between the two.
   event loop) and P3-04 (an unused bounded speech service) to this work.
 
 ## Decision Log
+
+- 2026-10-10, agent (implementation):
+  - Ports grow with the families. Phase 1 defines `ProductPorts` with read and
+    write sessions and the install/503 mechanism. Policy limits, profiles, safety
+    resources, settings events and content services are added when their family
+    moves, so no port exists without a caller.
+  - Write sessions are FastAPI function-scoped (floor raised to 0.121), so a
+    consumer's deferred commit completes before the response. Local write sessions
+    still commit immediately.
+  - Disposition mapping follows the permission table in `contracts/hosted-web.md`.
+    Runtime context and bootstrap, runtime capabilities, owner events, model custody,
+    archive, starter provisioning, health and telemetry stay local; the desktop
+    controls are withheld by `native_features`.
+  - The owner-strict fix covers the Anima and Anima-settings routes. Archive, chat
+    setup and speech keep their checks until their stages move.
 
 - 2026-10-09, owner: share product routes; write the ExecPlan and ADR; implement
   stages 1–3; the hosted consumer's C7 acceptance follows.
