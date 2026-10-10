@@ -46,15 +46,12 @@ export {
   supplyParticleVFXTextureFile,
 } from "./textureFiles";
 export type { ParticleVFXTextureResult } from "./textureFiles";
-export {
-  estimateParticleVFXDraftParticles,
-  validateParticleVFXEditorDraft,
-} from "./validation";
+export { validateParticleVFXEditorDraft } from "./validation";
 export {
   collectParticleVFXContentReferences,
-  estimateParticleVFXContentParticles,
   validateParticleVFXContentReadiness,
 } from "./contentReadiness";
+export { estimateParticleVFXParticles } from "./particleEstimate";
 export type { ParticleVFXContentReadinessOptions } from "./contentReadiness";
 export { PARTICLE_VFX_ANCHORS, PARTICLE_VFX_PRELOAD_TIERS } from "../types";
 export type {

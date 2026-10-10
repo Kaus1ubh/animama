@@ -67,7 +67,7 @@ import {
   createParticleVFXEditorDraftFromBlank,
   createParticleVFXEditorDraftFromImport,
   duplicateParticleVFXEditorEmitter,
-  estimateParticleVFXDraftParticles,
+  estimateParticleVFXParticles,
   extractEmbeddedParticleVFXTextures,
   importParticleVFXTextureFile,
   loadParticleVFXTextureFiles,
@@ -605,8 +605,9 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       emitter.name.toLowerCase().includes(query),
     );
   }, [draft?.emitters, emitterQuery]);
+  // The estimate Save enforces.
   const estimatedParticles = draft
-    ? estimateParticleVFXDraftParticles(draft)
+    ? estimateParticleVFXParticles(draft.quarksJson)
     : 0;
   const previewDurationSec = Math.max(
     0.05,
@@ -1055,7 +1056,9 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           <section className="border-border border-b p-3">
             <h2 className="text-sm font-semibold">Settings</h2>
             <p className="text-muted-foreground mt-1 text-xs">
-              Estimated total: ~{estimatedParticles} particles
+              {Number.isFinite(estimatedParticles)
+                ? `Estimated total: up to ${estimatedParticles} particles`
+                : "Estimated total: cannot be estimated (an emission, burst or duration value is unsupported)"}
             </p>
             <div className="mt-3 space-y-3">
               <SelectField

@@ -42,7 +42,7 @@ export {
   createParticleVFXEditorDraftFromCatalog,
   createParticleVFXEditorDraftFromImport,
   duplicateParticleVFXEditorEmitter,
-  estimateParticleVFXDraftParticles,
+  estimateParticleVFXParticles,
   extractEmbeddedParticleVFXTextures,
   getParticleVFXEditorTextureById,
   importParticleVFXTextureFile,

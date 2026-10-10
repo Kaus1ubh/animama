@@ -2,6 +2,7 @@ import { PARTICLE_TEXTURE_LIMITS } from "@/lib/effects/effectArtLimits";
 import { isParticleVFXAnchor } from "../runtime";
 import { collectEmitterNodes } from "./emitters";
 import { readJsonObject } from "./json";
+import { estimateParticleVFXParticles } from "./particleEstimate";
 import { isSupportedRenderMode } from "./renderer";
 import {
   classifyParticleVFXTextureUrl,
@@ -285,26 +286,20 @@ export function validateParticleVFXEditorDraft(
     }
   }
 
-  const estimatedParticles = estimateParticleVFXDraftParticles(draft);
-  if (estimatedParticles > draft.catalog.performanceBudget.maxParticles) {
+  // The estimate Save enforces: Save's readiness check promotes this warning
+  // to an error, so the creator and Save state the same numbers.
+  const estimatedParticles = estimateParticleVFXParticles(draft.quarksJson);
+  const budget = draft.catalog.performanceBudget.maxParticles;
+  if (estimatedParticles > budget) {
     issues.push({
       severity: "warning",
       code: "particle-budget-exceeded",
-      message: `Estimated ${estimatedParticles} particles exceeds the catalog budget of ${draft.catalog.performanceBudget.maxParticles}.`,
+      message: Number.isFinite(estimatedParticles)
+        ? `Estimated ${estimatedParticles} particles exceeds the catalog budget of ${budget}.`
+        : `Particle use cannot be estimated (an emission, burst or duration value is unsupported); the catalog budget is ${budget}.`,
       target: "performanceBudget.maxParticles",
     });
   }
 
   return issues;
-}
-
-export function estimateParticleVFXDraftParticles(
-  draft: ParticleVFXEditorDraft,
-): number {
-  return draft.emitters.reduce((total, emitter) => {
-    const duration = Math.max(0, emitter.durationSec ?? 0);
-    const emissionOverTime = Math.max(0, emitter.emissionOverTime?.max ?? 0);
-    const burstCount = Math.max(0, emitter.burstCount?.max ?? 0);
-    return total + Math.ceil(duration * emissionOverTime + burstCount);
-  }, 0);
 }

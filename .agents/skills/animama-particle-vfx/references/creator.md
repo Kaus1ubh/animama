@@ -119,7 +119,9 @@ Frontend package limits at the verified baseline are:
 | Resource arrays | At most 64 entries each in geometries/materials/textures/images |
 | Unique textures | 16 |
 | Quarks manifest | 5 MiB |
-| Each texture | 25 MiB; PNG, JPEG, or WebP bytes matching the declared format |
+| Each texture | 4 MiB and 2048 px per side; PNG, JPEG, or WebP bytes matching the declared format |
+| All textures | 32 MiB per effect |
+| Sprite sheets | At most 16 tiles in each direction |
 | Whole package | 64 MiB |
 | Maximum duration | 30 seconds; defaults and emitter durations must fit it |
 | Particle budget | Declared budget and Save estimate must fit 512 |
@@ -129,10 +131,11 @@ Remote, absolute, data, Blob, encoded, or traversal references are not portable
 Save inputs. The general editor validator's softer warnings do not override the
 package rules.
 
-The left-panel particle estimate and Save estimate are not identical. Save
-accounts for all burst entries, authored repetitions, and looping differently;
-neither estimate is a measured live count or a complete motion/lifetime model.
-Do not increase budgets merely to hide a warning without understanding the fields.
+The left-panel particle estimate is the one Save enforces (and `effects check`
+reports): each emitter's maximum rate over its duration plus all its burst
+entries, with a looping emitter counted over the longest emitter's duration.
+It is not a measured live count or a complete motion/lifetime model. Do not
+increase budgets merely to hide a warning without understanding the fields.
 
 ## Save, reopen, and handoff
 

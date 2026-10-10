@@ -199,7 +199,7 @@ async function particleSourceLines(effect, server) {
       level: "FAIL",
       message: `particles: ${issue.message} (${issue.target})`,
     }));
-  const estimate = editor.estimateParticleVFXContentParticles(draft.quarksJson);
+  const estimate = editor.estimateParticleVFXParticles(draft.quarksJson);
   // The runtime caps the budget at the limit; report what the folder declares.
   const budget = draft.catalog.performanceBudget.maxParticles;
   const raw = effect.defaults.max_particles;
