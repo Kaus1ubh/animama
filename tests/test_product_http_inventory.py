@@ -15,6 +15,7 @@ from fastapi.routing import APIRoute, APIWebSocketRoute
 
 from animama.product_http.inventory import ROUTES, SERVED_STAGES, RouteSpec
 from animama.product_http.ports import get_read_session, get_write_session
+from animama.product_http.routes import ROUTERS
 from animama.server.app import create_local_app
 from animama.server.config import Settings
 
@@ -179,6 +180,23 @@ def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
             assert not served, (spec.method, spec.path)
         else:
             assert served == (spec.stage in SERVED_STAGES), (spec.method, spec.path, spec.stage)
+
+
+def test_routers_mount_the_served_routes_in_inventory_order() -> None:
+    # A consumer mounts ROUTERS as they are, so their order must already be the inventory's.
+    mounted = [
+        (method, route.path, route.endpoint.__name__)
+        for router in ROUTERS
+        for route in router.routes
+        if isinstance(route, APIRoute)
+        for method in sorted(route.methods)
+    ]
+    served = [
+        (spec.method, spec.path, spec.handler)
+        for spec in ROUTES
+        if spec.disposition == "shared" and spec.stage in SERVED_STAGES
+    ]
+    assert mounted == served
 
 
 def test_route_specs_reject_mismatched_stage_or_capability() -> None:

@@ -107,10 +107,13 @@ def main() -> None:
         for spec in ROUTES
         if spec.disposition == "shared" and spec.stage in SERVED_STAGES
     }
+    # Enumerate the routers' own routes: newer FastAPI releases keep each included
+    # router as one nested entry in the app's route list.
     mounted = {
         (method, route.path, route.endpoint.__name__)
-        for route in consumer_app(ports=None, resolver=None).routes
-        if isinstance(route, APIRoute) and not route.path.startswith("/probe/")
+        for router in ROUTERS
+        for route in router.routes
+        if isinstance(route, APIRoute)
         for method in route.methods
     }
     assert mounted == shared, sorted(mounted ^ shared)

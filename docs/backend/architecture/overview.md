@@ -135,11 +135,14 @@ Normal product chat resolves its model through the Anima chat profile:
 `server/app.py::create_local_app` creates the local app:
 
 - global telemetry middleware from `server/telemetry.py`
+- `LocalProductPorts` installed with `install_product_ports`, which the shared
+  product routes resolve their sessions, repositories, content and delivery from
 - `/health`
-- the shared `/v1/...` routers through `server/routers/__init__.py`
+- the `/v1/...` routers through `server/routers/__init__.py`: the shared
+  `product_http` routers interleaved with local routers in inventory order
 - `app.state.model_catalog_policy` with owner models enabled, and the
   local-only `model_configuration` router for owner connections, models and
-  roles, which the shared aggregate omits
+  roles, which that aggregate omits
 - private desktop control routes when desktop control is configured
 
 Startup performs process-level setup:
