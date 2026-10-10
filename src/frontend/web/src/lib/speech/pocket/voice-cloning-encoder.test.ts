@@ -1,3 +1,4 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 
@@ -6,7 +7,8 @@ const api = vi.hoisted(() => ({
   install: vi.fn(),
   remove: vi.fn(),
 }));
-vi.mock("@animama/runtime-contracts/sdk", () => ({
+vi.mock("@animama/runtime-contracts/sdk", async (original) => ({
+  ...(await original<typeof import("@animama/runtime-contracts/sdk")>()),
   getModelAssetV1ModelAssetsAssetIdGet: api.get,
   installModelAssetV1ModelAssetsAssetIdInstallPost: api.install,
   removeModelAssetV1ModelAssetsAssetIdDelete: api.remove,
@@ -40,7 +42,7 @@ describe("Pocket cloning encoder prerequisite", () => {
   afterEach(() => vi.useRealTimers());
 
   it("refuses to encode until the optional encoder has been explicitly installed", async () => {
-    const core = createPocketTTS();
+    const core = createPocketTTS(testApiClient);
     core.init = vi.fn(async () => undefined);
     core._sendWorkerMessage = vi.fn(async () => ({ voiceName: "custom" }));
 
@@ -58,7 +60,7 @@ describe("Pocket cloning encoder prerequisite", () => {
       .mockResolvedValueOnce({
         data: { ...encoder, status: "installed", content_url: "/untrusted" },
       });
-    const ready = ensurePocketVoiceCloningEncoder({
+    const ready = ensurePocketVoiceCloningEncoder(testApiClient, {
       onState: (asset) => states.push(asset.status),
     });
     await vi.advanceTimersByTimeAsync(1000);
@@ -70,8 +72,10 @@ describe("Pocket cloning encoder prerequisite", () => {
   it("detaches one cancelled waiter without cancelling another caller's shared install", async () => {
     api.get.mockResolvedValue({ data: { ...encoder, status: "downloading" } });
     const cancelled = new AbortController();
-    const first = ensurePocketVoiceCloningEncoder({ signal: cancelled.signal });
-    const second = ensurePocketVoiceCloningEncoder();
+    const first = ensurePocketVoiceCloningEncoder(testApiClient, {
+      signal: cancelled.signal,
+    });
+    const second = ensurePocketVoiceCloningEncoder(testApiClient);
     const aborted = expect(first).rejects.toMatchObject({ name: "AbortError" });
     await vi.advanceTimersByTimeAsync(0);
     cancelled.abort();
@@ -87,7 +91,7 @@ describe("Pocket cloning encoder prerequisite", () => {
     api.get.mockResolvedValueOnce({
       data: { ...encoder, status: "installed" },
     });
-    const core = createPocketTTS();
+    const core = createPocketTTS(testApiClient);
     core.init = vi.fn(async () => undefined);
     core._sendWorkerMessage = vi.fn(async () => ({ voiceName: "custom" }));
     await core.encodeVoiceFromFloat32(new Float32Array([0.1]));
@@ -112,7 +116,7 @@ describe("Pocket cloning encoder prerequisite", () => {
     api.get
       .mockResolvedValueOnce({ data: { ...encoder, status: "downloading" } })
       .mockResolvedValueOnce({ data: { ...encoder, status, reason } });
-    const ready = ensurePocketVoiceCloningEncoder();
+    const ready = ensurePocketVoiceCloningEncoder(testApiClient);
     const rejected = expect(ready).rejects.toThrow(message!);
     await vi.advanceTimersByTimeAsync(1000);
     await rejected;
@@ -122,7 +126,7 @@ describe("Pocket cloning encoder prerequisite", () => {
     const abort = new AbortController();
     abort.abort();
     await expect(
-      ensurePocketVoiceCloningEncoder({ signal: abort.signal }),
+      ensurePocketVoiceCloningEncoder(testApiClient, { signal: abort.signal }),
     ).rejects.toMatchObject({ name: "AbortError" });
     expect(api.get).not.toHaveBeenCalled();
     expect(api.install).not.toHaveBeenCalled();

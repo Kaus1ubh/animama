@@ -161,9 +161,10 @@ window and accept zero arguments; recovery can open only the fixed backup folder
 ## Provider Settings And Local State
 
 Embedded setup and Settings → API Keys show optional OpenAI, Anthropic and
-ElevenLabs key controls; main delivers the Anthropic key as `ANTHROPIC_API_KEY`. Keys for other model servers belong to their model connection
-(Settings → Models): main stores each under the connection's managed variable
-`ANIMAMA_CONNECTION_<ID>_API_KEY`, at most 32 of them. Keys are never read back
+ElevenLabs key controls; main delivers the Anthropic key as
+`ANTHROPIC_API_KEY`. Keys for other model servers belong to their model
+connection (Settings → Models): main stores each under the connection's
+managed variable `ANIMAMA_CONNECTION_<ID>_API_KEY`, at most 32 of them. Keys are never read back
 or saved to browser storage. A save applies one change or a batch
 (`credentials.apply`, validated as at most eight changes and one per provider
 or connection). Main encrypts the vault through Electron `safeStorage`, then
@@ -252,8 +253,13 @@ or pack path enters React.
 
 ## Startup Recovery
 
-The independent recovery page works even when the application listener cannot bind. It
-shows a safe error code with Retry, Open Logs, Open Backups, and Quit. Retry does
+The independent startup and recovery page works even when the application
+listener cannot bind. While services start it shows the logo, the current stage
+and a progress bar (Open Logs and Quit appear if startup stalls); on failure it
+shows the advice and a safe error code with Retry, Open Logs, Open Backups, and
+Quit. It is a self-contained data URL, so it embeds DM Sans, the logo and a copy
+of the theme tokens (`STARTUP_THEME` in `recovery.ts`, kept in sync with
+`theme.css` by a desktop test) and follows the system light or dark setting. Retry does
 not reset data; Open Backups appears only for a relevant snapshot. See
 [Troubleshooting](troubleshooting.md) before changing files. A damaged runtime
 requires a complete build to be reinstalled. A missing

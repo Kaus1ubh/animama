@@ -152,7 +152,7 @@ async function main(argv) {
   }
   const cwd = process.env.INIT_CWD ?? process.cwd();
   const clip = JSON.parse(await readFile(path.resolve(cwd, input), "utf8"));
-  const duration = clip.duration ?? clip.poseKeyframes?.at(-1)?.time ?? 0;
+  const duration = clip.duration ?? 0;
   const outFile = path.resolve(
     cwd,
     values["--out"],

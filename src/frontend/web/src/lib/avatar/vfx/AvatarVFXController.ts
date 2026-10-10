@@ -1619,11 +1619,22 @@ function resolveBoxHoverPosition(args: {
   }
 }
 
+/**
+ * Add an authored offset to a hover anchor point. Offsets are in the Avatar's
+ * front frame (+x toward the viewer's right when facing the Avatar, +y up, +z
+ * forward), the frame the plane itself faces; the head anchor keeps the
+ * model's axes, so a −Z-facing (VRM 0) head flips x and z.
+ */
 function applyHoverPlacementOffset(
   position: THREE.Vector3,
   offset: AvatarVFXTransform["offset"],
+  frontSign: 1 | -1,
 ): THREE.Vector3 {
-  return position.clone().add(new THREE.Vector3(offset.x, offset.y, offset.z));
+  return position
+    .clone()
+    .add(
+      new THREE.Vector3(frontSign * offset.x, offset.y, frontSign * offset.z),
+    );
 }
 
 function resolveHoverPlacementInstances(args: {
@@ -1632,6 +1643,7 @@ function resolveHoverPlacementInstances(args: {
   faceTextureAnchors: AvatarFaceTextureAnchorsSnapshot | null;
 }): HoverPlacementInstance[] | null {
   const { effect, faceLandmarks, faceTextureAnchors } = args;
+  const frontSign = resolveHoverFrontSign(faceLandmarks);
   if (isEyeHoverVFXEntry(effect)) {
     const leftEye = faceLandmarks.eyes.left;
     const rightEye = faceLandmarks.eyes.right;
@@ -1652,6 +1664,7 @@ function resolveHoverPlacementInstances(args: {
           position: applyHoverPlacementOffset(
             primaryPosition,
             effect.transform.offset,
+            frontSign,
           ),
           referenceSizeLocal: null,
         },
@@ -1659,10 +1672,11 @@ function resolveHoverPlacementInstances(args: {
           label: oppositeLabel,
           mirrored: true,
           // The mirrored eye mirrors its lateral offset (avatar-effect/2).
-          position: applyHoverPlacementOffset(oppositePosition, {
-            ...effect.transform.offset,
-            x: -effect.transform.offset.x,
-          }),
+          position: applyHoverPlacementOffset(
+            oppositePosition,
+            { ...effect.transform.offset, x: -effect.transform.offset.x },
+            frontSign,
+          ),
           referenceSizeLocal: null,
         },
       ];
@@ -1677,6 +1691,7 @@ function resolveHoverPlacementInstances(args: {
           position: applyHoverPlacementOffset(
             singlePosition,
             effect.transform.offset,
+            frontSign,
           ),
           referenceSizeLocal: null,
         },
@@ -1690,6 +1705,7 @@ function resolveHoverPlacementInstances(args: {
         position: applyHoverPlacementOffset(
           midpointVector3(leftHover, rightHover),
           effect.transform.offset,
+          frontSign,
         ),
         referenceSizeLocal: null,
       },
@@ -1715,7 +1731,11 @@ function resolveHoverPlacementInstances(args: {
       {
         label: "mouth",
         mirrored: false,
-        position: applyHoverPlacementOffset(position, effect.transform.offset),
+        position: applyHoverPlacementOffset(
+          position,
+          effect.transform.offset,
+          frontSign,
+        ),
         referenceSizeLocal: mouthAnchor.referenceSizeLocal,
       },
     ];
@@ -1731,7 +1751,11 @@ function resolveHoverPlacementInstances(args: {
       {
         label: effect.placement,
         mirrored: false,
-        position: applyHoverPlacementOffset(position, effect.transform.offset),
+        position: applyHoverPlacementOffset(
+          position,
+          effect.transform.offset,
+          frontSign,
+        ),
         referenceSizeLocal: null,
       },
     ];
@@ -1740,15 +1764,26 @@ function resolveHoverPlacementInstances(args: {
   return null;
 }
 
+/**
+ * Which way the face looks along the head anchor's z axis: −1 when its front
+ * is at the bounds' minimum z (VRM 0 normalized bones face −Z), +1 otherwise.
+ */
+function resolveHoverFrontSign(
+  faceLandmarks: AvatarFaceLandmarksSnapshot,
+): 1 | -1 {
+  const faceBounds = faceLandmarks.faceBoundsLocal;
+  const frontZ = faceLandmarks.frontZLocal;
+  if (!faceBounds || frontZ === null) return 1;
+  const distanceToMin = Math.abs(frontZ - faceBounds.min.z);
+  const distanceToMax = Math.abs(frontZ - faceBounds.max.z);
+  return distanceToMin <= distanceToMax ? -1 : 1;
+}
+
+/** The turn about y from the head anchor to the Avatar's front frame. */
 function resolveHoverFacingRotationY(
   faceLandmarks: AvatarFaceLandmarksSnapshot,
 ): number {
-  const faceBounds = faceLandmarks.faceBoundsLocal;
-  const frontZ = faceLandmarks.frontZLocal;
-  if (!faceBounds || frontZ === null) return 0;
-  const distanceToMin = Math.abs(frontZ - faceBounds.min.z);
-  const distanceToMax = Math.abs(frontZ - faceBounds.max.z);
-  return distanceToMin <= distanceToMax ? Math.PI : 0;
+  return resolveHoverFrontSign(faceLandmarks) < 0 ? Math.PI : 0;
 }
 
 function hasHoverSkinBackdrop(
@@ -2727,14 +2762,22 @@ export class AvatarVFXController {
       if (!active) continue;
       if (active.renderMode === "hover_plane") {
         const anchor = this._avatar.faceLandmarks?.getAnchorObject() ?? null;
-        if (!anchor) return null;
+        const faceLandmarks = this._avatar.getFaceLandmarksSnapshot();
+        if (!anchor || faceLandmarks?.status !== "ready") return null;
         anchor.updateWorldMatrix(true, false);
         return {
           attachment: "face_landmark",
           placements: active.hoverInstances.map((instance) =>
             hoverManipulationPlacement(instance),
           ),
-          offsetSpace: anchor.matrixWorld.clone(),
+          // Offsets are in the Avatar's front frame, not the head's model axes.
+          offsetSpace: anchor.matrixWorld
+            .clone()
+            .multiply(
+              new THREE.Matrix4().makeRotationY(
+                resolveHoverFacingRotationY(faceLandmarks),
+              ),
+            ),
           surface: null,
           unitLength: null,
         };

@@ -9,12 +9,11 @@ import {
 
 describe("creator clip event playback", () => {
   const clip = parseAnimaPoseClip({
-    schema: "animaPoseClip/1.0",
+    schema: "animaPoseClip/2.0",
     id: "boundary-particles",
     name: "Boundary particles",
     duration: 2,
-    poses: {},
-    poseKeyframes: [],
+    beats: [],
     events: [
       {
         id: "at-start",
@@ -48,12 +47,11 @@ describe("creator clip event playback", () => {
 
   it("keeps a stable scene effect mounted while scrubbing its interval", () => {
     const sceneClip = parseAnimaPoseClip({
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "scene-scrub",
       name: "Scene scrub",
       duration: 2,
-      poses: {},
-      poseKeyframes: [],
+      beats: [],
       events: [
         {
           id: "focus",
@@ -77,12 +75,11 @@ describe("creator clip event playback", () => {
 
   it("remounts scrubbed scene effects when their local catalog becomes ready", () => {
     const sceneClip = parseAnimaPoseClip({
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "scene-catalog-refresh",
       name: "Scene catalog refresh",
       duration: 1,
-      poses: {},
-      poseKeyframes: [],
+      beats: [],
       events: [
         {
           id: "background",

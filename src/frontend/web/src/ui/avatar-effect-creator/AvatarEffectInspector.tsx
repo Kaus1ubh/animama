@@ -140,15 +140,14 @@ function PlacementFields({
       type: "patch-attachment",
       patch: placementOffsetPatch(attachment, value),
     });
-  // Body and sticker offsets are in the viewer's frame on every model. Face
-  // offsets follow the model's head or texture axes, so they are named
+  // Floating, body and sticker offsets are in the viewer's frame on every
+  // model. Painted offsets follow the texture's axes, so they are named
   // neutrally (texture y grows downward).
-  const viewerFrame =
-    attachment.kind === "body" || attachment.kind === "sticker";
+  const viewerFrame = attachment.kind !== "face_surface";
   const axes = [
     ["x", viewerFrame ? "Right" : "Sideways"],
-    ["y", attachment.kind === "face_surface" ? "Down" : "Up"],
-    ...(has3d ? ([["z", viewerFrame ? "Forward" : "Depth"]] as const) : []),
+    ["y", viewerFrame ? "Up" : "Down"],
+    ...(has3d ? ([["z", "Forward"]] as const) : []),
   ] as const;
   return (
     <>

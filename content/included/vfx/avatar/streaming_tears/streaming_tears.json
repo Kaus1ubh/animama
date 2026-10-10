@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:streaming_tears",
+  "version": 1,
+  "name": "Streaming Tears",
+  "description": "Comic anime waterfall tears streaming down both cheeks from under the eyes, for overwhelmed crying in deep sadness, grief or tearful gratitude.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "undereye",
+    "attachment": {
+      "kind": "face_surface",
+      "area": "undereye",
+      "layout": "single",
+      "mirror": true,
+      "part": "face_skin",
+      "pivot": "top-center",
+      "scale": {
+        "x": 1.5,
+        "y": 1.5
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "streaming_tears.png",
+      "flipbook": {
+        "columns": 6,
+        "fps": 10,
+        "frames": 6,
+        "loop": "loop",
+        "rows": 1
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "streaming_tears.png",
+      "role": "image"
+    }
+  ]
+}

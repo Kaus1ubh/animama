@@ -1,5 +1,5 @@
 import type { ReactNode } from "react";
-import { renderToString } from "react-dom/server";
+import { renderToString } from "@/test/runtime-markup";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
@@ -183,20 +183,20 @@ describe("Action editor viewport ownership", () => {
   });
 });
 
-it("captures the current copied pose when a baked timeline has no external base", () => {
+it("captures the current copied pose when a timeline has no external base", () => {
   const store = usePoseCreatorStore.getState();
   store.hydrateClipDocument({
-    schema: "animaPoseClip/1.0",
+    schema: "animaPoseClip/2.0",
     id: "copied",
     name: "Copied",
     duration: 1,
-    poses: {
-      start: {
-        humanoid: { hips: { position: [0, 0.4, 0] } },
-        expressions: { happy: 0.6 },
-      },
+    beats: [{ id: "start", label: "Start", time: 0 }],
+    hipsPosition: {
+      x: [{ v: 0, beat: "start" }],
+      y: [{ v: 0.4, beat: "start" }],
+      z: [{ v: 0, beat: "start" }],
     },
-    poseKeyframes: [{ time: 0, pose: "start" }],
+    expressions: { happy: [{ v: 0.6, beat: "start" }] },
   });
   store.setClipCurrentTime(0.5);
   expect(captureActionEditorPoseAtPlayhead()).toBe(true);

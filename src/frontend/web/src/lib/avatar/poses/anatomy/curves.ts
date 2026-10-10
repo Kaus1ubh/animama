@@ -16,7 +16,7 @@ export type ResolvedKey = {
  * `smooth` segments are cubic Hermite with Fritsch–Butland monotone slopes
  * (velocity carries through a key, but a key that is a local peak or valley
  * stops there and no segment overshoots the authored values); `linear`,
- * `hold` and the 1.0 easings interpolate directly. Overshoot and settle are
+ * `hold` and the named clip easings interpolate directly. Overshoot and settle are
  * therefore authored explicitly as keys. Outside its keys a track holds the
  * nearest value; a looping track wraps over the clip duration instead.
  */

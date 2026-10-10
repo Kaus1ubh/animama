@@ -14,6 +14,7 @@ from animama.domain.content_catalog import ContentKind, ContentSource, ContentSt
 from animama.runtime.starter_content import _regular_path, catalog_from_scan, starter_inventory
 from tests.anima_creation_service_support import (
     EXPECTED_STARTER_GESTURE_IDS,
+    INCLUDED_POSE_IDS,
     copy_tracked_included,
     write_supplied_starter_fixture,
 )
@@ -30,15 +31,8 @@ def test_tracked_checkout_packages_both_starters_without_private_animations(tmp_
     assert [starter["name"] for starter in inventory["starters"]] == ["Annie", "Caitlyn"]
     assert not list(root.rglob("*.vrma"))
     poses = [entry for entry in inventory["entries"] if entry["kind"] == "pose"]
-    assert len(poses) == 5
     assert all(entry["partition"] == "core" for entry in poses)
-    assert {entry["logical_key"] for entry in poses} == {
-        "relaxedRest",
-        "shy-finger-poke-1",
-        "shy-finger-poke-2",
-        "thinking-head-scratch-1",
-        "thinking-head-scratch-2",
-    }
+    assert sorted(entry["logical_key"] for entry in poses) == sorted(INCLUDED_POSE_IDS)
     assert all(not starter["diagnostics"] for starter in inventory["starters"])
     assert not any("idle-style:starter" in root for starter in inventory["starters"] for root in starter["roots"])
 
@@ -110,6 +104,45 @@ def test_excluded_optional_audio_never_enters_either_pack(staged_core: Path, tmp
 
     assert {"locator": "voices/excluded-fixture.wav", "reason": "redistribution_excluded"} in inventory["excluded"]
     assert not any(file["path"].startswith("voices/") for file in inventory["files"])
+
+
+def test_non_portable_content_never_enters_either_staged_partition(staged_core: Path, tmp_path: Path) -> None:
+    """Non-portable content ships only as its own private Included source."""
+
+    root = tmp_path / "included"
+    shutil.copytree(staged_core, root)
+    (root / "voices").mkdir()
+    with wave.open(str(root / "voices/non-portable-fixture.wav"), "wb") as audio:
+        audio.setparams((1, 2, 8_000, 0, "NONE", "not compressed"))
+        audio.writeframes(b"\0\0" * 800)
+    license_path = root / "licenses/inventory.json"
+    policy = json.loads(license_path.read_text())
+    policy["rules"].insert(
+        0,
+        {
+            "glob": "voices/non-portable-*",
+            "license_id": "test-non-portable",
+            "provenance": "Non-portable test input",
+            "distribution": "non-portable",
+        },
+    )
+    license_path.write_text(json.dumps(policy))
+
+    inventory = starter_inventory(root)
+
+    assert {"locator": "voices/non-portable-fixture.wav", "reason": "non_portable"} in inventory["excluded"]
+    assert not any(file["path"].startswith("voices/") for file in inventory["files"])
+
+
+def test_unknown_distribution_policy_is_rejected(staged_core: Path, tmp_path: Path) -> None:
+    root = tmp_path / "included"
+    shutil.copytree(staged_core, root)
+    license_path = root / "licenses/inventory.json"
+    policy = json.loads(license_path.read_text())
+    policy["rules"].insert(0, {**policy["rules"][-1], "glob": "**", "distribution": "shareable"})
+    license_path.write_text(json.dumps(policy))
+    with pytest.raises(ValueError, match="Invalid distribution policy"):
+        starter_inventory(root)
 
 
 def test_logical_identity_collisions_are_not_resolved_by_filename_order() -> None:

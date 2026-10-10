@@ -102,12 +102,26 @@ management stage own the existing Canvas; dialogs pass targets and callbacks
 rather than mounting another WebGL renderer. Preview state never mutates the
 Anima loadout or the live runtime catalog.
 
-## API Configuration
+## API client and capabilities
 
-`src/frontend/web/src/lib/api/configureAnimaApiClient.ts` configures the
-generated client once during provider startup. It uses the current application origin
-and trace context only. A browser-wide interceptor adds `X-Animama-CSRF: 1` to
-same-origin mutating `/v1` fetches and never adds identity or desktop secrets.
+There is no global API client: compositions and feature code never configure or
+use `@animama/runtime-contracts/default-client`. Query hooks and mutations take
+the admitted session's client from `useProductApiClient()` (see
+[Packed product boundary](#packed-product-boundary)) and pass it as `client` to
+each SDK call. The local entrypoint's browser-wide interceptor
+(`lib/local-gateway/fetch-interceptor.ts`) adds only `X-Animama-CSRF: 1` to
+same-origin mutating `/v1` fetches; the hosted transport sends its session CSRF
+token. Owner-scoped query keys use the session cache key from
+`useRuntimeCacheKey()`, never the server owner ID, and wait for it.
+
+`useRuntimeCapabilities()` starts from the admitted capabilities. A hosted
+runtime keeps the permissions of its current admission; a local runtime
+refreshes them from `GET /v1/runtime-capabilities` (worker heartbeats and speech
+model changes). Product entry points are offered only for a capability that is
+`true`. An entry point whose capability the runtime reports `false` stays
+visible but disabled with the shared hosted exclusion reason
+(`RuntimeFeatureGate`, `UnavailableAction`); while capabilities are unknown it
+stays hidden.
 
 Frontend env access should go through `src/frontend/web/src/platform/env.ts`.
 
@@ -130,30 +144,46 @@ classification, transcript, and composer primitives. It exports query hooks via
 these implementations, so the ordinary application uses the packed core.
 
 `ProductRuntimeProvider` takes an explicit `RuntimeOwner`, chat capability,
-`ProductApiTransport`, and optional diagnostics adapter. The host provides a
-TanStack `QueryClientProvider`; queries partition by owner and the generated
-client is created separately for each transport. Changing owner or base URL
-remounts the product subtree and aborts its previous session. No installation
+`ProductApiTransport`, optional session key and diagnostics adapter. The host
+provides a TanStack `QueryClientProvider`; private queries and recovery drafts
+partition by session key, and the generated client is created separately for each
+transport. `useRuntimeOwnerId` remains the opaque product owner;
+`useRuntimeCacheKey` identifies the private browser lifetime. No installation
 readiness, local account policy, desktop bridge, router, or settings provider is
 imported by the package. Runtime image URLs resolve against this transport and
 keep owner-scoped Blob leases; they never assume the consuming page's origin.
 
-The local `RuntimeOwnerProvider` adapts the ready installation principal to this
-provider, supplies the same-origin application transport and trace headers, and keeps
-browser-wide CSRF handling in the local composition. Local hooks outside the
-shared product surface continue to use the neutral generated default client configured
-by `configureAnimaApiClient.ts`. New shared hooks must take the provider's client.
+`RuntimeOwnerProvider` adapts admitted ownership to this provider. Shared hooks
+use `useProductApiClient`; content and speech helpers receive that client
+explicitly. Each entrypoint installs its same-origin transport before React.
+Local requests retain the mutation CSRF marker; hosted requests use current
+cookie and CSRF authority without a browser credential store or owner header.
+
+`main.local.tsx` and `main.hosted.tsx` mount the same providers, router, screens
+and styles. `RuntimeController` owns each query cache and request/body lifetime.
+Sign-out, revoked admission and a changed session key abort old work, clear private
+module state and dispose workers, microphone tracks, playback, audio graphs and
+object URLs before the next session mounts. A feature that keeps a private draft
+in a module-level variable registers its reset with `registerPrivateStateReset`
+(`app/runtime/private-module-state.ts`); worker clients end synchronously, since
+the session also terminates their workers. Hosted recovery drafts use a fresh
+session namespace, including same-owner reauthentication; local recovery retains
+its installation namespace. Hosted teardown fences new recovery writes, waits
+for started writes, then removes that lifetime's creator IndexedDB records,
+private image bytes and recovery fallbacks. Awaited sign-out and replacement
+admission wait for the deletion commits. Browser device preferences and downloaded public
+model data retain their existing storage. See the [hosted contract](../../../contracts/hosted-web.md).
 
 ## Local Runtime And Profile
 
-`LocalRuntimeProvider` first calls `GET /v1/runtime-context`. A ready backend
+The local adapter first calls `GET /v1/runtime-context`. A ready backend
 does not need another content scan or defaults ensure. Only a `repair_required`
 response triggers `POST /v1/runtime/bootstrap:ensure`; its returned context is
-used directly without another GET. The provider shares concurrent initialization
+used directly without another GET. The adapter shares concurrent initialization
 requests but retains no completed-context cache. It exposes loading, ready, and
-recoverable-error states; Retry makes a fresh context read and repairs only if
+unavailable states; Retry makes a fresh context read and repairs only if
 needed. Network/authorization failures are surfaced without issuing repair
-mutations. Only a ready provider supplies `installation_principal_id` to shared
+mutations. Only admitted state supplies the installation principal to shared
 features through `RuntimeOwnerContext`. First-run state remains local to the
 local composition.
 
@@ -161,8 +191,10 @@ The app layout sends `/` to `/setup` until the backend's `first_run_complete`
 boolean is true, which also requires the owner's recorded 18+ confirmation.
 Setup's Welcome step requires a nonblank private name and the 18+ checkbox;
 Finish calls `POST /v1/runtime/onboarding:complete` with `adult_confirmed:
-true` and any model chosen in the AI step. `/setup` sits outside
-`SettingsProvider`, so it saves Text-to-Speech choices with
+true` and the model set up last in the AI step (saving the OpenAI or
+Anthropic key, or adding a chat model), if any. Text-to-Speech is on by
+default with built-in voices (`DEFAULT_ANIMAMA_PREFERENCES`); `/setup` sits outside
+`SettingsProvider`, so a provider chosen in the Voice step is saved with
 `useMergeUserPreferences` (fresh read, merge, write). The step and nonsecret
 choices persist in a per-owner localStorage draft (`setup-draft.ts`), never
 keys. Repeating the request after a lost response returns the completed

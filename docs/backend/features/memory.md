@@ -85,12 +85,13 @@ model-facing list. When `disable_memory_influence` is true, direct chat omits
 the list and `MEMORIES.md` while still injecting anima identity.
 
 Memory influence, memory updates and emotion updates resolve per turn in
-`server/chat_options.py`: a request option wins, then the Anima's
-`anima_settings.preferences`, then the owner's App Settings in
-`user_settings.preferences`, then enabled. New Animas store no memory/emotion
-flags, so they follow App Settings until an Anima sets its own value. Memory
-updates are forced off whenever memory influence resolves off, even when the
-two flags come from different levels.
+`app/chat/options.py` (`merge_chat_request_options`; the local
+`server/chat_options.py` only loads the stored preferences): a request option
+wins, then the Anima's `anima_settings.preferences`, then the owner's App
+Settings in `user_settings.preferences`, then enabled. New Animas store no
+memory/emotion flags, so they follow App Settings until an Anima sets its own
+value. Memory updates are forced off whenever memory influence resolves off,
+even when the two flags come from different levels.
 
 Provider clients still stay independent from memory internals. They receive only
 the OpenAI-compatible prompt and provider options, not ORM rows or filesystem

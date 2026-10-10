@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { appendMemoryManagerMessageV1MemoryManagerRunsRunIdMessagesPost } from "@animama/runtime-contracts/sdk";
@@ -7,9 +9,10 @@ import type {
   PyMemoryManagerMessageCreateRequest,
   PyMemoryManagerRunResponse,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
+import { sdkResultError } from "@/query/sdkResultError";
 import {
   invalidateApprovedIdentityDefinitions,
   publishMemoryManagerSnapshot,
@@ -21,8 +24,10 @@ export type AppendMemoryManagerMessageArgs = {
 };
 
 export function useAppendMemoryManagerMessage() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<
@@ -33,13 +38,17 @@ export function useAppendMemoryManagerMessage() {
     mutationFn: async ({ runId, body }) => {
       const result =
         await appendMemoryManagerMessageV1MemoryManagerRunsRunIdMessagesPost({
+          client: apiClient,
           path: { run_id: runId },
           body,
           responseValidator: undefined,
           throwOnError: false,
         });
       if (result.error !== undefined) {
-        throw new MemoryManagerApiError(result.response.status, result.error);
+        throw sdkResultError(
+          result,
+          (status, error) => new MemoryManagerApiError(status, error),
+        );
       }
       return result.data;
     },

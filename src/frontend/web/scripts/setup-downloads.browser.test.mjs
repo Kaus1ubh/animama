@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createServer } from "vite";
+import { selfHostedRuntimeCapabilities } from "./fixtures/runtime-capabilities.mjs";
 
 // Real interaction coverage for the stepped first-run setup: step navigation,
 // focus, the unsaved-key prompt, model choice, voice choices, downloads and
@@ -307,28 +308,9 @@ async function mount(options = {}) {
     }
     if (pathname === "/v1/runtime-capabilities")
       return route.fulfill({
-        json: {
-          runtime_kind: "desktop",
-          offline_speech_enabled: false,
-          offline_speech_asset_version: null,
+        json: selfHostedRuntimeCapabilities({
           model_configuration: options.modelConfiguration ?? true,
-          chat_file_uploads: true,
-          anima_creation: true,
-          companion_safety: {
-            ai_notice_enabled: true,
-            crisis_detection_enabled: true,
-            enabled: true,
-            operator_reminder_hours: 3,
-          },
-          user_file_processing: {
-            enabled: false,
-            last_heartbeat_at: null,
-            pack_id: null,
-            supported_extensions: [],
-            worker_state: "disabled",
-          },
-          web_search: { configuration: false },
-        },
+        }),
       });
     if (pathname === "/v1/model-connection-presets")
       return route.fulfill({ json: PRESETS });
@@ -467,6 +449,13 @@ const providerPanel = (page, name) =>
     name: new RegExp(`^${name}( \\(connected\\))?$`, "u"),
   });
 // The OpenAI provider tab panel is also labelled "OpenAI"; take the key field.
+/** The Voice step's ElevenLabs key, after opening its provider tab. */
+async function elevenLabsKey(page) {
+  await page.getByRole("tab", { name: "ElevenLabs", exact: true }).click();
+  return page
+    .getByRole("tabpanel", { name: "ElevenLabs" })
+    .getByLabel("ElevenLabs", { exact: true });
+}
 const openAiKey = (page) =>
   page.locator("input").and(page.getByLabel("OpenAI", { exact: true }));
 const anthropicKey = (page) =>
@@ -536,11 +525,11 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
     await heading(page, "Choose your AI").waitFor();
     assert.equal(await focusedText(page), "Choose your AI");
     assert.equal(await page.getByText("Step 2 of 3").count(), 1);
-    assert.equal(await currentStep(page).innerText(), "AI");
+    assert.equal(await currentStep(page).innerText(), "AI(optional)");
     await button(page, "Skip for now").click();
     await heading(page, "Set up voice").waitFor();
     assert.equal(await focusedText(page), "Set up voice");
-    assert.equal(await currentStep(page).innerText(), "Voice");
+    assert.equal(await currentStep(page).innerText(), "Voice(optional)");
     await button(page, "Skip for now").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
 
@@ -598,22 +587,13 @@ test("Back keeps values, and the step and choices survive renderer recreation", 
   }
 });
 
-test("saving the OpenAI key chooses OpenAI, and Finish sends the model and merged voice settings", async () => {
+test("saving the OpenAI key chooses OpenAI; Finish keeps the default voice settings", async () => {
   const { page, operations, requests, bodies } = await mount();
   try {
     await welcome(page);
     await openAiKey(page).fill("fixture-key");
     await button(page, "Save").click();
     await page.getByText("Saved.", { exact: true }).waitFor();
-    await page
-      .getByText("New Animas will chat with OpenAI (GPT-6 Luna).")
-      .waitFor();
-    assert.equal(
-      await page
-        .getByRole("radio", { name: /Use OpenAI/u })
-        .getAttribute("aria-checked"),
-      "true",
-    );
     assert.equal(
       await page.evaluate(() =>
         JSON.stringify({ ...localStorage, ...sessionStorage }).includes(
@@ -624,8 +604,14 @@ test("saving the OpenAI key chooses OpenAI, and Finish sends the model and merge
     );
     await button(page, "Continue").click();
     await heading(page, "Set up voice").waitFor();
-    await page.getByRole("switch", { name: "Enable Text-to-Speech" }).click();
-    await page.getByRole("radio", { name: /Built-in voices/u }).click();
+    // Text-to-Speech is on with built-in voices by default.
+    assert.equal(
+      await page
+        .getByRole("tab", { name: "PocketTTS (built-in)" })
+        .getAttribute("aria-selected"),
+      "true",
+    );
+    assert.equal(await page.getByRole("switch").count(), 0);
     await button(page, "Finish").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
 
@@ -635,19 +621,8 @@ test("saving the OpenAI key chooses OpenAI, and Finish sends the model and merge
       adult_confirmed: true,
       chat_model_provider_id: OPENAI_MODEL,
     });
-    // Read-merge-write keeps the other saved preferences.
-    assert.deepEqual(bodies.settings, {
-      preferences: {
-        chat: { markdown_enabled: false },
-        speech: {
-          stt_provider: "parakeet",
-          tts_enabled: true,
-          tts_provider: "pocket_tts",
-        },
-      },
-    });
+    // An untouched default writes no voice settings.
     assert.deepEqual(writes(requests), [
-      "PATCH /v1/users/me/settings",
       "POST /v1/runtime/onboarding:complete",
     ]);
   } finally {
@@ -659,34 +634,23 @@ test("saving the Anthropic key chooses Claude Haiku 5.5, and Finish sends it", a
   const { page, operations, bodies } = await mount();
   try {
     await welcome(page);
-    // OpenAI stays first and recommended; Anthropic is its own tab.
+    // OpenAI opens first; Anthropic is its own tab with its own key.
     assert.equal(
       await providerTab(page, "OpenAI").getAttribute("aria-selected"),
       "true",
     );
-    assert.equal(
-      await page.getByRole("radio", { name: /Use Anthropic/u }).isDisabled(),
-      true,
-    );
     await providerTab(page, "Anthropic").click();
     await anthropicKey(page).fill("fixture-key");
+    // An unsaved Anthropic key prompts before leaving, like the others.
+    const dialog = page.getByRole("dialog", { name: "Save your API key?" });
+    await button(page, "Continue").click();
+    await dialog.waitFor();
+    await button(page, "Keep editing").click();
+    await dialog.waitFor({ state: "hidden" });
+    assert.deepEqual(operations, []);
     await button(page, "Save").click();
     await page.getByText("Saved.", { exact: true }).waitFor();
-    await page
-      .getByText("New Animas will chat with Anthropic (Claude Haiku 5.5).")
-      .waitFor();
-    assert.equal(
-      await page
-        .getByRole("radio", { name: /Use Anthropic/u })
-        .getAttribute("aria-checked"),
-      "true",
-    );
-    assert.equal(
-      await page
-        .getByRole("radio", { name: /Use OpenAI/u })
-        .getAttribute("aria-checked"),
-      "false",
-    );
+    await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
     assert.equal(
       await page.evaluate(() =>
         JSON.stringify({ ...localStorage, ...sessionStorage }).includes(
@@ -701,6 +665,60 @@ test("saving the Anthropic key chooses Claude Haiku 5.5, and Finish sends it", a
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
     assert.equal(bodies.onboarding.chat_model_provider_id, HAIKU);
+  } finally {
+    await page.close();
+  }
+});
+
+/** Save the Anthropic key on the AI step, which chooses Claude Haiku 5.5. */
+async function saveAnthropicKey(page) {
+  await providerTab(page, "Anthropic").click();
+  await anthropicKey(page).fill("fixture-key");
+  await button(page, "Save").click();
+  await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
+}
+
+test("saving the OpenAI key after the Anthropic key makes OpenAI the setup model", async () => {
+  const { page, bodies } = await mount();
+  try {
+    await welcome(page);
+    await saveAnthropicKey(page);
+    // The model set up last wins.
+    await providerTab(page, "OpenAI").click();
+    await openAiKey(page).fill("fixture-key");
+    await button(page, "Save").click();
+    await page.getByRole("tab", { name: "OpenAI (connected)" }).waitFor();
+    await button(page, "Continue").click();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(bodies.onboarding.chat_model_provider_id, OPENAI_MODEL);
+  } finally {
+    await page.close();
+  }
+});
+
+test("adding a model after the Anthropic key makes it the setup model", async () => {
+  const { page, bodies } = await mount({ detect: { ollama: ["qwen3:8b"] } });
+  try {
+    await welcome(page);
+    await saveAnthropicKey(page);
+    await page.getByRole("tab", { name: "Local" }).click();
+    await button(page, "Add qwen3:8b").click();
+    const dialog = page.getByRole("dialog", { name: "Add a model to Ollama" });
+    await dialog
+      .getByLabel("Context window (tokens)", { exact: true })
+      .fill("8192");
+    await dialog
+      .getByRole("button", { name: "Add model", exact: true })
+      .click();
+    await dialog.waitFor({ state: "hidden" });
+    await button(page, "Continue").click();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(
+      bodies.onboarding.chat_model_provider_id,
+      "OpenAIHTTPAgent:conn-1:qwen3:8b",
+    );
   } finally {
     await page.close();
   }
@@ -727,7 +745,7 @@ test("an unsaved key prompts before leaving: keep editing, save and continue, or
     assert.deepEqual(operations, [{ method: "credentials.apply" }]);
 
     // Voice: the ElevenLabs key, discarded on Back.
-    await page.getByLabel("ElevenLabs", { exact: true }).fill("fixture-voice");
+    await (await elevenLabsKey(page)).fill("fixture-voice");
     await button(page, "Back").click();
     await dialog.waitFor();
     await button(page, "Discard").click();
@@ -905,22 +923,17 @@ test("each local provider tab looks for its own server when opened", async () =>
   }
 });
 
-test("an OpenAI key configured before setup does not pin a setup model", async () => {
+test("OpenAI and Anthropic keys configured before setup do not pin a setup model", async () => {
   const { page, statuses, bodies } = await mount();
   try {
-    statuses[0].configured = true;
-    statuses[0].updatedAt = "2026-09-28T00:00:00Z";
+    for (const provider of ["openai", "anthropic"])
+      Object.assign(
+        statuses.find((status) => status.provider === provider),
+        { configured: true, updatedAt: "2026-09-28T00:00:00Z" },
+      );
     await page.reload();
     await welcome(page);
-    await page
-      .getByText(/new Animas use the system default \(GPT-6 Luna\)/u)
-      .waitFor();
-    assert.equal(
-      await page
-        .getByRole("radio", { name: /Use OpenAI/u })
-        .getAttribute("aria-checked"),
-      "false",
-    );
+    await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
@@ -930,18 +943,16 @@ test("an OpenAI key configured before setup does not pin a setup model", async (
   }
 });
 
-test("Finish waits for a key save in flight; choosing ElevenLabs without a key explains it", async () => {
+test("Finish waits for a key save in flight, then saves ElevenLabs as the provider", async () => {
   const { page, native, bodies } = await mount();
   try {
     await toVoice(page);
-    await page.getByRole("switch", { name: "Enable Text-to-Speech" }).click();
-    await page.getByRole("radio", { name: /ElevenLabs/u }).click();
-    await page.getByText(/ElevenLabs needs an API key/u).waitFor();
+    const key = await elevenLabsKey(page);
     let release;
     native.hold = new Promise((resolve) => {
       release = resolve;
     });
-    await page.getByLabel("ElevenLabs", { exact: true }).fill("fixture-voice");
+    await key.fill("fixture-voice");
     await button(page, "Save").click();
     await page.getByText("Saving your key…").waitFor();
     assert.equal(await button(page, "Finish").isEnabled(), false);
@@ -949,10 +960,6 @@ test("Finish waits for a key save in flight; choosing ElevenLabs without a key e
     native.hold = null;
     release();
     await page.getByText("Saved.", { exact: true }).waitFor();
-    assert.equal(
-      await page.getByText(/ElevenLabs needs an API key/u).count(),
-      0,
-    );
     await button(page, "Finish").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.settings.preferences.speech.tts_provider, "elevenlabs");
@@ -985,9 +992,7 @@ test("a local server's model is added and becomes the setup model", async () => 
     await dialog
       .getByRole("button", { name: "Add model", exact: true })
       .click();
-    await page
-      .getByText("New Animas will chat with qwen3:8b on Ollama.")
-      .waitFor();
+    await dialog.waitFor({ state: "hidden" });
     // With a local model available, an empty server tab skips "Set up later".
     await providerTab(page, "llama.cpp").click();
     await providerPanel(page, "llama.cpp")
@@ -1011,6 +1016,34 @@ test("a local server's model is added and becomes the setup model", async () => 
       "POST /v1/model-connections/conn-1/models",
     ]);
     assert.deepEqual(errors, []);
+  } finally {
+    await page.close();
+  }
+});
+
+test("saving the OpenAI key after adding a local model makes OpenAI the setup model", async () => {
+  const { page, bodies } = await mount({ detect: { ollama: ["qwen3:8b"] } });
+  try {
+    await welcome(page);
+    await page.getByRole("tab", { name: "Local" }).click();
+    await button(page, "Add qwen3:8b").click();
+    const dialog = page.getByRole("dialog", { name: "Add a model to Ollama" });
+    await dialog
+      .getByLabel("Context window (tokens)", { exact: true })
+      .fill("8192");
+    await dialog
+      .getByRole("button", { name: "Add model", exact: true })
+      .click();
+    await dialog.waitFor({ state: "hidden" });
+    // The model set up last wins.
+    await page.getByRole("tab", { name: /^Cloud/u }).click();
+    await openAiKey(page).fill("fixture-key");
+    await button(page, "Save").click();
+    await page.getByText("Saved.", { exact: true }).waitFor();
+    await button(page, "Continue").click();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(bodies.onboarding.chat_model_provider_id, OPENAI_MODEL);
   } finally {
     await page.close();
   }
@@ -1074,7 +1107,7 @@ test("a speech download keeps running after Finish and survives renderer recreat
   const { page, assets, requests } = await mount();
   try {
     await toVoice(page);
-    await button(page, "Download CPU model").click();
+    await button(page, "Download").click();
     await page
       .getByText(/Downloading \d+%/u)
       .first()
@@ -1084,7 +1117,7 @@ test("a speech download keeps running after Finish and survives renderer recreat
     ]);
     await page.reload();
     await heading(page, "Set up voice").waitFor();
-    await button(page, "Cancel download").first().waitFor();
+    await button(page, "Cancel").first().waitFor();
     await button(page, "Back").click();
     await button(page, "Back").click();
     assert.equal(
@@ -1105,7 +1138,7 @@ test("a failed download offers retry without blocking Finish", async () => {
   const { page, assets, requests } = await mount();
   try {
     await toVoice(page);
-    await button(page, "Download CPU model").click();
+    await button(page, "Download").click();
     await page
       .getByText(/Downloading \d+%/u)
       .first()
@@ -1143,7 +1176,7 @@ test("steps, keys and downloads work when setup details cannot be retained", asy
     await page.getByText("Saved.", { exact: true }).waitFor();
     await button(page, "Continue").click();
     await heading(page, "Set up voice").waitFor();
-    await button(page, "Download CPU model").click();
+    await button(page, "Download").click();
     await page
       .getByText(/Downloading \d+%/u)
       .first()

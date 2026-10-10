@@ -21,15 +21,18 @@ production readiness or publication rights.
 | 0005 | [Client-rendered shared UI and local/native composition](0005-client-rendered-ui-and-local-native-composition.md)                                  | accepted                              |
 | 0006 | [Human and AI software development lifecycle](0006-human-ai-software-development-lifecycle.md)                                                     | accepted; planning superseded by 0007 |
 | 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                                           | accepted                              |
-| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted; placement amended by 0016   |
+| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted; placement amended by 0019   |
 | 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)                               | accepted                              |
 | 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted; partly superseded by 0012   |
 | 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted                              |
 | 0012 | [Parakeet speech models as backend model assets](0012-backend-parakeet-model-assets.md)                                                            | accepted                              |
 | 0013 | [Native Windows desktop packaging](0013-native-windows-desktop-packaging.md)                                                                       | accepted                              |
-| 0014 | [Track-based Anima Pose Clips organised by beats](0014-track-based-anima-pose-clips.md)                                                            | accepted                              |
+| 0014 | [Track-based Anima Pose Clips organised by beats](0014-track-based-anima-pose-clips.md)                                                            | accepted; partly superseded by 0016   |
 | 0015 | [One Avatar Effect definition source and model-agnostic face parts](0015-avatar-effect-definition-source-and-face-parts.md)                        | accepted                              |
-| 0016 | [Native Anthropic Messages provider](0016-native-anthropic-messages-provider.md)                                                                   | accepted                              |
+| 0016 | [animaPoseClip/2.0 is the only clip format](0016-anima-pose-clip-2-only.md)                                                                        | accepted                              |
+| 0017 | [Common web application and hosted artifact](0017-common-web-application-and-hosted-artifact.md)                                                   | accepted                              |
+| 0018 | [Non-portable Included content for licensed built-in motion](0018-non-portable-included-content.md)                                                | accepted                              |
+| 0019 | [Native Anthropic Messages provider](0019-native-anthropic-messages-provider.md)                                                                   | accepted                              |
 
 ## When and how to record a decision
 

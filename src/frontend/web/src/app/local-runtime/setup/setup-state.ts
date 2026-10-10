@@ -45,7 +45,7 @@ export function adjacentSetupStep(
   return SETUP_STEPS[SETUP_STEPS.indexOf(step) + direction] ?? null;
 }
 
-/** The built-in connections setup offers as "Use OpenAI" and "Use Anthropic". */
+/** The built-in connections whose key the AI step takes. */
 export type SetupBuiltinProvider = "openai" | "anthropic";
 
 /** A built-in connection, found by its preset; each built-in has its own. */
@@ -58,7 +58,44 @@ export function builtinConnectionOf<
   );
 }
 
-/** A model the AI step can choose, with the name shown next to its radio. */
+/** A built-in provider's key state and the model saving its key chooses. */
+export type SetupBuiltin = {
+  provider: SetupBuiltinProvider;
+  /** Its key is set (in the desktop vault or the server environment). */
+  ready: boolean;
+  /** The model saving its key chooses, while the key is set; else null. */
+  modelId: string | null;
+};
+
+/**
+ * The AI step's built-in providers. Saving OpenAI's key chooses its default
+ * Responses model and saving Anthropic's chooses Claude Haiku 5.5, each only
+ * while its connection offers that model for chat.
+ */
+export function setupBuiltins(
+  items: readonly PyModelProviderCatalogItem[],
+  connections: readonly PyModelConnection[],
+  systemDefaultId: string | null | undefined,
+): Record<SetupBuiltinProvider, SetupBuiltin> {
+  const builtin = (
+    provider: SetupBuiltinProvider,
+    model: PyModelProviderCatalogItem | null,
+  ): SetupBuiltin => {
+    const ready =
+      builtinConnectionOf(connections, provider)?.credential_state ===
+      "configured";
+    return { provider, ready, modelId: ready ? (model?.id ?? null) : null };
+  };
+  return {
+    openai: builtin(
+      "openai",
+      openAiDefaultModel(items, connections, systemDefaultId),
+    ),
+    anthropic: builtin("anthropic", anthropicDefaultModel(items, connections)),
+  };
+}
+
+/** A chat model on one of the owner's connections, as the AI step tracks it. */
 export type SetupModelChoice = {
   id: string;
   label: string;
@@ -66,8 +103,8 @@ export type SetupModelChoice = {
 };
 
 /**
- * The model "Use OpenAI" chooses: the built-in OpenAI Responses chat model
- * the system uses by default (`systemDefaultId`, from the Chat role), or
+ * The model saving the OpenAI key chooses: the built-in OpenAI Responses chat
+ * model the system uses by default (`systemDefaultId`, from the Chat role), or
  * else the first visible one. Null when the catalog has none.
  */
 export function openAiDefaultModel(
@@ -90,8 +127,8 @@ export function openAiDefaultModel(
 }
 
 /**
- * The model "Use Anthropic" chooses: Claude Haiku 5.5, Anthropic's default,
- * when the built-in Anthropic connection offers it for chat. The
+ * The model saving the Anthropic key chooses: Claude Haiku 5.5, Anthropic's
+ * default, when the built-in Anthropic connection offers it for chat. The
  * application default stays OpenAI's.
  */
 export function anthropicDefaultModel(
@@ -112,8 +149,8 @@ export function anthropicDefaultModel(
 
 /**
  * Chat models on the owner's own connections in one location, which the AI
- * step lists as choices. Built-in models are offered only as "Use OpenAI"
- * and "Use Anthropic".
+ * step can have chosen by adding them. Built-in models are chosen only by
+ * saving their provider's key.
  */
 export function ownerModelChoices(
   items: readonly PyModelProviderCatalogItem[],
@@ -198,47 +235,42 @@ export function onboardingInput(
   };
 }
 
-/** Text-to-Speech settings as the Voice step shows them. */
-export type SetupTtsChoice = {
-  enabled: boolean;
-  provider: SetupTtsProvider;
-};
-
 /**
- * The Voice step's Text-to-Speech values: the owner's changes in this setup,
- * else the saved preferences, else off with built-in voices.
+ * The Voice step's Text-to-Speech provider: the owner's choice in this setup,
+ * else the saved preference, else built-in voices.
  */
-export function resolveSetupTts(
-  draft: Pick<SetupDraft, "ttsEnabled" | "ttsProvider">,
+export function resolveSetupTtsProvider(
+  draft: Pick<SetupDraft, "ttsProvider">,
   saved: SpeechPreferences | null | undefined,
-): SetupTtsChoice {
+): SetupTtsProvider {
   const savedProvider =
     saved?.tts_provider === "elevenlabs" || saved?.tts_provider === "pocket_tts"
       ? saved.tts_provider
       : null;
-  return {
-    enabled: draft.ttsEnabled ?? saved?.tts_enabled === true,
-    provider: draft.ttsProvider ?? savedProvider ?? "pocket_tts",
-  };
+  return draft.ttsProvider ?? savedProvider ?? "pocket_tts";
 }
 
 /**
  * The speech preferences Finish merges into the saved ones, or null when the
- * owner changed nothing in the Voice step.
+ * owner kept the default provider. Text-to-Speech is on by default, so a
+ * choice always keeps it on.
  */
 export function setupTtsPatch(
-  draft: Pick<SetupDraft, "ttsEnabled" | "ttsProvider">,
-  saved: SpeechPreferences | null | undefined,
+  draft: Pick<SetupDraft, "ttsProvider">,
 ): Pick<SpeechPreferences, "tts_enabled" | "tts_provider"> | null {
-  if (draft.ttsEnabled === null && draft.ttsProvider === null) return null;
-  const { enabled, provider } = resolveSetupTts(draft, saved);
-  return { tts_enabled: enabled, tts_provider: provider };
+  if (draft.ttsProvider === null) return null;
+  return { tts_enabled: true, tts_provider: draft.ttsProvider };
 }
 
-/** Setup's two default provider choices, with availability from App Settings' options. */
+/**
+ * Setup's two provider tabs, with availability from App Settings' options.
+ * A `source` names the model, linked to its public page, ahead of the
+ * description.
+ */
 export function setupTtsOptions(options: readonly TtsProviderOption[]): Array<{
   id: SetupTtsProvider;
   label: string;
+  source?: { name: string; href: string };
   description: string;
   disabled: boolean;
   reason?: string;
@@ -250,15 +282,20 @@ export function setupTtsOptions(options: readonly TtsProviderOption[]): Array<{
   return [
     {
       id: "pocket_tts",
-      label: "Built-in voices",
-      description: "Runs on this computer; no key needed.",
+      label: "PocketTTS (built-in)",
+      source: {
+        name: "Kyutai's Pocket TTS",
+        href: "https://github.com/kyutai-labs/pocket-tts",
+      },
+      description:
+        "speaks replies on this computer, with no key or account needed.",
       disabled: pocket?.disabled ?? true,
       reason: pocket?.reason,
     },
     {
       id: "elevenlabs",
       label: "ElevenLabs",
-      description: "Cloud voices; needs an ElevenLabs API key.",
+      description: "Cloud voices with your ElevenLabs API key.",
       disabled: elevenlabs?.disabled ?? true,
       reason: elevenlabs?.reason,
     },

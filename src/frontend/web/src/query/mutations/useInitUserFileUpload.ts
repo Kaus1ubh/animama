@@ -1,10 +1,12 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { initUserFileUploadV1FilesUploadsPost } from "@animama/runtime-contracts/sdk";
 import type { PyUserFileUploadInitResponse } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 export type InitUserFileUploadArgs = {
@@ -12,8 +14,10 @@ export type InitUserFileUploadArgs = {
 };
 
 export function useInitUserFileUpload() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<
@@ -23,6 +27,7 @@ export function useInitUserFileUpload() {
   >({
     mutationFn: async ({ file }) => {
       const { data } = await initUserFileUploadV1FilesUploadsPost({
+        client: apiClient,
         body: {
           filename: file.name,
           content_type: file.type || undefined,

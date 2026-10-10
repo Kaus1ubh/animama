@@ -1,30 +1,22 @@
 import { describe, expect, it } from "vitest";
 
-import { animaPoseClipHasPose, parseAnyAnimaPoseClip } from "./anyClip";
+import {
+  animaPoseClipHasPose,
+  parseAnimaPoseClip,
+  UnsupportedAnimaPoseClipFormatError,
+  unsupportedAnimaPoseClipFormatMessage,
+} from "./parseClip";
 import { createAnimaPoseClipProgram } from "./program";
-import type { AnimaPoseClip } from "./schema";
 import type { AnimaPoseClipV2 } from "./schemaV2";
 
-const v1: AnimaPoseClip = {
+/** A retired `animaPoseClip/1.0` clip. */
+const v1 = {
   schema: "animaPoseClip/1.0",
   id: "nod",
   name: "Nod",
   duration: 1,
-  loop: true,
-  poses: {
-    rest: {
-      humanoid: { head: { rotation: [0, 0, 0, 1] } },
-      expressions: { happy: 0 },
-    },
-    down: {
-      humanoid: { head: { rotation: [0.1305, 0, 0, 0.9914] } },
-      expressions: { happy: 1 },
-    },
-  },
-  poseKeyframes: [
-    { time: 0, pose: "rest" },
-    { time: 1, pose: "down" },
-  ],
+  poses: { rest: { expressions: { happy: 0 } } },
+  poseKeyframes: [{ time: 0, pose: "rest" }],
 };
 
 const v2: AnimaPoseClipV2 = {
@@ -44,13 +36,26 @@ const v2: AnimaPoseClipV2 = {
   },
 };
 
-describe("parseAnyAnimaPoseClip", () => {
+describe("parseAnimaPoseClip", () => {
   it("returns a clip it already parsed instead of validating it again", () => {
-    for (const value of [v1, v2]) {
-      const parsed = parseAnyAnimaPoseClip(value);
-      expect(parsed).not.toBe(value);
-      expect(parseAnyAnimaPoseClip(parsed)).toBe(parsed);
-    }
+    const parsed = parseAnimaPoseClip(v2);
+    expect(parsed).not.toBe(v2);
+    expect(parseAnimaPoseClip(parsed)).toBe(parsed);
+  });
+
+  it("rejects a retired 1.0 clip and any other schema", () => {
+    expect(() => parseAnimaPoseClip(v1)).toThrow(
+      UnsupportedAnimaPoseClipFormatError,
+    );
+    expect(() => parseAnimaPoseClip(v1)).toThrow(
+      unsupportedAnimaPoseClipFormatMessage("animaPoseClip/1.0"),
+    );
+    expect(() => parseAnimaPoseClip({ ...v2, schema: "other/1" })).toThrow(
+      unsupportedAnimaPoseClipFormatMessage("other/1"),
+    );
+    expect(() => parseAnimaPoseClip(null)).toThrow(
+      unsupportedAnimaPoseClipFormatMessage(null),
+    );
   });
 });
 
@@ -71,10 +76,18 @@ describe("animaPoseClipHasPose", () => {
 describe("createAnimaPoseClipProgram", () => {
   const resolvePose = () => null;
 
-  it("samples a 1.0 clip and lists the expressions it keys", () => {
-    const program = createAnimaPoseClipProgram(v1, { resolvePose });
-    expect(program.hasPose).toBe(true);
-    expect(program.expressionNames).toEqual(["happy"]);
+  it("wraps a loop to its start, but can still sample its last frame", () => {
+    const program = createAnimaPoseClipProgram(
+      {
+        ...v2,
+        loop: true,
+        beats: [
+          { id: "start", label: "Start", time: 0 },
+          { id: "smile", label: "Smile", time: 1, ease: "linear" },
+        ],
+      },
+      { resolvePose },
+    );
     expect(program.sample(0.5).sample.expressions?.happy).toBeCloseTo(0.5);
     // A loop wraps to its start, but its last frame can still be sampled.
     expect(program.sample(1).sample.expressions?.happy).toBeCloseTo(0);

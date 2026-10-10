@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useCallback } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
@@ -26,7 +28,7 @@ import type {
   PyOwnerModelPatch,
   PyOwnerModelRequest,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 /**
@@ -36,7 +38,7 @@ import { queryKeys } from "@/query/keys";
  */
 function useInvalidateModelConfiguration() {
   const queryClient = useQueryClient();
-  const ownerKey = useRuntimeOwnerId() ?? "__anon__";
+  const ownerKey = useRuntimeCacheKey() ?? "__anon__";
   return useCallback(async () => {
     await Promise.all([
       queryClient.invalidateQueries({
@@ -53,10 +55,13 @@ function useInvalidateModelConfiguration() {
 }
 
 export function useCreateModelConnection() {
+  const apiClient = useProductApiClient();
+
   const invalidate = useInvalidateModelConfiguration();
   return useMutation<PyModelConnection, unknown, PyModelConnectionRequest>({
     mutationFn: async (body) => {
       const { data } = await createModelConnectionV1ModelConnectionsPost({
+        client: apiClient,
         body,
         responseValidator: undefined,
         throwOnError: true,
@@ -68,6 +73,8 @@ export function useCreateModelConnection() {
 }
 
 export function useUpdateModelConnection() {
+  const apiClient = useProductApiClient();
+
   const invalidate = useInvalidateModelConfiguration();
   return useMutation<
     PyModelConnection,
@@ -77,6 +84,7 @@ export function useUpdateModelConnection() {
     mutationFn: async ({ connectionId, body }) => {
       const { data } =
         await updateModelConnectionV1ModelConnectionsConnectionIdPatch({
+          client: apiClient,
           path: { connection_id: connectionId },
           body,
           responseValidator: undefined,
@@ -93,6 +101,8 @@ export function useUpdateModelConnection() {
  * `model_in_use` and reports the Animas and roles that use its models.
  */
 export function useRemoveModelConnection() {
+  const apiClient = useProductApiClient();
+
   const invalidate = useInvalidateModelConfiguration();
   return useMutation<
     PyModelRemovalResult,
@@ -102,6 +112,7 @@ export function useRemoveModelConnection() {
     mutationFn: async ({ connectionId, confirm }) => {
       const { data } =
         await removeModelConnectionV1ModelConnectionsConnectionIdDelete({
+          client: apiClient,
           path: { connection_id: connectionId },
           query: { confirm },
           responseValidator: undefined,
@@ -114,6 +125,8 @@ export function useRemoveModelConnection() {
 }
 
 export function useAddOwnerModel() {
+  const apiClient = useProductApiClient();
+
   const invalidate = useInvalidateModelConfiguration();
   return useMutation<
     PyConfiguredModel,
@@ -123,6 +136,7 @@ export function useAddOwnerModel() {
     mutationFn: async ({ connectionId, body }) => {
       const { data } =
         await addOwnerModelV1ModelConnectionsConnectionIdModelsPost({
+          client: apiClient,
           path: { connection_id: connectionId },
           body,
           responseValidator: undefined,
@@ -136,6 +150,8 @@ export function useAddOwnerModel() {
 
 /** Edit an owner model, or hide or show a built-in one. */
 export function useUpdateModel() {
+  const apiClient = useProductApiClient();
+
   const invalidate = useInvalidateModelConfiguration();
   return useMutation<
     PyConfiguredModel,
@@ -144,6 +160,7 @@ export function useUpdateModel() {
   >({
     mutationFn: async ({ modelProviderId, body }) => {
       const { data } = await updateModelV1ModelProvidersModelProviderIdPatch({
+        client: apiClient,
         path: { model_provider_id: modelProviderId },
         body,
         responseValidator: undefined,
@@ -156,6 +173,8 @@ export function useUpdateModel() {
 }
 
 export function useRemoveModel() {
+  const apiClient = useProductApiClient();
+
   const invalidate = useInvalidateModelConfiguration();
   return useMutation<
     PyModelRemovalResult,
@@ -164,6 +183,7 @@ export function useRemoveModel() {
   >({
     mutationFn: async ({ modelProviderId, confirm }) => {
       const { data } = await removeModelV1ModelProvidersModelProviderIdDelete({
+        client: apiClient,
         path: { model_provider_id: modelProviderId },
         query: { confirm },
         responseValidator: undefined,
@@ -177,11 +197,14 @@ export function useRemoveModel() {
 
 /** Ask the connection's server which models it serves (not cached). */
 export function useListAvailableModels() {
+  const apiClient = useProductApiClient();
+
   return useMutation<string[], unknown, { connectionId: string }>({
     mutationFn: async ({ connectionId }) => {
       const { data } =
         await listAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGet(
           {
+            client: apiClient,
             path: { connection_id: connectionId },
             responseValidator: undefined,
             throwOnError: true,
@@ -194,6 +217,8 @@ export function useListAvailableModels() {
 
 /** Test a model on its connection; the report suggests capabilities. */
 export function useProbeModel() {
+  const apiClient = useProductApiClient();
+
   return useMutation<
     PyModelProbeReport,
     unknown,
@@ -201,6 +226,7 @@ export function useProbeModel() {
   >({
     mutationFn: async ({ connectionId, body }) => {
       const { data } = await probeModelV1ModelConnectionsConnectionIdProbePost({
+        client: apiClient,
         path: { connection_id: connectionId },
         body,
         responseValidator: undefined,
@@ -217,12 +243,15 @@ export function useProbeModel() {
  * where the connection will run.
  */
 export function useDetectModelServer() {
+  const apiClient = useProductApiClient();
+
   return useMutation<PyModelConnectionDetection, unknown, { presetId: string }>(
     {
       mutationFn: async ({ presetId }) => {
         const { data } =
           await detectModelConnectionPresetV1ModelConnectionPresetsPresetIdDetectPost(
             {
+              client: apiClient,
               path: { preset_id: presetId },
               responseValidator: undefined,
               throwOnError: true,

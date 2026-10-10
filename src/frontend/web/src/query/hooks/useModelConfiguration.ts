@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useQuery } from "@tanstack/react-query";
 
 import {
@@ -15,7 +17,7 @@ import type {
   PyModelRoles,
   PyOpenRouterModel,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 /** Re-embedding progress is polled while the server reports work in flight. */
@@ -26,7 +28,9 @@ const ROLE_PROGRESS_POLL_MS = 5_000;
  * `model_configuration` capability: other compositions do not serve these routes.
  */
 export function useModelConnectionPresets(enabled: boolean) {
-  const ownerId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const ownerId = useRuntimeCacheKey();
   return useQuery<PyModelConnectionPreset[]>({
     queryKey: queryKeys.modelConfiguration.presets(ownerId ?? "__anon__"),
     enabled: enabled && Boolean(ownerId),
@@ -34,6 +38,7 @@ export function useModelConnectionPresets(enabled: boolean) {
     queryFn: async () => {
       const { data } =
         await listModelConnectionPresetsV1ModelConnectionPresetsGet({
+          client: apiClient,
           responseValidator: undefined,
           throwOnError: true,
         });
@@ -44,12 +49,15 @@ export function useModelConnectionPresets(enabled: boolean) {
 
 /** The built-in and owner connections with their models, including hidden rows. */
 export function useModelConnections(enabled: boolean) {
-  const ownerId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const ownerId = useRuntimeCacheKey();
   return useQuery<PyModelConnection[]>({
     queryKey: queryKeys.modelConfiguration.connections(ownerId ?? "__anon__"),
     enabled: enabled && Boolean(ownerId),
     queryFn: async () => {
       const { data } = await listModelConnectionsV1ModelConnectionsGet({
+        client: apiClient,
         responseValidator: undefined,
         throwOnError: true,
       });
@@ -60,7 +68,9 @@ export function useModelConnections(enabled: boolean) {
 
 /** The row doing each role's job and the embeddings re-embedding status. */
 export function useModelRoles(enabled: boolean) {
-  const ownerId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const ownerId = useRuntimeCacheKey();
   return useQuery<PyModelRoles>({
     queryKey: queryKeys.modelConfiguration.roles(ownerId ?? "__anon__"),
     enabled: enabled && Boolean(ownerId),
@@ -72,6 +82,7 @@ export function useModelRoles(enabled: boolean) {
     },
     queryFn: async () => {
       const { data } = await getModelRolesV1ModelRolesGet({
+        client: apiClient,
         responseValidator: undefined,
         throwOnError: true,
       });
@@ -89,7 +100,9 @@ export function useConnectionReachability(
   connectionId: string,
   enabled: boolean,
 ) {
-  const ownerId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const ownerId = useRuntimeCacheKey();
   return useQuery<string[]>({
     queryKey: queryKeys.modelConfiguration.reachability(
       ownerId ?? "__anon__",
@@ -104,6 +117,7 @@ export function useConnectionReachability(
       const { data } =
         await listAvailableModelsV1ModelConnectionsConnectionIdAvailableModelsGet(
           {
+            client: apiClient,
             path: { connection_id: connectionId },
             responseValidator: undefined,
             throwOnError: true,
@@ -121,7 +135,9 @@ export function useConnectionReachability(
  * then falls back to typing the model ID.
  */
 export function useOpenRouterModels(enabled: boolean) {
-  const ownerId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const ownerId = useRuntimeCacheKey();
   return useQuery<PyOpenRouterModel[]>({
     queryKey: queryKeys.modelConfiguration.openRouterModels(
       ownerId ?? "__anon__",
@@ -132,6 +148,7 @@ export function useOpenRouterModels(enabled: boolean) {
     queryFn: async ({ signal }) => {
       const { data } =
         await listOpenrouterModelsV1ModelConnectionPresetsOpenrouterModelsGet({
+          client: apiClient,
           responseValidator: undefined,
           throwOnError: true,
           signal,

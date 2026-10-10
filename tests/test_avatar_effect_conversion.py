@@ -44,15 +44,23 @@ def test_conversion_drops_legacy_fields_and_maps_radians_to_degrees() -> None:
     assert pair["v2"]["soundAlias"] == "pop"
 
 
-def test_every_included_effect_is_the_converted_golden_definition() -> None:
+# Included effects redrawn after the conversion (#298); the rest of the
+# converted effects still ship exactly as converted.
+REDRAWN = {"angry", "emote", "eye", "eye_confused_swirl", "eye_o", "eye_vv", "mouth_hover_w", "mouth_w", "star3"}
+
+
+def test_included_effects_not_redrawn_are_the_converted_golden_definition() -> None:
     golden = {
         pair["name"].removeprefix("included/"): pair["v2"] for pair in PAIRS if pair["name"].startswith("included/")
     }
-    descriptors = sorted(INCLUDED.glob("*/*.json"))
-    assert len(descriptors) == len(golden) == 16
-    for path in descriptors:
-        definition = json.loads(path.read_text())["definition"]
-        assert definition == golden[path.stem], path.stem
+    kept = {
+        path.stem: json.loads(path.read_text())["definition"]
+        for path in sorted(INCLUDED.glob("*/*.json"))
+        if path.stem in golden and path.stem not in REDRAWN
+    }
+    assert sorted(kept) == ["eye_0", "texture_black_1", "texture_sick_1", "texture_sick_2"]
+    for stem, definition in kept.items():
+        assert definition == golden[stem], stem
 
 
 @pytest.mark.parametrize(

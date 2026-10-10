@@ -11,19 +11,21 @@ test("renders a non-empty Gesture review sheet", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "animama-render-"));
   try {
     const clip = {
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "render-probe",
       name: "Render Probe",
       duration: 1,
       basePose: "relaxedRest",
-      poses: {
-        a: { humanoid: { head: { rotation: [0, 0, 0, 1] } } },
-        b: { humanoid: { head: { rotation: [0, 0.2588, 0, 0.9659] } } },
-      },
-      poseKeyframes: [
-        { time: 0, pose: "a" },
-        { time: 1, pose: "b" },
+      beats: [
+        { id: "a", label: "A", time: 0 },
+        { id: "b", label: "B", time: 1 },
       ],
+      rotations: {
+        head: [
+          { beat: "a", q: [0, 0, 0, 1] },
+          { beat: "b", q: [0, 0.2588, 0, 0.9659] },
+        ],
+      },
     };
     const outFile = path.join(dir, "render-probe.png");
     const result = await renderGestureSheet({

@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import json
-import os
 import re
 import stat
 from dataclasses import asdict, dataclass, field
@@ -17,30 +16,39 @@ from zipfile import ZIP_STORED, ZipFile, ZipInfo
 
 from pydantic import BaseModel, ConfigDict
 
+from animama.adapters.package_inspection import LocalPackageInspector
 from animama.app.contracts.content_package import (
     MAX_MANIFEST_BYTES,
     MAX_PACKAGE_BYTES,
     MAX_PACKAGE_FILES,
+    NON_PORTABLE_REFERENCES_CAPABILITY,
     PACKAGE_ENTRY_KINDS,
     PACKAGE_ROOT_KINDS,
     PACKAGE_SCHEMA,
+    NonPortableAnimaSlot,
     PackageAvatarPortrait,
     PackageDependency,
     PackageEntry,
     PackageFile,
     PackageLicense,
     PackageManifest,
+    PackageNonPortableReference,
+    PackageNonPortableUse,
     portable_revision,
 )
 from animama.app.contracts.portable_anima import PortableAnima
 from animama.app.ports.avatar_face_parts import AvatarFacePartOverrideRepository
+from animama.app.ports.content_package_staging import PackageInspector, PackageStageLease, PackageStages
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.services.anima_package_source_service import AnimaPackageSnapshot, AnimaPackageSourceService
 from animama.app.services.avatar_face_parts import effective_face_parts
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_kind_registry import MAX_JSON_BYTES, handler_for_kind
-from animama.app.services.content_package_staging import PackageStageService, StageLease
+from animama.app.services.content_package_staging import PackageStageService
+from animama.app.services.content_portability import is_non_portable
 from animama.app.services.local_content_mutations import _finish_owned_work, mutation_digest
+from animama.app.services.non_portable_packages import idle_pools_using, strip_idle_refs
+from animama.app.services.package_inspection import inspect_package
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentResolutionContext
 from animama.domain.content_catalog import (
     CatalogContentEntry,
@@ -54,6 +62,7 @@ from animama.domain.content_catalog import (
 from animama.domain.content_documents import (
     AppearanceDocumentV1,
     AvatarDocumentV1,
+    IdleStyleDocumentV2,
     PoseDocumentV1,
     VoiceDocumentV1,
 )
@@ -194,6 +203,14 @@ class ExportSelectionItem:
 
 
 @dataclass(frozen=True, slots=True)
+class ExportOmittedItem:
+    """A non-portable item left out of the package; the receiver may rebind it."""
+
+    kind: str
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
 class ExportSummary:
     """Cheap source facts for selection, before any archive or review cache exists."""
 
@@ -203,6 +220,7 @@ class ExportSummary:
     estimated_size_bytes: int
     items: tuple[ExportSelectionItem, ...]
     anima: PortableAnima | None
+    omitted: tuple[ExportOmittedItem, ...] = ()
 
 
 class ExportReview(BaseModel):
@@ -232,7 +250,7 @@ class DownloadLease:
 
     handle: BinaryIO
     review: ExportReview
-    _lease: StageLease
+    _lease: PackageStageLease
 
     def close(self, *, reclaimable: bool = False) -> None:
         """Keep retry bytes, but allow quota pressure to reclaim a finished HTTP attempt."""
@@ -249,7 +267,7 @@ class DownloadLease:
 class _ReservedWriter:
     """Apply quota checks to ZIP headers and directory bytes as well as payload chunks."""
 
-    def __init__(self, handle: BinaryIO, lease: StageLease) -> None:
+    def __init__(self, handle: BinaryIO, lease: PackageStageLease) -> None:
         self._handle, self._lease = handle, lease
 
     def write(self, payload: bytes) -> int:
@@ -261,12 +279,26 @@ class _ReservedWriter:
 
 
 @dataclass(frozen=True, slots=True)
+class _NonPortableUse:
+    """Catalog-identity form of PackageNonPortableUse, mapped to entry ids on write."""
+
+    anima_slot: NonPortableAnimaSlot | None = None
+    semantic_key: str | None = None
+    config: dict[str, Any] | None = None
+    entry_item_id: str | None = None
+    pools: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class _Selection:
     summary: ExportSummary
     entries: tuple[TypedCatalogItem, ...]
     root_ids: tuple[str, ...]
     portraits: dict[str, str | None]
     anima_snapshot: AnimaPackageSnapshot | None = None
+    # Portable Idle Style item id -> non-portable Gesture item ids removed from it.
+    stripped: dict[str, frozenset[str]] = field(default_factory=dict)
+    non_portable: tuple[tuple[CatalogContentEntry, tuple[_NonPortableUse, ...]], ...] = ()
     # Effective face-part corrections by Avatar item id, written into each portable sidecar.
     face_parts: dict[str, dict[str, Any]] = field(default_factory=dict)
 
@@ -304,9 +336,10 @@ class ContentPackageExportService:
         self,
         *,
         content: ContentCatalogService,
-        exports_root: Path,
+        exports_root: Path | None = None,
         anima_sources: AnimaPackageSourceService | None = None,
-        stages: PackageStageService | None = None,
+        stages: PackageStages | None = None,
+        inspector: PackageInspector | None = None,
         profiles: UserProfileRepository | None = None,
         face_part_overrides: AvatarFacePartOverrideRepository | None = None,
     ) -> None:
@@ -314,26 +347,49 @@ class ContentPackageExportService:
         self._face_part_overrides = face_part_overrides
         self._catalog = content.mutations.catalog
         self._store = content.mutations.store
-        self._stages = stages or PackageStageService(exports_root.parent / "imports", exports_root)
+        if stages is None and exports_root is None:
+            raise ValueError("package stages or a local export root are required")
+        if content.owner_id is not None:
+            if getattr(stages, "owner_id", None) != content.owner_id:
+                raise ValueError("package stages must bind the same content owner")
+            if inspector is None:
+                raise ValueError("an owner-bound package composition requires an explicit inspector")
+        if stages is None:
+            assert exports_root is not None
+            stages = PackageStageService(exports_root.parent / "imports", exports_root)
+        self._stages = stages
+        self._inspector = inspector or LocalPackageInspector(store=self._store)
         self._animas = anima_sources
         self._profiles = profiles
 
     async def _selection(self, *, user_id: str, item_ids: tuple[str, ...], anima_id: str | None) -> _Selection:
+        self._content.require_owner(user_id)
         if bool(item_ids) == bool(anima_id) or len(item_ids) != len(set(item_ids)):
             raise ContentConflictError("package_selection_invalid")
         visible = {item.id: item for item in await self._catalog.list_visible(user_id=user_id)}
         context = TypedContentResolutionContext(visible)
         definition, snapshot = None, None
+        uses: dict[str, list[_NonPortableUse]] = {}
         if anima_id is not None:
             if self._animas is None:
                 raise ContentConflictError("package_anima_unavailable")
             captured = await self._animas.capture(user_id=user_id, anima_id=anima_id)
             definition, snapshot = captured.definition, captured.snapshot
             roots = captured.selected_item_ids
+            for omitted in captured.omitted:
+                visible.setdefault(omitted.item.id, omitted.item)
+                uses.setdefault(omitted.item.id, []).append(
+                    _NonPortableUse(anima_slot=omitted.slot, semantic_key=omitted.semantic_key, config=omitted.config)
+                )
         else:
             roots = item_ids
             if any(item not in visible or visible[item].kind not in PACKAGE_ROOT_KINDS for item in roots):
                 raise ContentConflictError("package_root_invalid")
+            restricted_roots = [visible[item] for item in roots if is_non_portable(visible[item])]
+            if restricted_roots:
+                raise ContentConflictError(
+                    "package_non_portable", items=tuple(item.display_name for item in restricted_roots)
+                )
         entries: dict[str, TypedCatalogItem] = {}
         for root in roots:
             for item in context.resolve(root):
@@ -347,6 +403,8 @@ class ContentPackageExportService:
             if portrait is not None:
                 for item in context.resolve(portrait):
                     entries[item.item.id] = item
+        # After portraits, so a non-portable portrait is refused like any other item.
+        stripped = self._strip_non_portable(entries, uses)
         face_parts = await self._face_parts(user_id=user_id, entries=tuple(entries.values()))
         total = sum(file.size_bytes for item in entries.values() for file in _shared_files(item.item))
         count = sum(len(_shared_files(item.item)) for item in entries.values())
@@ -355,6 +413,7 @@ class ContentPackageExportService:
         )
         if total > MAX_PACKAGE_BYTES or count > MAX_PACKAGE_FILES:
             raise ContentConflictError("package_size_invalid")
+        non_portable = tuple((visible[item_id], tuple(item_uses)) for item_id, item_uses in sorted(uses.items()))
         digest = mutation_digest(
             {
                 "schema": PACKAGE_SCHEMA,
@@ -362,6 +421,7 @@ class ContentPackageExportService:
                 "anima": asdict(snapshot) if snapshot else None,
                 "sources": {item.item.id: item.item.revision_sha256 for item in entries.values()},
                 "portraits": portraits,
+                "non_portable": {item.id: item.revision_sha256 for item, _ in non_portable},
                 "face_parts": face_parts,
             }
         )
@@ -382,8 +442,60 @@ class ContentPackageExportService:
                 for item in entries.values()
             ),
             anima=definition,
+            omitted=tuple(ExportOmittedItem(item.kind.value, item.display_name) for item, _ in non_portable),
         )
-        return _Selection(summary, tuple(entries.values()), tuple(roots), portraits, snapshot, face_parts)
+        return _Selection(
+            summary,
+            tuple(entries.values()),
+            tuple(roots),
+            portraits,
+            snapshot,
+            stripped=stripped,
+            non_portable=non_portable,
+            face_parts=face_parts,
+        )
+
+    @staticmethod
+    def _strip_non_portable(
+        entries: dict[str, TypedCatalogItem], uses: dict[str, list[_NonPortableUse]]
+    ) -> dict[str, frozenset[str]]:
+        """Remove non-portable Gestures pooled by portable Idle Styles; refuse any other use.
+
+        Mutates ``entries`` and ``uses``. A non-portable item reached in any other
+        way (as a root, through another kind, or with dependencies of its own)
+        blocks the export and is named in the error.
+        """
+
+        restricted = {item_id for item_id, item in entries.items() if is_non_portable(item.item)}
+        if not restricted:
+            return {}
+        stripped: dict[str, set[str]] = {}
+        allowed: set[str] = set()
+        for item_id, typed in entries.items():
+            targets = dict(zip(typed.item.dependency_item_ids, typed.item.dependencies, strict=True))
+            for target, ref in targets.items():
+                if target not in restricted:
+                    continue
+                dependency = entries[target]
+                if (
+                    item_id in restricted
+                    or typed.item.kind is not ContentKind.IDLE_STYLE
+                    or not isinstance(typed.document, IdleStyleDocumentV2)
+                    or dependency.item.kind is not ContentKind.GESTURE
+                    or dependency.item.dependencies
+                ):
+                    raise ContentConflictError("package_non_portable", items=(dependency.item.display_name,))
+                stripped.setdefault(item_id, set()).add(target)
+                allowed.add(target)
+                uses.setdefault(target, []).append(
+                    _NonPortableUse(entry_item_id=item_id, pools=tuple(idle_pools_using(typed.document, ref)))
+                )
+        blocked = sorted(entries[item_id].item.display_name for item_id in restricted - allowed)
+        if blocked:
+            raise ContentConflictError("package_non_portable", items=tuple(blocked))
+        for item_id in restricted:
+            del entries[item_id]
+        return {item_id: frozenset(targets) for item_id, targets in stripped.items()}
 
     async def _face_parts(self, *, user_id: str, entries: tuple[TypedCatalogItem, ...]) -> dict[str, dict[str, Any]]:
         """Resolve each exported Avatar's effective correction for this owner.
@@ -419,6 +531,7 @@ class ContentPackageExportService:
         self, *, user_id: str, expected_digest: str, item_ids: tuple[str, ...] = (), anima_id: str | None = None
     ) -> ExportReview:
         """Own capture through cleanup even when its requesting connection disappears."""
+        self._content.require_owner(user_id)
         return await _finish_owned_work(
             self._prepare(user_id=user_id, expected_digest=expected_digest, item_ids=item_ids, anima_id=anima_id)
         )
@@ -455,12 +568,8 @@ class ContentPackageExportService:
         try:
             manifest = await asyncio.to_thread(self._write_reserved, selected, lease)
             # Inspect exactly the produced bytes through the import boundary.
-            from animama.app.services.content_package_archive import ContentPackageArchive
-
-            with lease.expansion() as destination:
-                await asyncio.to_thread(
-                    ContentPackageArchive(store=self._store).inspect, lease.archive_path, destination=destination
-                )
+            async with inspect_package(self._inspector, lease):
+                pass
             await asyncio.to_thread(self._verify_sources, selected)
             await self._content.rescan(user_id=user_id)
             if selected.anima_snapshot is not None:
@@ -492,21 +601,24 @@ class ContentPackageExportService:
         finally:
             lease.close()
 
-    def _write_reserved(self, selected: _Selection, lease: StageLease) -> PackageManifest:
-        with lease.archive_path.open("xb") as handle:
-            os.chmod(lease.archive_path, 0o600)
+    def _write_reserved(self, selected: _Selection, lease: PackageStageLease) -> PackageManifest:
+        with lease.write_archive() as handle:
             return self._write(selected, cast(BinaryIO, _ReservedWriter(handle, lease)))
 
     async def cached(self, *, user_id: str, export_id: str) -> CachedExport:
         """Compatibility helper for service callers; HTTP must keep a download lease."""
         download = await self.download(user_id=user_id, export_id=export_id)
         try:
-            return CachedExport(download._lease.archive_path, download.review)
+            local_path = getattr(download._lease, "archive_path", None)
+            if not isinstance(local_path, Path):
+                raise ContentConflictError("package_local_path_unavailable")
+            return CachedExport(local_path, download.review)
         finally:
             download.close()
 
     async def download(self, *, user_id: str, export_id: str) -> DownloadLease:
         """Open the exact sealed archive while retaining its cleanup exclusion lease."""
+        self._content.require_owner(user_id)
         opened: list[DownloadLease] = []
 
         async def own_open() -> DownloadLease:
@@ -524,7 +636,7 @@ class ContentPackageExportService:
             raise
 
     def _open_download(self, user_id: str, export_id: str) -> DownloadLease:
-        lease: StageLease | None = None
+        lease: PackageStageLease | None = None
         try:
             lease = self._stages.acquire(user_id, export_id, "export")
             if lease.record.state not in {"reviewed", "completed"} or lease.record.review is None:
@@ -534,7 +646,7 @@ class ContentPackageExportService:
             if review.size_bytes != size or review.package_sha256 != digest:
                 raise ContentConflictError("package_export_changed")
             review.expires_at = lease.record.expires_at
-            return DownloadLease(lease.archive_path.open("rb"), review, lease)
+            return DownloadLease(lease.open_archive(), review, lease)
         except BaseException as exc:
             if lease is not None:
                 lease.close()
@@ -610,6 +722,14 @@ class ContentPackageExportService:
                     projection["avatar_model"], projection["presentation"] = None, {}
                 if isinstance(document, VoiceDocumentV1):
                     projection["files"] = [file for file in projection["files"] if file["role"] != "source_sample"]
+                removed = selected.stripped.get(entry.id, frozenset())
+                if removed:
+                    removed_refs = {
+                        ref
+                        for ref, target in zip(entry.dependencies, entry.dependency_item_ids, strict=True)
+                        if target in removed
+                    }
+                    projection = strip_idle_refs(projection, removed_refs)
                 if isinstance(document, AvatarDocumentV1):
                     projection.pop("face_parts", None)
                     if entry.id in selected.face_parts:
@@ -725,6 +845,7 @@ class ContentPackageExportService:
                         dependencies=[
                             PackageDependency(ref=identities[target], content_type=dependency.kind)
                             for dependency, target in zip(document.dependencies, entry.dependency_item_ids, strict=True)
+                            if target not in removed
                         ],
                         files=files,
                         license=PackageLicense.model_validate(portable_license(entry.provenance)),
@@ -741,14 +862,36 @@ class ContentPackageExportService:
                     for avatar, portrait in selected.portraits.items()
                     if portrait
                 ],
-                capabilities=sorted(capabilities),
+                capabilities=sorted(
+                    capabilities | ({NON_PORTABLE_REFERENCES_CAPABILITY} if selected.non_portable else set())
+                ),
+                non_portable_references=[
+                    PackageNonPortableReference(
+                        kind=item.kind,
+                        logical_key=item.logical_key or item.id,
+                        display_name=item.display_name,
+                        uses=[
+                            PackageNonPortableUse(
+                                anima_slot=use.anima_slot,
+                                semantic_key=use.semantic_key,
+                                config=use.config or {},
+                                entry_id=identities[use.entry_item_id] if use.entry_item_id else None,
+                                pools=list(use.pools),
+                            )
+                            for use in uses
+                        ],
+                    )
+                    for item, uses in selected.non_portable
+                ],
             )
-            payload = _json_bytes(manifest.model_dump(mode="json", by_alias=True))
+            dumped = manifest.model_dump(mode="json", by_alias=True)
+            if not dumped["non_portable_references"]:
+                del dumped["non_portable_references"]
+            payload = _json_bytes(dumped)
             if len(payload) > MAX_MANIFEST_BYTES or expanded + len(payload) > MAX_PACKAGE_BYTES:
                 raise ContentConflictError("package_size_invalid")
             info = ZipInfo("package.json", date_time=(1980, 1, 1, 0, 0, 0))
             info.external_attr = (stat.S_IFREG | 0o600) << 16
             archive.writestr(info, payload)
         destination.flush()
-        os.fsync(destination.fileno())
         return manifest

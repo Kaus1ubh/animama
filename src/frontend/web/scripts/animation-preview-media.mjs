@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { readFile, realpath, stat } from "node:fs/promises";
+import { readFile, readdir, realpath, stat } from "node:fs/promises";
 import path from "node:path";
 
 import {
@@ -268,20 +268,52 @@ export function createPreviewMediaAdapter({ files, duration = null }) {
     },
 
     /**
-     * Picker choices for effects: the Library's Avatar Effects and the
-     * effect sources named on the command line.
+     * Picker choices for effects: the Library's Avatar Effects, the effect
+     * sources named on the command line, and the other effect folders beside
+     * each named folder, so one preview can review a batch of drafts.
      */
     async choices(roots, specs = []) {
       const choices = [];
+      const seen = new Set();
+      const add = (descriptorPath) => {
+        if (seen.has(descriptorPath)) return;
+        seen.add(descriptorPath);
+        choices.push({
+          spec: descriptorPath,
+          label: path.basename(path.dirname(descriptorPath)),
+          group: "Effect sources",
+          path: descriptorPath,
+        });
+      };
+      const siblingParents = [];
       for (const spec of specs) {
         const resolved = await resolve(spec, roots).catch(() => null);
         if (!resolved || resolved.effectSpec.startsWith("library:")) continue;
-        choices.push({
-          spec: resolved.descriptorPath,
-          label: path.basename(path.dirname(resolved.descriptorPath)),
-          group: "Effect sources",
-          path: resolved.descriptorPath,
-        });
+        add(resolved.descriptorPath);
+        const parent = path.dirname(path.dirname(resolved.descriptorPath));
+        if (!siblingParents.includes(parent)) siblingParents.push(parent);
+      }
+      for (const parent of siblingParents) {
+        const entries = await readdir(parent, { withFileTypes: true }).catch(
+          () => [],
+        );
+        const folders = entries
+          .filter((entry) => entry.isDirectory())
+          .map((entry) => entry.name)
+          .sort();
+        for (const name of folders) {
+          // Only folders that hold an effect descriptor; work folders and
+          // other files are skipped.
+          const resolved = await resolve(path.join(parent, name), roots).catch(
+            () => null,
+          );
+          if (!resolved) continue;
+          const descriptor = await readFile(resolved.descriptorPath, "utf8")
+            .then(JSON.parse)
+            .catch(() => null);
+          if (descriptor?.content_type === "avatar_effect")
+            add(resolved.descriptorPath);
+        }
       }
       for (const [origin, root] of [
         ["included", INCLUDED_CONTENT_ROOT],

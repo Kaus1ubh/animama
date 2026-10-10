@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import AsyncIterator
+from dataclasses import replace
 from typing import Any
 
 import anthropic
@@ -34,6 +35,8 @@ from animama.app.model_clients import (
 )
 from animama.app.model_clients.credentials import builtin_anthropic_connection, static_credential_resolver
 from animama.app.model_clients.error_categories import model_error_category
+from animama.app.model_clients.limits import ModelCallLimits
+from animama.app.model_clients.types import ModelClientProviderOptions
 from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain import ModelProvider, ModelProviderCapabilities
 from tests.anthropic_fakes import (
@@ -728,6 +731,38 @@ async def test_a_transient_failure_before_any_text_is_retried_once() -> None:
     assert final.text == structured_reply()
     assert len(client.requests) == 2
     assert client.requests[0] == client.requests[1]
+
+
+def test_composition_limits_cap_output_tokens_and_searches() -> None:
+    request = replace(
+        _request(),
+        provider_options=ModelClientProviderOptions(native_tools=("web_search",)),
+        limits=ModelCallLimits(max_output_tokens=77, timeout_seconds=3, max_native_tool_calls=2),
+    )
+
+    params = messages_request_params(request)
+
+    assert params["max_tokens"] == 77
+    [search] = [tool for tool in params["tools"] if tool.get("name") == "web_search"]
+    assert search["max_uses"] == 2
+
+
+@pytest.mark.asyncio
+async def test_a_bounded_request_uses_its_timeout_and_is_never_retried() -> None:
+    client = FakeAnthropicClient(
+        [
+            status_error(529, error_type="overloaded_error", message="Overloaded", cls=anthropic.OverloadedError),
+            message_events(text_block(structured_reply())),
+        ]
+    )
+    adapter, factory = _adapter(client)
+    request = replace(_request(), limits=ModelCallLimits(max_output_tokens=100, timeout_seconds=3))
+
+    with pytest.raises(ModelClientError):
+        await _collect(adapter.stream(request))
+
+    assert len(client.requests) == 1
+    assert factory.calls[0]["timeout"] == 3
 
 
 @pytest.mark.asyncio

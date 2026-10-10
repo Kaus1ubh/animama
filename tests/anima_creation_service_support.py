@@ -326,6 +326,38 @@ async def anima_creation_fixture(
         await session.commit()
 
 
+# The five Starter Poses plus the Gesture poses promoted to Included content (#337).
+INCLUDED_POSE_IDS = frozenset(
+    {
+        "arms-crossed",
+        "cat-monster-rawr",
+        "cat-monster-rawr-2",
+        "cheeky-finger-guns",
+        "cheeky-finger-guns-2",
+        "double-peace-sign",
+        "double-thumbs-down",
+        "double-thumbs-up",
+        "hands-on-hips",
+        "heart-hands",
+        "left-ok-sign",
+        "left-peace-sign",
+        "meme-dab",
+        "relaxedRest",
+        "right-face-palm",
+        "right-finger-point",
+        "right-thumbs-down",
+        "right-thumbs-up",
+        "shy-finger-poke-1",
+        "shy-finger-poke-2",
+        "single-hand-on-heart",
+        "soldier-salute",
+        "soldier-salute-2",
+        "thinking-hand-on-chin",
+        "thinking-head-scratch-1",
+        "thinking-head-scratch-2",
+    }
+)
+
 # Shipped starter identities; optional Local Mixamo motions are not defaults.
 # Keep this independent of the loaded policy so accidental policy changes cannot
 # rewrite the test oracle.

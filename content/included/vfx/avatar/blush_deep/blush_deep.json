@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:blush_deep",
+  "version": 1,
+  "name": "Blush Deep",
+  "description": "A deep beet-red blush with bold hatch lines for intense, teased-to-pieces embarrassment.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "blush",
+    "attachment": {
+      "kind": "face_surface",
+      "area": "blush",
+      "layout": "single",
+      "mirror": true,
+      "part": "face_skin",
+      "pivot": "center",
+      "scale": {
+        "x": 1.8,
+        "y": 1.8
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "blush_deep.png"
+    }
+  },
+  "files": [
+    {
+      "path": "blush_deep.png",
+      "role": "image"
+    }
+  ]
+}

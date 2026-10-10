@@ -1,11 +1,16 @@
 # Model settings
 
-App Settings → Models lets the installation owner connect model servers, add
-their models and choose the default model for each job. It appears only when
-`GET /v1/runtime-capabilities` reports `model_configuration: true` (desktop and
-self-hosted web); other compositions keep a fixed catalog. Running Ollama, LM
-Studio, llama.cpp or vLLM, their context windows and reaching them from Docker
-Compose are covered in [Local model servers](../../backend/operations/local-models.md).
+App Settings → Models lets the owner connect model servers, add their models
+and choose the default model for each job. Each part follows its own admitted
+runtime capability (`modelSettingsAvailability` in
+`model-configuration-state.ts`): connections and their models need
+`model_configuration: true` (desktop and self-hosted web), the default models
+need `model_role_selection: true` (hosted runtimes offer these over the
+operator's fixed catalog) and the search service needs
+`web_search.configuration: true`. The section appears when any part does.
+Running Ollama, LM Studio, llama.cpp or vLLM, their context windows and reaching
+them from Docker Compose are covered in
+[Local model servers](../../backend/operations/local-models.md).
 
 Code: `web/src/ui/settings/models/`, hooks in
 `web/src/query/hooks/useModelConfiguration.ts` and mutations in
@@ -38,10 +43,12 @@ time, with a dot on connected providers (a built-in connection counts once its
 key is set). The tabs are padded more tightly than Library tabs so all six
 Cloud providers fit the settings dialog at desktop widths; narrower windows
 scroll the strip. Setup's AI step shows the same tabs; its OpenAI and Anthropic
-tabs hold their key field (desktop) or name the server variable (web), and
-saving a key there chooses that provider's default model, **Use OpenAI** or
-**Use Anthropic** (Claude Haiku 5.5), when nothing is chosen yet. A location opens on its first connected provider, else its first
-provider (`defaultLocationProvider`). A connected provider's tab shows its
+tabs hold their key field (desktop) or name the server variable (web). Saving
+a key there chooses that provider's model for new Animas (OpenAI's default, or
+Claude Haiku 5.5 on Anthropic) unless its row is hidden; the model set up last
+wins, and a key set before setup chooses nothing (`setupBuiltins` in
+`setup-state.ts`). A location opens on its first connected provider, else its
+first provider (`defaultLocationProvider`). A connected provider's tab shows its
 cards; an unconnected one shows its purpose and connect form inline; Custom
 lists each custom server plus **Add a custom server**. Provider panels stay
 mounted, so a half-filled form survives tab switches. Connecting shows the

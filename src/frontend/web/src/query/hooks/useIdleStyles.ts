@@ -1,11 +1,13 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import { getIdleStyle, listIdleStyles } from "@animama/runtime-contracts/sdk";
 import type { PyIdleStyle, PyIdleStylePage } from "@/lib/content/catalogTypes";
 import { typedCatalogViewItem } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 type ListInput = {
@@ -15,7 +17,9 @@ type ListInput = {
 };
 
 export function useIdleStyles(input: ListInput = {}) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const query = input.query ?? "";
   const origin = input.origin ?? "all";
   const sort = input.sort ?? "name";
@@ -31,6 +35,7 @@ export function useIdleStyles(input: ListInput = {}) {
     queryFn: async () => {
       const needle = query.trim().toLocaleLowerCase();
       const response = await listIdleStyles({
+        client: apiClient,
         responseValidator: undefined,
         throwOnError: true,
       });
@@ -51,7 +56,9 @@ export function useIdleStyles(input: ListInput = {}) {
 }
 
 export function useIdleStyle(itemId: string | null) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   return useQuery({
     queryKey: queryKeys.idleStyles.detail(
       userId ?? "__anon__",
@@ -62,6 +69,7 @@ export function useIdleStyle(itemId: string | null) {
       typedCatalogViewItem(
         (
           await getIdleStyle({
+            client: apiClient,
             path: { item_id: itemId! },
             responseValidator: undefined,
             throwOnError: true,

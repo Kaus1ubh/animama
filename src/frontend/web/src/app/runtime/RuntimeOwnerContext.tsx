@@ -5,14 +5,22 @@ import {
   ProductRuntimeProvider,
   type ProductDiagnostics,
 } from "@animama/product-ui";
+import type {
+  ProductApiTransport,
+  ProductRuntimeCapabilities,
+} from "@animama/runtime-contracts";
 import { createLogger } from "@/lib/logger";
 import { isWebUiTracingDisabled } from "@/lib/telemetry/enabled";
 import * as metrics from "@/lib/telemetry/metrics";
 import "@animama/product-ui/styles.css";
-export { useRuntimeOwnerId } from "@animama/product-ui";
+export {
+  useRuntimeOwnerId,
+  useRuntimeCacheKey,
+  useProductApiClient,
+} from "@animama/product-ui";
 
 const diagnostics: ProductDiagnostics = { createLogger, ...metrics };
-const capabilities = { chat: true } as const;
+const localCapabilities = { chat: true } as const;
 const localFetch: typeof globalThis.fetch = (input, init) => {
   const request = new Request(input, init);
   const headers = new Headers(request.headers);
@@ -27,9 +35,15 @@ const localFetch: typeof globalThis.fetch = (input, init) => {
 /** Local readiness supplies an owner; the shared package owns no installation policy. */
 export function RuntimeOwnerProvider({
   ownerId,
+  sessionKey = ownerId,
+  transport: suppliedTransport,
+  capabilities = localCapabilities,
   children,
 }: {
   ownerId: string;
+  sessionKey?: string;
+  transport?: ProductApiTransport;
+  capabilities?: ProductRuntimeCapabilities;
   children: ReactNode;
 }) {
   const owner = useMemo(() => ({ id: ownerId }), [ownerId]);
@@ -47,7 +61,8 @@ export function RuntimeOwnerProvider({
     <ProductRuntimeProvider
       owner={owner}
       capabilities={capabilities}
-      transport={transport}
+      transport={suppliedTransport ?? transport}
+      sessionKey={sessionKey}
       diagnostics={diagnostics}
     >
       {children}

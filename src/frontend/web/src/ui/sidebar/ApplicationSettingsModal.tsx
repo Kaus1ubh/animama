@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import {
   useCallback,
   useEffect,
@@ -378,6 +380,8 @@ export function ApplicationSettingsModal({
   open,
   onOpenChange,
 }: ApplicationSettingsModalProps) {
+  const apiClient = useProductApiClient();
+
   const {
     chatMarkdownEnabled,
     setChatMarkdownEnabled,
@@ -429,9 +433,10 @@ export function ApplicationSettingsModal({
   const runtimeCapabilities = useRuntimeCapabilities();
   const parakeetAvailable =
     runtimeCapabilities.data?.offline_speech_enabled ?? null;
-  // The hosted composition reports neither, so Models stays hidden there.
+  // Role choices do not grant provider or search-service administration.
   const {
     modelConfiguration: modelConfigurationEnabled,
+    modelRoleSelection: modelRoleSelectionEnabled,
     webSearchConfiguration: webSearchConfigurationEnabled,
   } = modelSettingsAvailability(runtimeCapabilities.data);
   const initializedForOpenRef = useRef(false);
@@ -592,7 +597,7 @@ export function ApplicationSettingsModal({
 
     void (async () => {
       try {
-        const capabilities = await fetchRuntimeCapabilities();
+        const capabilities = await fetchRuntimeCapabilities(apiClient);
         const resolved = resolvePreferredSttProvider({
           savedProvider: initialSavedSttProvider,
           platform,
@@ -658,7 +663,7 @@ export function ApplicationSettingsModal({
     return () => {
       cancelled = true;
     };
-  }, [open, platform]);
+  }, [apiClient, open, platform]);
 
   // After a search selection renders its section, scroll the setting into
   // view, move focus to its control and briefly highlight the row.
@@ -1162,7 +1167,7 @@ export function ApplicationSettingsModal({
         label: MODEL_DEFAULTS[role].label,
         description: MODEL_DEFAULTS[role].description,
         keywords,
-        hidden: !modelConfigurationEnabled,
+        hidden: !modelRoleSelectionEnabled,
         render: () => <ModelDefaultSetting role={role} disabled={isBusy} />,
       }),
     ),

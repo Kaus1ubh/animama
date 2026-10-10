@@ -6,8 +6,7 @@
 production sampler on `AvatarSample_Y_0` (VRM 0) and `AvatarSample_A_1_New`
 (VRM 1), each with its own fitted hands and solved legs, and exits 1 on any
 FAIL. A 2.0 clip supplies its `contacts`; feet are checked unless it keys its
-legs itself without `plantFeet`. 1.0 clips are checked with planted feet and
-no contacts.
+legs itself without `plantFeet`.
 
 | Category | Means | Typical fix |
 | --- | --- | --- |
@@ -57,7 +56,8 @@ forearm also rests on the body.
 the system browser on both Included Avatars, through the app's own `Avatar`
 playback with the chat canvas lighting: fades, live layers (toggle them off to
 see the clip alone), layer mutes and expression precedence look as they do in
-chat. A source is a clip (2.0 or 1.0), a creator project file, or a Library item
+chat. A source is an `animaPoseClip/2.0` clip, a creator project file, or a
+Library item
 (`library:<folder | selector | name>`, prefixed `included/` or `local/` when
 ambiguous; Local items come from `--local-content <dir>` or the sourced stack
 record). A Library Gesture or Reaction, or a project file, plays its Avatar

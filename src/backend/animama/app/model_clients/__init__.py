@@ -55,6 +55,7 @@ from .types import (
     StaticModelClientRegistry,
     model_client_event_delta,
     model_client_run_status_delta,
+    uses_native_context_compaction,
 )
 
 __all__ = [
@@ -109,4 +110,5 @@ __all__ = [
     "model_client_request_log_context",
     "model_client_run_status_delta",
     "sanitize_model_client_stream_event",
+    "uses_native_context_compaction",
 ]

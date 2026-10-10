@@ -1,5 +1,5 @@
 import type { FormEvent, ReactElement } from "react";
-import { renderToString } from "react-dom/server";
+import { renderToString } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";

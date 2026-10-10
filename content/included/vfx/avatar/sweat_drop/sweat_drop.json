@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:sweat_drop",
+  "version": 1,
+  "name": "Sweat Drop",
+  "description": "A big comic anime sweat drop that pops onto the forehead beside the temple and slowly slides down, for nervous, caught-out or embarrassed moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "forehead",
+      "offset": {
+        "x": 0,
+        "y": 0.015,
+        "z": 0
+      },
+      "position": "right",
+      "rotationDeg": {
+        "x": 0,
+        "y": 0,
+        "z": -12
+      },
+      "scale": {
+        "x": 0.75,
+        "y": 0.75
+      }
+    },
+    "art": {
+      "image": "sweat_drop.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "opacity": 0,
+            "scale": 0.3,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 1.2,
+            "t": 0.12
+          },
+          {
+            "scale": 0.92,
+            "t": 0.24
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "scale": 1,
+            "t": 0.34
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "t": 1
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": -0.008
+            },
+            "t": 1.6
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": -0.008
+            },
+            "t": 2.2
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": -0.016
+            },
+            "t": 3
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": -0.016
+            },
+            "t": 3.4
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": -0.022
+            },
+            "t": 4.2
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "sweat_drop.png",
+      "role": "image"
+    }
+  ]
+}

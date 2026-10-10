@@ -1,3 +1,4 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { editActionEditorSavedPose } from "@/ui/action-editor/actionEditorSavedPose";
@@ -36,14 +37,14 @@ export class PoseEditorSession {
     this.pending = null;
   }
 
-  async load(item: PyPose): Promise<boolean> {
+  async load(apiClient: Client, item: PyPose): Promise<boolean> {
     if (item.item_id !== this.itemId) return false;
     if (this.loaded) return true;
     if (this.pending) return this.pending;
     const generation = this.generation;
     const isCurrent = () =>
       generation === this.generation && item.item_id === this.itemId;
-    const pending = editActionEditorSavedPose(item, { isCurrent })
+    const pending = editActionEditorSavedPose(apiClient, item, { isCurrent })
       .then((loaded) => {
         if (!isCurrent()) return false;
         this.loaded = loaded;

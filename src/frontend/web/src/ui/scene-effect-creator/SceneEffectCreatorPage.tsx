@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+import type { Client } from "@animama/runtime-contracts/sdk";
 import { CreatorTimelineTransport } from "@/ui/content-creator/CreatorTimeline";
 
 import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
@@ -59,7 +61,7 @@ import {
   type SceneEffectEditorSound,
   type SceneEffectTemplateId,
 } from "@/lib/scene-vfx/editor";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { SCENE_BACKGROUND_EMOJI_LINE_ITEMS } from "@/lib/scene-vfx/assets";
 import { buildSceneVFXRuntimeEntry } from "@/lib/scene-vfx/runtime-state";
 import {
@@ -150,7 +152,8 @@ export function SceneEffectCreatorPage({
   templateId?: SceneEffectTemplateId;
 }) {
   const navigate = useNavigate();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
+  const apiClient = useProductApiClient();
   const existingQuery = useSceneEffect(itemId ?? null);
   const {
     present: snapshot,
@@ -249,6 +252,7 @@ export function SceneEffectCreatorPage({
       return;
     }
     void previewCatalogItem(
+      apiClient,
       document.sound.source.catalog_item_id,
       undefined,
       "sound_effect",
@@ -262,7 +266,7 @@ export function SceneEffectCreatorPage({
     return () => {
       cancelled = true;
     };
-  }, [document.sound]);
+  }, [apiClient, document.sound]);
 
   const validation = useMemo(
     () => validateSceneEffectDocument(document, imageResources),
@@ -336,9 +340,15 @@ export function SceneEffectCreatorPage({
     },
     [resetDocument],
   );
+  // The template loader must stay stable, or each render restarts the load.
+  const loadTemplateSeed = useCallback(
+    (id: string, signal: AbortSignal) =>
+      loadSceneEffectTemplate(apiClient, id, signal),
+    [apiClient],
+  );
   const templateStart = useCreatorTemplateStart({
     templateId,
-    loadSeed: loadSceneEffectTemplate,
+    loadSeed: loadTemplateSeed,
     fingerprint: sceneEffectSnapshotFingerprint,
     recoveryReady: contentSave.recoveryReady,
     recoveredDraft: templateDraft,
@@ -385,7 +395,7 @@ export function SceneEffectCreatorPage({
     if (!load) return;
     const controller = new AbortController();
     setHydration({ state: "loading", message: "Loading saved content…" });
-    void hydrateSceneEffect({
+    void hydrateSceneEffect(apiClient, {
       itemId: item.item_id,
       name: item.name,
       description: item.description ?? "",
@@ -420,6 +430,7 @@ export function SceneEffectCreatorPage({
       load.cancel();
     };
   }, [
+    apiClient,
     contentSave.recovered,
     contentSave.recoveryReady,
     existingQuery.data,
@@ -2143,16 +2154,20 @@ function ScenePreviewActor({
   return sceneObject ? <primitive object={sceneObject} dispose={null} /> : null;
 }
 
-async function hydrateSceneEffect(args: {
-  itemId: string;
-  name: string;
-  description: string;
-  signal: AbortSignal;
-}): Promise<{
+async function hydrateSceneEffect(
+  apiClient: Client,
+  args: {
+    itemId: string;
+    name: string;
+    description: string;
+    signal: AbortSignal;
+  },
+): Promise<{
   document: SceneEffectEditorDocument;
   images: SceneEffectEditorImageResource[];
 }> {
   const preview = await previewCatalogItem(
+    apiClient,
     args.itemId,
     args.signal,
     "scene_effect",
@@ -2265,12 +2280,13 @@ function object(value: unknown): Record<string, unknown> | null {
  * named after the template with a name no catalog item uses.
  */
 async function loadSceneEffectTemplate(
+  apiClient: Client,
   templateId: string,
   signal: AbortSignal,
 ): Promise<SceneEffectHistorySnapshot> {
   if (!isSceneEffectTemplateId(templateId))
     throw new Error("This Scene Effect template is unavailable.");
-  const items = await listCatalogItems("scene_effect", signal);
+  const items = await listCatalogItems(apiClient, "scene_effect", signal);
   return {
     document: {
       ...applySceneEffectTemplate(

@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { listCatalogItems } from "@/lib/content/catalogApi";
 import { useContentEditorSaveSource } from "./useContentEditorSaveSource";
@@ -9,7 +9,7 @@ import type {
   PyContentItem,
 } from "@/lib/content/catalogTypes";
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
-  useRuntimeOwnerId: () => "owner",
+  useRuntimeCacheKey: () => "owner",
 }));
 vi.mock("@/lib/content/catalogApi", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/content/catalogApi")>()),
@@ -46,7 +46,7 @@ describe.each([
     expect(await openSession().resolveName("  ", fallback)).toBe(
       `${fallback} 2`,
     );
-    expect(listCatalogItems).toHaveBeenCalledWith(kind);
+    expect(listCatalogItems).toHaveBeenCalledWith(expect.anything(), kind);
   });
 
   it("preserves an explicit name without requiring a catalog lookup", async () => {

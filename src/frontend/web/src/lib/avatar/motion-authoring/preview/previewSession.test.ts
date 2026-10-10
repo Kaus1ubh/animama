@@ -10,7 +10,7 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import type { AnimaPoseClip } from "../../poses/animaPoseClip";
+import type { AnimaPoseClipV2 } from "../../poses/animaPoseClip";
 import type { PreviewMedia } from "./previewMedia";
 import { PreviewSession } from "./previewSession";
 import {
@@ -27,13 +27,13 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-const clip = (duration: number): AnimaPoseClip => ({
-  schema: "animaPoseClip/1.0",
+const clip = (duration: number): AnimaPoseClipV2 => ({
+  schema: "animaPoseClip/2.0",
   id: "nod",
   name: "Nod",
   duration,
-  poses: { rest: { humanoid: { head: { rotation: [0, 0, 0, 1] } } } },
-  poseKeyframes: [{ time: 0, pose: "rest" }],
+  beats: [{ id: "rest", label: "Rest", time: 0 }],
+  rotations: { head: [{ beat: "rest", q: [0, 0, 0, 1] }] },
 });
 
 async function open(sources: [string] | [string, string] = ["nod.clip.json"]) {

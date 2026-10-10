@@ -20,6 +20,7 @@ from animama.domain.content_catalog import (
     VerifiedContentFile,
 )
 from animama.domain.runtime_content_descriptor import RuntimeContentRootSelection
+from tests.content_package_helpers import anima_clip
 
 
 @pytest.mark.asyncio
@@ -27,16 +28,7 @@ from animama.domain.runtime_content_descriptor import RuntimeContentRootSelectio
 async def test_idle_gesture_closure_is_finite_and_separate_from_ai_gestures(gesture_ref: str) -> None:
     from animama.app.services.typed_runtime_projection import project_typed_runtime_catalog
 
-    clip = json.dumps(
-        {
-            "schema": "animaPoseClip/1.0",
-            "id": "breathe",
-            "name": "Breathe",
-            "duration": 3,
-            "poses": {"rest": {}},
-            "poseKeyframes": [{"time": 0, "pose": "rest"}],
-        }
-    ).encode()
+    clip = json.dumps(anima_clip(clip_id="breathe", name="Breathe", duration=3)).encode()
     motion = replace(_file("breathe", "breathe.json", hashlib.sha256(clip).hexdigest(), len(clip)), role="sequence")
     gesture = replace(
         _entry("breathe", files=(motion,)),
@@ -167,16 +159,7 @@ class _Store:
 async def test_idle_gestures_preserve_distinct_authored_config_for_the_same_sound(sound_ref: str) -> None:
     from animama.app.services.typed_runtime_projection import project_typed_runtime_catalog
 
-    clip = json.dumps(
-        {
-            "schema": "animaPoseClip/1.0",
-            "id": "breathe",
-            "name": "Breathe",
-            "duration": 1,
-            "poses": {"rest": {}},
-            "poseKeyframes": [{"time": 0, "pose": "rest"}],
-        }
-    ).encode()
+    clip = json.dumps(anima_clip(clip_id="breathe", name="Breathe", duration=1)).encode()
     sound = replace(
         _entry("bell", kind=ContentKind.SOUND_EFFECT, files=(_file("bell", "bell.wav", "a" * 64),)),
         logical_key="local:sound:bell",

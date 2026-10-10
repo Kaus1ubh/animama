@@ -1,4 +1,4 @@
-"""Filesystem boundary for the readable Included and Local libraries."""
+"""Verified content bytes, with explicit local filesystem extension points."""
 
 from __future__ import annotations
 
@@ -28,40 +28,16 @@ class ContentMutationJournal:
 
 
 class ContentStore(Protocol):
-    """Scan, safely save, and open exact registered local content bytes."""
+    """Verified byte access and publication for one composition-owned namespace.
 
-    def begin_mutation(self, *, operation_id: str, user_id: str, request_digest: str) -> str:
-        """Start recoverable writes after the caller has acquired the Local mutation lock."""
+    Account adapters declare owner_id and scope all locators to that owner;
+    Included is read-only. No locator is a host path. Publication joins the
+    injected ContentMutations transaction and must not expose partial closures.
+    """
 
-        raise NotImplementedError
-
-    def pending_mutations(self) -> tuple[ContentMutationJournal, ...]:
-        """Return unresolved identities for authoritative catalog receipt lookup."""
-
-        raise NotImplementedError
-
-    def finalize_mutation(self, *, journal_id: str, commit: bool, expected_request_digest: str | None = None) -> None:
-        """Finalize matching work, retaining conflicts and leaving newer attempts untouched."""
-
-        raise NotImplementedError
-
-    def recover_mutations(self, *, committed_journal_ids: set[str]) -> None:
-        """Reconcile journals under the Local lock using catalog-confirmed committed identities."""
-
-        raise NotImplementedError
-
-    def retain_transition_originals(
-        self, *, operation_id: str, entry: CatalogContentEntry | None, binding_facts: list[dict[str, Any]]
-    ) -> None:
-        """Keep verified originals outside scanned roots, independently of journal cleanup."""
-
-        raise NotImplementedError
-
-    def scan(self, source: ContentSource) -> list[ScannedContentEntry]:
-        raise NotImplementedError
-
-    def inspect_package_tree(self, root: Path) -> list[ScannedContentEntry]:
-        """Validate an isolated private tree without scanning or mutating installed roots."""
+    @property
+    def restricted_sha256(self) -> frozenset[str]:
+        """Hashes of non-portable bytes that must never enter Local or account content."""
 
         raise NotImplementedError
 
@@ -153,6 +129,45 @@ class ContentStore(Protocol):
 
         raise NotImplementedError
 
+
+class LocalContentStore(ContentStore, Protocol):
+    """Local scanner/journal operations, unnecessary for account byte stores."""
+
+    def begin_mutation(self, *, operation_id: str, user_id: str, request_digest: str) -> str:
+        """Start recoverable writes after the caller has acquired the Local mutation lock."""
+
+        raise NotImplementedError
+
+    def pending_mutations(self) -> tuple[ContentMutationJournal, ...]:
+        """Return unresolved identities for authoritative catalog receipt lookup."""
+
+        raise NotImplementedError
+
+    def finalize_mutation(self, *, journal_id: str, commit: bool, expected_request_digest: str | None = None) -> None:
+        """Finalize matching work, retaining conflicts and leaving newer attempts untouched."""
+
+        raise NotImplementedError
+
+    def recover_mutations(self, *, committed_journal_ids: set[str]) -> None:
+        """Reconcile journals under the Local lock using catalog-confirmed committed identities."""
+
+        raise NotImplementedError
+
+    def retain_transition_originals(
+        self, *, operation_id: str, entry: CatalogContentEntry | None, binding_facts: list[dict[str, Any]]
+    ) -> None:
+        """Keep verified originals outside scanned roots, independently of journal cleanup."""
+
+        raise NotImplementedError
+
+    def scan(self, source: ContentSource) -> list[ScannedContentEntry]:
+        raise NotImplementedError
+
+    def inspect_package_tree(self, root: Path) -> list[ScannedContentEntry]:
+        """Validate an isolated private tree without scanning or mutating installed roots."""
+
+        raise NotImplementedError
+
     def recover_package_installs(self) -> None:
         """Compensate interrupted package promotions before the first scan."""
 
@@ -164,4 +179,4 @@ class ContentStore(Protocol):
         raise NotImplementedError
 
 
-__all__ = ["ContentMutationJournal", "ContentStore"]
+__all__ = ["ContentMutationJournal", "ContentStore", "LocalContentStore"]

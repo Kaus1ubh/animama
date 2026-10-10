@@ -511,6 +511,29 @@ describe("runtime supervision", () => {
   });
 
   it.each([false, true])(
+    "mounts the bundled Mixamo-motion pack only when it was staged (%s)",
+    async (staged) => {
+      const current = create();
+      if (staged)
+        mkdirSync(
+          path.join(current.options.runtimeRoot, "content/mixamo-motion"),
+          { recursive: true },
+        );
+      await current.runtime.start();
+      const backend = fixture.launches
+        .filter((child) => child.name === "fastapi")
+        .at(-1)!;
+      const sources = JSON.parse(
+        backend.env.ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON,
+      ) as { id: string; pack_id: string | null }[];
+      expect(sources[0].id).toBe("core");
+      expect(sources.some((source) => source.pack_id === "mixamo-motion")).toBe(
+        staged,
+      );
+    },
+  );
+
+  it.each([false, true])(
     "quiesces the renderer and keeps the saved origin through removal (rollback=%s)",
     async (fail) => {
       const current = create();

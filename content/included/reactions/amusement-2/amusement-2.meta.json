@@ -15,15 +15,15 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:mouth_w",
-      "alias": "mouth_w",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:particle-effect:stars",
       "alias": "stars",
       "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:eye_vv",
+      "alias": "eye_vv",
+      "content_type": "avatar_effect",
       "config": {}
     }
   ],

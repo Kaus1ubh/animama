@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from io import BytesIO
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 from zipfile import ZipFile
@@ -25,6 +25,7 @@ from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlch
 from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import SQLAlchemyAnimaPackageSourceRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.model_catalog import serialize_builtin_model_connections
+from animama.app.ports.content_store import LocalContentStore
 from animama.app.services.anima_aggregate_materializer import AnimaAggregateMaterializer
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.content_catalog_service import ContentCatalogService
@@ -47,7 +48,7 @@ from animama.orm.model_provider import ORMModelProvider
 from animama.server.config import Settings
 from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
 from tests.anima_creation_service_support import anima_creation_fixture, vrm, write_file, write_json
-from tests.content_package_helpers import reviewed_import
+from tests.content_package_helpers import anima_clip, reviewed_import
 from tests.migration_database_helpers import migrated_database, migration_postgres  # noqa: F401
 from tests.test_content_gltf import _fixture_document, _glb_source
 
@@ -103,15 +104,9 @@ async def _sender(session: AsyncSession, root: Path) -> AsyncIterator[_Installat
         write_file(local / "avatars/local-avatar.vrm", vrm("Original cross-installation avatar"))
         gltf, binary = _fixture_document(buffer_uri=None)
         write_file(local / "gestures/wave/motion.vrma", _glb_source(gltf, binary))
-        clip = {
-            "schema": "animaPoseClip/1.0",
-            "id": "nod",
-            "name": "Nod",
-            "duration": 1,
-            "poses": {"turn": {"humanoid": {"head": {"rotationEulerDegrees": [0, 15, 0]}}}},
-            "poseKeyframes": [{"time": 0, "pose": "turn"}],
-            "events": [{"id": "tone", "time": 0, "kind": "sfx", "cueId": "chime"}],
-        }
+        clip = anima_clip(
+            clip_id="nod", name="Nod", events=[{"id": "tone", "time": 0, "kind": "sfx", "cueId": "chime"}]
+        )
         for kind, name in (("gesture", "nod"), ("reaction", "joy-2")):
             directory = local / f"{kind}s/{name}"
             (directory / "motion.vrma").unlink(missing_ok=True)
@@ -530,7 +525,7 @@ async def test_full_anima_transfer_preserves_images_privacy_copy_isolation_and_r
                 patch.setattr(receiver.content.mutations.store, "finalize_mutation", lose_finalization)
             second = await receiver.packages.imports.commit(**second_command)
         if existing:
-            assert receiver.content.mutations.store.pending_mutations()
+            assert cast(LocalContentStore, receiver.content.mutations.store).pending_mutations()
         assert second.anima_id not in {first.anima_id, source_id, existing_id}
         assert {item.item_id for item in first.items}.isdisjoint(item.item_id for item in second.items)
         receiver.packages.stages.discard(receiver.owner, second_command["stage_id"])
@@ -548,7 +543,7 @@ async def test_full_anima_transfer_preserves_images_privacy_copy_isolation_and_r
             await restarted.content.rescan(user_id=receiver.owner)
             assert await restarted.packages.imports.commit(**first_command) == first
             assert await restarted.packages.imports.commit(**second_command) == second
-            assert not restarted.content.mutations.store.pending_mutations()
+            assert not cast(LocalContentStore, restarted.content.mutations.store).pending_mutations()
             assert sound_path.read_bytes() == original_sound[:-2] + b"\x02\x00"
             changed = await restarted.catalog.get_visible_item(item_id=sound_id, user_id=receiver.owner)
             assert (

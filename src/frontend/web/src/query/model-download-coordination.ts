@@ -1,3 +1,4 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
 import type { QueryClient } from "@tanstack/react-query";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 import { listModelAssetsV1ModelAssetsGet } from "@animama/runtime-contracts/sdk";
@@ -57,11 +58,13 @@ export async function loadNativePackSnapshot(
   return { available: true, packs, transitioning: status.state !== "ready" };
 }
 export async function loadModelAssets(
+  apiClient: Client,
   client: QueryClient,
   owner: string,
   signal?: AbortSignal,
 ) {
   const { data } = await listModelAssetsV1ModelAssetsGet({
+    client: apiClient,
     signal,
     throwOnError: true,
   });
@@ -88,6 +91,7 @@ export async function assertAssetInstallAllowed(
     throw new Error(PACK_WORK_BLOCKS_ASSET);
 }
 export async function assertPackTransitionAllowed(
+  apiClient: Client,
   client: QueryClient,
   owner: string,
   desktop: AnimamaDesktopBridge | null,
@@ -103,7 +107,7 @@ export async function assertPackTransitionAllowed(
     throw new Error("Feature packs are unavailable in this window.");
   if (snapshot.transitioning || snapshot.packs.some(packIsBusy))
     throw new Error(PACK_WORK_BLOCKS_ASSET);
-  const assets = await loadModelAssets(client, owner);
+  const assets = await loadModelAssets(apiClient, client, owner);
   client.setQueryData(queryKeys.modelAssets(owner), assets);
   if (
     assets.assets.some((asset) => asset.status === "downloading") ||

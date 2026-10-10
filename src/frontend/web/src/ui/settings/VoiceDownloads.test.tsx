@@ -1,5 +1,5 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 import {
   OfflineSpeechDownloads,
@@ -16,6 +16,11 @@ const manager = vi.hoisted(() => ({
   mutate: vi.fn(),
   blockedReason: null as string | null,
   offered: true,
+  /** Local runtimes administer their own model installation. */
+  capabilities: {
+    offline_speech_enabled: false,
+    local_filesystem_administration: true,
+  } as Record<string, unknown>,
 }));
 
 vi.mock("@/lib/speech/client-parakeet/assets", async (importOriginal) => ({
@@ -38,14 +43,16 @@ vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
     remove: manager.mutate,
   }),
 }));
-vi.mock("@/query/hooks/useModelAssets", () => ({
+vi.mock("@/query/hooks/useModelAssets", async (importOriginal) => ({
+  // The real operator-managed check reads the mocked runtime capabilities.
+  ...(await importOriginal<typeof import("@/query/hooks/useModelAssets")>()),
   useModelAssets: () => ({
     data: { assets: manager.assets, free_bytes: 40 * 1024 ** 3 },
     retryAssetIds: manager.retryAssetIds,
   }),
 }));
 vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
-  useRuntimeCapabilities: () => ({ data: { offline_speech_enabled: false } }),
+  useRuntimeCapabilities: () => ({ data: manager.capabilities }),
 }));
 vi.mock("@/query/mutations/useModelAssetActions", () => ({
   useModelAssetAction: () => ({
@@ -333,5 +340,83 @@ describe("optional speech synthesis downloads", () => {
     expect(html()).toMatch(
       /<button(?![^>]*disabled="")[^>]*>Cancel download<\/button>/u,
     );
+  });
+});
+
+describe("operator-managed speech models", () => {
+  const encoder = set("pocket-tts-voice-cloning-encoder", 39_768_446);
+  const managedNote = "Speech models are managed by the hosted operator.";
+  beforeEach(() => {
+    manager.offered = true;
+    manager.retryAssetIds = new Set();
+    manager.blockedReason = null;
+    // Hosted runtimes provision models; install and removal are refused.
+    manager.capabilities = {
+      offline_speech_enabled: true,
+      offline_speech_asset_version: "fixture",
+      local_filesystem_administration: false,
+    };
+  });
+  afterEach(() => {
+    manager.capabilities = {
+      offline_speech_enabled: false,
+      local_filesystem_administration: true,
+    };
+  });
+
+  it("shows provided and missing Parakeet sets without download or removal", () => {
+    const html = view({
+      cpu: { ...cpu, status: "installed" },
+      gpu,
+      gpuSupport: "available",
+      operatorManaged: true,
+    });
+    expect(html).toContain(managedNote);
+    expect(html).toContain("CPU model");
+    expect(html).toContain("Installed");
+    expect(html).toContain("Not available");
+    expect(html).not.toContain("<button");
+    // No download size or install prerequisite is offered.
+    const missing = view({ gpuSupport: "unsupported", operatorManaged: true });
+    expect(missing).toContain("Not available");
+    for (const markup of [html, missing])
+      expect(markup).not.toMatch(
+        /B download|Download the CPU model first|WebGPU is not available/,
+      );
+  });
+
+  it("derives the managed state from the runtime in Settings", () => {
+    manager.assets = [{ ...cpu, status: "installed" }, gpu];
+    const html = renderToStaticMarkup(
+      <VoiceDownloads section="speech-to-text" />,
+    );
+    expect(html).toContain(managedNote);
+    expect(html).not.toContain("<button");
+  });
+
+  it.each([
+    ["installed", "Installed · Saved clones work without this model."],
+    ["not_installed", "Not available"],
+  ] as const)(
+    "shows a %s voice cloning model without download or removal",
+    (status, text) => {
+      manager.assets = [{ ...encoder, status }];
+      const html = renderToStaticMarkup(
+        <VoiceDownloads section="voice-clone" />,
+      );
+      expect(html).toContain(text);
+      expect(html).toContain(managedNote);
+      expect(html).not.toContain("<button");
+      expect(manager.mutate).not.toHaveBeenCalled();
+    },
+  );
+
+  it("keeps self-hosted download actions", () => {
+    manager.capabilities = { local_filesystem_administration: true };
+    manager.assets = [cpu, gpu, encoder];
+    const html = renderToStaticMarkup(<VoiceDownloads />);
+    expect(html).not.toContain(managedNote);
+    expect(html).toContain("Download CPU model");
+    expect(html).toContain("Download voice cloning");
   });
 });

@@ -2631,7 +2631,8 @@ owner's live smoke establishes acceptance.
      secrets file and compose.
    - Cover the moderation gap, the fence, search billing and **Compact early**.
 2. **ADRs.**
-   - New ADR 0016 "Native Anthropic Messages provider" records:
+   - New ADR 0019 "Native Anthropic Messages provider" (drafted as 0016 and
+     renumbered when main added ADRs 0016–0018) records:
      - the reversal of #165's exclusion;
      - the Client SDK over the Agent SDK;
      - native features under ADR 0011.
@@ -2671,7 +2672,8 @@ Implementation:
   - `tests/live/README.md` and `src/backend/AGENTS.md`;
   - `prompt-caching.md`: final measurements by the coordinator.
 - **ADRs:**
-  - new ADR 0016, "Native Anthropic Messages provider";
+  - new ADR 0019, "Native Anthropic Messages provider" (drafted as 0016;
+    renumbered after merging main);
   - ADR 0008 amended for the guardrail placement (D20/D21);
   - both indexed in the ADR README.
 - **Glossary:** "Model connection" extended (D1), and "Application web search"
@@ -2959,6 +2961,60 @@ ORM. When it adopts this release, it needs a hosted migration for the new
 `early_compaction` column (Phase 3). Record that in the PR. No change is needed
 here.
 
+#### Merge with main (2026-10-09)
+
+Before the final review, `origin/main` (`1470e675`, 176 commits past
+`2b546185`) was merged into the branch with an ordinary merge commit.
+
+Conflicts resolved:
+
+- **Contracts:** main moved `PyModelProviderCatalogItem` to
+  `app/contracts/model_provider.py`, which now carries
+  `default_reasoning_effort`. `server/schemas/model_provider.py` is main's
+  re-export. `model_configuration.py` keeps both main's contract imports and
+  `OwnerModelProviderType`.
+- **ADR numbering:** main added ADRs 0016–0018, so the Anthropic ADR is
+  renumbered 0019, along with its links, ADR 0008's amendment pointer and the
+  index.
+- **Native compaction:** main's `uses_native_context_compaction` replaces the
+  executor's provider-type check, and the Anthropic client reports
+  `native_context_compaction`. The post-response compaction skip keeps
+  `NATIVE_COMPACTION_PROVIDERS`.
+- **Memory Manager:** main's hosted `_turn_limit` cap wraps the shared
+  `max_turns_for_run`, and the D24 resume budget uses it too.
+- **Responses:** main's `spec.limits` payload fields are combined with the
+  branch's stable-instruction layout.
+- **`ModelClientFinal`:** keeps `continuation`, `replay_prefix` and main's
+  `usage_reported`. `event_summary` uses `replace`, which preserves all of
+  them. The Anthropic final reports `usage_reported`.
+- **Failure copy:** `chat-failure.ts` keeps both the Anthropic codes and main's
+  hosted denials.
+- **Search availability:** main's runtime-field rule is kept, with Anthropic
+  rows excluded.
+- **Docs and tests:** chat docs and executor tests are combined.
+- **Setup:** main removed the setup model radio group; the last setup choice
+  wins. D25 is rebuilt on that design by a delegated agent:
+  - an Anthropic tab beside OpenAI, with its own key panel on desktop and the
+    `ANTHROPIC_API_KEY` line on web;
+  - saving the Anthropic key during setup chooses Haiku 5.5 when the built-in
+    connection and visible row exist;
+  - main's rules hold for both providers: the last choice wins, and a key that
+    was already set chooses nothing;
+  - main's "first built-in connection" lookup now finds each connection by
+    preset;
+  - unit and browser tests cover all of this, including last-wins ordering
+    against OpenAI and added models;
+  - the setup docs are updated.
+
+Merge follow-ups found by inspection:
+
+- The Anthropic client now honours main's composition `ModelCallLimits`:
+  `max_tokens` and web search `max_uses` are capped, the limits' timeout is
+  used, and a bounded request is never retried. Tests were written first. The
+  hosted policy still offers no Anthropic rows.
+- Main's `griffe` 2.1 upgrade needed a package reinstall in the task venv; no
+  tracked change.
+
 ## Validation and acceptance
 
 | Spec criterion | Evidence | Phase |
@@ -2976,7 +3032,7 @@ here.
 | Owner-added `claude-sonnet-5-5` row works | probe test; smoke | 3, 8, 9 |
 | Hosted composition unchanged | default-policy tests | 3 |
 | Guardrails last and unchanged; stable prefix per path | exact-prompt and stability tests | 4, 5 |
-| Caching recommendation documented; ADR 0008 amended if departed | review; owner decision; ADR 0008 amended, ADR 0016 | 2, 9 |
+| Caching recommendation documented; ADR 0008 amended if departed | review; owner decision; ADR 0008 amended, ADR 0019 | 2, 9 |
 | Cached share does not fall on any path, rises where layout caused misses | harness before and after | 1, 4, 9 |
 | Effort defaults and Anthropic phrasing | request tests; prompt review; smoke | 5, 7, 9 |
 | Docs and ADRs | review | 9 |

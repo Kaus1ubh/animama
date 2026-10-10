@@ -13,7 +13,8 @@ target.
 ## Run from source
 
 Starter companions use the shipped authored gestures and reactions and need no
-Mixamo animations. The [optional Local installer](docs/frontend/runtime/mixamo-acquisition.md)
+Mixamo animations. Desktop and hosted builds add Mixamo motion only as a
+private, non-portable pack; it is never part of this source. The [optional Local installer](docs/frontend/runtime/mixamo-acquisition.md)
 can add your converted Mixamo motions to your ignored library. Download and
 conversion remain manual.
 

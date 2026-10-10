@@ -54,7 +54,8 @@ Editing opens `/poses/$poseId/edit` with the
 existing Pose controls and an isolated Avatar, without creating a Gesture or
 replacing a suspended clip draft. Included customization creates a new Local
 identity; it never changes the starter. The five starter Poses are Relaxed Rest,
-Shy Finger Poke 1 and 2, and Thinking Head Scratch 1 and 2. Poses have no Add/Manage
+Shy Finger Poke 1 and 2, and Thinking Head Scratch 1 and 2; the other Included
+Poses are the hand-made poses the Included Gestures were built from. Poses have no Add/Manage
 equipment action; only Local poses offer deletion in the creator load panel.
 
 Avatar rows use `/v1/avatar-catalog`, which joins Avatar metadata to a valid
@@ -63,6 +64,18 @@ generated portrait (never an Anima's custom profile picture), falling back to an
 icon when unavailable. Preview resolves registered VRM bytes; Create Anima hands
 the Avatar to Anima creation. Entries without model files are omitted; reference-safe seed reconciliation
 preserves records needed by Animas.
+
+Some Included content is **non-portable**: it plays, previews and can be
+equipped, but never leaves the app as files. Its Gesture and Reaction rows show
+**Not editable** in place of Edit; its tooltip, and a description read by
+screen readers, give the reason.
+It opens a preview-only page, with the reason in text, instead of the editor; the
+same page appears for its creator URL. Its Starter is not offered for
+customization. A non-portable Idle Style can still be duplicated
+into a Local style, because a style stores only references to Gestures. There
+is no visible badge. See the backend
+[non-portable content](../../backend/features/typed-content-and-marketplace.md#non-portable-content)
+rules.
 
 Chat Uploads remain separate. They use `/v1/files`, private `data/` storage,
 processing status, and retrieval diagnostics. They never enter the Content
@@ -142,9 +155,9 @@ trigger repeated list fetches. Valid manual files become selectable but never
 auto-equip. Invalid or missing entries remain inert with discreet diagnostics and
 a Retry scan action.
 
-Music and standalone Pose Clips are not supported Library items. Existing Action
-clip references are converted to Action-owned sequences while preserving original
-files. Static Poses and Creator Clip/project JSON import/export remain available.
+Music and standalone Pose Clips are not supported Library items. An Action that
+still references a retired Pose Clip is listed with an unsupported-clip-format
+diagnostic. Static Poses and Creator Clip/project JSON import/export remain available.
 
 ## Import / Export
 
@@ -160,7 +173,9 @@ separately from selected items in the count and size summary. Review the exact
 package before **Download package**. Missing or changed sources require another
 review; an expired export can be prepared again from the retained selection.
 Downloaded filenames use the installation owner's display name (or `content`
-when unavailable), followed by a UTC timestamp.
+when unavailable), followed by a UTC timestamp. Non-portable items are listed
+but cannot be selected. A review lists any non-portable items the package leaves
+out, for example Gestures pooled by a selected Idle Style.
 
 In Anima mode, choose a saved companion and review its full identity and selected
 content before **Export Anima**. The package includes its name, identity, Avatar,
@@ -178,7 +193,10 @@ its destination names. **Import N items** or **Import Anima** installs the whole
 reviewed package. All required content becomes independent editable Local copies,
 even when identical content already exists. Name collisions, including Included
 names, receive `-2`, `-3` and later suffixes; existing items are never replaced.
-A destination change requires a fresh review. An Anima import also creates a new
+A destination change requires a fresh review. Items the sender left out because
+they are non-portable are listed with their outcome: **Uses this app's copy**
+when this installation has the same item, or **Not available here** when the
+slot falls back to its default. An Anima import also creates a new
 companion in the same operation. Completion offers **View in Library** or
 **Open Anima**; acknowledging it releases temporary upload data.
 

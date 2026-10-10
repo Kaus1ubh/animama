@@ -90,6 +90,16 @@ class AnthropicMessagesModelClient:
         self._client_factory = client_factory or anthropic_sdk_client
         self._clients: dict[tuple[str, float | None], Any] = {}
 
+    @property
+    def native_context_compaction(self) -> bool:
+        """Chat requests always ask Anthropic to compact a long prompt (D4).
+
+        Read through ``uses_native_context_compaction``: the direct-chat
+        executor therefore does not fit Anthropic prompts to the window itself.
+        """
+
+        return True
+
     async def stream(self, spec: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
         """Stream one round of a turn as provider-neutral deltas.
 
@@ -125,6 +135,9 @@ class AnthropicMessagesModelClient:
                 },
             )
         timeout = connection.timeout_seconds if connection.timeout_seconds is not None else self._timeout
+        if spec.limits is not None:
+            # A bounded invocation uses the composition's timeout and is never retried here.
+            timeout = spec.limits.timeout_seconds
         client = self._client_for(credential.api_key, timeout)
         params = messages_request_params(spec)
         metadata: dict[str, Any] = {"provider": ANTHROPIC_MESSAGES_HTTP_PROVIDER_TYPE, "api": ANTHROPIC_API}
@@ -165,7 +178,9 @@ class AnthropicMessagesModelClient:
                 raise
             except anthropic.AnthropicError as exc:
                 info = classify_anthropic_exception(exc, model=model)
-                if should_retry_anthropic_error(info, attempt=attempt, output_started=text_seen):
+                if spec.limits is None and should_retry_anthropic_error(
+                    info, attempt=attempt, output_started=text_seen
+                ):
                     _log.warning(
                         "Anthropic Messages stream retrying after provider error",
                         **model_client_request_log_context(spec),
@@ -258,6 +273,7 @@ class AnthropicMessagesModelClient:
             final=ModelClientFinal(
                 text=parts.text,
                 usage=parts.usage,
+                usage_reported=parts.usage_reported,
                 raw_provider_metadata=metadata,
                 tool_calls=parts.tool_calls,
                 continuation=(

@@ -32,13 +32,17 @@ when its runtime capability is available.
 ### Optional offline speech models
 
 The embedded core does not contain Parakeet weights. On packaged desktop and
-built self-host, setup and App Settings → Voice show one
-`OfflineSpeechDownloads` block: the CPU model (`parakeet-stt`) and its GPU
-acceleration add-on (`parakeet-stt-webgpu`), installed in place through the
-backend [model assets](../../backend/architecture/http-api.md#model-assets)
-with sizes, progress, cancel, retry and removal. The add-on is always shown;
-when it cannot be installed (CPU model missing, no WebGPU adapter, or not in
-this build) its action is disabled with the reason. Every download can be
+built self-host, App Settings → Voice shows one `OfflineSpeechDownloads` block:
+the CPU model (`parakeet-stt`) and its GPU acceleration add-on
+(`parakeet-stt-webgpu`), installed in place through the backend
+[model assets](../../backend/architecture/http-api.md#model-assets) with sizes,
+progress, cancel, retry, removal and the GPU set's attribution. The add-on is
+always shown; when it cannot be installed (CPU model missing, no WebGPU adapter,
+or not in this build) its action is disabled with the reason. Setup's Voice step
+shows the same two sets as "Parakeet (CPU, size)" and "Parakeet (GPU, size)"
+tabs (`SetupSpeechDownloads`, sharing `useOfflineSpeechDownloads`) with a
+WebGPU ✓/✗ check; asking for the GPU set first says to download the CPU
+version. Removal and attribution stay in App Settings. Every download can be
 skipped; downloads do not change provider or voice selection. Vite
 development serves the operator's host sets and shows no downloads.
 `GET /v1/runtime-capabilities` supplies `offline_speech_enabled` and nullable
@@ -890,6 +894,12 @@ Realtime models receive an SSE-provided single-use token and open a direct
 provider WebSocket. Setup waits at most 1500 ms for the session event; failures
 stop audio for that run while chat continues. Eleven v3 receives finalized PCM
 through `tts.audio` on the chat stream instead.
+
+A hosted server can decline a run's ElevenLabs speech with
+`speech_allowance_exhausted` (an exhausted voice allowance). Where Pocket TTS is
+supported, `fallBackToPocketTts` then speaks that run as a Pocket run, with the
+same voice resolution and no notice, and later runs return to ElevenLabs. See the
+[hosted contract](../../../contracts/hosted-web.md#realtime-speech-session-descriptor).
 
 See [ElevenLabs TTS](elevenlabs-tts.md) for session setup, model-specific batching,
 settings, audio events and playback timing. The [chat contract](chat.md#main-structured-response-mode)

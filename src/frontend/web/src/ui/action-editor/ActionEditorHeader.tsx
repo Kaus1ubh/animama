@@ -83,7 +83,6 @@ import {
   actionJsonFilename,
   unresolvedActionReferences,
 } from "./actionProject";
-import { savedActionSequence } from "./actionPersistence";
 import { useActionEditorWorkspace } from "./ActionEditorWorkspaceContext";
 import type { ActionEditorMode } from "./actionEditorCapabilities";
 
@@ -943,8 +942,8 @@ function ActionImportDialog({
         <DialogHeader className="border-border border-b px-5 py-4 pr-12">
           <DialogTitle>Import</DialogTitle>
           <DialogDescription>
-            Open an animaPoseClip/2.0 or 1.0 file directly or restore an Animama
-            typed project with exact dependency pins.
+            Open an animaPoseClip/2.0 file directly or restore an Animama typed
+            project with exact dependency pins.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4 overflow-y-auto p-4 sm:p-5">
@@ -1112,13 +1111,7 @@ function ActionJsonDialog({
     try {
       return JSON.stringify(
         kind === "clip"
-          ? workspace.document.implementation === "anima_clip"
-            ? // The clip as Save writes it (2.0).
-              savedActionSequence(
-                workspace.document.sequence,
-                workspace.document.intent,
-              )
-            : workspace.document.sequence
+          ? workspace.document.sequence
           : createActionProject(workspace.document),
         null,
         2,

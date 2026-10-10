@@ -110,7 +110,7 @@ it does not author clip events or dependencies.
 
 ## Clip Events
 
-`animaPoseClip/1.0` and `animaPoseClip/2.0` support timed particle events:
+`animaPoseClip/2.0` clips support timed particle events:
 
 ```json
 {

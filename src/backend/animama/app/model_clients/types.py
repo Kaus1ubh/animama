@@ -10,6 +10,7 @@ from animama.domain.model_provider import ModelProvider
 from animama.domain.usage import Usage
 
 from .event_types import MCEvent
+from .limits import ModelCallLimits
 
 if TYPE_CHECKING:
     from .prompt import DirectChatPrompt
@@ -136,6 +137,8 @@ class ModelClientFinal:
     input_moderation: ModelClientModeration | None = None
     continuation: ModelClientContinuation | None = None
     replay_prefix: tuple[Mapping[str, Any], ...] = ()
+    usage_reported: bool = False
+    """True only for provider-reported usage, never estimates or default zero."""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "raw_provider_metadata", _frozen_mapping(self.raw_provider_metadata))
@@ -330,6 +333,7 @@ class ModelClientRequest:
     prompt: DirectChatPrompt
     provider_options: ModelClientProviderOptions = field(default_factory=ModelClientProviderOptions)
     continuation: ModelClientContinuation | None = None
+    limits: ModelCallLimits | None = None
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "provider_options", ModelClientProviderOptions.from_value(self.provider_options))
@@ -356,6 +360,20 @@ class ModelClientWithComplete(ModelClient, Protocol):
 
     async def complete(self, request: ModelClientRequest) -> ModelClientFinal:
         raise NotImplementedError
+
+
+def uses_native_context_compaction(client: object) -> bool:
+    """Return whether ``client`` asks its provider to compact long prompts itself.
+
+    Such a client (OpenAI Responses with a compaction threshold) keeps prompts
+    within the model's window on the provider side. For every other client the
+    application fits prompts to the row's context window. Clients opt in with a
+    ``native_context_compaction`` property that is ``True``; wrappers forward
+    the wrapped client's value. The capability is optional, so it is not part
+    of the runtime-checkable ``ModelClient`` protocol.
+    """
+
+    return getattr(client, "native_context_compaction", False) is True
 
 
 class ModelClientRegistry(Protocol):
@@ -412,4 +430,5 @@ __all__ = [
     "StaticModelClientRegistry",
     "model_client_event_delta",
     "model_client_run_status_delta",
+    "uses_native_context_compaction",
 ]

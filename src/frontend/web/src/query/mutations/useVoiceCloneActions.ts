@@ -1,3 +1,5 @@
+import { useProductApiClient } from "@animama/product-ui";
+import type { Client } from "@animama/runtime-contracts/sdk";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 import {
@@ -5,7 +7,7 @@ import {
   getContentItemV1ContentItemsItemIdGet,
   saveVoiceContent,
 } from "@animama/runtime-contracts/sdk";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
 import {
   loadVoiceCloneFile,
@@ -16,13 +18,16 @@ import {
 } from "@/lib/speech/pocket/voice-clones";
 import { queryKeys } from "@/query/keys";
 import { invalidateVoiceCloneConsumers } from "@/query/animaLoadoutInvalidation";
+import { sdkResultError } from "@/query/sdkResultError";
 
 /** Save captured bytes and identity unchanged; callers retain the prepared value for retries. */
 export async function savePreparedVoiceClone(
+  apiClient: Client,
   input: PreparedVoiceClone,
 ): Promise<PyVoiceContent> {
   try {
     const result = await saveVoiceContent({
+      client: apiClient,
       path: { entry_name: input.entryName },
       body: {
         operation_id: input.operationId,
@@ -39,7 +44,9 @@ export async function savePreparedVoiceClone(
       throwOnError: false,
     });
     if (result.error !== undefined || !result.data) {
-      throw toVoiceCloneError(result.error, result.response.status);
+      throw sdkResultError(result, (status, error) =>
+        toVoiceCloneError(error, status),
+      );
     }
     return result.data;
   } catch (error) {
@@ -58,19 +65,23 @@ function requireEditableClone(clone: PyVoiceContent) {
 }
 
 /** Rename through typed Save, retaining the encoded catalog, optional original and provenance. */
-export async function renameSavedVoiceClone({
-  clone,
-  name,
-  operationId = crypto.randomUUID(),
-}: {
-  clone: PyVoiceContent;
-  name: string;
-  operationId?: string;
-}): Promise<PyVoiceContent> {
+export async function renameSavedVoiceClone(
+  apiClient: Client,
+  {
+    clone,
+    name,
+    operationId = crypto.randomUUID(),
+  }: {
+    clone: PyVoiceContent;
+    name: string;
+    operationId?: string;
+  },
+): Promise<PyVoiceContent> {
   requireEditableClone(clone);
   const displayName = voiceCloneName(name);
   try {
     const { data: current } = await getContentItemV1ContentItemsItemIdGet({
+      client: apiClient,
       path: { item_id: clone.item_id },
       responseValidator: undefined,
       throwOnError: true,
@@ -99,12 +110,12 @@ export async function renameSavedVoiceClone({
     const retainedFiles = await Promise.all(
       files.map(
         async (file) =>
-          new File([await loadVoiceCloneFile(file)], file.filename, {
+          new File([await loadVoiceCloneFile(apiClient, file)], file.filename, {
             type: file.media_type,
           }),
       ),
     );
-    return await savePreparedVoiceClone({
+    return await savePreparedVoiceClone(apiClient, {
       entryName: current.relative_locator.split("/").at(-1) || clone.item_id,
       operationId,
       catalogItemId: clone.item_id,
@@ -126,18 +137,22 @@ export async function renameSavedVoiceClone({
 
 /** The server guards both stale revisions and references from any Anima. */
 export async function deleteSavedVoiceClone(
+  apiClient: Client,
   clone: PyVoiceContent,
 ): Promise<void> {
   requireEditableClone(clone);
   try {
     const result = await deleteContentItemV1ContentItemsItemIdDelete({
+      client: apiClient,
       path: { item_id: clone.item_id },
       query: { expected_revision: clone.revision_sha256 },
       responseValidator: undefined,
       throwOnError: false,
     });
     if (result.error !== undefined) {
-      throw toVoiceCloneError(result.error, result.response.status);
+      throw sdkResultError(result, (status, error) =>
+        toVoiceCloneError(error, status),
+      );
     }
   } catch (error) {
     throw toVoiceCloneError(error);
@@ -146,7 +161,9 @@ export async function deleteSavedVoiceClone(
 
 /** Shared library mutations never equip a clone or change provider preferences. */
 export function useVoiceCloneActions() {
-  const owner = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const owner = useRuntimeCacheKey();
   const client = useQueryClient();
   const refresh = async () => {
     if (!owner) return;
@@ -157,12 +174,12 @@ export function useVoiceCloneActions() {
   };
   return {
     saveVoiceClone: useMutation({
-      mutationFn: savePreparedVoiceClone,
+      mutationFn: savePreparedVoiceClone.bind(null, apiClient),
       onSuccess: refresh,
     }),
     renameVoiceClone: useMutation({
-      mutationFn: renameSavedVoiceClone,
-      onSuccess: async (clone) => {
+      mutationFn: renameSavedVoiceClone.bind(null, apiClient),
+      onSuccess: async (clone: PyVoiceContent) => {
         await Promise.all([
           refresh(),
           owner
@@ -172,7 +189,7 @@ export function useVoiceCloneActions() {
       },
     }),
     deleteVoiceClone: useMutation({
-      mutationFn: deleteSavedVoiceClone,
+      mutationFn: deleteSavedVoiceClone.bind(null, apiClient),
       onSuccess: refresh,
     }),
   };

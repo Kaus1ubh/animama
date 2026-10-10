@@ -91,6 +91,33 @@ describe("web search availability", () => {
     expect(selectableNativeTools(toolRow, undefined)).toEqual([]);
   });
 
+  it("offers search an operator configured where the owner cannot configure it", () => {
+    // Hosted: the operator provisions the backend; the owner has no settings.
+    const operatorSearch = {
+      configuration: false,
+      configured: true,
+      backend: "brave",
+      credential_state: "configured",
+    } as const;
+    expect(webSearchAvailability(toolRow, operatorSearch)).toEqual({
+      state: "application",
+    });
+    expect(selectableNativeTools(toolRow, operatorSearch)).toEqual([
+      "web_search",
+    ]);
+    expect(webSearchAvailability(noToolRow, operatorSearch)).toEqual({
+      state: "unavailable",
+      reason: "This model can't call tools, so it can't search.",
+    });
+    // A missing operator key is not something the owner can fix in settings.
+    expect(
+      webSearchAvailability(toolRow, {
+        ...operatorSearch,
+        credential_state: "missing",
+      }),
+    ).toBeNull();
+  });
+
   it("turns search on or off without touching other tools or an empty choice", () => {
     expect(withWebSearch(["code_interpreter"], true)).toEqual([
       "code_interpreter",

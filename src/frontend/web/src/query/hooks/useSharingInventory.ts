@@ -1,3 +1,4 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { useQuery } from "@tanstack/react-query";
 import {
   listAvatarContents,
@@ -10,13 +11,15 @@ import {
   listSceneEffects,
   listSoundEffects,
 } from "@animama/runtime-contracts/sdk";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import type { SharingItem } from "@/lib/content-sharing/types";
 import { queryKeys } from "@/query/keys";
 
 /** The typed family endpoints return complete inventories; no catalog metadata decoding. */
 export function useSharingInventory(enabled: boolean) {
-  const owner = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const owner = useRuntimeCacheKey();
   return useQuery({
     queryKey: queryKeys.content.sharingInventory(owner ?? "__anon__"),
     enabled: enabled && Boolean(owner),
@@ -29,24 +32,27 @@ export function useSharingInventory(enabled: boolean) {
         throwOnError: true as const,
       };
       const pages = await Promise.all([
-        listAvatarContents(options),
-        listGestures(options),
-        listReactions(options),
-        listIdleStyles(options),
-        listPoses(options),
-        listParticleEffects(options),
-        listAvatarEffects(options),
-        listSceneEffects(options),
-        listSoundEffects(options),
+        listAvatarContents({ ...options, client: apiClient }),
+        listGestures({ ...options, client: apiClient }),
+        listReactions({ ...options, client: apiClient }),
+        listIdleStyles({ ...options, client: apiClient }),
+        listPoses({ ...options, client: apiClient }),
+        listParticleEffects({ ...options, client: apiClient }),
+        listAvatarEffects({ ...options, client: apiClient }),
+        listSceneEffects({ ...options, client: apiClient }),
+        listSoundEffects({ ...options, client: apiClient }),
       ]);
       return pages
         .flatMap((page) =>
-          page.data.items.map(({ item_id, name, kind, description }) => ({
-            item_id,
-            name,
-            kind: kind ?? "pose",
-            description,
-          })),
+          page.data.items.map(
+            ({ item_id, name, kind, description, portability }) => ({
+              item_id,
+              name,
+              kind: kind ?? "pose",
+              description,
+              portability,
+            }),
+          ),
         )
         .sort((a, b) => a.name.localeCompare(b.name));
     },

@@ -4,13 +4,14 @@ import { useBlocker, useNavigate } from "@tanstack/react-router";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { isNonPortable, NON_PORTABLE_REASON } from "@/lib/content/portability";
 import type {
   PyCatalogViewItem,
   PyGesture,
   PyReaction,
 } from "@/lib/content/catalogTypes";
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import {
   clearActionRecovery,
@@ -197,7 +198,7 @@ export function ActionEditorPage({
   const internalNavigation = useRef(false);
   const initialComponentApplied = useRef(false);
   const actions = useActionEditorActions(intent);
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const navigate = useNavigate();
   const existing = useAction(intent, itemId ?? null);
   const previewDependenciesRef = useRef({
@@ -341,6 +342,8 @@ export function ActionEditorPage({
         }
         if (!item.source)
           throw new Error("This saved action has no catalog source.");
+        // Non-portable motion never loads into a draft that could be saved.
+        if (isNonPortable(item)) throw new Error(NON_PORTABLE_REASON);
         const preview = await actions.starterPreview.mutateAsync({
           source: item.source,
         });
@@ -433,12 +436,23 @@ export function ActionEditorPage({
   useEffect(() => {
     if (!userId || hydrated.current || hydrating.current) return;
     const routeItemId = itemId ?? null;
-    const recovery = loadActionRecoveryForEditorRoute(
-      window.localStorage,
-      userId,
-      intent,
-      routeItemId,
-    );
+    let recovery: ReturnType<typeof loadActionRecoveryForEditorRoute> = null;
+    try {
+      recovery = loadActionRecoveryForEditorRoute(
+        window.localStorage,
+        userId,
+        intent,
+        routeItemId,
+      );
+    } catch (cause) {
+      // An unsupported recovery (such as a retired 1.0 clip) is discarded;
+      // the saved item opens instead.
+      toast.error(
+        cause instanceof Error
+          ? cause.message
+          : "Browser recovery could not be restored.",
+      );
+    }
     if (!recovery) {
       // `/new` is already initialized from createDocument(). Mark it hydrated
       // so no later recovery/query effect can replace that blank document.

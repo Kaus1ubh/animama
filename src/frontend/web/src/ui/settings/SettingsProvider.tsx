@@ -28,7 +28,7 @@ import type {
   PyUserSettings,
   PyUserSettingsUpdate,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import {
   mergePreferences,
   normalizeThemeSetting,
@@ -40,7 +40,10 @@ import { createLogger } from "@/lib/logger";
 import { useAnimaSettings } from "@/query/hooks/useAnimaSettings";
 import { useUserSettings } from "@/query/hooks/useUserSettings";
 import { useUpdateAnimaSettings } from "@/query/mutations/useUpdateAnimaSettings";
-import { useUpdateUserSettings } from "@/query/mutations/useUpdateUserSettings";
+import {
+  useMergeUserPreferences,
+  useUpdateUserSettings,
+} from "@/query/mutations/useUpdateUserSettings";
 
 export type SettingsContextValue = {
   animaId: string | null;
@@ -50,6 +53,8 @@ export type SettingsContextValue = {
   animaPreferences: SettingsPreferences | null;
   effectivePreferences: SettingsPreferences;
   isLoading: boolean;
+  /** The owner's user (and current Anima) settings were read successfully. */
+  settingsLoaded: boolean;
   isUpdating: boolean;
   updateUserSettings: (
     patch: PyUserSettingsUpdate,
@@ -90,7 +95,7 @@ export function SettingsProvider({
   animaId?: string | null;
 }) {
   const resolvedAnimaId = animaId ?? null;
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const { theme, setTheme } = useTheme();
   const logger = useMemo(() => createLogger("Settings"), []);
 
@@ -99,6 +104,7 @@ export function SettingsProvider({
     enabled: Boolean(userId && resolvedAnimaId),
   });
   const updateUserSettingsMutation = useUpdateUserSettings();
+  const mergeUserPreferencesMutation = useMergeUserPreferences();
   const updateAnimaSettingsMutation = useUpdateAnimaSettings();
 
   const userSettings = userSettingsQuery.data ?? null;
@@ -166,15 +172,20 @@ export function SettingsProvider({
 
   const updateUserPreferences = useCallback(
     async (patch: SettingsPreferences) => {
-      const base = userPreferences ?? {};
-      const merged = mergePreferences(base, patch);
+      if (!userId) return undefined;
       logger.info("Preferences", "Updating user preferences", {
         userId,
         patch,
       });
-      return updateUserSettings({ preferences: merged });
+      // PATCH replaces the whole object; a missing or stale cache is not a safe base.
+      try {
+        return await mergeUserPreferencesMutation.mutateAsync(patch);
+      } catch (error) {
+        logger.error("Preferences", "User preferences update failed", error);
+        throw error;
+      }
     },
-    [logger, updateUserSettings, userId, userPreferences],
+    [logger, mergeUserPreferencesMutation, userId],
   );
 
   const updateAnimaPreferences = useCallback(
@@ -309,8 +320,12 @@ export function SettingsProvider({
       animaPreferences,
       effectivePreferences,
       isLoading: userSettingsQuery.isLoading || animaSettingsQuery.isLoading,
+      settingsLoaded:
+        userSettingsQuery.isSuccess &&
+        (!resolvedAnimaId || animaSettingsQuery.isSuccess),
       isUpdating:
         updateUserSettingsMutation.isPending ||
+        mergeUserPreferencesMutation.isPending ||
         updateAnimaSettingsMutation.isPending,
       updateUserSettings,
       updateAnimaSettings,
@@ -329,6 +344,7 @@ export function SettingsProvider({
       animaPreferences,
       animaSettings,
       animaSettingsQuery.isLoading,
+      animaSettingsQuery.isSuccess,
       resolvedAnimaId,
       updateAnimaPreferences,
       updateAnimaSettings,
@@ -336,9 +352,11 @@ export function SettingsProvider({
       updateUserPreferences,
       updateUserSettings,
       updateUserSettingsMutation.isPending,
+      mergeUserPreferencesMutation.isPending,
       userPreferences,
       userSettings,
       userSettingsQuery.isLoading,
+      userSettingsQuery.isSuccess,
       setChatRequestOverrides,
     ],
   );

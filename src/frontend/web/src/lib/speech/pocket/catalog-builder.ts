@@ -1,5 +1,8 @@
 "use client";
 
+import type { Client } from "@animama/runtime-contracts/sdk";
+import { publicResourceUrl } from "@/lib/resource-urls";
+
 import {
   DEFAULT_POCKET_VOICE,
   POCKET_VOICES,
@@ -411,7 +414,7 @@ class PocketCatalogWorkerClient {
 
 function createPocketCatalogWorkerClient(): PocketCatalogWorkerClient {
   const workerUrl = new URL(
-    "/tts/workers/inference-worker.js",
+    publicResourceUrl("tts/workers/inference-worker.js"),
     window.location.origin,
   );
   const worker = new Worker(workerUrl, {
@@ -421,11 +424,14 @@ function createPocketCatalogWorkerClient(): PocketCatalogWorkerClient {
   return new PocketCatalogWorkerClient(worker);
 }
 
-export async function buildPocketVoiceCatalogFile(args: {
-  animaName?: string | null;
-  sources: PocketVoiceCatalogSource[];
-  encoder?: PocketVoiceEncoderOptions;
-}): Promise<File> {
+export async function buildPocketVoiceCatalogFile(
+  apiClient: Client,
+  args: {
+    animaName?: string | null;
+    sources: PocketVoiceCatalogSource[];
+    encoder?: PocketVoiceEncoderOptions;
+  },
+): Promise<File> {
   if (!isPocketTtsSupported()) {
     throw new Error(
       "PocketTTS voice catalog generation is not supported in this browser.",
@@ -446,7 +452,7 @@ export async function buildPocketVoiceCatalogFile(args: {
     throw new Error("Pocket voice catalogs must include a neutral voice.");
   }
 
-  await ensurePocketVoiceCloningEncoder(args.encoder);
+  await ensurePocketVoiceCloningEncoder(apiClient, args.encoder);
   const signal = args.encoder?.signal;
   signal?.throwIfAborted();
   const workerClient = createPocketCatalogWorkerClient();

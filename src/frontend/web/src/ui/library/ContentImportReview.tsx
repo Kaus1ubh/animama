@@ -4,6 +4,7 @@ import { Button } from "@/ui/components/button";
 import {
   SharingAnimaDetails,
   SharingItemRow,
+  SharingNonPortableItems,
   SharingRequiredItems,
 } from "./SharingPackageDetails";
 import { sharingSize } from "./sharingPresentation";
@@ -78,6 +79,7 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
           </div>
         )}
         <SharingRequiredItems items={items.filter((item) => !item.selected)} />
+        <SharingNonPortableItems items={review.non_portable ?? []} />
       </section>
       <p className="text-muted-foreground border-t pt-4 text-sm">
         {renamed

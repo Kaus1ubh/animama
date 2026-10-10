@@ -343,22 +343,38 @@ test("another self-host window refreshes both sides of a held install request", 
     // The first refresh legitimately sees idle: only the settled pulse can
     // discover downloading, because missing assets do not poll forever.
     release();
-    await other.waitForFunction(
-      () =>
-        JSON.parse(
-          document.querySelector('[data-testid="assets"]').textContent,
-        ).states.includes("downloading"),
-      undefined,
-      { timeout: 2500 },
+    // Observe both windows downloading before checking cancellation so an
+    // untouched initial not_installed snapshot cannot satisfy the final wait.
+    await Promise.all(
+      [source, other].map((page) =>
+        page.waitForFunction(
+          () =>
+            JSON.parse(
+              document.querySelector('[data-testid="assets"]').textContent,
+            ).states.includes("downloading"),
+          undefined,
+          { timeout: 2500 },
+        ),
+      ),
     );
     assert.deepEqual((await state(other, "assets")).retries, []);
     await other
       .getByRole("button", { name: "Cancel voice", exact: true })
       .click();
-    await source.waitForFunction(() =>
-      JSON.parse(
-        document.querySelector('[data-testid="assets"]').textContent,
-      ).states.includes("not_installed"),
+    // A sibling can observe the removed manager state before the cancelling
+    // window receives DELETE and publishes its cleared retry marker.
+    await Promise.all(
+      [source, other].map((page) =>
+        page.waitForFunction(() => {
+          const assets = JSON.parse(
+            document.querySelector('[data-testid="assets"]').textContent,
+          );
+          return (
+            assets.states.includes("not_installed") &&
+            assets.retries.length === 0
+          );
+        }),
+      ),
     );
     assert.deepEqual((await state(source, "assets")).retries, []);
     assert.deepEqual((await state(other, "assets")).retries, []);

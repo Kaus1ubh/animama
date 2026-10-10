@@ -14,7 +14,7 @@ import {
   type CredentialProvider,
   type CredentialStatus,
 } from "../../../../shared/desktop-runtime";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { cn } from "@/lib/utils";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { queryKeys } from "@/query/keys";
@@ -78,7 +78,7 @@ export function DesktopCredentialFailures({
 export function useDesktopCredentialsAvailable(): boolean {
   const platform = useRuntimePlatform();
   const desktop = platform.kind === "desktop" ? platform.desktopBridge : null;
-  const owner = useRuntimeOwnerId() ?? "__anon__";
+  const owner = useRuntimeCacheKey() ?? "__anon__";
   const runtime = desktop?.runtime;
   const enabled = Boolean(
     runtime && desktop?.credentials && desktop.windowRole === "main",
@@ -102,7 +102,7 @@ function useDesktopCredentialStatuses(enabled: boolean) {
   const platform = useRuntimePlatform();
   const bridge =
     platform.kind === "desktop" ? platform.desktopBridge.credentials : null;
-  const owner = useRuntimeOwnerId() ?? "__anon__";
+  const owner = useRuntimeCacheKey() ?? "__anon__";
   return useQuery({
     queryKey: queryKeys.desktopCredentials.statuses(owner),
     enabled: enabled && Boolean(bridge),
@@ -164,7 +164,7 @@ export function DesktopCredentialsPanel({
   const [drafts, setDrafts] = useState<CredentialDrafts>({});
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState<string | null>(null);
-  const ownerId = useRuntimeOwnerId();
+  const ownerId = useRuntimeCacheKey();
   const queryClient = useQueryClient();
   const id = useId();
   const platform = useRuntimePlatform();

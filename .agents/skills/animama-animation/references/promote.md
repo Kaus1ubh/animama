@@ -85,9 +85,7 @@ The dry run lists every file it would create or update. The write:
   `content/included/licenses/inventory.json` ahead of `gestures/**/*.json`,
   whose owner-authorship attestation does not cover agent-made clips;
 - adds or updates `licenses/source-review.json` records for the clip and
-  metadata files;
-- for a replacement, drops the replaced 1.0 clip's pinned samples from
-  `poses/fixtures/starter-clip-samples-before-reduction.json`.
+  metadata files.
 
 A second run of the same items as `replace` changes nothing.
 
@@ -96,7 +94,7 @@ A second run of the same items as `replace` changes nothing.
 1. `git add` the new files: the backend Included-content tests and desktop
    staging read tracked files only.
 2. Update the pinned counts deliberately: `catalog.content.test.ts` (Gesture
-   count, 2.0 count, pinned sample count, retained internal poses) and
+   and 2.0 counts) and
    `includedGestures.test.ts` (2.0 Gesture count).
 3. Run the backend Included-content tests (full `uv run pytest -q`
    preferred), `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build`,

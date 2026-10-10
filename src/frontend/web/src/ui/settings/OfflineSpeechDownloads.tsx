@@ -15,11 +15,15 @@ import {
 } from "@/lib/speech/client-parakeet/client";
 import type { ParakeetWebgpuStatus } from "@/lib/speech/client-parakeet/webgpu";
 import { formatFileSize } from "@/lib/user-files/uploads";
-import { useModelAssets } from "@/query/hooks/useModelAssets";
+import {
+  useModelAssets,
+  useOperatorManagedModelAssets,
+} from "@/query/hooks/useModelAssets";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
 import { PACK_WORK_BLOCKS_ASSET } from "@/query/model-download-coordination";
 import { Button } from "@/ui/components/button";
+import { OPERATOR_MANAGED_MODELS_NOTE } from "./operator-managed-models";
 
 // Stable failure codes from the model-asset API; they never carry paths.
 const ASSET_FAILURE_TEXT: Record<
@@ -46,6 +50,14 @@ const REFUSAL_TEXT: Record<string, string> = {
   model_asset_requires: "Download the CPU model first.",
   model_asset_busy: "This model is still changing. Retry in a moment.",
 };
+
+/** Why a failed download stopped, from its stable failure code. */
+export function assetFailureText(asset: PyModelAssetState): string {
+  return (
+    (asset.reason && ASSET_FAILURE_TEXT[asset.reason]) ??
+    "The download did not finish. Retry when ready."
+  );
+}
 
 /** A readable message for a failed model change, never a raw payload. */
 export function modelChangeErrorText(error: unknown): string {
@@ -103,6 +115,8 @@ export type OfflineSpeechDownloadsViewProps = {
   listUnavailable?: boolean;
   /** The server operator turned offline speech off, even with sets installed. */
   turnedOff?: boolean;
+  /** The operator provides the sets; show their state without actions. */
+  operatorManaged?: boolean;
   heading?: boolean;
   onChange(change: Change, assetId: string): void;
 };
@@ -111,7 +125,7 @@ export type OfflineSpeechDownloadsViewProps = {
  * Offline speech recognition: the base (CPU) Parakeet set with its GPU
  * acceleration add-on, installed in place by the backend model-asset service.
  * The add-on is always shown; when it cannot be installed, its action is
- * disabled with the reason.
+ * disabled with the reason. Operator-managed sets show only their state.
  */
 export function OfflineSpeechDownloadsView({
   cpu,
@@ -125,6 +139,7 @@ export function OfflineSpeechDownloadsView({
   gpuFellBack = false,
   listUnavailable = false,
   turnedOff = false,
+  operatorManaged = false,
   heading = true,
   onChange,
 }: OfflineSpeechDownloadsViewProps) {
@@ -157,10 +172,16 @@ export function OfflineSpeechDownloadsView({
           Offline speech recognition is turned off on this server.
         </p>
       ) : null}
+      {operatorManaged ? (
+        <p className="text-muted-foreground text-xs">
+          {OPERATOR_MANAGED_MODELS_NOTE}
+        </p>
+      ) : null}
       {cpu ? (
         <ModelSetRow
           label="CPU model"
           asset={cpu}
+          managed={operatorManaged}
           names={{ install: "Download CPU model", remove: "Remove CPU model" }}
           freeBytes={freeBytes}
           retry={retryAssetIds?.has(cpu.id) ?? false}
@@ -184,6 +205,7 @@ export function OfflineSpeechDownloadsView({
           label="GPU acceleration"
           description="Faster recognition with live previews. Requires the CPU model and a WebGPU-capable device."
           asset={gpu}
+          managed={operatorManaged}
           names={{
             install: "Download GPU acceleration",
             remove: "Remove GPU acceleration",
@@ -228,11 +250,15 @@ export function OfflineSpeechDownloadsView({
   );
 }
 
-/** One installable set: size, progress, cancel, retry and confirmed removal. */
+/**
+ * One installable set: size, progress, cancel, retry and confirmed removal.
+ * A `managed` set is provided by the operator and shows only its state.
+ */
 function ModelSetRow({
   label,
   description,
   asset,
+  managed = false,
   names,
   freeBytes,
   retry,
@@ -247,6 +273,7 @@ function ModelSetRow({
   label: string;
   description?: string;
   asset: PyModelAssetState | undefined;
+  managed?: boolean;
   names: { install: string; remove: string };
   freeBytes?: number | null;
   retry: boolean;
@@ -286,7 +313,9 @@ function ModelSetRow({
         ? progress === 1
           ? "Verifying download…"
           : `Downloading ${Math.round((progress ?? 0) * 100)}%`
-        : `${formatFileSize(asset.size_bytes)} download`;
+        : managed
+          ? "Not available"
+          : `${formatFileSize(asset.size_bytes)} download`;
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -296,47 +325,49 @@ function ModelSetRow({
             <p className="text-muted-foreground text-xs">{description}</p>
           ) : null}
         </div>
-        <div className="flex flex-wrap gap-2">
-          {!installed && !downloading ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="outline"
-              disabled={pending || Boolean(installBlocked)}
-              onClick={() => onChange("install")}
-            >
-              {failed ? "Retry download" : names.install}
-            </Button>
-          ) : null}
-          {downloading ? (
-            // Cancelling stays reachable while other changes are blocked.
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              onClick={() => onChange("cancel")}
-            >
-              Cancel download
-            </Button>
-          ) : null}
-          {installed ? (
-            <Button
-              type="button"
-              size="sm"
-              variant="ghost"
-              disabled={pending || Boolean(removeBlockedReason)}
-              onClick={() => {
-                if (!confirmRemove) setConfirmRemove(true);
-                else {
-                  setConfirmRemove(false);
-                  onChange("remove");
-                }
-              }}
-            >
-              {confirmRemove ? "Confirm removal" : names.remove}
-            </Button>
-          ) : null}
-        </div>
+        {managed ? null : (
+          <div className="flex flex-wrap gap-2">
+            {!installed && !downloading ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={pending || Boolean(installBlocked)}
+                onClick={() => onChange("install")}
+              >
+                {failed ? "Retry download" : names.install}
+              </Button>
+            ) : null}
+            {downloading ? (
+              // Cancelling stays reachable while other changes are blocked.
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                onClick={() => onChange("cancel")}
+              >
+                Cancel download
+              </Button>
+            ) : null}
+            {installed ? (
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                disabled={pending || Boolean(removeBlockedReason)}
+                onClick={() => {
+                  if (!confirmRemove) setConfirmRemove(true);
+                  else {
+                    setConfirmRemove(false);
+                    onChange("remove");
+                  }
+                }}
+              >
+                {confirmRemove ? "Confirm removal" : names.remove}
+              </Button>
+            ) : null}
+          </div>
+        )}
       </div>
       {status ? (
         <p role="status" className="text-muted-foreground text-xs">
@@ -353,16 +384,15 @@ function ModelSetRow({
       ) : null}
       {asset?.status === "failed" ? (
         <p role="status" className="text-muted-foreground text-xs">
-          {(asset.reason && ASSET_FAILURE_TEXT[asset.reason]) ??
-            "The download did not finish. Retry when ready."}
+          {assetFailureText(asset)}
         </p>
       ) : null}
-      {!installed && !downloading && installBlocked ? (
+      {!managed && !installed && !downloading && installBlocked ? (
         <p role="status" className="text-muted-foreground text-xs">
           {installBlocked}
         </p>
       ) : null}
-      {installed && removeBlockedReason ? (
+      {!managed && installed && removeBlockedReason ? (
         <p role="status" className="text-muted-foreground text-xs">
           {removeBlockedReason}
         </p>
@@ -421,8 +451,26 @@ export function OfflineSpeechDownloads({
 }
 
 function OfflineSpeechDownloadsManager({ heading }: { heading: boolean }) {
+  return (
+    <OfflineSpeechDownloadsView
+      {...useOfflineSpeechDownloads()}
+      heading={heading}
+    />
+  );
+}
+
+/**
+ * The Parakeet sets' state and change actions, shared by Settings and the
+ * setup Voice step: the model-asset list, a WebGPU probe that reruns when the
+ * GPU set settles, and the last failed change.
+ */
+export function useOfflineSpeechDownloads(): Omit<
+  OfflineSpeechDownloadsViewProps,
+  "heading"
+> {
   const assets = useModelAssets({ enabled: true });
   const capabilities = useRuntimeCapabilities();
+  const operatorManaged = useOperatorManagedModelAssets();
   const action = useModelAssetAction();
   const [gpuSupport, setGpuSupport] = useState<ParakeetWebgpuStatus | null>(
     null,
@@ -460,28 +508,24 @@ function OfflineSpeechDownloadsManager({ heading }: { heading: boolean }) {
     });
   };
 
-  return (
-    <OfflineSpeechDownloadsView
-      cpu={cpu}
-      gpu={gpu}
-      freeBytes={assets.data?.free_bytes}
-      gpuSupport={gpuSupport}
-      retryAssetIds={assets.retryAssetIds}
-      pending={action.isPending || action.busy}
-      blockedReason={action.blockedReason}
-      error={error}
-      gpuFellBack={
-        getLastClientParakeetBackendState()?.fellBackFromWebgpu ?? false
-      }
-      listUnavailable={assets.isError}
-      // Installed (a version is reported) yet disabled: the operator's flag.
-      // Stale data from before an install reports no version.
-      turnedOff={
-        capabilities.data?.offline_speech_enabled === false &&
-        Boolean(capabilities.data.offline_speech_asset_version)
-      }
-      heading={heading}
-      onChange={(operation, assetId) => void change(operation, assetId)}
-    />
-  );
+  return {
+    cpu,
+    gpu,
+    freeBytes: assets.data?.free_bytes,
+    gpuSupport,
+    retryAssetIds: assets.retryAssetIds,
+    pending: action.isPending || action.busy,
+    blockedReason: action.blockedReason,
+    error,
+    gpuFellBack:
+      getLastClientParakeetBackendState()?.fellBackFromWebgpu ?? false,
+    listUnavailable: assets.isError,
+    // Installed (a version is reported) yet disabled: the operator's flag.
+    // Stale data from before an install reports no version.
+    turnedOff:
+      capabilities.data?.offline_speech_enabled === false &&
+      Boolean(capabilities.data.offline_speech_asset_version),
+    operatorManaged,
+    onChange: (operation, assetId) => void change(operation, assetId),
+  };
 }

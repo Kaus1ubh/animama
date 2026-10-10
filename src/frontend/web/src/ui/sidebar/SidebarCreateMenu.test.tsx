@@ -34,6 +34,7 @@ vi.mock("@/ui/components/popover", () => ({
 }));
 vi.mock("@/ui/app/RuntimeFeatureGate", () => ({
   useRuntimeFeatureEnabled: () => true,
+  useRuntimeFeatureUnavailableReason: () => null,
 }));
 vi.mock("@/ui/create/EffectTemplatePickerDialog", () => ({
   EffectTemplatePickerDialog: ({

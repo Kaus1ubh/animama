@@ -94,15 +94,14 @@ describe("pose creator model selection", () => {
       } else {
         store.hydrateClipDocument(
           parseAnimaPoseClip({
-            schema: "animaPoseClip/1.0",
+            schema: "animaPoseClip/2.0",
             id: "saved-reaction",
             name: "Saved Reaction",
             duration: 1,
-            poses: { expression: { expressions: { sad: 0.4 } } },
-            poseKeyframes: [{ time: 0, pose: "expression" }],
+            beats: [{ id: "expression", label: "Expression", time: 0 }],
+            expressions: { sad: [{ v: 0.4, beat: "expression" }] },
           }),
         );
-        // Opened as 2.0: one beat with the keyframe's expression.
         expect(
           usePoseCreatorStore.getState().clipDraft.motion?.expressions?.sad,
         ).toEqual([expect.objectContaining({ v: 0.4 })]);
@@ -120,12 +119,12 @@ describe("pose creator model selection", () => {
   it("hydrates exact Asset documents as clean Clip workspaces", () => {
     const hydrated = usePoseCreatorStore.getState().hydrateClipDocument(
       parseAnimaPoseClip({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "asset-clip",
         name: "Asset Clip",
         duration: 1,
-        poses: { first: { ref: "relaxedRest" } },
-        poseKeyframes: [{ time: 0, pose: "first" }],
+        beats: [{ id: "first", label: "First", time: 0 }],
+        rotations: { head: [{ q: [0, 0, 0, 1], beat: "first" }] },
       }),
     );
     const store = usePoseCreatorStore.getState();
@@ -133,7 +132,6 @@ describe("pose creator model selection", () => {
     expect(hydrated).toBe(true);
     expect(store.authoringMode).toBe("clip");
     expect(store.clipDraft.name).toBe("Asset Clip");
-    // The 1.0 clip opens as beats, its reference resolved by value.
     expect(store.clipDraft.keyframes).toEqual([
       expect.objectContaining({ label: "First", time: 0 }),
     ]);
@@ -144,12 +142,12 @@ describe("pose creator model selection", () => {
   it("preserves no external base for a motion-free creator document", () => {
     const hydrated = usePoseCreatorStore.getState().hydrateClipDocument(
       parseAnimaPoseClip({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "expression-only-reaction",
         name: "Expression-only Reaction",
         duration: 1,
-        poses: { expression: { expressions: { happy: 0.65 } } },
-        poseKeyframes: [{ time: 0, pose: "expression" }],
+        beats: [{ id: "expression", label: "Expression", time: 0 }],
+        expressions: { happy: [{ v: 0.65, beat: "expression" }] },
       }),
     );
 
@@ -160,12 +158,11 @@ describe("pose creator model selection", () => {
   it("preserves an explicit playhead while hydrating an in-place effect update", () => {
     const hydrated = usePoseCreatorStore.getState().hydrateClipDocument(
       parseAnimaPoseClip({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "effect-reaction",
         name: "Effect Reaction",
         duration: 1,
-        poses: {},
-        poseKeyframes: [],
+        beats: [],
         events: [
           {
             id: "sparkles",
@@ -187,12 +184,11 @@ describe("pose creator model selection", () => {
   it("plays and restarts an event-only clip", () => {
     const hydrated = usePoseCreatorStore.getState().hydrateClipDocument(
       parseAnimaPoseClip({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "event-only",
         name: "Event only",
         duration: 1,
-        poses: {},
-        poseKeyframes: [],
+        beats: [],
         events: [
           {
             id: "hearts",
@@ -353,9 +349,7 @@ describe("pose creator model selection", () => {
       humanoid: { head: { rotation: [0, 0, 0, 1] } },
     });
 
-    const beatId = store.addPoseToClip(pose, "Jumping Jack", {
-      atPlayhead: true,
-    });
+    const beatId = store.addPoseToClip(pose, "Jumping Jack");
     const clip = usePoseCreatorStore.getState().clipDraft;
 
     expect(clip.keyframes).toEqual([
@@ -381,10 +375,7 @@ describe("pose creator model selection", () => {
       expressions: { happy: 0.7 },
     });
 
-    const alias = store.addPoseToClip(pose, pose.name, {
-      timeSec: 0.37,
-      atPlayhead: true,
-    });
+    const alias = store.addPoseToClip(pose, pose.name, { timeSec: 0.37 });
     unsubscribe();
     const state = usePoseCreatorStore.getState();
     expect(updates).toEqual([0.37]);
@@ -399,8 +390,8 @@ describe("pose creator model selection", () => {
     expect(state.clipUndoHistory).toHaveLength(1);
 
     store.undoClip();
-    expect(usePoseCreatorStore.getState().clipDraft.poses).toEqual(
-      before.poses,
+    expect(usePoseCreatorStore.getState().clipDraft.motion).toEqual(
+      before.motion,
     );
     expect(usePoseCreatorStore.getState().clipDraft.keyframes).toEqual(
       before.keyframes,
@@ -491,7 +482,7 @@ describe("pose creator model selection", () => {
       expressions: { surprised: 1, blink: 1 },
     });
 
-    store.addPoseToClip(pose, pose.name, { atPlayhead: true });
+    store.addPoseToClip(pose, pose.name);
 
     const sample = sampleDraft(0);
     expect(sample.humanoid?.head?.rotation).toEqual(
@@ -546,7 +537,7 @@ describe("pose creator model selection", () => {
 
     expect(reset.clipDraft.name).toBe("New Reaction");
     expect(reset.clipDraft.keyframes).toEqual([]);
-    expect(reset.clipDraft.poses).toEqual({});
+    expect(reset.clipDraft.motion).toEqual({ beats: [] });
     expect(reset.clipPlaybackAbsoluteTimeSec).toBe(0);
     expect(reset.clipPreviewClearRevision).toBe(previousClearRevision + 1);
     expect(applyPose).toHaveBeenCalledWith("relaxedRest");
@@ -578,7 +569,6 @@ describe("pose creator undo and redo history", () => {
         humanoid: { head: { rotation: [0, 0, 0, 1] } },
       }),
       "clipPose",
-      { atPlayhead: true },
     );
 
     expect(selectCanUndoPose(usePoseCreatorStore.getState())).toBe(true);
@@ -673,12 +663,12 @@ describe("pose creator undo and redo history", () => {
     expect(
       store.hydrateClipDocument(
         parseAnimaPoseClip({
-          schema: "animaPoseClip/1.0",
+          schema: "animaPoseClip/2.0",
           id: "move-test",
           name: "Move test",
           duration: 2,
-          poses: { first: { ref: "relaxedRest" } },
-          poseKeyframes: [{ time: 0.25, pose: "first" }],
+          beats: [{ id: "first", label: "First", time: 0.25 }],
+          expressions: { happy: [{ v: 0.5, beat: "first" }] },
         }),
       ),
     ).toBe(true);
@@ -708,12 +698,12 @@ describe("pose creator undo and redo history", () => {
     const store = usePoseCreatorStore.getState();
     store.hydrateClipDocument(
       parseAnimaPoseClip({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "save-boundary",
         name: "Save boundary",
         duration: 1,
-        poses: { first: { ref: "relaxedRest" } },
-        poseKeyframes: [{ time: 0, pose: "first" }],
+        beats: [{ id: "first", label: "First", time: 0 }],
+        expressions: { happy: [{ v: 0.5, beat: "first" }] },
         events: [{ id: "sound", kind: "sfx", time: 0.2, cueId: "old" }],
       }),
     );
@@ -822,14 +812,12 @@ describe("pose creator undo and redo history", () => {
     const store = usePoseCreatorStore.getState();
     store.hydrateClipDocument(
       parseAnimaPoseClip({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "inline-edit",
         name: "Inline edit",
         duration: 1,
-        poses: {
-          first: { humanoid: { head: { rotation: [0, 0, 0, 1] } } },
-        },
-        poseKeyframes: [{ time: 0, pose: "first" }],
+        beats: [{ id: "first", label: "First", time: 0 }],
+        rotations: { head: [{ q: [0, 0, 0, 1], beat: "first" }] },
       }),
     );
     const originalPose = {
@@ -926,15 +914,20 @@ describe("timeline inspector selection", () => {
     store.resetWorkspace();
     store.hydrateClipDocument(
       parseAnimaPoseClip({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "selection",
         name: "Selection",
         duration: 1.2,
-        poses: { pose: { expressions: { happy: 0.5 } } },
-        poseKeyframes: [
-          { time: 0.25, pose: "pose" },
-          { time: 0.9, pose: "pose" },
+        beats: [
+          { id: "first", label: "First", time: 0.25 },
+          { id: "second", label: "Second", time: 0.9 },
         ],
+        expressions: {
+          happy: [
+            { v: 0.5, beat: "first" },
+            { v: 0.5, beat: "second" },
+          ],
+        },
         events: [{ id: "sound", kind: "sfx", time: 0.6, cueId: "bell" }],
       }),
     );
@@ -1149,19 +1142,23 @@ describe("clip base endpoints", () => {
 
   it("preserves an authored pose occupying an endpoint", () => {
     const store = usePoseCreatorStore.getState();
-    const draft = usePoseCreatorStore.getState().clipDraft;
-    usePoseCreatorStore.setState({
-      clipDraft: {
-        ...draft,
-        poses: { authored: { expressions: { happy: 1 } } },
-        keyframes: [{ id: "authored", time: 0, pose: "authored" }],
-      },
-    });
+    store.hydrateClipDocument(
+      parseAnimaPoseClip({
+        schema: "animaPoseClip/2.0",
+        id: "authored",
+        name: "Authored",
+        duration: 2,
+        basePose: "relaxedRest",
+        beats: [{ id: "authored", label: "Authored", time: 0 }],
+        expressions: { happy: [{ v: 1, beat: "authored" }] },
+      }),
+    );
+    const { keyframes } = usePoseCreatorStore.getState().clipDraft;
     store.setClipBaseEndpoint("start", true);
     store.setClipBaseEndpoint("start", false);
-    expect(usePoseCreatorStore.getState().clipDraft.keyframes).toEqual([
-      { id: "authored", time: 0, pose: "authored" },
-    ]);
+    expect(usePoseCreatorStore.getState().clipDraft.keyframes).toEqual(
+      keyframes,
+    );
   });
 });
 
@@ -1171,16 +1168,21 @@ describe("durable pose copy boundaries", () => {
     const store = usePoseCreatorStore.getState();
     store.hydrateClipDocument(
       parseAnimaPoseClip({
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "copy",
         name: "Copy",
         duration: 2,
         basePose: "relaxedRest",
-        poses: { rest: { ref: "relaxedRest" } },
-        poseKeyframes: [
-          { time: 0, pose: "rest" },
-          { time: 2, pose: "rest" },
+        beats: [
+          { id: "start", label: "Base", time: 0 },
+          { id: "end", label: "Base", time: 2 },
         ],
+        expressions: {
+          happy: [
+            { v: 0, beat: "start" },
+            { v: 0, beat: "end" },
+          ],
+        },
       }),
     );
     const before = usePoseCreatorStore.getState().clipDraft;
@@ -1196,7 +1198,19 @@ describe("durable pose copy boundaries", () => {
     expect(beatId).not.toBeNull();
     // The base is frozen into the tracks and its reference removed.
     expect(usePoseCreatorStore.getState().clipDraft.basePose).toBe("");
-    expect([0, 2].map((time) => sampleDraft(time).humanoid)).toEqual(endpoints);
+    // Frozen at the saved precision (5 decimals).
+    [0, 2].forEach((time, index) => {
+      const frozen = sampleDraft(time).humanoid ?? {};
+      expect(Object.keys(frozen).sort()).toEqual(
+        Object.keys(endpoints[index] ?? {}).sort(),
+      );
+      for (const [bone, transform] of Object.entries(endpoints[index] ?? {}))
+        transform?.rotation?.forEach((value, axis) =>
+          expect(
+            frozen[bone as keyof typeof frozen]?.rotation?.[axis],
+          ).toBeCloseTo(value, 4),
+        );
+    });
     expect(sampleDraft(2).expressions?.happy ?? 0).toBeCloseTo(0);
     const clip = buildAnimaPoseClipFromPoseCreatorDraft(
       usePoseCreatorStore.getState().clipDraft,
@@ -1243,7 +1257,6 @@ describe("durable pose copy boundaries", () => {
         parent: { ref: "missing" },
       }),
       "Bad",
-      { atPlayhead: true },
     );
     expect(alias).toBeNull();
     expect(usePoseCreatorStore.getState().clipDraft).toBe(before.clipDraft);

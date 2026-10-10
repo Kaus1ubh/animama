@@ -21,8 +21,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:star",
-      "alias": "star",
+      "ref": "builtin:avatar-effect:idea_bulb",
+      "alias": "idea_bulb",
       "content_type": "avatar_effect",
       "config": {}
     }

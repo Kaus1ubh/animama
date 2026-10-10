@@ -6,7 +6,7 @@ import { Eraser, Play, RefreshCw, RotateCcw, Square } from "lucide-react";
 
 import type {
   AnimaPose,
-  AnyAnimaPoseClip,
+  AnimaPoseClipV2,
   AvatarPoseClipSnapshot,
   AvatarPoseSnapshot,
   BounceProceduralAnimationParams,
@@ -45,7 +45,6 @@ import {
   SUPPORTED_EMOTION_POSTURE_GROUPS,
   countAnimaPoseClipEventsByKind,
   getAnimaPoseClipTimelineDuration,
-  isAnimaPoseClipV2,
   getParticleVFXCatalogEntryById,
   getResolvedAvatarPose,
   type AnimaPoseClipChannelAnalysis,
@@ -1426,7 +1425,6 @@ type PoseClipCatalogOption = {
   name: string;
   durationSec: number;
   loop: boolean;
-  localPoseCount: number;
   keyframeCount: number;
   eventKindCounts: AnimaPoseClipEventKindCounts;
 };
@@ -1565,18 +1563,14 @@ function parseReactionClipCatalogMetadata(
 function createPoseClipCatalogOption(
   id: string,
   fallbackName: string,
-  clip: AnyAnimaPoseClip | null,
+  clip: AnimaPoseClipV2 | null,
 ): PoseClipCatalogOption {
-  // 2.0 clips have beats instead of keyframes and no local pose table.
-  const v2 = isAnimaPoseClipV2(clip) ? clip : null;
-  const v1 = clip && !isAnimaPoseClipV2(clip) ? clip : null;
   return {
     id,
     name: clip?.name ?? fallbackName,
     durationSec: clip ? getAnimaPoseClipTimelineDuration(clip) : 0,
     loop: clip?.loop === true,
-    localPoseCount: v1 ? Object.keys(v1.poses).length : 0,
-    keyframeCount: v2?.beats.length ?? v1?.poseKeyframes.length ?? 0,
+    keyframeCount: clip?.beats.length ?? 0,
     eventKindCounts: countAnimaPoseClipEventsByKind(clip),
   };
 }
@@ -1585,7 +1579,7 @@ function createReactionClipCatalogOption(
   id: string,
   fallbackName: string,
   metadata: Pick<ReactionClipCatalogOption, "emotion" | "group" | "intensity">,
-  clip: AnyAnimaPoseClip | null,
+  clip: AnimaPoseClipV2 | null,
 ): ReactionClipCatalogOption {
   const channelAnalysis = clip
     ? analyzeAnimaPoseClipChannels(clip, (poseId) => {
@@ -2874,8 +2868,7 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
                     <HeaderCell>Status</HeaderCell>
                     <HeaderCell className="text-right">Duration</HeaderCell>
                     <HeaderCell className="text-right">Loop</HeaderCell>
-                    <HeaderCell className="text-right">Poses</HeaderCell>
-                    <HeaderCell className="text-right">Keys</HeaderCell>
+                    <HeaderCell className="text-right">Beats</HeaderCell>
                     <HeaderCell className="text-right">Events</HeaderCell>
                     <HeaderCell className="text-right">Action</HeaderCell>
                   </tr>
@@ -2906,9 +2899,6 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
                         </BodyCell>
                         <BodyCell className="text-right">
                           {row.loop ? "Yes" : "No"}
-                        </BodyCell>
-                        <BodyCell className="text-right">
-                          {row.localPoseCount}
                         </BodyCell>
                         <BodyCell className="text-right">
                           {row.keyframeCount}

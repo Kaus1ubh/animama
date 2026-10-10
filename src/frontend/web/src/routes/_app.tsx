@@ -1,6 +1,13 @@
-import { Navigate, Outlet, createFileRoute } from "@tanstack/react-router";
+import {
+  Navigate,
+  Outlet,
+  createFileRoute,
+  useRouterState,
+} from "@tanstack/react-router";
 
-import { useLocalRuntime } from "@web/app/local-runtime/LocalRuntimeProvider";
+import { useRuntimeAdmission } from "@web/app/runtime/RuntimeAdmissionProvider";
+import { unavailableRouteReason } from "@web/app/runtime/route-admission";
+import { AppShellPage } from "@/ui/app/AppShellPage";
 import { AppShell } from "@/ui/app/AppShell";
 import { ContentPreviewDockProvider } from "@/ui/content-preview/ContentPreviewDockProvider";
 import { SettingsGate } from "@/ui/settings/SettingsGate";
@@ -12,18 +19,29 @@ export const Route = createFileRoute("/_app")({
 });
 
 function ApplicationAreaLayout() {
-  const { state } = useLocalRuntime();
-  if (state.status !== "ready") return null;
+  const { admission } = useRuntimeAdmission();
+  const pathname = useRouterState({
+    select: (state) => state.location.pathname,
+  });
+  if (admission.status !== "ready") return null;
   // The app home is also the entry route; continue an accepted entry
   // navigation without reopening a departing creator's blocker.
-  if (!state.firstRunComplete)
+  if (admission.onboardingRequired)
     return <Navigate to="/setup" replace ignoreBlocker />;
+  const reason = unavailableRouteReason(pathname, admission.capabilities);
   return (
     <SettingsGate>
       <AppShell>
         <ContentPreviewDockProvider>
           <SidebarShell />
-          <Outlet />
+          {reason ? (
+            <AppShellPage>
+              <h1 className="text-lg font-semibold">Unavailable here</h1>
+              <p className="text-muted-foreground">{reason}</p>
+            </AppShellPage>
+          ) : (
+            <Outlet />
+          )}
           <DesktopUpdatesPanel notice />
         </ContentPreviewDockProvider>
       </AppShell>

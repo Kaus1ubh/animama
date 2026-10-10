@@ -74,6 +74,75 @@ function ActionCreatorCard({ card }: { card: AvailableCreatorCard }) {
   );
 }
 
+const ANIMA_CREATOR_ACTION_CLASS_NAME =
+  "bg-foreground text-background hover:bg-foreground/90 mt-7 shadow-lg";
+
+/**
+ * The Anima creator card. When the runtime withholds Anima creation, the
+ * familiar card stays with its action disabled and the shared reason below it.
+ */
+function AnimaCreatorCard({
+  unavailableReason,
+}: {
+  unavailableReason?: string;
+}) {
+  return (
+    <section
+      aria-labelledby="anima-creator-title"
+      className={cn(
+        "border-border/70 bg-card/92 flex min-h-72 flex-col items-start justify-center rounded-3xl border p-6 shadow-lg shadow-black/5 md:p-9",
+        // Only an available card lifts on hover; a disabled one never opens.
+        !unavailableReason &&
+          "hover:border-primary/45 group transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-xl",
+      )}
+    >
+      <div className="flex items-start gap-5">
+        <CreatorIconTile
+          icon={UsersRound}
+          className="bg-primary text-primary-foreground"
+          large
+        />
+        <div className="space-y-2">
+          <h2
+            id="anima-creator-title"
+            className="text-3xl font-semibold tracking-tight md:text-4xl"
+          >
+            Anima
+          </h2>
+          <p className="text-muted-foreground max-w-md text-sm leading-6 md:text-base">
+            Create the companion at the heart of every conversation.
+          </p>
+        </div>
+      </div>
+      {unavailableReason ? (
+        <>
+          <Button
+            type="button"
+            size="lg"
+            disabled
+            aria-describedby="anima-creator-unavailable"
+            className={ANIMA_CREATOR_ACTION_CLASS_NAME}
+          >
+            Create Anima <ArrowRight className="size-4" />
+          </Button>
+          <p
+            id="anima-creator-unavailable"
+            className="text-muted-foreground mt-3 max-w-md text-sm"
+          >
+            {unavailableReason}
+          </p>
+        </>
+      ) : (
+        <Button asChild size="lg" className={ANIMA_CREATOR_ACTION_CLASS_NAME}>
+          <Link to="/animas/new">
+            Create Anima <ArrowRight className="size-4" />
+          </Link>
+        </Button>
+      )}
+    </section>
+  );
+}
+
 /** An effect kind's card; it opens the template picker at that kind. */
 function EffectKindCard({
   kind,
@@ -138,39 +207,13 @@ export function CreateHubPage({
         </p>
       </header>
 
-      <RuntimeFeatureGate capability="anima_creation">
-        <section
-          aria-labelledby="anima-creator-title"
-          className="border-border/70 bg-card/92 hover:border-primary/45 group flex min-h-72 flex-col items-start justify-center rounded-3xl border p-6 shadow-lg shadow-black/5 transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:shadow-xl md:p-9"
-        >
-          <div className="flex items-start gap-5">
-            <CreatorIconTile
-              icon={UsersRound}
-              className="bg-primary text-primary-foreground"
-              large
-            />
-            <div className="space-y-2">
-              <h2
-                id="anima-creator-title"
-                className="text-3xl font-semibold tracking-tight md:text-4xl"
-              >
-                Anima
-              </h2>
-              <p className="text-muted-foreground max-w-md text-sm leading-6 md:text-base">
-                Create the companion at the heart of every conversation.
-              </p>
-            </div>
-          </div>
-          <Button
-            asChild
-            size="lg"
-            className="bg-foreground text-background hover:bg-foreground/90 mt-7 shadow-lg"
-          >
-            <Link to="/animas/new">
-              Create Anima <ArrowRight className="size-4" />
-            </Link>
-          </Button>
-        </section>
+      <RuntimeFeatureGate
+        capability="anima_creation"
+        unavailable={(reason) => (
+          <AnimaCreatorCard unavailableReason={reason} />
+        )}
+      >
+        <AnimaCreatorCard />
       </RuntimeFeatureGate>
 
       <section aria-labelledby="action-creators-title" className="space-y-4">

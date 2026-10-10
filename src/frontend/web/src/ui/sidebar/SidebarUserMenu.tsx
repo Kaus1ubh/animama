@@ -19,6 +19,11 @@ import {
 } from "@/ui/components/tooltip";
 import { ApplicationSettingsModal } from "@/ui/sidebar/ApplicationSettingsModal";
 import { useCloseMobileSidebar, useSidebar } from "@/ui/sidebar/Sidebar";
+import {
+  useOptionalAccountAffordances,
+  useOptionalRuntimeController,
+} from "@web/app/runtime/RuntimeAdmissionProvider";
+import { AccountUsage } from "./AccountUsage";
 
 function initials(name: string): string {
   return name
@@ -31,13 +36,19 @@ function initials(name: string): string {
     .toUpperCase();
 }
 
-/** Show private installation personalization and application controls. */
+/** Show admitted personalization and composition-provided account controls. */
 export function SidebarUserMenu() {
   const { open } = useSidebar();
   const closeMobileSidebar = useCloseMobileSidebar();
   const profile = useUserProfile();
   const [menuOpen, setMenuOpen] = useState(false);
   const [applicationSettingsOpen, setApplicationSettingsOpen] = useState(false);
+  const [usageOpen, setUsageOpen] = useState(false);
+  const [accountError, setAccountError] = useState<string | null>(null);
+  const controller = useOptionalRuntimeController();
+  const account = controller?.composition.accountActions;
+  const canOpenAccount =
+    useOptionalAccountAffordances()?.canOpenAccount ?? false;
   const displayName = profile.data?.display_name?.trim() || "You";
   const triggerButton = (
     <button
@@ -101,12 +112,63 @@ export function SidebarUserMenu() {
             <Settings className="h-4 w-4" />
             App Settings
           </DropdownMenuItem>
+          {account ? (
+            <>
+              {canOpenAccount ? (
+                <DropdownMenuItem
+                  onSelect={(event) => {
+                    event.preventDefault();
+                    try {
+                      account.openAccount();
+                    } catch (error) {
+                      setAccountError(
+                        error instanceof Error
+                          ? error.message
+                          : "Account access is unavailable.",
+                      );
+                    }
+                  }}
+                >
+                  Account
+                </DropdownMenuItem>
+              ) : null}
+              <DropdownMenuItem
+                onSelect={(event) => {
+                  event.preventDefault();
+                  setMenuOpen(false);
+                  closeMobileSidebar();
+                  setUsageOpen(true);
+                }}
+              >
+                Usage and limits
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                onSelect={() => {
+                  void controller!.signOut().catch(() => {});
+                }}
+              >
+                Sign out
+              </DropdownMenuItem>
+              {accountError ? (
+                <p role="alert" className="text-muted-foreground px-2 text-sm">
+                  {accountError}
+                </p>
+              ) : null}
+            </>
+          ) : null}
         </DropdownMenuContent>
       </DropdownMenu>
       <ApplicationSettingsModal
         open={applicationSettingsOpen}
         onOpenChange={setApplicationSettingsOpen}
       />
+      {account ? (
+        <AccountUsage
+          actions={account}
+          open={usageOpen}
+          onOpenChange={setUsageOpen}
+        />
+      ) : null}
     </>
   );
 }

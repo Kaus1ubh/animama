@@ -1,3 +1,4 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SoundPickerPreview } from "./SoundPickerPreview";
 import { previewCatalogItem } from "@/lib/content/catalogApi";
@@ -22,7 +23,7 @@ describe("picker preview lifecycle", () => {
     const audio = vi.fn();
     vi.stubGlobal("Audio", audio);
     const preview = new SoundPickerPreview(vi.fn());
-    const pending = preview.play("one");
+    const pending = preview.play(testApiClient, "one");
     await vi.waitFor(() => expect(resolve).toBeDefined());
     preview.stop();
     resolve(new Blob());
@@ -52,8 +53,8 @@ describe("picker preview lifecycle", () => {
     );
     const revoke = vi.spyOn(URL, "revokeObjectURL");
     const preview = new SoundPickerPreview(vi.fn());
-    await preview.play("one");
-    await preview.play("two");
+    await preview.play(testApiClient, "one");
+    await preview.play(testApiClient, "two");
     expect(sounds[0]?.pause).toHaveBeenCalledOnce();
     expect(sounds[0]?.currentTime).toBe(0);
     preview.stop();

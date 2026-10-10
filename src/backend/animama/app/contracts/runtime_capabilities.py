@@ -41,19 +41,35 @@ class WebSearchCapability(BaseModel):
 
 
 class RuntimeCapabilities(BaseModel):
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     runtime_kind: Literal["desktop", "self_hosted_web", "hosted"]
     """Presentation metadata only; capability fields, not this value, gate features.
 
     The local composition reports ``desktop`` or ``self_hosted_web`` and never
     ``hosted``.
     """
+    chat: bool
+    """Whether product chat is admitted; transient provider failures remain request errors."""
+    model_selection: bool
+    """Whether the owner may choose a model from the composition's admitted catalog."""
+    model_role_selection: bool
+    """Whether the owner may choose catalog models for application roles."""
     model_configuration: bool = False
-    """Whether the owner may manage model connections, models and roles."""
+    """Whether the owner may administer connections and add/remove catalog models."""
+    provider_credentials: bool
+    """Whether user-owned provider keys may be configured, independently of model choices."""
     chat_file_uploads: bool
     """Whether chat accepts owner file uploads; the UI hides upload entry points when false."""
     anima_creation: bool
     """Whether the owner may create Animas; the UI hides every create-Anima entry point when false."""
+    local_filesystem_administration: bool
+    """Whether host directories, catalog scans, paths and host logs may be administered.
+
+    Logical memory files/folders, content assets and browser downloads are not
+    host administration and do not depend on this permission.
+    """
+    native_features: bool
+    """Whether Electron/native actions are offered; browser fullscreen/PiP use browser detection."""
     user_file_processing: UserFileProcessingCapability
     offline_speech_enabled: bool
     """Whether offline speech recognition (Parakeet) can be used now; read on every request."""

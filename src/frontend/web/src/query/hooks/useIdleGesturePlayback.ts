@@ -1,6 +1,7 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { useQuery } from "@tanstack/react-query";
 import { getGestureIdlePlayback } from "@animama/runtime-contracts/sdk";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 /** Inspect only the selected candidate; large VRMA files stay off list requests. */
@@ -8,7 +9,9 @@ export function useIdleGesturePlayback(
   itemId: string | null,
   revision: string,
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   return useQuery({
     queryKey: queryKeys.gestures.idlePlayback(
       userId ?? "__anon__",
@@ -20,6 +23,7 @@ export function useIdleGesturePlayback(
     queryFn: async ({ signal }) =>
       (
         await getGestureIdlePlayback({
+          client: apiClient,
           path: { item_id: itemId! },
           signal,
           responseValidator: undefined,

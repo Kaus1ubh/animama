@@ -1,3 +1,4 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
 import { createLogger } from "@/lib/logger";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
 import {
@@ -8,6 +9,7 @@ import {
 } from "@/lib/speech/client-parakeet/assets";
 import {
   holdModelAssetLease,
+  createModelAssetLeaseApi,
   type ModelAssetLease,
 } from "@/lib/speech/client-parakeet/lease";
 import {
@@ -103,7 +105,10 @@ let pendingLeaseReleases: Promise<unknown> = Promise.resolve();
 export const LEASE_RELEASE_WAIT_MS = 2000;
 
 /** Lease exactly `assetIds`, keeping existing leases and releasing others. */
-async function leaseLoadedSets(assetIds: readonly string[]): Promise<void> {
+async function leaseLoadedSets(
+  apiClient: Client | null,
+  assetIds: readonly string[],
+): Promise<void> {
   const releases: Promise<void>[] = [];
   for (const [assetId, lease] of setLeases) {
     if (assetIds.includes(assetId)) continue;
@@ -114,13 +119,18 @@ async function leaseLoadedSets(assetIds: readonly string[]): Promise<void> {
     pendingLeaseReleases = Promise.all([pendingLeaseReleases, ...releases]);
   for (const assetId of assetIds) {
     if (!setLeases.has(assetId))
-      setLeases.set(assetId, holdModelAssetLease(assetId));
+      setLeases.set(
+        assetId,
+        holdModelAssetLease(assetId, {
+          api: createModelAssetLeaseApi(apiClient!),
+        }),
+      );
   }
   await Promise.all(setLeases.values());
 }
 
 function releaseSetLeases(): void {
-  void leaseLoadedSets([]);
+  void leaseLoadedSets(null, []);
 }
 
 /** The backend chosen by the most recent load in this page, if any. */
@@ -190,22 +200,30 @@ function rejectPendingRequests(error: Error): void {
   }
 }
 
+/**
+ * Forget the current `worker` synchronously: reject its requests, stop it and
+ * release the sets it loaded. A worker that was already replaced is left alone.
+ */
+function endWorker(worker: Worker, error: Error): boolean {
+  if (workerInstance !== worker) return false;
+  rejectPendingRequests(error);
+  worker.terminate();
+  workerInstance = null;
+  workerBackend = null;
+  releaseSetLeases();
+  return true;
+}
+
 function terminateFailedWorker(
   worker: Worker,
   error: Error,
   reason: string,
 ): void {
-  rejectPendingRequests(error);
-  if (workerInstance === worker) {
-    worker.terminate();
-    workerInstance = null;
-    workerBackend = null;
-    releaseSetLeases();
-    logger.warn("Worker", "Terminated failed client Parakeet worker", {
-      reason,
-      error: error.message,
-    });
-  }
+  if (!endWorker(worker, error)) return;
+  logger.warn("Worker", "Terminated failed client Parakeet worker", {
+    reason,
+    error: error.message,
+  });
 }
 
 function clearClientParakeetIdleDisposeTimer(reason: string): void {
@@ -457,12 +475,15 @@ function postRequest<T>(
   });
 }
 
-export async function loadClientParakeetWorker({
-  preferWebgpu = false,
-  sampleRateHz = DEFAULT_SAMPLE_RATE_HZ,
-  modelUrls,
-}: LoadClientParakeetWorkerArgs = {}): Promise<ClientParakeetLoadResult> {
-  const capabilities = await fetchRuntimeCapabilities();
+export async function loadClientParakeetWorker(
+  apiClient: Client,
+  {
+    preferWebgpu = false,
+    sampleRateHz = DEFAULT_SAMPLE_RATE_HZ,
+    modelUrls,
+  }: LoadClientParakeetWorkerArgs = {},
+): Promise<ClientParakeetLoadResult> {
+  const capabilities = await fetchRuntimeCapabilities(apiClient);
   if (!capabilities.offline_speech_enabled) {
     throw new Error(
       "Install offline speech recognition in Settings to use dictation and Voice Mode.",
@@ -496,7 +517,7 @@ export async function loadClientParakeetWorker({
       ),
     );
     // Installed sets report a version; lease them before their files load.
-    await leaseLoadedSets([
+    await leaseLoadedSets(apiClient, [
       ...(capabilities.offline_speech_asset_version ? [PARAKEET_ASSET_ID] : []),
       ...(backend === "webgpu" && capabilities.offline_speech_gpu_asset_version
         ? [PARAKEET_WEBGPU_ASSET_ID]
@@ -591,7 +612,8 @@ export async function transcribeClientParakeetWindow({
 }
 
 export async function disposeClientParakeetWorker(): Promise<ClientParakeetDisposeResult> {
-  if (!workerInstance) {
+  const worker = workerInstance;
+  if (!worker) {
     return { disposed: true };
   }
 
@@ -612,17 +634,21 @@ export async function disposeClientParakeetWorker(): Promise<ClientParakeetDispo
     );
     return { disposed: true };
   } finally {
-    for (const [requestId, entry] of pending.entries()) {
-      pending.delete(requestId);
-      entry.reject(new Error("Client Parakeet worker terminated"));
-    }
-
-    if (workerInstance) {
-      workerInstance.terminate();
-      workerInstance = null;
-      workerBackend = null;
+    if (endWorker(worker, new Error("Client Parakeet worker terminated")))
       logger.info("Worker", "Terminated client Parakeet worker instance");
-    }
-    releaseSetLeases();
   }
+}
+
+/**
+ * Session teardown: stop this page's worker now instead of asking it to
+ * dispose. A session end also terminates the browser worker, so a dispose
+ * reply may never arrive; the next session must start a new worker rather
+ * than wait on a dead one.
+ */
+export function terminateClientParakeetWorker(): void {
+  clearClientParakeetIdleDisposeTimer("session_end");
+  if (workerInstance)
+    endWorker(workerInstance, new Error("Client Parakeet worker terminated"));
+  // Also releases sets leased by a load that has not started its worker.
+  releaseSetLeases();
 }

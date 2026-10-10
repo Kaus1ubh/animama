@@ -1,5 +1,5 @@
 import { createElement, type ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { describe, expect, it, vi } from "vitest";
 
@@ -21,7 +21,8 @@ import {
   onboardingInput,
   openAiDefaultModel,
   ownerModelChoices,
-  resolveSetupTts,
+  resolveSetupTtsProvider,
+  setupBuiltins,
   setupStepPosition,
   setupTtsOptions,
   setupTtsPatch,
@@ -87,10 +88,26 @@ vi.mock("@/query/hooks/useModelConfiguration", () => {
       ok({ roles: [{ role: "chat", model_provider_id: OPENAI_MODEL }] }),
   };
 });
-vi.mock("@/ui/settings/OfflineSpeechDownloads", () => ({
-  OfflineSpeechDownloads: () =>
-    createElement("button", { type: "button" }, "Download CPU model"),
-}));
+vi.mock("@/ui/settings/OfflineSpeechDownloads", () => {
+  const asset = (id: string, size: number) => ({
+    id,
+    status: "not_installed",
+    size_bytes: size,
+    required_free_bytes: size,
+  });
+  return {
+    assetFailureText: () => "",
+    OfflineSpeechDownloads: () => null,
+    useOfflineSpeechDownloads: () => ({
+      cpu: asset("parakeet-stt", 631_000_000),
+      gpu: asset("parakeet-stt-webgpu", 1_200_000_000),
+      freeBytes: null,
+      gpuSupport: "available",
+      pending: false,
+      onChange: () => {},
+    }),
+  };
+});
 vi.mock("@/ui/settings/DesktopCredentialsPanel", () => ({
   DesktopCredentialsPanel: ({ providers }: { providers: string[] }) =>
     createElement("div", { "data-key-panel": providers.join(",") }),
@@ -122,15 +139,6 @@ function renderSetup(draft: Partial<SetupDraft> | null = null): string {
 }
 
 const welcomeDone = { displayName: "Ada", adultConfirmed: true };
-
-/** The radio button for a model choice, as rendered markup. */
-function radio(html: string, id: string): string {
-  const tag = [...html.matchAll(/<button[^>]*role="radio"[^>]*>/gu)]
-    .map((match) => match[0])
-    .find((button) => button.includes(`value="${id}"`));
-  if (!tag) throw new Error(`No radio for ${id}`);
-  return tag;
-}
 
 const builtinConnection = {
   id: "builtin-openai",
@@ -277,10 +285,16 @@ describe("local first-run setup", () => {
       chatModelId: OPENAI_MODEL,
     });
     expect(html).toContain("Step 2 of 3");
-    expect(html).toMatch(/<li aria-current="step"[^>]*>AI<\/li>/u);
-    expect(html).toMatch(/role="tab"[^>]*>Cloud</u);
+    expect(html).toMatch(
+      /<li aria-current="step"[^>]*>AI<span[^>]*>\(optional\)<\/span><\/li>/u,
+    );
+    // Cloud carries the Recommended tag; the step no longer lists models.
+    expect(html).toMatch(
+      /role="tab"[^>]*><span[^>]*>Cloud<span[^>]*>Recommended<\/span>/u,
+    );
     expect(html).toMatch(/role="tab"[^>]*>Local</u);
-    expect(html).toContain("Recommended");
+    expect(html).not.toContain("Model for new Animas");
+    expect(html).not.toContain("App Settings → Models");
     expect(html).toContain('data-key-panel="openai"');
     expect(html).toContain('aria-label="Cloud providers"');
     expect(html).toContain('aria-label="Local providers"');
@@ -288,27 +302,23 @@ describe("local first-run setup", () => {
       expect(html).toMatch(
         new RegExp(`role="tab"[^>]*><span[^>]*>${provider}`, "u"),
       );
-    // Anthropic sits beside OpenAI with its own key, but needs that key first.
+    // Anthropic sits beside OpenAI with its own key; neither lists models.
     expect(html).toMatch(/role="tab"[^>]*><span[^>]*>Anthropic</u);
     expect(html).toContain('data-key-panel="anthropic"');
-    expect(radio(html, OPENAI_MODEL)).toContain('aria-checked="true"');
-    expect(radio(html, HAIKU)).toContain('disabled=""');
-    expect(html).toContain("Use Anthropic");
-    expect(html).toContain("Save your Anthropic key to use Anthropic.");
-    expect(html).not.toContain("Save your OpenAI key");
+    expect(html).not.toContain('role="radio"');
+    expect(html).not.toContain("Use Anthropic");
+    expect(html).not.toContain("Save your Anthropic key");
     // OpenAI (key set) opens first and is marked connected.
     expect(html).toMatch(
       /role="tab" aria-selected="true"[^>]*><span[^>]*>OpenAI<span aria-hidden="true"[^>]*><\/span><span class="sr-only"> \(connected\)/u,
     );
-    expect(html).toContain("New Animas will chat with OpenAI (GPT-6 Luna).");
-    expect(html).toContain("App Settings → Models");
     expect(html).toMatch(/<button[^>]*>Back<\/button>/u);
     expect(html).toMatch(/<button[^>]*>Skip for now<\/button>/u);
     expect(html).toMatch(/<button[^>]*>Continue<\/button>/u);
     expect(html).not.toContain("Finish");
   });
 
-  it("offers Claude Haiku 5.5 once the Anthropic key is set", () => {
+  it("opens on Anthropic when only its key is set", () => {
     fixture.connections = [
       { ...anthropicConnection, credential_state: "configured" },
       { ...builtinConnection, credential_state: "missing" },
@@ -323,28 +333,31 @@ describe("local first-run setup", () => {
     expect(html).toMatch(
       /role="tab" aria-selected="true"[^>]*><span[^>]*>Anthropic<span aria-hidden="true"[^>]*><\/span><span class="sr-only"> \(connected\)/u,
     );
-    expect(html).toContain(
-      "New Animas will chat with Anthropic (Claude Haiku 5.5).",
-    );
-    expect(radio(html, HAIKU)).toContain('aria-checked="true"');
-    expect(radio(html, HAIKU)).not.toContain('disabled=""');
-    expect(html).not.toContain("Save your Anthropic key");
-    expect(html).toContain("Save your OpenAI key to use OpenAI.");
-    // Only OpenAI is recommended.
+    expect(html).toMatch(/<h3[^>]*>Anthropic<\/h3>/u);
+    // Only the Cloud location is recommended; no provider panel is.
     expect(html.match(/Recommended/gu)).toHaveLength(1);
   });
 
-  it("names the Anthropic key variable on self-hosted web", () => {
+  it("names each built-in key variable on self-hosted web", () => {
     fixture.desktopKeys = false;
     fixture.connections = [anthropicConnection, builtinConnection];
     fixture.providers = catalog;
     try {
-      const html = renderSetup({ ...welcomeDone, step: "ai" });
+      let html = renderSetup({ ...welcomeDone, step: "ai" });
       expect(html).toContain(
         "Set ANTHROPIC_API_KEY on the server to use Anthropic.",
       );
       expect(html).toContain("Uses the OpenAI key configured on this server.");
       expect(html).not.toContain("data-key-panel");
+      fixture.connections = [
+        { ...anthropicConnection, credential_state: "configured" },
+        { ...builtinConnection, credential_state: "missing" },
+      ];
+      html = renderSetup({ ...welcomeDone, step: "ai" });
+      expect(html).toContain(
+        "Uses the Anthropic key configured on this server.",
+      );
+      expect(html).toContain("Set OPENAI_API_KEY on the server to use OpenAI.");
     } finally {
       fixture.desktopKeys = true;
     }
@@ -375,17 +388,30 @@ describe("local first-run setup", () => {
     const html = renderSetup({
       ...welcomeDone,
       step: "voice",
-      ttsEnabled: true,
       ttsProvider: "elevenlabs",
     });
     expect(html).toContain("Step 3 of 3");
-    expect(html).toMatch(/<li aria-current="step"[^>]*>Voice<\/li>/u);
-    expect(html).toContain("Download CPU model");
-    expect(html).toContain("Enable Text-to-Speech");
-    expect(html).toContain("Built-in voices");
+    expect(html).toMatch(
+      /<li aria-current="step"[^>]*>Voice<span[^>]*>\(optional\)<\/span><\/li>/u,
+    );
+    expect(html).toContain("Parakeet (CPU");
+    expect(html).toContain("Parakeet (GPU");
+    // Text-to-Speech is on by default: provider tabs, no toggle.
+    expect(html).not.toContain("Enable Text-to-Speech");
+    expect(html).not.toContain("Everything here is optional");
+    expect(html).not.toContain("attribution");
+    expect(html).toContain("PocketTTS (built-in)");
+    // Each local model links to its public source.
+    expect(html).toContain(
+      'href="https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2"',
+    );
+    expect(html).toContain('href="https://github.com/kyutai-labs/pocket-tts"');
+    // Downloads show a ✓/✗ state, not a bare status.
+    expect(html).toContain("Not downloaded");
+    expect(html).toMatch(
+      /<button[^>]*aria-selected="true"[^>]*>ElevenLabs<\/button>/u,
+    );
     expect(html).toContain('data-key-panel="elevenlabs"');
-    // ElevenLabs is selected but its key is not saved.
-    expect(html).toContain("ElevenLabs needs an API key.");
     expect(html).toMatch(/<button[^>]*>Finish<\/button>/u);
     expect(html).toMatch(/<button[^>]*>Skip for now<\/button>/u);
     expect(html).not.toMatch(/reload/iu);
@@ -416,25 +442,22 @@ describe("setup step logic", () => {
     });
   });
 
-  it("writes Text-to-Speech only when changed, keeping saved values otherwise", () => {
+  it("writes the Text-to-Speech provider only when chosen, keeping it on", () => {
     const saved = { tts_enabled: true, tts_provider: "elevenlabs" as const };
+    expect(setupTtsPatch({ ttsProvider: null })).toBeNull();
+    expect(resolveSetupTtsProvider({ ttsProvider: null }, saved)).toBe(
+      "elevenlabs",
+    );
     expect(
-      setupTtsPatch({ ttsEnabled: null, ttsProvider: null }, saved),
-    ).toBeNull();
-    expect(
-      resolveSetupTts({ ttsEnabled: null, ttsProvider: null }, saved),
-    ).toEqual({ enabled: true, provider: "elevenlabs" });
-    expect(
-      resolveSetupTts(
-        { ttsEnabled: null, ttsProvider: null },
-        {
-          tts_provider: "browser",
-        },
+      resolveSetupTtsProvider(
+        { ttsProvider: null },
+        { tts_provider: "browser" },
       ),
-    ).toEqual({ enabled: false, provider: "pocket_tts" });
-    expect(
-      setupTtsPatch({ ttsEnabled: false, ttsProvider: null }, saved),
-    ).toEqual({ tts_enabled: false, tts_provider: "elevenlabs" });
+    ).toBe("pocket_tts");
+    expect(setupTtsPatch({ ttsProvider: "pocket_tts" })).toEqual({
+      tts_enabled: true,
+      tts_provider: "pocket_tts",
+    });
   });
 
   it("offers built-in voices and ElevenLabs with App Settings' availability", () => {
@@ -456,7 +479,7 @@ describe("setup step logic", () => {
     expect(
       options.map((option) => [option.id, option.label, option.disabled]),
     ).toEqual([
-      ["pocket_tts", "Built-in voices", false],
+      ["pocket_tts", "PocketTTS (built-in)", false],
       ["elevenlabs", "ElevenLabs", true],
     ]);
     expect(options[1].reason).toContain("WebSocket");
@@ -499,6 +522,48 @@ describe("setup step logic", () => {
         (choice) => choice.id,
       ),
     ).toEqual(["OpenAIHTTPAgent:conn-deepseek:deepseek-chat"]);
+  });
+
+  it("chooses a built-in provider's model only while its key is set", () => {
+    const configured: PyModelConnection = {
+      ...anthropicConnection,
+      credential_state: "configured",
+    };
+    // OpenAI's key is set; Anthropic's is not, so saving it is still to come.
+    expect(
+      setupBuiltins(catalog, [anthropicConnection, builtinConnection], null),
+    ).toEqual({
+      openai: {
+        provider: "openai",
+        ready: true,
+        modelId: "OpenAIResponsesHTTPAgent:gpt-6-mini",
+      },
+      anthropic: { provider: "anthropic", ready: false, modelId: null },
+    });
+    const both = setupBuiltins(
+      catalog,
+      [configured, builtinConnection],
+      OPENAI_MODEL,
+    );
+    expect(both.openai.modelId).toBe(OPENAI_MODEL);
+    expect(both.anthropic).toEqual({
+      provider: "anthropic",
+      ready: true,
+      modelId: HAIKU,
+    });
+    // A hidden Haiku row, or no Anthropic connection, chooses nothing.
+    expect(
+      setupBuiltins(
+        catalog.map((entry) =>
+          entry.id === HAIKU ? { ...entry, hidden: true } : entry,
+        ),
+        [configured, builtinConnection],
+        OPENAI_MODEL,
+      ).anthropic,
+    ).toEqual({ provider: "anthropic", ready: true, modelId: null });
+    expect(
+      setupBuiltins(catalog, [builtinConnection], OPENAI_MODEL).anthropic,
+    ).toEqual({ provider: "anthropic", ready: false, modelId: null });
   });
 
   it("offers to add only detected models not yet added at that address", () => {

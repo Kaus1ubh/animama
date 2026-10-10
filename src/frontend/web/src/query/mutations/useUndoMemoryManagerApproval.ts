@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { undoMemoryManagerApprovalV1MemoryManagerApprovalsApprovalIdUndoPost } from "@animama/runtime-contracts/sdk";
@@ -7,9 +9,10 @@ import type {
   PyMemoryManagerApproval,
   PyMemoryManagerApprovalUndoResponse,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { MemoryManagerApiError } from "@/lib/memory-manager/errors";
 import { queryKeys } from "@/query/keys";
+import { sdkResultError } from "@/query/sdkResultError";
 import {
   invalidateApprovedIdentityDefinitions,
   publishMemoryManagerApproval,
@@ -21,8 +24,10 @@ export type UndoMemoryManagerApprovalArgs = {
 
 /** Executes backend-authoritative approval Undo without optimistic memory edits. */
 export function useUndoMemoryManagerApproval() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<
@@ -34,13 +39,17 @@ export function useUndoMemoryManagerApproval() {
       const result =
         await undoMemoryManagerApprovalV1MemoryManagerApprovalsApprovalIdUndoPost(
           {
+            client: apiClient,
             path: { approval_id: approval.id },
             responseValidator: undefined,
             throwOnError: false,
           },
         );
       if (result.error !== undefined) {
-        throw new MemoryManagerApiError(result.response.status, result.error);
+        throw sdkResultError(
+          result,
+          (status, error) => new MemoryManagerApiError(status, error),
+        );
       }
       return result.data;
     },

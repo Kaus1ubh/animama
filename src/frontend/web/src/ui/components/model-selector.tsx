@@ -15,6 +15,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/ui/components/dialog";
+import { publicResourceUrl } from "@/lib/resource-urls";
 import { cn } from "@/lib/utils";
 
 import type { ComponentProps, ReactNode } from "react";
@@ -215,7 +216,7 @@ export const ModelSelectorLogo = ({
     >
       {hasLogo ? (
         <img
-          src={`/provider-logos/${normalizedProvider}.svg`}
+          src={publicResourceUrl(`provider-logos/${normalizedProvider}.svg`)}
           alt=""
           aria-hidden="true"
           className={cn(

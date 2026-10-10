@@ -36,7 +36,14 @@ it("lists individual events and keyframes in chronological order with selection"
         { id: "later", kind: "avatar_vfx", effectId: "eyes", time: 1 },
         { id: "first", kind: "avatar_vfx", effectId: "eyes", time: 0 },
       ],
-      keyframes: [{ id: "expression", pose: "smile", time: 0.5 }],
+      keyframes: [
+        {
+          id: "expression",
+          pose: "expression",
+          label: "Expression",
+          time: 0.5,
+        },
+      ],
       selectedEventId: "later",
     },
   }));

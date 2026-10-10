@@ -1,13 +1,15 @@
 import { describe, expect, it } from "vitest";
 
+import { unsupportedAnimaPoseClipFormatMessage } from "@/lib/avatar/poses/animaPoseClip";
 import {
+  buildAnimaPoseClipFromPoseCreatorDraft,
   createDefaultPoseCreatorClipDraft,
   createPoseCreatorClipAvatarVFXEventDraft,
   createPoseCreatorClipSceneVFXEventDraft,
   createPoseCreatorClipParticleVFXEventDraft,
   createPoseCreatorClipDraftFromAnimaPoseClip,
-  buildPoseCreatorClipForExport,
   createUniquePoseCreatorClipName,
+  formatPoseCreatorClipJsonForExport,
   validatePoseCreatorClipDraft,
   isPoseCreatorBaseKeyframe,
   patchPoseCreatorClipEventDraft,
@@ -48,79 +50,94 @@ describe("createUniquePoseCreatorClipName", () => {
   });
 });
 
+const SMILE = {
+  beats: [{ id: "smile", label: "Smile", time: 0 }],
+  expressions: { happy: [{ v: 0.5, beat: "smile" }] },
+};
+
 describe("standalone clip hydration", () => {
   it.each([true, false])(
     "preserves saved endpoint choices: enabled=%s",
     (enabled) => {
       const draft = createPoseCreatorClipDraftFromAnimaPoseClip(
         {
-          schema: "animaPoseClip/1.0",
+          schema: "animaPoseClip/2.0",
           id: "saved",
           name: "Saved",
           duration: 2,
           basePose: "relaxedRest",
-          poses: {
-            base: { ref: "relaxedRest" },
-            middle: { expressions: { happy: 0.5 } },
-          },
-          poseKeyframes: [
-            ...(enabled ? [{ time: 0, pose: "base" }] : []),
-            { time: 1, pose: "middle" },
-            ...(enabled ? [{ time: 2, pose: "base" }] : []),
+          beats: [
+            ...(enabled ? [{ id: "start", label: "Base", time: 0 }] : []),
+            { id: "middle", label: "Middle", time: 1 },
+            ...(enabled ? [{ id: "end", label: "Base", time: 2 }] : []),
           ],
+          expressions: { happy: [{ v: 0.5, beat: "middle" }] },
         },
         { fallbackBasePose: "relaxedRest" },
       );
-      expect(
-        draft.keyframes.filter((frame) =>
-          isPoseCreatorBaseKeyframe(draft, frame),
-        ),
-      ).toHaveLength(enabled ? 2 : 0);
+      expect(draft.keyframes.filter(isPoseCreatorBaseKeyframe)).toHaveLength(
+        enabled ? 2 : 0,
+      );
     },
   );
 
-  it("retains omitted base across referenced and baked export despite a caller fallback", () => {
-    const input = {
-      schema: "animaPoseClip/1.0",
-      id: "copied",
-      name: "Copied",
-      duration: 1,
-      poses: { first: { expressions: { happy: 0.5 } } },
-      poseKeyframes: [{ time: 0, pose: "first" }],
-    };
-    const draft = createPoseCreatorClipDraftFromAnimaPoseClip(input, {
-      fallbackBasePose: "relaxedRest",
-    });
+  it("retains an omitted base pose despite a caller fallback", () => {
+    const draft = createPoseCreatorClipDraftFromAnimaPoseClip(
+      {
+        schema: "animaPoseClip/2.0",
+        id: "copied",
+        name: "Copied",
+        duration: 1,
+        ...SMILE,
+      },
+      { fallbackBasePose: "relaxedRest" },
+    );
     expect(draft.basePose).toBe("");
     expect(validatePoseCreatorClipDraft(draft)).toEqual([]);
-    for (const mode of ["referenced", "baked"] as const) {
-      const exported = buildPoseCreatorClipForExport(draft, {
-        mode,
-        resolvePose: () => {
-          throw new Error("No external pose should be needed");
-        },
-      });
-      expect(exported?.basePose).toBeUndefined();
-      // The copied expression is kept by value, with no base posture added.
-      expect(exported).toMatchObject({
-        schema: "animaPoseClip/2.0",
-        beats: [{ time: 0 }],
-        expressions: { happy: [{ v: 0.5 }] },
-      });
-      expect(exported).not.toHaveProperty("rotations");
-    }
+    const exported = buildAnimaPoseClipFromPoseCreatorDraft(draft);
+    expect(exported?.basePose).toBeUndefined();
+    // The expression is kept by value, with no base posture added.
+    expect(exported).toMatchObject({
+      schema: "animaPoseClip/2.0",
+      beats: [{ time: 0 }],
+      expressions: { happy: [{ v: 0.5 }] },
+    });
+    expect(exported).not.toHaveProperty("rotations");
   });
+
+  it.each([
+    [
+      "animaPoseClip/1.0",
+      {
+        schema: "animaPoseClip/1.0",
+        id: "legacy",
+        name: "Legacy",
+        duration: 1,
+        poses: { first: { expressions: { happy: 0.5 } } },
+        poseKeyframes: [{ time: 0, pose: "first" }],
+      },
+    ],
+    ["animaPoseClip/9.0", { schema: "animaPoseClip/9.0", id: "future" }],
+  ])(
+    "rejects a %s clip with the unsupported-format message",
+    (schema, clip) => {
+      expect(() =>
+        createPoseCreatorClipDraftFromAnimaPoseClip(clip, {
+          fallbackBasePose: "relaxedRest",
+        }),
+      ).toThrow(unsupportedAnimaPoseClipFormatMessage(schema));
+    },
+  );
 });
 
 describe("accompanying audio authoring", () => {
   it("preserves per-event suppression through edits, export and reopen", () => {
     const input = {
-      schema: "animaPoseClip/1.0",
+      schema: "animaPoseClip/2.0",
       id: "audio",
       name: "Audio",
       duration: 2,
-      poses: { first: { expressions: { happy: 0.5 } } },
-      poseKeyframes: [{ time: 0, pose: "first" }],
+      ...SMILE,
       events: [
         {
           id: "avatar",
@@ -145,11 +162,9 @@ describe("accompanying audio authoring", () => {
     draft.events = draft.events.map((event) =>
       patchPoseCreatorClipEventDraft(event, { time: 0.5 }, 2),
     );
-    const exported = buildPoseCreatorClipForExport(draft, {
-      mode: "referenced",
-    });
+    const exported = formatPoseCreatorClipJsonForExport(draft);
     const reopened = createPoseCreatorClipDraftFromAnimaPoseClip(
-      JSON.parse(JSON.stringify(exported)),
+      JSON.parse(exported!),
       { fallbackBasePose: "relaxedRest" },
     );
     expect(reopened.events).toHaveLength(2);
@@ -169,20 +184,17 @@ describe("event-only authoring", () => {
   it("exports and reopens effects without requiring an unrelated pose", () => {
     const draft = createPoseCreatorClipDraftFromAnimaPoseClip(
       {
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "sound-only",
         name: "Sound only",
         duration: 1,
-        poses: {},
-        poseKeyframes: [],
+        beats: [],
         events: [{ id: "chime", kind: "sfx", cueId: "chime", time: 0 }],
       },
       { fallbackBasePose: "relaxedRest" },
     );
     expect(validatePoseCreatorClipDraft(draft)).toEqual([]);
-    const exported = buildPoseCreatorClipForExport(draft, {
-      mode: "referenced",
-    });
+    const exported = buildAnimaPoseClipFromPoseCreatorDraft(draft);
     expect(exported).toMatchObject({
       schema: "animaPoseClip/2.0",
       beats: [],
@@ -199,9 +211,7 @@ describe("event-only authoring", () => {
         (issue) => issue.severity === "error",
       ),
     ).toBe(true);
-    expect(
-      buildPoseCreatorClipForExport(empty, { mode: "referenced" }),
-    ).toBeNull();
+    expect(buildAnimaPoseClipFromPoseCreatorDraft(empty)).toBeNull();
   });
 });
 

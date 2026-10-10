@@ -1,4 +1,9 @@
+import {
+  isAnimaPoseClipV2,
+  UnsupportedAnimaPoseClipFormatError,
+} from "@/lib/avatar/poses/animaPoseClip/parseClip";
 import type { ActionDocument } from "@/ui/action-editor/actionDocument";
+import { recoverySessionIsActive } from "./recovery-session";
 
 const RECOVERY_SCHEMA = 3;
 const PREFIX = "animama:action-editor";
@@ -29,6 +34,7 @@ export function saveActionRecovery(
   recovery: Omit<ActionRecovery, "schema" | "savedAt">,
   routeItemId: string | null = recovery.itemId,
 ) {
+  if (!recoverySessionIsActive(recovery.userId)) return;
   storage.setItem(
     actionRecoveryKey(recovery.userId, recovery.document.intent, routeItemId),
     JSON.stringify({
@@ -39,6 +45,12 @@ export function saveActionRecovery(
   );
 }
 
+/**
+ * The stored recovery for this route, or null when there is none or it is
+ * unreadable. Throws `UnsupportedAnimaPoseClipFormatError` when it holds an
+ * Anima Pose Clip in a format this version cannot edit, such as the retired
+ * `animaPoseClip/1.0`.
+ */
 export function loadActionRecovery(
   storage: Pick<Storage, "getItem">,
   userId: string,
@@ -47,27 +59,38 @@ export function loadActionRecovery(
 ): ActionRecovery | null {
   const raw = storage.getItem(actionRecoveryKey(userId, intent, itemId));
   if (!raw) return null;
+  let parsed: Partial<ActionRecovery>;
   try {
-    const parsed = JSON.parse(raw) as Partial<ActionRecovery>;
-    if (
-      parsed.schema !== RECOVERY_SCHEMA ||
-      parsed.userId !== userId ||
-      (itemId !== null && parsed.itemId !== itemId) ||
-      parsed.document?.intent !== intent ||
-      !parsed.rootDigest ||
-      !parsed.savedAt
-    ) {
-      return null;
-    }
-    return parsed as ActionRecovery;
+    parsed = JSON.parse(raw) as Partial<ActionRecovery>;
   } catch {
     return null;
   }
+  if (
+    !parsed ||
+    parsed.schema !== RECOVERY_SCHEMA ||
+    parsed.userId !== userId ||
+    (itemId !== null && parsed.itemId !== itemId) ||
+    parsed.document?.intent !== intent ||
+    !parsed.rootDigest ||
+    !parsed.savedAt
+  ) {
+    return null;
+  }
+  const { implementation, sequence } = parsed.document;
+  if (implementation === "anima_clip" && !isAnimaPoseClipV2(sequence)) {
+    const schema = (sequence as { schema?: unknown } | undefined)?.schema;
+    throw new UnsupportedAnimaPoseClipFormatError(
+      typeof schema === "string" ? schema : null,
+    );
+  }
+  return parsed as ActionRecovery;
 }
 
 /**
  * Restore only an exact edit route. Product `/new` routes are authoritative
- * blank-document boundaries and must never revive a previous action.
+ * blank-document boundaries and must never revive a previous action. A
+ * recovery whose clip format is unsupported is discarded, and the
+ * `UnsupportedAnimaPoseClipFormatError` is rethrown for the editor to report.
  */
 export function loadActionRecoveryForEditorRoute(
   storage: Pick<Storage, "getItem" | "removeItem">,
@@ -79,7 +102,13 @@ export function loadActionRecoveryForEditorRoute(
     clearActionRecovery(storage, userId, intent, null);
     return null;
   }
-  return loadActionRecovery(storage, userId, intent, itemId);
+  try {
+    return loadActionRecovery(storage, userId, intent, itemId);
+  } catch (error) {
+    if (error instanceof UnsupportedAnimaPoseClipFormatError)
+      clearActionRecovery(storage, userId, intent, itemId);
+    throw error;
+  }
 }
 
 export function clearActionRecovery(

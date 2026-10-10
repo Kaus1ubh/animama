@@ -508,6 +508,249 @@ async function sessionIdle(page) {
   );
 }
 
+test("server speech session reaches the playback adapter without provider credentials", async (t) => {
+  const page = await consumer(t);
+  await page.evaluate(() => window.fixture.enableSpeech());
+  await page.waitForFunction(
+    () => document.querySelector("#submit")?.disabled === false,
+  );
+  await submitSession(page, "Speak through the admitted server");
+  await page.evaluate(() => {
+    window.fixture.respond(0);
+    const run_id = window.fixture.requests()[0].body.run_id;
+    window.fixture.send(0, [
+      {
+        type: "tts.session",
+        run_id,
+        provider: "elevenlabs",
+        transport: "server",
+        websocket_url: "/v1/voice/streams/fixture",
+        voice_id: "voice-fixture",
+        model_id: "eleven_flash_v2_5",
+        output_format: "pcm_24000",
+        sync_alignment: true,
+      },
+    ]);
+    window.fixture.close(0);
+  });
+  await sessionIdle(page);
+  const received = await page.evaluate(() => ({
+    sessions: window.fixture.speechSessions(),
+    failures: window.fixture.speechFailures(),
+  }));
+  assert.deepEqual(received.failures, []);
+  assert.equal(received.sessions.length, 1);
+  assert.equal(received.sessions[0].value.transport, "server");
+  assert.equal(
+    received.sessions[0].value.websocket_url,
+    "/v1/voice/streams/fixture",
+  );
+  assert.equal(received.sessions[0].value.token, null);
+});
+
+const allowanceExhausted = {
+  provider: "elevenlabs",
+  code: "speech_allowance_exhausted",
+  error: "This month's voice allowance is used up.",
+};
+
+/** Submit one turn with ElevenLabs speech; returns the page and its run id. */
+async function speechTurn(t, options) {
+  const page = await consumer(t);
+  await page.evaluate(
+    (options) => window.fixture.enableSpeech(options),
+    options,
+  );
+  await page.waitForFunction(
+    () => document.querySelector("#submit")?.disabled === false,
+  );
+  await submitSession(page, "Say something");
+  const runId = await page.evaluate(() => {
+    window.fixture.respond(0);
+    return window.fixture.requests()[0].body.run_id;
+  });
+  return { page, runId };
+}
+
+/** Stream frames for the turn's run, then wait for the turn to settle. */
+async function streamSpeechTurn(page, runId, frames) {
+  await page.evaluate(
+    ({ runId, frames }) =>
+      window.fixture.send(
+        0,
+        frames.map((frame) => ({ ...frame, run_id: runId })),
+      ),
+    { runId, frames },
+  );
+  await sessionIdle(page);
+  return page.evaluate(() => ({
+    sessions: window.fixture.speechSessions(),
+    failures: window.fixture.speechFailures(),
+    fallbacks: window.fixture.speechFallbacks(),
+    tokens: window.fixture.ttsTokens(),
+    completions: window.fixture.ttsCompletions(),
+  }));
+}
+
+test("a voice allowance exhausted before the reply moves its speech to Pocket TTS", async (t) => {
+  const { page, runId } = await speechTurn(t);
+  const speech = await streamSpeechTurn(page, runId, [
+    { type: "tts.session.error", ...allowanceExhausted },
+    // No descriptor follows a decline; a stray one stays unused.
+    {
+      type: "tts.session",
+      provider: "elevenlabs",
+      transport: "server",
+      websocket_url: "/v1/voice/streams/fixture",
+      voice_id: "voice-fixture",
+      model_id: "eleven_flash_v2_5",
+      output_format: "pcm_24000",
+      sync_alignment: false,
+    },
+    { text: "Hello from the built-in voice." },
+    { chat_id: "chat-fixture" },
+  ]);
+  assert.deepEqual(speech.fallbacks, [runId]);
+  assert.deepEqual(speech.failures, []);
+  assert.deepEqual(speech.sessions, []);
+  assert.deepEqual(speech.tokens, [
+    { runId, token: "Hello from the built-in voice." },
+  ]);
+  assert.deepEqual(speech.completions, [runId]);
+});
+
+test("a voice allowance exhausted after the reply text speaks the reply with Pocket TTS", async (t) => {
+  const { page, runId } = await speechTurn(t, { model: "eleven_v3" });
+  const speech = await streamSpeechTurn(page, runId, [
+    {
+      text: "Hi there.",
+      response_part: "speech",
+      is_delta: true,
+      part_index: 0,
+    },
+    {
+      text: "",
+      response_part: "speech",
+      is_delta: true,
+      part_index: 0,
+      part_final: true,
+    },
+    {
+      type: "tts.error",
+      model_id: "eleven_v3",
+      output_format: "pcm_24000",
+      ...allowanceExhausted,
+    },
+    { chat_id: "chat-fixture" },
+  ]);
+  assert.deepEqual(speech.fallbacks, [runId]);
+  assert.deepEqual(speech.failures, []);
+  assert.deepEqual(speech.tokens, [{ runId, token: "Hi there." }]);
+  // The speech part already completed the run; the switch does not repeat it.
+  assert.deepEqual(speech.completions, [runId]);
+});
+
+test("other speech errors end the run's speech without Pocket TTS", async (t) => {
+  const { page, runId } = await speechTurn(t);
+  const speech = await streamSpeechTurn(page, runId, [
+    {
+      type: "tts.session.error",
+      provider: "elevenlabs",
+      code: "elevenlabs_session_failed",
+      error: "Voice unavailable.",
+    },
+    { text: "Text only." },
+    { chat_id: "chat-fixture" },
+  ]);
+  assert.deepEqual(speech.fallbacks, []);
+  assert.deepEqual(
+    speech.failures.map(({ runId, error }) => [runId, error.code]),
+    [[runId, "elevenlabs_session_failed"]],
+  );
+  assert.deepEqual(speech.tokens, []);
+  assert.deepEqual(speech.completions, []);
+});
+
+test("an exhausted allowance Pocket TTS cannot take keeps the speech failure", async (t) => {
+  const { page, runId } = await speechTurn(t, { fallback: false });
+  const speech = await streamSpeechTurn(page, runId, [
+    { type: "tts.session.error", ...allowanceExhausted },
+    { text: "Text only." },
+    { chat_id: "chat-fixture" },
+  ]);
+  assert.deepEqual(speech.fallbacks, [runId]);
+  assert.deepEqual(
+    speech.failures.map(({ runId, error }) => [runId, error.code]),
+    [[runId, "speech_allowance_exhausted"]],
+  );
+  assert.deepEqual(speech.tokens, []);
+  assert.deepEqual(speech.completions, []);
+});
+
+test("completed turns and related cache effects stay in the distinct browser session partition", async (t) => {
+  const page = await consumer(t);
+  await page.evaluate(() => {
+    window.fixture.mountSession("browser-lifetime-fixture");
+    window.fixture.seedSessionCaches("browser-lifetime-fixture");
+    window.fixture.seedSessionCaches("owner-fixture");
+  });
+  await page.waitForFunction(
+    () => document.querySelector("#submit")?.disabled === false,
+  );
+  assert.equal(await page.textContent("#owner"), "owner-fixture");
+  await submitSession(page, "Keep this completed turn");
+  await page.evaluate(() => {
+    window.fixture.respond(0);
+    const run_id = window.fixture.requests()[0].body.run_id;
+    window.fixture.send(0, [
+      { text: "Visible after finalization", run_id },
+      {
+        type: "chat.title.updated",
+        chat_id: "chat-fixture",
+        title: "Session title",
+        run_id,
+      },
+      { emotions: [{ emotion: "joy", value: 12 }], run_id },
+      { gesture: "wave", runtime_revision: "different-revision", run_id },
+      {
+        type: "memory.updated",
+        run_id,
+        memory_cue: {
+          episode: { text: "A completed turn" },
+          memories: {
+            entry_id: "mem-fixture",
+            version: 2,
+            excerpt: "Completed turn",
+          },
+        },
+      },
+      { chat_id: "chat-fixture", run_id },
+    ]);
+    window.fixture.close(0);
+  });
+  await sessionIdle(page);
+  await page.waitForFunction(
+    () => document.querySelector("#finalizing").textContent === "false",
+  );
+  const caches = await page.evaluate(() => ({
+    session: window.fixture.sessionCaches("browser-lifetime-fixture"),
+    owner: window.fixture.sessionCaches("owner-fixture"),
+  }));
+  assert.deepEqual(
+    caches.session.messages.map(({ content }) => content),
+    ["Keep this completed turn", "Visible after finalization"],
+  );
+  assert.equal(caches.session.title, "Session title");
+  assert.equal(caches.session.joy, 12);
+  assert.deepEqual(caches.session.invalidated, [true, true, true, true]);
+  assert.equal(caches.owner.messages, undefined);
+  assert.equal(caches.owner.title, "Before");
+  assert.equal(caches.owner.joy, 0);
+  assert.deepEqual(caches.owner.invalidated, [false, false, false, false]);
+  await page.getByText("Keep this completed turn", { exact: true }).waitFor();
+  await page.getByText("Visible after finalization", { exact: true }).waitFor();
+});
+
 test("failed session retains partial text and restores a message without sending or overwriting a draft", async (t) => {
   const page = await sessionConsumer(t);
   await submitSession(page, "original message");
@@ -555,7 +798,10 @@ test("provider failure stays visible after terminal frame and a later successful
   });
   await page.getByRole("alert").waitFor();
   await sessionIdle(page);
-  assert.match(await page.getByRole("alert").textContent(), /has no API key configured/);
+  assert.match(
+    await page.getByRole("alert").textContent(),
+    /has no API key configured/,
+  );
   assert(!(await page.textContent("body")).includes("raw payload"));
   await submitSession(page, "next message", 2);
   await page.evaluate(() => {
@@ -570,7 +816,9 @@ test("provider failure stays visible after terminal frame and a later successful
   await page.getByText("Successful answer", { exact: true }).waitFor();
   assert.equal(await page.getByRole("alert").count(), 1);
   const text = await page.textContent('[aria-label="Conversation"]');
-  assert(text.indexOf("has no API key configured") < text.indexOf("next message"));
+  assert(
+    text.indexOf("has no API key configured") < text.indexOf("next message"),
+  );
   assert.equal(
     (await page.evaluate(() => window.fixture.requests())).length,
     2,

@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { hostedExclusionReasons } from "@/app/runtime/route-admission";
 import type { UserFileUploadUppy } from "@/hooks/useUserFileUpload";
 import { ChatInterfaceView } from "@/ui/main/chat/ChatInterface";
 
@@ -22,7 +23,8 @@ vi.mock("@/platform/RuntimePlatformProvider", () => ({
 vi.mock("@/lib/speech/stt-provider", () => ({
   isWebSpeechSupported: () => true,
 }));
-vi.mock("@animama/product-ui/components", () => ({
+vi.mock("@animama/product-ui/components", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@animama/product-ui/components")>()),
   ChatConversation: () => null,
 }));
 vi.mock("@/ui/components/chat-transcript", () => {
@@ -33,7 +35,9 @@ vi.mock("@/ui/components/chat-transcript", () => {
     ChatTranscriptScrollButton: () => null,
   };
 });
-vi.mock("@/ui/components/chat-input", () => ({
+// The real withheld attach control renders; the uploader and composer are fixtures.
+vi.mock("@/ui/components/chat-input", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/ui/components/chat-input")>()),
   ChatInput: ({
     leadingActions,
     children,
@@ -92,22 +96,41 @@ describe("chat file upload entry points", () => {
     fixture.capabilities = undefined;
   });
 
-  it.each([
-    ["reported", { chat_file_uploads: true }],
-    ["still loading", undefined],
-  ])("are offered when uploads are %s", (_label, capabilities) => {
-    fixture.capabilities = capabilities;
+  it.each([["reported", { chat_file_uploads: true }]])(
+    "are offered when uploads are %s",
+    (_label, capabilities) => {
+      fixture.capabilities = capabilities;
+      const html = render();
+      expect(html).toContain("Attach files");
+      expect(html).toContain("Upload tray");
+      expect(html).toContain("Drop files");
+      expect(html).not.toContain(hostedExclusionReasons.chat_file_uploads);
+    },
+  );
+
+  it("are hidden while capabilities are unreadable", () => {
     const html = render();
-    expect(html).toContain("Attach files");
-    expect(html).toContain("Upload tray");
-    expect(html).toContain("Drop files");
+    expect(html).not.toContain("Attach files");
+    expect(html).not.toContain("Add files");
+    expect(html).not.toContain("Upload tray");
+    expect(html).not.toContain("Drop files");
   });
 
-  it("are hidden when the runtime reports uploads disabled", () => {
+  it("keep a disabled attach button with the shared reason when uploads are withheld", () => {
     fixture.capabilities = { chat_file_uploads: false };
     const html = render();
+    // No uploader: no live picker, tray or page-wide drop target.
     expect(html).not.toContain("Attach files");
     expect(html).not.toContain("Upload tray");
     expect(html).not.toContain("Drop files");
+    const attach = html.match(
+      /<button[^>]*>(?:(?!<\/button>).)*Add files/s,
+    )?.[0];
+    expect(attach).toContain('aria-disabled="true"');
+    expect(attach).toContain('type="button"');
+    const reasonId = attach?.match(/aria-describedby="([^"]+)"/)?.[1];
+    expect(html).toContain(
+      `id="${reasonId}" class="sr-only">${hostedExclusionReasons.chat_file_uploads}<`,
+    );
   });
 });

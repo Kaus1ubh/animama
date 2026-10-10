@@ -101,6 +101,10 @@ def messages_request_params(spec: ModelClientRequest) -> dict[str, Any]:
         "max_tokens": request_max_tokens(spec.model_provider),
         "messages": _request_messages(layout, continuation_rounds(spec.continuation)),
     }
+    limits = spec.limits
+    if limits is not None:
+        # Composition-selected limits bound this invocation (hosted calls).
+        params["max_tokens"] = min(params["max_tokens"], limits.max_output_tokens)
     if not utility:
         # A Utility prompt is summarized as a whole, never compacted first (P6-R1-F4).
         params["betas"] = [COMPACTION_BETA]
@@ -110,7 +114,10 @@ def messages_request_params(spec: ModelClientRequest) -> dict[str, Any]:
     tools = anthropic_tools(prompt_tools(prompt))
     if WEB_SEARCH_NATIVE_TOOL in spec.provider_options.native_tools:
         # Executor setup passes web_search here only when the row hosts it.
-        tools.append(copy.deepcopy(WEB_SEARCH_SERVER_TOOL))
+        search_tool = copy.deepcopy(WEB_SEARCH_SERVER_TOOL)
+        if limits is not None and limits.max_native_tool_calls is not None:
+            search_tool["max_uses"] = min(WEB_SEARCH_MAX_USES, limits.max_native_tool_calls)
+        tools.append(search_tool)
     if tools:
         params["tools"] = tools
         params["tool_choice"] = _tool_choice(prompt.tool_choice, prompt.parallel_tool_calls)

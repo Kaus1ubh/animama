@@ -30,8 +30,6 @@ import {
   useDetectModelServer,
 } from "@/query/mutations/useModelConfiguration";
 import { Button } from "@/ui/components/button";
-import { Label } from "@/ui/components/label";
-import { RadioGroup, RadioGroupItem } from "@/ui/components/radio-group";
 import { Tabs, TabsContent } from "@/ui/components/tabs";
 import {
   DesktopCredentialsPanel,
@@ -58,18 +56,14 @@ import {
 } from "@/ui/settings/models/model-configuration-state";
 
 import {
-  anthropicDefaultModel,
-  builtinConnectionOf,
   connectionForDetection,
   detectedModelsToAdd,
-  openAiDefaultModel,
   ownerModelChoices,
+  setupBuiltins,
+  type SetupBuiltin,
   type SetupBuiltinProvider,
   type SetupModelChoice,
 } from "./setup-state";
-
-const TAG_CLASS =
-  "bg-primary/10 text-primary rounded-sm px-1.5 py-0.5 text-2xs font-medium";
 
 /** A model being added in the add-model dialog, optionally prefilled. */
 type ModelAdder = { connection: PyModelConnection; initialModelId?: string };
@@ -84,13 +78,14 @@ function canChat(model: PyConfiguredModel): boolean {
 }
 
 /**
- * Setup's AI step: where models run (Cloud | Local), a tab per provider, and
- * the model new Animas chat with. Cloud recommends OpenAI and offers
- * Anthropic, each with its key; other providers connect with the same form as
- * App Settings → Models. Each local
- * server tab looks for that server at its default address and adds one of
- * its models. A runtime that does not let the owner configure models shows
- * no choice.
+ * Setup's AI step: where models run (Cloud, recommended, | Local) and a tab
+ * per provider. OpenAI and Anthropic take their keys; other providers connect
+ * with the same form as App Settings → Models. Each local server tab looks
+ * for that server at its default address and adds one of its models. The
+ * model new Animas chat with is whichever was set up last (saving the OpenAI
+ * or Anthropic key, or adding a chat model); with none, the system default
+ * applies. A runtime that does not let the owner configure models shows no
+ * choice.
  */
 export function SetupAiStep({
   location,
@@ -118,50 +113,44 @@ export function SetupAiStep({
 
   // Keys are typed in the OpenAI and Anthropic key panels and in connect
   // forms, one per provider tab (all stay mounted). The step reports them to
-  // setup as one source, so leaving with any unsaved asks first, and any
-  // save counts as busy.
-  const openAiPanel = useKeyPanel();
-  const anthropicPanel = useKeyPanel();
-  const panels = [openAiPanel, anthropicPanel];
+  // setup as one source, so leaving with any unsaved asks first, and any save
+  // counts as busy.
+  const panels: Record<SetupBuiltinProvider, KeyPanel> = {
+    openai: useKeyPanel(),
+    anthropic: useKeyPanel(),
+  };
   const forms = useConnectFormKeys();
   const pending =
-    openAiPanel.pending + anthropicPanel.pending + forms.dirtyCount;
-  const busy = openAiPanel.busy || anthropicPanel.busy || forms.saving;
+    panels.openai.pending + panels.anthropic.pending + forms.dirtyCount;
+  const busy = panels.openai.busy || panels.anthropic.busy || forms.saving;
   useEffect(() => onKeyPendingChange(pending), [onKeyPendingChange, pending]);
   useEffect(() => onKeyBusyChange(busy), [busy, onKeyBusyChange]);
   useImperativeHandle(credentialsController, () => ({
     save: async () => {
-      for (const panel of panels)
+      for (const panel of Object.values(panels))
         if (panel.pending > 0 && !(await panel.ref.current?.save()))
           return false;
       return forms.save();
     },
     discard: () => {
-      for (const panel of panels) panel.ref.current?.discard();
+      for (const panel of Object.values(panels)) panel.ref.current?.discard();
       forms.discard();
     },
   }));
 
-  /** A built-in provider's desktop key field, reported with the others. */
-  const keyPanel = (
-    provider: SetupBuiltinProvider,
-    panel: ReturnType<typeof useKeyPanel>,
-  ) =>
+  /** A built-in provider's desktop key field; null on web. */
+  const keyField = (provider: SetupBuiltinProvider) =>
     managedKeys ? (
       <DesktopCredentialsPanel
         providers={[provider]}
         showTitle={false}
         description="Encrypted on this computer and never shown again."
         className="bg-transparent p-3"
-        controllerRef={panel.ref}
-        onPendingChange={panel.setPending}
-        onBusyChange={panel.setBusy}
+        controllerRef={panels[provider].ref}
+        onPendingChange={panels[provider].setPending}
+        onBusyChange={panels[provider].setBusy}
       />
     ) : null;
-  const builtinKeys: Record<SetupBuiltinProvider, ReactNode> = {
-    openai: keyPanel("openai", openAiPanel),
-    anthropic: keyPanel("anthropic", anthropicPanel),
-  };
 
   if (capabilities.isPending)
     return (
@@ -183,7 +172,7 @@ export function SetupAiStep({
           This installation provides its own models, so there is nothing to
           choose here.
         </p>
-        {builtinKeys.openai}
+        {keyField("openai")}
       </div>
     );
   return (
@@ -193,7 +182,7 @@ export function SetupAiStep({
       chatModelId={chatModelId}
       onChatModelChange={onChatModelChange}
       managedKeys={managedKeys}
-      builtinKeys={builtinKeys}
+      keyField={keyField}
       connectFormKeys={forms.keysFor}
       onSetUpLater={onSetUpLater}
     />
@@ -201,7 +190,15 @@ export function SetupAiStep({
 }
 
 /** A built-in provider's key panel: its controller and unsaved or saving state. */
-function useKeyPanel() {
+type KeyPanel = {
+  ref: RefObject<DesktopCredentialsController | null>;
+  pending: number;
+  setPending: (count: number) => void;
+  busy: boolean;
+  setBusy: (busy: boolean) => void;
+};
+
+function useKeyPanel(): KeyPanel {
   const ref = useRef<DesktopCredentialsController>(null);
   const [pending, setPending] = useState(0);
   const [busy, setBusy] = useState(false);
@@ -209,31 +206,22 @@ function useKeyPanel() {
 }
 
 /**
- * Saving a built-in provider's key here completes the choice with its
- * default model. A key that was already set chooses nothing: only explicit
- * choices in this setup become the Chat default.
+ * Saving a built-in provider's key here chooses the model it offers,
+ * replacing an earlier choice: the model set up last wins. A key that was
+ * already set chooses nothing, so only explicit actions in this setup pick
+ * the default.
  */
-function useChooseWhenKeySaved({
-  loaded,
-  ready,
-  modelId,
-  chatModelId,
-  onChatModelChange,
-}: {
-  loaded: boolean;
-  ready: boolean;
-  /** The default model, while its key is set. */
-  modelId: string | null;
-  chatModelId: string | null;
-  onChatModelChange: (id: string | null) => void;
-}) {
+function useChooseWhenKeySaved(
+  loaded: boolean,
+  { ready, modelId }: SetupBuiltin,
+  onChatModelChange: (id: string | null) => void,
+) {
   const wasReady = useRef<boolean | null>(null);
   useEffect(() => {
     if (!loaded) return;
-    if (wasReady.current === false && modelId && chatModelId === null)
-      onChatModelChange(modelId);
+    if (wasReady.current === false && modelId) onChatModelChange(modelId);
     wasReady.current = ready;
-  }, [chatModelId, loaded, onChatModelChange, modelId, ready]);
+  }, [loaded, modelId, onChatModelChange, ready]);
 }
 
 /** How an inline connect form reports its typed key to the step. */
@@ -311,7 +299,7 @@ function ModelChooser({
   chatModelId,
   onChatModelChange,
   managedKeys,
-  builtinKeys,
+  keyField,
   connectFormKeys,
   onSetUpLater,
 }: {
@@ -320,12 +308,12 @@ function ModelChooser({
   chatModelId: string | null;
   onChatModelChange: (id: string | null) => void;
   managedKeys: boolean;
-  /** Each built-in provider's desktop key field (null on web). */
-  builtinKeys: Record<SetupBuiltinProvider, ReactNode>;
+  /** A built-in provider's desktop key field (null on web). */
+  keyField: (provider: SetupBuiltinProvider) => ReactNode;
   connectFormKeys: (providerId: string) => ConnectFormKeys;
   onSetUpLater: () => void;
 }) {
-  const choiceHeadingId = useId();
+  const headingPrefix = useId();
   const connections = useModelConnections(true);
   const providers = useModelProviders();
   const roles = useModelRoles(true);
@@ -338,36 +326,10 @@ function ModelChooser({
 
   const allConnections = connections.data ?? [];
   const items = providers.data ?? [];
-  const openAiConnection = builtinConnectionOf(allConnections, "openai");
   const systemDefaultId = roles.data?.roles.find(
     (role) => role.role === "chat",
   )?.model_provider_id;
-  // "Use OpenAI" and "Use Anthropic": each built-in provider's default model,
-  // choosable once its key is set.
-  const builtins = (
-    [
-      {
-        provider: "openai",
-        name: "OpenAI",
-        model: openAiDefaultModel(items, allConnections, systemDefaultId),
-      },
-      {
-        provider: "anthropic",
-        name: "Anthropic",
-        model: anthropicDefaultModel(items, allConnections),
-      },
-    ] as const
-  ).map((builtin) => {
-    const ready =
-      builtinConnectionOf(allConnections, builtin.provider)
-        ?.credential_state === "configured";
-    return {
-      ...builtin,
-      ready,
-      readyId: ready ? (builtin.model?.id ?? null) : null,
-    };
-  });
-  const [openAi, anthropic] = builtins;
+  const builtins = setupBuiltins(items, allConnections, systemDefaultId);
   const choices: Record<SetupModelLocation, SetupModelChoice[]> = {
     cloud: ownerModelChoices(items, allConnections, "cloud"),
     local: ownerModelChoices(items, allConnections, "local"),
@@ -379,29 +341,31 @@ function ModelChooser({
     roles.isFetched &&
     !connections.isFetching &&
     !providers.isFetching;
-  const templates = (openAiConnection?.models ?? []).filter(
-    (model) => model.source === "builtin" && model.model_kind === "chat",
-  );
+  // Built-in chat models a new model may copy, as in App Settings → Models.
+  const templates = allConnections
+    .filter((connection) => connection.source === "builtin")
+    .flatMap((connection) => connection.models ?? [])
+    .filter(
+      (model) => model.source === "builtin" && model.model_kind === "chat",
+    );
 
-  useChooseWhenKeySaved({
-    loaded: connections.isSuccess,
-    ready: openAi.ready,
-    modelId: openAi.readyId,
-    chatModelId,
+  useChooseWhenKeySaved(
+    connections.isSuccess,
+    builtins.openai,
     onChatModelChange,
-  });
-  useChooseWhenKeySaved({
-    loaded: connections.isSuccess,
-    ready: anthropic.ready,
-    modelId: anthropic.readyId,
-    chatModelId,
+  );
+  useChooseWhenKeySaved(
+    connections.isSuccess,
+    builtins.anthropic,
     onChatModelChange,
-  });
+  );
 
   // A choice that is no longer offered (removed, or its key removed) is dropped.
   const offered =
     chatModelId === null ||
-    builtins.some((builtin) => builtin.readyId === chatModelId) ||
+    Object.values(builtins).some(
+      (builtin) => builtin.modelId === chatModelId,
+    ) ||
     [...choices.cloud, ...choices.local].some(
       (item) => item.id === chatModelId,
     );
@@ -409,42 +373,9 @@ function ModelChooser({
     if (settled && !offered) onChatModelChange(null);
   }, [offered, onChatModelChange, settled]);
 
-  const defaultItem = items.find((item) => item.id === systemDefaultId);
-  const systemDefault = defaultItem
-    ? (defaultItem.model_label ?? defaultItem.model)
-    : null;
-  const chosenBuiltin = builtins.find(
-    (builtin) => builtin.readyId !== null && builtin.readyId === chatModelId,
-  );
-  const chosenLabel =
-    chatModelId === null
-      ? null
-      : chosenBuiltin?.model
-        ? `${chosenBuiltin.name} (${chosenBuiltin.model.model_label ?? chosenBuiltin.model.model})`
-        : [...choices.cloud, ...choices.local]
-            .filter((item) => item.id === chatModelId)
-            .map((item) => `${item.label} on ${item.connectionName}`)[0];
-
   const presetById = (id: string) =>
     presets.data?.find((preset) => preset.id === id);
   const openAdder = (next: ModelAdder) => setAdder(next);
-  const radioChoices: Array<SetupModelChoice & { disabled?: boolean }> = [
-    ...(location === "cloud"
-      ? builtins.flatMap(({ name, model, ready }) =>
-          model
-            ? [
-                {
-                  id: model.id,
-                  label: `Use ${name}`,
-                  connectionName: model.model_label ?? model.model,
-                  disabled: !ready,
-                },
-              ]
-            : [],
-        )
-      : []),
-    ...choices[location],
-  ];
 
   const groups = {
     cloud: locationProviderGroups(allConnections, "cloud"),
@@ -484,36 +415,31 @@ function ModelChooser({
     const items =
       groups[where].find((group) => group.entry.id === entry.id)?.connections ??
       [];
-    const builtin = builtins.find(
+    const builtin = Object.values(builtins).find(
       (candidate) => candidate.provider === entry.presetId,
     );
     if (builtin) {
+      const headingId = `${headingPrefix}-${builtin.provider}`;
       const env = builtinConnectionKey({
         source: "builtin",
         preset: builtin.provider,
       })?.env;
       return (
         <section
-          aria-labelledby={`${choiceHeadingId}-${builtin.provider}`}
+          aria-labelledby={headingId}
           className="border-border/60 space-y-2 rounded-xl border p-4"
         >
-          <h3
-            id={`${choiceHeadingId}-${builtin.provider}`}
-            className="flex flex-wrap items-center gap-2 text-sm font-semibold"
-          >
-            {builtin.name}
-            {entry.recommended ? (
-              <span className={TAG_CLASS}>Recommended</span>
-            ) : null}
+          <h3 id={headingId} className="text-sm font-semibold">
+            {entry.label}
           </h3>
           <p className="text-muted-foreground text-xs">{entry.purpose}</p>
           {managedKeys ? (
-            builtinKeys[builtin.provider]
+            keyField(builtin.provider)
           ) : (
             <p className="text-muted-foreground text-xs">
               {builtin.ready
-                ? `Uses the ${builtin.name} key configured on this server.`
-                : `Set ${env} on the server to use ${builtin.name}.`}
+                ? `Uses the ${entry.label} key configured on this server.`
+                : `Set ${env} on the server to use ${entry.label}.`}
             </p>
           )}
         </section>
@@ -552,7 +478,7 @@ function ModelChooser({
         value={location}
         onValueChange={(value) => onLocationChange(value as SetupModelLocation)}
       >
-        <ModelLocationTabsList active={location} />
+        <ModelLocationTabsList active={location} recommended="cloud" />
         {/* Every location and provider panel stays mounted, so a typed key
             or open form survives a tab switch. */}
         {MODEL_LOCATION_TABS.map(({ id: where, label }) => (
@@ -587,57 +513,6 @@ function ModelChooser({
           </TabsContent>
         ))}
       </Tabs>
-      {radioChoices.length ? (
-        <section aria-labelledby={choiceHeadingId} className="space-y-2">
-          <h3 id={choiceHeadingId} className="text-sm font-semibold">
-            Model for new Animas
-          </h3>
-          <RadioGroup
-            aria-labelledby={choiceHeadingId}
-            value={chatModelId ?? ""}
-            onValueChange={(value) => onChatModelChange(value || null)}
-            className="gap-1"
-          >
-            {radioChoices.map((choice) => (
-              <div key={choice.id} className="flex items-center gap-2 py-1">
-                <RadioGroupItem
-                  id={`${choiceHeadingId}-${choice.id}`}
-                  value={choice.id}
-                  disabled={choice.disabled}
-                />
-                <Label
-                  htmlFor={`${choiceHeadingId}-${choice.id}`}
-                  className="min-w-0 flex-1 font-normal"
-                >
-                  <span className="text-sm">{choice.label}</span>{" "}
-                  <span className="text-muted-foreground text-xs">
-                    {choice.connectionName}
-                  </span>
-                </Label>
-              </div>
-            ))}
-          </RadioGroup>
-          {location === "cloud"
-            ? builtins
-                .filter(({ model, ready }) => model && !ready)
-                .map(({ provider, name }) => (
-                  <p key={provider} className="text-muted-foreground text-xs">
-                    {`Save your ${name} key to use ${name}.`}
-                  </p>
-                ))
-            : null}
-        </section>
-      ) : null}
-      <p className="text-sm" role="status">
-        {chosenLabel
-          ? `New Animas will chat with ${chosenLabel}.`
-          : systemDefault
-            ? `No model chosen; new Animas use the system default (${systemDefault}).`
-            : "No model chosen yet. You can skip this step and set one up later."}
-      </p>
-      <p className="text-muted-foreground text-xs">
-        You can change models later in App Settings → Models.
-      </p>
       {adder ? (
         <OwnerModelDialog
           open

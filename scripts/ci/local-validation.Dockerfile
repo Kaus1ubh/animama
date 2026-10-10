@@ -12,7 +12,7 @@ COPY --from=docker /usr/local/libexec/docker/cli-plugins /usr/local/libexec/dock
 RUN ln -s ../lib/node_modules/npm/bin/npm-cli.js /usr/local/bin/npm \
     && apt-get update \
     && apt-get install --yes --no-install-recommends \
-       ca-certificates git git-lfs ripgrep make build-essential \
+       ca-certificates git git-lfs ripgrep make build-essential procps \
        libnss3 libnspr4 libatk1.0-0 libatk-bridge2.0-0 libcups2 libdrm2 \
        libdbus-1-3 libxcb1 libxkbcommon0 libx11-6 libxcomposite1 libxdamage1 \
        libxext6 libxfixes3 libxrandr2 libgbm1 libpango-1.0-0 libcairo2 \

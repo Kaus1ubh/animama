@@ -16,8 +16,8 @@ export type SetupTtsProvider = "pocket_tts" | "elevenlabs";
  * choosing again. API keys never enter this store.
  *
  * `chatModelId` is the catalog row chosen in the AI step (null: none, so the
- * system default applies). `ttsEnabled` and `ttsProvider` stay null until the
- * owner changes them in the Voice step, so untouched settings are not written.
+ * system default applies). `ttsProvider` stays null until the owner picks a
+ * provider in the Voice step, so an untouched default is not written.
  */
 export type SetupDraft = {
   step: SetupStep;
@@ -25,7 +25,6 @@ export type SetupDraft = {
   adultConfirmed: boolean;
   modelLocation: SetupModelLocation;
   chatModelId: string | null;
-  ttsEnabled: boolean | null;
   ttsProvider: SetupTtsProvider | null;
 };
 
@@ -40,7 +39,6 @@ export const emptySetupDraft = (): SetupDraft => ({
   adultConfirmed: false,
   modelLocation: "cloud",
   chatModelId: null,
-  ttsEnabled: null,
   ttsProvider: null,
 });
 const draftKey = (ownerId: string) => `animama:setup-draft:${ownerId}`;
@@ -77,7 +75,6 @@ function parseDraft(value: unknown): SetupDraft {
       raw.chatModelId.length <= MAX_MODEL_ID_LENGTH
         ? raw.chatModelId
         : null,
-    ttsEnabled: typeof raw.ttsEnabled === "boolean" ? raw.ttsEnabled : null,
     ttsProvider:
       raw.ttsProvider === "pocket_tts" || raw.ttsProvider === "elevenlabs"
         ? raw.ttsProvider
@@ -113,7 +110,6 @@ export function writeSetupDraft(
       adultConfirmed: draft.adultConfirmed === true,
       modelLocation: draft.modelLocation === "local" ? "local" : "cloud",
       chatModelId: draft.chatModelId?.slice(0, MAX_MODEL_ID_LENGTH) || null,
-      ttsEnabled: draft.ttsEnabled,
       ttsProvider: draft.ttsProvider,
     };
     storage.setItem(draftKey(ownerId), JSON.stringify(projected));

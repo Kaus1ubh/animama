@@ -1,7 +1,7 @@
 import type { Avatar } from "@/lib/avatar";
 import {
   validateAnimaPoseClipEventCatalogRefs,
-  type AnyAnimaPoseClip,
+  type AnimaPoseClipV2,
 } from "@/lib/avatar/poses/animaPoseClip";
 import type { PreviewRuntimeCatalogDelegate } from "./PreviewRuntimeCatalogSession";
 import type { ContentPreviewTarget } from "./types";
@@ -85,7 +85,7 @@ const EMPTY_EVENT_CATALOGS = {
 } as const;
 
 function allContentPreviewDependencies(
-  clip: AnyAnimaPoseClip,
+  clip: AnimaPoseClipV2,
 ): ContentPreviewMissingDependency[] {
   const references = validateAnimaPoseClipEventCatalogRefs(
     clip,
@@ -152,7 +152,7 @@ async function loadContentPreviewDependency(
  * until their authorized files have loaded.
  */
 export async function prepareContentPreviewDependencies(
-  clip: AnyAnimaPoseClip,
+  clip: AnimaPoseClipV2,
   catalog: PreviewRuntimeCatalogDelegate,
 ): Promise<ContentPreviewMissingDependency[]> {
   const dependencies = allContentPreviewDependencies(clip);
@@ -186,7 +186,7 @@ export async function prepareContentPreviewDependencies(
 
 /** Report exact event runtime IDs absent from the mounted preview catalog. */
 export function collectContentPreviewMissingDependencies(
-  clip: AnyAnimaPoseClip,
+  clip: AnimaPoseClipV2,
   catalog: PreviewRuntimeCatalogDelegate,
 ): ContentPreviewMissingDependency[] {
   const missing = validateAnimaPoseClipEventCatalogRefs(clip, {

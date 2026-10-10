@@ -60,7 +60,9 @@ effective values; later source edits or deletion do not change that Gesture.
 A timed sequence of poses, expressions and optional effects or sounds, stored as
 an Action-owned implementation document. Gestures and Reactions can use Pose
 Clips; clips are not independently selectable catalog items. A standalone Pose
-has no timeline and is not Anima equipment.
+has no timeline and is not Anima equipment. `animaPoseClip/2.0` is the only
+clip format; the retired 1.0 format is rejected
+([ADR 0016](docs/adr/0016-anima-pose-clip-2-only.md)).
 
 ## Gesture
 
@@ -75,7 +77,7 @@ by emotion and intensity.
 A named moment in a Pose Clip's timeline, such as "Raise" or "Settle", shown as
 a keyframe on the creator's Pose lane. In `animaPoseClip/2.0` every key belongs
 to a beat, so retiming, re-posing or deleting the beat carries its keys with
-it. Each 1.0 keyframe becomes one beat.
+it.
 
 ## Generated detail
 
@@ -90,6 +92,15 @@ Reusable content that selects finite Gestures for idle playback through a Defaul
 pool and optional emotion/intensity pools. An omitted cell inherits Default;
 explicit None suppresses idle playback for that cell. Selecting an Idle Style
 does not equip its Gestures for AI invocation.
+
+## Non-portable content
+
+Included content that plays, previews and can be equipped but never leaves the
+app as files: it cannot be customized into a Local copy, exported in a
+[Portable package](#portable-package) or imported. Its licence inventory rule
+sets `"distribution": "non-portable"`, and identical bytes stored anywhere are
+restricted too. The Mixamo-motion pack in desktop and hosted builds is
+non-portable. See [ADR 0018](docs/adr/0018-non-portable-included-content.md).
 
 ## Avatar Effect
 

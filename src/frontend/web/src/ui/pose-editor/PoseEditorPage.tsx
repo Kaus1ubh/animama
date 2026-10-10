@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import {
   useEffect,
   useLayoutEffect,
@@ -10,7 +12,7 @@ import {
 import { Link, useBlocker, useNavigate } from "@tanstack/react-router";
 import { useIsMutating } from "@tanstack/react-query";
 import { ArrowLeftIcon } from "lucide-react";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { usePose } from "@/query/hooks/usePoses";
 import { queryKeys } from "@/query/keys";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
@@ -59,6 +61,8 @@ type PoseTool = "bones" | "expressions" | "preview";
 
 /** Library item editing reuses Pose controls without mounting an Action document. */
 export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
+  const apiClient = useProductApiClient();
+
   const [session] = useState(() => new PoseEditorSession());
   const [loaded, setLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -70,7 +74,7 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
   const avatarStatus = usePoseCreatorStore((state) => state.loadStatus);
   const dirty = usePoseCreatorStore((state) => state.isDirty);
   const savedIdentity = usePoseCreatorStore((state) => state.savedPoseIdentity);
-  const owner = useRuntimeOwnerId();
+  const owner = useRuntimeCacheKey();
   const busy =
     useIsMutating({ mutationKey: queryKeys.poses.save(owner ?? "__anon__") }) >
     0;
@@ -100,7 +104,7 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
     setLoading(true);
     setLoadError(null);
     void session
-      .load(metadata)
+      .load(apiClient, metadata)
       .then((success) => {
         if (!current) return;
         setLoading(false);
@@ -121,7 +125,7 @@ export function PoseEditorWorkspace({ poseId }: { poseId: string }) {
       current = false;
       session.cancelPending();
     };
-  }, [metadata, poseId, activeAvatar, avatarStatus, retry, session]);
+  }, [apiClient, metadata, poseId, activeAvatar, avatarStatus, retry, session]);
 
   // Save/Load already supplied the active document. Canonical navigation must not
   // rehydrate it or discard edits made after an asynchronous Save began.

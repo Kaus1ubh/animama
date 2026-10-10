@@ -12,15 +12,39 @@
     "attachment": {
       "kind": "face_landmark",
       "landmark": "eyes",
-      "side": "right",
       "mirror": true,
       "scale": {
-        "x": 0.6,
-        "y": 0.6
-      }
+        "x": 0.55,
+        "y": 0.55
+      },
+      "side": "right"
     },
     "art": {
       "image": "eye_o_r.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "scale": 0.4,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 1.2,
+            "t": 0.08
+          },
+          {
+            "scale": 0.94,
+            "t": 0.18
+          },
+          {
+            "scale": 1,
+            "t": 0.28
+          }
+        ]
+      }
     },
     "faceOptions": {
       "hideParts": [

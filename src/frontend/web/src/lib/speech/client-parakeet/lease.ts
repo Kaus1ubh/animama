@@ -1,3 +1,4 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
 import {
   leaseModelAssetV1ModelAssetsAssetIdLeasePost,
   releaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDelete,
@@ -15,19 +16,23 @@ export type ModelAssetLeaseApi = {
   release(assetId: string, leaseId: string): Promise<unknown>;
 };
 
-const backendLeaseApi: ModelAssetLeaseApi = {
-  acquire: (assetId, leaseId) =>
-    leaseModelAssetV1ModelAssetsAssetIdLeasePost({
-      path: { asset_id: assetId },
-      body: { lease_id: leaseId },
-      throwOnError: true,
-    }),
-  release: (assetId, leaseId) =>
-    releaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDelete({
-      path: { asset_id: assetId, lease_id: leaseId },
-      throwOnError: true,
-    }),
-};
+export function createModelAssetLeaseApi(client: Client): ModelAssetLeaseApi {
+  return {
+    acquire: (assetId, leaseId) =>
+      leaseModelAssetV1ModelAssetsAssetIdLeasePost({
+        client,
+        path: { asset_id: assetId },
+        body: { lease_id: leaseId },
+        throwOnError: true,
+      }),
+    release: (assetId, leaseId) =>
+      releaseModelAssetLeaseV1ModelAssetsAssetIdLeasesLeaseIdDelete({
+        client,
+        path: { asset_id: assetId, lease_id: leaseId },
+        throwOnError: true,
+      }),
+  };
+}
 
 export type ModelAssetLease = {
   readonly assetId: string;
@@ -57,9 +62,9 @@ const FINAL_REFUSALS = new Set([
 export async function holdModelAssetLease(
   assetId: string,
   {
-    api = backendLeaseApi,
+    api,
     renewMs = MODEL_ASSET_LEASE_RENEW_MS,
-  }: { api?: ModelAssetLeaseApi; renewMs?: number } = {},
+  }: { api: ModelAssetLeaseApi; renewMs?: number },
 ): Promise<ModelAssetLease> {
   const leaseId = crypto.randomUUID();
   let timer: ReturnType<typeof setInterval> | null = null;

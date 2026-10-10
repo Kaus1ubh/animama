@@ -2,7 +2,7 @@ import { VRMLoaderPlugin, VRMUtils, type VRM } from "@pixiv/three-vrm";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 
-import { parseAnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import { canonicalizeCustomPresetExpressions } from "@/lib/avatar/vrmExpressionPresets";
@@ -107,7 +107,7 @@ async function render(
     scene.add(vrm.scene);
     // 2.0 clips are prepared per Avatar (hand presets, planted legs).
     const program = createAnimaPoseClipProgram(
-      parseAnyAnimaPoseClip(request.clip),
+      parseAnimaPoseClip(request.clip),
       { vrm, resolvePose },
     );
     applyCanonicalPose(vrm, {});

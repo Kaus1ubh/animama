@@ -15,6 +15,7 @@ from animama.app.services.content_kind_registry import handler_for_kind
 from animama.app.services.content_package_capabilities import derive_file_capabilities, normalized_action_selector
 from animama.domain.content_catalog import ContentConflictError, ContentKind
 from animama.domain.content_documents import ContentDocumentError, SceneEffectDocumentV1, TypedContentDocument
+from tests.content_package_helpers import anima_clip
 from tests.test_content_package_v3_archive import inspector, sound_package, write_package
 
 EVENTS = {
@@ -30,15 +31,7 @@ def _clip(kind: str, selector: str) -> dict[str, Any]:
     event = {"id": "event", "time": 0, "kind": kind, field: selector}
     if kind == "scene_vfx":
         event["sceneKind"] = "focus_lines"
-    return {
-        "schema": "animaPoseClip/1.0",
-        "id": "clip",
-        "name": "Clip",
-        "duration": 1,
-        "poses": {},
-        "poseKeyframes": [],
-        "events": [event],
-    }
+    return anima_clip(events=[event])
 
 
 def _derive(
@@ -88,7 +81,7 @@ def test_events_resolve_exact_typed_alias_or_portable_reference(kind: str, selec
     if selector_form.startswith("padded-"):
         selector = f" \ufeff{selector}\n"
     result = _derive(kind, selector, [{"ref": "dependency", "alias": "selected", "content_type": dependency_kind}])
-    assert set(result) == {"animaPose/1.0", "animaPoseClip/1.0"}
+    assert set(result) == {"animaPoseClip/2.0"}
 
 
 @pytest.mark.parametrize("kind", EVENTS)
@@ -171,7 +164,7 @@ def _event_package(case: str) -> tuple[dict[str, Any], dict[str, bytes]]:
         }
     )
     manifest["root_entry_ids"] = ["action"]
-    manifest["capabilities"] = ["animaPose/1.0", "animaPoseClip/1.0"]
+    manifest["capabilities"] = ["animaPoseClip/2.0"]
     return manifest, payloads
 
 

@@ -4,10 +4,10 @@ import {
   countAnimaPoseClipEventsByKind,
   getAnimaPoseClipTimelineDuration,
   isAnimaPoseClipVFXEvent,
-  parseAnyAnimaPoseClip,
+  parseAnimaPoseClip,
   sampleAnimaPoseClipAvatarVFXIntensity,
   shouldAnimaPoseClipAutoComplete,
-  type AnyAnimaPoseClip,
+  type AnimaPoseClipV2,
   type AnimaPoseClipDueEvent,
   type AnimaPoseClipEventKindCounts,
   type AnimaPoseClipEvent,
@@ -46,7 +46,7 @@ export type ReactionClipPlayRequest = {
   runId: string;
   sourceEventId: string;
   emotionEventId: string | null;
-  clip: AnyAnimaPoseClip;
+  clip: AnimaPoseClipV2;
 };
 
 export type ReactionClipPlayerOptions = {
@@ -92,7 +92,7 @@ type ReactionClipActiveEffect = {
 };
 
 type ReactionClipRuntimeState = {
-  clip: AnyAnimaPoseClip;
+  clip: AnimaPoseClipV2;
   /** Samples the clip's expression lane (2.0 clips are prepared once). */
   program: AnimaPoseClipProgram;
   ownerId: string;
@@ -171,7 +171,7 @@ export class ReactionClipPlayer {
   }
 
   play(request: ReactionClipPlayRequest): boolean {
-    const clip = parseAnyAnimaPoseClip(request.clip);
+    const clip = parseAnimaPoseClip(request.clip);
     const program = createAnimaPoseClipProgram(clip, {
       resolvePose: this._resolvePoseRef,
     });
@@ -315,10 +315,7 @@ export class ReactionClipPlayer {
     if (!state) return sample;
 
     if (state.phase === "fadeIn") {
-      const transition = resolveAnimaPoseClipFadeTransition(
-        state.clip,
-        state.clip.fadeIn,
-      );
+      const transition = resolveAnimaPoseClipFadeTransition(state.clip.fadeIn);
       const progress = this._getCurrentFadeProgress(state.fadeInDurationSec);
       const sourceSample =
         state.fadeInSourceSample &&
@@ -335,10 +332,7 @@ export class ReactionClipPlayer {
     }
 
     if (state.phase === "fadeOut") {
-      const transition = resolveAnimaPoseClipFadeTransition(
-        state.clip,
-        state.clip.fadeOut,
-      );
+      const transition = resolveAnimaPoseClipFadeTransition(state.clip.fadeOut);
       const progress = this._getCurrentFadeProgress(state.fadeOutDurationSec);
       const sourceSample = state.fadeOutSourceSample ?? sample;
       return interpolateSamples(

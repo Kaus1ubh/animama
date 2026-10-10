@@ -1,17 +1,11 @@
 export { analyzeAnimaPoseClipChannels } from "./channels";
 export {
-  ANIMA_POSE_CLIP_SCHEMA,
   ANIMA_POSE_CLIP_DECIMALS,
   MAX_ANIMA_POSE_CLIP_BYTES,
   roundAnimaPoseClipNumber,
   serializeAnimaPoseClipFile,
   DEFAULT_ANIMA_POSE_CLIP_TRANSITION,
-  isAnimaPoseClipRef,
-  isAnimaPoseSnapshot,
-  parseAnimaPoseClip,
-  sanitizeAnimaPoseClip,
-} from "./schema";
-export { sampleAnimaPoseClip } from "./sampling";
+} from "./clipVocabulary";
 export {
   getAnimaPoseClipFadeDuration,
   getAnimaPoseClipSampleTime,
@@ -43,18 +37,15 @@ export type {
   AnimaPoseClipVFXEventState,
 } from "./events";
 export type {
-  AnimaPoseClip,
   AnimaPoseClipAvatarVFXEvent,
   AnimaPoseClipEasing,
   AnimaPoseClipEvent,
   AnimaPoseClipFade,
   AnimaPoseClipInterpolation,
-  AnimaPoseClipKeyframe,
   AnimaPoseClipPlayback,
   AnimaPoseClipPlaybackLifetime,
   AnimaPoseClipPlaybackScope,
   AnimaPoseClipParticleVFXEvent,
-  AnimaPoseClipPose,
   AnimaPoseClipPoseResolver,
   AnimaPoseClipRotationInterpolation,
   AnimaPoseClipRole,
@@ -70,10 +61,9 @@ export type {
   AnimaPoseClipVFXEvent,
   AnimaPoseClipVFXIntensityEnvelope,
   AnimaPoseClipVFXParameterKeyframe,
-  AnimaPoseRef,
   AnimaPoseSnapshot,
   ResolvedAnimaPoseClipTransition,
-} from "./schema";
+} from "./clipVocabulary";
 export {
   ANIMA_POSE_CLIP_EASES,
   ANIMA_POSE_CLIP_V2_LIMITS,
@@ -97,6 +87,8 @@ export type {
 export {
   animaPoseClipHasPose,
   isAnimaPoseClipV2,
-  parseAnyAnimaPoseClip,
-} from "./anyClip";
-export type { AnyAnimaPoseClip } from "./anyClip";
+  parseAnimaPoseClip,
+  RETIRED_ANIMA_POSE_CLIP_SCHEMA,
+  UnsupportedAnimaPoseClipFormatError,
+  unsupportedAnimaPoseClipFormatMessage,
+} from "./parseClip";

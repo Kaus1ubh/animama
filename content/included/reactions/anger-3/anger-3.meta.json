@@ -25,6 +25,18 @@
       "alias": "scene-vfx-emotion-anger",
       "content_type": "scene_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:steam_puffs",
+      "alias": "steam_puffs",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:face_red",
+      "alias": "face_red",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

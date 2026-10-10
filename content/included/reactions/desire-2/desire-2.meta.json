@@ -19,6 +19,12 @@
       "alias": "hearts",
       "content_type": "particle_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:heart_eyes",
+      "alias": "heart_eyes",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

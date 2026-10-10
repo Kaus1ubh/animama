@@ -74,6 +74,9 @@ export type ChatSessionEffects = {
       language_code?: string | null;
       token?: string | null;
       websocket_base_url?: string | null;
+      /** Server transport is cookie-authorized at the admitted application origin. */
+      transport?: "direct" | "server";
+      websocket_url?: string | null;
     },
   ) => void;
   markElevenLabsSessionFailed: (
@@ -94,6 +97,13 @@ export type ChatSessionEffects = {
     runId: string,
     error: TtsError | string,
   ) => void;
+  /**
+   * Speak a run with Pocket TTS after the server declined its ElevenLabs speech
+   * because the owner's voice allowance is exhausted, for that run only.
+   * Returns whether the run switched; when it did not (or without this
+   * adapter), the run's speech ends as for any other speech error.
+   */
+  fallBackToPocketTts?: (runId: string) => boolean;
   cancelTts: () => void;
   isTtsAudioActive: boolean;
 };
@@ -122,6 +132,7 @@ export const textOnlyChatEffects: ChatSessionEffects = {
   acceptElevenLabsFinalizedAudio: ignore,
   completeElevenLabsFinalizedAudio: ignore,
   markElevenLabsFinalizedAudioFailed: ignore,
+  fallBackToPocketTts: () => false,
   cancelTts: ignore,
   isTtsAudioActive: false,
 };

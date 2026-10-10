@@ -169,6 +169,130 @@ const RETRY_AFTER_CODES = new Set([
   "anthropic_rate_limit",
 ]);
 
+/**
+ * Hosted account and service limits ("Hosted denials" in
+ * contracts/hosted-web.md). Their copy names the limit and the wait, and never
+ * refers the user to an installation owner or its service.
+ */
+const HOSTED_DENIAL_CODES = new Set([
+  "quota_exceeded",
+  "capacity_busy",
+  "budget_paused",
+  "message_too_long",
+  "chat_limit_reached",
+]);
+
+type HostedDenial = {
+  code: string;
+  /** A sibling field, read beside the code first and then outwards. */
+  field: (name: string) => unknown;
+};
+
+/**
+ * Find a hosted denial code wherever the contract may place it (`code`,
+ * `error` or `detail.code`, in a thrown body or a stream error frame).
+ */
+function hostedDenial(
+  outer: Record<string, unknown>,
+  detail: Record<string, unknown>,
+  body: Record<string, unknown>,
+  details: Record<string, unknown>,
+): HostedDenial | null {
+  const candidates = [
+    [outer.code, outer],
+    [outer.error, outer],
+    [detail.code, detail],
+    [body.code, body],
+    [body.error, body],
+  ] as const;
+  for (const [code, container] of candidates) {
+    if (typeof code !== "string" || !HOSTED_DENIAL_CODES.has(code)) continue;
+    const sources = [container, outer, body, details];
+    return {
+      code,
+      field: (name) =>
+        sources
+          .map((source) => source[name])
+          .find((value) => value !== undefined && value !== null),
+    };
+  }
+  return null;
+}
+
+/** Whole seconds to wait, or null when the value is missing or unusable. */
+function waitSeconds(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value > 0
+    ? Math.ceil(value)
+    : null;
+}
+
+/** A positive whole count from a number or a decimal string. */
+function positiveCount(value: unknown): number | null {
+  const count =
+    typeof value === "string" && /^\d+$/.test(value.trim())
+      ? Number(value)
+      : value;
+  return typeof count === "number" && Number.isSafeInteger(count) && count > 0
+    ? count
+    : null;
+}
+
+/** "about 30 seconds", "about 2 hours": the wait in its largest whole unit. */
+function approximateWait(seconds: number): string {
+  const amount = (count: number, unit: string) =>
+    `about ${count} ${unit}${count === 1 ? "" : "s"}`;
+  if (seconds < 60) return amount(seconds, "second");
+  const minutes = Math.round(seconds / 60);
+  if (minutes < 60) return amount(minutes, "minute");
+  const hours = Math.round(seconds / 3600);
+  if (hours < 24) return amount(hours, "hour");
+  return amount(Math.round(seconds / 86_400), "day");
+}
+
+function describeHostedDenial(denial: HostedDenial): readonly [string, string] {
+  const wait = waitSeconds(denial.field("retry_after_seconds"));
+  switch (denial.code) {
+    case "quota_exceeded":
+      return denial.field("limit") === "model_input_tokens"
+        ? [
+            "This conversation is too long for one hosted turn.",
+            "Start a new chat or shorten your message.",
+          ]
+        : [
+            "You've reached this account's hosted usage limit.",
+            wait
+              ? `It resets in ${approximateWait(wait)}.`
+              : "Try again after it resets.",
+          ];
+    case "message_too_long": {
+      const maximum = positiveCount(denial.field("max_characters"));
+      return [
+        "This message is too long.",
+        maximum
+          ? `Messages can be up to ${maximum.toLocaleString("en-US")} characters.`
+          : "Shorten your message, then send it again.",
+      ];
+    }
+    case "chat_limit_reached": {
+      const limit = positiveCount(denial.field("limit"));
+      return [
+        limit
+          ? `This account has reached its chat limit (${limit.toLocaleString("en-US")} chats).`
+          : "This account has reached its chat limit.",
+        "Continue one of your existing chats.",
+      ];
+    }
+    default:
+      // capacity_busy and budget_paused: temporary hosted capacity.
+      return [
+        "Animama is busy right now.",
+        wait
+          ? `Try again in ${approximateWait(wait)}.`
+          : "Try again in a moment.",
+      ];
+  }
+}
+
 /** Normalize HTTP and in-stream errors without assuming a 403 is a provider error. */
 export function describeChatFailure(
   error: unknown,
@@ -181,12 +305,15 @@ export function describeChatFailure(
   const details = record(outer.details ?? detail.details);
   const candidate =
     outer.code ?? detail.code ?? body.code ?? body.error ?? outer.error;
-  const code =
+  const knownCode =
     typeof candidate === "string" && Object.hasOwn(descriptions, candidate)
       ? candidate
-      : partialText
-        ? "chat_stream_interrupted"
-        : "chat_request_failed";
+      : null;
+  const denial = knownCode ? null : hostedDenial(outer, detail, body, details);
+  const code =
+    knownCode ??
+    denial?.code ??
+    (partialText ? "chat_stream_interrupted" : "chat_request_failed");
   const category =
     typeof details.category === "string" &&
     Object.hasOwn(categoryDescriptions, details.category)
@@ -197,7 +324,9 @@ export function describeChatFailure(
     (category && code !== "chat_stream_interrupted"
       ? categoryDescriptions[category]
       : undefined) ?? descriptions[code];
-  let description = describe?.(failedConnection(details));
+  let description = denial
+    ? describeHostedDenial(denial)
+    : describe?.(failedConnection(details));
   if (!description && error instanceof TypeError) {
     description = [
       "Animama couldn't connect to its service.",

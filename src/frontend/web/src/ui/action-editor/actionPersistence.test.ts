@@ -9,7 +9,7 @@ import {
 import { createDefaultPoseCreatorClipDraft } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import { insertPoseCreatorBeat } from "@/ui/pose-creator/poseCreatorClipMotion";
 import { parseAnimaPose } from "@/lib/avatar/poses/animaPose";
-import { parseAnyAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
+import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
 import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/program";
 import { createActionProject, parseActionImport } from "./actionProject";
 import {
@@ -137,7 +137,6 @@ describe("copied pose persistence", () => {
         expressions: { happy: 0.6 },
       }),
       "Original",
-      { atPlayhead: true },
     );
     const document = createActionDocument("gesture");
     document.name = "Copied Action";
@@ -147,13 +146,12 @@ describe("copied pose persistence", () => {
       usePoseCreatorStore.getState().clipDraft,
     );
     const canonical = canonicalizeActionComponentInsertion(persisted);
-    // Save writes 2.0.
     expect(persisted.sequence.schema).toBe("animaPoseClip/2.0");
     expect(persisted.sequence.basePose).toBeUndefined();
     expect(canonical.sequence.basePose).toBeUndefined();
     expect(canonical.dependencies).toEqual([]);
     const sample = (clip: unknown) =>
-      createAnimaPoseClipProgram(parseAnyAnimaPoseClip(clip), {
+      createAnimaPoseClipProgram(parseAnimaPoseClip(clip), {
         resolvePose: () => null,
       }).sample(0.5);
     const expected = sample(canonical.sequence);
@@ -184,7 +182,6 @@ describe("empty authoring timeline history", () => {
     expect(empty).toEqual(sanitizeReactionSequence(empty));
     expect(empty).toMatchObject({ schema: "animaPoseClip/2.0", beats: [] });
     expect(empty).not.toHaveProperty("basePose");
-    expect(empty).not.toHaveProperty("defaultTransition");
   });
   it.each(["pose", "event"])(
     "records the final %s deletion without making empty clips saveable",
@@ -192,17 +189,18 @@ describe("empty authoring timeline history", () => {
       const store = usePoseCreatorStore.getState();
       store.resetWorkspace();
       const sequence = {
-        schema: "animaPoseClip/1.0",
+        schema: "animaPoseClip/2.0",
         id: "last-marker",
         name: "Last marker",
         duration: 4,
-        defaultTransition: { easing: "linear" },
         fadeIn: { duration: 0.3 },
-        poses:
+        beats:
           kind === "pose"
-            ? { expression: { expressions: { happy: 0.6 } } }
-            : {},
-        poseKeyframes: kind === "pose" ? [{ time: 1, pose: "expression" }] : [],
+            ? [{ id: "expression", label: "Expression", time: 1 }]
+            : [],
+        ...(kind === "pose"
+          ? { expressions: { happy: [{ v: 0.6, beat: "expression" }] } }
+          : {}),
         events:
           kind === "event"
             ? [
@@ -215,7 +213,7 @@ describe("empty authoring timeline history", () => {
               ]
             : [],
       };
-      store.hydrateClipDocument(parseAnyAnimaPoseClip(sequence));
+      store.hydrateClipDocument(parseAnimaPoseClip(sequence));
       if (kind === "pose") store.deleteSelectedClipKeyframe();
       else {
         store.selectClipEvent("hearts");
@@ -268,7 +266,7 @@ describe("animaPoseClip/2.0 persistence", () => {
     );
     const store = usePoseCreatorStore.getState();
     store.resetWorkspace();
-    expect(store.hydrateClipDocument(parseAnyAnimaPoseClip(clip))).toBe(true);
+    expect(store.hydrateClipDocument(parseAnimaPoseClip(clip))).toBe(true);
     const document = createActionDocument("gesture");
     document.name = "Wave Hello";
     document.semanticKey = "wave_hello";

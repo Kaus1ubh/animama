@@ -33,11 +33,11 @@ export function requestableNativeTools(
 
 /**
  * How a chat model row can search the web: the provider's hosted search, the
- * application `web_search` tool through the installation's configured
- * backend, or not at all with a reason for the owner. `null` means the row
- * has no hosted search and cannot use application search, so no control is
- * shown: this composition offers none, or the row is an Anthropic row, which
- * the backend never gives the application tool.
+ * application `web_search` tool through the runtime's configured backend, or
+ * not at all with a reason for the owner. `null` means the row has no hosted
+ * search and the runtime offers no application search the owner can use or
+ * set up, or the row is an Anthropic row, which the backend never gives the
+ * application tool; no control is shown.
  */
 export type WebSearchAvailability =
   | { state: "hosted" }
@@ -52,10 +52,15 @@ export function webSearchAvailability(
     return { state: "hosted" };
   if (
     !item ||
-    item.model_provider === ANTHROPIC_MESSAGES_PROVIDER_TYPE ||
-    !search?.configuration
+    !search ||
+    item.model_provider === ANTHROPIC_MESSAGES_PROVIDER_TYPE
   )
     return null;
+  // The runtime fields decide availability. `configuration` (the owner may
+  // administer search) only adds setup guidance, so an operator-provisioned
+  // backend works where the owner has no search settings.
+  const usable = search.configured && search.credential_state !== "missing";
+  if (!usable && !search.configuration) return null;
   if (!item.supports_tools)
     return {
       state: "unavailable",

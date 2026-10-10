@@ -1,5 +1,6 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
 import { particleVFXValidationMessages } from "./particleVFXValidationMessages";
 
 import { createParticleVFXEditorDraftFromContent } from "@/lib/avatar/particle-vfx/editor/content";
@@ -42,7 +43,7 @@ import {
   contentPreviewPrimaryFile,
 } from "@/lib/content/contentPreview";
 import { particleVFXRecoveryStore } from "@/lib/content/particleVFXRecovery";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import type { RuntimeCatalogEntry } from "@/lib/runtime-content/types";
 import { Avatar } from "@/lib/avatar";
 import { AvatarPreviewSurface } from "@/ui/avatar-preview/AvatarPreviewSurface";
@@ -219,7 +220,8 @@ function saveStageLabel(stage: ReturnType<typeof useParticleVFXSave>["stage"]) {
 
 export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   const navigate = useNavigate();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
+  const apiClient = useProductApiClient();
   const existingQuery = useParticleEffect(itemId ?? null);
   const existing = existingQuery.data;
   const loadedItemRef = useRef(new ContentEditorHydration());
@@ -369,6 +371,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     void (async () => {
       try {
         const preview = await previewCatalogItem(
+          apiClient,
           source.catalog_item_id,
           controller.signal,
           "particle_effect",
@@ -407,6 +410,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       load.cancel();
     };
   }, [
+    apiClient,
     contentSave.recovered,
     contentSave.recoveryReady,
     existing,

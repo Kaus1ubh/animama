@@ -16,7 +16,7 @@ import type {
   PyModelConnectionDetection,
   PyModelConnectionPreset,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   useCreateModelConnection,
@@ -208,7 +208,7 @@ function ModelConnectionFields({
   const formId = useId();
   const platform = useRuntimePlatform();
   const queryClient = useQueryClient();
-  const ownerId = useRuntimeOwnerId();
+  const ownerId = useRuntimeCacheKey();
   const bridge =
     platform.kind === "desktop"
       ? platform.desktopBridge.credentials
@@ -454,9 +454,9 @@ function ModelConnectionFields({
       ) : (
         <div className="space-y-2">
           <Label htmlFor={`${formId}-env`}>
-            Key environment variable{" "}
+            API key variable{" "}
             <span className="text-muted-foreground font-normal">
-              (optional)
+              {preset?.expects_key ? "(required)" : "(optional)"}
             </span>
           </Label>
           <Input
@@ -470,13 +470,11 @@ function ModelConnectionFields({
             onChange={(event) => change({ envName: event.target.value })}
           />
           <p className="text-muted-foreground text-xs">
-            The server reads the key from this variable in the backend
-            environment. Keys are never stored in the database.
             {connection?.credential_env
               ? connection.credential_state === "configured"
-                ? " It is set."
-                : " It is not set in the backend environment."
-              : ""}
+                ? "Set on the server."
+                : "Not set on the server yet. Set it to your API key."
+              : "Set this variable to your API key on the server."}
           </p>
         </div>
       )}

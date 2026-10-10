@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import {
   createContext,
   useCallback,
@@ -13,7 +15,7 @@ import {
 import { useParams } from "@tanstack/react-router";
 
 import type { PyAnimaRuntime } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { claimCreationRuntime } from "@/lib/runtime-content/creationRuntimeHandoff";
 import { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCatalog";
 import {
@@ -105,7 +107,9 @@ const MountedRuntimeContentContext =
   createContext<MountedRuntimeContent | null>(null);
 
 export function AnimaRouteProviders({ children }: AnimaRouteProvidersProps) {
-  const owner = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const owner = useRuntimeCacheKey();
   const params = useParams({ strict: false });
   const animaId = typeof params?.animaId === "string" ? params.animaId : null;
   const {
@@ -325,12 +329,12 @@ export function AnimaRouteProviders({ children }: AnimaRouteProvidersProps) {
     if (!animaId || !revision) return;
     const interval = window.setInterval(
       () => {
-        void renewAnimaRuntimeCatalog(animaId, revision);
+        void renewAnimaRuntimeCatalog(apiClient, animaId, revision);
       },
       15 * 60 * 1000,
     );
     return () => window.clearInterval(interval);
-  }, [animaId, visible.typed?.effective_revision]);
+  }, [apiClient, animaId, visible.typed?.effective_revision]);
 
   const remountLatest = useCallback(async () => {
     if (!owner || !animaId) return null;

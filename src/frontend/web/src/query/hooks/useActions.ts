@@ -1,5 +1,8 @@
 "use client";
 
+import type { Client } from "@animama/runtime-contracts/sdk";
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 
 import {
@@ -16,7 +19,7 @@ import type {
   PyReactionPage,
 } from "@/lib/content/catalogTypes";
 import { typedCatalogViewItem } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 import type { ContentOrigin } from "./useEffects";
 
@@ -51,6 +54,7 @@ function matchesQuery(name: string, description: string | null, query: string) {
 }
 
 async function actionPage<T extends PyGesture | PyReaction>(
+  apiClient: Client,
   kind: "gesture" | "reaction",
   input: ActionListInput,
 ): Promise<PyContentPage<T>> {
@@ -59,10 +63,12 @@ async function actionPage<T extends PyGesture | PyReaction>(
   const response =
     kind === "gesture"
       ? await listGestures({
+          client: apiClient,
           responseValidator: undefined,
           throwOnError: true,
         })
       : await listReactions({
+          client: apiClient,
           responseValidator: undefined,
           throwOnError: true,
         });
@@ -82,7 +88,9 @@ async function actionPage<T extends PyGesture | PyReaction>(
 }
 
 export function useGestures(input: GestureListInput = {}) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const query = input.query ?? "";
   const origin = input.origin ?? "all";
@@ -100,6 +108,7 @@ export function useGestures(input: GestureListInput = {}) {
     initialPageParam: null as string | null,
     queryFn: async () => {
       const page = (await actionPage<PyGesture>(
+        apiClient,
         "gesture",
         input,
       )) as PyGesturePage;
@@ -119,7 +128,9 @@ export function useAction(
   intent: "gesture" | "reaction",
   itemId: string | null,
 ) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   return useQuery<PyGesture | PyReaction>({
     queryKey:
@@ -132,6 +143,7 @@ export function useAction(
         return typedCatalogViewItem(
           (
             await getGesture({
+              client: apiClient,
               path: { item_id: itemId! },
               responseValidator: undefined,
               throwOnError: true,
@@ -142,6 +154,7 @@ export function useAction(
       return typedCatalogViewItem(
         (
           await getReaction({
+            client: apiClient,
             path: { item_id: itemId! },
             responseValidator: undefined,
             throwOnError: true,
@@ -153,7 +166,9 @@ export function useAction(
 }
 
 export function useReactions(input: ActionListInput = {}) {
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const query = input.query ?? "";
   const origin = input.origin ?? "all";
@@ -163,7 +178,11 @@ export function useReactions(input: ActionListInput = {}) {
     enabled: Boolean(userId && input.enabled !== false),
     initialPageParam: null as string | null,
     queryFn: async () =>
-      (await actionPage<PyReaction>("reaction", input)) as PyReactionPage,
+      (await actionPage<PyReaction>(
+        apiClient,
+        "reaction",
+        input,
+      )) as PyReactionPage,
     getNextPageParam: () => undefined,
   });
 }

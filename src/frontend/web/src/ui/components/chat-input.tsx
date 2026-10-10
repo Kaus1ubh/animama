@@ -42,6 +42,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
+import { UnavailableAction } from "@/ui/components/unavailable-action";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import { cn } from "@/lib/utils";
 import type { UserFileUploadUppy } from "@/hooks/useUserFileUpload";
@@ -307,6 +308,26 @@ function ChatInputFileUploadButtonInner({
 }
 
 ChatInputFileUploadButton.displayName = "ChatInputFileUploadButton";
+
+/**
+ * The attach button where the runtime withholds chat uploads: it keeps its
+ * familiar place, explains why, and has no uploader, picker or file list.
+ */
+function ChatInputFileUploadUnavailable({ reason }: { reason: string }) {
+  return (
+    <UnavailableAction reason={reason} side="bottom">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        className="text-muted-foreground rounded-full"
+      >
+        <Paperclip className="h-4 w-4" />
+        <span className="sr-only">Add files</span>
+      </Button>
+    </UnavailableAction>
+  );
+}
 
 function groupModelOptions(items: PyModelProviderCatalogItem[]) {
   const groups = new Map<string, PyModelProviderCatalogItem[]>();
@@ -997,6 +1018,7 @@ export {
   ChatInputTextArea,
   ChatInputSubmit,
   ChatInputFileUploadButton,
+  ChatInputFileUploadUnavailable,
   ChatInputModelSelector,
   ChatInputDictation,
 };

@@ -1,3 +1,4 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
@@ -58,7 +59,7 @@ describe("saveAppearanceImage", () => {
   it("writes one ordinary image and readable sidecar through the catalog", async () => {
     const progress = vi.fn();
     const file = new File(["png"], "portrait.png", { type: "image/png" });
-    const result = await saveAppearanceImage({
+    const result = await saveAppearanceImage(testApiClient, {
       name: "Portrait",
       file,
       uses: ["profile", "background"],
@@ -68,6 +69,7 @@ describe("saveAppearanceImage", () => {
 
     expect(result.itemId).toBe("image-1");
     expect(mocks.save).toHaveBeenCalledWith(
+      testApiClient,
       expect.objectContaining({
         kind: "appearance",
         entryName: "Portrait",
@@ -88,12 +90,13 @@ describe("saveAppearanceImage", () => {
     const file = new File(["png"], "animama-wordmark.png", {
       type: "image/png",
     });
-    await saveAppearanceImage({
+    await saveAppearanceImage(testApiClient, {
       name: "animama-wordmark",
       file,
       uses: ["profile", "background"],
     });
     expect(mocks.save).toHaveBeenCalledWith(
+      testApiClient,
       expect.objectContaining({
         entryName: "animama-wordmark",
         files: [file],
@@ -114,7 +117,7 @@ describe("saveAppearanceImage", () => {
       error: "Unsupported image",
     });
     await expect(
-      saveAppearanceImage({
+      saveAppearanceImage(testApiClient, {
         name: "Portrait",
         file: new File(["bad"], "portrait.txt"),
         uses: ["profile"],

@@ -21,7 +21,7 @@ visual judgment; a DOM snapshot alone cannot verify a rendered effect.
 2. Open the Effects template picker: the sidebar Create menu's **Effects** item,
    the Create page's **Avatar FX** card (which opens straight at the second
    step), or `/effects/new`. Choose **Avatar FX**, then **Start from scratch**
-   or a template (grouped as Eyes, Whole face, Above the head and Mouth). A template opens `/avatar-effects/new?template=<id>` as a
+   or a template (grouped as Eyes, Cheeks, Whole face, Around the head, Mouth and Body). A template opens `/avatar-effects/new?template=<id>` as a
    new, unsaved Local copy with an unused name; it never changes the Included
    effect. Saved items reopen at `/avatar-effects/{avatarEffectId}/edit`, also
    reachable from their Library row.
@@ -225,6 +225,9 @@ creator preview shows one effect at a time.
 
 From `src/frontend/web`, with no running stack:
 
+- `pnpm -s effects check <folder|library:<name>>` checks the art budget, the
+  definition, the attachment on both Included Avatars and that the art is
+  visible; see the skill's workflow.
 - `pnpm -s effects:render <folder|descriptor.json|library:<name>> --out <png>`
   renders contact sheets on both Included Avatars (front, ¾ and face at several
   times). `--with-clip library:<gesture>` checks that body, sticker and silhouette
@@ -248,7 +251,7 @@ avatar and the image's actual framing.
 | ------------------------- | ------------------------------------------------------------------- | ------------------------------------------------------------------------------- |
 | Angry forehead vein       | Floating → Forehead → Left or Right                                 | `emote`; static fit, then restrained pulse; check hair                          |
 | Surprise mark, steam puff | Floating → Above the head → a position                              | `emote`; preserve silhouette; use a Particle Effect for repeated emissions      |
-| Nervous sweat drop        | Floating → Forehead, moved to a temple                              | `emote`; a short downward drift needs a bounded event                           |
+| Nervous sweat drop        | Floating → Forehead, right or left position, nudged up or down      | `emote`; a short downward drift needs a bounded event                           |
 | Spiral eyes               | Floating → Eyes → Both eyes, mirrored                               | `eyes`; check both eyes and the ¾ view, then spin or a sprite sheet             |
 | Wink                      | Floating → Eyes → Both eyes, mirrored + Other side image            | `eyes`; check which eye gets which image                                        |
 | Cheek blush               | Painted → Cheeks → Both sides, mirrored; Centre point               | `blush`; check alpha against the skin and alongside tears                       |

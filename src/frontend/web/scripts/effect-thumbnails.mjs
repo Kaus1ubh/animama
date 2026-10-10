@@ -19,8 +19,9 @@ import {
  *   pnpm -s effects:thumbnails [template-id...]
  *
  * Each template in `src/lib/effects/effectTemplates.ts` is rendered on Annie
- * with the `effects:render --thumbnail` renderer (portrait head framing, live
- * expression, 1 s after applying) into
+ * with the `effects:render --thumbnail` renderer (portrait head framing, or
+ * `WIDE_FRAMING_SCALE` times wider for a `wide` template; live expression;
+ * 1 s after applying unless the template names another time) into
  * `src/assets/effect-templates/<id>.webp`. A full run also removes thumbnails
  * whose template no longer exists. Renders are deterministic, so unchanged
  * effects reproduce identical files.
@@ -31,6 +32,8 @@ export const THUMBNAIL_DIR = path.join(webRoot, "src/assets/effect-templates");
 export const THUMBNAIL_SIZE = 320;
 /** Seconds after applying, so motion and fades have settled. */
 export const THUMBNAIL_TIME = 1;
+/** Camera distance of a `wide` thumbnail, relative to the head framing. */
+export const WIDE_FRAMING_SCALE = 2.2;
 
 /** The templates a run renders: all of them, or the named IDs. */
 export function selectTemplates(ids) {
@@ -73,6 +76,9 @@ async function main(argv) {
           },
         ),
         outFile: path.join(THUMBNAIL_DIR, `${template.id}.webp`),
+        framingScale:
+          template.thumbnail?.framing === "wide" ? WIDE_FRAMING_SCALE : 1,
+        time: template.thumbnail?.time,
       });
     await renderEffectThumbnails({
       jobs,

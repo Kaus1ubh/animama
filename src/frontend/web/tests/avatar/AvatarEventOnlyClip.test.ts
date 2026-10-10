@@ -7,12 +7,11 @@ import type { PreviewRuntimeCatalogSession } from "@/lib/content-preview/Preview
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 
 const eventClip = parseAnimaPoseClip({
-  schema: "animaPoseClip/1.0",
+  schema: "animaPoseClip/2.0",
   id: "effects",
   name: "Effects",
   duration: 1,
-  poses: {},
-  poseKeyframes: [],
+  beats: [],
   events: [
     {
       id: "scene",
@@ -26,10 +25,8 @@ const eventClip = parseAnimaPoseClip({
 const bodyClip = parseAnimaPoseClip({
   ...eventClip,
   id: "body",
-  poses: {
-    turn: { humanoid: { head: { rotation: [0, 0.1, 0, Math.sqrt(0.99)] } } },
-  },
-  poseKeyframes: [{ time: 0, pose: "turn" }],
+  beats: [{ id: "turn", label: "Turn", time: 0 }],
+  rotations: { head: [{ beat: "turn", q: [0, 0.1, 0, Math.sqrt(0.99)] }] },
 });
 
 /** Use Avatar's public playback lifecycle with real pose/event controllers. */

@@ -10,6 +10,7 @@ import { runtimeImageStyle } from "@/lib/runtime-content/imagePresentation";
 import { useAnimaPresentationImage } from "@/query/hooks/useAnimaPresentationImage";
 import { Avatar, AvatarFallback, AvatarImage } from "@/ui/components/avatar";
 import { Button } from "@/ui/components/button";
+import { UnavailableAction } from "@/ui/components/unavailable-action";
 
 export type AnimaCarouselProps = {
   animas: PyAnimaListItem[];
@@ -19,6 +20,8 @@ export type AnimaCarouselProps = {
   onNext: () => void;
   /** Omit when the runtime does not offer Anima creation. */
   onCreate?: () => void;
+  /** Without `onCreate`, keeps New Anima visible but disabled with this reason. */
+  createUnavailableReason?: string;
   compact?: boolean;
   showNavigationButtons?: boolean;
   className?: string;
@@ -155,6 +158,7 @@ export function AnimaCarousel({
   onPrevious,
   onNext,
   onCreate,
+  createUnavailableReason,
   compact = false,
   showNavigationButtons = true,
   className,
@@ -162,6 +166,48 @@ export function AnimaCarousel({
   const itemNodes = useRef(new Map<string, HTMLButtonElement>());
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const canMove = animas.length > 1;
+  const newAnimaSize = compact
+    ? "min-h-[5rem] w-[4.25rem]"
+    : "h-24 w-[5.25rem]";
+  const newAnimaContent = (
+    <>
+      <Plus className={compact ? "size-5" : "size-6"} />
+      <span
+        className={cn(
+          "text-center font-medium whitespace-nowrap",
+          compact ? "text-[0.65rem]" : "text-xs",
+        )}
+      >
+        New Anima
+      </span>
+    </>
+  );
+  const createAction = onCreate ? (
+    <button
+      type="button"
+      onClick={onCreate}
+      className={cn(
+        "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl transition-[background-color,color,box-shadow] outline-none hover:bg-lime-50/90 hover:shadow-[0_0_0_2px_rgba(190,242,100,0.38)] focus-visible:ring-[3px] motion-reduce:transition-none dark:hover:bg-lime-950/20",
+        newAnimaSize,
+      )}
+      aria-label="Create Anima"
+    >
+      {newAnimaContent}
+    </button>
+  ) : createUnavailableReason ? (
+    <UnavailableAction reason={createUnavailableReason}>
+      <button
+        type="button"
+        className={cn(
+          "text-muted-foreground focus-visible:ring-ring/50 flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl outline-none focus-visible:ring-[3px]",
+          newAnimaSize,
+        )}
+        aria-label="Create Anima"
+      >
+        {newAnimaContent}
+      </button>
+    </UnavailableAction>
+  ) : null;
 
   const handleWheel = (event: WheelEvent<HTMLDivElement>) => {
     const scrollContainer = scrollContainerRef.current;
@@ -202,27 +248,9 @@ export function AnimaCarousel({
       aria-label="Anima carousel"
       onWheel={handleWheel}
     >
-      {onCreate ? (
+      {createAction ? (
         <>
-          <button
-            type="button"
-            onClick={onCreate}
-            className={cn(
-              "text-muted-foreground hover:text-foreground focus-visible:ring-ring/50 flex shrink-0 flex-col items-center justify-center gap-1.5 rounded-2xl transition-[background-color,color,box-shadow] outline-none hover:bg-lime-50/90 hover:shadow-[0_0_0_2px_rgba(190,242,100,0.38)] focus-visible:ring-[3px] motion-reduce:transition-none dark:hover:bg-lime-950/20",
-              compact ? "min-h-[5rem] w-[4.25rem]" : "h-24 w-[5.25rem]",
-            )}
-            aria-label="Create Anima"
-          >
-            <Plus className={compact ? "size-5" : "size-6"} />
-            <span
-              className={cn(
-                "text-center font-medium whitespace-nowrap",
-                compact ? "text-[0.65rem]" : "text-xs",
-              )}
-            >
-              New Anima
-            </span>
-          </button>
+          {createAction}
 
           <div aria-hidden="true" className="bg-border/70 my-1 w-px shrink-0" />
         </>

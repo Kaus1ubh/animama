@@ -7,8 +7,8 @@ Simple leaf content stays simple: a `.vrm`, supported image/audio file, or
 self-describing JSON file can be an entry by itself. Shipped Gestures and
 Reactions always use a product folder. Their `<stem>.meta.json` file describes
 the Action, while `<stem>.vrma` or `<stem>.json` is the playable payload.
-Action-owned Pose Clips are colocated instead of being registered again under
-`pose-clips/`; only deliberately reusable clips belong there. Idle-only VRMAs
+Action-owned Pose Clips are colocated; the retired `pose-clips/` folder is not
+used. Idle-only VRMAs
 belong inside their Idle Style.
 
 `licenses/inventory.json` supplies the current provenance and redistribution
@@ -40,6 +40,14 @@ assets remain available; excluding sample recordings does not disable speech.
 Files remain available in the private development checkout. The exclusion is
 not a deletion or an approval for other distribution paths, including a future
 public source repository. User-imported local media remains supported.
+
+`"distribution": "non-portable"` marks content that plays in the product but
+never leaves it as files. It is also omitted from both desktop partitions: such
+content ships only as its own private Included source, like the
+[Mixamo-motion pack](../../docs/backend/operations/mixamo-motion-pack.md), which
+has its own tracked licence inventory (`scripts/mixamo-motion/inventory.json`).
+This library holds no non-portable content. See
+[ADR 0018](../../docs/adr/0018-non-portable-included-content.md).
 
 The private comedy sound pack under ignored `sfx/comedy/1/` has no distribution
 license. Shipped effects and the shy-finger-poke gesture intentionally omit its

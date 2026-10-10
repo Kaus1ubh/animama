@@ -141,7 +141,18 @@ jobs:
             --work-dir "$RUNNER_TEMP/animama-voice-producer"
           echo "ANIMAMA_MODEL_ROOT=$ANIMAMA_MODEL_ROOT" >> "$GITHUB_ENV"
       - run: pnpm build
+      - name: Fetch the verified Mixamo-motion pack
+        # Read-only, bucket-scoped R2 token; fetch verifies against the tracked manifest.
+        run: pnpm desktop:mixamo-motion fetch
+        env:
+          ANIMAMA_R2_ACCOUNT_ID: ${{ secrets.ANIMAMA_R2_ACCOUNT_ID }}
+          ANIMAMA_MIXAMO_R2_BUCKET: ${{ secrets.ANIMAMA_MIXAMO_R2_BUCKET }}
+          ANIMAMA_MIXAMO_R2_PREFIX: ${{ secrets.ANIMAMA_MIXAMO_R2_PREFIX }}
+          ANIMAMA_MIXAMO_R2_READ_ACCESS_KEY_ID: ${{ secrets.ANIMAMA_MIXAMO_R2_READ_ACCESS_KEY_ID }}
+          ANIMAMA_MIXAMO_R2_READ_SECRET_ACCESS_KEY: ${{ secrets.ANIMAMA_MIXAMO_R2_READ_SECRET_ACCESS_KEY }}
       - run: pnpm desktop:runtime:stage -- --platform darwin --arch arm64
+        env:
+          ANIMAMA_REQUIRE_MIXAMO_MOTION: "1"
       - run: pnpm desktop:runtime:audit -- --platform darwin --arch arm64
       - name: Import CI-only signing credentials
         run: node desktop/scripts/runtime/ci-keychain.mjs setup

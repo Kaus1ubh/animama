@@ -23,6 +23,9 @@ src/frontend/**
 !src/frontend/web/**
 **/node_modules/**
 **/dist/**
+# The hosted build output also copies the browser speech models (about 280 MB);
+# the image builds only web/dist, with models from the browser_models context.
+**/dist-hosted/**
 **/*.tsbuildinfo
 cloud/
 parakeet-tdt-0.6b-v2/
@@ -110,6 +113,10 @@ cloud/cdk.out*/
 
 # sst
 .sst
+
+# Private build inputs, such as the non-portable Mixamo-motion pack, are fetched
+# from an owner-only store and never tracked or sent to a Docker build context.
+/build-inputs/
 
 # Mixamo-derived animations are private, user-supplied inputs.
 # See docs/frontend/runtime/mixamo-acquisition.md; conversion is deferred.

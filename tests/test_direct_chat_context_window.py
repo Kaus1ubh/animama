@@ -80,6 +80,12 @@ def _statuses(events: list[Any]) -> list[tuple[str, str]]:
     return [(event.payload.status, event.payload.phase) for event in events if event.type == EventType.RUN_STATUS]
 
 
+class _NativeCompactionClient(_ScriptedModelClient):
+    """Asks its provider to compact long prompts, like Responses with a compaction threshold."""
+
+    native_context_compaction = True
+
+
 class _Compactor:
     def __init__(self, result: Any = None, *, fail: Exception | None = None, delay: float = 0.0) -> None:
         self.result = result
@@ -202,8 +208,10 @@ async def test_a_message_larger_than_the_window_fails_with_context_exceeded() ->
 
 
 @pytest.mark.asyncio
-async def test_a_server_context_error_is_retried_once_with_less_history() -> None:
-    provider = await _small_window_row(room_tokens=20_000)
+@pytest.mark.parametrize("provider_type", ["OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent"])
+async def test_a_server_context_error_is_retried_once_with_less_history(provider_type: str) -> None:
+    # A Responses client without native compaction (the hosted composition) is bounded like Chat Completions.
+    provider = await _small_window_row(room_tokens=20_000, provider_type=provider_type)
     rejection = ModelClientError(
         "context length exceeded",
         code="openai_bad_request",
@@ -244,16 +252,19 @@ async def test_oversized_tool_results_are_replaced_with_a_tool_error() -> None:
 
 
 @pytest.mark.asyncio
-@pytest.mark.parametrize("provider_type", ["OpenAIResponsesHTTPAgent", "no-window"])
-async def test_native_compaction_and_windowless_rows_are_not_trimmed(provider_type: str) -> None:
-    if provider_type == "no-window":
+@pytest.mark.parametrize("row", ["responses-native-compaction", "no-window"])
+async def test_native_compaction_and_windowless_rows_are_not_trimmed(row: str) -> None:
+    if row == "no-window":
         provider = _provider()
+        client = _ScriptedModelClient([_final()])
     else:
         provider = replace(
-            _provider(provider_type=provider_type), context_window_tokens=2000, max_output_tokens=_MAX_OUTPUT
+            _provider(provider_type="OpenAIResponsesHTTPAgent"),
+            context_window_tokens=2000,
+            max_output_tokens=_MAX_OUTPUT,
         )
+        client = _NativeCompactionClient([_final()])
     compactor = _Compactor()
-    client = _ScriptedModelClient([_final()])
     executor, _chats = _executor(
         client=client,
         provider=provider,
@@ -266,6 +277,31 @@ async def test_native_compaction_and_windowless_rows_are_not_trimmed(provider_ty
     assert compactor.calls == []
     contents = [str(message.get("content")) for message in prompt_messages(client.seen_specs[0].prompt)]
     assert any(content.startswith("message 0 ") for content in contents)
+
+
+@pytest.mark.asyncio
+async def test_responses_rows_without_native_compaction_are_fitted_to_the_window() -> None:
+    # Hosted Responses clients send no compaction threshold, so their history must be bounded here.
+    provider = await _small_window_row(provider_type="OpenAIResponsesHTTPAgent")
+    compactor = _Compactor(fail=RuntimeError("utility unreachable"))
+    client = _ScriptedModelClient([_final()])
+    executor, chats = _executor(
+        client=client,
+        provider=provider,
+        chat_manager=_FakeChatManager(history=_long_history()),
+        pre_send_compactor=compactor,
+    )
+
+    events = await _collect(executor.stream_turn(_request()))
+
+    assert EventType.ERROR not in [event.type for event in events]
+    assert len(compactor.calls) == 1
+    prompt = client.seen_specs[0].prompt
+    assert estimate_prompt_tokens(prompt) <= _available(provider)
+    contents = [str(message.get("content")) for message in prompt_messages(prompt)]
+    assert any(content.startswith("message 39 ") for content in contents)
+    assert not any(content.startswith("message 0 ") for content in contents)
+    assert len(chats.record_turn_calls) == 1
 
 
 def test_fit_history_keeps_whole_turns_that_start_with_a_user_message() -> None:
@@ -343,14 +379,16 @@ async def test_tool_results_that_cannot_fit_lead_to_a_final_reply_without_them()
 
 
 @pytest.mark.asyncio
-async def test_responses_rows_do_not_retry_a_server_context_error() -> None:
-    provider = _provider(provider_type="OpenAIResponsesHTTPAgent")
+async def test_native_compaction_responses_rows_do_not_retry_a_server_context_error() -> None:
+    provider = replace(
+        _provider(provider_type="OpenAIResponsesHTTPAgent"), context_window_tokens=2000, max_output_tokens=_MAX_OUTPUT
+    )
     rejection = ModelClientError(
         "context length exceeded",
         code="openai_bad_request",
         raw_metadata={"provider_error_code": "context_length_exceeded"},
     )
-    client = _ScriptedModelClient([rejection, _final()])
+    client = _NativeCompactionClient([rejection, _final()])
     executor, _chats = _executor(
         client=client, provider=provider, chat_manager=_FakeChatManager(history=_long_history())
     )

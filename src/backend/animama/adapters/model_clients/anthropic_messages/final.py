@@ -46,7 +46,8 @@ class MessageFinalParts:
     the turn's next round (never persisted). ``replay_prefix`` is the turn's
     latest compaction block, persisted before the reply text so later turns
     continue from its summary. ``refusal_category`` is the ``stop_details``
-    category when the model declined the turn.
+    category when the model declined the turn. ``usage_reported`` is true
+    when Anthropic reported usage for at least one of the turn's responses.
     """
 
     text: str
@@ -57,6 +58,7 @@ class MessageFinalParts:
     stop_reason: str | None
     refusal_category: str | None
     replay_prefix: tuple[dict[str, Any], ...] = ()
+    usage_reported: bool = False
 
 
 def message_final_parts(
@@ -156,6 +158,7 @@ def message_final_parts(
         stop_reason=stop_reason,
         refusal_category=clean_str(stop_details.get("category")) if stop_reason == STOP_REASON_REFUSAL else None,
         replay_prefix=(compaction,) if compaction is not None else (),
+        usage_reported=any(usage_value is not None for usage_value, _ in usages),
     )
 
 

@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator, Mapping, Sequence
+from collections.abc import AsyncGenerator, AsyncIterator, Mapping, Sequence
 from types import SimpleNamespace
 from typing import Any, cast
 
@@ -3133,3 +3133,38 @@ async def test_direct_turn_stale_cursor_retry_keeps_the_gesture_list_in_stable_i
     first, retried = (spec.prompt.messages[0] for spec in model_client.seen_specs)
     assert "Available Gestures for this Anima" in str(first["content"])
     assert retried == first
+
+
+class _CancellableChunkedModelClient(_ChunkedModelClient):
+    """Records whether its provider stream was cancelled while waiting for the final."""
+
+    def __init__(self, **kwargs: Any) -> None:
+        super().__init__(**kwargs)
+        self.cancelled = asyncio.Event()
+
+    async def stream(self, spec: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
+        try:
+            async for delta in super().stream(spec):
+                yield delta
+        except asyncio.CancelledError:
+            self.cancelled.set()
+            raise
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_cancels_the_model_call_when_its_reader_closes_the_stream() -> None:
+    text = (
+        '{"emotional_tone":"joy","emotional_intensity":4,'
+        '"speech":"First sentence. Second sentence.","gesture":"","display":null,"remember":null}'
+    )
+    model_client = _CancellableChunkedModelClient(chunks=[text], final_text=text, wait_before_final=True)
+    executor, _chats = _executor(client=model_client)
+
+    stream = cast(AsyncGenerator[Any, None], executor.stream_turn(_request()))
+    await asyncio.wait_for(stream.__anext__(), timeout=1)
+    await asyncio.wait_for(model_client.waiting_for_final.wait(), timeout=1)
+    # A consumer that stops reading closes the stream instead of cancelling a task.
+    await stream.aclose()
+
+    await asyncio.wait_for(model_client.cancelled.wait(), timeout=1)
+    assert model_client.allow_final.is_set() is False

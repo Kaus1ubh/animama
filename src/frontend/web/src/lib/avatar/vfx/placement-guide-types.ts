@@ -75,8 +75,9 @@ export type AvatarVFXManipulationFrame = {
   attachment: "face_surface" | "face_landmark" | "body" | "sticker";
   placements: AvatarVFXManipulationPlacement[];
   /**
-   * World matrix of the frame offsets are measured in: the head anchor for
-   * face landmarks, the bone frame for body effects; null otherwise.
+   * World matrix of the frame offsets are measured in: the head anchor or
+   * body bone turned to face the Avatar's front (+x toward the viewer's
+   * right, +y up, +z forward on VRM 0 and 1); null otherwise.
    */
   offsetSpace: THREE.Matrix4 | null;
   /** Face-surface art: the mesh whose UVs the offset moves across. */

@@ -1,3 +1,4 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { useCallback, useEffect } from "react";
 import {
   useIsMutating,
@@ -12,7 +13,7 @@ import type {
   FeaturePackStatus,
 } from "../../../shared/desktop-runtime";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { useModelAssets } from "@/query/hooks/useModelAssets";
 import { queryKeys } from "@/query/keys";
 import {
@@ -36,9 +37,11 @@ const FAILURE =
 
 /** One owner-scoped manager snapshot survives view navigation; native IPC remains main-only. */
 export function useDesktopFeaturePacks() {
+  const apiClient = useProductApiClient();
+
   const platform = useRuntimePlatform();
   const desktop = platform.kind === "desktop" ? platform.desktopBridge : null;
-  const ownerId = useRuntimeOwnerId();
+  const ownerId = useRuntimeCacheKey();
   const owner = ownerId ?? "__anon__";
   const client = useQueryClient();
   const key = queryKeys.desktopFeaturePacks(owner);
@@ -121,7 +124,7 @@ export function useDesktopFeaturePacks() {
         throw new Error(FAILURE);
       try {
         if (operation !== "cancel")
-          await assertPackTransitionAllowed(client, owner, desktop);
+          await assertPackTransitionAllowed(apiClient, client, owner, desktop);
         await desktop.featurePacks[operation](id);
       } catch (cause) {
         // Native exception text can contain paths; expose only our own bounded guard messages.

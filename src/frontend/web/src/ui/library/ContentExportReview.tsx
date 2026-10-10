@@ -3,6 +3,7 @@ import { Button } from "@/ui/components/button";
 import {
   SharingAnimaDetails,
   SharingItemRow,
+  SharingNonPortableItems,
   SharingRequiredItems,
 } from "./SharingPackageDetails";
 import { sharingSize } from "./sharingPresentation";
@@ -47,6 +48,14 @@ export function ContentExportReview({ flow }: { flow: LibrarySharingFlow }) {
           />
         </section>
       )}
+      <SharingNonPortableItems
+        items={(review.manifest.non_portable_references ?? []).map(
+          (reference) => ({
+            name: reference.display_name,
+            kind: reference.kind,
+          }),
+        )}
+      />
       {flow.downloadStarted && !flow.notice ? (
         <p role="status" className="bg-muted rounded-xl p-4">
           Download started. Check your browser’s downloads for the file.

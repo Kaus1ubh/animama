@@ -1,4 +1,5 @@
 import type { ImportRecovery, RecoveryStore } from "./importSession";
+import { recoverySessionIsActive } from "@/lib/content/recovery-session";
 
 const idPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 /** Persist identifiers only; never save file bytes, names, identity text or review contents. */
@@ -9,6 +10,7 @@ export function importRecoveryStore(
   const key = `animama.package-import.v1.${owner}`;
   let ownedOperation: string | null = null;
   function read(): ImportRecovery | null {
+    if (!recoverySessionIsActive(owner)) return null;
     const raw = storage.getItem(key);
     if (raw === null) return null;
     if (raw.length > 1024) throw new Error("Invalid import recovery data.");
@@ -43,6 +45,10 @@ export function importRecoveryStore(
   return {
     read,
     write(value) {
+      if (value && !recoverySessionIsActive(owner))
+        throw new Error(
+          "This browser session has ended. Sign in again to recover an import.",
+        );
       const prior = storage.getItem(key);
       if (prior) {
         const current = JSON.parse(prior) as ImportRecovery;

@@ -14,8 +14,8 @@ import type {
   QuaternionTuple,
   ResolvedAnimaPoseClipTransition,
   VectorTuple,
-} from "./schema";
-import { ANIMA_POSE_CLIP_EPSILON } from "./schema";
+} from "./clipVocabulary";
+import { ANIMA_POSE_CLIP_EPSILON } from "./clipVocabulary";
 
 const SOFT_BACK_BLEND_WEIGHT = 0.1;
 const SOFT_ELASTIC_BLEND_WEIGHT = 0.1;

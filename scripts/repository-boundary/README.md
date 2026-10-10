@@ -1,6 +1,7 @@
 # Repository boundary checks
 
-These tools verify shared-code import direction and isolated wheel/npm consumers.
+These tools verify shared-code import direction, isolated wheel/npm consumers
+and the emitted whole application.
 Repository ownership is documented in
 [repository boundaries](../../docs/architecture/repository-boundaries.md).
 
@@ -11,7 +12,10 @@ Run the tooling tests from the repository root:
 
 ```bash
 uv run --no-sync python -m unittest discover -s scripts/repository-boundary -p 'test_*.py'
+node --test scripts/repository-boundary/consumers/hosted-app/*.test.mjs
 ```
+
+Full validation runs both through `scripts/ci/tooling_tests.py`.
 
 ## Shared import and artifact checks
 
@@ -21,25 +25,31 @@ dependency on local installation state, server construction, migrations,
 local HTTP admission or private service modules fails. Local compositions may
 depend on shared APIs; the reverse direction is forbidden.
 
-`check-packed-artifacts.py` requires one built Python wheel and the three packed
-npm packages (`runtime-contracts`, `product-ui`, `discover-client`). It validates
-emitted exports and rejects workspace/source dependencies, then copies consumer
+`check-packed-artifacts.py` requires a verified package-set manifest with one
+Python wheel and the three packed npm packages (`runtime-contracts`, `product-ui`,
+`discover-client`). Format 2 also carries the complete hosted application and
+non-static Included seed; strict format 1 retains its package-only consumers.
+The checker validates emitted exports and rejects workspace/source dependencies, then copies consumer
 fixtures into a new directory outside the checkout. The frontend installs only
 tarballs and declared registry dependencies, checks declarations, builds with
 Vite and mounts two fake owners in Chromium. It exercises real Anima selection,
 chat/session/SSE code, cancellation, stale event fencing, failed-POST retry
 policy, emitted CSS and transport-supplied thumbnails. The backend installs the
 wheel into a new virtual environment and exercises real bootstrap, Anima and
-chat services with fake ports/model clients. Local-composition imports are
+chat services with fake ports/model clients. Separate consumers render the shared
+request/response schemas and exercise content save, export, import and receipt
+recovery with owner-scoped memory storage and the canonical archive inspector.
+Local-composition imports are
 actively blocked and loaded modules must not resolve into the source checkout.
 
 From the repository root:
 
 ```bash
 uv run --no-sync python scripts/repository-boundary/check-python-imports.py
-uv build --wheel --out-dir /private/tmp/animama-package-audit
-pnpm --dir src/frontend packages:pack --destination /private/tmp/animama-package-audit
-uv run --no-sync python scripts/repository-boundary/check-packed-artifacts.py /private/tmp/animama-package-audit
+uv run --no-sync python scripts/package-sets/build.py build \
+  --source /path/to/animama --commit <full-40-character-commit> \
+  --output /tmp/animama-package-set
+uv run --no-sync python scripts/repository-boundary/check-packed-artifacts.py /tmp/animama-package-set
 ```
 
 The artifact checker needs Node/pnpm, uv and Playwright's Chromium browser.
@@ -49,12 +59,36 @@ content-addressed store whose package bytes are copied into the consumer, never
 linked back to application source. `--work-dir PATH` chooses a new empty output
 directory outside the checkout. The checker prints the evidence directory and
 retains logs, the browser screenshot, installed dependency locks and a summary.
-It never reads the maintainer's application `.env` or calls a model/service.
+It never reads the maintainer's application `.env` or calls an external provider.
 
-Build the wheel twice from unchanged inputs and compare SHA-256 digests to
-verify reproducibility. These checks prove package composition and fixture
-behavior; local setup/restart, voice/avatar and native desktop acceptance remain
-separate checks of the actual product.
+For format 2, the checker verifies and extracts the closed application inventory,
+then serves those emitted bytes through an independent ordinary HTTP cookie/CSRF
+authority. The browser exercises deep links, CSP, nested workers, real VRM and
+Pocket PCM/worklet playback, two-owner lifetime cleanup, and creator
+import/edit/save/export/reopen. The installed wheel resolves the seed's complete
+starters without local-server imports. Included content is not exposed
+through the static allowlist.
+
+Use `--previous-app-set /tmp/previous-whole-app` for a verified compatible clean
+format-2 predecessor with distinct resource bytes; a byte-identical pair is
+rejected. This exercises an already-open tab's late worker, the new selection,
+and rollback, while every route, static and measurement check runs on the
+candidate. Without a predecessor, the labelled controlled byte-change fixture
+leaves the genuine two-source gate unperformed. See
+[package-set tooling](../package-sets/README.md#validation-receipt) for the
+receipt schema and the [hosted contract](../../contracts/hosted-web.md) for exact
+identities and grammar.
+
+To check wheel reproducibility within one build environment, build twice from
+unchanged inputs and compare SHA-256 digests. This does not establish universal
+cross-platform reproducibility. Consumer dependencies resolve freshly from
+package metadata, separately from the producer's frozen locks; retained inventories
+identify what was actually tested.
+Timing, transfer, sampled heap and process RSS observations do not establish a
+capacity budget. Same-source local production comparison, physical microphone
+and heard audio, native acceptance, live hosted/provider behavior and publication
+rights remain separate gates. A fixture or matching version number cannot
+substitute for them.
 
 ## Candidate scanner pins
 

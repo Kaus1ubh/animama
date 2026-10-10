@@ -20,6 +20,11 @@ HEX64 = re.compile(r"[0-9a-f]{64}")
 SEMVER = re.compile(r"(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)")
 
 
+def matches(pattern, value):
+    """Untrusted JSON scalars never reach regex operations as non-strings."""
+    return isinstance(value, str) and pattern.fullmatch(value) is not None
+
+
 def canonical(value) -> bytes:
     """Use one stable representation for all identities."""
     return (json.dumps(value, sort_keys=True, separators=(",", ":"), ensure_ascii=False) + "\n").encode()
@@ -29,9 +34,18 @@ def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def file_sha(path: Path) -> str:
+    """Bound producer/consumer memory independently of the artifact size."""
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        while chunk := stream.read(1024 * 1024):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
 def regular(root: Path, name: str) -> Path:
     """Package-set members are flat ordinary files, never links or paths."""
-    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name):
+    if not isinstance(name, str) or not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._-]*", name):
         raise ValueError("Artifact must have a plain filename")
     p = root / name
     if p.is_symlink() or not p.is_file() or p.resolve().parent != root.resolve():
@@ -65,36 +79,96 @@ def metadata(path: Path) -> dict:
 
 def file_record(root: Path, filename: str, **fields) -> dict:
     p = regular(root, filename)
-    return {"file": filename, "sha256": sha(p.read_bytes()), "size": p.stat().st_size, **fields}
+    return {"file": filename, "sha256": file_sha(p), "size": p.stat().st_size, **fields}
 
 
 def verify(root: Path) -> dict:
     """Verify every file before validation/transfer. Reject incomplete manifests."""
     payload = regular(root, "manifest.json").read_bytes()
-    m = json.loads(payload)
-    if payload != canonical(m) or m.get("schema_version") != 1:
+    from application import closed, positive_int, read_json, safe_path, verify_application
+
+    m = read_json(payload)
+    schema_version = m.get("schema_version") if isinstance(m, dict) else None
+    if payload != canonical(m) or type(schema_version) is not int or schema_version not in {1, 2}:
         raise ValueError("Noncanonical or unsupported package manifest")
+    closed(
+        m,
+        {"schema_version", "source", "build", "packages", "contracts"}
+        | ({"applications"} if schema_version == 2 else set()),
+        "package manifest",
+    )
     source = m["source"]
-    if not HEX40.fullmatch(source["commit"]) or not HEX40.fullmatch(source["tree"]):
+    closed(source, {"commit", "tree", "dirty", "snapshot_sha256", "source_date_epoch"}, "source")
+    if not positive_int(source["source_date_epoch"], 2**63 - 1):
+        raise ValueError("Invalid source date epoch")
+    if not matches(HEX40, source["commit"]) or not matches(HEX40, source["tree"]):
         raise ValueError("Source requires full immutable commit/tree pins")
-    if not isinstance(source["dirty"], bool) or not HEX64.fullmatch(source["snapshot_sha256"]):
+    if not isinstance(source["dirty"], bool) or not matches(HEX64, source["snapshot_sha256"]):
         raise ValueError("Missing source snapshot identity")
-    if {p["name"] for p in m["packages"]} != PACKAGES or len(m["packages"]) != 4:
+    build = m["build"]
+    closed(build, {"inputs", "recipe", "python", "uv", "node", "pnpm"}, "build")
+    closed(build["inputs"], {"uv.lock", "src/frontend/pnpm-lock.yaml", "pyproject.toml"}, "build inputs")
+    if not isinstance(build["recipe"], dict) or not 1 <= len(build["recipe"]) <= 64:
+        raise ValueError("Invalid build recipe inventory")
+    for name, digest in {**build["inputs"], **build["recipe"]}.items():
+        safe_path(name)
+        if not isinstance(digest, str) or not HEX64.fullmatch(digest):
+            raise ValueError("Invalid build input/recipe digest")
+    if any(
+        not isinstance(build[name], str) or not 1 <= len(build[name]) <= 100
+        for name in ("python", "uv", "node", "pnpm")
+    ):
+        raise ValueError("Invalid build tooling version")
+    if (
+        not isinstance(m["packages"], list)
+        or len(m["packages"]) != 4
+        or any(not isinstance(p, dict) or not isinstance(p.get("name"), str) for p in m["packages"])
+        or {p["name"] for p in m["packages"]} != PACKAGES
+    ):
         raise ValueError("Expected one wheel and three public packages")
-    if len(m["contracts"]) != 2 or {p["name"] for p in m["contracts"]} != {"runtime-owner", "local-http"}:
+    if (
+        not isinstance(m["contracts"], list)
+        or len(m["contracts"]) != 2
+        or any(not isinstance(p, dict) or not isinstance(p.get("name"), str) for p in m["contracts"])
+        or {p["name"] for p in m["contracts"]} != {"runtime-owner", "local-http"}
+    ):
         raise ValueError("Missing public contract")
-    records = m["packages"] + m["contracts"]
-    if len({r["file"] for r in records}) != len(records):
+    apps = m.get("applications", [])
+    if schema_version == 2 and (
+        not isinstance(apps, list)
+        or len(apps) != 1
+        or not isinstance(apps[0], dict)
+        or apps[0].get("name") != "animama-hosted-web"
+    ):
+        raise ValueError("Expected exactly one hosted application")
+    records = m["packages"] + m["contracts"] + apps
+    if any(not isinstance(r.get("file"), str) for r in records) or len({r["file"] for r in records}) != len(records):
         raise ValueError("Duplicate artifact filename")
     for r in records:
-        if not SEMVER.fullmatch(r["version"]) or not HEX64.fullmatch(r["sha256"]):
+        closed(
+            r,
+            {"file", "sha256", "size", "kind", "name", "version"}
+            | ({"declarations_sha256"} if r.get("kind") == "npm" else set()),
+            "artifact record",
+        )
+        if not positive_int(r["size"], 2 * 1024**3):
+            raise ValueError("Invalid artifact size")
+        if not matches(SEMVER, r["version"]) or not matches(HEX64, r["sha256"]):
             raise ValueError("Missing or invalid version/digest")
-        data = regular(root, r["file"]).read_bytes()
-        if sha(data) != r["sha256"] or len(data) != r["size"]:
+        path = regular(root, r["file"])
+        if file_sha(path) != r["sha256"] or path.stat().st_size != r["size"]:
             raise ValueError(f"SHA-256/size mismatch: {r['file']}")
         if r in m["packages"]:
             if any(r.get(k) != v for k, v in metadata(root / r["file"]).items()):
                 raise ValueError("Package metadata mismatch")
+        elif r in apps:
+            if r["kind"] != "application":
+                raise ValueError("Invalid application kind")
+            verify_application(
+                root / r["file"], source["commit"], r["version"], m["contracts"], source_tree=source["tree"]
+            )
+        elif r["kind"] != "contract":
+            raise ValueError("Invalid contract kind")
     expected = "".join(f"{r['sha256']}  {r['file']}\n" for r in sorted(records, key=lambda r: r["file"]))
     if regular(root, "SHA256SUMS").read_text() != expected:
         raise ValueError("Checksum inventory mismatch")
@@ -106,7 +180,7 @@ def verify(root: Path) -> dict:
 
 def identity(m: dict) -> str:
     scope = "dev" if m["source"]["dirty"] else "sets"
-    return f"{scope}/v1/{m['source']['commit']}/{sha(canonical(m))}"
+    return f"{scope}/v{m['schema_version']}/{m['source']['commit']}/{sha(canonical(m))}"
 
 
 def semantic(value):
@@ -125,6 +199,8 @@ def compare(old_root: Path, new_root: Path) -> None:
     explicit compatibility rule is implemented. Descriptive changes are harmless.
     """
     old, new = verify(old_root), verify(new_root)
+    if old["schema_version"] > new["schema_version"]:
+        raise ValueError("Package format downgrade cannot remove the whole application")
     for kind in ("packages", "contracts"):
         after = {r["name"]: r for r in new[kind]}
         for a in old[kind]:
@@ -140,3 +216,7 @@ def compare(old_root: Path, new_root: Path) -> None:
                     raise ValueError(f"Structural contract change requires major version: {a['name']}")
             elif a.get("declarations_sha256") != b.get("declarations_sha256") and bv <= av:
                 raise ValueError(f"Changed declarations require package version bump: {a['name']}")
+    if old.get("applications"):
+        before, after = old["applications"][0], new["applications"][0]
+        if tuple(map(int, after["version"].split("."))) < tuple(map(int, before["version"].split("."))):
+            raise ValueError("Application version rollback")

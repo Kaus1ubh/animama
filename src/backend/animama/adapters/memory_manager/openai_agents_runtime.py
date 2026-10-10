@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import inspect
 import json
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
 from copy import copy
 from hashlib import sha256
 from types import SimpleNamespace
@@ -34,6 +34,7 @@ from animama.app.model_clients.credentials import (
     ModelCredentialResolver,
     connection_for_model_provider,
 )
+from animama.app.model_clients.limits import ModelCallLimits
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
@@ -136,6 +137,9 @@ class OpenAIAgentsMemoryManagerRuntime:
         credential_resolver: ModelCredentialResolver,
         openai_base_url: str | None = None,
         timeout_seconds: float,
+        model_wrapper: Callable[[Any, MemoryManagerRun], Any] | None = None,
+        model_limits: ModelCallLimits | None = None,
+        max_model_turns: int | None = None,
     ) -> None:
         """Run the manager on the memory-manager role's catalog row.
 
@@ -147,6 +151,13 @@ class OpenAIAgentsMemoryManagerRuntime:
         approval resumes on the model that proposed it.
         """
 
+        if max_model_turns is not None and (type(max_model_turns) is not int or max_model_turns < 1):
+            raise ValueError("max_model_turns must be a positive integer")
+        # Wrap the SDK Model itself, not Runner.run: each nested tool round and
+        # resumed approval must cross the composition's admission boundary.
+        self._model_wrapper = model_wrapper
+        self._model_limits = model_limits
+        self._max_model_turns = max_model_turns
         self._user_id = user_id
         self._memory_entries = memory_entries
         self._memory_episodes = memory_episodes
@@ -160,6 +171,10 @@ class OpenAIAgentsMemoryManagerRuntime:
         self._timeout_seconds = max(0.1, float(timeout_seconds))
         self._runner = OpenAIAgentsRunner()
         self._log = get_logger("adapters.memory_manager.openai_agents")
+
+    def _turn_limit(self, run: MemoryManagerRun) -> int:
+        ordinary = max_turns_for_run(run)
+        return min(ordinary, self._max_model_turns) if self._max_model_turns is not None else ordinary
 
     @property
     def model_provider_id(self) -> str | None:
@@ -216,7 +231,7 @@ class OpenAIAgentsMemoryManagerRuntime:
                     ),
                     context=_context_for_run(run),
                     run_config=run_config,
-                    max_turns=max_turns_for_run(run),
+                    max_turns=self._turn_limit(run),
                     previous_response_id=run.openai_previous_response_id,
                     auto_previous_response_id=True,
                 )
@@ -226,7 +241,7 @@ class OpenAIAgentsMemoryManagerRuntime:
                     input_value=_replayed_input(history, user_message),
                     context=_context_for_run(run),
                     run_config=run_config,
-                    max_turns=max_turns_for_run(run),
+                    max_turns=self._turn_limit(run),
                 )
             return await self._runtime_result_from_sdk_output(
                 run=run,
@@ -286,7 +301,7 @@ class OpenAIAgentsMemoryManagerRuntime:
                 serialized_state=run.serialized_agent_state,
                 context=_context_for_run(run),
                 # Each approval resume gets the run's full turn budget (D24).
-                turn_budget=max_turns_for_run(run),
+                turn_budget=self._turn_limit(run),
             )
             interruption = _find_interruption_for_approval(state.get_interruptions(), approval)
             if interruption is None:
@@ -307,7 +322,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             output = await self._runner.resume_state(
                 agent=agent,
                 state=state,
-                max_turns=max_turns_for_run(run),
+                max_turns=self._turn_limit(run),
                 run_config=run_config,
             )
             return await self._runtime_result_from_sdk_output(
@@ -385,7 +400,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             base_url = connection_base_url(connection, openai_base_url=self._openai_base_url)
         except ModelClientProviderError as exc:
             raise MemoryManagerRuntimeConfigurationError(str(exc)) from exc
-        return sdk_client_for_connection(
+        client = sdk_client_for_connection(
             connection,
             credential=credential,
             base_url=base_url,
@@ -393,6 +408,10 @@ class OpenAIAgentsMemoryManagerRuntime:
                 connection.timeout_seconds if connection.timeout_seconds is not None else self._timeout_seconds
             ),
         )
+
+        if self._model_limits is not None:
+            client = client.with_options(max_retries=0, timeout=self._model_limits.timeout_seconds)
+        return client
 
     async def _build_agent(
         self,
@@ -501,6 +520,10 @@ class OpenAIAgentsMemoryManagerRuntime:
                 extra_headers=keyless_request_headers(connection, credential),
             )
             tools.append(apply_patch)
+        if self._model_limits is not None:
+            model_settings.max_tokens = self._model_limits.max_output_tokens
+        if self._model_wrapper is not None:
+            model = self._model_wrapper(model, run)
         agent = Agent(
             name="Animama Memory Manager",
             instructions=instructions,
@@ -638,7 +661,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             resumed = await self._runner.resume_state(
                 agent=agent,
                 state=state,
-                max_turns=max_turns_for_run(run),
+                max_turns=self._turn_limit(run),
                 run_config=run_config,
             )
             return await self._runtime_result_from_sdk_output(
