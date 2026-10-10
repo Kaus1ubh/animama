@@ -6,16 +6,20 @@ Each route has one disposition:
   ``stage`` (2 owner-scoped, 3 content, 4 paid utilities, 5 chat streaming). Every
   composition mounts it.
 - ``local``: owned by the local composition (installation bootstrap and runtime
-  context, model custody, owner events, archive, health and telemetry). A consumer
-  serves its own equivalent or nothing.
+  context, model custody, owner events, archive, health, telemetry and the web
+  asset catch-all). A consumer serves its own equivalent or nothing.
 - ``hosted-excluded``: withheld by a false permission in
   ``contracts/runtime-capabilities/hosted.json``, named by ``capability``.
 
 ``access`` names the port a handler needs: ``read`` or ``write`` sessions (the
 composition keeps commit authority), a ``stream`` response, or ``bytes`` delivered
-under the composition's caching policy. Entries follow the local app's route order,
-which matters: ``/v1/animas/creation-options`` must match before
-``/v1/animas/{anima_id}``. Tests keep this table equal to the local route table and
+under the composition's caching policy. Until a family moves into this package the
+value is provisional; a test binds it to the session a moved handler depends on.
+
+Entries follow the local app's route order, one per method, which matters:
+``/v1/animas/creation-options`` must match before ``/v1/animas/{anima_id}``, and
+every route precedes the asset catch-all that a web root adds. Tests keep this table
+equal to the local route table in development, built and desktop modes, and
 consistent with the hosted capability contract.
 """
 
@@ -41,6 +45,7 @@ class RouteSpec:
     stage: Stage | None = None
     capability: str | None = None
     desktop_only: bool = False
+    web_root_only: bool = False
 
     def __post_init__(self) -> None:
         # Only shared routes move in a stage; only excluded routes name the
@@ -55,8 +60,8 @@ def _shared(stage: Stage, method: str, path: str, handler: str, access: Access) 
     return RouteSpec(method, path, handler, "shared", access, stage=stage)
 
 
-def _local(method: str, path: str, handler: str, access: Access) -> RouteSpec:
-    return RouteSpec(method, path, handler, "local", access)
+def _local(method: str, path: str, handler: str, access: Access, *, web_root_only: bool = False) -> RouteSpec:
+    return RouteSpec(method, path, handler, "local", access, web_root_only=web_root_only)
 
 
 def _excluded(
@@ -112,7 +117,7 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(3, "GET", "/v1/animas/{anima_id}/runtime", "get_anima_runtime", "read"),
     _shared(3, "POST", "/v1/animas/{anima_id}/runtime/revisions/{revision}:renew", "renew_anima_runtime", "write"),
     _shared(
-        3, "GET", "/v1/animas/{anima_id}/runtime/revisions/{revision}/json-bundle", "get_runtime_json_bundle", "read"
+        3, "GET", "/v1/animas/{anima_id}/runtime/revisions/{revision}/json-bundle", "get_runtime_json_bundle", "bytes"
     ),
     _shared(
         3,
@@ -140,8 +145,8 @@ ROUTES: tuple[RouteSpec, ...] = (
     _local("GET", "/v1/runtime-context", "get_runtime_context", "read"),
     _local("POST", "/v1/runtime/bootstrap:ensure", "ensure_runtime_bootstrap", "write"),
     _local("POST", "/v1/runtime/onboarding:complete", "complete_runtime_onboarding", "write"),
-    # Runtime capabilities (each composition reports its own)
-    _local("GET", "/v1/runtime-capabilities", "get_runtime_capabilities", "read"),
+    # Runtime capabilities (each composition reports its own through a port)
+    _shared(2, "GET", "/v1/runtime-capabilities", "get_runtime_capabilities", "read"),
     # Safety
     _shared(2, "GET", "/v1/safety/crisis-resources", "get_crisis_resources", "read"),
     # Avatars
@@ -234,7 +239,7 @@ ROUTES: tuple[RouteSpec, ...] = (
     # Chats
     _shared(2, "POST", "/v1/chats", "create_chat", "write"),
     _shared(2, "GET", "/v1/chats", "list_chats", "read"),
-    _shared(2, "POST", "/v1/chats/search", "search_chat_messages", "write"),
+    _shared(2, "POST", "/v1/chats/search", "search_chat_messages", "read"),
     _shared(2, "GET", "/v1/chats/{chat_id}", "get_chat", "read"),
     _shared(2, "PATCH", "/v1/chats/{chat_id}", "update_chat", "write"),
     _shared(2, "DELETE", "/v1/chats/{chat_id}", "delete_chat", "write"),
@@ -282,7 +287,7 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(2, "GET", "/v1/memory/entries/{entry_id}/versions", "list_memory_entry_versions", "read"),
     _shared(2, "GET", "/v1/memory/entries/{entry_id}/versions/{version}", "get_memory_entry_version", "read"),
     _shared(2, "GET", "/v1/memory/entries/{entry_id}", "get_memory_entry", "read"),
-    _shared(2, "POST", "/v1/memory/debug/search-memory-files", "debug_search_memory_files", "write"),
+    _shared(2, "POST", "/v1/memory/debug/search-memory-files", "debug_search_memory_files", "read"),
     _shared(2, "POST", "/v1/memory/entries", "create_memory_entry", "write"),
     _shared(2, "PATCH", "/v1/memory/entries/{entry_id}", "patch_memory_entry", "write"),
     _shared(2, "POST", "/v1/memory/entries/{entry_id}:revert", "revert_memory_entry", "write"),
@@ -353,4 +358,7 @@ ROUTES: tuple[RouteSpec, ...] = (
     _excluded("native_features", "POST", "/_desktop/runtime:quiesce", "quiesce", "write", desktop_only=True),
     # Telemetry
     _local("POST", "/api/telemetry/{signal}", "forward_telemetry", "write"),
+    # Web assets (only with a web root; always last)
+    _local("GET", "/{asset_path:path}", "serve_asset", "bytes", web_root_only=True),
+    _local("HEAD", "/{asset_path:path}", "serve_asset", "bytes", web_root_only=True),
 )

@@ -5,19 +5,23 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 from unittest import mock
 
 import pytest
+from fastapi import FastAPI
+from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute, APIWebSocketRoute
 
 from animama.product_http.inventory import ROUTES, RouteSpec
+from animama.product_http.ports import get_read_session, get_write_session
 from animama.server.app import create_local_app
 from animama.server.config import Settings
 
 ROOT = Path(__file__).resolve().parents[1]
 HOSTED = json.loads((ROOT / "contracts/runtime-capabilities/hosted.json").read_text())
 # The permissions of the capability contract (contracts/hosted-web.md, "Capabilities
-# and requests"). The remaining fields report runtime state, not permission.
+# and requests"). The other boolean fields report runtime state, not permission.
 PERMISSIONS = (
     "chat",
     "model_selection",
@@ -31,49 +35,95 @@ PERMISSIONS = (
     "user_file_processing.enabled",
     "web_search.configuration",
 )
+RUNTIME_STATE = (
+    "offline_speech_enabled",
+    "companion_safety.enabled",
+    "companion_safety.ai_notice_enabled",
+    "companion_safety.crisis_detection_enabled",
+    "web_search.configured",
+)
+
+
+def boolean_leaves(value: dict[str, Any], prefix: str = "") -> set[str]:
+    leaves = set()
+    for key, child in value.items():
+        if isinstance(child, bool):
+            leaves.add(prefix + key)
+        elif isinstance(child, dict):
+            leaves |= boolean_leaves(child, f"{prefix}{key}.")
+    return leaves
 
 
 def hosted_permission(name: str) -> bool:
-    value = HOSTED
+    value: Any = HOSTED
     for part in name.split("."):
         value = value[part]
     assert isinstance(value, bool), name
     return value
 
 
-def route_table(tmp_path: Path, *, desktop: bool) -> list[tuple[str, str, str]]:
-    """The local app's ordered (method, path, handler) table."""
+def local_app(tmp_path: Path, *, desktop: bool, web_root: bool) -> FastAPI:
+    """The local app as development (no web root), built web, or desktop runs it."""
 
-    desktop_credentials = (
-        {"animama_desktop_renderer_capability": "e" * 64, "animama_desktop_control_token": "c" * 64} if desktop else {}
-    )
+    options: dict[str, Any] = {}
+    if web_root:
+        root = tmp_path / "web"
+        root.mkdir()
+        (root / "index.html").write_text("<html>fixture</html>")
+        options["animama_web_root"] = root
+    if desktop:
+        options |= {"animama_desktop_renderer_capability": "e" * 64, "animama_desktop_control_token": "c" * 64}
     # Desktop startup scrubs credential names from the environment; keep this test's.
     with mock.patch.dict(os.environ):
-        app = create_local_app(
+        return create_local_app(
             runtime_settings=Settings(
-                animama_content_root=tmp_path / "content",
-                animama_data_root=tmp_path / "data",
-                **desktop_credentials,
+                animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data", **options
             )
         )
+
+
+def route_table(app: FastAPI) -> list[tuple[str, str, str]]:
+    """The app's ordered (method, path, handler) table, one entry per method."""
+
     table = []
     for route in app.router.routes:
         assert isinstance(route, APIRoute | APIWebSocketRoute), route
         methods = ["WEBSOCKET"] if isinstance(route, APIWebSocketRoute) else sorted(route.methods)
-        assert len(methods) == 1, route.path
-        table.append((methods[0], route.path, route.endpoint.__name__))
+        table += [(method, route.path, route.endpoint.__name__) for method in methods]
     return table
 
 
-@pytest.mark.parametrize("desktop", [False, True])
-def test_inventory_lists_every_local_route_in_order(tmp_path: Path, desktop: bool) -> None:
-    expected = [(spec.method, spec.path, spec.handler) for spec in ROUTES if desktop or not spec.desktop_only]
-    assert route_table(tmp_path, desktop=desktop) == expected
+MODES = {
+    "development": {"desktop": False, "web_root": False},
+    "built": {"desktop": False, "web_root": True},
+    "desktop": {"desktop": True, "web_root": True},
+}
+
+
+@pytest.mark.parametrize("mode", MODES)
+def test_inventory_lists_every_local_route_in_order(tmp_path: Path, mode: str) -> None:
+    desktop, web_root = MODES[mode]["desktop"], MODES[mode]["web_root"]
+    expected = [
+        (spec.method, spec.path, spec.handler)
+        for spec in ROUTES
+        if (desktop or not spec.desktop_only) and (web_root or not spec.web_root_only)
+    ]
+    assert route_table(local_app(tmp_path, desktop=desktop, web_root=web_root)) == expected
 
 
 def test_creation_options_matches_before_the_anima_path_parameter() -> None:
     paths = [spec.path for spec in ROUTES]
     assert paths.index("/v1/animas/creation-options") < paths.index("/v1/animas/{anima_id}")
+
+
+def test_every_route_precedes_the_web_asset_catch_all() -> None:
+    # The catch-all answers unknown /v1 paths too, so a route mounted after it is unreachable.
+    catch_all = [index for index, spec in enumerate(ROUTES) if spec.web_root_only]
+    assert catch_all == [len(ROUTES) - 2, len(ROUTES) - 1]
+
+
+def test_every_boolean_capability_is_a_permission_or_runtime_state() -> None:
+    assert boolean_leaves(HOSTED) == set(PERMISSIONS) | set(RUNTIME_STATE)
 
 
 def test_every_false_hosted_permission_withholds_at_least_one_route() -> None:
@@ -92,7 +142,25 @@ def test_routes_are_withheld_only_by_false_hosted_permissions() -> None:
 def test_shared_routes_are_product_api_routes() -> None:
     shared = [spec for spec in ROUTES if spec.disposition == "shared"]
     assert shared
-    assert all(spec.path.startswith("/v1/") and not spec.desktop_only for spec in shared)
+    assert all(spec.path.startswith("/v1/") and not (spec.desktop_only or spec.web_root_only) for spec in shared)
+
+
+def depends_on(dependant: Dependant, call: object) -> bool:
+    return dependant.call is call or any(depends_on(child, call) for child in dependant.dependencies)
+
+
+def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> None:
+    # access is provisional until a family moves; then it must match the handler.
+    specs = {(spec.method, spec.path): spec for spec in ROUTES}
+    for route in local_app(tmp_path, desktop=False, web_root=False).router.routes:
+        if not (isinstance(route, APIRoute) and route.endpoint.__module__.startswith("animama.product_http.")):
+            continue
+        for method in route.methods:
+            spec = specs[(method, route.path)]
+            assert spec.disposition == "shared", route.path
+            if spec.access in ("read", "write"):
+                expected = get_read_session if spec.access == "read" else get_write_session
+                assert depends_on(route.dependant, expected), (method, route.path, spec.access)
 
 
 def test_route_specs_reject_mismatched_stage_or_capability() -> None:
