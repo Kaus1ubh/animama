@@ -937,9 +937,10 @@ A connection's `credential` takes one of three modes:
 
 - `{"mode": "none"}`: no key and no `Authorization` header;
 - `{"mode": "env", "env": "NAME"}`: read the key from a variable named
-  `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN`,
-  `OPENROUTER_API_KEY` or `ANIMAMA_CONNECTION_<NAME>_API_KEY`, so a reference
-  cannot read other secrets;
+  `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` or
+  `ANIMAMA_CONNECTION_<NAME>_API_KEY`, so a reference cannot read other
+  secrets. `ANTHROPIC_API_KEY` is refused (`invalid_credential`): only the
+  built-in Anthropic connection reads it;
 - `{"mode": "managed"}`: read the key from `ANIMAMA_CONNECTION_<ID>_API_KEY`,
   derived from the connection ID, which the desktop vault sets.
 

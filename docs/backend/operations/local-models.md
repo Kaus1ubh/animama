@@ -160,8 +160,9 @@ On the desktop app, a connection's key is saved in the app's encrypted vault
 (App Settings → Models) and applies without a restart. Self-hosted web never
 accepts key values: the connection names an environment variable instead, and
 the backend reads that variable. Allowed names are `OPENAI_API_KEY`,
-`ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` and
-`ANIMAMA_CONNECTION_<NAME>_API_KEY`.
+`DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` and
+`ANIMAMA_CONNECTION_<NAME>_API_KEY`. `ANTHROPIC_API_KEY` is reserved for the
+built-in Anthropic connection, so no other connection can send it elsewhere.
 
 With Compose, put `ANIMAMA_CONNECTION_<NAME>_API_KEY` values in an owner-only
 file outside the checkout and select it with `ANIMAMA_CONNECTION_KEYS_FILE`:

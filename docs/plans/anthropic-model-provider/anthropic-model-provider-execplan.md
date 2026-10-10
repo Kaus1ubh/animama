@@ -1,7 +1,7 @@
 # Anthropic model provider and cache-friendly instructions execution plan
 
-Status: In progress. All phases authorized by the owner's `/implement` on
-2026-10-08. The explicit gates remain:
+Status: Implemented; awaiting owner review of the PR. All phases were authorized
+by the owner's `/implement` on 2026-10-08. The explicit gates:
 
 - Phase 1 live spend, already authorized;
 - the Phase 2 owner decision, made 2026-10-09 (D19);
@@ -88,7 +88,8 @@ Ownership and boundaries:
 - [x] Phase 9: Documentation, ADR, measurements and owner live smoke. Done
       2026-10-09; Review #2 passed; the owner smoke was accepted; D26 and D27
       implemented.
-- [ ] Final integration review.
+- [x] Final integration review. Done 2026-10-10 after merging main at
+      `fb50fc55`; Review #3 passed (repair round 2).
 
 ## Surprises & Discoveries
 
@@ -2957,9 +2958,15 @@ Reuse still-valid phase evidence. Record Final Integration Review findings and
 revisions, with at most two repair rounds.
 
 Cloud follow-up: Animama Cloud copies `model_providers` from this repository's
-ORM. When it adopts this release, it needs a hosted migration for the new
-`early_compaction` column (Phase 3). Record that in the PR. No change is needed
-here.
+ORM. When it adopts this release, it needs:
+
+- a hosted migration for the new `early_compaction` column (Phase 3);
+- tenant-inventory review rows for the new
+  `adapters/model_clients/anthropic_messages/*` modules;
+- rows for the Memory Manager modules `anthropic_runtime`,
+  `anthropic_memory_tool`, `runtime_selector` and `runtime_support`.
+
+Record that in the PR. No change is needed here.
 
 #### Merge with main (2026-10-09)
 
@@ -3014,6 +3021,153 @@ Merge follow-ups found by inspection:
   hosted policy still offers no Anthropic rows.
 - Main's `griffe` 2.1 upgrade needed a package reinstall in the task venv; no
   tracked change.
+
+Checks on the merge (`fb50fc55`):
+
+- `make check-test`: 3,595 passed.
+- The setup agent ran `pnpm check`, `web:lint`, `prettier:check`,
+  `packages:check`, `web:test` (3,409 passed, with no port conflict this time),
+  `build`, `desktop:check`, `desktop:test` (484 passed) and
+  `openapi-ts:check`.
+- `e2e:test:fast`: 36 passed in 5.5 minutes on the rebuilt
+  `animama-anthropic-e2e` (run `run-1009224457`).
+
+#### Final Integration Review Code Review #1 Findings
+
+Independent `sdlc-reviewer`, full review of `1470e675...fb50fc55`, including
+the merge's own hunks.
+
+It verified:
+
+- the layout and guardrail order on every path;
+- the fence;
+- credential isolation, apart from F1;
+- hosted policy and the merge interactions (`AccountedModelClient`
+  forwarding, limits, `usage_reported`, `model_stream` limits);
+- replay;
+- the compaction triggers and executor fitting;
+- Memory Manager pinning, the D24 budget under the hosted cap, and D27;
+- every merge hunk;
+- D25 and D26;
+- the ADR 0019 links;
+- the docs, with a link check over 32 files.
+
+Checks:
+
+- 764 targeted backend tests;
+- `ruff`, the format check, the import-boundary script and `make mypy`;
+- `openapi-ts:check`;
+- 175 targeted web tests.
+
+- **FIR-R1-F1 (blocking):** `ANTHROPIC_API_KEY` was in
+  `KNOWN_PROVIDER_CREDENTIAL_ENVS`, so an owner OpenAI-compatible connection
+  could name it and send the Anthropic key to its host. The docs say the key
+  goes only to Anthropic's API. Phase 3 step 4's "joins the known set" caused
+  this.
+- **Non-blocking:**
+  - `pause_turn` resends are not bounded by the call limits, although the docs
+    implied invocation scope;
+  - the context-window doc listed only Responses as compacting natively;
+  - a dangling comment in `openai_prompt.py`;
+  - Cloud adoption needs inventory rows for the new modules;
+  - a stale Responses cursor after a Responses → Anthropic → Responses Memory
+    Manager role switch within one run;
+  - main's stale-cursor retry drops `limits` (pre-existing on main);
+  - `MockModelClient` lacks `native_context_compaction` (no effect).
+
+#### Final Integration Review Code Review #1 Revisions
+
+- **F1 (fixed, test-first):** `ANTHROPIC_API_KEY` leaves the owner-connection
+  allowlist and is loaded at startup like the ElevenLabs key.
+  - Owner connections naming it resolve as missing, and configuration refuses
+    it with `invalid_credential`. The built-in Anthropic connection still
+    reads it through its own mapping.
+  - A new test covers the refusal and the built-in path.
+  - `local-models.md`, `http-api.md` and (in repair round 2)
+    `model-client-providers.md` no longer list the key as an allowed name.
+- **Pause-turn scope:** documented as per request, with the note that hosted
+  compositions offer no Anthropic rows.
+- **Context-window doc:** now names the Anthropic client.
+- **Comment:** removed.
+- **Cloud inventory rows:** recorded for the PR's Cloud follow-up, together
+  with the `early_compaction` hosted migration.
+- **Stale cursor after a role switch:** accepted. The pattern already exists
+  for Responses ↔ Chat Completions, a role switch inside one run is rare, and
+  the impact is a lost earlier exchange.
+- **Main's dropped limits:** out of scope (pre-existing on main).
+- **`MockModelClient`:** accepted; it has no effect.
+- **Changed files:**
+  - `app/model_clients/credential_store.py`;
+  - `tests/test_anthropic_model_provider.py`;
+  - `app/chat/openai_prompt.py`;
+  - `docs/backend/operations/local-models.md`,
+    `docs/backend/architecture/http-api.md` and
+    `docs/backend/runtime/model-client-providers.md`;
+  - this plan.
+- **Validation:** `make check-test` on the repaired tree passed 3,596 with 27
+  skipped. Frontend files are unchanged.
+
+#### Final Integration Review Code Review #2 Findings
+
+Independent `sdlc-reviewer`, repair round 1.
+
+It verified:
+
+- the F1 code: allowlist removal, startup loading, desktop delivery, the
+  built-in path, and owner refusal with `invalid_credential`;
+- the new test;
+- the corrected docs and the UI mapping;
+- the non-blocking repairs;
+- the plan counts.
+
+Checks: 341 targeted backend tests, `ruff`, the format check and the
+import-boundary script.
+
+- **FIR-R2-F1 (blocking):** `model-client-providers.md` still listed
+  `ANTHROPIC_API_KEY` among allowed owner-connection names.
+- **Non-blocking:**
+  - the revision record had no validation or changed-files line;
+  - the Cloud follow-up paragraph lacked the inventory rows;
+  - two overlong doc lines.
+
+#### Final Integration Review Code Review #2 Revisions
+
+- **F1 (fixed):** the list now omits the key and says it is reserved for the
+  built-in Anthropic connection. The F1 revision note above names the file.
+- **Plan record:** the validation and changed-files lines are added above, and
+  the Cloud follow-up lists the inventory rows.
+- **Overlong lines:** rewrapped.
+- **Validation:** docs and plan only; the link check is clean.
+
+#### Final Integration Review Code Review #3 Findings
+
+Independent `sdlc-reviewer`, repair round 2, the last allowed.
+
+**Result: pass, with no blocking findings.**
+
+Verified:
+
+- **FIR-R2-F1:** fixed. No doc lists `ANTHROPIC_API_KEY` as an allowed
+  owner-connection name.
+- **Context-window paragraph:** rewrapped.
+- **Plan records:** the Cloud follow-up, the changed files and validation, and
+  the round 2 sections are accurate.
+- **Code:** unchanged since round 2.
+
+Checks: a link and anchor check over the 32 changed docs, and a grep for
+allowlist mentions of the key.
+
+Non-blocking findings:
+
+- one remaining overlong line in the limits paragraph;
+- no validation line in the round 2 revisions.
+
+#### Final Integration Review Code Review #3 Revisions
+
+- **Overlong line:** the limits paragraph is rewrapped.
+- **Validation line:** added to the round 2 revisions.
+
+The final integration review is complete.
 
 ## Validation and acceptance
 

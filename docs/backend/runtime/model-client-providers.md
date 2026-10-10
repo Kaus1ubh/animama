@@ -162,10 +162,11 @@ from its environment, and Electron main replaces the store while it runs.
   adapter refuses one with `responses_connection_unsupported`.
 - **Owner connections.** `StoreModelCredentialResolver` reads only the
   key variable the connection names in `credential_env`. The name must
-  be `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN`,
-  `OPENROUTER_API_KEY` or match `ANIMAMA_CONNECTION_<NAME>_API_KEY`;
-  desktop-managed keys use `ANIMAMA_CONNECTION_<ID>_API_KEY`. An owner
-  connection never falls back to a built-in connection's key.
+  be `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` or
+  match `ANIMAMA_CONNECTION_<NAME>_API_KEY`; desktop-managed keys use
+  `ANIMAMA_CONNECTION_<ID>_API_KEY`. `ANTHROPIC_API_KEY` is reserved for the
+  built-in Anthropic connection. An owner connection never falls back to a
+  built-in connection's key.
 - **Isolation.** Owner-connection SDK clients omit the process
   `OpenAI-Organization` and `OpenAI-Project` headers and every header listed in
   `OPENAI_CUSTOM_HEADERS`, and set `Authorization` from the connection's own
@@ -674,10 +675,11 @@ and rely on the provider's server-side compaction instead.
 
 Rows with a context window never receive a prompt larger than it
 (`app/chat/direct_turn/context_fit.py`, `app/model_clients/context_budget.py`),
-with two exceptions. A client that asks its provider to compact (a Responses
-client with a positive compaction threshold reports `native_context_compaction`)
-relies on server-side compaction. A turn that continues from a stored provider
-cursor (`openai_previous_response_id`) sends no local history, so it is not
+with two exceptions. A client that asks its provider to compact relies on
+server-side compaction: a Responses client with a positive compaction threshold
+and the Anthropic Messages client report `native_context_compaction`. A turn
+that continues from a stored provider cursor (`openai_previous_response_id`)
+sends no local history, so it is not
 fitted either. Any other Responses turn without native compaction (threshold
 `0`, or a composition that omits it) is bounded like Chat Completions:
 
@@ -839,10 +841,14 @@ Do not put a request-scoped boundary into a process-global registry.
 adapters disable their internal retries and OpenAI SDK retries. Responses also
 sends `max_tool_calls` when native tools are admitted; this is a limit across all
 built-in calls, not a per-tool budget. Anthropic Messages caps `max_tokens` and
-the web search tool's `max_uses` the same way, and uses the limits' timeout. Admission may narrow `native_tools` before
-dispatch. The composition must reject provider/model combinations that cannot
-honor its controls rather than drop a limit. Local calls without limits preserve
-their existing request and retry behavior.
+the web search tool's `max_uses` on each request, uses the limits' timeout and
+never retries. A turn paused during server-side search (`pause_turn`) is still
+resent, at most three times, so these caps apply per request rather than across
+the invocation; hosted compositions offer no Anthropic rows. Admission may
+narrow `native_tools` before dispatch. The composition must reject
+provider/model combinations that cannot honor its controls rather than drop a
+limit. Local calls without limits preserve their existing request and retry
+behavior.
 
 Only `ModelClientFinal.usage_reported=True` establishes measured token usage.
 Estimates, missing finals, errors, timeouts and cancellation never imply a zero

@@ -76,8 +76,6 @@ TURN_CONTEXT_DESCRIPTION = (
     "The application begins the user's latest message with a <turn_context> block. The application writes it, "
     "not the user. It carries request context and the Companion Guardrails; follow it."
 )
-# The start of `<turn_context` or `</turn_context`, in any case and with any
-# spacing around the slash.
 
 
 class DirectChatPromptAssembler:

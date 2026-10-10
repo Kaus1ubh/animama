@@ -45,6 +45,7 @@ from animama.app.model_clients.credential_store import (
     ANTHROPIC_CREDENTIAL_ENV,
     KNOWN_PROVIDER_CREDENTIAL_ENVS,
     credential_values_from_environment,
+    is_allowed_credential_env,
     is_deliverable_credential_env,
 )
 from animama.app.model_clients.credentials import (
@@ -68,7 +69,11 @@ from animama.app.services.model_role_resolver import (
     suits_role,
 )
 from animama.domain import ModelProvider, ModelProviderCapabilities, ModelProviderPricing
-from animama.domain.model_connection import BUILTIN_ANTHROPIC_CONNECTION_ID, BUILTIN_OPENAI_CONNECTION_ID
+from animama.domain.model_connection import (
+    BUILTIN_ANTHROPIC_CONNECTION_ID,
+    BUILTIN_OPENAI_CONNECTION_ID,
+    ModelConnection,
+)
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMChat, ORMChatMessage, ORMModelProvider
 from animama.orm.base import Base
@@ -330,11 +335,28 @@ async def test_openai_clients_never_send_the_anthropic_key(monkeypatch) -> None:
 
 def test_the_anthropic_key_is_read_at_startup_and_deliverable_by_the_desktop_vault() -> None:
     assert ANTHROPIC_CREDENTIAL_ENV == "ANTHROPIC_API_KEY"
-    assert ANTHROPIC_CREDENTIAL_ENV in KNOWN_PROVIDER_CREDENTIAL_ENVS
     assert is_deliverable_credential_env(ANTHROPIC_CREDENTIAL_ENV)
     assert credential_values_from_environment({"ANTHROPIC_API_KEY": " sk-ant ", "ANTHROPIC_BASE_URL": "x"}) == {
         "ANTHROPIC_API_KEY": "sk-ant"
     }
+
+
+def test_owner_connections_can_never_read_the_anthropic_key() -> None:
+    # Only the built-in Anthropic connection sends this key, and only to Anthropic's API.
+    assert ANTHROPIC_CREDENTIAL_ENV not in KNOWN_PROVIDER_CREDENTIAL_ENVS
+    assert not is_allowed_credential_env(ANTHROPIC_CREDENTIAL_ENV)
+    owner = ModelConnection(
+        id="c_owner",
+        name="Proxy",
+        preset="custom",
+        source="owner",
+        base_url="https://example.invalid/v1",
+        credential_env=ANTHROPIC_CREDENTIAL_ENV,
+    )
+    resolver = static_credential_resolver({ANTHROPIC_CREDENTIAL_ENV: "sk-ant-secret"})
+
+    assert resolver.resolve(owner).state == CREDENTIAL_MISSING
+    assert resolver.resolve(builtin_anthropic_connection()).api_key == "sk-ant-secret"
 
 
 def test_compose_passes_the_anthropic_key_only_to_the_application_server() -> None:
