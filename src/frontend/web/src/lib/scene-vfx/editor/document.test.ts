@@ -1,6 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import allLayers from "@/lib/content/fixtures/scene-effect-all-layers.json";
+
 import {
   applySceneEffectTemplate,
   buildSceneEffectEditorExport,
@@ -9,6 +11,7 @@ import {
   createSceneEffectDocumentFromDefinition,
   DEFAULT_SCENE_PATTERN_COLOR,
   DEFAULT_SCENE_SOLID_COLOR,
+  normalizeSceneEffectDocument,
   parseSceneEffectEditorExport,
   sceneEffectDefinition,
   sceneEffectDependencies,
@@ -256,19 +259,21 @@ describe("Scene Effect editor document", () => {
     });
   });
 
-  it("uses canonical fingerprints and collision-safe webp names", () => {
+  it("uses canonical fingerprints and collision-safe names that keep the format", () => {
     const left = createDefaultSceneEffectDocument();
     const right = structuredClone(left);
 
     expect(sceneEffectDocumentFingerprint(left)).toBe(
       sceneEffectDocumentFingerprint(right),
     );
+    // A saved image's name says what its bytes are.
     expect(canonicalSceneEffectImageName("../My Sparkle.JPEG")).toBe(
-      "My-Sparkle.webp",
+      "My-Sparkle.jpg",
     );
+    expect(canonicalSceneEffectImageName("tile.webp")).toBe("tile.webp");
     expect(
-      uniqueSceneEffectImageName("My Sparkle.png", ["My-Sparkle.webp"]),
-    ).toBe("My-Sparkle-2.webp");
+      uniqueSceneEffectImageName("My Sparkle.png", ["My-Sparkle.png"]),
+    ).toBe("My-Sparkle-2.png");
   });
 });
 
@@ -301,5 +306,93 @@ it("hydrates the registered Included Comic Pop definition with runtime defaults"
   expect(validateSceneEffectDocument(document, [])).toEqual([]);
   expect(sceneEffectRuntimeEntry(document, new Map())).toMatchObject({
     durationMs: 5000,
+  });
+});
+
+describe("optional background layers (C1–C6)", () => {
+  const image = (logicalName: string) => ({
+    logicalName,
+    originalName: logicalName,
+    contentType: "image/png",
+    sizeBytes: 1024,
+    sha256: "0".repeat(64),
+  });
+  const images = new Map(
+    ["petal.png", "bokeh.png"].map((name) => [name, image(name)]),
+  );
+
+  it("reopens a saved definition with every layer and saves it unchanged", () => {
+    const document = createSceneEffectDocumentFromDefinition({
+      name: "Affection",
+      description: "",
+      definition: structuredClone(allLayers),
+      images,
+      sound: null,
+    });
+    expect(document.background.tile.image?.logicalName).toBe("bokeh.png");
+    expect(document.background.scatters).toHaveLength(2);
+    expect(sceneEffectDefinition(document)).toEqual(allLayers);
+    expect(
+      sceneEffectImageMetadata(document)
+        .map(({ logicalName }) => logicalName)
+        .sort(),
+    ).toEqual(["bokeh.png", "petal.png"]);
+    const resources = [...images.keys()].map((logicalName) => ({
+      logicalName,
+      file: new File(["x"], logicalName, { type: "image/png" }),
+      sha256: "0".repeat(64),
+    }));
+    expect(
+      validateSceneEffectDocument(document, resources).filter(
+        (issue) => issue.severity === "error",
+      ),
+    ).toEqual([]);
+  });
+
+  it("reports layer limits by field, as the backend would refuse them", () => {
+    const document = createSceneEffectDocumentFromDefinition({
+      name: "Affection",
+      description: "",
+      definition: structuredClone(allLayers),
+      images,
+      sound: null,
+    });
+    document.background.scatters[0].count = 49;
+    document.background.tile = { ...document.background.tile, image: null };
+    const fields = validateSceneEffectDocument(document, []).map(
+      (issue) => issue.field,
+    );
+    expect(fields).toContain("scatters.0.count");
+    expect(fields).toContain("tile.image");
+  });
+
+  it("gives an older draft the optional layers switched off", () => {
+    const document = createDefaultSceneEffectDocument();
+    const older = structuredClone(document) as unknown as {
+      background: Record<string, unknown>;
+    };
+    for (const key of ["gradient", "tile", "screen", "scatters", "flash"])
+      delete older.background[key];
+    const normalized = normalizeSceneEffectDocument(
+      older as unknown as typeof document,
+    );
+    expect(normalized.background.gradient.enabled).toBe(false);
+    expect(normalized.background.scatters).toEqual([]);
+    expect(sceneEffectDefinition(normalized)).not.toHaveProperty("tile");
+  });
+
+  it("leaves a current document's JSON unchanged", () => {
+    // Restored recovery is compared with the pre-reload export text, so
+    // normalizing must not reorder the layers.
+    const document = createSceneEffectDocumentFromDefinition({
+      name: "Kawaii Sparkles",
+      description: "",
+      definition: sceneEffectDefinition(createDefaultSceneEffectDocument()),
+      images: new Map(),
+      sound: null,
+    });
+    expect(JSON.stringify(normalizeSceneEffectDocument(document))).toBe(
+      JSON.stringify(document),
+    );
   });
 });

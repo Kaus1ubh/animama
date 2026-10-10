@@ -1,6 +1,6 @@
 ---
 name: animama-avatar-vfx
-description: Create, revise and tune Animama Avatar Effects (animama/avatar-effect/2) from a written brief — art through the effect-asset skill, a /2 effect folder, `pnpm -s effects check`, review renders and the owner's live preview on both Included Avatars, Save as Local content through the creator, and an owner-gated Promote to Included step — and operate the Effects picker and Avatar Effect creator by hand (attachments painted or floating on the face, body, sticker, silhouette; placement, face parts, look, motion, sound; Gesture or Reaction use). Use for avatar-attached visual effects; general VRM questions, particle emitters and scene backgrounds have their own skills.
+description: Create, revise and tune Animama Avatar Effects (animama/avatar-effect/2) from a written brief — art through the effect-asset skill, a /2 effect folder, `pnpm -s effects check`, review renders and the owner's live preview on both Included Avatars, Save as Local content through the creator, and an owner-gated Promote to Included step — and operate the Effects picker and Avatar Effect creator by hand (attachments painted or floating on the face, body, sticker, silhouette; placement, face parts, look, motion, sound; Gesture or Reaction use). Use for avatar-attached visual effects; general VRM questions, particle emitters (animama-particle-vfx) and scene backgrounds (animama-scene-vfx) have their own skills.
 ---
 
 # Animama Avatar VFX

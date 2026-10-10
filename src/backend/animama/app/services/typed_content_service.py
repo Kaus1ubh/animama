@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
+from typing import Any
 
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
@@ -14,6 +15,8 @@ from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS, ha
 from animama.app.services.idle_playback import IdlePlaybackFacts, read_gesture_idle_playback
 from animama.app.services.runtime_budget_policy import MAX_RUNTIME_BYTES, MAX_RUNTIME_CONFIG_BYTES, MAX_RUNTIME_ENTRIES
 from animama.domain.content_catalog import (
+    ACTION_KINDS,
+    REMOVABLE_EFFECT_KINDS,
     CatalogContentEntry,
     ContentKind,
     ContentNotFoundError,
@@ -56,6 +59,28 @@ class TypedContentAdmissionError(ContentNotFoundError):
         super().__init__(code)
         self.code = code
         self.item_id = item_id
+
+
+def _member_dependencies(item: CatalogContentEntry, document: TypedContentDocument) -> tuple[Any, ...]:
+    """The declared dependencies that are closure members.
+
+    A Local Action's removed Included effects (``item.missing_dependencies``)
+    stay declared in its document but are not members; the Action plays
+    without them.
+    """
+
+    return tuple(dependency for dependency in document.dependencies if dependency.ref not in item.missing_dependencies)
+
+
+def _removed_effects_declared(item: CatalogContentEntry, document: TypedContentDocument) -> bool:
+    """Whether every missing dependency is a declared removable Included effect."""
+
+    removable = {
+        dependency.ref
+        for dependency in document.dependencies
+        if dependency.kind in REMOVABLE_EFFECT_KINDS and dependency.ref.startswith("builtin:")
+    }
+    return not item.missing_dependencies or (item.kind in ACTION_KINDS and set(item.missing_dependencies) <= removable)
 
 
 class TypedContentResolutionContext:
@@ -104,7 +129,7 @@ class TypedContentResolutionContext:
         cached = self._parsed.get(item.id)
         if cached is None:
             parsed = TypedContentService.parse(item)
-            dependencies = parsed.document.dependencies
+            dependencies = _member_dependencies(item, parsed.document)
             if not self._allow_retired and any(value.kind in RETIRED_CONTENT_KINDS for value in dependencies):
                 raise TypedContentAdmissionError("content_dependency_retired", item.id)
             dependency_ids: dict[str, str] = {}
@@ -156,10 +181,12 @@ class TypedContentResolutionContext:
                 raise TypedContentAdmissionError("typed_document_invalid", current_id) from exc
 
             handler = handler_for_kind(entry.kind)
-            declarations = typed.document.dependencies
-            if tuple(dependency.ref for dependency in declarations) != entry.dependencies or len(
-                entry.dependencies
-            ) != len(entry.dependency_item_ids):
+            declarations = _member_dependencies(entry, typed.document)
+            if (
+                tuple(dependency.ref for dependency in declarations) != entry.dependencies
+                or len(entry.dependencies) != len(entry.dependency_item_ids)
+                or not _removed_effects_declared(entry, typed.document)
+            ):
                 raise TypedContentAdmissionError("dependency_membership_invalid", current_id)
             if not entry.files or len(entry.files) > handler.definition.max_entry_files:
                 raise TypedContentAdmissionError("registered_files_invalid", current_id)

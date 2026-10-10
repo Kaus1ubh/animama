@@ -49,10 +49,31 @@ def _scene_document(color: str = "#123456") -> dict[str, Any]:
         "content_type": "scene_effect",
         "id": "local:scene-effect:scene",
         "name": "Scene",
+        # A complete definition: Save validates Scene definitions.
         "definition": {
             "schema": "animama/scene-effect/1",
             "kind": "background_layers",
             "solid": {"enabled": True, "color": color},
+            "pattern": {
+                "enabled": False,
+                "pattern": "none",
+                "color": "#ffffff",
+                "size": 16,
+                "spacing": 16,
+                "opacity": 0.5,
+            },
+            "marquee": {
+                "enabled": False,
+                "items": [],
+                "itemSize": 64,
+                "gap": 16,
+                "rowGap": 16,
+                "direction": "static",
+                "itemRotationMode": "upright",
+                "itemRotationOffsetDeg": 0,
+                "speedPxPerSec": 0,
+                "opacity": 1,
+            },
         },
         "files": [],
     }

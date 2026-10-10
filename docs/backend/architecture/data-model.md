@@ -120,6 +120,20 @@ resolved target item when unambiguous. Authoritative reconciliation marks
 unresolved, ambiguous, or cyclic roots invalid. It never substitutes a similar
 entry.
 
+One exception lets Included effects be removed before launch without migrating
+Local content: a Local Gesture or Reaction whose `builtin:` Avatar, Particle or
+Scene Effect dependency no longer exists (no present entry claims the ref)
+stays valid with a `missing_effect_dependency` diagnostic naming the ref. Its
+edge keeps a null target and is exposed as `missing_dependencies`, not as a
+member, so typed views, the runtime closure and loadouts see only the remaining
+dependencies. The runtime projection lists the removed effects by clip alias
+(`missing_references`), and the player skips their events; Portable export
+refuses the Action (`package_dependency_missing`) until its creator maps or
+removes them, and Save and package import refuse to admit one: only Actions
+saved before the removal outlive it. An invalid or ambiguous target, a Local
+ref, a sound, an Included Action or any other kind still invalidates the
+Action.
+
 `ORMContentMutationReceipt` stores successful Save, Delete, and Import results
 in the same database transaction as their catalog, owner, and provenance
 changes. An existing operation result is immutable: identical requests replay

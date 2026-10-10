@@ -1,6 +1,6 @@
 ---
 name: animama-animation
-description: Author natural, expressive Animama Gestures from a text prompt by writing an animaPoseClip/2.0 clip (beats and per-joint tracks), validating it, running the motion checks, live preview and review renders on both Included Avatars, and saving it as Local content through the Gesture creator; starts with a short clarifying interview, authors up to ten Gestures as a batch, and revises saved Gestures from their Library item. Use for new or revised body-and-face Gesture motion; VRM internals, Avatar Effects and particle effects have their own skills.
+description: Author natural, expressive Animama Gestures from a text prompt by writing an animaPoseClip/2.0 clip (beats and per-joint tracks), validating it, running the motion checks, live preview and review renders on both Included Avatars, and saving it as Local content through the Gesture creator; starts with a short clarifying interview, authors up to ten Gestures as a batch, and revises saved Gestures from their Library item. Use for new or revised body-and-face Gesture motion; VRM internals, Avatar Effects (animama-avatar-vfx), Particle Effects (animama-particle-vfx) and Scene Effects (animama-scene-vfx) have their own skills.
 ---
 
 # Animama Animation
@@ -55,7 +55,7 @@ first.
 5. **Preview and look:** `pnpm -s animation:preview <file>.clip.json`
    plays it live on both Avatars, lit like the chat canvas, with live layers,
    beat markers and camera presets (a Library item or project file also plays
-   its Avatar and Particle Effects), and reloads as you edit; its pickers
+   its Avatar, Particle and Scene Effects), and reloads as you edit; its pickers
    switch to other clips and Library items without a restart. Judge timing there; use
    `pnpm -s animation:render <file>.clip.json --out <dir>` for still contact
    sheets (`--times` for beats, `--side left` for left-handed action) and

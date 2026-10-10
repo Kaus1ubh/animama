@@ -17,7 +17,10 @@ import {
   effectSourceFiles,
   effectSourceVersion,
   listIncludedEffects,
+  parseLibrarySpec,
+  resolveAnyEffectSource,
   resolveClipSource,
+  resolveDependencies,
   resolveEffectRef,
   resolveEffectSource,
   resolveParticleRef,
@@ -317,6 +320,131 @@ test("keeps a Particle Effect's files inside its folder", async () => {
     resolveParticleRef("local:particle-effect:glow", { localContent }),
     /Particle texture "t.png" leaves/,
   );
+});
+
+test("names an effect kind in library specs; none means an Avatar Effect", () => {
+  assert.deepEqual(parseLibrarySpec("library:star3"), {
+    kind: null,
+    scope: null,
+    key: "star3",
+  });
+  assert.deepEqual(
+    parseLibrarySpec("library:particle-effect/included/hearts-v1"),
+    {
+      kind: "particle",
+      scope: "included",
+      key: "hearts-v1",
+    },
+  );
+  assert.deepEqual(parseLibrarySpec("library:scene-effect/joy"), {
+    kind: "scene",
+    scope: null,
+    key: "joy",
+  });
+  assert.deepEqual(parseLibrarySpec("library:reaction/joy-3"), {
+    kind: "reaction",
+    scope: null,
+    key: "joy-3",
+  });
+  assert.equal(parseLibrarySpec("./folder"), null);
+});
+
+test("resolves Particle and Scene Effect sources by library spec and folder", async () => {
+  const hearts = await resolveAnyEffectSource(
+    "library:particle-effect/hearts-v1",
+  );
+  const folder = path.join(
+    INCLUDED_CONTENT_ROOT,
+    "vfx/particle/quark/hearts-v1",
+  );
+  assert.equal(hearts.kind, "particle");
+  assert.equal(hearts.stem, "hearts-v1");
+  assert.equal(hearts.contentId, "builtin:particle-effect:hearts-v1");
+  assert.equal(hearts.manifestPath, path.join(folder, "particle.json"));
+  assert.deepEqual(hearts.texturePaths, [
+    path.join(folder, "textures/heart.png"),
+  ]);
+  assert.equal(hearts.defaults.anchor, "head");
+  const byFolder = await resolveAnyEffectSource(folder);
+  assert.equal(byFolder.kind, "particle");
+  assert.deepEqual(effectSourceFiles(byFolder), [
+    path.join(folder, "hearts-v1.json"),
+    path.join(folder, "particle.json"),
+    path.join(folder, "textures/heart.png"),
+  ]);
+
+  const joy = await resolveAnyEffectSource(
+    "library:scene-effect/scene-vfx-emotion-joy",
+  );
+  const sceneFolder = path.join(
+    INCLUDED_CONTENT_ROOT,
+    "vfx/scene/scene-vfx-emotion-joy",
+  );
+  assert.equal(joy.kind, "scene");
+  assert.equal(joy.definition.kind, "background_layers");
+  assert.deepEqual(joy.imagePaths, {
+    "emoji-sparkles-2728.svg": path.join(
+      sceneFolder,
+      "emoji-sparkles-2728.svg",
+    ),
+    "emoji-star-2b50.svg": path.join(sceneFolder, "emoji-star-2b50.svg"),
+  });
+  assert.match(await effectSourceVersion(joy), /^[0-9a-f]{12}$/);
+
+  const avatar = await resolveAnyEffectSource("library:star3");
+  assert.equal(avatar.kind, "avatar");
+  assert.equal(avatar.stem, "star3");
+  await assert.rejects(
+    resolveAnyEffectSource("library:scene-effect/hearts-v1"),
+    /No scene matches/,
+  );
+});
+
+test("keeps a Scene Effect's images inside its folder", async () => {
+  const folder = path.join(localContent, "vfx/scene/leaky");
+  await mkdir(folder, { recursive: true });
+  await symlink(
+    path.join(outsideDir, "secret.png"),
+    path.join(folder, "art.png"),
+  );
+  await writeFile(
+    path.join(folder, "leaky.json"),
+    JSON.stringify({
+      content_type: "scene_effect",
+      id: "local:scene-effect:leaky",
+      definition: {
+        schema: "animama/scene-effect/1",
+        kind: "background_layers",
+        marquee: { items: [{ id: "a", kind: "image", image: "art.png" }] },
+      },
+      files: [{ path: "art.png", role: "image" }],
+    }),
+  );
+  await assert.rejects(
+    resolveAnyEffectSource("library:scene-effect/local/leaky", {
+      localContent,
+    }),
+    /Scene image "art.png" leaves/,
+  );
+});
+
+test("resolves a Reaction clip and every kind of effect it depends on", async () => {
+  const reaction = await resolveClipSource("library:reaction/joy-3");
+  assert.equal(reaction.clip.id, "joy-3");
+  const media = await resolveDependencies(reaction.dependencies);
+  assert.deepEqual(
+    media.avatarEffects.map(({ alias, effect }) => [alias, effect.stem]),
+    [["star3", "star3"]],
+  );
+  assert.deepEqual(
+    media.particleEffects.map(({ alias, particle }) => [alias, particle.stem]),
+    [["sparkles", "sparkles"]],
+  );
+  assert.deepEqual(
+    media.sceneEffects.map(({ alias, scene }) => [alias, scene.stem]),
+    [["scene-vfx-emotion-joy", "scene-vfx-emotion-joy"]],
+  );
+  assert.deepEqual(media.notices, []);
 });
 
 test("parses --times as bounded ascending seconds", () => {

@@ -1,9 +1,14 @@
 import type { PyExactContentSource } from "@/lib/content/catalogTypes";
 import type {
   SceneBackgroundDirection,
+  SceneBackgroundFlashLayer,
+  SceneBackgroundGradientLayer,
   SceneBackgroundItemRotationMode,
   SceneBackgroundPatternLayer,
+  SceneBackgroundScatterLayer,
+  SceneBackgroundScreenLayer,
   SceneBackgroundSolidLayer,
+  SceneBackgroundTileLayer,
   SceneFocusLinesAnimation,
   SceneFocusLinesRenderPlacement,
   SceneFocusLinesTarget,
@@ -65,10 +70,29 @@ export type SceneEffectEditorMarquee = {
   opacity: number;
 };
 
+/** A tile names a private image; it has none until one is chosen. */
+export type SceneEffectEditorTile = Omit<SceneBackgroundTileLayer, "src"> & {
+  image: SceneEffectEditorImage | null;
+};
+
+/** Scattered items are emoji or private images, as marquee items are. */
+export type SceneEffectEditorScatter = Omit<
+  SceneBackgroundScatterLayer,
+  "items"
+> & {
+  items: SceneEffectEditorMarqueeItem[];
+};
+
 export type SceneEffectEditorBackground = {
   solid: SceneBackgroundSolidLayer;
   pattern: SceneBackgroundPatternLayer;
   marquee: SceneEffectEditorMarquee;
+  gradient: SceneBackgroundGradientLayer;
+  tile: SceneEffectEditorTile;
+  screen: SceneBackgroundScreenLayer;
+  /** Up to `SCENE_EFFECT_LIMITS.scatter.layers` scatter layers, in order. */
+  scatters: SceneEffectEditorScatter[];
+  flash: SceneBackgroundFlashLayer;
 };
 
 export type SceneEffectEditorFocus = {

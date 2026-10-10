@@ -74,9 +74,10 @@ function clampDurationMs(value: number | null | undefined): number | null {
   return DEFAULT_SCENE_VFX_DURATION_MS;
 }
 
-function resolveSceneBackgroundLayersEntry(
-  entry: SceneBackgroundLayersVFXEntry,
-): ResolvedSceneBackgroundLayersVFXEntry {
+function resolveSceneBackgroundLayersEntry({
+  scatters,
+  ...entry
+}: SceneBackgroundLayersVFXEntry): ResolvedSceneBackgroundLayersVFXEntry {
   return {
     ...entry,
     durationMs: clampDurationMs(entry.durationMs),
@@ -97,6 +98,16 @@ function resolveSceneBackgroundLayersEntry(
         .map(resolveSceneBackgroundLineItem)
         .filter(isResolvedSceneBackgroundLineItem),
     },
+    ...(scatters
+      ? {
+          scatters: scatters.map((layer) => ({
+            ...layer,
+            items: layer.items
+              .map(resolveSceneBackgroundLineItem)
+              .filter(isResolvedSceneBackgroundLineItem),
+          })),
+        }
+      : {}),
   };
 }
 

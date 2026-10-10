@@ -18,12 +18,12 @@ import {
  *     [--duration <s>] [--local-content <dir>] [--port <n>] [--no-open]
  *
  * Plays a clip, project envelope, Library Gesture or Reaction (with its
- * Avatar and Particle Effects), or an Avatar Effect source on both Included
- * Avatars through the app's own Avatar playback, in the system browser. The
- * page's pickers switch to any clip beside a file source, any Library Gesture
- * or Reaction and any Library Avatar Effect without a restart. Serves on
- * 127.0.0.1 only; writes only review notes and retained versions (see
- * src/lib/avatar/motion-authoring/preview/).
+ * Avatar, Particle and Scene Effects), or an Avatar, Particle or Scene Effect
+ * source on both Included Avatars through the app's own Avatar playback and
+ * Scene layers, in the system browser. The page's pickers switch to any clip
+ * beside a file source, any Library Gesture or Reaction and any Library
+ * effect without a restart. Serves on 127.0.0.1 only; writes only review
+ * notes and retained versions (see src/lib/avatar/motion-authoring/preview/).
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const repoRoot = path.resolve(webRoot, "../../..");
@@ -201,6 +201,10 @@ export async function startPreviewServer({
       "content-type": PreviewMediaFiles.contentType(file),
       // Files change while reviewed (and may change back), so never cache.
       "cache-control": "no-store",
+      // Effect files are data: an SVG opened on its own runs no script.
+      "content-security-policy":
+        "default-src 'none'; img-src data:; style-src 'unsafe-inline'; sandbox",
+      "x-content-type-options": "nosniff",
     });
     createReadStream(file)
       .on("error", () => response.destroy())
@@ -417,30 +421,33 @@ const USAGE = `Usage: pnpm -s animation:preview [<source>] [--compare <source>] 
                                 [--duration <s>] [--local-content <dir>] [--port <n>] [--no-open]
 
 A source is an animaPoseClip/2.0 clip file, a creator project
-envelope, a Library Gesture or Reaction, or an Avatar Effect:
+envelope, a Library Gesture or Reaction, or an Avatar, Particle or Scene
+Effect:
   library:<folder | selector | name>, optionally prefixed included/ or local/
   an effect folder or descriptor .json
-  library:avatar-effect/<stem | content_id | name>, optionally prefixed
-    included/ or local/
+  library:avatar-effect/, library:particle-effect/ or library:scene-effect/
+    then <stem | content_id | name>, optionally prefixed included/ or local/
 Local items come from --local-content or the sourced stack's
 ANIMAMA_LOCAL_CONTENT_HOST_PATH.
 
-A Gesture or Reaction plays its Avatar and Particle Effects as in chat. An
-effect source loops; --duration applies it for that many seconds (up to
-${MAX_PREVIEW_DURATION_SEC}) and then removes it. Changing a descriptor or its images reloads it.
+A Gesture or Reaction plays its Avatar, Particle and Scene Effects as in
+chat. An effect source loops; --duration applies it for that many seconds (up
+to ${MAX_PREVIEW_DURATION_SEC}) and then removes it. Changing a descriptor or any file it plays
+(images, manifest, textures) reloads it.
 Keep each effect descriptor in its own <stem>/ folder: that folder is watched
 recursively, so unrelated files beside it would also reload the effect.
 
 The page's Review and Compare pickers list the clips in the folder of each
-file source named here, the Library's Gestures, Reactions and Avatar Effects,
-and the effect sources named here. Without a source, the first listed item
+file source named here, the Library's Gestures, Reactions and Avatar,
+Particle and Scene Effects, and the effect sources named here. Without a source, the first listed item
 plays.
 
 Review notes are saved beside a file source as <file name without .json>.review.json
 (laugh.clip.json -> laugh.clip.review.json) or beside an effect's folder
 (sparkle/ -> sparkle.review.json). They go in the working directory instead for
 a Library item and for any file inside Library content: under the Included or
-Local root, in a vfx/avatar/<stem>/ folder, or in a <stem>/ folder that holds
+Local root, in a vfx/avatar/<stem>/, vfx/scene/<stem>/ or
+vfx/particle/[quark/]<stem>/ folder, or in a <stem>/ folder that holds
 <stem>.meta.json. --notes names another file (for the sources named here).`;
 
 async function main(argv) {
