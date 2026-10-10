@@ -53,9 +53,9 @@ named built stack.
   from `ROUTERS` and serves stages 2 and 3. Review repairs in `3604a3fb`, `4d16a25f`
   and the review-record commit; the targeted Code Review #2 passed. Phase checks
   and the full browser journeys on the final candidate are recorded below.
-- [ ] Final integration review and PR. The final integration review's blocking
-  finding is repaired in `213d45f9`, whose full local validation passed; the
-  targeted recheck and the PR update are in progress.
+- [x] Final integration review. Its blocking finding is repaired in `213d45f9`,
+  whose full local validation passed, and the targeted recheck passed. PR #429
+  awaits the owner's merge decision.
 
 ## Surprises & Discoveries
 
@@ -471,8 +471,10 @@ Final integration review findings (at `3d273329`):
   which newer FastAPI releases keep as nested included routers. Installed without
   the lock, as the packed-artifact check installs it, the consumer found no routes
   and failed.
-- FI-02: `fastapi[standard]>=0.121` admits those releases; the inventory test's
-  route-table walk will need the same change when the lock moves.
+- FI-02: `fastapi[standard]>=0.121` admits those releases. When the lock moves,
+  every walk of an app's route list needs the same change: the inventory test, the
+  frozen runtime's chat-route check (`runtime/resources.py`) and several route
+  assertions in the composition, wiring and router tests.
 - FI-03: ADR 0021's Consequences say direct-call tests keep working because handler
   names and parameters are preserved, and that routes stay byte-for-byte
   compatible. Handlers' Python parameters changed (see the Decision Log) and two
@@ -507,6 +509,11 @@ Revisions (`213d45f9`):
     browser-smoke, package-build, isolated-consumers (the installed-wheel product
     consumer on FastAPI 0.143.0 and Starlette 1.7.0, FI-01's case), baseline-build
     and compatibility.
+
+Final integration review #2 (targeted, at `939199f3`): FI-01 is resolved (an
+independent installed-wheel run on FastAPI 0.143.0 fails with the old consumer and
+passes with the new one), FI-04 to FI-06 are resolved, FI-02 and FI-03 are recorded
+limitations, and the record matches the retained evidence. Result: pass.
 
 ## Validation and acceptance
 
