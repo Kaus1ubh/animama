@@ -1,5 +1,7 @@
 from fastapi import APIRouter
 
+from animama.product_http.routes import chats
+
 from . import (
     anima,
     anima_creation,
@@ -7,7 +9,6 @@ from . import (
     anima_runtime,
     archive,
     avatar,
-    chats,
     content,
     content_packages,
     elevenlabs,
