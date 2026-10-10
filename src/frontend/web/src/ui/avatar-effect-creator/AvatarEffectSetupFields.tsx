@@ -28,6 +28,7 @@ import {
 } from "@/ui/components/select";
 import { Textarea } from "@/ui/components/textarea";
 import { SoundUploadButton } from "@/ui/sound-upload/SoundUploadButton";
+import { LICENSED_SOUND_NOTE } from "@/lib/content/previewSound";
 import {
   ATTACHMENT_OPTIONS,
   SIDES_LABELS,
@@ -229,6 +230,7 @@ export function AvatarEffectSetupFields({
   invalidField,
   soundOptions,
   soundPending,
+  licensedSoundOmitted = false,
   onDispatch,
   onChooseImage,
   onClearOtherEyeImage,
@@ -241,6 +243,8 @@ export function AvatarEffectSetupFields({
   invalidField: string | null;
   soundOptions: SoundOption[];
   soundPending: boolean;
+  /** The draft was copied from a built-in effect whose licensed sound stayed behind. */
+  licensedSoundOmitted?: boolean;
   onDispatch: Dispatch;
   onChooseImage: (slot: AvatarEffectEditorImageSlot, file: File) => void;
   onClearOtherEyeImage: () => void;
@@ -392,6 +396,11 @@ export function AvatarEffectSetupFields({
             )}
           </SelectContent>
         </Select>
+        {licensedSoundOmitted ? (
+          <div className="text-muted-foreground text-xs">
+            {LICENSED_SOUND_NOTE}
+          </div>
+        ) : null}
       </Field>
       <Field label="Description">
         <Textarea

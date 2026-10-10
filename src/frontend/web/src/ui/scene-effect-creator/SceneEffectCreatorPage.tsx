@@ -28,9 +28,9 @@ import { toast } from "sonner";
 
 import { listCatalogItems, previewCatalogItem } from "@/lib/content/catalogApi";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
+import { previewSoundForCopy } from "@/lib/content/previewSound";
 import { isSceneEffectTemplateId } from "@/lib/effects/effectTemplates";
 import type {
-  PyContentDependency,
   PyContentPreview,
   PyExactContentSource,
 } from "@/lib/content/catalogTypes";
@@ -58,7 +58,6 @@ import {
   type SceneEffectEditorImage,
   type SceneEffectEditorImageResource,
   type SceneEffectEditorMarqueeItem,
-  type SceneEffectEditorSound,
   type SceneEffectTemplateId,
 } from "@/lib/scene-vfx/editor";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
@@ -2212,38 +2211,9 @@ async function hydrateSceneEffect(
       description: args.description,
       definition,
       images: imageMetadata,
-      sound: exactSoundFromPreview(preview),
+      sound: previewSoundForCopy(preview).sound,
     }),
     images: resources,
-  };
-}
-
-function exactSoundFromPreview(
-  preview: PyContentPreview,
-): SceneEffectEditorSound | null {
-  const dependencies = Array.isArray(preview.metadata.dependencies)
-    ? preview.metadata.dependencies
-    : [];
-  const edge = dependencies.find((value): value is PyContentDependency =>
-    Boolean(
-      object(value)?.content_type === "sound_effect" &&
-      typeof object(value)?.alias === "string" &&
-      object(object(value)?.source)?.type,
-    ),
-  );
-  if (!edge) return null;
-  const supports = Array.isArray(preview.metadata.supports)
-    ? preview.metadata.supports
-    : [];
-  const referenceMap = object(preview.metadata.reference_map);
-  const runtimeId = referenceMap?.[edge.alias];
-  const support = supports.find(
-    (value) => object(value)?.runtime_id === runtimeId,
-  );
-  return {
-    alias: edge.alias,
-    label: String(object(support)?.name ?? edge.alias),
-    source: edge.source,
   };
 }
 

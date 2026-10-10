@@ -123,6 +123,7 @@ function supportNode(preview: PyTypedContentPreview, item: PreviewItem) {
     runtime_id: runtimeId(item),
     content_type: item.kind,
     source: source(item),
+    portability: item.portability,
     name: item.name,
     description: item.description,
     files: filesForItem(preview, item),
@@ -185,6 +186,8 @@ export function typedComponentPreviewMetadata(
           content_type: dependency.kind,
           source: source(target),
           config: dependency.config,
+          // Creators never copy a licensed (non-portable) target into a draft.
+          portability: target.portability,
         },
       ];
     },
