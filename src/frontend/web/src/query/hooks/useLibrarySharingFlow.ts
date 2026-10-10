@@ -1,3 +1,4 @@
+import { useProductApiClient } from "@animama/product-ui";
 import {
   useEffect,
   useMemo,
@@ -11,7 +12,10 @@ import type {
   ExportReview,
   PackageSelectionRequest,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import {
+  useRuntimeCacheKey,
+  useRuntimeOwnerId,
+} from "@/app/runtime/RuntimeOwnerContext";
 import {
   PackageImportSession,
   type RecoveryStore,
@@ -33,12 +37,13 @@ import {
 import { invalidateContentCatalogViews } from "@/query/contentCatalogInvalidation";
 import { queryKeys } from "@/query/keys";
 import {
-  packageExportApi,
-  packageImportApi,
+  createPackageExportApi,
+  createPackageImportApi,
 } from "@/query/mutations/packageSharingApi";
 import { useAnimas } from "./useAnimas";
 import { useSharingInventory } from "./useSharingInventory";
 import { fetchAnimaRuntimeCatalog } from "./useAnimaRuntimeCatalog";
+import { useRuntimeCapabilities } from "./useRuntimeCapabilities";
 
 function storage(owner: string): RecoveryStore {
   try {
@@ -57,18 +62,35 @@ function storage(owner: string): RecoveryStore {
 
 /** Own exact export snapshots and one recoverable import independently of dialog presentation. */
 export function useLibrarySharingFlow(): LibrarySharingFlow {
-  const owner = useRuntimeOwnerId() ?? "__anon__";
+  const apiClient = useProductApiClient();
+
+  const packageImportApi = useMemo(
+    () => createPackageImportApi(apiClient),
+    [apiClient],
+  );
+  const packageExportApi = useMemo(
+    () => createPackageExportApi(apiClient),
+    [apiClient],
+  );
+  const owner = useRuntimeCacheKey() ?? "__anon__";
+  const installationOwner = useRuntimeOwnerId() ?? "__anon__";
+  const recoveryOwner = owner.startsWith("hosted:") ? owner : installationOwner;
   const client = useQueryClient();
   const navigate = useNavigate();
   const session = useMemo(
-    () => new PackageImportSession(packageImportApi, storage(owner)),
-    [owner],
+    // Only opaque receipt identifiers survive reentry; private queries, drafts and
+    // bytes still belong to the fresh session. The server authorizes every receipt.
+    () => new PackageImportSession(packageImportApi, storage(recoveryOwner)),
+    [recoveryOwner, packageImportApi],
   );
   const imported = useSyncExternalStore(
     session.subscribe,
     session.getSnapshot,
     session.getSnapshot,
   );
+  const { data: capabilities } = useRuntimeCapabilities();
+  const animaImportUnavailable =
+    imported.review?.kind === "anima" && capabilities?.anima_creation !== true;
   const [open, setOpenState] = useState(false);
   const [page, setPage] = useState<
     "export-selection" | "export-review" | "import"
@@ -221,6 +243,9 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
     busy,
     progress: imported.progress,
     error:
+      (animaImportUnavailable
+        ? "Importing an Anima package is unavailable here. Import content or export an existing Anima instead."
+        : null) ??
       error ??
       (page === "import"
         ? imported.error
@@ -331,7 +356,7 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
       void session.refresh();
     },
     commitImport: () => {
-      void session.commit();
+      if (!animaImportUnavailable) void session.commit();
     },
     recover: () => {
       setPage("import");
@@ -361,7 +386,7 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
         let transferred = false;
         setNotice("Your Anima is imported. Preparing its content…");
         try {
-          const typed = await fetchAnimaRuntimeCatalog(id, signal);
+          const typed = await fetchAnimaRuntimeCatalog(apiClient, id, signal);
           mount = await new RuntimeMountPreparer().prepare(typed, { signal });
           signal.throwIfAborted();
           if (mount.playbackStatus === "degraded" || !typed.can_chat)

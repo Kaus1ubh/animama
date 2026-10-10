@@ -1,22 +1,14 @@
 "use client";
 
 import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
-
-import {
   completeRuntimeOnboardingV1RuntimeOnboardingCompletePost,
   ensureRuntimeBootstrapV1RuntimeBootstrapEnsurePost,
   getRuntimeContextV1RuntimeContextGet,
   type PyRuntimeContext,
+  createClient,
+  type Client,
 } from "@animama/runtime-contracts/sdk";
-import { RuntimeOwnerProvider } from "@web/app/runtime/RuntimeOwnerContext";
+import { useRuntimeAdmission } from "../runtime/RuntimeAdmissionProvider";
 
 export type LocalRuntimeState =
   | { status: "loading" }
@@ -53,10 +45,6 @@ export type LocalRuntimeApi = {
   ) => Promise<PyRuntimeContext>;
 };
 
-const LocalRuntimeContext = createContext<LocalRuntimeContextValue | null>(
-  null,
-);
-
 function readyState(context: PyRuntimeContext): LocalRuntimeState {
   if (context.bootstrap_status !== "ready") {
     throw new Error(
@@ -73,41 +61,56 @@ function readyState(context: PyRuntimeContext): LocalRuntimeState {
   };
 }
 
-const localRuntimeApi: LocalRuntimeApi = {
-  ensureBootstrap: async () =>
-    (
-      await ensureRuntimeBootstrapV1RuntimeBootstrapEnsurePost({
-        responseValidator: undefined,
-        throwOnError: true,
-      })
-    ).data,
-  getContext: async () =>
-    (
-      await getRuntimeContextV1RuntimeContextGet({
-        responseValidator: undefined,
-        throwOnError: true,
-      })
-    ).data,
-  completeOnboarding: async ({
-    displayName,
-    adultConfirmed,
-    chatModelProviderId,
-  }) =>
-    (
-      await completeRuntimeOnboardingV1RuntimeOnboardingCompletePost({
-        body: {
-          display_name: displayName,
-          adult_confirmed: adultConfirmed,
-          // Omitted, the system default model stays in place.
-          ...(chatModelProviderId
-            ? { chat_model_provider_id: chatModelProviderId }
-            : {}),
-        },
-        responseValidator: undefined,
-        throwOnError: true,
-      })
-    ).data,
-};
+export function createLocalRuntimeApi(client: Client): LocalRuntimeApi {
+  return {
+    ensureBootstrap: async () =>
+      (
+        await ensureRuntimeBootstrapV1RuntimeBootstrapEnsurePost({
+          client,
+          responseValidator: undefined,
+          throwOnError: true,
+        })
+      ).data,
+    getContext: async () =>
+      (
+        await getRuntimeContextV1RuntimeContextGet({
+          client,
+          responseValidator: undefined,
+          throwOnError: true,
+        })
+      ).data,
+    completeOnboarding: async ({
+      displayName,
+      adultConfirmed,
+      chatModelProviderId,
+    }) =>
+      (
+        await completeRuntimeOnboardingV1RuntimeOnboardingCompletePost({
+          client,
+          body: {
+            display_name: displayName,
+            adult_confirmed: adultConfirmed,
+            // Omitted, the system default model stays in place.
+            ...(chatModelProviderId
+              ? { chat_model_provider_id: chatModelProviderId }
+              : {}),
+          },
+          responseValidator: undefined,
+          throwOnError: true,
+        })
+      ).data,
+  };
+}
+
+const localRuntimeApi = createLocalRuntimeApi(
+  createClient({
+    baseUrl:
+      typeof window === "undefined"
+        ? "http://localhost"
+        : window.location.origin,
+    fetch: (input, init) => globalThis.fetch(input, init),
+  }),
+);
 
 const pendingRuntimeContexts = new WeakMap<
   LocalRuntimeApi,
@@ -150,62 +153,29 @@ export async function completeLocalRuntimeOnboarding(
   return readyState(await api.completeOnboarding(input));
 }
 
-/** Require backend-owned installation readiness before feature routes mount. */
-export function LocalRuntimeProvider({ children }: { children: ReactNode }) {
-  const [state, setState] = useState<LocalRuntimeState>({ status: "loading" });
-  const [attempt, setAttempt] = useState(0);
-
-  useEffect(() => {
-    let active = true;
-    setState({ status: "loading" });
-    void loadLocalRuntimeContext().then(
-      (next) => {
-        if (active) setState(next);
-      },
-      () => {
-        if (active) {
-          setState({
+/** Local setup consumes the common admission boundary without owning the app shell. */
+export function useLocalRuntime(): LocalRuntimeContextValue {
+  const { admission, composition, controller } = useRuntimeAdmission();
+  const state: LocalRuntimeState =
+    composition.kind !== "local" || admission.status === "loading"
+      ? { status: "loading" }
+      : admission.status === "ready"
+        ? {
+            status: "ready",
+            principalId: admission.session.owner.id,
+            firstRunComplete: !admission.onboardingRequired,
+            displayName: admission.session.owner.displayName ?? null,
+          }
+        : {
             status: "recoverable-error",
             message:
-              "Animama's local runtime is unavailable. Check that the local services are running, then try again.",
-          });
-        }
-      },
-    );
-    return () => {
-      active = false;
-    };
-  }, [attempt]);
-
-  const retry = useCallback(() => setAttempt((value) => value + 1), []);
-  const completeOnboarding = useCallback(
-    async (input: LocalOnboardingInput) => {
-      setState(await completeLocalRuntimeOnboarding(input));
+              admission.message ?? "Animama's local runtime is unavailable.",
+          };
+  return {
+    state,
+    retry: () => {
+      void controller.refresh(true);
     },
-    [],
-  );
-  const value = useMemo<LocalRuntimeContextValue>(
-    () => ({ state, retry, completeOnboarding }),
-    [completeOnboarding, retry, state],
-  );
-
-  return (
-    <LocalRuntimeContext.Provider value={value}>
-      {state.status === "ready" ? (
-        <RuntimeOwnerProvider ownerId={state.principalId}>
-          {children}
-        </RuntimeOwnerProvider>
-      ) : (
-        children
-      )}
-    </LocalRuntimeContext.Provider>
-  );
-}
-
-export function useLocalRuntime(): LocalRuntimeContextValue {
-  const value = useContext(LocalRuntimeContext);
-  if (!value) {
-    throw new Error("useLocalRuntime must be used within LocalRuntimeProvider");
-  }
-  return value;
+    completeOnboarding: controller.completeOnboarding,
+  };
 }

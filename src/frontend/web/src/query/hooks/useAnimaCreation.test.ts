@@ -1,3 +1,4 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { QueryClient } from "@tanstack/react-query";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { PyTypedContentPreview } from "@animama/runtime-contracts/sdk";
@@ -83,7 +84,7 @@ describe("revision-pinned creation reads", () => {
   it("does not let a StrictMode consumer abort poison shared preview metadata", async () => {
     let finish!: (value: PyTypedContentPreview) => void;
     preview.mockImplementation(
-      (_kind, _id, signal: AbortSignal) =>
+      (_client, _kind, _id, signal: AbortSignal) =>
         new Promise((resolve, reject) => {
           finish = resolve;
           signal.addEventListener("abort", () =>
@@ -93,11 +94,19 @@ describe("revision-pinned creation reads", () => {
     );
     const cache = client();
     const firstSignal = new AbortController();
-    const first = loadCreationPreview(cache, "owner", "avatar", ref("avatar"), {
-      signal: firstSignal.signal,
-    });
+    const first = loadCreationPreview(
+      testApiClient,
+      cache,
+      "owner",
+      "avatar",
+      ref("avatar"),
+      {
+        signal: firstSignal.signal,
+      },
+    );
     firstSignal.abort();
     const second = loadCreationPreview(
+      testApiClient,
       cache,
       "owner",
       "avatar",
@@ -123,19 +132,44 @@ describe("revision-pinned creation reads", () => {
     );
     const cache = client();
     await expect(
-      loadCreationPreview(cache, "owner", "avatar", ref("avatar")),
+      loadCreationPreview(
+        testApiClient,
+        cache,
+        "owner",
+        "avatar",
+        ref("avatar"),
+      ),
     ).rejects.toBeInstanceOf(AnimaCreationApiError);
     await expect(
-      loadCreationPreview(cache, "owner", "avatar", ref("avatar"), {
-        acceptCurrent: true,
-      }),
+      loadCreationPreview(
+        testApiClient,
+        cache,
+        "owner",
+        "avatar",
+        ref("avatar"),
+        {
+          acceptCurrent: true,
+        },
+      ),
     ).resolves.toMatchObject({ revision_sha256: "b".repeat(64) });
   });
   it("keeps preview caches owner-scoped and validates complete root evidence", async () => {
     preview.mockResolvedValue(typed());
     const cache = client();
-    await loadCreationPreview(cache, "owner-a", "avatar", ref("avatar"));
-    await loadCreationPreview(cache, "owner-b", "avatar", ref("avatar"));
+    await loadCreationPreview(
+      testApiClient,
+      cache,
+      "owner-a",
+      "avatar",
+      ref("avatar"),
+    );
+    await loadCreationPreview(
+      testApiClient,
+      cache,
+      "owner-b",
+      "avatar",
+      ref("avatar"),
+    );
     expect(preview).toHaveBeenCalledTimes(2);
     expect(() =>
       creationEvidence(
@@ -177,7 +211,12 @@ describe("revision-pinned creation reads", () => {
       ]),
     );
 
-    const resolved = await resolveCreationEvidence(client(), "owner", draft);
+    const resolved = await resolveCreationEvidence(
+      testApiClient,
+      client(),
+      "owner",
+      draft,
+    );
 
     expect(resolved.evidence.gesture).toEqual({
       source: ref("gesture"),
@@ -212,6 +251,7 @@ describe("revision-pinned creation reads", () => {
       ]),
     );
     const resolved = await resolveCreationEvidence(
+      testApiClient,
       client(),
       "owner",
       readyDraft(),
@@ -257,6 +297,7 @@ describe("revision-pinned creation reads", () => {
     });
 
     const failure = await resolveCreationEvidence(
+      testApiClient,
       client(),
       "owner",
       draft,
@@ -319,6 +360,7 @@ describe("revision-pinned creation reads", () => {
       ]),
     );
     const failure = await resolveCreationEvidence(
+      testApiClient,
       client(),
       "owner",
       withEvidence,

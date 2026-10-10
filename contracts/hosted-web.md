@@ -1,0 +1,362 @@
+# Common web composition and hosted artifact contracts
+
+This contract defines the common browser compositions and immutable hosted
+application produced by Animama. It covers admission, session lifetime, shared
+capabilities, private API traffic and closed application/resource delivery. The
+[coverage map](../docs/plans/hosted-web-parity/hosted-web-parity-coverage.md) records
+retained actions and their verification boundaries. A consumer implements these
+contracts without importing local routes, installation state or a sibling checkout.
+
+## Admission and browser lifetime
+
+`ProductRuntimeComposition` in `@animama/runtime-contracts` supplies one transport,
+`readAdmission`, bounded idempotent `repair`, and optional account actions. An
+explicit entrypoint chooses the adapter before React mounts. Shared routes never
+choose authority from a deployment flag. The local adapter retains backend-owned
+first-run onboarding; hosted account/profile actions belong to its account adapter.
+
+`RuntimeAdmission` is renderable before product data is admitted: loading,
+sign-in-required, ineligible, restricted, recovery or unavailable. Only `ready`
+contains `RuntimeSession`, complete `RuntimeCapabilities` and onboarding state.
+The adapter maps its service's existing wire states into this view; the view does
+not create a new identity/session HTTP authority. Local `/v1/runtime-context`
+remains local. Hosted admission uses `/v1/hosted/runtime-context`, repair uses
+`POST /v1/hosted/bootstrap:ensure`, and `/v1/hosted/events` signals possible revocation,
+which prompts an immediate context read.
+Hosted login/callback/logout, session cookies, CSRF and central account URLs remain
+consumer-owned HTTP behavior.
+
+A signed-in `bootstrap_required` context starts that server-owned setup without
+a click, one attempt at a time, behind a setup view; the context read afterwards
+decides the next view. A network failure, or a 5xx reply without a hosted
+`state`, is retried with the same idempotency key, and an unanswered key is
+replayed by the next attempt; once the server answers, a later attempt uses a
+new key. `bootstrapping` is re-read with backoff for about two minutes before
+recovery is offered. `recovery` and a failed first attempt show recovery, whose
+retry starts one new attempt. An admitted view whose context later requires
+setup (for example after a policy update) keeps its session and drafts suspended
+and repeats setup at a bounded pace until the context is active again.
+
+The hosted context may additionally return `account_url`, an optional central
+account navigation URL. The browser accepts HTTPS or its own application origin,
+rejects embedded credentials, and hides its Account controls (admission screens
+and the sidebar menu) while the URL is absent or invalid. This field does not
+authorize API calls or alter the immutable entry document. The consumer supplies
+its configured central account URL in every context response.
+
+A hosted context with a verified session (in any state, including first-use
+setup) may also supply `recovery_session_id`, a URL-safe opaque
+string of 16–128 characters (`A–Z`, `a–z`, digits, `_`, `-`). It is noncredential
+metadata, stable across token/CSRF refresh for one authenticated browser session
+and changed on sign-in/session replacement. It never authorizes a request. The
+browser stores only this generation, owner ID and a random per-tab draft namespace
+(`hosted:<generation>:<tab UUID>`) in session storage. A same-tab reload can recover the original operation ID only
+after fresh cookie admission confirms the same owner and generation. New tabs
+get independent namespaces, including tabs that inherit opener session storage.
+A browser's "Duplicate tab" copies session storage and reports a back/forward
+navigation, so the duplicate shares its source tab's namespace (last write wins),
+as two local tabs share local drafts.
+An absent/invalid generation withholds durable reload recovery without granting
+additional permissions. Session retirement removes all tabs' marked namespaces
+for that generation, preserving a newer replacement generation. Explicit account
+sign-out removes marked hosted history, import receipts and model download Retry
+hints, including records left by older tabs/pages; retirement also removes that
+generation's hints. Local installation drafts and device preferences remain
+separate. Older unmarked UUID namespaces cannot be classified as hosted or local
+and are never admitted through this recovery identity.
+
+`RuntimeSession.key` identifies the admitted per-tab recovery lifetime and changes
+on sign-out/reauthentication to the same owner. A confirmed same-session reload
+reuses it with fresh requests and caches. It is an opaque browser partition key,
+not a bearer token, account ID or server owner selector. Owner changes, revoked
+admission and sign-out abort active browser requests/streams and dispose query
+caches, creator drafts, object URLs, runtime mounts/leases, workers, microphone,
+playback, audio graphs and avatar state before a later session mounts. Durable
+server operations keep authoritative receipts: disconnect/sign-out does not prove
+rollback. A pending or ambiguous commit is recovered by its operation identity.
+
+A lost events connection, context transport error or temporary Identity outage
+does not establish revocation. An already admitted view retains its draft and
+resources, suspends new product requests, and retries admission with bounded
+backoff, offering a reload that keeps saved creator drafts (unsent chat text is
+not kept). Fresh same-session admission
+resumes dispatch, including as soon as the reconnected events stream sends `event: ready`. Repeated
+uncertain events preserve a pending admission read and its backoff. A revoked
+event or an events 401/403 suspends requests and reads the runtime context at
+once; that context alone decides whether admission ended.
+Unknown initial contexts, setup/repair states and `paused` withhold admission
+without erasing persisted recovery; `paused` covers transient enrollment,
+capacity, rate and cooldown limits, so an open view suspends requests until it
+clears. Context 401/403, the revoking states `session_required`, `ineligible`,
+`restricted` and `deletion_pending` (including when a revoked event prompts the
+read), sign-out and owner/session replacement still retire private work and
+purge hosted recovery immediately. A draft key never substitutes
+for those checks; a recovered uncertain save reconciles its existing operation
+instead of allocating another commit.
+
+Account actions provide sign-in, Cloud-scoped sign-out, account access and usage.
+`RuntimeUsage` contains named user-facing used/limit/reset units; provider prices,
+credentials, arbitrary endpoints and dispatch permission are never browser inputs.
+Restriction/outage state and quota request errors preserve private saved data.
+
+Sign-in sends the current path and query, without the callback marker, as
+`return_path`; the consumer validates it again. A callback that returns with
+`?sign_in=failed` shows an alert on the sign-in view, and the marker is removed
+from the URL before the router reads it. A signed-out tab first adopts a session
+that another tab has established instead of starting a sign-in that would replace
+it. `POST /api/cloud/auth/login` first ends this browser's current hosted session
+(server-side logout and a cleared session cookie); if that session cannot be
+ended it returns 503 `{"error":"identity_unavailable"}` and starts no sign-in.
+The callback still replaces any previous session on success.
+
+Sign-out ends private browser work at once and tells other tabs, which end
+theirs and read the runtime context again when next focused; only the tab that
+signed out stays signed out until a sign-in there. If the remote logout fails,
+the Cloud session is still live: the browser records the failure, with that
+session's `recovery_session_id` when known, and every tab and reload shows a
+retryable "Sign-out did not complete" view instead of readmitting it. The record
+ends when a retry (with a freshly read CSRF token) finishes, when the context
+shows no session or a session with another `recovery_session_id`, or when a
+sign-in from that view gets a successful login response; a failed login start
+keeps the view and reports the failure. Such a sign-in never adopts the live
+session, and a retry leaves alone a live session whose `recovery_session_id`
+shows that a newer sign-in replaced the one it targeted.
+
+## Capabilities and requests
+
+The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
+in `local-http` version **3.0.0** with capability `schema_version: 2`. The generated
+TypeScript `RuntimeCapabilities` and validator are the same contract.
+`ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
+surface, not another wire schema. `runtime-contracts` is version 0.3.1 and
+`product-ui` is version 0.7.0. Consumers explicitly admit
+the new contract major before adoption.
+
+Permissions are separate from browser support and temporary errors:
+
+| Operation                                                  | Canonical permission                                                      | Hosted target                                                                            |
+| ---------------------------------------------------------- | ------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Chat and operator-catalog model/role choice                | `chat`, `model_selection`, `model_role_selection`                         | Retained; roles may select only admitted models.                                         |
+| Anima creation and Anima-containing package import         | `anima_creation`                                                          | False; creation-equivalent imports reject atomically before installing content.          |
+| Chat attachment entry points, paste/drop and file APIs     | `chat_file_uploads`                                                       | False; staged creator media is a separate retained API family.                           |
+| Document ingestion/OCR                                     | `user_file_processing.enabled`                                            | False; no processing enqueue or document originals route is admitted.                    |
+| Model connections/catalog administration and keys          | `model_configuration`, `provider_credentials`, `web_search.configuration` | False; catalog/role reads and selections remain retained.                                |
+| Host paths, scans, file logs and server model installation | `local_filesystem_administration`                                         | False; virtual memory paths, creator assets and browser model downloads remain retained. |
+| Electron/native controls                                   | `native_features`                                                         | False; browser fullscreen/PiP use browser feature detection.                             |
+
+Web search use follows the runtime fields `web_search.configured`, `backend` and
+`credential_state`, not `web_search.configuration`: a hosted operator who
+provisions search reports `configured: true` with its backend, and tool-capable
+models then offer and request `native_tools: ["web_search"]`, while owner search
+settings stay unavailable.
+
+`offline_speech_enabled` and its versions describe current Parakeet availability,
+not permission to use voice. An absent optional set does not remove browser voice,
+Pocket TTS, supported server speech, or the workflow to download a permitted set.
+Content, avatar/effect runtime, memory, creators and voice stay retained without
+adding blanket permissions for implementation gaps. Unknown/missing capability
+responses keep hosted operations pending rather than granting permission. No
+frontend flag replaces server admission.
+
+Each SDK call uses its injected client/transport. Application compositions do not
+configure the compatibility default client. All browser
+API, SSE, byte and model requests stay on the application origin with cookies and
+the composition's mutation CSRF header. Owner IDs in cache keys/URLs are never
+trusted authority. Errors retain existing route contracts, including conflicts,
+revision drift, policy limits and structured provider errors. `chat:sse` preserves
+sanitized events and exactly one terminal `run.completed` after admitted success
+side effects. Stop/cancel is bounded; uncertain provider billing stays accountable.
+All nested provider/tool/title/compaction/search/embedding/MM/Reflection/speech
+work must reserve before dispatch and settle measured or uncertain units.
+
+Private bytes, runtime snapshots, jobs, creator/import stages, exports and event
+cursors resolve the current server owner on every read/mutation. Cross-owner
+references fail closed. Runtime revisions retain lease/integrity checks and
+same-origin range semantics; private data is `Cache-Control: no-store` and never
+enters a shared CDN/service-worker cache. Content-only package import/export,
+Anima export, stale revisions, drafts and ambiguous-commit recovery retain their
+existing receipts and error semantics. Anima import is denied regardless of UI.
+
+## Hosted denials
+
+Hosted account and service limits refuse a request with a stable JSON body. Its
+code is in `code`, repeated in `error` for compatibility; a FastAPI-style body may
+instead nest it as `detail.code`. Optional fields sit beside the code: `limit`
+names the exhausted limit (a string, except the count described below),
+`retry_after_seconds` (number) is the wait before a retry can succeed,
+`max_characters` (number) is the longest accepted message and `download_url`
+(string) is where the user can download the desktop app after the trial. A 429 or 503
+denial with a known wait also sends `Retry-After`, which the browser reads when
+the body omits `retry_after_seconds`.
+
+| Code                 | Status | Meaning and browser copy                                                                                                                                                                                                                |
+| -------------------- | ------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `quota_exceeded`     | 429    | An account limit such as `account_daily_turns`, `account_daily_spend`, `account_monthly_spend` or `operation_requests`: the usage limit and, when known, its reset time. `model_input_tokens` asks for a new chat or a shorter message. |
+| `capacity_busy`      | 503    | Hosted capacity is temporarily full: busy, try again after the wait or in a moment.                                                                                                                                                     |
+| `budget_paused`      | 503    | The hosted service budget is paused: the same busy copy.                                                                                                                                                                                |
+| `message_too_long`   | 400    | The message exceeds `max_characters`, which the copy states.                                                                                                                                                                            |
+| `chat_limit_reached` | 409    | The account reached its chat allowance; `limit` is that count, as a JSON integer or decimal string, and the copy states it.                                                                                                             |
+| `trial_complete`     | 403    | The account's one-time trial AI allowance is used up (`limit: "account_trial_ai"`): the trial is complete, and the copy asks the user to download Animama to keep chatting.                                                             |
+
+A `trial_complete` denial may add `download_url`: an absolute `https:` URL without
+credentials, chosen by the consumer. The browser shows it as a "Download Animama"
+link in the failed turn's notice, opened in a new tab with `noopener noreferrer`.
+Any other value, such as an `http:` or relative URL, is ignored and the copy shows
+without a link.
+
+Chat creation rejects with the denial body and the `chat:sse` request returns it
+as an HTTP error. A denial after a turn has started ends it with an error frame that
+keeps a string `error` and carries the same code; its fields may also arrive in the
+frame's `details`. Denial copy never refers the user to an installation owner or
+its service. Other codes keep their existing failure copy.
+
+## Realtime speech session descriptor
+
+An SSE `tts.session` may additionally declare `transport: "server"` and
+`websocket_url` instead of a provider token. The browser accepts a WebSocket URL
+only under `/v1/` on the admitted application origin, using `wss` for HTTPS and
+`ws` for local HTTP. Embedded credentials, query strings, fragments and foreign
+origins are rejected; a missing/invalid server descriptor never falls back to a
+direct provider. The cookie authorizes the handshake. The consumer validates the
+current session and Origin, reserves before provider dispatch, and owns bounded
+cancellation and settlement. Browser fixtures do not establish those server gates.
+
+The existing local session remains `transport: "direct"` (or an omitted legacy
+transport) with its backend-issued short-lived token. Direct playback additionally
+requires `provider_credentials: true`. Both paths fence late session/audio work,
+close audio resources on failure or teardown, and preserve text fallback.
+
+A speech error frame with `code: "speech_allowance_exhausted"` (`tts.session.error`
+for realtime sessions, `tts.error` for finalized `eleven_v3` audio, each with
+`run_id`, `provider: "elevenlabs"` and a human `error`) means the owner's voice
+allowance cannot cover that reply, and no provider audio plays for it. A
+decline known before the turn precedes all reply text and no `tts.session` is
+sent for the run; one found while reserving the reply's speech may follow the
+reply text. Either must precede `run.completed`. Where Pocket TTS runs, the
+browser speaks that reply with it, choosing the voice as for any Pocket reply,
+without a notice; preferences are unchanged and the next turn asks the server
+again. It switches only before the run plays audio or ends its speech and before
+any speech socket failure. A decline sent instead of `tts.session` must also
+arrive within the browser's 1.5 s session wait (from the turn's start); after an
+accepted session, a decline may come at any time before `run.completed`.
+Otherwise, and for every other code, the reply's speech ends with the existing
+notice, which shows `error` (or the session timeout message). Because `error` is
+shown only when the browser cannot fall back, it never promises the fallback.
+
+## Static application format (A5 producer / consumer contract)
+
+Package-set format **2** retains the format-1 source/build/packages/contracts
+fields and adds exactly one `applications` record. Format-1 verification remains
+supported; a format-1 set cannot establish whole-app parity. The new record names
+`animama-hosted-web`, its app version, tar filename, size and SHA-256. The normal
+identity is `sets/v2/<source-commit>/<canonical-manifest-sha256>/`; dirty rehearsals
+use the existing development identity and cannot be promoted. `SHA256SUMS` includes
+the app archive. All provenance and payloads bind the same exact tracked snapshot.
+
+The tar contains only regular files rooted at `animama-hosted-web/`: `index.html`,
+`app-manifest.json`, build output, notices and the non-static `catalog-seed/`.
+Reject links, absolute/encoded paths,
+empty/dot/parent segments, duplicate members, unknown files, size/hash drift and
+unsupported manifest/contract versions before serving. Archive extraction is
+bounded and verifies the complete inventory before atomically selecting a build.
+Raw intake counts fixed headers and expanded transport bytes before reading
+extension bodies. Only one canonical local PAX `path` record, at most 1,024 bytes,
+may precede its matching producer long-path member; chained, duplicate, global
+and GNU extension metadata is rejected before allocation or recursive parsing.
+Tar termination requires two zero blocks, bounded zero padding and a verified
+gzip footer.
+No source maps, development test assets, `.env`, private accounts, keys, upload
+bytes or host paths belong in it. No Cloud build reconstructs product routes.
+
+`app-manifest.json` version **1** records `source_commit`, `app_version`,
+`entry_document`, `backend_contracts` (explicit inclusive minimum/exclusive maximum
+major bounds), `files`, `lazy_resources`, `notices` and `catalog_seed`. The manifest
+does not hash itself; its archive hash binds it. Every static file appears once with relative
+`path`, `sha256`, `size`, explicit `mime_type`, `cache` (`revalidate` or `immutable`)
+and `range` (boolean). `entry_document` is `index.html`; referenced entry/chunk,
+worker, CSS, font, image, audio and WASM files must exist in the inventory. Only
+fingerprinted build files or hash/version-bound resources gain immutable caching;
+HTML revalidates. API/missing-resource requests never fall back to HTML.
+
+Static URLs start with `/_animama/static/<digest>/`. The producer first emits with
+the reserved base `/__animama_resource_template__/`, adds exact runtime, model
+descriptor and notice bytes, then hashes canonical sorted JSON mapping each
+relative file (including entry HTML) to `{sha256,size}`. Canonical JSON uses compact
+separators, UTF-8 and one trailing newline. Only then does it substitute the digest
+prefix in text and relocate static files. Verification reverses that substitution
+and recomputes the digest. This avoids circular hashing and distinguishes changed
+emitted bytes from the same source commit or different tooling. Vite chunk names
+remain fingerprinted inside that prefix. Local builds retain `/`.
+
+Resource decisions for the full app:
+
+| Resource                                                                     | Delivery and integrity                                                                                                                                                                                                                                                          |
+| ---------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Entry, chunks, workers, CSS/fonts/icons and reviewed small runtime art       | Shipped in the closed app inventory; Vite dependencies and notices retained.                                                                                                                                                                                                    |
+| Existing 21-file browser speech runtime                                      | Preserve every pinned engine/model variant from `models/browser-runtime/manifest.json`. Ship verified engine/runtime and baseline Pocket/Smart Turn bytes; fetch model bytes only when voice requests them. A hosted build may not pass by silently omitting its speech models. |
+| Optional Pocket voice/language sets, cloning encoder and Parakeet CPU/WebGPU | Fixed, versioned lazy resource descriptors from the existing model manifests; separately admitted public model bytes from the application origin. Retain the browser download/readiness flow; no user-triggered global server install or arbitrary download URL.                |
+| Included avatars, loadouts, appearances/effects and content dependencies     | The archive carries the closed non-static seed resolved by the existing `starter_inventory`. Consumer owner APIs supply its catalog/runtime descriptors and authenticated bytes. Seed members never become ordinary static routes.                                              |
+| Owner VRM/image/audio/samples, drafts, exports and previews                  | Account-owned service bytes outside the static inventory and shared caches; ownership, quota, validation, leases and cleanup remain server-enforced.                                                                                                                            |
+
+A `lazy_resources` entry identifies the fixed resource ID, version, manifest
+SHA-256, same-origin route prefix and notice paths. It must resolve only the exact
+manifest's regular files; absence is visible readiness/download state, never a
+substitute engine. Optional resources are not automatically loaded at startup.
+A5 binds the referenced manifest/notice bytes in the app artifact. C1/C5 supply
+an admitted resource catalog and capacity evidence; publication rights are a
+separate gate from a valid checksum.
+
+Each optional route is `/_animama/models/<id>/<raw-manifest-sha256>/<file.path>`.
+Only verified regular files from that exact manifest may be opened; an active
+application switch cannot replace an older tab's model bytes. The archive includes
+the original manifest and its notice bytes, not optional weights. The baseline
+speech inventory retains all 21 files (280,549,335 bytes), including unused model
+variants; readiness cannot silently replace or omit them.
+
+`catalog_seed` is exactly `{manifest,sha256,size}`, naming
+`catalog-seed/manifest.json`. Its version-1 manifest is exactly
+`{schema_version,artifact,source_commit,source_tree,inventory,files,notices}` with
+`artifact: "animama-included-content"`. Each seed file is
+`{path,sha256,size_bytes}` relative to `catalog-seed/` under `included/` or
+`notices/`. `inventory` is the existing `animama-starter-content/1` resolver output
+with its digest, per-file license/provenance and two diagnostic-free starters.
+The only extra Included file is `included/licenses/inventory.json`. Verify both
+source pins, every byte and the closed seed inventory before importing it into
+the owner catalog. Ordinary app HTTP serving excludes the entire `catalog-seed/`
+subtree. The installed public wheel must resolve both starters from these bytes
+without a source checkout. Public permission records live under
+[`licenses/`](../licenses/README.md) and the seed retains their exact notice bytes;
+final binary publication remains separately authorized.
+
+The consumer reviews MIME, `nosniff`, single-range/If-Range, ETag/HEAD, cookie/CSRF,
+CSP worker/media/image/font/connect sources and WASM requirements against these
+inventories. Public immutable resources and private no-store bytes have distinct
+cache policies. CSP never permits arbitrary provider origins or executable
+uploads. Independent artifact fixtures verify route navigation, dependency
+closure and hostile manifests without a Cloud checkout. C7 additionally proves
+real providers, physical audio and hosted tenancy against the selected release.
+
+The entry document needs same-origin scripts, workers, connection and media
+sources; `blob:` for owned worker/media/image lifetimes; image `data:`; inline
+styles; and `wasm-unsafe-eval` for the retained engines. Serve WASM as
+`application/wasm`, JavaScript as `text/javascript`, and enable COOP `same-origin`
+and COEP `require-corp` with same-origin resource policy. The exact verified
+`/_animama/static/<digest>/tts/workers/inference-worker.js` response additionally
+requires `script-src 'self' 'wasm-unsafe-eval' 'unsafe-eval'`: the retained
+sentencepiece Emscripten binding constructs JavaScript call wrappers. An actual
+Chromium fixture initializes Pocket and observes nonzero PCM plus worklet
+`playback-started` under this worker policy. The entry document and all other
+responses retain their restriction against `unsafe-eval`; executable uploads
+never receive this allowance.
+
+Keep previous verified resource/model inventories for the supported old-tab and
+rollback window. A two-selection browser fixture changes the entry selection
+while an old page creates its worker, then loads the new page and rolls back.
+Controlled byte-change fixtures prove the selection mechanism and are labelled
+separately from compatibility between two exact clean source revisions. Format
+1 has no application and cannot serve as that rollback predecessor.
+Both selections must retain additive clip metadata (such as the
+`mutedProceduralLayers` layer-mute list) through import, edit and save, and
+share the runtime's 2 MiB clip read/save bound. The fixture checks that data,
+not its playback: retaining a layer-mute list does not show that a selection
+mutes those procedural layers.

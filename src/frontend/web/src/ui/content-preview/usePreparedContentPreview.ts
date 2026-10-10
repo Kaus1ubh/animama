@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
@@ -25,6 +27,8 @@ export function usePreparedContentPreview(
   error: string | null;
   retry: () => Promise<void>;
 } {
+  const apiClient = useProductApiClient();
+
   const enabled = options?.enabled ?? true;
   const owner = options?.owner ?? "dock";
   const lastResolutionRef = useRef<string | null>(null);
@@ -38,7 +42,7 @@ export function usePreparedContentPreview(
   useEffect(() => {
     if (!target || !enabled || target.sourceType !== "pose_content") return;
     const controller = new AbortController();
-    void resolvePosePreviewTarget(target, controller.signal)
+    void resolvePosePreviewTarget(apiClient, target, controller.signal)
       .then((resolved) => prepareContentPreview(resolved, resolved.entry))
       .then(
         (prepared) => {
@@ -57,7 +61,7 @@ export function usePreparedContentPreview(
       );
     // Closing, replacing, or handing off the dock makes every pending result obsolete.
     return () => controller.abort();
-  }, [attempt, enabled, target]);
+  }, [apiClient, attempt, enabled, target]);
   const result = useMemo(() => {
     if (!target || !enabled) {
       return { prepared: null, error: null };

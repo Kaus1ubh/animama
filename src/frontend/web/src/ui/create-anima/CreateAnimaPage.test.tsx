@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
   submit: vi.fn(),
 }));
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
-  useRuntimeOwnerId: mocks.owner,
+  useRuntimeCacheKey: mocks.owner,
 }));
 vi.mock("@/query/hooks/useAnimaCreation", () => ({
   creationEvidence: vi.fn(),

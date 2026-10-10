@@ -38,7 +38,7 @@ vi.mock("@/platform/RuntimePlatformProvider", () => ({
   }),
 }));
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
-  useRuntimeOwnerId: () => "owner-1",
+  useRuntimeCacheKey: () => "owner-1",
 }));
 vi.mock("@/hooks/useDesktopFeaturePacks", () => ({
   useDesktopFeaturePacks: () => ({ busy: false }),

@@ -1,3 +1,4 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { toast } from "sonner";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
@@ -91,7 +92,7 @@ describe("editing durable poses", () => {
 
   it("loads Local identity/revision independently of the clip and resumes the draft", async () => {
     const clip = usePoseCreatorStore.getState().clipDraft;
-    expect(await editActionEditorSavedPose(item)).toBe(true);
+    expect(await editActionEditorSavedPose(testApiClient, item)).toBe(true);
     expect(usePoseCreatorStore.getState()).toMatchObject({
       authoringMode: "pose",
       clipPlaybackPlaying: false,
@@ -111,7 +112,7 @@ describe("editing durable poses", () => {
   });
   it("customizes Included poses into unsaved Local copies", async () => {
     expect(
-      await editActionEditorSavedPose({
+      await editActionEditorSavedPose(testApiClient, {
         ...item,
         source: "included",
         editable: false,
@@ -129,7 +130,7 @@ describe("editing durable poses", () => {
     vi.mocked(loadPoseContent)
       .mockReturnValueOnce(earlier.promise)
       .mockReturnValueOnce(latest.promise);
-    const first = editActionEditorSavedPose(item);
+    const first = editActionEditorSavedPose(testApiClient, item);
     const nextItem = {
       ...item,
       item_id: "next-item",
@@ -137,7 +138,7 @@ describe("editing durable poses", () => {
       pose_id: "next",
     };
     const nextPose = { ...pose, id: "next", name: "Next" };
-    const second = editActionEditorSavedPose(nextItem);
+    const second = editActionEditorSavedPose(testApiClient, nextItem);
     earlier.resolve({ item, pose });
     expect(await first).toBe(false);
     latest.resolve({ item: nextItem, pose: nextPose });
@@ -151,7 +152,7 @@ describe("editing durable poses", () => {
     usePoseCreatorStore.setState({ isDirty: true });
     vi.mocked(confirmPoseCreatorDirtyReplacement).mockReturnValue(false);
     const before = usePoseCreatorStore.getState();
-    expect(await editActionEditorSavedPose(item)).toBe(false);
+    expect(await editActionEditorSavedPose(testApiClient, item)).toBe(false);
     expect(loadPoseContent).not.toHaveBeenCalled();
     expect(usePoseCreatorStore.getState()).toBe(before);
   });
@@ -161,7 +162,9 @@ describe("editing durable poses", () => {
       const pending = deferred<{ item: PyPose; pose: typeof pose }>();
       vi.mocked(loadPoseContent).mockReturnValue(pending.promise);
       let active = true;
-      const load = editActionEditorSavedPose(item, { isCurrent: () => active });
+      const load = editActionEditorSavedPose(testApiClient, item, {
+        isCurrent: () => active,
+      });
       if (reason === "new-session")
         usePoseCreatorStore.getState().startNewPose();
       if (reason === "edit")
@@ -180,7 +183,7 @@ describe("asynchronous copy insertion", () => {
     const pending = deferred<{ item: PyPose; pose: typeof pose }>();
     vi.mocked(loadPoseContent).mockReturnValue(pending.promise);
     usePoseCreatorStore.getState().setClipCurrentTime(0.2);
-    const inserting = insertActionEditorSavedPose(item);
+    const inserting = insertActionEditorSavedPose(testApiClient, item);
     usePoseCreatorStore.getState().setClipCurrentTime(0.8);
     pending.resolve({ item, pose });
     expect(await inserting).toBe(true);
@@ -195,7 +198,7 @@ describe("asynchronous copy insertion", () => {
       const pending = deferred<{ item: PyPose; pose: typeof pose }>();
       vi.mocked(loadPoseContent).mockReturnValue(pending.promise);
       let active = true;
-      const inserting = insertActionEditorSavedPose(item, {
+      const inserting = insertActionEditorSavedPose(testApiClient, item, {
         isCurrent: () => active,
       });
       if (reason === "new-session")
@@ -216,7 +219,7 @@ describe("asynchronous copy insertion", () => {
       vi.mocked(loadPoseContent).mockReturnValue(pending.promise);
       if (when === "initial")
         usePoseCreatorStore.setState({ activeAvatar: null });
-      const inserting = insertActionEditorSavedPose(item);
+      const inserting = insertActionEditorSavedPose(testApiClient, item);
       if (when === "during-load")
         usePoseCreatorStore.setState({ activeAvatar: null });
       const before = usePoseCreatorStore.getState();
@@ -235,7 +238,7 @@ describe("asynchronous copy insertion", () => {
       clipDraft: { ...state.clipDraft, basePose: "missing-base" },
     }));
     const before = usePoseCreatorStore.getState();
-    expect(await insertActionEditorSavedPose(item)).toBe(false);
+    expect(await insertActionEditorSavedPose(testApiClient, item)).toBe(false);
     expect(toast.error).toHaveBeenCalledWith(
       expect.stringMatching(/unavailable|invalid/i),
     );

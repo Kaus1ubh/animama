@@ -9,7 +9,7 @@ from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from io import BytesIO
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 from unittest.mock import AsyncMock, Mock
 from uuid import uuid4
 from zipfile import ZipFile
@@ -25,6 +25,7 @@ from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlch
 from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import SQLAlchemyAnimaPackageSourceRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.app.model_catalog import serialize_builtin_model_connections
+from animama.app.ports.content_store import LocalContentStore
 from animama.app.services.anima_aggregate_materializer import AnimaAggregateMaterializer
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.content_catalog_service import ContentCatalogService
@@ -524,7 +525,7 @@ async def test_full_anima_transfer_preserves_images_privacy_copy_isolation_and_r
                 patch.setattr(receiver.content.mutations.store, "finalize_mutation", lose_finalization)
             second = await receiver.packages.imports.commit(**second_command)
         if existing:
-            assert receiver.content.mutations.store.pending_mutations()
+            assert cast(LocalContentStore, receiver.content.mutations.store).pending_mutations()
         assert second.anima_id not in {first.anima_id, source_id, existing_id}
         assert {item.item_id for item in first.items}.isdisjoint(item.item_id for item in second.items)
         receiver.packages.stages.discard(receiver.owner, second_command["stage_id"])
@@ -542,7 +543,7 @@ async def test_full_anima_transfer_preserves_images_privacy_copy_isolation_and_r
             await restarted.content.rescan(user_id=receiver.owner)
             assert await restarted.packages.imports.commit(**first_command) == first
             assert await restarted.packages.imports.commit(**second_command) == second
-            assert not restarted.content.mutations.store.pending_mutations()
+            assert not cast(LocalContentStore, restarted.content.mutations.store).pending_mutations()
             assert sound_path.read_bytes() == original_sound[:-2] + b"\x02\x00"
             changed = await restarted.catalog.get_visible_item(item_id=sound_id, user_id=receiver.owner)
             assert (

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import pytest
 
+from animama.app.chat.options import merge_chat_request_options
 from animama.app.services.settings_service import default_anima_preferences
-from animama.server.chat_options import merge_chat_request_options
 
 
 def test_new_anima_preferences_inherit_memory_and_emotion() -> None:
@@ -53,3 +53,32 @@ def test_memory_updates_stop_when_memory_is_off_at_another_level() -> None:
     )
     assert options.disable_memory_influence is True
     assert options.disable_memory_updates is True
+
+
+def test_local_chat_options_reuses_the_neutral_merger() -> None:
+    """Local HTTP composition and installed consumers share one resolution policy."""
+
+    from animama.server.chat_options import merge_chat_request_options as local_merge
+
+    assert local_merge is merge_chat_request_options
+
+
+def test_neutral_merger_preserves_request_normalization_and_inherited_flags() -> None:
+    options = merge_chat_request_options(
+        request_opts={
+            "disable_memory_updates": False,
+            "disable_emotion_updates": "false",
+            "incognito": True,
+            "native_tools": [" search ", "search", None],
+            "tts": {"provider": "elevenlabs", "model_id": "unlisted", "enabled": True},
+        },
+        user_prefs={"memory": {"disable_updates": True}, "emotion": {"disable_updates": True}},
+        anima_prefs={},
+    )
+    assert options.disable_memory_updates is False
+    assert options.disable_emotion_updates is True
+    assert options.incognito is True
+    assert options.native_tools == ("search",)
+    assert options.tts is not None
+    assert options.tts.enabled is True
+    assert options.tts.model_id is None

@@ -48,6 +48,35 @@ The runner filters out the real-avatar pose journey in the same spec.
 
 ## Current Automation Status
 
+Hosted composition fixtures run through `pnpm web:test`; they require neither
+an installation bootstrap nor a Cloud checkout. To run the retained workflow
+HTTP fixture alone, first build the public packages, then run from `src/frontend`:
+
+```bash
+pnpm packages:build
+node --test web/scripts/hosted-workflows.browser.test.mjs
+```
+
+This fixture starts an independent loopback HTTP authority and headless Chromium.
+Synthetic HttpOnly sessions and CSRF/Origin checks admit the existing shared
+router, hooks and generated clients. Unknown routes fail. It covers settings
+inheritance, typed saves and quota recovery, verified private preview bytes,
+loadout revision/replay contracts, chat history and quota retry, logical memory
+and manager approvals, package receipt reentry/export, and owner/session cleanup.
+Its service responses are contract fixtures; they do not establish Cloud
+business logic, provider output or physical audio/microphone acceptance.
+
+The separate hosted composition fixture tests admission, exact exclusions and
+durable private recovery cleanup. Browser utility tests use the actual fullscreen
+DOM and a real popup; they simulate only the Document PiP window-creation API.
+Speech fixtures create real Web Audio contexts: failure closes its context and
+keeps text fallback, while success loads the checked-in worklet and opens a
+cookie-authorized loopback WebSocket before sign-out closes both. Microphone
+settings also exercise a real denied Chromium permission. These cases make no
+provider connection and establish no heard output or physical capture. Keep
+package builds and browser tests sequential so emitted-package changes cannot
+invalidate a running browser's module graph.
+
 The active Playwright projects use installation setup and same-origin requests,
 without accounts, stored login state, owner headers or browser bearer tokens.
 The explicit allowlist selects `accountless-library`, `accountless-journeys`,

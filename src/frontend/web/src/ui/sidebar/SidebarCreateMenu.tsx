@@ -17,7 +17,11 @@ import {
   PopoverAnchor,
   PopoverContent,
 } from "@/ui/components/popover";
-import { useRuntimeFeatureEnabled } from "@/ui/app/RuntimeFeatureGate";
+import {
+  useRuntimeFeatureEnabled,
+  useRuntimeFeatureUnavailableReason,
+} from "@/ui/app/RuntimeFeatureGate";
+import { UnavailableAction } from "@/ui/components/unavailable-action";
 import { EffectTemplatePickerDialog } from "@/ui/create/EffectTemplatePickerDialog";
 import {
   SidebarLink,
@@ -67,8 +71,11 @@ const PRIMARY_CREATE_LINKS = [
   },
 ] as const;
 
-const MENU_ITEM_CLASS_NAME =
-  "group/create-item border-border/60 bg-popover/95 hover:bg-muted focus-visible:bg-muted focus-visible:ring-ring flex items-center gap-2.5 rounded-lg border px-2 py-1.5 text-sm font-medium shadow-md backdrop-blur-md transition-[background-color,box-shadow,transform] outline-none hover:translate-x-0.5 hover:shadow-lg focus-visible:ring-2";
+/** The card look shared by every Create menu item, including a disabled one. */
+const MENU_ITEM_SHAPE_CLASS_NAME =
+  "border-border/60 bg-popover/95 focus-visible:ring-ring flex items-center gap-2.5 rounded-lg border px-2 py-1.5 text-sm font-medium shadow-md backdrop-blur-md outline-none focus-visible:ring-2";
+
+const MENU_ITEM_CLASS_NAME = `group/create-item ${MENU_ITEM_SHAPE_CLASS_NAME} hover:bg-muted focus-visible:bg-muted transition-[background-color,box-shadow,transform] hover:translate-x-0.5 hover:shadow-lg`;
 
 /**
  * Hover, click, and keyboard-accessible creation destinations. **Effects**
@@ -87,8 +94,14 @@ export function SidebarCreateMenu() {
   const suppressFocusOpenRef = useRef(false);
   const closeMobileSidebar = useCloseMobileSidebar();
   const animaCreation = useRuntimeFeatureEnabled("anima_creation");
+  // A withheld Anima creator keeps its item, disabled with the shared reason.
+  const animaCreationUnavailable =
+    useRuntimeFeatureUnavailableReason("anima_creation");
   const primaryLinks = PRIMARY_CREATE_LINKS.filter(
-    (item) => animaCreation || item.to !== "/animas/new",
+    (item) =>
+      animaCreation ||
+      animaCreationUnavailable !== null ||
+      item.to !== "/animas/new",
   );
   const trigger: SidebarLinkItem = {
     label: "Create",
@@ -197,31 +210,52 @@ export function SidebarCreateMenu() {
           >
             {primaryLinks.map((item) => {
               const Icon = item.icon;
+              const icon = (
+                <span
+                  className={`${item.iconClassName} flex size-7 shrink-0 items-center justify-center rounded-md shadow-sm ring-1 ring-black/5 transition-transform group-hover/create-item:scale-105`}
+                >
+                  <Icon className="size-3.5" aria-hidden="true" />
+                </span>
+              );
               return (
                 <motion.div key={item.to} variants={CARD_VARIANTS}>
-                  <Link
-                    to={item.to}
-                    role="menuitem"
-                    activeOptions={{ exact: true }}
-                    activeProps={{
-                      className: "bg-muted/80 text-foreground",
-                    }}
-                    className={MENU_ITEM_CLASS_NAME}
-                    onClick={closeMenu}
-                  >
-                    <span
-                      className={`${item.iconClassName} flex size-7 shrink-0 items-center justify-center rounded-md shadow-sm ring-1 ring-black/5 transition-transform group-hover/create-item:scale-105`}
+                  {item.to === "/animas/new" && animaCreationUnavailable ? (
+                    <UnavailableAction
+                      reason={animaCreationUnavailable}
+                      side="right"
                     >
-                      <Icon className="size-3.5" aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0 flex-1 whitespace-nowrap">
-                      {item.label}
-                    </span>
-                    <ChevronRight
-                      className="text-muted-foreground size-4 shrink-0 -translate-x-1 opacity-0 transition-all group-hover/create-item:translate-x-0 group-hover/create-item:opacity-100 group-focus-visible/create-item:translate-x-0 group-focus-visible/create-item:opacity-100 group-data-[status=active]/create-item:translate-x-0 group-data-[status=active]/create-item:opacity-100"
-                      aria-hidden="true"
-                    />
-                  </Link>
+                      <button
+                        type="button"
+                        role="menuitem"
+                        className={`${MENU_ITEM_SHAPE_CLASS_NAME} w-full`}
+                      >
+                        {icon}
+                        <span className="min-w-0 flex-1 text-left whitespace-nowrap">
+                          {item.label}
+                        </span>
+                      </button>
+                    </UnavailableAction>
+                  ) : (
+                    <Link
+                      to={item.to}
+                      role="menuitem"
+                      activeOptions={{ exact: true }}
+                      activeProps={{
+                        className: "bg-muted/80 text-foreground",
+                      }}
+                      className={MENU_ITEM_CLASS_NAME}
+                      onClick={closeMenu}
+                    >
+                      {icon}
+                      <span className="min-w-0 flex-1 whitespace-nowrap">
+                        {item.label}
+                      </span>
+                      <ChevronRight
+                        className="text-muted-foreground size-4 shrink-0 -translate-x-1 opacity-0 transition-all group-hover/create-item:translate-x-0 group-hover/create-item:opacity-100 group-focus-visible/create-item:translate-x-0 group-focus-visible/create-item:opacity-100 group-data-[status=active]/create-item:translate-x-0 group-data-[status=active]/create-item:opacity-100"
+                        aria-hidden="true"
+                      />
+                    </Link>
+                  )}
                 </motion.div>
               );
             })}

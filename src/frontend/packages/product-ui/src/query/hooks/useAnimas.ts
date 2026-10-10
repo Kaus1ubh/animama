@@ -4,7 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { listAnimasV1AnimasGet } from "@animama/runtime-contracts/sdk";
 import type { PyAnimaListItem } from "@animama/runtime-contracts/api-types";
 import { queryKeys } from "../keys";
-import { useRuntimeOwnerId } from "../../runtime/ProductRuntimeProvider";
+import { useRuntimeCacheKey } from "../../runtime/ProductRuntimeProvider";
 
 export type UseAnimasOptions = {
   enabled?: boolean;
@@ -12,7 +12,7 @@ export type UseAnimasOptions = {
 
 export function useAnimas(opts?: UseAnimasOptions) {
   const client = useProductApiClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
   const enabled = (opts?.enabled ?? true) && Boolean(userId);
 

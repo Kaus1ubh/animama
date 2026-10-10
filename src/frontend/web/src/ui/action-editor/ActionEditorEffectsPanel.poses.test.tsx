@@ -4,6 +4,7 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import type { PyPose } from "@animama/runtime-contracts/api-types";
+import { withRuntime } from "@/test/runtime-markup";
 import { ActionEditorEffectsPanel } from "./ActionEditorEffectsPanel";
 
 vi.mock("@/ui/sound-upload/SoundUploadButton", () => ({
@@ -48,19 +49,21 @@ afterEach(() => {
 function renderPanel(poses: PyPose[]) {
   act(() =>
     root.render(
-      <ActionEditorEffectsPanel
-        query=""
-        onQueryChange={() => undefined}
-        activeType="particle_effect"
-        onActiveTypeChange={() => undefined}
-        sections={[]}
-        dependencies={[]}
-        onAdd={() => undefined}
-        poses={poses}
-        onAddPose={() => undefined}
-        onEditPose={() => undefined}
-        onCreatePose={() => undefined}
-      />,
+      withRuntime(
+        <ActionEditorEffectsPanel
+          query=""
+          onQueryChange={() => undefined}
+          activeType="particle_effect"
+          onActiveTypeChange={() => undefined}
+          sections={[]}
+          dependencies={[]}
+          onAdd={() => undefined}
+          poses={poses}
+          onAddPose={() => undefined}
+          onEditPose={() => undefined}
+          onCreatePose={() => undefined}
+        />,
+      ),
     ),
   );
 }

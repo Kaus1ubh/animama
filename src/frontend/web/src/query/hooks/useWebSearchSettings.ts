@@ -1,10 +1,12 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useQuery } from "@tanstack/react-query";
 
 import { getWebSearchSettingsV1WebSearchSettingsGet } from "@animama/runtime-contracts/sdk";
 import type { PyWebSearchSettings } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 /**
@@ -13,12 +15,15 @@ import { queryKeys } from "@/query/keys";
  * compositions do not serve this route.
  */
 export function useWebSearchSettings(enabled: boolean) {
-  const ownerId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
+
+  const ownerId = useRuntimeCacheKey();
   return useQuery<PyWebSearchSettings>({
     queryKey: queryKeys.webSearchSettings(ownerId ?? "__anon__"),
     enabled: enabled && Boolean(ownerId),
     queryFn: async () => {
       const { data } = await getWebSearchSettingsV1WebSearchSettingsGet({
+        client: apiClient,
         responseValidator: undefined,
         throwOnError: true,
       });

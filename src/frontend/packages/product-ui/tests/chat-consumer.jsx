@@ -5,6 +5,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import {
   useProductChatSession,
   describeChatFailure,
+  textOnlyChatEffects,
 } from "@animama/product-ui/chat";
 import { ChatConversation } from "@animama/product-ui/components";
 import { queryKeys, useChatSse } from "@animama/product-ui/query";
@@ -18,6 +19,14 @@ const histories = {};
 let stopOnToken = false;
 let run = 0;
 let api;
+let speechEnabled = false;
+let speechModel = "eleven_flash_v2_5";
+let pocketFallback = true;
+const speechSessions = [];
+const speechFailures = [];
+const speechFallbacks = [];
+const ttsTokens = [];
+const ttsCompletions = [];
 const transport = {
   baseUrl: "https://chat-fixture.invalid",
   fetch: async (request) => {
@@ -118,11 +127,36 @@ const runtime = {
   remountLatest: () => {},
 };
 function SessionConsumer() {
+  const owner = useRuntimeOwnerId();
   const [chatId, setChatId] = useState("chat-fixture");
   const session = useProductChatSession({
     animaId: "anima-fixture",
     routeChatId: chatId,
     runtime,
+    speech: speechEnabled
+      ? {
+          enabled: true,
+          provider: "elevenlabs",
+          elevenLabsModelId: speechModel,
+          finalizedElevenLabs: speechModel === "eleven_v3",
+        }
+      : undefined,
+    effects: {
+      ...textOnlyChatEffects,
+      acceptElevenLabsSession: (runId, value) =>
+        speechSessions.push({ runId, value }),
+      markElevenLabsSessionFailed: (runId, error) =>
+        speechFailures.push({ runId, error }),
+      markElevenLabsFinalizedAudioFailed: (runId, error) =>
+        speechFailures.push({ runId, error }),
+      // The playback adapter speaks a declined run with Pocket TTS if it can.
+      fallBackToPocketTts: (runId) => {
+        speechFallbacks.push(runId);
+        return pocketFallback;
+      },
+      appendTtsToken: (runId, token) => ttsTokens.push({ runId, token }),
+      completeTtsRun: (runId) => ttsCompletions.push(runId),
+    },
     openDraftChatRoute: () => {},
     replaceChatRoute: () => {},
   });
@@ -133,6 +167,7 @@ function SessionConsumer() {
   };
   return (
     <main>
+      <span id="owner">{owner}</span>
       <textarea
         id="draft"
         value={session.input}
@@ -178,10 +213,11 @@ function SessionConsumer() {
 }
 
 const root = createRoot(document.getElementById("root"));
-function mount(owner = "owner-fixture", session = false) {
+function mount(owner = "owner-fixture", session = false, sessionKey = owner) {
   root.render(
     <ProductRuntimeProvider
       owner={{ id: owner }}
+      sessionKey={sessionKey}
       capabilities={{ chat: true }}
       transport={transport}
     >
@@ -193,7 +229,50 @@ function mount(owner = "owner-fixture", session = false) {
 }
 window.fixture = {
   mount,
-  mountSession: () => mount("owner-fixture", true),
+  enableSpeech: ({ model = "eleven_flash_v2_5", fallback = true } = {}) => {
+    speechEnabled = true;
+    speechModel = model;
+    pocketFallback = fallback;
+    mount("owner-fixture", true);
+  },
+  speechSessions: () => speechSessions,
+  speechFailures: () => speechFailures,
+  speechFallbacks: () => speechFallbacks,
+  ttsTokens: () => ttsTokens,
+  ttsCompletions: () => ttsCompletions,
+  mountSession: (sessionKey = "owner-fixture") =>
+    mount("owner-fixture", true, sessionKey),
+  seedSessionCaches: (key) => {
+    queryClient.setQueryData(queryKeys.chats.list(key), [
+      { id: "chat-fixture", title: "Before" },
+    ]);
+    queryClient.setQueryData(
+      [...queryKeys.animas.all(key), "fixture"],
+      [{ id: "anima-fixture", emotional_state: { joy: 0 } }],
+    );
+    queryClient.setQueryData(queryKeys.memoryEntries.all(key), []);
+    queryClient.setQueryData(queryKeys.memoryEpisodes.all(key), []);
+    queryClient.setQueryData(
+      queryKeys.animaLoadouts.runtime(key, "anima-fixture"),
+      { revision: "before" },
+    );
+  },
+  sessionCaches: (key) => ({
+    messages: queryClient.getQueryData(
+      queryKeys.chats.messages(key, "chat-fixture"),
+    ),
+    title: queryClient.getQueryData(queryKeys.chats.list(key))?.[0]?.title,
+    joy: queryClient.getQueryData([
+      ...queryKeys.animas.all(key),
+      "fixture",
+    ])?.[0]?.emotional_state?.joy,
+    invalidated: [
+      queryKeys.memoryEntries.all(key),
+      queryKeys.memoryEpisodes.all(key),
+      queryKeys.animaLoadouts.runtime(key, "anima-fixture"),
+      queryKeys.chats.list(key),
+    ].map((queryKey) => queryClient.getQueryState(queryKey)?.isInvalidated),
+  }),
   switchChat: () => api.switchChat(),
   setHistory: (chatId, messages) => {
     histories[chatId] = messages;
@@ -230,12 +309,10 @@ window.fixture = {
   stopOnToken: () => {
     stopOnToken = true;
   },
-  respond: (index, status = 200) =>
+  respond: (index, status = 200, body = { detail: "fixture error" }) =>
     requests[index].resolve(
       new Response(
-        status === 200
-          ? requests[index].stream
-          : JSON.stringify({ detail: "fixture error" }),
+        status === 200 ? requests[index].stream : JSON.stringify(body),
         {
           status,
           headers: {

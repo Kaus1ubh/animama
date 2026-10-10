@@ -1,4 +1,5 @@
 import { type ReactNode, useState } from "react";
+import { useProductApiClient } from "@animama/product-ui";
 import { Link } from "@tanstack/react-router";
 import { Lock, Play } from "lucide-react";
 
@@ -57,13 +58,14 @@ function NonPortableActionNotice({
   name: string;
   description: string | null;
 }) {
+  const apiClient = useProductApiClient();
   const { openPreview } = useContentPreviewDock();
   const [error, setError] = useState<string | null>(null);
   const preview = async () => {
     setError(null);
     try {
       const value = typedActionPreview(
-        await previewTypedCatalogItem(intent, itemId),
+        await previewTypedCatalogItem(apiClient, intent, itemId),
       );
       openPreview(actionPreviewTarget(value, name));
     } catch (cause) {

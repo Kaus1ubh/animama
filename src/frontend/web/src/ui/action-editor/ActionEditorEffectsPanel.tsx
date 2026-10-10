@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import {
   Layers3Icon,
   PersonStandingIcon,
@@ -131,6 +133,8 @@ export function ActionEditorEffectsPanel({
   onEditPose,
   onCreatePose,
 }: ActionEditorEffectsPanelProps) {
+  const apiClient = useProductApiClient();
+
   const [previewState, setPreviewState] = useState<{
     id: string | null;
     error?: string;
@@ -398,7 +402,8 @@ export function ActionEditorEffectsPanel({
                               ? () => {
                                   if (previewState.id === item.item_id)
                                     preview.stop();
-                                  else void preview.play(item.item_id);
+                                  else
+                                    void preview.play(apiClient, item.item_id);
                                 }
                               : undefined
                           }

@@ -12,6 +12,7 @@ import {
   ChatInput,
   ChatInputDictation,
   ChatInputFileUploadButton,
+  ChatInputFileUploadUnavailable,
   ChatInputModelSelector,
   ChatInputSubmit,
   ChatInputTextArea,
@@ -48,15 +49,19 @@ import {
   type DesktopQuickChatSnapshot,
 } from "@/hooks/useDesktopQuickChatRuntime";
 import { resolveDesktopShortcuts } from "@/lib/settings/desktop-shortcuts";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import {
   mergeChatAttachedFileIds,
   selectableChatUserFiles,
 } from "@/lib/user-files/chat-attachments";
 import { queryKeys } from "@/query/keys";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
+import { useOperatorManagedModelAssets } from "@/query/hooks/useModelAssets";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
-import { useRuntimeFeatureEnabled } from "@/ui/app/RuntimeFeatureGate";
+import {
+  useRuntimeFeatureEnabled,
+  useRuntimeFeatureUnavailableReason,
+} from "@/ui/app/RuntimeFeatureGate";
 import { OfflineSpeechDownloads } from "@/ui/settings/OfflineSpeechDownloads";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { isWebSpeechSupported } from "@/lib/speech/stt-provider";
@@ -222,14 +227,20 @@ export function ChatInterfaceView({
     crisisSlot !== null,
   );
   const capabilities = useRuntimeCapabilities();
-  // Withholding the uploader hides the attach button, drop overlay and tray.
+  // Withholding the uploader removes the live attach button, drop overlay and
+  // tray; a runtime that reports uploads withheld keeps a disabled attach
+  // button with the shared reason instead.
   const fileUploadUppy = useRuntimeFeatureEnabled("chat_file_uploads")
     ? suppliedFileUploadUppy
     : undefined;
+  const attachUnavailableReason =
+    useRuntimeFeatureUnavailableReason("chat_file_uploads");
   const platform = useRuntimePlatform();
   const speechAvailable =
     capabilities.data?.offline_speech_enabled === true ||
     isWebSpeechSupported(platform);
+  // Operator-provided speech models cannot be installed from the composer.
+  const operatorManagedModels = useOperatorManagedModelAssets();
   const { data: anima } = useAnima(animaId);
   const { data: modelCatalog } = useModelProviders();
   const activeModel = modelCatalog?.find(
@@ -398,6 +409,10 @@ export function ChatInterfaceView({
                     }
                     disabled={!canChat || isStreaming}
                   />
+                ) : attachUnavailableReason ? (
+                  <ChatInputFileUploadUnavailable
+                    reason={attachUnavailableReason}
+                  />
                 ) : null
               }
               actions={
@@ -442,8 +457,9 @@ export function ChatInterfaceView({
             {!speechAvailable ? (
               <details className="text-muted-foreground mt-2 text-xs">
                 <summary>
-                  Install offline speech recognition to use dictation and Voice
-                  Mode
+                  {operatorManagedModels
+                    ? "Offline speech recognition for dictation and Voice Mode is not available here"
+                    : "Install offline speech recognition to use dictation and Voice Mode"}
                 </summary>
                 {quickChatSurface ? (
                   <p>
@@ -598,7 +614,7 @@ export const ChatInterface = ({
   }, [mountedRuntimeContent.diagnostics, mountedRuntimeContent.playbackStatus]);
   const { chatMarkdownEnabled, userPreferences } = useSettings();
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   const dictationBaseRef = useRef("");

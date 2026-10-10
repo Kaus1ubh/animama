@@ -1,7 +1,7 @@
 # ElevenLabs TTS Guide
 
 This document describes the browser-side ElevenLabs TTS runtimes in
-`src/frontend/web`: direct realtime websocket speech for Flash/Multilingual
+`src/frontend/web`: admitted realtime websocket speech for Flash/Multilingual
 models and finalized-text `chat:sse` audio push for Eleven v3.
 
 ## Runtime Model
@@ -28,8 +28,15 @@ Realtime values are `eleven_flash_v2_5` and `eleven_multilingual_v2`.
 
 For realtime chat turns, `useChatSession.ts` sends explicit TTS intent in
 `dispatch_options.tts`. `chat:sse` resolves the ElevenLabs realtime session and
-emits `tts.session`. The frontend then opens a direct ElevenLabs websocket
-using the short-lived token from that SSE event.
+emits `tts.session`. The local composition opens a direct ElevenLabs websocket
+using the short-lived token from that SSE event when provider connection authority
+is available. A hosted consumer instead sends `transport: "server"` and
+`websocket_url`, a path under `/v1/` on the admitted application origin. The browser
+uses its session cookie, accepts no URL credentials, query or fragment, and never
+falls back to a provider socket. The consumer must bind the stream to its admitted
+run, validate the current session and Origin, reserve bounded speech work and
+settle usage/cancellation. Frontend fixture success does not establish that server
+boundary or real speech delivery.
 
 The `tts.session` event includes the selected voice, model, output format,
 transport, and `sync_alignment`. `sync_alignment` remains `false`; Anima does
@@ -42,7 +49,10 @@ it does not perform a fresh ElevenLabs `voices.get` call when the cache says the
 voice was recently valid.
 
 If session setup fails, `chat:sse` emits `tts.session.error` and continues
-streaming assistant text. The frontend marks TTS skipped for that run.
+streaming assistant text. The frontend marks TTS skipped for that run, except
+that a hosted `speech_allowance_exhausted` decline (on this frame or a v3
+`tts.error`) moves the run to [Pocket TTS](voice.md#elevenlabs-tts) where it is
+supported.
 
 ## Eleven v3 Finalized Streaming
 
@@ -59,7 +69,7 @@ fields:
 
 All ElevenLabs chat models prefer `tts_text` over visible speech text when
 `tts_text_basis` is `gruut_text_with_ws`. Realtime models send that text to the
-direct websocket; Eleven v3 sends that text from the backend to ElevenLabs.
+admitted websocket; Eleven v3 sends that text from the backend to ElevenLabs.
 
 For structured speech streaming, `useChatSession.ts` sends each speech delta
 into the existing TTS pipeline as it arrives. Realtime ElevenLabs models keep

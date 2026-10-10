@@ -1,3 +1,4 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { parseAnimaPose } from "@/lib/avatar/poses/animaPose";
@@ -10,7 +11,8 @@ const clientMocks = vi.hoisted(() => ({
   previewPose: vi.fn(),
 }));
 
-vi.mock("@animama/runtime-contracts/sdk", () => ({
+vi.mock("@animama/runtime-contracts/sdk", async (original) => ({
+  ...(await original<typeof import("@animama/runtime-contracts/sdk")>()),
   saveGesture: clientMocks.saveGesture,
   savePose: clientMocks.savePose,
   previewPose: clientMocks.previewPose,
@@ -44,7 +46,7 @@ describe("saveCatalogItem error boundary", () => {
     });
 
     await expect(
-      saveCatalogItem({
+      saveCatalogItem(testApiClient, {
         kind: "gesture",
         entryName: "Wave",
         files: [],
@@ -64,7 +66,7 @@ describe("saveCatalogItem error boundary", () => {
       response: new Response(null, { status: 409 }),
     });
 
-    const save = saveCatalogItem({
+    const save = saveCatalogItem(testApiClient, {
       kind: "gesture",
       entryName: "Wave",
       files: [],
@@ -86,7 +88,7 @@ describe("saveCatalogItem error boundary", () => {
   it("normalizes a browser fetch rejection at the same boundary", async () => {
     clientMocks.saveGesture.mockRejectedValue(new TypeError("Failed to fetch"));
 
-    const save = saveCatalogItem({
+    const save = saveCatalogItem(testApiClient, {
       kind: "gesture",
       entryName: "Wave",
       files: [],
@@ -101,6 +103,27 @@ describe("saveCatalogItem error boundary", () => {
           "Animama could not be reached. Check that the local stack is running, then retry. Your draft is preserved.",
       }),
     );
+  });
+
+  it("preserves a recoverable Save failure when the generated client has no HTTP response", async () => {
+    // throwOnError:false returns a rejected fetch as a result, rather than throwing.
+    clientMocks.saveGesture.mockResolvedValue({
+      data: undefined,
+      error: new TypeError("Failed to fetch"),
+      response: undefined,
+    });
+    await expect(
+      saveCatalogItem(testApiClient, {
+        kind: "gesture",
+        entryName: "Wave",
+        files: [],
+        operationId: "save-operation",
+      }),
+    ).rejects.toMatchObject({
+      name: "ContentSaveApiError",
+      status: null,
+      message: expect.stringContaining("Your draft is preserved"),
+    });
   });
 });
 
@@ -129,7 +152,7 @@ describe("Pose catalog transport", () => {
       data: pose,
       response: new Response(null, { status: 200 }),
     });
-    const saved = await saveCatalogItem({
+    const saved = await saveCatalogItem(testApiClient, {
       kind: "pose",
       entryName: "Salute",
       files: [],
@@ -162,7 +185,7 @@ describe("Pose catalog transport", () => {
       },
     });
     await expect(
-      previewCatalogItem("pose-item", undefined, "pose"),
+      previewCatalogItem(testApiClient, "pose-item", undefined, "pose"),
     ).resolves.toMatchObject({
       item: { kind: "pose", item_id: "pose-item" },
       metadata: { content_type: "pose", id: "local:pose:salute" },

@@ -6,7 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import type { PyRuntimeImageReference } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { getContentUploadErrorPresentation } from "@/lib/content/contentUploads";
 import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
@@ -93,7 +93,7 @@ export function AnimaAppearanceDialog({
   const open = section !== null;
   const activeSection = section ?? "profile_image";
   const use = sectionUse(activeSection);
-  const userId = useRuntimeOwnerId() ?? "__anon__";
+  const userId = useRuntimeCacheKey() ?? "__anon__";
   const queryClient = useQueryClient();
   const loadout = useAnimaLoadout(animaId);
   const images = useAppearanceImages();

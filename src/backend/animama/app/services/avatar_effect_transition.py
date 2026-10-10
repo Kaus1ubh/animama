@@ -15,8 +15,9 @@ import json
 from contextlib import ExitStack
 from dataclasses import dataclass
 from pathlib import PurePosixPath
-from typing import BinaryIO
+from typing import BinaryIO, cast
 
+from animama.app.ports.content_store import LocalContentStore
 from animama.app.services.avatar_effect_conversion import (
     OFFSET_MIRRORED,
     convert_avatar_effect_definition,
@@ -116,7 +117,8 @@ class AvatarEffectTransitionService:
             current = await catalog.get_visible_item(item_id=before.id, user_id=user_id, for_update=True)
             if current is None or current.revision_sha256 != before.revision_sha256:
                 raise ContentConflictError("content_transition_source_changed")
-            store = self._content.mutations.store
+            # Conversion is a local installation transition; it retains filesystem originals.
+            store = cast(LocalContentStore, self._content.mutations.store)
             await asyncio.to_thread(
                 store.retain_transition_originals, operation_id=operation_id, entry=before, binding_facts=[]
             )

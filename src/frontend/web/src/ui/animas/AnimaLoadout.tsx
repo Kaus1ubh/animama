@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -99,6 +101,8 @@ export function AnimaLoadout({
   animaId: string;
   onStagePreview: (target: ContentPreviewTarget) => void;
 }) {
+  const apiClient = useProductApiClient();
+
   const query = useLoadout(animaId);
   const runtimeSnapshotQuery = useAnimaRuntimeCatalog(animaId);
   const runtimeData = useMemo(
@@ -256,8 +260,8 @@ export function AnimaLoadout({
       };
       const result =
         family === "gesture"
-          ? await previewGesture(options)
-          : await previewReaction(options);
+          ? await previewGesture({ ...options, client: apiClient })
+          : await previewReaction({ ...options, client: apiClient });
       const target = actionPreviewTarget(
         typedActionPreview(result.data),
         row.name ?? "Reaction",
@@ -354,6 +358,7 @@ export function AnimaLoadout({
     try {
       const result = (
         await previewIdleStyle({
+          client: apiClient,
           path: { item_id: loadout.idle_style.source.catalog_item_id },
           responseValidator: undefined,
           throwOnError: true,

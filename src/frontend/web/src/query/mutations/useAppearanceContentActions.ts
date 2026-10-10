@@ -1,8 +1,11 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+import type { Client } from "@animama/runtime-contracts/sdk";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { saveCatalogItem } from "@/lib/content/catalogApi";
 import { catalogViewItem } from "@/lib/content/catalogTypes";
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
@@ -46,7 +49,10 @@ async function imageSize(
 }
 
 /** Save one ordinary image plus a readable sidecar into content/local. */
-export async function saveAppearanceImage(input: AppearanceImageSaveInput) {
+export async function saveAppearanceImage(
+  apiClient: Client,
+  input: AppearanceImageSaveInput,
+) {
   input.onProgress?.({ stage: "preparing", percent: null });
   const preflight = await preflightContentFile("image", input.file);
   if (preflight.error) throw contentSaveFieldError(preflight.error, "files");
@@ -55,7 +61,7 @@ export async function saveAppearanceImage(input: AppearanceImageSaveInput) {
   input.onProgress?.({ stage: "hashing", percent: 100 });
   const dimensions = await imageSize(input.file);
   input.onProgress?.({ stage: "uploading", percent: 0 });
-  const saved = await saveCatalogItem({
+  const saved = await saveCatalogItem(apiClient, {
     kind: "appearance",
     entryName: input.name,
     files: [input.file],
@@ -73,10 +79,12 @@ export async function saveAppearanceImage(input: AppearanceImageSaveInput) {
 }
 
 export function useAppearanceContentActions() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const createAppearanceImage = useMutation({
-    mutationFn: saveAppearanceImage,
+    mutationFn: saveAppearanceImage.bind(null, apiClient),
     onSuccess: async () => {
       if (!userId) return;
       await Promise.all([

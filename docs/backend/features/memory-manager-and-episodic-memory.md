@@ -1070,7 +1070,8 @@ ORM:
 
 HTTP schemas and routes:
 
-- `src/backend/animama/server/schemas/memory_manager.py`
+- `src/backend/animama/app/contracts/memory_manager.py` (`server/schemas`
+  re-exports it)
 - `src/backend/animama/server/routers/memory_manager.py`
 
 Runtime adapters:

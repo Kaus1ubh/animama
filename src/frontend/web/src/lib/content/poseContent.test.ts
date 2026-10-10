@@ -1,8 +1,10 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PyPose } from "@animama/runtime-contracts/api-types";
 const mocks = vi.hoisted(() => ({ preview: vi.fn(), fetchFile: vi.fn() }));
-vi.mock("@animama/runtime-contracts/sdk", () => ({
+vi.mock("@animama/runtime-contracts/sdk", async (original) => ({
+  ...(await original<typeof import("@animama/runtime-contracts/sdk")>()),
   previewPose: mocks.preview,
 }));
 import { loadPoseContent, preparePoseSaveAttempt } from "./poseContent";
@@ -72,12 +74,14 @@ describe("Pose registered byte loading", () => {
   it("rejects altered bytes and disposes descriptor URLs after parsing", async () => {
     const create = vi.spyOn(URL, "createObjectURL");
     const revoke = vi.spyOn(URL, "revokeObjectURL");
-    await loadPoseContent(item);
+    await loadPoseContent(testApiClient, item);
     expect(revoke).toHaveBeenCalledWith(create.mock.results[0]?.value);
     mocks.fetchFile.mockResolvedValue(
       new Response(JSON.stringify(descriptor).replace("Rest", "Best")),
     );
-    await expect(loadPoseContent(item)).rejects.toThrow(/digest/);
+    await expect(loadPoseContent(testApiClient, item)).rejects.toThrow(
+      /digest/,
+    );
     expect(create).toHaveBeenCalledTimes(1);
     create.mockRestore();
     revoke.mockRestore();
@@ -89,7 +93,9 @@ describe("Pose registered byte loading", () => {
       return "blob:cancelled-pose";
     });
     const revoke = vi.spyOn(URL, "revokeObjectURL");
-    await expect(loadPoseContent(item, abort.signal)).rejects.toMatchObject({
+    await expect(
+      loadPoseContent(testApiClient, item, abort.signal),
+    ).rejects.toMatchObject({
       name: "AbortError",
     });
     expect(revoke).toHaveBeenCalledWith("blob:cancelled-pose");
@@ -97,14 +103,16 @@ describe("Pose registered byte loading", () => {
     revoke.mockRestore();
   });
   it("loads effective values through the registered descriptor", async () => {
-    expect(await loadPoseContent(item)).toEqual({ item, pose });
+    expect(await loadPoseContent(testApiClient, item)).toEqual({ item, pose });
     expect(mocks.fetchFile.mock.calls[0][0]).toBe(
       "/v1/content/previews/lease/revisions/lease-revision/files/descriptor",
     );
   });
   it("rejects a changed revision before consuming its bytes", async () => {
     mocks.preview.mockResolvedValue(preview("newer-revision"));
-    await expect(loadPoseContent(item)).rejects.toThrow(/changed/);
+    await expect(loadPoseContent(testApiClient, item)).rejects.toThrow(
+      /changed/,
+    );
     expect(mocks.fetchFile).not.toHaveBeenCalled();
   });
   it("rejects descriptor identity mismatch", async () => {
@@ -122,7 +130,9 @@ describe("Pose registered byte loading", () => {
         }),
       ),
     );
-    await expect(loadPoseContent(item)).rejects.toThrow(/identity/);
+    await expect(loadPoseContent(testApiClient, item)).rejects.toThrow(
+      /identity/,
+    );
   });
 });
 

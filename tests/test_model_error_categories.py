@@ -12,6 +12,8 @@ from animama.app.model_clients.error_categories import model_error_category
     [
         ("openai_connection_error", None, "unreachable"),
         ("openai_timeout", None, "timeout"),
+        ("model_deadline_exceeded", None, "timeout"),
+        ("model_input_limit_exceeded", None, "context_exceeded"),
         ("missing_api_key", None, "credential_missing"),
         ("openai_authentication_error", None, "credential_rejected"),
         ("openai_permission_denied", None, "credential_rejected"),

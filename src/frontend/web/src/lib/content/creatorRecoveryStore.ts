@@ -8,6 +8,11 @@
  * only: it never blocks Save, and write failures surface as warnings.
  */
 
+import {
+  recoverySessionIsActive,
+  writeSessionRecovery,
+} from "./recovery-session";
+
 /** Identity every stored record carries and every load re-checks. */
 export type CreatorRecoveryIdentity = {
   userId: string;
@@ -119,60 +124,75 @@ export function createCreatorRecoveryStore<
     return codec.parse(value, identity);
   };
 
-  return {
-    async save(record) {
-      if (typeof window === "undefined")
-        return { stored: false, metadataOnly: false, warning: null };
-      if (codec.measure(record) > config.maxBytes) {
-        return {
-          stored: false,
-          metadataOnly: false,
-          warning: messages.tooLarge,
-        };
-      }
+  const saveRecord = async (
+    record: TRecord,
+  ): Promise<CreatorRecoveryWriteResult> => {
+    if (typeof window === "undefined")
+      return { stored: false, metadataOnly: false, warning: null };
+    if (codec.measure(record) > config.maxBytes) {
+      return {
+        stored: false,
+        metadataOnly: false,
+        warning: messages.tooLarge,
+      };
+    }
+    try {
+      const database = await openDatabase(config);
       try {
-        const database = await openDatabase(config);
-        try {
-          await databaseRequest(
-            database,
-            config.storeName,
-            "readwrite",
-            (store) =>
-              store.put(
-                codec.toDatabase(record),
-                creatorRecoveryKey(record.userId, record.documentKey),
-              ),
-          );
-        } finally {
-          database.close();
-        }
-        clearFallback(record.userId, record.documentKey);
-        return { stored: true, metadataOnly: false, warning: null };
-      } catch {
-        try {
-          const fallback = codec.toFallback(record);
-          if (fallback) {
-            window.localStorage.setItem(
-              fallbackKey(record.userId, record.documentKey),
-              fallback.text,
-            );
-            return {
-              stored: true,
-              metadataOnly: fallback.metadataOnly,
-              warning: fallback.metadataOnly
-                ? (messages.metadataOnly?.(record) ?? null)
-                : null,
-            };
-          }
-        } catch {
-          // The ordinary Save pipeline must not fail because recovery is unavailable.
-        }
-        return {
-          stored: false,
-          metadataOnly: false,
-          warning: messages.unavailable,
-        };
+        await databaseRequest(
+          database,
+          config.storeName,
+          "readwrite",
+          (store) =>
+            store.put(
+              codec.toDatabase(record),
+              creatorRecoveryKey(record.userId, record.documentKey),
+            ),
+          // Report stored only once the write commits, so an aborted commit falls back.
+          true,
+        );
+      } finally {
+        database.close();
       }
+      clearFallback(record.userId, record.documentKey);
+      return { stored: true, metadataOnly: false, warning: null };
+    } catch {
+      try {
+        const fallback = recoverySessionIsActive(record.userId)
+          ? codec.toFallback(record)
+          : null;
+        if (fallback) {
+          window.localStorage.setItem(
+            fallbackKey(record.userId, record.documentKey),
+            fallback.text,
+          );
+          return {
+            stored: true,
+            metadataOnly: fallback.metadataOnly,
+            warning: fallback.metadataOnly
+              ? (messages.metadataOnly?.(record) ?? null)
+              : null,
+          };
+        }
+      } catch {
+        // The ordinary Save pipeline must not fail because recovery is unavailable.
+      }
+      return {
+        stored: false,
+        metadataOnly: false,
+        warning: messages.unavailable,
+      };
+    }
+  };
+
+  return {
+    save(record) {
+      // A retired hosted session drops writes, and its purge waits for pending ones.
+      return writeSessionRecovery(record.userId, () => saveRecord(record), {
+        stored: false,
+        metadataOnly: false,
+        warning: null,
+      });
     },
 
     async load(userId, documentKey) {

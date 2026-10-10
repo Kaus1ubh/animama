@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { type ReactElement, useEffect, useMemo, useState } from "react";
 import { Link } from "@tanstack/react-router";
 import {
@@ -65,6 +67,7 @@ import {
   TooltipContent,
   TooltipTrigger,
 } from "@/ui/components/tooltip";
+import { UnavailableAction } from "@/ui/components/unavailable-action";
 import { SoundPickerPreview } from "@/ui/sound-preview/SoundPickerPreview";
 import {
   ActionManageDialog,
@@ -378,6 +381,8 @@ export function LibraryContentInventory({
   search: ContentLibrarySearch;
   onSearchChange: SearchUpdate;
 }) {
+  const apiClient = useProductApiClient();
+
   const [layout, setLayout] = useLibraryLayout();
   const groups = contentInventoryGroups(search);
   const includes = (group: LibraryInventoryGroup) => groups.includes(group);
@@ -488,7 +493,11 @@ export function LibraryContentInventory({
     soundPreview.stop();
     setPreviewError(null);
     try {
-      const preview = await previewTypedCatalogItem("idle_style", card.itemId);
+      const preview = await previewTypedCatalogItem(
+        apiClient,
+        "idle_style",
+        card.itemId,
+      );
       openPreview(
         idleStylePreviewTarget(typedIdleStylePreview(preview), card.name),
       );
@@ -506,6 +515,7 @@ export function LibraryContentInventory({
     if (card.source.type !== "catalog") return;
     const preview = typedActionPreview(
       await previewTypedCatalogItem(
+        apiClient,
         card.family as "gesture" | "reaction",
         card.source.catalog_item_id,
       ),
@@ -515,7 +525,7 @@ export function LibraryContentInventory({
   const previewEffect = async (card: LibraryProductCard) => {
     if (card.family === "sound") {
       if (previewingId === card.itemId) soundPreview.stop();
-      else void soundPreview.play(card.itemId);
+      else void soundPreview.play(apiClient, card.itemId);
       return;
     }
     if (!card.source) return;
@@ -530,6 +540,7 @@ export function LibraryContentInventory({
       } as const
     )[card.family as "particle" | "sound" | "avatar-effect" | "scene"];
     const preview = await previewCatalogItem(
+      apiClient,
       card.source.catalog_item_id,
       undefined,
       kind,
@@ -552,6 +563,7 @@ export function LibraryContentInventory({
     if (!avatar.catalog_item_id) return;
     soundPreview.stop();
     const preview = await previewCatalogItem(
+      apiClient,
       avatar.catalog_item_id,
       undefined,
       "avatar",
@@ -754,7 +766,22 @@ export function LibraryContentInventory({
                         </Button>
                       </ActionTooltip>
                       {avatar.catalog_item_id ? (
-                        <RuntimeFeatureGate capability="anima_creation">
+                        <RuntimeFeatureGate
+                          capability="anima_creation"
+                          unavailable={(reason) => (
+                            // The reason shows in both layouts, unlike the label tooltip.
+                            <UnavailableAction reason={reason}>
+                              <Button
+                                type="button"
+                                size={layout === "grid" ? "icon-sm" : "sm"}
+                                aria-label="Create Anima"
+                              >
+                                <Plus />
+                                {layout === "list" ? " Create Anima" : null}
+                              </Button>
+                            </UnavailableAction>
+                          )}
+                        >
                           <ActionTooltip label="Create Anima" layout={layout}>
                             <Button
                               size={layout === "grid" ? "icon-sm" : "sm"}

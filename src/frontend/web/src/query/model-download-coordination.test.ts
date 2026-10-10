@@ -1,3 +1,4 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { QueryClient, MutationObserver } from "@tanstack/react-query";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
@@ -18,7 +19,8 @@ import {
 } from "./model-download-coordination";
 
 const api = vi.hoisted(() => ({ list: vi.fn() }));
-vi.mock("@animama/runtime-contracts/sdk", () => ({
+vi.mock("@animama/runtime-contracts/sdk", async (original) => ({
+  ...(await original<typeof import("@animama/runtime-contracts/sdk")>()),
   listModelAssetsV1ModelAssetsGet: api.list,
 }));
 const owner = "owner-1";
@@ -80,7 +82,7 @@ describe("cross-manager download admission", () => {
       },
     });
     await expect(
-      assertPackTransitionAllowed(client, owner, desktop()),
+      assertPackTransitionAllowed(testApiClient, client, owner, desktop()),
     ).rejects.toThrow("model download");
     expect(client.getQueryData(queryKeys.modelAssets(owner))).toMatchObject({
       assets: [{ status: "downloading" }],
@@ -97,7 +99,7 @@ describe("cross-manager download admission", () => {
     }).mutate();
     await Promise.resolve();
     await expect(
-      assertPackTransitionAllowed(client, owner, desktop()),
+      assertPackTransitionAllowed(testApiClient, client, owner, desktop()),
     ).rejects.toThrow("model download");
     finish();
     await pending;

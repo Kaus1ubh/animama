@@ -104,6 +104,18 @@ describe("useCreatorTemplateStart", () => {
     );
   });
 
+  it("loads the template once when a re-render supplies a new loader", async () => {
+    const { loading, props } = setup();
+    const hook = render(props);
+    unmount = hook.unmount;
+    const replacement = vi.fn(() => loading.promise);
+    hook.rerender({ ...props, loadSeed: replacement });
+    loading.resolve(seed);
+    await settle();
+    expect(props.loadSeed).toHaveBeenCalledTimes(1);
+    expect(replacement).not.toHaveBeenCalled();
+  });
+
   it("does nothing without a template", async () => {
     const { props } = setup({ templateId: undefined, recoveryReady: true });
     const hook = render(props);

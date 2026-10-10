@@ -3,6 +3,7 @@ import {
   UnsupportedAnimaPoseClipFormatError,
 } from "@/lib/avatar/poses/animaPoseClip/parseClip";
 import type { ActionDocument } from "@/ui/action-editor/actionDocument";
+import { recoverySessionIsActive } from "./recovery-session";
 
 const RECOVERY_SCHEMA = 3;
 const PREFIX = "animama:action-editor";
@@ -33,6 +34,7 @@ export function saveActionRecovery(
   recovery: Omit<ActionRecovery, "schema" | "savedAt">,
   routeItemId: string | null = recovery.itemId,
 ) {
+  if (!recoverySessionIsActive(recovery.userId)) return;
   storage.setItem(
     actionRecoveryKey(recovery.userId, recovery.document.intent, routeItemId),
     JSON.stringify({

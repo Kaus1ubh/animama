@@ -715,7 +715,9 @@ The `web` and `full` profiles acquire and verify the exact public Parakeet and
 browser speech model manifests into `OUTPUT/models` before frontend checks.
 These logged prerequisites require network access; the fresh container does not
 reuse the host model cache. Child builds and browser smoke share this isolated
-store through `ANIMAMA_MODEL_ROOT`. The backend profile does not acquire models.
+store through `ANIMAMA_MODEL_ROOT`; the `full` profile also acquires the
+baseline's own pinned browser speech set there (`build.py models`) before
+building that baseline. The backend profile does not acquire models.
 Provider calls remain disabled. Retain invocation, command logs and results.
 
 A successful run writes `receipt-comment.md` and `receipt-sha256.txt` beside the
@@ -765,12 +767,15 @@ build commands; standalone developer commands still prepare their dependencies.
 `pnpm ci:source` remains a local convenience, not an opaque hosted CI step.
 
 Full validation also checks imports, repository dependencies and LFS, nonempty
-package-set/public-release/repository-boundary/CI tooling suites, Compose graphs,
-and both rendered Library/setup modes using fresh PostgreSQL containers and
-original synthetic content. The independent tracked-source producer keeps its
+package-set/public-release/repository-boundary/CI tooling suites (with the
+whole-app harness's Node unit tests, through `scripts/ci/tooling_tests.py`, which
+the local `full` profile also runs), Compose graphs, and both rendered
+Library/setup modes using fresh PostgreSQL containers and original synthetic
+content. The independent tracked-source producer keeps its
 own frozen installation and package build. Isolated installed consumers retain
 their distinct fresh-resolution contract and recorded dependency graph. The exact
-compatibility baseline is checked out separately and built for comparison.
+compatibility baseline is checked out separately and built for comparison with
+the browser speech set its own manifest pins.
 Real supplied-animation acquisition/playback, audio fidelity and native signing
 remain separate acceptance. See the [bounded browser smoke](../../frontend/testing/browser-journeys.md).
 

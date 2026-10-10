@@ -1,3 +1,4 @@
+import type { Client } from "@animama/runtime-contracts/sdk";
 import type {
   PyTypedContentFile,
   PyVoiceContent,
@@ -64,17 +65,20 @@ function validateSize(file: Blob) {
 }
 
 /** Encode once while retaining the full original, including audio beyond encoder trimming. */
-export async function prepareVoiceClone({
-  name = "",
-  file,
-  operationId = crypto.randomUUID(),
-  encoder,
-}: {
-  name?: string;
-  file: File;
-  operationId?: string;
-  encoder?: PocketVoiceEncoderOptions;
-}): Promise<PreparedVoiceClone> {
+export async function prepareVoiceClone(
+  apiClient: Client,
+  {
+    name = "",
+    file,
+    operationId = crypto.randomUUID(),
+    encoder,
+  }: {
+    name?: string;
+    file: File;
+    operationId?: string;
+    encoder?: PocketVoiceEncoderOptions;
+  },
+): Promise<PreparedVoiceClone> {
   const displayName = name.trim()
     ? voiceCloneName(name)
     : voiceCloneNameFromFile(file.name);
@@ -94,7 +98,7 @@ export async function prepareVoiceClone({
       .replace(/[^a-z0-9]+/g, "-")
       .replace(/^-+|-+$/g, "")
       .slice(0, 72) || "voice";
-  const encoded = await buildPocketVoiceCatalogFile({
+  const encoded = await buildPocketVoiceCatalogFile(apiClient, {
     animaName: displayName,
     sources: [{ voiceName: "neutral", file }],
     ...(encoder ? { encoder } : {}),
@@ -127,10 +131,12 @@ export async function prepareVoiceClone({
 
 /** Read admitted, registered bytes without exposing host paths or downloading a preset. */
 export async function loadVoiceCloneFile(
+  apiClient: Client,
   file: PyTypedContentFile,
   signal?: AbortSignal,
 ): Promise<Blob> {
   const result = await streamContentFileV1ContentFilesFileRefGet({
+    client: apiClient,
     path: { file_ref: file.file_ref },
     signal,
     parseAs: "blob",
@@ -152,18 +158,23 @@ export async function loadVoiceCloneFile(
 
 /** Imported voices remain selectable even when their original recording was excluded. */
 export function voiceCloneSampleSource(
+  apiClient: Client,
   clone: PyVoiceContent,
 ): VoiceSampleSource {
   const source = { id: `clone:${clone.item_id}`, name: clone.name };
   const samples =
     clone.files?.filter((file) => file.role === "source_sample") ?? [];
   return clone.codec === POCKET_VOICE_CLONE_CODEC && samples.length === 1
-    ? { ...source, loadSample: (signal) => loadVoiceCloneSample(clone, signal) }
+    ? {
+        ...source,
+        loadSample: (signal) => loadVoiceCloneSample(apiClient, clone, signal),
+      }
     : { ...source, sampleUnavailable: "Original recording unavailable" };
 }
 
 /** Original sample for the library player; its AbortSignal belongs to that player. */
 export async function loadVoiceCloneSample(
+  apiClient: Client,
   clone: PyVoiceContent,
   signal?: AbortSignal,
 ): Promise<Blob> {
@@ -172,7 +183,7 @@ export async function loadVoiceCloneSample(
   if (clone.codec !== POCKET_VOICE_CLONE_CODEC || samples.length !== 1) {
     throw new Error("This voice does not have an original recording to play.");
   }
-  return loadVoiceCloneFile(samples[0], signal);
+  return loadVoiceCloneFile(apiClient, samples[0], signal);
 }
 
 /** Preserve stable server codes while explaining the guarded-delete recovery. */

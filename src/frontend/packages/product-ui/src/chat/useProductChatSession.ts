@@ -40,6 +40,7 @@ import {
 } from "../lib/chat/display-message-mapping";
 import type { ChatMemoryCue } from "../lib/chat/memory-cue";
 import type { ChatRunStatusKind } from "../lib/chat/run-status";
+import { isSpeechAllowanceExhausted } from "../lib/chat/speech-allowance";
 import {
   appendStructuredSpeechVisemeInputs,
   createStructuredResponseStreamState,
@@ -57,7 +58,7 @@ import {
 } from "../lib/emotion";
 import { getAnimaDisplayName } from "../lib/anima-profile";
 import {
-  useRuntimeOwnerId,
+  useRuntimeCacheKey,
   useProductRuntime,
 } from "../runtime/ProductRuntimeProvider";
 import {
@@ -233,8 +234,8 @@ export function useProductChatSession({
     useProductDiagnostics();
   const { capabilities } = useProductRuntime();
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
-  const userKey = userId ?? "__anon__";
+  // Completion and stream side effects use the same lifetime partition as the query hooks.
+  const userKey = useRuntimeCacheKey() ?? "__anon__";
 
   useEffect(() => {
     logger.info("Route", "Params updated", {
@@ -361,6 +362,7 @@ export function useProductChatSession({
     acceptElevenLabsFinalizedAudio,
     completeElevenLabsFinalizedAudio,
     markElevenLabsFinalizedAudioFailed,
+    fallBackToPocketTts,
     cancelTts,
     isTtsAudioActive,
   } = effects;
@@ -1078,6 +1080,34 @@ export function useProductChatSession({
           completeTtsRun(completedRunId);
           voiceTtsCompleted = true;
         };
+        let speechFellBackToPocket = false;
+        /**
+         * An exhausted voice allowance declines this run's ElevenLabs speech,
+         * before or after its reply text. When the playback adapter can speak
+         * the run with Pocket TTS instead, the run stays a TTS run (its text
+         * and completion keep flowing) and later ElevenLabs frames for it are
+         * ignored. Otherwise, and for every other code, its speech ends.
+         */
+        const fallBackFromDeclinedSpeech = (
+          declinedRunId: string,
+          frame: { code?: string | null },
+        ): boolean => {
+          if (
+            !isSpeechAllowanceExhausted(frame) ||
+            !ttsEnabled ||
+            ttsProvider !== "elevenlabs" ||
+            ttsSkippedForRun(declinedRunId) ||
+            !fallBackToPocketTts?.(declinedRunId)
+          ) {
+            return false;
+          }
+          speechFellBackToPocket = true;
+          logger.info("TTS", "Speaking with Pocket TTS for this run", {
+            runId: declinedRunId,
+            code: frame.code,
+          });
+          return true;
+        };
         const maybeReplaceRoute = () => {
           if (!isNewChat || replacedRoute) return;
           void Promise.resolve(replaceChatRoute(resolvedChatId))
@@ -1203,6 +1233,7 @@ export function useProductChatSession({
             if (
               !ttsEnabled ||
               ttsProvider !== "elevenlabs" ||
+              speechFellBackToPocket ||
               ttsSkippedForRun(sessionRunId)
             ) {
               return;
@@ -1212,7 +1243,12 @@ export function useProductChatSession({
               typeof data.model_id !== "string" ||
               typeof data.output_format !== "string" ||
               typeof data.sync_alignment !== "boolean" ||
-              typeof data.token !== "string"
+              (data.transport === "server"
+                ? typeof data.websocket_url !== "string" ||
+                  !data.websocket_url.trim()
+                : (data.transport != null && data.transport !== "direct") ||
+                  typeof data.token !== "string" ||
+                  !data.token)
             ) {
               skippedTtsRunIdsRef.current.add(sessionRunId);
               markElevenLabsSessionFailed(
@@ -1227,12 +1263,21 @@ export function useProductChatSession({
               output_format: data.output_format,
               sync_alignment: data.sync_alignment,
               language_code: data.language_code ?? null,
-              token: data.token ?? null,
-              websocket_base_url: data.websocket_base_url ?? null,
+              transport: data.transport === "server" ? "server" : "direct",
+              websocket_url:
+                data.transport === "server" ? data.websocket_url : null,
+              token: data.transport === "server" ? null : (data.token ?? null),
+              websocket_base_url:
+                data.transport === "server"
+                  ? null
+                  : (data.websocket_base_url ?? null),
             });
           },
           onTtsSessionError: (data) => {
             const sessionRunId = data.run_id ?? runId;
+            // A run speaking with Pocket has no ElevenLabs speech left to end.
+            if (speechFellBackToPocket) return;
+            if (fallBackFromDeclinedSpeech(sessionRunId, data)) return;
             skippedTtsRunIdsRef.current.add(sessionRunId);
             markElevenLabsSessionFailed(sessionRunId, data);
           },
@@ -1242,6 +1287,7 @@ export function useProductChatSession({
               !ttsEnabled ||
               ttsProvider !== "elevenlabs" ||
               !isFinalizedElevenLabsTts ||
+              speechFellBackToPocket ||
               ttsSkippedForRun(audioRunId)
             ) {
               return;
@@ -1254,6 +1300,7 @@ export function useProductChatSession({
               !ttsEnabled ||
               ttsProvider !== "elevenlabs" ||
               !isFinalizedElevenLabsTts ||
+              speechFellBackToPocket ||
               ttsSkippedForRun(audioRunId)
             ) {
               return;
@@ -1265,10 +1312,12 @@ export function useProductChatSession({
             if (
               !ttsEnabled ||
               ttsProvider !== "elevenlabs" ||
-              !isFinalizedElevenLabsTts
+              !isFinalizedElevenLabsTts ||
+              speechFellBackToPocket
             ) {
               return;
             }
+            if (fallBackFromDeclinedSpeech(audioRunId, data)) return;
             skippedTtsRunIdsRef.current.add(audioRunId);
             markElevenLabsFinalizedAudioFailed(audioRunId, data);
           },
@@ -1525,6 +1574,7 @@ export function useProductChatSession({
       clearAvatarVisemeBridgeRun,
       completeElevenLabsFinalizedAudio,
       completeTtsRun,
+      fallBackToPocketTts,
       markNonTtsResponseStarted,
       anima,
       activeChat,

@@ -3,12 +3,12 @@ import { useProductApiClient } from "../../runtime/ProductRuntimeProvider";
 import { useQuery } from "@tanstack/react-query";
 import { listModelProvidersV1ModelProvidersGet } from "@animama/runtime-contracts/sdk";
 import type { PyModelProviderCatalogItem } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "../../runtime/ProductRuntimeProvider";
+import { useRuntimeCacheKey } from "../../runtime/ProductRuntimeProvider";
 import { queryKeys } from "../keys";
 
 export function useModelProviders() {
   const client = useProductApiClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useQuery<PyModelProviderCatalogItem[]>({

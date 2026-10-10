@@ -1,3 +1,4 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 
@@ -5,7 +6,8 @@ const mocks = vi.hoisted(() => ({ encode: vi.fn(), stream: vi.fn() }));
 vi.mock("./catalog-builder", () => ({
   buildPocketVoiceCatalogFile: mocks.encode,
 }));
-vi.mock("@animama/runtime-contracts/sdk", () => ({
+vi.mock("@animama/runtime-contracts/sdk", async (original) => ({
+  ...(await original<typeof import("@animama/runtime-contracts/sdk")>()),
   streamContentFileV1ContentFilesFileRefGet: mocks.stream,
 }));
 
@@ -34,12 +36,13 @@ describe("durable Pocket voice preparation", () => {
   ])(
     "uses a bounded filename-derived name for a blank name: %s",
     async (filename, expected) => {
-      const prepared = await prepareVoiceClone({
+      const prepared = await prepareVoiceClone(testApiClient, {
         name: "  ",
         file: new File(["recording"], filename),
       });
       expect(prepared.descriptor.name).toBe(expected);
       expect(mocks.encode).toHaveBeenCalledWith(
+        testApiClient,
         expect.objectContaining({ animaName: expected }),
       );
     },
@@ -49,12 +52,12 @@ describe("durable Pocket voice preparation", () => {
     const original = new File(["original recording bytes"], "Narrator.WAV", {
       type: "audio/wav",
     });
-    const prepared = await prepareVoiceClone({
+    const prepared = await prepareVoiceClone(testApiClient, {
       name: " Narrator ",
       file: original,
       operationId: "save-op",
     });
-    expect(mocks.encode).toHaveBeenCalledExactlyOnceWith({
+    expect(mocks.encode).toHaveBeenCalledExactlyOnceWith(testApiClient, {
       animaName: "Narrator",
       sources: [{ voiceName: "neutral", file: original }],
     });
@@ -81,7 +84,10 @@ describe("durable Pocket voice preparation", () => {
     "accepts %s source bytes",
     async (name) => {
       await expect(
-        prepareVoiceClone({ name: "Voice", file: new File(["audio"], name) }),
+        prepareVoiceClone(testApiClient, {
+          name: "Voice",
+          file: new File(["audio"], name),
+        }),
       ).resolves.toBeDefined();
     },
   );
@@ -93,7 +99,9 @@ describe("durable Pocket voice preparation", () => {
   ])("rejects %s before encoding", async (name, size) => {
     const file = new File(["audio"], String(name));
     Object.defineProperty(file, "size", { value: size });
-    await expect(prepareVoiceClone({ name: "Voice", file })).rejects.toThrow();
+    await expect(
+      prepareVoiceClone(testApiClient, { name: "Voice", file }),
+    ).rejects.toThrow();
     expect(mocks.encode).not.toHaveBeenCalled();
   });
 
@@ -104,7 +112,7 @@ describe("durable Pocket voice preparation", () => {
     });
     mocks.encode.mockResolvedValueOnce(catalog);
     await expect(
-      prepareVoiceClone({
+      prepareVoiceClone(testApiClient, {
         name: "Voice",
         file: new File(["audio"], "sample.wav"),
       }),
@@ -125,7 +133,7 @@ describe("durable Pocket voice preparation", () => {
         },
       ],
     } as PyVoiceContent;
-    expect(await loadVoiceCloneSample(clone, signal)).toBe(blob);
+    expect(await loadVoiceCloneSample(testApiClient, clone, signal)).toBe(blob);
     expect(mocks.stream).toHaveBeenCalledExactlyOnceWith(
       expect.objectContaining({
         path: { file_ref: "original-ref" },
@@ -147,7 +155,7 @@ it("keeps imported encoded-only clones selectable without a recording loader", (
       { file_ref: "catalog-ref", role: "pocket_voice_catalog", size_bytes: 12 },
     ],
   } as PyVoiceContent;
-  expect(voiceCloneSampleSource(clone)).toEqual({
+  expect(voiceCloneSampleSource(testApiClient, clone)).toEqual({
     id: "clone:imported-voice",
     name: "Narrator-2",
     sampleUnavailable: "Original recording unavailable",
@@ -158,7 +166,7 @@ it("keeps imported encoded-only clones selectable without a recording loader", (
 it("keeps a saved original available independently of encoded speech playback", async () => {
   const blob = new Blob(["sample"], { type: "audio/wav" });
   mocks.stream.mockResolvedValue({ data: blob });
-  const source = voiceCloneSampleSource({
+  const source = voiceCloneSampleSource(testApiClient, {
     item_id: "local-voice",
     name: "Narrator",
     codec: "pocket-tts-catalog-v1",

@@ -1,4 +1,5 @@
 import type { ChatFailure } from "../chat/chat-failure";
+import { safeNavigationUrl } from "../lib/safe-url";
 import { Button } from "./button";
 
 /** Keep recovery beside the affected turn, without displaying provider payloads. */
@@ -11,6 +12,8 @@ export function ChatFailureNotice({
   onRestoreMessage?: (text: string) => void;
   restoreDisabled?: boolean;
 }) {
+  // Only a safe link renders, even when a host built the failure itself.
+  const linkHref = safeNavigationUrl(failure.link?.href);
   return (
     <div className="border-destructive/40 bg-background text-foreground my-3 max-w-prose rounded-lg border p-4">
       <div role="alert">
@@ -23,6 +26,13 @@ export function ChatFailureNotice({
           </p>
         )}
       </div>
+      {failure.link && linkHref && (
+        <Button asChild className="mt-3">
+          <a href={linkHref} target="_blank" rel="noopener noreferrer">
+            {failure.link.label}
+          </a>
+        </Button>
+      )}
       {failure.partialText && (
         <div className="mt-3 border-l-2 pl-3">
           <p className="text-sm font-medium">Incomplete reply</p>

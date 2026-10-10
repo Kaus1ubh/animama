@@ -1,5 +1,8 @@
 "use client";
 
+import type { Client } from "@animama/runtime-contracts/sdk";
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMemo, useSyncExternalStore } from "react";
 
 import {
@@ -81,6 +84,7 @@ type PocketTtsCoreLike = {
     },
   ) => Promise<{ generationId: string }>;
   stop: () => void;
+  destroy?: () => Promise<void>;
   endPlaybackStream?: () => void;
   preloadAnimaVoices?: (animaRef: string) => Promise<{
     available?: boolean;
@@ -244,9 +248,9 @@ function normalizePhase(value: unknown): PocketTtsPhase {
   return "idle";
 }
 
-function getOrCreateCore(): PocketTtsCoreLike {
+function getOrCreateCore(apiClient: Client): PocketTtsCoreLike {
   if (!pocketCore) {
-    pocketCore = createPocketTTS() as PocketTtsCoreLike;
+    pocketCore = createPocketTTS(apiClient) as PocketTtsCoreLike;
     pocketCore.setVolume?.(pocketRuntimeGain);
   }
   if (!coreListenersAttached) {
@@ -263,6 +267,7 @@ function getOrCreateCore(): PocketTtsCoreLike {
 
 function attachCoreListeners(core: PocketTtsCoreLike) {
   core.addEventListener("state_changed", (event) => {
+    if (core !== pocketCore) return;
     const detail = isRecord(event.detail) ? event.detail : {};
     const nextPhase = normalizePhase(detail.phase);
     const status = core.getStatus();
@@ -279,6 +284,7 @@ function attachCoreListeners(core: PocketTtsCoreLike) {
   });
 
   core.addEventListener("voices_loaded", (event) => {
+    if (core !== pocketCore) return;
     const detail = isRecord(event.detail) ? event.detail : {};
     const voices = Array.isArray(detail.voices)
       ? detail.voices.filter(
@@ -297,6 +303,7 @@ function attachCoreListeners(core: PocketTtsCoreLike) {
   });
 
   core.addEventListener("voice_encoded", (event) => {
+    if (core !== pocketCore) return;
     const detail = isRecord(event.detail) ? event.detail : {};
     const voiceName =
       typeof detail.voiceName === "string" ? detail.voiceName : "custom";
@@ -310,6 +317,7 @@ function attachCoreListeners(core: PocketTtsCoreLike) {
   });
 
   core.addEventListener("audio_chunk", () => {
+    if (core !== pocketCore) return;
     updateState((prev) => ({
       ...prev,
       metrics: core.getMetrics(),
@@ -317,6 +325,7 @@ function attachCoreListeners(core: PocketTtsCoreLike) {
   });
 
   core.addEventListener("generation_finished", () => {
+    if (core !== pocketCore) return;
     updateState((prev) => ({
       ...prev,
       metrics: core.getMetrics(),
@@ -324,6 +333,7 @@ function attachCoreListeners(core: PocketTtsCoreLike) {
   });
 
   core.addEventListener("debug_worker_status", (event) => {
+    if (core !== pocketCore) return;
     const detail = parseWorkerRegistryDebug(event.detail);
     if (!detail) return;
     updateState((prev) => ({
@@ -333,6 +343,7 @@ function attachCoreListeners(core: PocketTtsCoreLike) {
   });
 
   core.addEventListener("ort_debug_status", (event) => {
+    if (core !== pocketCore) return;
     const detail = parseOrtRuntimeDebug(event.detail);
     if (!detail) return;
     updateState((prev) => ({
@@ -342,6 +353,7 @@ function attachCoreListeners(core: PocketTtsCoreLike) {
   });
 
   core.addEventListener("error", (event) => {
+    if (core !== pocketCore) return;
     const detail = isRecord(event.detail) ? event.detail : {};
     const message =
       typeof detail.error === "string" ? detail.error : "PocketTTS error";
@@ -444,7 +456,7 @@ function waitForGenerationToSettle(
   });
 }
 
-export async function warmupPocketTtsRuntime(): Promise<void> {
+export async function warmupPocketTtsRuntime(apiClient: Client): Promise<void> {
   if (!isPocketTtsSupported()) {
     const message = "PocketTTS is not supported in this browser.";
     updateState((prev) => ({
@@ -460,7 +472,7 @@ export async function warmupPocketTtsRuntime(): Promise<void> {
     return;
   }
 
-  const core = getOrCreateCore();
+  const core = getOrCreateCore(apiClient);
   if (initPromise) {
     return initPromise;
   }
@@ -474,6 +486,7 @@ export async function warmupPocketTtsRuntime(): Promise<void> {
   initPromise = core
     .init()
     .then(() => {
+      if (pocketCore !== core) throw createAbortError();
       const status = core.getStatus();
       updateState((prev) => ({
         ...prev,
@@ -489,6 +502,7 @@ export async function warmupPocketTtsRuntime(): Promise<void> {
       }));
     })
     .catch((error) => {
+      if (pocketCore !== core) throw createAbortError();
       const message = toErrorMessage(error);
       logger.error("Warmup", "PocketTTS warmup failed", error);
       updateState((prev) => ({
@@ -500,16 +514,19 @@ export async function warmupPocketTtsRuntime(): Promise<void> {
       throw error;
     })
     .finally(() => {
-      initPromise = null;
+      if (pocketCore === core) initPromise = null;
     });
 
   return initPromise;
 }
 
-export async function setPocketTtsVoice(voiceName: string): Promise<void> {
+export async function setPocketTtsVoice(
+  apiClient: Client,
+  voiceName: string,
+): Promise<void> {
   if (!voiceName.trim()) return;
-  await warmupPocketTtsRuntime();
-  const core = getOrCreateCore();
+  await warmupPocketTtsRuntime(apiClient);
+  const core = getOrCreateCore(apiClient);
   core.setVoice(voiceName);
   updateState((prev) => ({
     ...prev,
@@ -519,13 +536,14 @@ export async function setPocketTtsVoice(voiceName: string): Promise<void> {
 }
 
 export async function preloadPocketTtsAnimaVoices(
+  apiClient: Client,
   animaRef: string,
 ): Promise<void> {
   const normalizedAnimaRef = animaRef.trim();
   if (!normalizedAnimaRef) return;
 
-  await warmupPocketTtsRuntime();
-  const core = getOrCreateCore();
+  await warmupPocketTtsRuntime(apiClient);
+  const core = getOrCreateCore(apiClient);
   if (typeof core.preloadAnimaVoices !== "function") {
     return;
   }
@@ -542,6 +560,7 @@ export async function preloadPocketTtsAnimaVoices(
 }
 
 export async function encodePocketTtsVoiceFromFile(
+  apiClient: Client,
   file: File,
   options?: { signal?: AbortSignal },
 ): Promise<{ voiceName: string }> {
@@ -550,9 +569,9 @@ export async function encodePocketTtsVoiceFromFile(
   }
 
   options?.signal?.throwIfAborted();
-  await warmupPocketTtsRuntime();
+  await warmupPocketTtsRuntime(apiClient);
   options?.signal?.throwIfAborted();
-  const core = getOrCreateCore();
+  const core = getOrCreateCore(apiClient);
 
   updateState((prev) => ({
     ...prev,
@@ -585,6 +604,7 @@ export async function encodePocketTtsVoiceFromFile(
 }
 
 export async function generatePocketTtsText(
+  apiClient: Client,
   text: string,
   args?: GeneratePocketTtsArgs,
 ): Promise<void> {
@@ -592,8 +612,8 @@ export async function generatePocketTtsText(
   if (!trimmed) return;
 
   args?.assertAnimaCatalogActive?.();
-  await warmupPocketTtsRuntime();
-  const core = getOrCreateCore();
+  await warmupPocketTtsRuntime(apiClient);
+  const core = getOrCreateCore(apiClient);
 
   if (args?.assertAnimaCatalogActive) {
     args.assertAnimaCatalogActive();
@@ -690,10 +710,11 @@ export function setPocketTtsRuntimeVolume(volume: number) {
 }
 
 export function subscribePocketTtsCoreEvent(
+  apiClient: Client,
   eventName: PocketTtsCoreEventName,
   handler: PocketTtsCoreEventListener,
 ): () => void {
-  const core = getOrCreateCore();
+  const core = getOrCreateCore(apiClient);
   core.addEventListener(eventName, handler);
   return () => {
     core.removeEventListener(eventName, handler);
@@ -713,6 +734,7 @@ type UsePocketTtsRuntimeResult = PocketTtsRuntimeState & {
     args?: GeneratePocketTtsArgs,
   ) => Promise<void>;
   stop: () => void;
+  destroy?: () => Promise<void>;
   endStream: () => void;
   setVolume: (volume: number) => void;
   getAudioContext: () => AudioContext | null;
@@ -725,6 +747,7 @@ type UsePocketTtsRuntimeResult = PocketTtsRuntimeState & {
 export function usePocketTtsRuntime(
   enabled: boolean = true,
 ): UsePocketTtsRuntimeResult {
+  const apiClient = useProductApiClient();
   const state = useSyncExternalStore(
     enabled ? subscribe : subscribeDisabled,
     enabled ? getSnapshot : getDisabledSnapshot,
@@ -733,22 +756,37 @@ export function usePocketTtsRuntime(
 
   const actions = useMemo(
     () => ({
-      warmup: warmupPocketTtsRuntime,
-      preloadAnimaVoices: preloadPocketTtsAnimaVoices,
-      setVoice: setPocketTtsVoice,
-      encodeVoiceFromFile: encodePocketTtsVoiceFromFile,
-      generateAndWait: generatePocketTtsText,
+      warmup: warmupPocketTtsRuntime.bind(null, apiClient),
+      preloadAnimaVoices: preloadPocketTtsAnimaVoices.bind(null, apiClient),
+      setVoice: setPocketTtsVoice.bind(null, apiClient),
+      encodeVoiceFromFile: encodePocketTtsVoiceFromFile.bind(null, apiClient),
+      generateAndWait: generatePocketTtsText.bind(null, apiClient),
       stop: stopPocketTtsRuntime,
       endStream: endPocketTtsRuntimeStream,
       setVolume: setPocketTtsRuntimeVolume,
       getAudioContext: getPocketTtsRuntimeAudioContext,
-      onCoreEvent: subscribePocketTtsCoreEvent,
+      onCoreEvent: subscribePocketTtsCoreEvent.bind(null, apiClient),
     }),
-    [],
+    [apiClient],
   );
 
   return {
     ...state,
     ...actions,
   };
+}
+
+/** End private voice catalogs and workers; downloaded public model bytes remain cached. */
+export function disposePocketTtsRuntime(): void {
+  const core = pocketCore;
+  pocketCore = null;
+  initPromise = null;
+  coreListenersAttached = false;
+  runtimeState = { ...DISABLED_RUNTIME_STATE };
+  notifySubscribers();
+  try {
+    core?.stop();
+  } finally {
+    void core?.destroy?.().catch(() => {});
+  }
 }

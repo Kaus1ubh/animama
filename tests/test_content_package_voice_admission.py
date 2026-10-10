@@ -122,7 +122,8 @@ def test_archive_accepts_anima_with_only_encoded_neutral_clone(tmp_path: Path) -
     voice = inspected.entries["voice"]
     assert voice.scanned.status is ContentStatus.VALID
     assert set(voice.files) == {"narrator.json", "voice.bin"}
-    assert voice.files["voice.bin"].read_bytes() == voice_catalog()
+    with voice.open_file("voice.bin") as voice_stream:
+        assert voice_stream.read() == voice_catalog()
     assert inspected.manifest.anima is not None
     assert ("voice", ContentKind.VOICE) in inspected.manifest.anima.entry_references()
 

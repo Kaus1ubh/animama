@@ -1,7 +1,9 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 const api = vi.hoisted(() => ({ get: vi.fn() }));
-vi.mock("@animama/runtime-contracts/sdk", () => ({
+vi.mock("@animama/runtime-contracts/sdk", async (original) => ({
+  ...(await original<typeof import("@animama/runtime-contracts/sdk")>()),
   getModelAssetV1ModelAssetsAssetIdGet: api.get,
 }));
 vi.mock("./audio/PCMPlayerWorklet.js", () => ({
@@ -41,7 +43,7 @@ describe("Pocket generation worker configuration", () => {
         }
       },
     );
-    const core = createPocketTTS();
+    const core = createPocketTTS(testApiClient);
     await core.init();
     expect(sent).toHaveLength(1);
     expect(sent[0]).toMatchObject({
@@ -89,7 +91,7 @@ describe("Pocket generation worker configuration", () => {
         }
       },
     );
-    const core = createPocketTTS();
+    const core = createPocketTTS(testApiClient);
     await core.init();
     await expect(
       core.encodeVoiceFromFloat32(new Float32Array([0.1])),

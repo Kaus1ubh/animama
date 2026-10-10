@@ -7,6 +7,7 @@ import json
 from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from pathlib import Path
+from typing import cast
 
 import pytest
 import pytest_asyncio
@@ -14,6 +15,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.content_transition_repo import SQLAlchemyContentTransitionBindings
+from animama.app.ports.content_store import LocalContentStore
 from animama.app.ports.content_transition import MusicTransitionAnima
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.music_retirement_service import MusicRetirementService
@@ -207,7 +209,7 @@ async def test_failed_music_removal_rolls_back_then_a_new_service_reuses_preserv
     assert await bindings.music_consumers(user_id=fixture.owner.user_id) == before
     manifests = {path: path.read_bytes() for path in fixture.paths.operations_root.rglob("manifest.json")}
     assert len(manifests) == 1
-    assert not fixture.content.mutations.store.pending_mutations()
+    assert not cast(LocalContentStore, fixture.content.mutations.store).pending_mutations()
     _, _, restarted, _, _ = package_services(async_session, tmp_path)
     results = await MusicRetirementService(content=restarted, bindings=bindings).retire(user_id=fixture.owner.user_id)
     assert len(results) == 1
@@ -231,12 +233,12 @@ async def test_restart_finalizes_committed_retirement_without_new_revisions(
     with pytest.raises(RuntimeError, match="process stopped"):
         await MusicRetirementService(content=fixture.content, bindings=bindings).retire(user_id=fixture.owner.user_id)
     assert await bindings.music_consumers(user_id=fixture.owner.user_id) == ()
-    assert len(fixture.content.mutations.store.pending_mutations()) == 1
+    assert len(cast(LocalContentStore, fixture.content.mutations.store).pending_mutations()) == 1
     _, _, restarted, _, _ = package_services(async_session, tmp_path)
     assert (
         await MusicRetirementService(content=restarted, bindings=bindings).retire(user_id=fixture.owner.user_id) == ()
     )
-    assert not restarted.mutations.store.pending_mutations()
+    assert not cast(LocalContentStore, restarted.mutations.store).pending_mutations()
     root = await async_session.get(ORMAnimaLoadout, fixture.owner.anima_id, populate_existing=True)
     anima = await async_session.get(ORMAnima, fixture.owner.anima_id, populate_existing=True)
     assert root is not None and anima is not None

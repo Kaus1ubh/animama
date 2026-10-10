@@ -1,7 +1,9 @@
+import { client as testApiClient } from "@animama/runtime-contracts/default-client";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { PyVoiceContent } from "@animama/runtime-contracts/api-types";
 const api = vi.hoisted(() => ({ plan: vi.fn(), commit: vi.fn() }));
-vi.mock("@animama/runtime-contracts/sdk", () => ({
+vi.mock("@animama/runtime-contracts/sdk", async (original) => ({
+  ...(await original<typeof import("@animama/runtime-contracts/sdk")>()),
   planVoice: api.plan,
   commitVoice: api.commit,
 }));
@@ -23,7 +25,7 @@ describe("Anima voice binding selection", () => {
       source: "local",
     } as PyVoiceContent;
     await expect(
-      selectVoiceClone("anima-1", {
+      selectVoiceClone(testApiClient, "anima-1", {
         clone,
         expectedRevision: 7,
         idempotencyKey: "select-once",
@@ -59,7 +61,10 @@ describe("Anima voice binding selection", () => {
   });
 
   it("removes only the binding when returning to a preset", async () => {
-    await selectVoiceClone("anima-1", { clone: null, expectedRevision: 7 });
+    await selectVoiceClone(testApiClient, "anima-1", {
+      clone: null,
+      expectedRevision: 7,
+    });
     expect(api.plan.mock.calls[0][0].body.intent).toEqual({
       operation: "remove",
       config: {},
@@ -73,7 +78,10 @@ describe("Anima voice binding selection", () => {
   it("does not attempt a commit after a stale or failed plan", async () => {
     api.plan.mockRejectedValueOnce(new Error("Loadout changed"));
     await expect(
-      selectVoiceClone("anima-1", { clone: null, expectedRevision: 7 }),
+      selectVoiceClone(testApiClient, "anima-1", {
+        clone: null,
+        expectedRevision: 7,
+      }),
     ).rejects.toThrow("Loadout changed");
     expect(api.commit).not.toHaveBeenCalled();
   });
@@ -81,7 +89,10 @@ describe("Anima voice binding selection", () => {
   it("reports commit failure without fabricating a selected binding", async () => {
     api.commit.mockRejectedValueOnce(new Error("Source changed"));
     await expect(
-      selectVoiceClone("anima-1", { clone: null, expectedRevision: 7 }),
+      selectVoiceClone(testApiClient, "anima-1", {
+        clone: null,
+        expectedRevision: 7,
+      }),
     ).rejects.toThrow("Source changed");
   });
 });

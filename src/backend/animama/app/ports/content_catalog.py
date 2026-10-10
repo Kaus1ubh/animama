@@ -18,7 +18,15 @@ from animama.domain.content_catalog import (
 
 
 class ContentCatalog(Protocol):
-    """Reconcile filesystem projections and enforce catalog visibility."""
+    """Publish verified projections and enforce catalog visibility.
+
+    An account adapter declares owner_id. All locator/logical-key lookups,
+    uniqueness, source/save locks, reconciliation, receipts and invalidation are
+    scoped to that bound identity even when a method has no user_id argument.
+    Shared Included rows remain ownerless and immutable. The local SQL adapter
+    intentionally retains its installation-wide uniqueness model; it must not be
+    reused as an account catalog merely by prefixing storage keys.
+    """
 
     def mutation_transaction(self) -> AbstractAsyncContextManager[None]:
         """Fence Local mutations and commit once, including durable success receipts.

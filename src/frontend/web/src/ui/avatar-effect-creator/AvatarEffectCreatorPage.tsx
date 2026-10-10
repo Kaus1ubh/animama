@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+import type { Client } from "@animama/runtime-contracts/sdk";
 import type { AvatarFacePartCorrection } from "@animama/runtime-contracts/api-types";
 import type { ThreeEvent } from "@react-three/fiber";
 import { useFrame } from "@react-three/fiber";
@@ -9,7 +11,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 import type { Object3D } from "three";
 
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import { registerPrivateStateReset } from "@/app/runtime/private-module-state";
 import { Avatar } from "@/lib/avatar";
 import {
   avatarEffectRecoveryStore,
@@ -137,6 +140,10 @@ let previewAfterSave: {
   model: ContentCreatorModelSource | null;
   view: AvatarPreviewCameraProfile;
 } | null = null;
+// The kept preview (which may name a private model) ends with its session.
+registerPrivateStateReset(() => {
+  previewAfterSave = null;
+});
 
 type PreviewStatus = {
   state: "idle" | "loading" | "ready" | "error";
@@ -168,7 +175,8 @@ export function AvatarEffectCreatorPage({
   templateId?: string;
 }) {
   const navigate = useNavigate();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
+  const apiClient = useProductApiClient();
   const existingQuery = useAvatarEffect(itemId ?? null);
   const {
     present: snapshot,
@@ -382,9 +390,15 @@ export function AvatarEffectCreatorPage({
     },
     [resetDocument],
   );
+  // The template loader must stay stable, or each render restarts the load.
+  const loadTemplateSeed = useCallback(
+    (id: string, signal: AbortSignal) =>
+      loadAvatarEffectTemplate(apiClient, id, signal),
+    [apiClient],
+  );
   const templateStart = useCreatorTemplateStart({
     templateId,
-    loadSeed: loadAvatarEffectTemplate,
+    loadSeed: loadTemplateSeed,
     fingerprint: avatarEffectSnapshotFingerprint,
     recoveryReady: contentSave.recoveryReady,
     recoveredDraft: templateDraft,
@@ -460,6 +474,7 @@ export function AvatarEffectCreatorPage({
       return;
     }
     void previewCatalogItem(
+      apiClient,
       document.sound.source.catalog_item_id,
       undefined,
       "sound_effect",
@@ -473,7 +488,7 @@ export function AvatarEffectCreatorPage({
     return () => {
       cancelled = true;
     };
-  }, [document.sound]);
+  }, [apiClient, document.sound]);
 
   useEffect(() => {
     if (
@@ -490,7 +505,7 @@ export function AvatarEffectCreatorPage({
     if (!load) return;
     const controller = new AbortController();
     setHydration({ state: "loading", message: "Loading saved content…" });
-    void hydrateAvatarEffect({
+    void hydrateAvatarEffect(apiClient, {
       itemId: item.item_id,
       name: item.name,
       description: item.description ?? "",
@@ -525,6 +540,7 @@ export function AvatarEffectCreatorPage({
       load.cancel();
     };
   }, [
+    apiClient,
     contentSave.recovered,
     contentSave.recoveryReady,
     existingQuery.data,
@@ -1474,12 +1490,13 @@ function AvatarEffectPreviewActor({
  * no catalog item uses, so its first Save creates a separate Local item.
  */
 async function loadAvatarEffectTemplate(
+  apiClient: Client,
   templateId: string,
   signal: AbortSignal,
 ): Promise<AvatarEffectHistorySnapshot> {
   const template = avatarEffectTemplate(templateId);
   if (!template) throw new Error("This Avatar Effect template is unavailable.");
-  const items = await listCatalogItems("avatar_effect", signal);
+  const items = await listCatalogItems(apiClient, "avatar_effect", signal);
   const item = items.find(
     (candidate) =>
       candidate.source === "included" &&
@@ -1487,7 +1504,7 @@ async function loadAvatarEffectTemplate(
   );
   if (!item)
     throw new Error(`${template.name} is not available in this installation.`);
-  return hydrateAvatarEffect({
+  return hydrateAvatarEffect(apiClient, {
     itemId: item.item_id,
     name: createUniqueContentName(
       item.name,
@@ -1531,13 +1548,17 @@ async function previewImageResource(
   };
 }
 
-async function hydrateAvatarEffect(args: {
-  itemId: string;
-  name: string;
-  description: string;
-  signal: AbortSignal;
-}): Promise<AvatarEffectHistorySnapshot> {
+async function hydrateAvatarEffect(
+  apiClient: Client,
+  args: {
+    itemId: string;
+    name: string;
+    description: string;
+    signal: AbortSignal;
+  },
+): Promise<AvatarEffectHistorySnapshot> {
   const preview = await previewCatalogItem(
+    apiClient,
     args.itemId,
     args.signal,
     "avatar_effect",

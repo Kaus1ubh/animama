@@ -13,12 +13,16 @@ import { particleVFXSaveAdapter } from "@/ui/particle-vfx-creator/useParticleVFX
 import { useCreatorSave, type CreatorSaveAdapter } from "./useCreatorSave";
 
 const mocks = vi.hoisted(() => ({
+  apiClient: { admitted: "composition client" },
   saveCatalogItem: vi.fn(),
   navigate: vi.fn(async () => undefined),
 }));
 
 vi.mock("@/app/runtime/RuntimeOwnerContext", () => ({
-  useRuntimeOwnerId: () => "owner",
+  useRuntimeCacheKey: () => "owner",
+}));
+vi.mock("@animama/product-ui", () => ({
+  useProductApiClient: () => mocks.apiClient,
 }));
 vi.mock("@/hooks/useContentEditorSaveSource", () => ({
   useContentEditorSaveSource: () => ({
@@ -232,7 +236,7 @@ describe("useCreatorSave", () => {
       expect(await first.result.current.save()).toBe(false);
     });
     const failedId = (
-      mocks.saveCatalogItem.mock.calls[0]?.[0] as CatalogSaveInput
+      mocks.saveCatalogItem.mock.calls[0]?.[1] as CatalogSaveInput
     ).operationId;
     await advance(400);
     // The unchanged document must not clear the pending operation's record.
@@ -242,12 +246,14 @@ describe("useCreatorSave", () => {
     const reloaded = renderCreatorSave(props(clean, false));
     await advance(400);
     expect(records.get("owner:item-1")?.operationId).toBe(failedId);
+    // Saves use the admitted composition's API client, never a module default.
+    expect(mocks.saveCatalogItem.mock.calls[0]?.[0]).toBe(mocks.apiClient);
     mocks.saveCatalogItem.mockResolvedValueOnce({ item_id: "item-1" });
     await act(async () => {
       expect(await reloaded.result.current.save()).toBe(true);
     });
     expect(
-      (mocks.saveCatalogItem.mock.calls[1]?.[0] as CatalogSaveInput)
+      (mocks.saveCatalogItem.mock.calls[1]?.[1] as CatalogSaveInput)
         .operationId,
     ).toBe(failedId);
     expect(records.has("owner:item-1")).toBe(false);

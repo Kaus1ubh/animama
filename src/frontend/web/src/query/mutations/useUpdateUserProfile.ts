@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -7,24 +9,33 @@ import {
   type PyUserProfile,
   type PyUserProfileUpdate,
 } from "@animama/runtime-contracts/sdk";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { UserProfileApiError } from "@/lib/user-profile/errors";
+import { sdkResultError } from "@/query/sdkResultError";
 import { publishUserProfile } from "@/query/mutations/userProfileMutationCache";
 
 /** Update the installation owner's private display-name personalization. */
 export function useUpdateUserProfile() {
-  const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const apiClient = useProductApiClient();
 
-  return useMutation<PyUserProfile, UserProfileApiError, PyUserProfileUpdate>({
+  const queryClient = useQueryClient();
+  const userId = useRuntimeCacheKey();
+
+  // Rejects with UserProfileApiError for a server refusal, or a transport error
+  // when the reply never arrived.
+  return useMutation<PyUserProfile, Error, PyUserProfileUpdate>({
     mutationFn: async (body) => {
       const result = await updateUserProfileV1UsersMeProfilePatch({
+        client: apiClient,
         body,
         responseValidator: undefined,
         throwOnError: false,
       });
       if (result.error !== undefined) {
-        throw new UserProfileApiError(result.response.status, result.error);
+        throw sdkResultError(
+          result,
+          (status, error) => new UserProfileApiError(status, error),
+        );
       }
       return result.data;
     },

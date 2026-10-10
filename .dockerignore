@@ -23,6 +23,9 @@ src/frontend/**
 !src/frontend/web/**
 **/node_modules/**
 **/dist/**
+# The hosted build output also copies the browser speech models (about 280 MB);
+# the image builds only web/dist, with models from the browser_models context.
+**/dist-hosted/**
 **/*.tsbuildinfo
 cloud/
 parakeet-tdt-0.6b-v2/

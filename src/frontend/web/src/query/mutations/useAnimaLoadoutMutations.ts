@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -22,11 +24,13 @@ import type {
   PyAppearanceCommitRequest,
   PyAppearancePlanRequest,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { invalidateAnimaLoadoutAndRuntime } from "@/query/animaLoadoutInvalidation";
 
 export function useAnimaLoadoutMutations(animaId: string) {
-  const userId = useRuntimeOwnerId() ?? "__anon__";
+  const apiClient = useProductApiClient();
+
+  const userId = useRuntimeCacheKey() ?? "__anon__";
   const queryClient = useQueryClient();
   const invalidate = async () =>
     invalidateAnimaLoadoutAndRuntime(queryClient, userId, animaId);
@@ -35,6 +39,7 @@ export function useAnimaLoadoutMutations(animaId: string) {
       mutationFn: async (body: PyAppearancePlanRequest) =>
         (
           await planAppearanceV1AnimasAnimaIdAppearancePlanPost({
+            client: apiClient,
             path: { anima_id: animaId },
             body,
             responseValidator: undefined,
@@ -46,6 +51,7 @@ export function useAnimaLoadoutMutations(animaId: string) {
       mutationFn: async (body: PyAppearanceCommitRequest) =>
         (
           await commitAppearanceV1AnimasAnimaIdAppearanceCommitPost({
+            client: apiClient,
             path: { anima_id: animaId },
             body,
             responseValidator: undefined,
@@ -58,6 +64,7 @@ export function useAnimaLoadoutMutations(animaId: string) {
       mutationFn: async (body: PyGesturePlanRequest) =>
         (
           await planGestureV1AnimasAnimaIdGesturesPlanPost({
+            client: apiClient,
             path: { anima_id: animaId },
             body,
             responseValidator: undefined,
@@ -69,6 +76,7 @@ export function useAnimaLoadoutMutations(animaId: string) {
       mutationFn: async (body: PyGestureCommitRequest) =>
         (
           await commitGestureV1AnimasAnimaIdGesturesCommitPost({
+            client: apiClient,
             path: { anima_id: animaId },
             body,
             responseValidator: undefined,
@@ -81,6 +89,7 @@ export function useAnimaLoadoutMutations(animaId: string) {
       mutationFn: async (body: PyReactionPlanRequest) =>
         (
           await planReactionV1AnimasAnimaIdReactionsPlanPost({
+            client: apiClient,
             path: { anima_id: animaId },
             body,
             responseValidator: undefined,
@@ -92,6 +101,7 @@ export function useAnimaLoadoutMutations(animaId: string) {
       mutationFn: async (body: PyReactionCommitRequest) =>
         (
           await commitReactionV1AnimasAnimaIdReactionsCommitPost({
+            client: apiClient,
             path: { anima_id: animaId },
             body,
             responseValidator: undefined,
@@ -104,6 +114,7 @@ export function useAnimaLoadoutMutations(animaId: string) {
       mutationFn: async (body: PyIdleStylePlanRequest) =>
         (
           await planIdleStyleV1AnimasAnimaIdIdleStylePlanPost({
+            client: apiClient,
             path: { anima_id: animaId },
             body,
             responseValidator: undefined,
@@ -115,6 +126,7 @@ export function useAnimaLoadoutMutations(animaId: string) {
       mutationFn: async (body: PyIdleStyleCommitRequest) =>
         (
           await commitIdleStyleV1AnimasAnimaIdIdleStyleCommitPost({
+            client: apiClient,
             path: { anima_id: animaId },
             body,
             responseValidator: undefined,

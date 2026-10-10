@@ -1,3 +1,4 @@
+import { useProductApiClient } from "@animama/product-ui";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import {
@@ -8,7 +9,7 @@ import type {
   PyModelAssetList,
   PyModelAssetState,
 } from "@animama/runtime-contracts/api-types";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
@@ -28,8 +29,10 @@ export type ModelAssetAction = "install" | "remove";
  * waiting for a refetch.
  */
 export function useModelAssetAction() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const ownerId = useRuntimeOwnerId();
+  const ownerId = useRuntimeCacheKey();
   const owner = ownerId ?? "__anon__";
   const key = queryKeys.modelAssets(owner);
   const platform = useRuntimePlatform();
@@ -66,8 +69,14 @@ export function useModelAssetAction() {
       } as const;
       const { data } =
         action === "install"
-          ? await installModelAssetV1ModelAssetsAssetIdInstallPost(options)
-          : await removeModelAssetV1ModelAssetsAssetIdDelete(options);
+          ? await installModelAssetV1ModelAssetsAssetIdInstallPost({
+              ...options,
+              client: apiClient,
+            })
+          : await removeModelAssetV1ModelAssetsAssetIdDelete({
+              ...options,
+              client: apiClient,
+            });
       if (action === "remove" || data.status === "installed")
         recordAssetAttempt(queryClient, owner, assetId, false);
       return data;

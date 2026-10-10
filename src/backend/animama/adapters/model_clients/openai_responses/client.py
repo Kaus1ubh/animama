@@ -56,7 +56,7 @@ from .events import (
     responses_stream_event_delta,
 )
 from .final import response_final_parts
-from .request import create_response_kwargs, previous_response_id
+from .request import create_response_kwargs, previous_response_id, responses_context_management
 from .support import (
     OPENAI_API,
     OPENAI_MISSING_FINAL_ANSWER_PHASE_CODE,
@@ -129,6 +129,16 @@ class OpenAIResponsesModelClient:
         self._timeout = timeout
         self._compaction_threshold_tokens = compaction_threshold_tokens
         self._close_client = (client is None) if close_client is None else close_client
+
+    @property
+    def native_context_compaction(self) -> bool:
+        """Whether every request asks OpenAI to compact a prompt above the threshold.
+
+        Read through ``uses_native_context_compaction``: without it, the
+        direct-chat executor fits prompts to the row's context window itself.
+        """
+
+        return bool(responses_context_management(self._compaction_threshold_tokens))
 
     async def stream(self, spec: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
         """Stream typed Responses events as provider-neutral deltas.
@@ -273,6 +283,7 @@ class OpenAIResponsesModelClient:
                                 final=ModelClientFinal(
                                     text=final_text,
                                     usage=final_parts.usage,
+                                    usage_reported=response.usage is not None,
                                     raw_provider_metadata=metadata,
                                     tool_calls=final_parts.tool_calls,
                                     input_moderation=final_parts.input_moderation,
@@ -317,7 +328,9 @@ class OpenAIResponsesModelClient:
                     model=spec.model_provider.model,
                     previous_response_id=previous_id,
                 )
-                if should_retry_openai_error(info, attempt=attempt, stream_started=state.stream_started):
+                if spec.limits is None and should_retry_openai_error(
+                    info, attempt=attempt, stream_started=state.stream_started
+                ):
                     _log.warning(
                         "OpenAI Responses stream retrying after provider error",
                         **model_client_request_log_context(spec),
@@ -373,10 +386,12 @@ class OpenAIResponsesModelClient:
         """Create the OpenAI SDK Responses stream."""
 
         client = self._client_for_spec(spec, credential)
+        if spec.limits is not None:
+            client = client.with_options(max_retries=0)
         kwargs = create_response_kwargs(
             spec,
             previous_response_id,
-            timeout=self._timeout,
+            timeout=spec.limits.timeout_seconds if spec.limits is not None else self._timeout,
             compaction_threshold_tokens=self._compaction_threshold_tokens,
         )
         return await client.responses.create(**kwargs)

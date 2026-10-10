@@ -12,7 +12,7 @@ import type {
   AnimaCreationDiagnostic,
   ItemRevisionRef,
 } from "@animama/runtime-contracts/sdk";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { creationEvidence } from "@/query/hooks/useAnimaCreation";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { Button } from "@/ui/components/button";
@@ -63,7 +63,7 @@ const DESCRIPTIONS = [
 
 /** The owner key prevents drafts or provisional files from crossing installations. */
 export function CreateAnimaPage({ avatar }: { avatar?: string }) {
-  const owner = useRuntimeOwnerId();
+  const owner = useRuntimeCacheKey();
   return owner ? (
     <OwnedCreateAnimaPage key={owner} owner={owner} avatar={avatar} />
   ) : (

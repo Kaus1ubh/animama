@@ -1,5 +1,5 @@
 import { createElement } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
+import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { createMemoryHistory } from "@tanstack/react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -20,18 +20,23 @@ const fixture = vi.hoisted(() => ({
 
 vi.mock("@tanstack/react-router", async (original) => ({
   ...(await original<typeof import("@tanstack/react-router")>()),
+  useRouterState: () => "/",
   Navigate: (props: RedirectProps) => {
     fixture.navigate(props);
     return null;
   },
 }));
-vi.mock("@web/app/local-runtime/LocalRuntimeProvider", async (original) => ({
-  ...(await original<
-    typeof import("@web/app/local-runtime/LocalRuntimeProvider")
-  >()),
-  useLocalRuntime: () => ({
-    state: fixture.ready
-      ? { status: "ready", firstRunComplete: fixture.firstRunComplete }
+vi.mock("@web/app/runtime/RuntimeAdmissionProvider", () => ({
+  useRuntimeAdmission: () => ({
+    admission: fixture.ready
+      ? {
+          status: "ready",
+          onboardingRequired: !fixture.firstRunComplete,
+          capabilities: {
+            runtime_kind: "self_hosted_web",
+            anima_creation: true,
+          },
+        }
       : { status: "loading" },
   }),
 }));

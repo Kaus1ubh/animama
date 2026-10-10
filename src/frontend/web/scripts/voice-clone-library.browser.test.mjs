@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { chromium } from "playwright";
 import { createServer } from "vite";
+import { selfHostedRuntimeCapabilities } from "./fixtures/runtime-capabilities.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = path.join(webRoot, "tests/fixtures/voice-clone-library");
@@ -356,6 +357,9 @@ async function mount() {
   await page.route("**/v1/**", async (route) => {
     const request = route.request();
     const pathname = new URL(request.url()).pathname;
+    // Self-hosted administers its own speech models; hosted shows them as operator-managed.
+    if (pathname === "/v1/runtime-capabilities")
+      return route.fulfill({ json: selfHostedRuntimeCapabilities() });
     requests.push({ method: request.method(), pathname });
     assert.ok(pathname.startsWith(encoderPath), `Unexpected API: ${pathname}`);
     if (request.method() === "POST") await installReply;

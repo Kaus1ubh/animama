@@ -65,7 +65,10 @@ function javascriptNotices(folder, recursive) {
 }
 
 /** Conservative dependency closure; optional modules absent on this target are recorded. */
-export function javascriptLicenses(workspaceRoot = frontendRoot) {
+export function javascriptLicenses(
+  workspaceRoot = frontendRoot,
+  workspaceNames = ["desktop", "web"],
+) {
   const records = new Map();
   const absentOptional = new Set();
   const visit = (folder) => {
@@ -116,7 +119,7 @@ export function javascriptLicenses(workspaceRoot = frontendRoot) {
       visit(dependency);
     }
   };
-  for (const name of ["desktop", "web"]) visit(path.join(workspaceRoot, name));
+  for (const name of workspaceNames) visit(path.join(workspaceRoot, name));
   return {
     records: [...records.values()].sort((a, b) => a.id.localeCompare(b.id)),
     absentOptional: [...absentOptional].sort(),

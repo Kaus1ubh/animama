@@ -1,5 +1,7 @@
 "use client";
 
+import { useProductApiClient } from "@animama/product-ui";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 import { updateAnimaEmotionalStateV1AnimasAnimaIdEmotionalStatePut } from "@animama/runtime-contracts/sdk";
@@ -7,7 +9,7 @@ import type {
   PyAnimaResponse,
   UpdateAnimaEmotionalStateV1AnimasAnimaIdEmotionalStatePutData,
 } from "@/lib/content/catalogTypes";
-import { useRuntimeOwnerId } from "@/app/runtime/RuntimeOwnerContext";
+import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 
 type UpdateAnimaEmotionalStateArgs = {
@@ -47,14 +49,17 @@ function patchAnimaEmotionSnapshot(
 }
 
 export function useUpdateAnimaEmotionalState() {
+  const apiClient = useProductApiClient();
+
   const queryClient = useQueryClient();
-  const userId = useRuntimeOwnerId();
+  const userId = useRuntimeCacheKey();
   const userKey = userId ?? "__anon__";
 
   return useMutation<PyAnimaResponse, Error, UpdateAnimaEmotionalStateArgs>({
     mutationFn: async (args) => {
       const { data } =
         await updateAnimaEmotionalStateV1AnimasAnimaIdEmotionalStatePut({
+          client: apiClient,
           path: { anima_id: args.animaId },
           body: args.body,
           responseValidator: undefined,
