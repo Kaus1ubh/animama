@@ -43,7 +43,8 @@ Local setup and host/key administration schemas remain in the server composition
   install, removal and same-origin byte delivery.
 - `product_http/routes/chats.py` (shared): chat CRUD and persisted chat messages.
 - `product_http/routes/settings.py` (shared): user settings and per-anima settings.
-- `server/routers/user_profiles.py`: private local display-name reads and edits.
+- `product_http/routes/profile.py` (shared): the owner's private display-name
+  reads and edits; each composition saves the name through its ports.
 - `server/routers/content.py`: neutral Included/Local catalog health, Rescan,
   delete and registered-byte delivery.
 - `server/routers/content_packages.py`: reviewed package import/export,

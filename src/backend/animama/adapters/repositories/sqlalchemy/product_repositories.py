@@ -22,6 +22,7 @@ from animama.adapters.repositories.sqlalchemy.settings_repo import (
     SQLAlchemyUserSettingsRepository,
 )
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
 
 
 class SQLAlchemyProductRepositories:
@@ -57,6 +58,10 @@ class SQLAlchemyProductRepositories:
     @cached_property
     def anima_settings(self) -> SQLAlchemyAnimaSettingsRepository:
         return SQLAlchemyAnimaSettingsRepository(self._session)
+
+    @cached_property
+    def user_profiles(self) -> SQLAlchemyUserProfileRepository:
+        return SQLAlchemyUserProfileRepository(self._session)
 
     @cached_property
     def unit_of_work(self) -> SQLAlchemyUnitOfWork:

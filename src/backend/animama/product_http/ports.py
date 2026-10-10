@@ -24,6 +24,7 @@ from animama.app.ports.memory_entry_port import MemoryEntryRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.ports.settings_port import AnimaSettingsRepository, UserSettingsRepository
 from animama.app.ports.uow_port import UnitOfWork
+from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.principal import get_current_principal
 
@@ -53,7 +54,19 @@ class ProductRepositories(Protocol):
     def anima_settings(self) -> AnimaSettingsRepository: ...
 
     @property
+    def user_profiles(self) -> UserProfileRepository: ...
+
+    @property
     def unit_of_work(self) -> UnitOfWork: ...
+
+
+class ProductRefusal(Exception):
+    """A composition-specific refusal a shared route reports as ``{"code": code}``."""
+
+    def __init__(self, status_code: int, code: str) -> None:
+        super().__init__(code)
+        self.status_code = status_code
+        self.code = code
 
 
 @dataclass(frozen=True)
@@ -86,6 +99,14 @@ class ProductPorts(Protocol):
 
     def repositories(self, session: AsyncSession) -> ProductRepositories:
         """The product repositories over a session this composition opened."""
+        ...
+
+    async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
+        """Save ``principal``'s display name on ``session`` and return the stored value.
+
+        Raises ``UserProfileNotFoundError`` or ``UserProfileInvalidError`` for the
+        shared profile rules and ``ProductRefusal`` for the composition's own.
+        """
         ...
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:

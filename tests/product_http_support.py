@@ -19,7 +19,9 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
+from animama.app.services.user_profile_service import UserProfileService
 from animama.domain.request_principal import RequestPrincipal
+from animama.domain.user_profile import UserProfilePatch
 from animama.product_http.ports import ProductPolicy, ProductPorts, install_product_ports
 
 OWNER_HEADER = "X-Test-Owner"
@@ -40,6 +42,17 @@ class HeaderOwnerResolver:
 
     async def resolve_websocket(self, websocket: WebSocket) -> RequestPrincipal:
         return self._owner(websocket.headers.get(OWNER_HEADER))
+
+
+async def save_display_name(session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
+    """Apply only the shared profile rules, as a composition without local personalization would."""
+
+    repositories = SQLAlchemyProductRepositories(session)
+    profile = await UserProfileService(
+        profiles=repositories.user_profiles, uow=repositories.unit_of_work
+    ).update_profile(user_id=principal.id, patch=UserProfilePatch(display_name=display_name, display_name_set=True))
+    assert profile.display_name is not None
+    return profile.display_name
 
 
 @dataclass
@@ -99,6 +112,9 @@ class DeferredCommitPorts:
     def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
         return SQLAlchemyProductRepositories(session)
 
+    async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
+        return await save_display_name(session, principal, display_name)
+
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         self.settings_changes.append(principal.id)
 
@@ -122,6 +138,9 @@ class SessionPorts:
 
     def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
         return SQLAlchemyProductRepositories(session)
+
+    async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
+        return await save_display_name(session, principal, display_name)
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         self.settings_changes.append(principal.id)

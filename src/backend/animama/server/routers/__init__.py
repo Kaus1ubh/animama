@@ -1,6 +1,6 @@
 from fastapi import APIRouter
 
-from animama.product_http.routes import chats, memory, settings
+from animama.product_http.routes import chats, memory, profile, settings
 
 from . import (
     anima,
@@ -22,7 +22,6 @@ from . import (
     safety,
     typed_content,
     user_files,
-    user_profiles,
 )
 
 router = APIRouter()
@@ -48,7 +47,7 @@ router.include_router(events.router)
 router.include_router(archive.router)
 router.include_router(settings.router)
 router.include_router(user_files.router)
-router.include_router(user_profiles.router)
+router.include_router(profile.router)
 router.include_router(memory.router)
 router.include_router(memory_manager.router)
 

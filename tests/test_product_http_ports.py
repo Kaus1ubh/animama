@@ -77,6 +77,9 @@ class RecordingPorts:
     def repositories(self, session: AsyncSession) -> Any:
         return SimpleNamespace(session=session)
 
+    async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
+        return display_name
+
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         pass
 

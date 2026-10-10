@@ -10,9 +10,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.ports import ProductPolicy
+from animama.product_http.ports import ProductPolicy, ProductRefusal
 from animama.server.deps import get_async_session_factory
 from animama.server.embedding_refresh import wake_embedding_refresh
+from animama.server.installation_personalization import (
+    FirstRunIncompleteError,
+    InstallationPersonalizationService,
+    InstallationPrincipalMismatchError,
+)
 
 
 class LocalProductPorts:
@@ -41,6 +46,18 @@ class LocalProductPorts:
 
     def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
         return SQLAlchemyProductRepositories(session)
+
+    async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
+        # The installation owner's name also personalizes its memory files.
+        try:
+            result = await InstallationPersonalizationService(session).update_display_name(
+                principal_id=principal.id, display_name=display_name
+            )
+        except FirstRunIncompleteError as exc:
+            raise ProductRefusal(409, "first_run_incomplete") from exc
+        except InstallationPrincipalMismatchError as exc:
+            raise ProductRefusal(403, "installation_principal_mismatch") from exc
+        return result.display_name
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         # The embeddings role may have changed; re-check stored vectors now.
