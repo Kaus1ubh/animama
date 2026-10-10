@@ -29,6 +29,7 @@ from animama.app.services.typed_content_batch_service import (
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentService
 from animama.domain.content_catalog import ContentKind
 from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.routes.content import bounded_upload, raise_content_mutation
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.schemas.idle_style import PyIdlePlayback
 from animama.server.schemas.typed_content import (
@@ -65,7 +66,7 @@ from animama.server.schemas.typed_content import (
     typed_content_response,
 )
 
-from .content import _bounded_upload, _raise_content_mutation, _save_service, _service, _store, save_content_item
+from .content import _save_service, _service, _store, save_content_item
 
 router = APIRouter(tags=["typed-content"])
 
@@ -152,7 +153,7 @@ async def resolve_content_evidence(
         )
         return PyContentEvidenceResponse.from_domain(result)
     except Exception as exc:
-        _raise_content_mutation(exc)
+        raise_content_mutation(exc)
 
 
 @router.post(
@@ -203,7 +204,7 @@ async def prepare_content_previews(
         )
         return prepared
     except Exception as exc:
-        _raise_content_mutation(exc)
+        raise_content_mutation(exc)
 
 
 @router.get(
@@ -220,7 +221,7 @@ async def get_gesture_idle_playback(
         value = await _typed_service(request, session).gesture_idle_playback(user_id=user.id, item_id=item_id)
         return PyIdlePlayback.model_validate(value)
     except Exception as exc:
-        _raise_content_mutation(exc)
+        raise_content_mutation(exc)
 
 
 def _install_family_routes(
@@ -244,7 +245,7 @@ def _install_family_routes(
             values = await _typed_service(request, session).list_kind(user_id=user.id, kind=kind)
             return page_model(items=await _typed_responses(request, session, user_id=user.id, values=values))
         except Exception as exc:
-            _raise_content_mutation(exc)
+            raise_content_mutation(exc)
 
     async def get_family(
         item_id: str,
@@ -261,7 +262,7 @@ def _install_family_routes(
             (response,) = await _typed_responses(request, session, user_id=user.id, values=(value,))
             return response
         except Exception as exc:
-            _raise_content_mutation(exc)
+            raise_content_mutation(exc)
 
     async def preview_family(
         item_id: str,
@@ -285,7 +286,7 @@ def _install_family_routes(
             )
             return response
         except Exception as exc:
-            _raise_content_mutation(exc)
+            raise_content_mutation(exc)
 
     if not retired:
         list_family.__name__ = f"list_{singular}s"
@@ -477,7 +478,7 @@ async def save_avatar_portrait(
     """
 
     try:
-        stream, size = await _bounded_upload(file, limit=MAX_APPEARANCE_SOURCE_BYTES)
+        stream, size = await bounded_upload(file, limit=MAX_APPEARANCE_SOURCE_BYTES)
         saved = await _save_service(request, session).save_standalone_stream(
             user_id=user.id,
             kind=ContentKind.APPEARANCE,
@@ -495,7 +496,7 @@ async def save_avatar_portrait(
         value = TypedContentService.parse(saved.item)
         return typed_content_response(value)
     except Exception as exc:
-        _raise_content_mutation(exc)
+        raise_content_mutation(exc)
 
 
 @router.get(
@@ -518,7 +519,7 @@ async def get_avatar_face_parts(
     try:
         return await _face_parts_service(request, session).get(user_id=user.id, item_id=item_id)
     except Exception as exc:
-        _raise_content_mutation(exc)
+        raise_content_mutation(exc)
 
 
 @router.put(
@@ -545,7 +546,7 @@ async def save_avatar_face_parts(
     try:
         return await _face_parts_service(request, session).save(user_id=user.id, item_id=item_id, update=body)
     except Exception as exc:
-        _raise_content_mutation(exc)
+        raise_content_mutation(exc)
 
 
 __all__ = ["router"]

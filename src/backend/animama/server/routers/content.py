@@ -1,42 +1,34 @@
-"""Authenticated catalog, rescan, and registered-byte delivery routes."""
+"""The local composition's catalog rescan, and content helpers its other routers use.
+
+The shared catalog, item and byte routes live in ``animama.product_http.routes.content``.
+"""
 
 from __future__ import annotations
 
 import json
-from collections.abc import Iterator
-from typing import Annotated, BinaryIO, NoReturn
+from typing import Annotated, BinaryIO
 
-from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, Query, Request, Response, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.adapters.repositories.sqlalchemy.content_transition_repo import SQLAlchemyContentTransitionBindings
 from animama.app.services.content_catalog_service import ContentCatalogService
-from animama.app.services.content_file_validation import ContentFileInvalidError
-from animama.app.services.content_kind_registry import MAX_JSON_BYTES, RETIRED_CONTENT_KINDS, definition_for_kind
+from animama.app.services.content_kind_registry import MAX_JSON_BYTES, definition_for_kind
 from animama.app.services.content_save_service import ContentSaveService
 from animama.app.services.content_transition_service import ContentTransitionService
 from animama.domain.content_catalog import (
-    CatalogContentEntry,
     ContentConflictError,
-    ContentIntegrityError,
     ContentKind,
-    ContentNotFoundError,
-    ContentPathError,
-    ContentStatus,
-    ContentValidationError,
     SavedContent,
-    VerifiedContentFile,
 )
-from animama.domain.content_documents import ContentDocumentError
 from animama.domain.request_principal import RequestPrincipal
+from animama.product_http.ports import WriteContent, WriteSession
+from animama.product_http.routes.content import bounded_upload, catalog_response, raise_content_mutation
 from animama.server.config import settings
 from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
 from animama.server.schemas.content import (
-    PyContentCatalog,
-    PyContentItem,
     PyContentRescan,
     PyContentScanSummary,
 )
@@ -82,103 +74,22 @@ def _save_service(request: Request, session: AsyncSession) -> ContentSaveService
     return ContentSaveService(content=content)
 
 
-def _catalog_response(items: list[CatalogContentEntry]) -> PyContentCatalog:
-    return PyContentCatalog(
-        scan_required=any(item.status is ContentStatus.SCAN_REQUIRED for item in items),
-        items=[PyContentItem.from_domain(item) for item in items],
-    )
-
-
-@router.get("/catalog", response_model=PyContentCatalog)
-async def list_content_catalog(
-    request: Request,
-    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> PyContentCatalog:
-    """List Included, shared, and caller-owned entries without host paths."""
-
-    items = await _service(request, session).list_visible(user_id=user.id)
-    return _catalog_response(items)
-
-
-@router.get("/items/{item_id}", response_model=PyContentItem)
-async def get_content_item(
-    item_id: str,
-    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> PyContentItem:
-    """Return one visible neutral catalog item by its opaque identity."""
-
-    item = await SQLAlchemyContentCatalog(session).get_visible_item(item_id=item_id, user_id=user.id)
-    if item is None or item.kind in RETIRED_CONTENT_KINDS:
-        raise HTTPException(status_code=404, detail={"code": "content_not_found"})
-    return PyContentItem.from_domain(item)
-
-
 @router.post(":rescan", response_model=PyContentRescan)
 async def rescan_content_catalog(
-    request: Request,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
+    session: WriteSession,
+    content: WriteContent,
 ) -> PyContentRescan:
     """Perform the authoritative scan; this never equips newly admitted content."""
 
     result = await ContentTransitionService(
-        content=_service(request, session), bindings=SQLAlchemyContentTransitionBindings(session)
+        content=content.catalog, bindings=SQLAlchemyContentTransitionBindings(session)
     ).transition(user_id=user.id)
     items = list(result.items)
     return PyContentRescan(
         summaries=[PyContentScanSummary.from_domain(summary) for summary in result.summaries],
-        catalog=_catalog_response(items),
+        catalog=catalog_response(items),
     )
-
-
-async def _bounded_upload(upload: UploadFile, *, limit: int) -> tuple[BinaryIO, int]:
-    """Measure one Starlette-spooled upload without retaining another RAM copy."""
-
-    received = 0
-    while chunk := await upload.read(1024 * 1024):
-        received += len(chunk)
-        if received > limit:
-            raise HTTPException(
-                status_code=413,
-                detail={"code": "content_file_too_large", "field": "files"},
-            )
-    if received == 0:
-        raise HTTPException(
-            status_code=422,
-            detail={"code": "content_file_empty", "field": "files"},
-        )
-    await upload.seek(0)
-    return upload.file, received
-
-
-def _raise_content_mutation(exc: Exception) -> NoReturn:
-    if isinstance(exc, ContentDocumentError):
-        # The validator message may quote a submitted key; ``field`` is a JSON path when known.
-        document_detail: dict[str, object] = {"code": "content_invalid", "reason": exc.code, "message": str(exc)}
-        if exc.field is not None:
-            document_detail["field"] = exc.field
-        raise HTTPException(status_code=422, detail=document_detail) from exc
-    if isinstance(exc, ContentFileInvalidError):
-        raise HTTPException(
-            status_code=422, detail={"code": "content_invalid", "reason": exc.reason, "field": exc.field}
-        ) from exc
-    if isinstance(exc, ContentNotFoundError):
-        raise HTTPException(status_code=404, detail={"code": "content_not_found"}) from exc
-    if isinstance(exc, ContentConflictError):
-        detail: dict[str, object] = {"code": exc.code}
-        if exc.current_revision is not None:
-            detail["current_revision"] = exc.current_revision
-        if exc.field is not None:
-            detail["field"] = exc.field
-        status_code = 404 if exc.code in {"anima_not_found", "catalog_item_not_found"} else 409
-        raise HTTPException(status_code=status_code, detail=detail) from exc
-    if isinstance(exc, ContentPathError | ValueError):
-        raise HTTPException(status_code=422, detail={"code": "content_path_invalid"}) from exc
-    if isinstance(exc, ContentValidationError):
-        raise HTTPException(status_code=422, detail={"code": "content_invalid", "reason": str(exc)}) from exc
-    raise exc
 
 
 async def save_content_item(
@@ -205,7 +116,7 @@ async def save_content_item(
             if len(uploads) != 1:
                 raise ContentConflictError("standalone_requires_one_file", field="files")
             upload = uploads[0]
-            payload_stream, payload_size_bytes = await _bounded_upload(upload, limit=definition.max_file_bytes)
+            payload_stream, payload_size_bytes = await bounded_upload(upload, limit=definition.max_file_bytes)
             metadata = metadata_json.encode() if metadata_json is not None else None
             if metadata is not None and len(metadata) > MAX_JSON_BYTES:
                 raise HTTPException(status_code=413, detail={"code": "content_metadata_too_large"})
@@ -242,7 +153,7 @@ async def save_content_item(
             for path, upload in zip(companion_paths, uploads, strict=True):
                 if path in companions:
                     raise ContentConflictError("duplicate_companion_path", field="files")
-                payload_stream, payload_size_bytes = await _bounded_upload(upload, limit=definition.max_file_bytes)
+                payload_stream, payload_size_bytes = await bounded_upload(upload, limit=definition.max_file_bytes)
                 total += payload_size_bytes
                 if total > definition.max_entry_bytes:
                     raise HTTPException(
@@ -267,103 +178,7 @@ async def save_content_item(
     except HTTPException:
         raise
     except Exception as exc:
-        _raise_content_mutation(exc)
-
-
-@router.delete("/items/{item_id}", status_code=204)
-async def delete_content_item(
-    request: Request,
-    item_id: str,
-    expected_revision: Annotated[str, Query(pattern=r"^[0-9a-f]{64}$")],
-    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-) -> Response:
-    """Delete one exact editable Local entry; Included content is read-only."""
-
-    try:
-        await _service(request, session).delete_item(
-            item_id=item_id,
-            user_id=user.id,
-            expected_revision=expected_revision,
-        )
-        return Response(status_code=204)
-    except Exception as exc:
-        _raise_content_mutation(exc)
-
-
-def _stream_verified_file(file: VerifiedContentFile) -> Iterator[bytes]:
-    try:
-        while chunk := file.handle.read(1024 * 1024):
-            yield chunk
-    finally:
-        file.handle.close()
-
-
-@router.get("/files/{file_ref}")
-async def stream_content_file(
-    request: Request,
-    file_ref: str,
-    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-    if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
-) -> Response:
-    """Authorize, contain, and digest-check an opaque registration in one response."""
-
-    try:
-        file = await _service(request, session).open_registered_file(file_ref=file_ref, user_id=user.id)
-    except ContentNotFoundError as exc:
-        raise HTTPException(status_code=404, detail={"code": "content_file_not_found"}) from exc
-    except (ContentIntegrityError, ContentPathError) as exc:
-        raise HTTPException(status_code=409, detail={"code": "content_file_changed_rescan_required"}) from exc
-
-    etag = f'"{file.sha256}"'
-    cache_control = "private, no-cache"
-    headers = {
-        "Cache-Control": cache_control,
-        "ETag": etag,
-        "X-Content-Type-Options": "nosniff",
-    }
-    if if_none_match == etag:
-        file.handle.close()
-        return Response(status_code=304, headers=headers)
-    headers["Content-Length"] = str(file.size_bytes)
-    return StreamingResponse(_stream_verified_file(file), media_type=file.media_type, headers=headers)
-
-
-@router.get("/previews/{preview_id}/revisions/{revision_sha256}/files/{file_ref}")
-async def stream_content_preview_file(
-    request: Request,
-    preview_id: str,
-    revision_sha256: str,
-    file_ref: str,
-    user: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-    if_none_match: Annotated[str | None, Header(alias="If-None-Match")] = None,
-) -> Response:
-    """Stream an exact preview membership; catalog edits invalidate its bytes."""
-
-    try:
-        file = await _service(request, session).open_preview_file(
-            preview_id=preview_id,
-            revision_sha256=revision_sha256,
-            file_ref=file_ref,
-            user_id=user.id,
-        )
-    except ContentNotFoundError as exc:
-        raise HTTPException(status_code=404, detail={"code": "content_preview_not_found"}) from exc
-    except (ContentIntegrityError, ContentPathError) as exc:
-        raise HTTPException(status_code=409, detail={"code": "content_preview_changed"}) from exc
-    etag = f'"{file.sha256}"'
-    headers = {
-        "Cache-Control": "private, no-store",
-        "ETag": etag,
-        "X-Content-Type-Options": "nosniff",
-    }
-    if if_none_match == etag:
-        file.handle.close()
-        return Response(status_code=304, headers=headers)
-    headers["Content-Length"] = str(file.size_bytes)
-    return StreamingResponse(_stream_verified_file(file), media_type=file.media_type, headers=headers)
+        raise_content_mutation(exc)
 
 
 __all__ = ["router"]

@@ -15,11 +15,13 @@ from animama.app.services.content_kind_registry import handler_for_kind
 from animama.domain.content_catalog import ContentKind, ContentSource
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMContentCatalogItem
+from animama.product_http.routes import content
 from animama.server.app import app
 from animama.server.deps import get_async_session, get_current_principal
-from animama.server.routers import content, typed_content
+from animama.server.routers import typed_content
 from tests.content_package_helpers import package_services, reviewed_export, reviewed_import
 from tests.local_http_client import local_client
+from tests.product_http_support import install_local_ports
 
 
 def test_poses_expose_the_normal_content_family_without_equipment_routes() -> None:
@@ -67,6 +69,7 @@ async def pose_api(async_session, tmp_path: Path) -> AsyncIterator[tuple[Any, An
 
     application.dependency_overrides[get_current_principal] = owner
     application.dependency_overrides[get_async_session] = session
+    install_local_ports(application, async_session)
     try:
         async with local_client(application) as client:
             yield client, (paths, catalog, service, saves, packages), principal

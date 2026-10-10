@@ -35,13 +35,12 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMAvatar, ORMModelProvider
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
-from animama.product_http.ports import install_product_ports
 from animama.product_http.routes import loadouts
 from animama.server.config import Settings, settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
 from animama.server.routers import anima, anima_creation, typed_content
-from tests.product_http_support import SessionPorts
+from tests.product_http_support import install_local_ports
 
 
 def glb(document: dict[str, Any]) -> bytes:
@@ -200,7 +199,7 @@ class AnimaCreationFixture:
 
         app.dependency_overrides[get_current_principal] = user
         app.dependency_overrides[get_async_session] = database
-        install_product_ports(app, SessionPorts(session))
+        install_local_ports(app, session)
         return app
 
 

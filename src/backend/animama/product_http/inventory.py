@@ -164,7 +164,6 @@ ROUTES: tuple[RouteSpec, ...] = (
     # Content catalog (rescan is host administration)
     _shared(3, "GET", "/v1/content/catalog", "list_content_catalog", "read"),
     _shared(3, "GET", "/v1/content/items/{item_id}", "get_content_item", "read"),
-    _excluded("local_filesystem_administration", "POST", "/v1/content:rescan", "rescan_content_catalog", "write"),
     _shared(3, "DELETE", "/v1/content/items/{item_id}", "delete_content_item", "write"),
     _shared(3, "GET", "/v1/content/files/{file_ref}", "stream_content_file", "bytes"),
     _shared(
@@ -174,6 +173,7 @@ ROUTES: tuple[RouteSpec, ...] = (
         "stream_content_preview_file",
         "bytes",
     ),
+    _excluded("local_filesystem_administration", "POST", "/v1/content:rescan", "rescan_content_catalog", "write"),
     # Content packages
     _shared(3, "POST", "/v1/content/package-exports:summary", "summarize_package_export", "write"),
     _shared(3, "POST", "/v1/content/package-exports", "prepare_package_export", "write"),

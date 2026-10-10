@@ -12,11 +12,12 @@ from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlc
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMContentCatalogItem
+from animama.product_http.routes.content import router
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.routers.content import router
 from tests.local_http_client import local_client
+from tests.product_http_support import install_local_ports
 
 
 def _glb() -> bytes:
@@ -64,6 +65,7 @@ async def test_registered_delivery_authorizes_then_verifies_etag_and_bytes(async
 
     app.dependency_overrides[get_current_principal] = override_user
     app.dependency_overrides[get_async_session] = override_session
+    install_local_ports(app, async_session)
     client = local_client(app)
     try:
         response = await client.get(f"/v1/content/files/{file_ref}")

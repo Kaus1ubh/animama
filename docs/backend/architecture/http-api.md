@@ -46,8 +46,10 @@ Local setup and host/key administration schemas remain in the server composition
 - `product_http/routes/settings.py` (shared): user settings and per-anima settings.
 - `product_http/routes/profile.py` (shared): the owner's private display-name
   reads and edits; each composition saves the name through its ports.
-- `server/routers/content.py`: neutral Included/Local catalog health, Rescan,
-  delete and registered-byte delivery.
+- `product_http/routes/content.py` (shared): Included/Local catalog listing, item
+  reads and deletes, and registered and preview byte delivery under the
+  composition's caching policy.
+- `server/routers/content.py`: the local Rescan (host administration).
 - `server/routers/content_packages.py`: reviewed package import/export,
   bounded transfer and durable operation status.
 - `server/routers/typed_content.py`: typed product List/Get/Save/Preview routes
