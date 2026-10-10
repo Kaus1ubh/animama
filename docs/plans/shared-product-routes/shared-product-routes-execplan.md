@@ -50,11 +50,12 @@ runtime capabilities did not change between the two.
 - 200 router routes in `src/backend/animama/server/routers/` plus 5 app-level
   routes (`/health`, `/_desktop/health`, `/_desktop/runtime:quiesce`,
   `/api/telemetry/{signal}` and the asset catch-all), all of which stay local.
-  Running the app (2026-10-10): the web route table has 200 entries, including
-  `/health` and the telemetry route; desktop credentials add four `/_desktop/`
-  routes; the asset catch-all is not a route. The inventory classifies all 204:
-  148 shared (44 in stage 2, 84 in stage 3, 19 in stage 4, 1 in stage 5), 36 withheld
-  from hosted, 20 local.
+  Running the app (2026-10-10), one entry per method: development serves 200,
+  including `/health` and the telemetry route. A web root (built and desktop runs)
+  adds the GET/HEAD asset catch-all as the last route (202), and desktop credentials
+  add four `/_desktop/` routes (206). The inventory classifies all 206: 149 shared
+  (45 in stage 2, 84 in stage 3, 19 in stage 4, 1 in stage 5), 36 withheld from
+  hosted, 21 local.
 - Handlers are coupled to the local composition: they construct repositories per
   request (chats, settings, avatar, Anima CRUD), build `FilesystemContentStore`
   (content, typed content, runtime), read the global `settings` object (memory
@@ -93,9 +94,10 @@ runtime capabilities did not change between the two.
     consumer's deferred commit completes before the response. Local write sessions
     still commit immediately.
   - Disposition mapping follows the permission table in `contracts/hosted-web.md`.
-    Runtime context and bootstrap, runtime capabilities, owner events, model custody,
-    archive, starter provisioning, health and telemetry stay local; the desktop
-    controls are withheld by `native_features`.
+    Runtime context and bootstrap, owner events, model custody, archive, starter
+    provisioning, health, telemetry and the asset catch-all stay local; runtime
+    capabilities are shared, as #379 lists them; the desktop controls are withheld
+    by `native_features`.
   - The owner-strict fix covers the Anima and Anima-settings routes. Archive, chat
     setup and speech keep their checks until their stages move.
 
@@ -168,7 +170,8 @@ for the phase passes within its bound.
 Requirements: #379 stage 2. Issue: [#439](https://github.com/raymond-van/animama/issues/439).
 One family per commit, in this order: chats; memory
 entries and episodes; settings (add HTTP characterization tests first); profile;
-safety (move its response models into `app/contracts`); loadouts. For each family:
+safety (move its response models into `app/contracts`); loadouts; runtime
+capabilities, which #379 lists as shared, behind a capabilities port. For each family:
 
 - move the routes to `product_http/routes/`, resolving collaborators from the ports;
   keep a temporary re-export in `server/routers/` until its tests migrate;
@@ -206,6 +209,47 @@ passes.
 Stage 4 (voice catalogs, speech, web search, model catalog reads, memory-manager
 runs) and stage 5 (chat SSE with a turn-guard port, which fixes the hosted
 emotional-state and phoneme drift) need separate authorization after Phase 3.
+When they move, `server/elevenlabs_service.py` and `server/routers/chat/turn_setup.py`
+must drop their nullable-owner checks, as the Phase 1 Anima routes did.
+
+### Phase 1 review record
+
+Code Review #1 Findings (at `6ea88582`):
+
+- P1-01: the inventory and parity test left out the GET/HEAD asset catch-all that
+  built and desktop runtimes add as their last route.
+- P1-02: session ports took no owner, and a session could open before the principal
+  resolved.
+- P1-03: `DeferredCommitPorts` committed work the handler never asked to commit.
+- P1-04: `access` was derived from the HTTP method; four entries were wrong.
+- P1-05: the backend guide, architecture overview, development guide and boundary
+  README did not mention the package or its consumer.
+- P1-06: runtime capabilities were classified local, but #379 lists them as shared.
+- Optional: O-01 classify every capability boolean; O-02 drop the unused re-export and
+  alias; O-03 a typed install helper; O-04 run the consumer in-repo and widen it;
+  O-05 snapshot operation IDs; O-06 NULL-owner cases for the other Anima routes;
+  O-07 record the stage 4/5 owner fixes; O-08 note the write-session constraints.
+
+Code Review #1 Revisions:
+
+- P1-01: the inventory lists the catch-all with a `web_root_only` flag, and the parity
+  test covers development, built and desktop apps, one entry per method, with the
+  catch-all last.
+- P1-02: sessions depend on the principal, and the ports receive it; tests prove no
+  session opens without a principal.
+- P1-03: the double commits only when asked and documents its limits.
+- P1-04: corrected the four entries; `access` is provisional until a family moves,
+  when a test binds it to the handler's session.
+- P1-05: documented the package and consumer.
+- P1-06: runtime capabilities are shared in stage 2, behind a capabilities port.
+- O-01 to O-04 and O-07 are applied.
+- O-05: `pnpm openapi-ts:check` already fails on any operation-ID change.
+- O-06: the Phase 2 and 3 isolation tests cover every shared route that takes an
+  Anima.
+- O-08 is recorded here: a request-scoped `yield` dependency cannot depend on
+  `WriteSession` (FastAPI raises `DependencyScopeError`); the write session closes
+  before a streaming body runs; and a handler using both sessions opens two.
+- Repair rounds used: 1 of 2.
 
 ## Final integration review
 

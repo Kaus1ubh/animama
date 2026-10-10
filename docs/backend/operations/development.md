@@ -54,6 +54,8 @@ edit them independently. The repository's packed-artifact check installs the
 wheel outside this checkout and runs
 `scripts/repository-boundary/consumers/backend.py`, exercising two independent
 owners through real shared bootstrap/chat services with fake ports.
+`consumers/product_http.py` mounts the shared product routes the same way a hosted
+consumer would, with local composition imports blocked.
 
 ## Run The API
 

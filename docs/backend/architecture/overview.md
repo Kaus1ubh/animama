@@ -7,8 +7,11 @@ shared model clients, streams direct chat events, and persists side effects.
 
 ## Package Layout
 
+- `product_http/`: product HTTP shared by every composition (ADR 0021): the route
+  inventory, the request-principal dependency, the `ProductPorts` each composition
+  installs, and the shared routers as their families move.
 - `server/`: delivery and local-composition layer. Contains the separately named
-  local FastAPI app factory, request-principal resolver seam, installation
+  local FastAPI app factory, its `LocalProductPorts`, installation
   bootstrap, routers, direct chat SSE orchestration, Content Catalog delivery,
   owner event SSE helpers, local upload helpers, persistence
   sinks/subscribers, and telemetry.
@@ -60,7 +63,7 @@ Application services should depend on protocols in `app/ports`. Adapters satisfy
 those protocols using SQLAlchemy or provider SDKs. The server layer wires the
 pieces together.
 
-All transitive dependencies of `domain/` and `app/` are checked by
+All transitive dependencies of `domain/`, `app/` and `product_http/` are checked by
 `scripts/repository-boundary/check-python-imports.py`. They cannot reach local
 installation state, FastAPI composition/configuration, migration/frozen runtime
 helpers, logging configuration, or private service modules. Ports carry owner
