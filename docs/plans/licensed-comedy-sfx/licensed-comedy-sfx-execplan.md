@@ -93,8 +93,9 @@ starting revision; implementers re-check them.
 - [x] PR opened: [#427](https://github.com/raymond-van/animama/pull/427)
       (2026-10-10; branch merged with `origin/main` `5993bbee` first). Hosted CI
       is disabled; local checks are the evidence. Both task stacks torn down.
-- [ ] Owner confirmations (R3 divergence, hidden sounds, Avatar Effects only,
-      ADR 0021) and merge approval of the exact candidate.
+- [ ] G3 desktop playback (skipped for now by the owner), owner confirmations
+      (R3 divergence, hidden sounds, Avatar Effects only, ADR 0021) and merge
+      approval of the exact candidate.
 - [ ] Release gate G4: WOW Sound's written confirmation, recorded in the release
       review before the first public release containing the pack. Not part of
       the PR.
@@ -838,8 +839,8 @@ version and updating the manifest; changing only a pairing to an already
 shipped sound needs only a descriptor change. Removing the pack from a build
 leaves every effect valid and silent.
 
-Completion: G1–G3 recorded; the acceptance criteria in #399 hold with real
-content; review passes.
+Completion: G1–G3 recorded (G3 skipped for now by the owner, 2026-10-10);
+the acceptance criteria in #399 hold with real content; review passes.
 
 #### Phase 4 references
 
@@ -920,29 +921,26 @@ backend, 29 desktop, 16 + 82 web tests, prettier, both `scan --git`, `verify`.
 - Checks after revisions: 29 desktop pack tests, 10 integrity tests pass.
   Repair budget: one round used.
 
-#### Phase 4 progress (2026-10-10)
+#### Code Review #2 Findings
 
-- Done, not gated: ADR 0021 (proposed), the pack guide, README, runtime,
-  Library and skill docs, WOW Sound credit in the packaged notice and licence
-  docs, and effect promotion that keeps or attaches a licensed sound (step 8;
-  15 promote tests pass).
-- Prepared, awaiting G2: the candidate pack in `build-inputs/wow-comedy-sfx/`
-  (26 sounds; purchase date, licensee and order reference left blank for the
-  owner, so `verify` fails only on provenance), a candidate `v1` manifest, the
-  26 descriptor edges, the stacking pass on 14 Reactions, two integrity tests
-  and the conversion golden test now ignoring `soundAlias`. Full backend suite
-  with these edits: 3368 passed, 1 failed (the golden test, since fixed).
-- Review stack: `animama-sfx` at `http://animama-sfx.localhost:8400`, with the
-  candidate pack mounted through an untracked override in
-  `build-inputs/review/`.
+Independent `sdlc-reviewer`, 2026-10-10, targeted recheck of `ba82eff4`.
+P4-F1, P4-F2, P4-N1 and P4-N2 verified (including a regression probe for the
+credential message). **Blocked** on one record fix:
 
-#### Code Review #1 Findings
+- **P4-R2-F1 (required):** a superseded "Phase 4 progress" block and duplicate
+  "Not started" review placeholders remained in Phase 4.
+- Optional: the PR said the final revision changed only docs and tests (it
+  also changed a desktop error message); the Q3 assertion compared stems, not
+  full paths; #405's scope still said 26 descriptors; the plan's G3 wording
+  disagreed between Progress and Completion.
 
-Not started.
+#### Code Review #2 Revisions
 
-#### Code Review #1 Revisions
-
-Not started.
+- P4-R2-F1 accepted: the superseded block and placeholders are removed.
+- All optional notes applied: PR wording, a full-path Q3 assertion that also
+  catches unpaired sidecars, #405 scope, and G3 shown as open in Progress and
+  Completion.
+- Repair budget: two rounds used.
 
 ## Final integration review
 
@@ -1029,4 +1027,22 @@ revisions are recorded under each phase as `Code Review #N Findings` and
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered (2026-10-10, PR #427): two private packs share one tool, mount and
+release path; built-in effects carry optional licensed sounds that disappear
+cleanly without the pack; licensed sounds never reach user content, Library,
+pickers or packages; pack `v1` (29 sounds) is published and required by
+desktop release candidates. Open at merge: G3 desktop playback (skipped for
+now) and the owner's confirmations of the recorded divergences; release gate
+G4 (WOW Sound's written confirmation) precedes the next public release.
+
+Lessons:
+
+- Resolving optional edges once, at scan time, avoided changing a dependency
+  invariant that a dozen consumers rely on; the review still found the one
+  place (pack withdrawal) where stored edges from a previous scan mattered.
+- Records drifted faster than code: several review rounds were spent on plan,
+  issue and PR statements (an API result reported as UI evidence, a stale
+  progress block). Verify UI claims in the UI and update records with each
+  commit.
+- Merging `main` mid-plan changed scope (three new effects) and an ADR number;
+  checking main's drift before opening the PR would have caught both earlier.

@@ -148,7 +148,8 @@ def test_every_included_avatar_effect_has_one_optional_licensed_sound() -> None:
         assert {f"sfx/wow-comedy/{key}.ogg", f"sfx/wow-comedy/{key}.meta.json"} <= shipped, path.name
         referenced.add(key)
     # Only sounds that built-in effects use are shipped (owner decision Q3).
-    assert {Path(item).stem for item in shipped if item.endswith(".ogg")} == referenced
+    expected = {f"sfx/wow-comedy/{key}{suffix}" for key in referenced for suffix in (".ogg", ".meta.json")}
+    assert shipped == expected
 
 
 def test_stacked_avatar_effects_play_one_accompanying_sound_at_a_time() -> None:
