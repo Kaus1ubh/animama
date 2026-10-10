@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Steam Puffs",
   "description": "Cartoon steam puffs burst from the side of the head again and again like a boiling kettle, for fuming, about-to-blow-a-fuse anger.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:irritated_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "emote",
@@ -69,7 +76,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

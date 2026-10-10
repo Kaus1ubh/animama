@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Blush Deep",
   "description": "A deep beet-red blush with bold hatch lines for intense, teased-to-pieces embarrassment.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:accidental_kiss_01",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "blush",
@@ -24,7 +31,8 @@
     },
     "art": {
       "image": "blush_deep.png"
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

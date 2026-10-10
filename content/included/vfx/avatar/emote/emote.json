@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Emote !",
   "description": "Floating exclamation mark for sudden alarm, urgency, or alerted curiosity.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:surprised_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "emote",
@@ -71,7 +78,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

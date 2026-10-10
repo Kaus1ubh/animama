@@ -45,21 +45,19 @@ Keys come from the vendor file name: `AC_Funny_Sweat_02.ogg` →
 
 ## Private inputs
 
-The pack and its private provenance live under their own prefix in the same
-owner-only private bucket as the Mixamo pack: `<prefix>/<version>/<path>` and
-`<prefix>/<version>/private-inventory.json`. The private inventory,
+The pack and its private provenance live in the same owner-only private bucket
+as the Mixamo pack, under the prefix `built-in/wow-comedy-sfx` (override with
+`ANIMAMA_WOW_COMEDY_SFX_R2_PREFIX`): `<prefix>/<version>/<path>` and
+`<prefix>/<version>/private-inventory.json`. A separate prefix is required
+because each version writes its own private inventory. The private inventory,
 `{"sounds": {"sfx/wow-comedy/<key>.ogg": {…}}}`, needs `vendor`, `product`,
 `license_tier`, `purchase_date`, `licensee`, `order_reference`, `source_file`
-and `sha256` for every sound; it never enters Git. Credentials come from
-owner-only files, as for the Mixamo pack:
+and `sha256` for every sound; it never enters Git.
 
-```text
-ANIMAMA_R2_ACCOUNT_ID
-ANIMAMA_WOW_COMEDY_SFX_R2_BUCKET
-ANIMAMA_WOW_COMEDY_SFX_R2_PREFIX
-ANIMAMA_WOW_COMEDY_SFX_R2_READ_ACCESS_KEY_ID / ..._READ_SECRET_ACCESS_KEY    (fetch)
-ANIMAMA_WOW_COMEDY_SFX_R2_WRITE_ACCESS_KEY_ID / ..._WRITE_SECRET_ACCESS_KEY  (publish)
-```
+The pack reuses the Mixamo pack's bucket-scoped credentials and owner-only env
+files, so the release workflow needs no extra secrets: `ANIMAMA_R2_ACCOUNT_ID`,
+`ANIMAMA_MIXAMO_R2_BUCKET` and the `ANIMAMA_MIXAMO_R2_READ_*` (fetch) or
+`ANIMAMA_MIXAMO_R2_WRITE_*` (publish) token pair.
 
 ## Commands
 

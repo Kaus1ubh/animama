@@ -232,6 +232,17 @@ starting revision; implementers re-check them.
   were updated. Main also promoted three new built-in Avatar Effects
   (`finger_heart_pop`, `huff_puff`, `idea_bulb_fingertip`) that need sounds in
   the G2 mapping.
+- 2026-10-10, owner: G1 by reuse. The pack uses the Mixamo pack's private
+  bucket and bucket-scoped tokens (no new secrets or env files) under its own
+  prefix `built-in/wow-comedy-sfx`; a shared prefix would collide on each
+  version's `private-inventory.json`. The bucket still has r2.dev access
+  disabled and no custom domain (checked with Wrangler). The purchase record
+  (date, licensee, order reference) was supplied and is kept only in the
+  private inventory. G2: the owner approved the sound pairings, including the
+  agent's picks for the three effects promoted on `main`
+  (`finger_heart_pop` → `bubble_pop_01`, `huff_puff` → `whoosh_01v2`,
+  `idea_bulb_fingertip` → `correct_answer_05`); no listening session was held.
+  G3 (desktop playback) is skipped for now by the owner.
 
 ## Phased implementation
 
@@ -754,6 +765,10 @@ criteria with real content. Depends on P1–P3. Contains owner gates.
    | texture_sick_1 | wobble_short | 0.88 s | A short queasy wobble |
    | texture_sick_2 | wobble_riser_02 | 3.85 s | A long uneasy wobble |
 
+   Added after merging `main` (owner-approved 2026-10-10): `finger_heart_pop`
+   → `bubble_pop_01`, `huff_puff` → `whoosh_01v2`, `idea_bulb_fingertip` →
+   `correct_answer_05` (29 sounds in pack `v1`).
+
    Stacking draft (Reactions that start several effects within 0.3 s keep one
    sound): anger-3 keeps angry; annoyance-3 steam_puffs; confusion-3
    eye_confused_swirl; desire-3 heart_eyes; embarrassment-2 blush;
@@ -829,6 +844,41 @@ content; review passes.
 Issue: #405. Commits: `50cdb5dd` (`feat(content)[p4]: let promotion attach
 licensed sounds and document the sound pack`). Content, manifest and stacking
 changes are committed after G2.
+
+#### Phase 4 results (2026-10-10, after G1 and G2)
+
+- **Pack `v1`:** 29 sounds (58 files) assembled from the owner's licensed copy
+  with complete private provenance; `verify` passes; `publish --confirm`
+  uploaded 59 objects to `built-in/wow-comedy-sfx` in the private bucket with
+  the Mixamo publish token; a read-token `fetch` re-downloads and verifies all
+  58 files. The tracked manifest is committed with the content. The
+  credentials change lets the pack reuse the Mixamo bucket and token
+  variables, with a default prefix (tested).
+- **Content:** 29 descriptors with an optional sound edge and `soundAlias`; 14
+  Reactions mute stacked sounds; two integrity tests and the conversion golden
+  test adjusted.
+- **Release:** the macOS workflow fetches the sound pack with the existing read
+  secrets and stages with `ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1`;
+  `release-process.md` (macOS and Windows) and the `releases.md` secrets row
+  updated.
+- **Build verification (step 9):** with both packs fetched,
+  `ANIMAMA_REQUIRE_MIXAMO_MOTION=1 ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1 pnpm
+  desktop:runtime:stage -- --platform darwin --arch arm64` staged both packs
+  (71 + 58 files) and `desktop:runtime:audit` passed. Staged licence refs:
+  every `content/wow-comedy-sfx/` file lists only
+  `LicenseRef-WOW-Sound-Media-embedded-product` (59), every
+  `content/mixamo-motion/` file only the Mixamo licence (72), and none of the
+  330 `content/included-core/` files a pack licence. Leak scans with the real
+  manifest and the deny list found no pack or preview bytes in tracked files
+  (`scan --git`), the Docker build context (407 MB tar honouring
+  `.dockerignore`), the self-host `animama-server` image (1.1 GB export) or
+  the stage outside each pack's own `runtime/content/<pack>/` (58 and 71
+  findings only there); the build input is the positive control. Self-host
+  without the pack: every Included entry is VALID in the tracked-copy catalog
+  tests, and the earlier built e2e stack ran with the optional edges and no
+  pack. Task images and containers were removed afterwards.
+- **Not performed:** G3 desktop playback (skipped for now by the owner); a
+  live hosted check (Cloud).
 
 #### Phase 4 progress (2026-10-10)
 

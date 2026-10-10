@@ -54,6 +54,8 @@ function definePack({
   records,
   privateFields,
   envPrefix,
+  prefixEnv = `${envPrefix}_PREFIX`,
+  defaultPrefix = null,
   requireEnv,
   denyListPath = null,
 }) {
@@ -78,7 +80,11 @@ function definePack({
     records,
     /** Provenance every record needs before a build may ship it. */
     privateFields,
+    /** The private bucket and its read/write tokens: `<envPrefix>_BUCKET`, … */
     envPrefix,
+    /** The pack's own key prefix in that bucket, with an optional default. */
+    prefixEnv,
+    defaultPrefix,
     /** Release candidates set this to `1` so a missing pack fails the build. */
     requireEnv,
     /** Hashes that may appear nowhere, such as the vendor's watermarked previews. */
@@ -126,7 +132,11 @@ export const WOW_COMEDY_SFX = definePack({
     "source_file",
     "sha256",
   ],
-  envPrefix: "ANIMAMA_WOW_COMEDY_SFX_R2",
+  // The same owner-only private bucket and bucket-scoped tokens as the Mixamo
+  // pack, under its own prefix (each version writes its own private inventory).
+  envPrefix: "ANIMAMA_MIXAMO_R2",
+  prefixEnv: "ANIMAMA_WOW_COMEDY_SFX_R2_PREFIX",
+  defaultPrefix: "built-in/wow-comedy-sfx",
   requireEnv: "ANIMAMA_REQUIRE_WOW_COMEDY_SFX",
   denyListPath: PREVIEW_DENY_PATH,
 });
@@ -397,7 +407,7 @@ export function packCredentials(pack, env = process.env, role = "read") {
   const accessKeyId = env[`${prefix}_ACCESS_KEY_ID`] ?? "";
   const secretAccessKey = env[`${prefix}_SECRET_ACCESS_KEY`] ?? "";
   const bucket = env[`${pack.envPrefix}_BUCKET`] ?? "";
-  const keyPrefix = env[`${pack.envPrefix}_PREFIX`] ?? "";
+  const keyPrefix = env[pack.prefixEnv] || pack.defaultPrefix || "";
   if (
     !/^[a-f0-9]{32}$/u.test(accountId) ||
     !accessKeyId ||
@@ -406,7 +416,7 @@ export function packCredentials(pack, env = process.env, role = "read") {
     !isSafeRelative(keyPrefix)
   )
     throw new PackError(
-      `Set ANIMAMA_R2_ACCOUNT_ID, ${prefix}_ACCESS_KEY_ID, ${prefix}_SECRET_ACCESS_KEY, ${pack.envPrefix}_BUCKET and ${pack.envPrefix}_PREFIX from the owner-only file`,
+      `Set ANIMAMA_R2_ACCOUNT_ID, ${prefix}_ACCESS_KEY_ID, ${prefix}_SECRET_ACCESS_KEY and ${pack.envPrefix}_BUCKET${pack.defaultPrefix ? "" : ` and ${pack.prefixEnv}`} from the owner-only file`,
     );
   return { accountId, accessKeyId, secretAccessKey, bucket, keyPrefix };
 }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
 
@@ -126,3 +127,39 @@ def test_every_reaction_emotion_has_a_variant_with_an_avatar_effect() -> None:
         emotions[emotion] = emotions.get(emotion, False) or has_effect
     assert len(emotions) == 24
     assert [emotion for emotion, has_effect in emotions.items() if not has_effect] == []
+
+
+def test_every_included_avatar_effect_has_one_optional_licensed_sound() -> None:
+    """Each built-in Avatar Effect plays one sound from the private comedy pack."""
+
+    manifest = json.loads(
+        (ROOT / "src/backend/animama/resources/wow-comedy-sfx-manifest.json").read_text(encoding="utf-8")
+    )
+    shipped = {item["path"] for item in manifest["files"]}
+    effects = sorted((ROOT / "content/included/vfx/avatar").glob("*/*.json"))
+    assert effects
+    for path in effects:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        [edge] = document["dependencies"]
+        assert edge["content_type"] == "sound_effect" and edge["optional"] is True, path.name
+        assert document["definition"]["soundAlias"] == edge["alias"], path.name
+        key = edge["ref"].removeprefix("builtin:sound-effect:")
+        assert {f"sfx/wow-comedy/{key}.ogg", f"sfx/wow-comedy/{key}.meta.json"} <= shipped, path.name
+
+
+def test_stacked_avatar_effects_play_one_accompanying_sound_at_a_time() -> None:
+    """Effects applied together would otherwise play their sounds over each other."""
+
+    for path in sorted((ROOT / "content/included").glob("*/*/*.json")):
+        if path.parts[-3] not in {"reactions", "gestures"}:
+            continue
+        document = json.loads(path.read_text(encoding="utf-8"))
+        events = document.get("events") if isinstance(document, dict) else None
+        if not isinstance(events, list):
+            continue
+        audible = sorted(
+            float(event.get("time", 0))
+            for event in events
+            if event.get("kind") == "avatar_vfx" and event.get("playAccompanyingSound", True)
+        )
+        assert all(later - earlier >= 0.3 for earlier, later in pairwise(audible)), path.name

@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Idea Bulb Fingertip",
   "description": "A cartoon light bulb pops on just above the tip of a raised right index finger, then glows with a gentle pulse, for a sudden \"I've got it!\" idea while pointing up beside the head.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:correct_answer_05",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "body",
@@ -51,7 +58,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

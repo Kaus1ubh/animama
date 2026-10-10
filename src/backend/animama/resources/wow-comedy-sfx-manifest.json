@@ -1,6 +1,297 @@
 {
   "schema_version": 1,
   "pack_id": "wow-comedy-sfx",
-  "version": "v0",
-  "files": []
+  "version": "v1",
+  "files": [
+    {
+      "path": "sfx/wow-comedy/accidental_kiss_01.meta.json",
+      "size_bytes": 220,
+      "sha256": "3c2fcbf71dfec514c0a8701cd2bdb42a0903726f9aeb669f5ffc8face0855e82"
+    },
+    {
+      "path": "sfx/wow-comedy/accidental_kiss_01.ogg",
+      "size_bytes": 23381,
+      "sha256": "4b35b6590b79caeffc5d0362be6c15274de6e484c9b31f941c389b8194b34c72"
+    },
+    {
+      "path": "sfx/wow-comedy/anger_explode_03.meta.json",
+      "size_bytes": 213,
+      "sha256": "9985ad95a12d7a434984e8018319143ccd978445cc671ad1ca69941a13e5dd66"
+    },
+    {
+      "path": "sfx/wow-comedy/anger_explode_03.ogg",
+      "size_bytes": 42627,
+      "sha256": "81e26405f7d9136c70a896cbf4b1e276322a7e6c3150debe7af52b50e62fa12e"
+    },
+    {
+      "path": "sfx/wow-comedy/bouncy_bubble_02.meta.json",
+      "size_bytes": 210,
+      "sha256": "f318dbe135259e735c11650bd67c1b166cccec8596a53e8c7682b9ce92d37594"
+    },
+    {
+      "path": "sfx/wow-comedy/bouncy_bubble_02.ogg",
+      "size_bytes": 20199,
+      "sha256": "0b0c6d4c2d634f7b07e67105ea7d8af8e8f46d8c95de58c31602f0b979773fdf"
+    },
+    {
+      "path": "sfx/wow-comedy/bright_eyes.meta.json",
+      "size_bytes": 212,
+      "sha256": "c0f26852af05324a253826fec8b8af852e1753943e6d50881d54d1b975519498"
+    },
+    {
+      "path": "sfx/wow-comedy/bright_eyes.ogg",
+      "size_bytes": 52968,
+      "sha256": "57b76d4129ae501c2272457514aa0b986008abccbe4b2e0a565052de176a5bc8"
+    },
+    {
+      "path": "sfx/wow-comedy/bubble_pop_01.meta.json",
+      "size_bytes": 207,
+      "sha256": "ea02602b6eb92a9190c6a6ae099aee8b9f6e4dc6b8093bd0397991eeac5461fb"
+    },
+    {
+      "path": "sfx/wow-comedy/bubble_pop_01.ogg",
+      "size_bytes": 30901,
+      "sha256": "da7978f0ac5c1e1f2e76abb576c0fdb3a175da408ac6331ef49d5ea7d2c11726"
+    },
+    {
+      "path": "sfx/wow-comedy/correct_answer_05.meta.json",
+      "size_bytes": 214,
+      "sha256": "e8e7f31ade39076a02fc4906a852dc5361c08fdc1b5a793148f89842eeb0a9c0"
+    },
+    {
+      "path": "sfx/wow-comedy/correct_answer_05.ogg",
+      "size_bytes": 20345,
+      "sha256": "d927b362cde13ee4e2ced0e8730d2855dc3eda129d8ce307de9c509bbe11ab98"
+    },
+    {
+      "path": "sfx/wow-comedy/cute_01v1.meta.json",
+      "size_bytes": 192,
+      "sha256": "1f9c56d54a058e160868d4d8bb1475e0aebcf34c1825712c382e766c0a4ff83f"
+    },
+    {
+      "path": "sfx/wow-comedy/cute_01v1.ogg",
+      "size_bytes": 22185,
+      "sha256": "8e87a8971ec1c83c311abcda5be521aac60193fc33445b8f1b917a7460356122"
+    },
+    {
+      "path": "sfx/wow-comedy/cute_chirpy_02.meta.json",
+      "size_bytes": 209,
+      "sha256": "c09b16de1788a8a3f457070e7fea9f2d027f918f55ec7a790e089f3bc7e02be6"
+    },
+    {
+      "path": "sfx/wow-comedy/cute_chirpy_02.ogg",
+      "size_bytes": 26476,
+      "sha256": "86739cc7858cbe117ad6612783fd244e32109553a601fa7a47f68988687c17b8"
+    },
+    {
+      "path": "sfx/wow-comedy/cute_chirpy_03.meta.json",
+      "size_bytes": 209,
+      "sha256": "4b2d49e9bdd2451efcb07a384a5423c1ae1f8dcc9eff5448d299ef7466b1df00"
+    },
+    {
+      "path": "sfx/wow-comedy/cute_chirpy_03.ogg",
+      "size_bytes": 35189,
+      "sha256": "ceb37675cad2d2c8f49f0b3443a1d9b3d5461f94c4740e1ac5c1b1f58fab48eb"
+    },
+    {
+      "path": "sfx/wow-comedy/cute_chirpy_06.meta.json",
+      "size_bytes": 204,
+      "sha256": "7d8ff41628138ead5048bafa50fa5b3027fd76536df648d4a657ea65c6d9b72c"
+    },
+    {
+      "path": "sfx/wow-comedy/cute_chirpy_06.ogg",
+      "size_bytes": 22328,
+      "sha256": "6142f7243d11553679224e925c18df8987166afa70992e99271b03134ba57c0a"
+    },
+    {
+      "path": "sfx/wow-comedy/cute_short_riser.meta.json",
+      "size_bytes": 210,
+      "sha256": "0f88af067ed50e4cc1601eecb83b9d4ae56890b9f0d59098dea872e7522f5031"
+    },
+    {
+      "path": "sfx/wow-comedy/cute_short_riser.ogg",
+      "size_bytes": 38529,
+      "sha256": "ebc58147840dc0a32d1e9deb67a96695cada269d0626dc36eeacb05dbfade281"
+    },
+    {
+      "path": "sfx/wow-comedy/funny_downer_02.meta.json",
+      "size_bytes": 212,
+      "sha256": "801ef005b3ea0dd11487f932b5efc35edda8b6ed119663bbbbfa8ad73b3e6cc0"
+    },
+    {
+      "path": "sfx/wow-comedy/funny_downer_02.ogg",
+      "size_bytes": 56041,
+      "sha256": "2ce086a62b5bd2caab29728e55d655b8cfe17962e97adf1ec7e4537b3e44ea45"
+    },
+    {
+      "path": "sfx/wow-comedy/funny_sweat_02.meta.json",
+      "size_bytes": 211,
+      "sha256": "92626a32ba5c979cea908f06b1a8a4d1637064dc58a6ccd10dc65eff629304f9"
+    },
+    {
+      "path": "sfx/wow-comedy/funny_sweat_02.ogg",
+      "size_bytes": 55056,
+      "sha256": "5cbdffa4d37b8ab13957827fb9a6179c1ebc2b8f481b75e2c43a1c765f6e4815"
+    },
+    {
+      "path": "sfx/wow-comedy/heartbeat_03v1_light.meta.json",
+      "size_bytes": 222,
+      "sha256": "1e147104d8a351aab962df1dfda028b78cb2befbddff3346380cf7eb7522ec0f"
+    },
+    {
+      "path": "sfx/wow-comedy/heartbeat_03v1_light.ogg",
+      "size_bytes": 50085,
+      "sha256": "b3dbca324bdeea47bc3ebc6440c1ba79847530d48681a869a4ccbeddef682923"
+    },
+    {
+      "path": "sfx/wow-comedy/heartbeat_04v1_faster.meta.json",
+      "size_bytes": 225,
+      "sha256": "41faf3e6586912737f0a2cfba3a7a6178973053966ea9dbcabf1ad15d2d64189"
+    },
+    {
+      "path": "sfx/wow-comedy/heartbeat_04v1_faster.ogg",
+      "size_bytes": 53195,
+      "sha256": "52cace6a69e156db4d91199c0a8767ceeace0c27ca5b380415733a979826f042"
+    },
+    {
+      "path": "sfx/wow-comedy/irritated_02.meta.json",
+      "size_bytes": 208,
+      "sha256": "ed8edc34b715210ed61b835d0a56d4501ea1267c53705d4a45acc8938eb0da8b"
+    },
+    {
+      "path": "sfx/wow-comedy/irritated_02.ogg",
+      "size_bytes": 42356,
+      "sha256": "4dffab85a88a82b7b4f0c1d8ec1ea51d2655c8a8543230e255061ceff8e10606"
+    },
+    {
+      "path": "sfx/wow-comedy/lame_horror_01v2.meta.json",
+      "size_bytes": 217,
+      "sha256": "984839aa3df14f37c8d38142f2d1ac573dd0825d09d0a78e86e1accc7e05465e"
+    },
+    {
+      "path": "sfx/wow-comedy/lame_horror_01v2.ogg",
+      "size_bytes": 66689,
+      "sha256": "2977ae06c5355fc82ae7cba4862a6d47674b2bf29cb16982409a17500392fa7b"
+    },
+    {
+      "path": "sfx/wow-comedy/love_bubble_02.meta.json",
+      "size_bytes": 212,
+      "sha256": "72abc0d247b6c2390413599b34b5c82402db64da3916bc32d67445887ca3e591"
+    },
+    {
+      "path": "sfx/wow-comedy/love_bubble_02.ogg",
+      "size_bytes": 60257,
+      "sha256": "a15df4c78be92866c3a7b7f8da9305ad7cbf1d0e3c9dde9c5c8c32be73eeaa5c"
+    },
+    {
+      "path": "sfx/wow-comedy/ng_01.meta.json",
+      "size_bytes": 188,
+      "sha256": "db6074110dc0cd028ad83109f9f1d657055ba9b53d29317899df95ecdb8de975"
+    },
+    {
+      "path": "sfx/wow-comedy/ng_01.ogg",
+      "size_bytes": 46444,
+      "sha256": "cc21d1edf705030ffe29afe593c27238c7bbbc1ed996159acf4cfd1700f7503d"
+    },
+    {
+      "path": "sfx/wow-comedy/realization.meta.json",
+      "size_bytes": 203,
+      "sha256": "f7210e8209ad0719d336a7fe719f9ac12acf2419795dc6d077419552bc0ba4ca"
+    },
+    {
+      "path": "sfx/wow-comedy/realization.ogg",
+      "size_bytes": 59183,
+      "sha256": "b6b43af0d6ca3332d2664cc64fe3438a649300d675621ae48c6ed7c55fdbc97a"
+    },
+    {
+      "path": "sfx/wow-comedy/shrink_03.meta.json",
+      "size_bytes": 201,
+      "sha256": "9e553653b73899d1633009669e8fb948b0254f9607648ef43e71f42fedaf58f9"
+    },
+    {
+      "path": "sfx/wow-comedy/shrink_03.ogg",
+      "size_bytes": 37093,
+      "sha256": "5d586afd841dd80ceed33d2123090daaacfa93cc2188d02f538fe8a637c033b4"
+    },
+    {
+      "path": "sfx/wow-comedy/squirt_01v2.meta.json",
+      "size_bytes": 201,
+      "sha256": "543928b45c3f0889f706bb44d732e3af53451a81fb13a558d0cfccb55209f9f1"
+    },
+    {
+      "path": "sfx/wow-comedy/squirt_01v2.ogg",
+      "size_bytes": 34315,
+      "sha256": "d2b88342969612b4bfd8754ee49686a374ae9e47d7539281ea368ff3b6971a2c"
+    },
+    {
+      "path": "sfx/wow-comedy/stun_expression_02v1.meta.json",
+      "size_bytes": 222,
+      "sha256": "7dcf02b9e814b0da21c0a2ac169e6d6e57d5b00584839b7d6971811103e7d5ab"
+    },
+    {
+      "path": "sfx/wow-comedy/stun_expression_02v1.ogg",
+      "size_bytes": 60405,
+      "sha256": "90c1aaecb831ae7d062a750b2e06073fa8416ed5855ad0325ae140810c8d0253"
+    },
+    {
+      "path": "sfx/wow-comedy/surprised_02.meta.json",
+      "size_bytes": 202,
+      "sha256": "bd2173f2cc39e64a1ae2134608b7a0e2db8d88cdf70234c7bd219f46a79859bd"
+    },
+    {
+      "path": "sfx/wow-comedy/surprised_02.ogg",
+      "size_bytes": 40517,
+      "sha256": "596bbf435ffb3b2b9eda4a94ff595c9f59d036cccc60c185e5a93b729d0f291e"
+    },
+    {
+      "path": "sfx/wow-comedy/surprised_02v2.meta.json",
+      "size_bytes": 206,
+      "sha256": "bb44799e7d61cc0da258f4426e6520880e10c93a900dfc21a2be61f70a100a7b"
+    },
+    {
+      "path": "sfx/wow-comedy/surprised_02v2.ogg",
+      "size_bytes": 45901,
+      "sha256": "f57a855be20e7a6f8595e6c379e413dbe19e4a4fde1eb91534c1e434135f1a5a"
+    },
+    {
+      "path": "sfx/wow-comedy/whoosh_01v2.meta.json",
+      "size_bytes": 200,
+      "sha256": "e9419a9498ca09df2009010fce39ca99e258fc9574788959c15748fb6f8a2f3d"
+    },
+    {
+      "path": "sfx/wow-comedy/whoosh_01v2.ogg",
+      "size_bytes": 51466,
+      "sha256": "a2b550841ec0016dc8a4f0759c24892620a7c349165691e7fd1bc13152191695"
+    },
+    {
+      "path": "sfx/wow-comedy/wobble_riser_01v2.meta.json",
+      "size_bytes": 206,
+      "sha256": "6d8d19ce1fdd1361c10996026da25d51e4a47778d60575cfb95a1bfd6996f86b"
+    },
+    {
+      "path": "sfx/wow-comedy/wobble_riser_01v2.ogg",
+      "size_bytes": 52674,
+      "sha256": "08b2a35db52f4980abdaedd8411de65db9f1fd92e294648ea2090afd2efbf86b"
+    },
+    {
+      "path": "sfx/wow-comedy/wobble_riser_02.meta.json",
+      "size_bytes": 208,
+      "sha256": "804e531b6b135421ce7178d6c225845fb67230fd5bc3ba9155e83e71a1c67774"
+    },
+    {
+      "path": "sfx/wow-comedy/wobble_riser_02.ogg",
+      "size_bytes": 88173,
+      "sha256": "fc1d0dcee5691a60f5704b222b5f41efa729f0a5dfe55942a2157d8eeea7fdba"
+    },
+    {
+      "path": "sfx/wow-comedy/wobble_short.meta.json",
+      "size_bytes": 202,
+      "sha256": "ae0a3094c64ac9dce935aca8d85bedc02a9a1be3cfaea3744a9c58cec60d374e"
+    },
+    {
+      "path": "sfx/wow-comedy/wobble_short.ogg",
+      "size_bytes": 30116,
+      "sha256": "3791d9296f09816a06b3a8a70969e4650327b01298823d245ade772d905865c9"
+    }
+  ]
 }

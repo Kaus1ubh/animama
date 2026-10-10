@@ -19,6 +19,7 @@ import {
   fetchPack,
   manifestFor,
   packById,
+  packCredentials,
   publishPack,
   readDenyList,
   readManifest,
@@ -408,6 +409,36 @@ describe("private pack definitions", () => {
     for (const pack of PRIVATE_PACKS)
       expect(readManifest(pack).pack_id).toBe(pack.id);
     expect(readDenyList().files.length).toBeGreaterThan(0);
+  });
+
+  it("reads the sound pack's store from the Mixamo bucket and tokens", () => {
+    const env = {
+      ANIMAMA_R2_ACCOUNT_ID: "0".repeat(32),
+      ANIMAMA_MIXAMO_R2_BUCKET: "private-bucket",
+      ANIMAMA_MIXAMO_R2_PREFIX: "built-in/mixamo-motion",
+      ANIMAMA_MIXAMO_R2_READ_ACCESS_KEY_ID: "key",
+      ANIMAMA_MIXAMO_R2_READ_SECRET_ACCESS_KEY: "secret",
+    };
+    expect(packCredentials(WOW_COMEDY_SFX, env)).toMatchObject({
+      bucket: "private-bucket",
+      keyPrefix: "built-in/wow-comedy-sfx",
+      accessKeyId: "key",
+    });
+    expect(
+      packCredentials(WOW_COMEDY_SFX, {
+        ...env,
+        ANIMAMA_WOW_COMEDY_SFX_R2_PREFIX: "review/sounds",
+      }).keyPrefix,
+    ).toBe("review/sounds");
+    expect(packCredentials(MIXAMO_MOTION, env).keyPrefix).toBe(
+      "built-in/mixamo-motion",
+    );
+    expect(() =>
+      packCredentials(MIXAMO_MOTION, {
+        ...env,
+        ANIMAMA_MIXAMO_R2_PREFIX: "",
+      }),
+    ).toThrow(/ANIMAMA_MIXAMO_R2_PREFIX/u);
   });
 
   it("refuses a manifest that names another pack", () => {

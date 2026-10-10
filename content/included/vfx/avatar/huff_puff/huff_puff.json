@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Huff Puff",
   "description": "The anime \"hmph!\" huff: a little cartoon puff cloud bursts out beside the mouth, drifts away to the side and fades, for a sulky pout or an indignant turn-away.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:whoosh_01v2",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "emote",
@@ -82,7 +89,8 @@
     },
     "faceOptions": {
       "faceCleanup": false
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {
