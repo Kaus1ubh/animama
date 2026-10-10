@@ -895,6 +895,12 @@ provider WebSocket. Setup waits at most 1500 ms for the session event; failures
 stop audio for that run while chat continues. Eleven v3 receives finalized PCM
 through `tts.audio` on the chat stream instead.
 
+A hosted server can decline a run's ElevenLabs speech with
+`speech_allowance_exhausted` (an exhausted voice allowance). Where Pocket TTS is
+supported, `fallBackToPocketTts` then speaks that run as a Pocket run, with the
+same voice resolution and no notice, and later runs return to ElevenLabs. See the
+[hosted contract](../../../contracts/hosted-web.md#realtime-speech-session-descriptor).
+
 See [ElevenLabs TTS](elevenlabs-tts.md) for session setup, model-specific batching,
 settings, audio events and playback timing. The [chat contract](chat.md#main-structured-response-mode)
 separates speakable `speech` from visible-only `display`; raw JSON and hidden

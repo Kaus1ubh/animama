@@ -40,6 +40,7 @@ import {
 } from "../lib/chat/display-message-mapping";
 import type { ChatMemoryCue } from "../lib/chat/memory-cue";
 import type { ChatRunStatusKind } from "../lib/chat/run-status";
+import { isSpeechAllowanceExhausted } from "../lib/chat/speech-allowance";
 import {
   appendStructuredSpeechVisemeInputs,
   createStructuredResponseStreamState,
@@ -361,6 +362,7 @@ export function useProductChatSession({
     acceptElevenLabsFinalizedAudio,
     completeElevenLabsFinalizedAudio,
     markElevenLabsFinalizedAudioFailed,
+    fallBackToPocketTts,
     cancelTts,
     isTtsAudioActive,
   } = effects;
@@ -1078,6 +1080,34 @@ export function useProductChatSession({
           completeTtsRun(completedRunId);
           voiceTtsCompleted = true;
         };
+        let speechFellBackToPocket = false;
+        /**
+         * An exhausted voice allowance declines this run's ElevenLabs speech,
+         * before or after its reply text. When the playback adapter can speak
+         * the run with Pocket TTS instead, the run stays a TTS run (its text
+         * and completion keep flowing) and later ElevenLabs frames for it are
+         * ignored. Otherwise, and for every other code, its speech ends.
+         */
+        const fallBackFromDeclinedSpeech = (
+          declinedRunId: string,
+          frame: { code?: string | null },
+        ): boolean => {
+          if (
+            !isSpeechAllowanceExhausted(frame) ||
+            !ttsEnabled ||
+            ttsProvider !== "elevenlabs" ||
+            ttsSkippedForRun(declinedRunId) ||
+            !fallBackToPocketTts?.(declinedRunId)
+          ) {
+            return false;
+          }
+          speechFellBackToPocket = true;
+          logger.info("TTS", "Speaking with Pocket TTS for this run", {
+            runId: declinedRunId,
+            code: frame.code,
+          });
+          return true;
+        };
         const maybeReplaceRoute = () => {
           if (!isNewChat || replacedRoute) return;
           void Promise.resolve(replaceChatRoute(resolvedChatId))
@@ -1203,6 +1233,7 @@ export function useProductChatSession({
             if (
               !ttsEnabled ||
               ttsProvider !== "elevenlabs" ||
+              speechFellBackToPocket ||
               ttsSkippedForRun(sessionRunId)
             ) {
               return;
@@ -1244,6 +1275,9 @@ export function useProductChatSession({
           },
           onTtsSessionError: (data) => {
             const sessionRunId = data.run_id ?? runId;
+            // A run speaking with Pocket has no ElevenLabs speech left to end.
+            if (speechFellBackToPocket) return;
+            if (fallBackFromDeclinedSpeech(sessionRunId, data)) return;
             skippedTtsRunIdsRef.current.add(sessionRunId);
             markElevenLabsSessionFailed(sessionRunId, data);
           },
@@ -1253,6 +1287,7 @@ export function useProductChatSession({
               !ttsEnabled ||
               ttsProvider !== "elevenlabs" ||
               !isFinalizedElevenLabsTts ||
+              speechFellBackToPocket ||
               ttsSkippedForRun(audioRunId)
             ) {
               return;
@@ -1265,6 +1300,7 @@ export function useProductChatSession({
               !ttsEnabled ||
               ttsProvider !== "elevenlabs" ||
               !isFinalizedElevenLabsTts ||
+              speechFellBackToPocket ||
               ttsSkippedForRun(audioRunId)
             ) {
               return;
@@ -1276,10 +1312,12 @@ export function useProductChatSession({
             if (
               !ttsEnabled ||
               ttsProvider !== "elevenlabs" ||
-              !isFinalizedElevenLabsTts
+              !isFinalizedElevenLabsTts ||
+              speechFellBackToPocket
             ) {
               return;
             }
+            if (fallBackFromDeclinedSpeech(audioRunId, data)) return;
             skippedTtsRunIdsRef.current.add(audioRunId);
             markElevenLabsFinalizedAudioFailed(audioRunId, data);
           },
@@ -1536,6 +1574,7 @@ export function useProductChatSession({
       clearAvatarVisemeBridgeRun,
       completeElevenLabsFinalizedAudio,
       completeTtsRun,
+      fallBackToPocketTts,
       markNonTtsResponseStarted,
       anima,
       activeChat,

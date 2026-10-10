@@ -272,6 +272,7 @@ export function useChatSession(args: UseChatSessionArgs) {
     acceptElevenLabsFinalizedAudio,
     completeElevenLabsFinalizedAudio,
     markElevenLabsFinalizedAudioFailed,
+    fallBackToPocketTts,
     cancelAll: cancelTts,
     isAudioActive: isTtsAudioActive,
   } = useTtsPlayback({
@@ -320,6 +321,7 @@ export function useChatSession(args: UseChatSessionArgs) {
     acceptElevenLabsFinalizedAudio,
     completeElevenLabsFinalizedAudio,
     markElevenLabsFinalizedAudioFailed,
+    fallBackToPocketTts,
     cancelTts,
     isTtsAudioActive,
   };
