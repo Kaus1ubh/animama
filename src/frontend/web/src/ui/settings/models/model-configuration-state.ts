@@ -11,11 +11,19 @@ import type {
   RuntimeCapabilities,
   WebSearchCapability,
 } from "@animama/runtime-contracts/api-types";
+import type { CredentialProvider } from "../../../../../shared/desktop-runtime";
 import {
   modelRolePreferencePath,
   type ModelRole,
 } from "@/lib/settings/preferences";
-import { isChatModelRow } from "@/lib/chat/model-catalog";
+import {
+  ANTHROPIC_DEFAULT_MODEL_ID,
+  ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+  CHAT_COMPLETIONS_PROVIDER_TYPE,
+  RESPONSES_PROVIDER_TYPE,
+  isChatModelRow,
+  type ModelProviderType,
+} from "@/lib/chat/model-catalog";
 import {
   WEB_SEARCH_TOOL,
   webSearchAvailability,
@@ -75,6 +83,10 @@ export type ModelProviderEntry = {
   recommended?: boolean;
 };
 
+/** Presets of the release-managed connections, which the owner cannot edit or remove. */
+const OPENAI_PRESET = "openai";
+const ANTHROPIC_PRESET = "anthropic";
+
 /** Providers on each tab, in display order. */
 export const MODEL_LOCATION_PROVIDERS: Record<
   ModelLocation,
@@ -83,10 +95,16 @@ export const MODEL_LOCATION_PROVIDERS: Record<
   cloud: [
     {
       id: "openai",
-      presetId: "openai",
+      presetId: OPENAI_PRESET,
       label: "OpenAI",
       purpose: "Chat with OpenAI's models using your API key.",
       recommended: true,
+    },
+    {
+      id: "anthropic",
+      presetId: ANTHROPIC_PRESET,
+      label: "Anthropic",
+      purpose: "Chat with Anthropic's Claude models using your API key.",
     },
     {
       id: "deepseek",
@@ -225,7 +243,7 @@ export function isPrivateNetworkUrl(
 }
 
 /**
- * The tab that lists a connection: the built-in connection and cloud presets
+ * The tab that lists a connection: the built-in connections and cloud presets
  * on Cloud, local server presets on Local, and a custom connection by where
  * its base URL points.
  */
@@ -239,16 +257,18 @@ export function connectionLocation(
   return "cloud";
 }
 
-/** The provider entry a connection belongs to; unknown presets count as Custom. */
+/**
+ * The provider entry a connection belongs to, by its preset (each built-in
+ * connection has its own); unknown presets count as Custom.
+ */
 export function connectionProviderEntry(
   connection: Pick<PyModelConnection, "source" | "preset" | "base_url">,
 ): ModelProviderEntry {
   const entries = MODEL_LOCATION_PROVIDERS[connectionLocation(connection)];
-  const presetId =
-    connection.source === "builtin" ? "openai" : connection.preset;
   return (
     entries.find(
-      (entry) => entry.presetId === presetId && entry.presetId !== "custom",
+      (entry) =>
+        entry.presetId === connection.preset && entry.presetId !== "custom",
     ) ?? entries[entries.length - 1]
   );
 }
@@ -283,9 +303,9 @@ export type ProviderConnectionState = Pick<PyModelConnection, "source"> & {
 };
 
 /**
- * Whether a provider tab is marked connected: it has a connection, except
- * the built-in OpenAI connection, which always exists and counts only once
- * its key is set.
+ * Whether a provider tab is marked connected: it has a connection, except a
+ * built-in connection (OpenAI, Anthropic), which always exists and counts
+ * only once its key is set.
  */
 export function providerConnected(
   group: ModelProviderGroup<ProviderConnectionState>,
@@ -364,16 +384,21 @@ export function modelConfigurationErrorCode(error: unknown): string | null {
   return typeof detail?.code === "string" ? detail.code : null;
 }
 
-const RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent";
-
 /** The API a chat model uses; shown only in its Info panel. */
 export function modelApiLabel(
   model: Pick<PyConfiguredModel, "provider_type">,
-): "Responses" | "Chat Completions" {
-  return model.provider_type === RESPONSES_PROVIDER_TYPE
-    ? "Responses"
-    : "Chat Completions";
+): "Responses" | "Anthropic Messages" | "Chat Completions" {
+  if (model.provider_type === RESPONSES_PROVIDER_TYPE) return "Responses";
+  if (model.provider_type === ANTHROPIC_MESSAGES_PROVIDER_TYPE)
+    return "Anthropic Messages";
+  return "Chat Completions";
 }
+
+/** APIs whose own web search a chat request may ask for, as on the backend. */
+const HOSTED_SEARCH_PROVIDER_TYPES = new Set([
+  RESPONSES_PROVIDER_TYPE,
+  ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+]);
 
 /**
  * "128K" or "1M" for a context window. Round thousands use decimal units and
@@ -398,8 +423,9 @@ export type ModelChip = {
 /**
  * Capability chips for a model row, in order: Tools, Context, Web search and
  * Vision; an embedding model shows Embeddings only. Web search is "Built-in
- * search" when the model's own search can be requested (OpenAI Responses
- * models advertising it, mirroring the backend's requestable native tools),
+ * search" when the model's own search can be requested (OpenAI Responses and
+ * Anthropic models advertising it, mirroring the backend's requestable native
+ * tools),
  * "App search" when the model calls tools and the installation's search
  * service is ready, and absent otherwise.
  */
@@ -429,11 +455,11 @@ export function modelCapabilityChips(
       description: `${model.context_window_tokens.toLocaleString("en-US")}-token context window`,
     });
   // PyConfiguredModel lacks requestable_native_tool_support, so mirror the
-  // backend's rule (only Responses models may request native web search),
-  // then let the chat picker's webSearchAvailability decide, which reads only
-  // these two fields.
+  // backend's rule (only Responses and Anthropic models may request native
+  // web search), then let the chat picker's webSearchAvailability decide,
+  // which reads only these two fields.
   const requestable =
-    model.provider_type === RESPONSES_PROVIDER_TYPE &&
+    HOSTED_SEARCH_PROVIDER_TYPES.has(model.provider_type) &&
     (capabilities.native_tool_support ?? []).includes(WEB_SEARCH_TOOL)
       ? [WEB_SEARCH_TOOL]
       : [];
@@ -637,6 +663,82 @@ export function embeddingsStatusText(
   }
 }
 
+/** Where a built-in connection's key lives: the desktop vault entry and the server variable. */
+export type BuiltinConnectionKey = {
+  /** The key in App Settings → API Keys on desktop. */
+  provider: CredentialProvider;
+  /** The environment variable self-hosted web and Compose read. */
+  env: string;
+};
+
+const BUILTIN_CONNECTION_KEYS: Readonly<Record<string, BuiltinConnectionKey>> =
+  {
+    [OPENAI_PRESET]: { provider: "openai", env: "OPENAI_API_KEY" },
+    [ANTHROPIC_PRESET]: { provider: "anthropic", env: "ANTHROPIC_API_KEY" },
+  };
+
+/** A built-in connection's own key; null for owner connections, which store theirs per connection. */
+export function builtinConnectionKey(
+  connection: Pick<PyModelConnection, "source" | "preset">,
+): BuiltinConnectionKey | null {
+  return connection.source === "builtin"
+    ? (BUILTIN_CONNECTION_KEYS[connection.preset] ?? null)
+    : null;
+}
+
+/** Whether a connection is the built-in Anthropic one. */
+function isBuiltinAnthropic(
+  connection: Pick<PyModelConnection, "source" | "preset">,
+): boolean {
+  return (
+    connection.source === "builtin" && connection.preset === ANTHROPIC_PRESET
+  );
+}
+
+/** What the add-model dialog offers on a connection, mirroring the server's rules. */
+export type OwnerModelRules = {
+  /**
+   * The API a new model uses; the app picks it: Responses on built-in OpenAI,
+   * Anthropic Messages on built-in Anthropic, Chat Completions elsewhere.
+   */
+  providerType: ModelProviderType;
+  /** Whether embedding models can be added (Anthropic offers none). */
+  embeddings: boolean;
+  /** Whether JSON mode is offered (Anthropic structured output is strict JSON schema only). */
+  jsonMode: boolean;
+  /** Built-in chat models a new model may copy: the same API's, on built-in connections only. */
+  templates: PyConfiguredModel[];
+  /** The template preselected for a new chat model: Claude Haiku 5.5 on Anthropic. */
+  defaultTemplateId: string | null;
+};
+
+/** The add-model dialog's rules on a connection, given the built-in chat models. */
+export function ownerModelRules(
+  connection: Pick<PyModelConnection, "source" | "preset">,
+  templates: readonly PyConfiguredModel[],
+): OwnerModelRules {
+  const anthropic = isBuiltinAnthropic(connection);
+  const providerType: ModelProviderType = anthropic
+    ? ANTHROPIC_MESSAGES_PROVIDER_TYPE
+    : connection.source === "builtin"
+      ? RESPONSES_PROVIDER_TYPE
+      : CHAT_COMPLETIONS_PROVIDER_TYPE;
+  const choices =
+    connection.source === "builtin"
+      ? templates.filter((template) => template.provider_type === providerType)
+      : [];
+  return {
+    providerType,
+    embeddings: !anthropic,
+    jsonMode: !anthropic,
+    templates: choices,
+    defaultTemplateId:
+      anthropic && choices.some(({ id }) => id === ANTHROPIC_DEFAULT_MODEL_ID)
+        ? ANTHROPIC_DEFAULT_MODEL_ID
+        : null,
+  };
+}
+
 /** Capabilities the owner confirms when adding or editing a chat model. */
 export type OwnerCapabilitiesDraft = Required<
   Pick<
@@ -677,6 +779,56 @@ export function capabilitiesFromProbe(
         : report.steps.some((step) => step.name === "structured_output")
           ? null
           : current.structured_output_transport,
+  };
+}
+
+/** The add-model fields a model test can change. */
+export type ProbedDraft = {
+  templateId: string | null;
+  capabilities: OwnerCapabilitiesDraft;
+  reasoningEfforts: string[];
+  contextWindow: string;
+};
+
+/**
+ * Merge a model test into the add-model draft. Most probes only check
+ * behaviour, so values they could not determine keep the owner's choices and
+ * any copied template. Anthropic's Models API instead describes the tested
+ * model itself: a successful test there replaces the copied template, and the
+ * model's efforts and structured output come only from the report, so a
+ * template's limits never outlive it.
+ */
+export function draftAfterProbe<D extends ProbedDraft>(
+  connection: Pick<PyModelConnection, "source" | "preset">,
+  draft: D,
+  report: PyModelProbeReport,
+): D {
+  const described =
+    isBuiltinAnthropic(connection) &&
+    report.steps.length > 0 &&
+    report.steps.every((step) => step.ok);
+  const capabilities = capabilitiesFromProbe(report, draft.capabilities);
+  const transport = report.structured_output_transport;
+  return {
+    ...draft,
+    templateId: described ? null : draft.templateId,
+    capabilities: described
+      ? {
+          ...capabilities,
+          structured_output_transport:
+            transport === "json_schema" || transport === "json_object"
+              ? transport
+              : null,
+        }
+      : capabilities,
+    // Only Anthropic's Models API reports the efforts a model accepts.
+    reasoningEfforts:
+      report.supported_reasoning_efforts ??
+      (described ? [] : draft.reasoningEfforts),
+    contextWindow:
+      report.context_window_tokens != null
+        ? String(report.context_window_tokens)
+        : draft.contextWindow,
   };
 }
 

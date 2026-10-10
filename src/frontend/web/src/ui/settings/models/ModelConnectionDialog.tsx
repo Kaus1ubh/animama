@@ -85,10 +85,13 @@ const DEFAULT_COMPATIBILITY: Required<PyModelConnectionCompatibility> = {
 const COMPATIBILITY_OPTIONS: ReadonlyArray<{
   key: Exclude<keyof PyModelConnectionCompatibility, "reasoning_mode">;
   label: string;
+  /** What the option changes, when the label alone cannot say. */
+  help?: string;
 }> = [
   {
     key: "fold_developer_role",
-    label: "Merge developer instructions into the system message",
+    label: "Send no developer messages",
+    help: "For servers that reject the developer role. Each turn's context (memory map, attached files) goes in a tagged block at the start of the user message; a summary of compacted history and instructions within a turn are merged into the system message.",
   },
   { key: "send_openai_extensions", label: "Send OpenAI-only request fields" },
   { key: "send_stream_usage", label: "Request token usage while streaming" },
@@ -510,24 +513,34 @@ function ModelConnectionFields({
         {showAdvanced ? (
           <div className="space-y-3">
             {COMPATIBILITY_OPTIONS.map((option) => (
-              <label
-                key={option.key}
-                className="flex items-center gap-2 text-sm"
-              >
-                <Checkbox
-                  checked={draft.compatibility[option.key]}
-                  disabled={saving}
-                  onCheckedChange={(checked) =>
-                    change({
-                      compatibility: {
-                        ...draft.compatibility,
-                        [option.key]: checked === true,
-                      },
-                    })
-                  }
-                />
-                {option.label}
-              </label>
+              <div key={option.key} className="space-y-1">
+                <label className="flex items-center gap-2 text-sm">
+                  <Checkbox
+                    checked={draft.compatibility[option.key]}
+                    disabled={saving}
+                    aria-describedby={
+                      option.help ? `${formId}-${option.key}-help` : undefined
+                    }
+                    onCheckedChange={(checked) =>
+                      change({
+                        compatibility: {
+                          ...draft.compatibility,
+                          [option.key]: checked === true,
+                        },
+                      })
+                    }
+                  />
+                  {option.label}
+                </label>
+                {option.help ? (
+                  <p
+                    id={`${formId}-${option.key}-help`}
+                    className="text-muted-foreground pl-6 text-xs"
+                  >
+                    {option.help}
+                  </p>
+                ) : null}
+              </div>
             ))}
             <div className="space-y-2">
               <Label htmlFor={`${formId}-reasoning`}>Reasoning effort</Label>

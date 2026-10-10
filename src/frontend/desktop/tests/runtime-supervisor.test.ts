@@ -753,6 +753,7 @@ describe("runtime supervision", () => {
     await current.runtime.start();
     await current.runtime.changeCredentials([
       { provider: "openai", value: "fixture-openai" },
+      { provider: "anthropic", value: "fixture-anthropic" },
       { provider: "elevenlabs", value: "fixture-elevenlabs" },
     ]);
     await current.runtime.changeCredentials([{ provider: "openai" }]);
@@ -763,13 +764,17 @@ describe("runtime supervision", () => {
         generation: 1,
         credentials: {
           OPENAI_API_KEY: "fixture-openai",
+          ANTHROPIC_API_KEY: "fixture-anthropic",
           ELEVENLABS_API_KEY: "fixture-elevenlabs",
         },
       },
       {
         schema_version: 1,
         generation: 2,
-        credentials: { ELEVENLABS_API_KEY: "fixture-elevenlabs" },
+        credentials: {
+          ANTHROPIC_API_KEY: "fixture-anthropic",
+          ELEVENLABS_API_KEY: "fixture-elevenlabs",
+        },
       },
     ]);
     expect(fastapiLaunches()).toHaveLength(1);
@@ -1198,6 +1203,7 @@ describe("runtime supervision", () => {
       ),
     ).toEqual({
       openai: true,
+      anthropic: false,
       elevenlabs: true,
       ANIMAMA_CONNECTION_C_NEW_API_KEY: true,
     });

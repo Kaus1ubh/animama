@@ -83,7 +83,8 @@ Ownership and boundaries:
       passed.
 - [x] Phase 7: Utility role and the Anthropic Memory Manager runtime. Done
       2026-10-09; Review #2 passed; D23 and D24 implemented.
-- [ ] Phase 8: Desktop key, App Settings and chat UI. Not started.
+- [x] Phase 8: Desktop key, App Settings and chat UI. Done 2026-10-09; Review #2
+      passed; D25 implemented.
 - [ ] Phase 9: Documentation, ADR, measurements and owner live smoke. Not
       started. Owner acceptance gate.
 - [ ] Final integration review.
@@ -277,6 +278,17 @@ stated:
   approvals therefore no longer ends a run at the budget. A single step that
   exceeds the budget still ends blocked. This changes the OpenAI runtime too,
   where the Agents SDK previously carried the turn count across resumes.
+
+- **D25 (2026-10-09, owner, at Phase 8):**
+  - **Setup:** first-run setup's AI step offers Anthropic, adding a key and
+    picking Claude Haiku 5.5, beside OpenAI and local servers.
+  - **Logo:** the Anthropic logo is taken from models.dev
+    (`providers/anthropic/logo.svg`) at a pinned revision. Its provenance and
+    license are recorded under the provider-logo rules (README and the
+    `model-provider-logos` license inventory group). The owner approved the
+    download, which supersedes D14's fallback.
+  - **Preselection:** "Preselect Haiku 5.5" as the preselected template in the
+    Add model dialog is accepted.
 
 ## Implementation orientation
 
@@ -1277,7 +1289,7 @@ Checks:
 
 Completion: tests and checks pass; review leaves no blocker.
 
-Phase record: issue #367; starting source `e7fd83e9`; commit: this phase's commit (see git log for `[p3]`).
+Phase record: issue #367; starting source `e7fd83e9`; commit `a94b820b`.
 
 #### Code Review #1 Findings
 
@@ -1473,7 +1485,7 @@ Completion: tests pass; the OpenAI share does not fall and rises where layout
 was the cause; review leaves no blocker. If a path regresses, revise the layout,
 or return to the owner when the fix needs a different placement.
 
-Phase record: issue #368; starting source `a94b820b`; commit —.
+Phase record: issue #368; starting source `a94b820b`; commit `9330838a`.
 
 Implementation (delegated agent, reviewed independently):
 
@@ -1714,7 +1726,7 @@ Checks:
 
 Completion: tests pass; review leaves no blocker.
 
-Phase record: issue #369; starting source `9330838a`; commit —.
+Phase record: issue #369; starting source `9330838a`; commit `929acfbe`.
 
 Implementation (delegated agent, reviewed independently):
 
@@ -1925,7 +1937,7 @@ live contract test.
 
 Completion: tests pass; review leaves no blocker.
 
-Phase record: issue #370; starting source `929acfbe`; commit —.
+Phase record: issue #370; starting source `929acfbe`; commit `4eb9b0a9`.
 
 Implementation (delegated agent, reviewed independently):
 
@@ -2160,7 +2172,7 @@ Checks:
 
 Completion: tests pass; review leaves no blocker.
 
-Phase record: issue #371; starting source `4eb9b0a9`; commit —.
+Phase record: issue #371; starting source `4eb9b0a9`; commit `b7649699`.
 
 Implementation (delegated agent, reviewed independently):
 
@@ -2385,11 +2397,199 @@ Checks:
 Completion: checks pass; the visual check matches existing styling; review
 leaves no blocker.
 
-Phase record: issue #372; starting source —; commit —.
+Phase record: issue #372; starting source `b7649699`; commit: this phase's commit (see git log for `[p8]`).
+
+Implementation (delegated agent, reviewed independently):
+
+- **Desktop key:** `credentialProviders` and the vault gain `anthropic`, mapped
+  to `ANTHROPIC_API_KEY`, and `DesktopCredentialsPanel` gains an Anthropic
+  entry.
+- **Models settings:**
+  - an Anthropic cloud tab, with built-ins placed by preset;
+  - per-connection key controls on built-in cards;
+  - "Anthropic Messages" as the API label, and a "Built-in search" chip.
+- **`OwnerModelDialog` on the Anthropic connection:**
+  - the API is fixed and only chat models can be added;
+  - JSON mode is not offered, and only Anthropic templates are listed;
+  - Haiku 5.5 is the preselected template;
+  - "Test model" uses the Models API probe.
+- **Compact early:** an `EarlyCompactionSwitch` in model details, shown when
+  `early_compaction` is not null.
+- **Chat copy:** `chat-failure.ts` gains copy for `model_refused` and the
+  `anthropic_*` codes.
+- **Fold option:** relabelled "Send no developer messages", with corrected help
+  text and docstring (step 6).
+- **Setup:** setup finds the OpenAI built-in by preset.
+
+Deviations:
+
+- **Preselection:** "Preselect Haiku 5.5 when the Anthropic connection is
+  chosen" is the preselected template in the Add model dialog, because no
+  picker chooses a connection first. The owner accepted this (D25).
+- **Setup:** the first pass did not offer Anthropic; the owner then decided it
+  should (D25).
+- **Tab padding:** provider tabs use `px-2` (was `px-4`) so six Cloud tabs fit
+  at 1440 px.
+- **Logo:** none was shipped in the first pass (D14). The owner then approved
+  models.dev's logo (D25).
+
+Checks (first pass):
+
+- `pnpm check`, `web:lint`, `desktop:check`, `prettier:check` and `build`
+  pass.
+- `desktop:test`: 468 passed.
+- `web:test`: 3,220 passed and 4 failed. The failures are environmental:
+  `tests/local-api-proxy.test.ts` cannot bind port 5173, held by another
+  task's process, and Vite maps `port: 0` to 5173.
+- `e2e:test:fast`: 36 passed on the disposable built stack
+  `animama-anthropic-e2e`.
+- `make check-test`: 3,499 passed.
+- Visual check at 1440×900 and 900×800 on
+  `http://animama-anthropic.localhost:8820` (skip mode).
 
 #### Code Review #1 Findings
 
+Independent `sdlc-reviewer`, full initial review of the working tree on
+`b7649699`.
+
+It verified:
+
+- the credential flow;
+- the generalized built-in cards and tab placement;
+- the dialog rules against backend validation, apart from F1;
+- the Compact early switch;
+- the refusal copy;
+- the fold relabel;
+- the setup change;
+- D14.
+
+Checks: type checks, 136 changed web tests and 127 desktop tests passed; lint
+and prettier passed. The 4 proxy failures are environmental.
+
+- **P8-R1-F1 (blocking):** after a successful Anthropic probe, the template's
+  efforts and structured-output transport leak into the draft when the report
+  has none. A model without effort or structured outputs would be saved
+  advertising them.
+- **P8-R1-F2 (blocking, documentation):** the desktop-runtime,
+  local-http-components and Electron guide docs still list only the OpenAI and
+  ElevenLabs keys.
+- **P8-R1-F3 (blocking, record):** the Phase 8 record and deviations were
+  missing.
+- **Optional findings:**
+  - no tests for the Compact early switch or the Anthropic dialog mode;
+  - no desktop-backend key parity test;
+  - `chat.md` overstated the `anthropic_*` copy;
+  - smaller notes on downgrade, duplication and dead code.
+
 #### Code Review #1 Revisions
+
+- **F3 (accepted):** this record; D25 records the owner's answers.
+- **F1, F2 and the optional tests and doc wording:** sent to the implementer
+  together with D25 (the setup Anthropic option and the models.dev logo).
+
+Repair results (uncommitted, on `b7649699`):
+
+- **F1:** fixed. A pure `draftAfterProbe` helper replaces `templateAfterProbe`.
+  - After a successful Anthropic Models API probe, the template is cleared.
+    Efforts become `supported_reasoning_efforts ?? []`, and structured output
+    takes the report's transport, or null if the report has none.
+  - A failed probe keeps the template, and OpenAI and owner merges are
+    unchanged.
+  - Unit tests cover every case. A live probe of `claude-haiku-4-5-20251001`
+    saved null efforts, no template and a 200,000-token window.
+- **F2:** fixed.
+  - `desktop-runtime.md` and `local-http-components.md` list
+    `ANTHROPIC_API_KEY`, and `electron-guide.md` lists the Anthropic key.
+  - `chat.md` now says only the `anthropic_*` codes with an OpenAI counterpart
+    reuse its copy.
+- **Optional tests:** done.
+  - `OwnerModelDialog.test.tsx` adds 7 tests for the Compact early switch and
+    the Anthropic dialog mode.
+  - The vault parity test in `tests/test_desktop_credentials_route.py` now
+    covers OpenAI, Anthropic and ElevenLabs.
+- **D25(a), setup:** the first-run AI step has an Anthropic tab.
+  - On desktop it has a key panel; on web it shows the `ANTHROPIC_API_KEY`
+    line.
+  - "Use Anthropic" (Haiku 5.5) is enabled only once the key exists, and
+    saving the key chooses Haiku when nothing is chosen yet.
+  - OpenAI behaviour is unchanged. Unit and setup browser tests cover it.
+- **D25(b), logo:** `provider-logos/anthropic.svg` comes from models.dev
+  `providers/anthropic/logo.svg` at the pinned revision, unmodified.
+  - It is a single `currentColor` path. The MIT licence is byte-identical to
+    the bundled one.
+  - Provenance is recorded in the logo README and in the `license-sources.json`
+    group `model-provider-logos`, which now lists ten files.
+  - It is registered in `PROVIDER_LOGOS`.
+  - The desktop notice inventory is produced at staging and its hash is bound
+    in `release-policy.json`, so the owner re-reviews it before a release.
+- **Checks after the repair:**
+  - `prettier:check`, `check`, `web:lint`, `desktop:check` and `build` pass.
+  - `desktop:test`: 468 passed.
+  - `web:test`: 3,233 passed, plus the same 4 environmental port-5173
+    failures.
+  - Browser tests: 39 of 39 passed.
+  - `make audit-typed-content format-check lint mypy` passes.
+  - The `e2e:test:fast` and `make check-test` reruns could not finish: OrbStack
+    stopped responding (Helper at about 750% CPU; `docker version` timed out).
+    They are to be repeated after recovery.
+  - Visual check at 1440×900 on a fresh no-key setup stack and on the dev
+    stack: setup tabs, disabled choices with hints, and the Anthropic logo on
+    the card and in the picker.
+
+#### Code Review #2 Findings
+
+Independent `sdlc-reviewer`, repair round 1. It reviewed the uncommitted tree
+on `b7649699`, covering F1–F3, D25 and the optional tests.
+
+**Result: pass, with no blocking findings.**
+
+Verified:
+
+- **F1 and F2:** fixed. The reviewer checked `chat.md` against
+  `chat-failure.ts`.
+- **F3:** the record is complete.
+- **D25 setup:** Haiku is chosen only from the visible built-in Anthropic
+  connection. OpenAI is unchanged and is the only Recommended choice.
+- **D25 logo:** the file is byte-identical to models.dev at the pinned
+  revision. The SVG has no script, style or external reference.
+- **Release:** the `license-sources.json` change invalidates the
+  `release-policy.json` inventory hashes, so the owner re-reviews them before a
+  release, as recorded.
+
+Checks run by the reviewer:
+
+- type checks for web, desktop and product-ui;
+- 165 targeted web tests;
+- 20 of 20 setup browser tests;
+- 196 desktop runtime tests;
+- `web:lint`, `prettier:check`, the parity test and `ruff`.
+
+Non-blocking findings:
+
+- **Both keys ready at once:** if both built-in keys became ready in the same
+  refetch with nothing chosen, Anthropic would win over the Recommended
+  OpenAI. Saves run one at a time, so this is unlikely.
+- **Image input:** after an Anthropic test, `accepts_images` still comes from
+  the template, because the Models API probe does not report image input.
+- **Spec label:** the spec placed D24 and D25 under the Phase 2 presentation
+  heading, and issue #364 has not received D22, D24 or D25.
+
+#### Code Review #2 Revisions
+
+- **Both keys ready at once:** accepted as is. Setup saves keys one at a time,
+  and the chosen model stays visible and editable before Finish.
+- **Image input:** accepted. Every Claude model in the catalog accepts image
+  input, and the checkbox stays visible and editable.
+- **Spec label:** fixed. D22, D24 and D25 now sit under their own
+  "during implementation" heading. Issue #364 is to be republished from the
+  Phase 8 commit.
+
+Final checks on the candidate, after OrbStack was restarted (the owner
+approved force-quitting the hung VM manager):
+
+- `pnpm e2e:test:fast`: 36 passed in 5.0 minutes on the rebuilt
+  `animama-anthropic-e2e` (run `run-1009204115`).
+- `timeout 2400 make check-test`: 3,499 passed and 27 skipped.
 
 ### Phase 9: Documentation, ADR, measurements and owner live smoke
 

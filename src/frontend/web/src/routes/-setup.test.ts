@@ -16,6 +16,7 @@ import { Route } from "@/routes/setup";
 import { normalizeLocalDisplayName } from "@/lib/user-profile/display-name";
 import {
   adjacentSetupStep,
+  anthropicDefaultModel,
   detectedModelsToAdd,
   onboardingInput,
   openAiDefaultModel,
@@ -29,6 +30,7 @@ import {
 // Rendering is static here; scripts/setup-downloads.browser.test.mjs drives
 // navigation, focus, the unsaved-key prompt and the Finish payload in a browser.
 const OPENAI_MODEL = "OpenAIResponsesHTTPAgent:gpt-6-luna";
+const HAIKU = "AnthropicMessagesHTTPAgent:claude-haiku-5-5";
 const fixture = vi.hoisted(() => ({
   completeOnboarding: vi.fn(),
   draft: null as SetupDraft | null,
@@ -39,6 +41,7 @@ const fixture = vi.hoisted(() => ({
   },
   connections: [] as unknown[],
   providers: [] as unknown[],
+  desktopKeys: true,
 }));
 vi.mock("@web/app/local-runtime/LocalRuntimeProvider", () => ({
   useLocalRuntime: () => ({
@@ -91,7 +94,7 @@ vi.mock("@/ui/settings/OfflineSpeechDownloads", () => ({
 vi.mock("@/ui/settings/DesktopCredentialsPanel", () => ({
   DesktopCredentialsPanel: ({ providers }: { providers: string[] }) =>
     createElement("div", { "data-key-panel": providers.join(",") }),
-  useDesktopCredentialsAvailable: () => true,
+  useDesktopCredentialsAvailable: () => fixture.desktopKeys,
   useDesktopCredentialConfigured: () => false,
 }));
 vi.mock("@tanstack/react-router", async (importOriginal) => ({
@@ -120,6 +123,15 @@ function renderSetup(draft: Partial<SetupDraft> | null = null): string {
 
 const welcomeDone = { displayName: "Ada", adultConfirmed: true };
 
+/** The radio button for a model choice, as rendered markup. */
+function radio(html: string, id: string): string {
+  const tag = [...html.matchAll(/<button[^>]*role="radio"[^>]*>/gu)]
+    .map((match) => match[0])
+    .find((button) => button.includes(`value="${id}"`));
+  if (!tag) throw new Error(`No radio for ${id}`);
+  return tag;
+}
+
 const builtinConnection = {
   id: "builtin-openai",
   name: "OpenAI",
@@ -127,6 +139,16 @@ const builtinConnection = {
   source: "builtin",
   base_url: null,
   credential_state: "configured",
+  models: [],
+} as unknown as PyModelConnection;
+// Listed before OpenAI so setup cannot mistake it for the OpenAI connection.
+const anthropicConnection = {
+  id: "anthropic",
+  name: "Anthropic",
+  preset: "anthropic",
+  source: "builtin",
+  base_url: null,
+  credential_state: "missing",
   models: [],
 } as unknown as PyModelConnection;
 const ollama = {
@@ -187,6 +209,11 @@ const catalog = [
     context_window_tokens: null,
   }),
   item("OpenAIHTTPAgent:conn-deepseek:deepseek-chat", deepseek),
+  item(HAIKU, anthropicConnection, {
+    model_provider: "AnthropicMessagesHTTPAgent",
+    api_standard: "anthropic_messages",
+    model_label: "Claude Haiku 5.5",
+  }),
 ];
 
 describe("local first-run setup", () => {
@@ -242,7 +269,7 @@ describe("local first-run setup", () => {
   });
 
   it("offers Cloud | Local and provider tabs on the AI step, with the OpenAI key and Skip", () => {
-    fixture.connections = [builtinConnection];
+    fixture.connections = [anthropicConnection, builtinConnection];
     fixture.providers = catalog;
     const html = renderSetup({
       ...welcomeDone,
@@ -261,6 +288,14 @@ describe("local first-run setup", () => {
       expect(html).toMatch(
         new RegExp(`role="tab"[^>]*><span[^>]*>${provider}`, "u"),
       );
+    // Anthropic sits beside OpenAI with its own key, but needs that key first.
+    expect(html).toMatch(/role="tab"[^>]*><span[^>]*>Anthropic</u);
+    expect(html).toContain('data-key-panel="anthropic"');
+    expect(radio(html, OPENAI_MODEL)).toContain('aria-checked="true"');
+    expect(radio(html, HAIKU)).toContain('disabled=""');
+    expect(html).toContain("Use Anthropic");
+    expect(html).toContain("Save your Anthropic key to use Anthropic.");
+    expect(html).not.toContain("Save your OpenAI key");
     // OpenAI (key set) opens first and is marked connected.
     expect(html).toMatch(
       /role="tab" aria-selected="true"[^>]*><span[^>]*>OpenAI<span aria-hidden="true"[^>]*><\/span><span class="sr-only"> \(connected\)/u,
@@ -271,6 +306,48 @@ describe("local first-run setup", () => {
     expect(html).toMatch(/<button[^>]*>Skip for now<\/button>/u);
     expect(html).toMatch(/<button[^>]*>Continue<\/button>/u);
     expect(html).not.toContain("Finish");
+  });
+
+  it("offers Claude Haiku 5.5 once the Anthropic key is set", () => {
+    fixture.connections = [
+      { ...anthropicConnection, credential_state: "configured" },
+      { ...builtinConnection, credential_state: "missing" },
+    ];
+    fixture.providers = catalog;
+    const html = renderSetup({
+      ...welcomeDone,
+      step: "ai",
+      chatModelId: HAIKU,
+    });
+    // Anthropic (key set) is the first connected provider, so it opens first.
+    expect(html).toMatch(
+      /role="tab" aria-selected="true"[^>]*><span[^>]*>Anthropic<span aria-hidden="true"[^>]*><\/span><span class="sr-only"> \(connected\)/u,
+    );
+    expect(html).toContain(
+      "New Animas will chat with Anthropic (Claude Haiku 5.5).",
+    );
+    expect(radio(html, HAIKU)).toContain('aria-checked="true"');
+    expect(radio(html, HAIKU)).not.toContain('disabled=""');
+    expect(html).not.toContain("Save your Anthropic key");
+    expect(html).toContain("Save your OpenAI key to use OpenAI.");
+    // Only OpenAI is recommended.
+    expect(html.match(/Recommended/gu)).toHaveLength(1);
+  });
+
+  it("names the Anthropic key variable on self-hosted web", () => {
+    fixture.desktopKeys = false;
+    fixture.connections = [anthropicConnection, builtinConnection];
+    fixture.providers = catalog;
+    try {
+      const html = renderSetup({ ...welcomeDone, step: "ai" });
+      expect(html).toContain(
+        "Set ANTHROPIC_API_KEY on the server to use Anthropic.",
+      );
+      expect(html).toContain("Uses the OpenAI key configured on this server.");
+      expect(html).not.toContain("data-key-panel");
+    } finally {
+      fixture.desktopKeys = true;
+    }
   });
 
   it("shows no model choice on the hosted composition's AI step", () => {
@@ -386,7 +463,12 @@ describe("setup step logic", () => {
   });
 
   it("chooses OpenAI's default Responses model and lists owner models by location", () => {
-    const connections = [builtinConnection, ollama, deepseek];
+    const connections = [
+      anthropicConnection,
+      builtinConnection,
+      ollama,
+      deepseek,
+    ];
     expect(openAiDefaultModel(catalog, connections, OPENAI_MODEL)?.id).toBe(
       OPENAI_MODEL,
     );
@@ -394,6 +476,17 @@ describe("setup step logic", () => {
       "OpenAIResponsesHTTPAgent:gpt-6-mini",
     );
     expect(openAiDefaultModel([], connections, OPENAI_MODEL)).toBeNull();
+    // Anthropic's default is Claude Haiku 5.5 on the built-in connection.
+    expect(anthropicDefaultModel(catalog, connections)?.id).toBe(HAIKU);
+    expect(anthropicDefaultModel(catalog, [builtinConnection])).toBeNull();
+    expect(
+      anthropicDefaultModel(
+        catalog.map((entry) =>
+          entry.id === HAIKU ? { ...entry, hidden: true } : entry,
+        ),
+        connections,
+      ),
+    ).toBeNull();
     expect(ownerModelChoices(catalog, connections, "local")).toEqual([
       {
         id: "OpenAIHTTPAgent:conn-ollama:qwen3:8b",

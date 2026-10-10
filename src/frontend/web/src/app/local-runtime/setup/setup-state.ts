@@ -11,7 +11,13 @@ import {
   type SetupStep,
   type SetupTtsProvider,
 } from "@/app/local-runtime/setup-draft";
-import { alternateModelIds, modelDisplayName } from "@/lib/chat/model-catalog";
+import {
+  ANTHROPIC_DEFAULT_MODEL_ID,
+  ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+  RESPONSES_PROVIDER_TYPE,
+  alternateModelIds,
+  modelDisplayName,
+} from "@/lib/chat/model-catalog";
 import type { SpeechPreferences } from "@/lib/settings/preferences";
 import type { TtsProviderOption } from "@/lib/speech/tts-provider";
 import {
@@ -39,7 +45,18 @@ export function adjacentSetupStep(
   return SETUP_STEPS[SETUP_STEPS.indexOf(step) + direction] ?? null;
 }
 
-const RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent";
+/** The built-in connections setup offers as "Use OpenAI" and "Use Anthropic". */
+export type SetupBuiltinProvider = "openai" | "anthropic";
+
+/** A built-in connection, found by its preset; each built-in has its own. */
+export function builtinConnectionOf<
+  C extends Pick<PyModelConnection, "source" | "preset">,
+>(connections: readonly C[], preset: SetupBuiltinProvider): C | undefined {
+  return connections.find(
+    (connection) =>
+      connection.source === "builtin" && connection.preset === preset,
+  );
+}
 
 /** A model the AI step can choose, with the name shown next to its radio. */
 export type SetupModelChoice = {
@@ -58,14 +75,11 @@ export function openAiDefaultModel(
   connections: readonly PyModelConnection[],
   systemDefaultId: string | null | undefined,
 ): PyModelProviderCatalogItem | null {
-  const builtin = new Set(
-    connections
-      .filter((connection) => connection.source === "builtin")
-      .map((connection) => connection.id),
-  );
+  const openAi = builtinConnectionOf(connections, "openai");
   const candidates = roleCandidates(items, "chat").filter(
     (item) =>
-      builtin.has(item.connection_id ?? "") &&
+      openAi !== undefined &&
+      item.connection_id === openAi.id &&
       item.model_provider === RESPONSES_PROVIDER_TYPE,
   );
   return (
@@ -76,9 +90,30 @@ export function openAiDefaultModel(
 }
 
 /**
+ * The model "Use Anthropic" chooses: Claude Haiku 5.5, Anthropic's default,
+ * when the built-in Anthropic connection offers it for chat. The
+ * application default stays OpenAI's.
+ */
+export function anthropicDefaultModel(
+  items: readonly PyModelProviderCatalogItem[],
+  connections: readonly PyModelConnection[],
+): PyModelProviderCatalogItem | null {
+  const anthropic = builtinConnectionOf(connections, "anthropic");
+  return (
+    roleCandidates(items, "chat").find(
+      (item) =>
+        anthropic !== undefined &&
+        item.connection_id === anthropic.id &&
+        item.model_provider === ANTHROPIC_MESSAGES_PROVIDER_TYPE &&
+        item.id === ANTHROPIC_DEFAULT_MODEL_ID,
+    ) ?? null
+  );
+}
+
+/**
  * Chat models on the owner's own connections in one location, which the AI
- * step lists as choices. Built-in OpenAI models are offered only as "Use
- * OpenAI".
+ * step lists as choices. Built-in models are offered only as "Use OpenAI"
+ * and "Use Anthropic".
  */
 export function ownerModelChoices(
   items: readonly PyModelProviderCatalogItem[],

@@ -52,7 +52,33 @@ export function modelDisplayName(
   return alternate ? `${name}${ALTERNATE_LABEL_SUFFIX}` : name;
 }
 
-const RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent";
+/**
+ * API families a catalog row uses (`model_provider` on catalog items,
+ * `provider_type` on configured models). The app picks the family: OpenAI
+ * Responses on the built-in OpenAI connection, Anthropic Messages on the
+ * built-in Anthropic connection and Chat Completions everywhere else.
+ */
+export const RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent";
+export const CHAT_COMPLETIONS_PROVIDER_TYPE = "OpenAIHTTPAgent";
+export const ANTHROPIC_MESSAGES_PROVIDER_TYPE = "AnthropicMessagesHTTPAgent";
+export type ModelProviderType =
+  | typeof RESPONSES_PROVIDER_TYPE
+  | typeof CHAT_COMPLETIONS_PROVIDER_TYPE
+  | typeof ANTHROPIC_MESSAGES_PROVIDER_TYPE;
+
+/** A stored provider type as one of the known API families (Chat Completions otherwise). */
+export function modelProviderType(
+  value: string | null | undefined,
+): ModelProviderType {
+  return value === RESPONSES_PROVIDER_TYPE ||
+    value === ANTHROPIC_MESSAGES_PROVIDER_TYPE
+    ? value
+    : CHAT_COMPLETIONS_PROVIDER_TYPE;
+}
+
+/** The built-in Anthropic connection's default model, Claude Haiku 5.5. */
+export const ANTHROPIC_DEFAULT_MODEL_ID =
+  "AnthropicMessagesHTTPAgent:claude-haiku-5-5";
 
 /** Fields shared by catalog items and configured models that naming needs. */
 type AlternateCandidate = {

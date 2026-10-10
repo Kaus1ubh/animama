@@ -37,8 +37,11 @@ REASONING_MODES = frozenset({REASONING_MODE_OPENAI_EFFORT, REASONING_MODE_DEEPSE
 class ModelConnectionCompatibility:
     """Request-shape options for servers that differ from OpenAI's behavior.
 
-    - ``fold_developer_role``: merge ``developer`` messages into the system
-      message for servers or chat templates that reject the role.
+    - ``fold_developer_role``: send no ``developer`` messages, for servers or
+      chat templates that reject the role. Each turn's context goes in a
+      tagged ``<turn_context>`` block at the start of the user message; only
+      an app compaction summary and within-turn instructions are merged into
+      the system message.
     - ``send_openai_extensions``: send ``prompt_cache_key`` and
       ``parallel_tool_calls``, which some servers reject as unknown fields.
     - ``send_stream_usage``: request streamed usage with

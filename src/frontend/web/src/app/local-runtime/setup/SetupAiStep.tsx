@@ -44,6 +44,7 @@ import { ModelLocationTabsList } from "@/ui/settings/models/ModelLocationTabsLis
 import { ModelProviderTabsList } from "@/ui/settings/models/ModelProviderTabsList";
 import {
   baseUrlHost,
+  builtinConnectionKey,
   connectionLocation,
   connectionProviderEntry,
   connectionStatusText,
@@ -57,10 +58,13 @@ import {
 } from "@/ui/settings/models/model-configuration-state";
 
 import {
+  anthropicDefaultModel,
+  builtinConnectionOf,
   connectionForDetection,
   detectedModelsToAdd,
   openAiDefaultModel,
   ownerModelChoices,
+  type SetupBuiltinProvider,
   type SetupModelChoice,
 } from "./setup-state";
 
@@ -81,8 +85,9 @@ function canChat(model: PyConfiguredModel): boolean {
 
 /**
  * Setup's AI step: where models run (Cloud | Local), a tab per provider, and
- * the model new Animas chat with. Cloud recommends OpenAI with its key; other
- * providers connect with the same form as App Settings → Models. Each local
+ * the model new Animas chat with. Cloud recommends OpenAI and offers
+ * Anthropic, each with its key; other providers connect with the same form as
+ * App Settings → Models. Each local
  * server tab looks for that server at its default address and adds one of
  * its models. A runtime that does not let the owner configure models shows
  * no choice.
@@ -111,40 +116,52 @@ export function SetupAiStep({
   const managedKeys = useDesktopCredentialsAvailable();
   const { modelConfiguration } = modelSettingsAvailability(capabilities.data);
 
-  // Keys are typed in the OpenAI key panel and in connect forms, one per
-  // provider tab (all stay mounted). The step reports them to setup as one
-  // source, so leaving with any unsaved asks first, and any save counts as
-  // busy.
-  const panel = useRef<DesktopCredentialsController>(null);
-  const [panelPending, setPanelPending] = useState(0);
-  const [panelBusy, setPanelBusy] = useState(false);
+  // Keys are typed in the OpenAI and Anthropic key panels and in connect
+  // forms, one per provider tab (all stay mounted). The step reports them to
+  // setup as one source, so leaving with any unsaved asks first, and any
+  // save counts as busy.
+  const openAiPanel = useKeyPanel();
+  const anthropicPanel = useKeyPanel();
+  const panels = [openAiPanel, anthropicPanel];
   const forms = useConnectFormKeys();
-  const pending = panelPending + forms.dirtyCount;
-  const busy = panelBusy || forms.saving;
+  const pending =
+    openAiPanel.pending + anthropicPanel.pending + forms.dirtyCount;
+  const busy = openAiPanel.busy || anthropicPanel.busy || forms.saving;
   useEffect(() => onKeyPendingChange(pending), [onKeyPendingChange, pending]);
   useEffect(() => onKeyBusyChange(busy), [busy, onKeyBusyChange]);
   useImperativeHandle(credentialsController, () => ({
     save: async () => {
-      if (panelPending > 0 && !(await panel.current?.save())) return false;
+      for (const panel of panels)
+        if (panel.pending > 0 && !(await panel.ref.current?.save()))
+          return false;
       return forms.save();
     },
     discard: () => {
-      panel.current?.discard();
+      for (const panel of panels) panel.ref.current?.discard();
       forms.discard();
     },
   }));
 
-  const openAiKey = managedKeys ? (
-    <DesktopCredentialsPanel
-      providers={["openai"]}
-      showTitle={false}
-      description="Encrypted on this computer and never shown again."
-      className="bg-transparent p-3"
-      controllerRef={panel}
-      onPendingChange={setPanelPending}
-      onBusyChange={setPanelBusy}
-    />
-  ) : null;
+  /** A built-in provider's desktop key field, reported with the others. */
+  const keyPanel = (
+    provider: SetupBuiltinProvider,
+    panel: ReturnType<typeof useKeyPanel>,
+  ) =>
+    managedKeys ? (
+      <DesktopCredentialsPanel
+        providers={[provider]}
+        showTitle={false}
+        description="Encrypted on this computer and never shown again."
+        className="bg-transparent p-3"
+        controllerRef={panel.ref}
+        onPendingChange={panel.setPending}
+        onBusyChange={panel.setBusy}
+      />
+    ) : null;
+  const builtinKeys: Record<SetupBuiltinProvider, ReactNode> = {
+    openai: keyPanel("openai", openAiPanel),
+    anthropic: keyPanel("anthropic", anthropicPanel),
+  };
 
   if (capabilities.isPending)
     return (
@@ -166,7 +183,7 @@ export function SetupAiStep({
           This installation provides its own models, so there is nothing to
           choose here.
         </p>
-        {openAiKey}
+        {builtinKeys.openai}
       </div>
     );
   return (
@@ -176,11 +193,47 @@ export function SetupAiStep({
       chatModelId={chatModelId}
       onChatModelChange={onChatModelChange}
       managedKeys={managedKeys}
-      openAiKey={openAiKey}
+      builtinKeys={builtinKeys}
       connectFormKeys={forms.keysFor}
       onSetUpLater={onSetUpLater}
     />
   );
+}
+
+/** A built-in provider's key panel: its controller and unsaved or saving state. */
+function useKeyPanel() {
+  const ref = useRef<DesktopCredentialsController>(null);
+  const [pending, setPending] = useState(0);
+  const [busy, setBusy] = useState(false);
+  return { ref, pending, setPending, busy, setBusy };
+}
+
+/**
+ * Saving a built-in provider's key here completes the choice with its
+ * default model. A key that was already set chooses nothing: only explicit
+ * choices in this setup become the Chat default.
+ */
+function useChooseWhenKeySaved({
+  loaded,
+  ready,
+  modelId,
+  chatModelId,
+  onChatModelChange,
+}: {
+  loaded: boolean;
+  ready: boolean;
+  /** The default model, while its key is set. */
+  modelId: string | null;
+  chatModelId: string | null;
+  onChatModelChange: (id: string | null) => void;
+}) {
+  const wasReady = useRef<boolean | null>(null);
+  useEffect(() => {
+    if (!loaded) return;
+    if (wasReady.current === false && modelId && chatModelId === null)
+      onChatModelChange(modelId);
+    wasReady.current = ready;
+  }, [chatModelId, loaded, onChatModelChange, modelId, ready]);
 }
 
 /** How an inline connect form reports its typed key to the step. */
@@ -258,7 +311,7 @@ function ModelChooser({
   chatModelId,
   onChatModelChange,
   managedKeys,
-  openAiKey,
+  builtinKeys,
   connectFormKeys,
   onSetUpLater,
 }: {
@@ -267,7 +320,8 @@ function ModelChooser({
   chatModelId: string | null;
   onChatModelChange: (id: string | null) => void;
   managedKeys: boolean;
-  openAiKey: ReactNode;
+  /** Each built-in provider's desktop key field (null on web). */
+  builtinKeys: Record<SetupBuiltinProvider, ReactNode>;
   connectFormKeys: (providerId: string) => ConnectFormKeys;
   onSetUpLater: () => void;
 }) {
@@ -284,14 +338,36 @@ function ModelChooser({
 
   const allConnections = connections.data ?? [];
   const items = providers.data ?? [];
-  const builtin = allConnections.find(
-    (connection) => connection.source === "builtin",
-  );
-  const openAiReady = builtin?.credential_state === "configured";
+  const openAiConnection = builtinConnectionOf(allConnections, "openai");
   const systemDefaultId = roles.data?.roles.find(
     (role) => role.role === "chat",
   )?.model_provider_id;
-  const openAi = openAiDefaultModel(items, allConnections, systemDefaultId);
+  // "Use OpenAI" and "Use Anthropic": each built-in provider's default model,
+  // choosable once its key is set.
+  const builtins = (
+    [
+      {
+        provider: "openai",
+        name: "OpenAI",
+        model: openAiDefaultModel(items, allConnections, systemDefaultId),
+      },
+      {
+        provider: "anthropic",
+        name: "Anthropic",
+        model: anthropicDefaultModel(items, allConnections),
+      },
+    ] as const
+  ).map((builtin) => {
+    const ready =
+      builtinConnectionOf(allConnections, builtin.provider)
+        ?.credential_state === "configured";
+    return {
+      ...builtin,
+      ready,
+      readyId: ready ? (builtin.model?.id ?? null) : null,
+    };
+  });
+  const [openAi, anthropic] = builtins;
   const choices: Record<SetupModelLocation, SetupModelChoice[]> = {
     cloud: ownerModelChoices(items, allConnections, "cloud"),
     local: ownerModelChoices(items, allConnections, "local"),
@@ -303,32 +379,29 @@ function ModelChooser({
     roles.isFetched &&
     !connections.isFetching &&
     !providers.isFetching;
-  const templates = (builtin?.models ?? []).filter(
+  const templates = (openAiConnection?.models ?? []).filter(
     (model) => model.source === "builtin" && model.model_kind === "chat",
   );
 
-  // Saving the OpenAI key here completes the choice with OpenAI's default
-  // model. A key that was already set chooses nothing: only explicit choices
-  // in this setup become the Chat default.
-  const openAiId = openAiReady ? (openAi?.id ?? null) : null;
-  const wasReady = useRef<boolean | null>(null);
-  useEffect(() => {
-    if (!connections.isSuccess) return;
-    if (wasReady.current === false && openAiId && chatModelId === null)
-      onChatModelChange(openAiId);
-    wasReady.current = openAiReady;
-  }, [
+  useChooseWhenKeySaved({
+    loaded: connections.isSuccess,
+    ready: openAi.ready,
+    modelId: openAi.readyId,
     chatModelId,
-    connections.isSuccess,
     onChatModelChange,
-    openAiId,
-    openAiReady,
-  ]);
+  });
+  useChooseWhenKeySaved({
+    loaded: connections.isSuccess,
+    ready: anthropic.ready,
+    modelId: anthropic.readyId,
+    chatModelId,
+    onChatModelChange,
+  });
 
   // A choice that is no longer offered (removed, or its key removed) is dropped.
   const offered =
     chatModelId === null ||
-    chatModelId === openAiId ||
+    builtins.some((builtin) => builtin.readyId === chatModelId) ||
     [...choices.cloud, ...choices.local].some(
       (item) => item.id === chatModelId,
     );
@@ -340,11 +413,14 @@ function ModelChooser({
   const systemDefault = defaultItem
     ? (defaultItem.model_label ?? defaultItem.model)
     : null;
+  const chosenBuiltin = builtins.find(
+    (builtin) => builtin.readyId !== null && builtin.readyId === chatModelId,
+  );
   const chosenLabel =
     chatModelId === null
       ? null
-      : chatModelId === openAiId && openAi
-        ? `OpenAI (${openAi.model_label ?? openAi.model})`
+      : chosenBuiltin?.model
+        ? `${chosenBuiltin.name} (${chosenBuiltin.model.model_label ?? chosenBuiltin.model.model})`
         : [...choices.cloud, ...choices.local]
             .filter((item) => item.id === chatModelId)
             .map((item) => `${item.label} on ${item.connectionName}`)[0];
@@ -353,15 +429,19 @@ function ModelChooser({
     presets.data?.find((preset) => preset.id === id);
   const openAdder = (next: ModelAdder) => setAdder(next);
   const radioChoices: Array<SetupModelChoice & { disabled?: boolean }> = [
-    ...(location === "cloud" && openAi
-      ? [
-          {
-            id: openAi.id,
-            label: "Use OpenAI",
-            connectionName: openAi.model_label ?? openAi.model,
-            disabled: !openAiReady,
-          },
-        ]
+    ...(location === "cloud"
+      ? builtins.flatMap(({ name, model, ready }) =>
+          model
+            ? [
+                {
+                  id: model.id,
+                  label: `Use ${name}`,
+                  connectionName: model.model_label ?? model.model,
+                  disabled: !ready,
+                },
+              ]
+            : [],
+        )
       : []),
     ...choices[location],
   ];
@@ -393,7 +473,10 @@ function ModelChooser({
       </p>
     );
 
-  /** One provider's panel: OpenAI, another cloud provider, or a local server. */
+  /**
+   * One provider's panel: a built-in provider (OpenAI, Anthropic) with its
+   * key, another cloud provider, or a local server.
+   */
   const providerPanel = (
     where: SetupModelLocation,
     entry: ModelProviderEntry,
@@ -401,30 +484,41 @@ function ModelChooser({
     const items =
       groups[where].find((group) => group.entry.id === entry.id)?.connections ??
       [];
-    if (entry.presetId === "openai")
+    const builtin = builtins.find(
+      (candidate) => candidate.provider === entry.presetId,
+    );
+    if (builtin) {
+      const env = builtinConnectionKey({
+        source: "builtin",
+        preset: builtin.provider,
+      })?.env;
       return (
         <section
-          aria-labelledby={`${choiceHeadingId}-openai`}
+          aria-labelledby={`${choiceHeadingId}-${builtin.provider}`}
           className="border-border/60 space-y-2 rounded-xl border p-4"
         >
           <h3
-            id={`${choiceHeadingId}-openai`}
+            id={`${choiceHeadingId}-${builtin.provider}`}
             className="flex flex-wrap items-center gap-2 text-sm font-semibold"
           >
-            OpenAI <span className={TAG_CLASS}>Recommended</span>
+            {builtin.name}
+            {entry.recommended ? (
+              <span className={TAG_CLASS}>Recommended</span>
+            ) : null}
           </h3>
           <p className="text-muted-foreground text-xs">{entry.purpose}</p>
           {managedKeys ? (
-            openAiKey
+            builtinKeys[builtin.provider]
           ) : (
             <p className="text-muted-foreground text-xs">
-              {openAiReady
-                ? "Uses the OpenAI key configured on this server."
-                : "Set OPENAI_API_KEY on the server to use OpenAI."}
+              {builtin.ready
+                ? `Uses the ${builtin.name} key configured on this server.`
+                : `Set ${env} on the server to use ${builtin.name}.`}
             </p>
           )}
         </section>
       );
+    }
     if (where === "local" && entry.presetId !== "custom")
       return (
         <LocalServer
@@ -523,11 +617,15 @@ function ModelChooser({
               </div>
             ))}
           </RadioGroup>
-          {location === "cloud" && openAi && !openAiReady ? (
-            <p className="text-muted-foreground text-xs">
-              Save your OpenAI key to use OpenAI.
-            </p>
-          ) : null}
+          {location === "cloud"
+            ? builtins
+                .filter(({ model, ready }) => model && !ready)
+                .map(({ provider, name }) => (
+                  <p key={provider} className="text-muted-foreground text-xs">
+                    {`Save your ${name} key to use ${name}.`}
+                  </p>
+                ))
+            : null}
         </section>
       ) : null}
       <p className="text-sm" role="status">

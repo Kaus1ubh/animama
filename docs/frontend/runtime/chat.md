@@ -34,7 +34,14 @@ removed connections. The notice names the failed
 connection from the error's `details.connection_name` (never assuming OpenAI);
 for Ollama, LM Studio, llama.cpp and vLLM connections it asks whether the server
 is running at `details.connection_base_url`, and the `context_exceeded` category
-explains an oversized conversation and suggests a larger-context model or window. Local admission errors describe
+explains an oversized conversation and suggests a larger-context model or window.
+Anthropic codes with an OpenAI counterpart (key, access, model, quota, rate
+limit, overload, server, timeout, connection and bad-request errors) read like
+it and name the Anthropic connection; `anthropic_context_exceeded` and
+`anthropic_stream_incomplete` have their own copy, and others such as
+`anthropic_request_failed` use the safe fallback, as `openai_request_failed`
+does. `model_refused` means a Claude model declined the turn:
+the notice says so and suggests rephrasing, and no other model is tried. Local admission errors describe
 installation access, without treating every HTTP 403 as an invalid provider key.
 Unknown errors use a safe fallback. The only URL a notice shows is the base URL
 the owner configured for a non-built-in connection; provider response text,

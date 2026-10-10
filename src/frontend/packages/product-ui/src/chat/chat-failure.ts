@@ -52,7 +52,7 @@ type Description = (connection: FailedConnection) => readonly [string, string];
 const MODEL_SETTINGS = "App Settings → Models";
 
 /** Copy for backend codes; each names the connection that failed. */
-const descriptions: Record<string, Description> = {
+const baseDescriptions: Record<string, Description> = {
   missing_api_key: ({ name }) => [
     `${name} has no API key configured.`,
     `Ask the installation owner to add its key in ${MODEL_SETTINGS} or API Keys, then send your message again.`,
@@ -119,6 +119,11 @@ const descriptions: Record<string, Description> = {
     "The reply was interrupted.",
     "The connection ended before Animama confirmed completion. Check your connection before sending again.",
   ],
+  // A Claude model's refusal (stop_reason "refusal"); no other model is tried.
+  model_refused: () => [
+    "The model declined to respond to this message.",
+    "Try rephrasing it.",
+  ],
 };
 
 /** A more specific reading of some failures, from the server's neutral category. */
@@ -128,6 +133,41 @@ const categoryDescriptions: Record<string, Description> = {
     `Choose a model with a larger context window, raise this model's window in ${MODEL_SETTINGS} if the server allows more, or send a shorter message.`,
   ],
 };
+
+/** Anthropic codes read like their OpenAI equivalents, naming the Anthropic connection. */
+const ANTHROPIC_EQUIVALENTS: Record<string, string> = {
+  anthropic_authentication_error: "openai_authentication_error",
+  anthropic_permission_denied: "openai_permission_denied",
+  anthropic_not_found: "openai_not_found",
+  anthropic_quota_exceeded: "openai_quota_exceeded",
+  anthropic_rate_limit: "openai_rate_limit",
+  anthropic_overloaded: "openai_overloaded",
+  anthropic_server_error: "openai_server_error",
+  anthropic_timeout: "openai_timeout",
+  anthropic_connection_error: "openai_connection_error",
+  anthropic_bad_request: "openai_bad_request",
+};
+
+const descriptions: Record<string, Description> = {
+  ...baseDescriptions,
+  ...Object.fromEntries(
+    Object.entries(ANTHROPIC_EQUIVALENTS).map(([code, equivalent]) => [
+      code,
+      baseDescriptions[equivalent],
+    ]),
+  ),
+  anthropic_context_exceeded: categoryDescriptions.context_exceeded,
+  anthropic_stream_incomplete: ({ name }) => [
+    "The reply was interrupted.",
+    `${name} ended the reply before it finished. Try sending your message again.`,
+  ],
+};
+
+/** Codes whose details may carry the provider's recommended wait. */
+const RETRY_AFTER_CODES = new Set([
+  "openai_rate_limit",
+  "anthropic_rate_limit",
+]);
 
 /** Normalize HTTP and in-stream errors without assuming a 403 is a provider error. */
 export function describeChatFailure(
@@ -180,7 +220,7 @@ export function describeChatFailure(
     code,
     originalText,
     partialText,
-    ...(code === "openai_rate_limit" &&
+    ...(RETRY_AFTER_CODES.has(code) &&
     typeof delay === "number" &&
     Number.isFinite(delay) &&
     delay > 0

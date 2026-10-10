@@ -6,7 +6,7 @@
       "id": "model-provider-logos",
       "name": "Bundled model provider marks from models.dev",
       "license": "MIT; provider trademarks remain with their respective owners",
-      "source": "https://github.com/anomalyco/models.dev/tree/8540388b7fff1a0ae57f3de053ff7befb1f2125e/providers; nine unmodified provider logo.svg files (ollama.svg from providers/ollama-cloud)",
+      "source": "https://github.com/anomalyco/models.dev/tree/8540388b7fff1a0ae57f3de053ff7befb1f2125e/providers; ten unmodified provider logo.svg files (ollama.svg from providers/ollama-cloud)",
       "paths": ["web/provider-logos/"],
       "notice_files": ["provider-logos-mit.txt"],
       "review": "pending"

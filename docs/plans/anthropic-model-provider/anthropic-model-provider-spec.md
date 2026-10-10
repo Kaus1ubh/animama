@@ -506,9 +506,17 @@ Decided 2026-10-09 (owner), at the Phase 2 presentation:
   because Anthropic accepts system messages only after a user turn.
 - **Chat Completions app compaction:** triggers at 70% of the model's context
   window, capped at 90,000 tokens (today a fixed 6,000).
+
+Decided 2026-10-09 (owner), during implementation:
+
+- **Anthropic chat effort:** the default is `medium`, not `low` (D22).
 - **Memory Manager turn budget (both runtimes):** resets on each approval
   resume, so an automatic chain of approvals can complete. Each start or resume
-  gets the full budget.
+  gets the full budget (D24).
+- **First-run setup** also offers Anthropic: add a key and use Claude Haiku
+  5.5 (D25).
+- **Anthropic logo:** taken from models.dev with recorded provenance and
+  license (D25).
 
 ## Spec
 

@@ -1135,6 +1135,9 @@ export function ApplicationSettingsModal({
         "connection",
         "cloud",
         "openai",
+        "anthropic",
+        "claude",
+        "compact early",
         "openrouter",
         "api key",
         "ollama",
@@ -1198,7 +1201,14 @@ export function ApplicationSettingsModal({
       id: "provider-keys",
       section: "API Keys",
       label: "API keys",
-      keywords: ["api key", "credentials", "openai", "elevenlabs"],
+      keywords: [
+        "api key",
+        "credentials",
+        "openai",
+        "anthropic",
+        "claude",
+        "elevenlabs",
+      ],
       hidden: !credentialsAvailable,
       render: () => (
         <DesktopCredentialsPanel

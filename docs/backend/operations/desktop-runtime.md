@@ -78,7 +78,7 @@ PostgreSQL. Loss of per-launch credentials is
 handled by a normal relaunch; a missing/unreadable vault alongside PGDATA fails
 closed because its database password cannot be silently regenerated.
 
-Besides the OpenAI and ElevenLabs keys, the vault holds a `connections` map of
+Besides the OpenAI, Anthropic and ElevenLabs keys, the vault holds a `connections` map of
 model-connection keys under their managed names, `ANIMAMA_CONNECTION_<ID>_API_KEY`
 derived from the connection id. It stores at most 32 connection keys in a file
 of at most 512 KiB, and one batch changes at most eight keys, one per provider
@@ -95,7 +95,7 @@ These are private composition inputs, not end-user configuration switches:
 | `ANIMAMA_DATABASE_URL`, `ANIMAMA_DESKTOP_PGDATA`                                                                  | Supervisor-owned loopback connection and expected cluster path. Never pass the password in argv or logs. |
 | `ANIMAMA_PUBLIC_ORIGIN`, `ANIMAMA_WEB_ROOT` | Exact saved loopback origin and packaged React build root. |
 | `ANIMAMA_DESKTOP_RENDERER_CAPABILITY` | Per-launch renderer admission cookie; never a private-control credential. |
-| `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `ANIMAMA_CONNECTION_<ID>_API_KEY` | Saved vault keys at spawn for FastAPI (which moves them into its runtime store and removes them from its environment) and the document worker; withheld from the cleanup worker and `database` commands; redacted from logs. |
+| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `ANIMAMA_CONNECTION_<ID>_API_KEY` | Saved vault keys at spawn for FastAPI (which moves them into its runtime store and removes them from its environment) and the document worker; withheld from the cleanup worker and `database` commands; redacted from logs. |
 | `ANIMAMA_PROCESS_START_TOKEN` | Fresh owned-child UUID returned with its PID in private readiness. |
 | `ANIMAMA_PARAKEET_SOURCE` | `asset-store`: FastAPI installs and serves Parakeet sets from its own model-asset store, without a restart. |
 | `ANIMAMA_DESKTOP_CONTROL_TOKEN`, `ANIMAMA_DESKTOP_BUILD_ID`                                                       | Separate private readiness credential and expected build.                                                |
