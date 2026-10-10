@@ -139,7 +139,7 @@ def install_product_ports(app: FastAPI, ports: ProductPorts) -> None:
     app.state.product_ports = ports
 
 
-def get_product_ports(request: Request) -> ProductPorts:
+async def get_product_ports(request: Request) -> ProductPorts:
     """Require the ports installed by the application factory."""
     ports = getattr(request.app.state, "product_ports", None)
     if ports is None:
@@ -176,13 +176,13 @@ WriteSession = Annotated[AsyncSession, Depends(get_write_session, scope="functio
 Ports = Annotated[ProductPorts, Depends(get_product_ports)]
 
 
-def get_read_repositories(
+async def get_read_repositories(
     ports: Annotated[ProductPorts, Depends(get_product_ports)], session: ReadSession
 ) -> ProductRepositories:
     return ports.repositories(session)
 
 
-def get_write_repositories(
+async def get_write_repositories(
     ports: Annotated[ProductPorts, Depends(get_product_ports)], session: WriteSession
 ) -> ProductRepositories:
     return ports.repositories(session)
@@ -193,7 +193,7 @@ ReadRepositories = Annotated[ProductRepositories, Depends(get_read_repositories)
 WriteRepositories = Annotated[ProductRepositories, Depends(get_write_repositories)]
 
 
-def get_product_policy(ports: Annotated[ProductPorts, Depends(get_product_ports)]) -> ProductPolicy:
+async def get_product_policy(ports: Annotated[ProductPorts, Depends(get_product_ports)]) -> ProductPolicy:
     return ports.policy
 
 

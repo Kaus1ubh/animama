@@ -7,10 +7,7 @@ import subprocess
 import sys
 from pathlib import Path
 
-from fastapi.routing import APIRoute
-
-from animama.product_http.inventory import ROUTES
-from animama.product_http.routes import ROUTERS
+from animama.product_http.inventory import ROUTES, SERVED_STAGES
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -30,6 +27,6 @@ def test_shared_package_serves_a_consumer_with_local_imports_blocked(tmp_path: P
         check=True,
     )
     evidence = json.loads(result.stdout)
-    mounted = sum(len(route.methods) for router in ROUTERS for route in router.routes if isinstance(route, APIRoute))
-    assert mounted > 0
-    assert evidence == {"inventory_routes": len(ROUTES), "mounted_shared_routes": mounted, "local_imports": 0}
+    served = sum(1 for spec in ROUTES if spec.disposition == "shared" and spec.stage in SERVED_STAGES)
+    assert served > 0
+    assert evidence == {"inventory_routes": len(ROUTES), "mounted_shared_routes": served, "local_imports": 0}

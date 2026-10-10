@@ -6,12 +6,13 @@ from pathlib import Path
 from typing import Annotated
 from uuid import uuid4
 
+import pytest
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima
-from animama.product_http.ports import WriteSession
+from animama.product_http.ports import ReadSession, WriteSession
 from animama.product_http.principal import get_current_principal
 from tests.product_http_support import DeferredCommitPorts, TwoOwnerComposition, product_app
 
@@ -32,6 +33,23 @@ def anima_writer() -> APIRouter:
             await session.commit()
         if fail:
             raise HTTPException(status_code=409, detail={"code": "probe_failed"})
+        return {"owner": principal.id}
+
+    return router
+
+
+def anima_reader_that_writes() -> APIRouter:
+    """A probe handler on a read session that wrongly writes an Anima."""
+
+    router = APIRouter()
+
+    @router.get("/probe/read-writes/{anima_id}")
+    async def read(anima_id: str, session: ReadSession, principal: Principal, commit: bool = False) -> dict[str, str]:
+        session.add(ORMAnima(id=anima_id, user_id=principal.id))
+        if commit:
+            await session.commit()
+        else:
+            await session.flush()
         return {"owner": principal.id}
 
     return router
@@ -94,3 +112,16 @@ async def test_two_owner_clients_resolve_their_own_principal_and_root(
         assert composition.roots[owner].is_dir()
     assert composition.roots["owner-a"] != composition.roots["owner-b"]
     assert ports.owners == ["owner-a", "owner-b"]
+
+
+@pytest.mark.parametrize("commit", [False, True])
+async def test_a_read_session_refuses_to_write(
+    async_session_factory: async_sessionmaker[AsyncSession], tmp_path: Path, commit: bool
+) -> None:
+    ports = DeferredCommitPorts(async_session_factory)
+    composition = TwoOwnerComposition(product_app(anima_reader_that_writes(), ports=ports), tmp_path)
+    anima_id = f"anima-{uuid4().hex}"
+    async with composition.client("owner-a") as client:
+        with pytest.raises(AssertionError, match="a read session"):
+            await client.get(f"/probe/read-writes/{anima_id}", params={"commit": commit})
+    assert await stored_owner(async_session_factory, anima_id) is None

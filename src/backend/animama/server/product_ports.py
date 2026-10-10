@@ -21,7 +21,7 @@ from animama.server.installation_personalization import (
     InstallationPersonalizationService,
     InstallationPrincipalMismatchError,
 )
-from animama.server.runtime_capabilities import local_runtime_capabilities
+from animama.server.runtime_capabilities import local_runtime_capabilities, runtime_settings_for
 
 
 class LocalProductPorts:
@@ -38,7 +38,7 @@ class LocalProductPorts:
     @property
     def policy(self) -> ProductPolicy:
         # The app's own runtime settings, read per request like the sessions.
-        settings = self._app.state.runtime_settings
+        settings = runtime_settings_for(self._app)
         return ProductPolicy(memory_file_max_bytes=settings.anima_memory_file_max_bytes)
 
     @asynccontextmanager
@@ -65,7 +65,7 @@ class LocalProductPorts:
 
     def crisis_resources(self) -> CrisisResourceTable:
         # The packaged table, or an operator-supplied one (ANIMAMA_CRISIS_RESOURCES_PATH).
-        return runtime_crisis_resources(self._app.state.runtime_settings)
+        return runtime_crisis_resources(runtime_settings_for(self._app))
 
     async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
         return await local_runtime_capabilities(self._app, session)

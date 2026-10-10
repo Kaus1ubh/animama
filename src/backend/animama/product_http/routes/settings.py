@@ -13,6 +13,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import AnimaSettings, UserSettings
 from animama.product_http.ports import Ports, ProductRepositories, ReadRepositories, WriteRepositories
 from animama.product_http.principal import get_current_principal
+from animama.product_http.routes._owner import require_owned_anima
 
 router = APIRouter()
 
@@ -23,11 +24,6 @@ def _service(repositories: ProductRepositories) -> SettingsService:
         anima_settings=repositories.anima_settings,
         uow=repositories.unit_of_work,
     )
-
-
-async def _require_owned_anima(repositories: ProductRepositories, *, anima_id: str, user_id: str) -> None:
-    if not await repositories.animas.is_owned_by_user(user_id=user_id, anima_id=anima_id):
-        raise HTTPException(status_code=404, detail="Anima not found")
 
 
 @router.get("/v1/users/me/settings", response_model=PyUserSettings)
@@ -88,7 +84,7 @@ async def get_anima_settings(
     repositories: ReadRepositories,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> PyAnimaSettings:
-    await _require_owned_anima(repositories, anima_id=anima_id, user_id=user.id)
+    await require_owned_anima(repositories.animas, anima_id=anima_id, user_id=user.id)
     settings = await _service(repositories).get_anima_settings(user_id=user.id, anima_id=anima_id)
     if settings is None:
         settings = AnimaSettings(
@@ -106,7 +102,7 @@ async def patch_anima_settings(
     repositories: WriteRepositories,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> PyAnimaSettings:
-    await _require_owned_anima(repositories, anima_id=anima_id, user_id=user.id)
+    await require_owned_anima(repositories.animas, anima_id=anima_id, user_id=user.id)
     patch = req.model_dump(exclude_unset=True)
     settings = await _service(repositories).patch_anima_settings(user_id=user.id, anima_id=anima_id, **patch)
     return anima_settings_domain_to_schema(settings)
@@ -118,6 +114,6 @@ async def delete_anima_settings(
     repositories: WriteRepositories,
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
 ) -> Response:
-    await _require_owned_anima(repositories, anima_id=anima_id, user_id=user.id)
+    await require_owned_anima(repositories.animas, anima_id=anima_id, user_id=user.id)
     await _service(repositories).delete_anima_settings(user_id=user.id, anima_id=anima_id)
     return Response(status_code=status.HTTP_204_NO_CONTENT)

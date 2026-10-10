@@ -13,7 +13,7 @@ from fastapi import FastAPI
 from fastapi.dependencies.models import Dependant
 from fastapi.routing import APIRoute, APIWebSocketRoute
 
-from animama.product_http.inventory import ROUTES, RouteSpec
+from animama.product_http.inventory import ROUTES, SERVED_STAGES, RouteSpec
 from animama.product_http.ports import get_read_session, get_write_session
 from animama.server.app import create_local_app
 from animama.server.config import Settings
@@ -163,11 +163,7 @@ def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> No
                 assert depends_on(route.dependant, expected), (method, route.path, spec.access)
 
 
-# Stages whose shared routes the package serves; ExecPlan Phases 2 and 3 move them.
-MOVED_STAGES = frozenset({2})
-
-
-def test_the_package_serves_exactly_the_moved_stages(tmp_path: Path) -> None:
+def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
     modules: dict[tuple[str, str], str] = {}
     for route in local_app(tmp_path, desktop=True, web_root=True).router.routes:
         assert isinstance(route, APIRoute | APIWebSocketRoute), route
@@ -177,7 +173,7 @@ def test_the_package_serves_exactly_the_moved_stages(tmp_path: Path) -> None:
     for spec in ROUTES:
         if spec.disposition == "shared":
             served = modules[(spec.method, spec.path)].startswith("animama.product_http.")
-            assert served == (spec.stage in MOVED_STAGES), (spec.method, spec.path, spec.stage)
+            assert served == (spec.stage in SERVED_STAGES), (spec.method, spec.path, spec.stage)
 
 
 def test_route_specs_reject_mismatched_stage_or_capability() -> None:

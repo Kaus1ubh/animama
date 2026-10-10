@@ -1,8 +1,9 @@
 """Test compositions for shared product routes (ADR 0021).
 
 ``product_app`` mounts routers with explicit ports and a test-only resolver.
-``DeferredCommitPorts`` mimics a consumer's commit authority, and
-``TwoOwnerComposition`` serves two owners from one database with separate roots.
+``DeferredCommitPorts`` mimics a consumer's commit authority and refuses writes on
+read sessions, and ``TwoOwnerComposition`` serves two owners from one database with
+separate roots.
 ``install_local_ports`` gives local-app tests the local ports on their own session.
 Nothing here is installed outside tests.
 """
@@ -17,6 +18,7 @@ from typing import Any
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, WebSocket
 from httpx import ASGITransport, AsyncClient
+from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
@@ -63,8 +65,29 @@ async def save_display_name(session: AsyncSession, principal: RequestPrincipal, 
     return profile.display_name
 
 
+class DoubleCollaborators:
+    """The non-session collaborators both port doubles share."""
+
+    settings_changes: list[str]
+
+    def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
+        return SQLAlchemyProductRepositories(session)
+
+    async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
+        return await save_display_name(session, principal, display_name)
+
+    def crisis_resources(self) -> CrisisResourceTable:
+        return crisis_resource_table()
+
+    async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
+        return HOSTED_CAPABILITIES
+
+    def user_settings_changed(self, principal: RequestPrincipal) -> None:
+        self.settings_changes.append(principal.id)
+
+
 @dataclass
-class DeferredCommitPorts:
+class DeferredCommitPorts(DoubleCollaborators):
     """Ports whose write sessions defer handler commits to the session's end.
 
     A handler's ``session.commit()`` only flushes. When the session ends after the
@@ -73,7 +96,8 @@ class DeferredCommitPorts:
     a hosted consumer keeps (for example to settle metering first). Limits: changes
     made after the last requested commit are committed with it, and
     ``session.begin()`` after a deferred commit fails because a transaction is open.
-    Each opened session records the owner it was opened for in ``owners``.
+    Read sessions refuse to flush or commit, so a route classified ``read`` that
+    writes fails its test. Each opened session records its owner in ``owners``.
     """
 
     session_factory: async_sessionmaker[AsyncSession]
@@ -88,6 +112,15 @@ class DeferredCommitPorts:
     async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[AsyncSession]:
         self.owners.append(principal.id)
         async with self.session_factory() as session:
+
+            def refuse_flush(*_: object) -> None:
+                raise AssertionError("a read session flushed changes")
+
+            async def refuse_commit() -> None:
+                raise AssertionError("a read session committed")
+
+            event.listen(session.sync_session, "before_flush", refuse_flush)
+            session.commit = refuse_commit  # type: ignore[method-assign]
             yield session
 
     @asynccontextmanager
@@ -117,24 +150,9 @@ class DeferredCommitPorts:
                 await session.rollback()
                 self.rollbacks += 1
 
-    def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
-        return SQLAlchemyProductRepositories(session)
-
-    async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
-        return await save_display_name(session, principal, display_name)
-
-    def crisis_resources(self) -> CrisisResourceTable:
-        return crisis_resource_table()
-
-    async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
-        return HOSTED_CAPABILITIES
-
-    def user_settings_changed(self, principal: RequestPrincipal) -> None:
-        self.settings_changes.append(principal.id)
-
 
 @dataclass
-class SessionPorts:
+class SessionPorts(DoubleCollaborators):
     """Ports that hand every shared route one existing session.
 
     For tests that mount shared routers beside local routers sharing one test session.
@@ -149,21 +167,6 @@ class SessionPorts:
         yield self.session
 
     write_session = read_session
-
-    def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
-        return SQLAlchemyProductRepositories(session)
-
-    async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
-        return await save_display_name(session, principal, display_name)
-
-    def crisis_resources(self) -> CrisisResourceTable:
-        return crisis_resource_table()
-
-    async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
-        return HOSTED_CAPABILITIES
-
-    def user_settings_changed(self, principal: RequestPrincipal) -> None:
-        self.settings_changes.append(principal.id)
 
 
 def install_local_ports(app: FastAPI, session: AsyncSession) -> None:

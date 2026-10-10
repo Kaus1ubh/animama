@@ -31,8 +31,11 @@ from fastapi import FastAPI, Request, WebSocket  # noqa: E402
 from fastapi.routing import APIRoute  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
 
+from animama.adapters.repositories.sqlalchemy.product_repositories import (  # noqa: E402
+    SQLAlchemyProductRepositories,
+)
 from animama.domain.request_principal import RequestPrincipal  # noqa: E402
-from animama.product_http.inventory import ROUTES  # noqa: E402
+from animama.product_http.inventory import ROUTES, SERVED_STAGES  # noqa: E402
 from animama.product_http.ports import ReadSession, WriteSession, install_product_ports  # noqa: E402
 from animama.product_http.routes import ROUTERS  # noqa: E402
 
@@ -98,15 +101,19 @@ def probe(app: FastAPI) -> list[tuple[int, object]]:
 
 
 def main() -> None:
-    # Every mounted shared route is a shared inventory route.
-    shared = {(spec.method, spec.path, spec.handler) for spec in ROUTES if spec.disposition == "shared"}
+    # The routers mount exactly the shared inventory routes of the stages the package serves.
+    shared = {
+        (spec.method, spec.path, spec.handler)
+        for spec in ROUTES
+        if spec.disposition == "shared" and spec.stage in SERVED_STAGES
+    }
     mounted = {
         (method, route.path, route.endpoint.__name__)
         for route in consumer_app(ports=None, resolver=None).routes
         if isinstance(route, APIRoute) and not route.path.startswith("/probe/")
         for method in route.methods
     }
-    assert mounted <= shared, sorted(mounted - shared)
+    assert mounted == shared, sorted(mounted ^ shared)
 
     missing_ports = {"detail": {"code": "product_ports_unavailable"}}
     assert probe(consumer_app(ports=None, resolver=Owner())) == [(503, missing_ports)] * 2
@@ -122,6 +129,12 @@ def main() -> None:
 
     # A failed deferred commit replaces the handler's success.
     assert [status for status, _ in probe(consumer_app(ports=Ports(fail_commit=True), resolver=Owner()))] == [200, 500]
+
+    # The shared repository bundle a consumer may reuse builds every repository without local code.
+    bundle = SQLAlchemyProductRepositories(object())  # type: ignore[arg-type]
+    for name in dir(type(bundle)):
+        if not name.startswith("_"):
+            getattr(bundle, name)
 
     leaked = sorted(name for name in sys.modules if any(name == p or name.startswith(p + ".") for p in FORBIDDEN))
     assert not leaked, leaked

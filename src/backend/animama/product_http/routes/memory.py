@@ -5,7 +5,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Annotated, Literal, NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status, status as status_codes
+from fastapi import APIRouter, Depends, HTTPException, Path, Query, Response, status
 
 from animama.app.contracts.memory_entry import (
     PyAnimaIdentityItem,
@@ -520,20 +520,11 @@ async def delete_memory_entry(
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
-__all__ = [
-    "create_memory_entry",
-    "debug_search_memory_files",
-    "delete_memory_entry",
-    "get_memory_entry",
-    "get_memory_entry_by_path",
-    "get_memory_entry_version",
-    "list_memory_entries",
-    "list_memory_entry_versions",
-    "patch_memory_entry",
-    "repair_anima_memories",
-    "revert_memory_entry",
-    "router",
-]
+def _raise_episode_error(exc: MemoryEpisodeValidationError | MemoryEpisodeNotFoundError) -> NoReturn:
+    # The listing's ``status`` query parameter shadows the module inside the handler.
+    not_found = isinstance(exc, MemoryEpisodeNotFoundError)
+    status_code = status.HTTP_404_NOT_FOUND if not_found else status.HTTP_400_BAD_REQUEST
+    raise HTTPException(status_code=status_code, detail=exc.detail) from exc
 
 
 def _to_episode_item(item: MemoryEpisodeItem) -> PyMemoryEpisodeItem:
@@ -579,8 +570,23 @@ async def list_memory_episodes(
     )
     try:
         items = await episodes.list_episode_items(user_id=user.id, status=status, limit=limit)
-    except MemoryEpisodeValidationError as exc:
-        raise HTTPException(status_code=status_codes.HTTP_400_BAD_REQUEST, detail=exc.detail) from exc
-    except MemoryEpisodeNotFoundError as exc:
-        raise HTTPException(status_code=status_codes.HTTP_404_NOT_FOUND, detail=exc.detail) from exc
+    except (MemoryEpisodeValidationError, MemoryEpisodeNotFoundError) as exc:
+        _raise_episode_error(exc)
     return PyMemoryEpisodeListResponse(items=[_to_episode_item(item) for item in items])
+
+
+__all__ = [
+    "create_memory_entry",
+    "debug_search_memory_files",
+    "delete_memory_entry",
+    "get_memory_entry",
+    "get_memory_entry_by_path",
+    "get_memory_entry_version",
+    "list_memory_entries",
+    "list_memory_entry_versions",
+    "list_memory_episodes",
+    "patch_memory_entry",
+    "repair_anima_memories",
+    "revert_memory_entry",
+    "router",
+]

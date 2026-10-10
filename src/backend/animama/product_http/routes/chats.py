@@ -23,7 +23,6 @@ from animama.app.contracts.chat_history import (
     PyUsageInputDetails,
     PyUsageOutputDetails,
 )
-from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.services import ChatService
 from animama.domain.chat import Chat, ChatMessage, ChatSearchResult
@@ -31,6 +30,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.domain.usage import Usage
 from animama.product_http.ports import ProductRepositories, ReadRepositories, WriteRepositories
 from animama.product_http.principal import get_current_principal
+from animama.product_http.routes._owner import require_owned_anima
 
 router = APIRouter()
 
@@ -171,11 +171,6 @@ def _search_result_to_schema(result: ChatSearchResult) -> PyChatSearchResult:
     )
 
 
-async def _require_owned_anima(animas: AnimaRepository, *, anima_id: str, user_id: str) -> None:
-    if not await animas.is_owned_by_user(user_id=user_id, anima_id=anima_id):
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anima not found")
-
-
 def _chat_service(repositories: ProductRepositories) -> ChatService:
     return ChatService(chats=repositories.chats, uow=repositories.unit_of_work)
 
@@ -186,7 +181,7 @@ async def create_chat(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     repositories: WriteRepositories,
 ) -> PyChatResponse:
-    await _require_owned_anima(repositories.animas, anima_id=req.anima_id, user_id=user.id)
+    await require_owned_anima(repositories.animas, anima_id=req.anima_id, user_id=user.id)
     chat = await _chat_service(repositories).create(
         anima_id=req.anima_id,
         user_id=user.id,
