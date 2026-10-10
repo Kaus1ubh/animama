@@ -101,7 +101,10 @@ the same models, and an error names a JSON path such as
 - **`region`**: the replacement group (see [Coexistence](#coexistence)). Face
   attachments use `eyes`, `undereye`, `blush`, `mouth`, `emote` or
   `full_face`; the other attachments use their own kind.
-- **`soundAlias`**: an optional root-local Sound dependency alias.
+- **`soundAlias`**: an optional root-local Sound dependency alias. Built-in
+  effects name an `optional` Sound dependency from the private
+  [comedy sound pack](../../backend/operations/comedy-sound-pack.md); the
+  Included scan drops it, with the alias, when the pack isn't installed.
 
 The runtime maps image names and the Sound alias through the exact catalog
 revision's file and dependency maps. There is no bundled Avatar Effect catalog:

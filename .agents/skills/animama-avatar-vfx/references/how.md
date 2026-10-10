@@ -181,7 +181,9 @@ Play once, Back and forth).
 
 **Sound when applied** selects a Sound Effect; the saved effect refers to exact
 sound content, and an Action event can disable it for one occurrence. Do not add
-audio merely because the control is available.
+audio merely because the control is available. Licensed built-in sounds are not
+offered, and a copy of a built-in effect leaves its sound behind (the creator
+says so under the picker).
 
 ## Verify the region
 

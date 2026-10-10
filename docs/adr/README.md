@@ -32,6 +32,7 @@ production readiness or publication rights.
 | 0016 | [animaPoseClip/2.0 is the only clip format](0016-anima-pose-clip-2-only.md)                                                                        | accepted                              |
 | 0017 | [Common web application and hosted artifact](0017-common-web-application-and-hosted-artifact.md)                                                   | accepted                              |
 | 0018 | [Non-portable Included content for licensed built-in motion](0018-non-portable-included-content.md)                                                | accepted                              |
+| 0019 | [Optional licensed sounds for built-in effects](0019-optional-licensed-effect-sounds.md)                                                           | proposed                              |
 
 ## When and how to record a decision
 

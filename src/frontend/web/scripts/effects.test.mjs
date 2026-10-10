@@ -337,12 +337,14 @@ test("promote items are validated", () => {
         stem: "blush",
         mode: "add",
         name: "Blush",
+        sound: "cute_chirpy_02",
       },
       { stem: "eye_vv_pair", mode: "delete" },
     ],
     "items.json",
   );
   assert.equal(items[0].stem, "blush");
+  assert.equal(items[0].sound, "cute_chirpy_02");
   assert.equal(items[1].source, undefined);
   for (const [item, message] of [
     [{ source: "x", stem: "Blush", mode: "add" }, /"stem"/],
@@ -350,6 +352,8 @@ test("promote items are validated", () => {
     [{ stem: "blush", mode: "add" }, /"source"/],
     [{ source: "x", stem: "blush", mode: "delete" }, /no "source"/],
     [{ source: "x", stem: "eye", mode: "replace", name: "Eye 2" }, /keeps it/],
+    [{ stem: "eye", mode: "delete", sound: "pop" }, /"sound"/],
+    [{ source: "x", stem: "eye", mode: "add", sound: "Pop!" }, /"sound"/],
   ])
     assert.throws(() => parseEffectPromoteItems([item], "items.json"), message);
 });
@@ -382,6 +386,30 @@ async function fixtureRepo() {
   };
   await effect("eye", "eye_r.png");
   await effect("old_pair", "pair.png");
+  // "eye" already plays a licensed sound; a replace keeps it.
+  const eyePath = path.join(root, "content/included/vfx/avatar/eye/eye.json");
+  const eye = JSON.parse(await readFile(eyePath, "utf8"));
+  eye.dependencies = [
+    {
+      ref: "builtin:sound-effect:pop",
+      content_type: "sound_effect",
+      alias: "on-apply",
+      optional: true,
+    },
+  ];
+  eye.definition.soundAlias = "on-apply";
+  await writeFile(eyePath, `${JSON.stringify(eye, null, 2)}\n`);
+  const resources = path.join(root, "src/backend/animama/resources");
+  await mkdir(resources, { recursive: true });
+  await writeFile(
+    path.join(resources, "wow-comedy-sfx-manifest.json"),
+    JSON.stringify({
+      files: ["pop", "ding"].flatMap((key) => [
+        { path: `sfx/wow-comedy/${key}.ogg` },
+        { path: `sfx/wow-comedy/${key}.meta.json` },
+      ]),
+    }),
+  );
   const gesture = path.join(root, "content/included/gestures/poke");
   await mkdir(gesture, { recursive: true });
   await writeFile(
@@ -452,6 +480,7 @@ test("promotion adds, replaces and deletes Included effects with records", async
         mode: "add",
         stem: "blush",
         name: "Blush",
+        sound: "ding",
         effect: await source("blush", "blush.png"),
       },
       {
@@ -492,12 +521,24 @@ test("promotion adds, replaces and deletes Included effects with records", async
   assert.equal(blush.name, "Blush");
   assert.equal(blush.description, "Source description");
   assert.deepEqual(blush.files, [{ path: "blush.png", role: "image" }]);
+  assert.deepEqual(blush.dependencies, [
+    {
+      ref: "builtin:sound-effect:ding",
+      content_type: "sound_effect",
+      alias: "on-apply",
+      optional: true,
+    },
+  ]);
+  assert.equal(blush.definition.soundAlias, "on-apply");
   const eye = await read("content/included/vfx/avatar/eye/eye.json");
   assert.equal(eye.content_id, "builtin:avatar-effect:eye");
   assert.equal(eye.version, 3);
   assert.equal(eye.name, "EYE");
   assert.equal(eye.description, "Upgraded eye");
   assert.equal(eye.definition.art.image, "eye_new.png");
+  // The replace kept the effect's licensed sound.
+  assert.equal(eye.dependencies[0].ref, "builtin:sound-effect:pop");
+  assert.equal(eye.definition.soundAlias, "on-apply");
   assert.deepEqual(
     (await readdir(path.join(root, "content/included/vfx/avatar"))).sort(),
     ["blush", "eye"],
@@ -549,8 +590,30 @@ test("promotion refuses unsafe changes", async () => {
     /no Included effect to delete/,
   );
   await assert.rejects(
-    plan([{ mode: "add", stem: "eye", effect: await source("eye", "e.png") }]),
+    plan([
+      {
+        mode: "add",
+        stem: "eye",
+        sound: "pop",
+        effect: await source("eye", "e.png"),
+      },
+    ]),
     /use mode "replace"/,
+  );
+  await assert.rejects(
+    plan([{ mode: "add", stem: "new", effect: await source("new", "n.png") }]),
+    /name one with "sound"/,
+  );
+  await assert.rejects(
+    plan([
+      {
+        mode: "add",
+        stem: "new",
+        sound: "missing",
+        effect: await source("new", "n.png"),
+      },
+    ]),
+    /not a sound in the tracked comedy pack manifest/,
   );
   await assert.rejects(
     plan([
@@ -575,7 +638,7 @@ test("promotion refuses unsafe changes", async () => {
   for (const name of ["sub/x.png", "sub/../x.png", "..", "alias.json"]) {
     const unsafe = await source("named", "n.png", floating(name));
     await assert.rejects(
-      plan([{ mode: "add", stem: "alias", effect: unsafe }]),
+      plan([{ mode: "add", stem: "alias", sound: "pop", effect: unsafe }]),
       /plain file name|named like the descriptor/,
       name,
     );
@@ -593,7 +656,7 @@ test("promotion refuses unsafe changes", async () => {
   });
   twice.otherImagePath = twice.imagePath;
   await assert.rejects(
-    plan([{ mode: "add", stem: "twice", effect: twice }]),
+    plan([{ mode: "add", stem: "twice", sound: "pop", effect: twice }]),
     /different files/,
   );
   await assert.rejects(
@@ -601,6 +664,7 @@ test("promotion refuses unsafe changes", async () => {
       {
         mode: "add",
         stem: "bad",
+        sound: "pop",
         effect: await source("bad", "b.png", {
           ...floating("b.png"),
           schema: "x",
@@ -620,7 +684,7 @@ test("promotion refuses unsafe changes", async () => {
       .toBuffer(),
   );
   await assert.rejects(
-    plan([{ mode: "add", stem: "solid", effect: opaque }]),
+    plan([{ mode: "add", stem: "solid", sound: "pop", effect: opaque }]),
     /fails the art check/,
   );
 });
@@ -764,7 +828,13 @@ test("promotion replaces a Reaction and points it at the promoted effects", asyn
   };
   const changes = await planEffectPromotion(
     [
-      { kind: "avatar_effect", mode: "add", stem: "blush", effect: blush },
+      {
+        kind: "avatar_effect",
+        mode: "add",
+        stem: "blush",
+        sound: "pop",
+        effect: blush,
+      },
       { kind: "avatar_effect", mode: "delete", stem: "old_pair" },
       {
         kind: "reaction",

@@ -43,6 +43,12 @@ import { budgetForDefinition } from "./effect-check.mjs";
  * an effect folder relative to the items file. `name` and `description` may
  * override the source's for an add; `description` for a replace.
  *
+ * Every built-in Avatar Effect plays one licensed sound from the private
+ * comedy sound pack as an optional dependency (ADR 0019). An add names it
+ * with `"sound": "<key>"`, a sound in the tracked pack manifest; a replace
+ * keeps the effect's current sound unless it names another. The source effect
+ * itself must have no sound.
+ *
  * Effect files are covered by the existing `vfx/avatar/**\/*` licence rule,
  * so the inventory is not changed. Every written file gets a
  * `licenses/source-review.json` record in the same form as the existing
@@ -92,7 +98,18 @@ export const EFFECT_PROMOTE_PATHS = {
   effects: EFFECT_ROOT,
   inventory: "content/included/licenses/inventory.json",
   sourceReview: "licenses/source-review.json",
+  soundManifest: "src/backend/animama/resources/wow-comedy-sfx-manifest.json",
 };
+
+/** A sound key in the comedy pack, from its vendor file name. */
+const SOUND_KEY = /^[a-z0-9]+(?:_[a-z0-9]+)*$/;
+/** The optional edge and alias a built-in effect uses for its licensed sound. */
+const soundEdge = (key) => ({
+  ref: `builtin:sound-effect:${key}`,
+  content_type: "sound_effect",
+  alias: "on-apply",
+  optional: true,
+});
 
 /** Parse and validate `items.json` (sources stay unresolved specs). */
 export function parseEffectPromoteItems(value, itemsFile) {
@@ -148,6 +165,16 @@ export function parseEffectPromoteItems(value, itemsFile) {
       throw new EffectPromoteError(
         `${where}: a ${kind} replace keeps the Included description.`,
       );
+    if (
+      item.sound !== undefined &&
+      (kind !== "avatar_effect" ||
+        item.mode === "delete" ||
+        typeof item.sound !== "string" ||
+        !SOUND_KEY.test(item.sound))
+    )
+      throw new EffectPromoteError(
+        `${where}: "sound" names a comedy pack sound key (like "funny_sweat_02") for an Avatar Effect add or replace.`,
+      );
     return {
       kind,
       mode: item.mode,
@@ -155,6 +182,7 @@ export function parseEffectPromoteItems(value, itemsFile) {
       source: item.source?.trim(),
       name: item.name?.trim(),
       description: item.description?.trim(),
+      sound: item.sound,
     };
   });
 }
@@ -210,6 +238,18 @@ export async function planEffectPromotion(
       "no source-review record of an Included effect to follow.",
     );
   const { path: _path, ...recordFields } = template;
+
+  let soundKeys = null;
+  /** Sound keys in the tracked comedy pack manifest (read when first needed). */
+  const packSounds = () => {
+    soundKeys ??= new Set(
+      (readJson(EFFECT_PROMOTE_PATHS.soundManifest).files ?? [])
+        .map((file) => file.path)
+        .filter((file) => file.endsWith(".ogg"))
+        .map((file) => path.posix.basename(file, ".ogg")),
+    );
+    return soundKeys;
+  };
 
   const kindOf = (item) => item.kind ?? "avatar_effect";
   const effectItems = items.filter((item) => kindOf(item) === "avatar_effect");
@@ -304,8 +344,24 @@ export async function planEffectPromotion(
     const dependencies = effect.dependencies ?? [];
     if (dependencies.length || effect.definition.soundAlias)
       throw new EffectPromoteError(
-        `${item.stem}: the source has a sound or other dependencies; Included effects are promoted without them.`,
+        `${item.stem}: the source has a sound or other dependencies; Included effects take their licensed sound from "sound".`,
       );
+    // A replace keeps the effect's licensed sound unless the item names another.
+    const kept = (original?.dependencies ?? []).find(
+      (edge) => edge.content_type === "sound_effect" && edge.optional === true,
+    );
+    let sound = kept ?? null;
+    if (item.mode === "add" && !item.sound)
+      throw new EffectPromoteError(
+        `${item.stem}: every built-in Avatar Effect plays a licensed sound; name one with "sound".`,
+      );
+    if (item.sound) {
+      if (!packSounds().has(item.sound))
+        throw new EffectPromoteError(
+          `${item.stem}: "${item.sound}" is not a sound in the tracked comedy pack manifest.`,
+        );
+      sound = soundEdge(item.sound);
+    }
     try {
       validate(effect.definition);
     } catch (error) {
@@ -353,13 +409,16 @@ export async function planEffectPromotion(
           `${item.stem}: ${image.name} fails the art check: ${fails.map((issue) => issue.message).join("; ")}`,
         );
     }
+    const definition = sound
+      ? { ...effect.definition, soundAlias: sound.alias }
+      : effect.definition;
     const descriptor =
       item.mode === "replace"
         ? {
             ...original,
             description: item.description ?? original.description,
-            dependencies: [],
-            definition: effect.definition,
+            dependencies: sound ? [sound] : [],
+            definition,
             files: images.map((image) => ({ path: image.name, role: "image" })),
           }
         : {
@@ -369,8 +428,8 @@ export async function planEffectPromotion(
             version: 1,
             name: item.name ?? effect.name,
             description: item.description ?? effect.description,
-            dependencies: [],
-            definition: effect.definition,
+            dependencies: sound ? [sound] : [],
+            definition,
             files: images.map((image) => ({ path: image.name, role: "image" })),
           };
     writes.set(descriptorPath, jsonFile(descriptor));

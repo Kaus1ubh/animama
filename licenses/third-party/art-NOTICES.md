@@ -92,4 +92,7 @@ Its old inventory entry is historical acquisition information, not permission
 for future reintroduction. Mixamo raw/converted clips are likewise outside this
 art inventory. Desktop and hosted builds carry the owner's converted clips only
 in the private, non-portable Mixamo-motion pack, under its own licence
-inventory and Adobe's terms.
+inventory and Adobe's terms. WOW Sound's comedy sound effects are likewise
+outside this inventory: they ship only in the private, non-portable comedy sound
+pack under the owner's Media license, and the vendor's watermarked previews are
+restricted by hash.
