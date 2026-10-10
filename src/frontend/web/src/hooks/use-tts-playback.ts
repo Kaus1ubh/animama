@@ -14,6 +14,7 @@ import {
   type TtsChunkRecord,
 } from "@/lib/speech/tts-chunker";
 import {
+  canFallBackToPocketTts,
   isBrowserSpeechSynthesisSupported,
   isElevenLabsTtsSupported,
   isPocketTtsSupported,
@@ -89,6 +90,7 @@ type UseTtsPlaybackResult = {
     runId: string,
     error: FinalizedTtsErrorPayload | string,
   ) => void;
+  fallBackToPocketTts: (runId: string) => boolean;
   cancelAll: () => void;
   isAudioActive: boolean;
 };
@@ -359,6 +361,12 @@ export function useTtsPlayback(
   const pocketFallbackVoiceRef = useRef<PerRunValue<string | undefined>>(null);
   const lastPreloadedPocketAnimaRefRef = useRef<string | null>(null);
   const finalizedTextBasisByRunRef = useRef<Record<string, TtsTextBasis>>({});
+  // A run whose ElevenLabs speech the server declined speaks with Pocket TTS
+  // instead (fallBackToPocketTts); the saved provider is unchanged.
+  const declinedElevenLabsRunIdRef = useRef<string | null>(null);
+  // All speech text appended to the active run, so a declined run can be
+  // spoken again from its first word.
+  const runSpeechTextRef = useRef("");
 
   const resolveSpeechRuntimeContext = useCallback(
     (runId: string) => getSpeechVoiceSelectionContext?.(runId) ?? null,
@@ -561,6 +569,8 @@ export function useTtsPlayback(
     (runId: string | null): TtsProvider | null => {
       if (!runId) return null;
       if (effectivePreferences.speech?.tts_enabled !== true) return null;
+      // The server declined this run's ElevenLabs speech; Pocket speaks it.
+      if (declinedElevenLabsRunIdRef.current === runId) return "pocket_tts";
 
       const savedProvider = toTtsProvider(
         effectivePreferences.speech?.tts_provider,
@@ -649,7 +659,9 @@ export function useTtsPlayback(
     runSeqRef.current += 1;
     clearIdleFlushTimer();
     bufferRef.current = "";
+    runSpeechTextRef.current = "";
     runIdRef.current = null;
+    declinedElevenLabsRunIdRef.current = null;
     finalizedTextBasisByRunRef.current = {};
     warnedKeysRef.current.clear();
     resetRunPlaybackLifecycle();
@@ -756,26 +768,39 @@ export function useTtsPlayback(
     warnOnceForRun,
   ]);
 
+  // Owners of another provider read the downloadable voice list only once a
+  // reply has fallen back to Pocket (fallBackToPocketTts).
+  const [pocketFallbackUsed, setPocketFallbackUsed] = useState(false);
   const pocketVoiceDownloads = usePocketVoiceDownloads({
     enabled:
       effectivePreferences.speech?.tts_enabled === true &&
-      effectivePreferences.speech?.tts_provider === "pocket_tts",
+      (effectivePreferences.speech?.tts_provider === "pocket_tts" ||
+        pocketFallbackUsed),
   });
+  // A reply that fell back mid-run resolves its voice from the list as loaded
+  // by then, not as captured when the run began.
+  const pocketVoiceDownloadsRef = useRef(pocketVoiceDownloads);
+  pocketVoiceDownloadsRef.current = pocketVoiceDownloads;
 
   const resolvePocketFallbackVoiceForRun = useCallback(
     (runId: string): string | undefined =>
       // Every chunk of a reply speaks with the voice chosen for its first one.
       resolveOncePerRun(pocketFallbackVoiceRef, runId, () => {
+        const downloads = pocketVoiceDownloadsRef.current;
         const { voice, notice, install } = resolvePocketFallbackVoice(
           resolvePocketVoicePreference(effectivePreferences.speech),
           pocketVoices,
           pocketHasCustomVoice,
           DEFAULT_POCKET_VOICE,
-          pocketVoiceDownloads.availability,
+          downloads.availability,
         );
         // A missing downloadable voice installs in the background; this reply
         // uses the default voice and later replies use the installed voice.
-        if (install) pocketVoiceDownloads.install(install);
+        if (install) downloads.install(install);
+        // A reply moved to Pocket after declined ElevenLabs speech stays
+        // quiet: the owner chose ElevenLabs, so stale Pocket voice settings
+        // need no notice.
+        if (declinedElevenLabsRunIdRef.current === runId) return voice;
         if (notice?.scope === "session") {
           warnOncePerSession(notice.key, notice.message);
         } else if (notice) {
@@ -786,7 +811,6 @@ export function useTtsPlayback(
     [
       effectivePreferences.speech,
       pocketHasCustomVoice,
-      pocketVoiceDownloads,
       pocketVoices,
       warnOnceForRun,
       warnOncePerSession,
@@ -1285,6 +1309,7 @@ export function useTtsPlayback(
         finalizedTextBasisByRunRef.current[runId] = "gruut_text_with_ws";
       }
       bufferRef.current += token;
+      runSpeechTextRef.current += token;
       if (!shouldStreamChunksForProvider(provider, runId)) {
         return;
       }
@@ -1510,6 +1535,58 @@ export function useTtsPlayback(
     ],
   );
 
+  /**
+   * Speak the active run with Pocket TTS after the server declined its
+   * ElevenLabs speech (an exhausted voice allowance), before or after the reply
+   * text arrived. The declined path closes without a failure notice or an
+   * audio end, and Pocket speaks the whole reply at completion like any Pocket
+   * run, with the Anima's Pocket voice or the default voice. Returns false and
+   * changes nothing for an inactive run or one `canFallBackToPocketTts`
+   * refuses. Stop, the next run and teardown (`cancelAll`) end the switch.
+   */
+  const fallBackToPocketTts = useCallback(
+    (runId: string): boolean => {
+      if (!runId || runIdRef.current !== runId) return false;
+      if (declinedElevenLabsRunIdRef.current === runId) return true;
+      if (
+        !canFallBackToPocketTts({
+          provider: resolveActiveProvider(runId),
+          audioStarted: audioStartedRef.current,
+          audioEnded: audioEndedRef.current,
+          pocketSupported: isPocketTtsSupported(),
+        })
+      ) {
+        return false;
+      }
+      clearIdleFlushTimer();
+      cancelElevenLabsPlayback();
+      declinedElevenLabsRunIdRef.current = runId;
+      setPocketFallbackUsed(true);
+      // Text already sent to ElevenLabs was never spoken; Pocket starts over.
+      bufferRef.current = runSpeechTextRef.current;
+      logger.info("Run", "Speaking with PocketTTS after declined speech", {
+        runId,
+        runCompleted: runCompletedRef.current,
+      });
+      void warmupPocketRuntime().catch((error) => {
+        logger.warn("Warmup", "PocketTTS warmup failed", {
+          error: error instanceof Error ? error.message : String(error),
+        });
+      });
+      // The decline followed the reply's completed speech text: speak it now.
+      if (runCompletedRef.current) completeRun(runId);
+      return true;
+    },
+    [
+      cancelElevenLabsPlayback,
+      clearIdleFlushTimer,
+      completeRun,
+      logger,
+      resolveActiveProvider,
+      warmupPocketRuntime,
+    ],
+  );
+
   useEffect(() => {
     return () => {
       cancelAll();
@@ -1599,6 +1676,7 @@ export function useTtsPlayback(
     acceptElevenLabsFinalizedAudio,
     completeElevenLabsFinalizedAudio,
     markElevenLabsFinalizedAudioFailed,
+    fallBackToPocketTts,
     cancelAll,
     isAudioActive,
   };

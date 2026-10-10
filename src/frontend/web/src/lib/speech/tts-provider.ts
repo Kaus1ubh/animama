@@ -81,6 +81,26 @@ export function shouldPreparePocketTts(
   );
 }
 
+/**
+ * Whether a run whose ElevenLabs speech the server declined (an exhausted voice
+ * allowance) can speak with Pocket TTS instead. Only an ElevenLabs run that has
+ * neither started nor ended audio switches, so a reply is never spoken twice or
+ * after its speech ended, and only where Pocket TTS runs.
+ */
+export function canFallBackToPocketTts(run: {
+  provider: TtsProvider | null;
+  audioStarted: boolean;
+  audioEnded: boolean;
+  pocketSupported: boolean;
+}): boolean {
+  return (
+    run.provider === "elevenlabs" &&
+    !run.audioStarted &&
+    !run.audioEnded &&
+    run.pocketSupported
+  );
+}
+
 export function isBrowserSpeechSynthesisSupported(
   platform: RuntimePlatform = getRuntimePlatformSnapshot(),
 ): boolean {
