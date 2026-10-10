@@ -2965,6 +2965,8 @@ ORM. When it adopts this release, it needs:
   `adapters/model_clients/anthropic_messages/*` modules;
 - rows for the Memory Manager modules `anthropic_runtime`,
   `anthropic_memory_tool`, `runtime_selector` and `runtime_support`.
+- admitting the `local-http` contract major 4, and `product-ui` 0.8.0 and
+  `runtime-contracts` 0.4.0.
 
 Record that in the PR. No change is needed here.
 
@@ -3038,6 +3040,32 @@ PR #408 later conflicted with main (`5be960f0`, 20 more commits), which had
 added ADRs 0019 and 0020. A second ordinary merge renumbered the Anthropic ADR
 to 0021, with its index row, ADR 0008's pointer and the doc links. The ADR
 index was the only conflict. The checks for this merge are recorded in the PR.
+
+#### Hosted Validation and package versions (2026-10-10)
+
+Hosted `Validation` on `3efce945` failed only in the package-set
+compatibility step: "Changed declarations require package version bump:
+@animama/product-ui" ([run 38025837581](https://github.com/raymond-van/animama/actions/runs/38025837581)).
+The tests passed.
+
+This plan changes declarations in two packages and the OpenAPI schema
+structurally. They are versioned as follows:
+
+- `product-ui` 0.8.0;
+- `runtime-contracts` 0.4.0;
+- the `local-http` contract 4.0.0. The checker treats any structural schema
+  change, additive ones included, as a major one.
+
+`contracts/hosted-web.md` and `http-api.md` name the new versions. When Animama
+Cloud adopts this release, it must admit `local-http` major 4. That is added to
+the Cloud follow-up.
+
+The latest main (`5993bbee`, docs only) was merged at the same time.
+
+Local package-set check: the baseline (`5993bbee`) and candidate (`afc2fc40`)
+sets were built and compared exactly as CI does, and the compatibility policy
+passed. The OpenAPI semantic diff confirms a structural change, so the major
+bump is required.
 
 #### Final Integration Review Code Review #1 Findings
 
