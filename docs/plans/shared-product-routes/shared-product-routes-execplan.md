@@ -38,14 +38,14 @@ named built stack.
   (principal), `2110ad13` (ports), `62f95626` (owner-strict) and `5580c4ec`
   (harness and consumer), with review repairs through `5ed515b2`. The full local
   validation passed on `908e02d5`; the final targeted Code Review #3 passed.
-- [ ] Phase 2: thin owner-scoped routers. Implemented 2026-10-10: repository ports
+- [x] Phase 2: thin owner-scoped routers. Implemented 2026-10-10: repository ports
   (`940eedd2`), chats (`f1344a45`), memory (`9028884e`), settings (`846acdd5`
   characterization, then `7a18efa6`), profile (`afa396b9`), safety (`91487685`),
   loadouts (`6c155b42`) and runtime capabilities (`b1e6f4d2`). `33870c72` checks
   that the package serves exactly the 45 stage-2 routes. Each family migrated its
-  tests in its own commit, so no re-export shims were needed. `make check-test`
-  passed on `e9dda06d`. Code Review #1 findings are repaired; the targeted review
-  #2 is pending.
+  tests in its own commit, so no re-export shims were needed. Review repairs in
+  `35c12694`, `9bb0b98f` and `6e8891bf`; `make check-test` passed on `6e8891bf`,
+  and the targeted Code Review #2 passed.
 - [ ] Phase 3: content routers. Not started.
 - [ ] Final integration review and PR. Not started.
 
@@ -348,7 +348,19 @@ Code Review #1 Revisions:
 - O-07 is recorded in the Decision Log.
 - O-10 rejected: the memory-file limit is the composition's, not the owner's; a
   per-owner limit can add the principal when one exists.
+- Commits: `35c12694` (O-01 to O-06, O-09, O-11), `9bb0b98f` (P2-01) and `6e8891bf`
+  (P2-02, O-07, O-08 and this record).
+- Validation: `make check-test` passed on `e9dda06d` (3,574 passed, 10 skipped) and
+  on `6e8891bf` (3,578 passed, 10 skipped). For each family and again after the
+  repairs: ruff, mypy, the boundary checker, the product HTTP and migrated suites,
+  the in-repo installed-wheel consumer and `pnpm openapi-ts:check` (no SDK diff).
 - Repair rounds used: 1 of 2.
+
+Code Review #2 (targeted, at `6e8891bf`): P2-01 and P2-02 are resolved, and the
+applied optional items changed no behaviour. Its non-blocking notes (the backend
+README's description of `server/routers/`, this record's commits and validation,
+`__all__` in `memory.py`, a note that synchronous port members run on the event
+loop, and response bodies in the memory refusals) are applied. Result: pass.
 
 ## Final integration review
 

@@ -85,7 +85,12 @@ class ProductPolicy:
 
 
 class ProductPorts(Protocol):
-    """The composition-owned collaborators of shared product handlers."""
+    """The composition-owned collaborators of shared product handlers.
+
+    Shared dependencies call the synchronous members (``policy``, ``repositories``,
+    ``crisis_resources`` and ``user_settings_changed``) on the event loop, so they
+    must not block.
+    """
 
     @property
     def policy(self) -> ProductPolicy: ...

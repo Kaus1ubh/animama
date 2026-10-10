@@ -74,8 +74,11 @@ async def test_an_owner_never_reaches_another_owners_memory(
         }
         assert (await b.post(f"/v1/memory/anima-memories/{anima_id}:repair")).status_code == 404
         foreign = {"anima_id": anima_id, "type": "file", "name": "identity.md", "content": marker}
-        assert (await b.post("/v1/memory/entries", json=foreign)).status_code == 404
-        assert (await b.get("/v1/memory/entries", params={"anima_id": anima_id})).status_code == 404
+        for refused in (
+            await b.post("/v1/memory/entries", json=foreign),
+            await b.get("/v1/memory/entries", params={"anima_id": anima_id}),
+        ):
+            assert (refused.status_code, refused.json()) == (404, {"detail": "Anima not found"})
         assert (await b.get("/v1/memory/entries/by-path", params={"path": path})).status_code == 404
         assert (await b.get(f"/v1/memory/entries/{entry_id}/versions")).status_code == 404
         assert (await b.get(f"/v1/memory/entries/{entry_id}/versions/1")).status_code == 404

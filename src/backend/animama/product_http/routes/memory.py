@@ -582,6 +582,7 @@ __all__ = [
     "get_memory_entry",
     "get_memory_entry_by_path",
     "get_memory_entry_version",
+    "list_anima_identities",
     "list_memory_entries",
     "list_memory_entry_versions",
     "list_memory_episodes",
