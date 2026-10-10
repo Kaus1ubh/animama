@@ -1,18 +1,27 @@
 """Shared constants for the direct chat turn runtime."""
 
+from ..api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE
+
 DIRECT_CHAT_NODE_ID = "direct-chat:model-client"
 
 OPENAI_RESPONSES_PROVIDER = "OpenAIResponsesHTTPAgent"
 OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE = "openai_previous_response_unresolvable"
 OPENAI_CHAT_COMPLETIONS_PROVIDER = "OpenAIHTTPAgent"
+ANTHROPIC_MESSAGES_PROVIDER = ANTHROPIC_MESSAGES_PROVIDER_TYPE
 MOCK_MODEL_PROVIDER = "MockModelClient"
-# Requested through `native_tools`; hosted by OpenAI Responses, otherwise the application tool.
+# Requested through `native_tools`; hosted by OpenAI Responses or Anthropic, otherwise the application tool.
 WEB_SEARCH_NATIVE_TOOL = "web_search"
+
+# Providers whose server compacts long chats (OpenAI Responses and Anthropic
+# Messages): the application neither fits their prompts to the window nor runs
+# its own compaction for them.
+NATIVE_COMPACTION_PROVIDERS = frozenset({OPENAI_RESPONSES_PROVIDER, ANTHROPIC_MESSAGES_PROVIDER})
 
 DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER = frozenset(
     {
         OPENAI_RESPONSES_PROVIDER,
         OPENAI_CHAT_COMPLETIONS_PROVIDER,
+        ANTHROPIC_MESSAGES_PROVIDER,
         MOCK_MODEL_PROVIDER,
     }
 )

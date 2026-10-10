@@ -11,6 +11,7 @@ from sqlalchemy import func, select, update
 
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.anima_creation_contract import EnsureAnimaStartersRequest
 from animama.app.ports.anima_creation_port import StarterReceipt
 from animama.app.services import anima_starter_service
@@ -27,7 +28,7 @@ from animama.domain.avatar import Avatar
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import AnimaSettings
 from animama.orm import ORMAnima, ORMAnimaCreationReceipt, ORMAnimaSettings, ORMAnimaStarterReceipt, ORMMemoryEntry
-from animama.server.routers.anima import list_animas
+from animama.product_http.routes.animas import list_animas
 from tests.anima_creation_service_support import (
     EXPECTED_STARTER_GESTURE_IDS,
     anima_creation_fixture,
@@ -175,7 +176,14 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
             assert all(cell.source is not None for cell in loadout.reactions)
         # Launch uses the API's creation order, not names or recent updates.
         listed = json.loads(
-            bytes((await list_animas(session=async_session, user=RequestPrincipal(id=fixture.owner))).body)
+            bytes(
+                (
+                    await list_animas(
+                        repositories=SQLAlchemyProductRepositories(async_session),
+                        user=RequestPrincipal(id=fixture.owner),
+                    )
+                ).body
+            )
         )
         assert [anima["id"] for anima in listed] == ids
         assert listed[0]["display_name"] == "Annie"
@@ -193,7 +201,14 @@ async def test_fresh_starters_retry_preserve_customization_and_deletion(
         await service.uow.settings.upsert(settings)
         await async_session.commit()
         listed = json.loads(
-            bytes((await list_animas(session=async_session, user=RequestPrincipal(id=fixture.owner))).body)
+            bytes(
+                (
+                    await list_animas(
+                        repositories=SQLAlchemyProductRepositories(async_session),
+                        user=RequestPrincipal(id=fixture.owner),
+                    )
+                ).body
+            )
         )
         assert [anima["id"] for anima in listed] == ids
         await SQLAlchemyAnimaRepository(async_session).delete(ids[1])

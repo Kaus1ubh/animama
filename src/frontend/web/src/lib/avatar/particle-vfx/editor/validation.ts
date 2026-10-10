@@ -1,6 +1,8 @@
+import { PARTICLE_TEXTURE_LIMITS } from "@/lib/effects/effectArtLimits";
 import { isParticleVFXAnchor } from "../runtime";
 import { collectEmitterNodes } from "./emitters";
 import { readJsonObject } from "./json";
+import { estimateParticleVFXParticles } from "./particleEstimate";
 import { isSupportedRenderMode } from "./renderer";
 import {
   classifyParticleVFXTextureUrl,
@@ -70,7 +72,7 @@ export function validateParticleVFXEditorDraft(
         severity: "warning",
         code: "embedded-texture-url",
         message:
-          "Embedded data texture URLs work but should be migrated to tracked public assets.",
+          "This embedded texture is not a PNG the effect can carry; replace it with an imported texture.",
         target,
       });
     } else if (classification === "blob") {
@@ -206,8 +208,23 @@ export function validateParticleVFXEditorDraft(
       ? getParticleVFXEditorTextureById(emitter.textureId)
       : null;
     const atlas = texture?.atlas;
+    // An imported sheet has no built-in metadata: its tile counts are its atlas.
+    const carriedTexture = !texture && Boolean(emitter.textureUrl);
     const tileCapacity =
       emitter.renderer.uTileCount * emitter.renderer.vTileCount;
+    const maxGrid = PARTICLE_TEXTURE_LIMITS.grid;
+    if (
+      [emitter.renderer.uTileCount, emitter.renderer.vTileCount].some(
+        (count) => !Number.isInteger(count) || count < 1 || count > maxGrid,
+      )
+    ) {
+      issues.push({
+        severity: "error",
+        code: "atlas-grid-limit",
+        message: `Sprite sheets have 1 to ${maxGrid} tiles in each direction.`,
+        target,
+      });
+    }
     if (atlas) {
       if (
         emitter.renderer.uTileCount === 1 &&
@@ -234,7 +251,7 @@ export function validateParticleVFXEditorDraft(
       }
     }
     if (emitter.frameOverLife.mode !== "off") {
-      if (!atlas) {
+      if (!atlas && !carriedTexture) {
         issues.push({
           severity: "warning",
           code: "frame-over-life-without-atlas",
@@ -269,26 +286,20 @@ export function validateParticleVFXEditorDraft(
     }
   }
 
-  const estimatedParticles = estimateParticleVFXDraftParticles(draft);
-  if (estimatedParticles > draft.catalog.performanceBudget.maxParticles) {
+  // The estimate Save enforces: Save's readiness check promotes this warning
+  // to an error, so the creator and Save state the same numbers.
+  const estimatedParticles = estimateParticleVFXParticles(draft.quarksJson);
+  const budget = draft.catalog.performanceBudget.maxParticles;
+  if (estimatedParticles > budget) {
     issues.push({
       severity: "warning",
       code: "particle-budget-exceeded",
-      message: `Estimated ${estimatedParticles} particles exceeds the catalog budget of ${draft.catalog.performanceBudget.maxParticles}.`,
+      message: Number.isFinite(estimatedParticles)
+        ? `Estimated ${estimatedParticles} particles exceeds the catalog budget of ${budget}.`
+        : `Particle use cannot be estimated (an emission, burst or duration value is unsupported); the catalog budget is ${budget}.`,
       target: "performanceBudget.maxParticles",
     });
   }
 
   return issues;
-}
-
-export function estimateParticleVFXDraftParticles(
-  draft: ParticleVFXEditorDraft,
-): number {
-  return draft.emitters.reduce((total, emitter) => {
-    const duration = Math.max(0, emitter.durationSec ?? 0);
-    const emissionOverTime = Math.max(0, emitter.emissionOverTime?.max ?? 0);
-    const burstCount = Math.max(0, emitter.burstCount?.max ?? 0);
-    return total + Math.ceil(duration * emissionOverTime + burstCount);
-  }, 0);
 }

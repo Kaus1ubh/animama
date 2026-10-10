@@ -41,3 +41,28 @@ def test_fail_closed_websocket_closes_before_accept() -> None:
                 raise AssertionError("the fail-closed WebSocket must not connect")
         except WebSocketDisconnect as exc:
             assert getattr(exc, "code", None) == 1008
+
+
+async def test_missing_resolver_fails_closed_with_a_stable_code() -> None:
+    app = FastAPI()
+
+    @app.get("/product")
+    async def product(
+        _principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    ) -> dict[str, bool]:
+        return {"ok": True}
+
+    async with AsyncClient(transport=ASGITransport(app=app), base_url="http://test") as client:
+        response = await client.get("/product")
+
+    assert response.status_code == 503
+    assert response.json() == {"detail": {"code": "request_principal_unavailable"}}
+
+
+def test_server_deps_reexports_the_shared_principal_objects() -> None:
+    # Dependency overrides and the route-dependency check rely on object identity.
+    from animama.product_http import principal
+    from animama.server import deps
+
+    assert deps.get_current_principal is principal.get_current_principal
+    assert deps.resolve_websocket_principal is principal.resolve_websocket_principal

@@ -5,7 +5,12 @@ import path from "node:path";
 import { test } from "node:test";
 
 import { EffectRenderFailure, renderEffectSheets } from "./effect-render.mjs";
-import { resolveEffectSource } from "./effect-render-sources.mjs";
+import {
+  resolveAnyEffectSource,
+  resolveClipSource,
+  resolveDependencies,
+  resolveEffectSource,
+} from "./effect-render-sources.mjs";
 
 // Real WebGL renders of Included effects on both Included Avatars, plus an
 // effect whose image cannot decode: its controller warning fails the run.
@@ -127,6 +132,75 @@ test("renders body, sticker and silhouette attachments together", async () => {
     const png = await readFile(result.outFile);
     assert.equal(png.readUInt32BE(16), 64 + 6 * tile.width);
     assert.equal(png.readUInt32BE(20), 28 + tile.height);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// Avatar, Particle and Scene Effects applied together, and a Reaction whose
+// events start all three, render as the chat draws them; a Reaction renders
+// the same on every run, however long its effects take to load.
+test("renders every effect kind together and a Reaction's effects", async () => {
+  const dir = await mkdtemp(
+    path.join(tmpdir(), "animama-effect-render-kinds-"),
+  );
+  try {
+    const effects = await Promise.all(
+      [
+        "library:star3",
+        "library:particle-effect/sparkles",
+        "library:scene-effect/scene-vfx-emotion-joy",
+      ].map((spec) => resolveAnyEffectSource(spec)),
+    );
+    const tile = { width: 96, height: 120 };
+    const [together] = await renderEffectSheets({
+      effects,
+      together: true,
+      outFileFor: () => path.join(dir, "together.png"),
+      times: [0.5],
+      views: ["front"],
+      tile,
+    });
+    assert.equal(together.stem, "star3+sparkles+scene-vfx-emotion-joy");
+    assert.deepEqual(together.failures, []);
+    for (const avatar of together.avatars)
+      assert.deepEqual(avatar.activeEffectIds.sort(), [
+        "builtin:avatar-effect:star3",
+        "builtin:scene-effect:background:scene-vfx-emotion-joy",
+        "review:builtin:particle-effect:sparkles",
+      ]);
+
+    const reaction = await resolveClipSource("library:reaction/joy-3");
+    const clipMedia = await resolveDependencies(reaction.dependencies);
+    const renderReaction = async (file) => {
+      const [played] = await renderEffectSheets({
+        effects: [],
+        clip: reaction.clip,
+        clipMedia,
+        clipStem: "joy-3",
+        outFileFor: () => path.join(dir, file),
+        times: [0.5],
+        views: ["front"],
+        tile,
+      });
+      return played;
+    };
+    const played = await renderReaction("joy-3.png");
+    assert.equal(played.stem, "joy-3");
+    assert.deepEqual(played.failures, []);
+    for (const avatar of played.avatars)
+      for (const id of ["star3", "sparkles", "scene-vfx-emotion-joy"])
+        assert.ok(
+          avatar.activeEffectIds.includes(id),
+          `${avatar.id}: ${avatar.activeEffectIds.join(", ")}`,
+        );
+    const png = await readFile(path.join(dir, "joy-3.png"));
+    assert.equal(png.readUInt32BE(16), 64 + 2 * tile.width);
+    await renderReaction("joy-3-again.png");
+    assert.ok(
+      png.equals(await readFile(path.join(dir, "joy-3-again.png"))),
+      "a second render of the Reaction differs",
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

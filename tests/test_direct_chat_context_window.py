@@ -491,7 +491,12 @@ async def test_post_response_compaction_threshold_follows_the_model_window(monke
             model_provider=provider,
         )
 
-    assert [call["threshold_tokens"] for call in calls] == [int((8192 - _MAX_OUTPUT) * 0.75), None]
+    # The smaller of 70% of the window and 75% of the room left after the reply; the
+    # cap (ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS) is applied by the service.
+    assert [call["threshold_tokens"] for call in calls] == [
+        min(int(8192 * 0.7), int((8192 - _MAX_OUTPUT) * 0.75)),
+        None,
+    ]
 
 
 @pytest.mark.asyncio

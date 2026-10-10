@@ -13,6 +13,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.routers import router
 from tests.content_package_helpers import package_services
+from tests.product_http_support import install_local_ports
 
 
 async def test_real_file_larger_than_128_mib_uploads_as_bounded_http_parts(
@@ -28,6 +29,7 @@ async def test_real_file_larger_than_128_mib_uploads_as_bounded_http_parts(
 
     app.dependency_overrides[get_async_session] = session
     app.dependency_overrides[get_current_principal] = lambda: RequestPrincipal("package-owner")
+    install_local_ports(app, async_session)
     stages = PackageStageService(paths.imports_staging_root, paths.exports_staging_root)
     part = b"z" * stages.limits.part_bytes
     size = 17 * len(part)

@@ -67,6 +67,9 @@ class PyRuntimeAction(BaseModel):
     implementation: PyRuntimeActionImplementation
     config: dict[str, Any] = Field(default_factory=dict)
     reference_map: dict[str, str] = Field(default_factory=dict)
+    # Clip aliases of removed Included effects this Action plays without
+    # (alias → their former content ID); their events are skipped.
+    missing_references: dict[str, str] = Field(default_factory=dict)
     files: list[PyRuntimeFile] = Field(default_factory=list)
 
 

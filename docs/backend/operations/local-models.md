@@ -31,9 +31,9 @@ it yourself. A window recorded larger than the server serves makes the server
 reject long prompts; Animama then retries once with less history.
 
 Animama keeps every request within the recorded window. It compacts after a
-response once the conversation passes 75% of the available window (the window
-minus room for the reply; or
-`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`, 6,000 by default, if lower). A
+response once the conversation passes 70% of the window (or 75% of the window
+minus room for the reply, or `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`, 90,000
+by default, if either is lower). A
 turn that still nears the window shows "Summarizing earlier conversation…"
 while the Compaction model summarizes, and the oldest messages are left out of
 the request if needed. A turn fails with "The conversation is too long for …"
@@ -161,7 +161,8 @@ On the desktop app, a connection's key is saved in the app's encrypted vault
 accepts key values: the connection names an environment variable instead, and
 the backend reads that variable. Allowed names are `OPENAI_API_KEY`,
 `DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` and
-`ANIMAMA_CONNECTION_<NAME>_API_KEY`.
+`ANIMAMA_CONNECTION_<NAME>_API_KEY`. `ANTHROPIC_API_KEY` is reserved for the
+built-in Anthropic connection, so no other connection can send it elsewhere.
 
 With Compose, put `ANIMAMA_CONNECTION_<NAME>_API_KEY` values in an owner-only
 file outside the checkout and select it with `ANIMAMA_CONNECTION_KEYS_FILE`:
@@ -184,9 +185,9 @@ ANIMAMA_CONNECTION_KEYS_FILE="$HOME/.config/animama/connection-keys.env" ./reset
 
 `reset.sh` refuses a relative path or a file that other users can read, and
 records only the path in the stack record. Compose loads the file into the
-backend container alone. `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN` and
-`OPENROUTER_API_KEY` lines in this file are ignored: those come from the Compose
-environment, like other secrets. For a native backend, export the variable before starting it.
+backend container alone. `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`,
+`DEEPSEEK_API_KEY`, `HF_TOKEN` and `OPENROUTER_API_KEY` lines in this file are
+ignored: those come from the Compose environment, like other secrets. For a native backend, export the variable before starting it.
 
 ## Troubleshooting
 

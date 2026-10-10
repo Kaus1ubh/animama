@@ -554,6 +554,15 @@ and atomically updates readable Local files. Save & Equip uses the saved catalog
 selection in the reviewed Anima loadout flow. Existing and starter Actions use
 typed preview reads to hydrate protected files and dependency runtime.
 
+A Local Action that names a removed Included effect still opens and plays
+without it (see the catalog exception in
+[the data model](../../backend/architecture/data-model.md)). The editor warns
+which effects were removed, does not declare them again, and lists their
+events as unknown event IDs, so Save waits until they are mapped to other
+effects or removed. In chat, `AnimaRuntimeCatalog` skips those events
+(`runtime_missing_references`) with a `missing_effect_dependency` diagnostic,
+and the Library's content-attention list names the Action.
+
 Gesture Pose mode's Hands tool edits ordinary finger-bone drafts. Presets replace
 the chosen whole hand(s); Curl and Spread apply relative deltas to selected
 segments. Returning a control to zero after release leaves the pose unchanged.
@@ -654,14 +663,14 @@ from `src/frontend/web`:
   Gesture with the same Selector ID.
 - `pnpm -s animation:preview [<source>]` plays a clip, project file or Library
   item live on both Included Avatars through `Avatar`/`PoseController`, lit
-  like the chat canvas. A Library Gesture or Reaction, or a project file,
-  plays its Avatar and Particle Effects from its dependencies, with their
-  fades; seeking such a clip replays it from the start so earlier effects
-  show. Scene Effects and sounds are not played, and the page says so. It
-  also previews Avatar Effect sources (see the
-  [Avatar VFX guide](avatar-vfx.md#headed-preview)). Its Review and Compare
-  pickers switch to any clip beside a file source and any Library Gesture,
-  Reaction or Avatar Effect without a restart. Review notes are saved beside a
+  like the chat canvas, with the chat's Scene layers around each view. A
+  Library Gesture or Reaction, or a project file, plays its Avatar, Particle
+  and Scene Effects from its dependencies, with their fades; seeking such a
+  clip replays it from the start so earlier effects show. Sounds are not
+  played, and the page says so. It also previews Avatar, Particle and Scene
+  Effect sources (see the [Avatar VFX guide](avatar-vfx.md#headed-preview)).
+  Its Review and Compare pickers switch to any clip beside a file source and
+  any Library Gesture, Reaction or effect without a restart. Review notes are saved beside a
   file source (in the working directory for a Library item or any file inside
   Library content); `animation review` and `animation resolve` manage them.
 

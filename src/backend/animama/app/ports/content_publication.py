@@ -53,6 +53,8 @@ class ContentPublication(Protocol):
     Account adapters must scope locator lookup, locks, receipts, deletion and
     byte access to owner_id; Included remains immutable and shared. Refresh must
     never reconcile another owner's entries as missing or expose pending bytes.
+    Included projections must come from a scan that resolved optional edges
+    (``resolve_optional_dependencies``) over every mounted Included source.
     """
 
     owner_id: str

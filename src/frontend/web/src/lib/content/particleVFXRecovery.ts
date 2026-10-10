@@ -1,5 +1,9 @@
-import type { ParticleVFXEditorCatalogDraft } from "@/lib/avatar/particle-vfx";
+import type {
+  ParticleVFXEditorCatalogDraft,
+  ParticleVFXEditorTextureFile,
+} from "@/lib/avatar/particle-vfx";
 import type { JsonObject } from "@/lib/avatar/particle-vfx/editor/types";
+import { PARTICLE_TEXTURE_LIMITS } from "@/lib/effects/effectArtLimits";
 import {
   createCreatorRecoveryStore,
   creatorRecoveryTextBytes,
@@ -7,11 +11,21 @@ import {
 } from "./creatorRecoveryStore";
 
 export const PARTICLE_VFX_RECOVERY_SCHEMA =
-  "animama/particle-effect-recovery/2";
-export const PARTICLE_VFX_RECOVERY_MAX_BYTES = 5 * 1024 * 1024;
+  "animama/particle-effect-recovery/3";
+/** Records written before drafts carried texture files; they restore without them. */
+const PARTICLE_VFX_RECOVERY_SCHEMA_V2 = "animama/particle-effect-recovery/2";
+const MAX_RECOVERY_JSON_BYTES = 5 * 1024 * 1024;
+/** The JSON plus every texture an effect may carry. */
+export const PARTICLE_VFX_RECOVERY_MAX_BYTES =
+  MAX_RECOVERY_JSON_BYTES + PARTICLE_TEXTURE_LIMITS.totalBytes;
 const LOCAL_STORAGE_FALLBACK_MAX_BYTES = 1024 * 1024;
 
-/** Raw authoring state only: no delivery capabilities or Blobs. */
+/** One texture the draft uses, with its bytes. */
+export type ParticleVFXRecoveryTexture = ParticleVFXEditorTextureFile & {
+  reference: string;
+};
+
+/** Raw authoring state: no delivery capabilities, only the texture Blobs. */
 export type ParticleVFXRecovery = {
   schema: typeof PARTICLE_VFX_RECOVERY_SCHEMA;
   userId: string;
@@ -23,12 +37,19 @@ export type ParticleVFXRecovery = {
   displayName: string;
   catalog: ParticleVFXEditorCatalogDraft;
   quarksJson: JsonObject;
+  textures: readonly ParticleVFXRecoveryTexture[];
   updatedAt: string;
 };
 
+/** The localStorage fallback keeps everything except the texture bytes. */
+function metadata(recovery: ParticleVFXRecovery): ParticleVFXRecovery {
+  return { ...recovery, textures: [] };
+}
+
 /**
- * Particle Effect drafts as bounded JSON text. The storage names predate the
- * shared store and must not change, or existing drafts are lost.
+ * Particle Effect drafts with the texture Blobs they use, in IndexedDB. The
+ * storage names predate the shared store and must not change, or existing
+ * drafts are lost.
  */
 export const particleVFXRecoveryStore = createCreatorRecoveryStore({
   databaseName: "animama-content-creator-recovery",
@@ -40,20 +61,50 @@ export const particleVFXRecoveryStore = createCreatorRecoveryStore({
       "This effect is too large for browser crash recovery. Save can still continue.",
     unavailable:
       "Browser crash recovery is unavailable. Keep this tab open until Save finishes.",
+    metadataOnly: (recovery: ParticleVFXRecovery) =>
+      recovery.textures.length
+        ? "Texture files could not be stored for crash recovery. Choose the missing textures again after restoring this draft."
+        : null,
   },
   codec: {
     measure: (recovery: ParticleVFXRecovery) =>
-      creatorRecoveryTextBytes(JSON.stringify(recovery)),
-    toDatabase: (recovery: ParticleVFXRecovery) => JSON.stringify(recovery),
+      creatorRecoveryTextBytes(JSON.stringify(metadata(recovery))) +
+      recovery.textures.reduce((sum, texture) => sum + texture.blob.size, 0),
+    toDatabase: (recovery: ParticleVFXRecovery) => recovery,
     toFallback: (recovery: ParticleVFXRecovery) => {
-      const text = JSON.stringify(recovery);
+      const text = JSON.stringify(metadata(recovery));
       return creatorRecoveryTextBytes(text) <= LOCAL_STORAGE_FALLBACK_MAX_BYTES
-        ? { text, metadataOnly: false }
+        ? { text, metadataOnly: recovery.textures.length > 0 }
         : null;
     },
     parse: parseParticleVFXRecovery,
   },
 });
+
+function parseTextures(value: unknown): ParticleVFXRecoveryTexture[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((entry) => {
+    const texture = recoveryRecordObject(entry);
+    if (
+      !texture ||
+      typeof texture.reference !== "string" ||
+      !(texture.blob instanceof Blob) ||
+      typeof texture.sha256 !== "string" ||
+      typeof texture.width !== "number" ||
+      typeof texture.height !== "number"
+    )
+      return [];
+    return [
+      {
+        reference: texture.reference,
+        blob: texture.blob,
+        sha256: texture.sha256,
+        width: texture.width,
+        height: texture.height,
+      },
+    ];
+  });
+}
 
 function parseParticleVFXRecovery(
   value: unknown,
@@ -62,7 +113,8 @@ function parseParticleVFXRecovery(
   const record = recoveryRecordObject(value);
   if (
     !record ||
-    record.schema !== PARTICLE_VFX_RECOVERY_SCHEMA ||
+    (record.schema !== PARTICLE_VFX_RECOVERY_SCHEMA &&
+      record.schema !== PARTICLE_VFX_RECOVERY_SCHEMA_V2) ||
     record.userId !== identity.userId ||
     record.documentKey !== identity.documentKey ||
     typeof record.operationId !== "string" ||
@@ -87,6 +139,7 @@ function parseParticleVFXRecovery(
     displayName: record.displayName,
     catalog: record.catalog as ParticleVFXEditorCatalogDraft,
     quarksJson: record.quarksJson as JsonObject,
+    textures: parseTextures(record.textures),
     updatedAt: record.updatedAt,
   };
 }

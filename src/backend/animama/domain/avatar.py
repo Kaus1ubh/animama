@@ -24,4 +24,8 @@ class Avatar:
     presentation_revision: int = 1
 
 
-__all__ = ["Avatar"]
+class AvatarNameConflictError(Exception):
+    """The owner already has an Avatar with this name."""
+
+
+__all__ = ["Avatar", "AvatarNameConflictError"]

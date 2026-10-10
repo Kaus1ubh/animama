@@ -1,0 +1,17 @@
+{
+  "particleTexture": {
+    "bytes": 4194304,
+    "dimension": 2048,
+    "pixels": 4194304,
+    "grid": 16,
+    "count": 16,
+    "totalBytes": 33554432
+  },
+  "sceneImage": {
+    "bytes": 8388608,
+    "dimension": 4096,
+    "pixels": 16777216,
+    "count": 16,
+    "totalBytes": 33554432
+  }
+}

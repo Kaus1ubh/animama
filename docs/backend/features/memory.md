@@ -373,9 +373,9 @@ When the upload tools are equipped, the prompt includes a request-local list of
 the validated attached filenames and their persisted chunk counts. A count is
 backend-derived navigation metadata that helps the model plan bounded reads; it
 is not document-content evidence. The list follows the memory map in the
-trailing `developer` message; providers without developer-role support receive
-all developer text folded into the end of the system instruction, still ending
-with the Companion Guardrails. Distinct attachments with the same filename stay
+`developer` message before the user's message; providers without developer-role
+support receive it in the `<turn_context>` block that starts the user message.
+Both still end with the Companion Guardrails. Distinct attachments with the same filename stay
 as separate map entries because filename-based upload tools operate on every
 matching attachment.
 
@@ -507,11 +507,15 @@ results, including the raw provider-message shapes replayed on later turns.
 Visible chat history and chat search continue to exclude internal rows.
 
 Memory tool support is enabled for `OpenAIHTTPAgent` (Chat Completions on any
-connection), `OpenAIResponsesHTTPAgent` and `MockModelClient` rows that support
-tool calling. The Responses adapter maps read/search and writer functions onto
-Responses `function` and `function_call_output` items, and maps native-capable
-writes onto SDK `apply_patch_call` and `apply_patch_call_output` items. Other
-rows chat without memory tools.
+connection), `OpenAIResponsesHTTPAgent`, `AnthropicMessagesHTTPAgent` and
+`MockModelClient` rows that support tool calling. The Responses adapter maps
+read/search and writer functions onto Responses `function` and
+`function_call_output` items, and maps native-capable writes onto SDK
+`apply_patch_call` and `apply_patch_call_output` items. The Anthropic adapter
+sends the same functions as strict tools and replays their calls as
+`tool_use`/`tool_result` blocks; chat never uses Anthropic's native memory
+tool, which only the Memory Manager offers. Other rows chat without memory
+tools.
 
 ## User Memory Entry Tree
 

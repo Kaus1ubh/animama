@@ -1,9 +1,14 @@
-"""Remove and restore non-portable Gesture references in Idle Style descriptors.
+"""Remove and restore non-portable references in exported descriptors.
 
 A portable Idle Style may pool non-portable Gestures. Export removes those
 references (and any pool they empty) and records where they were used; import
 restores them when the receiving installation has the same non-portable item.
 Pool names are ``default`` or ``<emotion>.<intensity>``.
+
+A built-in effect's optional accompanying sound may be non-portable. Export
+removes that edge and the ``soundAlias`` naming it without a reference: Local
+content never carries a licensed sound, so an imported copy of the effect plays
+without it (ADR 0022).
 """
 
 from __future__ import annotations
@@ -77,4 +82,30 @@ def restore_idle_refs(projection: Mapping[str, Any], restores: Mapping[str, Coll
                 target.append(ref)
     if dependencies:
         result["dependencies"] = dependencies
+    return result
+
+
+def strip_optional_refs(projection: Mapping[str, Any], refs: Collection[str]) -> dict[str, Any]:
+    """Drop optional edges in ``refs`` and the sound alias naming them.
+
+    Kept edges lose their ``optional`` flag: a package entry becomes Local
+    content on import, and Local content never declares optional edges.
+    """
+
+    result = copy.deepcopy(dict(projection))
+    dependencies = []
+    removed_aliases = set()
+    for edge in result.get("dependencies", []):
+        if edge["ref"] in refs:
+            removed_aliases.add(edge.get("alias") or edge["ref"])
+            continue
+        edge.pop("optional", None)
+        dependencies.append(edge)
+    if dependencies:
+        result["dependencies"] = dependencies
+    else:
+        result.pop("dependencies", None)
+    definition = result.get("definition")
+    if isinstance(definition, dict) and definition.get("soundAlias") in removed_aliases:
+        del definition["soundAlias"]
     return result

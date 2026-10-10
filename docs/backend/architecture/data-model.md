@@ -120,6 +120,20 @@ resolved target item when unambiguous. Authoritative reconciliation marks
 unresolved, ambiguous, or cyclic roots invalid. It never substitutes a similar
 entry.
 
+One exception lets Included effects be removed before launch without migrating
+Local content: a Local Gesture or Reaction whose `builtin:` Avatar, Particle or
+Scene Effect dependency no longer exists (no present entry claims the ref)
+stays valid with a `missing_effect_dependency` diagnostic naming the ref. Its
+edge keeps a null target and is exposed as `missing_dependencies`, not as a
+member, so typed views, the runtime closure and loadouts see only the remaining
+dependencies. The runtime projection lists the removed effects by clip alias
+(`missing_references`), and the player skips their events; Portable export
+refuses the Action (`package_dependency_missing`) until its creator maps or
+removes them, and Save and package import refuse to admit one: only Actions
+saved before the removal outlive it. An invalid or ambiguous target, a Local
+ref, a sound, an Included Action or any other kind still invalidates the
+Action.
+
 `ORMContentMutationReceipt` stores successful Save, Delete, and Import results
 in the same database transaction as their catalog, owner, and provenance
 changes. An existing operation result is immutable: identical requests replay
@@ -316,14 +330,18 @@ configuration columns are:
 - `source`: `builtin` (release-managed) or `owner`;
 - `model_kind`: `chat` or `embedding`;
 - `hidden`: the owner hid the row from model lists;
+- `early_compaction` (default true): the owner's **Compact early** setting,
+  which applies only to Anthropic rows with a long-context price threshold
+  (see [model catalog](../model-catalog.md#compact-early));
 - `allow_memory_writes`: false limits direct chat to read-only memory tools;
 - `probe_result`: nullable JSONB summary of the capability probe the owner
   applied: its findings and each step's name, result and category, never the
   server's error text.
 
 The deterministic post-schema seed is generated from `MODEL_CATALOG`. It
-upserts the built-in `openai` connection and built-in rows, never changes
-`hidden`, `source` or `connection_id`, never touches owner rows, and retires
+upserts the built-in `openai` and `anthropic` connections and built-in rows,
+never changes `hidden`, `early_compaction`, `source` or `connection_id`, never
+touches owner rows, and retires
 built-in rows missing from the catalog. Owner rows and connections are retired
 (`active = false`), never deleted, and re-adding a model on the same connection
 reactivates its row. Public `/v1/model-providers` responses omit pricing fields
@@ -341,8 +359,10 @@ Model role assignments are catalog row IDs in user preferences (see
 rows belong to. Columns are `id`, `source` (`builtin` or `owner`), `name`,
 `preset`, nullable `base_url`, nullable `credential_env`, `compatibility`
 JSONB, nullable `timeout_seconds`, `active` and timestamps. The seeded
-built-in `openai` connection stores no base URL or credential reference and
-uses the process `OPENAI_BASE_URL` and `OPENAI_API_KEY`. `credential_env`
+built-in connections store no base URL or credential reference: `openai` uses
+the process `OPENAI_BASE_URL` and `OPENAI_API_KEY`, and `anthropic` uses only
+`ANTHROPIC_API_KEY` against Anthropic's API and serves only
+`AnthropicMessagesHTTPAgent` rows. `credential_env`
 stores only an environment variable name, never a key. `compatibility` holds
 the request-shape options `fold_developer_role`, `send_openai_extensions`,
 `send_stream_usage`, `strip_function_strict` and `reasoning_mode`. Removing a
@@ -398,7 +418,8 @@ path index:
   catalog row that ran their latest step in `model_provider_id`, which
   approval resumes use. Runs also
   store the internal nullable `openai_previous_response_id` Responses cursor
-  and serialized Agents SDK state while an approval is paused. Visible
+  and serialized runtime state while an approval is paused (Agents SDK state,
+  or the Anthropic runtime's stored conversation). Visible
   messages form the UI/audit transcript. Approval rows contain target path,
   operation, expected version, old/new content, nullable old/new description,
   unified diff preview, decision status, optional rejection-only
@@ -523,7 +544,7 @@ file entries and read/edit the active Anima's own `MEMORIES.md` through the
 files.
 
 The Memory Manager commits an approved create or update through
-`MemoryEntryService` and resumes the paused Agents SDK state. Specialized
+`MemoryEntryService` and resumes the paused runtime state. Specialized
 episode-processing runs bind at most 50 pending rows to one private task. A
 successful terminal runtime result with no pending approval atomically marks
 that exact batch processed, regenerates every affected daily episode file,
@@ -555,10 +576,11 @@ resolved owner principal chatting with one anima/avatar. The public durable API 
 - `anima_id`
 - title
 - `api_standard`, nullable. This is the chat transcript compatibility key.
-  Supported values are `chat_completions` and `responses`.
+  Supported values are `chat_completions`, `responses` and
+  `anthropic_messages`; CHECK constraints enforce both lists.
 - `last_model_client`, nullable. This records the model-client profile from the
-  latest successful durable `chat:sse` turn, currently
-  `openai_chat_completions` or `openai_responses`.
+  latest successful durable `chat:sse` turn: `openai_chat_completions`,
+  `openai_responses` or `anthropic_messages`.
 - `last_model_id`, nullable. This records the catalog model slug from the
   latest successful durable `chat:sse` turn.
 - `last_model_provider_id`, nullable text with no foreign key. This records the
@@ -609,7 +631,10 @@ baseline includes these columns; it does not backfill legacy databases.
 - nullable `raw_provider_message`, the Chat Completions-style message object
   used for next-turn replay. User rows store user messages, final assistant
   rows store raw assistant content, internal assistant rows store `tool_calls`,
-  and internal tool rows store `tool_call_id` plus tool output.
+  and internal tool rows store `tool_call_id` plus tool output. Anthropic final
+  assistant rows store Anthropic content blocks instead: the turn's latest
+  server compaction block, when there is one, then the reply text; their
+  internal rows store `anthropic_tool_use` and `anthropic_tool_result` items.
 - optional `model_provider` and `model` snapshot for provider-generated rows,
   indexed but without a foreign key, so history survives retired or
   same-named rows on other connections. User messages and non-provider rows
@@ -631,6 +656,11 @@ baseline includes these columns; it does not backfill legacy databases.
   item IDs, assistant `phase`/`phase_counts`, `message_phases`, annotations,
   native tool summaries, unknown output item types, and
   `stream_event_summary`.
+- `message_data.anthropic`, present for Anthropic assistant rows: message ID,
+  stop reason, usage (with compaction `iterations`), block
+  types, billed web searches, search summaries and citations. Sources are
+  stored, not displayed; thinking and encrypted search content are never
+  stored.
 - `message_data.memory`, on the final visible assistant row of a persisted
   direct-chat turn: `updates_enabled` and the turn's `MEMORIES.md` change
   (`{entry_id, version, excerpt}` or `null`), read back as the chat memory cue.
@@ -674,7 +704,9 @@ Rows are separate from the visible transcript and include:
 
 The active compaction row is hidden continuity context for the next direct chat
 turn. It is selected by `ChatManager` and injected before recent exact messages;
-it is not exposed as a normal chat message.
+it is not exposed as a normal chat message. Anthropic chats never use
+`chat_compactions`: their history starts at the newest assistant row whose
+stored content begins with a server compaction block.
 
 `ChatManager` is the normal direct-chat persistence service. It verifies or
 creates the owned chat for the current user/anima, fetches visible chat

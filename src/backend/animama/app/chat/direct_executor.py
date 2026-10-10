@@ -50,7 +50,8 @@ from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.events import Event, EventType, RunStatusKind, RunStatusPayload
 from animama.logging import get_logger
 
-from .api_standard import chat_api_standard_for_provider
+from .anthropic_instructions import INSTRUCTION_STYLE_ANTHROPIC, INSTRUCTION_STYLE_DEFAULT
+from .api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, chat_api_standard_for_provider
 from .direct_turn.constants import (
     DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
     STRUCTURED_REPAIR_METADATA_KEY,
@@ -86,12 +87,12 @@ from .direct_turn.provider_state import (
 )
 from .direct_turn.response_format import (
     build_main_structured_response_format,
+    gesture_response_guidance,
     main_structured_response_format_for_model,
     main_structured_response_guidance,
     response_model_agent_id,
     turn_response_format,
     turn_response_schema_name,
-    with_gesture_guidance,
 )
 from .direct_turn.types import (
     DirectChatAttachmentContext,
@@ -488,7 +489,12 @@ class DirectChatTurnExecutor:
         chat_context = None
         compiled_history: list[Any] = []
         if not skip_context_fetch:
-            chat_context = await chat_manager.get_chat_context(chat_id=request.chat_id)
+            # Anthropic chats replay from their newest server-side compaction
+            # block instead of the application's compaction summary.
+            chat_context = await chat_manager.get_chat_context(
+                chat_id=request.chat_id,
+                native_compaction=model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+            )
             compiled_history = compiled_context_history(chat_context)
         _log.info(
             "Direct chat history context prepared",
@@ -523,7 +529,7 @@ class DirectChatTurnExecutor:
                 memory_tool_specs=memory_tool_specs,
                 visible_history=compiled_history,
                 response_format=response_format,
-                response_format_guidance=with_gesture_guidance(
+                response_format_guidance=gesture_response_guidance(
                     main_structured_response_guidance(model_provider, output_type),
                     request.runtime_gesture_descriptors,
                 ),
@@ -603,7 +609,16 @@ class DirectChatTurnExecutor:
             for event in stream_emitter.feed_text_delta(round_index, text):
                 await early_event_queue.put(event)
 
+        # Statuses still open when the turn's model work ends (a failed or
+        # retried provider stream) are finished then, so each started status
+        # is followed by finished.
+        open_statuses: list[RunStatusKind] = []
+
         async def on_run_status(status: RunStatusKind, phase: str) -> None:
+            if phase == "started":
+                open_statuses.append(status)
+            elif status in open_statuses:
+                open_statuses.remove(status)
             await early_event_queue.put(self._run_status_event(prepared.request, status, phase))
 
         # The collector asks `needs_repair` about the turn's final reply before
@@ -655,6 +670,10 @@ class DirectChatTurnExecutor:
                     shrink_request=shrink_request if context_budget is not None else None,
                 )
             finally:
+                while open_statuses:
+                    await early_event_queue.put(
+                        self._run_status_event(prepared.request, open_statuses.pop(), "finished")
+                    )
                 await early_event_queue.put(None)
 
         collector_task = asyncio.create_task(
@@ -932,14 +951,19 @@ class DirectChatTurnExecutor:
         """Return whether this turn offers the application ``web_search`` tool.
 
         Requested web search that the provider does not host uses the
-        configured backend on a model that calls tools. Otherwise the turn runs
+        configured backend on a model that calls tools, except on Anthropic
+        rows, which use only Anthropic's server tool. Otherwise the turn runs
         without search and logs why, instead of failing.
         """
 
         if not wants_application_web_search(model_provider, request.options):
             return False
         reason = None
-        if self._web_search_tool is None:
+        if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+            # Anthropic rows search only with Anthropic's own server tool (D7);
+            # a row without it runs the turn without search.
+            reason = "provider_without_native_web_search"
+        elif self._web_search_tool is None:
             reason = "no_backend"
         elif not model_provider.capabilities.supports_tools:
             reason = "model_without_tools"
@@ -966,10 +990,10 @@ class DirectChatTurnExecutor:
 
         A turn continuing from a provider cursor sends no local history, and a
         client that asks its provider to compact (OpenAI Responses with a
-        compaction threshold) keeps prompts within the window itself. Every
-        other row with a window is fitted here, including Responses rows whose
-        composition turns native compaction off. Rows without a window are not
-        bounded.
+        compaction threshold, and Anthropic Messages) keeps prompts within the
+        window itself. Every other row with a window is fitted here, including
+        Responses rows whose composition turns native compaction off. Rows
+        without a window are not bounded.
         """
 
         model_provider = prepared.model_request.model_provider
@@ -990,7 +1014,7 @@ class DirectChatTurnExecutor:
             memory_tool_specs=prepared.memory_tool_specs,
             visible_history=visible_history,
             response_format=cast(dict[str, Any] | None, model_request.prompt.response_format),
-            response_format_guidance=with_gesture_guidance(
+            response_format_guidance=gesture_response_guidance(
                 main_structured_response_guidance(model_request.model_provider, prepared.output_type),
                 prepared.request.runtime_gesture_descriptors,
             ),
@@ -1198,6 +1222,11 @@ class DirectChatTurnExecutor:
                 model=model_provider.model,
             ),
             reasoning_effort=turn_reasoning_effort(request.options),
+            instruction_style=(
+                INSTRUCTION_STYLE_ANTHROPIC
+                if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
+                else INSTRUCTION_STYLE_DEFAULT
+            ),
             metadata={
                 "anima_id": request.anima_id,
                 "chat_id": request.chat_id,

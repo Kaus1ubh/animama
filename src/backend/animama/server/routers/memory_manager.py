@@ -1,14 +1,19 @@
-"""Authenticated episodic-memory and memory-manager workflow routes."""
+"""Authenticated Memory Manager run, message and approval routes, including episode processing."""
 
 from __future__ import annotations
 
 import os
-from typing import Annotated, Literal, NoReturn
+from typing import Annotated, NoReturn
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.memory_manager import DeterministicMemoryManagerRuntime, OpenAIAgentsMemoryManagerRuntime
+from animama.adapters.memory_manager import (
+    AnthropicMemoryManagerRuntime,
+    DeterministicMemoryManagerRuntime,
+    MemoryManagerRuntimeSelector,
+    OpenAIAgentsMemoryManagerRuntime,
+)
 from animama.adapters.repositories.sqlalchemy.anima_memory_reflection_repo import (
     SQLAlchemyAnimaMemoryReflectionRepository,
 )
@@ -20,6 +25,7 @@ from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlch
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
 from animama.adapters.repositories.sqlalchemy.settings_repo import SQLAlchemyUserSettingsRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+from animama.app.ports.memory_manager_runtime import MemoryManagerRuntime
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.memory_episode_service import (
     MemoryEpisodeError,
@@ -35,7 +41,6 @@ from animama.app.services.memory_manager_service import (
     MemoryManagerValidationError,
 )
 from animama.app.services.model_role_resolver import ROLE_MEMORY_MANAGER
-from animama.domain.memory_episode import MemoryEpisodeItem
 from animama.domain.memory_manager import (
     MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING,
     MEMORY_MANAGER_RUN_KIND_REFLECTION,
@@ -55,8 +60,6 @@ from animama.server.deps import get_async_session, get_current_principal
 from animama.server.model_clients import build_model_credential_resolver, openai_base_url
 from animama.server.model_roles import ModelRoleSettings, get_model_role_settings
 from animama.server.schemas.memory_manager import (
-    PyMemoryEpisodeItem,
-    PyMemoryEpisodeListResponse,
     PyMemoryManagerApproval,
     PyMemoryManagerApprovalDecisionRequest,
     PyMemoryManagerApprovalUndoResponse,
@@ -118,28 +121,47 @@ async def _manager_service(session: AsyncSession, user_id: str, roles: ModelRole
         uow=uow,
         commit_on_write=False,
     )
-    runtime = (
-        DeterministicMemoryManagerRuntime(
+    runtime: MemoryManagerRuntime
+    if _truthy_env(os.getenv("ANIMAMA_LLM_SKIP")):
+        runtime = DeterministicMemoryManagerRuntime(
             user_id=user_id,
             memory_entries=memory_entries,
             memory_episodes=memory_episode_repository,
             animas=anima_repository,
             chat_messages=chat_message_repository,
         )
-        if _truthy_env(os.getenv("ANIMAMA_LLM_SKIP"))
-        else OpenAIAgentsMemoryManagerRuntime(
-            user_id=user_id,
-            memory_entries=memory_entries,
-            memory_episodes=memory_episode_repository,
-            animas=anima_repository,
-            chat_messages=chat_message_repository,
+    else:
+        model_providers = SQLAlchemyModelProviderRepository(session)
+        credential_resolver = build_model_credential_resolver()
+        timeout_seconds = settings.anima_model_client_timeout_seconds
+        # Each step runs on the runtime of its row's provider type; approvals resume on the pinned row's.
+        runtime = MemoryManagerRuntimeSelector(
             model_provider=(await roles.resolver(session).resolve(user_id, ROLE_MEMORY_MANAGER)).model_provider,
-            model_providers=SQLAlchemyModelProviderRepository(session),
-            credential_resolver=build_model_credential_resolver(),
-            openai_base_url=openai_base_url(),
-            timeout_seconds=settings.anima_model_client_timeout_seconds,
+            model_providers=model_providers,
+            openai_agents=lambda row: OpenAIAgentsMemoryManagerRuntime(
+                user_id=user_id,
+                memory_entries=memory_entries,
+                memory_episodes=memory_episode_repository,
+                animas=anima_repository,
+                chat_messages=chat_message_repository,
+                model_provider=row,
+                model_providers=model_providers,
+                credential_resolver=credential_resolver,
+                openai_base_url=openai_base_url(),
+                timeout_seconds=timeout_seconds,
+            ),
+            anthropic=lambda row: AnthropicMemoryManagerRuntime(
+                user_id=user_id,
+                memory_entries=memory_entries,
+                memory_episodes=memory_episode_repository,
+                animas=anima_repository,
+                chat_messages=chat_message_repository,
+                model_provider=row,
+                model_providers=model_providers,
+                credential_resolver=credential_resolver,
+                timeout_seconds=timeout_seconds,
+            ),
         )
-    )
     return MemoryManagerService(
         memory_manager=SQLAlchemyMemoryManagerRepository(session),
         memory_entries=memory_entries,
@@ -153,28 +175,6 @@ async def _manager_service(session: AsyncSession, user_id: str, roles: ModelRole
 
 def _truthy_env(value: str | None) -> bool:
     return str(value or "").strip().lower() in {"1", "true", "yes", "y", "on"}
-
-
-def _to_episode_item(item: MemoryEpisodeItem) -> PyMemoryEpisodeItem:
-    return PyMemoryEpisodeItem(
-        id=item.id,
-        source_anima_id=item.source_anima_id,
-        source_chat_id=item.source_chat_id,
-        source_run_id=item.source_run_id,
-        source_message_id=item.source_message_id,
-        occurred_at=item.occurred_at,
-        local_date=item.local_date,
-        local_timezone=item.local_timezone,
-        episode_path=item.episode_path,
-        kind=item.kind,
-        text=item.text,
-        status=item.status,
-        processed_at=item.processed_at,
-        processed_by_run_id=item.processed_by_run_id,
-        metadata=dict(item.metadata or {}),
-        created_at=item.created_at,
-        updated_at=item.updated_at,
-    )
 
 
 def _to_patch_preview(preview: MemoryPatchPreview) -> PyMemoryPatchPreview:
@@ -290,30 +290,6 @@ def _raise_http_error(exc: Exception) -> NoReturn:
     if isinstance(exc, MemoryManagerError | MemoryEpisodeError):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.detail) from exc
     raise exc
-
-
-@router.get(
-    "/v1/memory/episodes",
-    response_model=PyMemoryEpisodeListResponse,
-    status_code=status.HTTP_200_OK,
-)
-async def list_memory_episodes(
-    session: SessionDep,
-    user: UserDep,
-    status: Annotated[Literal["pending", "processed"] | None, Query()] = "pending",
-    limit: Annotated[int, Query(ge=1, le=1000)] = 100,
-) -> PyMemoryEpisodeListResponse:
-    """List current-user episodic-memory items for manual review."""
-
-    try:
-        items = await _episode_service(session).list_episode_items(
-            user_id=user.id,
-            status=status,
-            limit=limit,
-        )
-    except (MemoryEpisodeValidationError, MemoryEpisodeNotFoundError) as exc:
-        _raise_http_error(exc)
-    return PyMemoryEpisodeListResponse(items=[_to_episode_item(item) for item in items])
 
 
 @router.post(
@@ -546,7 +522,6 @@ __all__ = [
     "decide_memory_manager_approval",
     "get_current_memory_manager_run",
     "get_memory_manager_run",
-    "list_memory_episodes",
     "router",
     "undo_memory_manager_approval",
 ]

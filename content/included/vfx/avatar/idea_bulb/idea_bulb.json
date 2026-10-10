@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Idea Bulb",
   "description": "A cartoon light bulb pops on above and beside the head, then glows with a gentle pulse, for sudden bright ideas and confident \"got it!\" moments.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:realization",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "sticker",
@@ -50,7 +57,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

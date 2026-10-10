@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Texture Sick 1",
   "description": "Uneasy face overlay with subtle drift for disgust, nausea, or anxious discomfort.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:wobble_short",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "full_face",
@@ -22,7 +29,8 @@
         "x": 0.03,
         "y": 0
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

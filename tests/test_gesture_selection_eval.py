@@ -21,12 +21,12 @@ from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlch
 from animama.app.chat import DirectChatPromptAssembler, RuntimeGestureDescriptor
 from animama.app.chat.direct_turn.constants import DIRECT_CHAT_NODE_ID
 from animama.app.chat.direct_turn.response_format import (
+    gesture_response_guidance,
     main_structured_response_format_for_model,
     main_structured_response_guidance,
     render_available_gestures,
     response_model_agent_id,
     turn_response_schema_name,
-    with_gesture_guidance,
 )
 from animama.app.chat.options import DirectChatOptions
 from animama.app.main_structured_response import build_main_structured_response_model
@@ -169,7 +169,7 @@ async def test_prompt_and_schema_match_the_chat_assembly_for_the_loadout() -> No
         user_message="Hi there!",
         anima_identity=harness.ANIMA_IDENTITY,
         anima_name=harness.ANIMA_NAME,
-        response_format_guidance=with_gesture_guidance(
+        response_format_guidance=gesture_response_guidance(
             main_structured_response_guidance(provider, output_type), LOADOUT.gestures
         ),
     )

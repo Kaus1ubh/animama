@@ -387,8 +387,8 @@ CREATE TABLE chats (
     updated_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,
     created_by_id character varying,
     last_updated_by_id character varying,
-    CONSTRAINT ck_chats_api_standard_valid CHECK (((api_standard IS NULL) OR ((api_standard)::text = ANY ((ARRAY['chat_completions'::character varying, 'responses'::character varying])::text[])))),
-    CONSTRAINT ck_chats_last_model_client_valid CHECK (((last_model_client IS NULL) OR ((last_model_client)::text = ANY ((ARRAY['openai_chat_completions'::character varying, 'openai_responses'::character varying])::text[]))))
+    CONSTRAINT ck_chats_api_standard_valid CHECK (((api_standard IS NULL) OR ((api_standard)::text = ANY ((ARRAY['chat_completions'::character varying, 'responses'::character varying, 'anthropic_messages'::character varying])::text[])))),
+    CONSTRAINT ck_chats_last_model_client_valid CHECK (((last_model_client IS NULL) OR ((last_model_client)::text = ANY ((ARRAY['openai_chat_completions'::character varying, 'openai_responses'::character varying, 'anthropic_messages'::character varying])::text[]))))
 );
 
 -- animama-statement --
@@ -728,6 +728,7 @@ CREATE TABLE model_providers (
     source character varying DEFAULT 'builtin'::character varying NOT NULL,
     model_kind character varying DEFAULT 'chat'::character varying NOT NULL,
     hidden boolean DEFAULT false NOT NULL,
+    early_compaction boolean DEFAULT true NOT NULL,
     allow_memory_writes boolean DEFAULT true NOT NULL,
     probe_result jsonb,
     service_tiers_supported json NOT NULL,

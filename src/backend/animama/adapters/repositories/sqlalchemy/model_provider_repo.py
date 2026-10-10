@@ -93,6 +93,15 @@ class SQLAlchemyModelProviderRepository(ModelProviderRepository):
         await self._s.refresh(orm)
         return (await self._with_connections([model_provider_orm_to_domain(orm)]))[0]
 
+    async def set_early_compaction(self, model_provider_id: str, *, enabled: bool) -> ModelProvider | None:
+        orm = await self._s.get(ORMModelProvider, model_provider_id)
+        if orm is None:
+            return None
+        orm.early_compaction = enabled
+        await self._s.flush()
+        await self._s.refresh(orm)
+        return (await self._with_connections([model_provider_orm_to_domain(orm)]))[0]
+
     async def _with_connections(self, rows: list[ModelProvider]) -> list[ModelProvider]:
         connection_ids = {row.connection_id for row in rows}
         if not connection_ids:
@@ -114,11 +123,13 @@ class SQLAlchemyModelProviderRepository(ModelProviderRepository):
                 orm = model_provider_domain_to_orm(model_provider)
                 self._s.add(orm)
             else:
-                # Hiding a built-in row is the owner's choice; catalog syncs keep it.
-                hidden = orm.hidden
+                # Hiding a built-in row and its Compact early setting are the
+                # owner's choices; catalog syncs keep them.
+                hidden, early_compaction = orm.hidden, orm.early_compaction
                 apply_model_provider_to_orm(orm, model_provider)
                 if orm.source == MODEL_SOURCE_BUILTIN:
                     orm.hidden = hidden
+                    orm.early_compaction = early_compaction
             await self._s.flush()
             await self._s.refresh(orm)
             stored.append(model_provider_orm_to_domain(orm))

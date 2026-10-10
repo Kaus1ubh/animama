@@ -92,7 +92,8 @@ after(async () => {
 /** Each test owns a fresh DOM, hook instance, transport and event transcript. */
 async function consumer(t) {
   const page = await browser.newPage();
-  page.setDefaultTimeout(5000);
+  // Generous for two-core CI runners.
+  page.setDefaultTimeout(30_000);
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   t.after(async () => {

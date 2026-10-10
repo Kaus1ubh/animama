@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createServer } from "vite";
 import { selfHostedRuntimeCapabilities } from "./fixtures/runtime-capabilities.mjs";
+import { BROWSER_STEP_TIMEOUT_MS } from "./fixtures/browser-timeouts.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = path.join(webRoot, "tests/fixtures/voice-clone-library");
@@ -162,7 +163,7 @@ test("picker filters expose keyboard gender tabs and Custom without selecting or
   const page = await browser.newPage({
     viewport: { width: 1280, height: 800 },
   });
-  page.setDefaultTimeout(5_000);
+  page.setDefaultTimeout(BROWSER_STEP_TIMEOUT_MS);
   const modelRequests = [];
   page.on("request", (request) => {
     if (
@@ -347,7 +348,7 @@ async function mount() {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 800 },
   });
-  page.setDefaultTimeout(10_000);
+  page.setDefaultTimeout(BROWSER_STEP_TIMEOUT_MS);
   const requests = [];
   let asset = { ...missing };
   let releaseInstall;

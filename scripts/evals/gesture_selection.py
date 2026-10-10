@@ -576,7 +576,9 @@ class _EvalChats:
             last_model_provider_id=model_provider_id,
         )
 
-    async def get_chat_context(self, *, chat_id: str) -> ChatContext:
+    async def get_chat_context(self, *, chat_id: str, native_compaction: bool = False) -> ChatContext:
+        # Evaluation chats keep no compaction, so ``native_compaction`` changes nothing.
+        del native_compaction
         return ChatContext(messages=list(self._messages.get(chat_id, ())))
 
     async def record_turn(self, **_: Any) -> None:

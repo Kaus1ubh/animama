@@ -19,7 +19,8 @@ Full validation runs both through `scripts/ci/tooling_tests.py`.
 
 ## Shared import and artifact checks
 
-`check-python-imports.py` statically follows every domain/application module,
+`check-python-imports.py` statically follows every domain, application and shared
+product HTTP (`animama.product_http`) module,
 including relative imports, package initializers and transitive helpers. A
 dependency on local installation state, server construction, migrations,
 local HTTP admission or private service modules fails. Local compositions may
@@ -37,8 +38,10 @@ chat/session/SSE code, cancellation, stale event fencing, failed-POST retry
 policy, emitted CSS and transport-supplied thumbnails. The backend installs the
 wheel into a new virtual environment and exercises real bootstrap, Anima and
 chat services with fake ports/model clients. Separate consumers render the shared
-request/response schemas and exercise content save, export, import and receipt
-recovery with owner-scoped memory storage and the canonical archive inspector.
+request/response schemas, exercise content save, export, import and receipt
+recovery with owner-scoped memory storage and the canonical archive inspector, and
+mount the shared product routers with a consumer's own resolver and ports
+(fail-closed without either, per-owner sessions, a failed deferred commit reported).
 Local-composition imports are
 actively blocked and loaded modules must not resolve into the source checkout.
 

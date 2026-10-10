@@ -4,6 +4,7 @@
 @import "@uppy/dashboard/css/style.min.css";
 @import "@animama/product-ui/theme.css";
 @import "./styles/globals.css";
+@import "./styles/scene-vfx.css";
 @plugin "@tailwindcss/typography";
 @source ".";
 @source "../node_modules/streamdown/dist/*.js";

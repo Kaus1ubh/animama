@@ -9,6 +9,7 @@ import {
 } from "../../poses/animaPoseClip";
 import {
   PreviewSourceError,
+  isInLibraryContent,
   listPreviewChoices,
   previewClipFromText,
   resolvePreviewSource,
@@ -369,5 +370,25 @@ describe("listPreviewChoices", () => {
         (await resolvePreviewSource(choice.spec, { cwd: dir, included, local }))
           .path,
       ).toBe(choice.path);
+  });
+});
+
+describe("isInLibraryContent", () => {
+  it("knows effect item folders of every kind, wherever they are", async () => {
+    const roots = { cwd: dir, included: path.join(dir, "included") };
+    for (const file of [
+      "vfx/avatar/swirl/swirl.json",
+      "vfx/scene/joy/joy.json",
+      "vfx/particle/sparkles/sparkles.json",
+      "vfx/particle/quark/sparkles/sparkles.json",
+    ])
+      expect(
+        await isInLibraryContent(path.join(dir, "elsewhere", file), roots),
+        file,
+      ).toBe(true);
+    // A draft effect folder is not Library content.
+    expect(
+      await isInLibraryContent(path.join(dir, "drafts/joy/joy.json"), roots),
+    ).toBe(false);
   });
 });

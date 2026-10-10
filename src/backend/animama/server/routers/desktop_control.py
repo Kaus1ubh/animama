@@ -19,7 +19,7 @@ from animama.adapters.repositories.sqlalchemy.feature_pack_removal_repo import (
 from animama.app.model_clients.credential_store import CredentialStoreError
 from animama.domain.feature_packs import FEATURE_PACK_IDS, PackRemovalBlocker
 from animama.server.deps import get_async_session
-from animama.server.routers.runtime_capabilities import get_runtime_settings
+from animama.server.runtime_capabilities import get_runtime_settings
 from animama.server.runtime_credentials import runtime_credentials
 
 router = APIRouter(prefix="/_desktop", include_in_schema=False)

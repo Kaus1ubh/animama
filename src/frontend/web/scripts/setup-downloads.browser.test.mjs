@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createServer } from "vite";
 import { selfHostedRuntimeCapabilities } from "./fixtures/runtime-capabilities.mjs";
+import { BROWSER_STEP_TIMEOUT_MS } from "./fixtures/browser-timeouts.mjs";
 
 // Real interaction coverage for the stepped first-run setup: step navigation,
 // focus, the unsaved-key prompt, model choice, voice choices, downloads and
@@ -42,6 +43,7 @@ after(async () => {
 });
 
 const OPENAI_MODEL = "OpenAIResponsesHTTPAgent:gpt-6-luna";
+const HAIKU = "AnthropicMessagesHTTPAgent:claude-haiku-5-5";
 const COMPATIBILITY = {
   fold_developer_role: false,
   send_openai_extensions: false,
@@ -79,7 +81,7 @@ async function mount(options = {}) {
   const page = await browser.newPage({
     viewport: { width: 1280, height: 900 },
   });
-  page.setDefaultTimeout(10000);
+  page.setDefaultTimeout(BROWSER_STEP_TIMEOUT_MS);
   const errors = [];
   page.on("pageerror", (error) => errors.push(error.message));
   const operations = [];
@@ -87,6 +89,7 @@ async function mount(options = {}) {
   const bodies = {};
   const statuses = [
     "openai",
+    "anthropic",
     "deepseek",
     "huggingface",
     "gemini",
@@ -134,8 +137,9 @@ async function mount(options = {}) {
       speech: { stt_provider: "parakeet" },
     },
   };
-  const openAiConfigured = () =>
-    statuses.find((status) => status.provider === "openai").configured;
+  const configured = (provider) =>
+    statuses.find((status) => status.provider === provider).configured;
+  const openAiConfigured = () => configured("openai");
   const connections = [];
   const ownerModels = [];
   const builtinConnection = () => ({
@@ -170,7 +174,53 @@ async function mount(options = {}) {
       },
     ],
   });
+  const haiku = {
+    model: "claude-haiku-5-5",
+    model_label: "Claude Haiku 5.5",
+    source: "builtin",
+    model_kind: "chat",
+    hidden: false,
+    connection_id: "anthropic",
+    context_window_tokens: 1000000,
+  };
+  const anthropicConnection = () => ({
+    id: "anthropic",
+    name: "Anthropic",
+    preset: "anthropic",
+    source: "builtin",
+    base_url: null,
+    credential_env: null,
+    credential_state: configured("anthropic") ? "configured" : "missing",
+    compatibility: COMPATIBILITY,
+    timeout_seconds: null,
+    models: [
+      {
+        ...haiku,
+        id: HAIKU,
+        provider_type: "AnthropicMessagesHTTPAgent",
+        allow_memory_writes: true,
+        early_compaction: true,
+        capabilities: {
+          accepts: ["text", "image"],
+          supports_streaming: true,
+          supports_tools: true,
+          tools_with_structured_output: true,
+          structured_output_transport: "json_schema",
+        },
+      },
+    ],
+  });
   const catalog = () => [
+    {
+      ...haiku,
+      id: HAIKU,
+      model_provider: "AnthropicMessagesHTTPAgent",
+      api_standard: "anthropic_messages",
+      provider_label: "Anthropic",
+      connection_name: "Anthropic",
+      supports_streaming: true,
+      supports_tools: true,
+    },
     {
       id: OPENAI_MODEL,
       model: "gpt-6-luna",
@@ -266,7 +316,9 @@ async function mount(options = {}) {
     if (pathname === "/v1/model-connection-presets")
       return route.fulfill({ json: PRESETS });
     if (pathname === "/v1/model-connections" && method === "GET")
-      return route.fulfill({ json: [builtinConnection(), ...connections] });
+      return route.fulfill({
+        json: [anthropicConnection(), builtinConnection(), ...connections],
+      });
     if (pathname === "/v1/model-connections" && method === "POST") {
       const body = request.postDataJSON();
       const created = {
@@ -407,6 +459,8 @@ async function elevenLabsKey(page) {
 }
 const openAiKey = (page) =>
   page.locator("input").and(page.getByLabel("OpenAI", { exact: true }));
+const anthropicKey = (page) =>
+  page.locator("input").and(page.getByLabel("Anthropic", { exact: true }));
 const detects = (requests) =>
   requests
     .filter((request) => request.pathname.endsWith("/detect"))
@@ -572,6 +626,100 @@ test("saving the OpenAI key chooses OpenAI; Finish keeps the default voice setti
     assert.deepEqual(writes(requests), [
       "POST /v1/runtime/onboarding:complete",
     ]);
+  } finally {
+    await page.close();
+  }
+});
+
+test("saving the Anthropic key chooses Claude Haiku 5.5, and Finish sends it", async () => {
+  const { page, operations, bodies } = await mount();
+  try {
+    await welcome(page);
+    // OpenAI opens first; Anthropic is its own tab with its own key.
+    assert.equal(
+      await providerTab(page, "OpenAI").getAttribute("aria-selected"),
+      "true",
+    );
+    await providerTab(page, "Anthropic").click();
+    await anthropicKey(page).fill("fixture-key");
+    // An unsaved Anthropic key prompts before leaving, like the others.
+    const dialog = page.getByRole("dialog", { name: "Save your API key?" });
+    await button(page, "Continue").click();
+    await dialog.waitFor();
+    await button(page, "Keep editing").click();
+    await dialog.waitFor({ state: "hidden" });
+    assert.deepEqual(operations, []);
+    await button(page, "Save").click();
+    await page.getByText("Saved.", { exact: true }).waitFor();
+    await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
+    assert.equal(
+      await page.evaluate(() =>
+        JSON.stringify({ ...localStorage, ...sessionStorage }).includes(
+          "fixture-key",
+        ),
+      ),
+      false,
+    );
+    await button(page, "Continue").click();
+    await heading(page, "Set up voice").waitFor();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.deepEqual(operations, [{ method: "credentials.apply" }]);
+    assert.equal(bodies.onboarding.chat_model_provider_id, HAIKU);
+  } finally {
+    await page.close();
+  }
+});
+
+/** Save the Anthropic key on the AI step, which chooses Claude Haiku 5.5. */
+async function saveAnthropicKey(page) {
+  await providerTab(page, "Anthropic").click();
+  await anthropicKey(page).fill("fixture-key");
+  await button(page, "Save").click();
+  await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
+}
+
+test("saving the OpenAI key after the Anthropic key makes OpenAI the setup model", async () => {
+  const { page, bodies } = await mount();
+  try {
+    await welcome(page);
+    await saveAnthropicKey(page);
+    // The model set up last wins.
+    await providerTab(page, "OpenAI").click();
+    await openAiKey(page).fill("fixture-key");
+    await button(page, "Save").click();
+    await page.getByRole("tab", { name: "OpenAI (connected)" }).waitFor();
+    await button(page, "Continue").click();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(bodies.onboarding.chat_model_provider_id, OPENAI_MODEL);
+  } finally {
+    await page.close();
+  }
+});
+
+test("adding a model after the Anthropic key makes it the setup model", async () => {
+  const { page, bodies } = await mount({ detect: { ollama: ["qwen3:8b"] } });
+  try {
+    await welcome(page);
+    await saveAnthropicKey(page);
+    await page.getByRole("tab", { name: "Local" }).click();
+    await button(page, "Add qwen3:8b").click();
+    const dialog = page.getByRole("dialog", { name: "Add a model to Ollama" });
+    await dialog
+      .getByLabel("Context window (tokens)", { exact: true })
+      .fill("8192");
+    await dialog
+      .getByRole("button", { name: "Add model", exact: true })
+      .click();
+    await dialog.waitFor({ state: "hidden" });
+    await button(page, "Continue").click();
+    await button(page, "Finish").click();
+    await page.getByText("Setup complete", { exact: true }).waitFor();
+    assert.equal(
+      bodies.onboarding.chat_model_provider_id,
+      "OpenAIHTTPAgent:conn-1:qwen3:8b",
+    );
   } finally {
     await page.close();
   }
@@ -776,13 +924,17 @@ test("each local provider tab looks for its own server when opened", async () =>
   }
 });
 
-test("an OpenAI key configured before setup does not pin a setup model", async () => {
+test("OpenAI and Anthropic keys configured before setup do not pin a setup model", async () => {
   const { page, statuses, bodies } = await mount();
   try {
-    statuses[0].configured = true;
-    statuses[0].updatedAt = "2026-09-28T00:00:00Z";
+    for (const provider of ["openai", "anthropic"])
+      Object.assign(
+        statuses.find((status) => status.provider === provider),
+        { configured: true, updatedAt: "2026-09-28T00:00:00Z" },
+      );
     await page.reload();
     await welcome(page);
+    await page.getByRole("tab", { name: "Anthropic (connected)" }).waitFor();
     await button(page, "Continue").click();
     await button(page, "Finish").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();

@@ -1,9 +1,10 @@
 """Model connections: the endpoint and credential boundary for model rows.
 
-A model connection names one model server (the built-in OpenAI API, or an
-owner-configured OpenAI-compatible Chat Completions endpoint such as Ollama).
-Every catalog row belongs to exactly one connection, and requests for that row
-go only to the connection's base URL with only the connection's credential.
+A model connection names one model server: the built-in OpenAI API, the
+built-in Anthropic Messages API, or an owner-configured OpenAI-compatible Chat
+Completions endpoint such as Ollama. Every catalog row belongs to exactly one
+connection, and requests for that row go only to the connection's endpoint with
+only the connection's credential.
 """
 
 from __future__ import annotations
@@ -14,6 +15,9 @@ from datetime import datetime
 from typing import Any
 
 BUILTIN_OPENAI_CONNECTION_ID = "openai"
+BUILTIN_ANTHROPIC_CONNECTION_ID = "anthropic"
+BUILTIN_CONNECTION_IDS = frozenset({BUILTIN_OPENAI_CONNECTION_ID, BUILTIN_ANTHROPIC_CONNECTION_ID})
+"""Release-managed connections. Owner connection ids are generated and never collide with these."""
 
 MODEL_SOURCE_BUILTIN = "builtin"
 MODEL_SOURCE_OWNER = "owner"
@@ -33,8 +37,11 @@ REASONING_MODES = frozenset({REASONING_MODE_OPENAI_EFFORT, REASONING_MODE_DEEPSE
 class ModelConnectionCompatibility:
     """Request-shape options for servers that differ from OpenAI's behavior.
 
-    - ``fold_developer_role``: merge ``developer`` messages into the system
-      message for servers or chat templates that reject the role.
+    - ``fold_developer_role``: send no ``developer`` messages, for servers or
+      chat templates that reject the role. Each turn's context goes in a
+      tagged ``<turn_context>`` block at the start of the user message; only
+      an app compaction summary and within-turn instructions are merged into
+      the system message.
     - ``send_openai_extensions``: send ``prompt_cache_key`` and
       ``parallel_tool_calls``, which some servers reject as unknown fields.
     - ``send_stream_usage``: request streamed usage with
@@ -84,8 +91,9 @@ class ModelConnection:
     """One model server and how to reach it; never holds a credential value.
 
     ``credential_env`` names the environment variable that holds the key, or is
-    ``None`` when the server needs no key. The built-in OpenAI connection has no
-    stored base URL or reference: it uses the process OpenAI configuration.
+    ``None`` when the server needs no key. Built-in connections have no stored
+    base URL or reference: OpenAI uses the process OpenAI configuration and
+    Anthropic uses ``ANTHROPIC_API_KEY`` against Anthropic's API.
     """
 
     id: str
@@ -101,11 +109,23 @@ class ModelConnection:
     updated_at: datetime | None = None
 
     @property
+    def is_builtin(self) -> bool:
+        """Whether this is a release-managed connection the owner cannot edit or remove."""
+
+        return self.id in BUILTIN_CONNECTION_IDS
+
+    @property
     def is_builtin_openai(self) -> bool:
         return self.id == BUILTIN_OPENAI_CONNECTION_ID
 
+    @property
+    def is_builtin_anthropic(self) -> bool:
+        return self.id == BUILTIN_ANTHROPIC_CONNECTION_ID
+
 
 __all__ = [
+    "BUILTIN_ANTHROPIC_CONNECTION_ID",
+    "BUILTIN_CONNECTION_IDS",
     "BUILTIN_OPENAI_CONNECTION_ID",
     "MODEL_KINDS",
     "MODEL_KIND_CHAT",

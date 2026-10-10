@@ -44,6 +44,11 @@ class ModelProviderRepository(Protocol):
 
         raise NotImplementedError
 
+    async def set_early_compaction(self, model_provider_id: str, *, enabled: bool) -> ModelProvider | None:
+        """Record the owner's Compact early choice; catalog upserts never change it on built-ins."""
+
+        raise NotImplementedError
+
     async def upsert_many(
         self,
         model_providers: Iterable[ModelProvider],

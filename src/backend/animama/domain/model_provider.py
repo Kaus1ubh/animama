@@ -82,9 +82,13 @@ class ModelProvider:
 
     Each row belongs to one model connection (``connection_id``). Repositories
     attach the loaded ``connection`` so model clients can reach its endpoint;
-    rows built outside the database may leave it unset, meaning the built-in
-    OpenAI connection. ``source`` separates release-managed built-in rows from
-    owner-added rows, which releases never modify.
+    rows built outside the database may leave it unset only on the built-in
+    connection they name. ``source`` separates release-managed built-in
+    rows from owner-added rows, which releases never modify.
+
+    ``early_compaction`` is the owner's **Compact early** choice. It applies
+    only to rows whose pricing has a long-context step; like ``hidden``,
+    catalog re-seeding never changes it on built-in rows.
     """
 
     id: str
@@ -101,6 +105,7 @@ class ModelProvider:
     source: str = MODEL_SOURCE_BUILTIN
     model_kind: str = MODEL_KIND_CHAT
     hidden: bool = False
+    early_compaction: bool = True
     allow_memory_writes: bool = True
     probe_result: dict[str, Any] | None = None
     active: bool = True

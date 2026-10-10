@@ -419,6 +419,17 @@ export type ParticleVFXEditorCatalogDraft = {
   shapeAutoFit?: ParticleVFXShapeAutoFit;
 };
 
+/**
+ * Bytes of one texture the effect carries itself: an imported PNG, or a
+ * texture file of a saved effect. Built-in textures need no entry.
+ */
+export type ParticleVFXEditorTextureFile = {
+  blob: Blob;
+  sha256: string;
+  width: number;
+  height: number;
+};
+
 export type ParticleVFXEditorDraft = {
   source: "catalog" | "imported" | "new";
   sourceEffectId: string | null;
@@ -426,6 +437,12 @@ export type ParticleVFXEditorDraft = {
   catalog: ParticleVFXEditorCatalogDraft;
   quarksJson: JsonObject;
   emitters: ParticleVFXEmitterDraft[];
+  /**
+   * Texture bytes by the package-relative path the Quarks images use
+   * (`textures/<file>`). A reference is never reused for different bytes, so
+   * undo and redo restore the right texture by restoring the JSON.
+   */
+  textureFiles: Readonly<Record<string, ParticleVFXEditorTextureFile>>;
 };
 
 export type ParticleVFXEditorValidationIssue = {
@@ -447,6 +464,7 @@ export type ParticleVFXEditorValidationIssue = {
     | "width-over-length-without-trail"
     | "rotation-3d-without-mesh"
     | "atlas-tiles-missing"
+    | "atlas-grid-limit"
     | "atlas-metadata-mismatch"
     | "frame-over-life-without-atlas"
     | "frame-range-out-of-bounds"
@@ -496,6 +514,8 @@ export type ParticleVFXEmitterPatch = Partial<{
   startColor: Partial<ParticleVFXEditorColor>;
   startColorGenerator: ParticleVFXEditorStartColorDraft;
   textureId: string;
+  /** Use a texture the effect carries, by its package-relative path. */
+  textureReference: string;
   shape: Partial<ParticleVFXEditorShapeDraft> & {
     type?: ParticleVFXEditorShapeType;
   };
@@ -518,6 +538,8 @@ export type ParticleVFXEditorExport = {
   assetFileName: string;
   assetPath: string;
   quarksJson: string;
+  /** The effect with its name and settings, for the creator's Import. */
+  creatorDocument: string;
   catalogEntrySnippet: string;
   clipEventSnippet: string;
 };

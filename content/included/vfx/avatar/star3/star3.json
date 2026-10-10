@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Star3",
   "description": "A big star and two small sparkles in each eye for awe, delight, or energized admiration.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:bright_eyes",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "eyes",
@@ -29,7 +36,8 @@
       "hideParts": [
         "eye_highlight"
       ]
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

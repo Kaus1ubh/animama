@@ -33,6 +33,8 @@ from .logging_context import (
 )
 from .prompt import DirectChatPrompt
 from .types import (
+    ANTHROPIC_TOOL_RESULT_ITEM_TYPE,
+    ANTHROPIC_TOOL_USE_ITEM_TYPE,
     MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
     MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
     ModelClient,
@@ -45,16 +47,20 @@ from .types import (
     ModelClientProviderOptions,
     ModelClientRegistry,
     ModelClientRequest,
+    ModelClientRunStatus,
     ModelClientTimeoutError,
     ModelClientToolCall,
     ModelClientToolResult,
     ModelClientWithComplete,
     StaticModelClientRegistry,
     model_client_event_delta,
+    model_client_run_status_delta,
     uses_native_context_compaction,
 )
 
 __all__ = [
+    "ANTHROPIC_TOOL_RESULT_ITEM_TYPE",
+    "ANTHROPIC_TOOL_USE_ITEM_TYPE",
     "DirectChatPrompt",
     "DEFAULT_STREAM_EVENT_SUMMARY_METADATA_KEY",
     "MCAssistantMessageDoneEvent",
@@ -77,6 +83,7 @@ __all__ = [
     "ModelClientProviderOptions",
     "ModelClientRequest",
     "ModelClientRegistry",
+    "ModelClientRunStatus",
     "ModelClientStreamEventObserver",
     "ModelClientTimeoutError",
     "ModelClientToolCall",
@@ -101,6 +108,7 @@ __all__ = [
     "model_client_preview_log_context",
     "model_client_event_delta",
     "model_client_request_log_context",
+    "model_client_run_status_delta",
     "sanitize_model_client_stream_event",
     "uses_native_context_compaction",
 ]

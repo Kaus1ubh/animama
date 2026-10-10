@@ -4,14 +4,21 @@ import {
   validateParticleVFXContentReadiness,
   type ParticleVFXEditorCatalogDraft,
   type ParticleVFXEditorDraft,
-  type ParticleVFXShapeAutoFit,
-  type ParticleVFXTransform,
 } from "@/lib/avatar/particle-vfx";
+import { particleVFXRuntimeSlotConfig } from "@/lib/avatar/particle-vfx/runtimeConfig";
+import { readParticleVFXTextureFile } from "@/lib/avatar/particle-vfx/editor/textureFiles";
+import type { ParticleVFXEditorTextureFile } from "@/lib/avatar/particle-vfx/editor/types";
+import {
+  PARTICLE_TEXTURE_LIMITS,
+  detectEffectArtFormat,
+} from "@/lib/effects/effectArtLimits";
 import { normalizeRuntimeContentId } from "@/lib/runtime-content/runtimeId";
 
-const MAX_TEXTURES = 16;
-const MAX_TEXTURE_BYTES = 25 * 1024 * 1024;
+const MAX_TEXTURES = PARTICLE_TEXTURE_LIMITS.count;
+const MAX_TEXTURE_BYTES = PARTICLE_TEXTURE_LIMITS.bytes;
+const MAX_TEXTURE_TOTAL_BYTES = PARTICLE_TEXTURE_LIMITS.totalBytes;
 const MAX_PACKAGE_BYTES = 64 * 1024 * 1024;
+const MIB = 1024 * 1024;
 const MAX_MANIFEST_BYTES = 5 * 1024 * 1024;
 const MAX_DURATION_SECONDS = 30;
 const MAX_PARTICLES = 512;
@@ -52,8 +59,11 @@ export class ParticleVFXContentPackageError extends Error {
 
 /**
  * Construct a standalone, deterministic private Particle VFX package.
- * Temporary delivery URLs are read only from the resource inventory and never
- * copied into the normalized authoring manifest.
+ * Texture bytes come from `resources`, then from the draft's own texture
+ * files, then from the built-in set. Temporary delivery URLs are read only
+ * from the resource inventory and never copied into the normalized authoring
+ * manifest. The normalized draft carries every packaged texture's bytes under
+ * its package path, so the saved effect reopens without refetching them.
  */
 export async function buildParticleVFXContentPackage({
   draft,
@@ -87,11 +97,22 @@ export async function buildParticleVFXContentPackage({
     }
     resourcesByReference.set(resource.logicalReference, resource);
   }
+  for (const [logicalReference, file] of Object.entries(draft.textureFiles)) {
+    if (!resourcesByReference.has(logicalReference))
+      resourcesByReference.set(logicalReference, {
+        logicalReference,
+        previewUrl: "",
+        blob: file.blob,
+        contentType: file.blob.type || null,
+      });
+  }
 
   const usedNames = new Set<string>();
   const rewritten = new Map<string, string>();
   const textures: ParticleVFXContentPackageTexture[] = [];
+  const textureFiles: Record<string, ParticleVFXEditorTextureFile> = {};
   let packageBytes = 0;
+  let textureBytes = 0;
   for (const [index, logicalReference] of references.entries()) {
     signal?.throwIfAborted();
     const source = resolveTextureSource(
@@ -104,12 +125,23 @@ export async function buildParticleVFXContentPackage({
         `Texture ${logicalReference} is empty.`,
       );
     }
-    if (blob.size > MAX_TEXTURE_BYTES) {
+    // Size, format and header dimensions, checked before anything decodes
+    // it. An unreadable format is reported below with the content type.
+    const read = await readParticleVFXTextureFile(blob, {
+      formats: ["png", "jpeg", "webp"],
+    });
+    if (!read.ok && read.reason !== "format") {
       throw new ParticleVFXContentPackageError(
-        `Texture ${logicalReference} exceeds the 25 MiB limit.`,
+        `Texture ${logicalReference}: ${read.message}`,
       );
     }
-    const detected = await detectTextureType(blob);
+    textureBytes += blob.size;
+    if (textureBytes > MAX_TEXTURE_TOTAL_BYTES) {
+      throw new ParticleVFXContentPackageError(
+        `Textures in one Particle Effect must total at most ${MAX_TEXTURE_TOTAL_BYTES / MIB} MiB.`,
+      );
+    }
+    const detected = read.ok ? await detectTextureType(blob) : null;
     const declaredValue = source.contentType || blob.type;
     const declared = normalizeTextureContentType(declaredValue);
     if (
@@ -130,6 +162,7 @@ export async function buildParticleVFXContentPackage({
     const file = new File([blob], filename, { type: detected.contentType });
     packageBytes += file.size;
     rewritten.set(logicalReference, packageReference);
+    if (read.ok) textureFiles[packageReference] = { ...read.file, blob: file };
     textures.push({
       logicalReference,
       packageReference,
@@ -142,6 +175,7 @@ export async function buildParticleVFXContentPackage({
   const normalizedDraft = createParticleVFXEditorDraftFromImport(
     rawJson,
     catalog,
+    textureFiles,
   );
   const readiness = validateParticleVFXContentReadiness(normalizedDraft, {
     resolvableTextureReferences: new Set(
@@ -254,7 +288,7 @@ async function loadTextureBlob(
   const declaredLength = Number(response.headers.get("content-length"));
   if (Number.isFinite(declaredLength) && declaredLength > MAX_TEXTURE_BYTES) {
     throw new ParticleVFXContentPackageError(
-      "A texture exceeds the 25 MiB limit.",
+      `A texture exceeds the ${MAX_TEXTURE_BYTES / MIB} MiB limit.`,
     );
   }
   const blob = await response.blob();
@@ -265,35 +299,13 @@ async function loadTextureBlob(
 }
 
 async function detectTextureType(blob: Blob): Promise<TextureType | null> {
-  const bytes = new Uint8Array(await blob.slice(0, 12).arrayBuffer());
-  if (
-    bytes.length >= 8 &&
-    bytes[0] === 0x89 &&
-    bytes[1] === 0x50 &&
-    bytes[2] === 0x4e &&
-    bytes[3] === 0x47 &&
-    bytes[4] === 0x0d &&
-    bytes[5] === 0x0a &&
-    bytes[6] === 0x1a &&
-    bytes[7] === 0x0a
-  ) {
-    return { contentType: "image/png", extension: "png" };
-  }
-  if (
-    bytes.length >= 3 &&
-    bytes[0] === 0xff &&
-    bytes[1] === 0xd8 &&
-    bytes[2] === 0xff
-  ) {
-    return { contentType: "image/jpeg", extension: "jpg" };
-  }
-  if (
-    bytes.length >= 12 &&
-    ascii(bytes, 0, 4) === "RIFF" &&
-    ascii(bytes, 8, 12) === "WEBP"
-  ) {
+  const format = detectEffectArtFormat(
+    new Uint8Array(await blob.slice(0, 12).arrayBuffer()),
+  );
+  if (format === "png") return { contentType: "image/png", extension: "png" };
+  if (format === "jpeg") return { contentType: "image/jpeg", extension: "jpg" };
+  if (format === "webp")
     return { contentType: "image/webp", extension: "webp" };
-  }
   return null;
 }
 
@@ -469,48 +481,9 @@ function buildAuthoringManifest(
       schema_version: 1,
       runtime_id: safeRuntimeId(catalog.id),
       slots: {
-        particle_vfx: {
-          label: catalog.label,
-          description: catalog.description,
-          anchor: catalog.defaultAnchor,
-          duration_seconds: catalog.defaultDurationSec,
-          max_duration_seconds: catalog.performanceBudget.maxDurationSec,
-          preload_tier:
-            catalog.preloadTier === "tierA"
-              ? "tier_a"
-              : catalog.preloadTier === "tierB"
-                ? "tier_b"
-                : "none",
-          follow_anchor: catalog.defaultFollowAnchor,
-          transform: transformConfig(catalog.defaultTransform),
-          looping_allowed: catalog.performanceBudget.loopingAllowed,
-          can_coexist: catalog.performanceBudget.canCoexist,
-          max_particles: catalog.performanceBudget.maxParticles,
-          ...(catalog.shapeAutoFit
-            ? { shape_auto_fit: shapeAutoFitConfig(catalog.shapeAutoFit) }
-            : {}),
-        },
+        particle_vfx: particleVFXRuntimeSlotConfig(catalog),
       },
     },
-  };
-}
-
-function transformConfig(value: ParticleVFXTransform) {
-  return {
-    offset: value.offset,
-    depth_offset: value.depthOffset,
-    rotation: value.rotation,
-    scale: value.scale,
-  };
-}
-
-function shapeAutoFitConfig(value: ParticleVFXShapeAutoFit) {
-  return {
-    kind: "avatar_bounds_rectangle",
-    ...(value.padding ? { padding: value.padding } : {}),
-    ...(value.minSize ? { min_size: value.minSize } : {}),
-    ...(value.maxSize ? { max_size: value.maxSize } : {}),
-    ...(value.emitterNames ? { emitter_names: value.emitterNames } : {}),
   };
 }
 
@@ -576,8 +549,4 @@ function recordValue(value: unknown): Record<string, unknown> | null {
 
 function cloneJson<T>(value: T): T {
   return JSON.parse(JSON.stringify(value)) as T;
-}
-
-function ascii(bytes: Uint8Array, start: number, end: number): string {
-  return String.fromCharCode(...bytes.slice(start, end));
 }

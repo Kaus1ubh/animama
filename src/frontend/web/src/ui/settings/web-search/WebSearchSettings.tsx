@@ -230,7 +230,7 @@ export function WebSearchSettings({ disabled }: { disabled: boolean }) {
     <div className="flex flex-col">
       <SettingsRow
         label="Search service"
-        description="Lets any model that can call tools search the web. OpenAI models with built-in search keep using it."
+        description="Lets models that can call tools search the web. Models with built-in search keep using theirs, and Anthropic models never use this service."
         control={
           <Select
             value={draft.backend}

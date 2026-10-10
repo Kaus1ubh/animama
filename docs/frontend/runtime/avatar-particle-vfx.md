@@ -50,7 +50,7 @@ Included content. Review the generated paths and provenance before copying
 outputs into typed entries. Final typed entries use safe manifest-relative
 texture paths.
 
-Use PNG or WebP with transparent alpha for billboards, prefer square 256x256 or
+Use PNG with transparent alpha for billboards, prefer square 256x256 or
 512x512 textures for static sprites, disable particle material depth writes,
 and keep local-space emitters for effects that should follow avatar anchors.
 Curated flipbook atlases are tracked in the same texture directory. The
@@ -59,6 +59,37 @@ runtime assets, then records `uTileCount`, `vTileCount`, frame counts,
 `blendTiles`, and recommended `FrameOverLife` ranges in the editor manifest.
 It also normalizes Kenney fire, flame, ember, smoke, and light sprites used by
 the layered `flame-loop` catalog effect.
+
+### Effect textures
+
+A Particle Effect carries its own textures: image files listed with role
+`texture` in its descriptor and named by the manifest's image URLs
+(`textures/<name>.png`). The creator imports one with **Import PNG texture**
+(as `textures/<name>-N.png`) or fills a texture the effect names but lacks
+with **Choose file for <name>**. Each is checked before it is decoded
+(`lib/effects/effectArtLimits.ts`, mirrored by the backend at Save, scan and
+package import):
+
+| Limit | Value |
+| --- | --- |
+| Format | PNG on import; saved items and packages may also carry JPEG or WebP |
+| Each texture | 4 MiB, 2048 px per side, 2048² px |
+| Per effect | 16 textures, 32 MiB |
+| Sprite sheet grid | at most 16 tiles each way (U and V tile counts) |
+
+Save also packages each built-in creator texture an emitter uses (the
+curated files below, referenced as `textures/<file>`) as a file of the saved
+item, so a saved or packaged effect is self-contained. An effect's own art
+must not reuse a built-in's file name: the creator draws and saves its
+built-in art for that reference, and `effects check` and `effects save`
+refuse such a folder. New textures use the `particle-texture` and
+`particle-sheet` [art budgets](avatar-vfx.md#effect-art).
+
+A creator draft autosaves to browser recovery with its textures, up to
+37 MiB (5 MiB of JSON plus the 32 MiB texture total). A larger draft is not
+recovered; when only the localStorage fallback is available, a draft of up
+to 1 MiB of JSON restores without its textures and the creator asks for them
+again.
 
 The editor texture picker is driven by
 `web/src/lib/avatar/particle-vfx/editor/textureManifest.ts`. Each manifest
@@ -93,6 +124,14 @@ validation, import/export tools, and Three.quarks preview lifecycle. Save uses
 Local entry. It never equips the effect to an Anima; Gesture and Reaction
 creators reference it as a dependency.
 
+Import takes three.quarks JSON or the creator document Export offers
+(`animama/particle-vfx-editor/1`: name, description, settings in the stored
+`runtime_defaults.slots.particle_vfx` form, and the Quarks effect). Quarks JSON
+keeps the current name and settings and the textures the effect already
+carries; a creator document replaces them, so its textures that are neither
+embedded nor built in show as missing until their files are chosen. `effects
+save` imports this document ([effect tools](avatar-vfx.md#9-effect-tools)).
+
 The left panel separates emitter selection from whole-effect defaults. Name lives
 in the header; internal IDs, resource JSON and clip-event snippets are available
 in the export dialog. Existing descriptions are retained without a main-editor
@@ -107,6 +146,15 @@ and the advanced maximum duration bound the entire instance. Allow emitter loopi
 permits authored loops without removing the instance lifetime or particle budget.
 The Preview Timeline pauses, resumes or restarts the isolated creator preview;
 it does not author clip events or dependencies.
+
+## Tools
+
+`pnpm -s effects check`, `effects:render` and `animation:preview` take
+Particle Effect folders and Library items (`library:particle-effect/…`);
+`effects save` takes folders, and `effects promote` folders or
+`library:local/<name>` items. `effects:bench --reaction` measures a
+Reaction's Particle Effects. See the [effect tools](avatar-vfx.md#9-effect-tools);
+the `animama-particle-vfx` skill wraps them into the authoring pipeline.
 
 ## Clip Events
 

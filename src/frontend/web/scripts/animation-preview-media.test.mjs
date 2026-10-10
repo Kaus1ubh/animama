@@ -54,10 +54,12 @@ test("tells effect sources from clips", async () => {
     await effectSpecFor("star3/star3.json", dir),
     path.join(dir, "star3/star3.json"),
   );
-  assert.equal(
-    await effectSpecFor("library:avatar-effect/included/star3", dir),
-    "library:included/star3",
-  );
+  for (const spec of [
+    "library:avatar-effect/included/star3",
+    "library:particle-effect/hearts-v1",
+    "library:scene-effect/included/scene-vfx-emotion-joy",
+  ])
+    assert.equal(await effectSpecFor(spec, dir), spec);
   assert.equal(await effectSpecFor("wave.clip.json", dir), null);
   assert.equal(await effectSpecFor("library:included/confusion-2", dir), null);
   assert.equal(await effectSpecFor("missing.json", dir), null);
@@ -106,6 +108,7 @@ test("loads an effect source with served, versioned images and notes beside its 
     path.join(dir, "star3/star3.json"),
     path.join(dir, "star3/star3.png"),
   ]);
+  assert.equal(loaded.effect.kind, "avatar_effect");
   assert.equal(loaded.effect.name, "Star3");
   assert.equal(loaded.effect.duration, 2);
   assert.ok(loaded.effect.imageUrl.endsWith(`star3.png?v=${loaded.version}`));
@@ -171,6 +174,12 @@ test("resolves a Reaction's dependencies to served effects", async () => {
   // The manifest's relative texture URL resolves beside it.
   const texture = `${manifest.split("/")[0]}/textures/question.png`;
   assert.ok(await files.lookup(texture));
+  // A Scene's images are served too.
+  const [scene] = media.sceneEffects;
+  assert.equal(scene.alias, "kawaii-sparkles");
+  assert.equal(scene.definition.kind, "background_layers");
+  for (const url of Object.values(scene.imageUrls))
+    assert.ok(await files.lookup(url.slice("/__preview/media/".length)), url);
   assert.deepEqual(media.notices, [
     'missing (builtin:avatar-effect:missing) does not play: No avatar effect "builtin:avatar-effect:missing" in Included content.',
   ]);
@@ -256,4 +265,87 @@ test("forgets the least recently used folders and re-checks sizes on serve", asy
   // A file grown past its limit after it was offered is refused.
   await writeFile(path.join(folders[2], "art.png"), "much more than 8 bytes");
   assert.equal(await files.lookup(routes[2]), null);
+});
+
+test("loads Particle and Scene Effect sources with their files served", async () => {
+  await cp(
+    path.join(INCLUDED_CONTENT_ROOT, "vfx/particle/quark/hearts-v1"),
+    path.join(dir, "kinds/hearts-v1"),
+    { recursive: true },
+  );
+  await cp(
+    path.join(INCLUDED_CONTENT_ROOT, "vfx/scene/scene-vfx-emotion-joy"),
+    path.join(dir, "kinds/scene-vfx-emotion-joy"),
+    { recursive: true },
+  );
+  const files = new PreviewMediaFiles();
+  const adapter = createPreviewMediaAdapter({ files });
+  const particle = await adapter.load(
+    await adapter.resolve("kinds/hearts-v1", roots()),
+    roots(),
+  );
+  assert.equal(particle.effect.kind, "particle_effect");
+  // The version covers the manifest and textures, which are watched.
+  assert.ok(
+    particle.files.some((file) => file.endsWith("textures/heart.png")),
+    particle.files,
+  );
+  const manifest = particle.effect.manifestUrl
+    .slice("/__preview/media/".length)
+    .split("?")[0];
+  assert.ok(await files.lookup(manifest));
+  assert.ok(await files.lookup(`${manifest.split("/")[0]}/textures/heart.png`));
+
+  const scene = await adapter.load(
+    await adapter.resolve("kinds/scene-vfx-emotion-joy", roots()),
+    roots(),
+  );
+  assert.equal(scene.effect.kind, "scene_effect");
+  assert.equal(scene.effect.definition.kind, "background_layers");
+  for (const url of Object.values(scene.effect.imageUrls))
+    assert.ok(
+      await files.lookup(url.slice("/__preview/media/".length).split("?")[0]),
+      url,
+    );
+  assert.equal(
+    PreviewMediaFiles.contentType("emoji-star-2b50.svg"),
+    "image/svg+xml",
+  );
+
+  // Changing a texture or an image gives a new version, so the page reloads.
+  const textureFile = path.join(dir, "kinds/hearts-v1/textures/heart.png");
+  await writeFile(
+    textureFile,
+    Buffer.concat([await readFile(textureFile), Buffer.from([0])]),
+  );
+  const reloaded = await adapter.load(
+    await adapter.resolve("kinds/hearts-v1", roots()),
+    roots(),
+  );
+  assert.notEqual(reloaded.version, particle.version);
+  const imageFile = path.join(
+    dir,
+    "kinds/scene-vfx-emotion-joy",
+    Object.keys(scene.effect.imageUrls)[0],
+  );
+  await writeFile(imageFile, `${await readFile(imageFile, "utf8")}\n`);
+  const redrawn = await adapter.load(
+    await adapter.resolve("kinds/scene-vfx-emotion-joy", roots()),
+    roots(),
+  );
+  assert.notEqual(redrawn.version, scene.version);
+
+  // Both kinds are offered beside a named folder and from the Library.
+  const choices = await adapter.choices(roots(), ["kinds/hearts-v1"]);
+  assert.deepEqual(
+    choices
+      .filter(({ group }) => group === "Effect sources")
+      .map(({ label }) => label),
+    ["hearts-v1", "scene-vfx-emotion-joy"],
+  );
+  for (const group of ["Included Particle Effects", "Included Scene Effects"])
+    assert.ok(
+      choices.some((choice) => choice.group === group),
+      group,
+    );
 });

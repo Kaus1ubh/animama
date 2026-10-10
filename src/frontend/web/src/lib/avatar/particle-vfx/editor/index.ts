@@ -24,6 +24,12 @@ export {
   updateParticleVFXEditorCatalogDraft,
 } from "./draft";
 export {
+  PARTICLE_VFX_CREATOR_DOCUMENT_SCHEMA,
+  buildParticleVFXCreatorDocument,
+  readParticleVFXCreatorDocument,
+  type ParticleVFXCreatorDocument,
+} from "./creatorDocument";
+export {
   buildParticleVFXEditorExport,
   parseParticleVFXEditorExportJsonForViewer,
 } from "./export";
@@ -37,13 +43,21 @@ export {
   resolveParticleVFXPublicAssetPath,
 } from "./textures";
 export {
-  estimateParticleVFXDraftParticles,
-  validateParticleVFXEditorDraft,
-} from "./validation";
+  extractEmbeddedParticleVFXTextures,
+  importParticleVFXTextureFile,
+  loadParticleVFXTextureFiles,
+  missingParticleVFXTextureReferences,
+  readParticleVFXTextureFile,
+  referencedParticleVFXTextureFiles,
+  supplyParticleVFXTextureFile,
+} from "./textureFiles";
+export type { ParticleVFXTextureResult } from "./textureFiles";
+export { validateParticleVFXEditorDraft } from "./validation";
 export {
   collectParticleVFXContentReferences,
   validateParticleVFXContentReadiness,
 } from "./contentReadiness";
+export { estimateParticleVFXParticles } from "./particleEstimate";
 export type { ParticleVFXContentReadinessOptions } from "./contentReadiness";
 export { PARTICLE_VFX_ANCHORS, PARTICLE_VFX_PRELOAD_TIERS } from "../types";
 export type {
@@ -59,6 +73,7 @@ export type {
   ParticleVFXEditorColorThemePreset,
   ParticleVFXEditorColorThemePresetId,
   ParticleVFXEditorDraft,
+  ParticleVFXEditorTextureFile,
   ParticleVFXEditorEmitterMode,
   ParticleVFXEditorEmitterTemplateId,
   ParticleVFXEditorExport,

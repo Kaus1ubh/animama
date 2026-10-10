@@ -58,9 +58,11 @@ supports streaming, and supports the requested reasoning effort and any
 requested hosted native tool before the provider is invoked. Structured output
 is not required (rows without a schema or JSON-mode transport are asked for
 JSON by prompt), and `web_search` on a row without hosted search is the application
-tool, offered or left out at turn time. Owner-added rows also need a
-context window, and `OpenAIResponsesHTTPAgent` rows are valid only on the
-built-in OpenAI connection. When it is omitted, the route
+tool, offered or left out at turn time (Anthropic rows never get it). Owner-added
+rows also need a context window. `OpenAIResponsesHTTPAgent` rows are valid only
+on the built-in OpenAI connection, and `AnthropicMessagesHTTPAgent` rows only
+on the built-in Anthropic connection, which serves no other rows. When it is
+omitted, the route
 requires an explicit `anima_chat_profiles` row for the anima. Missing
 profiles fail setup before any upstream model call. Unsupported, inactive, or
 unregistered provider IDs are rejected before model invocation. Accepted turns
@@ -73,8 +75,9 @@ provider's `api_standard` on the chat row before memory context, history
 replay, Responses cursor use, or upstream model invocation.
 Subsequent requests may switch models only within the same `api_standard`, on
 any connection. Requests that would switch between OpenAI Chat Completions
-(`chat_completions`) and OpenAI Responses (`responses`) fail setup with
-`409` and detail code `chat_api_standard_mismatch`. Rows whose provider type
+(`chat_completions`), OpenAI Responses (`responses`) and Anthropic Messages
+(`anthropic_messages`) fail setup with `409` and detail code
+`chat_api_standard_mismatch`. Rows whose provider type
 has no direct-chat standard fail setup with `chat_api_standard_unsupported`.
 `dispatch_options` reuses `PyAnimaDispatchOptions`, so the direct path
 receives the same request-level controls used by chat settings: memory
@@ -92,14 +95,17 @@ influence enabled it also opens the Anima's `MEMORIES.md` and places it as
 unreadable file is omitted without failing the turn. When
 `disable_memory_influence` is true, direct chat still keeps anima identity
 active; `MEMORIES.md` and the memory file list are omitted.
-That message, placed just before the user message, holds the memory file list,
+The turn context, placed just before the user message, holds the memory file list,
 the attached-file list and, always last, the
-[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
+[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md),
+which also end the stable system instructions.
 Provider rows that expose `supports_developer_role: false`, such as rows on
 connections with the `fold_developer_role` option (the default for non-OpenAI
-presets), receive every `developer` message folded in order into the
-end of the system instruction, so the guardrail remains the final instruction
-text.
+presets), receive the same text in a `<turn_context>` block at the start of
+the user message instead, so the guardrail remains the final instruction text
+before the user's words. Anthropic rows receive it as a mid-conversation
+`system` message after the user message, because Anthropic accepts one only
+after a user turn. See the [turn layout](prompt-caching.md#turn-layout).
 Memory tools also depend on the selected row. A row without tool calling runs
 the turn without memory tools or attached-file search instead of failing
 setup, and a row whose owner turned off memory writes (`allow_memory_writes`)
@@ -263,12 +269,15 @@ Main structured turns use one JSON shape: `emotional_tone`,
 `emotional_intensity`, nullable `gesture`, `speech`, and nullable `display`.
 All fields are required in the provider JSON schema; `gesture: null` or
 `gesture: ""` means no avatar gesture, and `display: null` means no separate
-visual response. The provider schema constrains non-null `gesture` values to
-the exact effective runtime IDs exposed by this Anima's fenced loadout. No
-separate gesture catalog, label, description, motion type, catalog item/file
-ID, storage locator, package manifest, or resource URL is injected into the
-system prompt. Older unfenced compatibility callers use the packaged Starter
-loadout instead of reading a frontend manifest at request time.
+visual response. Gesture choices come from the Gestures equipped in the mounted
+runtime snapshot. The provider schema's `gesture` enum is `null` plus those
+selectors, and the response guidance appends an
+`Available Gestures for this Anima:` block with one
+`- {selector}: {name} — {description}` line per Gesture. An Anima with no
+equipped Gestures gets a `null`-only enum and no block. Motion types, catalog
+item or file IDs, storage locators, package manifests and resource URLs are not
+sent to the model. The final parsed `gesture` is normalized and dropped unless
+it matches one of the snapshot selectors.
 Normal chat emits `response_format="main_structured_json"` and uses
 `response_part="speech"` or `response_part="display"` for visible
 `user.response` frames. Those visible parts may arrive as sentence-level stream
@@ -345,11 +354,14 @@ precedes every provider-derived frame of the turn. Clients render it as app UI,
 never as assistant text.
 
 `run.status` frames include `type="run.status"`, `run_id`, `status`
-(`summarizing_context` while earlier conversation is compacted before sending,
-`searching_web` while an application web search runs) and `phase`
-(`started`, then `finished`). Summarizing always precedes reply text; a search
-may follow text that streamed in an earlier tool round. Clients show a status
-only while the reply is pending and ignore unknown statuses.
+(`summarizing_context` while earlier conversation is compacted before sending
+or by Anthropic's server, `searching_web` while an application or
+Anthropic-hosted web search runs) and `phase` (`started`, then `finished`).
+Every `started` is followed by `finished`, including when the turn fails.
+Summarizing precedes the reply text of its request; a search, or an Anthropic
+compaction in a later tool round, may follow text that streamed in an earlier
+round. Clients show a status only while the reply is pending and ignore
+unknown statuses.
 
 `safety.crisis_support` frames include `type="safety.crisis_support"`,
 `run_id`, `source` (`local` or `moderation`), and `resources`, the resolved
@@ -390,7 +402,9 @@ unit of work. The parent chat's `active_context_tokens` is replaced with the
 latest turn's footprint in the next turn's context: its last request's total
 tokens minus output reasoning tokens. A turn with tool rounds or a split
 structured round sums every request in the message usage, so it records that
-footprint as `context_tokens` in the provider metadata. When a stream reports
+footprint as `context_tokens` in the provider metadata. An Anthropic request
+that compacted also bills the compaction step, so its `context_tokens` is
+the last iteration's footprint only. When a stream reports
 no usage, the Chat Completions adapter substitutes a character-based estimate
 marked `usage_estimated`, so the value still advances and post-response
 compaction can trigger. The same non-incognito update stores the last durable
@@ -426,27 +440,35 @@ Settings assignment `models.utility_model_provider_id`, else
 hidden title prompt defaults to a low reasoning effort (sent only when the
 utility model supports it) and a 20 second timeout through
 `ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT` and
-`ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`. Incognito turns skip title
-generation.
+`ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`. On an Anthropic utility model,
+title and compaction prompts use effort `low` unless set and are never
+server-compacted ([prompt-only maintenance calls](model-client-providers.md#prompt-only-maintenance-calls)).
+Incognito turns skip title generation.
 
 After a successful non-incognito response and before the normal
 `run.completed` frame, the route runs a hidden compaction check. OpenAI
-Responses turns skip it and rely on provider-side compaction; models without
-provider-side compaction also compact before sending when a prompt nears their
-window (see the
+Responses and Anthropic Messages turns skip it and rely on provider-side
+compaction; models without provider-side compaction also compact before sending
+when a prompt nears their window (see the
 [context window budget](model-client-providers.md#context-window-budget)). If
 `chats.active_context_tokens` is at or above
-`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000, lowered to 75% of the
-model's available window),
+the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90000), 70%
+of the model's context window and 75% of the window left after the reply
+reserve,
 `ChatCompactionService` calls a separate backend-owned direct model prompt and
 stores the resulting summary in `chat_compactions`. Compaction summaries are not
 streamed as `user.response` events and are not inserted into `chat_messages`.
 Compaction model usage stays on the `chat_compactions` row rather than the
 chat's `cum_*` counters. Active compaction summaries record `start_turn` and
 `end_turn`; the next prompt uses the summary as a `developer` continuity
-message ahead of the exact visible messages with `turn > end_turn` when the
-selected provider serializes local context. If an OpenAI Responses turn
-continues from a chat-row `openai_previous_response_id`, the request sends only
+message directly after the system message and ahead of the exact visible
+messages with `turn > end_turn` when the selected provider serializes local
+context. Rows without a developer role get it at the end of the system
+message, before the closing guardrails. Anthropic chats ignore these
+summaries: their history starts at the newest stored compaction block (see
+[Anthropic Messages](model-client-providers.md#anthropic-messages)). If an
+OpenAI Responses turn continues from a
+chat-row `openai_previous_response_id`, the request sends only the turn context,
 the new user input and the cursor, so the active summary is not physically
 included in that provider payload.
 

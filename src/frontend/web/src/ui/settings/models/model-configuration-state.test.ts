@@ -26,9 +26,12 @@ import {
   modelConfigurationErrorMessage,
   modelInUseUsage,
   modelSettingsAvailability,
+  builtinConnectionKey,
+  ownerModelRules,
   removalConsequences,
   removalUsageSummary,
   roleCandidates,
+  draftAfterProbe,
 } from "./model-configuration-state";
 import {
   alternateModelIds,
@@ -349,6 +352,7 @@ describe("Cloud and Local tabs", () => {
     ]);
     expect(MODEL_LOCATION_PROVIDERS.cloud.map((entry) => entry.label)).toEqual([
       "OpenAI",
+      "Anthropic",
       "DeepSeek",
       "Hugging Face",
       "OpenRouter",
@@ -367,9 +371,10 @@ describe("Cloud and Local tabs", () => {
   });
 
   it("puts the built-in connection and cloud presets on Cloud, local servers on Local", () => {
-    expect(
-      connectionLocation({ source: "builtin", preset: "openai", base_url: "" }),
-    ).toBe("cloud");
+    for (const preset of ["openai", "anthropic"])
+      expect(
+        connectionLocation({ source: "builtin", preset, base_url: "" }),
+      ).toBe("cloud");
     for (const preset of ["deepseek", "huggingface", "openrouter", "unknown"])
       expect(connectionLocation(owner(preset))).toBe("cloud");
     for (const preset of ["ollama", "lmstudio", "llamacpp", "vllm"])
@@ -415,6 +420,7 @@ describe("Cloud and Local tabs", () => {
       { id: "lan", ...owner("custom", "http://192.168.1.4:8000/v1") },
       { id: "or", ...owner("openrouter", "https://openrouter.ai/api/v1") },
       { id: "builtin", source: "builtin" as const, preset: "openai" },
+      { id: "claude", source: "builtin" as const, preset: "anthropic" },
       { id: "vllm", ...owner("vllm", "http://127.0.0.1:8000/v1") },
       { id: "remote", ...owner("custom", "https://api.example.test/v1") },
       { id: "remote2", ...owner("custom", "https://api.other.test/v1") },
@@ -423,16 +429,19 @@ describe("Cloud and Local tabs", () => {
     const cloud = locationProviderGroups(connections, "cloud");
     expect(cloud.map((group) => group.entry.id)).toEqual([
       "openai",
+      "anthropic",
       "deepseek",
       "huggingface",
       "openrouter",
       "custom-cloud",
     ]);
+    // Each built-in connection is on its own provider's tab.
     expect(cloud[0].connections.map((item) => item.id)).toEqual(["builtin"]);
-    expect(cloud[1].connections).toEqual([]);
-    expect(cloud[3].connections.map((item) => item.id)).toEqual(["or"]);
+    expect(cloud[1].connections.map((item) => item.id)).toEqual(["claude"]);
+    expect(cloud[2].connections).toEqual([]);
+    expect(cloud[4].connections.map((item) => item.id)).toEqual(["or"]);
     // Custom collects every custom (and unknown) connection in its location.
-    expect(cloud[4].connections.map((item) => item.id)).toEqual([
+    expect(cloud[5].connections.map((item) => item.id)).toEqual([
       "remote",
       "remote2",
       "odd",
@@ -449,12 +458,13 @@ describe("Cloud and Local tabs", () => {
     expect(local[4].connections.map((item) => item.id)).toEqual(["lan"]);
   });
 
-  it("marks providers connected, counting built-in OpenAI only with its key", () => {
+  it("marks providers connected, counting built-in connections only with their key", () => {
     const builtin = (
       credential_state: PyModelConnection["credential_state"],
+      preset = "openai",
     ): Conn => ({
       source: "builtin",
-      preset: "openai",
+      preset,
       base_url: null,
       credential_state,
     });
@@ -462,7 +472,12 @@ describe("Cloud and Local tabs", () => {
       locationProviderGroups(connections, location)
         .filter(providerConnected)
         .map((group) => group.entry.id);
-    expect(flags([builtin("missing")], "cloud")).toEqual([]);
+    expect(
+      flags([builtin("missing"), builtin("missing", "anthropic")], "cloud"),
+    ).toEqual([]);
+    expect(
+      flags([builtin("missing"), builtin("configured", "anthropic")], "cloud"),
+    ).toEqual(["anthropic"]);
     expect(
       flags(
         [
@@ -653,7 +668,220 @@ describe("model row chips", () => {
     expect(
       modelApiLabel(model({ provider_type: "OpenAIResponsesHTTPAgent" })),
     ).toBe("Responses");
+    expect(
+      modelApiLabel(model({ provider_type: "AnthropicMessagesHTTPAgent" })),
+    ).toBe("Anthropic Messages");
     expect(modelApiLabel(model())).toBe("Chat Completions");
+  });
+
+  it("shows Anthropic's own web search as built-in search", () => {
+    const haiku = model(
+      {
+        provider_type: "AnthropicMessagesHTTPAgent",
+        context_window_tokens: 1000000,
+      },
+      { accepts: ["text", "image"], native_tool_support: ["web_search"] },
+    );
+    expect(labels(haiku, null)).toEqual([
+      "Tools",
+      "1M",
+      "Built-in search",
+      "Vision",
+    ]);
+  });
+
+  it("says Anthropic bills each built-in search to the owner's account", () => {
+    const searchChip = (item: PyConfiguredModel) =>
+      modelCapabilityChips(item, search).find(
+        (chip) => chip.id === "web-search",
+      );
+    const haiku = model(
+      { provider_type: "AnthropicMessagesHTTPAgent" },
+      { native_tool_support: ["web_search"] },
+    );
+    expect(searchChip(haiku)?.description).toMatch(
+      /Anthropic bills each search to your Anthropic account/u,
+    );
+    const responses = model(
+      { provider_type: "OpenAIResponsesHTTPAgent" },
+      { native_tool_support: ["web_search"] },
+    );
+    expect(searchChip(responses)?.label).toBe("Built-in search");
+    expect(searchChip(responses)?.description).not.toMatch(/bills/u);
+    expect(searchChip(model())?.description).not.toMatch(/bills/u);
+  });
+
+  it("shows no search on Anthropic models without their own search", () => {
+    const owner = model(
+      { provider_type: "AnthropicMessagesHTTPAgent" },
+      { native_tool_support: [] },
+    );
+    // Anthropic models never use the app's search service.
+    expect(labels(owner, search)).toEqual(["Tools", "128K"]);
+  });
+});
+
+describe("built-in connections and the add-model dialog", () => {
+  const connection = (
+    preset: string,
+    source: PyModelConnection["source"] = "builtin",
+  ) => ({ id: preset, preset, source });
+  const template = (
+    id: string,
+    provider_type: string,
+    connection_id: string,
+  ): PyConfiguredModel => ({
+    id,
+    connection_id,
+    model: id.split(":").at(-1)!,
+    model_label: id,
+    model_kind: "chat",
+    provider_type,
+    source: "builtin",
+    hidden: false,
+    allow_memory_writes: true,
+    capabilities: {
+      accepts: ["text"],
+      supports_streaming: true,
+      supports_tools: true,
+      tools_with_structured_output: true,
+    },
+  });
+  const haiku = template(
+    "AnthropicMessagesHTTPAgent:claude-haiku-5-5",
+    "AnthropicMessagesHTTPAgent",
+    "anthropic",
+  );
+  const luna = template(
+    "OpenAIResponsesHTTPAgent:gpt-6-luna",
+    "OpenAIResponsesHTTPAgent",
+    "openai",
+  );
+  const lunaCc = template(
+    "OpenAIHTTPAgent:gpt-6-luna",
+    "OpenAIHTTPAgent",
+    "openai",
+  );
+  const templates = [luna, lunaCc, haiku];
+
+  it("gives each built-in connection its own key", () => {
+    expect(builtinConnectionKey(connection("openai"))).toEqual({
+      provider: "openai",
+      env: "OPENAI_API_KEY",
+    });
+    expect(builtinConnectionKey(connection("anthropic"))).toEqual({
+      provider: "anthropic",
+      env: "ANTHROPIC_API_KEY",
+    });
+    expect(builtinConnectionKey(connection("deepseek", "owner"))).toBeNull();
+  });
+
+  it("fixes the Anthropic connection to Anthropic chat models, its templates and Haiku 5.5", () => {
+    const rules = ownerModelRules(connection("anthropic"), templates);
+    expect(rules).toMatchObject({
+      providerType: "AnthropicMessagesHTTPAgent",
+      embeddings: false,
+      jsonMode: false,
+      defaultTemplateId: haiku.id,
+    });
+    expect(rules.templates).toEqual([haiku]);
+  });
+
+  it("keeps the OpenAI and owner connections' rules", () => {
+    const openai = ownerModelRules(connection("openai"), templates);
+    expect(openai).toMatchObject({
+      providerType: "OpenAIResponsesHTTPAgent",
+      embeddings: true,
+      jsonMode: true,
+      defaultTemplateId: null,
+    });
+    expect(openai.templates).toEqual([luna]);
+    const owner = ownerModelRules(connection("ollama", "owner"), templates);
+    expect(owner).toMatchObject({
+      providerType: "OpenAIHTTPAgent",
+      embeddings: true,
+      jsonMode: true,
+      defaultTemplateId: null,
+    });
+    expect(owner.templates).toEqual([]);
+  });
+
+  /** A draft that copied Haiku 5.5: its efforts, schema output and window. */
+  const fromHaiku = {
+    templateId: haiku.id,
+    capabilities: {
+      ...DEFAULT_CAPABILITIES_DRAFT,
+      accepts_images: true,
+      supports_tools: true,
+      structured_output_transport: "json_schema" as const,
+    },
+    reasoningEfforts: ["none", "low", "medium", "high", "xhigh", "max"],
+    contextWindow: "1000000",
+    label: "kept",
+  };
+  const described = {
+    model: "claude-older",
+    steps: [{ name: "available", ok: true }],
+    supports_streaming: true,
+    supports_tools: true,
+    context_window_tokens: 200000,
+    max_output_tokens: 32000,
+  };
+
+  it("takes a described Anthropic model's limits from the Models API, not the template", () => {
+    // The Models API reported no efforts and no structured outputs.
+    const next = draftAfterProbe(connection("anthropic"), fromHaiku, {
+      ...described,
+      structured_output_transport: null,
+      supported_reasoning_efforts: null,
+    });
+    expect(next).toEqual({
+      ...fromHaiku,
+      templateId: null,
+      capabilities: {
+        ...fromHaiku.capabilities,
+        structured_output_transport: null,
+      },
+      reasoningEfforts: [],
+      contextWindow: "200000",
+    });
+  });
+
+  it("uses the efforts and structured output a described Anthropic model supports", () => {
+    const next = draftAfterProbe(connection("anthropic"), fromHaiku, {
+      ...described,
+      structured_output_transport: "json_schema",
+      tools_with_structured_output: true,
+      supported_reasoning_efforts: ["low", "medium", "high"],
+    });
+    expect(next.templateId).toBeNull();
+    expect(next.reasoningEfforts).toEqual(["low", "medium", "high"]);
+    expect(next.capabilities.structured_output_transport).toBe("json_schema");
+  });
+
+  it("keeps the template after a failed Anthropic test", () => {
+    const next = draftAfterProbe(connection("anthropic"), fromHaiku, {
+      model: "claude-missing",
+      steps: [{ name: "available", ok: false, category: "model_not_found" }],
+    });
+    expect(next).toEqual(fromHaiku);
+  });
+
+  it("keeps the OpenAI and owner connections' probe merge", () => {
+    const draft = {
+      ...fromHaiku,
+      templateId: luna.id,
+      reasoningEfforts: ["low"],
+    };
+    const report = {
+      model: "qwen",
+      steps: [{ name: "streaming", ok: true }],
+      supports_streaming: true,
+      context_window_tokens: null,
+    };
+    for (const target of [connection("openai"), connection("ollama", "owner")])
+      // Behaviour probes keep the template, the efforts and an untested schema.
+      expect(draftAfterProbe(target, draft, report)).toEqual(draft);
   });
 });
 

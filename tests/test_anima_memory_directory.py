@@ -12,6 +12,7 @@ from sqlalchemy import delete, func, select
 
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.services.memory_entry_service import (
     MemoryEntryConflictError,
@@ -23,13 +24,14 @@ from animama.domain.anima_definition import ANIMA_MEMORIES_KIND, ANIMA_MEMORIES_
 from animama.domain.memory_entry import MEMORY_ENTRY_OPERATION_UNDO
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMMemoryEntry, ORMMemoryEntryVersion
+from animama.product_http.routes import animas as anima_router, memory as memory_entries_router
 from animama.server.app import app
-from animama.server.routers import anima as anima_router, memory_entries as memory_entries_router
 from animama.server.schemas.memory_entry import (
     PyMemoryEntryCreateRequest,
     PyMemoryEntryPatchRequest,
     PyMemoryEntryRevertRequest,
 )
+from tests.product_http_support import TEST_POLICY
 
 _BASE_TIME = datetime(2026, 1, 1, 12, 0, 0)
 
@@ -70,13 +72,16 @@ async def _create_identity(async_session, *, user_id: str, anima_id: str, conten
             content=content,
             description="Who this Anima is",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
 
 
 async def _repair_memories(async_session, *, user_id: str, anima_id: str):
-    return await memory_entries_router.repair_anima_memories(anima_id, session=async_session, user=_user(user_id))
+    return await memory_entries_router.repair_anima_memories(
+        anima_id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(user_id)
+    )
 
 
 async def _aggregate_revision(async_session, anima_id: str) -> int:
@@ -135,7 +140,9 @@ async def test_anima_identity_listing_orders_owned_animas_and_reports_missing_id
 
     memories = await _repair_memories(async_session, user_id=owner_id, anima_id=later)
 
-    listing = await memory_entries_router.list_anima_identities(session=async_session, user=_user(owner_id))
+    listing = await memory_entries_router.list_anima_identities(
+        repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(owner_id)
+    )
 
     assert [item.anima_id for item in listing.identities] == [earlier, later]
     first, second = listing.identities
@@ -163,7 +170,8 @@ async def test_user_scope_rejects_reserved_animas_paths(async_session, clean_tab
     user = _user(owner_id)
     notes = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="directory", name="notes"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
 
@@ -173,7 +181,9 @@ async def test_user_scope_rejects_reserved_animas_paths(async_session, clean_tab
     ]
     for request in attempts:
         with pytest.raises(HTTPException) as error:
-            await memory_entries_router.create_memory_entry(request, session=async_session, user=user)
+            await memory_entries_router.create_memory_entry(
+                request, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=user
+            )
         assert error.value.status_code == 403
         assert "reserved" in error.value.detail
 
@@ -181,7 +191,8 @@ async def test_user_scope_rejects_reserved_animas_paths(async_session, clean_tab
         await memory_entries_router.patch_memory_entry(
             notes.id,
             PyMemoryEntryPatchRequest(name="ANIMAS", expected_version=notes.version),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=user,
         )
     assert rename_error.value.status_code == 403
@@ -235,14 +246,17 @@ async def test_existing_reserved_user_entries_can_only_be_moved_renamed_or_delet
     await async_session.commit()
     dir_id, file_id = legacy_dir.id, legacy_file.id
 
-    listed = await memory_entries_router.list_memory_entries(session=async_session, user=user, recursive=True)
+    listed = await memory_entries_router.list_memory_entries(
+        repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=user, recursive=True
+    )
     assert {entry.path for entry in listed.entries} == {"animas", "animas/old.md"}
 
     with pytest.raises(HTTPException) as edit_error:
         await memory_entries_router.patch_memory_entry(
             file_id,
             PyMemoryEntryPatchRequest(content="edited", expected_version=1),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=user,
         )
     assert edit_error.value.status_code == 403
@@ -251,7 +265,8 @@ async def test_existing_reserved_user_entries_can_only_be_moved_renamed_or_delet
         await memory_entries_router.patch_memory_entry(
             file_id,
             PyMemoryEntryPatchRequest(name="renamed.md", expected_version=1),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=user,
         )
     assert rename_inside_error.value.status_code == 403
@@ -259,14 +274,16 @@ async def test_existing_reserved_user_entries_can_only_be_moved_renamed_or_delet
     moved = await memory_entries_router.patch_memory_entry(
         file_id,
         PyMemoryEntryPatchRequest(parent_id=None, expected_version=1),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     assert moved.path == "old.md"
     edited = await memory_entries_router.patch_memory_entry(
         file_id,
         PyMemoryEntryPatchRequest(content="edited", expected_version=moved.version),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     assert edited.content == "edited"
@@ -275,7 +292,8 @@ async def test_existing_reserved_user_entries_can_only_be_moved_renamed_or_delet
         await memory_entries_router.patch_memory_entry(
             file_id,
             PyMemoryEntryPatchRequest(parent_id=dir_id, expected_version=edited.version),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=user,
         )
     assert move_into_error.value.status_code == 403
@@ -283,7 +301,8 @@ async def test_existing_reserved_user_entries_can_only_be_moved_renamed_or_delet
     renamed_dir = await memory_entries_router.patch_memory_entry(
         dir_id,
         PyMemoryEntryPatchRequest(name="old-animas", expected_version=1),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     assert renamed_dir.path == "old-animas"
@@ -296,13 +315,15 @@ async def test_existing_reserved_user_file_can_be_deleted_but_not_reverted(async
     service = _service(async_session)
     created = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="file", name="legacy.md", content="v1"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     updated = await memory_entries_router.patch_memory_entry(
         created.id,
         PyMemoryEntryPatchRequest(content="v2", expected_version=created.version),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     # Simulate an entry that predates the reservation by renaming it in storage.
@@ -322,12 +343,15 @@ async def test_existing_reserved_user_file_can_be_deleted_but_not_reverted(async
         )
     await memory_entries_router.delete_memory_entry(
         entry_id,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
         expected_version=updated.version,
     )
     with pytest.raises(HTTPException) as missing:
-        await memory_entries_router.get_memory_entry(entry_id, session=async_session, user=user)
+        await memory_entries_router.get_memory_entry(
+            entry_id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=user
+        )
     assert missing.value.status_code == 404
 
 
@@ -345,24 +369,27 @@ async def test_deleting_anima_removes_its_scoped_memory_only(async_session, clea
             expected_version=doomed_identity.version,
             expected_aggregate_revision=doomed_identity.aggregate_revision,
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     memories = await _repair_memories(async_session, user_id=owner_id, anima_id=doomed)
     await memory_entries_router.patch_memory_entry(
         memories.id,
         PyMemoryEntryPatchRequest(content="We met today.", expected_version=memories.version),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     kept_identity = await _create_identity(async_session, user_id=owner_id, anima_id=kept)
     profile = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="file", name="PROFILE.md", content="# Me"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
 
-    await anima_router.delete_anima(doomed, session=async_session, user=user)
+    await anima_router.delete_anima(doomed, repositories=SQLAlchemyProductRepositories(async_session), user=user)
 
     remaining_entries = (
         await async_session.execute(select(func.count()).where(ORMMemoryEntry.anima_id == doomed))
@@ -374,16 +401,28 @@ async def test_deleting_anima_removes_its_scoped_memory_only(async_session, clea
     assert remaining_versions == 0
     for entry_id in (doomed_identity.id, memories.id):
         with pytest.raises(HTTPException) as missing:
-            await memory_entries_router.get_memory_entry(entry_id, session=async_session, user=user)
+            await memory_entries_router.get_memory_entry(
+                entry_id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=user
+            )
         assert missing.value.status_code == 404
 
-    assert (await memory_entries_router.get_memory_entry(kept_identity.id, session=async_session, user=user)).id
-    assert (await memory_entries_router.get_memory_entry(profile.id, session=async_session, user=user)).id
-    listing = await memory_entries_router.list_anima_identities(session=async_session, user=user)
+    assert (
+        await memory_entries_router.get_memory_entry(
+            kept_identity.id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=user
+        )
+    ).id
+    assert (
+        await memory_entries_router.get_memory_entry(
+            profile.id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=user
+        )
+    ).id
+    listing = await memory_entries_router.list_anima_identities(
+        repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=user
+    )
     assert [item.anima_id for item in listing.identities] == [kept]
 
     with pytest.raises(HTTPException) as repeat:
-        await anima_router.delete_anima(doomed, session=async_session, user=user)
+        await anima_router.delete_anima(doomed, repositories=SQLAlchemyProductRepositories(async_session), user=user)
     assert repeat.value.status_code == 404
 
 
@@ -495,19 +534,24 @@ async def test_anima_memories_repair_creates_the_template_once_for_owned_animas(
     assert (created.path, created.kind, created.scope) == ("MEMORIES.md", ANIMA_MEMORIES_KIND, "anima")
     assert created.version == 1
     assert "content" not in created.model_dump()
-    stored = await memory_entries_router.get_memory_entry(created.id, session=async_session, user=user)
+    stored = await memory_entries_router.get_memory_entry(
+        created.id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=user
+    )
     assert stored.content == ANIMA_MEMORIES_TEMPLATE
     assert stored.aggregate_revision is None
 
     edited = await memory_entries_router.patch_memory_entry(
         created.id,
         PyMemoryEntryPatchRequest(content="We met today.", expected_version=created.version),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     repeated = await _repair_memories(async_session, user_id=owner_id, anima_id=anima_id)
     assert (repeated.id, repeated.version) == (edited.id, edited.version)
-    unchanged = await memory_entries_router.get_memory_entry(created.id, session=async_session, user=user)
+    unchanged = await memory_entries_router.get_memory_entry(
+        created.id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=user
+    )
     assert unchanged.content == "We met today."
     assert await _aggregate_revision(async_session, anima_id) == 1
 
@@ -530,7 +574,8 @@ async def test_anima_memories_edits_are_protected_and_leave_the_definition_alone
     edited = await memory_entries_router.patch_memory_entry(
         memories.id,
         PyMemoryEntryPatchRequest(content="# Memories\r\n\nWe met on a rainy day.\r", expected_version=1),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     assert edited.content == "# Memories\n\nWe met on a rainy day.\n"
@@ -538,7 +583,8 @@ async def test_anima_memories_edits_are_protected_and_leave_the_definition_alone
     blank = await memory_entries_router.patch_memory_entry(
         memories.id,
         PyMemoryEntryPatchRequest(content="", expected_version=edited.version),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     assert blank.content == "" and blank.kind == ANIMA_MEMORIES_KIND
@@ -550,14 +596,16 @@ async def test_anima_memories_edits_are_protected_and_leave_the_definition_alone
             await memory_entries_router.patch_memory_entry(
                 memories.id,
                 PyMemoryEntryPatchRequest(content=content, expected_version=blank.version),
-                session=async_session,
+                repositories=SQLAlchemyProductRepositories(async_session),
+                policy=TEST_POLICY,
                 user=user,
             )
         assert (invalid.value.status_code, invalid.value.detail) == (400, detail)
     reverted = await memory_entries_router.revert_memory_entry(
         memories.id,
         PyMemoryEntryRevertRequest(target_version=edited.version, expected_version=blank.version),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     assert reverted.content == edited.content
@@ -568,11 +616,21 @@ async def test_anima_memories_edits_are_protected_and_leave_the_definition_alone
         PyMemoryEntryPatchRequest(kind="user_memory", expected_version=reverted.version),
     ):
         with pytest.raises(HTTPException) as protected:
-            await memory_entries_router.patch_memory_entry(memories.id, request, session=async_session, user=user)
+            await memory_entries_router.patch_memory_entry(
+                memories.id,
+                request,
+                repositories=SQLAlchemyProductRepositories(async_session),
+                policy=TEST_POLICY,
+                user=user,
+            )
         assert protected.value.status_code == 403
     with pytest.raises(HTTPException) as undeletable:
         await memory_entries_router.delete_memory_entry(
-            memories.id, session=async_session, user=user, expected_version=reverted.version
+            memories.id,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
+            user=user,
+            expected_version=reverted.version,
         )
     assert undeletable.value.status_code == 403
     with pytest.raises(MemoryEntryProtectedError):
@@ -600,7 +658,8 @@ async def test_anima_memories_edits_are_protected_and_leave_the_definition_alone
         PyMemoryEntryPatchRequest(
             content="# Updated identity", expected_version=identity.version, expected_aggregate_revision=revision
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     assert saved_identity.aggregate_revision == revision + 1
@@ -622,7 +681,9 @@ async def test_anima_scope_admits_only_identity_and_memories(async_session, clea
         ),
     ):
         with pytest.raises(HTTPException) as rejected:
-            await memory_entries_router.create_memory_entry(request, session=async_session, user=user)
+            await memory_entries_router.create_memory_entry(
+                request, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=user
+            )
         assert rejected.value.status_code == 403
         assert "IDENTITY.md and MEMORIES.md" in rejected.value.detail
     with pytest.raises(MemoryEntryProtectedError):
@@ -637,7 +698,8 @@ async def test_anima_scope_admits_only_identity_and_memories(async_session, clea
     with pytest.raises(HTTPException) as misplaced_kind:
         await memory_entries_router.create_memory_entry(
             PyMemoryEntryCreateRequest(type="file", name="relationship.md", content="x", kind=ANIMA_MEMORIES_KIND),
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
+            policy=TEST_POLICY,
             user=user,
         )
     assert misplaced_kind.value.status_code == 400
@@ -645,12 +707,17 @@ async def test_anima_scope_admits_only_identity_and_memories(async_session, clea
     # The reserved file itself can be created explicitly, with canonical casing and kind.
     memories = await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(anima_id=anima_id, type="file", name="memories.md", content="Hello\r\n"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     assert (memories.path, memories.kind, memories.content) == ("MEMORIES.md", ANIMA_MEMORIES_KIND, "Hello\n")
     listing = await memory_entries_router.list_memory_entries(
-        session=async_session, user=user, anima_id=anima_id, recursive=True
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
+        user=user,
+        anima_id=anima_id,
+        recursive=True,
     )
     assert [entry.path for entry in listing.entries] == ["MEMORIES.md"]
 
@@ -662,11 +729,18 @@ async def test_anima_scope_admits_only_identity_and_memories(async_session, clea
             await memory_entries_router.patch_memory_entry(
                 legacy_id,
                 PyMemoryEntryPatchRequest(name=name, expected_version=1),
-                session=async_session,
+                repositories=SQLAlchemyProductRepositories(async_session),
+                policy=TEST_POLICY,
                 user=user,
             )
         assert rename_error.value.status_code == 403
-    await memory_entries_router.delete_memory_entry(legacy_id, session=async_session, user=user, expected_version=1)
+    await memory_entries_router.delete_memory_entry(
+        legacy_id,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
+        user=user,
+        expected_version=1,
+    )
 
 
 def test_openapi_exposes_anima_identity_listing() -> None:

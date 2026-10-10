@@ -127,7 +127,9 @@ class Settings(BaseModel):
     )
     anima_memory_file_max_bytes: int = int(os.getenv("ANIMAMA_MEMORY_FILE_MAX_BYTES", str(32 * 1024)))
     anima_chat_compaction_enabled: bool = _env_bool("ANIMAMA_CHAT_COMPACTION_ENABLED", True)
-    anima_chat_compaction_threshold_tokens: int = int(os.getenv("ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS", "6000"))
+    # Cap on the app-compaction trigger; a row with a context window triggers
+    # earlier (see context_budget.ContextBudget.post_response_trigger_tokens).
+    anima_chat_compaction_threshold_tokens: int = int(os.getenv("ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS", "90000"))
     anima_chat_compaction_recent_message_min_count: int = int(
         os.getenv("ANIMAMA_CHAT_COMPACTION_RECENT_MESSAGE_MIN_COUNT", "4")
     )
@@ -148,7 +150,7 @@ class Settings(BaseModel):
     )
     anima_default_embedding_model_provider_id: str | None = _env_text("ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID")
     anima_openai_responses_compaction_threshold_tokens: int = int(
-        os.getenv("ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS", "10000")
+        os.getenv("ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS", "90000")
     )
     anima_chat_compaction_prompt_version: str = os.getenv(
         "ANIMAMA_CHAT_COMPACTION_PROMPT_VERSION",

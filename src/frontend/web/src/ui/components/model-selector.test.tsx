@@ -5,6 +5,7 @@ import { ModelSelectorLogo } from "./model-selector";
 
 it.each([
   "openai",
+  "anthropic",
   "google",
   "xai",
   "groq",

@@ -1,0 +1,2206 @@
+# Particle and Scene Effect platform and pipelines (Plan 1, platform)
+
+Source agreement: [#297](https://github.com/raymond-van/animama/issues/297)
+(snapshot: [particle-scene-effects-spec.md](particle-scene-effects-spec.md)),
+requirements R1–R8. The owner agreed the spec on 2026-10-09; it was published
+to #297 the same day.
+Authorized scope: all phases, P1–P9 (owner, 2026-10-09). Gates G1–G4 still
+apply.
+Starting revision: `4c9ab2c` (`feat/particle-scene-effects`, based on `main`
+`bfc0de4`).
+Branch: `feat/particle-scene-effects`, in a dedicated task worktree. One branch
+and one PR for this plan.
+Issues: parent #297; phases P1 #386, P2 #387, P3 #388, P4 #389, P5 #390,
+P6 #391, P7 #392, P8 #393, P9 #394, linked as sub-issues, each blocked by its
+predecessor and P5 also by P1. Related: #298 (Avatar Effects v2, whose tooling,
+skills and promotion this plan extends).
+
+## Purpose and context
+
+Plan 1 delivers the platform half of the spec:
+
+- **R1:** the Particle creator imports PNG textures and sprite sheets, and keeps
+  textures that are not in its built-in list through open, Save, recovery and
+  Portable packages.
+- **R2:** Scene layer capabilities that the approved background designs need,
+  fixed by an early design step (owner decision, 2026-10-09).
+- **R3–R5:** `effects check`, `effects:render`, the headed preview, `effects
+  save` and `effects promote` work for Particle and Scene Effects as they do for
+  Avatar Effects.
+- **R6:** named art budgets for particle textures, sprite sheets, Scene stickers,
+  pattern tiles and full backgrounds, enforced by the scripts and the app.
+- **R7:** `animama-particle-vfx` becomes a pipeline skill and
+  `animama-scene-vfx` is added, each proven by a fresh-agent dry run.
+- **R8:** runtime guides, glossary and effect skills describe the result.
+
+Plan 2 (content, R9–R14) and Plan 3 (creators, R15–R17) are written after their
+predecessors merge. Plan 1 writes no Included effect content: the R2 design step
+produces briefs and mock renders, not library art, and promotion is proven only
+on a throwaway branch (gate G3). The spec owns behavior and acceptance; this
+plan owns delivery.
+
+Commands run from the repository root unless a working directory is stated.
+Frontend scripts run from `src/frontend/web`. No Cloud checkout is needed. The
+build, tests and app must not depend on Codex, `image-gen` or any skill.
+
+### Implementation orientation
+
+Paths: frontend relative to `src/frontend/web/`, backend to
+`src/backend/animama/`, content to `content/included/`. Line numbers are from
+`4c9ab2c` and drift as work proceeds.
+
+| Area | Current state and significance |
+| --- | --- |
+| Particle content | `vfx/particle/quark/<stem>/`: `<stem>.json` (`content_type: "particle_effect"`, ID `builtin:particle-effect:<stem>`, `runtime_defaults.slots.particle_vfx` with anchor, duration, transform, `max_particles`; `files` lists `particle.json` as `manifest` and `textures/*.png` as `texture`). 19 effects; only hearts, sparkles, stars, question-marks, exclamation and rain-cloud are used (Reactions at intensity 2–3, pinned in `tests/avatar/reactionClips.test.ts`). Some descriptors have no `dependencies` key. Bundled duplicates: `lib/avatar/particle-vfx/catalog.ts`. Runtime limits: 4 active effects, 512 declared particles (`ParticleVFXController.ts`). |
+| Scene content | `vfx/scene/<stem>/<stem>.json` (`animama/scene-effect/1`); IDs carry a lane, e.g. `builtin:scene-effect:background:<stem>` and `builtin:scene-effect:focus:<stem>`. 19 emotion backgrounds (played only by `<emotion>-3` Reactions through `scene_vfx` events with `sceneKind` and `presetId`), plus `comic-pop`, `dark`, `kawaii-sparkles`, `light-streak`, `shoujo-hearts`. Art is Twemoji SVG copies (`emoji-*.svg`). Bundled duplicate: `assets/effects/scene-vfx/catalog.json`. Emoji path: `lib/scene-vfx/emoji.ts`, backend `BUILTIN_EMOJI` in `app/services/content_package_capabilities.py`. |
+| Scene rendering | DOM, CSS and inline SVG only, outside the WebGL canvas (`ui/main/scene-vfx/*`; `docs/frontend/runtime/scene-vfx.md` §5). The marquee animates with the CSS keyframes `scene-vfx-marquee-shift` (`styles/globals.css` :35). Surfaces: chat (`ui/main/canvas/Scene.tsx` :270 underlay, `AvatarSceneHost.tsx` :603 overlay; `stores/scene-vfx-store.ts`), creator and Library preview dock (`ui/avatar-preview/AvatarPreviewSurface.tsx` :135–195 via `ContentPreviewScene.tsx`), Action editor (`ActionEditorScene.tsx`) and desktop picture-in-picture (`routes/desktop/pip/$animaId.tsx` :128; state crosses windows as JSON through `lib/desktop-pip/visual-state.ts`). |
+| Particle creator | Page `ui/particle-vfx-creator/ParticleVFXCreatorPage.tsx` (~4,800 lines); editor library `lib/avatar/particle-vfx/editor/`. Textures live in the three.quarks manifest (`particle.json`): `ps.material` → `materials[].map` → `textures[].image` → `images[].url`, a package-relative path such as `textures/heart.png`. Sprite sheets use `ps.uTileCount`/`vTileCount`/`blendTiles` and a `FrameOverLife` behavior (`editor/renderer.ts`, `editor/behaviors.ts`). The 38 built-in textures (`editor/textureManifest.ts`, `editor/constants.ts`; files in `vfx/particle/particle-vfx/textures/`) are matched by basename in `editor/textures.ts` `textureIdFromUrl` (:314); anything else becomes `textureId: null`. Consequences: `EmitterTexturePanel` (page :2420–2560) has no file input; Duplicate and Add emitter replace a `null` texture with `soft-dot` (`editor/draft.ts` :188, :221–229); the preview maps unknown URLs to a missing public path (`editor/preview.ts`); readiness reports `unresolved-texture` (`editor/contentReadiness.ts` :147–153); Save passes `resources: []`, so `particleVFXContentPackage.ts` `resolveTextureSource` (:206–235) throws; reopen (page :352–415) fetches only `particle.json`, never texture bytes. `ParticleVFXContentPackageResource` (:31–36) is already a seam for user blobs. Package limits (:12–17): 16 textures, 25 MiB per texture, 64 MiB, 512 particles. Recovery (`lib/content/particleVFXRecovery.ts`) stores JSON only, no Blobs (5 MiB; the Avatar and Scene stores keep Blobs). Undo history: `useCreatorDocumentHistory`; the Avatar Effect creator keeps image resources in its history snapshots (`avatarEffectCreatorBehavior.ts`). |
+| Image import precedent | `lib/avatar/vfx/effect-image-limits.ts` (`readImageDimensions` reads PNG/WebP/JPEG headers; `assertAvatarEffectImageWithinLimits` reads 256 KiB of header) and `effect-image.ts` (re-checks after decode). Flow: `AvatarEffectCreatorPage.tsx` `chooseImage` (:597–662) → type, bytes, header dimensions, `preflightContentFile`, `sha256File`, history dispatch; reopen downloads bytes (`hydrateAvatarEffect`, :1502–1569). |
+| Scene definition and creator | Types `lib/scene-vfx/types.ts`: `background_layers` (`solid`; `pattern` none/polkadot/heart/star with colour, size, spacing, opacity; `marquee` items, size, gaps, nine directions, rotation mode, speed, opacity) and `focus_lines`. Parser `catalog.ts` `parseSceneVFXEntry` (:800–926) checks types and enums only and ignores unknown fields. Stored items are `kind: "image"` with a logical name, projected to blob URLs by `AnimaRuntimeMediaCatalog.ts` `loadPrivateSceneVFX` (:690–776). Editor `lib/scene-vfx/editor/` (`document.ts` `validateSceneEffectDocument` :233–406: ≤ 64 marquee items, ≤ 16 images, 32 MiB; `defaults.ts` five swatch templates). Page `ui/scene-effect-creator/SceneEffectCreatorPage.tsx` (~2,300 lines; `choosePrivateImage` :492–586 has no dimension check). |
+| Backend validation | `app/services/content_package_capabilities.py`: `_particle` (:565–606) checks structure, allowlists and that `images[].url` names a registered texture file, but none of the frontend count, byte or particle limits; `_scene_effect` (:309–390) checks closed field lists but no ranges or item counts; `BUILTIN_EMOJI` (:69–72). Companion images get a magic-header check only (`content_kind_registry.py` `validate_standalone_file` :321–381). `app/services/content_image.py` `validate_image_stream` (:139–168) and `_open_bounded_image` (:347) can check dimensions but are unused outside the module. Save path: `PUT /v1/{particle,scene}-effects/{entry}` → `server/routers/content.py` `save_content_item`. Packages: `content_package_export.py`, `content_package_import.py` (member paths kept). |
+| Effect tooling | `scripts/effects.mjs` (`check` → `effect-check.mjs`, `save` → `effect-save.mjs`, `promote` → `effect-promote.mjs`), `effect-render.mjs` with the page `effect-render/{render.ts,stage.ts}`, `effect-thumbnails.mjs`, `effect-bench.mjs` (+ `effect-bench/bench.ts`), `effect-assets.mjs`. All are Avatar-Effect-only. Shared source resolution `effect-render-sources.mjs`: `KINDS` (:32) has `effect`, `gesture` and `particle` but no scene; `loadEffectDescriptor` (:276) requires `avatar_effect`; `resolveParticleRef` (:425) already returns a particle manifest, textures and defaults, but only for content-ID references. |
+| Check and render harness | Vite (strict `fs.allow`) + headless Playwright Chromium with SwiftShader (`withRendererPage`, `effect-render.mjs` :108). `checkEffect` (`render.ts` :345) diffs effect frames against a baseline on both Included Avatars (`AvatarSample_Y_0`, `AvatarSample_A_1_New`); `summarizeCheck` (`effect-check.mjs` :75) fails below a visible share of 0.001. The stage builds the `Avatar` with `EMPTY_RUNTIME_MEDIA_PROVIDER`, so particles cannot resolve; frames are copied from the WebGL canvas, so DOM Scene layers are not captured. Frame stepping (`updatePoseCreatorAvatarFrame`) already updates the particle controller. |
+| Headed preview | `animation-preview.mjs` + `animation-preview-media.mjs` (`effectSpecFor` :130 accepts only Avatar Effects; `media()` :213 resolves Avatar and Particle dependencies and silently ignores Scene and sound; `choices()` :275 lists only Avatar Effects). `lib/avatar/motion-authoring/preview/previewMedia.ts`: Scene lookups return nothing (:129–139) and a notice says the chat scene draws it (:178–181). The page (`scripts/animation-preview/preview.ts`) draws every cell with one WebGL renderer through scissor viewports (`createCell` :189, `render` :452); there is no DOM layer per cell. `sources.ts` source types are `clip` and `effect`. |
+| Save and promote | `effect-save.mjs` drives the Avatar Effect creator headlessly (Import dialog, image inputs, Save, read back, reopen); names follow `ENTRY_NAME` (:25). The Particle and Scene creators already have JSON import dialogs ("Import Particle VFX JSON", "Import Scene Effect JSON") and `/v1/particle-effects`, `/v1/scene-effects` routes. `effect-promote.mjs`: kinds `avatar_effect`, `reaction`, `gesture`; add/replace/delete; requires the `vfx/avatar/**/*` inventory rule; copies the first `vfx/avatar` source-review record form; `EVENT_DEPENDENCIES` (:81) already maps `particle_vfx` and `scene_vfx`. |
+| Asset budgets | `effect-assets.mjs` `BUDGETS` (:39): landmark/body/sticker 512 px · 256 KiB, surface/silhouette 1024 px · 512 KiB, flipbook 2048 px · 1 MiB; runtime limits 16 MiB, 4096 px, 4096² px; `checkImage` fails non-PNG and missing alpha. `effect-assets.test.mjs` keeps limits in sync with the app and contract. |
+| Licences | `licenses/inventory.json` (first match): `vfx/avatar/**/*` owner-authored; `vfx/particle/quark/**` "generated by `generate-particle-vfx-assets.mjs`" from CC0 inputs; `vfx/scene/**/emoji-*.svg` Twemoji CC BY 4.0; `vfx/scene/**/svg-*.svg` owner AI-generated; Scene descriptors fall to `**/*`. Repo-root `licenses/source-review.json` needs a record per tracked file. |
+| Skills | `.claude/skills` → `.agents/skills`. `animama-avatar-vfx` (pipeline, steps 0–9; references `batch.md`, `brief.md`, `effect-folder.md`, `how.md`, `promote.md`, `what.md`). `animama-particle-vfx` (operating manual; references `creator.md`, `integration.md`, `three-quarks.md`). `animama-effect-assets` (budgets defer Particle/Scene to "their skill"). No Scene skill. |
+| Docs | `docs/frontend/runtime/avatar-particle-vfx.md` and `scene-vfx.md` have no tooling sections; tools are documented in `avatar-vfx.md` §9 (:452–629). `GLOSSARY.md` Avatar Effect (:105–112) and Particle Effect (:114–118). |
+
+## Progress
+
+- [x] Spec drafted; owner review decisions recorded; spec agreed (2026-10-09);
+      repository surveyed; plan drafted; D1 decided.
+- [x] Owner review of this plan; P1–P9 authorized (2026-10-09).
+- [x] Workspace (2026-10-09): spec published to #297 and read back; phase
+      issues #386–#394 created as sub-issues with dependencies; worktree
+      `animama-particle-scene-effects` on `feat/particle-scene-effects`. No task
+      stack yet.
+- [x] P1 — Scene family designs (R2 input). G1 approved 2026-10-09: all eight
+      families, capabilities C1–C6, embarrassment moved to Affection.
+- [x] P2 — Art budgets and shared import limits (R6). Review passed at round 3.
+- [x] P3 — Particle texture import (R1). Review passed at round 2.
+- [x] P4 — Check, render and bench for Particle and Scene Effects (R3). Review
+      passed at an owner-authorized extra round 4.
+- [x] P5 — Scene layer capabilities (R2). Review passed at round 2; the chat
+      check of the new layers is a G4 item.
+- [x] P6 — Headed preview for Particle and Scene Effects (R4). Review passed
+      at round 2.
+- [x] P7 — Save and promote (R5). Review passed at round 2; G3 demonstration
+      passed on a deleted throwaway branch. Includes the owner's graceful
+      removal of Included effects under Local Actions.
+- [x] P8 — Pipeline skills and fresh-agent dry runs (R7). Review passed at
+      round 2; G2 approved Gloom Sadness and Heart Burst (saved as Local
+      content); three other drafts were not approved.
+- [ ] P9 — Documentation and acceptance (R8). Gate G4. Documentation, chat
+      check and walkthrough done and the review passed at round 2
+      (2026-10-10); G4, the owner's review of the walkthrough, is pending.
+- [x] Merge of `main` (`0753e9c6`) and final integration review, passed at
+      round 2 (2026-10-10).
+- [ ] PR open for owner review; G4 and merge approval pending.
+
+## Surprises & Discoveries
+
+- 2026-10-09 (planning): Scene layers are DOM/SVG hosts outside the WebGL
+  canvas, while the render harness and the headed preview read pixels from, or
+  draw everything into, one WebGL canvas. R3 and R4 need a DOM layer stack
+  around the canvas and page-level capture, not a canvas readback.
+- 2026-10-09 (planning): the licence inventory has no truthful rule for new
+  Particle or Scene art. `vfx/particle/quark/**` describes generator output from
+  CC0 inputs, and new Scene PNGs would fall to the catch-all `**/*`. The owner
+  decided D1 (Decision Log).
+- 2026-10-09 (planning): Particle texture limits exist only in the frontend.
+  The backend does not enforce texture count, bytes, dimensions or particle
+  totals, and the runtime's private particle loader checks no dimensions.
+  Scene's backend validator has no ranges or item counts, and the Scene creator
+  checks no image dimensions. R1 and R2 require both sides.
+- 2026-10-09 (planning, unverified): the Scene creator names uploaded raster
+  images with a `.webp` logical name whatever their format, and picture-in-picture
+  receives Scene state as JSON that may carry window-local blob URLs. P5 checks
+  both before relying on image capabilities there.
+- 2026-10-09 (P4): there are two particle estimates. The creator's Save
+  gating (`estimateParticleVFXContentParticles`, now
+  `estimateParticleVFXParticles`) counts
+  a looping system's emission over the longest system's duration and puts
+  `flame-loop` at 79 against its declared 64, the figure the spec quotes; the
+  editor's display and warning (`estimateParticleVFXDraftParticles`) say 52.
+  `effects check` uses Save's estimate, so it fails the Included `flame-loop`,
+  which the creator would refuse to save as it is. Plan 1 writes no Included
+  content (G3); its budget is fixed with the Plan 2 library. The backend
+  checks a manifest's structure but estimates no particle count, so Save's
+  estimate is the only enforcement.
+- 2026-10-09 (P4): every current intensity-3 Reaction's effects add at most
+  about 2 ms of frame time on the owner's Mac at DPR 2 (up to 2.3 ms in a
+  run beside other work; see the P4 record), so the 4 ms budget leaves room
+  for richer Plan 2 effects. The Scene background is most of it: Reactions
+  without one add 0.2–1.2 ms.
+- 2026-10-09 (planning): `effects:assets check` fails any PNG without alpha, so
+  an opaque full Scene background cannot pass today; the background budget needs
+  an opaque-allowed mode.
+- P7: the spec assumed a Local Action referencing a removed Included effect
+  plays without it; the catalog instead invalidated it (it left chat and its
+  creator could not open it). The owner chose to implement the assumed
+  behaviour (Decision Log).
+- P7: the Particle creator's Save copies every built-in texture an effect
+  draws into the Local item, and most built-ins are third-party (CC0, one
+  CC-BY), so promotion must carry their records rather than claim them as
+  owner art.
+- 2026-10-10 (P9): the full browser journeys caught a P5 regression the unit
+  suites missed: restoring a Scene draft reordered its layers, so the restored
+  portable JSON differed from the saved text (fixed, P9 record).
+- 2026-10-10 (merge): `main`'s #406 deleted the Included `shy-finger-poke`
+  Gesture, the only Included user of `kawaii-sparkles` and `light-streak`.
+  Plan 2's R12 (rewire `shy-finger-poke`) and R13 (unused items) must be
+  restated against current `main`. A browser-journey stack reused across that
+  merge kept pre-merge Animas and package stages and failed every package
+  journey (`package_anima_source_unavailable`, `package_stage_limit`); a purged
+  stack is needed after Included content changes.
+
+## Decision Log
+
+- **2026-10-09, owner (intent discovery):** recorded in the spec's Open
+  questions and decisions.
+- **2026-10-09, owner (spec review):** single long-lived particles are a valid
+  particle layer and the glossary is clarified; Plan 1 starts with a Scene
+  family design step whose approval fixes the R2 list; the performance budget is
+  **4 ms** of added frame time for the heaviest intensity-3 Reaction's Particle
+  and Scene Effects on the owner's development Mac; Local emoji items are marked
+  missing and skipped; Plan 3 keeps the creator UI; sounds, more Gesture use and
+  runtime changes are allowed when a design needs them; R9/R10 lists are trimmed
+  before Plan 2.
+- **2026-10-09, agent (planning), within the spec:**
+  - Drafts, briefs, mock renders and review notes live under the ignored
+    `.animama-drafts/`; the committed record of each family brief is a short
+    entry in this plan (the #298 Plan 2 convention).
+  - Proposed budget values are in P2; the owner may change them at plan review.
+  - R6's "the app enforces the same limits": each art type has one set of hard
+    limits (format, bytes, side, pixels, frame grid, counts and totals) shared
+    by the scripts, the frontend import checks, the backend and the runtime
+    loader. The named budgets are stricter authoring targets that the scripts
+    enforce; the app does not refuse a user's art for exceeding a budget, only
+    a hard limit.
+  - Dry-run effects (P8) stay Local drafts. They may become Plan 2 candidates
+    but are not promoted in Plan 1.
+- **2026-10-09, owner (P5 review):** Scene image limits are enforced
+  everywhere, as for Particle textures: Save, package import, Local scan and
+  the runtime loader. An existing Local Scene whose image is over the limits
+  shows a diagnostic until the image is replaced; recovery is documented in
+  `scene-vfx.md`.
+- **2026-10-09, owner — G1:** the eight Scene family designs are approved as
+  drafted; P5 builds capabilities C1–C6 (gradient fill, drifting image tile,
+  procedural rays and lines, scatter layout with per-item variation, per-item
+  motion, entry flash); embarrassment moves from Revulsion to Affection.
+- **2026-10-09, owner:** fold the creator's particle estimate into this PR.
+  The Particle creator's display and budget warning now use Save's estimator
+  (`estimateParticleVFXParticles`, `editor/particleEstimate.ts`), so the
+  creator, Save and `effects check` agree (`flame-loop`: 79 against 64, where
+  the creator showed 52); the old draft estimator is removed; Save promotes
+  the editor's budget warning, so its error states the same numbers, and adds
+  the 512-particle private limit; the `animama-particle-vfx` creator reference
+  states the shared estimate and the P2 texture limits. Independent review:
+  pass at round 1 (optional notes taken: Save's error now carries the numbers,
+  the "cannot be estimated" wording names every cause, this record's
+  contradiction removed; no browser check of the creator's Settings text).
+- **2026-10-09, agent (implementation order):** while G1 is open, P6 (headed
+  preview) runs before P5. P6 draws Scene Effects through the shared layer
+  hosts, so P5's capabilities appear in it without further work; P5 still
+  waits for G1, and P7 follows P5.
+- **2026-10-09, owner (plan review):** the spec is agreed (Status: Agreed).
+- **2026-10-09, owner:** all phases, P1–P9, are authorized. The proposed P2
+  budget and limit values were not changed at review; P2 fixes them against
+  the P1 designs.
+- **2026-10-09, owner — D1, licence rules for new art** (amends the spec's R14
+  wording). #298 had promoted files follow existing inventory rules without
+  per-effect wording, but for Particle Effects the existing rule misstates new
+  art's origin. Promotion writes new Particle and Scene art under
+  owner-authored rules worded like `vfx/avatar/**/*`:
+  - Particle: `effects promote` inserts a per-stem rule
+    `vfx/particle/quark/<stem>/**` before `vfx/particle/quark/**`, as
+    `animation promote` does per Gesture. Plan 2 may collapse the per-stem rules
+    once the legacy effects are removed.
+  - Scene: one kind-wide rule `vfx/scene/**/*.png` before `**/*`, added in P7.
+  - Source-review records use the owner-authored form of the `vfx/avatar`
+    records, not the CC0 or Twemoji forms.
+- **2026-10-09, owner — graceful removal (P7 step 3).** The spec's
+  pre-launch removal constraint assumed a Local Action that references a
+  removed Included effect plays without it; in fact the catalog marks it
+  invalid (`unresolved_dependency`), so it leaves chat and its creator cannot
+  open it. The owner chose to implement the spec's behaviour rather than
+  amend it: a Local Reaction or Gesture whose `builtin:` Avatar, Particle or
+  Scene Effect dependency no longer exists stays valid with a
+  `missing_effect_dependency` diagnostic, plays without those effect events,
+  opens in its creator, which reports the removed effect, and is refused by
+  Portable export until repaired. Every other unresolved dependency stays
+  invalidating.
+- **2026-10-10, owner — Particle direction and composite effects.** Particle
+  Effects are glossy, layered polish (hero, additive halo, sparkles, extras),
+  not gag symbols, which stay Avatar Effects; the Particle skill says so, and
+  the P8 Particle dry run uses R9 #2 "Heart burst" in that style. Composite,
+  moving, Gesture-enhancing effects (a blown-kiss heart from the mouth toward
+  the viewer, a heart drawn with a fingertip: finer anchors, effect motion,
+  hero layers, strokes) are deferred until after Plans 2 and 3; Plan 2's
+  Particle library is built on today's runtime.
+- **2026-10-10, owner — Particle quality bar.** Heart Burst (P8 dry run 3,
+  approved at G2) sets the level of quality and finish for future Particle
+  Effects (a glossy hero with highlight and shading, a gentle glow, finished
+  secondary layers), not a fixed recipe: simpler effects may skip the ring
+  and sparkles and use any motion, not necessarily a pop. Scripted movement of the hero (moving it along a path or toward the
+  viewer) waits for the composite-effects work after Plan 2.
+
+## Gates
+
+| Gate | When | Who | Effect |
+| --- | --- | --- | --- |
+| G1 | End of P1 | Owner reviews the eight Scene family briefs and mock renders, and may move emotions between families | Fixes the R2 capability list recorded in P5; P2–P4 do not wait for it |
+| G2 | P8, before each dry-run effect is saved | Owner reviews the dry-run Particle and Scene effects in the headed preview on both Included Avatars | The skill's live-preview approval step is exercised; approved drafts are saved as Local content, others revised once or recorded as gaps |
+| G3 | P7 and always | Owner | Plan 1 writes nothing under `content/included/` except approved licence rules (D1). The promote demonstration runs on a throwaway local branch that is never pushed. Any Included write needs the owner's explicit approval of each item |
+| G4 | P9 | Owner reviews the browser walkthrough (texture import, the new Scene capabilities in chat, creator and preview dock) | Acceptance evidence; merge approval stays separate |
+
+If a new Scene capability alone, or the current heaviest intensity-3 Reaction,
+exceeds the 4 ms budget after reasonable optimization, the measurement goes to
+the owner before the phase completes. Image generation needs the owner's Codex
+login; a failed or quota-limited generation pauses the affected mock or dry run,
+not the plan.
+
+## Preparation (workspace setup)
+
+1. Recheck the root and scoped `AGENTS.md` (`src/frontend/AGENTS.md`,
+   `src/backend/AGENTS.md`), branch, HEAD and dirty state. Preserve the spec and
+   plan. Run `git lfs pull` if a PNG reads as a pointer.
+2. `workspace-setup`, once implementation is authorized:
+   - publish the spec to #297 and read it back; record the snapshot time in the
+     spec;
+   - create phase issues P1–P9 as sub-issues of #297, each blocked by its
+     predecessor and P5 also by P1 (G1);
+   - record the issue numbers here. Do not create gate-only issues.
+   Done 2026-10-09: #386–#394.
+3. Dependencies: from `src/frontend`, `pnpm install --frozen-lockfile`,
+   `pnpm packages:build`, `pnpm e2e:install`; backend `uv sync --python 3.12.13`
+   (check `uv run python -V`). Backend tests need the container runtime that
+   testcontainers uses.
+4. Task stack, started when a phase first needs the app (P3):
+   `./reset.sh --name particle-fx --base-port <free port>`, then
+   `source .animama-stack.env`; record the URL here. Test content only; the main
+   stack on :3000 is not changed. Restart the stack's `web` service after
+   package rebuilds.
+5. Wrap delegated test runs in `timeout` (for example
+   `timeout 900 uv run pytest -q …`). Work test-first (`tdd`) for scripts,
+   parsers, validators and limits.
+
+## Phased implementation
+
+Each phase starts after its predecessor's checks and bounded review pass (one
+full `sdlc-reviewer` review, at most two repair rounds), except that P1's gate
+runs alongside P2–P4 and P5 waits for G1. Record per phase: issue, starting SHA,
+commits (`<type>(<scope>)[p#]: …`, scopes such as `vfx`, `scene`, `particle`,
+`creator`, `effects`, `skills`, `docs`), commands and results, review records
+and remaining gates.
+
+### P1 — Scene family designs (R2 input). Gate G1. #386
+
+Outcome: the owner has approved a design direction per emotion family, and the
+Scene capability list R2 builds is fixed.
+
+1. For each of the eight families in the spec's R10 table, write a brief under
+   `.animama-drafts/scene-families/<family>/brief.md`:
+   - what the background expresses and how it escalates the intensity-3
+     Reaction;
+   - its emotions, with each emotion's colour and art motif;
+   - its layers, from back to front, with motion (speed, direction, loop) and
+     what each layer needs from the renderer;
+   - art direction (distinct from Particle art) and the art each emotion needs
+     (stickers, tiles, a full background or none);
+   - how it coexists with the Avatar and Avatar Effects (contrast, the face
+     kept clear).
+2. Make a mock render per family: two still frames over an `effects:render`
+   frame of an Included Avatar, built from CSS/SVG layers in a scratch page and
+   sample art from `animama-effect-assets` (optionally `image-gen`). Mocks are
+   drafts, not library art.
+3. Derive the capability list: for each layer, the existing layer kind that
+   covers it or the new capability it needs (candidates: linear and radial
+   gradients, custom image pattern tiles, procedural screens such as gloom lines
+   and radiating rays, per-item size, rotation and opacity variation, and
+   frame-animated items). Note each new capability's data shape, limits and
+   expected cost.
+4. Present the briefs, mocks and capability list on one review sheet (G1). The
+   owner may move emotions between families or change directions.
+5. Record the approved families and the capability list in this plan (the P1
+   record and the Decision Log).
+
+Checks: none automated; the G1 decision is the evidence.
+
+Completion: G1 approved; the R2 list is recorded. Capabilities no approved
+design uses are not built.
+
+#### P1 record
+
+Starting source and issue: `ab21768f` (this branch after merging `main`
+`42d38faf`), #386.
+
+Delivered (drafts under `.animama-drafts/scene-families/`, not committed):
+
+- Eight briefs (`<family>/brief.md`) and one live review page with an animated
+  mock per family over an Included Avatar (both Avatars alternate), plus two
+  still frames per family (0.12 s and 2.5 s). Mocks are plain CSS/SVG layers
+  in the order the chat underlay draws them; sample art is one generated
+  sticker per family (draft direction only), each passing
+  `effects:assets check --budget sticker` after `fix`.
+- Art direction proposed for Scene art: flat anime background motifs (bold
+  silhouettes, flat colour with at most one cel-shade step, thin tinted
+  outlines), distinct from Particle art's glossy glow polish.
+
+| Family | Direction (lead emotion shown) | Layers |
+| --- | --- | --- |
+| Affection | Shoujo bloom (love) | radial glow, drifting bokeh tile, tumbling petals with twinkling sparkles |
+| Esteem | Radiance (confidence) | radial back-light, rotating rays, rising twinkling glints |
+| Delight | Festive pop (joy) | diagonal pop gradient, halftone dots, bouncing stars and confetti |
+| Drive | Anticipation (optimism) | sky gradient, drifting star-field tile, rising twinkles |
+| Alarm | Shock (fear) | entry flash, dark gradient, shock lines, flickering lightning |
+| Rejection | Rage (anger) | hot radial vignette, throbbing spiky rays, popping anger marks |
+| Revulsion | Queasy (disgust) | sickly gradient, spinning spirals, rising bubbles |
+| Gloom | Gloom (sadness) | overcast gradient, swaying gloom lines, falling drops |
+
+Proposed capability list for G1 (all additive to `animama/scene-effect/1`):
+
+- **C1 gradient fill** (linear or radial, 2–4 stops): all families.
+- **C2 image pattern tile with drift**: Affection, Drive.
+- **C3 procedural screen** (rays: count, centre, rotation, spiky, throb;
+  lines: count, lengths, width, sway): Esteem, Alarm, Rejection, Gloom.
+- **C4 scatter layout and per-item variation** (size, rotation, opacity
+  ranges, seed): all families.
+- **C5 per-item motion** (spin; twinkle, pop or flicker pulse; still items
+  among drifting ones): seven families.
+- **C6 entry flash**: Alarm (and Delight's excitement).
+- Not built: frame-animated items; no design needs them.
+
+Recommendation for G1: move embarrassment from Revulsion to Affection (its
+blush-and-steam fluster trope fits Affection's layers, not a nausea swirl).
+
+G1 (owner, 2026-10-09): approved. All eight family designs as drafted; P5
+builds all of C1–C6; embarrassment moves from Revulsion to Affection. Plan 2
+builds the library from these briefs.
+
+#### Code Review #1 Findings
+
+Not applicable: P1 commits only this record; the mock page and briefs are
+drafts.
+
+### P2 — Art budgets and shared import limits (R6). #387
+
+Outcome: named budgets for Particle and Scene art exist in one place that the
+asset scripts, the app's import checks and the backend validators agree on.
+
+1. Add budgets to `scripts/effect-assets.mjs` `BUDGETS` (proposed values; the
+   owner may change them):
+
+   | Budget | Longest side | File size | Notes |
+   | --- | --- | --- | --- |
+   | `particle-texture` | 512 px | 256 KiB | single sprite, alpha required |
+   | `particle-sheet` | 2048 px | 1 MiB | frames ≤ 256 px; grid ≤ 16×16, ≤ 256 frames |
+   | `scene-sticker` | 512 px | 256 KiB | alpha required |
+   | `scene-tile` | 512 px | 256 KiB | pattern tile; opaque allowed |
+   | `scene-background` | 2048 px | 1 MiB | full background; opaque allowed |
+
+   Add an opaque-allowed mode to `checkImage` for `scene-tile` and
+   `scene-background` (it skips `no_alpha`, `solid_background` and
+   `opaque_border`, keeps every other check).
+2. Hard limits (proposed), enforced by the app on import, by the backend at
+   Save and package import, and by the runtime loaders:
+   - particle texture or sheet: ≤ 2048 px side, ≤ 4 MiB, grid ≤ 16×16 and
+     ≤ 256 frames; ≤ 16 textures and ≤ 32 MiB per effect (today's frontend
+     limits of 16 textures and 64 MiB per package stay as outer bounds). The
+     creator imports PNG only (R1); the backend keeps accepting the texture
+     formats it accepts today, within the same limits;
+   - Scene image: the formats accepted today (raster and the restricted SVG),
+     ≤ 4096 px side, ≤ 8 MiB; ≤ 16 images and ≤ 32 MiB per effect (today's
+     editor limits).
+   Fix the values against the P1 designs.
+3. One frontend limits module for particle textures and Scene images, reusing
+   `readImageDimensions` from `lib/avatar/vfx/effect-image-limits.ts`, and
+   matching backend constants checked with `content_image.py`'s bounded
+   header reader. Extend `effect-assets.test.mjs`'s sync check and the package
+   capability parity fixtures so the script, frontend and backend values
+   cannot drift.
+4. Update `animama-effect-assets` `SKILL.md` budgets (R8 content lands here
+   because the skill names the budgets).
+
+Checks: `pnpm -s test:source` (or the focused `node --test
+scripts/effect-assets.test.mjs`), focused vitest, focused pytest,
+`pnpm check`, `pnpm web:lint`, `uv run ruff check`.
+
+Completion: `effects:assets check --budget particle-sheet` and the others pass
+good art and fail oversized or wrong-format art; the limit sync test fails when
+one copy changes.
+
+#### P2 record
+
+Starting source and issue: `050265ef`, #387.
+
+Delivered:
+
+- `effects:assets` budgets `particle-texture` (512 px, 256 KiB),
+  `particle-sheet` (2048 px, 1 MiB), `scene-sticker` (512 px, 256 KiB),
+  `scene-tile` (512 px, 256 KiB) and `scene-background` (2048 px, 1 MiB).
+  Each names its kind's hard limits, and `check` reports those limits. Tiles
+  and backgrounds may be opaque (no `no_alpha`, `solid_background` or
+  `opaque_border`; a painted checkerboard still fails) and keep their framing
+  (`fix` refuses `--trim`, `--square` and `--pad`, as for face-surface art).
+- Hard limits in one record,
+  `src/frontend/web/src/lib/content/fixtures/effect-art-limits.json`, read by
+  the script and compared with `lib/effects/effectArtLimits.ts` (vitest) and
+  `app/contracts/effect_art_limits.py` (pytest): Particle textures 4 MiB,
+  2048 px, grid 16, 16 per effect, 32 MiB in total; Scene images 8 MiB,
+  4096 px, 16 per effect, 32 MiB in total. `inspectEffectArt` checks bytes,
+  format and header dimensions without decoding and names the limit it broke.
+  Applying the limits in the creators, backend validators and runtime loaders
+  is P3 and P5.
+- `animama-effect-assets` lists the new budgets and limits.
+- Values checked against the P1 designs: every family uses stickers and
+  tiles within 512 px, gradients and screens are procedural, and no design
+  needs a full background image; `scene-background` exists for user art and
+  R6.
+
+Checks (agent, 2026-10-09): `node --test scripts/effect-assets.test.mjs`
+(33 pass), `pnpm exec vitest run src/lib/effects/effectArtLimits.test.ts`
+(6 pass), `uv run pytest -q tests/test_effect_art_limits.py` (2 pass),
+`pnpm check`, `pnpm web:lint`, Prettier on the changed files, `uv run ruff
+check` and `ruff format --check` on the new Python files.
+
+#### Code Review #1 Findings
+
+Reviewed source: working tree on `050265ef`; full initial review
+(`sdlc-reviewer`).
+
+- **P2-R1-F1 (required):** opaque-allowed budgets skipped the checkerboard
+  FAIL as well as the three checks the plan names, so a tile with a painted
+  checkerboard passed.
+- P2-R1-F2 (optional): reusing `keepsLayout` for tiles also suppresses the
+  `interior_translucency` warning.
+- P2-R1-F3 (optional): `fix --canvas` was not refused for budgets that keep
+  their framing.
+- P2-R1-F4 (optional): the backend parity test compared fields one by one, so
+  a new fixture key would not fail it.
+- P2-R1-F5 (optional): nothing ties the Particle grid limit to the flipbook
+  grid that `flipbook` uses for sheets.
+- P2-R1-F6 (optional): `inspectEffectArt` repeats container signature checks
+  (the Particle package builder has a third copy).
+- P2-R1-F7, F8 (notes for P5): SVG Scene images need a path besides
+  `inspectEffectArt`; `SCENE_IMAGE_LIMITS` duplicates the Scene editor's
+  private count and byte limits.
+- P2-R1-F9 (note for P9): `avatar-vfx.md` lists only Avatar budgets.
+- P2-R1-F10 (record): this record was empty.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: `detectBackground` always runs; opaque budgets skip only
+  `no_alpha`, `solid_background` and `opaque_border`. Test: a checkered tile
+  fails with `checkerboard` and without `no_alpha`.
+- F2 rejected: Scene tiles are often see-through by design (soft bokeh,
+  glows), the same reason face tints skip the warning.
+- F3 accepted, then reverted after Code Review #2: refusing `--canvas` for
+  every budget that keeps its layout also blocked the documented
+  `--budget surface --canvas` reframing of iris and decal art.
+- F4 accepted: the pytest compares the whole mapping with the fixture.
+- F5 accepted as a sync test: the Particle grid limit equals the flipbook
+  grid.
+- F6 deferred to P3, which replaces the package builder's signature check
+  with the shared one so one detector remains.
+- F7 and F8 recorded for P5; F9 for P9; F10 done above.
+- Checks after revisions: `node --test scripts/effect-assets.test.mjs`
+  (33 pass), the P2 pytest (2 pass), Prettier and ruff on the changed files.
+
+#### Code Review #2 (repair round 1)
+
+- F1, F4 and F5 verified fixed; dispositions consistent.
+- **P2-R2-F1 (required):** the F3 change refused `fix --budget surface
+  --canvas`, which the Avatar Effect skill and guide document for iris and
+  decal art. Fixed by reverting F3 (message and skill restored); `fix
+  --budget surface --canvas 512 --art-size 168` is accepted again.
+
+#### Code Review #3 (repair round 2)
+
+Pass: the revert restores the surface `--canvas` workflow; the other guards
+and the F1 fix hold; tests 33 and 2 pass. No findings.
+
+### P3 — Particle texture import (R1). #388
+
+Outcome: a user can add their own PNG or sprite sheet to an emitter, and every
+texture an effect carries survives open, Save, reopen, recovery and Portable
+packages.
+
+1. **Texture identity.** Replace basename matching (`textureIdFromUrl` in
+   `lib/avatar/particle-vfx/editor/textures.ts` against `textureManifest.ts`)
+   with an effect texture table: each emitter refers to a texture by its
+   package-relative path (`textures/<file>.png`), and the table maps it to a
+   built-in entry or to imported bytes (`{file, sha256}`, as the Avatar Effect
+   creator holds images). Built-in textures stay selectable and are copied into
+   the effect when used, as today. A texture that is not built in is kept, never
+   resolved to `null`; Duplicate and Add emitter keep it; the preview resolves it
+   through a blob URL.
+2. **Import.** In the Particle creator's texture control, add "Import PNG…" with
+   an optional frame grid (columns × rows, frame count) that sets the emitter's
+   tile counts.
+   - Before decoding or GPU upload: sniff the PNG signature, read IHDR
+     dimensions, check bytes, side, pixel count and grid against the P2 limits.
+     Refuse with a message naming the limit; the draft is unchanged.
+   - Only then decode and upload.
+3. **Opening existing effects.** Reopening an Included or Local item, a
+   template or an imported Portable package downloads every texture file the
+   descriptor lists (as `hydrateAvatarEffect` does) into the table. Imported
+   creator JSON keeps its texture references: a reference with no bytes shows
+   as missing with a control to supply the file, and readiness blocks Save until
+   it is supplied or replaced. This "Import JSON, then supply textures" path is
+   what `effects save` drives in P7.
+4. **Save and packages.** Save passes the table's bytes as
+   `ParticleVFXContentPackageResource`s with role `texture`; reopen restores
+   them. Backend: enforce the P2 hard limits for particle textures at Save and
+   package import (PNG signature, bounded header dimensions before any full
+   decode, bytes, grid, count and total) with field-specific errors as #298 P1
+   did; the runtime's private loader (`loadPrivateParticle`) checks dimensions
+   too. Extend the package capability fixtures and the export → import →
+   re-export tests.
+5. **Recovery.** Move particle recovery to a Blob-carrying record, like the
+   Scene and Avatar stores (new recovery schema version; older records still
+   restore their JSON). Imported bytes are kept up to the P2 per-effect total;
+   above it, recovery keeps the definition, marks the textures missing and says
+   so. Undo and redo cover texture import, replacement and removal, with
+   resources held in the history snapshots.
+6. **Tests:** frontend unit tests for header sniffing and refusals (oversized,
+   malformed, non-PNG, too many frames) and for the texture table round-trip;
+   backend Save and package tests; a browser test on the task stack that imports
+   a PNG and a sprite sheet into an Included effect with non-built-in textures
+   and into a new effect, saves, reopens, recovers a draft and round-trips a
+   Portable package.
+
+Checks: focused vitest and pytest, `pnpm check`, `pnpm web:lint`,
+`uv run ruff check`, `make format-check`, `pnpm openapi-ts` freshness if a
+contract changes, and the browser test against the task stack.
+
+Completion: the R1 acceptance items pass on the task stack; existing Local
+Particle Effects that use built-in textures still open and play.
+
+#### P3 record
+
+Starting source and issue: `c246cb64`, #388. Task stack `animama-particle-fx`
+(development build) at http://animama-particle-fx.localhost:8620; only the
+`web` service publishes a port.
+
+Delivered:
+
+- **Texture table.** `ParticleVFXEditorDraft.textureFiles` holds the bytes of
+  every texture the effect carries, keyed by its package-relative path. A
+  reference is never reused for different bytes (imports get
+  `textures/<stem>-<n>.png`), so undo and redo restore textures by restoring
+  the JSON; the fingerprint counts used textures by hash. Duplicate and Add
+  emitter keep a carried texture (`editor/textureFiles.ts`, `draft.ts`,
+  `textures.ts`).
+- **Import.** "Import PNG texture" in the emitter's Texture section
+  (`EmitterCarriedTextures.tsx`, existing components) checks size, format and
+  header dimensions with `inspectEffectArt` before anything decodes it; a
+  refusal names the limit and leaves the draft unchanged. The Atlas tile
+  fields (now capped at 16) state a sprite sheet's grid; an imported sheet's
+  tile counts are its atlas for validation.
+- **Reopen, JSON import.** Reopening an item downloads every texture file it
+  lists. Imported JSON keeps its texture references: embedded PNG data
+  becomes texture files, and a reference without bytes shows "Texture … is
+  missing" with a file chooser; readiness blocks Save until it is supplied.
+- **Save and packages.** The package builder takes bytes from the draft,
+  enforces the P2 limits (bytes, side, total) and returns the saved draft with
+  every packaged texture's bytes. The backend checks the same limits and the
+  sprite-sheet grid at Save, scan and package install
+  (`app/services/effect_art_validation.py` through the kind's companion-file
+  validation) and in package capability checks (`_particle`). The runtime's
+  private particle loader checks count, total and header dimensions before
+  creating object URLs.
+- **Recovery.** Particle recovery records (`animama/particle-effect-recovery/3`)
+  keep the used textures' Blobs in IndexedDB, up to 37 MiB in all (5 MiB of
+  JSON plus the 32 MiB texture total); a larger draft is not stored and the
+  creator warns. The text fallback keeps the JSON and says which textures must
+  be chosen again; `/2` records still restore.
+- **Journey.** `e2e/journeys/accountless-particle-texture-import.spec.ts`
+  (allowlisted; `docs/frontend/testing/browser-journeys.md` updated): refusals,
+  a PNG and a 4×4 sheet in two emitters, recovery after reload, Save, reopen,
+  desktop and narrow screenshots, a Portable package export and import with
+  textures intact, and supplying a texture imported JSON refers to.
+
+Included effects today use only built-in texture names, so the "Included
+effect with non-built-in textures" case is covered by reopening Local and
+imported items through the same code path; P7's throwaway-branch promotion
+exercises an Included one.
+
+Checks (agent, 2026-10-09):
+
+- Frontend: focused vitest over the particle, content, effects and runtime
+  folders (751 pass); `pnpm check`; `pnpm web:lint`; Prettier on changed
+  files; `pnpm e2e:check`.
+- `pnpm web:test`: 3,359 pass; 4 fail in `tests/local-api-proxy.test.ts`
+  because another session's dev server holds host port 5173 (environmental).
+  Script browser tests: the two hosted sign-out tests failed on a fixture
+  that wrote `/3` records without `textures`; the fixture now writes texture
+  Blobs and both pass. "hosted Library restores mobile navigation after
+  Escape" timed out under load and passes alone.
+- Backend: `uv run pytest -q -k "content or package or particle or catalog or
+  effect" tests` (932 pass, including the new `test_particle_texture_limits.py`
+  and the Included content integrity and catalog tests); `uv run ruff check`;
+  `ruff format --check`; mypy on the new modules.
+- Browser: `pnpm e2e:test -- --project chromium --grep "Particle texture
+  import"` on the task stack: 2 passed (setup and the journey, 26 s); the
+  content ledger has nothing unresolved.
+
+#### Code Review #1 Findings
+
+Reviewed source: working tree on `c246cb64`, P3 files and hunks only (P4 work
+had started in `scripts/` and the Scene hunk of `AnimaRuntimeMediaCatalog.ts`);
+full initial review (`sdlc-reviewer`).
+
+- **P3-R1-F1 (required):** the backend checked only files declared with role
+  `texture`; a Quarks image may name a file declared `image`, and undeclared
+  companions are scanned as textures, so an oversized texture could be admitted
+  through Save or a package.
+- **P3-R1-F2 (required):** embedded-data extraction named files
+  `textures/embedded-<n>.png` from 1 without avoiding references the JSON or
+  the carried table already use, so new bytes could replace an existing
+  texture.
+- P3-R1-F3 (optional): the `sr-only` file input added a second, invisible tab
+  stop beside its button.
+- P3-R1-F4 (optional): a fetch-path message still said 25 MiB.
+- P3-R1-F5 (optional): Pillow's decompression-bomb refusal was reported as a
+  format error instead of the size limit.
+- P3-R1-F6 (optional): the preview failed as a whole for refused embedded or
+  remote images and echoed the URL.
+- P3-R1-F7 (optional): the recovery cap is 37 MiB for JSON and textures
+  together, and an over-cap IndexedDB record is not stored, not stored without
+  textures as step 5 says.
+- P3-R1-F8 (optional): built-in identity still matched by basename, so
+  `images/heart.png` showed as both the built-in Heart and missing.
+- P3-R1-F9 (optional): no test showed a Local scan or package refusing an
+  over-limit texture, or reopen failing.
+- P3-R1-F10 (optional): duplicated SHA-256 and inspection code; the backend
+  wrapped one emitter in a fake manifest.
+- P3-R1-F11 (optional): Duplicate gives a carried texture the default
+  (additive) blending, as it does for built-in textures.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: `effect_art_validation._texture_paths` checks every companion
+  except JSON and text notes, whatever its role; the creator's reopen also
+  downloads files registered as `image`. Tests: oversized textures declared
+  `image` or undeclared are refused at Save; a Local scan reports an
+  oversized texture.
+- F2 accepted: extraction allocates references with the same unique-reference
+  helper as imports and skips the draft's carried references. Test.
+- F3 accepted: the input is `hidden`, as in `SoundUploadButton`.
+- F4 accepted: the message names the shared limit.
+- F5 accepted: a decompression-bomb refusal reports the 2048 px limit. Test
+  with a 30000 × 30000 header.
+- F6 accepted: any image that is neither carried nor built in previews as the
+  default texture; no URL is shown.
+- F7 accepted as recorded behaviour: recovery stores JSON and texture Blobs up
+  to 37 MiB together; a larger draft (only possible beyond the Save limits)
+  is not stored and the store's "too large" warning shows. The P3 record is
+  corrected below.
+- F8 accepted: built-in identity matches the exact `textures/<file>` path.
+  Test.
+- F9 accepted in part: the Local scan test above (package install shares that
+  scan) and a `loadParticleVFXTextureFiles` test; a full package round trip
+  with an invalid texture is not constructible through Save.
+- F10 accepted: the package builder uses `readParticleVFXTextureFile` (one
+  inspection and hash); the backend has `emitter_grid_issue`.
+- F11 rejected: Duplicate's blending is existing behaviour for every texture
+  and outside R1.
+- Also fixed: the journey polled recovery before the typed name was stored,
+  so a reload could restore an unnamed draft; it now waits for both.
+- Checks after revisions: `uv run pytest -q tests/test_particle_texture_limits.py
+  tests/test_content_package_capabilities.py` (84 pass); focused vitest over
+  the particle, content and creator folders (626 pass); the journey on the task
+  stack (2 passed).
+
+#### Code Review #2 (repair round 1)
+
+Pass. F1 and F2 verified fixed (the reviewer's role and size probes now refuse
+every case); the other accepted fixes verified. Noted: a Particle entry's
+companions other than JSON, text notes and PNG, JPEG or WebP textures (for
+example `.svg` or `.wav`) are now refused; no current content has any. Checks:
+175 backend tests over the particle, package and content-store files, 367
+vitest, eslint and `e2e:check:source` clean.
+
+### P4 — Check, render and bench for Particle and Scene Effects (R3). #389
+
+Outcome: `effects check` and `effects:render` give verdicts and contact sheets
+for Particle and Scene effect folders and Library items on both Included
+Avatars, alone or together with a Reaction's other effects; `effects:bench`
+can measure a Reaction with all its effects.
+
+1. **Sources.** In `effect-render-sources.mjs`, add `particle` and `scene`
+   effect folders (`<stem>.json` with `particle_effect` or `scene_effect`) and
+   `library:particle-effect/<id>`, `library:scene-effect/<id>` specs, sharing
+   `resolveParticleRef` and a new Scene resolver. Allow `vfx/particle` and
+   `vfx/scene` in the Vite `fs.allow` list.
+2. **Particles in the harness.** Give the stage a media provider (reusing
+   `PreviewMediaProvider`) instead of `EMPTY_RUNTIME_MEDIA_PROVIDER`, so effects
+   and clip events resolve particles. Seed `Math.random` in the page so frames
+   are reproducible.
+3. **Scene layers in the harness.** Mount the chat's Scene underlay and overlay
+   hosts around a transparent canvas in the render page, pause their CSS
+   animations and seek them to the harness frame time (Web Animations API
+   `document.getAnimations()`), and capture tiles from the page (Playwright clip
+   screenshots) rather than the canvas. Scene Effects render behind and in front
+   of the Avatar as the chat scene draws them.
+4. **Check.** For each kind: art against its P2 budget; parse with the runtime
+   parser and name any bad field; particle counts against the declared budget
+   and the runtime limits (4 effects, 512 particles); play on both Avatars and
+   prove visibility against a no-effect baseline. Keep the PASS/WARN/FAIL output
+   and exit codes.
+5. **Render.** `effects:render` writes contact sheets for both kinds and
+   `--together`/`--with-clip` show a Reaction's Avatar, Particle and Scene
+   Effects as chat would.
+6. **Bench.** Extend `effects:bench` with a Reaction mode that measures a
+   Reaction with and without its Particle and Scene Effects, including the DOM
+   Scene layers (whole-frame time from tracing or frame intervals, plus the GPU
+   timer for the canvas). Set its budget constant to 4 ms for this mode. Record
+   a baseline for the current heaviest intensity-3 Reaction on the owner's
+   development Mac.
+7. **Tests:** extend `effects.test.mjs`, `effect-render-sources.test.mjs`,
+   `effect-check.browser.test.mjs` and `effect-render.browser.test.mjs` with a
+   Particle and a Scene fixture folder, including an invisible effect and an
+   over-budget particle count.
+
+Checks: `pnpm -s test:source`, `pnpm check`, `pnpm web:lint`; a sample
+`effects check` and `effects:render` of an Included Particle and Scene Effect,
+and a Reaction with all three kinds, recorded here; the bench baseline.
+
+Completion: verdicts and contact sheets for both kinds on both Avatars; the
+bench reports the Reaction-mode baseline.
+
+#### P4 record
+
+Starting source and issue: `ea59aa5f`, #389. Commit: `27401d64`.
+
+Delivered:
+
+- **Sources** (`scripts/effect-render-sources.mjs`): `library:` specs name a
+  kind (`avatar-effect/`, `particle-effect/`, `scene-effect/`, `gesture/`,
+  `reaction/`; none means an Avatar Effect, as before). `resolveAnyEffectSource`
+  returns an Avatar, Particle or Scene source from a folder, descriptor or
+  spec, with every file contained in its folder; Included Particle Effects are
+  found one folder deeper. `resolveClipSource` returns a Gesture's or
+  Reaction's dependencies, and `resolveDependencies` resolves them by alias.
+- **Stage** (`scripts/effect-render/render.ts`, `reviewStage.tsx`): sheets and
+  checks now open one stage session per Avatar (`openReviewStage`,
+  `showReviewFrame`, `closeReviewStage`). The chat's Scene underlay and overlay
+  hosts sit around the Avatar canvas; Scene CSS animations are paused and
+  seeked to the frame time; Particle Effects play through the Avatar's
+  particle controller with a preview media provider; `Math.random` is seeded.
+  Node captures each tile from the page and composes the sheet with `sharp`,
+  for Avatar Effects too. A clip with effect events plays through the Avatar's
+  clip player, so a Reaction starts its effects when chat would; each frame
+  waits until the effect loads its events started have finished, so a
+  Reaction renders the same on every run. Each Scene Effect is seeked to the
+  time since it started and removed when its duration ends; layers aimed at
+  the Avatar (focus lines on the face) follow each view's camera.
+- **Check** (`scripts/effect-check.mjs`): Particle textures are held to
+  `particle-texture` or `particle-sheet` (by whether an emitter tiles them),
+  Scene PNGs to `scene-sticker`; a Particle Effect gets the creator's content
+  readiness errors (limits, and image references that must name a listed
+  texture) and Save's estimate of live particles against the declared budget
+  and the 512 limit; a Scene image an item shows must be listed, and a
+  listed image no item shows is a warning; visibility is proven against the
+  bare Avatar.
+- **Render** (`scripts/effect-render.mjs`): any mix of kinds, `--together`,
+  and `--with-clip <Gesture or Reaction>` with or without sources.
+- **Shared Scene projection:** `lib/scene-vfx/sceneDefinition.ts`
+  (`sceneEntryFromDefinition`) is now used by the runtime catalog's private
+  Scene loader and by the review tools.
+- **Bench** (`effects:bench --reaction <spec>`): measures a Reaction replayed
+  with and without its effect events, with the Scene bands around the canvas
+  at DPR 2 and the frame rate uncapped, so the interval between animation
+  frames includes the DOM layers' style, layout and compositing; the CPU time
+  of update plus render and the GPU time of the render are reported too. The
+  budget is 4 ms (added mean frame interval and GPU time).
+
+Baseline (agent, 2026-10-09, the owner's development Mac: Apple M5, ANGLE
+Metal, headless, DPR 2 for the canvas and the DOM layers, 1600×1200 drawing
+buffer, 360 frames per scenario in two alternating rounds, all 24
+intensity-3 Reactions on both Included Avatars, after the review #3 fix, on
+an otherwise idle machine): each adds at most 2.0 ms of mean frame interval
+and at most 0.8 ms of GPU time (negative GPU differences are noise). The
+heaviest is `grief-3` (Gloom face, streaming tears, despair shade,
+`rain-cloud`, the grief background): +1.72/+2.01 ms frame and +0.57/+0.63 ms
+GPU (Y_0/A_1_New). `joy-3`: +1.20/+1.38 ms frame, +0.73/+0.61 ms GPU.
+Reactions with no Scene Effect add 0.2–1.2 ms. An earlier sweep that ran
+beside other renders measured up to +2.3 ms (`grief-3` +2.07/+2.29 ms), so
+runs vary by about 0.5 ms; repeat a borderline measurement on an idle
+machine. The Plan 2 acceptance measurement repeats this on the new library.
+
+Checks (agent, 2026-10-09): node tests `effect-render-sources`, `effect-assets`,
+`effects`, `animation-preview-media` (72 pass); browser tests `effect-render` and
+`effect-check` (5 pass, including the new Particle, Scene, together and
+Reaction cases) and `animation-preview` (6 pass); vitest over `lib/scene-vfx`
+and `lib/runtime-content` (137 pass); `pnpm check`; `pnpm web:lint`; Prettier.
+Sample runs: `effects check` on `hearts-v1`, `scene-vfx-emotion-joy` and
+`star3` (pass) and `flame-loop` (FAIL: up to 79 live particles against 64, see
+Surprises); `effects:render` sheets for `hearts-v1`, `scene-vfx-emotion-joy`
+and `joy-3` played as a Reaction.
+
+After the review repairs (agent, 2026-10-09): browser tests `effect-render` and
+`effect-check` 5 pass (the joy-3 Reaction rendered twice is byte-identical; an
+unlisted texture and an unshown Scene image are reported); node tests
+`effect-render-sources`, `effect-assets`, `effects`, `animation-preview-media`
+72 pass; vitest over `lib/avatar/particle-vfx`, `lib/scene-vfx`,
+`lib/runtime-content` 164 pass; `pnpm check`; `pnpm web:lint`; Prettier.
+
+#### Code Review #1 Findings
+
+Reviewer: independent `sdlc-reviewer`, full initial review of the P4 working
+tree on `ea59aa5f`. Result: blocked on F1–F7.
+
+- **F1** (`effect-render/render.ts`, `advanceTo`): event-playing frames wait a
+  fixed 16 ms of wall-clock time for effect loads, so a slow load starts its
+  effect on a later frame and the same Reaction can render differently between
+  runs (R3 reproducible review). Required.
+- **F2** (`reviewStage.tsx`, `seek`): every Scene is seeked by the earliest
+  start time, so a Scene a clip event starts later is drawn ahead of its own
+  timeline. Required.
+- **F3** (`render.ts`, `showReviewFrame`; `reviewStage.tsx`): focus lines with
+  an `avatar_face` target resolve the face against the camera before it is
+  placed for the view, so the face view frames the wrong area. Required.
+- **F4** (`effect-check.mjs`): a Particle manifest image URL is not checked
+  against the descriptor's listed textures, so a folder the backend refuses
+  (unlisted texture) passes the check; the declared budget is not clamped to
+  the runtime limit. Required.
+- **F5** (`effect-render.mjs`, CLI): a clip-only render with `--out x.png`
+  treats the file as a folder. Required.
+- **F6** (`render.ts`, thumbnails): a thumbnail of a clip with effect events
+  plays it through the clip player without its media and fails. Required.
+- **F7** (`effect-bench.mjs`): the page runs at DPR 1, so the DOM Scene layers
+  are measured at a quarter of the pixels the 2× canvas uses, understating the
+  Reaction baseline. Required; re-record the baseline.
+- Optional: label Particle source errors `particles:`, not `render:`; Scene
+  `durationMs` forced to null on the stage; clip-started Particle Effects
+  missing from `activeEffectIds`; stale comments (`summarizeCheck`, "seeded on
+  load"); the bench ignores `INIT_CWD` for sources and has no
+  `--local-content`; tests for seek, an unlisted texture and an unshown Scene
+  image.
+
+#### Code Review #1 Revisions
+
+- **F1 accepted.** `PendingLoads` counts each stage of an effect load a clip
+  event starts (the media provider's `loadAvatarVFX`/`resolveParticleVFX`, the
+  Avatar Effect controller's apply methods and the particle controller's
+  `playEffect`); stages are chained by microtasks, so after each event frame
+  the session yields in macrotasks until the count is zero (10 s limit, then a
+  clear error). The 16 ms pause is gone. Test: the joy-3 Reaction rendered
+  twice gives byte-identical sheets.
+- **F2 accepted.** `ReviewStage.seek` seeks the animations under each
+  `[data-scene-vfx-id]` by that Scene's own start time.
+- **F3 accepted.** `showReviewFrame` places the camera and renders before
+  `seek`, which re-renders the Scene layers and lets their effects commit, so
+  focus lines re-resolve the face for each view. Verified on `light-streak`
+  (front and face views on both Avatars).
+- **F4 accepted.** The check runs `validateParticleVFXContentReadiness` with
+  the listed textures as the resolvable references and reports each error as a
+  `particles:` FAIL with its target; the estimate FAILs above the lower of the
+  declared budget and 512. Scene images shown but not listed FAIL; listed but
+  not shown WARN. Tests: an unlisted `textures/heart.png` and a listed
+  `extra.png` no item shows.
+- **F5 accepted.** One source or none (a clip-only sheet) may be written to a
+  named `.png`. Verified: `effects:render --with-clip library:reaction/joy-3
+  --out <file>.png` writes that file.
+- **F6 accepted.** A clip plays through the clip player only when its effects
+  are supplied; a thumbnail samples it like a Gesture.
+- **F7 accepted.** `withRendererPage` takes a `deviceScaleFactor`; the bench
+  runs at DPR 2 for the canvas and the DOM layers, and the baseline above is
+  re-recorded.
+- Optional items: all taken (labels, Scene durations end on the stage,
+  clip-started Particle Effects listed by effect id, comments, bench
+  `--local-content` and `INIT_CWD`-relative sources, tests).
+
+#### Code Review #2 Findings
+
+Reviewer: the same `sdlc-reviewer`, targeted recheck (repair round 1) of the
+revised working tree. F1, F2, F3, F5 and F6 are verified fixed (joy-3 renders
+twice with 0 differing pixels; a later Scene is seeked by its own start; focus
+lines are the same whatever the view order; a clip-only `.png` is a file; a
+Reaction thumbnail renders), and the F7 code is fixed. Result: blocked on:
+
+- **P4-R2-F1** (`effect-check.mjs`, `particleSourceLines`): readiness judges
+  the budget with Save's estimator while the next line prints the editor's,
+  so `flame-loop` reports both a budget FAIL and "about 52 … PASS". Report one
+  estimate (Save's) and record the `flame-loop` outcome. Required.
+- **P4-R2-F2** (this record): the baseline was described as re-measured at
+  DPR 2 while that run was still in progress. Required.
+- Optional: a bare clip file with effect events renders without them and says
+  nothing; the declared budget is shown above the runtime cap.
+
+#### Code Review #2 Revisions
+
+- **P4-R2-F1 accepted.** `estimateParticleVFXContentParticles` (Save's
+  estimator) is exported from the particle editor; the check prints only its
+  figure ("up to N live", or "unbounded") and FAILs above the declared budget
+  or when the budget exceeds 512, so the readiness budget issue is not
+  repeated. `flame-loop` now FAILs once, at 79 against 64; the outcome is in
+  Surprises (Included content is unchanged under G3). The browser test
+  expects the new line.
+- **P4-R2-F2 accepted.** The DPR 2 run of all 24 intensity-3 Reactions
+  finished and replaced the baseline above.
+- Optional: a bare clip with effect events now prints a warning that its
+  events are not played. The budget display is revised under review #3.
+- Found while revising: a Reaction's Scene took its definition's duration on
+  the stage, but chat keeps a clip's Scene until the clip clears it. The
+  stage now applies clip Scenes with chat's `resolveClipOwnedSceneVFXEntry`,
+  and a clear removes only the Scene its own event started.
+
+#### Code Review #3 Findings
+
+Reviewer: the same `sdlc-reviewer`, final targeted recheck (repair round 2,
+the last in the budget). P4-R2-F1 and P4-R2-F2 are verified fixed
+(`flame-loop` prints one FAIL at 79 against 64, `hearts-v1` one PASS; the
+baseline matches its logs, and was measured before the regression below), and
+the clip-Scene revision works in the render tool (`shy-finger-poke`'s focus
+lines show at 0.8 s and are cleared at 1.1 s). Result: blocked on:
+
+- **P4-R3-F1** (`scripts/effect-bench/bench.ts`): the bench still called
+  `clearScene(kind)` after the revision added an `entryId` argument, so
+  `replay` cleared no Scene and the second round's "without effects" pass
+  kept the previous pass's Scene layers, understating a Reaction's added
+  frame time in later runs. `pnpm check` does not type-check `scripts/**/*.ts`,
+  so the missing argument went unreported. Required.
+- Optional: "a budget above 512 FAILs" cannot happen, since the runtime config
+  caps the parsed budget at 512; a clip Scene's clear does not bring back the
+  Scene of its kind shown before the clip, as chat does.
+
+#### Code Review #3 Revisions
+
+- **P4-R3-F1 accepted.** The clip Scene handling now lives in one place,
+  `ReviewStage.clipSceneSink`, which both the render page and the bench use:
+  a clip's Scene lasts until the clip clears it, a clear removes only the
+  Scene its own event started and brings back the one shown before the clip
+  (as chat's clip-owned Scene records do), and an unresolved alias is
+  reported. The bench's `replay` calls `clearScenes()`. `tsconfig.scripts.json`
+  (referenced from `tsconfig.json`, so `pnpm check` runs it) now type-checks
+  the review, bench and preview pages; it also caught a bench import of a
+  clip type that no longer exists and a parameter property the app's
+  `erasableSyntaxOnly` refuses, both fixed.
+- Optional, taken: the particle line reports the budget the folder declares
+  and FAILs when it exceeds 512; the clear restores the earlier Scene (above).
+- Evidence: `pnpm check` (now including the scripts pages), `pnpm web:lint`,
+  browser tests `effect-render` and `effect-check` 5 pass; the full DPR 2
+  sweep re-run after the fix replaced the baseline above.
+- The repair budget was spent; the owner authorized one more targeted
+  recheck (2026-10-09).
+
+#### Code Review #4 Findings
+
+Reviewer: the same `sdlc-reviewer`, owner-authorized extra targeted recheck.
+Result: pass. P4-R3-F1 is fixed (no caller clears with the removed signature;
+the post-fix sweep ran after the last edits, with 0 warnings and lower
+"without effects" means); the clip Scene sink mirrors chat (a sadness source
+under `shy-finger-poke` is replaced by the clip's background at 0.5 s and
+shown again after the clip's clear at 1.2 s); `tsconfig.scripts.json` is part
+of `tsc -b`; the particle line matches its description.
+
+- Optional: a non-positive declared `max_particles` (which the runtime treats
+  as 512) was displayed as "declared budget 0".
+
+#### Code Review #4 Revisions
+
+- Optional, taken: only a positive integer is shown as the declared budget;
+  otherwise the line shows the budget the runtime uses.
+
+### P5 — Scene layer capabilities (R2). Waits for G1. #390
+
+Outcome: each capability on the G1 list works in chat, the creator, the Library
+preview dock and desktop picture-in-picture, and survives Save and Portable
+packages.
+
+1. Record the G1 capability list and its data shapes here before coding.
+2. For each capability:
+   - types and parser (`lib/scene-vfx/types.ts`, `catalog.ts`) and the
+     backend `_scene_effect` validator, with size and count limits on both
+     sides and parity fixtures;
+   - the renderer in the shared Scene layer hosts, so every surface that shows
+     scene layers today shows it;
+   - creator controls in the existing Scene creator layout and components
+     (Advanced placement is Plan 3's concern; P5 adds the controls where layers
+     are edited today);
+   - image capabilities use the P2 hard limits and the same pre-decode checks
+     as P3.
+3. Surfaces: verify that image layers resolve in desktop picture-in-picture
+   (blob URLs may be window-local) and that uploaded PNGs keep a matching
+   logical name and content type; fix either if broken. Add the missing
+   backend range and count checks for existing fields, and pre-decode
+   dimension checks to the Scene creator's image import, at the same time (R2
+   and the security constraint require both sides), with parity fixtures.
+4. Compatibility: existing `animama/scene-effect/1` definitions keep working.
+   Additive fields stay `/1`; if a change is incompatible, record how saved
+   effects are handled before implementing it.
+5. Performance: bench each capability at its densest approved setting with the
+   P4 Reaction mode; an over-budget result goes to the owner.
+6. Tests: parser and validator tests per capability (frontend and backend),
+   Save and package round-trips, a render test per capability through
+   `effects:render`, and a browser check in chat and the preview dock.
+
+Checks: focused vitest and pytest, `pnpm check`, `pnpm web:lint`,
+`uv run ruff check`, `make format-check`, `pnpm openapi-ts` freshness,
+`effects:render` sheets per capability, and the existing saved Scene Effects
+still playing.
+
+Completion: the R2 acceptance items pass for every capability on the G1 list.
+
+#### P5 record
+
+Starting source and issue: `8388dd89`, #390.
+
+Capability list and data shapes (recorded before coding, from G1). All are
+optional fields of a `background_layers` definition, so existing
+`animama/scene-effect/1` definitions are unchanged and keep `/1`; an absent
+field is a disabled layer. The stored definition names images by logical name
+(`image`), as marquee items do; the runtime entry carries `src`. Ranges and
+counts live in one shared fixture
+(`src/frontend/web/src/lib/content/fixtures/scene-effect-limits.json`), read by
+the creator's validation and mirrored by the backend validator with a parity
+test; the same ranges now also cover the existing fields.
+
+- **C1 `gradient`** `{ enabled, type: "linear" | "radial", angleDeg 0–360,
+  centerX 0–1, centerY 0–1, stops: [{ color, position 0–1 }] }`, 2–4 stops in
+  ascending position. Drawn above the solid fill, below the pattern.
+- **C2 `tile`** `{ enabled, image, size 16–1024 px, opacity 0–1, direction,
+  speedPxPerSec 0–600 }`: one image repeated over the view, drifting in a
+  marquee direction. Drawn above the pattern.
+- **C3 `screen`**, one per effect, by kind:
+  - rays `{ enabled, kind: "rays", color, opacity 0–1, count 4–48, centerX
+    0–1, centerY 0–1, spiky, turnSeconds 0 or 4–600 (signed: negative turns
+    counter-clockwise), throbPerSec 0–4, seed }`;
+  - lines `{ enabled, kind: "lines", color, opacity 0–1, count 4–96,
+    minLength ≤ maxLength 0.05–1 (fractions of the height, hanging from the
+    top; 1 is full height), minWidthPx ≤ maxWidthPx 0.5–16, swaySeconds 0 or
+    1–60, seed }`.
+  Drawn above the tile.
+- **C4 + C5 `scatters`**, up to 3 layers, each `{ enabled, items (1–8, image
+  or emoji as marquee items), count 1–48, seed, minSize ≤ maxSize 4–512 px,
+  minRotationDeg ≤ maxRotationDeg −360–360, minOpacity ≤ maxOpacity 0–1,
+  regionTop ≤ regionBottom 0–1, keepFaceClear, direction, speedPxPerSec
+  0–600, minSpinDegPerSec ≤ maxSpinDegPerSec 0–720, alternateSpin, pulse:
+  "none" | "twinkle" | "pop" | "flicker" }`; at most 96 items in all layers.
+  Placement and per-item variation come from the seed, so a Scene looks the
+  same everywhere. Drawn above the marquee, in order.
+- **C6 `flash`** `{ enabled, color, durationMs 50–2000 }`: one fade from the
+  colour when the Scene starts, above the other background layers (behind the
+  Avatar).
+
+Motion is CSS animation, so the review tools and the headed preview seek it
+(P4, P6).
+
+Delivered:
+
+- **Limits** (`lib/scene-vfx/limits.ts`, `app/contracts/scene_effect_limits.py`,
+  fixture `scene-effect-limits.json`): one table of ranges and counts for every
+  Scene field, old and new. The creator's checks (`sceneDefinitionLimitIssues`,
+  replacing its own ranges) and the backend's `_scene_effect` apply it; the
+  backend had no ranges or counts for existing fields before. Shared fixtures
+  `scene-effect-all-layers.json` (a valid definition using every layer) and
+  `scene-effect-limit-cases.json` (one broken limit each) are run on both sides.
+- **Runtime** (`lib/scene-vfx/types.ts`, `catalog.ts`, `sceneDefinition.ts`,
+  `runtime-state.ts`, `layerGeometry.ts`): the optional layers parse, project
+  stored images (`tile.image`, scatter items) to URLs, and resolve scatter
+  emoji; the geometry (gradient CSS, rays path, lines, scatter placement) is
+  pure and seeded. Drifting scatter items run on off-screen tracks.
+- **Renderer** (`ui/main/scene-vfx/SceneVFX{Gradient,Tile,Screen,Scatter,
+  Flash}Layer.tsx`, keyframes in `styles/scene-vfx.css`): drawn in order by
+  `SceneVFXBackgroundLayersEffect`, so chat, the creator, the preview dock,
+  picture-in-picture and the review tools all show them.
+- **Backend** (`content_package_capabilities.py`, `effect_art_validation.py`):
+  the new layers' structure, ranges, registered images and emoji capabilities;
+  Scene images are now held to the P2 limits at Save, scan and import
+  (`validate_scene_image_files`), raster by header, SVG by bytes.
+- **Creator** (`lib/scene-vfx/editor`, `ui/scene-effect-creator`): the document
+  carries the layers (older drafts and exports gain them switched off); Save
+  writes them and reopen hydrates them; Scene Setup lists every layer front to
+  back with Add scatter layer; new inspectors in `sceneLayerControls.tsx`
+  (the item list is shared with the marquee). A chosen image is checked before
+  decoding (`inspectSceneEffectImage`, P2 limits) and goes to the marquee, a
+  scatter layer or the tile.
+- **Fixed on the way** (plan step 3): the creator saved PNG and JPEG images
+  under `.webp` names; names now follow the bytes' format
+  (`canonicalSceneEffectImageName`).
+- **Surfaces** (plan step 3): the Library preview dock resolves private Scenes
+  through `loadPrivateSceneVFX` → `sceneEntryFromDefinition` → the shared
+  layers, in its own window, so the new layers and images draw there (browser
+  journey below). Desktop picture-in-picture receives the main window's
+  resolved `activeByKind` by IPC (structured clone, unfiltered), so the new
+  fields arrive unchanged; clip Scenes inside the PiP resolve through its own
+  catalog and Blob URLs. A main-window Blob URL forwarded to the PiP shares the
+  origin and session partition, and the main scene is suspended while the PiP
+  is open, so none was found broken; a live desktop check is an owner check
+  (G4). Pre-existing and unchanged: snapshots replace the PiP's Scene state,
+  and transparent PiP hides background layers by design.
+- **Review tools** (`effect-render-sources.mjs`, `effect-check.mjs`): Scene
+  sources include tile and scatter images; a tile is held to the
+  `scene-tile` budget.
+- **Docs:** `docs/frontend/runtime/scene-vfx.md` (layers, limits, image naming,
+  performance), `browser-journeys.md` (the new journey).
+
+Performance (agent, 2026-10-09, Apple M5, DPR 2, headless, `effects:bench
+--reaction` on Reactions whose only event is the Scene, at each capability's
+densest allowed setting, Y_0/A_1_New added mean frame): gradient (4 stops)
++0.05/+0.08 ms; tile (16 px, 600 px/s diagonal) +0.33/+0.14; rays (48 spiky,
+4 s turn, 4 throbs/s) +0.05/−0.19; lines (96 at 16 px, 1 s sway) +0.08/−0.19;
+scatter (3 layers, 96 items of 64–512 px, drifting at 600 px/s, spinning to
+720°/s, pulsing) +1.30/+1.84; flash (2 s) +0.06/−0.20; all together
++1.76/+2.08. GPU differences are within noise. All within 4 ms.
+
+Checks (agent, 2026-10-09): vitest over `lib/scene-vfx`,
+`ui/scene-effect-creator`, `ui/main/scene-vfx` 59+ pass (new: limits parity
+and cases, projection of every layer, document round trip, older-draft
+normalization, image naming); backend `pytest -k "content or package or
+particle or scene or catalog or effect"` 957 pass (new
+`tests/test_scene_effect_limits.py`: parity, the full definition, every limit
+case, registered images, older definitions, Scene image limits at Save);
+`ruff check`, `ruff format --check`; `pnpm check`, `pnpm web:lint`;
+`effect-check.browser.test.mjs` (new: each optional layer alone is visible on
+both Avatars); browser journey `accountless-scene-layers` (creator, Save,
+reopen from the backend, Library preview dock, Portable package round trip,
+cleanup) on the task stack; the existing Included Scene Effects still pass the
+Included content integrity and catalog tests. Chat with the new layers is
+part of the owner's walkthrough (G4); until then that acceptance item is
+open, not passed.
+
+#### Code Review #1 Findings
+
+Reviewer: independent `sdlc-reviewer`, full initial review of the P5 working
+tree on `8388dd89`. No Cloud imports, Alembic revisions, generated-client edits
+or boundary violations; all Included Scenes pass the new validator. Result:
+blocked on:
+
+- **P5-F1** (backend Save and scan): Scene definition limits ran only at
+  package import and export; a Local folder or a Save admitted 100 scatter
+  layers of 100,000 items, and the docs and comments claimed otherwise.
+  Required.
+- **P5-F2** (`layerGeometry.ts`, `SceneVFXScreenLayer.tsx`, backend, parser):
+  colours were checked only by the creator; a gradient stop colour
+  `#fff 0%, …), url(http://…), radial-gradient(#000` or an SVG
+  `fill="url(http://…)"` made Chromium fetch the URL (spec: effects make no
+  network requests). Required.
+- **P5-F3** (backend): the new layers' booleans were not required, so a
+  package missing `flash.enabled` imported but could not be drawn. Required.
+- **P5-F4** (`SceneVFXFlashLayer`): the entry flash played only when its
+  element first mounted, so it did not replay when a new Scene start reused
+  it (creator edits, back-to-back Reactions). Required.
+- **P5-F5** (scan): the new Scene image check at Local scan made an existing
+  Scene with a 4500 px image invalid; record the owner's decision or narrow
+  it, and the private loader lacked the P3-style pre-decode check. Required.
+- Optional: no unit tests for `layerGeometry.ts`; `keepFaceClear`'s text
+  overstated its effect on sideways and diagonal drift; a replaced tile kept
+  its old bytes; the backend limit test did not assert field names (and two
+  names differed); a stale scatter selection fell through to the Solid
+  inspector; `effects check` did not apply the Scene limits; the chat check
+  stays open until G4.
+
+#### Code Review #1 Revisions
+
+- **P5-F1 accepted.** `validate_scene_effect_definition` (the export rules)
+  runs in the Scene companion-file hook, which serves Save and Local scan, so
+  an out-of-limit definition is refused at Save and reported at scan
+  (`scene_definition_invalid`); the claims now match. Test: four scatter
+  layers are refused at Save. The renderer also caps scatter layers.
+- **P5-F2 accepted.** Every Scene colour (solid, pattern, focus lines,
+  gradient stops, screen, flash) must be `#rrggbb` in the runtime parser
+  (`readSceneColor`) and the backend (`_scene_color`). Shared
+  `structureCases` in the limit-cases fixture (the two injection colours,
+  `red`, a solid `url(…)`) are refused on both sides.
+- **P5-F3 accepted.** The new layers' booleans are required on the backend
+  (`_scene_flags`); missing `flash.enabled`, `gradient.enabled`, rays `spiky`
+  and a scatter `keepFaceClear` are structure cases refused on both sides.
+- **P5-F4 accepted.** The flash is keyed by the entry's runtime id and start
+  time, so each new start replays it; the review and preview tools build a
+  Scene's runtime entry once when it is shown. Test
+  (`SceneVFXFlashLayer.test.tsx`): the same start keeps the element, a new
+  start replaces it.
+- **P5-F5 accepted: owner decision (Decision Log).** Enforced everywhere: the
+  scan check stays, the private Scene loader now checks each image's bytes
+  and (raster) header against the limits before use (test: a 4097 px image
+  fails closed), and `scene-vfx.md` documents the diagnostic and recovery.
+- Optional, taken: `layerGeometry.test.ts` (determinism, off-screen track ends
+  in six directions, the face column, clamping); the `keepFaceClear` text;
+  image bytes the document no longer shows are dropped when an image is
+  chosen; backend field names now equal the creator's and the limit test
+  asserts them; a missing scatter selection shows the marquee; `effects check`
+  FAILs a Scene over the limits. The chat check remains a G4 item.
+
+#### Code Review #2 Findings
+
+Reviewer: the same `sdlc-reviewer`, targeted recheck (repair round 1).
+Result: pass. F1 (Save refuses; scan reports 150 scatter layers and a non-hex
+colour; the 24 Included Scenes scan clean), F2 (all seven colour reads and the
+backend), F3, F4 (every caller builds a runtime entry once per start, so the
+key is stable), F5 (owner decision; the loader check releases what it
+reserved) and the optional items are verified, with no regressions and no
+boundary edges.
+
+- Optional: the definition diagnostic put a JSON field path where a file path
+  belongs; the parser's structure test checks only that it throws; the docs
+  did not name `scene_definition_invalid`.
+
+#### Code Review #2 Revisions
+
+- Optional, taken: the diagnostic names the field in its message only; the
+  docs name `scene_definition_invalid`. Not taken: the bare `toThrow` (the
+  backend test asserts each field, and the parser's messages are its own).
+
+Final checks (agent, 2026-10-09, after the revisions): the full backend suite
+3395 pass, 10 skipped; vitest over `src` 3019 pass; `pnpm check`,
+`pnpm web:lint`, ruff, `ruff format --check`; scripts browser suites
+`effect-render`, `effect-check`, `animation-preview` 15 pass; browser journeys
+on the task stack "Scene JSON import", "Particle texture import" and
+"Scene layers" pass (4 with setup) with nothing unresolved in the content
+ledger.
+
+### P6 — Headed preview for Particle and Scene Effects (R4). #391
+
+Outcome: the owner can review a Particle or Scene effect source, or a Reaction
+with all its effects, live on both Included Avatars, with review notes.
+
+1. **Sources.** `animation:preview` accepts Particle and Scene effect folders
+   and `library:particle-effect/…`, `library:scene-effect/…` specs (extend
+   `effectSpecFor`, `choices()` and `sources.ts`). Effect folders reload when
+   the definition or any texture or art file changes; review notes and retained
+   versions work as for Avatar Effects.
+2. **Scene layers per cell.** Add DOM underlay and overlay hosts positioned over
+   each cell's scissor viewport, with a transparent canvas clear where a cell
+   shows a Scene Effect. Share the stage code with the P4 harness where
+   practical.
+3. **Reactions.** `previewMedia.ts` resolves `scene_vfx` events from meta
+   dependencies (replacing the "not shown" notice), so a Reaction or Gesture
+   shows its Scene Effects with its Avatar and Particle Effects.
+4. **Tests:** extend `animation-preview.browser.test.mjs` with a Particle
+   source, a Scene source and a Reaction with all three kinds;
+   `previewMedia.test.ts` and `sources.test.ts`.
+
+Checks: `pnpm -s test:source`, `pnpm check`, `pnpm web:lint`; a headed session
+showing each source type, recorded here.
+
+Completion: the R4 acceptance items pass.
+
+#### P6 record
+
+Starting source and issue: `27401d64`, #391. Commit: `351f63ff`. P6 runs before P5 while G1 is
+open (Decision Log).
+
+Delivered:
+
+- **Shared Scene layers** (`scripts/effect-render/sceneBands.tsx`):
+  `SceneBands` draws the chat's Scene underlay and overlay bands for one view
+  into a host element and owns the shown Scenes: direct Scenes, a clip's
+  Scene events as chat applies them (`clipSceneSink`), duration expiry and
+  seeking each Scene's animations to its own elapsed time. The review stage
+  (`reviewStage.tsx`), the bench and the headed preview use it. Its styles
+  come from `sceneLayers.css` (Tailwind utilities for the Scene components and
+  the Scene keyframes, now in `src/styles/scene-vfx.css`, without the app's
+  base styles); review renders are byte-identical to P4's. The bench keeps
+  the app's full stylesheet, so DOM layers cost what they cost in chat.
+- **Preview media** (`src/lib/avatar/motion-authoring/preview/previewMedia.ts`):
+  `PreviewMedia` carries Scene Effects; `PreviewMediaProvider` resolves them by
+  kind and alias (`resolveSceneVFX`/`loadSceneVFX`, as the chat actor looks
+  them up); `PreviewEffect` is an Avatar, Particle or Scene Effect source by
+  `kind`; a clip's Scene events count as media, and only Scene events without a
+  resolved dependency are reported (the "not shown" notice is gone). The
+  review page and bench use the same types and provider.
+- **Sources** (`scripts/animation-preview-media.mjs`): `animation:preview`
+  accepts Particle and Scene effect folders, descriptors and
+  `library:particle-effect/…`, `library:scene-effect/…` specs; serves a
+  Particle manifest with its textures and a Scene's images (SVG as
+  `image/svg+xml`; every served effect file carries a script-free content
+  security policy); resolves a Gesture's or Reaction's dependencies with the
+  shared `resolveDependencies`; and lists Included and Local Particle and
+  Scene Effects and sibling effect folders of every kind in the pickers. An
+  effect folder reloads when its descriptor or any file it plays changes;
+  review notes stay beside the folder (never inside `vfx/scene/<stem>/` or
+  `vfx/particle/[quark/]<stem>/` Library folders).
+- **Page** (`scripts/animation-preview/preview.ts`, `index.html`,
+  `preview.css`): each view has its own Scene host behind and in front of the
+  shared, now transparent, canvas. A Particle source plays through the
+  Avatar's particle controller (looping on its default lifetime, or
+  `--duration`), a Scene source in the view's layers (its own duration, or
+  `--duration`), and a Gesture's or Reaction's Scene events through
+  `clipSceneSink`. Scene animations follow the page's playhead, so pause,
+  scrub, step and speed apply to them. The view label lists the Scene's name.
+- **Docs:** the headed preview sections of `avatar-vfx.md` and
+  `avatar-animation.md` and the `animama-animation` skill's review reference
+  now describe Particle and Scene sources and a Reaction's Scene Effects
+  (the "Scene Effects are not played" statements were wrong after this phase);
+  the full documentation pass is P9.
+
+Checks (agent, 2026-10-09): `pnpm check` (including the scripts pages) and
+`pnpm web:lint` pass; Prettier clean; vitest over `src/lib/avatar`,
+`src/lib/scene-vfx`, `src/lib/runtime-content`, `src/ui/main` 701 pass
+(including new `previewMedia` Scene, `sources` Library-folder tests); node
+tests `effect-render-sources`, `effect-assets`, `effects`,
+`animation-preview-media` (new: Particle and Scene sources served, choices),
+`animation-save`, `animation-promote` 82 pass; browser tests
+`animation-preview` 8 pass (new: Particle then Scene source, with the Scene's
+animations held at the playhead; joy-3 with its Avatar, Particle and Scene
+Effects, also after scrubbing), `effect-render` and `effect-check` 5 pass; a
+joy-3 Reaction bench at the baseline settings adds +0.99/+1.45 ms frame,
+in line with the P4 baseline.
+
+Headed session (agent, 2026-10-09, `animation:preview` in the app's browser
+pane): `hearts-v1` (Particle) floats hearts on both Avatars; switching the
+picker to `scene-vfx-emotion-joy` draws the joy background behind both; the
+`joy-3` Reaction paused at 0.5 s shows Star3, one particle effect and the joy
+background on both, with no warnings; `light-streak` draws focus lines around
+both Avatars. The owner's live review of dry-run effects is G2 (P8).
+
+#### Code Review #1 Findings
+
+Reviewer: independent `sdlc-reviewer`, full initial review of the P6 working
+tree on `27401d64`. Sources, server, notes, versions, disposal and the clip
+Scene sink hold up; the media route serves only registered, contained,
+size-checked files with a script-free policy. Result: blocked on:
+
+- **P6-F1** (`sceneLayers.css`, `sceneBands.tsx`): the slim stylesheet scans
+  only the Scene layer components, so the `z-20` class `SceneBands` passes the
+  overlay band is never generated; the band computes `z-index: auto` and a
+  Scene placed in front of the Avatar draws under it in the preview and the
+  review renders (a regression from P4's full stylesheet). Every Included
+  focus-lines Scene is behind the Avatar, so the byte-identical renders did
+  not show it. Required.
+- **P6-F2** (`avatar-vfx.md`, last Headed preview bullet): still says Scene
+  Effects are not played. Required.
+- **P6-F3** (`preview.ts` sink, `previewMedia.ts` notices): a Scene event
+  whose dependency is the other Scene kind is dropped silently; chat records
+  it as a failed clip event. Required.
+- Optional: an effect row's Scene time ran one frame ahead of the playhead
+  after a cycle restart; `effectDuration` re-parsed the Scene definition
+  several times a frame; a duplicate `clearScenes`; `media()` no longer turned
+  unexpected errors into notices; tests for reloads on texture or image
+  changes, `--duration` cycles, front stacking and the kind mismatch; the doc
+  omitted the 0.5 s tail; the kind tables restated `effect-render-sources`;
+  the record should say which part of `test:source` ran.
+
+#### Code Review #1 Revisions
+
+- **P6-F1 accepted.** `sceneLayers.css` also scans `sceneBands.tsx`, so the
+  band classes are generated. A browser test previews a copy of
+  `light-streak` placed in front of the Avatar and asserts the overlay band's
+  z-index is 20 in both views; it fails without the fix (`auto`).
+- **P6-F2 accepted.** The bullet now says a Gesture or Reaction plays its
+  Avatar, Particle and Scene Effects, and the warnings panel lists failed clip
+  events such as a Scene of the wrong kind.
+- **P6-F3 accepted.** `clipSceneSink` passes the kind to `onMissing`; the
+  preview throws `missingSceneMessage(alias, kind)`, so the clip player records
+  the failed event as chat does and the page lists it; the review page and the
+  bench report the same message. The browser test plays a project whose
+  background event names a focus-lines dependency and finds the message.
+- Optional, taken: an effect row's time is the playhead; each row's effect
+  duration is computed once; the duplicate clear is gone; any failure serving a
+  clip's dependencies becomes a notice; the preview's kind tables derive from
+  `EFFECT_SOURCE_KINDS`; the doc states the 0.5 s tail; a node test changes a
+  texture and a Scene image and gets new versions. Not taken: a browser test
+  of `--duration` cycles for Particle and Scene sources (the cycle arithmetic
+  is shared with Avatar Effect sources, whose timed test covers it).
+
+#### Code Review #2 Findings
+
+Reviewer: the same `sdlc-reviewer`, targeted recheck (repair round 1).
+Result: pass. P6-F1 (the front band computes z-index 20 in both views, and the
+render and bench pages share the stylesheet), P6-F2 and P6-F3 (the wrong-kind
+event is recorded and listed, as in chat) are fixed; the optional revisions
+are correct with no regression.
+
+- Optional: an alias with no dependency at all is now reported twice (the
+  notice and each view's failed event).
+
+#### Code Review #2 Revisions
+
+- Optional, not taken: both lines are accurate (the dependency is missing,
+  and the event failed in each view); merging them would hide which views
+  failed.
+
+Final checks (agent, 2026-10-09, after the revisions): `pnpm -s test:source`
+ran its node steps (76, 4 and 9 pass) and its vitest step (3367 of 3371 pass;
+the 4 failures are `tests/local-api-proxy.test.ts`, which needs port 5173,
+held by another task's preview server), which stops the chain; its last step,
+`node --test --test-concurrency=1 scripts/*.browser.test.mjs`, then ran on
+its own: 105 pass. `npx tsc -b`, `pnpm web:lint` and Prettier pass.
+
+### P7 — Save and promote (R5). Gate G3. #392
+
+Outcome: Particle and Scene effect folders can be saved as Local content
+through their creators and, after owner approval, promoted to Included content.
+
+1. **Save.** `effects save` accepts Particle and Scene items: it opens
+   `/particle-effects/new|<id>/edit` or `/scene-effects/new|<id>/edit`, imports
+   the definition through the creator's Import dialog, attaches textures or art
+   through the creator's file inputs (P3, P5), saves, reads the item back,
+   compares it with the source and reopens it. It revises the single Local item
+   with the same name and refuses names the app would refuse.
+2. **Promote.** `effects promote` gains `particle_effect` and `scene_effect`
+   kinds with add, replace and delete:
+   - targets `vfx/particle/quark/<stem>/` (ID `builtin:particle-effect:<stem>`)
+     and `vfx/scene/<stem>/` (ID with its lane segment);
+   - validates the definition and re-checks every image against its budget;
+   - writes inventory rules and source-review records as decided in D1;
+   - replace keeps the content ID; delete refuses while an Included Action
+     depends on the item; Reactions and Gestures that depend on promoted Local
+     items are re-pointed in the same run (existing `EVENT_DEPENDENCIES`);
+   - `--dry-run` prints every file and record.
+3. **Removed dependencies.** Test the spec's pre-launch removal behavior: a
+   Local Reaction that references a removed Included Particle or Scene Effect
+   plays without it, and its creator reports the missing dependency.
+4. **Tests:** `effects.test.mjs` (save item parsing and planning, promote
+   dry-run and write into a temporary content root for both kinds, dependency
+   refusal); a browser test of `effects save` for both kinds on the task stack.
+5. **Demonstration (G3).** On a throwaway local branch that is never pushed,
+   promote one saved Particle and one Scene effect, run the Included content
+   tests on it, record the result here, then delete the branch.
+
+Checks: `pnpm -s test:source`, `pnpm check`, `pnpm web:lint`, focused pytest
+(`tests/test_included_content_integrity.py`,
+`tests/test_included_content_catalog.py`,
+`scripts/public-release/test_prepare_source.py`) on the demonstration branch.
+
+Completion: the R5 acceptance items pass; no Included content is written on the
+task branch.
+
+#### P7 record
+
+Starting source and issue: `fbb84e99`, #392.
+
+Implementation:
+
+- **Save** (`scripts/effect-save.mjs`, `effects.mjs`): each source's
+  descriptor picks its creator (`SAVE_CREATORS`). Particle sources import a
+  new creator document, `animama/particle-vfx-editor/1` (name, description,
+  settings in the stored `runtime_defaults.slots.particle_vfx` form, Quarks
+  effect; `editor/creatorDocument.ts`, offered by Export, accepted by Import
+  beside plain Quarks JSON; the slot serializer moved to
+  `particleVFXRuntimeSlotConfig` and the content package reuses it). The
+  script supplies each texture the creator reports missing (built-in textures
+  are drawn from the creator's copies) per emitter, and each Scene image
+  through the Tile input, which fills a missing image of the same name. Read
+  back compares the definition, or the settings and the Quarks manifest
+  (fetched through a content preview), after each creator's own round trip,
+  and every image or texture's digest. The Scene creator now marks itself
+  busy from the first image check, so a second pick cannot start before the
+  first lands.
+- **Promote** (`scripts/effect-promote.mjs`): `particle_effect` and
+  `scene_effect` items with add, replace and delete; Scene IDs carry their
+  lane (`background`/`focus`), a replace keeps the Scene kind; sources are
+  validated with the `effects check` lines (`particleSourceLines`,
+  `sceneImageLines`, `sceneLimitLines`, plus the runtime parse) and the art
+  with `sourceAssets`; Scene art must be PNG. D1: a per-stem owner-authored
+  Particle rule is inserted before `vfx/particle/quark/**` (removed by a
+  delete); the kind-wide `vfx/scene/**/*.png` rule is added to
+  `content/included/licenses/inventory.json` on this branch (the approved
+  licence-rule write) and required by promotion. Records use the Avatar
+  Effect form; removed or replaced third-party records are reported with
+  their evidence files. Deletes remove nested folders deepest first.
+- **Removed dependencies** (owner decision, Decision Log): the catalog keeps a
+  Local Gesture or Reaction valid when a `builtin:` Avatar, Particle or Scene
+  Effect it names no longer exists (`missing_effect_dependency`,
+  `CatalogContentEntry.missing_dependencies`, a null-target edge that is not a
+  member); typed closures, runtime closure and loadouts see only the
+  remaining dependencies; the runtime projection adds `missing_references`
+  (alias → ref, also built for creator previews) and `AnimaRuntimeCatalog`
+  skips those effect events with a warning diagnostic while undeclared
+  aliases still reject the clip; the action creator opens the Action, warns
+  which effects were removed and leaves their events unresolved for repair;
+  the Library attention list names it; Portable export refuses it
+  (`package_dependency_missing`). API client regenerated.
+- Mypy findings in earlier phases' code fixed (`_scene_range`, a P3 test).
+
+Evidence (local, uncommitted tree on `fbb84e99`):
+
+- `node --test scripts/effects.test.mjs`: 22 pass (promotion for both kinds:
+  add, replace, delete, refusals, Reaction re-pointing; save documents and
+  comparisons).
+- `ANIMAMA_EFFECT_SAVE_STACK=1 node --test scripts/effect-save.stack.test.mjs`
+  on the task stack: pass (Particle with a non-built-in texture and the
+  every-layer Scene saved, revised, refused name; its items deleted). Manual
+  `effects save` runs also saved a Particle with a built-in texture and an
+  Avatar Effect (regression).
+- `effects promote --dry-run` on saved Local Particle and Scene items lists
+  the files, the per-stem rule and the records; deliberately broken sources
+  are refused by the real validators.
+- `uv run pytest -q`: 3399 passed, 10 skipped (includes
+  `tests/test_removed_effect_dependency.py`: graceful removal, strict cases,
+  restore). `ruff check`, `ruff format --check`, `make mypy` clean.
+- `pnpm check`, `pnpm web:lint`, `pnpm -s openapi-ts:check` and
+  `pnpm -s test:source` (447 vitest files, 3424 tests, and the node and
+  browser suites) pass.
+- Browser, task stack: a Local Reaction naming a non-existent
+  `builtin:particle-effect` stays listed, opens in its creator with the
+  removed-effects warning, and the Library attention list names it with the
+  ref. Save stays disabled after an edit on this hand-written Reaction and on
+  a healthy one alike, so that is not from this change; noted for the owner.
+
+G3 demonstration (after commit `7820661b`): on the throwaway local branch
+`throwaway/p7-promote-demo` (never pushed), `effects promote` added the saved
+Local "P7 save glow" (a non-built-in texture) as `p7-demo-glow` and "P7 save
+scene" (PNG tile and scatter images) as `p7-demo-layers`: 6 files, the
+per-stem rule `vfx/particle/quark/p7-demo-glow/**`, and 6 owner-form
+records. Committed there, `tests/test_included_content_integrity.py`,
+`tests/test_included_content_catalog.py` and
+`scripts/public-release/test_prepare_source.py`: 26 passed. Every promoted
+file has exactly one source-review record; the repository-wide gap of 1209
+tracked files without records is the same on the task branch head, so it
+predates P7. A rescan of the task stack listed both as valid Included
+content (`builtin:particle-effect:p7-demo-glow`,
+`builtin:scene-effect:background:p7-demo-layers`). The branch was then
+deleted (it was `d9c56630`) and the stack rescanned. No Included content was
+written on the task branch other than the approved D1 Scene rule.
+
+P7 is complete: required checks, review (pass after one repair round) and G3
+are satisfied. Owner check carried forward: Save stays disabled after editing
+a hand-written Local Reaction on the task stack, with or without removed
+effects.
+
+#### Code Review #1 Findings
+
+Two independent reviewers of the uncommitted tree on `fbb84e99`, split by
+scope: Save and promote (P7-R1), and graceful removal (P7-G1).
+
+- **P7-R1-1 (required).** `effect-promote.mjs` recorded copies of the
+  creator's built-in third-party textures (CC0 Kenney and Brackeys, CC-BY
+  CodeManu), which the creator's Save copies into a Local Particle Effect, as
+  owner-authored art under the per-stem rule and the AGPL record; a replace
+  could overwrite a correct third-party record (D1 covers new art only).
+- **P7-R1-2 (optional).** `effects save` expected every listed texture, but
+  the creator saves only textures the effect's images use, so an unused
+  listed texture failed only after the item was saved.
+- **P7-R1-3 (optional).** The per-kind planner ran before the validator, so an
+  Avatar source without `art` reported `image "undefined"` instead of the
+  validator's reason.
+- **P7-R1-4 (optional).** A texture nested two folders deep left an empty
+  folder after a delete, and a later add of the stem then failed.
+- **P7-R1-5 (optional).** The inserted rule's key order differed from the
+  other rules; `buildParticleVFXCreatorDocument` had no JSDoc.
+- **P7-G1-1 (required).** The removal exception also applied to Save's
+  reconcile: a new or edited Local Action naming a `builtin:` effect that
+  never existed (a typo) was accepted as valid instead of
+  `saved_content_invalid` (reproduced with a scratch Save probe).
+- **P7-G1-2 (optional).** `typedPreviewAdapters.targetForDependency` still
+  matched a removed dependency (`item_id: null`) to a same-kind item with the
+  same last key segment (a Local `local:particle-effect:<name>`), pinning the
+  alias to a different effect in the creator.
+- **P7-G1-3 (optional).** The new `removedActionEffects` JSDoc displaced the
+  `isCustomizableStarterAction` comment.
+- **P7-G1-4 (optional).** Untested strict cases: an Included Action naming a
+  removed effect; a Save refusal once P7-G1-1 is fixed.
+- **P7-G1-5 (optional).** `package_dependency_missing` was not documented
+  with the other export refusal codes; `in` on plain objects in
+  `AnimaRuntimeCatalog` (style).
+
+Verified without defect: Scene IDs and kind-keeping replaces, dependents
+checks, re-pointing, inventory/source-review round trips, write-then-delete
+order, path safety, the single D1 inventory addition (G3), CSRF via the app's
+fetch interceptor, the Scene busy change, texture reset on document import;
+edges stay non-members, export refusal covers item, Anima and Idle Style
+exports, restore, the reconcile window and SET NULL rows fall back to strict
+or transient behaviour, every other `dependencies`/`dependency_item_ids`
+consumer is safe.
+
+#### Code Review #1 Revisions
+
+- **P7-R1-1 accepted.** Promotion keeps the record and licence of reused
+  third-party art: a written file whose bytes repeat an Included file with a
+  non-owner record gets that record and, in an exact-path inventory rule ahead
+  of the effect's own rule, the terms of the rule governing the original
+  (matched like the store's `fnmatch`); exact-path rules of deleted or
+  rewritten effect files are removed; inventory notes are diffed from the
+  original rules. Owner-form copies (such as `heart.png`) keep the owner
+  record. Test: "promotion keeps the record and licence of reused third-party
+  art" (carried record and rule, notes, removal on delete).
+- **P7-R1-2 accepted.** `importDocumentFor` refuses a listed texture no image
+  uses before anything is saved (unit test).
+- **P7-R1-3 accepted.** Validation runs before the per-kind planner.
+- **P7-R1-4 accepted.** Particle textures are limited to one folder deep
+  (`textures/<name>.png`), which deepest-first deletes clear (test).
+- **P7-R1-5 accepted.** Rule keys in the inventory's order; JSDoc added.
+- **P7-G1-1 accepted.** `ContentSaveService` refuses a saved item with
+  `missing_dependencies` (`saved_content_invalid`, field `dependencies`), and
+  package import admission refuses one (`package_catalog_admission_failed`).
+  Test: "a save naming a missing effect is refused".
+- **P7-G1-2 accepted.** A typed dependency with `item_id: null` resolves to no
+  item; the adapter test adds a removed `builtin:` effect beside a same-named
+  Local one.
+- **P7-G1-3 accepted.** Comment restored to its function.
+- **P7-G1-4 accepted.** Tests for an Included Action naming a removed effect
+  (invalid) and the Save refusal. Anima and Idle Style export refusals share
+  `_selection` with the tested item export and are not separately tested.
+- **P7-G1-5 accepted.** Documented in
+  `docs/backend/features/typed-content-and-marketplace.md` and the data model;
+  `Object.hasOwn` used.
+- The reviewer's note on the disabled Save after editing a hand-written Local
+  Reaction stays an owner check (it also happens without removed effects).
+
+Evidence after the revisions: `node --test scripts/effects.test.mjs` 24 pass;
+`tests/test_removed_effect_dependency.py` 6 pass; ruff, ruff format, mypy
+clean; `pnpm check`, `pnpm web:lint`, `pnpm -s test:source` pass; the stack
+save test and a promote dry run pass.
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1): every Code Review #1 finding verified
+fixed, including scratch edge cases for carried records (same-source replace
+writes nothing; a legacy third-party texture keeps its record with an exact
+rule; owner art at the same path drops the rule; mixed record forms pick the
+third-party one; no redundant rules) and a rollback probe showing a refused
+Save leaves no Local files or rows. Result: pass. Optional: the module header
+did not describe carried records (P7-R2-1); inventory notes omitted an exact
+rule whose terms changed (P7-R2-2); one `in` on a plain object in
+`actionDocumentLoader.ts`; a stale comment in `typedPreviewAdapters.ts`.
+
+#### Code Review #2 Revisions
+
+All four optional items applied (header, notes for changed rule terms,
+`Object.hasOwn`, comment). Evidence: `effects.test.mjs` 24 pass, affected
+vitest files pass, `pnpm check` passes; the full backend suite on the revised
+tree: 3401 passed, 10 skipped. Review budget used: one full review and one
+repair round; P7 review passes.
+
+### P8 — Pipeline skills and fresh-agent dry runs (R7). Gate G2. #393
+
+Outcome: a fresh agent can make one new Particle Effect and one new Scene Effect
+from a brief to Local content by following the skills alone.
+
+1. Rewrite `.agents/skills/animama-particle-vfx/SKILL.md` as a pipeline in the
+   `animama-avatar-vfx` shape (0 interview, 1 brief, 2 art through
+   `animama-effect-assets`, 3 effect folder, 4 `effects check`, 5 renders and
+   the owner's live preview, 6 `effects save` and reopen, 7 use in a Gesture or
+   Reaction, 8 hand-off, 9 owner-gated Promote). Keep `three-quarks.md`,
+   `creator.md` and `integration.md` as references, updated for texture import;
+   add `brief.md` (the spec's brief fields, including the mechanic, such as one
+   long-lived particle, a burst or a stream), `effect-folder.md`, `batch.md` and
+   `promote.md`. Update `agents/openai.yaml` with a default prompt.
+2. Add `.agents/skills/animama-scene-vfx/` in the same shape, with references
+   for layers (including the P5 capabilities), focus lines and the Scene
+   creator, plus `brief.md`, `effect-folder.md`, `batch.md` and `promote.md`.
+3. Dry runs: a fresh agent with no conversation context follows each skill to
+   make one effect from a given brief, through G2 and `effects save`. Proposed
+   briefs: a Particle "Sweat spray" (R9 #8, a burst with imported droplet art)
+   and one emotion's background from an approved G1 family. Record every point
+   where the agent stalled, guessed or broke a rule; fix the skill or tools and
+   repeat once if the fixes were material.
+
+Checks: the dry-run records (commands, check output, render sheets, the G2
+outcome, the saved Local item reopened).
+
+Completion: the R6/R7 acceptance items pass.
+
+#### P8 record
+
+Starting source and issue: `5062ccfb`, #393.
+
+Skills (step 1–2): `animama-particle-vfx` rewritten as a pipeline (steps
+0–9) with new references `brief.md` (mechanics table), `effect-folder.md`,
+`batch.md`, `promote.md`, and `creator.md` updated for texture import and the
+creator document; `animama-scene-vfx` added with `brief.md`,
+`effect-folder.md`, `layers.md` (every background layer with its ranges),
+`focus-lines.md`, `creator.md`, `batch.md`, `promote.md`; both with an
+`agents/openai.yaml` default prompt. The Scene skill's example folder passes
+`effects check` on both Avatars.
+
+Dry runs (step 3): fresh agents with no conversation context, briefs "Sweat
+Spray" (R9 #8, a burst with own droplet art) and "Gloom Sadness" (the G1
+Gloom family's sadness background), each stopping at the owner's live
+preview (G2) before saving.
+
+Dry run 1 (2026-10-10): both agents reached the live preview with checked,
+rendered effects (Sweat Spray: three bursts of its own stretched droplet art,
+budget 18; Gloom Sadness: overcast gradient, 40 gloom lines, 22 drops of its
+own art). Logs: 15 and 17 entries. Material gaps fixed before the rerun:
+
+- the skills' examples matched the test briefs and were copied; replaced with
+  neutral examples (Fume Puffs, Proud Radiance; the Scene example passes
+  `effects check`);
+- Particle art direction contradicted the asset prompt template (flat colour);
+  the template now defers to the Particle skill;
+- no guidance on keeping a spray in the camera plane, the stretched-billboard
+  axis, Speed Over Life versus gravity, pale colours from empty texture
+  `colorSpace`, `depth_offset` and `schema_version`; added to the Particle
+  effect-folder reference;
+- Scene density depends on view shape; step 5 now asks for a chat-shaped sheet
+  (`--tile 960x600 --views front`), times inside a drift loop and a few seeds;
+  the family brief governs its mock and maps onto the current layer schema;
+  departures go in the brief; `keepFaceClear` was misdescribed (also in
+  `docs/frontend/runtime/scene-vfx.md`);
+- `effects check` printed nothing for checks that passed; it now prints a
+  PASS line for clean art and for the Scene limits and image list
+  (`effects.test.mjs`, `effect-check.browser.test.mjs` updated);
+- smaller items: default check times for sub-second bursts, `--tile`/`--views`,
+  notes location, retry rule for a defective texture, `scene-sticker` covering
+  scatter items, `check` missing fully transparent holes.
+
+G2, run 1: the owner did not review or approve these drafts (no notes, and
+asked to continue); they are archived under `.animama-drafts/dry-run-1/` and
+not saved. Dry run 2 repeats both briefs with fresh agents on the fixed
+skills.
+
+Dry run 2 (2026-10-10): both agents reached the live preview with all checks
+passing; logs 17 (Particle) and 20 (Scene) entries, the Scene run with no rule
+broken. G2 (owner, 2026-10-10):
+
+- **Gloom Sadness approved** as is; the agent saved it through the creator
+  (`effects save`: read back, compared, reopened; `local:scene-effect:gloom-sadness`,
+  image bytes identical, `effects check library:scene-effect/local/gloom-sadness`
+  passes). The Scene skill passes R7 end to end.
+- **Sweat Spray rejected**: the idea suits particles badly (sweat is an anime
+  symbol the `sweat_drop` Avatar Effect already covers) and the owner disliked
+  the art. Not saved. The Particle dry run continues with a new brief better
+  suited to particle polish, R9 #2 "Heart burst", with the owner's direction
+  added to the Particle skill first.
+- The eight Scene families become usable Scene FX in Plan 2 as planned.
+
+Before dry run 3 the Particle skill gained the owner's direction (glossy,
+layered polish; gag symbols stay Avatar Effects) and the run-2 gaps: the
+stretched-billboard axis (confirmed in the three.quarks shader; its length
+factors were first misdocumented, fixed at review: P8-R1-1),
+sprite sizes, budgets close to the estimate, judging against the Reactions'
+Scene backgrounds, preview port and `--no-open`.
+
+Dry run 3 (2026-10-10), "Heart Burst" (R9 #2): a fresh agent built a six-layer
+effect (glossy hero heart that beats and pops at 1.3 s, heart-shaped ring,
+14 small hearts fanning upward on a half sphere, glints, sparkles, a soft
+glow), four textures of its own, budget 38; `effects check` passes on both
+Avatars. **G2: approved** (it sets the quality bar; Decision Log). The agent
+saved it through the creator (`local:particle-effect:heart-burst`); the saved
+manifest and textures are identical to its folder, so the multi-part size
+curves, curve forms, colour keys and half-sphere arc survive Save. The
+Particle skill passes R7 end to end.
+
+The first save attempt failed its read-back: two of the agent's textures were
+named like built-in creator textures (`textures/heart.png`,
+`textures/sparkle.png`), so the creator silently kept its built-in art; check,
+renders and preview had used the agent's files. Fixed in the tools:
+`builtInTextureCollisions` (in `effect-check.mjs`) makes `effects check` fail
+and `effects save` refuse an own texture named like a built-in one with other
+bytes, before anything is saved (unit tests; checked on a real collision and
+on a built-in copy). Other run-3 learnings went into the skills: what forms
+Save keeps, burst timing within a cycle, sphere `arc`, `runtime_id` replaced
+by Save, the save line printed only after read-back and reopen, Reactions'
+own Particle Effects in `--with-clip` renders, asset prompts for textures and
+`--max` precedence; the estimate line now reads "Save's estimate".
+
+Not fixed, recorded: a dry-run agent guessed that the render's front view
+matches chat framing when placing the hero (Heart Burst entry 10); the skills
+say renders use the chat canvas settings but not its exact framing.
+
+Found in passing: the Included `spark-streak.png` is drawn vertically but two
+Included effects stretch it, so it likely draws across its motion; those
+effects are removed or replaced in Plan 2 (R13).
+
+#### Code Review #1 Findings
+
+Independent review of the uncommitted tree on `5062ccfb`:
+
+- **P8-R1-1 (required).** The Particle effect-folder reference gave
+  stretched-billboard defaults of `lengthFactor` 2 and `speedFactor` 0; a
+  manifest without `rendererEmitterSettings` gets 0 and 0 (the 2 comes only
+  from the creator's mode switch), and length is size × (speedFactor × speed
+  + lengthFactor), so a streak relying on the stated default is invisible.
+- **P8-R1-2 (required).** The Particle skill's running example, "Fume Puffs",
+  is a gag symbol the `steam_puffs` Avatar Effect covers, contradicting the
+  owner's direction; agents copy examples.
+- **P8-R1-3 (required).** The quality bar named the saved Local "Heart Burst",
+  which exists only on this worktree's stack and drafts, so later work cannot
+  find it.
+- **P8-R1-4 (required).** The record's Particle run-2 log count was wrong (17,
+  not 16) and the preview-lifetime gap (a preview stops when its agent's task
+  ends; neither skill says to keep it until the owner has reviewed it) was
+  neither fixed nor recorded; optionally record the framing guess and the
+  half-saved item after a failed read-back.
+- Optional: `--with-clip` for a Reaction needs `library:reaction/<name>`; the
+  one-folder texture rule is enforced only by promote; the Scene "render the
+  copies together" step reads as `--together`; "worst case" overstated the
+  estimate; the mechanics table named an emitter, not an effect; the Scene
+  save line; the tool reference and `effects --help` did not mention the
+  built-in-name FAIL; a stale `summarizeCheck` comment; a long doc line.
+
+Verified without defect: PASS lines are ignored by promote's FAIL filters;
+`BUILT_IN_TEXTURE_ROOT` matches the creator's alias; no Included texture newly
+fails (all 40 built-in-named copies are byte-identical); the collision check
+runs before Save writes; CLI flags, preview timing and port, save lines, every
+Scene range and creator label, art limits, `keepFaceClear`, IDs and rules,
+`--max` precedence and empty `colorSpace` match the code; both skills follow
+the 0–9 pipeline with every R7 brief field.
+
+#### Code Review #1 Revisions
+
+- **P8-R1-1 accepted.** The reference gives the formula, the real defaults
+  (0 and 0), says to always set both, and quotes the Included values
+  (`speedFactor` 0.02–0.04, `lengthFactor` 1.75–2.1, checked in the manifests).
+- **P8-R1-2 accepted.** The example is now "Twinkle Shimmer" (glints among
+  bokeh, R9 #3) across `brief.md`, `effect-folder.md`, `promote.md` and the
+  skill; its texture names avoid built-in names.
+- **P8-R1-3 accepted.** The approved Heart Burst (the saved manifest and
+  textures, with a clean descriptor) is checked in as
+  `.agents/skills/animama-particle-vfx/references/heart-burst/`, with owner-form
+  source-review records; it passes `effects check`. The skill points there and
+  names its hero texture as the style reference. When Plan 2 promotes Heart
+  Burst (R9 #2), the skill can point at the Included item instead.
+- **P8-R1-4 accepted.** Count corrected; both skills say to keep the preview
+  running until the owner has reviewed it and to stop it afterwards; the
+  framing guess is recorded above, and the Particle skill says a failed
+  read-back leaves the item to be revised by saving again (the collision
+  pre-check now prevents the case seen).
+- Optional items all applied, except the tool-reference doc, which P9's
+  documentation covers (`effects --help` now names the check).
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1): every Code Review #1 finding verified fixed
+(the stretched-billboard formula and defaults against three.quarks 0.17.1 and
+the Included manifests; no gag-symbol example left; the checked-in Heart
+Burst byte-identical to the saved item, public-safe, with owner-form records;
+the record and preview-lifetime guidance; every optional item). Result: pass.
+Optional: rewriting `licenses/source-review.json` from Python escaped three
+unrelated `é` characters (P8-R2-1); some long markdown lines.
+
+#### Code Review #2 Revisions
+
+P8-R2-1 applied: the file is written as the promote tool writes it, so the
+diff adds only the six records. Evidence: `effects.test.mjs` 26 pass,
+`effect-check.browser.test.mjs` 3 pass, `pnpm check` and `pnpm web:lint` pass,
+`pnpm -s test:source` passes (its `local-api-proxy.test.ts` failed only while
+another task's process held port 5173 and passes, 8 of 8, once it is free).
+Review budget used: one full review and one repair round; P8 review passes.
+
+P8 is complete: R7 passes for both skills (fresh agents made Gloom Sadness and
+Heart Burst from briefs to saved Local content), G2 was exercised on every
+dry-run effect (two approved and saved, three not approved and not saved), and
+the review passed.
+
+### P9 — Documentation and acceptance (R8). Gate G4. #394
+
+1. **Documentation:**
+   - `docs/frontend/runtime/avatar-particle-vfx.md`: texture import, the
+     texture table, limits, and the tools;
+   - `docs/frontend/runtime/scene-vfx.md`: the new capabilities, limits and
+     the tools;
+   - `docs/frontend/runtime/avatar-vfx.md` §9: say which tools accept all
+     three kinds, or move the shared tool reference to one place the three
+     guides link;
+   - `GLOSSARY.md`: Particle Effect admits a single long-lived particle with
+     particle behaviour; the Avatar Effect sentence is aligned (owner decision,
+     2026-10-09);
+   - the effect skills that refer to Particle or Scene work
+     (`animama-avatar-vfx`, `animama-effect-assets`, `animama-animation`).
+2. **Chat on the task stack:** an effect with an imported texture and each new
+   Scene capability through a Reaction or Gesture on a test Anima.
+3. **G4 walkthrough** at desktop and narrow widths, with screenshots, for the
+   owner.
+4. Full checks (see Validation), the final integration review and the PR.
+
+#### P9 record
+
+Starting source and issue: `4708045d`, #394.
+
+Documentation (step 1): `avatar-vfx.md` §9 is now "Effect tools", the one
+tool reference for all three kinds that the Particle and Scene guides link,
+and its `check` bullet names each kind's budgets and checks;
+`avatar-particle-vfx.md` gains "Effect textures" (own and built-in textures,
+import, the limits table) and "Tools"; `scene-vfx.md` gains "Tools";
+`GLOSSARY.md` Particle Effect admits a single long-lived particle with
+particle behaviour and the Avatar Effect and Scene Effect entries are aligned;
+`animama-avatar-vfx` (description, `what.md`) and `animama-animation`
+(description, `checks-and-review.md`) say the preview plays all three kinds.
+`animama-effect-assets` already carried the Particle and Scene budgets (P2,
+P8).
+
+Chat on the task stack (step 2, 2026-10-10), stack `animama-particle-fx`
+(development, `http://animama-particle-fx.localhost:8620`), Annie with two
+Local test Reactions equipped through `reactions:plan`/`reactions:commit` and
+played from the animation debug modal in a new chat (chat turns choose
+Reactions nondeterministically; an earlier chat turn had already shown love-3):
+
+- love-3 "P9 love check": Heart Burst (Local Particle Effect with four
+  imported textures) above the head, Heart Eyes and Blush, and a Local Scene
+  with every new background capability (radial gradient, drifting tile, rays
+  screen, two scatter layers with per-item motion, entry flash);
+- sadness-3 "P9 sadness check": Gloom Sadness (linear gradient, lines screen,
+  a scatter of its own drop art), the Included Rain Cloud and tears.
+
+Both played as authored; the header stays above the Scene layers. On Gloom's
+dark backdrop the inactive header icons have low contrast (observation for
+the owner).
+
+G4 walkthrough screenshots (step 3), handed to the owner: chat (love-3,
+sadness-3), the Particle creator's texture section (desktop, tablet), the
+Scene creator's layer list (desktop, phone) and the Reaction editor's preview
+dock playing the every-layer Scene (desktop; tablet layout). Narrow widths
+show no regression from this plan; two pre-existing layout limits were seen
+and are unchanged by this branch (no layout changes in either page): at
+375 × 812 the Particle inspector leaves its scroll area 27 px tall, and at
+768 px the Reaction editor's content starts under the navigation rail.
+The preview dock cleared the every-layer Scene at the 0.1 s test Reaction's
+end, sooner than chat: both clear clip-owned Avatar, Particle and Scene
+Effects when the clip ends, and only chat holds them through the clip's
+fade-out (`PoseCreatorClipPreviewSync.tsx` stop path; `ReactionClipPlayer.ts`
+fade-out). That shared behaviour predates this branch and matches the
+runtime guides.
+
+Checks (2026-10-10, on `4708045d` plus the P9 working tree; the code is
+unchanged from `4708045d`): `uv run pytest -q` 3401 passed, 10 skipped;
+`make check` (format, ruff, mypy) and `uv run ruff check` pass; from
+`src/frontend` `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm
+desktop:check`, `pnpm web:test` (447 files, 3424 tests) and `pnpm build`
+pass; `pnpm openapi-ts` leaves the generated client unchanged; from
+`src/frontend/web` `pnpm -s test:source` 106 passed.
+
+Full browser journeys (`pnpm e2e:test`, built stack `animama-particle-fx-e2e`
+from `4708045d`, run `run-1010150727`): 39 passed, 1 failed in 12.8 min. The
+failure, "scene creator discard existing draft before Library Edit", was a
+P5 regression: restoring a Scene draft from browser recovery normalized it by
+spreading the optional-layer defaults first, which moved `gradient`…`flash`
+ahead of `solid`, `pattern` and `marquee`, so the restored portable JSON text
+no longer matched the pre-reload text. `normalizeSceneEffectDocument` now
+fills only missing layers in place (regression test in `document.test.ts`,
+red before the fix). The suite is rerun on the merged candidate.
+
+#### Code Review #1 Findings
+
+Round 1 (full initial review, `sdlc-reviewer`, working tree on `4708045d`):
+
+- **P9-R1-F1** (required): §9's intro said every tool takes all three kinds,
+  but thumbnails, `--all-included` and the default benchmark are Avatar-only,
+  and `effects:bench --reaction` (4 ms budget), which the Scene guide and the
+  Particle skill rely on, was undocumented.
+- **P9-R1-F2** (required): the `effects:render` source syntax omitted the
+  kind segment (`library:hearts-v1` fails; `library:particle-effect/hearts-v1`
+  resolves), and `--with-clip` was described without its effect events.
+- **P9-R1-F3** (required): Effect art listed only the six Avatar budgets
+  (P2-R1-F9, deferred to P9); "no real transparency" fails and the
+  no-trim rule were stated for Avatar art only, though Scene tiles and
+  backgrounds may be opaque and keep their framing.
+- **P9-R1-F4** (required): the Particle and Scene "Tools" sections said
+  `effects save` takes Library items; it takes folders and descriptors only.
+- **P9-R1-F5** (required, low): textures were documented as PNG only; only
+  import is, while Save, scan, packages and the runtime also accept JPEG and
+  WebP within the same limits.
+- **P9-R1-F6** (optional): `animama-avatar-vfx` `what.md` kept the old
+  "many independently moving sprites" wording.
+- **P9-R1-F7** (optional): the Particle draft recovery bound (R1's stated
+  storage bound) was not documented.
+- **P9-R1-F8** (optional): `scene-vfx.md` "Main files" and the
+  `avatar-vfx.md` tools row do not list the new files.
+- **P9-R1-F9** (optional): Scene budget checks cover PNG images only.
+- **P9-R1-F10** (integration note): `origin/main` (#406) changed the same §9
+  `check` bullet (`--with-clip`) and the thumbnails paragraph, and the
+  `animama-avatar-vfx` and `animama-animation` skill files; the merge must
+  keep both.
+- **P9-R1-F11** (minor): the Scene layer sentence read as back to front while
+  saying "front to back"; the §9 intro carried navigation commentary.
+
+The P9 record's claims were spot-checked against `git diff origin/main...HEAD`
+and hold.
+
+#### Code Review #1 Revisions
+
+- **F1 accepted:** the intro names the tools that take all three kinds, says
+  thumbnails are Avatar-only and that `effects:bench` measures Avatar Effects
+  or, with `--reaction`, a Reaction's three kinds; the benchmark section
+  documents `--reaction`, `--replay`, `--local-content` and the 4 ms budget;
+  the navigation commentary is gone (F11).
+- **F2 accepted:** the source syntax carries `[particle-effect/|scene-effect/]`
+  (no kind means an Avatar Effect); `--with-clip` plays a Gesture or Reaction
+  with its effect events as in chat; `--all-included` and `--thumbnail` are
+  stated as Avatar-only.
+- **F3 accepted:** Effect art has a table of all eleven budgets with their
+  uses; `check` and `fix` state the opaque and keep-framing rules for Scene
+  tiles and backgrounds; the Particle guide links the table instead of the
+  skill.
+- **F4 accepted:** both Tools sections separate check/render/preview (folders
+  and Library items) from save (folders) and promote (folders or
+  `library:local/<name>`), mention `effects:bench --reaction`, and say only
+  the first three draw the Scene layers.
+- **F5 accepted:** the limits table reads "PNG on import; saved items and
+  packages may also carry JPEG or WebP", and the texture paragraph and
+  glossary say images.
+- **F6 accepted:** `what.md` describes Particle Effects as three.quarks
+  emitters with particle behaviour.
+- **F7 accepted:** "Effect textures" states the 37 MiB recovery bound and the
+  textureless fallback.
+- **F8 declined:** file lists are orientation, not a P9 requirement; the
+  tools are found through §9.
+- **F9 accepted:** the `check` bullet says PNG Scene images are budgeted and
+  other formats are left to the backend.
+- **F10 deferred** to the final integration: `origin/main` is merged before
+  the PR and the merged §9 keeps `--with-clip`.
+- **F11 accepted:** "Scene Setup lists them front to back, Entry flash first".
+
+Verification: `git diff --check` clean; Prettier `--check` on the edited
+Markdown passes; every relative link and anchor in the three runtime guides
+resolves.
+
+#### Code Review #2 Findings
+
+Round 2 (targeted recheck): **pass**. F1–F7, F9 and F11 are resolved and the
+revisions add no inaccuracy (claims rechecked in `effect-bench.mjs`,
+`effect-render.mjs`, `effect-assets.mjs`, `particleVFXRecovery.ts`,
+`creatorRecoveryStore.ts` and `SceneEffectCreatorPage.tsx`). Two optional
+notes: **P9-R2-F1**, the localStorage fallback keeps a textureless draft only
+up to 1 MiB of JSON; **P9-R2-F2**, `--with-clip` plays effect events only for
+a Library item or folder, since a bare clip `.json` has no dependencies.
+
+#### Code Review #2 Revisions
+
+- **F1 and F2 accepted:** both sentences now state those conditions.
+
+The review passed at round 2 with one repair round unused.
+
+## Final integration review
+
+`sdlc-reviewer` reviews the combined scope against the spec's R1–R8 acceptance
+criteria, reusing still-valid phase evidence. It gets one full review and at
+most two repair rounds. Record findings and revisions here. Agent readiness does
+not replace G4 or merge approval.
+
+Merge of `main` before the review: `0753e9c6` merges `origin/main` `5993bbee`
+(#395, #398, #401, #406, #407, #411). Six files conflicted and were resolved by hand:
+`effect-check.mjs` keeps the before/after capture and passes `--with-clip`'s
+Gesture into both captures without its effect media; `effect-promote.mjs`
+keeps per-kind promotion over `main`'s `included-dependencies.mjs` helpers;
+`effects.mjs`, `effects.test.mjs`, `avatar-vfx.md` §9 and the animation
+skill's `checks-and-review.md` keep both sides.
+
+#### Final Integration Review #1 Findings
+
+Round 1 (full integration review, `sdlc-reviewer`, `3989a2cb` against
+`5993bbee`, with `git show --remerge-diff 0753e9c6`): **incomplete**, no code
+blocker.
+
+- **FI-R1-F1** (required, fixed in `3989a2cb`): `main`'s new "effects check
+  poses both Avatars with a Gesture clip" test expected two PASS lines; the
+  merged check also prints P8's clean-art PASS line. The posing itself was
+  correct on both Avatars.
+- **FI-R1-F2** (required: evidence or an owner decision): R1's "an Included
+  effect with non-built-in textures" case had no direct evidence; P3 argued
+  the shared reopen path, and no Included Particle Effect carries
+  non-built-in textures today.
+- **FI-R1-F3** (optional): `animama-avatar-vfx` `how.md` still said a Library
+  Gesture or Reaction preview plays Avatar and Particle Effects only.
+- **FI-R1-F4** (optional, for Plan 2): `main`'s #406 deleted the Included
+  `shy-finger-poke` Gesture, the only Included user of `kawaii-sparkles` and
+  `light-streak`, so R12's rewiring and R13's unused list need updating when
+  Plan 2 is written. Nothing in Plan 1 depends on it.
+
+Merge correctness, auto-merged files (thumbnail `clip`, licence inventory and
+records, pinned counts, journey allowlist) and the integration-level
+ownership of the removal and refusal paths were confirmed. R2–R8 and the
+performance record are met; R1 is met except F2.
+
+#### Final Integration Review #1 Revisions
+
+- **F1 accepted:** the test expects the art line (`3989a2cb`).
+- **F3 accepted:** `how.md` says Avatar, Particle and Scene Effects.
+- **F4 accepted** as a Plan 2 input (Surprises & Discoveries).
+- **F2 accepted, evidence added (2026-10-10):** on a local branch that was
+  never pushed and is deleted, the saved Local Heart Burst was promoted to
+  Included (`builtin:particle-effect:heart-burst`, four own textures) and the
+  task stack rescanned. In the Particle creator the Included effect opened
+  with its four textures carried and none missing; a PNG
+  (`r1-glint-1.png`) and a 4 × 1 sprite sheet (`r1-sheet-1.png`, U tiles 4
+  on `burst-sparkles`) were imported into it; a reload restored the draft
+  from recovery with its textures as Blobs; Save created the Local item "R1
+  Included check" with four textures: the two imports, which replaced
+  `heart-ring` and `glint-star`, and the two still-used originals (bytes equal
+  to the imported files, tile count kept); reopening showed Saved with
+  nothing missing; a Portable package export of it, imported back through the
+  package API, produced "R1 Included check-2" with byte-identical textures,
+  which reopens Saved with nothing missing. The branch was then deleted and a
+  rescan returned the 217 Included items of the candidate. Screenshots are in
+  the G4 hand-off.
+
+#### Final Integration Review #2 Findings
+
+Round 2 (targeted recheck): **pass**. F2 is closed (the evidence was checked
+read-only against the stack's catalog rows and both saved folders, byte for
+byte), F3 is fixed and F1 stays fixed; the new records match the e2e run's
+manifest and log. Optional: **FI-R2-F1**, the merge also brought in #395 and
+#398; **FI-R2-F2**, say which textures the imports replaced.
+
+#### Final Integration Review #2 Revisions
+
+- **FI-R2-F1 and FI-R2-F2 accepted:** both records are corrected.
+
+The final integration review passed at round 2 with one repair round unused.
+G4 (the owner's walkthrough review, including the live picture-in-picture
+check and P7's carried check that Save stays disabled after editing a
+hand-written Local Reaction) and merge approval remain with the owner.
+
+Final integration validation (`3989a2cb`; `6de38076` adds only documentation):
+`uv run pytest -q` 3581 passed, 10 skipped; `make check` and `uv run ruff
+check` pass; `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm
+desktop:check` and `pnpm build` pass; `pnpm openapi-ts` leaves the client
+unchanged; `pnpm web:test` on `0753e9c6` passed the packages, source
+scripts, 455 Vitest files and every browser script except the FI-R1-F1
+assertion, and the browser scripts (109) pass on `3989a2cb`; full `pnpm e2e:test`
+on a purged
+built stack from `3989a2cb` (run `run-1010154107`): 40 passed in 10.6 min.
+
+## Validation and acceptance
+
+| Spec criterion | Evidence | Phase |
+| --- | --- | --- |
+| R1 | Import and refusal unit tests; backend Save and package tests; the texture-import browser journey (new effect: import, sprite sheet, recovery, Save, reopen, package round trip); the Included-effect check in the final integration revisions | P3, P9 |
+| R2 | G1 record; per-capability parser, validator, render and round-trip tests; chat, creator and preview-dock checks; old Scene Effects still play | P1, P5, P9 |
+| R3 | `effects check` verdicts and `effects:render` sheets for a Particle and a Scene folder on both Avatars; script tests | P4 |
+| R4 | Preview browser tests; headed session record | P6 |
+| R5 | `effects save` browser test for both kinds; promote tests; throwaway-branch demonstration | P7 |
+| R6 | Budget and limit-sync tests | P2 |
+| R7 | Dry-run records and fixes; G2 | P8 |
+| R8 | Documentation diff | P2, P8, P9 |
+| Performance | Bench baseline and per-capability measurements within 4 ms (final acceptance on the heaviest intensity-3 Reaction comes with Plan 2 content) | P4, P5 |
+
+Before the PR, run:
+
+- from the repository root: `uv run pytest -q`, `make check`,
+  `uv run ruff check`;
+- from `src/frontend`: `pnpm check`, `pnpm web:lint`, `pnpm web:test`,
+  `pnpm build`, `pnpm desktop:check`, `pnpm prettier:check` and `pnpm
+  openapi-ts` freshness;
+- from `src/frontend/web`: `pnpm -s test:source`;
+- the full `pnpm e2e:test` against a disposable built stack (creator, content
+  package and import/export changes).
+
+This plan changes content contracts, validation and creators, so it keeps full
+hosted validation. Check that the hosted workflow is enabled; if it is not, the
+PR states that no hosted checks ran.
+
+## Idempotence and recovery
+
+- **Definitions:** Scene changes are additive within `animama/scene-effect/1`
+  unless P5 records otherwise; Particle descriptors gain only texture files.
+  Existing saved effects keep opening and playing.
+- **Promotion:** `--dry-run` first; writes are reviewable Git changes on a task
+  branch and are reverted with Git. The demonstration branch is local and
+  deleted afterwards.
+- **Recovery storage:** per-kind storage names are unchanged; drafts above the
+  texture bound keep their definition and report missing textures.
+- **Database:** no schema change is expected. If one is needed, update the ORM
+  and `alembic/versions/0001_baseline.sql` directly and record the reset.
+- **Drafts:** briefs, mocks and dry-run sources live under `.animama-drafts/`
+  and can be regenerated.
+- **Task stack:** its own Compose project and Local content; the main stack is
+  never stopped or purged.
+
+## Outcomes & Retrospective
+
+Plan 1 delivered R1–R8 (2026-10-10), pending the owner's G4 review and merge
+approval. The Particle creator imports and keeps its own PNG textures and
+sprite sheets through Save, reopen, recovery and Portable packages, on new
+and Included effects; Scene Effects gained gradient, tile, rays or lines,
+scatter and flash layers; `effects check`, `effects:render`,
+`animation:preview`, `effects:bench --reaction`, `effects save` and `effects
+promote` work for all three effect kinds; art budgets and shared limits are
+enforced by the scripts, the creators and the backend; the Particle and Scene
+pipeline skills produced the owner-approved Heart Burst and Gloom Sadness
+from fresh-agent briefs; and a Local Action keeps playing when an Included
+effect it names is removed.
+
+Lessons: the full browser journeys found a recovery regression no unit test
+covered, so run them before the final review rather than after; reuse a
+browser-journey stack across a `main` merge only after a purge; and when
+G1-style design decisions fix a capability list early, Plan 2 must restate
+the content items that `main` has since changed (#406).

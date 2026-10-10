@@ -1,4 +1,8 @@
 import type { PyModelProviderCatalogItem } from "@animama/runtime-contracts/api-types";
+import { ANTHROPIC_MESSAGES_PROVIDER_TYPE } from "@animama/product-ui/chat";
+
+/** Defined once in product-ui, whose web search rule also reads it. */
+export { ANTHROPIC_MESSAGES_PROVIDER_TYPE };
 
 type LabeledModel = Pick<
   PyModelProviderCatalogItem,
@@ -52,7 +56,32 @@ export function modelDisplayName(
   return alternate ? `${name}${ALTERNATE_LABEL_SUFFIX}` : name;
 }
 
-const RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent";
+/**
+ * API families a catalog row uses (`model_provider` on catalog items,
+ * `provider_type` on configured models). The app picks the family: OpenAI
+ * Responses on the built-in OpenAI connection, Anthropic Messages on the
+ * built-in Anthropic connection and Chat Completions everywhere else.
+ */
+export const RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent";
+export const CHAT_COMPLETIONS_PROVIDER_TYPE = "OpenAIHTTPAgent";
+export type ModelProviderType =
+  | typeof RESPONSES_PROVIDER_TYPE
+  | typeof CHAT_COMPLETIONS_PROVIDER_TYPE
+  | typeof ANTHROPIC_MESSAGES_PROVIDER_TYPE;
+
+/** A stored provider type as one of the known API families (Chat Completions otherwise). */
+export function modelProviderType(
+  value: string | null | undefined,
+): ModelProviderType {
+  return value === RESPONSES_PROVIDER_TYPE ||
+    value === ANTHROPIC_MESSAGES_PROVIDER_TYPE
+    ? value
+    : CHAT_COMPLETIONS_PROVIDER_TYPE;
+}
+
+/** The built-in Anthropic connection's default model, Claude Haiku 5.5. */
+export const ANTHROPIC_DEFAULT_MODEL_ID =
+  "AnthropicMessagesHTTPAgent:claude-haiku-5-5";
 
 /** Fields shared by catalog items and configured models that naming needs. */
 type AlternateCandidate = {
@@ -95,6 +124,31 @@ export function alternateModelIds(
     for (const row of group) if (row !== primary) alternates.add(row.id);
   }
   return alternates;
+}
+
+/** A row's reasoning efforts in the backend's display order. */
+export function supportedReasoningEfforts(
+  item: PyModelProviderCatalogItem | null | undefined,
+): string[] {
+  return Array.isArray(item?.supported_reasoning_efforts)
+    ? item.supported_reasoning_efforts.filter(
+        (effort) => typeof effort === "string",
+      )
+    : [];
+}
+
+/**
+ * The effort a picker preselects for a row: the backend's reported default
+ * (Anthropic rows report their chat default, `medium`) when the row offers
+ * it, else the row's first supported effort. `null` for rows without efforts.
+ */
+export function defaultReasoningEffort(
+  item: PyModelProviderCatalogItem | null | undefined,
+): string | null {
+  const efforts = supportedReasoningEfforts(item);
+  const reported = item?.default_reasoning_effort;
+  if (reported && efforts.includes(reported)) return reported;
+  return efforts[0] ?? null;
 }
 
 /** Chat rows; rows from before model kinds existed count as chat. */

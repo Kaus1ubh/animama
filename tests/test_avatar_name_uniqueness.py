@@ -14,10 +14,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.avatar_repo import SQLAlchemyAvatarRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.avatar import ORMAvatar
 from animama.orm.content_catalog import ORMContentCatalogItem
-from animama.server.routers import avatar as avatar_router
+from animama.product_http.routes import avatars as avatar_router
 from animama.server.schemas.avatar import PyAvatarRegisterRequest, PyAvatarUpdate
 
 
@@ -128,13 +129,13 @@ async def test_duplicate_register_and_rename_return_conflict(async_session: Asyn
     first = await avatar_router.register_avatar(
         body=PyAvatarRegisterRequest(catalog_item_id=first_item, name=name),
         user=owner,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
     with pytest.raises(HTTPException) as created:
         await avatar_router.register_avatar(
             body=PyAvatarRegisterRequest(catalog_item_id=second_item, name=name),
             user=owner,
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
         )
     assert created.value.status_code == 409
     assert isinstance(created.value.detail, dict)
@@ -143,11 +144,14 @@ async def test_duplicate_register_and_rename_return_conflict(async_session: Asyn
     second = await avatar_router.register_avatar(
         body=PyAvatarRegisterRequest(catalog_item_id=second_item, name=f"Other {namespace}"),
         user=owner,
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
     )
     with pytest.raises(HTTPException) as renamed:
         await avatar_router.update_avatar(
-            avatar_id=second.id, body=PyAvatarUpdate(name=name), user=owner, session=async_session
+            avatar_id=second.id,
+            body=PyAvatarUpdate(name=name),
+            user=owner,
+            repositories=SQLAlchemyProductRepositories(async_session),
         )
     assert renamed.value.status_code == 409
     assert isinstance(renamed.value.detail, dict)

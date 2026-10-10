@@ -8,7 +8,8 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from animama.app.services.content_portability import MIXAMO_MOTION_PACK_ID
+from animama.adapters.content_store import FilesystemContentStore
+from animama.app.services.content_portability import PRIVATE_PACK_IDS
 from animama.domain.content_sources import IncludedContentSource
 from animama.server.config import Settings
 from animama.utils.files import is_directory, path_is_link
@@ -116,9 +117,9 @@ def resolve_local_runtime_paths(settings: Settings) -> LocalRuntimePaths:
     )
 
 
-# Read-only Included packs besides core. The Mixamo-motion pack is non-portable
-# content bundled only into desktop and hosted builds (see content_portability).
-_INCLUDED_PACK_IDS = frozenset({"expanded-included-content", MIXAMO_MOTION_PACK_ID})
+# Read-only Included packs besides core. Private packs are non-portable content
+# bundled only into desktop and hosted builds (see content_portability).
+_INCLUDED_PACK_IDS = frozenset({"expanded-included-content", *PRIVATE_PACK_IDS})
 
 
 def _included_sources(settings: Settings, *, local_root: Path, data_root: Path) -> tuple[IncludedContentSource, ...]:
@@ -258,3 +259,14 @@ def initialize_local_runtime(settings: Settings) -> LocalRuntimePaths:
     _assert_writable(paths.local_root, label="Local content root")
     _assert_writable(paths.data_root, label="private data root")
     return paths
+
+
+def local_content_store(paths: LocalRuntimePaths) -> FilesystemContentStore:
+    """The content store over the Included and Local roots startup prepared."""
+
+    return FilesystemContentStore(
+        included_root=paths.included_root,
+        included_sources=paths.included_sources,
+        local_root=paths.local_root,
+        operations_root=paths.operations_root,
+    )

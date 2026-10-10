@@ -10,7 +10,7 @@ import json
 from collections import deque
 from pathlib import Path
 
-SHARED_PREFIXES = ("animama.domain", "animama.app")
+SHARED_PREFIXES = ("animama.domain", "animama.app", "animama.product_http")
 FORBIDDEN_PREFIXES = (
     "animama.local",
     "animama.server",

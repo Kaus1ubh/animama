@@ -24,10 +24,12 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.orm.runtime_worker import ORMRuntimeWorkerHeartbeat
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_processing_job import ORMUserFileProcessingJob
+from animama.product_http.routes import runtime_capabilities
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
-from animama.server.routers import desktop_control, runtime_capabilities, user_files
+from animama.server.routers import desktop_control, user_files
 from tests.local_http_client import local_client
+from tests.product_http_support import install_local_ports
 from tests.test_model_asset_sets import FILES, GPU_FILES, GPU_MANIFEST, MANIFEST, SetRelease, _set_entry
 
 
@@ -56,6 +58,7 @@ def _app(session, tmp_path, *, enabled=False, **settings):
 
     app.dependency_overrides[get_current_principal] = principal
     app.dependency_overrides[get_async_session] = database
+    install_local_ports(app, session)
     return app
 
 

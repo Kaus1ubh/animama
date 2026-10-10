@@ -28,6 +28,9 @@ rendering, and client-side speech recognition.
 - [Model clients and providers](runtime/model-client-providers.md): shared direct
   model clients, catalog provider rows, prompt-only maintenance calls, and chat
   persistence.
+- [Prompt caching and turn instruction layout](runtime/prompt-caching.md):
+  provider cache rules, how often each prompt part changes, and the live
+  cache-measurement harness.
 - [Adding AI model support](runtime/adding-ai-models.md): end-to-end model
   integration map and contributor workflow for adding catalog rows, compatible
   vendors, provider clients, public capabilities, seed data, frontend exposure,
@@ -74,7 +77,9 @@ frozen-runtime inputs.
 
 ## Important Source Files
 
-Start with `server/app.py` for composition, `server/routers/` for delivery,
+Start with `server/app.py` for composition, `product_http/routes/` for product
+routes every composition shares, `server/routers/` for the local composition's
+routers (including shared families that have not moved yet),
 `app/services/` for use cases, and `app/chat/` for direct turns. The
 [architecture overview](architecture/overview.md#package-layout) maps the package
 boundaries; feature guides identify their implementation entrypoints.

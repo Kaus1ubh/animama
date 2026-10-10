@@ -5,6 +5,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
+from animama.app.chat.anthropic_instructions import ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE
+from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE
 from animama.app.chat.memory_context import MAIN_STRUCTURED_OUTPUT_GUIDANCE
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
@@ -12,7 +14,7 @@ from animama.app.main_structured_response import (
     build_main_structured_prompt,
     build_main_structured_response_json_schema,
 )
-from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
+from animama.app.model_catalog import STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT, STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
 from animama.domain import ModelProvider
 
 from ..options import DirectChatOptions
@@ -73,9 +75,17 @@ def main_structured_response_guidance(
     """Return prompt guidance matching the selected provider row's transport.
 
     A JSON schema constrains the reply shape; JSON mode and prompt-only rows
-    also get the schema and an example in the prompt.
+    also get the schema and an example in the prompt. Anthropic rows with
+    strict structured output get the same directives phrased for that
+    transport.
     """
 
+    if (
+        model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
+        and model_provider.capabilities.structured_output_transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA
+        and supports_structured_reply(model_provider)
+    ):
+        return ANTHROPIC_MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()
     guidance = MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()
     if (
         model_provider.capabilities.structured_output_transport == STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT
@@ -98,8 +108,12 @@ def render_available_gestures(descriptors: Sequence[RuntimeGestureDescriptor]) -
     return f"Available Gestures for this Anima:\n{rows}"
 
 
-def with_gesture_guidance(guidance: str, descriptors: Sequence[RuntimeGestureDescriptor]) -> str:
-    """Append the equipped Gesture list to the turn's response guidance."""
+def gesture_response_guidance(guidance: str, descriptors: Sequence[RuntimeGestureDescriptor]) -> str:
+    """Append the Anima's AI-selectable Gestures to the response guidance.
+
+    Every request of a turn, including a stale-cursor replay, uses this so the
+    stable instructions stay byte-identical.
+    """
 
     gesture_list = render_available_gestures(descriptors)
     return f"{guidance}\n\n{gesture_list}" if gesture_list else guidance
@@ -128,5 +142,4 @@ __all__ = [
     "supports_structured_reply",
     "turn_response_format",
     "turn_response_schema_name",
-    "with_gesture_guidance",
 ]

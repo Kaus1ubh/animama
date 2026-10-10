@@ -8,7 +8,7 @@ from animama.adapters.repositories.sqlalchemy.chat_compaction_repo import SQLAlc
 from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
 from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
-from animama.app.chat.direct_turn.constants import OPENAI_RESPONSES_PROVIDER
+from animama.app.chat.direct_turn.constants import NATIVE_COMPACTION_PROVIDERS
 from animama.app.chat.direct_turn.types import PreSendCompactionRequest, PreSendCompactor
 from animama.app.chat.options import DirectChatOptions
 from animama.app.model_clients import ModelClientRegistry
@@ -120,6 +120,8 @@ async def compact_chat_after_success(
 
     For models with a context window the threshold is at most a share of the
     window, so a small model compacts after replies instead of before them.
+    Providers with server-side compaction (OpenAI Responses, Anthropic
+    Messages) are skipped.
     """
 
     model_provider_type = model_provider.provider_type if model_provider is not None else None
@@ -131,9 +133,10 @@ async def compact_chat_after_success(
             run_id=run_id,
         )
         return
-    if model_provider_type == OPENAI_RESPONSES_PROVIDER:
+    if model_provider_type in NATIVE_COMPACTION_PROVIDERS:
+        # OpenAI Responses and Anthropic Messages compact on the provider's server.
         _log.info(
-            "Direct chat post-response compaction skipped for OpenAI Responses native compaction",
+            "Direct chat post-response compaction skipped for provider-native compaction",
             anima_id=anima_id,
             chat_id=chat_id,
             run_id=run_id,

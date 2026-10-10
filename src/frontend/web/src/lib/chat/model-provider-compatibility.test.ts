@@ -160,6 +160,36 @@ describe("chatModelSendGate", () => {
     ).toEqual({ ok: true, reason: "compatible" });
   });
 
+  it("fences Anthropic Messages chats from OpenAI rows, and the reverse", () => {
+    const haiku = model({
+      id: "AnthropicMessagesHTTPAgent:claude-haiku-5-5",
+      model: "claude-haiku-5-5",
+      model_provider: "AnthropicMessagesHTTPAgent",
+      model_client: "anthropic_messages",
+      api_standard: "anthropic_messages",
+    });
+    const anthropicChat = chat({
+      api_standard: "anthropic_messages",
+      last_model_client: "anthropic_messages",
+      last_model_id: "claude-haiku-5-5",
+    });
+    expect(chatModelSendGate(anthropicChat, haiku)).toEqual({
+      ok: true,
+      reason: "compatible",
+    });
+    expect(chatModelSendGate(anthropicChat, model({}))).toEqual({
+      ok: false,
+      reason: "api_standard_mismatch",
+      chatApiStandard: "anthropic_messages",
+      selectedApiStandard: "chat_completions",
+    });
+    expect(chatModelSendGate(chat({}), haiku)).toMatchObject({
+      ok: false,
+      reason: "api_standard_mismatch",
+      selectedApiStandard: "anthropic_messages",
+    });
+  });
+
   it("allows Hugging Face rows in existing Chat Completions chats", () => {
     expect(
       chatModelSendGate(

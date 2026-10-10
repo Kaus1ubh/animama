@@ -11,7 +11,11 @@ import {
 } from "@/ui/components/dialog";
 
 import { modelApiLabel } from "./model-configuration-state";
-import { ModelVisibilitySwitch, OwnerModelDialog } from "./OwnerModelDialog";
+import {
+  EarlyCompactionSwitch,
+  ModelVisibilitySwitch,
+  OwnerModelDialog,
+} from "./OwnerModelDialog";
 
 const STRUCTURED_OUTPUT_LABELS: Record<string, string> = {
   json_schema: "JSON schema (strict)",
@@ -67,7 +71,8 @@ function builtinModelDetails(
 /**
  * The Info modal behind a model row. Built-in models show read-only details;
  * owner models open the editable details form. Both offer "Show in model
- * lists"; owner models can also be removed.
+ * lists" and, on models with a long-context price step, Compact early; owner
+ * models can also be removed.
  */
 export function ModelInfoDialog({
   onOpenChange,
@@ -107,6 +112,7 @@ export function ModelInfoDialog({
           </DialogDescription>
         </DialogHeader>
         <ModelVisibilitySwitch model={model} disabled={disabled} />
+        <EarlyCompactionSwitch model={model} disabled={disabled} />
         <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-2 text-sm">
           {builtinModelDetails(model).map(([label, value]) => (
             <div key={label} className="contents">

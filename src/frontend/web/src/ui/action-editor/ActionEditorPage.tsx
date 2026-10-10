@@ -95,6 +95,7 @@ import { loadCreatorPreviewFile } from "@/lib/content/contentEditorSource";
 import {
   isCustomizableStarterAction,
   actionDocumentFromPreview,
+  removedActionEffects,
 } from "./actionDocumentLoader";
 import type { ActionImport } from "./actionProject";
 import { unresolvedActionReferences } from "./actionProject";
@@ -375,6 +376,15 @@ export function ActionEditorPage({
           cleanDigest.current = "__included_copy__";
         replaceLoadedDocument(next, item.origin === "owned");
         setMode(loadedActionEditorMode(intent, next.implementation));
+        const removed = removedActionEffects(preview);
+        if (removed.length)
+          toast.warning("Some effects were removed", {
+            description: `This ${intent === "gesture" ? "Gesture" : "Reaction"} uses Included effects that no longer exist (${removed
+              .map(({ alias, ref }) => `${alias}: ${ref}`)
+              .join(
+                ", ",
+              )}). It plays without them; map their events to other effects or remove them before saving.`,
+          });
         if (discardCurrentRecovery && userId) {
           recoveryGeneration.current += 1;
           clearActionRecovery(
@@ -917,7 +927,8 @@ export function ActionEditorPage({
           dependency.content_type === initialComponentType &&
           exactSourceKey(dependency.source) === sourceKey,
       );
-      if (!exists)
+      // Non-portable components (such as licensed sounds) are never added.
+      if (!exists && !isNonPortable(initialComponentItem.data))
         addComponent(initialComponentItem.data, initialComponentType);
       return;
     }

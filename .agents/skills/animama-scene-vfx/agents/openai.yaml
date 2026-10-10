@@ -1,0 +1,4 @@
+interface:
+  display_name: "Animama Scene VFX"
+  short_description: "Create, check and save Scene Effects from a brief"
+  default_prompt: "Use $animama-scene-vfx to create a Scene Effect for: <what it expresses and when>. Write the brief, make the art, write the effect folder, check and render it, preview it for me, and save it as Local content, then hand it off."

@@ -11,12 +11,17 @@ from animama.app.model_clients.prompt import prompt_messages
 from animama.app.model_connection_presets import DEEPSEEK_REASONING_EFFORTS
 from animama.domain import ModelProvider
 from animama.domain.model_connection import (
+    BUILTIN_OPENAI_CONNECTION_ID,
     REASONING_MODE_DEEPSEEK_THINKING,
     REASONING_MODE_OMIT,
     ModelConnectionCompatibility,
 )
 
-from .._common import jsonable
+from .._common import jsonable, openai_cache_breakpoint_text_part
+
+# Explicit breakpoints on the latest replies in history. The previous reply
+# reads the entry the last request wrote; the latest reply writes the next one.
+_CACHE_BREAKPOINT_REPLY_COUNT = 2
 
 
 def create_chat_completion_kwargs(spec: ModelClientRequest, *, timeout: float | httpx.Timeout | None) -> dict[str, Any]:
@@ -65,9 +70,50 @@ def _compatibility(spec: ModelClientRequest) -> ModelConnectionCompatibility:
 
 def _messages_for_spec(spec: ModelClientRequest) -> list[dict[str, Any]]:
     messages = prompt_messages(spec.prompt)
-    if spec.model_provider.accepts_developer_role:
-        return messages
-    return _messages_with_developer_role_folded_into_system(messages)
+    if not spec.model_provider.accepts_developer_role:
+        # The turn context already travels in the user message; only
+        # within-turn instructions (forced final, repair) remain to fold.
+        return _messages_with_developer_role_folded_into_system(messages)
+    if spec.model_provider.connection_id == BUILTIN_OPENAI_CONNECTION_ID:
+        return _messages_with_cache_breakpoints(messages)
+    return messages
+
+
+def _messages_with_cache_breakpoints(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Mark the system message and the last two history replies as explicit cache breakpoints.
+
+    Only the built-in OpenAI connection receives these fields; other servers
+    may reject unknown content-part fields. History is everything before the
+    turn's user message (the last one), so tool rounds and repair replies of
+    the current turn are never marked. The system message needs its own
+    marker because a developer message directly after it (the compaction
+    summary) would otherwise end the initial cached block. Three explicit
+    writes plus the implicit one at the user message stay within OpenAI's limit
+    of four.
+    """
+
+    user_indexes = [index for index, message in enumerate(messages) if message.get("role") == "user"]
+    history_end = user_indexes[-1] if user_indexes else len(messages)
+    reply_indexes = [
+        index
+        for index, message in enumerate(messages[:history_end])
+        if message.get("role") == "assistant" and not message.get("tool_calls") and _has_text_content(message)
+    ]
+    marked = set(reply_indexes[-_CACHE_BREAKPOINT_REPLY_COUNT:])
+    if messages and messages[0].get("role") == "system" and _has_text_content(messages[0]):
+        marked.add(0)
+    return [_with_cache_breakpoint(message) if index in marked else message for index, message in enumerate(messages)]
+
+
+def _has_text_content(message: Mapping[str, Any]) -> bool:
+    content = message.get("content")
+    return isinstance(content, str) and bool(content)
+
+
+def _with_cache_breakpoint(message: dict[str, Any]) -> dict[str, Any]:
+    """Return the message with its text as one content part carrying a breakpoint."""
+
+    return {**message, "content": [openai_cache_breakpoint_text_part(str(message["content"]), part_type="text")]}
 
 
 def _tools_for_spec(spec: ModelClientRequest, *, compatibility: ModelConnectionCompatibility) -> Any:
@@ -98,6 +144,13 @@ def tools_without_function_strict(tools: Any) -> Any:
 
 
 def _messages_with_developer_role_folded_into_system(messages: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Append developer text, in order, to the system message for rows without the role.
+
+    The assembler never emits developer messages for these rows; this folds
+    the forced-final and repair instructions added within a turn. Each ends
+    with the Companion Guardrails, so the system message still ends with them.
+    """
+
     developer_parts: list[str] = []
     remaining_messages: list[dict[str, Any]] = []
     for message in messages:

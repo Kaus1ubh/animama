@@ -40,7 +40,7 @@ from animama.server.embeddings import role_embedder
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.local_upload_stream import LocalUploadError, spool_bounded_request
 from animama.server.model_roles import ModelRoleSettings, get_model_role_settings
-from animama.server.routers.runtime_capabilities import get_runtime_settings
+from animama.server.runtime_capabilities import get_runtime_settings
 from animama.server.schemas.user_file import (
     PyUserFileFinalizeRequest,
     PyUserFileListResponse,

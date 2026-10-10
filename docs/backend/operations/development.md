@@ -28,9 +28,9 @@ plain `uv sync` or `uv run`.
 ## Shared Backend Package
 
 The backend wheel contains both the public local implementation and reusable
-`animama.domain`/`animama.app` APIs. Shared imports receive owner IDs, policy, and
-storage/model ports explicitly and cannot import local composition or read
-installation state. Verify the transitive import graph and build the wheel:
+`animama.domain`, `animama.app` and `animama.product_http` APIs. Shared imports
+receive owner IDs, policy, and storage/model ports explicitly and cannot import
+local composition or read installation state. Verify the transitive import graph and build the wheel:
 
 ```bash
 uv run --no-sync python scripts/repository-boundary/check-python-imports.py
@@ -54,6 +54,8 @@ edit them independently. The repository's packed-artifact check installs the
 wheel outside this checkout and runs
 `scripts/repository-boundary/consumers/backend.py`, exercising two independent
 owners through real shared bootstrap/chat services with fake ports.
+`consumers/product_http.py` mounts the shared product routes the same way a hosted
+consumer would, with local composition imports blocked.
 
 ## Run The API
 
@@ -530,7 +532,11 @@ Ordinary pytest does not load `.env`. Offline fixtures use a dummy provider key
 and a temporary private data root; Included-content checks still read the
 checkout's `content` library. Live provider tests require explicit exported
 `ANIMAMA_RUN_LIVE_TESTS=1` and `ANIMAMA_LIVE_OPENAI_API_KEY` or `OPENAI_API_KEY`;
-`make test-live` explicitly loads `.env` for that opt-in command. Database fixtures
+`make test-live` explicitly loads `.env` for that opt-in command. The paid
+Anthropic and prompt-cache tests also need `ANTHROPIC_API_KEY` and skip without
+it; pass the owner-only credentials file with
+`uv run --env-file "$HOME/.config/animama/dev-secrets.env"` rather than sourcing
+it (see [live tests](../../../tests/live/README.md)). Database fixtures
 own their async loop scope. A missing Docker daemon is a fixture failure, not a
 reason to skip the offline database suite.
 
@@ -1083,7 +1089,9 @@ outputs and, when running separately, private application data.
 #### Credentials and nonsecret configuration
 
 Keep reusable development credentials in an owner-only file outside every
-checkout, for example `$HOME/.config/animama/dev-secrets.env`. Create or edit that
+checkout, for example `$HOME/.config/animama/dev-secrets.env`, including
+`OPENAI_API_KEY` and `ANTHROPIC_API_KEY` when the stack uses those built-in
+connections. Create or edit that
 file with a restrictive umask (`umask 077`) and ensure only its owner can read or
 write it (`chmod 600`); use a private parent directory. Obtain actual values
 through the owner's existing credential mechanism. Do not invent keys, copy a
@@ -1305,12 +1313,12 @@ APP_HOST APP_SCHEME WEB_SERVER_PORT PGADMIN_PORT DOZZLE_PORT
 ANIMAMA_INCLUDED_CONTENT_HOST_PATH ANIMAMA_LOCAL_CONTENT_HOST_PATH
 ANIMAMA_DATA_HOST_PATH ANIMAMA_DOCLING_CACHE_HOST_PATH ANIMAMA_LOG_DIR
 POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB PGADMIN_EMAIL PGADMIN_PASSWORD
-OPENAI_API_KEY OPENAI_BASE_URL DEEPSEEK_API_KEY HF_TOKEN
+OPENAI_API_KEY OPENAI_BASE_URL ANTHROPIC_API_KEY DEEPSEEK_API_KEY HF_TOKEN
 ANIMAMA_LOCAL_MODEL_HOST ANIMAMA_CONNECTION_KEYS_FILE
 ANIMAMA_DEFAULT_MODEL_PROVIDER_ID ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID
 ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID
 ANIMAMA_CHAT_TITLE_GENERATION_ENABLED ANIMAMA_CHAT_COMPACTION_ENABLED
-ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS
+ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS
 ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT ANIMAMA_LLM_SKIP
 ANIMAMA_COMPANION_SAFETY_ENABLED ANIMAMA_AI_NOTICE_ENABLED ANIMAMA_AI_NOTICE_REMINDER_HOURS
 ANIMAMA_CRISIS_DETECTION_ENABLED ANIMAMA_CRISIS_RESOURCES_PATH
@@ -1398,9 +1406,11 @@ connection; unset or empty uses the official OpenAI API. Built-in catalog rows
 store no URL, so this variable redirects every built-in OpenAI row, including
 the Luna Responses row, and `OPENAI_API_KEY` goes with it. Owner connections use
 their own base URL and only the key variable they name; they never fall back to
-`OPENAI_BASE_URL` or `OPENAI_API_KEY`. Select only trusted endpoints because
-credentials and prompts are sent there. Verify the selected row's connection
-before a live turn. These settings provide no hard request, token or spending cap; short prompts,
+`OPENAI_BASE_URL` or `OPENAI_API_KEY`. Compose forwards `ANTHROPIC_API_KEY`
+(empty when unset) for the built-in Anthropic connection, which always targets
+Anthropic's own API; there is no Anthropic base URL setting. Select only
+trusted endpoints because credentials and prompts are sent there. Verify the
+selected row's connection before a live turn. These settings provide no hard request, token or spending cap; short prompts,
 reasoning `none` and Stop do not establish a budget ceiling.
 
 Preparing credentials, acquiring public model assets and checking readiness do
@@ -1508,6 +1518,10 @@ Models; see [local model servers](local-models.md)):
   role and Anima uses another connection)
 - `OPENAI_BASE_URL` (endpoint of the built-in OpenAI connection; unset uses the
   official OpenAI API)
+- `ANTHROPIC_API_KEY` (key of the built-in Anthropic connection, sent only to
+  Anthropic's API; without it Anthropic models report a missing key. Keep it in
+  the owner-only credentials file selected through `COMPOSE_ENV_FILES`, never in
+  a worktree `.env`)
 - `ANIMAMA_CONNECTION_<NAME>_API_KEY` (a key variable that an owner connection
   names; a connection may also name `DEEPSEEK_API_KEY` or `HF_TOKEN`, which
   Compose forwards individually)
@@ -1517,7 +1531,8 @@ Models; see [local model servers](local-models.md)):
 - `ANIMAMA_LOCAL_MODEL_HOST` (host that the Ollama, LM Studio, llama.cpp and vLLM
   presets fill in; default `127.0.0.1` natively, `host.docker.internal` in Compose)
 - `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS` (default `60`; used by connections
-  without their own timeout, such as the built-in OpenAI connection)
+  without their own timeout, such as the built-in OpenAI and Anthropic
+  connections)
 - `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` (default
   `OpenAIResponsesHTTPAgent:gpt-6-luna`; catalog row id of the default chat
   model for new Animas; the App Settings default chat model takes precedence)
@@ -1526,13 +1541,15 @@ Models; see [local model servers](local-models.md)):
   `ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID` (operator role defaults as catalog
   row ids; App Settings assignments take precedence; unset utility and Memory
   Manager roles use the default chat model, and embeddings stay off)
-- `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS` (default `10000`; `0`
+- `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS` (default `90000`; `0`
   omits OpenAI Responses native compaction)
 - `ANIMAMA_CHAT_TITLE_GENERATION_ENABLED`,
   `ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`,
   `ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT` (titles from the utility role)
 - `ANIMAMA_CHAT_COMPACTION_ENABLED`, `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`
-  (post-response compaction by the utility role),
+  (post-response compaction by the utility role; the threshold caps the
+  trigger, default `90000`, and a row with a context window triggers at 70% of
+  it when that is lower),
   `ANIMAMA_CHAT_PRESEND_COMPACTION_TIMEOUT_SECONDS` (default `90`; bound on
   compaction before a turn that nears its model's window)
 
@@ -1571,17 +1588,24 @@ environment usage.
 
 ## Adding A Route
 
-1. Put the route in the closest existing router or a new router under
-   `server/routers/`.
+1. Put a product route every composition serves in the closest router under
+   `product_http/routes/` (register a new router in its `ROUTERS`); put a
+   local-only route under `server/routers/`. Add the route to
+   `product_http/inventory.py` with its disposition and access class.
 2. Use `get_current_principal` for every local product route. Only the internal
-   `/health` readiness probe is unauthenticated.
+   `/health` readiness probe is unauthenticated. Shared handlers take sessions,
+   repositories, policy, content services and byte delivery from the installed
+   `ProductPorts`, never `get_async_session` or global settings.
 3. Prefer app services and repository ports for persistence.
-4. Keep Pydantic request/response schemas near the router or established schema
-   module.
+4. Keep a shared route's Pydantic request/response schemas in `app/contracts/`;
+   a local route's may stay near its router or established schema module.
 5. Filter by `RequestPrincipal.id` through retained `user_id`/`owner_user_id`
    ownership columns.
-6. Add tests for auth, ownership, success, and error behavior.
-7. Include the router through `server/routers/__init__.py` if it is new.
+6. Add tests for auth, ownership, success, and error behavior. A shared route
+   also gets two-owner isolation and deferred-commit tests
+   (`tests/product_http_support.py`).
+7. Include a new router through `server/routers/__init__.py`, at the position its
+   routes take in the inventory.
 
 ## Adding Runtime Behavior
 

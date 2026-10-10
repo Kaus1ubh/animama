@@ -17,11 +17,9 @@ from animama.adapters.memory_manager import (
     MemoryManagerVirtualWorkspace,
     OpenAIAgentsMemoryManagerRuntime,
 )
-from animama.adapters.memory_manager.openai_agents_runtime import (
-    _approval_required_patch_editor,
-    _max_turns_for_run,
-)
+from animama.adapters.memory_manager.openai_agents_runtime import _approval_required_patch_editor
 from animama.adapters.memory_manager.reflection import ReflectionTurnReader, reflection_task_or_none
+from animama.adapters.memory_manager.runtime_support import max_turns_for_run
 from animama.adapters.repositories.sqlalchemy.anima_memory_reflection_repo import (
     SQLAlchemyAnimaMemoryReflectionRepository,
 )
@@ -30,6 +28,7 @@ from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchem
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_manager_repo import SQLAlchemyMemoryManagerRepository
 from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
@@ -60,12 +59,9 @@ from animama.orm import (
     ORMMemoryManagerRun,
     ORMUserSettings,
 )
+from animama.product_http.routes import animas as anima_router, memory as memory_entries_router
 from animama.server.model_roles import ModelRoleSettings
-from animama.server.routers import (
-    anima as anima_router,
-    memory_entries as memory_entries_router,
-    memory_manager as memory_manager_router,
-)
+from animama.server.routers import memory_manager as memory_manager_router
 from animama.server.schemas.memory_entry import PyMemoryEntryCreateRequest, PyMemoryEntryPatchRequest
 from animama.server.schemas.memory_manager import (
     PyMemoryManagerApprovalDecisionRequest,
@@ -74,6 +70,7 @@ from animama.server.schemas.memory_manager import (
     PyMemoryManagerRunCreateRequest,
     PyMemoryManagerRunResponse,
 )
+from tests.product_http_support import TEST_POLICY
 
 _START = datetime(2026, 9, 1, 12, 0)
 
@@ -130,10 +127,13 @@ async def _anima(async_session, *, user_id: str, name: str = "Annie") -> tuple[s
             content=f"# {name}\n\nCalm and curious.\n",
             description=f"Who {name} is",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
-    memories = await memory_entries_router.repair_anima_memories(anima_id, session=async_session, user=_user(user_id))
+    memories = await memory_entries_router.repair_anima_memories(
+        anima_id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(user_id)
+    )
     return anima_id, memories.id
 
 
@@ -230,7 +230,9 @@ async def _coverage(async_session, *, user_id: str, anima_id: str):  # noqa: ANN
 
 
 async def _memories(async_session, *, user_id: str, entry_id: str):  # noqa: ANN001, ANN202
-    return await memory_entries_router.get_memory_entry(entry_id, session=async_session, user=_user(user_id))
+    return await memory_entries_router.get_memory_entry(
+        entry_id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(user_id)
+    )
 
 
 async def _run_domain(async_session, *, user_id: str, run_id: str) -> MemoryManagerRun:  # noqa: ANN001
@@ -494,7 +496,7 @@ async def test_reflection_reads_the_oldest_400_turns_and_leaves_the_rest(async_s
     assert last_page["turns"][-1]["user"] == "Turn 400"
     assert (await reader.read_page(9))["turns"] == []
     run = await _run_domain(async_session, user_id=user_id, run_id=first.run.id)
-    assert _max_turns_for_run(run) == 16
+    assert max_turns_for_run(run) == 16
 
     await _decide(async_session, user_id=user_id, approval_id=first.approvals[0].id, decision="approve")
     rest = await _reflect(async_session, user_id=user_id, anima_id=anima_id)
@@ -535,7 +537,8 @@ async def test_rejected_superseded_or_conflicting_reflections_change_nothing(asy
     await memory_entries_router.patch_memory_entry(
         memories_id,
         PyMemoryEntryPatchRequest(content="# Memories\n\nThe owner wrote this.\n", expected_version=template.version),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     with pytest.raises(HTTPException) as stale:
@@ -626,7 +629,8 @@ async def test_reflection_that_proposes_nothing_leaves_turns_uncovered(async_ses
         PyMemoryEntryPatchRequest(
             content=f"{current.content}\n- Already remembered\n", expected_version=current.version
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
 
@@ -807,7 +811,9 @@ async def test_deleting_an_anima_removes_its_coverage(async_session, clean_rows)
     await _reflect(async_session, user_id=user_id, anima_id=anima_id, auto_approve_diffs=True)
     assert await _coverage(async_session, user_id=user_id, anima_id=anima_id) is not None
 
-    await anima_router.delete_anima(anima_id, session=async_session, user=_user(user_id))
+    await anima_router.delete_anima(
+        anima_id, repositories=SQLAlchemyProductRepositories(async_session), user=_user(user_id)
+    )
 
     rows = await async_session.execute(
         select(ORMAnimaMemoryReflection).where(ORMAnimaMemoryReflection.anima_id == anima_id)
@@ -891,7 +897,7 @@ async def test_live_runtime_offers_turn_reading_and_own_memories_only_in_reflect
     assert isinstance(general_agent.instructions, str)
     assert "# Reflection mode" not in general_agent.instructions
     assert f"animas/{other_id}/MEMORIES.md" in general_agent.instructions
-    assert _max_turns_for_run(general_run) == 8
+    assert max_turns_for_run(general_run) == 8
 
 
 @pytest.mark.asyncio
