@@ -21,6 +21,7 @@ from animama.adapters.memory_manager.anthropic_memory_tool import (
 )
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.services.anima_identity_memory import (
     EPISODE_PROCESSING_MANAGER_FILE_ACCESS,
@@ -32,8 +33,9 @@ from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.domain.memory_episode import MEMORY_EPISODE_LOG_ENTRY_KIND
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMMemoryEntry, ORMMemoryEntryVersion
-from animama.server.routers import memory_entries as memory_entries_router
+from animama.product_http.routes import memory as memory_entries_router
 from animama.server.schemas.memory_entry import PyMemoryEntryCreateRequest
+from tests.product_http_support import TEST_POLICY
 
 PROFILE = "# Profile\n\n- Prefers coffee in the morning.\n- Lives in Toronto.\n"
 PROFILE_DOCUMENT = (
@@ -115,10 +117,13 @@ async def _anima(async_session, user_id: str, name: str) -> str:  # noqa: ANN001
             content=f"# {name}\n\nCalm and curious.\n",
             description=f"Who {name} is",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=principal,
     )
-    await memory_entries_router.repair_anima_memories(anima_id, session=async_session, user=principal)
+    await memory_entries_router.repair_anima_memories(
+        anima_id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=principal
+    )
     return anima_id
 
 
