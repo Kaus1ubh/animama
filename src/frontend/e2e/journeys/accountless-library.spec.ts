@@ -117,8 +117,8 @@ test("accountless built-in pose playback @surface-library @channel-pose-clip @re
       expectedTarget: { kind: "anima_pose_clip", runtimeId: "have_idea" },
       // The bulb event starts 2.6 s into the clip and shows its effect for
       // 0.95 s; the proof keeps sampling through its observation window until
-      // a sample inside that interval sees the effect. Scene Effect playback
-      // is proven on a Reaction in playback-library.spec.ts.
+      // a sample inside that interval sees the effect. No Included Gesture
+      // plays a Scene Effect; accountless-imported-playback covers that.
       expectedAvatarEffects: ["idea_bulb_fingertip"],
       expectedEventIds: ["idea-bulb"],
       maxMissingBones: 1,

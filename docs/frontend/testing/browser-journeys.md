@@ -190,13 +190,15 @@ pose time, resolved skeleton bones, the `idea-bulb` event and its
 `idea_bulb_fingertip` Avatar Effect image, plus protected resource responses.
 The bulb event starts 2.6 s into the clip, so the check waits past it.
 Screenshot and observation attachments retain the rendering evidence; the known
-single unresolved sample-avatar bone is allowed. In `playback-library.spec.ts`,
-`library-gesture-have-an-idea` gives the same Gesture Avatar Effect proof, and
-`library-reaction-curiosity-3` checks Scene Effect playback: no Included Gesture
-plays a Scene Effect, so Curiosity Reaction 3 carries one beside an Avatar and a
-Particle Effect. The focused pose test permits only reads and gesture-preview
-preparation requests; it does not select an Anima through saved settings, chat,
-upload or play audio. Optional Local Mixamo VRMA playback and imported animation
+single unresolved sample-avatar bone is allowed. `playback-library.spec.ts` is
+outside the active `chromium` project and is only type-checked: its
+`library-gesture-have-an-idea` repeats the Gesture Avatar Effect proof, and
+`library-reaction-curiosity-3` would check Scene Effect playback on Curiosity
+Reaction 3, because no Included Gesture plays a Scene Effect. Active Scene Effect
+coverage comes from the imported Gesture and Reaction in
+`accountless-imported-playback.spec.ts`. The focused pose test permits only
+reads and gesture-preview preparation requests; it does not select an Anima
+through saved settings, chat, upload or play audio. Optional Local Mixamo VRMA playback and imported animation
 acceptance remain separate. Run this focused check on an already initialized
 named stack with the tracked avatar inputs:
 

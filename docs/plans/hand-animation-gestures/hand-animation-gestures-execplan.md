@@ -6,7 +6,8 @@ clips now).
 Authorized scope: Phases 1–4 and Phase 5 up to gate G3 (2026-10-09). G1 is
 satisfied. G2 (preview approval) and G3 (licence wording and promotion list)
 remain owner gates.
-Branch: `feat/hand-animation-gestures` in its existing worktree; never pushed.
+Branch: `feat/hand-animation-gestures` in its existing worktree; pushed for the PR
+after the final integration review.
 Starting HEAD: merge commit `c52edb8a` (parents: prototype `430a089b`, `main` at
 `bfc0de4f`). Baseline for unchanged behavior: `bfc0de4f`.
 Delivery: #314 holds the published spec (2026-10-09T17:55:48Z); phase sub-issues
@@ -621,14 +622,63 @@ production build with `ANIMAMA_LLM_SKIP=1`, http://animama-hands.localhost:8300)
   `testMatch` (type-checked only).
 - Not performed: a live chat check with a paid model.
 
-#### Code Review #1 Findings
-
-#### Code Review #1 Revisions
+Phase 5 was reviewed as part of the final integration review below.
 
 ## Final integration review
 
 One full `sdlc-reviewer` pass over the PR against the spec, at most two repair
 rounds; then the owner's merge approval of the exact revision.
+
+Before the review, `main` (`3efefc5b`, 119 commits) was merged into the branch
+(`73d62314`); the only conflict was the ADR index, resolved by keeping main's rows
+and adding 0019 and 0020.
+
+#### Code Review #1 Findings
+
+Source `73d62314`, baseline `3efefc5b`, whole PR; full review of Phase 5,
+cross-phase checks for the rest.
+
+- FIR-R1-01 (required): `docs/frontend/runtime/mixamo-acquisition.md` and
+  `docs/frontend/desktop/runtime-staging.md` still gave 21 starter Gestures (R12).
+- FIR-R1-02 (optional): `browser-journeys.md` and the Library journey comment
+  presented `playback-library.spec.ts` proofs as active; it is type-checked only.
+- FIR-R1-03 (optional): plan records (empty Phase 5 review headings, "never
+  pushed", Outcomes not started; the Phase 3 record landed in the p5 commit).
+- FIR-R1-04 (optional): commit `50d5c8b1` calls Storytelling a test sequence; it
+  was the Included Gesture `storytelling` (`tell_story`).
+- FIR-R1-05 (evidence): per-item R13 results — all 26 promoted Gestures pass
+  `animation check` with no WARN; the three effects pass `effects check` on both
+  Avatars (bulb and heart with their Gestures).
+- FIR-R1-06 (pre-existing): the manifest gives `heart-hands-build` 1.55 s against
+  its 1.85 s clip, as at `3efefc5b`.
+- FIR-R1-07 (optional): copied Included clips under `motion-authoring/testing/`
+  have no source-review records.
+
+Passed: app and backend validation of all 43 Included Gestures; effect
+dependency resolution; reused art (same LFS objects); no dangling references to
+removed items; unique, consistent display names and byte-identical manifest copy;
+baseline hashes (14 untouched unchanged, 5 rename-only samples unchanged, 24
+re-baselined); licence rules and records; the merge; ownership boundaries.
+
+#### Code Review #1 Revisions
+
+- FIR-R1-01 accepted: both docs now say 20.
+- FIR-R1-02 accepted: the journeys doc says the spec is type-checked only and
+  names `accountless-imported-playback.spec.ts` as the active Scene Effect
+  coverage; the journey comment says the same.
+- FIR-R1-03 accepted: records updated here. The Phase 3 record stays in the p5
+  commit; a separate commit would add nothing.
+- FIR-R1-04 accepted for the PR text; history is not rewritten.
+- FIR-R1-05 accepted: recorded above and in the PR.
+- FIR-R1-06 deferred: pre-existing and outside #314; offered as a follow-up.
+- FIR-R1-07 rejected: test fixtures follow the existing practice for code and
+  test files; they are byte-identical to their `bfc0de4f` sources.
+
+Evidence on `73d62314` before the repairs (docs and one comment only):
+`pnpm check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm e2e:check` clean;
+`pnpm web:test` 447 files, 3723 passed, 1 skipped; `pnpm build` ok;
+`pnpm openapi-ts` regenerated with no drift; `make check-test` (typed-content
+audit, ruff, mypy, pytest 3533 passed, 10 skipped).
 
 ## Validation and acceptance
 
@@ -654,4 +704,14 @@ not run, and asks the owner to accept local evidence explicitly.
 
 ## Outcomes & Retrospective
 
-Not started.
+Delivered R1–R13: twelve fitted hand presets with per-finger offsets and creator
+round trip; a per-Avatar solver for declared hand contacts with creator edits at
+solved beats; checks for oscillation, finger collisions, facing, reach and head
+layers; promotion tooling for renames, loop changes and dependencies; 26 Gestures
+drafted by parallel sub-agents, approved in one preview round with four notes,
+and promoted with three new Avatar Effects.
+
+Lessons: measuring contacts at their points (not joint origins) exposed faults
+that the old checks passed; an effect needs its Gesture's dependency to play, so
+effect-bearing drafts are reviewed from project files; owner review of licence
+wording is easier from one package file with per-kind text.
