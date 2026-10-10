@@ -859,7 +859,8 @@ class SQLAlchemyContentCatalog(ContentCatalog):
 
         The source advisory lock is held by the caller. Refuse every live binding,
         external dependency, preview or runtime lease before cascading deletion.
-        Desktop removal preflight exposes the same blockers before changing mounts.
+        Desktop removal preflight exposes the same blockers before changing mounts
+        (it also counts Included edges, which reconciliation rebuilds instead).
         """
 
         ids = [row.id for row in rows]

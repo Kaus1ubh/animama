@@ -243,9 +243,9 @@ are removed, kept optional edges are written as ordinary edges, and no reference
 is recorded. An Anima export likewise omits non-portable Gesture and Idle Style
 bindings, explicit or implicit starter choices. Any other non-portable binding
 (for example an Avatar) blocks the export. The summary lists omitted items
-(`omitted`), and the manifest's `non_portable_references` record each one's kind,
-logical key, name and uses, with the `animama/non-portable-references/1`
-capability. Packages without references omit the field and stay readable by
+(`omitted`), and the manifest's `non_portable_references` record each omitted
+Gesture or Idle Style's kind, logical key, name and uses, with the
+`animama/non-portable-references/1` capability. Packages without references omit the field and stay readable by
 earlier versions.
 
 On import, the review lists each reference as `rebound` when this installation
