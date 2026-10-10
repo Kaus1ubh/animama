@@ -5,6 +5,7 @@ import { useProductApiClient } from "@animama/product-ui";
 import Uppy from "@uppy/core";
 import type { Meta, UppyFile } from "@uppy/core";
 import { useEffect, useMemo, useRef } from "react";
+import { getI18n } from "react-i18next";
 import { toast } from "sonner";
 
 import { useStrictModeSafeDestroy } from "@/hooks/useStrictModeSafeDestroy";
@@ -44,7 +45,8 @@ function asBrowserFile(file: UppyFile<UserFileUploadMeta, UserFileUploadBody>) {
   }
 
   if (!(file.data instanceof Blob)) {
-    throw new Error("Selected file data is unavailable.");
+    const t = getI18n().getFixedT(null, "app");
+    throw new Error(t("uploads.fileDataUnavailable"));
   }
 
   return new File([file.data], file.name ?? "upload", {
@@ -149,6 +151,7 @@ export function useUserFileUpload({
           const userFile = instance.getFile(fileId);
           const controller = new AbortController();
           activeUploads.set(fileId, controller);
+          const t = getI18n().getFixedT(null, "app");
           try {
             const browserFile = asBrowserFile(userFile);
             const { initUpload: currentInitUpload } = handlersRef.current;
@@ -169,7 +172,7 @@ export function useUserFileUpload({
             } catch (error) {
               const message = getUserFileErrorMessage(
                 error,
-                "Upload initialization failed.",
+                t("uploads.initFailed"),
               );
               setAnimaFileMeta(instance, userFile.id, {
                 anima_stage: "failed",
@@ -207,7 +210,7 @@ export function useUserFileUpload({
             });
             if (!response.ok) {
               throw new Error(
-                `File upload failed with HTTP ${response.status}.`,
+                t("uploads.httpFailed", { status: response.status }),
               );
             }
             instance.emit("upload-progress", instance.getFile(fileId), {
@@ -222,7 +225,7 @@ export function useUserFileUpload({
             });
           } catch (cause) {
             const error =
-              cause instanceof Error ? cause : new Error("File upload failed.");
+              cause instanceof Error ? cause : new Error(t("uploads.failed"));
             instance.emit("upload-error", instance.getFile(fileId), error);
           } finally {
             activeUploads.delete(fileId);
@@ -244,14 +247,16 @@ export function useUserFileUpload({
       file: UppyFile<UserFileUploadMeta, UserFileUploadBody> | undefined,
     ) {
       if (!file) return;
+      const t = getI18n().getFixedT(null, "app");
       const fileId = file.meta.file_id;
       if (!fileId) {
+        const missingId = t("uploads.missingFileId");
         setAnimaFileMeta(uppy, file.id, {
           anima_stage: "failed",
-          anima_error: "The upload did not include a Anima file id.",
+          anima_error: missingId,
         });
-        toast.error("File upload could not be finalized.", {
-          description: "The upload did not include a Anima file id.",
+        toast.error(t("uploads.finalizeFailed"), {
+          description: missingId,
         });
         return;
       }
@@ -284,7 +289,7 @@ export function useUserFileUpload({
       } catch (error) {
         const message = getUserFileErrorMessage(
           error,
-          "Upload completed, but finalize failed.",
+          t("uploads.finalizeFailedAfterUpload"),
         );
         setAnimaFileMeta(uppy, file.id, {
           anima_stage: "failed",
@@ -295,7 +300,7 @@ export function useUserFileUpload({
           durationMs: elapsedMs(finalizeStartedAt),
           error: message,
         });
-        toast.error("File upload needs attention.", {
+        toast.error(t("uploads.needsAttention"), {
           description: message,
         });
         return;
@@ -341,11 +346,11 @@ export function useUserFileUpload({
             jobId: processResult.job_id ?? null,
             jobStatus: processResult.job_status ?? null,
           });
-          toast.success("File uploaded and queued for processing.");
+          toast.success(t("uploads.queuedForProcessing"));
         } catch (error) {
           const message = getUserFileErrorMessage(
             error,
-            "Upload completed, but processing could not be queued.",
+            t("uploads.processingNotQueuedAfterUpload"),
           );
           setAnimaFileMeta(uppy, file.id, {
             anima_stage: "uploaded",
@@ -356,20 +361,20 @@ export function useUserFileUpload({
             durationMs: elapsedMs(processStartedAt),
             error: message,
           });
-          toast.warning("Original saved; processing was not queued.", {
+          toast.warning(t("uploads.originalSavedNotQueued"), {
             description: message,
           });
           return;
         }
       } else {
         toast.success(
-          "Original saved.",
+          t("uploads.originalSaved"),
           shouldProcess
             ? {
                 description:
                   capabilities?.runtime_kind === "desktop"
-                    ? "Document processing is unavailable. Install the pack in Settings, then process the file from Library."
-                    : "Processing was not queued. You can process the original from Library once document processing is available.",
+                    ? t("uploads.processingUnavailableDesktop")
+                    : t("uploads.processingUnavailable"),
               }
             : undefined,
         );
@@ -388,14 +393,16 @@ export function useUserFileUpload({
       file: UppyFile<UserFileUploadMeta, UserFileUploadBody> | undefined,
       error: { message?: string },
     ) {
+      const t = getI18n().getFixedT(null, "app");
       if (file) {
         setAnimaFileMeta(uppy, file.id, {
           anima_stage: "failed",
-          anima_error: error.message || "Object upload failed.",
+          anima_error: error.message || t("uploads.objectUploadFailed"),
         });
       }
-      toast.error("File upload failed.", {
-        description: error.message || file?.name || "Object upload failed.",
+      toast.error(t("uploads.failed"), {
+        description:
+          error.message || file?.name || t("uploads.objectUploadFailed"),
       });
     }
 
@@ -403,7 +410,8 @@ export function useUserFileUpload({
       _file: UppyFile<UserFileUploadMeta, UserFileUploadBody> | undefined,
       error: Error,
     ) {
-      toast.error("File cannot be uploaded.", {
+      const t = getI18n().getFixedT(null, "app");
+      toast.error(t("uploads.rejected"), {
         description: error.message,
       });
     }

@@ -1,4 +1,5 @@
 import type { ProductApiTransport } from "@animama/runtime-contracts";
+import { getI18n } from "react-i18next";
 
 /** One admitted browser lifetime; it owns requests and registered private resources. */
 export class SessionRequestScope {
@@ -16,10 +17,10 @@ export class SessionRequestScope {
 
   readonly fetch: typeof globalThis.fetch = async (input, init) => {
     this.assertActive();
-    if (this.suspended)
-      throw new Error(
-        "Animama is reconnecting. This request has not been sent.",
-      );
+    if (this.suspended) {
+      const t = getI18n().getFixedT(null, "app");
+      throw new Error(t("connection.requestNotSent"));
+    }
     const target =
       typeof input === "string"
         ? new URL(input, this.transport.baseUrl)

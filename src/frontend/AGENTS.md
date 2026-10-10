@@ -162,8 +162,9 @@ or migration behavior.
 ### Interface Text And Locales
 
 - User-visible text comes from catalogs, never inline English: add the English
-  string to `web/src/locales/en/<namespace>.json` (or product-ui's `en.json`),
-  use it with `useTranslation`/`t`, and add `ja`, `ko`, `zh-Hans` and `zh-Hant`
+  string to `web/src/locales/en/<namespace>.json` (or product-ui's
+  `locales/en/product.json`), use it with `useTranslation`/`t` (product-ui code:
+  `useProductTranslation`), and add `ja`, `ko`, `zh-Hans` and `zh-Hant`
   translations with `src/frontend/i18n/terms.json`. See
   `docs/frontend/architecture/i18n.md`.
 - Word backend failures from their codes; do not render backend English as the

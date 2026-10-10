@@ -1,3 +1,6 @@
+import type { TFunction } from "i18next";
+import { productEnglishT } from "../i18n/product-translation";
+
 export type ChatInputSubmitMode = "text-or-voice" | "text-only";
 
 export type ChatInputSubmitAction =
@@ -17,31 +20,37 @@ export type ChatInputSubmitState = {
   tooltip: string | null;
 };
 
-/** Resolves generic composer submit presentation without depending on React. */
-export function resolveChatInputSubmitState({
-  submitMode,
-  hasText,
-  loading,
-  hasStopHandler,
-  isVoiceModeActive,
-  disabled,
-  voiceAvailable = true,
-}: {
-  submitMode: ChatInputSubmitMode;
-  hasText: boolean;
-  loading: boolean;
-  hasStopHandler: boolean;
-  isVoiceModeActive: boolean;
-  disabled: boolean;
-  voiceAvailable?: boolean;
-}): ChatInputSubmitState {
+/**
+ * Resolves generic composer submit presentation without depending on React;
+ * labels use `t` (English by default).
+ */
+export function resolveChatInputSubmitState(
+  {
+    submitMode,
+    hasText,
+    loading,
+    hasStopHandler,
+    isVoiceModeActive,
+    disabled,
+    voiceAvailable = true,
+  }: {
+    submitMode: ChatInputSubmitMode;
+    hasText: boolean;
+    loading: boolean;
+    hasStopHandler: boolean;
+    isVoiceModeActive: boolean;
+    disabled: boolean;
+    voiceAvailable?: boolean;
+  },
+  t: TFunction<"product"> = productEnglishT(),
+): ChatInputSubmitState {
   if (submitMode === "text-only") {
     if (loading) {
       return {
         action: null,
         disabled: true,
         icon: "loading",
-        label: "Sending message",
+        label: t("composer.sending"),
         tooltip: null,
       };
     }
@@ -50,7 +59,7 @@ export function resolveChatInputSubmitState({
       action: hasText ? "submit" : null,
       disabled: disabled || !hasText,
       icon: "send",
-      label: "Send message",
+      label: t("composer.send"),
       tooltip: null,
     };
   }
@@ -60,8 +69,8 @@ export function resolveChatInputSubmitState({
       action: "stop-request",
       disabled,
       icon: "stop",
-      label: "Stop",
-      tooltip: "Stop",
+      label: t("composer.stop"),
+      tooltip: t("composer.stop"),
     };
   }
 
@@ -70,7 +79,7 @@ export function resolveChatInputSubmitState({
       action: "submit",
       disabled,
       icon: "send",
-      label: "Send message",
+      label: t("composer.send"),
       tooltip: null,
     };
   }
@@ -80,8 +89,8 @@ export function resolveChatInputSubmitState({
       action: "stop-voice",
       disabled,
       icon: "stop",
-      label: "Stop voice mode",
-      tooltip: "Stop voice mode",
+      label: t("composer.stopVoice"),
+      tooltip: t("composer.stopVoice"),
     };
   }
 
@@ -89,9 +98,9 @@ export function resolveChatInputSubmitState({
     action: "start-voice",
     disabled: disabled || !voiceAvailable,
     icon: "voice",
-    label: "Voice mode",
+    label: t("composer.voiceMode"),
     tooltip: voiceAvailable
-      ? "Voice mode"
-      : "Offline speech recognition is unavailable",
+      ? t("composer.voiceMode")
+      : t("composer.speechUnavailable"),
   };
 }

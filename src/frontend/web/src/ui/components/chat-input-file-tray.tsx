@@ -6,7 +6,6 @@ import {
   resolveUserFileUploadCardStatus,
   type UserFileUploadCardStatus,
 } from "@/lib/user-files/upload-card-status";
-import { formatFileSize } from "@/lib/user-files/uploads";
 import { cn } from "@/lib/utils";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
 import { Button } from "@/ui/components/button";
@@ -16,6 +15,7 @@ import {
   TooltipTrigger,
 } from "@/ui/components/tooltip";
 import { useUppyState } from "@uppy/react";
+import { useFormatters, type LocaleFormatters } from "@animama/product-ui/i18n";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -24,6 +24,8 @@ import {
   X,
 } from "lucide-react";
 import { useMemo } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 type ChatInputFileTrayProps = {
   className?: string;
@@ -61,25 +63,25 @@ function normalizeExtension(value: string | null | undefined): string | null {
 }
 
 function fileKind(
+  t: TFunction<"chat">,
   file: ReturnType<UserFileUploadUppy["getFile"]>,
   backendFile: PyUserFileResponse | null,
 ): string {
   return (
     normalizeExtension(backendFile?.normalized_extension) ??
     normalizeExtension(file.extension) ??
-    (file.type || "file")
+    (file.type || t("composer.files.genericKind"))
   );
 }
 
-function displaySize(
-  file: ReturnType<UserFileUploadUppy["getFile"]>,
-  backendFile: PyUserFileResponse | null,
-): string {
-  return formatFileSize(
-    backendFile?.stored_size_bytes ??
-      backendFile?.declared_size_bytes ??
-      file.size,
-  );
+/** A localized size, or nothing while the size is unknown. */
+export function attachmentSize(
+  formatters: Pick<LocaleFormatters, "fileSize">,
+  bytes: number | null | undefined,
+): string | null {
+  return typeof bytes === "number" && Number.isFinite(bytes) && bytes > 0
+    ? formatters.fileSize(bytes)
+    : null;
 }
 
 function StatusGlyph({ status }: { status: UserFileUploadCardStatus }) {
@@ -109,12 +111,19 @@ function ExistingFileCard({
   file: PyUserFileResponse;
   onRemove?: (fileId: string) => void;
 }) {
+  const { t } = useTranslation("chat");
+  const formatters = useFormatters();
   const statusLabel =
-    file.status === "ready" ? "Ready" : "Ready (keyword only)";
+    file.status === "ready"
+      ? t("composer.files.ready")
+      : t("composer.files.readyKeywordOnly");
   return (
     <div
       className="border-border/70 bg-background/80 flex min-h-14 min-w-0 basis-[13rem] items-center gap-2 rounded-lg border px-2 py-1.5 shadow-xs"
-      aria-label={`${file.original_filename} ${statusLabel}`}
+      aria-label={t("composer.files.cardLabel", {
+        name: file.original_filename,
+        status: statusLabel,
+      })}
     >
       <div className="bg-success/10 text-success flex size-7 shrink-0 items-center justify-center rounded-md">
         <CheckCircle2 className="size-3.5" aria-hidden="true" />
@@ -125,10 +134,14 @@ function ExistingFileCard({
         </div>
         <div className="text-muted-foreground text-2xs mt-0.5 flex min-w-0 items-center gap-1.5 leading-4">
           <span className="shrink-0">
-            {normalizeExtension(file.normalized_extension) ?? "file"}
+            {normalizeExtension(file.normalized_extension) ??
+              t("composer.files.genericKind")}
           </span>
           <span className="shrink-0">
-            {formatFileSize(file.stored_size_bytes ?? file.declared_size_bytes)}
+            {attachmentSize(
+              formatters,
+              file.stored_size_bytes ?? file.declared_size_bytes,
+            )}
           </span>
           <span className="text-success min-w-0 truncate font-medium">
             {statusLabel}
@@ -145,11 +158,11 @@ function ExistingFileCard({
             onClick={() => onRemove?.(file.file_id)}
           >
             <X className="size-3.5" aria-hidden="true" />
-            <span className="sr-only">Remove from composer</span>
+            <span className="sr-only">{t("composer.files.remove")}</span>
           </Button>
         </TooltipTrigger>
         <TooltipContent avoidCollisions={false} side="bottom">
-          Remove from composer
+          {t("composer.files.remove")}
         </TooltipContent>
       </Tooltip>
     </div>
@@ -163,6 +176,8 @@ export function ChatInputFileTray({
   onRemoveExistingFile,
   uppy,
 }: ChatInputFileTrayProps) {
+  const { t } = useTranslation("chat");
+  const formatters = useFormatters();
   const filesById = useUppyState(uppy, (state) => state.files);
   const files = useMemo(() => Object.values(filesById), [filesById]);
   const knownFileIds = useMemo(
@@ -218,7 +233,10 @@ export function ChatInputFileTray({
             <div
               key={file.id}
               className="border-border/70 bg-background/80 flex min-h-14 min-w-0 basis-[13rem] items-center gap-2 rounded-lg border px-2 py-1.5 shadow-xs"
-              aria-label={`${file.name} ${status.label}`}
+              aria-label={t("composer.files.cardLabel", {
+                name: file.name,
+                status: status.label,
+              })}
             >
               <div
                 className={cn(
@@ -234,10 +252,15 @@ export function ChatInputFileTray({
                 </div>
                 <div className="text-muted-foreground text-2xs mt-0.5 flex min-w-0 items-center gap-1.5 leading-4">
                   <span className="shrink-0">
-                    {fileKind(file, backendFile)}
+                    {fileKind(t, file, backendFile)}
                   </span>
                   <span className="shrink-0">
-                    {displaySize(file, backendFile)}
+                    {attachmentSize(
+                      formatters,
+                      backendFile?.stored_size_bytes ??
+                        backendFile?.declared_size_bytes ??
+                        file.size,
+                    )}
                   </span>
                   <span
                     className={cn(
@@ -274,11 +297,13 @@ export function ChatInputFileTray({
                     }}
                   >
                     <X className="size-3.5" aria-hidden="true" />
-                    <span className="sr-only">Remove from composer</span>
+                    <span className="sr-only">
+                      {t("composer.files.remove")}
+                    </span>
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent avoidCollisions={false} side="bottom">
-                  Remove from composer
+                  {t("composer.files.remove")}
                 </TooltipContent>
               </Tooltip>
             </div>

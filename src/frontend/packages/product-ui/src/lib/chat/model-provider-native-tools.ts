@@ -35,7 +35,19 @@ export function requestableNativeTools(
 export type WebSearchAvailability =
   | { state: "hosted" }
   | { state: "application" }
-  | { state: "unavailable"; reason: string };
+  | {
+      state: "unavailable";
+      /** Why search is unavailable; hosts word it in the active locale. */
+      code: WebSearchUnavailableCode;
+      /** English text for hosts and logs. */
+      reason: string;
+    };
+
+/** Why the application search cannot be used with a model row. */
+export type WebSearchUnavailableCode =
+  | "tools_unsupported"
+  | "not_configured"
+  | "key_missing";
 
 export function webSearchAvailability(
   item: PyModelProviderCatalogItem | null | undefined,
@@ -52,16 +64,19 @@ export function webSearchAvailability(
   if (!item.supports_tools)
     return {
       state: "unavailable",
+      code: "tools_unsupported",
       reason: "This model can't call tools, so it can't search.",
     };
   if (!search.configured)
     return {
       state: "unavailable",
+      code: "not_configured",
       reason: "Set up web search in App Settings.",
     };
   if (search.credential_state === "missing")
     return {
       state: "unavailable",
+      code: "key_missing",
       reason:
         "The Brave Search key is not set. See Web search in App Settings.",
     };

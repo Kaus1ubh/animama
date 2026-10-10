@@ -10,7 +10,7 @@ import {
   isUiLocale,
   type UiLocale,
 } from "@animama/runtime-contracts/locale";
-import productEnglish from "../locales/en.json";
+import productEnglish from "../locales/en/product.json";
 import { PSEUDO_LOCALE, pseudoPostProcessor } from "./pseudo";
 
 /** Namespace holding the shared product UI's own strings. */
@@ -47,13 +47,13 @@ async function loadProductCatalog(locale: UiLocale): Promise<Catalog> {
     case "en":
       return productEnglish;
     case "ja":
-      return (await import("../locales/ja.json")).default;
+      return (await import("../locales/ja/product.json")).default;
     case "ko":
-      return (await import("../locales/ko.json")).default;
+      return (await import("../locales/ko/product.json")).default;
     case "zh-Hans":
-      return (await import("../locales/zh-Hans.json")).default;
+      return (await import("../locales/zh-Hans/product.json")).default;
     case "zh-Hant":
-      return (await import("../locales/zh-Hant.json")).default;
+      return (await import("../locales/zh-Hant/product.json")).default;
   }
 }
 

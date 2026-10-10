@@ -71,14 +71,15 @@ test("the catalog check fails only on errors and reports missing beta keys", asy
     const product = path.join(root, "packages/product-ui/src/locales");
     await mkdir(path.join(web, "en"), { recursive: true });
     await mkdir(path.join(web, "ja"), { recursive: true });
-    await mkdir(product, { recursive: true });
+    await mkdir(path.join(product, "en"), { recursive: true });
+    await mkdir(path.join(product, "ja"), { recursive: true });
     await writeFile(path.join(web, "en/common.json"), JSON.stringify(english));
     await writeFile(
       path.join(web, "ja/common.json"),
       JSON.stringify({ greeting: "こんにちは {{name}}" }),
     );
-    await writeFile(path.join(product, "en.json"), "{}");
-    await writeFile(path.join(product, "ja.json"), "{}");
+    await writeFile(path.join(product, "en/product.json"), "{}");
+    await writeFile(path.join(product, "ja/product.json"), "{}");
     const passing = await checkCatalogs({ root });
     assert.deepEqual(passing.errors, []);
     assert.deepEqual(passing.report, ["web ja/common: 3 missing"]);

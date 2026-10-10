@@ -1,0 +1,202 @@
+{
+  "accountUsage": {
+    "units": {
+      "chats": "聊天",
+      "storageBytes": "存储空间（字节）",
+      "turns": "聊天轮次"
+    }
+  },
+  "actions": {
+    "retry": "重试"
+  },
+  "admission": {
+    "accountUnavailable": "无法访问账户。",
+    "accountUnavailableContactOperator": "无法访问账户。请联系托管运营方。",
+    "actions": {
+      "account": "账户",
+      "signIn": "登录",
+      "signOut": "退出登录",
+      "tryAgain": "重试",
+      "tryRecovery": "尝试恢复"
+    },
+    "ineligible": {
+      "description": "此账户无法使用托管版 Animama。请检查账户访问权限，或联系运营方。",
+      "title": "无法访问账户"
+    },
+    "loading": {
+      "title": "正在准备 Animama…"
+    },
+    "messages": {
+      "accountSetupFinishing": "正在完成账户设置…",
+      "accountSetupRunning": "正在设置账户…",
+      "cleanupFailed": "Animama 未能从此浏览器中完全清除上一个会话。请刷新页面，或重试以继续。",
+      "incompatibleCapabilities": "此托管运行时的功能与应用不兼容。",
+      "signInNotFinished": "登录未完成。请重试。",
+      "signInNotStarted": "无法开始登录。请重试。",
+      "signOutDataRemains": "你已退出登录，但部分私人数据未能从此浏览器中删除。请在重新登录前刷新页面。",
+      "updateRequired": "需要更新应用才能使用此托管运行时。"
+    },
+    "recovery": {
+      "description": "Animama 未能完成账户准备。请尝试恢复以继续。",
+      "title": "你的账户需要恢复"
+    },
+    "restricted": {
+      "description": "你的账户已暂停或正在更新。你可以检查账户访问状态，稍后再试。",
+      "title": "账户访问受限"
+    },
+    "signInRequired": {
+      "description": "登录后即可使用你的 Anima、聊天和资源库。",
+      "title": "登录 Animama"
+    },
+    "signOutIncomplete": {
+      "description": "Animama 已关闭此页面，但你的账户可能仍处于登录状态。请重试以完成退出登录。",
+      "title": "退出登录未完成"
+    },
+    "unavailable": {
+      "description": "Animama 无法连接到运行时。请重试。",
+      "localTitle": "本地运行时不可用",
+      "title": "运行时不可用"
+    }
+  },
+  "animas": {
+    "creationUnavailable": {
+      "description": "此 Animama 运行时不支持创建新的 Anima。",
+      "title": "无法创建 Anima"
+    },
+    "resolving": {
+      "description": "正在确定你的第一个 Anima…",
+      "title": "正在打开 Anima 管理"
+    },
+    "rosterFailed": {
+      "description": "无需离开此页面即可重新加载 Anima 列表。",
+      "title": "无法加载你的 Anima"
+    }
+  },
+  "connection": {
+    "requestNotSent": "Animama 正在重新连接。此请求尚未发送。"
+  },
+  "dictation": {
+    "errors": {
+      "audioWorkletParakeet": "本地 Parakeet 语音识别需要 AudioWorklet 支持。",
+      "audioWorkletVad": "声学 VAD 需要 AudioWorklet 支持。",
+      "browser": {
+        "aborted": "语音识别已停止。",
+        "audioCapture": "没有可用于浏览器语音识别的麦克风。",
+        "failed": "浏览器语音识别失败。",
+        "languageNotSupported": "浏览器本地语音识别不支持所选语言。",
+        "network": "浏览器语音识别出现网络错误。",
+        "noSpeech": "未检测到语音。",
+        "notAllowed": "浏览器语音识别的麦克风权限被拒绝。",
+        "serviceNotAllowed": "此浏览器不允许使用语音识别服务。"
+      },
+      "browserStartFailed": "无法启动浏览器听写",
+      "failed": "听写失败",
+      "localWebSpeechNotEnabled": "无法启用浏览器本地语音识别",
+      "localWebSpeechUnsupported": "不支持仅限本地的浏览器语音识别",
+      "offlineSpeechMissing": "请在设置中安装离线语音识别，以使用听写和语音模式。",
+      "parakeetFailed": "本地 Parakeet 语音识别失败",
+      "transcriptionFailed": "本地 Parakeet 转写失败",
+      "unmuteFailed": "无法取消语音模式静音",
+      "webSpeechUnsupported": "此浏览器不支持 Web Speech API"
+    }
+  },
+  "featurePacks": {
+    "changeFailed": "功能包更改未能完成。请查看下方状态后重试。",
+    "unavailable": "功能包不可用。请检查运行时恢复情况后重试。"
+  },
+  "launch": {
+    "failed": {
+      "description": "Animama 无法加载你的 Anima 或已保存的选择。请重试。",
+      "title": "无法打开你的 Anima"
+    },
+    "opening": "正在打开你的 Anima…"
+  },
+  "meta": {
+    "description": "Animama，你的 AI 虚拟形象伙伴。"
+  },
+  "notFound": {
+    "description": "此地址没有对应的 Animama 页面。",
+    "eyebrow": "未找到",
+    "title": "找不到页面"
+  },
+  "pageLoadError": {
+    "description": "请刷新以获取最新的应用文件，然后重试。此页面上未保存的更改可能会丢失。",
+    "reload": "刷新页面",
+    "title": "页面无法加载"
+  },
+  "pip": {
+    "close": "关闭画中画",
+    "resize": "调整画中画大小",
+    "unavailable": "画中画不可用。请继续在此窗口中使用伙伴。"
+  },
+  "quickChat": {
+    "incompatibleModel": "该模型以不同方式保存对话。请打开主聊天，在新聊天中继续。",
+    "toggleFailed": "无法切换快速聊天",
+    "unavailable": "快速聊天可在桌面应用的 Anima 聊天中使用。",
+    "unknownError": "未知的桌面错误。"
+  },
+  "runtime": {
+    "avatarPoseUnavailable": "无法以待机姿势加载虚拟形象。请重新加载其内容后重试。",
+    "preparationFailed": "无法准备虚拟形象内容。"
+  },
+  "shortcuts": {
+    "configureFailed": "无法配置桌面快捷键。",
+    "unavailable": "桌面快捷键不可用",
+    "unmuteFailed": "无法为按键说话取消语音模式静音。",
+    "updateFailed": "无法更新桌面快捷键状态。"
+  },
+  "tts": {
+    "pocketVoiceUnavailable": "Pocket 语音不可用",
+    "unavailable": "文字转语音不可用",
+    "warnings": {
+      "browserGenerateFailed": "无法为此回复生成浏览器语音。",
+      "browserPlayFailed": "无法为此回复播放浏览器语音。",
+      "browserUnsupported": "此浏览器不支持语音合成。",
+      "elevenLabsClosedEarly": "ElevenLabs 实时 TTS 在播放完成前已关闭。",
+      "elevenLabsConnectionFailed": "此回复的 ElevenLabs 实时 TTS 连接失败。",
+      "elevenLabsDecodeFailed": "无法解码 ElevenLabs 实时音频。",
+      "elevenLabsFinalizedDecodeFailed": "无法解码 ElevenLabs 最终音频。",
+      "elevenLabsMissingAnima": "此回复的 ElevenLabs TTS 需要 Anima 上下文。",
+      "elevenLabsUnsupported": "此浏览器环境不支持 ElevenLabs TTS。",
+      "generic": "无法播放此回复的语音。",
+      "pocketGenerationFailed": "PocketTTS 未能合成此回复的部分内容。",
+      "pocketUnsupported": "此浏览器环境不支持 PocketTTS。"
+    }
+  },
+  "unavailable": {
+    "eyebrow": "不可用",
+    "reasons": {
+      "animaCreation": "此托管应用不支持创建 Anima。",
+      "chatFileUploads": "此托管应用不支持聊天附件。",
+      "documentProcessing": "此托管应用不支持文档导入和 OCR。",
+      "hostedSetup": "安装设置属于本地应用。你的托管账户由运行时准备。",
+      "localFilesystemAdministration": "管理本地文件系统需要本地应用。",
+      "nativeFeatures": "此操作需要桌面应用。浏览器全屏和受支持浏览器的画中画仍可使用。",
+      "providerCredentials": "提供商连接和凭据由托管运营方管理。"
+    },
+    "returnHome": "返回首页",
+    "title": "此处不可用"
+  },
+  "uploads": {
+    "failed": "文件上传失败。",
+    "fileDataUnavailable": "所选文件的数据不可用。",
+    "finalizeFailed": "无法完成文件上传。",
+    "finalizeFailedAfterUpload": "上传已完成，但最终处理失败。",
+    "httpFailed": "文件上传失败（HTTP {{status}}）。",
+    "initFailed": "上传初始化失败。",
+    "missingFileId": "上传内容未包含 Anima 文件 ID。",
+    "needsAttention": "文件上传需要处理。",
+    "objectUploadFailed": "对象上传失败。",
+    "originalSaved": "已保存原始文件。",
+    "originalSavedNotQueued": "已保存原始文件，但处理未加入队列。",
+    "processingNotQueuedAfterUpload": "上传已完成，但无法将处理加入队列。",
+    "processingUnavailable": "处理未加入队列。文档处理可用后，你可以在资源库中处理原始文件。",
+    "processingUnavailableDesktop": "文档处理不可用。请在设置中安装功能包，然后在资源库中处理该文件。",
+    "queuedForProcessing": "文件已上传并加入处理队列。",
+    "rejected": "无法上传此文件。"
+  },
+  "voiceDownloads": {
+    "changeFailed": "语音下载更改未能完成。请稍后重试。",
+    "unavailable": "语音下载不可用。请重新打开语音浏览器后重试。"
+  }
+}

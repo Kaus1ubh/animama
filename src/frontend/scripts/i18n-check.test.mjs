@@ -117,3 +117,16 @@ test("an English key no code uses fails the catalog sync", async () => {
     await rm(root, { recursive: true, force: true });
   }
 });
+
+test("the shared product UI has no literal toast text", async () => {
+  // product-ui has no ESLint step, so this mirrors web's toast rule.
+  const { readdir } = await import("node:fs/promises");
+  const root = path.join(frontendRoot, "packages/product-ui/src");
+  const offenders = [];
+  for (const entry of await readdir(root, { recursive: true })) {
+    if (!/\.(ts|tsx)$/.test(entry) || /\.test\./.test(entry)) continue;
+    const source = await readFile(path.join(root, entry), "utf8");
+    if (/\btoast(?:\.\w+)?\(\s*["'`]/.test(source)) offenders.push(entry);
+  }
+  assert.deepEqual(offenders, []);
+});

@@ -10,15 +10,10 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const frontendRoot = fileURLToPath(new URL("..", import.meta.url));
 
-/** Catalog sets: one directory per locale (web) or one file per locale (product-ui). */
+/** Catalog sets: one directory per locale holding one JSON file per namespace. */
 export const CATALOG_SETS = [
-  { name: "web", root: "web/src/locales", layout: "directories" },
-  {
-    name: "product-ui",
-    root: "packages/product-ui/src/locales",
-    layout: "files",
-    namespace: "product",
-  },
+  { name: "web", root: "web/src/locales" },
+  { name: "product-ui", root: "packages/product-ui/src/locales" },
 ];
 
 export const SOURCE_LOCALE = "en";
@@ -96,24 +91,15 @@ export async function loadCatalogSet(set, root = frontendRoot) {
   const directory = path.join(root, set.root);
   const locales = {};
   for (const entry of await readdir(directory, { withFileTypes: true })) {
-    if (set.layout === "directories" && entry.isDirectory()) {
-      const namespaces = {};
-      for (const file of await readdir(path.join(directory, entry.name))) {
-        if (!file.endsWith(".json")) continue;
-        namespaces[file.slice(0, -".json".length)] = await readJson(
-          path.join(directory, entry.name, file),
-        );
-      }
-      locales[entry.name] = namespaces;
-    } else if (
-      set.layout === "files" &&
-      entry.isFile() &&
-      entry.name.endsWith(".json")
-    ) {
-      locales[entry.name.slice(0, -".json".length)] = {
-        [set.namespace]: await readJson(path.join(directory, entry.name)),
-      };
+    if (!entry.isDirectory()) continue;
+    const namespaces = {};
+    for (const file of await readdir(path.join(directory, entry.name))) {
+      if (!file.endsWith(".json")) continue;
+      namespaces[file.slice(0, -".json".length)] = await readJson(
+        path.join(directory, entry.name, file),
+      );
     }
+    locales[entry.name] = namespaces;
   }
   return locales;
 }

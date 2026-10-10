@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveChatInputSubmitState } from "./chat-input-submit-state";
+import { resolveChatInputSubmitState } from "@animama/product-ui/components";
 
 const baseState = {
   hasText: false,

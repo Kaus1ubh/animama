@@ -9,6 +9,7 @@ import {
   type RefObject,
 } from "react";
 import { Plus } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type {
@@ -103,6 +104,7 @@ export function SetupAiStep({
   /** Leaves the step without a model ("Set up later"). */
   onSetUpLater: () => void;
 }) {
+  const { t } = useTranslation("setup");
   const capabilities = useRuntimeCapabilities();
   const managedKeys = useDesktopCredentialsAvailable();
   const { modelConfiguration } = modelSettingsAvailability(capabilities.data);
@@ -134,7 +136,7 @@ export function SetupAiStep({
     <DesktopCredentialsPanel
       providers={["openai"]}
       showTitle={false}
-      description="Encrypted on this computer and never shown again."
+      description={t("keys.storedDescription")}
       className="bg-transparent p-3"
       controllerRef={panel}
       onPendingChange={setPanelPending}
@@ -145,22 +147,20 @@ export function SetupAiStep({
   if (capabilities.isPending)
     return (
       <p className="text-muted-foreground text-sm" role="status">
-        Checking which models this installation offers…
+        {t("ai.checking")}
       </p>
     );
   if (capabilities.isError)
     return (
       <p className="text-muted-foreground text-sm" role="status">
-        Models could not be loaded. You can skip this step and set them up later
-        in App Settings → Models.
+        {t("ai.loadFailed")}
       </p>
     );
   if (!modelConfiguration)
     return (
       <div className="space-y-4">
         <p className="text-muted-foreground text-sm">
-          This installation provides its own models, so there is nothing to
-          choose here.
+          {t("ai.providedModels")}
         </p>
         {openAiKey}
       </div>
@@ -267,6 +267,7 @@ function ModelChooser({
   connectFormKeys: (providerId: string) => ConnectFormKeys;
   onSetUpLater: () => void;
 }) {
+  const { t } = useTranslation("setup");
   const choiceHeadingId = useId();
   const connections = useModelConnections(true);
   const providers = useModelProviders();
@@ -351,8 +352,7 @@ function ModelChooser({
   if (connections.isError || providers.isError)
     return (
       <p className="text-muted-foreground text-sm" role="status">
-        Models could not be loaded. You can skip this step and set them up later
-        in App Settings → Models.
+        {t("ai.loadFailed")}
       </p>
     );
 
@@ -374,7 +374,7 @@ function ModelChooser({
             id={`${choiceHeadingId}-openai`}
             className="text-sm font-semibold"
           >
-            OpenAI
+            {t("ai.openAi.heading")}
           </h3>
           <p className="text-muted-foreground text-xs">{entry.purpose}</p>
           {managedKeys ? (
@@ -382,8 +382,8 @@ function ModelChooser({
           ) : (
             <p className="text-muted-foreground text-xs">
               {openAiReady
-                ? "Uses the OpenAI key configured on this server."
-                : "Set OPENAI_API_KEY on the server to use OpenAI."}
+                ? t("ai.openAi.serverKey")
+                : t("ai.openAi.serverKeyMissing")}
             </p>
           )}
         </section>
@@ -440,7 +440,7 @@ function ModelChooser({
               <ModelProviderTabsList
                 groups={groups[where]}
                 active={activeProvider(where)}
-                label={`${label} providers`}
+                label={t("ai.providerTabs", { location: label })}
               />
               {groups[where].map(({ entry }) => (
                 <TabsContent
@@ -497,6 +497,7 @@ function ConnectProvider({
   onConnected: (connection: PyModelConnection) => void;
   onAddModel: (connection: PyModelConnection) => void;
 }) {
+  const { t } = useTranslation("setup");
   const custom = entry.presetId === "custom";
   const [addingCustom, setAddingCustom] = useState(false);
   const formOpen = custom ? addingCustom : connections.length === 0;
@@ -511,7 +512,10 @@ function ConnectProvider({
             location === "local"
               ? baseUrlHost(connection.base_url)
               : custom
-                ? `${baseUrlHost(connection.base_url)} · ${connectionStatusText(connection)}`
+                ? t("ai.connectionDetail", {
+                    host: baseUrlHost(connection.base_url),
+                    status: connectionStatusText(connection),
+                  })
                 : connectionStatusText(connection)
           }
           onAddModel={() => onAddModel(connection)}
@@ -526,7 +530,7 @@ function ConnectProvider({
           onClick={() => setAddingCustom(true)}
         >
           <Plus className="size-4" aria-hidden />
-          Add a custom server
+          {t("ai.addCustomServer")}
         </Button>
       ) : null}
       {formOpen && preset ? (
@@ -549,11 +553,11 @@ function ConnectProvider({
                     disabled={saving}
                     onClick={() => setAddingCustom(false)}
                   >
-                    Cancel
+                    {t("actions.cancel")}
                   </Button>
                 ) : null}
                 <Button type="submit" disabled={!valid || saving}>
-                  {saving ? "Connecting…" : "Connect"}
+                  {saving ? t("ai.connecting") : t("ai.connect")}
                 </Button>
               </div>
             )}
@@ -574,6 +578,7 @@ function ConnectionRow({
   detail: string;
   onAddModel: () => void;
 }) {
+  const { t } = useTranslation("setup");
   return (
     <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="min-w-0">
@@ -584,11 +589,11 @@ function ConnectionRow({
         type="button"
         size="sm"
         variant="outline"
-        aria-label={`Add model to ${connection.name}`}
+        aria-label={t("ai.addModelTo", { name: connection.name })}
         onClick={onAddModel}
       >
         <Plus className="size-4" aria-hidden />
-        Add model
+        {t("ai.addModel")}
       </Button>
     </div>
   );
@@ -629,6 +634,7 @@ function LocalServer({
   /** A local model is already available, so "Set up later" is unnecessary. */
   hasLocalModel: boolean;
 }) {
+  const { t } = useTranslation("setup");
   const detect = useDetectModelServer();
   const create = useCreateModelConnection();
   const [detection, setDetection] = useState<Detection>({ state: "idle" });
@@ -702,15 +708,15 @@ function LocalServer({
           onClick={() => void search()}
         >
           {detection.state === "searching"
-            ? "Searching…"
+            ? t("ai.local.searching")
             : detection.state === "idle"
-              ? "Search"
-              : "Search again"}
+              ? t("ai.local.search")
+              : t("ai.local.searchAgain")}
         </Button>
       </div>
       <p className="text-muted-foreground text-xs" role="status">
         {detection.state === "searching"
-          ? `Looking for ${label}…`
+          ? t("ai.local.lookingFor", { server: label })
           : found
             ? detectionMessage(found, label)
             : ""}
@@ -723,7 +729,7 @@ function LocalServer({
           <div>
             <h3 className="text-sm font-semibold">{label}</h3>
             <p className="text-muted-foreground text-xs">
-              Running at {baseUrlHost(found.base_url)}
+              {t("ai.local.runningAt", { host: baseUrlHost(found.base_url) })}
             </p>
           </div>
           {toAdd.length ? (
@@ -739,10 +745,12 @@ function LocalServer({
                     size="sm"
                     variant="outline"
                     disabled={adding !== null}
-                    aria-label={`Add ${model}`}
+                    aria-label={t("ai.local.addNamed", { model })}
                     onClick={() => void addDetected(found, model)}
                   >
-                    {adding === model ? "Adding…" : "Add"}
+                    {adding === model
+                      ? t("ai.local.adding")
+                      : t("ai.local.add")}
                   </Button>
                 </li>
               ))}
@@ -750,8 +758,8 @@ function LocalServer({
           ) : (
             <p className="text-muted-foreground text-xs">
               {found.models.length
-                ? "All of its models are added."
-                : `${label} lists no models. Download one in ${label}, then search again.`}
+                ? t("ai.local.allAdded")
+                : t("ai.local.noModels", { server: label })}
             </p>
           )}
         </section>
@@ -766,10 +774,7 @@ function LocalServer({
       ))}
       {nothing ? (
         <div className="space-y-2">
-          <p className="text-sm">
-            No {label} server found. Install and start {label}, then search
-            again.
-          </p>
+          <p className="text-sm">{t("ai.local.notFound", { server: label })}</p>
           {hasLocalModel ? null : (
             <Button
               type="button"
@@ -778,7 +783,7 @@ function LocalServer({
               className="-ml-2"
               onClick={onSetUpLater}
             >
-              Set up later
+              {t("ai.local.setUpLater")}
             </Button>
           )}
         </div>

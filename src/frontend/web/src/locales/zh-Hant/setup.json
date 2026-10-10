@@ -1,0 +1,139 @@
+{
+  "actions": {
+    "back": "返回",
+    "cancel": "取消",
+    "continue": "繼續",
+    "finish": "完成",
+    "finishing": "正在完成…",
+    "skip": "暫時略過"
+  },
+  "ai": {
+    "addCustomServer": "新增自訂伺服器",
+    "addModel": "新增模型",
+    "addModelTo": "為 {{name}} 新增模型",
+    "checking": "正在檢查此安裝提供的模型…",
+    "connect": "連線",
+    "connecting": "正在連線…",
+    "connectionDetail": "{{host}} · {{status}}",
+    "heading": "選擇你的 AI",
+    "loadFailed": "無法載入模型。你可以略過此步驟，稍後在應用程式設定 → 模型中設定。",
+    "local": {
+      "add": "新增",
+      "addNamed": "新增 {{model}}",
+      "adding": "正在新增…",
+      "allAdded": "它的所有模型都已新增。",
+      "lookingFor": "正在尋找 {{server}}…",
+      "noModels": "{{server}} 中沒有模型。請在 {{server}} 中下載一個模型，然後重新搜尋。",
+      "notFound": "找不到 {{server}} 伺服器。請安裝並啟動 {{server}}，然後重新搜尋。",
+      "runningAt": "執行於 {{host}}",
+      "search": "搜尋",
+      "searchAgain": "重新搜尋",
+      "searching": "正在搜尋…",
+      "setUpLater": "稍後設定"
+    },
+    "openAi": {
+      "heading": "OpenAI",
+      "serverKey": "使用此伺服器上設定的 OpenAI 金鑰。",
+      "serverKeyMissing": "若要使用 OpenAI，請在伺服器上設定 OPENAI_API_KEY。"
+    },
+    "providedModels": "此安裝自帶模型，因此這裡無需選擇。",
+    "providerTabs": "{{location}}供應商",
+    "purpose": "選擇你的 Anima 聊天時使用的模型。"
+  },
+  "errors": {
+    "displayName": "請輸入 1 到 {{max}} 個字元的顯示名稱。",
+    "keyNotSaved": "你的金鑰未儲存。請填寫此步驟中的資訊，或捨棄該金鑰。",
+    "modelUnavailable": "所選模型已無法使用。請返回 AI 步驟選擇其他模型，或略過。",
+    "saveFailed": "無法儲存設定。你的本機執行環境可能已完成設定；可以放心重試。",
+    "voiceSettings": "無法儲存語音設定。請重試，或略過此步驟。"
+  },
+  "keys": {
+    "saving": "正在儲存你的金鑰…",
+    "storedDescription": "在這台電腦上加密儲存，之後不會再顯示。",
+    "unsavedPrompt": {
+      "description": "你輸入的金鑰尚未儲存。請立即儲存，或捨棄後繼續。",
+      "discard": "捨棄",
+      "keepEditing": "繼續編輯",
+      "save": "儲存金鑰",
+      "saving": "正在儲存…",
+      "title": "要儲存你的 API 金鑰嗎？"
+    }
+  },
+  "links": {
+    "opensInNewWindow": "（在新視窗中開啟）"
+  },
+  "progress": {
+    "label": "設定進度",
+    "optional": "（選用）",
+    "position": "第 {{current}} 步，共 {{total}} 步"
+  },
+  "steps": {
+    "ai": "AI",
+    "voice": "語音",
+    "welcome": "歡迎"
+  },
+  "voice": {
+    "heading": "設定語音",
+    "purpose": "與你的 Anima 對話，並聽到它們的回覆。",
+    "stt": {
+      "checking": "正在檢查語音辨識…",
+      "cpu": {
+        "description": "<link>NVIDIA 的 Parakeet TDT 0.6B v2</link> 會在此裝置上轉錄英語語音，你的聲音不會離開此裝置。",
+        "label": "Parakeet（CPU）",
+        "labelWithSize": "Parakeet（CPU，{{size}}）"
+      },
+      "download": "下載",
+      "downloaded": "已下載",
+      "downloading": "正在下載 {{percent}}",
+      "gpu": {
+        "description": "速度更快，說話時可即時預覽。需要 CPU 版本和支援 WebGPU 的 GPU。",
+        "label": "Parakeet（GPU）",
+        "labelWithSize": "Parakeet（GPU，{{size}}）",
+        "needsCpu": "請先下載 CPU 版本。"
+      },
+      "heading": "語音轉文字",
+      "listUnavailable": "目前無法使用語音下載。你可以稍後在應用程式設定中新增。",
+      "lowSpace": "可用空間不足：下載需要 {{size}} 的可用空間。",
+      "models": "語音辨識模型",
+      "notDownloaded": "未下載",
+      "progressLabel": "{{label}} 下載進度",
+      "retryDownload": "重試下載",
+      "turnedOff": "此伺服器已關閉語音辨識。",
+      "unavailableInBuild": "此版本無法使用。",
+      "verifying": "正在驗證下載…",
+      "webgpu": {
+        "available": "可使用 WebGPU",
+        "checking": "正在檢查 WebGPU…",
+        "unavailable": "此裝置無法使用 WebGPU"
+      }
+    },
+    "tts": {
+      "elevenLabs": {
+        "description": "使用你的 ElevenLabs API 金鑰的雲端語音。",
+        "label": "ElevenLabs"
+      },
+      "heading": "文字轉語音",
+      "pocket": {
+        "description": "<link>Kyutai 的 Pocket TTS</link> 會在這台電腦上朗讀回覆，無需金鑰或帳號。",
+        "label": "PocketTTS（內建）"
+      },
+      "providers": "文字轉語音供應商",
+      "unavailableReason": "{{provider}}：{{reason}}"
+    }
+  },
+  "welcome": {
+    "age": {
+      "confirm": "我已年滿 18 歲",
+      "decline": "我未滿 18 歲",
+      "declined": "Animama 僅供 18 歲以上的成年人使用，因此無法繼續設定。",
+      "heading": "開始之前",
+      "notice": "Anima 是 AI 夥伴，不是真人。Animama 的 AI 夥伴可能不適合部分未成年人，因此你必須年滿 18 歲才能使用 Animama。"
+    },
+    "displayName": {
+      "label": "顯示名稱",
+      "placeholder": "你的名字"
+    },
+    "heading": "Animama 該怎麼稱呼你？",
+    "safetyLink": "安全與危機應對規範"
+  }
+}

@@ -1,5 +1,6 @@
 import { useProductApiClient } from "@animama/product-ui";
 import { useCallback, useEffect } from "react";
+import { getI18n, useTranslation } from "react-i18next";
 import {
   useIsMutating,
   useMutation,
@@ -32,11 +33,15 @@ type PackAction = {
   operation: "install" | "remove" | "cancel";
   id: FeaturePackId;
 };
-const FAILURE =
-  "The pack change could not finish. Review its status below, then retry.";
+/** The bounded message for a pack change that failed, in the active UI Locale. */
+function packChangeFailure(): string {
+  const t = getI18n().getFixedT(null, "app");
+  return t("featurePacks.changeFailed");
+}
 
 /** One owner-scoped manager snapshot survives view navigation; native IPC remains main-only. */
 export function useDesktopFeaturePacks() {
+  const { t } = useTranslation("app");
   const apiClient = useProductApiClient();
 
   const platform = useRuntimePlatform();
@@ -121,7 +126,7 @@ export function useDesktopFeaturePacks() {
     mutationKey: nativePackActionKey(owner),
     mutationFn: async ({ operation, id }) => {
       if (!ownerId || !available || !desktop?.featurePacks)
-        throw new Error(FAILURE);
+        throw new Error(packChangeFailure());
       try {
         if (operation !== "cancel")
           await assertPackTransitionAllowed(apiClient, client, owner, desktop);
@@ -132,7 +137,7 @@ export function useDesktopFeaturePacks() {
         throw new Error(
           [ASSET_WORK_BLOCKS_PACK, PACK_WORK_BLOCKS_ASSET].includes(message)
             ? message
-            : FAILURE,
+            : packChangeFailure(),
         );
       }
     },
@@ -183,8 +188,6 @@ export function useDesktopFeaturePacks() {
     run,
     error:
       action.error?.message ??
-      (query.error
-        ? "Feature packs are unavailable. Check runtime recovery and retry."
-        : null),
+      (query.error ? t("featurePacks.unavailable") : null),
   };
 }

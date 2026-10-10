@@ -1,0 +1,202 @@
+{
+  "accountUsage": {
+    "units": {
+      "chats": "チャット",
+      "storageBytes": "ストレージ (バイト)",
+      "turns": "チャットのターン"
+    }
+  },
+  "actions": {
+    "retry": "再試行"
+  },
+  "admission": {
+    "accountUnavailable": "アカウントにアクセスできません。",
+    "accountUnavailableContactOperator": "アカウントにアクセスできません。ホスト運営者にお問い合わせください。",
+    "actions": {
+      "account": "アカウント",
+      "signIn": "サインイン",
+      "signOut": "サインアウト",
+      "tryAgain": "再試行",
+      "tryRecovery": "復旧を試す"
+    },
+    "ineligible": {
+      "description": "このアカウントはホスト版 Animama の利用対象外です。アカウントのアクセス権を確認するか、運営者にお問い合わせください。",
+      "title": "アカウントにアクセスできません"
+    },
+    "loading": {
+      "title": "Animama を準備しています…"
+    },
+    "messages": {
+      "accountSetupFinishing": "アカウントの設定を完了しています…",
+      "accountSetupRunning": "アカウントを設定しています…",
+      "cleanupFailed": "このブラウザーから前のセッションを消去しきれませんでした。ページを再読み込みするか、再試行して続行してください。",
+      "incompatibleCapabilities": "このホスト型ランタイムの機能はアプリと互換性がありません。",
+      "signInNotFinished": "サインインが完了しませんでした。もう一度お試しください。",
+      "signInNotStarted": "サインインを開始できませんでした。もう一度お試しください。",
+      "signOutDataRemains": "サインアウトしましたが、一部の個人データをこのブラウザーから削除できませんでした。再度サインインする前にページを再読み込みしてください。",
+      "updateRequired": "このホスト型ランタイムを使うにはアプリの更新が必要です。"
+    },
+    "recovery": {
+      "description": "Animama はアカウントの準備を完了できませんでした。続行するには復旧を試してください。",
+      "title": "アカウントの復旧が必要です"
+    },
+    "restricted": {
+      "description": "アカウントは一時停止中か更新中です。アカウントのアクセス状況を確認して、後でもう一度お試しください。",
+      "title": "アカウントへのアクセスが制限されています"
+    },
+    "signInRequired": {
+      "description": "サインインすると Anima、チャット、ライブラリを利用できます。",
+      "title": "Animama にサインイン"
+    },
+    "signOutIncomplete": {
+      "description": "Animama はこの画面を閉じましたが、アカウントはまだサインインしたままの可能性があります。再試行してサインアウトを完了してください。",
+      "title": "サインアウトが完了しませんでした"
+    },
+    "unavailable": {
+      "description": "Animama はランタイムに接続できませんでした。もう一度お試しください。",
+      "localTitle": "ローカルランタイムを利用できません",
+      "title": "ランタイムを利用できません"
+    }
+  },
+  "animas": {
+    "creationUnavailable": {
+      "description": "この Animama ランタイムでは新しい Anima を作成できません。",
+      "title": "Anima を作成できません"
+    },
+    "resolving": {
+      "description": "最初の Anima を確認しています…",
+      "title": "Anima の管理画面を開いています"
+    },
+    "rosterFailed": {
+      "description": "このページのまま Anima の一覧を再読み込みします。",
+      "title": "Anima を読み込めませんでした"
+    }
+  },
+  "connection": {
+    "requestNotSent": "Animama に再接続しています。このリクエストは送信されていません。"
+  },
+  "dictation": {
+    "errors": {
+      "audioWorkletParakeet": "ローカルの Parakeet 音声認識には AudioWorklet のサポートが必要です。",
+      "audioWorkletVad": "音響 VAD には AudioWorklet のサポートが必要です。",
+      "browser": {
+        "aborted": "音声認識が停止しました。",
+        "audioCapture": "ブラウザーの音声認識に使えるマイクがありません。",
+        "failed": "ブラウザーの音声認識に失敗しました。",
+        "languageNotSupported": "ブラウザーのローカル音声認識は選択した言語に対応していません。",
+        "network": "ブラウザーの音声認識でネットワークエラーが発生しました。",
+        "noSpeech": "音声が検出されませんでした。",
+        "notAllowed": "ブラウザーの音声認識に対するマイクの使用が拒否されました。",
+        "serviceNotAllowed": "このブラウザーでは音声認識サービスが許可されていません。"
+      },
+      "browserStartFailed": "ブラウザーの音声入力を開始できませんでした",
+      "failed": "音声入力に失敗しました",
+      "localWebSpeechNotEnabled": "ブラウザーのローカル音声認識を有効にできませんでした",
+      "localWebSpeechUnsupported": "ローカル専用のブラウザー音声認識には対応していません",
+      "offlineSpeechMissing": "音声入力と音声モードを使うには、設定でオフライン音声認識をインストールしてください。",
+      "parakeetFailed": "ローカルの Parakeet 音声認識に失敗しました",
+      "transcriptionFailed": "ローカルの Parakeet 文字起こしに失敗しました",
+      "unmuteFailed": "音声モードのミュートを解除できませんでした",
+      "webSpeechUnsupported": "このブラウザーは Web Speech API に対応していません"
+    }
+  },
+  "featurePacks": {
+    "changeFailed": "パックの変更を完了できませんでした。下の状態を確認してから再試行してください。",
+    "unavailable": "機能パックを利用できません。ランタイムの復旧状況を確認して再試行してください。"
+  },
+  "launch": {
+    "failed": {
+      "description": "Animama は Anima または保存された選択を読み込めませんでした。もう一度お試しください。",
+      "title": "Anima を開けませんでした"
+    },
+    "opening": "Anima を開いています…"
+  },
+  "meta": {
+    "description": "Animama — あなたの AI アバターコンパニオン。"
+  },
+  "notFound": {
+    "description": "このアドレスに Animama のページはありません。",
+    "eyebrow": "見つかりません",
+    "title": "ページが見つかりません"
+  },
+  "pageLoadError": {
+    "description": "再読み込みして最新のアプリファイルを取得し、もう一度お試しください。このページで保存していない変更は失われる場合があります。",
+    "reload": "ページを再読み込み",
+    "title": "ページを読み込めませんでした"
+  },
+  "pip": {
+    "close": "ピクチャーインピクチャーを閉じる",
+    "resize": "ピクチャーインピクチャーのサイズを変更",
+    "unavailable": "ピクチャーインピクチャーを利用できません。このウィンドウでコンパニオンを引き続きご利用ください。"
+  },
+  "quickChat": {
+    "incompatibleModel": "このモデルは会話を別の方法で保持します。メインのチャットを開いて新しいチャットで続けてください。",
+    "toggleFailed": "クイックチャットを切り替えられませんでした",
+    "unavailable": "クイックチャットはデスクトップアプリの Anima チャットから利用できます。",
+    "unknownError": "不明なデスクトップエラーです。"
+  },
+  "runtime": {
+    "avatarPoseUnavailable": "アバターを待機ポーズで読み込めませんでした。コンテンツを再読み込みして再試行してください。",
+    "preparationFailed": "アバターのコンテンツを準備できませんでした。"
+  },
+  "shortcuts": {
+    "configureFailed": "デスクトップのショートカットを設定できませんでした。",
+    "unavailable": "デスクトップのショートカットを利用できません",
+    "unmuteFailed": "プッシュトゥトーク用に音声モードのミュートを解除できませんでした。",
+    "updateFailed": "デスクトップのショートカットの状態を更新できませんでした。"
+  },
+  "tts": {
+    "pocketVoiceUnavailable": "Pocket の音声を利用できません",
+    "unavailable": "読み上げを利用できません",
+    "warnings": {
+      "browserGenerateFailed": "この返信のブラウザー音声を生成できませんでした。",
+      "browserPlayFailed": "この返信のブラウザー音声を再生できませんでした。",
+      "browserUnsupported": "このブラウザーは音声合成に対応していません。",
+      "elevenLabsClosedEarly": "ElevenLabs のリアルタイム読み上げが再生完了前に終了しました。",
+      "elevenLabsConnectionFailed": "この返信で ElevenLabs のリアルタイム読み上げに接続できませんでした。",
+      "elevenLabsDecodeFailed": "ElevenLabs のリアルタイム音声をデコードできませんでした。",
+      "elevenLabsFinalizedDecodeFailed": "ElevenLabs の確定音声をデコードできませんでした。",
+      "elevenLabsMissingAnima": "この返信の ElevenLabs 読み上げには Anima のコンテキストが必要です。",
+      "elevenLabsUnsupported": "このブラウザー環境は ElevenLabs の読み上げに対応していません。",
+      "generic": "この返信の音声を再生できませんでした。",
+      "pocketGenerationFailed": "PocketTTS がこの返信の一部を合成できませんでした。",
+      "pocketUnsupported": "このブラウザー環境は PocketTTS に対応していません。"
+    }
+  },
+  "unavailable": {
+    "eyebrow": "利用不可",
+    "reasons": {
+      "animaCreation": "このホスト型アプリでは Anima を作成できません。",
+      "chatFileUploads": "このホスト型アプリではチャットの添付ファイルを利用できません。",
+      "documentProcessing": "このホスト型アプリではドキュメントの取り込みと OCR を利用できません。",
+      "hostedSetup": "インストールの設定はローカルアプリで行います。ホスト型のアカウントはランタイムが準備します。",
+      "localFilesystemAdministration": "ローカルファイルシステムの管理にはローカルアプリが必要です。",
+      "nativeFeatures": "この操作にはデスクトップアプリが必要です。ブラウザーの全画面表示と、対応ブラウザーのピクチャーインピクチャーは引き続き利用できます。",
+      "providerCredentials": "プロバイダーの接続と認証情報はホスト運営者が管理しています。"
+    },
+    "returnHome": "ホームに戻る",
+    "title": "ここでは利用できません"
+  },
+  "uploads": {
+    "failed": "ファイルをアップロードできませんでした。",
+    "fileDataUnavailable": "選択したファイルのデータを利用できません。",
+    "finalizeFailed": "ファイルのアップロードを完了できませんでした。",
+    "finalizeFailedAfterUpload": "アップロードは完了しましたが、確定処理に失敗しました。",
+    "httpFailed": "ファイルのアップロードに失敗しました (HTTP {{status}})。",
+    "initFailed": "アップロードを開始できませんでした。",
+    "missingFileId": "アップロードに Anima のファイル ID が含まれていませんでした。",
+    "needsAttention": "ファイルのアップロードに確認が必要です。",
+    "objectUploadFailed": "オブジェクトをアップロードできませんでした。",
+    "originalSaved": "元のファイルを保存しました。",
+    "originalSavedNotQueued": "元のファイルを保存しましたが、処理はキューに追加されませんでした。",
+    "processingNotQueuedAfterUpload": "アップロードは完了しましたが、処理をキューに追加できませんでした。",
+    "processingUnavailable": "処理はキューに追加されませんでした。ドキュメント処理が利用可能になったら、ライブラリから元のファイルを処理できます。",
+    "processingUnavailableDesktop": "ドキュメント処理を利用できません。設定でパックをインストールしてから、ライブラリでファイルを処理してください。",
+    "queuedForProcessing": "ファイルをアップロードし、処理のキューに追加しました。",
+    "rejected": "このファイルはアップロードできません。"
+  },
+  "voiceDownloads": {
+    "changeFailed": "音声のダウンロードの変更を完了できませんでした。しばらくしてから再試行してください。",
+    "unavailable": "音声のダウンロードを利用できません。音声ブラウザーを開き直して再試行してください。"
+  }
+}

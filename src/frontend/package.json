@@ -9,7 +9,7 @@
     "openapi-ts": "node scripts/generate-openapi-client.mjs",
     "openapi-ts:check": "node scripts/generate-openapi-client.mjs --check",
     "i18n:extract": "cd web && i18next-cli extract && i18next-cli types && cd ../packages/product-ui && i18next-cli extract",
-    "i18n:check": "node --test scripts/i18n-catalogs.test.mjs scripts/i18n-check.test.mjs && cd web && i18next-cli extract --ci --dry-run && i18next-cli types --ci && i18next-cli lint -c i18next.lint.config.ts && cd ../packages/product-ui && i18next-cli extract --ci --dry-run && cd ../.. && node scripts/i18n-catalogs.mjs",
+    "i18n:check": "node --test scripts/i18n-catalogs.test.mjs scripts/i18n-check.test.mjs && cd web && i18next-cli extract --ci --dry-run && i18next-cli types --ci && i18next-cli lint -c i18next.lint.config.ts && cd ../packages/product-ui && i18next-cli extract --ci --dry-run && i18next-cli lint -c i18next.lint.config.ts && cd ../.. && node scripts/i18n-catalogs.mjs",
     "i18n:status": "node scripts/i18n-catalogs.mjs --report",
     "generate:background-thumbnails": "node scripts/generate-background-thumbnails.mjs",
     "verify:tts-assets": "node scripts/verify-tts-assets.mjs",

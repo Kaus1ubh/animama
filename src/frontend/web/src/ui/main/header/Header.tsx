@@ -4,6 +4,7 @@ import type { ReactNode } from "react";
 import { Suspense, lazy, useEffect, useState } from "react";
 import { useLocation, useParams } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
@@ -37,6 +38,8 @@ export function Header({
   onMenuClick,
   className,
 }: HeaderProps) {
+  const { t } = useTranslation("chat");
+  const { t: emotionT } = useTranslation("emotion");
   const [modalOpen, setModalOpen] = useState(false);
   const {
     data: animas = [],
@@ -81,10 +84,10 @@ export function Header({
       : undefined;
   const animaName = activeAnima ? getAnimaDisplayName(activeAnima) : null;
   const animaLabel = isLoading
-    ? "Loading anima..."
+    ? t("header.anima.loading")
     : isError
-      ? "Anima"
-      : animaName || "No anima";
+      ? t("header.anima.fallback")
+      : animaName || t("header.anima.none");
   const openAnimaProfile = () => {
     setModalOpen(true);
   };
@@ -96,13 +99,16 @@ export function Header({
       runtimeState: runtimeEmotionalState,
       persistedState: activeAnima?.emotional_state,
     });
-  const emotionPresentation = buildEmotionPresentation(emotionalState);
+  const emotionPresentation = buildEmotionPresentation(
+    emotionalState,
+    emotionT,
+  );
   const defaultAnimaTrigger = animaLabel ? (
     <button
       type="button"
       onClick={openAnimaProfile}
       className="hover:bg-muted/70 focus-visible:ring-ring flex max-w-full min-w-0 items-center gap-2 rounded-md bg-transparent px-4 py-1.5 transition-colors focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:outline-none sm:px-6"
-      aria-label="Open anima details"
+      aria-label={t("header.openAnimaDetails")}
       aria-haspopup="dialog"
       aria-expanded={modalOpen}
     >
@@ -150,7 +156,7 @@ export function Header({
           {showMenuButton ? (
             <button
               type="button"
-              aria-label="Open sidebar"
+              aria-label={t("header.openSidebar")}
               onClick={handleMenuClick}
               className={cn(
                 "text-foreground hover:bg-muted inline-flex h-8 w-8 items-center justify-center rounded-md transition-colors",

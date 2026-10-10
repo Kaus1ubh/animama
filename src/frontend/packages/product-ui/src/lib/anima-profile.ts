@@ -45,14 +45,3 @@ export function sortAnimasByRecent(
     return getAnimaDisplayName(left).localeCompare(getAnimaDisplayName(right));
   });
 }
-
-export function formatAnimaTimestamp(value?: string | null): string {
-  if (!value) return "Unknown";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return "Unknown";
-
-  return new Intl.DateTimeFormat("en-US", {
-    dateStyle: "medium",
-    timeStyle: "short",
-  }).format(date);
-}

@@ -1,0 +1,202 @@
+{
+  "accountUsage": {
+    "units": {
+      "chats": "聊天",
+      "storageBytes": "儲存空間（位元組）",
+      "turns": "聊天輪次"
+    }
+  },
+  "actions": {
+    "retry": "重試"
+  },
+  "admission": {
+    "accountUnavailable": "無法存取帳號。",
+    "accountUnavailableContactOperator": "無法存取帳號。請聯絡代管營運方。",
+    "actions": {
+      "account": "帳號",
+      "signIn": "登入",
+      "signOut": "登出",
+      "tryAgain": "重試",
+      "tryRecovery": "嘗試復原"
+    },
+    "ineligible": {
+      "description": "此帳號無法使用代管版 Animama。請檢查帳號存取權限，或聯絡營運方。",
+      "title": "無法存取帳號"
+    },
+    "loading": {
+      "title": "正在準備 Animama…"
+    },
+    "messages": {
+      "accountSetupFinishing": "正在完成帳號設定…",
+      "accountSetupRunning": "正在設定帳號…",
+      "cleanupFailed": "Animama 未能從此瀏覽器完全清除上一個工作階段。請重新載入頁面，或重試以繼續。",
+      "incompatibleCapabilities": "此代管執行環境的功能與應用程式不相容。",
+      "signInNotFinished": "登入未完成。請再試一次。",
+      "signInNotStarted": "無法開始登入。請再試一次。",
+      "signOutDataRemains": "你已登出，但部分私人資料未能從此瀏覽器刪除。請在重新登入前重新載入頁面。",
+      "updateRequired": "需要更新應用程式才能使用此代管執行環境。"
+    },
+    "recovery": {
+      "description": "Animama 未能完成帳號準備。請嘗試復原以繼續。",
+      "title": "你的帳號需要復原"
+    },
+    "restricted": {
+      "description": "你的帳號已暫停或正在更新。你可以檢查帳號存取狀態，稍後再試。",
+      "title": "帳號存取受到限制"
+    },
+    "signInRequired": {
+      "description": "登入後即可使用你的 Anima、聊天和資源庫。",
+      "title": "登入 Animama"
+    },
+    "signOutIncomplete": {
+      "description": "Animama 已關閉此畫面，但你的帳號可能仍處於登入狀態。請重試以完成登出。",
+      "title": "登出未完成"
+    },
+    "unavailable": {
+      "description": "Animama 無法連線至執行環境。請再試一次。",
+      "localTitle": "無法使用本機執行環境",
+      "title": "無法使用執行環境"
+    }
+  },
+  "animas": {
+    "creationUnavailable": {
+      "description": "此 Animama 執行環境不支援建立新的 Anima。",
+      "title": "無法建立 Anima"
+    },
+    "resolving": {
+      "description": "正在確認你的第一個 Anima…",
+      "title": "正在開啟 Anima 管理"
+    },
+    "rosterFailed": {
+      "description": "不必離開此頁面即可重新載入 Anima 清單。",
+      "title": "無法載入你的 Anima"
+    }
+  },
+  "connection": {
+    "requestNotSent": "Animama 正在重新連線。此請求尚未送出。"
+  },
+  "dictation": {
+    "errors": {
+      "audioWorkletParakeet": "本機 Parakeet 語音辨識需要 AudioWorklet 支援。",
+      "audioWorkletVad": "聲學 VAD 需要 AudioWorklet 支援。",
+      "browser": {
+        "aborted": "語音辨識已停止。",
+        "audioCapture": "沒有可用於瀏覽器語音辨識的麥克風。",
+        "failed": "瀏覽器語音辨識失敗。",
+        "languageNotSupported": "瀏覽器本機語音辨識不支援所選語言。",
+        "network": "瀏覽器語音辨識發生網路錯誤。",
+        "noSpeech": "未偵測到語音。",
+        "notAllowed": "瀏覽器語音辨識的麥克風權限遭到拒絕。",
+        "serviceNotAllowed": "此瀏覽器不允許使用語音辨識服務。"
+      },
+      "browserStartFailed": "無法啟動瀏覽器聽寫",
+      "failed": "聽寫失敗",
+      "localWebSpeechNotEnabled": "無法啟用瀏覽器本機語音辨識",
+      "localWebSpeechUnsupported": "不支援僅限本機的瀏覽器語音辨識",
+      "offlineSpeechMissing": "請在設定中安裝離線語音辨識，以使用聽寫和語音模式。",
+      "parakeetFailed": "本機 Parakeet 語音辨識失敗",
+      "transcriptionFailed": "本機 Parakeet 轉錄失敗",
+      "unmuteFailed": "無法取消語音模式靜音",
+      "webSpeechUnsupported": "此瀏覽器不支援 Web Speech API"
+    }
+  },
+  "featurePacks": {
+    "changeFailed": "功能包變更未能完成。請查看下方狀態後重試。",
+    "unavailable": "無法使用功能包。請檢查執行環境的復原狀況後重試。"
+  },
+  "launch": {
+    "failed": {
+      "description": "Animama 無法載入你的 Anima 或已儲存的選擇。請再試一次。",
+      "title": "無法開啟你的 Anima"
+    },
+    "opening": "正在開啟你的 Anima…"
+  },
+  "meta": {
+    "description": "Animama，你的 AI 虛擬形象夥伴。"
+  },
+  "notFound": {
+    "description": "此網址沒有對應的 Animama 頁面。",
+    "eyebrow": "找不到",
+    "title": "找不到頁面"
+  },
+  "pageLoadError": {
+    "description": "請重新載入以取得最新的應用程式檔案，然後再試一次。此頁面上未儲存的變更可能會遺失。",
+    "reload": "重新載入頁面",
+    "title": "頁面無法載入"
+  },
+  "pip": {
+    "close": "關閉子母畫面",
+    "resize": "調整子母畫面大小",
+    "unavailable": "無法使用子母畫面。請繼續在此視窗中使用夥伴。"
+  },
+  "quickChat": {
+    "incompatibleModel": "該模型以不同方式保存對話。請開啟主聊天，在新聊天中繼續。",
+    "toggleFailed": "無法切換快速聊天",
+    "unavailable": "快速聊天可在桌面應用程式的 Anima 聊天中使用。",
+    "unknownError": "不明的桌面錯誤。"
+  },
+  "runtime": {
+    "avatarPoseUnavailable": "無法以待機姿勢載入虛擬形象。請重新載入其內容後重試。",
+    "preparationFailed": "無法準備虛擬形象內容。"
+  },
+  "shortcuts": {
+    "configureFailed": "無法設定桌面快捷鍵。",
+    "unavailable": "無法使用桌面快捷鍵",
+    "unmuteFailed": "無法為按鍵說話取消語音模式靜音。",
+    "updateFailed": "無法更新桌面快捷鍵狀態。"
+  },
+  "tts": {
+    "pocketVoiceUnavailable": "無法使用 Pocket 語音",
+    "unavailable": "無法使用文字轉語音",
+    "warnings": {
+      "browserGenerateFailed": "無法為此回覆產生瀏覽器語音。",
+      "browserPlayFailed": "無法為此回覆播放瀏覽器語音。",
+      "browserUnsupported": "此瀏覽器不支援語音合成。",
+      "elevenLabsClosedEarly": "ElevenLabs 即時 TTS 在播放完成前已關閉。",
+      "elevenLabsConnectionFailed": "此回覆的 ElevenLabs 即時 TTS 連線失敗。",
+      "elevenLabsDecodeFailed": "無法解碼 ElevenLabs 即時音訊。",
+      "elevenLabsFinalizedDecodeFailed": "無法解碼 ElevenLabs 最終音訊。",
+      "elevenLabsMissingAnima": "此回覆的 ElevenLabs TTS 需要 Anima 上下文。",
+      "elevenLabsUnsupported": "此瀏覽器環境不支援 ElevenLabs TTS。",
+      "generic": "無法播放此回覆的語音。",
+      "pocketGenerationFailed": "PocketTTS 未能合成此回覆的部分內容。",
+      "pocketUnsupported": "此瀏覽器環境不支援 PocketTTS。"
+    }
+  },
+  "unavailable": {
+    "eyebrow": "無法使用",
+    "reasons": {
+      "animaCreation": "此代管應用程式不支援建立 Anima。",
+      "chatFileUploads": "此代管應用程式不支援聊天附件。",
+      "documentProcessing": "此代管應用程式不支援文件匯入和 OCR。",
+      "hostedSetup": "安裝設定屬於本機應用程式。你的代管帳號由執行環境準備。",
+      "localFilesystemAdministration": "管理本機檔案系統需要本機應用程式。",
+      "nativeFeatures": "此動作需要桌面應用程式。瀏覽器全螢幕和支援瀏覽器的子母畫面仍可使用。",
+      "providerCredentials": "供應商連線和憑證由代管營運方管理。"
+    },
+    "returnHome": "返回首頁",
+    "title": "此處無法使用"
+  },
+  "uploads": {
+    "failed": "檔案上傳失敗。",
+    "fileDataUnavailable": "無法使用所選檔案的資料。",
+    "finalizeFailed": "無法完成檔案上傳。",
+    "finalizeFailedAfterUpload": "上傳已完成，但最終處理失敗。",
+    "httpFailed": "檔案上傳失敗（HTTP {{status}}）。",
+    "initFailed": "上傳初始化失敗。",
+    "missingFileId": "上傳內容未包含 Anima 檔案 ID。",
+    "needsAttention": "檔案上傳需要處理。",
+    "objectUploadFailed": "物件上傳失敗。",
+    "originalSaved": "已儲存原始檔案。",
+    "originalSavedNotQueued": "已儲存原始檔案，但處理未加入佇列。",
+    "processingNotQueuedAfterUpload": "上傳已完成，但無法將處理加入佇列。",
+    "processingUnavailable": "處理未加入佇列。文件處理可用後，你可以在資源庫中處理原始檔案。",
+    "processingUnavailableDesktop": "無法使用文件處理。請在設定中安裝功能包，然後在資源庫中處理該檔案。",
+    "queuedForProcessing": "檔案已上傳並加入處理佇列。",
+    "rejected": "無法上傳此檔案。"
+  },
+  "voiceDownloads": {
+    "changeFailed": "語音下載變更未能完成。請稍後重試。",
+    "unavailable": "無法使用語音下載。請重新開啟語音瀏覽器後重試。"
+  }
+}

@@ -1,1 +1,182 @@
-{}
+{
+  "chatFailure": {
+    "categories": {
+      "context_exceeded": {
+        "guidance": "Choose a model with a larger context window, raise this model's window in $t(chatFailure.settingsPath) if the server allows more, or send a shorter message.",
+        "title": "The conversation is too long for {{name}}'s model."
+      }
+    },
+    "codes": {
+      "chat_stream_interrupted": {
+        "guidance": "The connection ended before Animama confirmed completion. Check your connection before sending again.",
+        "title": "The reply was interrupted."
+      },
+      "connection_base_url_missing": {
+        "guidance": "Set its base URL in $t(chatFailure.settingsPath), then send your message again.",
+        "title": "{{name}} has no server address."
+      },
+      "connection_unavailable": {
+        "guidance": "Select another model, then send your message again.",
+        "title": "The selected model's connection was removed."
+      },
+      "gateway_request_rejected": {
+        "guidance": "Open Animama at its configured application address, or reopen the desktop app. Ask the installation owner to check access settings if this continues.",
+        "title": "This installation refused the request."
+      },
+      "missing_api_key": {
+        "guidance": "Ask the installation owner to add its key in $t(chatFailure.settingsPath) or API Keys, then send your message again.",
+        "title": "{{name}} has no API key configured."
+      },
+      "openai_authentication_error": {
+        "guidance": "Ask the installation owner to check the key configured for {{name}} before trying again.",
+        "title": "{{name}} rejected the API key."
+      },
+      "openai_bad_request": {
+        "guidance": "Check the selected model and its settings in $t(chatFailure.settingsPath) before trying again.",
+        "title": "{{name}} rejected this request."
+      },
+      "openai_connection_error": {
+        "guidance": "Check your internet connection and try again when you're ready.",
+        "guidanceLocal": "Is {{localServer}} running? Start it, then try again.",
+        "guidanceLocalAt": "Is {{localServer}} running at {{baseUrl}}? Start it, then try again.",
+        "title": "Animama couldn't reach {{name}}."
+      },
+      "openai_not_found": {
+        "guidance": "Check the model ID in $t(chatFailure.settingsPath) or select another model.",
+        "title": "{{name}} couldn't find the selected model."
+      },
+      "openai_overloaded": {
+        "guidance": "Wait a little before sending your message again.",
+        "title": "{{name}} is temporarily unavailable."
+      },
+      "openai_permission_denied": {
+        "guidance": "Check the account's model access or select another available model.",
+        "title": "{{name}} denied access to this model."
+      },
+      "openai_quota_exceeded": {
+        "guidance": "Check the account's billing and usage limits before trying again.",
+        "title": "{{name}}'s account has reached its usage limit."
+      },
+      "openai_rate_limit": {
+        "guidance": "Wait a little before sending your message again.",
+        "title": "{{name}} is receiving too many requests."
+      },
+      "openai_server_error": {
+        "guidance": "Wait a little before sending your message again.",
+        "guidanceLocal": "Check that {{localServer}} has the model loaded, then try again.",
+        "title": "{{name}} couldn't complete this request."
+      },
+      "openai_timeout": {
+        "guidance": "Check your connection and try again when you're ready.",
+        "guidanceLocal": "The model may still be loading. Try again, or raise the connection's timeout in $t(chatFailure.settingsPath).",
+        "title": "{{name}} took too long to respond."
+      }
+    },
+    "defaultConnection": "The model server",
+    "hosted": {
+      "busy": {
+        "guidance": "Try again in a moment.",
+        "guidanceWait": "Try again in {{wait}}.",
+        "title": "Animama is busy right now."
+      },
+      "chatLimitReached": {
+        "guidance": "Continue one of your existing chats.",
+        "title": "This account has reached its chat limit.",
+        "titleLimit": "This account has reached its chat limit ({{limit, number}} chats)."
+      },
+      "messageTooLong": {
+        "guidance": "Shorten your message, then send it again.",
+        "guidanceMaximum": "Messages can be up to {{maximum, number}} characters.",
+        "title": "This message is too long."
+      },
+      "quotaExceeded": {
+        "guidance": "Try again after it resets.",
+        "guidanceWait": "It resets in {{wait}}.",
+        "title": "You've reached this account's hosted usage limit."
+      },
+      "quotaInputTokens": {
+        "guidance": "Start a new chat or shorten your message.",
+        "title": "This conversation is too long for one hosted turn."
+      },
+      "trialComplete": {
+        "guidance": "Download Animama to keep chatting with your Animas.",
+        "link": "Download Animama",
+        "title": "Your Animama trial is complete."
+      }
+    },
+    "network": {
+      "guidance": "Check your connection and whether the installation is running, then try again.",
+      "title": "Animama couldn't connect to its service."
+    },
+    "notice": {
+      "details": "Details",
+      "errorCode": "Error code:",
+      "incompleteReply": "Incomplete reply",
+      "notConfirmed": "Completion wasn't confirmed. This notice and any partial reply are kept here until you leave this chat or reload.",
+      "restore": "Restore message",
+      "restoreDisabled": "Available when no reply is active and the composer is empty.",
+      "restoreHint": "Restores the text for editing. Nothing is sent automatically.",
+      "retryAfter_one": "The provider recommends waiting at least {{count}} second before another attempt.",
+      "retryAfter_other": "The provider recommends waiting at least {{count}} seconds before another attempt."
+    },
+    "service": {
+      "guidance": "Wait a little, then try again. If this continues, check or restart the installation's service.",
+      "title": "Animama's service is unavailable."
+    },
+    "settingsPath": "App Settings → Models",
+    "unknown": {
+      "guidance": "Restore your message to try again. If this continues, share the error code with the installation owner.",
+      "title": "The message couldn't be completed."
+    },
+    "wait": {
+      "day_one": "about {{count}} day",
+      "day_other": "about {{count}} days",
+      "hour_one": "about {{count}} hour",
+      "hour_other": "about {{count}} hours",
+      "minute_one": "about {{count}} minute",
+      "minute_other": "about {{count}} minutes",
+      "second_one": "about {{count}} second",
+      "second_other": "about {{count}} seconds"
+    }
+  },
+  "composer": {
+    "send": "Send message",
+    "sending": "Sending message",
+    "speechUnavailable": "Offline speech recognition is unavailable",
+    "stop": "Stop",
+    "stopVoice": "Stop voice mode",
+    "voiceMode": "Voice mode"
+  },
+  "conversation": {
+    "label": "Conversation"
+  },
+  "runStatus": {
+    "searching_web": "Searching the web…",
+    "summarizing_context": "Summarizing earlier conversation…"
+  },
+  "session": {
+    "placeholder": {
+      "loadingAnima": "Loading anima...",
+      "loadingRuntime": "Loading anima runtime...",
+      "ready": "What's on your mind?"
+    },
+    "toasts": {
+      "animaLoading": "Anima is still loading.",
+      "avatarSessionExpired": "This Avatar session expired. Reload it, then send your message again.",
+      "chatLoadFailed": "Chat could not be loaded.",
+      "chatLoading": "Chat is still loading.",
+      "missingAnima": "Missing anima.",
+      "modelNotDirect": "This model is not available for direct chat yet.",
+      "modelsLoading": "Models are still loading.",
+      "newChatModelFailed": "Failed to start a new chat with that model.",
+      "reloadAvatarSession": "Reload Avatar Session",
+      "restoreModelFailed": "Failed to restore this chat's model.",
+      "runtimeLoading": "Anima runtime is still loading.",
+      "selectModel": "Select a model before chatting."
+    }
+  },
+  "transcript": {
+    "emptyDescription": "Start a chat to see messages here",
+    "emptyTitle": "No messages yet"
+  }
+}

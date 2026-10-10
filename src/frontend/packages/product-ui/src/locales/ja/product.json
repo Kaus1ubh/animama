@@ -1,1 +1,177 @@
-{}
+{
+  "chatFailure": {
+    "categories": {
+      "context_exceeded": {
+        "guidance": "コンテキストウィンドウの大きいモデルを選ぶか、サーバーが対応していれば「$t(chatFailure.settingsPath)」でこのモデルのウィンドウを広げるか、短いメッセージを送ってください。",
+        "title": "会話が長すぎて、{{name}}のモデルでは処理できません。"
+      }
+    },
+    "codes": {
+      "chat_stream_interrupted": {
+        "guidance": "Animama が完了を確認する前に接続が切れました。接続を確認してから、もう一度送信してください。",
+        "title": "返信が中断されました。"
+      },
+      "connection_base_url_missing": {
+        "guidance": "「$t(chatFailure.settingsPath)」でベース URL を設定してから、メッセージをもう一度送信してください。",
+        "title": "{{name}}にサーバーアドレスが設定されていません。"
+      },
+      "connection_unavailable": {
+        "guidance": "別のモデルを選択してから、メッセージをもう一度送信してください。",
+        "title": "選択したモデルの接続は削除されました。"
+      },
+      "gateway_request_rejected": {
+        "guidance": "設定されたアプリケーションアドレスで Animama を開くか、デスクトップアプリを開き直してください。問題が続く場合は、インストールの所有者にアクセス設定の確認を依頼してください。",
+        "title": "このインストールがリクエストを拒否しました。"
+      },
+      "missing_api_key": {
+        "guidance": "インストールの所有者に、「$t(chatFailure.settingsPath)」または「API キー」でキーを追加するよう依頼してから、メッセージをもう一度送信してください。",
+        "title": "{{name}}の API キーが設定されていません。"
+      },
+      "openai_authentication_error": {
+        "guidance": "もう一度試す前に、{{name}}に設定されたキーの確認をインストールの所有者に依頼してください。",
+        "title": "{{name}}が API キーを拒否しました。"
+      },
+      "openai_bad_request": {
+        "guidance": "もう一度試す前に、選択したモデルとその設定を「$t(chatFailure.settingsPath)」で確認してください。",
+        "title": "{{name}}がこのリクエストを拒否しました。"
+      },
+      "openai_connection_error": {
+        "guidance": "インターネット接続を確認し、準備ができたらもう一度お試しください。",
+        "guidanceLocal": "{{localServer}} は起動していますか？起動してから、もう一度お試しください。",
+        "guidanceLocalAt": "{{localServer}} は {{baseUrl}} で起動していますか？起動してから、もう一度お試しください。",
+        "title": "Animama が{{name}}に接続できませんでした。"
+      },
+      "openai_not_found": {
+        "guidance": "「$t(chatFailure.settingsPath)」でモデル ID を確認するか、別のモデルを選択してください。",
+        "title": "{{name}}で選択したモデルが見つかりませんでした。"
+      },
+      "openai_overloaded": {
+        "guidance": "少し待ってから、メッセージをもう一度送信してください。",
+        "title": "{{name}}は一時的に利用できません。"
+      },
+      "openai_permission_denied": {
+        "guidance": "アカウントのモデルへのアクセス権を確認するか、利用可能な別のモデルを選択してください。",
+        "title": "{{name}}がこのモデルへのアクセスを拒否しました。"
+      },
+      "openai_quota_exceeded": {
+        "guidance": "もう一度試す前に、アカウントの請求情報と利用上限を確認してください。",
+        "title": "{{name}}のアカウントが利用上限に達しました。"
+      },
+      "openai_rate_limit": {
+        "guidance": "少し待ってから、メッセージをもう一度送信してください。",
+        "title": "{{name}}へのリクエストが多すぎます。"
+      },
+      "openai_server_error": {
+        "guidance": "少し待ってから、メッセージをもう一度送信してください。",
+        "guidanceLocal": "{{localServer}} にモデルが読み込まれていることを確認してから、もう一度お試しください。",
+        "title": "{{name}}はこのリクエストを完了できませんでした。"
+      },
+      "openai_timeout": {
+        "guidance": "接続を確認し、準備ができたらもう一度お試しください。",
+        "guidanceLocal": "モデルがまだ読み込み中の可能性があります。もう一度試すか、「$t(chatFailure.settingsPath)」で接続のタイムアウトを延ばしてください。",
+        "title": "{{name}}の応答に時間がかかりすぎました。"
+      }
+    },
+    "defaultConnection": "モデルサーバー",
+    "hosted": {
+      "busy": {
+        "guidance": "しばらくしてから、もう一度お試しください。",
+        "guidanceWait": "{{wait}}後にもう一度お試しください。",
+        "title": "Animama は現在混み合っています。"
+      },
+      "chatLimitReached": {
+        "guidance": "既存のチャットのいずれかを続けてください。",
+        "title": "このアカウントはチャット数の上限に達しました。",
+        "titleLimit": "このアカウントはチャット数の上限（{{limit, number}}件）に達しました。"
+      },
+      "messageTooLong": {
+        "guidance": "メッセージを短くしてから、もう一度送信してください。",
+        "guidanceMaximum": "メッセージは最大{{maximum, number}}文字までです。",
+        "title": "このメッセージは長すぎます。"
+      },
+      "quotaExceeded": {
+        "guidance": "リセット後にもう一度お試しください。",
+        "guidanceWait": "{{wait}}後にリセットされます。",
+        "title": "このアカウントのホスト型サービスの利用上限に達しました。"
+      },
+      "quotaInputTokens": {
+        "guidance": "新しいチャットを始めるか、メッセージを短くしてください。",
+        "title": "この会話は長すぎて、ホスト型サービスの 1 ターンでは処理できません。"
+      },
+      "trialComplete": {
+        "guidance": "Animama をダウンロードして、Anima とのチャットを続けましょう。",
+        "link": "Animama をダウンロード",
+        "title": "Animama のお試し期間が終了しました。"
+      }
+    },
+    "network": {
+      "guidance": "接続と、インストールが起動しているかを確認してから、もう一度お試しください。",
+      "title": "Animama がサービスに接続できませんでした。"
+    },
+    "notice": {
+      "details": "詳細",
+      "errorCode": "エラーコード：",
+      "incompleteReply": "不完全な返信",
+      "notConfirmed": "完了を確認できませんでした。このお知らせと途中までの返信は、このチャットを離れるか再読み込みするまでここに残ります。",
+      "restore": "メッセージを復元",
+      "restoreDisabled": "返信が進行中でなく、入力欄が空のときに利用できます。",
+      "restoreHint": "編集できるようにテキストを復元します。自動的に送信されることはありません。",
+      "retryAfter_other": "プロバイダーは、次の試行まで少なくとも{{count}}秒待つことを推奨しています。"
+    },
+    "service": {
+      "guidance": "少し待ってから、もう一度お試しください。問題が続く場合は、インストールのサービスを確認するか再起動してください。",
+      "title": "Animama のサービスを利用できません。"
+    },
+    "settingsPath": "アプリ設定 → モデル",
+    "unknown": {
+      "guidance": "メッセージを復元して、もう一度お試しください。問題が続く場合は、エラーコードをインストールの所有者に伝えてください。",
+      "title": "メッセージを完了できませんでした。"
+    },
+    "wait": {
+      "day_other": "約{{count}}日",
+      "hour_other": "約{{count}}時間",
+      "minute_other": "約{{count}}分",
+      "second_other": "約{{count}}秒"
+    }
+  },
+  "composer": {
+    "send": "メッセージを送信",
+    "sending": "メッセージを送信中",
+    "speechUnavailable": "オフライン音声認識は利用できません",
+    "stop": "停止",
+    "stopVoice": "音声モードを停止",
+    "voiceMode": "音声モード"
+  },
+  "conversation": {
+    "label": "会話"
+  },
+  "runStatus": {
+    "searching_web": "ウェブを検索中…",
+    "summarizing_context": "以前の会話を要約中…"
+  },
+  "session": {
+    "placeholder": {
+      "loadingAnima": "Anima を読み込んでいます…",
+      "loadingRuntime": "Anima のランタイムを読み込んでいます…",
+      "ready": "何を話しましょうか？"
+    },
+    "toasts": {
+      "animaLoading": "Anima を読み込み中です。",
+      "avatarSessionExpired": "このアバターのセッションの有効期限が切れました。再読み込みしてから、もう一度メッセージを送信してください。",
+      "chatLoadFailed": "チャットを読み込めませんでした。",
+      "chatLoading": "チャットを読み込み中です。",
+      "missingAnima": "Anima が見つかりません。",
+      "modelNotDirect": "このモデルはまだ直接チャットに使用できません。",
+      "modelsLoading": "モデルを読み込み中です。",
+      "newChatModelFailed": "そのモデルで新しいチャットを開始できませんでした。",
+      "reloadAvatarSession": "アバターのセッションを再読み込み",
+      "restoreModelFailed": "このチャットのモデルを復元できませんでした。",
+      "runtimeLoading": "Anima のランタイムを読み込み中です。",
+      "selectModel": "チャットする前にモデルを選択してください。"
+    }
+  },
+  "transcript": {
+    "emptyDescription": "チャットを始めると、ここにメッセージが表示されます",
+    "emptyTitle": "まだメッセージはありません"
+  }
+}

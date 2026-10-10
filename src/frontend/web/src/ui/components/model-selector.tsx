@@ -19,6 +19,7 @@ import { publicResourceUrl } from "@/lib/resource-urls";
 import { cn } from "@/lib/utils";
 
 import type { ComponentProps, ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 export type ModelSelectorProps = ComponentProps<typeof Dialog>;
 
@@ -39,23 +40,28 @@ export type ModelSelectorContentProps = ComponentProps<typeof DialogContent> & {
 export const ModelSelectorContent = ({
   className,
   children,
-  title = "Model Selector",
+  title,
   ...props
-}: ModelSelectorContentProps) => (
-  <DialogContent
-    aria-describedby={undefined}
-    className={cn(
-      "outline-border! border-none! p-0 outline! outline-solid!",
-      className,
-    )}
-    {...props}
-  >
-    <DialogTitle className="sr-only">{title}</DialogTitle>
-    <Command className="**:data-[slot=command-input-wrapper]:h-auto">
-      {children}
-    </Command>
-  </DialogContent>
-);
+}: ModelSelectorContentProps) => {
+  const { t } = useTranslation("components");
+  return (
+    <DialogContent
+      aria-describedby={undefined}
+      className={cn(
+        "outline-border! border-none! p-0 outline! outline-solid!",
+        className,
+      )}
+      {...props}
+    >
+      <DialogTitle className="sr-only">
+        {title ?? t("modelSelector.title")}
+      </DialogTitle>
+      <Command className="**:data-[slot=command-input-wrapper]:h-auto">
+        {children}
+      </Command>
+    </DialogContent>
+  );
+};
 
 export type ModelSelectorDialogProps = ComponentProps<typeof CommandDialog>;
 
@@ -199,13 +205,14 @@ export const ModelSelectorLogo = ({
   className,
   ...props
 }: ModelSelectorLogoProps) => {
+  const { t } = useTranslation("components");
   const normalizedProvider = provider.trim().toLowerCase();
   const hasLogo = PROVIDER_LOGOS.has(normalizedProvider);
   return (
     <span
       {...props}
       role="img"
-      aria-label={`${provider} provider`}
+      aria-label={t("modelSelector.providerLogo", { provider })}
       className={cn(
         "inline-flex size-4 shrink-0 items-center justify-center",
         !hasLogo &&

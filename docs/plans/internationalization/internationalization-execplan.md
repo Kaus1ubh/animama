@@ -66,7 +66,7 @@ Boundaries:
 - [x] Phase 2: names in any script (R11); review #3 passed 2026-10-10.
 - [x] Phase 3: backend diagnostics and shared error wording (R10); review #2
       passed 2026-10-10.
-- [ ] Phase 4: app shell, chat and safety (R7, R9).
+- [x] Phase 4: app shell, chat and safety (R7, R9); review #2 passed 2026-10-10.
 - [ ] Phase 5: Animas, Library and memory (R7).
 - [ ] Phase 6: Settings, profile and sound (R7).
 - [ ] Phase 7: creators (R7).
@@ -549,13 +549,96 @@ Issue: #421. Areas: `app/`, `routes/` (non-debug), `ui/sidebar`, `ui/main`,
   Japanese UI and an `en-US` browser).
 - Exact-prompt test: provider instructions identical under every locale (AC7).
 
+#### Phase 4 results (2026-10-10)
+
+Source: `5920f506` plus the Phase 4 working tree.
+
+- Product UI: `useProductTranslation` (application instance, else an English
+  fallback for hosts without a provider); chat failures store catalog
+  references (`copy`) and are worded at render, keeping English `title` and
+  `guidance` for hosts and logs; notice, composer, transcript, conversation,
+  run status and chat-session placeholder/toasts translated; web-search
+  unavailability carries a `code`; catalogs moved to
+  `locales/<tag>/product.json`; `formatAnimaTimestamp` (unused, fixed `en-US`)
+  removed; product-ui raw-string lint and a no-literal-toast guard in
+  `i18n:check`.
+- Web (namespaces `app` 127, `setup` 95, `sidebar` 53, `chat` 162,
+  `emotion` 110, `safety` 13, `components` 13 keys): app shell, admission,
+  first-run setup, routes, sidebar (except App Settings, Phase 6), hooks, main
+  chat screen, canvas, header (except Anima Settings, Phase 6), web components,
+  Toaster labels, safety views, emotion labels, AI notice, crisis-card labels.
+  Dates, numbers and sizes use `useFormatters()` (for example `12 kB`).
+- Safety (R9): crisis services, numbers and descriptions render as backend data
+  (test); the protocol has machine translations
+  `docs/safety/crisis-protocol.<locale>.md` loaded per locale by
+  `useCrisisProtocol` (test), English authoritative.
+- R6: `currentChatClientContext()` keeps the browser locale under a Japanese UI
+  (test); emotion labels and the AI notice are display-only; prompt suggestions
+  translate labels but send English prompts (owner question below).
+- Checks: `pnpm check` (incl. `i18n:check`), `pnpm web:lint`, `tsc` pass;
+  `pnpm packages:test` (product-ui 37) pass; web vitest 3775 passed, 1 skipped,
+  4 failed only in `tests/local-api-proxy.test.ts` (host port 5173 held by
+  another task's preview server).
+- Browser (task stack, saved locale `ja`): main chat screen, sidebar, header,
+  composer placeholder and toast region in Japanese; `/safety` protocol shows
+  the Japanese translation. Note: the development container builds its own copy
+  of the shared packages at start; after product-ui changes run
+  `pnpm packages:build` inside the `web` service or restart it.
+- Open owner question: should prompt suggestions send their prompt in the UI
+  Locale (it changes what the Anima is asked) or stay English until the
+  conversation-language follow-up? Current behavior: English.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full review of `5920f506` plus the Phase 4 working
+tree (2026-10-10).
+
+- **P4-R1-01 (required).** The AC7 exact-prompt evidence was missing (only the
+  crisis-region client test existed).
+- **P4-R1-02 (required).** Docs still described `locales/<tag>.json` for
+  product-ui and did not tell product-ui code to use `useProductTranslation()`.
+- **P4-R1-03 (required).** Setup was recorded as converted while it still shows
+  English from shared settings modules (provider purposes, connection status,
+  model detection, location tabs inside a translated label, connection form,
+  desktop credentials, Pocket option reasons, offline speech downloads).
+- Optional: a host's own i18next instance without the product namespace would
+  show raw keys; no drift guard for translated crisis lines; orphaned JSDoc in
+  `chat-input.tsx`; product-ui Prettier drift; attachment details without a
+  size began with " · "; `hostedExclusionReasons` getter object; product-ui
+  lint config imports web's scope file; `__root` meta description updates only
+  on navigation.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P4-R1-01 accepted.** `tests/test_ui_locale_independence.py`: for UI
+  Locales `ja`, `zh-Hant` and unset, turn chat options, effective companion
+  safety and the crisis region are identical (two client locales), and the
+  prompt assembler takes no locale or language input (3 tests pass). Speech
+  recognition keeps its existing language choice (`recognition.lang`, default
+  `en-US`) and never reads the UI Locale (code inspection; conversation
+  language is the follow-up).
+- **P4-R1-02 accepted.** `i18n.md` and `src/frontend/AGENTS.md` name
+  `locales/<tag>/product.json` and `useProductTranslation()`.
+- **P4-R1-03 accepted as a recorded dependency.** Setup's English from shared
+  settings modules (`model-configuration-state.ts` purposes/status/detection,
+  `MODEL_LOCATION_TABS`, `ModelConnectionForm`, `DesktopCredentialsPanel`,
+  Pocket option reasons, `OfflineSpeechDownloads`) converts in Phase 6, which
+  owns those modules; Phase 9's pseudo-locale smoke covers setup.
+- Optional accepted: `useProductTranslation` uses an instance only when it was
+  set up with the product namespace; `crisisProtocolTranslations.test.ts`
+  compares every link and number with English (5 pass); JSDoc fixed; product-ui
+  files formatted; attachment details without a size use
+  `fileDetailsNoSize`. Deferred (no behavior impact): the getter object,
+  product-ui lint config coupling, `__root` meta description refresh.
+- Checks: product-ui tests 37 pass; web `tsc` pass; web vitest (chat, components,
+  safety, main) 184 pass; `pnpm i18n:check` pass; ruff pass.
+
+Repair budget: one of two repair rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck: P4-R1-01..03 resolved; optional fixes caused no regressions.
+The speech-recognition wording in this record was corrected. Result: pass.
 
 ### Phase 5 — Animas, Library and memory (R7)
 

@@ -2,6 +2,7 @@
 
 import { Settings } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { useUserProfile } from "@/query/hooks/useUserProfile";
@@ -38,6 +39,7 @@ function initials(name: string): string {
 
 /** Show admitted personalization and composition-provided account controls. */
 export function SidebarUserMenu() {
+  const { t } = useTranslation("sidebar");
   const { open } = useSidebar();
   const closeMobileSidebar = useCloseMobileSidebar();
   const profile = useUserProfile();
@@ -49,7 +51,8 @@ export function SidebarUserMenu() {
   const account = controller?.composition.accountActions;
   const canOpenAccount =
     useOptionalAccountAffordances()?.canOpenAccount ?? false;
-  const displayName = profile.data?.display_name?.trim() || "You";
+  const displayName =
+    profile.data?.display_name?.trim() || t("user.fallbackName");
   const triggerButton = (
     <button
       type="button"
@@ -110,7 +113,7 @@ export function SidebarUserMenu() {
             }}
           >
             <Settings className="h-4 w-4" />
-            App Settings
+            {t("user.appSettings")}
           </DropdownMenuItem>
           {account ? (
             <>
@@ -124,12 +127,12 @@ export function SidebarUserMenu() {
                       setAccountError(
                         error instanceof Error
                           ? error.message
-                          : "Account access is unavailable.",
+                          : t("user.accountUnavailable"),
                       );
                     }
                   }}
                 >
-                  Account
+                  {t("user.account")}
                 </DropdownMenuItem>
               ) : null}
               <DropdownMenuItem
@@ -140,14 +143,14 @@ export function SidebarUserMenu() {
                   setUsageOpen(true);
                 }}
               >
-                Usage and limits
+                {t("user.usage")}
               </DropdownMenuItem>
               <DropdownMenuItem
                 onSelect={() => {
                   void controller!.signOut().catch(() => {});
                 }}
               >
-                Sign out
+                {t("user.signOut")}
               </DropdownMenuItem>
               {accountError ? (
                 <p role="alert" className="text-muted-foreground px-2 text-sm">

@@ -2,6 +2,7 @@
 
 import { MathUtils } from "three";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Card,
@@ -192,12 +193,13 @@ export function TransformPanel({
   onUniformScaleLockedChange,
   showShortcut = true,
 }: TransformPanelProps) {
+  const { t } = useTranslation("chat");
   const title =
     mode === "translate"
-      ? "Move Avatar"
+      ? t("canvas.transform.titles.translate")
       : mode === "rotate"
-        ? "Rotate Avatar"
-        : "Scale Avatar";
+        ? t("canvas.transform.titles.rotate")
+        : t("canvas.transform.titles.scale");
   const shortcut = mode === "translate" ? "G" : mode === "rotate" ? "R" : "S";
 
   return (
@@ -219,7 +221,7 @@ export function TransformPanel({
           </CardTitle>
           {showShortcut ? (
             <CardDescription className="text-xs">
-              Shortcut: {shortcut}
+              {t("canvas.transform.shortcut", { key: shortcut })}
             </CardDescription>
           ) : null}
         </CardHeader>
@@ -235,7 +237,9 @@ export function TransformPanel({
                   key={axis}
                   axis={axis}
                   compact={compact}
-                  inputAriaLabel={`Position ${axis.toUpperCase()}`}
+                  inputAriaLabel={t("canvas.transform.position", {
+                    axis: axis.toUpperCase(),
+                  })}
                   max={5}
                   min={-5}
                   onValueChange={(value) => onPositionChange(axis, value)}
@@ -251,7 +255,9 @@ export function TransformPanel({
                   key={axis}
                   axis={axis}
                   compact={compact}
-                  inputAriaLabel={`Rotation ${axis.toUpperCase()} in degrees`}
+                  inputAriaLabel={t("canvas.transform.rotation", {
+                    axis: axis.toUpperCase(),
+                  })}
                   max={180}
                   min={-180}
                   onValueChange={(value) =>
@@ -267,9 +273,11 @@ export function TransformPanel({
             <>
               <Field orientation="horizontal">
                 <div className="space-y-0.5">
-                  <FieldLabel className="text-xs">Uniform Scale</FieldLabel>
+                  <FieldLabel className="text-xs">
+                    {t("canvas.transform.uniformScale")}
+                  </FieldLabel>
                   <p className="text-muted-foreground text-2xs">
-                    Edit all axes together.
+                    {t("canvas.transform.uniformScaleDescription")}
                   </p>
                 </div>
                 <Switch
@@ -282,7 +290,9 @@ export function TransformPanel({
                   key={axis}
                   axis={axis}
                   compact={compact}
-                  inputAriaLabel={`Scale ${axis.toUpperCase()}`}
+                  inputAriaLabel={t("canvas.transform.scale", {
+                    axis: axis.toUpperCase(),
+                  })}
                   max={3}
                   min={0.1}
                   normalize={(value) => Math.max(0.001, value)}

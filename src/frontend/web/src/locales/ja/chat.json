@@ -1,0 +1,234 @@
+{
+  "background": {
+    "apply": "適用",
+    "applying": "適用中...",
+    "back": "背景の設定に戻る",
+    "canvasSize": "{{width}} x {{height}}",
+    "description": "選択したアバター背景の切り抜きとズームを調整します。",
+    "heading": "メディアを編集",
+    "hint": "ドラッグして位置を調整し、ズームしてライブのアバターキャンバスに合わせます。",
+    "liveCanvas": "ライブキャンバス",
+    "reset": "リセット",
+    "title": "{{name}} の背景のサイズを変更",
+    "zoomIn": "背景を拡大",
+    "zoomOut": "背景を縮小"
+  },
+  "canvas": {
+    "camera": {
+      "axis": "{{label}} {{axis}}",
+      "bones": {
+        "chest": "胸",
+        "head": "頭",
+        "hips": "腰",
+        "manual": "手動"
+      },
+      "custom": "カスタム",
+      "fieldOfView": "視野角",
+      "fieldOfViewLabel": "カメラの視野角",
+      "fineTune": "カメラを微調整",
+      "orbitTarget": "オービットの中心",
+      "orbitTargetYSource": "オービット中心の Y 基準",
+      "orbitTargetYSourceLabel": "オービット中心の Y 基準",
+      "position": "カメラの位置",
+      "positionYSource": "カメラの Y 基準",
+      "positionYSourceLabel": "カメラの Y 基準",
+      "preset": "カメラのプリセット",
+      "presets": {
+        "fullBody": "全身",
+        "fullBodyClose": "全身（寄り）",
+        "portrait": "バストアップ",
+        "portraitClose": "バストアップ（寄り）"
+      },
+      "reset": "リセット",
+      "title": "カメラ"
+    },
+    "fullscreen": {
+      "enter": "全画面表示にする",
+      "exit": "全画面表示を終了"
+    },
+    "pip": {
+      "open": "ピクチャー・イン・ピクチャーを開く",
+      "toggle": "ピクチャー・イン・ピクチャーを切り替え",
+      "unsupported": "このブラウザはピクチャー・イン・ピクチャーに対応していません"
+    },
+    "settings": {
+      "audio": "オーディオ",
+      "mode": "モード",
+      "modes": {
+        "avatar": "アバターのみ",
+        "avatarChat": "アバター + チャット",
+        "chat": "チャットのみ"
+      },
+      "open": "キャンバス設定を開く",
+      "pipBackground": "PiP の背景",
+      "pipBackgrounds": {
+        "scene": "シーン",
+        "transparent": "透明"
+      },
+      "title": "キャンバス設定"
+    },
+    "transform": {
+      "position": "位置 {{axis}}",
+      "rotation": "回転 {{axis}}（度）",
+      "scale": "スケール {{axis}}",
+      "shortcut": "ショートカット：{{key}}",
+      "titles": {
+        "rotate": "アバターを回転",
+        "scale": "アバターを拡大・縮小",
+        "translate": "アバターを移動"
+      },
+      "uniformScale": "均等スケール",
+      "uniformScaleDescription": "すべての軸をまとめて編集します。"
+    }
+  },
+  "composer": {
+    "attach": {
+      "add": "ファイルを追加",
+      "chunks_other": "{{count}} チャンク",
+      "empty": "利用できるアップロード済みファイルが見つかりません。",
+      "fileDetails": "{{size}} · {{chunks}} · {{status}}",
+      "fileDetailsNoSize": "{{chunks}} · {{status}}",
+      "files": "ファイル",
+      "fromComputer": "コンピューターからアップロード",
+      "keywordOnly": "キーワードのみ",
+      "loadFailed": "アップロード済みファイルを読み込めませんでした。",
+      "loading": "アップロード済みファイルを読み込み中…",
+      "search": "アップロード済みファイルを検索…",
+      "uploading": "アップロード中 {{percent}}"
+    },
+    "dictation": {
+      "failed": "音声入力に失敗しました",
+      "mute": "マイクをミュート",
+      "start": "音声入力",
+      "stop": "音声入力を停止",
+      "stopIcon": "停止",
+      "unmute": "マイクのミュートを解除"
+    },
+    "drop": {
+      "allFailed": "ファイルを追加できませんでした。",
+      "failedHint": "ファイルの種類とサイズを確認して、もう一度お試しください。",
+      "prompt": "ここにファイルをドロップ",
+      "someFailed_other": "{{count}} 件のファイルを追加できませんでした。",
+      "unavailable": "現在、ファイルをアップロードできません。"
+    },
+    "files": {
+      "cardLabel": "{{name}} {{status}}",
+      "genericKind": "ファイル",
+      "noToolsNote": "このモデルはツールを呼び出せないため、添付ファイルを検索できません。添付ファイルを使うには、ツール呼び出しに対応したモデルを選んでください。",
+      "ready": "準備完了",
+      "readyKeywordOnly": "準備完了（キーワードのみ）",
+      "remove": "入力欄から削除"
+    },
+    "model": {
+      "empty": "モデルが見つかりません。",
+      "needsWindow": "「アプリ設定 → モデル」でコンテキストウィンドウを設定してください",
+      "noProfile": "チャットプロファイルがありません",
+      "notDirect": "まだ直接チャットでは使えません",
+      "reasoning": "推論",
+      "reasoningEfforts": {
+        "high": "高",
+        "low": "低",
+        "max": "最大",
+        "medium": "中",
+        "minimal": "最小",
+        "none": "なし",
+        "xhigh": "非常に高い"
+      },
+      "search": "モデルを検索...",
+      "searchUnavailable": {
+        "key_missing": "Brave Search のキーが設定されていません。アプリ設定の「ウェブ検索」を確認してください。",
+        "not_configured": "アプリ設定でウェブ検索を設定してください。",
+        "tools_unsupported": "このモデルはツールを呼び出せないため、検索できません。"
+      },
+      "select": "モデルを選択",
+      "settings": "{{model}} の設定",
+      "toasts": {
+        "selectFirst": "チャットする前にモデルを選択してください。",
+        "unsupported": "このモデルはまだ直接チャットで使えません。",
+        "updateFailed": "モデルを更新できませんでした"
+      },
+      "unavailable": "モデルを利用できません。別のモデルを選択してください。",
+      "webSearch": "ウェブ検索"
+    }
+  },
+  "header": {
+    "anima": {
+      "fallback": "Anima",
+      "loading": "Anima を読み込み中...",
+      "none": "Anima がありません"
+    },
+    "openAnimaDetails": "Anima の詳細を開く",
+    "openSidebar": "サイドバーを開く",
+    "voiceDownload": {
+      "downloading": "ダウンロード中 {{percent}}",
+      "failed": "ダウンロードに失敗しました。選択すると再試行します",
+      "whenSelected": "選択するとダウンロードされます"
+    }
+  },
+  "memoryCue": {
+    "added": "{{name}} の記憶に追加されました",
+    "addedUnnamed": "この Anima の記憶に追加されました",
+    "changed": "{{name}} の記憶が更新されました",
+    "changedUnnamed": "この Anima の記憶が更新されました",
+    "episodes": "エピソードに記録されました",
+    "noText": "新しいテキストは追加されませんでした。",
+    "open": "記憶で開く",
+    "title": "{{name}} が覚えたこと",
+    "titleUnnamed": "覚えたこと",
+    "updated": "記憶が更新されました"
+  },
+  "model": {
+    "alternate": "{{name}}（代替）",
+    "optionLabel": "{{connection}}：{{model}}"
+  },
+  "modelSwitch": {
+    "cancel": "キャンセル",
+    "confirm": "新しいチャットを開始",
+    "description": "{{model}} は会話の扱い方が異なるため、このチャットは新しいチャットで続きます。",
+    "descriptionUnnamed": "このモデルは会話の扱い方が異なるため、このチャットは新しいチャットで続きます。",
+    "title": "新しいチャットを開始しますか？"
+  },
+  "playback": {
+    "degraded": "一部のアバターコンテンツを利用できません。テキストチャットは引き続き使えます。",
+    "preparing": "アニメーションとエフェクトを準備中…",
+    "preparingCanChat": "アニメーションとエフェクトを準備中… もうチャットできます。"
+  },
+  "profile": {
+    "back": "戻る",
+    "backgroundAlt": "{{name}} の背景",
+    "close": "Anima のプロフィールを閉じる",
+    "closeShort": "閉じる",
+    "description": "外見、感情、アイデンティティ、記憶、設定。",
+    "documents": {
+      "editIdentity": "アイデンティティを編集",
+      "editMemories": "記憶を編集",
+      "identity": "アイデンティティ",
+      "label": "Anima のドキュメント",
+      "memories": "記憶"
+    },
+    "editBackground": "背景画像を編集",
+    "editProfileImage": "プロフィール画像を編集",
+    "emotions": "感情",
+    "exploreEmotions": "感情を見る",
+    "fullDetails": "すべての詳細を見る",
+    "noIdentity": "アイデンティティの内容はまだありません。",
+    "profileImageAlt": "{{name}} のプロフィール画像",
+    "settings": "Anima 設定",
+    "settingsTitle": "{{name}} の設定"
+  },
+  "shell": {
+    "chatUnavailable": {
+      "description": "ランタイムのシェル、シーン、アバター、設定、WebSocket、記憶の各機能は動作していますが、このシェルにはチャットパネルがありません。",
+      "title": "ランタイムのチャットを利用できません"
+    }
+  },
+  "speech": {
+    "install": "音声入力と音声モードを使うには、オフライン音声認識をインストールしてください",
+    "installFromMainWindow": "メインの Animama ウィンドウで「アプリ設定 → 音声」を開いてダウンロードしてください。",
+    "unavailableHere": "ここでは音声入力と音声モード用のオフライン音声認識を利用できません"
+  },
+  "suggestions": {
+    "greeting": "簡単なあいさつ",
+    "joke": "ジョークを言って"
+  }
+}

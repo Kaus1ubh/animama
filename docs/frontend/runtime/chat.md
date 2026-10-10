@@ -508,7 +508,9 @@ the chat panel. It renders:
 
 `SafetyProtocolDialog` opens `docs/safety/crisis-protocol.md`, bundled with
 Vite's `?raw` import, in place so reading it never interrupts the turn. The
-same document is the `/safety` route, reachable before first run. Vite's
+same document is the `/safety` route, reachable before first run. Under a beta
+UI Locale, `useCrisisProtocol` loads `crisis-protocol.<locale>.md` (a machine
+translation; English is authoritative) and shows English until it loads. Vite's
 `server.fs.allow`, the production `Dockerfile`, and the development Compose
 mount include `docs/safety` for that import. Quick Chat mirrors the notice and
 card through its snapshot `safety` field and sends `dismiss-crisis-card`

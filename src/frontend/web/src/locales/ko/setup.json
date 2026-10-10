@@ -1,0 +1,139 @@
+{
+  "actions": {
+    "back": "뒤로",
+    "cancel": "취소",
+    "continue": "계속",
+    "finish": "완료",
+    "finishing": "완료하는 중…",
+    "skip": "지금은 건너뛰기"
+  },
+  "ai": {
+    "addCustomServer": "사용자 지정 서버 추가",
+    "addModel": "모델 추가",
+    "addModelTo": "{{name}}에 모델 추가",
+    "checking": "이 설치에서 제공하는 모델을 확인하는 중…",
+    "connect": "연결",
+    "connecting": "연결하는 중…",
+    "connectionDetail": "{{host}} · {{status}}",
+    "heading": "AI 선택",
+    "loadFailed": "모델을 불러올 수 없습니다. 이 단계를 건너뛰고 나중에 앱 설정 → 모델에서 설정할 수 있습니다.",
+    "local": {
+      "add": "추가",
+      "adding": "추가하는 중…",
+      "addNamed": "{{model}} 추가",
+      "allAdded": "모든 모델이 추가되었습니다.",
+      "lookingFor": "{{server}}을(를) 찾는 중…",
+      "noModels": "{{server}}에 모델이 없습니다. {{server}}에서 모델을 다운로드한 후 다시 검색하세요.",
+      "notFound": "{{server}} 서버를 찾을 수 없습니다. {{server}}을(를) 설치하고 실행한 후 다시 검색하세요.",
+      "runningAt": "{{host}}에서 실행 중",
+      "search": "검색",
+      "searchAgain": "다시 검색",
+      "searching": "검색하는 중…",
+      "setUpLater": "나중에 설정"
+    },
+    "openAi": {
+      "heading": "OpenAI",
+      "serverKey": "이 서버에 설정된 OpenAI 키를 사용합니다.",
+      "serverKeyMissing": "OpenAI를 사용하려면 서버에 OPENAI_API_KEY를 설정하세요."
+    },
+    "providedModels": "이 설치에는 자체 모델이 제공되므로 여기서 선택할 항목이 없습니다.",
+    "providerTabs": "{{location}} 공급자",
+    "purpose": "Anima가 채팅에 사용할 모델을 선택하세요."
+  },
+  "errors": {
+    "displayName": "표시 이름은 1~{{max}}자로 입력하세요.",
+    "keyNotSaved": "키가 저장되지 않았습니다. 이 단계의 세부 정보를 입력하거나 키를 삭제하세요.",
+    "modelUnavailable": "선택한 모델을 더 이상 사용할 수 없습니다. AI 단계로 돌아가 다른 모델을 선택하거나 건너뛰세요.",
+    "saveFailed": "설정을 저장할 수 없습니다. 로컬 런타임에서 이미 완료되었을 수 있으니 안심하고 다시 시도하세요.",
+    "voiceSettings": "음성 설정을 저장할 수 없습니다. 다시 시도하거나 이 단계를 건너뛰세요."
+  },
+  "keys": {
+    "saving": "키를 저장하는 중…",
+    "storedDescription": "이 컴퓨터에 암호화되어 저장되며 다시 표시되지 않습니다.",
+    "unsavedPrompt": {
+      "description": "아직 저장하지 않은 키를 입력했습니다. 지금 저장하거나, 삭제하고 계속하세요.",
+      "discard": "삭제",
+      "keepEditing": "계속 편집",
+      "save": "키 저장",
+      "saving": "저장하는 중…",
+      "title": "API 키를 저장할까요?"
+    }
+  },
+  "links": {
+    "opensInNewWindow": "(새 창에서 열림)"
+  },
+  "progress": {
+    "label": "설정 진행 상황",
+    "optional": "(선택 사항)",
+    "position": "{{total}}단계 중 {{current}}단계"
+  },
+  "steps": {
+    "ai": "AI",
+    "voice": "음성",
+    "welcome": "환영합니다"
+  },
+  "voice": {
+    "heading": "음성 설정",
+    "purpose": "Anima와 대화하고 답변을 음성으로 들어 보세요.",
+    "stt": {
+      "checking": "음성 인식을 확인하는 중…",
+      "cpu": {
+        "description": "<link>NVIDIA의 Parakeet TDT 0.6B v2</link>가 이 기기에서 영어 음성을 받아 적으므로 음성이 기기 밖으로 나가지 않습니다.",
+        "label": "Parakeet (CPU)",
+        "labelWithSize": "Parakeet (CPU, {{size}})"
+      },
+      "download": "다운로드",
+      "downloaded": "다운로드됨",
+      "downloading": "다운로드 중 {{percent}}",
+      "gpu": {
+        "description": "더 빠르고, 말하는 동안 실시간 미리보기를 표시합니다. CPU 버전과 WebGPU를 지원하는 GPU가 필요합니다.",
+        "label": "Parakeet (GPU)",
+        "labelWithSize": "Parakeet (GPU, {{size}})",
+        "needsCpu": "먼저 CPU 버전을 다운로드하세요."
+      },
+      "heading": "음성 텍스트 변환",
+      "listUnavailable": "지금은 음성 다운로드를 사용할 수 없습니다. 나중에 앱 설정에서 추가할 수 있습니다.",
+      "lowSpace": "여유 공간이 부족합니다. 다운로드하려면 {{size}}의 여유 공간이 필요합니다.",
+      "models": "음성 인식 모델",
+      "notDownloaded": "다운로드 안 됨",
+      "progressLabel": "{{label}} 다운로드 진행률",
+      "retryDownload": "다운로드 다시 시도",
+      "turnedOff": "이 서버에서는 음성 인식이 꺼져 있습니다.",
+      "unavailableInBuild": "이 빌드에서는 사용할 수 없습니다.",
+      "verifying": "다운로드를 확인하는 중…",
+      "webgpu": {
+        "available": "WebGPU 사용 가능",
+        "checking": "WebGPU를 확인하는 중…",
+        "unavailable": "이 기기에서는 WebGPU를 사용할 수 없음"
+      }
+    },
+    "tts": {
+      "elevenLabs": {
+        "description": "ElevenLabs API 키로 사용하는 클라우드 음성입니다.",
+        "label": "ElevenLabs"
+      },
+      "heading": "텍스트 음성 변환",
+      "pocket": {
+        "description": "<link>Kyutai의 Pocket TTS</link>가 이 컴퓨터에서 답변을 읽어 주며, 키나 계정이 필요 없습니다.",
+        "label": "PocketTTS (기본 제공)"
+      },
+      "providers": "텍스트 음성 변환 공급자",
+      "unavailableReason": "{{provider}}: {{reason}}"
+    }
+  },
+  "welcome": {
+    "age": {
+      "confirm": "만 18세 이상입니다",
+      "decline": "만 18세 미만입니다",
+      "declined": "Animama는 만 18세 이상 성인만 사용할 수 있으므로 설정을 계속할 수 없습니다.",
+      "heading": "시작하기 전에",
+      "notice": "Anima는 사람이 아닌 AI 컴패니언입니다. Animama의 AI 컴패니언은 일부 미성년자에게 적합하지 않을 수 있으므로, Animama는 만 18세 이상만 사용할 수 있습니다."
+    },
+    "displayName": {
+      "label": "표시 이름",
+      "placeholder": "이름"
+    },
+    "heading": "Animama가 어떻게 불러 드릴까요?",
+    "safetyLink": "안전 및 위기 대응 프로토콜"
+  }
+}

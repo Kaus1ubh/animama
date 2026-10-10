@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { motion, useReducedMotion, type Variants } from "motion/react";
 import { useEffect, useId, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import {
   Popover,
@@ -52,19 +53,16 @@ const CARD_VARIANTS: Variants = {
 
 const PRIMARY_CREATE_LINKS = [
   {
-    label: "Anima",
     to: "/animas/new" as const,
     icon: UsersRound,
     iconClassName: "bg-primary text-primary-foreground",
   },
   {
-    label: "Gesture",
     to: "/gestures/new" as const,
     icon: Hand,
     iconClassName: "bg-secondary text-secondary-foreground",
   },
   {
-    label: "Reaction",
     to: "/reactions/new" as const,
     icon: HeartPulse,
     iconClassName: "bg-secondary text-secondary-foreground",
@@ -83,6 +81,7 @@ const MENU_ITEM_CLASS_NAME = `group/create-item ${MENU_ITEM_SHAPE_CLASS_NAME} ho
  * the current page.
  */
 export function SidebarCreateMenu() {
+  const { t } = useTranslation("sidebar");
   const [open, setOpen] = useState(false);
   const [effectsPickerOpen, setEffectsPickerOpen] = useState(false);
   const pathname = useLocation({ select: (location) => location.pathname });
@@ -103,8 +102,19 @@ export function SidebarCreateMenu() {
       animaCreationUnavailable !== null ||
       item.to !== "/animas/new",
   );
+  /** Each creation destination's menu label. */
+  const createLabel = (to: (typeof PRIMARY_CREATE_LINKS)[number]["to"]) => {
+    switch (to) {
+      case "/animas/new":
+        return t("create.anima");
+      case "/gestures/new":
+        return t("create.gesture");
+      case "/reactions/new":
+        return t("create.reaction");
+    }
+  };
   const trigger: SidebarLinkItem = {
-    label: "Create",
+    label: t("create.label"),
     to: "/create",
     icon: (
       <Sparkles className="text-sidebar-foreground dark:text-sidebar-foreground h-6 w-6 flex-shrink-0" />
@@ -158,7 +168,7 @@ export function SidebarCreateMenu() {
               }
               showTooltip={false}
               animateLabel={false}
-              aria-label="Create"
+              aria-label={t("create.label")}
               aria-haspopup="menu"
               aria-expanded={open}
               aria-controls={open ? contentId : undefined}
@@ -186,7 +196,7 @@ export function SidebarCreateMenu() {
         <PopoverContent
           id={contentId}
           role="menu"
-          aria-label="Create"
+          aria-label={t("create.label")}
           side="right"
           align="start"
           sideOffset={4}
@@ -231,7 +241,7 @@ export function SidebarCreateMenu() {
                       >
                         {icon}
                         <span className="min-w-0 flex-1 text-left whitespace-nowrap">
-                          {item.label}
+                          {createLabel(item.to)}
                         </span>
                       </button>
                     </UnavailableAction>
@@ -248,7 +258,7 @@ export function SidebarCreateMenu() {
                     >
                       {icon}
                       <span className="min-w-0 flex-1 whitespace-nowrap">
-                        {item.label}
+                        {createLabel(item.to)}
                       </span>
                       <ChevronRight
                         className="text-muted-foreground size-4 shrink-0 -translate-x-1 opacity-0 transition-all group-hover/create-item:translate-x-0 group-hover/create-item:opacity-100 group-focus-visible/create-item:translate-x-0 group-focus-visible/create-item:opacity-100 group-data-[status=active]/create-item:translate-x-0 group-data-[status=active]/create-item:opacity-100"
@@ -277,7 +287,7 @@ export function SidebarCreateMenu() {
                   <WandSparkles className="size-3.5" aria-hidden="true" />
                 </span>
                 <span className="min-w-0 flex-1 text-left whitespace-nowrap">
-                  Effects
+                  {t("create.effects")}
                 </span>
                 <ChevronRight
                   className="text-muted-foreground size-4 shrink-0 -translate-x-1 opacity-0 transition-all group-hover/create-item:translate-x-0 group-hover/create-item:opacity-100 group-focus-visible/create-item:translate-x-0 group-focus-visible/create-item:opacity-100"

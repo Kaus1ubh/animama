@@ -1,0 +1,29 @@
+{
+  "command": {
+    "description": "Search for a command to run...",
+    "title": "Command Palette"
+  },
+  "dialog": {
+    "close": "Close"
+  },
+  "imageCrop": {
+    "empty": "No image selected",
+    "upload": "Upload image"
+  },
+  "logo": {
+    "label": "Animama"
+  },
+  "modelSelector": {
+    "providerLogo": "{{provider}} provider",
+    "title": "Model Selector"
+  },
+  "toaster": {
+    "closeToast": "Close toast",
+    "notifications": "Notifications"
+  },
+  "waveform": {
+    "idle": "Audio waveform idle",
+    "live": "Live audio waveform",
+    "processing": "Processing audio"
+  }
+}

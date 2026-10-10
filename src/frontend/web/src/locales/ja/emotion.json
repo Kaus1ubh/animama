@@ -1,0 +1,170 @@
+{
+  "details": {
+    "label": "感情の状態"
+  },
+  "emotions": {
+    "admiration": "感心",
+    "amusement": "面白さ",
+    "anger": "怒り",
+    "annoyance": "苛立ち",
+    "caring": "思いやり",
+    "confidence": "自信",
+    "confusion": "戸惑い",
+    "curiosity": "好奇心",
+    "desire": "切望",
+    "disappointment": "失望",
+    "disapproval": "不満",
+    "disgust": "不快感",
+    "embarrassment": "恥ずかしさ",
+    "excitement": "興奮",
+    "fear": "恐れ",
+    "gratitude": "感謝",
+    "grief": "悲嘆",
+    "joy": "うれしさ",
+    "love": "愛",
+    "nervousness": "緊張",
+    "optimism": "楽観",
+    "remorse": "後悔",
+    "respect": "尊敬",
+    "sadness": "悲しみ"
+  },
+  "feelings": {
+    "admiration": {
+      "plain": "感心している",
+      "slightly": "少し感心している",
+      "very": "とても感心している"
+    },
+    "amusement": {
+      "plain": "面白がっている",
+      "slightly": "少し面白がっている",
+      "very": "とても面白がっている"
+    },
+    "anger": {
+      "plain": "怒っている",
+      "slightly": "少し怒っている",
+      "very": "とても怒っている"
+    },
+    "annoyance": {
+      "plain": "イライラしている",
+      "slightly": "少しイライラしている",
+      "very": "とてもイライラしている"
+    },
+    "caring": {
+      "plain": "優しい気持ち",
+      "slightly": "少し優しい気持ち",
+      "very": "とても優しい気持ち"
+    },
+    "confidence": {
+      "plain": "自信がある",
+      "slightly": "少し自信がある",
+      "very": "とても自信がある"
+    },
+    "confusion": {
+      "plain": "戸惑っている",
+      "slightly": "少し戸惑っている",
+      "very": "とても戸惑っている"
+    },
+    "curiosity": {
+      "plain": "興味がある",
+      "slightly": "少し興味がある",
+      "very": "とても興味がある"
+    },
+    "desire": {
+      "plain": "恋しい気持ち",
+      "slightly": "少し恋しい気持ち",
+      "very": "とても恋しい気持ち"
+    },
+    "disappointment": {
+      "plain": "がっかりしている",
+      "slightly": "少しがっかりしている",
+      "very": "とてもがっかりしている"
+    },
+    "disapproval": {
+      "plain": "不満を感じている",
+      "slightly": "少し不満を感じている",
+      "very": "強い不満を感じている"
+    },
+    "disgust": {
+      "plain": "うんざりしている",
+      "slightly": "少しうんざりしている",
+      "very": "とてもうんざりしている"
+    },
+    "embarrassment": {
+      "plain": "恥ずかしい気分",
+      "slightly": "少し恥ずかしい気分",
+      "very": "とても恥ずかしい気分"
+    },
+    "excitement": {
+      "plain": "ワクワクしている",
+      "slightly": "少しワクワクしている",
+      "very": "とてもワクワクしている"
+    },
+    "fear": {
+      "plain": "怖がっている",
+      "slightly": "少し怖がっている",
+      "very": "とても怖がっている"
+    },
+    "gratitude": {
+      "plain": "感謝している",
+      "slightly": "少し感謝している",
+      "very": "とても感謝している"
+    },
+    "grief": {
+      "plain": "悲しみに沈んでいる",
+      "slightly": "少し悲しみに沈んでいる",
+      "very": "深い悲しみに沈んでいる"
+    },
+    "joy": {
+      "plain": "うれしい気分",
+      "slightly": "少しうれしい気分",
+      "very": "とてもうれしい気分"
+    },
+    "love": {
+      "plain": "愛おしい気持ち",
+      "slightly": "少し愛おしい気持ち",
+      "very": "とても愛おしい気持ち"
+    },
+    "nervousness": {
+      "plain": "緊張している",
+      "slightly": "少し緊張している",
+      "very": "とても緊張している"
+    },
+    "neutral": "落ち着いた気分",
+    "optimism": {
+      "plain": "前向きな気分",
+      "slightly": "少し前向きな気分",
+      "very": "とても前向きな気分"
+    },
+    "remorse": {
+      "plain": "後悔している",
+      "slightly": "少し後悔している",
+      "very": "とても後悔している"
+    },
+    "respect": {
+      "plain": "敬う気持ち",
+      "slightly": "少し敬う気持ち",
+      "very": "深く敬う気持ち"
+    },
+    "sadness": {
+      "plain": "悲しい気分",
+      "slightly": "少し悲しい気分",
+      "very": "とても悲しい気分"
+    }
+  },
+  "groups": {
+    "affection": "親愛",
+    "alarm": "不安",
+    "delight": "喜び",
+    "drive": "意欲",
+    "esteem": "敬意",
+    "gloom": "憂うつ",
+    "rejection": "反発",
+    "revulsion": "嫌悪"
+  },
+  "radar": {
+    "axis": "{{group}}：{{maximum}}。{{emotions}}",
+    "axisEmotion": "{{emotion}} {{value}}",
+    "label": "感情スペクトル：8つのグループと、それぞれの最も強い感情",
+    "series": "最も強い感情"
+  }
+}

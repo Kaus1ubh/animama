@@ -1,0 +1,236 @@
+{
+  "background": {
+    "apply": "Apply",
+    "applying": "Applying...",
+    "back": "Back to background settings",
+    "canvasSize": "{{width}} x {{height}}",
+    "description": "Adjust the crop and zoom for the selected avatar background.",
+    "heading": "Edit media",
+    "hint": "Drag to reposition and zoom to fit the live avatar canvas.",
+    "liveCanvas": "Live canvas",
+    "reset": "Reset",
+    "title": "Resize {{name}} background",
+    "zoomIn": "Zoom in background",
+    "zoomOut": "Zoom out background"
+  },
+  "canvas": {
+    "camera": {
+      "axis": "{{label}} {{axis}}",
+      "bones": {
+        "chest": "Chest",
+        "head": "Head",
+        "hips": "Hips",
+        "manual": "Manual"
+      },
+      "custom": "Custom",
+      "fieldOfView": "Field Of View",
+      "fieldOfViewLabel": "Camera field of view",
+      "fineTune": "Fine-tune camera",
+      "orbitTarget": "Orbit Target",
+      "orbitTargetYSource": "Orbit Target Y Source",
+      "orbitTargetYSourceLabel": "Orbit target Y source",
+      "position": "Camera Position",
+      "positionYSource": "Camera Y Source",
+      "positionYSourceLabel": "Camera Y source",
+      "preset": "Camera preset",
+      "presets": {
+        "fullBody": "Full body",
+        "fullBodyClose": "Full body (close)",
+        "portrait": "Portrait",
+        "portraitClose": "Portrait (close)"
+      },
+      "reset": "Reset",
+      "title": "Camera"
+    },
+    "fullscreen": {
+      "enter": "Enter fullscreen",
+      "exit": "Exit fullscreen"
+    },
+    "pip": {
+      "open": "Open picture-in-picture",
+      "toggle": "Toggle picture-in-picture",
+      "unsupported": "Picture-in-picture isn't supported in this browser"
+    },
+    "settings": {
+      "audio": "Audio",
+      "mode": "Mode",
+      "modes": {
+        "avatar": "Avatar only",
+        "avatarChat": "Avatar + Chat",
+        "chat": "Chat only"
+      },
+      "open": "Open canvas settings",
+      "pipBackground": "PiP background",
+      "pipBackgrounds": {
+        "scene": "Scene",
+        "transparent": "Transparent"
+      },
+      "title": "Canvas settings"
+    },
+    "transform": {
+      "position": "Position {{axis}}",
+      "rotation": "Rotation {{axis}} in degrees",
+      "scale": "Scale {{axis}}",
+      "shortcut": "Shortcut: {{key}}",
+      "titles": {
+        "rotate": "Rotate Avatar",
+        "scale": "Scale Avatar",
+        "translate": "Move Avatar"
+      },
+      "uniformScale": "Uniform Scale",
+      "uniformScaleDescription": "Edit all axes together."
+    }
+  },
+  "composer": {
+    "attach": {
+      "add": "Add files",
+      "chunks_one": "{{count}} chunk",
+      "chunks_other": "{{count}} chunks",
+      "empty": "No ready uploaded files found.",
+      "fileDetails": "{{size}} · {{chunks}} · {{status}}",
+      "fileDetailsNoSize": "{{chunks}} · {{status}}",
+      "files": "Files",
+      "fromComputer": "Upload from computer",
+      "keywordOnly": "Keyword only",
+      "loadFailed": "Uploaded files could not be loaded.",
+      "loading": "Loading uploaded files…",
+      "search": "Search uploaded files…",
+      "uploading": "Uploading {{percent}}"
+    },
+    "dictation": {
+      "failed": "Dictation failed",
+      "mute": "Mute Mic",
+      "start": "Dictate",
+      "stop": "Stop dictation",
+      "stopIcon": "Stop",
+      "unmute": "Unmute Mic"
+    },
+    "drop": {
+      "allFailed": "Files could not be added.",
+      "failedHint": "Check the file type and size, then try again.",
+      "prompt": "Drop files here",
+      "someFailed_one": "{{count}} file could not be added.",
+      "someFailed_other": "{{count}} files could not be added.",
+      "unavailable": "File uploads are unavailable right now."
+    },
+    "files": {
+      "cardLabel": "{{name}} {{status}}",
+      "genericKind": "file",
+      "noToolsNote": "This model can't call tools, so it can't search attached files. Pick a model with tool calling to use them.",
+      "ready": "Ready",
+      "readyKeywordOnly": "Ready (keyword only)",
+      "remove": "Remove from composer"
+    },
+    "model": {
+      "empty": "No models found.",
+      "needsWindow": "Set its context window in App Settings → Models",
+      "noProfile": "No chat profile",
+      "notDirect": "Not available for direct chat yet",
+      "reasoning": "Reasoning",
+      "reasoningEfforts": {
+        "high": "high",
+        "low": "low",
+        "max": "max",
+        "medium": "medium",
+        "minimal": "minimal",
+        "none": "none",
+        "xhigh": "xhigh"
+      },
+      "search": "Search models...",
+      "searchUnavailable": {
+        "key_missing": "The Brave Search key is not set. See Web search in App Settings.",
+        "not_configured": "Set up web search in App Settings.",
+        "tools_unsupported": "This model can't call tools, so it can't search."
+      },
+      "select": "Select model",
+      "settings": "{{model}} settings",
+      "toasts": {
+        "selectFirst": "Select a model before chatting.",
+        "unsupported": "This model is not available for direct chat yet.",
+        "updateFailed": "Failed to update model"
+      },
+      "unavailable": "Model unavailable. Select another model.",
+      "webSearch": "Web search"
+    }
+  },
+  "header": {
+    "anima": {
+      "fallback": "Anima",
+      "loading": "Loading anima...",
+      "none": "No anima"
+    },
+    "openAnimaDetails": "Open anima details",
+    "openSidebar": "Open sidebar",
+    "voiceDownload": {
+      "downloading": "Downloading {{percent}}",
+      "failed": "Download failed; select to retry",
+      "whenSelected": "Downloads when selected"
+    }
+  },
+  "memoryCue": {
+    "added": "Added to {{name}}'s memories",
+    "addedUnnamed": "Added to this Anima's memories",
+    "changed": "Updated {{name}}'s memories",
+    "changedUnnamed": "Updated this Anima's memories",
+    "episodes": "Noted in episodes",
+    "noText": "No new text was added.",
+    "open": "Open in Memories",
+    "title": "What {{name}} remembered",
+    "titleUnnamed": "What was remembered",
+    "updated": "Memory updated"
+  },
+  "model": {
+    "alternate": "{{name}} (alternate)",
+    "optionLabel": "{{connection}}: {{model}}"
+  },
+  "modelSwitch": {
+    "cancel": "Cancel",
+    "confirm": "Start new chat",
+    "description": "{{model}} keeps conversations differently, so this chat continues in a new chat.",
+    "descriptionUnnamed": "This model keeps conversations differently, so this chat continues in a new chat.",
+    "title": "Start a new chat?"
+  },
+  "playback": {
+    "degraded": "Some avatar content is unavailable. Text chat still works.",
+    "preparing": "Preparing animations and effects…",
+    "preparingCanChat": "Preparing animations and effects… You can chat now."
+  },
+  "profile": {
+    "back": "Back",
+    "backgroundAlt": "{{name}} background",
+    "close": "Close anima profile",
+    "closeShort": "Close",
+    "description": "Appearance, emotions, identity, memories and settings.",
+    "documents": {
+      "editIdentity": "Edit identity",
+      "editMemories": "Edit memories",
+      "identity": "Identity",
+      "label": "Anima documents",
+      "memories": "Memories"
+    },
+    "editBackground": "Edit background image",
+    "editProfileImage": "Edit profile image",
+    "emotions": "Emotions",
+    "exploreEmotions": "Explore emotions",
+    "fullDetails": "See full details",
+    "noIdentity": "No identity content provided yet.",
+    "profileImageAlt": "{{name}} profile",
+    "settings": "Anima Settings",
+    "settingsTitle": "{{name}} settings"
+  },
+  "shell": {
+    "chatUnavailable": {
+      "description": "The runtime shell, scene, avatar, settings, websocket, and memory surfaces are active, but no chat panel was provided for this shell.",
+      "title": "Runtime chat unavailable"
+    }
+  },
+  "speech": {
+    "install": "Install offline speech recognition to use dictation and Voice Mode",
+    "installFromMainWindow": "Open App Settings → Voice in the main Animama window to download it.",
+    "unavailableHere": "Offline speech recognition for dictation and Voice Mode is not available here"
+  },
+  "suggestions": {
+    "greeting": "Simple greeting",
+    "joke": "Tell me a joke"
+  }
+}

@@ -216,3 +216,39 @@ test("current UI Locales are left-to-right", () => {
     assert.equal(localeDirection(tag), "ltr", tag);
   assert.equal(localeDirection("ar-EG"), "rtl");
 });
+
+test("chat failures keep English text and render their copy in the active locale", async () => {
+  const { chatFailureCopy, describeChatFailure } =
+    await import("../dist/chat.js");
+  const failure = describeChatFailure(
+    {
+      code: "openai_connection_error",
+      details: {
+        connection_name: "Home Ollama",
+        connection_preset: "ollama",
+        connection_base_url: "http://127.0.0.1:11434/v1",
+      },
+    },
+    "hello",
+  );
+  assert.equal(failure.title, "Animama couldn't reach Home Ollama.");
+  const i18n = await createAnimamaI18n(options("ja", []));
+  const t = i18n.getFixedT("ja", "product");
+  const title = chatFailureCopy(t, failure.copy.title);
+  const guidance = chatFailureCopy(t, failure.copy.guidance);
+  assert.ok(
+    title.includes("Home Ollama") && !title.includes("couldn't"),
+    title,
+  );
+  assert.ok(guidance.includes("http://127.0.0.1:11434/v1"), guidance);
+  const unnamed = describeChatFailure({ code: "openai_rate_limit" }, "hi");
+  assert.equal(
+    unnamed.title,
+    "The model server is receiving too many requests.",
+  );
+  assert.ok(
+    chatFailureCopy(t, unnamed.copy.title).startsWith(
+      t("chatFailure.defaultConnection"),
+    ),
+  );
+});
