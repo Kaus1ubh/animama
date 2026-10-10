@@ -17,6 +17,7 @@ from typing import Any
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.anima_starter_service import STARTER_ANIMA_SPECS
+from animama.app.services.content_kind_registry import resolve_optional_dependencies
 from animama.app.services.content_portability import (
     DISTRIBUTION_EXCLUDED,
     DISTRIBUTION_NON_PORTABLE,
@@ -137,7 +138,8 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
             excluded.append({"locator": entry.relative_locator, "reason": "non_portable"})
         else:
             admitted.append(entry)
-    visible = catalog_from_scan(admitted)
+    # Optional sounds excluded above (a private pack) leave their effects silent.
+    visible = catalog_from_scan(resolve_optional_dependencies(admitted))
     context = TypedContentResolutionContext(visible)
     logical = {item.logical_key: item.id for item in visible.values() if item.logical_key}
     policy = starter_loadout_policy()

@@ -23,12 +23,18 @@ class ContentFileDeclarationV1:
 
 @dataclass(frozen=True, slots=True)
 class ContentDependencyV1:
-    """One typed, portable edge to another logical content item."""
+    """One typed, portable edge to another logical content item.
+
+    ``optional`` marks an Included effect's accompanying sound that may be
+    absent from a build (a private pack); the Included scan drops such an edge
+    when its target isn't installed, so the effect plays silently.
+    """
 
     ref: str
     kind: ContentKind
     alias: str | None = None
     config: dict[str, Any] = field(default_factory=dict)
+    optional: bool = False
 
 
 @dataclass(frozen=True, slots=True)

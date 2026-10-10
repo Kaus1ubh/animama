@@ -129,6 +129,12 @@ class ContentSaveService:
             if item.owner_user_id != user_id:
                 raise ContentConflictError("content_creator_claim_conflict")
         if item.status is not ContentStatus.VALID:
+            codes = {diagnostic.code for diagnostic in item.diagnostics}
+            # Name policy refusals the editor can explain; the save rolls back.
+            if "non_portable_dependency" in codes:
+                raise ContentConflictError("content_non_portable_dependency", field="dependencies")
+            if "dependency_optional_not_allowed" in codes:
+                raise ContentConflictError("content_optional_dependency", field="dependencies")
             raise ContentConflictError("saved_content_invalid", field=invalid_field)
         return SavedContent(operation_id=operation_id, item=item)
 
