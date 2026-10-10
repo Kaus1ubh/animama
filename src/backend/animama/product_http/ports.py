@@ -14,13 +14,14 @@ from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from typing import Annotated, Protocol, cast
 
-from fastapi import Depends, FastAPI, HTTPException, Request
+from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.chat_port import ChatRepository
+from animama.app.ports.content_store import ContentStore
 from animama.app.ports.memory_entry_port import MemoryEntryRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.ports.settings_port import AnimaSettingsRepository, UserSettingsRepository
@@ -28,6 +29,13 @@ from animama.app.ports.uow_port import UnitOfWork
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.safety.crisis_resources import CrisisResourceTable
 from animama.app.services.anima_loadout_service import AnimaLoadoutService
+from animama.app.services.anima_runtime_service import AnimaRuntimeService
+from animama.app.services.avatar_face_parts_service import AvatarFacePartsService
+from animama.app.services.content_catalog_service import ContentCatalogService
+from animama.app.services.content_package_service import ContentPackageService
+from animama.app.services.content_save_service import ContentSaveService
+from animama.app.services.typed_content_service import TypedContentService
+from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.principal import get_current_principal
 
@@ -78,6 +86,23 @@ class ProductRefusal(Exception):
 
 
 @dataclass(frozen=True)
+class ProductContent:
+    """Content services for one owner over one session.
+
+    A composition builds them on the session its ports opened and may release
+    resources when the request ends.
+    """
+
+    catalog: ContentCatalogService
+    saves: ContentSaveService
+    typed: TypedContentService
+    face_parts: AvatarFacePartsService
+    packages: ContentPackageService
+    store: ContentStore
+    runtime: AnimaRuntimeService
+
+
+@dataclass(frozen=True)
 class ProductPolicy:
     """Owner limits a composition enforces on the shared routes."""
 
@@ -88,8 +113,8 @@ class ProductPorts(Protocol):
     """The composition-owned collaborators of shared product handlers.
 
     Shared dependencies call the synchronous members (``policy``, ``repositories``,
-    ``crisis_resources`` and ``user_settings_changed``) on the event loop, so they
-    must not block.
+    ``content``, ``file_response``, ``crisis_resources`` and
+    ``user_settings_changed``) on the event loop, so they must not block.
     """
 
     @property
@@ -112,6 +137,26 @@ class ProductPorts(Protocol):
 
     def repositories(self, session: AsyncSession) -> ProductRepositories:
         """The product repositories over a session this composition opened."""
+        ...
+
+    def content(
+        self, session: AsyncSession, principal: RequestPrincipal
+    ) -> AbstractAsyncContextManager[ProductContent]:
+        """Content services for ``principal`` over a session this composition opened.
+
+        The context stays open until the response ends, so streamed bytes remain
+        readable; a composition releases its content resources on exit.
+        """
+        ...
+
+    def file_response(
+        self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool
+    ) -> Response:
+        """Deliver verified content bytes under this composition's caching policy.
+
+        ``revalidate`` marks bytes a client may keep and revalidate by ETag; other
+        bytes must not be stored. The response owns ``file`` and closes its handle.
+        """
         ...
 
     async def update_display_name(self, session: AsyncSession, principal: RequestPrincipal, display_name: str) -> str:
@@ -196,6 +241,30 @@ async def get_write_repositories(
 # Shared handlers take repositories rather than sessions, so they never build one.
 ReadRepositories = Annotated[ProductRepositories, Depends(get_read_repositories)]
 WriteRepositories = Annotated[ProductRepositories, Depends(get_write_repositories)]
+
+
+async def get_read_content(
+    ports: Annotated[ProductPorts, Depends(get_product_ports)],
+    principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    session: ReadSession,
+) -> AsyncIterator[ProductContent]:
+    async with ports.content(session, principal) as content:
+        yield content
+
+
+async def get_write_content(
+    ports: Annotated[ProductPorts, Depends(get_product_ports)],
+    principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
+    session: WriteSession,
+) -> AsyncIterator[ProductContent]:
+    async with ports.content(session, principal) as content:
+        yield content
+
+
+# Read content stays open through a streamed body; write content ends with its
+# session, before the response is sent.
+ReadContent = Annotated[ProductContent, Depends(get_read_content)]
+WriteContent = Annotated[ProductContent, Depends(get_write_content, scope="function")]
 
 
 async def get_product_policy(ports: Annotated[ProductPorts, Depends(get_product_ports)]) -> ProductPolicy:

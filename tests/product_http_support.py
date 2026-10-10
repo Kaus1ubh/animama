@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, FastAPI, HTTPException, Request, WebSocket
+from fastapi import APIRouter, FastAPI, HTTPException, Request, Response, WebSocket
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -25,10 +25,14 @@ from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlc
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
 from animama.app.services.user_profile_service import UserProfileService
+from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfilePatch
-from animama.product_http.ports import ProductPolicy, ProductPorts, install_product_ports
-from animama.server.product_ports import LocalProductPorts
+from animama.product_http.delivery import verified_file_response
+from animama.product_http.ports import ProductContent, ProductPolicy, ProductPorts, install_product_ports
+from animama.server.config import Settings
+from animama.server.local_runtime import initialize_local_runtime
+from animama.server.product_ports import LocalProductPorts, local_product_content
 
 OWNER_HEADER = "X-Test-Owner"
 # The local default limits (server/config.py).
@@ -66,9 +70,27 @@ async def save_display_name(session: AsyncSession, principal: RequestPrincipal, 
 
 
 class DoubleCollaborators:
-    """The non-session collaborators both port doubles share."""
+    """The non-session collaborators both port doubles share.
+
+    Content comes from a separate local tree per owner under ``content_root``, as a
+    consumer keeps each owner's bytes apart; bytes are never stored by clients.
+    """
 
     settings_changes: list[str]
+    content_root: Path | None
+
+    @asynccontextmanager
+    async def content(self, session: AsyncSession, principal: RequestPrincipal) -> AsyncIterator[ProductContent]:
+        if self.content_root is None:
+            raise AssertionError("pass content_root to serve content routes")
+        root = self.content_root / principal.id
+        settings = Settings(animama_content_root=root / "content", animama_data_root=root / "data")
+        yield local_product_content(session, initialize_local_runtime(settings), settings)
+
+    def file_response(
+        self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool
+    ) -> Response:
+        return verified_file_response(file, if_none_match=if_none_match, cache_control="private, no-store")
 
     def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
         return SQLAlchemyProductRepositories(session)
@@ -107,6 +129,7 @@ class DeferredCommitPorts(DoubleCollaborators):
     rollbacks: int = 0
     owners: list[str] = field(default_factory=list)
     settings_changes: list[str] = field(default_factory=list)
+    content_root: Path | None = None
 
     @asynccontextmanager
     async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[AsyncSession]:
@@ -161,6 +184,7 @@ class SessionPorts(DoubleCollaborators):
     session: AsyncSession
     policy: ProductPolicy = field(default_factory=lambda: TEST_POLICY)
     settings_changes: list[str] = field(default_factory=list)
+    content_root: Path | None = None
 
     @asynccontextmanager
     async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[AsyncSession]:

@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import io
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -9,24 +11,29 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import MagicMock
 
-from fastapi import FastAPI, Request, WebSocket
+from fastapi import FastAPI, Request, Response, WebSocket
+from fastapi.responses import StreamingResponse
 from fastapi.testclient import TestClient
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
+from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.ports import (
     ProductPolicy,
+    ReadContent,
     ReadRepositories,
     ReadSession,
+    WriteContent,
     WriteRepositories,
     WriteSession,
     install_product_ports,
 )
 from animama.server.app import create_local_app
 from animama.server.config import Settings
-from animama.server.product_ports import LocalProductPorts
+from animama.server.local_runtime import initialize_local_runtime
+from animama.server.product_ports import LocalProductPorts, local_file_response
 from tests.product_http_support import HOSTED_CAPABILITIES
 
 OWNER = RequestPrincipal(id="owner")
@@ -85,6 +92,14 @@ class RecordingPorts:
 
     def crisis_resources(self) -> CrisisResourceTable:
         return crisis_resource_table()
+
+    def content(self, session: AsyncSession, principal: RequestPrincipal) -> Any:
+        raise NotImplementedError
+
+    def file_response(
+        self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool
+    ) -> Response:
+        raise NotImplementedError
 
     async def runtime_capabilities(self, session: AsyncSession, principal: RequestPrincipal) -> RuntimeCapabilities:
         return HOSTED_CAPABILITIES
@@ -191,3 +206,93 @@ def test_local_policy_follows_the_apps_runtime_settings(tmp_path: Path) -> None:
         session_factory=MagicMock(),
     )
     assert app.state.product_ports.policy == ProductPolicy(memory_file_max_bytes=1234)
+
+
+class ContentRecordingPorts(RecordingPorts):
+    """Records when content opens, closes and when a streamed body runs."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.events: list[str] = []
+
+    @asynccontextmanager
+    async def content(self, session: AsyncSession, principal: RequestPrincipal) -> AsyncIterator[Any]:
+        self.events.append(f"open:{principal.id}")
+        yield SimpleNamespace(session=session)
+        self.events.append("close")
+
+
+def test_read_content_outlives_a_streamed_body_and_write_content_does_not() -> None:
+    app = FastAPI()
+    app.state.request_principal_resolver = FixedOwner()
+    ports = ContentRecordingPorts()
+    install_product_ports(app, ports)
+
+    def body() -> Any:
+        ports.events.append("body")
+        yield b"bytes"
+
+    @app.get("/content")
+    async def read(content: ReadContent) -> StreamingResponse:
+        return StreamingResponse(body())
+
+    @app.post("/content")
+    async def write(content: WriteContent) -> StreamingResponse:
+        return StreamingResponse(body())
+
+    with TestClient(app) as client:
+        assert client.get("/content").content == b"bytes"
+        read_events, ports.events[:] = list(ports.events), []
+        assert client.post("/content").content == b"bytes"
+    # Streamed bytes stay readable for read content; write content ends with its session.
+    assert read_events == ["open:owner", "body", "close"]
+    assert ports.events == ["open:owner", "close", "body"]
+
+
+def test_local_content_requires_the_startup_runtime_paths(tmp_path: Path) -> None:
+    app = session_probe_app()
+    app.state.session_factory = MagicMock()
+    app.state.runtime_settings = Settings(
+        animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data"
+    )
+    install_product_ports(app, LocalProductPorts(app))
+
+    @app.get("/content")
+    async def read(content: ReadContent) -> dict[str, str]:
+        return {"store": type(content.store).__name__}
+
+    with TestClient(app) as client:
+        refused = client.get("/content")
+    assert (refused.status_code, refused.json()) == (503, {"detail": {"code": "content_unavailable"}})
+    # The refused request created nothing.
+    assert list(tmp_path.iterdir()) == []
+
+    paths = initialize_local_runtime(app.state.runtime_settings)
+    app.state.local_runtime_paths = paths
+    with TestClient(app) as client:
+        assert client.get("/content").json() == {"store": "FilesystemContentStore"}
+
+
+def test_local_files_are_revalidated_or_never_stored() -> None:
+    def verified(content: bytes) -> VerifiedContentFile:
+        return VerifiedContentFile(
+            handle=io.BytesIO(content),
+            size_bytes=len(content),
+            sha256=hashlib.sha256(content).hexdigest(),
+            media_type="application/octet-stream",
+        )
+
+    revalidated = local_file_response(verified(b"abc"), if_none_match=None, revalidate=True)
+    assert (revalidated.status_code, revalidated.headers["cache-control"]) == (200, "private, no-cache")
+    assert revalidated.headers["content-length"] == "3"
+    assert revalidated.headers["x-content-type-options"] == "nosniff"
+    etag = revalidated.headers["etag"]
+    assert etag == f'"{hashlib.sha256(b"abc").hexdigest()}"'
+
+    file = verified(b"abc")
+    unchanged = local_file_response(file, if_none_match=etag, revalidate=True)
+    assert unchanged.status_code == 304 and "content-length" not in unchanged.headers
+    assert file.handle.closed
+
+    never_stored = local_file_response(verified(b"abc"), if_none_match=None, revalidate=False)
+    assert never_stored.headers["cache-control"] == "private, no-store"
