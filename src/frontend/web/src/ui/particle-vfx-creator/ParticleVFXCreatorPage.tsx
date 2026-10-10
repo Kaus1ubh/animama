@@ -67,12 +67,19 @@ import {
   createParticleVFXEditorDraftFromBlank,
   createParticleVFXEditorDraftFromImport,
   duplicateParticleVFXEditorEmitter,
-  estimateParticleVFXDraftParticles,
+  estimateParticleVFXParticles,
+  extractEmbeddedParticleVFXTextures,
+  importParticleVFXTextureFile,
+  loadParticleVFXTextureFiles,
+  missingParticleVFXTextureReferences,
   parseParticleVFXEditorExportJsonForViewer,
+  readParticleVFXCreatorDocument,
   parseParticleVFXEditorJson,
+  readParticleVFXTextureFile,
   removeParticleVFXEditorEmitter,
   resolveParticleVFXCreatorPreviewPlacement,
   resolveParticleVFXEditorPreviewJson,
+  supplyParticleVFXTextureFile,
   updateParticleVFXEditorCatalogDraft,
   validateParticleVFXContentReadiness,
   type ParticleVFXEditorBlending,
@@ -92,6 +99,8 @@ import {
   type ParticleVFXEditorRotation3DOverLifeDraft,
   type ParticleVFXEditorShapeType,
   type ParticleVFXEditorStartColorDraft,
+  type ParticleVFXEditorTextureFile,
+  type ParticleVFXTextureResult,
   type ParticleVFXEditorTurbulenceFieldDraft,
   type ParticleVFXEditorValueBehaviorDraft,
   type ParticleVFXEditorValueGeneratorDraft,
@@ -104,6 +113,7 @@ import {
   type ParticleVFXTransform,
   type ParticleVFXTransformAxisTriple,
 } from "@/lib/avatar/particle-vfx";
+import { PARTICLE_TEXTURE_LIMITS } from "@/lib/effects/effectArtLimits";
 import { cn } from "@/lib/utils";
 import { useParticleEffect } from "@/query/hooks/useEffects";
 import {
@@ -169,6 +179,7 @@ import {
   particleVFXDocumentFingerprint,
 } from "./particleVFXDocument";
 import { useParticleVFXSave } from "./useParticleVFXSave";
+import { EmitterCarriedTextures } from "./EmitterCarriedTextures";
 import { type ContentCreatorModelSource } from "@/ui/content-creator/contentCreatorModelPreview";
 import { useContentCreatorAvatar } from "@/ui/content-creator/useContentCreatorAvatar";
 import { useContentCreatorModelPreview } from "@/ui/content-creator/useContentCreatorModelPreview";
@@ -200,6 +211,9 @@ const PARTICLE_VFX_CREATOR_EMITTER_CAMERA_SETTINGS: SceneCameraSettings = {
   fov: PARTICLE_VFX_CREATOR_AVATAR_CAMERA_SETTINGS.fov,
   orbitTarget: { x: 0, y: 0, z: 0 },
 };
+const BUILT_IN_TEXTURE_REFERENCES = new Set(
+  PARTICLE_VFX_EDITOR_TEXTURES.map(({ relativeUrl }) => relativeUrl),
+);
 const PARTICLE_VFX_TEXTURE_GROUPS = PARTICLE_VFX_EDITOR_TEXTURE_ROLE_ORDER.map(
   (role) => ({
     role,
@@ -271,7 +285,40 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   const [copiedTarget, setCopiedTarget] = useState<string | null>(null);
   const [previewPlaying, setPreviewPlaying] = useState(true);
   const [discarding, setDiscarding] = useState(false);
+  const [textureUrlLease, setTextureUrlLease] = useState<{
+    files: ParticleVFXEditorDraft["textureFiles"];
+    urls: ReadonlyMap<string, string>;
+  } | null>(null);
+  const [textureError, setTextureError] = useState<string | null>(null);
+  const [textureBusy, setTextureBusy] = useState(false);
   const saveStatusRef = useRef<HTMLElement | null>(null);
+
+  // Object URLs for the textures the effect carries, for preview and
+  // thumbnails. URLs of an earlier table are revoked when it changes, so they
+  // are used only while the lease matches the current table.
+  useEffect(() => {
+    const urls = new Map(
+      Object.entries(draft.textureFiles).map(([reference, file]) => [
+        reference,
+        URL.createObjectURL(file.blob),
+      ]),
+    );
+    setTextureUrlLease({ files: draft.textureFiles, urls });
+    return () => {
+      for (const url of urls.values()) URL.revokeObjectURL(url);
+    };
+  }, [draft.textureFiles]);
+  const textureUrls = useMemo<ReadonlyMap<string, string>>(
+    () =>
+      textureUrlLease?.files === draft.textureFiles
+        ? textureUrlLease.urls
+        : new Map(),
+    [draft.textureFiles, textureUrlLease],
+  );
+  const missingTextureReferences = useMemo(
+    () => missingParticleVFXTextureReferences(draft),
+    [draft],
+  );
 
   const restartPreview = useCallback(() => {
     setPreviewPlaying(true);
@@ -385,11 +432,34 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
         if (!response.ok)
           throw new Error("The Particle Effect could not be loaded.");
         const payload: unknown = await response.json();
+        const textureFiles = await loadParticleVFXTextureFiles(
+          preview.files
+            // A Quarks image may name a file registered as an image too.
+            .filter(
+              (file) =>
+                (file.role === "texture" || file.role === "image") &&
+                file.logical_path,
+            )
+            .map((file) => ({
+              logicalPath: file.logical_path!,
+              download: async () => {
+                const download = await fetchContentPreviewFile(preview, file, {
+                  signal: controller.signal,
+                });
+                if (!download.ok)
+                  throw new Error(
+                    "A Particle Effect texture could not be loaded.",
+                  );
+                return download.blob();
+              },
+            })),
+        );
         if (controller.signal.aborted) return;
         load.complete();
         const loadedDraft = createParticleVFXEditorDraftFromContent(
           payload,
           existing,
+          textureFiles,
         );
         if (existing.origin === "owned") initialDraftRef.current = loadedDraft;
         hydrateDraft(loadedDraft);
@@ -482,14 +552,12 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
 
   const issues = useMemo(() => {
     if (!draft) return [];
-    const exactReferences = new Set<string>();
     const resolvable = new Set([
-      ...PARTICLE_VFX_EDITOR_TEXTURES.map(({ relativeUrl }) => relativeUrl),
-      ...exactReferences,
+      ...BUILT_IN_TEXTURE_REFERENCES,
+      ...Object.keys(draft.textureFiles),
     ]);
     return validateParticleVFXContentReadiness(draft, {
       resolvableTextureReferences: resolvable,
-      trustedLegacyTextureReferences: exactReferences,
     }).issues;
   }, [draft]);
   const exportBundle = useMemo(
@@ -503,8 +571,16 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
   const previewResolution = useMemo(() => {
     if (!draft) return { json: null, error: null };
     try {
+      // Any image that is neither carried (with a URL yet) nor built in
+      // previews as the default texture; readiness reports why.
+      const fallback = PARTICLE_VFX_EDITOR_TEXTURES[0]!.publicUrl;
       return {
-        json: resolveParticleVFXEditorPreviewJson(draft, undefined),
+        json: resolveParticleVFXEditorPreviewJson(
+          draft,
+          (reference) =>
+            textureUrls.get(reference) ??
+            (BUILT_IN_TEXTURE_REFERENCES.has(reference) ? undefined : fallback),
+        ),
         error: null,
       };
     } catch (error) {
@@ -516,7 +592,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             : "Particle VFX preview resources are unavailable.",
       };
     }
-  }, [draft]);
+  }, [draft, textureUrls]);
   const activeEmitter = useMemo(
     () =>
       draft?.emitters.find((emitter) => emitter.path === activeEmitterPath) ??
@@ -530,8 +606,9 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       emitter.name.toLowerCase().includes(query),
     );
   }, [draft?.emitters, emitterQuery]);
+  // The estimate Save enforces.
   const estimatedParticles = draft
-    ? estimateParticleVFXDraftParticles(draft)
+    ? estimateParticleVFXParticles(draft.quarksJson)
     : 0;
   const previewDurationSec = Math.max(
     0.05,
@@ -602,6 +679,54 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     [updateDraft],
   );
 
+  /**
+   * Check a chosen PNG before anything decodes it, then apply one texture
+   * edit to the latest draft. A refusal leaves the draft unchanged.
+   */
+  const applyTextureFile = useCallback(
+    async (
+      file: File,
+      apply: (
+        current: ParticleVFXEditorDraft,
+        texture: ParticleVFXEditorTextureFile,
+      ) => ParticleVFXTextureResult,
+    ) => {
+      setTextureBusy(true);
+      try {
+        const read = await readParticleVFXTextureFile(file);
+        if (!read.ok) {
+          setTextureError(read.message);
+          return;
+        }
+        let refusal: string | null = null;
+        updateDraft((current) => {
+          const result = apply(current, read.file);
+          if (result.ok) return result.draft;
+          refusal = result.message;
+          return current;
+        });
+        setTextureError(refusal);
+      } finally {
+        setTextureBusy(false);
+      }
+    },
+    [updateDraft],
+  );
+  const importTexture = useCallback(
+    (emitterPath: string, file: File) =>
+      void applyTextureFile(file, (current, texture) =>
+        importParticleVFXTextureFile(current, emitterPath, file.name, texture),
+      ),
+    [applyTextureFile],
+  );
+  const supplyTexture = useCallback(
+    (reference: string, file: File) =>
+      void applyTextureFile(file, (current, texture) =>
+        supplyParticleVFXTextureFile(current, reference, texture),
+      ),
+    [applyTextureFile],
+  );
+
   const addEmitter = useCallback(() => {
     if (!draft) return;
     const nextDraft = addParticleVFXEditorEmitter(draft);
@@ -626,7 +751,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     setActiveEmitterPath(nextDraft.emitters[0]?.path ?? null);
   }, [activeEmitterPath, draft, commit]);
 
-  const handleImportJson = () => {
+  const handleImportJson = async () => {
     const parsed = parseParticleVFXEditorJson(importText);
     if (
       "severity" in parsed &&
@@ -634,6 +759,11 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       typeof parsed.message === "string"
     ) {
       setImportError(parsed.message);
+      return;
+    }
+    const creatorDocument = readParticleVFXCreatorDocument(parsed);
+    if (creatorDocument && "severity" in creatorDocument) {
+      setImportError(creatorDocument.message);
       return;
     }
     if (
@@ -644,25 +774,47 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     ) {
       return;
     }
+    // Embedded PNG data becomes texture files. Plain Quarks JSON keeps the
+    // current name and settings, and references to textures this draft
+    // already carries keep resolving; a creator document is a whole effect,
+    // so it sets both and its other textures are chosen afresh.
+    const carried = creatorDocument ? {} : (draft?.textureFiles ?? {});
+    const embedded = await extractEmbeddedParticleVFXTextures(
+      creatorDocument?.quarksJson ?? parsed,
+      Object.keys(carried),
+    );
     const nextId = draft?.catalog.id ?? "custom-particle-vfx";
-    const nextDraft = createParticleVFXEditorDraftFromImport(parsed, {
-      id: nextId,
-      label: draft?.catalog.label ?? "Custom Particle VFX",
-      description: draft?.catalog.description ?? "Imported particle effect.",
-      assetPath:
-        draft?.catalog.assetPath ?? `/effects/vfx/quark/${nextId}.json`,
-      defaultAnchor: draft?.catalog.defaultAnchor ?? "head",
-      defaultFollowAnchor: draft?.catalog.defaultFollowAnchor ?? true,
-      defaultDurationSec: draft?.catalog.defaultDurationSec ?? 2,
-      defaultTransform:
-        draft?.catalog.defaultTransform ?? createDefaultParticleVFXTransform(),
-      preloadTier: draft?.catalog.preloadTier ?? "none",
-      performanceBudget: draft?.catalog.performanceBudget,
-      shapeAutoFit: draft?.catalog.shapeAutoFit,
-    });
+    const nextDraft = createParticleVFXEditorDraftFromImport(
+      embedded.json,
+      {
+        id: nextId,
+        assetPath:
+          draft?.catalog.assetPath ?? `/effects/vfx/quark/${nextId}.json`,
+        ...(creatorDocument?.catalog ?? {
+          label: draft?.catalog.label ?? "Custom Particle VFX",
+          description:
+            draft?.catalog.description ?? "Imported particle effect.",
+          defaultAnchor: draft?.catalog.defaultAnchor ?? "head",
+          defaultFollowAnchor: draft?.catalog.defaultFollowAnchor ?? true,
+          defaultDurationSec: draft?.catalog.defaultDurationSec ?? 2,
+          defaultTransform:
+            draft?.catalog.defaultTransform ??
+            createDefaultParticleVFXTransform(),
+          preloadTier: draft?.catalog.preloadTier ?? "none",
+          performanceBudget: draft?.catalog.performanceBudget,
+          shapeAutoFit: draft?.catalog.shapeAutoFit,
+        }),
+      },
+      { ...carried, ...embedded.textureFiles },
+    );
     commit(nextDraft);
     setActiveEmitterPath(nextDraft.emitters[0]?.path ?? null);
     setImportError(null);
+    setTextureError(
+      embedded.refused.length
+        ? `An embedded texture was not imported: ${embedded.refused[0]}`
+        : null,
+    );
     setLoadState({ state: "ready", message: null });
     setImportDialogOpen(false);
   };
@@ -916,7 +1068,9 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           <section className="border-border border-b p-3">
             <h2 className="text-sm font-semibold">Settings</h2>
             <p className="text-muted-foreground mt-1 text-xs">
-              Estimated total: ~{estimatedParticles} particles
+              {Number.isFinite(estimatedParticles)
+                ? `Estimated total: up to ${estimatedParticles} particles`
+                : "Estimated total: cannot be estimated (an emission, burst or duration value is unsupported)"}
             </p>
             <div className="mt-3 space-y-3">
               <SelectField
@@ -1163,6 +1317,16 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
           onPatch={(patch) =>
             activeEmitter && patchEmitter(activeEmitter.path, patch)
           }
+          textures={{
+            files: draft.textureFiles,
+            urls: textureUrls,
+            missing: missingTextureReferences,
+            error: textureError,
+            busy: textureBusy,
+            onImport: (file) =>
+              activeEmitter && importTexture(activeEmitter.path, file),
+            onSupply: supplyTexture,
+          }}
         />
       }
       canvasControls={
@@ -1330,14 +1494,14 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             open={importDialogOpen}
             onOpenChange={setImportDialogOpen}
             title="Import Particle VFX JSON"
-            description="Paste a three.quarks effect. Valid JSON replaces the current document after the unsaved-change confirmation."
+            description="Paste a three.quarks effect, or a creator document from Export, which also sets the name and settings. Valid JSON replaces the current document after the unsaved-change confirmation. Embedded PNG textures are kept. Other textures that are not built in show as missing until you choose their files; plain Quarks JSON keeps using textures this effect already carries."
             text={importText}
             error={importError}
             busy={contentSave.isBusy}
             ariaLabel="Particle VFX JSON"
             importLabel="Import effect"
             onTextChange={setImportText}
-            onImport={handleImportJson}
+            onImport={() => void handleImportJson()}
           />
           <ParticleVFXExportJsonDialog
             open={jsonViewerOpen}
@@ -1570,9 +1734,15 @@ function ParticleVFXExportJsonDialog({
       {bundle ? (
         <details className="rounded-md border p-3">
           <summary className="cursor-pointer text-sm font-medium">
-            Catalog settings and clip event
+            Creator document, catalog settings and clip event
           </summary>
           <div className="mt-3 space-y-4">
+            <ExportBlock
+              title="Creator document (Import keeps the name and settings)"
+              value={bundle.creatorDocument}
+              copied={copiedTarget === "document"}
+              onCopy={() => onCopy("document", bundle.creatorDocument)}
+            />
             <ExportBlock
               title="Catalog settings"
               value={bundle.catalogEntrySnippet}
@@ -2210,18 +2380,30 @@ function emitterSummary(emitter: ParticleVFXEmitterDraft): string {
   return `${shape} · ${range(emitter.emissionOverTime)}/s${emitter.burstCount && emitter.burstCount.max > 0 ? ` · burst ${range(emitter.burstCount)}` : ""}`;
 }
 
+type EmitterTextureControls = {
+  files: ParticleVFXEditorDraft["textureFiles"];
+  urls: ReadonlyMap<string, string>;
+  missing: readonly string[];
+  error: string | null;
+  busy: boolean;
+  onImport: (file: File) => void;
+  onSupply: (reference: string, file: File) => void;
+};
+
 function EmitterAuthoringTabs({
   draft,
   activeEmitter,
   activeEmitterPath,
   onSelectEmitter,
   onPatch,
+  textures,
 }: {
   draft: ParticleVFXEditorDraft | null;
   activeEmitter: ParticleVFXEmitterDraft | null;
   activeEmitterPath: string | null;
   onSelectEmitter: (path: string) => void;
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
+  textures: EmitterTextureControls;
 }) {
   return (
     <CreatorFloatingPanel
@@ -2335,6 +2517,7 @@ function EmitterAuthoringTabs({
                 <EmitterTexturePanel
                   emitter={activeEmitter}
                   onPatch={onPatch}
+                  textures={textures}
                 />
               </section>
               <section className="border-border border-t pt-5">
@@ -2424,9 +2607,11 @@ function EmitterSystemPanel({
 function EmitterTexturePanel({
   emitter,
   onPatch,
+  textures,
 }: {
   emitter: ParticleVFXEmitterDraft;
   onPatch: (patch: ParticleVFXEmitterPatch) => void;
+  textures: EmitterTextureControls;
 }) {
   const selectedTexture = PARTICLE_VFX_EDITOR_TEXTURES.find(
     (texture) => texture.id === emitter.textureId,
@@ -2470,6 +2655,17 @@ function EmitterTexturePanel({
 
   return (
     <div className="grid gap-3">
+      <EmitterCarriedTextures
+        emitter={emitter}
+        textureFiles={textures.files}
+        textureUrls={textures.urls}
+        missingReferences={textures.missing}
+        error={textures.error}
+        busy={textures.busy}
+        onSelect={(reference) => onPatch({ textureReference: reference })}
+        onImport={textures.onImport}
+        onSupply={textures.onSupply}
+      />
       <div className="grid gap-4">
         {PARTICLE_VFX_TEXTURE_GROUPS.map((group) => (
           <section key={group.role} className="grid gap-2">
@@ -2518,6 +2714,7 @@ function EmitterTexturePanel({
           label="U tiles"
           value={emitter.renderer.uTileCount}
           min={1}
+          max={PARTICLE_TEXTURE_LIMITS.grid}
           step={1}
           onChange={(value) =>
             onPatch({ renderer: { uTileCount: Math.round(value) } })
@@ -2527,6 +2724,7 @@ function EmitterTexturePanel({
           label="V tiles"
           value={emitter.renderer.vTileCount}
           min={1}
+          max={PARTICLE_TEXTURE_LIMITS.grid}
           step={1}
           onChange={(value) =>
             onPatch({ renderer: { vTileCount: Math.round(value) } })

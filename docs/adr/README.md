@@ -21,7 +21,7 @@ production readiness or publication rights.
 | 0005 | [Client-rendered shared UI and local/native composition](0005-client-rendered-ui-and-local-native-composition.md)                                  | accepted                                     |
 | 0006 | [Human and AI software development lifecycle](0006-human-ai-software-development-lifecycle.md)                                                     | accepted; planning superseded by 0007        |
 | 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                                           | accepted                                     |
-| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted; placement amended by 0022          |
+| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted; placement amended by 0023          |
 | 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)                               | accepted                                     |
 | 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted; partly superseded by 0012          |
 | 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted                                     |
@@ -35,7 +35,8 @@ production readiness or publication rights.
 | 0019 | [Hand keys with fitted presets and per-finger offsets](0019-hand-keys-with-fitted-presets-and-finger-offsets.md)                                   | accepted                                     |
 | 0020 | [Solved hand contacts](0020-solved-hand-contacts.md)                                                                                               | accepted                                     |
 | 0021 | [Shared product HTTP routes for every composition](0021-shared-product-http-routes.md)                                                             | accepted                                     |
-| 0022 | [Native Anthropic Messages provider](0022-native-anthropic-messages-provider.md)                                                                   | accepted                                     |
+| 0022 | [Optional licensed sounds for built-in effects](0022-optional-licensed-effect-sounds.md)                                                           | proposed                                     |
+| 0023 | [Native Anthropic Messages provider](0023-native-anthropic-messages-provider.md)                                                                   | accepted                                     |
 
 ## When and how to record a decision
 

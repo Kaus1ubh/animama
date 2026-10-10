@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Finger Heart Pop",
   "description": "A small cartoon heart pops out just above a right-hand finger heart (thumb crossed over the bent index), floats up a little and throbs gently, for cute affection, thanks and \"love you\" moments.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:bubble_pop_01",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "body",
@@ -67,7 +74,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

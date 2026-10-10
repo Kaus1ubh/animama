@@ -176,6 +176,147 @@ describe("typed preview adapters", () => {
     expect(localTarget.runtimeId).toBe("react-0827123456");
   });
 
+  it("names the removed Included effects a Local Action plays without", () => {
+    const digest = "b".repeat(64);
+    const preview = {
+      preview_id: "preview-cheer",
+      revision_sha256: digest,
+      expires_at: "2026-10-09T12:00:00Z",
+      item: {
+        kind: "reaction",
+        item_id: "cheer-item",
+        source: "local",
+        logical_key: "local:reaction:cheer",
+        name: "Cheer",
+        description: null,
+        revision_sha256: digest,
+        editable: true,
+        emotion: "joy",
+        intensity: 2,
+        implementation: { kind: "anima_clip", file_role: "sequence" },
+        config: {},
+        dependencies: [
+          {
+            ref: "builtin:particle-effect:hearts",
+            item_id: "particle-item",
+            kind: "particle_effect",
+            alias: "hearts",
+            config: {},
+          },
+          // Removed: no item carries them. The Avatar Effect shares its name
+          // with the Particle Effect but is not that item.
+          {
+            ref: "builtin:avatar-effect:hearts",
+            item_id: null,
+            kind: "avatar_effect",
+            alias: "eye",
+            config: {},
+          },
+          {
+            ref: "builtin:scene-effect:background:joy",
+            item_id: null,
+            kind: "scene_effect",
+            alias: "joy",
+            config: {},
+          },
+          // Removed, while a Local Particle Effect has the same name.
+          {
+            ref: "builtin:particle-effect:sparkle",
+            item_id: null,
+            kind: "particle_effect",
+            alias: "sparkle",
+            config: {},
+          },
+          {
+            ref: "local:particle-effect:sparkle",
+            item_id: "local-sparkle-item",
+            kind: "particle_effect",
+            alias: "mine",
+            config: {},
+          },
+        ],
+        files: [
+          {
+            file_ref: "sequence-ref",
+            logical_path: "cheer.json",
+            role: "sequence",
+            ordinal: 1,
+            filename: "cheer.json",
+            media_type: "application/json",
+            size_bytes: 100,
+            sha256: digest,
+          },
+        ],
+      },
+      supports: [
+        {
+          kind: "particle_effect",
+          item_id: "particle-item",
+          source: "included",
+          logical_key: "builtin:particle-effect:hearts",
+          name: "Hearts",
+          description: null,
+          revision_sha256: digest,
+          editable: false,
+          dependencies: [],
+          runtime_defaults: {},
+          definition: null,
+          files: [],
+        },
+        {
+          kind: "particle_effect",
+          item_id: "local-sparkle-item",
+          source: "local",
+          logical_key: "local:particle-effect:sparkle",
+          name: "Sparkle",
+          description: null,
+          revision_sha256: digest,
+          editable: true,
+          dependencies: [],
+          runtime_defaults: {},
+          definition: null,
+          files: [],
+        },
+      ],
+      files: [
+        {
+          file_ref: "sequence-ref",
+          logical_path: "cheer.json",
+          role: "sequence",
+          ordinal: 1,
+          filename: "cheer.json",
+          media_type: "application/json",
+          size_bytes: 100,
+          sha256: digest,
+          url: "/v1/content/previews/preview-cheer/files/sequence-ref",
+        },
+      ],
+    } as unknown as PyTypedContentPreview;
+
+    const adapted = typedActionPreview(preview);
+    expect(adapted.closure.root).toMatchObject({
+      reference_map: { hearts: "hearts", mine: "sparkle" },
+      missing_references: {
+        eye: "builtin:avatar-effect:hearts",
+        joy: "builtin:scene-effect:background:joy",
+        sparkle: "builtin:particle-effect:sparkle",
+      },
+    });
+    expect(
+      (adapted.closure.root as { reference_map: object }).reference_map,
+    ).not.toHaveProperty("sparkle");
+    const target = actionPreviewTarget(adapted, "Cheer");
+    if (target.sourceType !== "resolved_action") throw new Error("fixture");
+    expect(target.runtime.reactions[0]?.config).toMatchObject({
+      runtime_reference_map: { hearts: "hearts", mine: "sparkle" },
+      runtime_missing_references: {
+        eye: "builtin:avatar-effect:hearts",
+        joy: "builtin:scene-effect:background:joy",
+        sparkle: "builtin:particle-effect:sparkle",
+      },
+    });
+  });
+
   it("projects transitive Sound support for component and creator previews", () => {
     const digest = "b".repeat(64);
     const preview = {
@@ -240,6 +381,7 @@ describe("typed preview adapters", () => {
           duration_seconds: 1,
           codec: "audio/mpeg",
           defaults: { volume: 0.5 },
+          portability: "non-portable",
           files: [
             {
               file_ref: "audio-ref",
@@ -289,6 +431,7 @@ describe("typed preview adapters", () => {
             type: "catalog",
             catalog_item_id: "sound-item",
           },
+          portability: "non-portable",
         },
       ],
       reference_map: { Bright_Idea: "bright-idea" },
@@ -296,6 +439,7 @@ describe("typed preview adapters", () => {
         {
           runtime_id: "bright-idea",
           content_type: "sound_effect",
+          portability: "non-portable",
           files: [{ file_ref: "audio-ref" }],
         },
       ],

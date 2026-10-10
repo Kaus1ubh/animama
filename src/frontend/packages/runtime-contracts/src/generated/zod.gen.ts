@@ -4790,6 +4790,7 @@ export const zPyRuntimeAction = z.object({
         z.int(),
         z.null()
     ])),
+    missing_references: z.optional(z.record(z.string(), z.string())),
     name: z.string(),
     reference_map: z.optional(z.record(z.string(), z.string())),
     runtime_root_id: z.optional(z.union([
@@ -4877,6 +4878,7 @@ export const zPyRuntimeIdleGesture = z.object({
         z.int(),
         z.null()
     ])),
+    missing_references: z.optional(z.record(z.string(), z.string())),
     name: z.string(),
     reference_map: z.optional(z.record(z.string(), z.string())),
     runtime_root_id: z.optional(z.union([

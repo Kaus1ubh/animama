@@ -143,6 +143,54 @@ export function setEmitterTexture(
   image.url = textureEntry.relativeUrl;
 }
 
+/**
+ * Point an emitter at a texture the effect carries, by its package-relative
+ * path. The art is a single image until the Atlas settings say otherwise, so
+ * tiles and frame animation reset; blending and render mode stay.
+ */
+export function setEmitterTextureReference(
+  quarksJson: JsonObject,
+  ps: JsonObject,
+  reference: string,
+): void {
+  setEmitterImageUrl(quarksJson, ps, reference);
+  ps.uTileCount = 1;
+  ps.vTileCount = 1;
+  ps.blendTiles = false;
+  setFrameOverLifeDraft(ps, { mode: "off", startFrame: 0, endFrame: 0 });
+}
+
+/** Change only the image an emitter's material draws. */
+export function setEmitterImageUrl(
+  quarksJson: JsonObject,
+  ps: JsonObject,
+  url: string,
+): void {
+  const material = ensureEmitterMaterial(quarksJson, ps);
+  let texture = readJsonArrayObjects(quarksJson.textures).find(
+    (item) => item.uuid === material.map,
+  );
+  if (!texture) {
+    const textureUuid = `${String(material.uuid)}-texture`;
+    texture = createTextureJson(textureUuid, `${textureUuid}-image`, "");
+    ensureJsonArrayProperty(quarksJson, "textures").push(texture);
+    material.map = textureUuid;
+  }
+  texture.name = url.split("/").at(-1) ?? url;
+  const imageUuid =
+    typeof texture.image === "string" ? texture.image : `${texture.uuid}-image`;
+  texture.image = imageUuid;
+  const images = ensureJsonArrayProperty(quarksJson, "images");
+  let image = images
+    .map((item) => readJsonObject(item))
+    .find((item) => item?.uuid === imageUuid);
+  if (!image) {
+    image = { uuid: imageUuid };
+    images.push(image);
+  }
+  image.url = url;
+}
+
 export function readEmitterMaterial(
   quarksJson: JsonObject,
   ps: JsonObject,
@@ -311,11 +359,11 @@ function createTextureJson(
   };
 }
 
+/** The built-in texture an image path names exactly (`textures/<file>`). */
 function textureIdFromUrl(url: string): string | null {
-  const normalized = url.split("/").at(-1);
   return (
     PARTICLE_VFX_EDITOR_TEXTURES.find(
-      (textureEntry) => textureEntry.fileName === normalized,
+      (textureEntry) => textureEntry.relativeUrl === url,
     )?.id ?? null
   );
 }

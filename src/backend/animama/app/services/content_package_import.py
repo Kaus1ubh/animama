@@ -448,6 +448,8 @@ class ContentPackageImportService:
             if (
                 current is None
                 or current.status is not ContentStatus.VALID
+                # A package carries every effect its Actions use.
+                or current.missing_dependencies
                 or current.logical_key != item.logical_key
                 or current.revision_sha256 is None
             ):

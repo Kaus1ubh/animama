@@ -39,6 +39,13 @@ manifest; its own licence inventory joins the redistribution inventory. The
 manually converted motions as ordinary Local content. The shipped starter does
 not require any of them. Ignored copies elsewhere cannot become release inputs.
 
+WOW Sound's licensed comedy sound effects follow the same rules as the
+non-portable [comedy sound pack](../../backend/operations/comedy-sound-pack.md),
+with its own licence inventory (Media license) and a hash deny list for the
+vendor's watermarked previews, which may ship nowhere. Built-in effects name
+their sounds through optional dependencies, so a build without the pack is
+complete and silent.
+
 ## Pack and native dependencies
 
 `desktop/runtime/feature-pack-releases.json` has no active pack. Expanded

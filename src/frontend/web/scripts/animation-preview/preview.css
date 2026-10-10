@@ -111,9 +111,28 @@ button[aria-pressed="true"] {
   min-height: 0;
 }
 
+/*
+ * Each Avatar view stacks as the chat does: its backdrop and Scene underlay
+ * band (z-0), the shared transparent canvas (z 10), then its Scene overlay
+ * band (z-20), with the labels on top. The cell hosts set no z-index, so their
+ * bands stack with the canvas inside the views' stacking context.
+ */
 .views {
   position: relative;
   min-height: 0;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+#scene-bands {
+  position: absolute;
+  inset: 0;
+}
+
+.scene-cell {
+  position: absolute;
+  overflow: hidden;
+  background: var(--bg);
 }
 
 #canvas {
@@ -121,6 +140,14 @@ button[aria-pressed="true"] {
   inset: 0;
   width: 100%;
   height: 100%;
+  z-index: 10;
+}
+
+#labels {
+  position: absolute;
+  inset: 0;
+  z-index: 30;
+  pointer-events: none;
 }
 
 .view-label {

@@ -4,28 +4,36 @@ import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createServer } from "vite";
 
+import sharp from "sharp";
+
 import {
   EffectSourceError,
-  INCLUDED_EFFECT_ROOT,
+  INCLUDED_CONTENT_ROOT,
   REPO_ROOT,
   isInside,
   listIncludedEffects,
+  resolveAnyEffectSource,
   resolveClipSource,
+  resolveDependencies,
   resolveEffectSource,
 } from "./effect-render-sources.mjs";
 
 /**
- * Headless review renders for Avatar Effects on both Included Avatars.
+ * Headless review renders for Avatar, Particle and Scene Effects on both
+ * Included Avatars.
  *
  *   pnpm -s effects:render <source...>|--all-included --out <file.png|dir>
  *   pnpm -s effects:render <source> --thumbnail <out.webp>
  *   pnpm -s effects:render --diff <a.png> <b.png> [--out diff.png]
  *
  * A source is an effect folder, a descriptor `.json`, or
- * `library:[included/|local/]<stem|content_id|name>`. The page mounts real
- * `Avatar`s and applies the effect through the runtime path; see
- * `effect-render/render.ts`. A run fails when an apply leaves a controller
- * warning or no active effect, because apply calls never throw.
+ * `library:[avatar-effect/|particle-effect/|scene-effect/][included/|local/]<stem|content_id|name>`
+ * (an Avatar Effect when no kind is named). The page mounts real `Avatar`s,
+ * applies Avatar Effects and plays Particle Effects through the runtime
+ * paths, and draws Scene Effects in DOM bands around the canvas as the chat
+ * does; see `effect-render/render.ts`. Node captures each tile from the page.
+ * A run fails when an apply leaves a controller warning or no active effect,
+ * because apply calls never throw.
  *
  * Diff tolerance: a pixel differs when any RGBA channel differs by more than
  * `--threshold` (default 8 of 255), which absorbs antialiasing and float
@@ -34,6 +42,16 @@ import {
  */
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const avatarDir = path.join(REPO_ROOT, "content/included/avatars");
+/** Included effect folders the page may read directly. */
+const INCLUDED_VFX_ROOT = path.join(INCLUDED_CONTENT_ROOT, "vfx");
+const HEADER_PX = 28;
+const LABEL_PX = 64;
+const PAGE_BACKGROUND = "#f4f3ef";
+const VIEW_LABELS = {
+  front: "front",
+  "three-quarter": "3/4 right",
+  face: "face",
+};
 /** The Included Avatars every sheet and benchmark covers. */
 export const AVATARS = ["AvatarSample_Y_0", "AvatarSample_A_1_New"];
 
@@ -77,6 +95,7 @@ function avatarFailures(avatar, expected = 1) {
   const failures = avatar.warnings.map(
     (warning) => `${avatar.id} warning: ${truncate(warning)}`,
   );
+  if (expected === 0) return failures;
   if (!avatar.applied || avatar.activeEffectIds.length === 0)
     failures.push(`${avatar.id} has no active effect`);
   else if (avatar.activeEffectIds.length < expected)
@@ -98,18 +117,25 @@ const SWIFTSHADER_LAUNCH = {
 };
 
 /**
- * Start a page, run `callback({ page, fsUrl, imageUrl })`, and always shut
- * down. Vite serves only the web root, the Included Avatars, the Included
- * effects and an optional local content root; any other effect image is
- * inlined. `pageDir` names the page under `scripts/` (default the review
- * renderer); it must set `window.effectRendererReady`. `launch` holds the
- * Playwright Chromium launch options plus an optional page `viewport`.
+ * Start a page, run `callback({ page, fsUrl, imageUrl, server })`, and always
+ * shut down. Vite serves only the web root, the Included Avatars, the
+ * Included effects, an optional local content root and `extraRoots` (the
+ * folders of the sources being reviewed); any other effect image is inlined.
+ * `pageDir` names the page under `scripts/` (default the review renderer); it
+ * must set `window.effectRendererReady`. `launch` holds the Playwright
+ * Chromium launch options plus an optional page `viewport` and
+ * `deviceScaleFactor`.
  */
 export async function withRendererPage(
-  { localContent, pageDir = "effect-render", launch = SWIFTSHADER_LAUNCH },
+  {
+    localContent,
+    extraRoots = [],
+    pageDir = "effect-render",
+    launch = SWIFTSHADER_LAUNCH,
+  },
   callback,
 ) {
-  const allow = [webRoot, avatarDir, INCLUDED_EFFECT_ROOT];
+  const allow = [webRoot, avatarDir, INCLUDED_VFX_ROOT, ...extraRoots];
   if (localContent) allow.push(localContent);
   const server = await createServer({
     configFile: false,
@@ -136,9 +162,12 @@ export async function withRendererPage(
   try {
     await server.listen();
     const origin = `http://127.0.0.1:${server.httpServer.address().port}`;
-    const { viewport, ...launchOptions } = launch;
+    const { viewport, deviceScaleFactor, ...launchOptions } = launch;
     browser = await chromium.launch(launchOptions);
-    const page = await browser.newPage(viewport ? { viewport } : {});
+    const page = await browser.newPage({
+      ...(viewport ? { viewport } : {}),
+      ...(deviceScaleFactor ? { deviceScaleFactor } : {}),
+    });
     const errors = [];
     // Any page error (including a failed module import) ends the wait early.
     const pageError = new Promise((_, reject) =>
@@ -164,7 +193,7 @@ export async function withRendererPage(
         "application/octet-stream";
       return `data:${type};base64,${(await readFile(file)).toString("base64")}`;
     };
-    const result = await callback({ page, fsUrl, imageUrl });
+    const result = await callback({ page, fsUrl, imageUrl, server });
     if (errors.length) throw new Error(errors.join("\n"));
     return result;
   } finally {
@@ -195,12 +224,192 @@ function decodeDataUrl(dataUrl) {
   return Buffer.from(dataUrl.split(",")[1], "base64");
 }
 
+/** A Particle source as the page plays it: served manifest and defaults. */
+export function pageParticle(
+  particle,
+  fsUrl,
+  alias = particle.contentId,
+  config = {},
+) {
+  return {
+    alias,
+    name: particle.name,
+    description: particle.description,
+    // Its relative texture URLs resolve beside the served manifest.
+    manifestUrl: fsUrl(particle.manifestPath),
+    // As the runtime projection merges them for a dependency.
+    config: { ...particle.defaults, ...config },
+  };
+}
+
+/** A Scene source as the page shows it: definition and served images. */
+export async function pageScene(scene, imageUrl, alias = scene.contentId) {
+  const imageUrls = {};
+  for (const [logicalName, file] of Object.entries(scene.imagePaths))
+    imageUrls[logicalName] = await imageUrl(file);
+  return { alias, name: scene.name, definition: scene.definition, imageUrls };
+}
+
+/** Sources of any kind, as the page applies them together. */
+export async function pageSources(sources, { fsUrl, imageUrl }) {
+  const page = { effects: [], particles: [], scenes: [] };
+  for (const source of sources) {
+    if (source.kind === "particle")
+      page.particles.push(pageParticle(source, fsUrl));
+    else if (source.kind === "scene")
+      page.scenes.push(await pageScene(source, imageUrl));
+    else page.effects.push(await pageEffect(source, imageUrl));
+  }
+  return page;
+}
+
+/** A clip's resolved dependencies, by alias, as the page plays its events. */
+export async function pageClipMedia(media, { fsUrl, imageUrl }) {
+  if (!media) return null;
+  return {
+    avatarEffects: await Promise.all(
+      media.avatarEffects.map(async ({ alias, effect }) => ({
+        alias,
+        effect: await pageEffect(effect, imageUrl),
+      })),
+    ),
+    particleEffects: media.particleEffects.map(({ alias, particle, config }) =>
+      pageParticle(particle, fsUrl, alias, config),
+    ),
+    sceneEffects: await Promise.all(
+      media.sceneEffects.map(({ alias, scene }) =>
+        pageScene(scene, imageUrl, alias),
+      ),
+    ),
+  };
+}
+
 /**
- * Render one contact sheet per effect: rows are `times` after applying,
- * columns are `views` for each Included Avatar. With `together`, all effects
- * are applied at once on a single sheet (stem `a+b+c`), to check that they
- * coexist. Every sheet is attempted and written even when it fails, then
- * `EffectRenderFailure` is thrown if any failed.
+ * Real paths of the folders the page must read for these sources and clip
+ * effects (Vite compares served files by their real path).
+ */
+export async function sourceRoots(sources, media = null) {
+  const folders = await Promise.all(
+    [
+      ...sources,
+      ...(media?.avatarEffects.map(({ effect }) => effect) ?? []),
+      ...(media?.particleEffects.map(({ particle }) => particle) ?? []),
+      ...(media?.sceneEffects.map(({ scene }) => scene) ?? []),
+    ].map((source) => realpath(path.dirname(source.descriptorPath))),
+  );
+  return [...new Set(folders)];
+}
+
+/**
+ * Open a stage for each Included Avatar with `request` applied and capture
+ * one tile per time and view from the page. Returns the parse error, or per
+ * Avatar its diagnostics after applying (warnings from every frame included)
+ * and its PNG tiles as `frames[time][view]`.
+ */
+export async function captureStage(page, { request, avatars, times, views }) {
+  await page.setViewportSize({
+    width: Math.max(1280, request.tile.width),
+    height: Math.max(720, request.tile.height),
+  });
+  const captured = [];
+  for (const avatar of avatars) {
+    const opened = await page.evaluate(
+      (stageRequest) => window.openReviewStage(stageRequest),
+      { ...request, avatar },
+    );
+    if (opened.parseError)
+      return { parseError: opened.parseError, avatars: [] };
+    const warnings = new Set(opened.avatar.warnings);
+    // A clip's events start effects after opening; count them from frames.
+    const active = new Set(opened.avatar.activeEffectIds);
+    let missingPoseRefs = opened.avatar.missingPoseRefs;
+    const frames = [];
+    try {
+      for (const time of times) {
+        const row = [];
+        for (const view of views) {
+          const frame = await page.evaluate(
+            ([frameTime, frameView]) =>
+              window.showReviewFrame(frameTime, frameView),
+            [time, view],
+          );
+          frame.warnings.forEach((warning) => warnings.add(warning));
+          frame.activeEffectIds.forEach((id) => active.add(id));
+          missingPoseRefs = frame.missingPoseRefs;
+          row.push(await page.locator("#review-stage").screenshot());
+        }
+        frames.push(row);
+      }
+    } finally {
+      await page.evaluate(() => window.closeReviewStage());
+    }
+    captured.push({
+      ...opened.avatar,
+      id: avatar.id,
+      activeEffectIds: [...active],
+      warnings: [...warnings],
+      missingPoseRefs,
+      frames,
+    });
+  }
+  return { parseError: null, avatars: captured };
+}
+
+const escapeXml = (text) =>
+  text.replace(
+    /[<>&"]/g,
+    (char) => ({ "<": "&lt;", ">": "&gt;", "&": "&amp;", '"': "&quot;" })[char],
+  );
+
+/**
+ * A contact sheet: rows are `times`, columns are `views` for each Avatar,
+ * with a header row and a time column.
+ */
+export async function composeSheet({ avatars, times, views, tile }) {
+  const columns = avatars.length * views.length;
+  const width = LABEL_PX + columns * tile.width;
+  const height = HEADER_PX + times.length * tile.height;
+  const labels = [
+    ...times.map(
+      (time, row) =>
+        `<text x="8" y="${HEADER_PX + row * tile.height + 18}">${time.toFixed(2)}s</text>`,
+    ),
+    ...avatars.flatMap((avatar, avatarIndex) =>
+      views.map(
+        (view, viewIndex) =>
+          `<text x="${LABEL_PX + (avatarIndex * views.length + viewIndex) * tile.width + 6}" y="18">${escapeXml(`${avatar.id.replace("AvatarSample_", "")} · ${VIEW_LABELS[view]}`)}</text>`,
+      ),
+    ),
+  ];
+  const tiles = avatars.flatMap((avatar, avatarIndex) =>
+    avatar.frames.flatMap((row, timeIndex) =>
+      row.map((input, viewIndex) => ({
+        input,
+        left: LABEL_PX + (avatarIndex * views.length + viewIndex) * tile.width,
+        top: HEADER_PX + timeIndex * tile.height,
+      })),
+    ),
+  );
+  const text = Buffer.from(
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}"><g font-family="sans-serif" font-size="13" fill="#222">${labels.join("")}</g></svg>`,
+  );
+  return sharp({
+    create: { width, height, channels: 4, background: PAGE_BACKGROUND },
+  })
+    .composite([...tiles, { input: text, left: 0, top: 0 }])
+    .png()
+    .toBuffer();
+}
+
+/**
+ * Render one contact sheet per source: rows are `times` after applying,
+ * columns are `views` for each Included Avatar. Sources may be Avatar,
+ * Particle or Scene Effects. With `together`, all sources are applied at
+ * once on a single sheet (stem `a+b+c`), to check that they coexist. A
+ * `clip` with `clipMedia` plays its effect events as chat would; with no
+ * sources it is rendered on its own (`clipStem`). Every sheet is attempted
+ * and written even when it fails, then `EffectRenderFailure` is thrown if any
+ * failed.
  */
 export async function renderEffectSheets({
   effects,
@@ -211,44 +420,62 @@ export async function renderEffectSheets({
   views = VIEW_NAMES,
   expression = null,
   clip = null,
+  clipMedia = null,
+  clipStem = "clip",
   localContent = null,
   onResult,
 }) {
   const results = await withRendererPage(
-    { localContent },
+    { localContent, extraRoots: await sourceRoots(effects, clipMedia) },
     async ({ page, fsUrl, imageUrl }) => {
       const avatars = AVATARS.map((id) => ({
         id,
         url: avatarFileUrl(fsUrl, id),
       }));
       const results = [];
-      const groups = together ? [effects] : effects.map((effect) => [effect]);
+      const groups = effects.length
+        ? together
+          ? [effects]
+          : effects.map((effect) => [effect])
+        : [[]];
+      const media = await pageClipMedia(clipMedia, { fsUrl, imageUrl });
       for (const group of groups) {
-        const stem = group.map((effect) => effect.stem).join("+");
+        const stem = group.length
+          ? group.map((effect) => effect.stem).join("+")
+          : clipStem;
         const result = { stem, outFile: null, failures: [] };
         try {
-          const pageEffects = [];
-          for (const effect of group)
-            pageEffects.push(await pageEffect(effect, imageUrl));
-          const rendered = await page.evaluate(
-            (request) => window.renderEffectSheet(request),
-            {
-              effects: pageEffects,
-              avatars,
-              times,
+          const captured = await captureStage(page, {
+            request: {
+              ...(await pageSources(group, { fsUrl, imageUrl })),
               tile,
-              views,
               expression,
               clip,
+              clipMedia: media,
             },
+            avatars,
+            times,
+            views,
+          });
+          if (captured.parseError)
+            throw new Error(`definition: ${captured.parseError}`);
+          result.avatars = captured.avatars.map(
+            ({ frames: _frames, ...avatar }) => avatar,
           );
-          result.avatars = rendered.avatars;
-          result.failures = rendered.avatars.flatMap((avatar) =>
+          result.failures = result.avatars.flatMap((avatar) =>
             avatarFailures(avatar, group.length),
           );
           result.outFile = outFileFor(group.length === 1 ? group[0] : { stem });
           await mkdir(path.dirname(result.outFile), { recursive: true });
-          await writeFile(result.outFile, decodeDataUrl(rendered.dataUrl));
+          await writeFile(
+            result.outFile,
+            await composeSheet({
+              avatars: captured.avatars,
+              times,
+              views,
+              tile,
+            }),
+          );
         } catch (error) {
           result.failures.push(
             truncate(error instanceof Error ? error.message : String(error)),
@@ -437,17 +664,21 @@ const USAGE = [
   "  pnpm -s effects:render <source> --thumbnail <out.webp> [--times 1] [--size 512]",
   "  pnpm -s effects:render --diff <a.png> <b.png> [--out diff.png] [--threshold 8]",
   "",
-  "A source is an effect folder, a descriptor .json, or",
-  "library:[included/|local/]<stem|content_id|name>. Each sheet has one row per",
-  "time after applying and, per Included Avatar, one tile per view. With several",
-  "sources --out is a directory receiving <stem>.png.",
+  "A source is an Avatar, Particle or Scene effect folder, a descriptor .json, or",
+  "library:[particle-effect/|scene-effect/][included/|local/]<stem|content_id|name>",
+  "(an Avatar Effect without a kind). Each sheet has one row per time after",
+  "applying and, per Included Avatar, one tile per view; Scene Effects show behind",
+  "and in front of the Avatar as in chat. With several sources --out is a",
+  "directory receiving <stem>.png.",
   "",
   "Options:",
   `  --times 0.1,0.5,1,2     seconds after applying, 0-${MAX_TIME_SEC} (thumbnail: one value, default 1)`,
   "  --tile 256x320          tile size in pixels",
   "  --views front,three-quarter,face",
   "  --expression <name>     hold a VRM expression at full weight",
-  "  --with-clip <path|library:...>  sample an Anima Pose Clip Gesture at the same times",
+  "  --with-clip <path|library:[reaction/]...>  play a Gesture or Reaction clip at the",
+  "                          same times; its effect events play as in chat, and a",
+  "                          clip with effects can be rendered without sources",
   "  --together              apply every source at once on one sheet (<a+b+c>.png)",
   "  --local-content <dir>   content root for library:local/... (e.g. content/local)",
   "  --size 512              thumbnail edge in pixels (256-2048), Annie only",
@@ -582,9 +813,10 @@ async function main(argv) {
       : null;
     const sourceOptions = { cwd, localContent };
     const expression = values["--expression"] ?? null;
-    const clip = values["--with-clip"]
-      ? (await resolveClipSource(values["--with-clip"], sourceOptions)).clip
+    const clipSource = values["--with-clip"]
+      ? await resolveClipSource(values["--with-clip"], sourceOptions)
       : null;
+    const clip = clipSource?.clip ?? null;
 
     if (values["--thumbnail"]) {
       if (positional.length !== 1 || flags.has("--all-included"))
@@ -611,15 +843,35 @@ async function main(argv) {
 
     if (!values["--out"]) throw new EffectSourceError("--out is required.");
     const effects = [
-      ...(flags.has("--all-included") ? await listIncludedEffects() : []),
+      ...(flags.has("--all-included")
+        ? (await listIncludedEffects()).map((effect) => ({
+            kind: "avatar",
+            ...effect,
+          }))
+        : []),
     ];
     for (const spec of positional)
-      effects.push(await resolveEffectSource(spec, sourceOptions));
-    if (effects.length === 0)
-      throw new EffectSourceError("Name a source or --all-included.");
+      effects.push(await resolveAnyEffectSource(spec, sourceOptions));
+    const clipMedia = clipSource?.dependencies.length
+      ? await resolveDependencies(clipSource.dependencies, { localContent })
+      : null;
+    for (const notice of clipMedia?.notices ?? [])
+      console.log(`Warning: ${notice}`);
+    const effectEvents = (clip?.events ?? []).filter((event) =>
+      ["avatar_vfx", "particle_vfx", "scene_vfx"].includes(event?.kind),
+    );
+    if (effectEvents.length && !clipMedia)
+      console.log(
+        "Warning: the clip's effect events are not played: a clip file has no dependencies; render the Library item or its folder.",
+      );
+    if (effects.length === 0 && !clipMedia)
+      throw new EffectSourceError(
+        "Name a source, --all-included, or a --with-clip Reaction or Gesture with effects.",
+      );
     const out = resolveOut(values["--out"]);
     const together = flags.has("--together");
-    const single = (together || effects.length === 1) && out.endsWith(".png");
+    // One sheet (or a clip-only sheet) may be written to a named .png file.
+    const single = (together || effects.length <= 1) && out.endsWith(".png");
     if (!single && !together) {
       // One sheet per stem: a repeated stem would overwrite an earlier sheet.
       const stems = effects.map((effect) => effect.stem);
@@ -634,6 +886,11 @@ async function main(argv) {
     await renderEffectSheets({
       effects,
       together,
+      clipMedia,
+      clipStem:
+        typeof clip?.id === "string"
+          ? clip.id
+          : path.basename(clipSource?.clipPath ?? "clip", ".json"),
       outFileFor: (effect) =>
         single ? out : path.join(out, `${effect.stem}.png`),
       times: parseTimes(values["--times"], DEFAULT_TIMES),

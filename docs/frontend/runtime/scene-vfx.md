@@ -63,7 +63,7 @@ settings-owned media URL.
 - `src/frontend/web/src/ui/main/MainShell.tsx`
 - `src/frontend/web/src/ui/main/canvas/SceneRuntimeContext.tsx`
 - `src/frontend/web/src/lib/avatar/Avatar.ts`
-- `src/frontend/web/src/styles/globals.css`
+- `src/frontend/web/src/styles/scene-vfx.css`
 
 ### Debug authoring
 
@@ -130,6 +130,16 @@ single-effect state value, its own viewport provider, and its own Avatar
 context. Preview Stop/Minimize/Close therefore cannot mutate scene effects in a
 simultaneously mounted live Anima scene.
 
+## Tools
+
+`pnpm -s effects check`, `effects:render` and `animation:preview` take Scene
+Effect folders and Library items (`library:scene-effect/…`) and draw the
+Scene layers as chat does; `effects save` takes folders, and `effects
+promote` folders or `library:local/<name>` items. `effects:bench --reaction`
+measures a Reaction's Scene Effects. See the [effect
+tools](avatar-vfx.md#9-effect-tools); the `animama-scene-vfx` skill wraps
+them into the authoring pipeline, with the layer fields and ranges.
+
 ## Product creator behavior
 
 Routes:
@@ -140,8 +150,14 @@ Routes:
 New Scene Effects start from the Effects template picker (the sidebar Create
 menu's **Effects** item, the Create page's Scene FX card or `/effects/new`).
 
-Background Layers combines Solid, Pattern and Marquee layers. Marquee items can
-be reordered and use allowlisted Twemoji or private PNG/JPEG/WebP/SVG sources.
+Background Layers combines Solid, Gradient, Pattern, Tile, Screen, Marquee,
+up to three Scatter layers and an Entry flash; Scene Setup lists them front
+to back, Entry flash first, and each has an inspector. Marquee and scatter items can be reordered and
+use allowlisted Twemoji or private PNG/JPEG/WebP/SVG sources; a tile uses one
+private image. A chosen image is checked before it is decoded against the
+Scene image limits (`lib/effects/effectArtLimits.ts`: 8 MiB and 4096 px per
+image, 16 images and 32 MiB per effect), and is saved under a name whose
+extension matches its bytes (`petal.png`, not `petal.webp`).
 SVG images must be UTF-8, self-contained static artwork: shapes, groups,
 gradients, clips, masks and local fragment references. Scripts, event handlers,
 CSS styles, animation, embedded images and external references are rejected on
@@ -335,11 +351,47 @@ Important implementation detail:
 
 File: `src/frontend/web/src/ui/main/scene-vfx/SceneVFXBackgroundLayersEffect.tsx`
 
-It renders three DOM layers in order:
+It renders these DOM layers, back to front; the optional ones (`gradient`,
+`tile`, `screen`, `scatters`, `flash`) are off when absent, so definitions
+written before them are unchanged and keep `animama/scene-effect/1`:
 
 1. `SceneVFXSolidLayer`
-2. `SceneVFXPatternLayer`
-3. `SceneVFXMarqueeLayer`
+2. `SceneVFXGradientLayer`: a linear (`angleDeg`) or radial (`centerX`,
+   `centerY`) gradient of 2–4 stops.
+3. `SceneVFXPatternLayer`
+4. `SceneVFXTileLayer`: one image (`image` in a stored definition, `src` at
+   runtime) repeated at `size` px, drifting one tile per cycle in a marquee
+   direction at `speedPxPerSec`.
+5. `SceneVFXScreenLayer`: procedural `rays` (count, centre, wedges or a
+   `spiky` starburst, `turnSeconds` with the sign giving the direction,
+   `throbPerSec`) or `lines` hanging from the top edge (count, length and
+   width ranges, `swaySeconds`), drawn as SVG from a `seed`.
+6. `SceneVFXMarqueeLayer`
+7. `SceneVFXScatterLayer`, once per `scatters` entry: `count` items picked from
+   `items`, with seeded per-item size, rotation and opacity ranges, a start
+   region, `keepFaceClear` (still items, and items drifting straight up or
+   down, avoid the column behind the head), drift in a marquee direction, a
+   spin range (`alternateSpin`) and a `pulse` (`twinkle`, `pop` or
+   `flicker`). Drifting items cross the whole view on
+   off-screen tracks, so nothing appears or vanishes mid-view.
+8. `SceneVFXFlashLayer`: one fade from `color` over `durationMs` when the Scene
+   starts.
+
+The geometry is in `lib/scene-vfx/layerGeometry.ts`, so a definition and view
+size give the same picture on every surface. Motion is CSS keyframes in
+`styles/scene-vfx.css`; the review tools and the headed preview pause and seek
+them. Ranges and counts for every field, old and new, are in
+`lib/scene-vfx/limits.ts`; the creator checks them before Save and the backend
+(`app/contracts/scene_effect_limits.py`) at Save, Local scan and package import,
+with `lib/content/fixtures/scene-effect-limits.json` as the parity record; a
+Local Scene outside them shows a `scene_definition_invalid` diagnostic naming
+the field.
+Every Scene colour is six-digit hex (`#rrggbb`), in the runtime parser and the
+backend, because colours reach CSS gradients and SVG paint. Scene images are
+held to the image limits at Save, scan and import and again when the runtime
+loads a private Scene; a Local Scene whose image is over them shows a
+`scene_image_limit` diagnostic and does not play until the image is replaced
+with a smaller one (an image saved before the limits may need this).
 
 ### Solid fill
 
@@ -368,7 +420,7 @@ Current pattern kinds:
 Files:
 
 - `src/frontend/web/src/ui/main/scene-vfx/SceneVFXMarqueeLayer.tsx`
-- `src/frontend/web/src/styles/globals.css`
+- `src/frontend/web/src/styles/scene-vfx.css`
 - `src/frontend/web/src/assets/effects/scene-vfx/catalog.json`
 - `src/frontend/web/src/lib/scene-vfx/assets.ts`
 - `src/frontend/web/src/lib/scene-vfx/emoji.ts`
@@ -408,7 +460,7 @@ Current direction options:
 - `diagonal-up-right`
 - `diagonal-down-right`
 
-The actual motion is driven by the global `scene-vfx-marquee-shift` keyframes in `globals.css`.
+The actual motion is driven by the global `scene-vfx-marquee-shift` keyframes in `styles/scene-vfx.css`.
 
 ### Background-layer presets
 
@@ -508,7 +560,7 @@ Each triangle gets:
 - a deterministic negative delay
 - a deterministic max opacity
 
-The actual flicker is driven entirely by the global `scene-vfx-focus-lines-flicker` keyframes in `globals.css`.
+The actual flicker is driven entirely by the global `scene-vfx-focus-lines-flicker` keyframes in `styles/scene-vfx.css`.
 
 This means:
 
@@ -600,6 +652,10 @@ Because preview state is tracked per kind, previewing `focus_lines` does not ove
 - pattern is cheap because it is one cached SVG background tile
 - marquee uses CSS transforms instead of per-frame React updates
 - main cost is DOM size when the marquee grid gets dense
+- at their densest allowed settings, gradient, tile, rays, lines and the flash
+  each add at most about 0.3 ms of frame time and all layers together about
+  2.1 ms (Apple M5, DPR 2, `effects:bench --reaction`); scattered items are
+  the costliest layer (about 1.8 ms for 96 large spinning, pulsing drifters)
 
 `focus_lines`:
 

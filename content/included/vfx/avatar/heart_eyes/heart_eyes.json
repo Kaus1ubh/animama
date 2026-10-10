@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Heart Eyes",
   "description": "Throbbing red hearts in place of the eyes for being smitten: love at first sight, adoration or strong desire.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:love_bubble_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "eyes",
@@ -33,7 +40,8 @@
       "hideParts": [
         "eye_highlight"
       ]
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

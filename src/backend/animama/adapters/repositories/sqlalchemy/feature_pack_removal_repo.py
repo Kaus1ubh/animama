@@ -28,7 +28,11 @@ def _label(value: str) -> str:
 async def included_source_blockers(
     session: AsyncSession, *, mount_ids: list[str], now: datetime, limit: int = 32
 ) -> list[PackRemovalBlocker]:
-    """Check the same references for a user preflight and actual catalog withdrawal."""
+    """Check the references a user preflight and catalog withdrawal share.
+
+    Withdrawal first drops Included items' own edges, which it rebuilds from the
+    scan, so for it only Local, binding and lease references remain.
+    """
 
     ids = select(ORMContentCatalogItem.id).where(ORMContentCatalogItem.source_mount_id.in_(mount_ids))
     checks: tuple[tuple[BlockerKind, Select[tuple[str, str]] | Select[tuple[str]]], ...] = (

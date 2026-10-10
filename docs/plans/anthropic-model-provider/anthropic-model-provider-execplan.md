@@ -2632,8 +2632,8 @@ owner's live smoke establishes acceptance.
      secrets file and compose.
    - Cover the moderation gap, the fence, search billing and **Compact early**.
 2. **ADRs.**
-   - New ADR 0022 "Native Anthropic Messages provider" (drafted as 0016 and
-     renumbered when main added ADRs 0016–0021) records:
+   - New ADR 0023 "Native Anthropic Messages provider" (drafted as 0016 and
+     renumbered when main added ADRs 0016–0022) records:
      - the reversal of #165's exclusion;
      - the Client SDK over the Agent SDK;
      - native features under ADR 0011.
@@ -2673,7 +2673,7 @@ Implementation:
   - `tests/live/README.md` and `src/backend/AGENTS.md`;
   - `prompt-caching.md`: final measurements by the coordinator.
 - **ADRs:**
-  - new ADR 0022, "Native Anthropic Messages provider" (drafted as 0016;
+  - new ADR 0023, "Native Anthropic Messages provider" (drafted as 0016;
     renumbered after merging main);
   - ADR 0008 amended for the guardrail placement (D20/D21);
   - both indexed in the ADR README.
@@ -3053,6 +3053,14 @@ The owner approved merging the refreshed head if the same local evidence
 passes: the full suites, the package-set compare and the fast browser
 journeys.
 
+#### Fourth merge with main (2026-10-10)
+
+Main moved again: #441 (particle and scene effects) and #427 (licensed comedy
+SFX, which took ADR 0022). A fourth ordinary merge renumbered the Anthropic ADR
+to 0023, with its index row, ADR 0008's pointer and doc links; the index was
+the only conflict. A test that called the memory routes #429 moved was updated
+(`eb3274eb`). The final evidence is recorded in the PR.
+
 #### Hosted Validation and package versions (2026-10-10)
 
 Hosted `Validation` on `3efce945` failed only in the package-set
@@ -3233,7 +3241,7 @@ The final integration review is complete.
 | Owner-added `claude-sonnet-5-5` row works | probe test; smoke | 3, 8, 9 |
 | Hosted composition unchanged | default-policy tests | 3 |
 | Guardrails last and unchanged; stable prefix per path | exact-prompt and stability tests | 4, 5 |
-| Caching recommendation documented; ADR 0008 amended if departed | review; owner decision; ADR 0008 amended, ADR 0022 | 2, 9 |
+| Caching recommendation documented; ADR 0008 amended if departed | review; owner decision; ADR 0008 amended, ADR 0023 | 2, 9 |
 | Cached share does not fall on any path, rises where layout caused misses | harness before and after | 1, 4, 9 |
 | Effort defaults and Anthropic phrasing | request tests; prompt review; smoke | 5, 7, 9 |
 | Docs and ADRs | review | 9 |

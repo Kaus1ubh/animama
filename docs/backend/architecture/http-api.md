@@ -224,7 +224,10 @@ and at most 32 `{kind, id, label}` blockers. Kinds cover Anima/loadout reference
 runtime and preview leases, content operations, and live document jobs. It never
 returns filesystem roots. Electron repeats preflight after draining renderers
 and stopping the worker, before switching pack pointers. Catalog withdrawal
-reuses the same reference checks at restart; readiness fails closed on conflict.
+reuses the same reference checks at restart, except that Included items' own
+edges into the pack are rebuilt from the new scan rather than blocking (an
+optional sound drops; a required dependency becomes invalid); readiness fails
+closed on conflict.
 
 ## Model Assets
 

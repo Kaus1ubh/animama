@@ -110,7 +110,7 @@
     {
       "id": "included-content-attribution",
       "name": "Included content source and attribution notice",
-      "license": "Mixed: Adobe Mixamo product-use terms, CC-BY-4.0, CC0-1.0 and source-specific permissive terms",
+      "license": "Mixed: Adobe Mixamo product-use terms, WOW Sound Media license terms, CC-BY-4.0, CC0-1.0 and source-specific permissive terms",
       "source": "content/included/licenses/inventory.json and the source license/readme files preserved beside the Included content",
       "notice_files": ["included-content-attribution.txt"],
       "review": "pending"

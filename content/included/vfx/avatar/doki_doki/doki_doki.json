@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Doki Doki",
   "description": "Pink manga lettering \"DOKI DOKI!\" pops up beside the cheek and jitters like a pounding heart, for flustered love or nervous excitement.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:heartbeat_04v1_faster",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "sticker",
@@ -55,7 +62,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

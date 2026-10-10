@@ -11,7 +11,10 @@ import { tmpdir } from "node:os";
 import path from "node:path";
 import { createHash } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { RuntimeSupervisor } from "../src/main-process/runtime/supervisor.js";
+import {
+  PRIVATE_PACK_IDS,
+  RuntimeSupervisor,
+} from "../src/main-process/runtime/supervisor.js";
 import { runtimePaths } from "../src/main-process/runtime/paths.js";
 import { atomicWrite } from "../src/main-process/runtime/atomic-file.js";
 import { normalizeSchemaDump } from "../src/main-process/runtime/schema.js";
@@ -510,15 +513,19 @@ describe("runtime supervision", () => {
     );
   });
 
-  it.each([false, true])(
-    "mounts the bundled Mixamo-motion pack only when it was staged (%s)",
+  it.each([
+    [[]],
+    [["mixamo-motion"]],
+    [["wow-comedy-sfx"]],
+    [["mixamo-motion", "wow-comedy-sfx"]],
+  ])(
+    "mounts each bundled private pack only when it was staged (%j)",
     async (staged) => {
       const current = create();
-      if (staged)
-        mkdirSync(
-          path.join(current.options.runtimeRoot, "content/mixamo-motion"),
-          { recursive: true },
-        );
+      for (const id of staged)
+        mkdirSync(path.join(current.options.runtimeRoot, "content", id), {
+          recursive: true,
+        });
       await current.runtime.start();
       const backend = fixture.launches
         .filter((child) => child.name === "fastapi")
@@ -527,9 +534,15 @@ describe("runtime supervision", () => {
         backend.env.ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON,
       ) as { id: string; pack_id: string | null }[];
       expect(sources[0].id).toBe("core");
-      expect(sources.some((source) => source.pack_id === "mixamo-motion")).toBe(
-        staged,
-      );
+      expect(
+        sources
+          .filter((source) =>
+            (PRIVATE_PACK_IDS as readonly string[]).includes(
+              source.pack_id ?? "",
+            ),
+          )
+          .map((source) => [source.id, source.pack_id]),
+      ).toEqual(staged.map((id) => [id, id]));
     },
   );
 

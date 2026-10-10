@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Heart Throb",
   "description": "A big cartoon heart beating on the chest with a lub-dub throb, for warm caring, gratitude and gentle affection.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:heartbeat_03v1_light",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "body",
@@ -52,7 +59,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {
