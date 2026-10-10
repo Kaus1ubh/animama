@@ -143,6 +143,16 @@ Paths: frontend relative to `src/frontend/web/`, backend to
   draws into the Local item, and most built-ins are third-party (CC0, one
   CC-BY), so promotion must carry their records rather than claim them as
   owner art.
+- 2026-10-10 (P9): the full browser journeys caught a P5 regression the unit
+  suites missed: restoring a Scene draft reordered its layers, so the restored
+  portable JSON differed from the saved text (fixed, P9 record).
+- 2026-10-10 (merge): `main`'s #406 deleted the Included `shy-finger-poke`
+  Gesture, the only Included user of `kawaii-sparkles` and `light-streak`.
+  Plan 2's R12 (rewire `shy-finger-poke`) and R13 (unused items) must be
+  restated against current `main`. A browser-journey stack reused across that
+  merge kept pre-merge Animas and package stages and failed every package
+  journey (`package_anima_source_unavailable`, `package_stage_limit`); a purged
+  stack is needed after Included content changes.
 
 ## Decision Log
 
@@ -2043,6 +2053,46 @@ The review passed at round 2 with one repair round unused.
 criteria, reusing still-valid phase evidence. It gets one full review and at
 most two repair rounds. Record findings and revisions here. Agent readiness does
 not replace G4 or merge approval.
+
+Merge of `main` before the review: `0753e9c6` merges `origin/main` `5993bbee`
+(#401, #406, #407, #411). Six files conflicted and were resolved by hand:
+`effect-check.mjs` keeps the before/after capture and passes `--with-clip`'s
+Gesture into both captures without its effect media; `effect-promote.mjs`
+keeps per-kind promotion over `main`'s `included-dependencies.mjs` helpers;
+`effects.mjs`, `effects.test.mjs`, `avatar-vfx.md` §9 and the animation
+skill's `checks-and-review.md` keep both sides.
+
+#### Final Integration Review #1 Findings
+
+Round 1 (full integration review, `sdlc-reviewer`, `3989a2cb` against
+`5993bbee`, with `git show --remerge-diff 0753e9c6`): **incomplete**, no code
+blocker.
+
+- **FI-R1-F1** (required, fixed in `3989a2cb`): `main`'s new "effects check
+  poses both Avatars with a Gesture clip" test expected two PASS lines; the
+  merged check also prints P8's clean-art PASS line. The posing itself was
+  correct on both Avatars.
+- **FI-R1-F2** (required: evidence or an owner decision): R1's "an Included
+  effect with non-built-in textures" case had no direct evidence; P3 argued
+  the shared reopen path, and no Included Particle Effect carries
+  non-built-in textures today.
+- **FI-R1-F3** (optional): `animama-avatar-vfx` `how.md` still said a Library
+  Gesture or Reaction preview plays Avatar and Particle Effects only.
+- **FI-R1-F4** (optional, for Plan 2): `main`'s #406 deleted the Included
+  `shy-finger-poke` Gesture, the only Included user of `kawaii-sparkles` and
+  `light-streak`, so R12's rewiring and R13's unused list need updating when
+  Plan 2 is written. Nothing in Plan 1 depends on it.
+
+Merge correctness, auto-merged files (thumbnail `clip`, licence inventory and
+records, pinned counts, journey allowlist) and the integration-level
+ownership of the removal and refusal paths were confirmed. R2–R8 and the
+performance record are met; R1 is met except F2.
+
+#### Final Integration Review #1 Revisions
+
+- **F1 accepted:** the test expects the art line (`3989a2cb`).
+- **F3 accepted:** `how.md` says Avatar, Particle and Scene Effects.
+- **F4 accepted** as a Plan 2 input (Surprises & Discoveries).
 
 ## Validation and acceptance
 

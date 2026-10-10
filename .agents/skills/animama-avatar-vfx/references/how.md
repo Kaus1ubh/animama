@@ -239,7 +239,8 @@ From `src/frontend/web`, with no running stack:
   plays the effect live on both Avatars in the browser, with camera presets,
   scrubbing and review notes; `--duration <s>` applies it for a set time. Keep a
   descriptor in its own `<stem>/` folder, which the preview watches. A Library
-  Gesture or Reaction source plays its Avatar and Particle Effects as in chat.
+  Gesture or Reaction source plays its Avatar, Particle and Scene Effects as in
+  chat.
 
 Renders and previews use the chat canvas lighting but not a live Anima; they do
 not replace checking the saved Action in chat when that is the outcome.
