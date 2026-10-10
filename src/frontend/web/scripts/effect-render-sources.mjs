@@ -71,6 +71,15 @@ const LIBRARY_KINDS = {
   reaction: "reaction",
 };
 
+/** The effect source kinds: `library:` segment, kind and content type. */
+export const EFFECT_SOURCE_KINDS = Object.entries(LIBRARY_KINDS)
+  .filter(([, kind]) => ["effect", "particle", "scene"].includes(kind))
+  .map(([segment, kind]) => ({
+    segment,
+    kind,
+    contentType: KINDS[kind].contentType,
+  }));
+
 export class EffectSourceError extends Error {
   constructor(message) {
     super(message);
@@ -595,23 +604,34 @@ export async function resolveSceneRef(
  * spec) to its kind and files: `kind` is `avatar`, `particle` or `scene`.
  * A `library:` spec without a kind names an Avatar Effect.
  */
-export async function resolveAnyEffectSource(
+export async function resolveAnyEffectSource(spec, options = {}) {
+  const { descriptorPath, descriptor } = await resolveAnyEffectDescriptor(
+    spec,
+    options,
+  );
+  return loadAnyEffectDescriptor(descriptorPath, descriptor);
+}
+
+/**
+ * Find the descriptor an effect source of any kind names, without reading its
+ * files, so a source whose files are still missing can be watched until they
+ * appear.
+ */
+export async function resolveAnyEffectDescriptor(
   spec,
   { cwd = process.cwd(), localContent = null } = {},
 ) {
-  let descriptorPath;
-  let descriptor;
-  if (parseLibrarySpec(spec)) {
-    ({ descriptorPath, descriptor } = await resolveLibraryItem(spec, "effect", {
-      localContent,
-    }));
-  } else {
-    const { target, isDirectory } = await resolvePath(spec, cwd);
-    descriptorPath = isDirectory
-      ? await descriptorInFolder(target, ".json")
-      : target;
-    descriptor = await readJson(descriptorPath);
-  }
+  if (parseLibrarySpec(spec))
+    return resolveLibraryItem(spec, "effect", { localContent });
+  const { target, isDirectory } = await resolvePath(spec, cwd);
+  const descriptorPath = isDirectory
+    ? await descriptorInFolder(target, ".json")
+    : target;
+  return { descriptorPath, descriptor: await readJson(descriptorPath) };
+}
+
+/** Load a descriptor of any effect kind with its files. */
+export async function loadAnyEffectDescriptor(descriptorPath, descriptor) {
   if (descriptor?.content_type === "particle_effect")
     return loadParticleDescriptor(
       descriptorPath,

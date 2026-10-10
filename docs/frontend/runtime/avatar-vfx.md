@@ -588,31 +588,40 @@ review notes:
 ```bash
 pnpm -s animation:preview ./my-effect                # folder or descriptor .json
 pnpm -s animation:preview library:avatar-effect/eye_confused_swirl --duration 2
-pnpm -s animation:preview library:included/confusion-2   # a Reaction with its effects
+pnpm -s animation:preview library:particle-effect/hearts-v1
+pnpm -s animation:preview library:scene-effect/scene-vfx-emotion-joy
+pnpm -s animation:preview library:included/joy-3   # a Reaction with its effects
 ```
 
-- An effect source is resolved like `effects:render`'s, parsed with the `/2`
-  parser and applied through `applyAvatarVFXEffectById`. A field-level problem
-  is shown while the last valid version keeps playing.
-- It re-applies every 4 s, on its own cycle beside a longer Compare row.
-  `--duration <s>` keeps it that long, removes it for 0.5 s and repeats.
-  Seeking re-applies it and steps its frames to the chosen time.
+- An effect source is resolved like `effects:render`'s. An Avatar Effect is
+  parsed with the `/2` parser and applied through `applyAvatarVFXEffectById`;
+  a Particle Effect plays through the Avatar's particle controller; a Scene
+  Effect is drawn in the view's Scene layers, behind and in front of the
+  Avatar as chat draws them. A field-level problem is shown while the last
+  valid version keeps playing.
+- It re-applies every 4 s, on its own cycle beside a longer Compare row; a
+  Particle Effect repeats 0.5 s after its default lifetime ends, and a Scene
+  Effect with its own duration 0.5 s after that. `--duration <s>` keeps it that long, removes it
+  for 0.5 s and repeats. Seeking re-applies it and steps its frames to the
+  chosen time. Scene animations follow the playhead, so pausing and scrubbing
+  hold them too.
 - Keep each effect descriptor in its own `<stem>/` folder. The preview watches
-  that folder recursively, so a new or changed image reloads the effect at once,
-  and unrelated files in a shared folder would reload it too. The version covers
-  the image bytes, so a reload with no change does nothing.
+  that folder recursively, so a new or changed image, manifest or texture
+  reloads the effect at once, and unrelated files in a shared folder would
+  reload it too. The version covers the bytes of every file the effect plays,
+  so a reload with no change does nothing.
 - The picker's **Effect sources** list the named effect folders and every
   other effect folder beside them, so one preview reviews a batch of drafts.
 - Notes go beside the effect's folder (`my-effect.review.json`). For anything
-  inside Library content (under the Included or Local root, a `vfx/avatar/`
-  folder, or a `<stem>/` folder holding `<stem>.meta.json`) they go in the
-  working directory, because the content scanner would count them as item
-  files.
-- A Library Gesture or Reaction, or a project file, plays its Avatar and
-  Particle Effects with their fades, resolved from its dependencies. The
-  **Effect warnings** panel lists what it cannot play (Scene Effects, sounds,
-  unresolved aliases), controller warnings, failed clip events and skipped face
-  parts.
+  inside Library content (under the Included or Local root, a `vfx/avatar/`,
+  `vfx/scene/` or `vfx/particle/[quark/]` item folder, or a `<stem>/` folder
+  holding `<stem>.meta.json`) they go in the working directory, because the
+  content scanner would count them as item files.
+- A Library Gesture or Reaction, or a project file, plays its Avatar,
+  Particle and Scene Effects with their fades, resolved from its dependencies.
+  The **Effect warnings** panel lists what it cannot play (sounds, unresolved
+  aliases), controller warnings, failed clip events (such as a Scene event
+  whose dependency is the other Scene kind) and skipped face parts.
 
 ### Frame-cost benchmark
 

@@ -1,0 +1,33 @@
+/*
+ * Keyframes of the Scene Effect layers (`ui/main/scene-vfx`). The app imports
+ * them with its other styles; review pages that draw Scene layers import them
+ * without the app's base styles (`scripts/effect-render/sceneLayers.css`).
+ */
+
+@keyframes scene-vfx-marquee-shift {
+  from {
+    transform: translate3d(0, 0, 0);
+  }
+  to {
+    transform: translate3d(
+      var(--scene-vfx-marquee-translate-x, 0px),
+      var(--scene-vfx-marquee-translate-y, 0px),
+      0
+    );
+  }
+}
+
+@keyframes scene-vfx-focus-lines-flicker {
+  0%,
+  18%,
+  100% {
+    opacity: 0;
+  }
+  24%,
+  72% {
+    opacity: var(--scene-vfx-focus-line-opacity, 1);
+  }
+  80% {
+    opacity: calc(var(--scene-vfx-focus-line-opacity, 1) * 0.45);
+  }
+}

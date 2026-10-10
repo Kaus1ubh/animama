@@ -82,7 +82,8 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [x] P4 — Check, render and bench for Particle and Scene Effects (R3). Review
       passed at an owner-authorized extra round 4.
 - [ ] P5 — Scene layer capabilities (R2). Waits for G1.
-- [ ] P6 — Headed preview for Particle and Scene Effects (R4).
+- [x] P6 — Headed preview for Particle and Scene Effects (R4). Review passed
+      at round 2.
 - [ ] P7 — Save and promote (R5). Gate G3.
 - [ ] P8 — Pipeline skills and fresh-agent dry runs (R7). Gate G2.
 - [ ] P9 — Documentation and acceptance (R8). Gate G4.
@@ -696,7 +697,7 @@ bench reports the Reaction-mode baseline.
 
 #### P4 record
 
-Starting source and issue: `ea59aa5f`, #389.
+Starting source and issue: `ea59aa5f`, #389. Commit: `27401d64`.
 
 Delivered:
 
@@ -1003,9 +1004,145 @@ Completion: the R4 acceptance items pass.
 
 #### P6 record
 
+Starting source and issue: `27401d64`, #391. P6 runs before P5 while G1 is
+open (Decision Log).
+
+Delivered:
+
+- **Shared Scene layers** (`scripts/effect-render/sceneBands.tsx`):
+  `SceneBands` draws the chat's Scene underlay and overlay bands for one view
+  into a host element and owns the shown Scenes: direct Scenes, a clip's
+  Scene events as chat applies them (`clipSceneSink`), duration expiry and
+  seeking each Scene's animations to its own elapsed time. The review stage
+  (`reviewStage.tsx`), the bench and the headed preview use it. Its styles
+  come from `sceneLayers.css` (Tailwind utilities for the Scene components and
+  the Scene keyframes, now in `src/styles/scene-vfx.css`, without the app's
+  base styles); review renders are byte-identical to P4's. The bench keeps
+  the app's full stylesheet, so DOM layers cost what they cost in chat.
+- **Preview media** (`src/lib/avatar/motion-authoring/preview/previewMedia.ts`):
+  `PreviewMedia` carries Scene Effects; `PreviewMediaProvider` resolves them by
+  kind and alias (`resolveSceneVFX`/`loadSceneVFX`, as the chat actor looks
+  them up); `PreviewEffect` is an Avatar, Particle or Scene Effect source by
+  `kind`; a clip's Scene events count as media, and only Scene events without a
+  resolved dependency are reported (the "not shown" notice is gone). The
+  review page and bench use the same types and provider.
+- **Sources** (`scripts/animation-preview-media.mjs`): `animation:preview`
+  accepts Particle and Scene effect folders, descriptors and
+  `library:particle-effect/…`, `library:scene-effect/…` specs; serves a
+  Particle manifest with its textures and a Scene's images (SVG as
+  `image/svg+xml`; every served effect file carries a script-free content
+  security policy); resolves a Gesture's or Reaction's dependencies with the
+  shared `resolveDependencies`; and lists Included and Local Particle and
+  Scene Effects and sibling effect folders of every kind in the pickers. An
+  effect folder reloads when its descriptor or any file it plays changes;
+  review notes stay beside the folder (never inside `vfx/scene/<stem>/` or
+  `vfx/particle/[quark/]<stem>/` Library folders).
+- **Page** (`scripts/animation-preview/preview.ts`, `index.html`,
+  `preview.css`): each view has its own Scene host behind and in front of the
+  shared, now transparent, canvas. A Particle source plays through the
+  Avatar's particle controller (looping on its default lifetime, or
+  `--duration`), a Scene source in the view's layers (its own duration, or
+  `--duration`), and a Gesture's or Reaction's Scene events through
+  `clipSceneSink`. Scene animations follow the page's playhead, so pause,
+  scrub, step and speed apply to them. The view label lists the Scene's name.
+- **Docs:** the headed preview sections of `avatar-vfx.md` and
+  `avatar-animation.md` and the `animama-animation` skill's review reference
+  now describe Particle and Scene sources and a Reaction's Scene Effects
+  (the "Scene Effects are not played" statements were wrong after this phase);
+  the full documentation pass is P9.
+
+Checks (agent, 2026-10-09): `pnpm check` (including the scripts pages) and
+`pnpm web:lint` pass; Prettier clean; vitest over `src/lib/avatar`,
+`src/lib/scene-vfx`, `src/lib/runtime-content`, `src/ui/main` 701 pass
+(including new `previewMedia` Scene, `sources` Library-folder tests); node
+tests `effect-render-sources`, `effect-assets`, `effects`,
+`animation-preview-media` (new: Particle and Scene sources served, choices),
+`animation-save`, `animation-promote` 82 pass; browser tests
+`animation-preview` 8 pass (new: Particle then Scene source, with the Scene's
+animations held at the playhead; joy-3 with its Avatar, Particle and Scene
+Effects, also after scrubbing), `effect-render` and `effect-check` 5 pass; a
+joy-3 Reaction bench at the baseline settings adds +0.99/+1.45 ms frame,
+in line with the P4 baseline.
+
+Headed session (agent, 2026-10-09, `animation:preview` in the app's browser
+pane): `hearts-v1` (Particle) floats hearts on both Avatars; switching the
+picker to `scene-vfx-emotion-joy` draws the joy background behind both; the
+`joy-3` Reaction paused at 0.5 s shows Star3, one particle effect and the joy
+background on both, with no warnings; `light-streak` draws focus lines around
+both Avatars. The owner's live review of dry-run effects is G2 (P8).
+
 #### Code Review #1 Findings
 
+Reviewer: independent `sdlc-reviewer`, full initial review of the P6 working
+tree on `27401d64`. Sources, server, notes, versions, disposal and the clip
+Scene sink hold up; the media route serves only registered, contained,
+size-checked files with a script-free policy. Result: blocked on:
+
+- **P6-F1** (`sceneLayers.css`, `sceneBands.tsx`): the slim stylesheet scans
+  only the Scene layer components, so the `z-20` class `SceneBands` passes the
+  overlay band is never generated; the band computes `z-index: auto` and a
+  Scene placed in front of the Avatar draws under it in the preview and the
+  review renders (a regression from P4's full stylesheet). Every Included
+  focus-lines Scene is behind the Avatar, so the byte-identical renders did
+  not show it. Required.
+- **P6-F2** (`avatar-vfx.md`, last Headed preview bullet): still says Scene
+  Effects are not played. Required.
+- **P6-F3** (`preview.ts` sink, `previewMedia.ts` notices): a Scene event
+  whose dependency is the other Scene kind is dropped silently; chat records
+  it as a failed clip event. Required.
+- Optional: an effect row's Scene time ran one frame ahead of the playhead
+  after a cycle restart; `effectDuration` re-parsed the Scene definition
+  several times a frame; a duplicate `clearScenes`; `media()` no longer turned
+  unexpected errors into notices; tests for reloads on texture or image
+  changes, `--duration` cycles, front stacking and the kind mismatch; the doc
+  omitted the 0.5 s tail; the kind tables restated `effect-render-sources`;
+  the record should say which part of `test:source` ran.
+
 #### Code Review #1 Revisions
+
+- **P6-F1 accepted.** `sceneLayers.css` also scans `sceneBands.tsx`, so the
+  band classes are generated. A browser test previews a copy of
+  `light-streak` placed in front of the Avatar and asserts the overlay band's
+  z-index is 20 in both views; it fails without the fix (`auto`).
+- **P6-F2 accepted.** The bullet now says a Gesture or Reaction plays its
+  Avatar, Particle and Scene Effects, and the warnings panel lists failed clip
+  events such as a Scene of the wrong kind.
+- **P6-F3 accepted.** `clipSceneSink` passes the kind to `onMissing`; the
+  preview throws `missingSceneMessage(alias, kind)`, so the clip player records
+  the failed event as chat does and the page lists it; the review page and the
+  bench report the same message. The browser test plays a project whose
+  background event names a focus-lines dependency and finds the message.
+- Optional, taken: an effect row's time is the playhead; each row's effect
+  duration is computed once; the duplicate clear is gone; any failure serving a
+  clip's dependencies becomes a notice; the preview's kind tables derive from
+  `EFFECT_SOURCE_KINDS`; the doc states the 0.5 s tail; a node test changes a
+  texture and a Scene image and gets new versions. Not taken: a browser test
+  of `--duration` cycles for Particle and Scene sources (the cycle arithmetic
+  is shared with Avatar Effect sources, whose timed test covers it).
+
+#### Code Review #2 Findings
+
+Reviewer: the same `sdlc-reviewer`, targeted recheck (repair round 1).
+Result: pass. P6-F1 (the front band computes z-index 20 in both views, and the
+render and bench pages share the stylesheet), P6-F2 and P6-F3 (the wrong-kind
+event is recorded and listed, as in chat) are fixed; the optional revisions
+are correct with no regression.
+
+- Optional: an alias with no dependency at all is now reported twice (the
+  notice and each view's failed event).
+
+#### Code Review #2 Revisions
+
+- Optional, not taken: both lines are accurate (the dependency is missing,
+  and the event failed in each view); merging them would hide which views
+  failed.
+
+Final checks (agent, 2026-10-09, after the revisions): `pnpm -s test:source`
+ran its node steps (76, 4 and 9 pass) and its vitest step (3367 of 3371 pass;
+the 4 failures are `tests/local-api-proxy.test.ts`, which needs port 5173,
+held by another task's preview server), which stops the chain; its last step,
+`node --test --test-concurrency=1 scripts/*.browser.test.mjs`, then ran on
+its own: 105 pass. `npx tsc -b`, `pnpm web:lint` and Prettier pass.
 
 ### P7 — Save and promote (R5). Gate G3. #392
 

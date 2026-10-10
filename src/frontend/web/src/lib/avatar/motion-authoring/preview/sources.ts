@@ -17,8 +17,8 @@ import type { PreviewEffect, PreviewMedia } from "./previewMedia";
 /**
  * Sources the motion preview tool can play: clip files, creator project
  * envelopes and Library items (read from the Included and Local content
- * directories, never written), plus Avatar Effect sources through a
- * `PreviewMediaAdapter`.
+ * directories, never written), plus Avatar, Particle and Scene Effect sources
+ * through a `PreviewMediaAdapter`.
  */
 
 export type PreviewSource = {
@@ -41,15 +41,16 @@ export type PreviewSource = {
 };
 
 /**
- * Avatar Effect sources and clip dependencies, which the CLI server resolves
- * with `scripts/effect-render-sources.mjs` and serves to the page.
+ * Effect sources and clip dependencies, which the CLI server resolves with
+ * `scripts/effect-render-sources.mjs` and serves to the page.
  */
 export type PreviewMediaAdapter = {
-  /** The effect source `spec` names, or null when it names no Avatar Effect. */
+  /** The effect source `spec` names, or null when it names no effect. */
   resolve(spec: string, roots: PreviewRoots): Promise<PreviewSource | null>;
   /**
-   * Read an effect source. `version` covers the descriptor and image bytes,
-   * `text` is the descriptor retained for review, and `files` are watched.
+   * Read an effect source. `version` covers the descriptor and the bytes of
+   * every file it plays (images, manifest, textures), `text` is the
+   * descriptor retained for review, and `files` are watched.
    */
   load(
     source: PreviewSource,
@@ -297,8 +298,9 @@ function sequenceFile({ meta }: LibraryCandidate) {
 
 /**
  * Whether a file lies in Library content: under the Included or Local content
- * directory, in an Avatar Effect item folder (`…/vfx/avatar/<stem>/`) or in a
- * Gesture or Reaction item folder (beside its `<stem>.meta.json`).
+ * directory, in an effect item folder (`…/vfx/avatar/<stem>/`,
+ * `…/vfx/scene/<stem>/`, `…/vfx/particle/[quark/]<stem>/`) or in a Gesture or
+ * Reaction item folder (beside its `<stem>.meta.json`).
  */
 export async function isInLibraryContent(
   file: string,
@@ -311,10 +313,16 @@ export async function isInLibraryContent(
   if ([roots.included, roots.local].some((root) => root && inside(root)))
     return true;
   const folder = path.dirname(file);
-  const kindFolder = path.dirname(folder);
+  // The folders above the item folder, nearest first.
+  const above = path
+    .dirname(folder)
+    .split(path.sep)
+    .reverse()
+    .slice(0, 3)
+    .join("/");
   if (
-    path.basename(kindFolder) === "avatar" &&
-    path.basename(path.dirname(kindFolder)) === "vfx"
+    /^(avatar|scene|particle)\/vfx(\/|$)/.test(above) ||
+    /^quark\/particle\/vfx(\/|$)/.test(above)
   )
     return true;
   return isFile(path.join(folder, `${path.basename(folder)}.meta.json`));

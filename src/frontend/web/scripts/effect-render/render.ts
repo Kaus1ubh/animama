@@ -4,7 +4,10 @@ import { Avatar } from "@/lib/avatar";
 import { applyCanonicalPose } from "@/lib/avatar/motion-authoring/kinematics";
 import {
   PreviewMediaProvider,
+  previewSceneEntry,
+  type PreviewMedia,
   type PreviewParticleEffect,
+  type PreviewSceneEffect,
 } from "@/lib/avatar/motion-authoring/preview/previewMedia";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import { captureAvatarPortrait } from "@/lib/avatar/portrait";
@@ -15,12 +18,11 @@ import {
 } from "@/lib/avatar/poses/animaPoseClip/program";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
-import { sceneEntryFromDefinition } from "@/lib/scene-vfx/sceneDefinition";
-import type { SceneVFXEntry } from "@/lib/scene-vfx/types";
 import { buildSceneCameraPreset } from "@/ui/main/canvas/sceneCameraPresets";
 import { updatePoseCreatorAvatarFrame } from "@/ui/pose-creator/poseCreatorAvatarFrame";
 
 import { ReviewStage } from "./reviewStage";
+import { missingSceneMessage } from "./sceneBands";
 import { createStage, effectEntry, type EffectSource } from "./stage";
 
 /**
@@ -49,31 +51,16 @@ import { createStage, effectEntry, type EffectSource } from "./stage";
 
 type ViewName = "front" | "three-quarter" | "face";
 
-/** A Particle Effect played on its own: its served manifest and runtime defaults. */
-type PageParticle = PreviewParticleEffect;
-
-/** A Scene Effect shown on its own: its definition and served images. */
-type PageScene = {
-  alias: string;
-  name: string;
-  definition: Record<string, unknown>;
-  imageUrls: Record<string, string>;
-};
-
 /** Effects a clip's events play, by dependency alias. */
-type PageClipMedia = {
-  avatarEffects: { alias: string; effect: EffectSource }[];
-  particleEffects: PageParticle[];
-  sceneEffects: PageScene[];
-};
+type PageClipMedia = Omit<PreviewMedia, "notices">;
 
 type StageRequest = {
   avatar: { id: string; url: string };
   tile: { width: number; height: number };
   /** Applied together at time 0, in order. */
   effects: EffectSource[];
-  particles: PageParticle[];
-  scenes: PageScene[];
+  particles: PreviewParticleEffect[];
+  scenes: PreviewSceneEffect[];
   /** VRM expression held at full weight while rendering, or null. */
   expression: string | null;
   /** Gesture or Reaction clip, or null. */
@@ -142,15 +129,6 @@ const resolvePose = (id: string) => {
   }
 };
 
-/** A Scene source as the runtime entry the layers draw. */
-function sceneEntry(scene: PageScene): SceneVFXEntry {
-  return sceneEntryFromDefinition(
-    scene.definition,
-    { id: scene.alias, label: scene.name },
-    (logicalName) => scene.imageUrls[logicalName],
-  ).entry;
-}
-
 /**
  * Counts unfinished effect loads that clip events start. Each stage of a load
  * (resolving the effect, loading its art, applying it) is a tracked method,
@@ -210,7 +188,8 @@ class EffectSession {
   private readonly missingPoseRefs = new Set<string>();
   private readonly problems: string[] = [];
   private readonly stage: ReviewStage | null;
-  private readonly sceneByAlias: Map<string, PageScene>;
+  /** The effects clip events resolve, by alias. */
+  private readonly media: PreviewMediaProvider;
   private readonly loads = new PendingLoads();
   /** The clip prepared for this Avatar (hand presets, planted legs). */
   private program: AnimaPoseClipProgram | null = null;
@@ -221,22 +200,18 @@ class EffectSession {
 
   private constructor(
     avatar: Avatar,
+    media: PreviewMediaProvider,
     request: Pick<StageRequest, "clip" | "clipMedia">,
     stage: ReviewStage | null,
   ) {
     this.avatar = avatar;
+    this.media = media;
     this.clip = request.clip;
     // Without the effects it plays, a Reaction's clip is sampled like a Gesture.
     this.playsEvents = Boolean(
       request.clip && request.clipMedia && clipPlaysEffects(request.clip),
     );
     this.stage = stage;
-    this.sceneByAlias = new Map(
-      (request.clipMedia?.sceneEffects ?? []).map((scene) => [
-        scene.alias,
-        scene,
-      ]),
-    );
   }
 
   static async open(
@@ -244,7 +219,7 @@ class EffectSession {
     camera: THREE.Camera,
     canvas: HTMLCanvasElement,
     request: Pick<StageRequest, "clip" | "clipMedia" | "expression"> & {
-      particles?: PageParticle[];
+      particles?: PreviewParticleEffect[];
     },
     stage: ReviewStage | null = null,
   ): Promise<EffectSession> {
@@ -254,6 +229,7 @@ class EffectSession {
         ...(request.clipMedia?.particleEffects ?? []),
         ...(request.particles ?? []),
       ],
+      sceneEffects: request.clipMedia?.sceneEffects ?? [],
       notices: [],
     });
     const avatar = new Avatar(camera, canvas, {
@@ -264,7 +240,7 @@ class EffectSession {
       await avatar.load({ filePath: url });
       avatar.setAutomaticAnimationPlaybackEnabled(false);
       avatar.prepareFirstFrame();
-      const session = new EffectSession(avatar, request, stage);
+      const session = new EffectSession(avatar, media, request, stage);
       session.problems.push(...media.getProblems());
       if (session.playsEvents) {
         session.loads.track(media, ["loadAvatarVFX", "resolveParticleVFX"]);
@@ -303,8 +279,8 @@ class EffectSession {
    */
   async apply(
     request: Pick<StageRequest, "effects"> & {
-      particles?: PageParticle[];
-      scenes?: PageScene[];
+      particles?: PreviewParticleEffect[];
+      scenes?: PreviewSceneEffect[];
     },
   ): Promise<void> {
     const particles = request.particles ?? [];
@@ -335,21 +311,15 @@ class EffectSession {
     }
     for (const scene of scenes) {
       if (!this.stage) throw new Error("Scene Effects need a review stage.");
-      this.stage.showScene(sceneEntry(scene), 0);
+      this.stage.bands.showScene(previewSceneEntry(scene), 0);
       this.appliedCount += 1;
     }
     if (this.playsEvents && this.clip) {
       this.avatar.setPoseClipExternalEventSink(
-        this.stage?.clipSceneSink(
-          (alias) => {
-            const scene = this.sceneByAlias.get(alias);
-            return scene ? sceneEntry(scene) : null;
-          },
+        this.stage?.bands.clipSceneSink(
+          (kind, alias) => this.media.resolveSceneVFX(kind, alias),
           () => this.time,
-          (alias) =>
-            this.problems.push(
-              `Scene Effect “${alias}” has no resolved dependency.`,
-            ),
+          (alias, kind) => this.problems.push(missingSceneMessage(alias, kind)),
         ) ?? null,
       );
       this.avatar.playAnimaPoseClip(
@@ -420,7 +390,7 @@ class EffectSession {
         ...[...activeParticles].map(([appliedId, effectId]) =>
           this.particleIds.includes(appliedId) ? appliedId : effectId,
         ),
-        ...(this.stage?.sceneIds() ?? []),
+        ...(this.stage?.bands.sceneIds() ?? []),
       ],
       warnings: [
         ...(snapshot?.warnings ?? ["The Avatar has no effect controller."]),
@@ -509,7 +479,7 @@ async function openReviewStage(
   closeReviewStage();
   try {
     request.effects.forEach((effect) => effectEntry(effect));
-    request.scenes.forEach((scene) => sceneEntry(scene));
+    request.scenes.forEach((scene) => previewSceneEntry(scene));
   } catch (error) {
     const field = (error as { field?: unknown }).field;
     const message = error instanceof Error ? error.message : String(error);

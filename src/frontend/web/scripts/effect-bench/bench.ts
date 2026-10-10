@@ -1,15 +1,17 @@
+// The app's full stylesheet, so DOM Scene layers cost what they cost in chat.
+import "@/index.css";
 import { Avatar } from "@/lib/avatar";
 import {
   PreviewMediaProvider,
-  type PreviewParticleEffect,
+  type PreviewMedia,
 } from "@/lib/avatar/motion-authoring/preview/previewMedia";
 import { BUILT_IN_AVATAR_MOTION_CATALOG } from "@/lib/avatar/motion/AvatarMotionCatalog";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
-import { sceneEntryFromDefinition } from "@/lib/scene-vfx/sceneDefinition";
 import { buildSceneCameraPreset } from "@/ui/main/canvas/sceneCameraPresets";
 
 import { ReviewStage } from "../effect-render/reviewStage";
+import { missingSceneMessage } from "../effect-render/sceneBands";
 import {
   createStage,
   effectEntry,
@@ -322,16 +324,7 @@ type ReactionBenchRequest = {
   avatar: { id: string; url: string };
   clip: unknown;
   /** The effects the Reaction's events play, by dependency alias. */
-  clipMedia: {
-    avatarEffects: { alias: string; effect: EffectSource }[];
-    particleEffects: PreviewParticleEffect[];
-    sceneEffects: {
-      alias: string;
-      name: string;
-      definition: Record<string, unknown>;
-      imageUrls: Record<string, string>;
-    }[];
-  };
+  clipMedia: Omit<PreviewMedia, "notices">;
   width: number;
   height: number;
   pixelRatio: number;
@@ -389,32 +382,20 @@ async function runReactionBench(
     "EXT_disjoint_timer_query_webgl2",
   ) as TimerExtension | null;
   const media = new PreviewMediaProvider({
-    avatarEffects: request.clipMedia.avatarEffects,
-    particleEffects: request.clipMedia.particleEffects,
+    ...request.clipMedia,
     notices: [],
   });
   const avatar = new Avatar(camera, renderer.domElement, {
     motionCatalog: BUILT_IN_AVATAR_MOTION_CATALOG,
     mediaCatalog: media,
   });
-  const scenes = new Map(
-    request.clipMedia.sceneEffects.map((source) => [
-      source.alias,
-      sceneEntryFromDefinition(
-        source.definition,
-        { id: source.alias, label: source.name },
-        (logicalName) => source.imageUrls[logicalName],
-      ).entry,
-    ]),
-  );
   const problems = new Set<string>();
   // Scene animations run live here, so the start time is not used.
   avatar.setPoseClipExternalEventSink(
-    stage.clipSceneSink(
-      (alias) => scenes.get(alias) ?? null,
+    stage.bands.clipSceneSink(
+      (kind, alias) => media.resolveSceneVFX(kind, alias),
       () => 0,
-      (alias) =>
-        problems.add(`Scene Effect “${alias}” has no resolved dependency.`),
+      (alias, kind) => problems.add(missingSceneMessage(alias, kind)),
     ),
   );
   const full = request.clip as AnimaPoseClip;
@@ -444,7 +425,7 @@ async function runReactionBench(
   const replay = (clip: AnimaPoseClip) => {
     avatar.stopClip({ transition: { mode: "fadeOut", durationSec: 0 } });
     avatar.vfxController?.clearAllEffects();
-    stage.clearScenes();
+    stage.bands.clearScenes();
     avatar.playAnimaPoseClip(clip, { preserveProceduralOffsets: true });
   };
 
@@ -540,7 +521,7 @@ async function runReactionBench(
         ...(avatar.particleVFXController
           ?.getSnapshot()
           .activeInstances.map((instance) => instance.effectId) ?? []),
-        ...stage.sceneIds(),
+        ...stage.bands.sceneIds(),
       ];
     }
     return {

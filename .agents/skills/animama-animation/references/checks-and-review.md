@@ -60,11 +60,12 @@ chat. A source is an `animaPoseClip/2.0` clip, a creator project file, or a
 Library item
 (`library:<folder | selector | name>`, prefixed `included/` or `local/` when
 ambiguous; Local items come from `--local-content <dir>` or the sourced stack
-record). A Library Gesture or Reaction, or a project file, plays its Avatar
-and Particle Effects from its dependencies, with their fades; Scene Effects and sounds are not played, and the
-page's **Effect warnings** panel lists them. The preview also takes an Avatar
-Effect source (an effect folder, its descriptor, or
-`library:avatar-effect/<name>`); see the `animama-avatar-vfx` skill. Use it to
+record). A Library Gesture or Reaction, or a project file, plays its Avatar,
+Particle and Scene Effects from its dependencies, with their fades; sounds are
+not played, and the page's **Effect warnings** panel says so. The preview also
+takes an Avatar, Particle or Scene Effect source (an effect folder, its
+descriptor, or `library:avatar-effect/`, `library:particle-effect/` or
+`library:scene-effect/<name>`); see the `animama-avatar-vfx` skill. Use it to
 judge timing, which still frames miss:
 
 - play at 0.25–1× speed, loop, scrub, or click a beat marker;
