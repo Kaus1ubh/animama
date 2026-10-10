@@ -158,7 +158,7 @@ def test_restricted_hashes_are_the_union_of_every_resource(tmp_path: Path, monke
         assert restricted_sha256() == frozenset({first, second})
         restricted_sha256.cache_clear()
         monkeypatch.setattr(content_portability, "RESTRICTED_RESOURCES", (("one.json", "one"), ("broken.json", "two")))
-        with pytest.raises(ValueError):
+        with pytest.raises(ValueError, match="hash"):
             restricted_sha256()
     finally:
         restricted_sha256.cache_clear()

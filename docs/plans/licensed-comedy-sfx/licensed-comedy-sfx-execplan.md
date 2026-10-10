@@ -266,8 +266,8 @@ and mounts from a synthetic fixture in tests; review passes.
 #### Phase 1 references
 
 Issue: #402. Commits: `eef55ddf` (`build(content)[p1]: generalize private
-Included packs and add the empty sound pack`) and the Code Review #1 revision
-commit.
+Included packs and add the empty sound pack`) and `5b381eec`
+(`build(content)[p1]: apply review revisions to the private pack tooling`).
 
 #### Phase 1 results
 
@@ -338,6 +338,29 @@ import-boundary check, `bash -n reset.sh`, both Compose config checks, both
 - Checks after revisions: `npx vitest run tests/private-packs.test.mjs` 28
   passed; `uv run pytest -q tests/test_content_portability.py` 9 passed.
   Repair budget: one round used, one left.
+
+#### Code Review #2 Findings
+
+Independent `sdlc-reviewer`, 2026-10-10, targeted recheck of
+`eef55ddf..5b381eec`. **Pass**, no required findings. Every Code Review #1
+disposition was verified; `releaseScanRules()` reproduces the former inline
+rules exactly (also exercised by `tests/release-scan.test.mjs`, 9 passed).
+Checks: 84 desktop pack and supervisor tests, 9 portability tests (also on an
+exported copy of `5b381eec`), prettier, ruff, `pnpm -s check`, and both
+`scan --git` runs.
+
+- **P1-R2-F1 (optional, record):** the deferred licence-ref check had no
+  Phase 4 step.
+- **P1-R2-F2 (optional, record):** the revision commit hash was missing.
+- Non-blocking: the malformed-union test's `pytest.raises` has no `match`.
+
+#### Code Review #2 Revisions
+
+- P1-R2-F1 accepted: Phase 4 step 9 now checks per-file licence refs in the
+  staged inventory.
+- P1-R2-F2 accepted: `5b381eec` recorded above.
+- The malformed-union test now matches the hash error. Phase 1 review is
+  complete; no repair rounds remain in use.
 
 ### Phase 2: Optional accompanying sounds and the non-portable sound policy (backend)
 
@@ -509,7 +532,11 @@ criteria with real content. Depends on P1–P3. Contains owner gates.
    `ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1` (and the Mixamo requirement); audit it;
    run every leak scan on the real manifest and the preview deny list (tracked
    files, Docker build context, package set, the self-host image and the stage
-   outside `runtime/content/wow-comedy-sfx`, plus a positive control). Confirm
+   outside `runtime/content/wow-comedy-sfx`, plus a positive control). In the
+   staged `licenses/inventory.json`, check that every `content/wow-comedy-sfx/`
+   file lists only `LicenseRef-WOW-Sound-Media-embedded-product`, every
+   `content/mixamo-motion/` file only the Mixamo licence, and no
+   `content/included-core/` file a pack licence (Phase 1 deferral). Confirm
    self-host `./reset.sh` starts with every effect VALID and silent.
 10. **Documentation.** ADR 0019 (optional accompanying sounds and the
     non-portable sound policy); a pack guide beside
