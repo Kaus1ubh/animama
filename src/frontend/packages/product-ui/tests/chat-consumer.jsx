@@ -20,8 +20,13 @@ let stopOnToken = false;
 let run = 0;
 let api;
 let speechEnabled = false;
+let speechModel = "eleven_flash_v2_5";
+let pocketFallback = true;
 const speechSessions = [];
 const speechFailures = [];
+const speechFallbacks = [];
+const ttsTokens = [];
+const ttsCompletions = [];
 const transport = {
   baseUrl: "https://chat-fixture.invalid",
   fetch: async (request) => {
@@ -132,8 +137,8 @@ function SessionConsumer() {
       ? {
           enabled: true,
           provider: "elevenlabs",
-          elevenLabsModelId: "eleven_flash_v2_5",
-          finalizedElevenLabs: false,
+          elevenLabsModelId: speechModel,
+          finalizedElevenLabs: speechModel === "eleven_v3",
         }
       : undefined,
     effects: {
@@ -142,6 +147,15 @@ function SessionConsumer() {
         speechSessions.push({ runId, value }),
       markElevenLabsSessionFailed: (runId, error) =>
         speechFailures.push({ runId, error }),
+      markElevenLabsFinalizedAudioFailed: (runId, error) =>
+        speechFailures.push({ runId, error }),
+      // The playback adapter speaks a declined run with Pocket TTS if it can.
+      fallBackToPocketTts: (runId) => {
+        speechFallbacks.push(runId);
+        return pocketFallback;
+      },
+      appendTtsToken: (runId, token) => ttsTokens.push({ runId, token }),
+      completeTtsRun: (runId) => ttsCompletions.push(runId),
     },
     openDraftChatRoute: () => {},
     replaceChatRoute: () => {},
@@ -215,12 +229,17 @@ function mount(owner = "owner-fixture", session = false, sessionKey = owner) {
 }
 window.fixture = {
   mount,
-  enableSpeech: () => {
+  enableSpeech: ({ model = "eleven_flash_v2_5", fallback = true } = {}) => {
     speechEnabled = true;
+    speechModel = model;
+    pocketFallback = fallback;
     mount("owner-fixture", true);
   },
   speechSessions: () => speechSessions,
   speechFailures: () => speechFailures,
+  speechFallbacks: () => speechFallbacks,
+  ttsTokens: () => ttsTokens,
+  ttsCompletions: () => ttsCompletions,
   mountSession: (sessionKey = "owner-fixture") =>
     mount("owner-fixture", true, sessionKey),
   seedSessionCaches: (key) => {
