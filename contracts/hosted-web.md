@@ -129,7 +129,7 @@ in `local-http` version **3.0.0** with capability `schema_version: 2`. The gener
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
 surface, not another wire schema. `runtime-contracts` is version 0.3.1 and
-`product-ui` is version 0.6.0. Consumers explicitly admit
+`product-ui` is version 0.7.0. Consumers explicitly admit
 the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:
