@@ -19,9 +19,9 @@ from animama.domain.content_catalog import (
     ContentStatus,
     ContentValidationError,
 )
+from animama.product_http.routes.packages import PackageRoute
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.routers.content_packages import PackageRoute
 
 RETIRED_CLIP = {
     "schema": "animaPoseClip/1.0",

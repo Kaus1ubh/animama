@@ -184,7 +184,7 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(3, "GET", "/v1/content/package-imports/{stage_id}", "get_package_import", "read"),
     _shared(3, "POST", "/v1/content/package-imports/{stage_id}/review", "review_package_import", "write"),
     _shared(3, "POST", "/v1/content/package-imports/{stage_id}/commit", "commit_package_import", "write"),
-    _shared(3, "GET", "/v1/content/package-operations/{operation_id}", "get_package_operation", "read"),
+    _shared(3, "GET", "/v1/content/package-operations/{operation_id}", "get_package_operation", "write"),
     _shared(3, "DELETE", "/v1/content/package-imports/{stage_id}", "discard_package_import", "write"),
     # Typed content, portraits and face parts
     _shared(3, "POST", "/v1/content/evidence:resolve", "resolve_content_evidence", "read"),

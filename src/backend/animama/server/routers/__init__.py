@@ -5,6 +5,7 @@ from animama.product_http.routes import (
     content as shared_content,
     loadouts,
     memory,
+    packages,
     profile,
     runtime_capabilities,
     safety,
@@ -19,7 +20,6 @@ from . import (
     archive,
     avatar,
     content,
-    content_packages,
     elevenlabs,
     events,
     logs,
@@ -46,7 +46,7 @@ router.include_router(avatar.router)
 router.include_router(logs.router)
 router.include_router(shared_content.router)
 router.include_router(content.router)
-router.include_router(content_packages.router)
+router.include_router(packages.router)
 router.include_router(typed_content.router)
 router.include_router(chats.router)
 router.include_router(elevenlabs.router)

@@ -50,8 +50,9 @@ Local setup and host/key administration schemas remain in the server composition
   reads and deletes, and registered and preview byte delivery under the
   composition's caching policy.
 - `server/routers/content.py`: the local Rescan (host administration).
-- `server/routers/content_packages.py`: reviewed package import/export,
-  bounded transfer and durable operation status.
+- `product_http/routes/packages.py` (shared): reviewed package import/export,
+  bounded transfer and durable operation status; its route class keeps
+  submitted data and private filesystem errors out of error responses.
 - `product_http/routes/typed_content.py` (shared): typed product
   List/Get/Save/Preview routes over the shared catalog, Avatar portraits and
   face parts.
