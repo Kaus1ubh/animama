@@ -185,7 +185,7 @@ instead nest it as `detail.code`. Optional fields sit beside the code: `limit`
 names the exhausted limit (a string, except the count described below),
 `retry_after_seconds` (number) is the wait before a retry can succeed,
 `max_characters` (number) is the longest accepted message and `download_url`
-(string) is where a completed trial downloads the desktop app. A 429 or 503
+(string) is where the user can download the desktop app after the trial. A 429 or 503
 denial with a known wait also sends `Retry-After`, which the browser reads when
 the body omits `retry_after_seconds`.
 
