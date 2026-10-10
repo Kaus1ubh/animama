@@ -910,3 +910,95 @@ async def test_chat_manager_active_context_uses_the_last_request_footprint(async
     assert chat is not None
     assert chat.cum_total_tokens == 41
     assert chat.active_context_tokens == 16
+
+
+def _anthropic_row(chat_id: str, turn: int, *, compaction: str | None = None, internal: bool = False) -> ChatMessage:
+    """One stored Anthropic chat row; assistant rows may lead with a compaction block."""
+
+    if turn % 2:
+        return ChatMessage(
+            id=None,
+            chat_id=chat_id,
+            run_id=f"run-{turn}",
+            message_type="message",
+            role=MessageRole.USER,
+            content=f"user {turn}",
+            data=None,
+            usage=None,
+            turn=turn,
+            created_at=None,
+            raw_provider_message={"role": "user", "content": f"user {turn}"},
+        )
+    content: list[dict[str, str]] = [{"type": "compaction", "content": compaction}] if compaction else []
+    content.append({"type": "text", "text": f"assistant {turn}"})
+    return ChatMessage(
+        id=None,
+        chat_id=chat_id,
+        run_id=f"run-{turn - 1}",
+        message_type="message",
+        role=MessageRole.ASSISTANT,
+        content=f"assistant {turn}",
+        data=None,
+        usage=None,
+        turn=turn,
+        created_at=None,
+        internal=internal,
+        raw_provider_message={"role": "assistant", "content": content},
+    )
+
+
+@pytest.mark.asyncio
+async def test_native_compaction_replays_from_the_newest_compaction_block_beyond_the_window(async_session):
+    async_session.add(ORMAnima(id="anima-native-compaction", user_id="user-1"))
+    await async_session.commit()
+    chat_id = "chat-native-compaction-1"
+    manager = _chat_manager(async_session)
+    await manager.ensure_owned_chat(anima_id="anima-native-compaction", chat_id=chat_id, user_id="user-1")
+    messages = SQLAlchemyChatMessageRepository(async_session)
+    rows = [
+        _anthropic_row(chat_id, turn, compaction={4: "older summary", 20: "newer summary"}.get(turn))
+        for turn in range(1, 271)
+    ]
+    # A hidden row is never a replay start, even if its content looks like a compaction.
+    rows.append(_anthropic_row(chat_id, 272, compaction="hidden", internal=True))
+    await messages.append_many(rows)
+    # An application compaction on the chat is ignored for Anthropic replay.
+    await SQLAlchemyChatCompactionRepository(async_session).activate_new(
+        ChatCompaction(
+            id=None,
+            chat_id=chat_id,
+            user_id="user-1",
+            anima_id="anima-native-compaction",
+            summary_text="App summary.",
+            start_turn=1,
+            end_turn=100,
+        )
+    )
+    await async_session.commit()
+
+    native = await manager.get_chat_context(chat_id=chat_id, native_compaction=True)
+    window = await manager.get_chat_context(chat_id=chat_id)
+
+    assert await messages.latest_compaction_block_turn(chat_id) == 20
+    assert native.active_compaction is None
+    # Every row from the compacting reply on, more than the 200-message window.
+    assert [message.turn for message in native.messages] == list(range(20, 271))
+    assert native.messages[0].raw_provider_message["content"][0]["content"] == "newer summary"  # type: ignore[index]
+    assert window.active_compaction is not None and len(window.messages) == 170
+
+
+@pytest.mark.asyncio
+async def test_native_compaction_without_a_block_replays_the_recent_window(async_session):
+    async_session.add(ORMAnima(id="anima-native-no-compaction", user_id="user-1"))
+    await async_session.commit()
+    chat_id = "chat-native-no-compaction-1"
+    manager = _chat_manager(async_session)
+    await manager.ensure_owned_chat(anima_id="anima-native-no-compaction", chat_id=chat_id, user_id="user-1")
+    messages = SQLAlchemyChatMessageRepository(async_session)
+    await messages.append_many([_anthropic_row(chat_id, turn) for turn in range(1, 211)])
+    await async_session.commit()
+
+    context = await manager.get_chat_context(chat_id=chat_id, native_compaction=True)
+
+    assert await messages.latest_compaction_block_turn(chat_id) is None
+    assert [message.turn for message in context.messages] == list(range(11, 211))

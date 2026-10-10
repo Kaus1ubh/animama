@@ -37,9 +37,11 @@ shared model clients, streams direct chat events, and persists side effects.
   estimates.
 - `adapters/`: concrete implementations. The containment-safe content
   filesystem store, SQLAlchemy repositories, ORM/domain mappers, and direct
-  model-client adapters live here. OpenAI Chat Completions and Responses
-  adapters are split into request, stream-event, final/usage, and client
-  lifecycle modules.
+  model-client adapters live here. OpenAI Chat Completions, OpenAI Responses
+  and Anthropic Messages adapters are split into request, stream-event,
+  final/usage, and client lifecycle modules. The Memory Manager runtimes
+  (OpenAI Agents SDK and the Anthropic memory-tool loop) live under
+  `adapters/memory_manager/`.
 - `orm/`: shared SQLAlchemy 2.0 async models, without installation registration.
 - `local/`: installation principal, repository, and model; local HTTP admission,
   lifecycle and assets; local database engine/session ownership. Alembic and local app
@@ -100,13 +102,15 @@ Normal product chat resolves its model through the Anima chat profile:
   state, and pricing metadata. Built-in rows are seeded from the release
   catalog; the owner can add rows and hide built-in ones.
 - `model_connections` stores the model server each row belongs to: the
-  built-in OpenAI connection or an owner-configured OpenAI-compatible Chat
-  Completions endpoint, with its base URL, credential variable name,
-  compatibility options and timeout. Requests for a row go only to its
-  connection with only that connection's key.
+  built-in OpenAI connection, the built-in Anthropic connection (Anthropic's
+  Messages API) or an owner-configured OpenAI-compatible Chat Completions
+  endpoint, with its base URL, credential variable name, compatibility
+  options and timeout. Requests for a row go only to its connection with only
+  that connection's key.
 - `ModelCatalogPolicy` is a composition input that decides which rows a
-  composition exposes. Shared services default to built-in rows only; the
-  local composition enables owner models and App Settings roles.
+  composition exposes. Shared services default to the OpenAI connection's
+  built-in rows only; the local composition enables owner models, the
+  Anthropic built-ins and App Settings roles.
 - Model roles assign rows to installation-wide jobs: chat (the default for new
   Animas), utility (titles and compaction), the Memory Manager and embeddings.
   `ModelRoleResolver` reads them from user preferences when the policy

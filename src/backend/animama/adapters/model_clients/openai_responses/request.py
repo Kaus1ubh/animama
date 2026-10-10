@@ -25,13 +25,13 @@ from animama.app.model_clients import (
     ModelClientRequest,
 )
 from animama.app.model_clients.prompt import (
-    prompt_instruction_text,
     prompt_last_user_message,
     prompt_messages,
     prompt_tools,
 )
+from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID
 
-from .._common import jsonable
+from .._common import jsonable, openai_cache_breakpoint_text_part
 from .support import (
     OPENAI_RESPONSES_ASSISTANT_PHASES,
     OPENAI_RESPONSES_ASSISTANT_PHASES_KEY,
@@ -41,7 +41,9 @@ from .support import (
 )
 
 DEFAULT_WEB_SEARCH_CONTEXT_SIZE = "low"
-DEFAULT_RESPONSES_COMPACTION_THRESHOLD_TOKENS = 200_000
+# Native compaction runs once a stored chain reaches this many input tokens.
+# ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS sets it for the server.
+DEFAULT_RESPONSES_COMPACTION_THRESHOLD_TOKENS = 90_000
 
 
 def create_response_kwargs(
@@ -64,12 +66,12 @@ def create_response_kwargs(
         payload["max_output_tokens"] = spec.limits.max_output_tokens
         if spec.limits.max_native_tool_calls is not None:
             payload["max_tool_calls"] = spec.limits.max_native_tool_calls
-    instructions = prompt_instruction_text(spec.prompt)
+    instructions = _stable_instructions(spec.prompt.messages)
     if instructions is not None:
-        # Keep request-local developer guidance such as the memory map in Responses
-        # instructions. With previous_response_id, prior instructions are not
-        # carried forward; putting the map in input items would persist multiple stale
-        # copies in provider-managed chat history across turns.
+        # Only the stable system message goes in `instructions`, which render
+        # first and are resent on every request (previous_response_id does not
+        # carry them forward). Per-turn text there would miss the whole cache,
+        # so the turn context travels as a developer input item instead.
         payload["instructions"] = instructions
     moderation_model = spec.provider_options.moderation_model
     if moderation_model is not None:
@@ -120,45 +122,128 @@ def responses_context_management(compaction_threshold_tokens: int | None) -> lis
 
 
 def responses_input_items(spec: ModelClientRequest, *, has_previous_response_id: bool) -> list[ResponseInputItemParam]:
-    """Build Responses input items from prompt messages and continuation state."""
+    """Build Responses input items from the prompt messages after the leading system message.
+
+    With previous_response_id the stored response already holds earlier items,
+    so only new ones are sent: on a turn's first request the turn-context
+    developer item and the user message (plus any instruction after them), and
+    on a tool continuation the trailing tool outputs (plus a forced-final or
+    repair instruction after them). Without a cursor the whole history is
+    replayed in the same order, with explicit cache breakpoints on the last two
+    history user messages on the built-in OpenAI connection.
+    """
 
     messages = prompt_messages(spec.prompt)
+    first = 1 if messages and _message_role(messages[0]) == "system" else 0
+    breakpoint_indexes: set[int] = set()
     if has_previous_response_id:
-        # With previous_response_id, the provider already has prior transcript
-        # state. Send only the new user message, or the trailing tool outputs
-        # needed to answer function calls from the previous response.
-        tool_outputs = _trailing_call_outputs(messages)
-        if tool_outputs:
-            return tool_outputs
-        return [_easy_input_message("user", prompt_last_user_message(spec.prompt, fallback=""))]
+        indexes = _indexes_after_stored_response(messages, first=first)
+    else:
+        indexes = list(range(first, len(messages)))
+        if spec.model_provider.connection_id == BUILTIN_OPENAI_CONNECTION_ID:
+            breakpoint_indexes = _history_user_breakpoint_indexes(messages, first=first)
     assistant_phases_by_message_index = _assistant_phase_by_message_index(spec.prompt.metadata)
     items: list[ResponseInputItemParam] = []
-    for message_index, message in enumerate(messages):
-        exchange_item = _model_client_exchange_input_item(message)
-        if exchange_item is not None:
-            items.append(exchange_item)
-            continue
-        role = str(message.get("role") or "").strip().lower()
-        if role in {"system", "developer"}:
-            continue
-        if role == "tool":
-            tool_output = _function_call_output_from_tool_message(message)
-            if tool_output is not None:
-                items.append(tool_output)
-            continue
-        if role == "assistant":
-            tool_calls = _function_call_items_from_assistant_message(message)
-            if tool_calls:
-                items.extend(tool_calls)
-                continue
-        content = message.get("content")
-        if not isinstance(content, str) or not content:
-            continue
-        if role not in {"user", "assistant"}:
-            role = "user"
-        phase = assistant_phases_by_message_index.get(message_index) if role == "assistant" else None
-        items.append(_easy_input_message(role, content, phase=phase))
+    for index in indexes:
+        items.extend(
+            _input_items_from_message(
+                messages[index],
+                phase=assistant_phases_by_message_index.get(index),
+                cache_breakpoint=index in breakpoint_indexes,
+            )
+        )
     return items or [_easy_input_message("user", prompt_last_user_message(spec.prompt, fallback=""))]
+
+
+def _stable_instructions(messages: tuple[Mapping[str, object], ...]) -> str | None:
+    """Return the leading system message text, which is the turn's stable instructions."""
+
+    if not messages or _message_role(messages[0]) != "system":
+        return None
+    content = messages[0].get("content")
+    return content if isinstance(content, str) and content else None
+
+
+def _indexes_after_stored_response(messages: list[dict[str, Any]], *, first: int) -> list[int]:
+    """Return the indexes of messages the stored response does not yet hold."""
+
+    tail: list[int] = []
+    index = len(messages) - 1
+    while index >= first and (_is_instruction_message(messages[index]) or _is_call_output(messages[index])):
+        tail.append(index)
+        index -= 1
+    tail.reverse()
+    if any(_is_call_output(messages[index]) for index in tail):
+        # A continuation after tool calls: their outputs, then any instruction added after them.
+        return tail
+    user_indexes = [index for index in range(first, len(messages)) if _message_role(messages[index]) == "user"]
+    if not user_indexes:
+        return []
+    start = user_indexes[-1]
+    # The turn context is the developer message directly before the user message.
+    while start - 1 >= first and _message_role(messages[start - 1]) == "developer":
+        start -= 1
+    return list(range(start, len(messages)))
+
+
+def _history_user_breakpoint_indexes(messages: list[dict[str, Any]], *, first: int) -> set[int]:
+    """Return the last two user messages before the turn's own user message.
+
+    Responses assistant ``output_text`` parts cannot carry a breakpoint, so the
+    history cache is marked on user messages: the earlier one reads the entry
+    the previous request wrote, and the later one writes the next.
+    """
+
+    user_indexes = [
+        index
+        for index in range(first, len(messages))
+        if _message_role(messages[index]) == "user"
+        and isinstance(messages[index].get("content"), str)
+        and messages[index]["content"]
+    ]
+    return set(user_indexes[:-1][-2:])
+
+
+def _input_items_from_message(
+    message: Mapping[str, Any],
+    *,
+    phase: str | None,
+    cache_breakpoint: bool,
+) -> list[ResponseInputItemParam]:
+    """Convert one prompt message into Responses input items."""
+
+    exchange_item = _model_client_exchange_input_item(message)
+    if exchange_item is not None:
+        return [exchange_item]
+    role = _message_role(message)
+    if role == "tool":
+        tool_output = _function_call_output_from_tool_message(message)
+        return [tool_output] if tool_output is not None else []
+    if role == "assistant":
+        tool_calls = _function_call_items_from_assistant_message(message)
+        if tool_calls:
+            return tool_calls
+    content = message.get("content")
+    if not isinstance(content, str) or not content:
+        return []
+    if role not in {"user", "assistant", "developer", "system"}:
+        role = "user"
+    if cache_breakpoint and role == "user":
+        part = openai_cache_breakpoint_text_part(content, part_type="input_text")
+        return [cast(ResponseInputItemParam, {"role": "user", "content": [part]})]
+    return [_easy_input_message(role, content, phase=phase if role == "assistant" else None)]
+
+
+def _message_role(message: Mapping[str, Any]) -> str:
+    return str(message.get("role") or "").strip().lower()
+
+
+def _is_instruction_message(message: Mapping[str, Any]) -> bool:
+    return message.get("type") is None and _message_role(message) in {"system", "developer"}
+
+
+def _is_call_output(message: Mapping[str, Any]) -> bool:
+    return _message_role(message) == "tool" or message.get("type") == MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE
 
 
 def previous_response_id(spec: ModelClientRequest) -> str | None:
@@ -203,31 +288,6 @@ def _assistant_phase_by_message_index(metadata: Mapping[str, Any]) -> dict[int, 
         if phase in OPENAI_RESPONSES_ASSISTANT_PHASES:
             phases[index] = phase
     return phases
-
-
-def _trailing_call_outputs(messages: list[dict[str, Any]]) -> list[ResponseInputItemParam]:
-    """Return trailing function or native outputs for cursor-backed continuation."""
-
-    output_messages: list[dict[str, Any]] = []
-    for message in reversed(messages):
-        role = str(message.get("role") or "").strip().lower()
-        if role in {"system", "developer"}:
-            # Forced-final guidance is appended after a tool output but travels
-            # through Responses `instructions`, not conversation input.
-            continue
-        if role != "tool" and message.get("type") != MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE:
-            break
-        output_messages.append(message)
-    if not output_messages:
-        return []
-    outputs: list[ResponseInputItemParam] = []
-    for message in reversed(output_messages):
-        tool_output = _model_client_tool_result_input_item(message)
-        if tool_output is None:
-            tool_output = _function_call_output_from_tool_message(message)
-        if tool_output is not None:
-            outputs.append(tool_output)
-    return outputs
 
 
 def _model_client_exchange_input_item(message: Mapping[str, Any]) -> ResponseInputItemParam | None:
@@ -433,4 +493,9 @@ def _responses_function_tool(raw_tool: Mapping[str, Any]) -> FunctionToolParam |
     return tool
 
 
-__all__ = ["create_response_kwargs", "previous_response_id", "responses_input_items"]
+__all__ = [
+    "DEFAULT_RESPONSES_COMPACTION_THRESHOLD_TOKENS",
+    "create_response_kwargs",
+    "previous_response_id",
+    "responses_input_items",
+]

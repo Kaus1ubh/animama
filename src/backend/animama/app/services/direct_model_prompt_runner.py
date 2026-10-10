@@ -78,7 +78,8 @@ class DirectModelPromptRunner:
         model_request = ModelClientRequest(
             model_provider=provider,
             prompt=_prompt_context(request, run_id=run_id, reasoning_effort=_supported_effort(request, provider)),
-            provider_options=ModelClientProviderOptions(),
+            # Adapters apply their Utility defaults to these maintenance prompts.
+            provider_options=ModelClientProviderOptions(utility_task=True),
         )
         final = await _collect_final(client.stream(model_request))
         if final is None:

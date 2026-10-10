@@ -71,6 +71,7 @@ a separate API contract.
 - `../../docs/backend/architecture/data-model.md`
 - `../../docs/backend/runtime/chat.md`
 - `../../docs/backend/runtime/model-client-providers.md`
+- `../../docs/backend/runtime/prompt-caching.md`
 - `../../docs/backend/model-catalog.md`
 - `../../docs/backend/features/memory.md`
 - `../../docs/backend/features/custom-animas-and-content.md`
@@ -217,7 +218,9 @@ When changing model-provider behavior or OpenAI platform integrations, consult
 current official OpenAI Developer Docs through an available documentation MCP
 server or the official website before changing request fields, model names,
 tool behavior, streaming semantics, or rate-limit/auth assumptions. No imported
-agent skill is required for this workflow.
+agent skill is required for this workflow. Apply the same rule to the Anthropic
+Messages adapter and Memory Manager runtime with Anthropic's current platform
+documentation and the installed `anthropic` SDK types.
 
 ## Commands
 

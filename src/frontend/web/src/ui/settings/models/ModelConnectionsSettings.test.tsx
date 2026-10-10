@@ -155,6 +155,28 @@ const builtin = connection("openai", {
     model("gpt-6-luna-cc", { source: "builtin", hidden: true }),
   ],
 });
+const anthropic = connection("anthropic", {
+  name: "Anthropic",
+  preset: "anthropic",
+  source: "builtin",
+  credential_state: "missing",
+  logo_provider: "anthropic",
+  models: [
+    model(
+      "AnthropicMessagesHTTPAgent:claude-haiku-5-5",
+      {
+        connection_id: "anthropic",
+        model: "claude-haiku-5-5",
+        model_label: "Claude Haiku 5.5",
+        source: "builtin",
+        provider_type: "AnthropicMessagesHTTPAgent",
+        context_window_tokens: 1000000,
+        early_compaction: true,
+      },
+      { accepts: ["text", "image"], native_tool_support: ["web_search"] },
+    ),
+  ],
+});
 const openrouter = connection("Router", {
   preset: "openrouter",
   base_url: "https://openrouter.ai/api/v1",
@@ -205,7 +227,7 @@ beforeEach(() => {
     model_configuration: true,
     web_search: { configuration: true, configured: true, backend: "searxng" },
   };
-  state.connections = [lan, vllm, openrouter, builtin];
+  state.connections = [lan, vllm, openrouter, anthropic, builtin];
   state.presets = [
     preset("ollama", "Ollama", true),
     preset("lmstudio", "LM Studio", true),
@@ -256,10 +278,11 @@ describe("Models connections by where models run", () => {
     expect(html).toContain('aria-label="Where models run"');
     expect(html).toContain('aria-label="Cloud providers"');
     expect(html).toContain('aria-label="Local providers"');
-    expect(html.match(/role="tab"/gu)).toHaveLength(12);
+    expect(html.match(/role="tab"/gu)).toHaveLength(13);
     const cloud = panel(html, "cloud");
     expectInOrder(cloud, [
       "OpenAI",
+      "Anthropic",
       "DeepSeek",
       "Hugging Face",
       "OpenRouter",
@@ -330,10 +353,19 @@ describe("Models connections by where models run", () => {
       "Built-in search",
       "Vision",
       "Tools",
+      "1M",
+      "Built-in search",
+      "Vision",
+      "Tools",
       "128K",
       "App search",
     ]);
     expect(text(html)).not.toMatch(/\b(Responses|Completions)\b/u);
+    // Only Anthropic's built-in search says who pays for each search.
+    const billing = "Anthropic bills each search to your Anthropic account.";
+    expect(text(panel(html, "anthropic"))).toContain(billing);
+    expect(text(panel(html, "openai"))).not.toContain("bills");
+    expect(text(panel(html, "openrouter"))).not.toContain("bills");
     // The hidden Chat Completions row waits behind a toggle.
     expect(html).not.toContain("gpt-6-luna-cc");
     expect(html).toContain("Show 1 hidden model");
@@ -365,12 +397,34 @@ describe("Models connections by where models run", () => {
     expect(panel(html, "vllm")).toContain("Checking…");
   });
 
-  it("puts the OpenAI key field on the OpenAI card on desktop", () => {
+  it("puts each built-in connection's key field on its own card on desktop", () => {
     const html = render(<ModelConnectionsSettings disabled={false} />);
     const card = panel(html, "openai");
     expect(card).toMatch(/<label[^>]*>OpenAI<\/label>/u);
     expect(card).toContain('type="password"');
-    expect(card).not.toMatch(/<label[^>]*>ElevenLabs<\/label>/u);
+    expect(card).not.toMatch(/<label[^>]*>(Anthropic|ElevenLabs)<\/label>/u);
+    const claude = panel(html, "anthropic");
+    expect(claude).toMatch(/<label[^>]*>Anthropic<\/label>/u);
+    expect(claude).toContain('type="password"');
+    expect(claude).not.toMatch(/<label[^>]*>OpenAI<\/label>/u);
+  });
+
+  it("shows the built-in Anthropic connection with its logo, key state and Haiku 5.5", () => {
+    const html = render(<ModelConnectionsSettings disabled={false} />);
+    const claude = panel(html, "anthropic");
+    expectInOrder(claude, ["Anthropic", "Key missing", "Claude Haiku 5.5"]);
+    expect(claude).not.toContain("Recommended");
+    expect(claude).toContain('aria-label="Add model to Anthropic"');
+    // Built-in: neither editable nor removable.
+    expect(claude).not.toContain('aria-label="Remove Anthropic"');
+    expect(claude).not.toContain('aria-label="Edit Anthropic"');
+    // The bundled models.dev mark, served with the app.
+    expect(claude).toContain('src="/provider-logos/anthropic.svg"');
+
+    state.connections = [{ ...anthropic, credential_state: "configured" }];
+    const keyed = render(<ModelConnectionsSettings disabled={false} />);
+    expect(selectedTab(keyed, "Anthropic")).toBe(true);
+    expectInOrder(panel(keyed, "anthropic"), ["Anthropic", "Key set"]);
   });
 
   it("shares the OpenAI key state with App Settings → API Keys", async () => {
@@ -409,7 +463,9 @@ describe("Models connections by where models run", () => {
   it("explains the environment key on self-hosted web", () => {
     state.desktop = false;
     const html = render(<ModelConnectionsSettings disabled={false} />);
-    expect(html).toContain("OPENAI_API_KEY");
+    expect(panel(html, "openai")).toContain("OPENAI_API_KEY");
+    expect(panel(html, "anthropic")).toContain("ANTHROPIC_API_KEY");
+    expect(panel(html, "anthropic")).not.toContain("OPENAI_API_KEY");
     expect(html).not.toContain('type="password"');
   });
 

@@ -44,11 +44,13 @@ rows directly.
 
 The provider-neutral contracts live in `src/backend/animama/app/model_clients/types.py`.
 The implementations live under `src/backend/animama/adapters/model_clients/`.
-OpenAI provider SDK types stay inside those adapter modules. Chat Completions
-is organized under `openai_chat_completions/` with separate modules for the SDK
-client lifecycle, request kwargs, typed chunk events, streamed tool-call
-aggregation, and usage conversion. Responses follows the same package pattern
-under `openai_responses/`.
+Provider SDK types (OpenAI and Anthropic) stay inside those adapter modules.
+Chat Completions is organized under `openai_chat_completions/` with separate
+modules for the SDK client lifecycle, request kwargs, typed chunk events,
+streamed tool-call aggregation, and usage conversion. Responses follows the
+same package pattern under `openai_responses/`, and Anthropic Messages under
+`anthropic_messages/` (client, request, stream events, final, errors, the
+Models API probe and strict-schema conversion).
 
 Registered provider families are:
 
@@ -56,6 +58,9 @@ Registered provider families are:
   every model connection
 - `OpenAIResponsesHTTPAgent`: OpenAI Responses via the OpenAI Python SDK, on
   the built-in OpenAI connection only
+- `AnthropicMessagesHTTPAgent`: Anthropic's Messages API via the official
+  `anthropic` Python SDK (`adapters/model_clients/anthropic_messages/`), on the
+  built-in Anthropic connection only; see [Anthropic Messages](#anthropic-messages)
 - `MockModelClient`: deterministic local/test model client
 
 Provider type names, including their `Agent` suffixes, are durable catalog
@@ -66,7 +71,9 @@ profile for each row. `OpenAIHTTPAgent` maps to
 `model_client="openai_chat_completions"` and
 `api_standard="chat_completions"` on every connection.
 `OpenAIResponsesHTTPAgent` maps to `model_client="openai_responses"` and
-`api_standard="responses"`.
+`api_standard="responses"`. `AnthropicMessagesHTTPAgent` maps to
+`model_client="anthropic_messages"` and `api_standard="anthropic_messages"`, so
+an Anthropic chat and an OpenAI chat never share history.
 
 `chat:sse` treats `api_standard` as the compatibility key for one persisted
 chat. A new or empty chat records the selected row's `api_standard` before any
@@ -94,6 +101,9 @@ boundary. The supported delta kinds are:
   structured response
 - `event`: internal provider observations represented by typed `MC*` event
   dataclasses from `app/model_clients/event_types.py`
+- `run_status`: provider-side work to show while the reply is pending (an
+  Anthropic-hosted web search or server compaction); the executor forwards it
+  as a `run.status` frame, and every `started` is followed by `finished`
 - `final`: the authoritative `ModelClientFinal` for one provider call
 - `error`: stream-level provider failure
 - `done`: successful adapter completion after the final value
@@ -108,7 +118,7 @@ persisted.
 
 `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS` controls native
 server-side auto-compaction for `OpenAIResponsesHTTPAgent` Responses create
-requests. It defaults to `10000`. Values less than or equal to zero disable
+requests. It defaults to `90000`. Values less than or equal to zero disable
 the `context_management` payload. When enabled, the adapter sends
 `context_management: [{"type": "compaction", "compact_threshold": ...}]`; the
 OpenAI server decides whether to compact based on the rendered token count.
@@ -154,8 +164,9 @@ from its environment, and Electron main replaces the store while it runs.
   key variable the connection names in `credential_env`. The name must
   be `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` or
   match `ANIMAMA_CONNECTION_<NAME>_API_KEY`; desktop-managed keys use
-  `ANIMAMA_CONNECTION_<ID>_API_KEY`. An owner connection never falls back to
-  the OpenAI key.
+  `ANIMAMA_CONNECTION_<ID>_API_KEY`. `ANTHROPIC_API_KEY` is reserved for the
+  built-in Anthropic connection. An owner connection never falls back to a
+  built-in connection's key.
 - **Isolation.** Owner-connection SDK clients omit the process
   `OpenAI-Organization` and `OpenAI-Project` headers and every header listed in
   `OPENAI_CUSTOM_HEADERS`, and set `Authorization` from the connection's own
@@ -168,12 +179,22 @@ from its environment, and Electron main replaces the store while it runs.
   the environment only at startup, so restart them after changing a variable.
 - **Timeouts.** Owner connections store their own timeout: 60 s by default for
   cloud presets and 300 s for local presets, because a first request may load a
-  model. The built-in connection and `OpenAIResponsesHTTPAgent` use
-  `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS` (default 60). Chat Completions requests
-  also cap connecting at 10 s (`connection_timeout`), so a stopped server fails
-  quickly.
+  model. The built-in connections use `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS`
+  (default 60). Chat Completions requests also cap connecting at 10 s
+  (`connection_timeout`), so a stopped server fails quickly.
+- **Built-in `anthropic` connection.** Uses only `ANTHROPIC_API_KEY`, always
+  against `https://api.anthropic.com`; it serves only
+  `AnthropicMessagesHTTPAgent` rows, and those rows live only there. Without
+  the key a turn fails with `missing_api_key` ("No key is configured for
+  Anthropic", category `credential_missing`) before any request. SDK clients
+  are built with an explicit key and base URL and no SDK retries, so
+  `ANTHROPIC_BASE_URL`, `ANTHROPIC_AUTH_TOKEN` and other SDK credential
+  sources are never used; the SDK still adds `ANTHROPIC_CUSTOM_HEADERS` from
+  the process environment, which Animama never sets.
 - **Clients.** `OpenAIHTTPAgent` caches one SDK client per connection.
   `OpenAIResponsesHTTPAgent` owns one OpenAI-only SDK client.
+  `AnthropicMessagesHTTPAgent` keeps one SDK client per credential, keyed by a
+  digest, so a replaced key builds a new client on the next request.
 
 ### Connection Presets
 
@@ -275,6 +296,94 @@ call ID, status, operation type, and path length; the path and V4A diff are not
 copied into sanitized provider metadata. Other hosted native tools remain
 observations rather than app-executed calls.
 
+## Anthropic Messages
+
+Rows on the Anthropic connection share the `anthropic_messages` API standard,
+so the [chat fence](#shared-model-clients) keeps their chats apart from OpenAI
+chats both ways. `AnthropicMessagesModelClient` streams with the beta
+`client.beta.messages.stream` (beta `compact-2026-01-12` on chat requests) and
+JSON-shaped parameters built in `anthropic_messages/request.py`:
+
+- **Positions.** The stable instructions are one `system` block; history and
+  the user's new message follow; the turn context is a mid-conversation
+  `system` message after the user turn. `cache_control` marks the system block,
+  a replayed compaction block and the last history block. See
+  [turn layout](prompt-caching.md#turn-layout).
+- **Tools and output.** Memory tools become strict tools (`strict: true`)
+  with `tool_choice: {type: auto, disable_parallel_tool_use: true}`, and the
+  reply schema goes in `output_config.format` as strict structured output.
+  `anthropic_strict_schema` (`anthropic_messages/schema.py`) rewrites JSON
+  type lists such as `["string", "null"]` as `anyOf`, then the SDK's
+  `transform_schema` moves constraints Anthropic's strict mode rejects
+  (integer bounds, `maxItems`) into descriptions. Local validation still
+  enforces the original schema on the reply and tool arguments.
+- **Web search.** When the turn asks for web search and the row lists
+  `web_search` in its native tools, the request adds Anthropic's server tool
+  `{type: web_search_20250305, name: web_search, max_uses: 5,
+  allowed_callers: [direct]}`. Anthropic runs the searches and bills each one
+  to the owner's Anthropic account. Anthropic rows never get the
+  [application web search](#application-web-search) tool. The stream reports
+  `run.status` `searching_web` from a search's `server_tool_use` block to its
+  result block. A result whose content is an error object (such as
+  `max_uses_exceeded`) does not fail the turn.
+- **Paused turns.** `stop_reason: pause_turn` (a long server-side search
+  loop) is resumed by resending the round's content unchanged as the last
+  assistant message, at most three times. The round's content, text and
+  summed usage span every resumed response; after the third resend the round
+  ends with what it has.
+- **Compaction.** Every chat request sends `context_management.edits`
+  `[{type: compact_20260112, trigger: {type: input_tokens, value: T},
+  pause_after_compaction: false}]`. `T` is 150,000 (Anthropic's default),
+  except on rows with a long-context price threshold whose owner left
+  **Compact early** on: there `T` is 90% of the threshold, at least 50,000
+  (90,000 for Claude Haiku 5.5). The stream reports `run.status`
+  `summarizing_context` while the compaction block streams, and the reply
+  continues from the summary. Usage sums every `usage.iterations` entry, so
+  billing includes the compaction step. The provider metadata's
+  `context_tokens` is the last iteration's footprint, which becomes
+  `chats.active_context_tokens`. Application pre-send fitting and
+  post-response compaction never run for Anthropic chats. Utility prompts
+  (`provider_options.utility_task`) send no `context_management` and no
+  compaction beta: a title or summary prompt is read whole, because its input
+  is already bounded by the source chat's own trigger and compacting it would
+  bill an extra step to summarize a summary.
+- **Effort.** `none` sends `thinking: {type: disabled}` and no effort. Any
+  other effort leaves adaptive thinking on and sets `output_config.effort`;
+  requests never send a thinking budget. A request without an effort uses the
+  role's default when the row offers it: `medium` for chat turns (at `low`,
+  Claude Haiku 5.5 skipped needed memory-tool calls in live tests), `low` for
+  Utility prompts and `medium` for
+  [Memory Manager](../features/memory-manager-and-episodic-memory.md#live-anthropic-runtime)
+  runs. The chat picker preselects the chat default from the catalog's
+  `default_reasoning_effort` and sends it unless the owner picks another; see
+  [reasoning capabilities](../model-catalog.md#reasoning-and-native-tool-capabilities).
+- **Limits.** `max_tokens` is the row's output limit, capped at 64,000 per
+  request (thinking included). Requests never carry sampling parameters or an
+  assistant prefill.
+- **Rounds.** After tool calls the final carries the round's content blocks
+  (a compaction block, signed thinking, text, web-search blocks and
+  `tool_use`) as a request-local continuation, and the next round resends them
+  unchanged with the `tool_result` user turn. Forced-final and repair rounds
+  keep the tools with `tool_choice: {type: none}` and put their instruction,
+  ending with the guardrails, in a user turn.
+- **Replay.** History alternates roles, merging same-role neighbours. Stored
+  memory-tool exchanges replay as `tool_use`/`tool_result` blocks; thinking
+  blocks, web-search blocks and earlier turns' context messages are never
+  replayed. After a compaction, history starts at the newest assistant row
+  whose stored content begins with a compaction block, however many rows
+  back, and includes every later row
+  (`ChatManager.get_chat_context(native_compaction=True)`). The API ignores
+  content before that block, so older rows are not sent. Anthropic chats ignore
+  `chat_compactions` summaries.
+- **Stream.** Text deltas from text blocks are the only public text; thinking
+  is never shown. A stream that closes before `message_stop` fails with
+  `anthropic_stream_incomplete`.
+- **Refusal.** `stop_reason: refusal` fails the turn with `model_refused`
+  (category `provider_error`) after any streamed text, with the refusal
+  category in `stop_details_category`; no assistant row is stored.
+- **Truncation.** A `max_tokens` stop offers no tool calls, and its text goes
+  through the usual [reply recovery](#reply-validation-and-recovery).
+
 ## Context And Structured Output
 
 `DirectChatPrompt` is the app-layer model-client prompt contract: an OpenAI
@@ -293,12 +402,20 @@ guidelines plus the dumped schema and example object because nothing enforces
 schema adherence. The identity section
 contains only file content rather than file path, status, revision, or
 fingerprint details. Anima profile columns, `metadata.direct_chat`, and pinned
-user profile content are not prompt sources. One request-local `developer`
-message always sits immediately before the latest user message: the user-scope
-memory file map (when memory influence is enabled), the attached-file list and
-finally the server-owned
+user profile content are not prompt sources. The system message ends with the
+server-owned
 [Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
-The guardrail is always the last instruction text of the request.
+One request-local `developer` message always sits immediately before the latest
+user message: the user-scope memory file map (when memory influence is
+enabled), the attached-file list and finally the guardrails again, so they are
+the last instruction text before the user's words. An app compaction summary is
+a `developer` message directly after the system message. The Anthropic adapter
+sends that turn-context message as a mid-conversation `system` message after
+the user's message instead, and Anthropic rows receive Anthropic-phrased
+variants of the non-guardrail sections with the same directives
+(`app/chat/anthropic_instructions.py`). The
+[turn layout](prompt-caching.md#turn-layout) describes each provider path and
+its cache breakpoints.
 
 Model clients receive the same prompt contract. Chat Completions requests are
 shaped by the row's connection compatibility options
@@ -306,12 +423,14 @@ shaped by the row's connection compatibility options
 and edited under Advanced in App Settings). The built-in OpenAI connection uses
 the defaults: no folding, every field sent and `openai_effort`.
 
-- `fold_developer_role`: merge `developer` messages into the system message.
-  The row's `supports_developer_role` is then false, so the prompt assembler
-  folds every `developer` message, in order, into the end of the system
-  message and the guardrail stays last; the adapter also folds any remaining
-  `developer` messages into the first `system` message before dispatch. On by
-  default for every non-OpenAI preset.
+- `fold_developer_role`: send no `developer` messages. The row's
+  `supports_developer_role` is then false, so the prompt assembler puts the
+  turn context and the guardrails in a `<turn_context>` block at the start of
+  the user message, which the system message describes, and folds a compaction
+  summary into the system message before its closing guardrails. The adapter
+  folds within-turn `developer` instructions (forced final, repair) into the
+  end of the system message before dispatch. On by default for every
+  non-OpenAI preset.
 - `send_openai_extensions`: send `prompt_cache_key` and `parallel_tool_calls`,
   which some servers reject as unknown fields.
 - `send_stream_usage`: send `stream_options` (`include_usage`).
@@ -360,22 +479,23 @@ and lengths, never message text. A reply with no speakable text fails with
 `main_structured_response_parse_failed`. Memory changes made by the turn's
 tool calls stay in every case.
 
-`OpenAIResponsesHTTPAgent` moves all
-system/developer instruction text into the Responses `instructions` parameter
-every turn. Request-local guidance such as the memory map stays in
-`instructions` so Responses continuation via `previous_response_id` does not
-carry stale map copies forward in provider-managed input history. If the chat
-row has an `openai_previous_response_id`, its `input` contains only the current
-user message or current turn's function-call outputs, and the executor skips
-fetching local chat history for that normal cursor-backed request.
-Without a cursor, Responses input contains the remaining conversation messages:
-user and assistant content become normal Responses input messages, assistant
-function calls become Responses `function_call` items, and tool rows become
-Responses `function_call_output` items. Persisted provider-neutral native patch
-exchanges become typed SDK `ApplyPatchCall` and `ApplyPatchCallOutput` items.
-This is the manual-context path used for new Responses chats and for
-stale-cursor fallback. With a cursor, a tool follow-up sends only the trailing
-call outputs required by the previous response.
+`OpenAIResponsesHTTPAgent` sends only the stable system message as the
+Responses `instructions` parameter, which ends with the guardrails. The turn
+context travels as a `developer` input item before the user item. If the chat
+row has an `openai_previous_response_id`, its `input` contains only that
+developer item and the current user message, or the current turn's
+function-call outputs, followed by any forced-final or repair instruction as a
+`developer` item. The executor skips fetching local chat history for that
+normal cursor-backed request. Each turn's context item stays in the stored
+chain until native compaction.
+Without a cursor, Responses input contains the remaining conversation messages
+in the same order: user and assistant content become normal Responses input
+messages, assistant function calls become Responses `function_call` items, and
+tool rows become Responses `function_call_output` items. Persisted
+provider-neutral native patch exchanges become typed SDK `ApplyPatchCall` and
+`ApplyPatchCallOutput` items. This is the manual-context path used for new
+Responses chats, incognito turns (`store: false`) and stale-cursor fallback; it
+marks the last two history user messages as explicit cache breakpoints.
 OpenAI SDK clients and provider
 response objects stay inside adapter modules; application services persist only
 domain data and JSON-safe metadata.
@@ -435,8 +555,8 @@ message instead of splitting speech and display into separate durable rows.
 replays local visible history instead of sending `previous_response_id`. Active
 compaction summaries are part of that replayed local context. They are not
 fetched or sent as Responses `input` on cursor-backed turns because the provider
-request carries only current instructions, current user input or function-call
-outputs, and `previous_response_id`. If OpenAI reports that the previous
+request carries only the stable instructions, the turn context and user input
+or function-call outputs, and `previous_response_id`. If OpenAI reports that the previous
 response cannot be resolved, the executor fetches local history lazily and
 retries the same provider call once with continuation removed. The retry uses
 the manual-context serialization above, and a successful non-incognito final
@@ -451,8 +571,20 @@ moderated. The adapter parses the completed response's input moderation into a
 content-free `ModelClientFinal.input_moderation` (`status` `result` or `error`,
 flagged categories and scores). Moderation is report-only: it never blocks or
 alters the reply, and the executor only uses a self-harm signal to add a
-[crisis card](chat.md#sse-events). Chat Completions rows do not support
-moderation and never receive the option.
+[crisis card](chat.md#sse-events). Chat Completions and Anthropic Messages
+rows do not support moderation and never receive the option. Anthropic offers
+no moderation endpoint, so Anthropic turns rely on the Companion Guardrails
+alone and never show a crisis card; that gap is accepted
+([ADR 0023](../../adr/0023-native-anthropic-messages-provider.md)).
+
+The Anthropic adapter classifies SDK errors and stream `error` events by
+Anthropic's `error.type`, then the HTTP status, into `anthropic_authentication_error`,
+`anthropic_permission_denied`, `anthropic_not_found`, `anthropic_rate_limit`,
+`anthropic_overloaded`, `anthropic_server_error`, `anthropic_context_exceeded`
+(prompt too long or request too large), `anthropic_quota_exceeded` (billing or
+credit balance), `anthropic_bad_request`, `anthropic_timeout` and
+`anthropic_connection_error`, with the same sanitized metadata and single
+retry before any text.
 
 Both OpenAI SDK adapters share one error classifier
 (`adapters/model_clients/openai_errors.py`) on every connection. It maps SDK
@@ -500,13 +632,13 @@ it only when the connection's `send_openai_extensions` option is on.
 
 `native_tools` and `reasoning_effort` are request-scoped options validated
 against the selected catalog row. Current direct support includes the
-Responses-native `web_search` tool for catalog rows that advertise it; Chat
-Completions rows never advertise native web search and use the
-[application web search](#application-web-search) tool instead. The Responses
+Responses-native and Anthropic server-side `web_search` tools for catalog rows
+that advertise them; Chat Completions rows never advertise native web search
+and use the [application web search](#application-web-search) tool instead. The Responses
 adapter sends native web search with `search_context_size: "low"` by default. Anima
 memory tools are separate app-layer function tools, supported for
-`OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent` and `MockModelClient` rows with
-tool calling. A row without tool calling runs the turn without memory tools
+`OpenAIHTTPAgent`, `OpenAIResponsesHTTPAgent`, `AnthropicMessagesHTTPAgent` and
+`MockModelClient` rows with tool calling. A row without tool calling runs the turn without memory tools
 (and without attached-file search) instead of failing setup, and a row with
 `allow_memory_writes=false` gets read tools only. The Responses adapter
 converts the shared Chat Completions-style function schemas and tool-result
@@ -523,25 +655,31 @@ resolves the Utility [model role](../../frontend/features/model-settings.md#defa
 (the App Settings choice, then `ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID`,
 then the default chat model) and invokes the same shared model-client registry.
 It sends a requested `request_options` reasoning effort only when the row
-supports that effort. These prompt-only calls are separate from the primary
+supports that effort, and marks the request `utility_task`, so adapters apply
+their Utility defaults (on Anthropic rows: effort `low` and no server-side
+compaction). These prompt-only calls are separate from the primary
 anima turn, do not stream to the frontend, and persist usage only where their
 service owns durable state, such as `chat_compactions`.
 
 After a successful non-incognito Chat Completions turn, the local
 post-response compaction pass runs when `chats.active_context_tokens` reaches
-`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000), or 75% of the
-model's available window if that is lower. Primary `chat:sse` turns that use
-`OpenAIResponsesHTTPAgent` skip the local pass and rely on Responses
-server-side compaction instead.
+the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90000), 70%
+of the model's context window, and 75% of the window left after the reply
+reserve. The last bound matters only for rows with a large reply reserve; it
+keeps this pass ahead of the 90% pre-send trigger. Each compaction rewrites
+the summary that heads the cached history, so the trigger is set high. Primary `chat:sse` turns that use
+`OpenAIResponsesHTTPAgent` or `AnthropicMessagesHTTPAgent` skip the local pass
+and rely on the provider's server-side compaction instead.
 
 ### Context window budget
 
 Rows with a context window never receive a prompt larger than it
 (`app/chat/direct_turn/context_fit.py`, `app/model_clients/context_budget.py`),
-with two exceptions. A client that asks its provider to compact (a Responses
-client with a positive compaction threshold reports `native_context_compaction`)
-relies on server-side compaction. A turn that continues from a stored provider
-cursor (`openai_previous_response_id`) sends no local history, so it is not
+with two exceptions. A client that asks its provider to compact relies on
+server-side compaction: a Responses client with a positive compaction threshold
+and the Anthropic Messages client report `native_context_compaction`. A turn
+that continues from a stored provider cursor (`openai_previous_response_id`)
+sends no local history, so it is not
 fitted either. Any other Responses turn without native compaction (threshold
 `0`, or a composition that omits it) is bounded like Chat Completions:
 
@@ -583,6 +721,9 @@ passes keep a user message together with its reply.
 `native_tools: ["web_search"]` means "search the web" for any model:
 
 - A Responses row that advertises hosted `web_search` keeps hosted search.
+- An Anthropic row uses only Anthropic's server tool (see
+  [Anthropic Messages](#anthropic-messages)). A row without it runs the turn
+  without search (`provider_without_native_web_search`).
 - Otherwise, when the installation has a search backend and the row calls
   tools, the turn offers the application function tool `web_search(query)`
   (`app/web_search/`), also on turns without memory tools. The tool shares the
@@ -641,6 +782,28 @@ statuses, revisions, SHA-256 values, kinds, run metadata, and reserved message
 turns. Incognito turns may read memory context for model setup but do not update
 chat metadata.
 
+For `AnthropicMessagesHTTPAgent`, the final assistant row stores
+`raw_provider_message` as the turn's latest compaction block, when the server
+compacted, followed by the reply's text block (`{"role": "assistant",
+"content": [{"type": "compaction", ...}, {"type": "text", ...}]}`). It also
+stores `data.anthropic`:
+
+- the message id, stop reason and refusal `stop_details` when present;
+- this round's usage, including any `iterations` and `web_search_requests`;
+- the turn's billed searches across all rounds as top-level
+  `web_search_requests` (failed searches are not billed);
+- the response's block types and `pause_turn_continuations`;
+- the turn's searches as `native_tool_summaries` (query, then result titles
+  and URLs or an `error_code`);
+- text `citations` (URL, title and cited text).
+
+Sources are stored, not displayed, and encrypted search content is never
+stored. Hidden tool rows store `anthropic_tool_use` and
+`anthropic_tool_result` items. Usage counts input as
+uncached plus cache-read plus cache-write tokens, with cache reads as cached
+input and cache writes in `cache_write_tokens`; thinking tokens are reasoning
+tokens.
+
 For `OpenAIResponsesHTTPAgent`, assistant rows may contain compact
 `data.openai` metadata such as response IDs and request cursors. The parent
 chat's `openai_previous_response_id` advances only from Responses assistant
@@ -652,7 +815,7 @@ the local Responses cursor.
 The same successful non-incognito chat-row update stores the last durable model
 snapshot for frontend restore: `chats.last_model_provider_id` is the exact
 catalog row ID, `chats.last_model_client` is the row's model-client profile
-such as `openai_chat_completions` or `openai_responses`, and
+(`openai_chat_completions`, `openai_responses` or `anthropic_messages`), and
 `chats.last_model_id` is the model slug such as `gpt-6-luna`. The frontend
 restores by row ID, since several connections can serve the same model slug,
 and falls back to the client and slug only for chats without a row ID.
@@ -677,10 +840,15 @@ Do not put a request-scoped boundary into a process-global registry.
 `ModelCallLimits` caps output and the whole stream's elapsed time. Bounded
 adapters disable their internal retries and OpenAI SDK retries. Responses also
 sends `max_tool_calls` when native tools are admitted; this is a limit across all
-built-in calls, not a per-tool budget. Admission may narrow `native_tools` before
-dispatch. The composition must reject provider/model combinations that cannot
-honor its controls rather than drop a limit. Local calls without limits preserve
-their existing request and retry behavior.
+built-in calls, not a per-tool budget. Anthropic Messages caps `max_tokens` and
+the web search tool's `max_uses` on each request, uses the limits' timeout and
+never retries. A turn paused during server-side search (`pause_turn`) is still
+resent, at most three times, so these caps apply per request rather than across
+the invocation; hosted compositions offer no Anthropic rows. Admission may
+narrow `native_tools` before dispatch. The composition must reject
+provider/model combinations that cannot honor its controls rather than drop a
+limit. Local calls without limits preserve their existing request and retry
+behavior.
 
 Only `ModelClientFinal.usage_reported=True` establishes measured token usage.
 Estimates, missing finals, errors, timeouts and cancellation never imply a zero

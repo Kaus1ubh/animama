@@ -317,7 +317,7 @@ def _merge_provider_error_fields(metadata: dict[str, Any], payload: Any) -> None
             if not isinstance(value, str) or not value.strip() or target_key in metadata:
                 continue
             if target_key == "provider_error_message":
-                metadata[target_key] = _sanitize_provider_error_message(value)
+                metadata[target_key] = sanitize_provider_error_message(value)
             else:
                 metadata[target_key] = value.strip()
 
@@ -350,7 +350,9 @@ def _error_payload_candidates(payload: Any) -> list[Any]:
     return candidates
 
 
-def _sanitize_provider_error_message(value: str) -> str:
+def sanitize_provider_error_message(value: str) -> str:
+    """Trim a provider error message and redact bearer tokens and API-key shapes (OpenAI and Anthropic)."""
+
     text = value.strip()
     text = _BEARER_TOKEN_RE.sub("Bearer [redacted]", text)
     text = _SECRET_TOKEN_RE.sub("[redacted]", text)
@@ -367,6 +369,7 @@ __all__ = [
     "classify_openai_response_event",
     "is_previous_response_unresolvable",
     "model_client_error_from_openai_info",
+    "sanitize_provider_error_message",
     "should_retry_openai_error",
     "sleep_before_openai_retry",
 ]

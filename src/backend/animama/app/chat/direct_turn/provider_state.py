@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from typing import Any, cast
 
 from animama.app.model_clients import (
@@ -19,10 +19,16 @@ from animama.app.safety.moderation import RESPONSES_MODERATION_MODEL
 from animama.app.util.json_values import json_safe_copy
 from animama.domain import ModelProvider
 from animama.domain.chat import Chat
-from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID, MODEL_KIND_CHAT, MODEL_SOURCE_OWNER
+from animama.domain.model_connection import (
+    BUILTIN_ANTHROPIC_CONNECTION_ID,
+    BUILTIN_OPENAI_CONNECTION_ID,
+    MODEL_KIND_CHAT,
+    MODEL_SOURCE_OWNER,
+)
 
 from ..options import DirectChatOptions
 from .constants import (
+    ANTHROPIC_MESSAGES_PROVIDER,
     DIRECT_MEMORY_TOOL_SUPPORT_BY_PROVIDER,
     OPENAI_CHAT_COMPLETIONS_PROVIDER,
     OPENAI_RESPONSES_PREVIOUS_RESPONSE_UNRESOLVABLE_CODE,
@@ -105,6 +111,14 @@ def validate_model_provider_for_direct_turn(
         raise DirectChatTurnSetupError(
             f"OpenAI Responses is only available on the built-in OpenAI connection: {model_provider.id}"
         )
+    if (model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER) != (
+        model_provider.connection_id == BUILTIN_ANTHROPIC_CONNECTION_ID
+    ):
+        # Messages requests carry the Anthropic key, and the Anthropic connection
+        # serves nothing else.
+        raise DirectChatTurnSetupError(
+            f"Anthropic Messages is only available on the built-in Anthropic connection: {model_provider.id}"
+        )
     if not capabilities.supports_streaming:
         raise DirectChatTurnSetupError(f"Model provider does not support streaming chat turns: {model_provider.id}")
     # Structured output is not required: rows without a schema or JSON mode
@@ -142,7 +156,7 @@ def validate_model_provider_for_direct_turn(
 
 
 def hosted_native_tools(model_provider: ModelProvider, request_options: DirectChatOptions) -> tuple[str, ...]:
-    """Return the requested native tools the provider hosts (OpenAI Responses web search)."""
+    """Return the requested native tools the provider hosts (OpenAI Responses or Anthropic web search)."""
 
     requestable = set(
         requestable_native_tool_support(model_provider.provider_type, model_provider.capabilities.native_tool_support)
@@ -325,6 +339,26 @@ def openai_responses_continuation_from_final(
     )
 
 
+def continuation_after_tool_round(
+    model_request: ModelClientRequest,
+    previous_final: ModelClientFinal | None,
+) -> ModelClientContinuation | None:
+    """Return the provider state the next round of a turn continues from.
+
+    Responses advances its cursor to the tool-call response. Other providers
+    may return their own request-local state on the final: Anthropic carries
+    the turn's assistant content blocks so they are resent unchanged.
+    """
+
+    responses = openai_responses_continuation_from_final(model_request, previous_final)
+    if responses is not None:
+        return responses
+    continuation = previous_final.continuation if previous_final is not None else None
+    if continuation is not None and continuation.provider_type == model_request.model_provider.provider_type:
+        return continuation
+    return None
+
+
 def model_request_without_continuation(model_request: ModelClientRequest) -> ModelClientRequest:
     """Copy a model request while dropping provider continuation state."""
 
@@ -369,14 +403,7 @@ def final_with_previous_response_retry_metadata(
         "stale_previous_response_id": stale_cursor,
         "fallback": "manual_context_without_previous_response_id",
     }
-    return ModelClientFinal(
-        text=final.text,
-        usage=final.usage,
-        raw_provider_metadata=raw_provider_metadata,
-        structured_payload=final.structured_payload,
-        tool_calls=final.tool_calls,
-        input_moderation=final.input_moderation,
-    )
+    return replace(final, raw_provider_metadata=raw_provider_metadata)
 
 
 __all__ = [
@@ -386,6 +413,7 @@ __all__ = [
     "build_memory_tool_config",
     "build_model_client_provider_options",
     "compiled_context_history",
+    "continuation_after_tool_round",
     "native_memory_apply_patch_enabled",
     "final_with_previous_response_retry_metadata",
     "model_request_without_continuation",

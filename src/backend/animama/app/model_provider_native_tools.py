@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 OPENAI_RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent"
+ANTHROPIC_MESSAGES_PROVIDER_TYPE = "AnthropicMessagesHTTPAgent"
 
 # This allowlist describes tools callers may explicitly select through
 # ``dispatch_options.native_tools``. Backend-owned tools such as apply_patch
@@ -12,6 +13,8 @@ OPENAI_RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent"
 # policy instead of user request parameters.
 REQUESTABLE_NATIVE_TOOL_SUPPORT_BY_PROVIDER: dict[str, frozenset[str]] = {
     OPENAI_RESPONSES_PROVIDER_TYPE: frozenset({"web_search"}),
+    # Anthropic's ``web_search`` server tool; Anthropic bills searches to the owner.
+    ANTHROPIC_MESSAGES_PROVIDER_TYPE: frozenset({"web_search"}),
 }
 
 
@@ -36,6 +39,7 @@ def requestable_native_tool_support(provider_type: str, capabilities: object) ->
 
 
 __all__ = [
+    "ANTHROPIC_MESSAGES_PROVIDER_TYPE",
     "OPENAI_RESPONSES_PROVIDER_TYPE",
     "REQUESTABLE_NATIVE_TOOL_SUPPORT_BY_PROVIDER",
     "normalized_native_tool_support",

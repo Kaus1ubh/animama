@@ -30,6 +30,7 @@ from animama.app.chat.memory_context import (
     render_core_companion_instruction,
 )
 from animama.app.chat.memory_tools import memory_tool_specs
+from animama.app.chat.openai_prompt import TURN_CONTEXT_DESCRIPTION
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
     MAIN_STRUCTURED_RESPONSE_KIND,
@@ -607,6 +608,7 @@ def _phase5_prefix(response_format_guidance: str | None = None) -> list[tuple[st
                     "# Anima Identity\n\nTest anima identity.",
                     "# Memory Guidance\n\n" + MEMORY_SYSTEM_GUIDANCE.strip(),
                     "# Response Guidance\n\n" + guidance,
+                    COMPANION_GUARDRAILS.strip(),
                 )
             ),
         )
@@ -769,7 +771,7 @@ async def test_direct_turn_emits_sse_compatible_events_and_persists_model_snapsh
     )
     assert frame is not None
     assert json.loads(frame.split("data: ", 1)[1])["text"] == "Hello there."
-    assert chats.context_calls == [{"chat_id": "chat-1"}]
+    assert chats.context_calls == [{"chat_id": "chat-1", "native_compaction": False}]
     spec = model_client.seen_specs[0]
     assert [(message["role"], message["content"]) for message in spec.prompt.messages] == [
         *_phase5_prefix(),
@@ -1268,7 +1270,7 @@ async def test_direct_turn_emits_final_correction_when_streamed_speech_differs_f
 
 
 @pytest.mark.asyncio
-async def test_direct_turn_places_memory_map_in_system_when_provider_lacks_developer_role() -> None:
+async def test_direct_turn_places_turn_context_in_the_user_message_when_provider_lacks_developer_role() -> None:
     model_client = _FinalModelClient(_structured_response())
     provider = _provider(
         model="deepseek-v4-pro",
@@ -1283,12 +1285,14 @@ async def test_direct_turn_places_memory_map_in_system_when_provider_lacks_devel
     messages = model_client.seen_specs[0].prompt.messages
     output_type = build_main_structured_response_model(agent_id="direct_chat_model_client")
     assert [message["role"] for message in messages] == ["system", "user"]
-    assert _text(messages[0]["content"]).endswith(_trailing_instructions())
-    assert "# Response Guidance" in _text(messages[0]["content"])
-    assert MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip() in _text(messages[0]["content"])
-    assert build_main_structured_prompt(output_type) in _text(messages[0]["content"])
-    assert "Expected json schema:" in _text(messages[0]["content"])
-    assert _text(messages[1]["content"]) == "Hi"
+    system = _text(messages[0]["content"])
+    assert system.endswith(f"{TURN_CONTEXT_DESCRIPTION}\n\n{COMPANION_GUARDRAILS.strip()}")
+    assert _fake_memory_map() not in system
+    assert "# Response Guidance" in system
+    assert MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip() in system
+    assert build_main_structured_prompt(output_type) in system
+    assert "Expected json schema:" in system
+    assert _text(messages[1]["content"]) == f"<turn_context>\n{_trailing_instructions()}\n</turn_context>\n\nHi"
 
 
 @pytest.mark.asyncio
@@ -3106,6 +3110,29 @@ async def test_native_patch_turn_includes_memories_write_guidance() -> None:
     spec = model_client.seen_specs[0]
     assert spec.provider_options.memory_apply_patch_enabled is True
     assert ANIMA_MEMORIES_WRITE_GUIDANCE.strip() in _text(spec.prompt.messages[0]["content"])
+
+
+@pytest.mark.asyncio
+async def test_direct_turn_stale_cursor_retry_keeps_the_gesture_list_in_stable_instructions() -> None:
+    from animama.app.chat.direct_turn.types import RuntimeGestureDescriptor
+
+    final = ModelClientFinal(
+        text=_structured_response(speech="Recovered."),
+        usage=Usage(requests=1, input_tokens=7, output_tokens=3, total_tokens=10),
+        raw_provider_metadata={"provider": "OpenAIResponsesHTTPAgent", "api": "responses", "response_id": "r2"},
+    )
+    model_client = _PreviousResponseCursorFailThenFinalModelClient(final)
+    chats = _FakeChatManager(history=[], openai_previous_response_id="resp_stale")
+    executor, chats = _executor(
+        client=model_client, provider=_provider(provider_type="OpenAIResponsesHTTPAgent"), chat_manager=chats
+    )
+    descriptor = RuntimeGestureDescriptor(selector="wave", name="Wave", description="A friendly wave")
+
+    await _collect(executor.stream_turn(_request(runtime_gesture_descriptors=(descriptor,))))
+
+    first, retried = (spec.prompt.messages[0] for spec in model_client.seen_specs)
+    assert "Available Gestures for this Anima" in str(first["content"])
+    assert retried == first
 
 
 class _CancellableChunkedModelClient(_ChunkedModelClient):

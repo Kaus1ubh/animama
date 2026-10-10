@@ -34,7 +34,14 @@ removed connections. The notice names the failed
 connection from the error's `details.connection_name` (never assuming OpenAI);
 for Ollama, LM Studio, llama.cpp and vLLM connections it asks whether the server
 is running at `details.connection_base_url`, and the `context_exceeded` category
-explains an oversized conversation and suggests a larger-context model or window. Local admission errors describe
+explains an oversized conversation and suggests a larger-context model or window.
+Anthropic codes with an OpenAI counterpart (key, access, model, quota, rate
+limit, overload, server, timeout, connection and bad-request errors) read like
+it and name the Anthropic connection; `anthropic_context_exceeded` and
+`anthropic_stream_incomplete` have their own copy, and others such as
+`anthropic_request_failed` use the safe fallback, as `openai_request_failed`
+does. `model_refused` means a Claude model declined the turn:
+the notice says so and suggests rephrasing, and no other model is tried. Local admission errors describe
 installation access, without treating every HTTP 403 as an invalid provider key.
 Unknown errors use a safe fallback. The only URL text a notice shows is the base
 URL the owner configured for a non-built-in connection; provider response text,
@@ -177,7 +184,10 @@ switch; it shows a toast directing the user to the main chat.
 Catalog rows advertise `requestable_native_tool_support` and
 `supported_reasoning_efforts` for their settings menu. Users can toggle native tools, currently
 `web_search`, and choose a supported reasoning effort. Supported native tools
-are enabled by default when the active model advertises them.
+are enabled by default when the active model advertises them. The effort starts
+at the row's `default_reasoning_effort` when the row offers it (`medium` on
+Anthropic rows), else at its first supported effort (`defaultReasoningEffort`
+in `lib/chat/model-catalog.ts`).
 
 Web search availability comes from `webSearchAvailability` (product-ui) using
 the row and the runtime capability `web_search`: hosted when the row lists
@@ -189,7 +199,9 @@ or a missing Brave key). Availability follows the runtime fields (`configured`,
 up, so an operator-provisioned backend (hosted reports `configured` with
 `configuration: false`) offers application search without setup guidance. Where
 the owner cannot configure search and no usable backend is reported, rows
-without hosted search show no control. Available search
+without hosted search show no control. Anthropic rows without hosted search
+never show one either, because the backend never gives them the application
+tool. Available search
 starts on, including when availability changes
 while the same model stays selected (the capability loads after the catalog,
 or the owner configures or removes the backend). The request field is the same

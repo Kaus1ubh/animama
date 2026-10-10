@@ -41,8 +41,19 @@ class ChatMessageRepository(Protocol):
         chat_id: str,
         *,
         after_turn: int | None = None,
-        limit: int = 200,
+        limit: int | None = 200,
     ) -> list[ChatMessage]:
+        """Return the newest replayable rows in turn order; ``limit=None`` returns every row."""
+
+        raise NotImplementedError
+
+    async def latest_compaction_block_turn(self, chat_id: str) -> int | None:
+        """Return the turn of the newest visible assistant row whose stored content starts with a compaction block.
+
+        That block (Anthropic server-side compaction) summarizes everything
+        before it, so replay can start there.
+        """
+
         raise NotImplementedError
 
     async def visible_history_since(

@@ -29,5 +29,13 @@ class PyModelProviderCatalogItem(BaseModel):
     supports_streaming: bool = False
     supports_reasoning: bool | None = None
     supported_reasoning_efforts: list[str] | None = None
+    default_reasoning_effort: str | None = Field(
+        default=None,
+        description=(
+            "Effort a chat picker preselects for this row (one of supported_reasoning_efforts), "
+            "or null to use the first supported effort. Anthropic Messages rows report their "
+            "chat default when they offer it."
+        ),
+    )
     native_tool_support: list[str] | None = None
     requestable_native_tool_support: list[str] | None = None

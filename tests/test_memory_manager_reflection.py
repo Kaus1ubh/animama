@@ -17,11 +17,9 @@ from animama.adapters.memory_manager import (
     MemoryManagerVirtualWorkspace,
     OpenAIAgentsMemoryManagerRuntime,
 )
-from animama.adapters.memory_manager.openai_agents_runtime import (
-    _approval_required_patch_editor,
-    _max_turns_for_run,
-)
+from animama.adapters.memory_manager.openai_agents_runtime import _approval_required_patch_editor
 from animama.adapters.memory_manager.reflection import ReflectionTurnReader, reflection_task_or_none
+from animama.adapters.memory_manager.runtime_support import max_turns_for_run
 from animama.adapters.repositories.sqlalchemy.anima_memory_reflection_repo import (
     SQLAlchemyAnimaMemoryReflectionRepository,
 )
@@ -498,7 +496,7 @@ async def test_reflection_reads_the_oldest_400_turns_and_leaves_the_rest(async_s
     assert last_page["turns"][-1]["user"] == "Turn 400"
     assert (await reader.read_page(9))["turns"] == []
     run = await _run_domain(async_session, user_id=user_id, run_id=first.run.id)
-    assert _max_turns_for_run(run) == 16
+    assert max_turns_for_run(run) == 16
 
     await _decide(async_session, user_id=user_id, approval_id=first.approvals[0].id, decision="approve")
     rest = await _reflect(async_session, user_id=user_id, anima_id=anima_id)
@@ -899,7 +897,7 @@ async def test_live_runtime_offers_turn_reading_and_own_memories_only_in_reflect
     assert isinstance(general_agent.instructions, str)
     assert "# Reflection mode" not in general_agent.instructions
     assert f"animas/{other_id}/MEMORIES.md" in general_agent.instructions
-    assert _max_turns_for_run(general_run) == 8
+    assert max_turns_for_run(general_run) == 8
 
 
 @pytest.mark.asyncio

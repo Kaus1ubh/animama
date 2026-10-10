@@ -71,7 +71,23 @@ class MemoryManagerVirtualWorkspace:
     async def get_file_or_none(self, *, path: str) -> MemoryEntry | None:
         """Return the current file a model path addresses, or ``None`` if it is new."""
 
-        return (await self._resolve_target(path)).current
+        return (await self.resolve_target(path)).current
+
+    async def resolve_target(self, path: str) -> MemoryPatchTarget:
+        """Resolve a model path within the run's file scope, or refuse it with a reason the model can act on.
+
+        Anima files must exist; a user memory path may name a new file.
+        """
+
+        try:
+            return await resolve_patch_target(
+                self._memory_entries,
+                user_id=self._user_id,
+                path=path,
+                manager_access=self._access,
+            )
+        except MemoryPatchPlanError as exc:
+            raise MemoryManagerPatchRejected(str(exc)) from exc
 
     async def plan_v4a_operation(
         self,
@@ -107,7 +123,30 @@ class MemoryManagerVirtualWorkspace:
     ) -> MemoryManagerRuntimeApprovalRequest:
         """Create an approval preview from already-resolved full file content."""
 
-        target = await self._resolve_target(path)
+        return self.plan_target_content(
+            await self.resolve_target(path),
+            new_content=new_content,
+            new_description=new_description,
+            summary=summary,
+            metadata=metadata,
+        )
+
+    def plan_target_content(
+        self,
+        target: MemoryPatchTarget,
+        *,
+        new_content: str,
+        new_description: str | None,
+        summary: str | None = None,
+        metadata: dict[str, Any] | None = None,
+    ) -> MemoryManagerRuntimeApprovalRequest:
+        """Create an approval preview for ``target`` fenced by the version it was resolved at.
+
+        A caller that computed ``new_content`` from ``target.current`` passes the
+        same target, so the approval's ``expected_version`` is the version the
+        edit was based on.
+        """
+
         clean_path, current = target.path, target.current
         if not isinstance(new_content, str):
             raise MemoryManagerPatchRejected("Memory file content must be a string")
@@ -147,17 +186,6 @@ class MemoryManagerVirtualWorkspace:
         )
         _require_anima_memories_fit(resolved)
         return _approval_request_from_contents(resolved, metadata=metadata)
-
-    async def _resolve_target(self, path: str) -> MemoryPatchTarget:
-        try:
-            return await resolve_patch_target(
-                self._memory_entries,
-                user_id=self._user_id,
-                path=path,
-                manager_access=self._access,
-            )
-        except MemoryPatchPlanError as exc:
-            raise MemoryManagerPatchRejected(str(exc)) from exc
 
 
 def _require_anima_memories_fit(contents: MemoryPatchCandidate) -> None:

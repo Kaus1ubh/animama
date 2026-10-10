@@ -77,11 +77,13 @@ import {
 } from "lucide-react";
 import {
   alternateModelIds,
+  defaultReasoningEffort,
   modelConnectionLabel,
   modelDisplayName,
   modelOptionDetail,
   modelOptionLabel,
   selectableChatModels,
+  supportedReasoningEfforts,
 } from "@/lib/chat/model-catalog";
 import type React from "react";
 import {
@@ -348,18 +350,6 @@ function supportedNativeTools(
   return selectableNativeTools(item, webSearch);
 }
 
-function supportedReasoningEfforts(item: PyModelProviderCatalogItem | null) {
-  return Array.isArray(item?.supported_reasoning_efforts)
-    ? item.supported_reasoning_efforts.filter(
-        (effort) => typeof effort === "string",
-      )
-    : [];
-}
-
-function defaultReasoningEffort(item: PyModelProviderCatalogItem | null) {
-  return supportedReasoningEfforts(item)[0] ?? null;
-}
-
 /** Every available tool starts on, including web search. */
 function defaultNativeTools(
   item: PyModelProviderCatalogItem | null,
@@ -573,11 +563,15 @@ function ChatInputModelSelector({
         const nextNativeTools = (
           patch.nativeTools ?? currentNativeTools
         ).filter((tool) => supportedTools.has(tool));
-        const requestedReasoning =
-          patch.reasoningEffort ??
-          (typeof current.reasoning_effort === "string"
+        // Like the tools above, the current effort belongs to the previously
+        // active model when this change also switches models; the new model
+        // starts from its own default unless the patch picks an effort.
+        const currentReasoning =
+          typeof current.reasoning_effort === "string" &&
+          !willSelectInactiveModel
             ? current.reasoning_effort
-            : undefined);
+            : undefined;
+        const requestedReasoning = patch.reasoningEffort ?? currentReasoning;
         const nextReasoningEffort = supportedReasoning.includes(
           requestedReasoning ?? "",
         )

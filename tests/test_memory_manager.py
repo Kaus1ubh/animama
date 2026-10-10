@@ -11,13 +11,25 @@ from typing import Any, TypeVar, cast
 import httpx
 import pytest
 import pytest_asyncio
-from agents import FunctionTool
+from agents import (
+    Agent,
+    FunctionTool,
+    MaxTurnsExceeded,
+    ModelResponse,
+    RunContextWrapper,
+    RunState,
+    Usage as AgentsUsage,
+)
+from agents.models.interface import Model
 from fastapi import HTTPException
 from openai import BadRequestError
+from openai.types.responses import ResponseFunctionToolCall, ResponseOutputMessage, ResponseOutputText
 from sqlalchemy import delete, select
 
 from animama.adapters.memory_manager import (
+    AnthropicMemoryManagerRuntime,
     MemoryManagerPatchRejected,
+    MemoryManagerRuntimeSelector,
     MemoryManagerVirtualWorkspace,
     OpenAIAgentsMemoryManagerRuntime,
 )
@@ -189,10 +201,19 @@ def test_memory_manager_orm_metadata_is_registered() -> None:
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("row_id", "runtime_type"),
+    [
+        ("OpenAIResponsesHTTPAgent:gpt-6-luna", OpenAIAgentsMemoryManagerRuntime),
+        ("AnthropicMessagesHTTPAgent:claude-haiku-5-5", AnthropicMemoryManagerRuntime),
+    ],
+)
 async def test_manager_service_uses_the_memory_manager_role(
     async_session,
     clean_memory_manager_rows,
     monkeypatch: pytest.MonkeyPatch,
+    row_id: str,
+    runtime_type: type,
 ) -> None:
     await ModelProviderCatalogService(
         model_providers=SQLAlchemyModelProviderRepository(async_session),
@@ -200,19 +221,17 @@ async def test_manager_service_uses_the_memory_manager_role(
     ).sync_from_registry()
     user_id = f"user-{uuid.uuid4()}"
     async_session.add(
-        ORMUserSettings(
-            user_id=user_id,
-            preferences={"models": {"memory_manager_model_provider_id": "OpenAIResponsesHTTPAgent:gpt-6-luna"}},
-        )
+        ORMUserSettings(user_id=user_id, preferences={"models": {"memory_manager_model_provider_id": row_id}})
     )
     await async_session.commit()
     monkeypatch.delenv("ANIMAMA_LLM_SKIP")
 
     service = await memory_manager_router._manager_service(async_session, user_id, _LOCAL_ROLES)
 
-    assert isinstance(service._runtime, OpenAIAgentsMemoryManagerRuntime)
-    assert service._runtime._model_provider is not None
-    assert service._runtime._model_provider.id == "OpenAIResponsesHTTPAgent:gpt-6-luna"
+    # The selector runs new messages on the runtime of the role row's provider type.
+    assert isinstance(service._runtime, MemoryManagerRuntimeSelector)
+    assert isinstance(service._runtime.role_runtime, runtime_type)
+    assert service._runtime.model_provider_id == row_id
 
 
 @pytest.mark.asyncio
@@ -2268,6 +2287,8 @@ async def test_openai_agents_runtime_uses_shared_navigation_and_read_tool_contra
     assert "description verbatim when it remains accurate" in agent.instructions
     assert "synthetic patch document" in agent.instructions
     assert 'description: "Concise overview of the file."' in agent.instructions
+    assert "When a new fact replaces an older one, also correct or remove the outdated statement" in agent.instructions
+    assert "header. When proposing a memory edit" in agent.instructions
     assert "episodes/" not in agent.instructions
     assert "version" not in agent.instructions
     assert "size_bytes" not in agent.instructions
@@ -2570,6 +2591,49 @@ async def test_openai_agents_runner_forwards_responses_continuation(monkeypatch:
     assert "last_response_id" not in output.metadata
 
 
+class _FinalAnswerModel(Model):
+    """An Agents SDK model that answers at once, without a network call."""
+
+    async def get_response(self, *args: Any, **kwargs: Any) -> ModelResponse:
+        return ModelResponse(
+            output=[
+                ResponseOutputMessage(
+                    id="msg-final",
+                    content=[ResponseOutputText(annotations=[], text="done", type="output_text")],
+                    role="assistant",
+                    status="completed",
+                    type="message",
+                )
+            ],
+            usage=AgentsUsage(),
+            response_id=None,
+        )
+
+    def stream_response(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+
+@pytest.mark.asyncio
+async def test_a_resumed_sdk_state_gets_a_fresh_turn_budget(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("OPENAI_AGENTS_DISABLE_TRACING", "1")
+    agent: Agent[Any] = Agent(name="Budget test", instructions="Answer.", model=_FinalAnswerModel())
+    paused: RunState[dict[str, Any], Agent[Any]] = RunState(
+        context=RunContextWrapper(context={}), original_input="hi", starting_agent=agent, max_turns=8
+    )
+    # A state paused after spending its whole budget, as after eight proposing turns.
+    serialized = json.dumps({**paused.to_json(), "current_turn": 8})
+    runner = OpenAIAgentsRunner()
+
+    exhausted = await runner.load_state(agent=agent, serialized_state=serialized)
+    with pytest.raises(MaxTurnsExceeded):
+        # The SDK resumes with the state's own budget, whatever max_turns the call passes.
+        await runner.resume_state(agent=agent, state=exhausted, max_turns=100)
+
+    refreshed = await runner.load_state(agent=agent, serialized_state=serialized, turn_budget=8)
+    output = await runner.resume_state(agent=agent, state=refreshed, max_turns=8)
+    assert output.final_output == "done"
+
+
 class _SequencedAgentsRunner:
     def __init__(self, response_ids: list[str | None]) -> None:
         self._response_ids = iter(response_ids)
@@ -2753,6 +2817,7 @@ class _ApprovalResumeRunner:
 
     async def load_state(self, **kwargs):  # noqa: ANN003
         self.loaded_serialized_state = kwargs["serialized_state"]
+        self.load_kwargs = dict(kwargs)
         return self.state
 
     async def resume_state(self, **kwargs) -> OpenAIAgentsRunOutput:  # noqa: ANN003
@@ -2828,6 +2893,8 @@ async def test_memory_manager_approval_resume_uses_only_serialized_state_and_adv
     )
 
     assert runner.loaded_serialized_state == "serialized-sdk-state"
+    # Each resume gets the run's full turn budget (D24).
+    assert runner.load_kwargs["turn_budget"] == 8
     assert state.decision == decision
     assert runner.resume_kwargs is not None
     assert "previous_response_id" not in runner.resume_kwargs
@@ -3037,6 +3104,80 @@ async def test_chat_completions_manager_replays_the_run_and_previews_function_to
     assert result.outcome == "waiting_approval"
     assert result.approvals is not None and result.approvals[0].target_path == "notes.md"
     assert (result.approvals[0].operation_metadata or {})["sdk_call_id"] == "call-local"
+
+
+class _ScriptedPatchModel(Model):
+    """An Agents SDK model that proposes one new memory file per turn, then answers."""
+
+    def __init__(self, calls: list[int], *, proposals: int) -> None:
+        self._calls = calls
+        self._proposals = proposals
+
+    async def get_response(self, *args: Any, **kwargs: Any) -> ModelResponse:
+        index = len(self._calls)
+        self._calls.append(index)
+        if index >= self._proposals:
+            return await _FinalAnswerModel().get_response()
+        operation = {
+            "type": "create_file",
+            "path": f"facts/fact-{index}.md",
+            "diff": f'+---\n+description: "Fact {index}"\n+---\n+Fact {index}.',
+        }
+        return ModelResponse(
+            output=[
+                ResponseFunctionToolCall(
+                    id=f"fc-{index}",
+                    call_id=f"call-{index}",
+                    name="apply_patch",
+                    arguments=json.dumps({"operation": operation}),
+                    type="function_call",
+                    status="completed",
+                )
+            ],
+            usage=AgentsUsage(),
+            response_id=None,
+        )
+
+    def stream_response(self, *args: Any, **kwargs: Any) -> Any:
+        raise NotImplementedError
+
+
+@pytest.mark.asyncio
+async def test_openai_automatic_mode_applies_eight_changes_with_a_fresh_budget_per_resume(
+    async_session,
+    clean_memory_manager_rows,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    import agents
+
+    calls: list[int] = []
+    monkeypatch.setattr(
+        agents, "OpenAIChatCompletionsModel", lambda *args, **kwargs: _ScriptedPatchModel(calls, proposals=8)
+    )
+    user_id = f"user-{uuid.uuid4()}"
+    memory_entries = _memory_entry_service(async_session)
+    service = MemoryManagerService(
+        memory_manager=SQLAlchemyMemoryManagerRepository(async_session),
+        memory_entries=memory_entries,
+        runtime=OpenAIAgentsMemoryManagerRuntime(
+            user_id=user_id,
+            memory_entries=memory_entries,
+            model_provider=_local_manager_model(),
+            credential_resolver=_manager_credentials(),
+            timeout_seconds=1.0,
+        ),
+        uow=SQLAlchemyUnitOfWork(async_session),
+    )
+
+    snapshot = await service.create_run(user_id=user_id, initial_message="Record eight facts.", auto_approve_diffs=True)
+
+    # Eight proposing turns and the final answer: each approval resume gets the full budget (D24).
+    assert [approval.status for approval in snapshot.approvals] == ["approved"] * 8
+    assert len(calls) == 9
+    assert snapshot.run.status == "active", snapshot.run.error
+    assert snapshot.messages[-1].content == "done"
+    created = await memory_entries.get_entry_by_path(user_id=user_id, path="facts/fact-7.md")
+    assert created.content == "Fact 7."
 
 
 @pytest.mark.asyncio

@@ -59,13 +59,15 @@ type VaultData = {
   /** Model-connection keys by environment name; absent in older vaults. */
   connections?: Record<string, VaultEntry>;
 };
+/** The backend variable each provider key is delivered as. */
 const providerEnvironment: Record<CredentialProvider, string> = {
   openai: "OPENAI_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
   elevenlabs: "ELEVENLABS_API_KEY",
 };
 /** Provider keys earlier releases stored; they are dropped when a vault loads. */
 const retiredProviders = new Set(["deepseek", "huggingface", "gemini"]);
-/** Room for both providers and every connection key at the value limit. */
+/** Room for every provider and connection key at the value limit. */
 const maxVaultBytes = 512 * 1024;
 
 export function validateProvider(value: unknown): CredentialProvider {

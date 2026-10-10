@@ -1945,7 +1945,10 @@ export const addOwnerModelV1ModelConnectionsConnectionIdModelsPost = <ThrowOnErr
 /**
  * Probe Model
  *
- * Send a few small requests to the model and suggest its capabilities.
+ * Suggest the model's capabilities.
+ *
+ * Other connections answer a few small requests; the built-in Anthropic
+ * connection reports what Anthropic's Models API publishes for the model.
  */
 export const probeModelV1ModelConnectionsConnectionIdProbePost = <ThrowOnError extends boolean = false>(options: Options<ProbeModelV1ModelConnectionsConnectionIdProbePostData, ThrowOnError>) => (options.client ?? client).post<ProbeModelV1ModelConnectionsConnectionIdProbePostResponses, ProbeModelV1ModelConnectionsConnectionIdProbePostErrors, ThrowOnError>({
     requestValidator: async (data) => await zProbeModelV1ModelConnectionsConnectionIdProbePostData.parseAsync(data),

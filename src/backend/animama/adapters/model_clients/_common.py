@@ -23,6 +23,19 @@ def get_value(obj: Any, key: str, default: Any = None) -> Any:
     return getattr(obj, key, default)
 
 
+def openai_cache_breakpoint_text_part(text: str, *, part_type: str) -> dict[str, Any]:
+    """Return an OpenAI text content part marked as an explicit prompt-cache breakpoint.
+
+    GPT-5.6 and later write a cache entry at the end of each marked part, and a
+    request looks up only the breakpoints it marks plus eligible message
+    endings. ``part_type`` is ``text`` for Chat Completions and ``input_text``
+    for Responses. openai-python does not type ``prompt_cache_breakpoint`` but
+    sends it unchanged.
+    """
+
+    return {"type": part_type, "text": text, "prompt_cache_breakpoint": {"mode": "explicit"}}
+
+
 async def close_maybe_async(value: Any) -> None:
     """Call ``close``/``aclose`` on SDK resources when present."""
 
@@ -40,4 +53,5 @@ __all__ = [
     "close_maybe_async",
     "get_value",
     "jsonable",
+    "openai_cache_breakpoint_text_part",
 ]

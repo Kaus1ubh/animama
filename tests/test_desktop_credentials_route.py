@@ -252,6 +252,7 @@ def test_backend_rules_match_the_desktop_vault() -> None:
         MANAGED_CREDENTIAL_ENV_PATTERN,
         MAX_CONNECTION_CREDENTIALS,
         MAX_CREDENTIAL_LENGTH,
+        is_deliverable_credential_env,
     )
 
     root = Path(__file__).resolve().parents[1] / "src/frontend"
@@ -268,7 +269,12 @@ def test_backend_rules_match_the_desktop_vault() -> None:
     assert limit and int(limit.group(1)) == MAX_CONNECTION_CREDENTIALS
     assert length and int(length.group(1)) == MAX_CREDENTIAL_LENGTH
     assert characters and characters.group(1) == _INVALID_VALUE_CHARACTER.pattern
-    assert '"OPENAI_API_KEY"' in vault and '"ELEVENLABS_API_KEY"' in vault
+    # Every provider key the vault delivers is one the backend accepts.
+    environment = re.search(r"const providerEnvironment[^{]*\{(.+?)\};", vault, re.DOTALL)
+    assert environment
+    delivered = set(re.findall(r'"([A-Z_]+)"', environment.group(1)))
+    assert delivered == {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ELEVENLABS_API_KEY"}
+    assert all(is_deliverable_credential_env(name) for name in delivered)
 
 
 @pytest.mark.parametrize("host", ["localhost:41234", "evil.test", f"127.0.0.1:{PORT + 1}", "attacker.test:41234"])

@@ -1,5 +1,12 @@
-/** Public IPC contracts contain status only; credentials and host paths stay in main. */
-export const credentialProviders = ["openai", "elevenlabs"] as const;
+/**
+ * Public IPC contracts contain status only; credentials and host paths stay in
+ * main. Built-in provider keys, in the order App Settings → API Keys lists them.
+ */
+export const credentialProviders = [
+  "openai",
+  "anthropic",
+  "elevenlabs",
+] as const;
 export type CredentialProvider = (typeof credentialProviders)[number];
 /**
  * Environment name the backend reads for a model connection's managed key
@@ -9,7 +16,7 @@ export type CredentialProvider = (typeof credentialProviders)[number];
 export const connectionCredentialPattern =
   /^ANIMAMA_CONNECTION_[A-Z0-9_]{1,64}_API_KEY$/u;
 export const maxConnectionCredentials = 32;
-/** Largest renderer batch: both providers plus several connection keys. */
+/** Largest renderer batch: every provider plus several connection keys. */
 export const maxCredentialChanges = 8;
 type CredentialState = {
   configured: boolean;

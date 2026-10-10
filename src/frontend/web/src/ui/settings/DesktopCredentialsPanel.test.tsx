@@ -324,12 +324,12 @@ describe("feature-local key fields", () => {
       />,
     );
     expect(inputs(filtered)).toEqual(["ElevenLabs"]);
-    expect(filtered).not.toContain("Add an OpenAI key");
+    expect(filtered).not.toContain("Add an OpenAI");
     expect(filtered).toContain('type="password"');
 
     const full = renderWith(client, <DesktopCredentialsPanel />);
-    expect(inputs(full)).toEqual(["OpenAI", "ElevenLabs"]);
-    expect(full).toContain("Add an OpenAI key for cloud chat");
+    expect(inputs(full)).toEqual(["OpenAI", "Anthropic", "ElevenLabs"]);
+    expect(full).toContain("Add an OpenAI or Anthropic key for cloud chat");
   });
 
   it("reports only its own keys' failures", () => {

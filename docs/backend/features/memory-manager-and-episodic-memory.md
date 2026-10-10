@@ -155,15 +155,15 @@ Approval statuses:
 
 Approving commits a valid create or update through `MemoryEntryService`.
 Rejecting records the decision, leaves curated memory unchanged, and resumes
-the same runtime task. Optional feedback is passed into the Agents SDK
-rejection message so the manager can propose a corrected path or finish the
+the same runtime task. Optional feedback is passed into the rejection message
+the model receives so the manager can propose a corrected path or finish the
 review without a change. An approved patch remains historically approved after
 Undo; its card is projected as `Approved · Undone` instead of rewriting the
 original decision.
 
-Native Apply Patch represents the candidate as one transient synthetic
-document, but approvals persist and expose the parsed body and description
-fields. Description-only proposals therefore remain understandable even when
+Native Apply Patch and the Anthropic memory tool represent the candidate as one
+transient synthetic document, but approvals persist and expose the parsed body
+and description fields. Description-only proposals therefore remain understandable even when
 the body unified diff is empty, and the reserved header never appears in the
 approval content diff or stored Markdown.
 
@@ -270,9 +270,18 @@ create or update operation per Apply Patch approval.
 When a create or append request sets `auto_approve_diffs=true`, the service
 continues from that persisted result itself. It selects only pending approvals
 attributed to the submitted user message, commits each through the same
-`decide_approval(...)` path described below, resumes the SDK state, and repeats
-up to eight times. The SDK tool still uses `needs_approval=True`; automatic mode
-does not grant the patch editor a separate immediate-write path.
+`decide_approval(...)` path described below, resumes the paused runtime state,
+and repeats up to eight times. Every proposal still pauses for a decision;
+automatic mode does not grant either runtime a separate immediate-write path.
+
+The live runtimes budget model turns per step: a new message and each approval
+resume may make up to eight model requests (plus one per page of turns in a
+Reflection). A step that runs out before it proposes a change or replies is
+blocked, so the run becomes `failed` and closes; changes already approved stay
+applied. On the OpenAI Agents runtime the resumed SDK state, which keeps its
+turn count, is loaded with `max_turns` set to that count plus the budget
+(`OpenAIAgentsRunner.load_state(turn_budget=...)`), because the SDK resumes a
+state within the state's own `max_turns`.
 
 ### 6. Approvals Commit Curated Memory Changes
 
@@ -287,8 +296,10 @@ When a user approves an approval, `MemoryManagerService.decide_approval(...)`:
 6. Persists the resumed runtime result.
 
 Rejecting may include up to 2,000 characters of normalized feedback. The
-service stores it on the approval and passes it to
-`RunState.reject(..., rejection_message=...)`. A revised valid Markdown path
+service stores it on the approval and the runtime resumes with
+`The user rejected the proposed change to `<path>`. User feedback: <feedback>`
+(`RunState.reject(..., rejection_message=...)` on the OpenAI Agents runtime, an
+`is_error` tool result on the Anthropic runtime). A revised valid Markdown path
 can therefore produce another approval in the same fixed-batch task. Plain
 rejection may instead finish the review without a curated-memory mutation.
 
@@ -371,10 +382,18 @@ boundary, restores the coverage the run started from. General runs may edit
 
 ## Runtime Implementations
 
+`MemoryManagerRuntimeSelector` chooses the live runtime by the provider type of
+the row that runs each step: new messages use the Memory Manager role's row,
+and an approval resumes on the runtime of the row the run is pinned to (see
+below), even after the role moved to another provider. Rows of type
+`AnthropicMessagesHTTPAgent` run on the
+[Anthropic runtime](#live-anthropic-runtime); every other row runs on the
+OpenAI Agents runtime.
+
 ### Live OpenAI Agents Runtime
 
-The normal runtime is `OpenAIAgentsMemoryManagerRuntime`. It runs on the
-Memory Manager model role's catalog row and uses the OpenAI Agents SDK with
+`OpenAIAgentsMemoryManagerRuntime` runs OpenAI Responses and Chat Completions
+rows (it refuses Anthropic rows) and uses the OpenAI Agents SDK with
 `Agent`, `function_tool` read tools and resumable run state for human approval
 interruptions. The patch tool and continuity depend on the row's API:
 
@@ -478,7 +497,7 @@ only when the file has none, condenses repetition, integrates dated history and
 open threads, drops resolved threads, aims well under 6,000 characters (16 KiB
 hard limit), leaves user facts to shared memory, applies the sensitive-memory
 rule and the companion guardrail's framing limits, treats turn text as
-untrusted data, and proposes nothing when nothing is worth adding. The run's
+untrusted data, and proposes nothing when nothing is worth adding. Each step's
 turn budget grows by one model turn per page of its batch.
 Exact reads and search retain normal-chat parity, so a known episode path can be
 read and episode content can appear in search results.
@@ -502,6 +521,9 @@ The agent instructions enforce these policies:
 - treat file descriptions as the birds-eye index, preserving an accurate
   description verbatim and updating it when a content change materially
   changes the file's scope or durable contents;
+- when a new fact replaces an older one, also correct or remove the outdated
+  statement wherever it appears (search finds it), so memory files never
+  contradict each other;
 - calculate Apply Patch diffs against the complete synthetic `content` document
   and keep its reserved three-line header canonical;
 - propose exactly one create or update operation per approval;
@@ -515,6 +537,85 @@ replayed messages), but does not append the batch again.
 Backend path validation remains authoritative: Apply Patch rejects episode,
 anima, invalid, non-markdown, and delete operations even though those details
 do not need to expand the compact prompt map.
+
+### Live Anthropic Runtime
+
+`AnthropicMemoryManagerRuntime` runs rows on the built-in Anthropic connection
+through the official `anthropic` Client SDK, with only that connection's
+`ANTHROPIC_API_KEY`. It drives its own request loop instead of the SDK's tool
+runner, because a proposed change pauses the run until the owner decides,
+possibly after a restart.
+
+Each request offers:
+
+- Anthropic's memory tool, `{"type": "memory_20250818", "name": "memory"}`,
+  executed by `AnthropicMemoryToolHandler`
+  (`adapters/memory_manager/anthropic_memory_tool.py`) against the same
+  virtual workspace;
+- `search_memory_files`, and in a Reflection `read_reflection_turns`, as
+  strict function tools;
+- `tool_choice: {type: auto}`. A response may make several calls, so one
+  request can read several files, as OpenAI's batched `memory_read_files`
+  does. Only its first edit becomes the pending approval; a later edit in the
+  same response gets a tool error asking for one change at a time.
+
+Requests stream, use adaptive thinking at effort `medium` when the row offers
+it, never use server-side compaction,
+and put `cache_control` on the system prompt plus top-level automatic caching
+of the conversation. The general instructions describe the memory tool, the
+file format and the approval flow, and counter the memory tool's built-in
+prompt, which asks the model to record its progress in the memory directory:
+the files hold only curated facts, never progress, status or scratch notes. As
+on the OpenAI Agents runtime, a new fact that replaces an older one also
+corrects or removes the outdated statement wherever it appears.
+The memory map and search results use `/memories/...` paths; the Reflection
+and episode-processing mandates are worded for the memory tool.
+
+The memory tool maps `/memories/<relative>` to the ordinary memory path:
+
+- **Paths.** Paths outside `/memories`, relative paths, `.`/`..` segments,
+  repeated slashes between segments, backslashes and percent-encoded traversal
+  are refused before any lookup (a trailing slash is ignored); the usual
+  normalization, the run's `ManagerFileAccess` scope and the protected
+  `episodes/**` paths then apply.
+- **`view`.** A directory lists entries two levels deep with sizes, leaving
+  out generated episode logs as the memory map does; an exact path still
+  reads them. A file
+  shows the synthetic description header and body (the document
+  `memory_read_files` returns to OpenAI models) with six-character line
+  numbers, honouring `view_range`; views stop at a line boundary past 16,000
+  characters and point to `view_range` for the rest.
+- **`create`, `str_replace`, `insert`.** The handler computes the whole new
+  document (a `create` must include the header; on an existing file it is an
+  update), parses it back into body and description, and plans one
+  `create`/`update` approval fenced by the version the edit was computed from,
+  with the usual unified diff. `str_replace` needs one exact match. Errors use
+  Anthropic's documented strings, for example ``No replacement was performed,
+  old_str `...` did not appear verbatim in /memories/PROFILE.md.``
+- **`delete`, `rename`.** Refused with an `is_error` result: the Memory Manager
+  cannot delete or move files on any model.
+
+A planned change ends the step with outcome `waiting_approval`. The approval's
+`operation_metadata` holds the `tool_use` id (as `sdk_call_id`, which also
+deduplicates approvals), the command, the `/memories` path and the success text
+the model receives if the owner approves. `serialized_agent_state` stores
+`{schema: 1, system, messages, pending_tool_use_id, turns_used}`: the system
+prompt and every message exactly as sent and returned, signed thinking blocks
+included, and the results of the paused response's other calls. Resuming adds
+the pending `tool_result` (the success text, or the rejection text with
+feedback as an error result) to those results in call order and continues
+with a fresh turn budget (`turns_used` records what the paused step spent).
+Keeping the system prompt and conversation byte-identical keeps the paused
+step's thinking valid, since Claude rejects or drops thinking
+blocks after earlier content changes. A new user message starts a fresh
+conversation that replays the run's visible messages as text.
+
+A refusal (`stop_reason: refusal`) or an API error ends the step `failed` with
+`runtime_error_code` and the neutral `error_category` in the run metadata
+(`model_refused`/`provider_error` with `stop_details_category` for a refusal),
+after one retry of a transient error; memory is not changed. A reply cut off
+at the output limit, a blank final reply or an exhausted turn budget is
+`blocked`.
 
 ### Deterministic Runtime
 
@@ -572,9 +673,9 @@ Rejected paths or operations:
 - delete operations;
 - multi-operation patch approvals.
 
-The workspace converts a valid SDK patch interruption into a
-`MemoryManagerRuntimeApprovalRequest` containing full before/after content and a
-unified diff. Actual persistence happens later through `MemoryManagerService`
+The workspace converts a valid SDK patch interruption, or a memory-tool edit on
+the Anthropic runtime, into a `MemoryManagerRuntimeApprovalRequest` containing
+full before/after content and a unified diff. Actual persistence happens later through `MemoryManagerService`
 after user approval.
 
 ## API Contract
@@ -862,19 +963,20 @@ The Memory Manager runtime is selected per request in
 
 Environment and settings:
 
-- `ANIMAMA_LLM_SKIP=1`: use deterministic runtime instead of live OpenAI Agents.
+- `ANIMAMA_LLM_SKIP=1`: use the deterministic runtime instead of the live runtimes.
 - Memory Manager model role: `models.memory_manager_model_provider_id` in App
   Settings, else `ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID`, else the
   default chat model when it supports tools. The row's connection supplies the
-  base URL and key (`OPENAI_API_KEY` and `OPENAI_BASE_URL` for built-in rows).
-  Responses rows use OpenAI's hosted `apply_patch` tool and
-  `previous_response_id` continuity; Chat Completions rows use an
-  approval-gated `apply_patch` function tool and replay the run's stored
-  messages each turn. Tracing is disabled for rows not on the built-in OpenAI
-  connection.
+  base URL and key (`OPENAI_API_KEY` and `OPENAI_BASE_URL` for built-in OpenAI
+  rows, `ANTHROPIC_API_KEY` for Anthropic rows). Responses rows use OpenAI's
+  hosted `apply_patch` tool and `previous_response_id` continuity; Chat
+  Completions rows use an approval-gated `apply_patch` function tool and replay
+  the run's stored messages each turn; Anthropic rows use the memory tool and
+  store each paused step's conversation. Tracing is disabled for rows not on
+  the built-in OpenAI connection.
 - `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS`: request timeout, default `60.0`, for
   connections without their own; a connection's `timeout_seconds` applies when
-  set. Connecting is capped at 10 seconds either way.
+  set. On the OpenAI Agents runtime connecting is also capped at 10 seconds.
 - `ANIMAMA_MEMORY_FILE_MAX_BYTES`: inherited memory file size guard used by
   `MemoryEntryService`.
 
@@ -984,6 +1086,8 @@ uv run python -m pytest -q \
   tests/test_memory_manager.py \
   tests/test_memory_manager_identities.py \
   tests/test_memory_manager_reflection.py \
+  tests/test_anthropic_memory_manager.py \
+  tests/test_anthropic_memory_tool.py \
   tests/test_memory_episodes.py \
   tests/test_memory_file_tools.py \
   tests/test_memory_files.py
@@ -1027,7 +1131,7 @@ updates through `mark_items_processed(...)` should refresh all affected days.
 
 Live manager mode needs a tool-capable Memory Manager model whose connection is
 reachable and, when it expects one, has its key (`OPENAI_API_KEY` for built-in
-OpenAI rows). Check `GET /v1/model-roles`. For local no-model development, set
+OpenAI rows, `ANTHROPIC_API_KEY` for Anthropic rows). Check `GET /v1/model-roles`. For local no-model development, set
 `ANIMAMA_LLM_SKIP=1` before starting the backend.
 
 ### Approval is stuck pending
@@ -1080,7 +1184,11 @@ HTTP schemas and routes:
 Runtime adapters:
 
 - `src/backend/animama/adapters/openai_agents/runner.py`
+- `src/backend/animama/adapters/memory_manager/runtime_selector.py`: runtime by
+  row provider type
 - `src/backend/animama/adapters/memory_manager/openai_agents_runtime.py`
+- `src/backend/animama/adapters/memory_manager/anthropic_runtime.py` and
+  `anthropic_memory_tool.py`: the Anthropic runtime and its memory tool
 - `src/backend/animama/adapters/memory_manager/fake_runtime.py`
 - `src/backend/animama/adapters/memory_manager/workspace.py`
 - `src/backend/animama/adapters/memory_manager/reflection.py`: Reflection
@@ -1107,6 +1215,10 @@ Tests:
 - `tests/test_memory_manager.py`
 - `tests/test_memory_manager_identities.py`
 - `tests/test_memory_manager_reflection.py`
+- `tests/test_anthropic_memory_manager.py` and `tests/test_anthropic_memory_tool.py`
+- `tests/live/test_anthropic_memory_manager.py` (opt-in, paid): a preference
+  recorded, its outdated predecessor corrected, approved after a fresh service
+  build and resumed on Claude Haiku 5.5
 - `tests/test_memory_files.py`
 
 ## Version History

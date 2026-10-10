@@ -1,3 +1,4 @@
+import { cn } from "@/lib/utils";
 import {
   TabsList,
   TabsTrigger,
@@ -14,7 +15,9 @@ import {
  * The provider tabs under Cloud | Local, shared by setup's AI step and App
  * Settings → Models: left-aligned underline tabs in the location's provider
  * order, with a dot (and screen-reader text) on connected providers. Render
- * inside a `Tabs` whose values are the provider entry ids.
+ * inside a `Tabs` whose values are the provider entry ids. Tabs are padded
+ * more tightly than Library tabs so every Cloud provider fits the settings
+ * dialog at desktop widths; narrower windows scroll the strip.
  */
 export function ModelProviderTabsList({
   groups,
@@ -39,7 +42,7 @@ export function ModelProviderTabsList({
             key={id}
             value={id}
             variant="underline"
-            className={underlineTabClassName(active === id)}
+            className={cn(underlineTabClassName(active === id), "px-2")}
           >
             <span className="inline-flex items-center gap-1.5">
               {name}
