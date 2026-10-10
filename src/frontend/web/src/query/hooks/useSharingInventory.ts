@@ -46,14 +46,9 @@ export function useSharingInventory(enabled: boolean) {
       return pages
         .flatMap((page) =>
           page.data.items
-            // Licensed built-in sounds travel with nothing; they aren't listed.
+            // Licensed sounds travel with nothing; they aren't listed.
             .filter(
-              (item) =>
-                !(
-                  item.kind === "sound_effect" &&
-                  item.source === "included" &&
-                  isNonPortable(item)
-                ),
+              (item) => !(item.kind === "sound_effect" && isNonPortable(item)),
             )
             .map(({ item_id, name, kind, description, portability }) => ({
               item_id,

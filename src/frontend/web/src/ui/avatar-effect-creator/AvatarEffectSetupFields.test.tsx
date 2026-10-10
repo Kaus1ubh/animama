@@ -11,23 +11,10 @@ vi.mock("@/ui/sound-upload/SoundUploadButton", () => ({
   SoundUploadButton: () => null,
 }));
 
-function fields(input: {
-  licensedSoundOmitted: boolean;
-  sound?: boolean;
-}): string {
-  const document = createDefaultAvatarEffectDocument();
+function fields(input: { licensedSoundOmitted: boolean }): string {
   return renderToStaticMarkup(
     <AvatarEffectSetupFields
-      document={{
-        ...document,
-        sound: input.sound
-          ? {
-              alias: "on-apply",
-              label: "My Pop",
-              source: { type: "catalog", catalog_item_id: "my-pop" },
-            }
-          : null,
-      }}
+      document={createDefaultAvatarEffectDocument()}
       imageResources={NO_AVATAR_EFFECT_IMAGES}
       imageBusy={null}
       imageError={null}

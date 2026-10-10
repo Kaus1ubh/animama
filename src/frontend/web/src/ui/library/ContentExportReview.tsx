@@ -8,6 +8,25 @@ import {
 } from "./SharingPackageDetails";
 import { sharingSize } from "./sharingPresentation";
 
+/** Licensed sounds the package leaves out with no reference (summary only). */
+function omittedSounds(flow: LibrarySharingFlow): number {
+  return (flow.summary?.omitted ?? []).filter(
+    (item) => item.kind === "sound_effect",
+  ).length;
+}
+
+function OmittedEffectSounds({ count }: { count: number }) {
+  if (!count) return null;
+  return (
+    <p className="text-muted-foreground text-sm">
+      {count === 1
+        ? "1 built-in effect sound stays with this app."
+        : `${count} built-in effect sounds stay with this app.`}{" "}
+      Imported copies of those effects play without them.
+    </p>
+  );
+}
+
 /** Only the prepared immutable manifest is shown at the final download step. */
 export function ContentExportReview({ flow }: { flow: LibrarySharingFlow }) {
   const review = flow.exportReview;
@@ -56,6 +75,7 @@ export function ContentExportReview({ flow }: { flow: LibrarySharingFlow }) {
           }),
         )}
       />
+      <OmittedEffectSounds count={omittedSounds(flow)} />
       {flow.downloadStarted && !flow.notice ? (
         <p role="status" className="bg-muted rounded-xl p-4">
           Download started. Check your browser’s downloads for the file.

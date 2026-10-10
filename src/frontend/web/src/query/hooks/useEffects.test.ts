@@ -25,7 +25,7 @@ describe("listedEffectRows", () => {
       row("Pop", { portability: "non-portable" }),
       row("Bell"),
       row("Mine", { origin: "owned", catalog_source: "local" }),
-      // A Local copy of restricted bytes stays visible so it can be deleted.
+      // A Local file with the same licensed bytes is hidden too.
       row("Copy", {
         origin: "owned",
         catalog_source: "local",
@@ -34,7 +34,7 @@ describe("listedEffectRows", () => {
     ];
     expect(
       listedEffectRows("sound_effect", rows, {}).map((item) => item.name),
-    ).toEqual(["Bell", "Copy", "Mine"]);
+    ).toEqual(["Bell", "Mine"]);
   });
 
   it("keeps other families' rows, filtered by origin and query", () => {

@@ -123,13 +123,10 @@ export function listedEffectRows(
   return rows
     .filter(
       (item) =>
-        // Licensed built-in sounds play only through their built-in effects:
-        // Library and the creator pickers never list or preview them alone.
-        !(
-          kind === "sound_effect" &&
-          item.catalog_source === "included" &&
-          isNonPortable(item)
-        ) &&
+        // Licensed sounds play only through their built-in effects: Library
+        // and the creator pickers never list or preview them alone. A Local
+        // file with the same bytes is non-portable too, and equally hidden.
+        !(kind === "sound_effect" && isNonPortable(item)) &&
         (origin === "all" ||
           (origin === "builtin"
             ? item.catalog_source === "included"

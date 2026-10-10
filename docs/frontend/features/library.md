@@ -175,8 +175,10 @@ package before **Download package**. Missing or changed sources require another
 review; an expired export can be prepared again from the retained selection.
 Downloaded filenames use the installation owner's display name (or `content`
 when unavailable), followed by a UTC timestamp. Non-portable items are listed
-but cannot be selected. A review lists any non-portable items the package leaves
-out, for example Gestures pooled by a selected Idle Style.
+but cannot be selected, except licensed sounds, which are not listed. A review
+lists any non-portable items the package leaves out, for example Gestures pooled
+by a selected Idle Style, and says how many built-in effect sounds stay with
+this app (imported copies of those effects play without them).
 
 In Anima mode, choose a saved companion and review its full identity and selected
 content before **Export Anima**. The package includes its name, identity, Avatar,

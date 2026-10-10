@@ -216,10 +216,10 @@ starting revision; implementers re-check them.
   picker instead of being listed with a reason. A Library card that plays a
   licensed sound on its own would resemble the soundboard or sound library the
   vendor's terms forbid; the sounds are heard only through their effects
-  (Library effect Preview plays them). Local copies of restricted bytes stay
-  visible so they can be deleted. The export review shows the omitted sounds as
-  one "N built-in effect sounds" row. The Scene Effect creator drops a licensed
-  sound without a note: no built-in Scene Effect has one.
+  (Library effect Preview plays them). A Local file with the same bytes is
+  hidden too (revised after Code Review #2). The export review says how many
+  built-in effect sounds stay with this app. The Scene Effect creator drops a
+  licensed sound without a note: no built-in Scene Effect has one.
 
 ## Phased implementation
 
@@ -440,7 +440,8 @@ test changes meaning; review passes.
 #### Phase 2 references
 
 Issue: #403. Commits: `125849f8` (`feat(content)[p2]: keep built-in effects
-silent without their licensed sound`) and the Code Review #1 revision commit.
+silent without their licensed sound`) and `00372a73` (`fix(content)[p2]: let
+an unmounted sound pack withdraw and cover review findings`).
 
 #### Phase 2 results
 
@@ -506,6 +507,39 @@ scratch probes outside the repository.
   `package_optional_dependency`; plan item 3 corrected; the publication port
   documents the resolution requirement. The export out-parameter is kept,
   matching `uses`.
+- Checks after revisions: `tests/test_optional_sound_dependencies.py` 12
+  passed, `tests/test_local_content_catalog.py` passed; ruff, format and mypy
+  clean. Repair budget: one round used.
+
+#### Code Review #2 Findings
+
+Independent `sdlc-reviewer`, 2026-10-10, targeted recheck of `00372a73` on an
+exported copy. Every P2-F1 to P2-F4 fix verified, including both regression
+tests failing on the pre-fix code and rollback restoring deleted edges when a
+lease blocks withdrawal. Checks: 81 targeted and 276 related tests, the full
+suite (3371 passed, 10 skipped), ruff, format, mypy and the import-boundary
+check. **Blocked** on one record fix:
+
+- **P2-R2-F1 (required):** the `non_portable_packages.py` docstring still said
+  the receiver's built-in effect carries the sound.
+- Optional: P2-R2-F2 a hand-copied Local effect that names a pack sound is
+  invalid yet still blocks withdrawal until a Local rescan; P2-R2-F3 the
+  desktop preflight still counts Included edges that withdrawal now rebuilds
+  (no current impact: the pack isn't a feature pack), and three statements
+  say they share checks; P2-R2-F4 record lines missing; the
+  `non_portable_references` sentence could read as covering sounds.
+
+#### Code Review #2 Revisions
+
+- P2-R2-F1 accepted: the docstring states the Q1 rationale.
+- P2-R2-F3 accepted: `http-api.md`, the blocker docstring and the withdrawal
+  docstring describe the difference.
+- P2-R2-F4 accepted: commit hash, checks and repair budget recorded.
+- The marketplace sentence now names Gestures and Idle Styles.
+- P2-R2-F2 recorded only: narrow, recoverable with a Local rescan, and
+  consistent with Local items blocking withdrawal.
+- Repair budget: two rounds used; the final integration review is the last
+  check.
 
 ### Phase 3: Frontend affordances
 
@@ -549,7 +583,9 @@ explains every unavailable action in text; review passes.
 #### Phase 3 references
 
 Issue: #404. Commits: `2af87a0a` (`feat(content)[p3]: keep licensed sounds out
-of creators and the Library`) and the Code Review #1 revision commit.
+of creators and the Library`) and `fc90142d` (`feat(content)[p3]: hide licensed
+sounds everywhere and cover review findings`; first committed as `144eb3db`,
+re-split before push because it had swept in Phase 4 script changes).
 
 #### Phase 3 results
 
@@ -566,9 +602,11 @@ Browser check (2026-10-10, review stack `animama-sfx` at
   note under "Sound when applied"; the picker offers only "No sound".
 - Library Preview of Sweat Drop plays its licensed sound (an `Audio` element
   created from the preview's blob and played).
-- The export picker listed the licensed sounds as disabled rows, and the
-  Anima export review listed 23 sounds one by one; both are changed in the
-  revisions below.
+- The export picker listed the licensed sounds as disabled rows (changed in
+  the revisions below). *Correction (Code Review #2):* an earlier version of
+  this record said the Anima export review listed 23 sounds one by one. That
+  came from the API summary (`omitted`), not the UI, which showed nothing
+  about the omitted sounds.
 - Not run: `pnpm e2e:test:fast` (pending, with the final candidate).
 
 #### Code Review #1 Findings
@@ -604,12 +642,47 @@ blockers. Checks: 634 targeted tests, prettier, eslint, `tsc`.
 - P3-N5 accepted: the note is a described `<p>`, cleared on JSON import, and
   its state is declared before use; recovered drafts show no note (they kept
   no licensed sound).
-- P3-N6 accepted: the export picker hides licensed built-in sounds, and the
-  review collapses omitted sounds into one row (tested).
+- P3-N6 accepted: the export picker hides licensed built-in sounds. (A review
+  row collapsing omitted sounds was added here but could never receive them;
+  see Code Review #2.)
 - P3-N1 recorded as a limitation (Decision Log); P3-N7 the browser evidence
   is above, e2e pending; P3-N8 not changed (unreachable for typed previews).
 - Checks after revisions: 706 targeted tests pass; `pnpm check` and
-  `pnpm web:lint` pass.
+  `pnpm web:lint` pass. Repair budget: one round used.
+
+#### Code Review #2 Findings
+
+Independent `sdlc-reviewer`, 2026-10-10, targeted recheck of `fc90142d`.
+Confirmed: the sharing filter, the note state, placement and accessibility, the
+`sound` error field and the action-copy test. Checks: 706 tests, eslint,
+prettier, `tsc`, 12 backend tests. **Blocked** on two findings:
+
+- **P3-R2-F1 (required):** narrowing the shared filter to Included sounds
+  (P3-N4) put Local restricted copies back into every sound picker, and their
+  Library card's "Use in Gesture" opened an empty creator without explanation.
+- **P3-R2-F2 (required):** the collapsed review row was unreachable: omitted
+  sounds are only in the export summary, never in `non_portable_references`,
+  so neither review mentioned them, contrary to this record.
+- Optional: the deep-link guard comment said "sound" for any non-portable
+  component; `library.md` still said all non-portable items are listed in the
+  export picker; the save-service comment; an unused test parameter; the
+  Phase 3 commit carried the Phase 4 draft table.
+
+#### Code Review #2 Revisions
+
+- P3-R2-F1 accepted: the shared filter hides every non-portable sound again,
+  in Library, the pickers and the export picker; a Local file with licensed
+  bytes isn't listed and is removed by hand (Decision Log updated).
+- P3-R2-F2 accepted (the reviewer's option a): the dead row is removed, and the
+  export review reads the summary's `omitted` sounds and says "N built-in
+  effect sounds stay with this app. Imported copies of those effects play
+  without them." (tested). The import review can't know about them (no
+  reference is recorded), so it says nothing; item 5 is met for export only.
+- Optional notes applied: comments, `library.md`, the test parameter. The
+  draft table in the Phase 3 commit is left as plan history.
+- Checks after revisions: 694 targeted tests, `pnpm check`, `pnpm web:lint`,
+  ruff and format pass. Repair budget: two rounds used; the final integration
+  review is the last check.
 
 ### Phase 4: Sound mapping, pack assembly and integration
 
@@ -734,7 +807,25 @@ content; review passes.
 
 #### Phase 4 references
 
-Issue: #405. Commits: none yet.
+Issue: #405. Commits: `50cdb5dd` (`feat(content)[p4]: let promotion attach
+licensed sounds and document the sound pack`). Content, manifest and stacking
+changes are committed after G2.
+
+#### Phase 4 progress (2026-10-10)
+
+- Done, not gated: ADR 0019 (proposed), the pack guide, README, runtime,
+  Library and skill docs, WOW Sound credit in the packaged notice and licence
+  docs, and effect promotion that keeps or attaches a licensed sound (step 8;
+  15 promote tests pass).
+- Prepared, awaiting G2: the candidate pack in `build-inputs/wow-comedy-sfx/`
+  (26 sounds; purchase date, licensee and order reference left blank for the
+  owner, so `verify` fails only on provenance), a candidate `v1` manifest, the
+  26 descriptor edges, the stacking pass on 14 Reactions, two integrity tests
+  and the conversion golden test now ignoring `soundAlias`. Full backend suite
+  with these edits: 3368 passed, 1 failed (the golden test, since fixed).
+- Review stack: `animama-sfx` at `http://animama-sfx.localhost:8400`, with the
+  candidate pack mounted through an untracked override in
+  `build-inputs/review/`.
 
 #### Code Review #1 Findings
 

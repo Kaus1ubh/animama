@@ -130,8 +130,8 @@ class ContentSaveService:
                 raise ContentConflictError("content_creator_claim_conflict")
         if item.status is not ContentStatus.VALID:
             codes = {diagnostic.code for diagnostic in item.diagnostics}
-            # Name policy refusals the editor can explain (it targets its sound
-            # control); the save rolls back.
+            # Name policy refusals the editors can explain (effect creators
+            # highlight their sound control); the save rolls back.
             if "non_portable_dependency" in codes:
                 raise ContentConflictError("content_non_portable_dependency")
             if "dependency_optional_not_allowed" in codes:
