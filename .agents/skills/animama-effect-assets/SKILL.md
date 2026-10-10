@@ -61,7 +61,8 @@ effect skill).
    lines must be fixed; WARN lines need a look.
 5. **Fix:** `pnpm -s effects:assets fix <src.png> --out <effect
    folder>/<name>.png --budget <name> [options]`. `--budget` also shrinks the
-   art to the budget (check's "fix --max N" hint is the same thing). Choose
+   art to the budget (check's "fix --max N" hint is the same thing; an
+   explicit `--max` wins over the budget's size, for smaller sprites). Choose
    options from the check:
    - `checkerboard` or `solid_background` → `--remove-background`;
    - `near_opaque` or `faint_alpha` → nothing to add (fix raises alpha ≥ 250
@@ -70,7 +71,8 @@ effect skill).
      see-through art (glows, tears, shades); `--budget surface` never reports
      it, since painted tints are see-through by design;
    - `padding` → `--trim --pad 8 --square` for floating, body and sticker
-     art (`--pad` is in output pixels, after shrinking to the budget).
+     art, Scene stickers and Particle sprites included (`--pad` is in output
+     pixels, after shrinking to the budget).
    - Painted art placed by its framing (an iris pattern, a decal): `--canvas
      <px> --art-size <px>` trims the art, scales it to `art-size` and centres
      it on a `canvas` square, so redone art keeps the same framing (match the
@@ -84,7 +86,8 @@ effect skill).
 6. **Preview:** `pnpm -s effects:assets preview <name>.png --out
    <name>-preview.png`, then Read the preview. It shows the art on a dark, a
    light and a checkered backdrop. Halos, grey edges, dark smudges and holes
-   show here. `--solid-interior` fixes only alpha: a smudge painted into the
+   show here; `check` does not report a fully transparent hole inside the
+   art, so look for one. `--solid-interior` fixes only alpha: a smudge painted into the
    colour means regenerate or edit the source.
 7. **Flipbooks:** make each frame as its own image (same canvas and framing;
    `--ref` the first frame), fix each frame with the same options, then
@@ -115,7 +118,7 @@ effect skill).
 | `flipbook` | A whole flipbook sheet; frames near 256 px | 2048 px | 1024 KiB |
 | `particle-texture` | One Particle sprite | 512 px | 256 KiB |
 | `particle-sheet` | A Particle sprite sheet; tiles near 256 px | 2048 px | 1024 KiB |
-| `scene-sticker` | A Scene marquee item | 512 px | 256 KiB |
+| `scene-sticker` | A Scene marquee or scatter item | 512 px | 256 KiB |
 | `scene-tile` | A repeating Scene pattern tile (may be opaque; keeps its margins) | 512 px | 256 KiB |
 | `scene-background` | A full Scene background (may be opaque; keeps its framing) | 2048 px | 1024 KiB |
 
@@ -135,14 +138,18 @@ floating effects. See the `animama-avatar-vfx` references.
 
 ## Prompt template
 
-Keep one subject per image. Use only the lines that help:
+Keep one subject per image. Use only the lines that help. For a Particle or
+Scene texture, replace the first line with its use (for example "Use case: a
+glossy particle sprite for a glowing heart burst" or "Use case: a flat
+background motif for a Scene backdrop") and drop the gag and face lines that
+do not apply:
 
 ```text
 Use case: anime comedy symbol (manpu) drawn over a 3D anime avatar (<attachment, e.g. floating beside the head>)
 Gag: <the beat it lands and the trope it borrows, e.g. "caught out and embarrassed: the classic anime sweat drop on the temple">
 Reference: <a well-known example of the trope, e.g. "the deadpan bar eyes of Frieren's reaction face", or the matching emoji>
 Subject: <one symbol, e.g. a single big sweat drop>
-Style/medium: the symbol as an anime artist draws it for a gag: iconic, exaggerated, flat colour (cel shading only where the trope has it), bold clean shape, 2–3 colours, no gradients unless asked
+Style/medium: the symbol as an anime artist draws it for a gag: iconic, exaggerated, flat colour (cel shading only where the trope has it), bold clean shape, 2–3 colours, no gradients unless asked (Particle textures instead: glossy, soft gradients, a glow or glint, per their skill)
 Colour palette: <colours from the brief>
 Composition: the subject centred and filling most of a square canvas, nothing cropped
 Background: fully transparent (real alpha channel), no checkerboard, no backdrop, no shadow

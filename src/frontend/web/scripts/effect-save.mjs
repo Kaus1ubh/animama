@@ -2,6 +2,8 @@ import { createHash } from "node:crypto";
 import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
+import { builtInTextureCollisions } from "./effect-check.mjs";
+
 /**
  * `pnpm -s effects save <items.json>`: save reviewed effect sources as Local
  * Avatar, Particle or Scene Effects through that kind's creator, in a
@@ -155,8 +157,8 @@ export async function editorImage(file, { svg = false } = {}) {
  * - `avatar`: `createAvatarEffectDocumentFromDefinition`,
  *   `buildAvatarEffectEditorExport` and `avatarEffectDefinition`;
  * - `particle`: `createParticleVFXEditorDraftFromImport`,
- *   `buildParticleVFXCreatorDocument`, `missingParticleVFXTextureReferences`
- *   and `parseParticleVFXRuntimeConfig`;
+ *   `buildParticleVFXCreatorDocument`, `missingParticleVFXTextureReferences`,
+ *   `PARTICLE_VFX_EDITOR_TEXTURES` and `parseParticleVFXRuntimeConfig`;
  * - `scene`: `createSceneEffectDocumentFromDefinition`,
  *   `buildSceneEffectEditorExport`, `sceneEffectDefinition` and
  *   `canonicalSceneEffectImageName`.
@@ -189,6 +191,18 @@ export async function importDocumentFor(effect, item, editors) {
         file,
       ]),
     );
+    const collisions = await builtInTextureCollisions(
+      effect,
+      new Set(
+        particle.PARTICLE_VFX_EDITOR_TEXTURES.map(
+          (texture) => texture.relativeUrl,
+        ),
+      ),
+    );
+    if (collisions.length)
+      throw new EffectSaveError(
+        `${effect.descriptorPath}: ${collisions.join(", ")} ${collisions.length === 1 ? "is" : "are"} named like the creator's built-in textures, which it would save instead; rename ${collisions.length === 1 ? "it" : "them"} (and the image URLs).`,
+      );
     // The creator saves only the textures the effect's images use, so a
     // listed texture nothing uses would be missing from the saved item.
     const used = new Set(

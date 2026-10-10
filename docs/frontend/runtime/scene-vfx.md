@@ -359,9 +359,10 @@ written before them are unchanged and keep `animama/scene-effect/1`:
 6. `SceneVFXMarqueeLayer`
 7. `SceneVFXScatterLayer`, once per `scatters` entry: `count` items picked from
    `items`, with seeded per-item size, rotation and opacity ranges, a start
-   region, `keepFaceClear` (still items avoid the column behind the head),
-   drift in a marquee direction, a spin range (`alternateSpin`) and a `pulse`
-   (`twinkle`, `pop` or `flicker`). Drifting items cross the whole view on
+   region, `keepFaceClear` (still items, and items drifting straight up or
+   down, avoid the column behind the head), drift in a marquee direction, a
+   spin range (`alternateSpin`) and a `pulse` (`twinkle`, `pop` or
+   `flicker`). Drifting items cross the whole view on
    off-screen tracks, so nothing appears or vanishes mid-view.
 8. `SceneVFXFlashLayer`: one fade from `color` over `durationMs` when the Scene
    starts.

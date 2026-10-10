@@ -17,7 +17,9 @@ import sharp from "sharp";
 
 import {
   budgetForDefinition,
+  builtInTextureCollisions,
   particleTextureBudgets,
+  sceneImageLines,
   summarizeCheck,
 } from "./effect-check.mjs";
 import {
@@ -27,7 +29,10 @@ import {
   planEffectPromotion,
   workingTreeRepo,
 } from "./effect-promote.mjs";
-import { resolveAnyEffectSource } from "./effect-render-sources.mjs";
+import {
+  INCLUDED_CONTENT_ROOT,
+  resolveAnyEffectSource,
+} from "./effect-render-sources.mjs";
 import {
   definitionDifference,
   editorImage,
@@ -102,6 +107,7 @@ test("check results become pass, warn and fail lines", () => {
         file: "/drafts/x/art.png",
         issues: [{ level: "WARN", code: "padding", message: "wide margins" }],
       },
+      { file: "/drafts/x/clean.png", budget: "scene-sticker", issues: [] },
     ],
     page: {
       parseError: null,
@@ -122,9 +128,15 @@ test("check results become pass, warn and fail lines", () => {
   });
   assert.deepEqual(
     lines.map((line) => line.level),
-    ["WARN", "PASS", "WARN"],
+    ["WARN", "PASS", "PASS", "WARN"],
   );
   assert.match(lines[0].message, /^art art\.png: wide margins \[padding\]$/);
+  // Clean art says so, so the summary shows the art was checked.
+  assert.equal(
+    lines[1].message,
+    "art clean.png: within the scene-sticker budget",
+  );
+  lines.splice(1, 1);
   assert.match(
     lines[1].message,
     /^Y_0: visible in 2 of 4 frames, up to 80 px \(front, 1s\) \(not in face 0\.25s, face 1s\)$/,
@@ -1050,6 +1062,16 @@ test("render refuses two sources with one stem for directory output", async () =
   assert.match(result.stdout, /share the stem "drop"/);
 });
 
+test("a clean Scene definition and image list report a PASS line", () => {
+  assert.deepEqual(
+    sceneImageLines({
+      listedImages: ["drop.png"],
+      imagePaths: { "drop.png": "/x/drop.png" },
+    }),
+    [{ level: "PASS", message: "scene: 1 image shown and listed" }],
+  );
+});
+
 test("holds a Particle texture to the sheet budget when an emitter tiles it", () => {
   const emitter = (material, uTileCount) => ({
     type: "ParticleEmitter",
@@ -1741,6 +1763,7 @@ test("Particle and Scene import documents come from the creators' functions", as
     missingParticleVFXTextureReferences: (draft) =>
       draft.quarksJson.images.map((image) => image.url),
     parseParticleVFXRuntimeConfig: (slot) => ({ defaultAnchor: slot.anchor }),
+    PARTICLE_VFX_EDITOR_TEXTURES: [{ relativeUrl: "textures/heart.png" }],
   };
   const job = await importDocumentFor(glow, { name: "Glow" }, { particle });
   assert.equal(job.name, "Glow");
@@ -1765,6 +1788,17 @@ test("Particle and Scene import documents come from the creators' functions", as
       },
     ),
     /draws textures\/other\.png, which the folder does not list/,
+  );
+  // An own texture named like a built-in one is refused before saving.
+  await assert.rejects(
+    importDocumentFor(
+      await particleSource("clash", "textures/heart.png"),
+      {},
+      {
+        particle,
+      },
+    ),
+    /textures\/heart\.png is named like the creator's built-in textures/,
   );
   await assert.rejects(
     importDocumentFor(
@@ -1933,4 +1967,28 @@ test("promotion refuses Particle textures nested past what a delete can clear", 
     ),
     /texture "textures\/a\/b\.png" must be a file name or one folder deep/,
   );
+});
+
+test("an own texture named like a built-in creator texture is found", async () => {
+  const builtIns = new Set(["textures/heart.png", "textures/sparkle.png"]);
+  // Different bytes under a built-in's name: the creator would save its own.
+  const own = await particleSource("own", "textures/heart.png");
+  assert.deepEqual(await builtInTextureCollisions(own, builtIns), [
+    "textures/heart.png",
+  ]);
+  // The built-in's own bytes (an effect that copied it) are fine.
+  const copied = await particleSource("copied", "textures/heart.png");
+  await writeFile(
+    copied.texturePaths[0],
+    await readFile(
+      path.join(
+        INCLUDED_CONTENT_ROOT,
+        "vfx/particle/particle-vfx/textures/heart.png",
+      ),
+    ),
+  );
+  assert.deepEqual(await builtInTextureCollisions(copied, builtIns), []);
+  // Any other name is the effect's own.
+  const named = await particleSource("named", "textures/glossy-heart.png");
+  assert.deepEqual(await builtInTextureCollisions(named, builtIns), []);
 });

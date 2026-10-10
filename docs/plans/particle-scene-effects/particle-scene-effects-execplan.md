@@ -89,7 +89,9 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - [x] P7 — Save and promote (R5). Review passed at round 2; G3 demonstration
       passed on a deleted throwaway branch. Includes the owner's graceful
       removal of Included effects under Local Actions.
-- [ ] P8 — Pipeline skills and fresh-agent dry runs (R7). Gate G2.
+- [x] P8 — Pipeline skills and fresh-agent dry runs (R7). Review passed at
+      round 2; G2 approved Gloom Sadness and Heart Burst (saved as Local
+      content); three other drafts were not approved.
 - [ ] P9 — Documentation and acceptance (R8). Gate G4.
 - [ ] Final integration review and PR.
 
@@ -131,7 +133,6 @@ Paths: frontend relative to `src/frontend/web/`, backend to
 - 2026-10-09 (planning): `effects:assets check` fails any PNG without alpha, so
   an opaque full Scene background cannot pass today; the background budget needs
   an opaque-allowed mode.
-
 - P7: the spec assumed a Local Action referencing a removed Included effect
   plays without it; the catalog instead invalidated it (it left chat and its
   creator could not open it). The owner chose to implement the assumed
@@ -217,6 +218,20 @@ Paths: frontend relative to `src/frontend/web/`, backend to
   opens in its creator, which reports the removed effect, and is refused by
   Portable export until repaired. Every other unresolved dependency stays
   invalidating.
+- **2026-10-10, owner — Particle direction and composite effects.** Particle
+  Effects are glossy, layered polish (hero, additive halo, sparkles, extras),
+  not gag symbols, which stay Avatar Effects; the Particle skill says so, and
+  the P8 Particle dry run uses R9 #2 "Heart burst" in that style. Composite,
+  moving, Gesture-enhancing effects (a blown-kiss heart from the mouth toward
+  the viewer, a heart drawn with a fingertip: finer anchors, effect motion,
+  hero layers, strokes) are deferred until after Plans 2 and 3; Plan 2's
+  Particle library is built on today's runtime.
+- **2026-10-10, owner — Particle quality bar.** Heart Burst (P8 dry run 3,
+  approved at G2) sets the level of quality and finish for future Particle
+  Effects (a glossy hero with highlight and shading, a gentle glow, finished
+  secondary layers), not a fixed recipe: simpler effects may skip the ring
+  and sparkles and use any motion, not necessarily a pop. Scripted movement of the hero (moving it along a path or toward the
+  viewer) waits for the composite-effects work after Plan 2.
 
 ## Gates
 
@@ -1661,9 +1676,186 @@ Completion: the R6/R7 acceptance items pass.
 
 #### P8 record
 
+Starting source and issue: `5062ccfb`, #393.
+
+Skills (step 1–2): `animama-particle-vfx` rewritten as a pipeline (steps
+0–9) with new references `brief.md` (mechanics table), `effect-folder.md`,
+`batch.md`, `promote.md`, and `creator.md` updated for texture import and the
+creator document; `animama-scene-vfx` added with `brief.md`,
+`effect-folder.md`, `layers.md` (every background layer with its ranges),
+`focus-lines.md`, `creator.md`, `batch.md`, `promote.md`; both with an
+`agents/openai.yaml` default prompt. The Scene skill's example folder passes
+`effects check` on both Avatars.
+
+Dry runs (step 3): fresh agents with no conversation context, briefs "Sweat
+Spray" (R9 #8, a burst with own droplet art) and "Gloom Sadness" (the G1
+Gloom family's sadness background), each stopping at the owner's live
+preview (G2) before saving.
+
+Dry run 1 (2026-10-10): both agents reached the live preview with checked,
+rendered effects (Sweat Spray: three bursts of its own stretched droplet art,
+budget 18; Gloom Sadness: overcast gradient, 40 gloom lines, 22 drops of its
+own art). Logs: 15 and 17 entries. Material gaps fixed before the rerun:
+
+- the skills' examples matched the test briefs and were copied; replaced with
+  neutral examples (Fume Puffs, Proud Radiance; the Scene example passes
+  `effects check`);
+- Particle art direction contradicted the asset prompt template (flat colour);
+  the template now defers to the Particle skill;
+- no guidance on keeping a spray in the camera plane, the stretched-billboard
+  axis, Speed Over Life versus gravity, pale colours from empty texture
+  `colorSpace`, `depth_offset` and `schema_version`; added to the Particle
+  effect-folder reference;
+- Scene density depends on view shape; step 5 now asks for a chat-shaped sheet
+  (`--tile 960x600 --views front`), times inside a drift loop and a few seeds;
+  the family brief governs its mock and maps onto the current layer schema;
+  departures go in the brief; `keepFaceClear` was misdescribed (also in
+  `docs/frontend/runtime/scene-vfx.md`);
+- `effects check` printed nothing for checks that passed; it now prints a
+  PASS line for clean art and for the Scene limits and image list
+  (`effects.test.mjs`, `effect-check.browser.test.mjs` updated);
+- smaller items: default check times for sub-second bursts, `--tile`/`--views`,
+  notes location, retry rule for a defective texture, `scene-sticker` covering
+  scatter items, `check` missing fully transparent holes.
+
+G2, run 1: the owner did not review or approve these drafts (no notes, and
+asked to continue); they are archived under `.animama-drafts/dry-run-1/` and
+not saved. Dry run 2 repeats both briefs with fresh agents on the fixed
+skills.
+
+Dry run 2 (2026-10-10): both agents reached the live preview with all checks
+passing; logs 17 (Particle) and 20 (Scene) entries, the Scene run with no rule
+broken. G2 (owner, 2026-10-10):
+
+- **Gloom Sadness approved** as is; the agent saved it through the creator
+  (`effects save`: read back, compared, reopened; `local:scene-effect:gloom-sadness`,
+  image bytes identical, `effects check library:scene-effect/local/gloom-sadness`
+  passes). The Scene skill passes R7 end to end.
+- **Sweat Spray rejected**: the idea suits particles badly (sweat is an anime
+  symbol the `sweat_drop` Avatar Effect already covers) and the owner disliked
+  the art. Not saved. The Particle dry run continues with a new brief better
+  suited to particle polish, R9 #2 "Heart burst", with the owner's direction
+  added to the Particle skill first.
+- The eight Scene families become usable Scene FX in Plan 2 as planned.
+
+Before dry run 3 the Particle skill gained the owner's direction (glossy,
+layered polish; gag symbols stay Avatar Effects) and the run-2 gaps: the
+stretched-billboard axis (confirmed in the three.quarks shader; its length
+factors were first misdocumented, fixed at review: P8-R1-1),
+sprite sizes, budgets close to the estimate, judging against the Reactions'
+Scene backgrounds, preview port and `--no-open`.
+
+Dry run 3 (2026-10-10), "Heart Burst" (R9 #2): a fresh agent built a six-layer
+effect (glossy hero heart that beats and pops at 1.3 s, heart-shaped ring,
+14 small hearts fanning upward on a half sphere, glints, sparkles, a soft
+glow), four textures of its own, budget 38; `effects check` passes on both
+Avatars. **G2: approved** (it sets the quality bar; Decision Log). The agent
+saved it through the creator (`local:particle-effect:heart-burst`); the saved
+manifest and textures are identical to its folder, so the multi-part size
+curves, curve forms, colour keys and half-sphere arc survive Save. The
+Particle skill passes R7 end to end.
+
+The first save attempt failed its read-back: two of the agent's textures were
+named like built-in creator textures (`textures/heart.png`,
+`textures/sparkle.png`), so the creator silently kept its built-in art; check,
+renders and preview had used the agent's files. Fixed in the tools:
+`builtInTextureCollisions` (in `effect-check.mjs`) makes `effects check` fail
+and `effects save` refuse an own texture named like a built-in one with other
+bytes, before anything is saved (unit tests; checked on a real collision and
+on a built-in copy). Other run-3 learnings went into the skills: what forms
+Save keeps, burst timing within a cycle, sphere `arc`, `runtime_id` replaced
+by Save, the save line printed only after read-back and reopen, Reactions'
+own Particle Effects in `--with-clip` renders, asset prompts for textures and
+`--max` precedence; the estimate line now reads "Save's estimate".
+
+Not fixed, recorded: a dry-run agent guessed that the render's front view
+matches chat framing when placing the hero (Heart Burst entry 10); the skills
+say renders use the chat canvas settings but not its exact framing.
+
+Found in passing: the Included `spark-streak.png` is drawn vertically but two
+Included effects stretch it, so it likely draws across its motion; those
+effects are removed or replaced in Plan 2 (R13).
+
 #### Code Review #1 Findings
 
+Independent review of the uncommitted tree on `5062ccfb`:
+
+- **P8-R1-1 (required).** The Particle effect-folder reference gave
+  stretched-billboard defaults of `lengthFactor` 2 and `speedFactor` 0; a
+  manifest without `rendererEmitterSettings` gets 0 and 0 (the 2 comes only
+  from the creator's mode switch), and length is size × (speedFactor × speed
+  + lengthFactor), so a streak relying on the stated default is invisible.
+- **P8-R1-2 (required).** The Particle skill's running example, "Fume Puffs",
+  is a gag symbol the `steam_puffs` Avatar Effect covers, contradicting the
+  owner's direction; agents copy examples.
+- **P8-R1-3 (required).** The quality bar named the saved Local "Heart Burst",
+  which exists only on this worktree's stack and drafts, so later work cannot
+  find it.
+- **P8-R1-4 (required).** The record's Particle run-2 log count was wrong (17,
+  not 16) and the preview-lifetime gap (a preview stops when its agent's task
+  ends; neither skill says to keep it until the owner has reviewed it) was
+  neither fixed nor recorded; optionally record the framing guess and the
+  half-saved item after a failed read-back.
+- Optional: `--with-clip` for a Reaction needs `library:reaction/<name>`; the
+  one-folder texture rule is enforced only by promote; the Scene "render the
+  copies together" step reads as `--together`; "worst case" overstated the
+  estimate; the mechanics table named an emitter, not an effect; the Scene
+  save line; the tool reference and `effects --help` did not mention the
+  built-in-name FAIL; a stale `summarizeCheck` comment; a long doc line.
+
+Verified without defect: PASS lines are ignored by promote's FAIL filters;
+`BUILT_IN_TEXTURE_ROOT` matches the creator's alias; no Included texture newly
+fails (all 40 built-in-named copies are byte-identical); the collision check
+runs before Save writes; CLI flags, preview timing and port, save lines, every
+Scene range and creator label, art limits, `keepFaceClear`, IDs and rules,
+`--max` precedence and empty `colorSpace` match the code; both skills follow
+the 0–9 pipeline with every R7 brief field.
+
 #### Code Review #1 Revisions
+
+- **P8-R1-1 accepted.** The reference gives the formula, the real defaults
+  (0 and 0), says to always set both, and quotes the Included values
+  (`speedFactor` 0.02–0.04, `lengthFactor` 1.75–2.1, checked in the manifests).
+- **P8-R1-2 accepted.** The example is now "Twinkle Shimmer" (glints among
+  bokeh, R9 #3) across `brief.md`, `effect-folder.md`, `promote.md` and the
+  skill; its texture names avoid built-in names.
+- **P8-R1-3 accepted.** The approved Heart Burst (the saved manifest and
+  textures, with a clean descriptor) is checked in as
+  `.agents/skills/animama-particle-vfx/references/heart-burst/`, with owner-form
+  source-review records; it passes `effects check`. The skill points there and
+  names its hero texture as the style reference. When Plan 2 promotes Heart
+  Burst (R9 #2), the skill can point at the Included item instead.
+- **P8-R1-4 accepted.** Count corrected; both skills say to keep the preview
+  running until the owner has reviewed it and to stop it afterwards; the
+  framing guess is recorded above, and the Particle skill says a failed
+  read-back leaves the item to be revised by saving again (the collision
+  pre-check now prevents the case seen).
+- Optional items all applied, except the tool-reference doc, which P9's
+  documentation covers (`effects --help` now names the check).
+
+#### Code Review #2 Findings
+
+Targeted recheck (repair round 1): every Code Review #1 finding verified fixed
+(the stretched-billboard formula and defaults against three.quarks 0.17.1 and
+the Included manifests; no gag-symbol example left; the checked-in Heart
+Burst byte-identical to the saved item, public-safe, with owner-form records;
+the record and preview-lifetime guidance; every optional item). Result: pass.
+Optional: rewriting `licenses/source-review.json` from Python escaped three
+unrelated `é` characters (P8-R2-1); some long markdown lines.
+
+#### Code Review #2 Revisions
+
+P8-R2-1 applied: the file is written as the promote tool writes it, so the
+diff adds only the six records. Evidence: `effects.test.mjs` 26 pass,
+`effect-check.browser.test.mjs` 3 pass, `pnpm check` and `pnpm web:lint` pass,
+`pnpm -s test:source` passes (its `local-api-proxy.test.ts` failed only while
+another task's process held port 5173 and passes, 8 of 8, once it is free).
+Review budget used: one full review and one repair round; P8 review passes.
+
+P8 is complete: R7 passes for both skills (fresh agents made Gloom Sadness and
+Heart Burst from briefs to saved Local content), G2 was exercised on every
+dry-run effect (two approved and saved, three not approved and not saved), and
+the review passed.
 
 ### P9 — Documentation and acceptance (R8). Gate G4. #394
 

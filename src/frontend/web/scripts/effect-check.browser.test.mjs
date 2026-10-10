@@ -142,8 +142,10 @@ test("effects check passes visible art and fails invisible or invalid effects", 
       JSON.stringify(whiteTint.lines),
     );
 
-    assert.deepEqual(levels(invalid), ["FAIL"]);
-    assert.match(invalid.lines[0].message, /^definition: .*opacity/);
+    // The art passes its budget; the definition does not parse.
+    assert.deepEqual(levels(invalid), ["PASS", "FAIL"]);
+    assert.match(invalid.lines[0].message, /^art .*: within the .* budget$/);
+    assert.match(invalid.lines[1].message, /^definition: .*opacity/);
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
@@ -235,7 +237,9 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
     assert.deepEqual(fails(hearts), [], JSON.stringify(hearts.lines));
     assert.ok(
       hearts.lines.some((line) =>
-        /^particles: up to \d+ live \(declared budget 64/.test(line.message),
+        /^particles: Save's estimate is up to \d+ at once \(declared budget 64/.test(
+          line.message,
+        ),
       ),
       JSON.stringify(hearts.lines),
     );
@@ -269,7 +273,10 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
       joyExtra.lines
         .filter((line) => /^scene: /.test(line.message))
         .map(({ level, message }) => `${level} ${message}`),
-      ["WARN scene: extra.png is listed but no item shows it"],
+      [
+        "WARN scene: extra.png is listed but no item shows it",
+        "PASS scene: within the shared Scene limits",
+      ],
     );
   } finally {
     await rm(dir, { recursive: true, force: true });

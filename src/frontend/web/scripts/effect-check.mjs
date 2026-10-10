@@ -15,7 +15,10 @@ import {
   sourceRoots,
   withRendererPage,
 } from "./effect-render.mjs";
-import { sceneDefinitionImageUses } from "./effect-render-sources.mjs";
+import {
+  INCLUDED_CONTENT_ROOT,
+  sceneDefinitionImageUses,
+} from "./effect-render-sources.mjs";
 
 /**
  * `pnpm -s effects check`: the checks an Avatar, Particle or Scene Effect
@@ -119,7 +122,7 @@ async function checkFiles(entries) {
   for (const { file, budget } of entries) {
     try {
       const { issues } = await checkImage(file, { budget });
-      assets.push({ file, issues });
+      assets.push({ file, budget: budget.name, issues });
     } catch (error) {
       assets.push({
         file,
@@ -170,6 +173,34 @@ export async function sourceAssets(effect) {
   );
 }
 
+/** Where the creator's built-in textures (`textures/<file>`) are bundled from. */
+const BUILT_IN_TEXTURE_ROOT = path.join(
+  INCLUDED_CONTENT_ROOT,
+  "vfx/particle/particle-vfx",
+);
+
+/**
+ * The effect's own textures that are named like one of the creator's
+ * built-in textures (`builtInReferences`, such as `textures/heart.png`) but
+ * hold other bytes. The creator draws and saves its built-in art for such a
+ * reference, so the effect would be saved with art it was not reviewed with.
+ */
+export async function builtInTextureCollisions(effect, builtInReferences) {
+  const collisions = [];
+  for (const file of effect.texturePaths) {
+    const reference = path
+      .relative(effect.folder, file)
+      .split(path.sep)
+      .join("/");
+    if (!builtInReferences.has(reference)) continue;
+    const builtIn = await readFile(
+      path.join(BUILT_IN_TEXTURE_ROOT, reference),
+    ).catch(() => null);
+    if (!builtIn?.equals(await readFile(file))) collisions.push(reference);
+  }
+  return collisions;
+}
+
 /**
  * Report lines on a Particle Effect as the creator's Save would judge it:
  * the content readiness errors (limits, and image references that must name
@@ -207,6 +238,16 @@ export async function particleSourceLines(effect, server) {
       level: "FAIL",
       message: `particles: ${issue.message} (${issue.target})`,
     }));
+  for (const reference of await builtInTextureCollisions(
+    effect,
+    new Set(
+      editor.PARTICLE_VFX_EDITOR_TEXTURES.map((texture) => texture.relativeUrl),
+    ),
+  ))
+    lines.push({
+      level: "FAIL",
+      message: `particles: ${reference} is named like a built-in creator texture, so Save would keep the built-in art instead; rename the file and its image URL`,
+    });
   const estimate = editor.estimateParticleVFXParticles(draft.quarksJson);
   // The runtime caps the budget at the limit; report what the folder declares.
   const budget = draft.catalog.performanceBudget.maxParticles;
@@ -215,7 +256,7 @@ export async function particleSourceLines(effect, server) {
   lines.push({
     level:
       estimate > budget || declared > RUNTIME_PARTICLE_LIMIT ? "FAIL" : "PASS",
-    message: `particles: ${Number.isFinite(estimate) ? `up to ${estimate}` : "unbounded"} live (declared budget ${declared}, runtime limit ${RUNTIME_PARTICLE_LIMIT})`,
+    message: `particles: Save's estimate is ${Number.isFinite(estimate) ? `up to ${estimate}` : "unbounded"} at once (declared budget ${declared}, runtime limit ${RUNTIME_PARTICLE_LIMIT})`,
   });
   return lines;
 }
@@ -229,10 +270,13 @@ export async function sceneLimitLines(effect, server) {
   const { sceneDefinitionLimitIssues } = await server.ssrLoadModule(
     "/src/lib/scene-vfx/limits.ts",
   );
-  return sceneDefinitionLimitIssues(effect.definition).map((issue) => ({
-    level: "FAIL",
-    message: `scene: ${issue.message}`,
-  }));
+  const issues = sceneDefinitionLimitIssues(effect.definition);
+  return issues.length
+    ? issues.map((issue) => ({
+        level: "FAIL",
+        message: `scene: ${issue.message}`,
+      }))
+    : [{ level: "PASS", message: "scene: within the shared Scene limits" }];
 }
 
 /**
@@ -243,7 +287,7 @@ export async function sceneLimitLines(effect, server) {
 export function sceneImageLines(effect) {
   const listed = new Set(effect.listedImages);
   const shown = Object.keys(effect.imagePaths);
-  return [
+  const lines = [
     ...shown
       .filter((image) => !listed.has(image))
       .map((image) => ({
@@ -257,6 +301,14 @@ export function sceneImageLines(effect) {
         message: `scene: ${image} is listed but no item shows it`,
       })),
   ];
+  return lines.length || !shown.length
+    ? lines
+    : [
+        {
+          level: "PASS",
+          message: `scene: ${shown.length} image${shown.length === 1 ? "" : "s"} shown and listed`,
+        },
+      ];
 }
 
 /** Pixels of each tile in `applied` that differ from `baseline`. */
@@ -290,17 +342,24 @@ async function differingPixels(applied, baseline, threshold) {
 
 /**
  * Turn one effect's results into report lines `{ level, message }`.
- * `assets` are `{ file, issues }` per image; `page` holds the parse error,
+ * `assets` are `{ file, budget, issues }` per image (a clean one reports a
+ * PASS line naming its budget); `page` holds the parse error,
  * or each Avatar's diagnostics and differing pixels per frame.
  */
 export function summarizeCheck({ assets, page, times, views, tile }) {
   const lines = [];
-  for (const { file, issues } of assets)
+  for (const { file, budget, issues } of assets) {
     for (const issue of issues)
       lines.push({
         level: issue.level,
         message: `art ${path.basename(file)}: ${issue.message} [${issue.code}]`,
       });
+    if (!issues.length)
+      lines.push({
+        level: "PASS",
+        message: `art ${path.basename(file)}: within the ${budget} budget`,
+      });
+  }
   if (page.parseError) {
     lines.push({ level: "FAIL", message: `definition: ${page.parseError}` });
     return lines;
