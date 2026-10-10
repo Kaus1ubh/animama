@@ -3098,10 +3098,13 @@ export const zPyLoadoutCommitResult = z.object({
 
 /**
  * PyLoadoutDiagnostic
+ *
+ * A Loadout warning; clients word it from ``code`` and ``params``.
  */
 export const zPyLoadoutDiagnostic = z.object({
     code: z.string(),
     message: z.string(),
+    params: z.optional(z.record(z.string(), z.string())),
     scope: z.optional(z.enum(['source', 'target']))
 });
 

@@ -1,3 +1,7 @@
+import { getI18n } from "react-i18next";
+
+import { errorWording } from "@/lib/errors/apiError";
+
 export type ContentApiErrorDetail = {
   code: string | null;
   /** Creator control (`name`, `files`) or a definition JSON path. */
@@ -8,51 +12,15 @@ export type ContentApiErrorDetail = {
   details: Record<string, unknown>;
 };
 
-const NETWORK_SAVE_MESSAGE =
-  "Animama could not be reached. Check that the local stack is running, then retry. Your draft is preserved.";
-const UNKNOWN_SAVE_MESSAGE =
-  "Animama encountered an unexpected error while saving. Your draft is preserved; retry or check the backend logs.";
+/** Shown when the browser could not reach the backend. */
+function networkSaveMessage(): string {
+  return getI18n().t("errors:contentSave.network");
+}
 
-const CONTENT_SAVE_MESSAGES: Record<string, string> = {
-  content_non_portable:
-    "These files match motion included with this app for use here only, so they can't be saved as your own content.",
-  catalog_revision_conflict:
-    "This item changed since you opened it. Reload the latest version before saving. Your draft is preserved.",
-  content_path_exists:
-    "Another item already uses this name. Choose a different name and try again. Your draft is preserved.",
-  invalid_entry_name:
-    "Use a name containing letters, numbers, spaces, periods, underscores, or hyphens. Your draft is preserved.",
-  content_path_invalid:
-    "Use a name containing letters, numbers, spaces, periods, underscores, or hyphens. Your draft is preserved.",
-  content_file_empty:
-    "The selected file is empty. Choose a valid exported file. Your draft is preserved.",
-  content_file_too_large:
-    "The selected file exceeds the supported size limit. Reduce its size and retry. Your draft is preserved.",
-  content_entry_too_large:
-    "The combined files exceed the supported entry size. Remove or reduce companion files. Your draft is preserved.",
-  duplicate_companion_path:
-    "Two files would be saved to the same path. Rename one of them and retry. Your draft is preserved.",
-  unsupported_standalone_extension:
-    "This file type is not supported for this content kind. Choose a supported export format. Your draft is preserved.",
-  standalone_extension_change_requires_new_item:
-    "Changing the primary file type requires saving this as a new item. Your draft is preserved.",
-  content_not_found:
-    "The original item no longer exists. Return to the Library or save this draft as a new item. Your draft is preserved.",
-  content_destination_mismatch:
-    "This draft no longer matches the original item. Reload the item before saving. Your draft is preserved.",
-  saved_content_invalid:
-    "The saved files did not produce a valid content item. Correct the source and retry. Your draft is preserved.",
-  descriptor_not_supported:
-    "This creator produced descriptor data that the content kind does not support. Your draft is preserved; retry or check the backend logs.",
-  standalone_requires_one_file:
-    "This content kind requires exactly one primary file. Choose a single file and retry. Your draft is preserved.",
-  invalid_companion_paths:
-    "One or more companion file paths are invalid. Rename the affected files and retry. Your draft is preserved.",
-  content_metadata_too_large:
-    "The item details exceed the supported size limit. Shorten the description or configuration and retry. Your draft is preserved.",
-  content_descriptor_too_large:
-    "The content definition exceeds the supported size limit. Simplify it and retry. Your draft is preserved.",
-};
+/** Shown for a failure with no worded code. */
+function unknownSaveMessage(): string {
+  return getI18n().t("errors:contentSave.unexpected");
+}
 
 const CONTENT_SAVE_FIELDS: Record<string, string> = {
   content_path_exists: "name",
@@ -104,23 +72,36 @@ function sentence(value: string): string {
 function avatarEffectDefinitionMessage(detail: ContentApiErrorDetail): string {
   const setting =
     detail.field?.replace(/^definition\.(?=.)/, "") ?? "definition";
-  const cause = detail.message ? `: ${sentence(detail.message)}` : ".";
-  return `The Avatar Effect setting "${setting}" is invalid${cause} Correct it and retry. Your draft is preserved.`;
+  return detail.message
+    ? getI18n().t("errors:contentSave.avatarEffectSettingInvalid", {
+        setting,
+        cause: sentence(detail.message),
+      })
+    : getI18n().t("errors:contentSave.avatarEffectSettingInvalidUnexplained", {
+        setting,
+      });
 }
 
+/**
+ * Word a Save failure from its code. A validation failure keeps the backend's
+ * explanation (a technical setting path or English validator text) inside the
+ * translated sentence.
+ */
 function contentSaveMessage(detail: ContentApiErrorDetail): string {
   if (detail.code === "content_invalid") {
     if (detail.reason === "avatar_effect_definition_invalid")
       return avatarEffectDefinitionMessage(detail);
     const explanation = detail.message ?? detail.reason;
-    const reason = explanation
-      ? `Content validation failed: ${sentence(explanation)}`
-      : "The content did not pass validation.";
-    return `${reason} Correct the source and retry. Your draft is preserved.`;
+    return explanation
+      ? getI18n().t("errors:contentSave.validationFailed", {
+          explanation: sentence(explanation),
+        })
+      : getI18n().t("errors:contentSave.validationFailedUnexplained");
   }
-  return detail.code
-    ? (CONTENT_SAVE_MESSAGES[detail.code] ?? UNKNOWN_SAVE_MESSAGE)
-    : UNKNOWN_SAVE_MESSAGE;
+  return (
+    (detail.code && errorWording("contentSave", detail.code)) ??
+    unknownSaveMessage()
+  );
 }
 
 function isNetworkFailure(error: Error): boolean {
@@ -185,7 +166,7 @@ export function toContentSaveApiError(
   }
 
   if (status !== null) {
-    return new ContentSaveApiError(status, null, UNKNOWN_SAVE_MESSAGE);
+    return new ContentSaveApiError(status, null, unknownSaveMessage());
   }
 
   if (cause instanceof Error) {
@@ -193,8 +174,8 @@ export function toContentSaveApiError(
       null,
       null,
       isNetworkFailure(cause)
-        ? NETWORK_SAVE_MESSAGE
-        : cause.message.trim() || UNKNOWN_SAVE_MESSAGE,
+        ? networkSaveMessage()
+        : cause.message.trim() || unknownSaveMessage(),
     );
   }
 
@@ -202,5 +183,5 @@ export function toContentSaveApiError(
     return new ContentSaveApiError(null, null, cause.trim());
   }
 
-  return new ContentSaveApiError(null, null, UNKNOWN_SAVE_MESSAGE);
+  return new ContentSaveApiError(null, null, unknownSaveMessage());
 }

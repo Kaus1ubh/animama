@@ -2,6 +2,7 @@ import type {
   AnimaCreationDiagnostic,
   AnimaSpecInput,
 } from "@animama/runtime-contracts/sdk";
+import { creationIssueText } from "@/lib/errors/creationErrors";
 import type { AnimaCreationSources } from "@/query/hooks/useAnimaCreation";
 import { useVoiceClones } from "@/query/hooks/useVoiceClones";
 import { pocketVoiceLabel } from "@/lib/speech/pocket/voice-groups";
@@ -134,9 +135,17 @@ export function CreateAnimaReviewStep({
         <div role="status" className="space-y-2 rounded-xl border p-4">
           <h3 className="text-sm font-medium">Good to know</h3>
           <ul className="text-muted-foreground list-disc space-y-1 pl-4 text-sm">
-            {visibleWarnings.map((warning, index) => (
-              <li key={`${warning.code}:${index}`}>{warning.message}</li>
-            ))}
+            {visibleWarnings.map((warning, index) => {
+              const text = creationIssueText(warning);
+              return (
+                <li key={`${warning.code}:${index}`}>
+                  {text.message}
+                  {text.detail ? (
+                    <span className="mt-1 block text-xs">{text.detail}</span>
+                  ) : null}
+                </li>
+              );
+            })}
           </ul>
         </div>
       ) : null}

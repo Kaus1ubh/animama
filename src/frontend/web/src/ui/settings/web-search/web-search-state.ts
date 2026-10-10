@@ -3,6 +3,9 @@ import type {
   PyWebSearchSettingsRequest,
   PyWebSearchTestResult,
 } from "@animama/runtime-contracts/api-types";
+import { getI18n } from "react-i18next";
+
+import { errorWording } from "@/lib/errors/apiError";
 
 /** The self-hosted variable suggested for a Brave Search key. */
 export const BRAVE_KEY_ENV = "BRAVE_SEARCH_API_KEY";
@@ -82,18 +85,6 @@ export function webSearchRequest(
   };
 }
 
-const FAILURE_MESSAGES: Record<string, string> = {
-  unreachable:
-    "The search service could not be reached. Check the address and that it is running.",
-  credential_missing: "No Brave Search key is set.",
-  credential_rejected: "Brave Search rejected the key.",
-  rate_limited: "The search service is limiting requests. Try again later.",
-  timeout: "The search service did not answer in time.",
-  json_format_disabled:
-    "SearXNG refused JSON results. Add json to search.formats in its settings.yml; a proxy in front of it can also cause this.",
-  bad_response: "The search service returned an unexpected response.",
-};
-
 /** Plain-language text for a Test result; server response text is never shown. */
 export function testResultMessage(result: PyWebSearchTestResult): string {
   if (result.ok) {
@@ -101,7 +92,7 @@ export function testResultMessage(result: PyWebSearchTestResult): string {
     return `Search works: ${count} ${count === 1 ? "result" : "results"} for a test query.`;
   }
   return (
-    (result.category && FAILURE_MESSAGES[result.category]) ??
-    FAILURE_MESSAGES.bad_response!
+    (result.category && errorWording("webSearch", result.category)) ||
+    getI18n().t("errors:webSearch.bad_response")
   );
 }

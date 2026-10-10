@@ -3,6 +3,7 @@
 import { useProductApiClient } from "@animama/product-ui";
 
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
@@ -25,6 +26,10 @@ import type {
 } from "@/lib/content/catalogTypes";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
 import { withLibraryPreviewAnimaContext } from "@/lib/content-preview/targets";
+import {
+  loadoutFailureText,
+  loadoutWarningText,
+} from "@/lib/errors/loadoutErrors";
 import { actionPreviewTarget } from "@/lib/content-preview/actionPreviewTarget";
 import { idleStylePreviewTarget } from "@/lib/content-preview/idleStylePreviewTarget";
 import {
@@ -81,6 +86,12 @@ type PreviewableAction = {
   source?: PyExactContentSource | PyCatalogLoadoutSource | null;
 };
 
+/** Toast a failed Loadout request, worded from its code, with any detail below. */
+function toastLoadoutFailure(error: unknown, fallback: string) {
+  const text = loadoutFailureText(error, fallback);
+  toast.error(text.message, { description: text.detail ?? undefined });
+}
+
 function intentSource(
   source: PyExactContentSource | PyCatalogLoadoutSource | null | undefined,
 ): PyCatalogLoadoutSource | null {
@@ -102,6 +113,7 @@ export function AnimaLoadout({
   onStagePreview: (target: ContentPreviewTarget) => void;
 }) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("errors");
 
   const query = useLoadout(animaId);
   const runtimeSnapshotQuery = useAnimaRuntimeCatalog(animaId);
@@ -273,9 +285,7 @@ export function AnimaLoadout({
         withLibraryPreviewAnimaContext(target, animaId, runtimeQuery.data),
       );
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Preview is unavailable.",
-      );
+      toastLoadoutFailure(error, t("loadout.previewUnavailable"));
     }
   };
 
@@ -294,7 +304,7 @@ export function AnimaLoadout({
         idempotencyKey: crypto.randomUUID(),
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Review failed.");
+      toastLoadoutFailure(error, t("loadout.reviewFailed"));
     } finally {
       setReviewing(false);
     }
@@ -315,7 +325,7 @@ export function AnimaLoadout({
         idempotencyKey: crypto.randomUUID(),
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Review failed.");
+      toastLoadoutFailure(error, t("loadout.reviewFailed"));
     } finally {
       setReviewing(false);
     }
@@ -336,7 +346,7 @@ export function AnimaLoadout({
         idempotencyKey: crypto.randomUUID(),
       });
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Review failed.");
+      toastLoadoutFailure(error, t("loadout.reviewFailed"));
     } finally {
       setReviewing(false);
     }
@@ -373,7 +383,7 @@ export function AnimaLoadout({
         ),
       );
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Preview failed.");
+      toastLoadoutFailure(error, t("loadout.previewFailed"));
     }
   };
 
@@ -404,7 +414,7 @@ export function AnimaLoadout({
       toast.success("Loadout updated. Changes apply to the next chat mount.");
       setReviewed(null);
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Update failed.");
+      toastLoadoutFailure(error, t("loadout.updateFailed"));
     }
   };
 
@@ -437,7 +447,9 @@ export function AnimaLoadout({
       {loadout.warnings?.length ? (
         <div className="border-warning/35 rounded-lg border p-3 text-sm">
           {loadout.warnings.map((warning) => (
-            <p key={`${warning.code}:${warning.message}`}>{warning.message}</p>
+            <p key={`${warning.code}:${warning.message}`}>
+              {loadoutWarningText(warning)}
+            </p>
           ))}
         </div>
       ) : null}
@@ -585,7 +597,7 @@ export function AnimaLoadout({
               ) : null}
               {(reviewed.plan.warnings ?? []).map((warning) => (
                 <p key={warning.code} className="text-warning">
-                  {warning.message}
+                  {loadoutWarningText(warning)}
                 </p>
               ))}
             </div>

@@ -5604,6 +5604,8 @@ export type PyLoadoutCommitResult = {
 
 /**
  * PyLoadoutDiagnostic
+ *
+ * A Loadout warning; clients word it from ``code`` and ``params``.
  */
 export type PyLoadoutDiagnostic = {
     /**
@@ -5612,8 +5614,18 @@ export type PyLoadoutDiagnostic = {
     code: string;
     /**
      * Message
+     *
+     * English detail for logs and API clients.
      */
     message: string;
+    /**
+     * Params
+     *
+     * Values for the code's wording.
+     */
+    params?: {
+        [key: string]: string;
+    };
     /**
      * Scope
      */

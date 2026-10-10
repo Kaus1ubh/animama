@@ -53,11 +53,11 @@ describe("toContentSaveApiError", () => {
     ],
     [
       "invalid_entry_name",
-      "Use a name containing letters, numbers, spaces, periods, underscores, or hyphens. Your draft is preserved.",
+      "Use a name that starts with a letter or number (in any script) and contains only letters, numbers, spaces, periods, underscores or hyphens. Your draft is preserved.",
     ],
     [
       "content_path_invalid",
-      "Use a name containing letters, numbers, spaces, periods, underscores, or hyphens. Your draft is preserved.",
+      "Use a name that starts with a letter or number (in any script) and contains only letters, numbers, spaces, periods, underscores or hyphens. Your draft is preserved.",
     ],
     [
       "content_file_empty",

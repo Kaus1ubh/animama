@@ -2,7 +2,13 @@
   "converted": [
     "src/app/providers/AppProviders.tsx",
     "src/i18n/**",
+    "src/lib/content-sharing/errors.ts",
+    "src/lib/content/contentSaveErrors.ts",
+    "src/lib/content/contentUploads.ts",
+    "src/lib/errors/*.ts",
+    "src/lib/user-profile/errors.ts",
     "src/ui/components/sectioned-modal-frame.tsx",
+    "src/ui/create-anima/createAnimaSubmission.ts",
     "src/ui/settings/AppearanceSettings.tsx",
     "src/ui/settings/SettingsSearch.tsx"
   ],

@@ -3,6 +3,7 @@
 import { useProductApiClient } from "@animama/product-ui";
 
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { Check, ExternalLink, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +21,7 @@ import type {
   PyReactionIntent,
 } from "@animama/runtime-contracts/api-types";
 import type { PyExactContentSource } from "@/lib/content/catalogTypes";
+import { loadoutFailureText } from "@/lib/errors/loadoutErrors";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { invalidateAnimaLoadoutAndRuntime } from "@/query/animaLoadoutInvalidation";
 import { useAnimas } from "@/query/hooks/useAnimas";
@@ -63,6 +65,7 @@ export function ActionManageDialog({
   onPreview?: () => void;
 }) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("errors");
 
   const userId = useRuntimeCacheKey() ?? "__anon__";
   const animas = useAnimas();
@@ -196,9 +199,8 @@ export function ActionManageDialog({
         }.`,
       );
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Loadout update failed",
-      );
+      const text = loadoutFailureText(error, t("loadout.equipFailed"));
+      toast.error(text.message, { description: text.detail ?? undefined });
     } finally {
       setBusyAnimaId(null);
     }

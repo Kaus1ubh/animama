@@ -11,6 +11,14 @@ import type {
   RuntimeCapabilities,
   WebSearchCapability,
 } from "@animama/runtime-contracts/api-types";
+import { getI18n } from "react-i18next";
+import {
+  apiErrorLine,
+  apiErrorText,
+  errorWording,
+  readApiError,
+  type ApiErrorText,
+} from "@/lib/errors/apiError";
 import {
   modelRolePreferencePath,
   type ModelRole,
@@ -506,24 +514,6 @@ export function keyWouldTravelInsecurely(baseUrl: string): boolean {
   return !isThisComputerHost(bareHost(url));
 }
 
-const CATEGORY_MESSAGES: Record<string, string> = {
-  unreachable:
-    "The server could not be reached. Check that it is running and that the base URL is correct.",
-  credential_missing: "This connection needs a key before it can be used.",
-  credential_rejected: "The server rejected the key.",
-  model_not_found: "The server does not serve that model.",
-  timeout: "The server did not answer in time.",
-  rate_limited: "The server is limiting requests. Try again shortly.",
-  quota_exceeded: "The account for this key has no remaining quota.",
-  server_error: "The server reported an error. Try again shortly.",
-  bad_request: "The server rejected the request.",
-  context_exceeded: "The request was larger than the model's context window.",
-  invalid_base_url: "The base URL is not valid.",
-  unexpected_response:
-    "The server's reply was not an OpenAI-compatible response. Check the base URL; it usually ends in /v1.",
-  provider_error: "The server could not complete the request.",
-};
-
 /** Status line for a Detect result, naming the server type to start. */
 export function detectionMessage(
   detection: PyModelConnectionDetection,
@@ -532,7 +522,10 @@ export function detectionMessage(
   const count = detection.models.length;
   return detection.reachable
     ? `Found ${count} ${count === 1 ? "model" : "models"} at ${detection.base_url}.`
-    : `Nothing is running at ${detection.base_url}. Start ${serverName} and try again.`;
+    : getI18n().t("errors:modelConfiguration.detectionNotRunning", {
+        baseUrl: detection.base_url,
+        server: serverName,
+      });
 }
 
 /** Plain-language text for an error category reported by the server. */
@@ -540,29 +533,30 @@ export function errorCategoryMessage(
   category: string | null | undefined,
 ): string {
   return (
-    (category && CATEGORY_MESSAGES[category]) ??
-    "The server could not complete the request."
+    (category && errorWording("modelConfiguration", category)) ||
+    getI18n().t("errors:modelConfiguration.provider_error")
   );
 }
 
 /**
- * Explain a failed Models request. Configuration errors carry the server's own
- * message; connection failures use category copy and never echo the model
- * server's response text.
+ * Explain a failed Models request. Connection failures use category wording
+ * and never echo the model server's response text; other configuration errors
+ * carry the server's message (English, so secondary outside English).
  */
-export function modelConfigurationErrorMessage(error: unknown): string {
+export function modelConfigurationErrorText(error: unknown): ApiErrorText {
+  const saveFailed = getI18n().t("errors:modelConfiguration.saveFailed");
   const detail =
     error && typeof error === "object" && "detail" in error
       ? (error as { detail?: unknown }).detail
       : undefined;
   if (!detail || typeof detail !== "object")
-    return "The change could not be saved.";
-  const { code, message } = detail as { code?: unknown; message?: unknown };
-  if (typeof code === "string" && code in CATEGORY_MESSAGES)
-    return CATEGORY_MESSAGES[code];
-  return typeof message === "string" && message.trim()
-    ? message
-    : "The change could not be saved.";
+    return { message: saveFailed, detail: null };
+  return apiErrorText(readApiError(error), "modelConfiguration", saveFailed);
+}
+
+/** `modelConfigurationErrorText` as one line, for toasts. */
+export function modelConfigurationErrorMessage(error: unknown): string {
+  return apiErrorLine(modelConfigurationErrorText(error));
 }
 
 /** Usage attached to a `model_in_use` refusal, if the error carries it. */
@@ -741,6 +735,6 @@ export function draftFromOpenRouterModel(
 /** Why the OpenRouter list is missing; the owner can still type a model ID. */
 export function openRouterModelsErrorMessage(error: unknown): string {
   return modelConfigurationErrorCode(error) === "openrouter_models_unavailable"
-    ? "OpenRouter's model list is unavailable right now. Type the model ID below instead."
-    : "The OpenRouter model list could not be loaded. Type the model ID below instead.";
+    ? getI18n().t("errors:modelConfiguration.openrouter_models_unavailable")
+    : getI18n().t("errors:modelConfiguration.openRouterModelsLoadFailed");
 }

@@ -6,6 +6,7 @@ support members owned transitively by Gesture and Reaction Action roots.
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
 
@@ -33,9 +34,12 @@ class CatalogLoadoutSource:
 
 @dataclass(frozen=True, slots=True)
 class LoadoutDiagnostic:
+    """A Loadout warning. Clients word it from ``code`` and ``params``; ``message`` is English detail."""
+
     code: str
     message: str
     scope: Literal["source", "target"] = "target"
+    params: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

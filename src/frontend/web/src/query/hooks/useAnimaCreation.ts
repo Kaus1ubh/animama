@@ -7,6 +7,7 @@ import {
   type QueryClient,
 } from "@tanstack/react-query";
 import { useCallback } from "react";
+import { getI18n } from "react-i18next";
 
 import {
   createAnimaV1AnimasPost,
@@ -28,6 +29,7 @@ import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { zAnimaCreationResult } from "@animama/runtime-contracts/validators";
 import { previewTypedCatalogItem } from "@/lib/content/catalogApi";
 import { toContentSaveApiError } from "@/lib/content/contentSaveErrors";
+import { creationFailureText } from "@/lib/errors/creationErrors";
 import { queryKeys } from "@/query/keys";
 import {
   buildAnimaSpec,
@@ -46,10 +48,11 @@ import {
   type CreationFailure,
 } from "@/ui/create-anima/createAnimaSubmission";
 
+/** A creation failure; `message` is worded from its code (`creationFailureText`). */
 export class AnimaCreationApiError extends Error {
   readonly failure: CreationFailure;
   constructor(failure: CreationFailure) {
-    super(failure.detail.message);
+    super(creationFailureText(failure.detail).message);
     this.failure = failure;
   }
 }
@@ -66,8 +69,7 @@ function sourceFailure(
     state: "rejected",
     detail: {
       code: "anima_creation_sources_stale",
-      message:
-        "Selected content needs attention. Your choices have been preserved.",
+      message: getI18n().t("errors:creation.anima_creation_sources_stale"),
       retryable: false,
       issues,
     },
@@ -132,8 +134,7 @@ export function loadCreationPreview(
         throw sourceFailure([
           {
             code: "source_revision_changed",
-            message:
-              "This source changed. Review the updated content before accepting it.",
+            message: getI18n().t("errors:creation.source_revision_changed"),
             path: "/expected_source_revisions",
             item_id: source.item_id,
             expected_revision_sha256: source.revision_sha256,
@@ -200,8 +201,15 @@ export async function resolveCreationEvidence(
         item.item_id === root.source.item_id ||
         item.root_key === `catalog:${root.source.item_id}`,
     );
-    let message: string | null = diagnostic?.message ?? null;
-    if (!resolved) message ??= "This selected source is unavailable.";
+    // The diagnostic keeps its own code so the issue is worded from it.
+    let problem: { code: string; message: string } | null = diagnostic
+      ? { code: diagnostic.code, message: diagnostic.message }
+      : null;
+    if (!resolved)
+      problem ??= {
+        code: "source_unavailable",
+        message: getI18n().t("errors:creation.source_unavailable"),
+      };
     if (resolved) {
       const next: CreationEvidence = {
         source: resolved.source,
@@ -223,22 +231,23 @@ export async function resolveCreationEvidence(
               )
             : null;
       if (baseline && canonicalJson(baseline) !== canonicalJson(next.revisions))
-        message =
-          "A dependency changed. Review the updated content before accepting its revision.";
-      if (!message) {
+        problem = {
+          code: "source_dependency_changed",
+          message: getI18n().t("errors:creation.source_dependency_changed"),
+        };
+      if (!problem) {
         if (root.kind === "idle_style") idleRevisions = next.revisions;
         else evidence[root.source.item_id] = next;
       }
     }
-    if (message)
+    if (problem)
       for (const use of roots.filter(
         (candidate) =>
           candidate.kind === root.kind &&
           sameRef(candidate.source, root.source),
       ))
         issues.push({
-          code: "source_needs_attention",
-          message,
+          ...problem,
           path: use.path,
           item_id: root.source.item_id,
           declaring_action_item_id: ["gesture", "reaction"].includes(root.kind)
@@ -250,7 +259,7 @@ export async function resolveCreationEvidence(
     if (!issues.length)
       issues.push({
         code: "source_needs_attention",
-        message: "One or more selected sources could not be resolved.",
+        message: getI18n().t("errors:creation.source_needs_attention"),
         path: "/expected_source_revisions",
       });
     throw sourceFailure(issues);

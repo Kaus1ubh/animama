@@ -484,7 +484,9 @@ The owner-scoped loadout endpoints are:
 
 Plan requests carry the expected loadout revision and a typed family intent.
 Commit repeats that intent with the reviewed plan digest and an idempotency
-key. Selections store logical catalog items; Particle, Avatar, and Scene
+key. Loadout `warnings` carry `code`, `scope`, an English `message` for logs
+and API clients, and `params` (for example `slot`, `name` or `semanticKey`)
+that clients use to word the code in the owner's UI Locale. Selections store logical catalog items; Particle, Avatar, and Scene
 Effects plus Sounds remain compiler-managed support dependencies of
 Gesture/Reaction roots and cannot be equipped directly.
 

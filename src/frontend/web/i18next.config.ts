@@ -27,6 +27,9 @@ export default defineConfig({
     sort: true,
     indentation: 2,
     removeUnusedKeys: true,
+    // Backend codes are runtime values; `errors` keys are worded by code and
+    // checked against lib/errors/userVisibleCodes.json instead.
+    preservePatterns: ["errors:**"],
   },
   types: {
     input: ["src/locales/en/*.json"],

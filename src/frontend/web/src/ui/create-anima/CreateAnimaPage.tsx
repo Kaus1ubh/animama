@@ -13,6 +13,7 @@ import type {
   ItemRevisionRef,
 } from "@animama/runtime-contracts/sdk";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
+import { creationIssueText } from "@/lib/errors/creationErrors";
 import { creationEvidence } from "@/query/hooks/useAnimaCreation";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { Button } from "@/ui/components/button";
@@ -45,6 +46,13 @@ import {
   creationDraftSignature,
   useCreateAnimaController,
 } from "./useCreateAnimaController";
+
+/** Secondary technical text for a worded failure (backend English outside English). */
+function ErrorDetail({ detail }: { detail: string | null }) {
+  return detail ? (
+    <span className="text-muted-foreground mt-1 block text-xs">{detail}</span>
+  ) : null;
+}
 
 const HEADINGS = [
   "Choose an Avatar",
@@ -273,47 +281,52 @@ function OwnedCreateAnimaPage({
             className="border-destructive/40 bg-destructive/5 focus:ring-ring mb-5 rounded-xl border p-4 outline-none focus:ring-2"
           >
             <ul className="space-y-3 text-sm">
-              {controller.issues.map((issue, index) => (
-                <li key={`${issue.path}:${index}`}>
-                  <button
-                    type="button"
-                    className="text-destructive text-left underline underline-offset-2"
-                    onClick={() => linkIssue(issue)}
-                  >
-                    {issue.message}
-                  </button>
-                  {issue.code === "validation_unavailable" ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-1 ml-2"
-                      disabled={controller.busy}
-                      onClick={() => void controller.validate(false)}
+              {controller.issues.map((issue, index) => {
+                const text = creationIssueText(issue);
+                return (
+                  <li key={`${issue.path}:${index}`}>
+                    <button
+                      type="button"
+                      className="text-destructive text-left underline underline-offset-2"
+                      onClick={() => linkIssue(issue)}
                     >
-                      Try again
-                    </Button>
-                  ) : issue.item_id ||
-                    !["draft_invalid", "validation_unavailable"].includes(
-                      issue.code,
-                    ) ? (
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="mt-1 ml-2"
-                      disabled={controller.busy}
-                      onClick={() => void controller.proposeRepair(issue)}
-                    >
-                      Review updated sources
-                    </Button>
-                  ) : null}
-                </li>
-              ))}
+                      {text.message}
+                    </button>
+                    {issue.code === "validation_unavailable" ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-1 ml-2"
+                        disabled={controller.busy}
+                        onClick={() => void controller.validate(false)}
+                      >
+                        Try again
+                      </Button>
+                    ) : issue.item_id ||
+                      !["draft_invalid", "validation_unavailable"].includes(
+                        issue.code,
+                      ) ? (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-1 ml-2"
+                        disabled={controller.busy}
+                        onClick={() => void controller.proposeRepair(issue)}
+                      >
+                        Review updated sources
+                      </Button>
+                    ) : null}
+                    <ErrorDetail detail={text.detail} />
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ) : null}
         {controller.message ? (
           <p role="status" className="mb-5 rounded-lg border p-3 text-sm">
             {controller.message}
+            <ErrorDetail detail={controller.messageDetail} />
           </p>
         ) : null}
         {storageError}
@@ -345,9 +358,15 @@ function OwnedCreateAnimaPage({
               not been replaced with a partial pack.
             </p>
             <ul className="list-disc space-y-1 pl-4">
-              {sources.options.data.diagnostics.map((issue, index) => (
-                <li key={index}>{issue.message}</li>
-              ))}
+              {sources.options.data.diagnostics.map((issue, index) => {
+                const text = creationIssueText(issue);
+                return (
+                  <li key={index}>
+                    {text.message}
+                    <ErrorDetail detail={text.detail} />
+                  </li>
+                );
+              })}
             </ul>
           </div>
         ) : null}
@@ -505,7 +524,12 @@ function OwnedCreateAnimaPage({
               ? "This key was already used with a different payload. Editing and automatic retries are stopped; the original request has been preserved."
               : "The original request is saved. Check its result before changing this draft; retrying uses exactly the same request and cannot create a duplicate."}
         </p>
-        {controller.message ? <p role="status">{controller.message}</p> : null}
+        {controller.message ? (
+          <p role="status">
+            {controller.message}
+            <ErrorDetail detail={controller.messageDetail} />
+          </p>
+        ) : null}
         <div className="flex flex-wrap gap-2">
           {["pending", "unknown"].includes(draft.submission?.state ?? "") ? (
             <Button

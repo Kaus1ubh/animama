@@ -191,3 +191,23 @@ async def test_gesture_using_an_unconverted_avatar_effect_is_refused(async_sessi
         assert raised.value.code == "avatar_effect_conversion_required"
     finally:
         await cleanup_loadout_fixture(async_session, fixture)
+
+
+def test_loadout_warnings_carry_the_values_their_wording_needs() -> None:
+    from animama.app.contracts.anima_loadout import PyLoadoutDiagnostic
+    from animama.domain.anima_loadout import LoadoutDiagnostic
+
+    warning = PyLoadoutDiagnostic.from_domain(
+        LoadoutDiagnostic(
+            code="gesture_semantic_key_conflict",
+            message="Gesture おじぎ has a conflicting semantic key.",
+            params={"name": "おじぎ"},
+        )
+    )
+    assert warning.model_dump() == {
+        "code": "gesture_semantic_key_conflict",
+        "message": "Gesture おじぎ has a conflicting semantic key.",
+        "scope": "target",
+        "params": {"name": "おじぎ"},
+    }
+    assert PyLoadoutDiagnostic.from_domain(LoadoutDiagnostic(code="x", message="y")).params == {}

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getI18n } from "react-i18next";
 
 import type {
   AnimaCreationDiagnostic,
@@ -13,6 +14,8 @@ import {
   useAnimaCreationOperations,
   useAnimaCreationSources,
 } from "@/query/hooks/useAnimaCreation";
+import type { ApiErrorText } from "@/lib/errors/apiError";
+import { creationFailureText } from "@/lib/errors/creationErrors";
 import { itemReference } from "./createAnimaContent";
 import {
   canonicalJson,
@@ -69,7 +72,7 @@ export function creationDraftSignature(draft: CreateAnimaDraft): string {
 const errorText = (error: unknown) =>
   error instanceof Error
     ? error.message
-    : "This operation could not be completed. Your draft has been preserved.";
+    : getI18n().t("errors:creation.operationFailed");
 
 /** Own recovery and dispatch independently of rendering. No effect ever sends a creation POST. */
 export function useCreateAnimaController(
@@ -84,7 +87,8 @@ export function useCreateAnimaController(
   const [recovery, setRecovery] = useState<Recovery>("loading");
   const [storageError, setStorageError] = useState<string | null>(null);
   const [conflict, setConflict] = useState(false);
-  const [message, setMessage] = useState<string | null>(null);
+  // A status line, or a worded failure with optional secondary detail.
+  const [message, setMessage] = useState<string | ApiErrorText | null>(null);
   const [issues, setIssues] = useState<AnimaCreationDiagnostic[]>([]);
   const [validation, setValidation] = useState<Validation | null>(null);
   const [completedId, setCompletedId] = useState<string | null>(null);
@@ -282,7 +286,9 @@ export function useCreateAnimaController(
       .catch((error) => {
         if (alive.current)
           setMessage(
-            `The Library Avatar could not be selected: ${errorText(error)} Choose an available Avatar below.`,
+            getI18n().t("errors:creation.libraryAvatarUnavailable", {
+              reason: errorText(error),
+            }),
           );
       })
       .finally(() => {
@@ -542,7 +548,7 @@ export function useCreateAnimaController(
               submission: { request, state: failure.state },
             };
             update(next);
-            setMessage(failure.detail.message);
+            setMessage(creationFailureText(failure.detail));
             if (failure.state === "rejected") {
               setValidation(null);
               showIssues(failure.detail.issues);
@@ -681,7 +687,10 @@ export function useCreateAnimaController(
     recovery,
     storageError,
     conflict,
-    message,
+    message: typeof message === "string" ? message : (message?.message ?? null),
+    /** Secondary technical detail for `message`, when it has one. */
+    messageDetail:
+      typeof message === "string" ? null : (message?.detail ?? null),
     issues,
     valid,
     completedId,

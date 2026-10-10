@@ -64,7 +64,8 @@ Boundaries:
 - [x] Phase 1: foundation (R1–R6, R16–R18); review #2 passed 2026-10-10; commits
       `1766cc8f`, `4ef6786a` (browser fixtures render with the i18n provider).
 - [x] Phase 2: names in any script (R11); review #3 passed 2026-10-10.
-- [ ] Phase 3: backend diagnostics and shared error wording (R10).
+- [x] Phase 3: backend diagnostics and shared error wording (R10); review #2
+      passed 2026-10-10.
 - [ ] Phase 4: app shell, chat and safety (R7, R9).
 - [ ] Phase 5: Animas, Library and memory (R7).
 - [ ] Phase 6: Settings, profile and sound (R7).
@@ -73,6 +74,26 @@ Boundaries:
 - [ ] Phase 9: completion, guards at full strength and pseudo-locale smoke (R7, R17).
 - [ ] Final integration review.
 - [ ] PR; owner gates G1–G3; owner merge approval.
+
+## Pause and handoff (2026-10-10)
+
+The owner paused work after the Phase 3 review and asked to stop the task stack.
+
+- Committed: `7550f192` (plan), `1766cc8f` and `4ef6786a` (Phase 1),
+  `7ea5826b` (Phase 2).
+- Uncommitted in the worktree:
+  - Phase 3 (reviewed once; P3-R1-01 to fix): Loadout warning `params`
+    (backend + SDK), `web/src/lib/errors/**`, `locales/*/errors.json`, the
+    converted error modules and creation/Loadout renderers, i18n docs section.
+  - Phase 4 product-ui part (not yet reviewed): `useProductTranslation` with an
+    English fallback, chat failures stored as catalog references and worded at
+    render, translated notice/composer/transcript/run-status strings, product
+    catalogs moved to `locales/<tag>/product.json` with four translations,
+    product-ui lint in `i18n:check`, unused `formatAnimaTimestamp` removed.
+- Next: commit Phase 3 by path after review #2, then continue Phase 4 (web
+  shell, chat, safety, emotion). Resumed by the owner on 2026-10-10.
+- Task stack `animama-i18n` (base port 8300) is stopped, data kept; restart with
+  `./reset.sh --name i18n --base-port 8300` from this worktree.
 
 ## Surprises & Discoveries
 
@@ -130,6 +151,16 @@ Boundaries:
 - 2026-10-10, agent: the wheel now stores `locale` as NULL for "System default";
   Cloud's hosted baseline (`NOT NULL DEFAULT 'en-US'`) must allow NULL before it
   repins this package set. Recorded for the linked Cloud issue.
+- 2026-10-10, agent (Phase 3, within R10): word the codes a user can trigger
+  through normal UI actions — Anima creation, Loadout, model configuration and
+  web search, and the content save, sharing, upload and profile codes the UI
+  already mapped. Schema-internal content validation, scan, runtime and memory
+  messages are developer text: a translated generic message with the English as
+  secondary detail outside English (R10's second sentence). Only Loadout
+  warnings needed new backend `params`; content-save messages should keep their
+  English explanation as secondary detail (today it is inside the sentence;
+  P3-R1-04, Phase 5). The lookup lives in `web/src/lib/errors` because its
+  areas are web screens; product-ui chat failures have their own catalog keys.
 - Proposed, agent: #385 closes with this PR; AC12 evidence belongs to the linked
   Cloud issue, which #385 links. To confirm with the owner at PR time.
 
@@ -438,25 +469,72 @@ passes; `contentEntryName` returns the same result as before the fix for
 
 Issue: #420.
 
-- Backend: add `params` to Loadout diagnostics (slot key, Gesture name, semantic
-  key) and to the formatted content-save errors; the HTTP shapes gain an optional
-  `params` object. English `message` stays for logs and API clients. Tests
-  assert codes and params.
-- Frontend: one shared lookup (`product-ui` `describeApiError` alongside
-  `runtime-errors.ts`) maps `code` (+`params`) to catalog keys, with a translated
-  generic fallback and the English detail as secondary technical text. Creation,
-  Loadout, content save, ContentHealth, runtime content, memory and model
-  configuration errors use it. Every user-visible code has wording (AC9 test that
-  enumerates backend codes from a fixture against the catalog).
-- Regenerate the SDK; update HTTP docs.
+- Backend: Loadout warnings gain `params` (`slot`, `name`, `semanticKey`); the
+  English `message` stays for logs and API clients. Tests assert the contract.
+- Frontend: `web/src/lib/errors/apiError.ts` (`readApiError`, `errorWording`,
+  `apiErrorText`, `apiErrorLine`) words `errors:<area>.<code>`; unworded codes
+  show the backend English in English and a translated generic message with the
+  English as secondary detail elsewhere. `creationErrors.ts` and
+  `loadoutErrors.ts` wrap creation issues/failures and Loadout failures/warnings.
+  Content save, sharing, upload, profile, model-configuration and web-search
+  modules read their copy from the `errors` catalog.
+  `web/src/lib/errors/userVisibleCodes.json` lists 194 worded codes; its test
+  requires each in all five catalogs (AC9).
+- Deferred to the phases that convert their screens: ContentHealth (scan
+  diagnostics), runtime content and memory use the same lookup or fall back to
+  generic + detail; product-ui chat failures get their own catalog keys (Phase 4).
+- Regenerate the SDK; document Loadout warning `params` in `http-api.md`.
 
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full review of `7ea5826b` plus the uncommitted Phase 3
+paths (2026-10-10). Evidence at review: `pnpm i18n:check` pass, web `tsc` and
+ESLint pass, targeted vitest 25 files / 250 passed, backend loadout tests pass.
+
+- **P3-R1-01 (required, record and docs only).** This section still describes
+  the shared lookup in product-ui and content-save `params`; the implementation
+  puts it in `web/src/lib/errors` (`apiError.ts`, `creationErrors.ts`,
+  `loadoutErrors.ts`), adds params only to Loadout warnings, and defers the
+  ContentHealth, runtime and memory renderers. The scope decision is missing from
+  the Decision Log, and no backend doc mentions Loadout warning `params`.
+- **P3-R1-02 (optional).** Missing `params` would leave `{{name}}` in the text;
+  add a service-level assertion; unworded Loadout warnings return English in
+  every locale.
+- **P3-R1-03 (optional).** Worded `anima_creation_defaults_unavailable` drops its
+  four distinct backend causes.
+- **P3-R1-04 (optional).** Some backend/Error English is interpolated into the
+  primary translated sentence (`contentSaveErrors.ts:96`,
+  `useCreateAnimaController.ts:289`).
+- **P3-R1-05 (optional).** `join(", ")` lists in sharing and upload messages.
+- **P3-R1-06 (optional).** DRY: `readApiError` vs `parseContentApiErrorDetail`,
+  unused `status`/`field`, long `case` arms where `errorWording` would do.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P3-R1-01 accepted.** This section describes the delivered helpers and the
+  deferred renderers; the Decision Log records the scope decision; `http-api.md`
+  documents Loadout warning `params`.
+- **P3-R1-02 accepted.** The Idle Style Loadout service test asserts the `slot`
+  param; unworded Loadout warnings use the shared fallback (generic + English
+  detail outside English).
+- **P3-R1-03 deferred.** A cause-specific `reason` for
+  `anima_creation_defaults_unavailable` needs backend reason codes; English
+  previously showed the cause, so record for Phase 5 (Animas and creation).
+- **P3-R1-04 deferred to Phase 5** with the creation and content renderers,
+  which will show the English explanation as secondary detail.
+- **P3-R1-05 deferred to Phase 5** (sharing/upload lists via `{{items, list}}`).
+- **P3-R1-06 deferred.** DRY clean-ups of `parseContentApiErrorDetail` and the
+  upload `case` arms land with Phase 5's content screens; no behavior impact.
+- Checks: backend loadout tests 6 pass; web `src/lib/errors` and `src/ui/animas`
+  67 pass; `tsc` pass.
+
+Repair budget: one of two repair rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck of P3-R1-01 and P3-R1-02: both resolved, no regressions.
+Optional wording nits in this plan (chat-failure deferral, content-save detail
+target state) were applied before commit. Result: pass.
 
 ### Phase 4 — App shell, chat and safety (R7, R9)
 
