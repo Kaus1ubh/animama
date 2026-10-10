@@ -4,6 +4,8 @@ import json
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from tests.anima_creation_service_support import copy_tracked_included
 
 ROOT = Path(__file__).parents[1]
@@ -29,23 +31,38 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     assert by_glob["vfx/particle/quark/**"]["license_id"] == "LicenseRef-Animama-generated-and-CC0-particle-VFX"
 
 
-def test_mixamo_motion_pack_inventory_is_public_safe_and_non_portable() -> None:
-    inventory = json.loads((ROOT / "scripts/mixamo-motion/inventory.json").read_text(encoding="utf-8"))
-    manifest = json.loads(
-        (ROOT / "src/backend/animama/resources/mixamo-motion-manifest.json").read_text(encoding="utf-8")
-    )
+@pytest.mark.parametrize(
+    ("pack_id", "license_id"),
+    [
+        ("mixamo-motion", "LicenseRef-Adobe-Mixamo-embedded-product"),
+        ("wow-comedy-sfx", "LicenseRef-WOW-Sound-Media-embedded-product"),
+    ],
+)
+def test_private_pack_inventories_are_public_safe_and_non_portable(pack_id: str, license_id: str) -> None:
+    inventory = json.loads((ROOT / f"scripts/{pack_id}/inventory.json").read_text(encoding="utf-8"))
+    manifest = json.loads((ROOT / f"src/backend/animama/resources/{pack_id}-manifest.json").read_text(encoding="utf-8"))
 
     assert inventory["schema_version"] == 1
     [rule] = inventory["rules"]
     # One rule matching every locator and file, so runtime and staging agree.
     assert rule["glob"] == "**"
     assert rule["distribution"] == "non-portable"
-    assert rule["license_id"] == "LicenseRef-Adobe-Mixamo-embedded-product"
+    assert rule["license_id"] == license_id
     assert rule["redistribution_review"] == "pending"
     text = json.dumps(inventory)
     assert "@" not in text and "/Users/" not in text and "X-Amz" not in text
-    assert manifest["pack_id"] == "mixamo-motion"
+    assert manifest["pack_id"] == pack_id
     assert all(set(item) == {"path", "size_bytes", "sha256"} for item in manifest["files"])
+
+
+def test_the_preview_deny_list_holds_hashes_only() -> None:
+    deny = json.loads(
+        (ROOT / "src/backend/animama/resources/wow-comedy-sfx-preview-deny.json").read_text(encoding="utf-8")
+    )
+
+    assert deny["schema_version"] == 1
+    assert deny["files"]
+    assert all(set(item) == {"size_bytes", "sha256"} for item in deny["files"])
 
 
 def test_typed_media_moved_but_browser_engine_assets_remained_public(tmp_path: Path) -> None:

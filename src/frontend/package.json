@@ -30,6 +30,7 @@
     "desktop:dev": "pnpm --filter animama-desktop dev",
     "desktop:dev_inspect": "pnpm --filter animama-desktop dev_inspect",
     "desktop:check": "pnpm --filter animama-desktop check",
+    "desktop:private-pack": "pnpm --filter animama-desktop runtime:private-pack",
     "desktop:mixamo-motion": "pnpm --filter animama-desktop runtime:mixamo-motion",
     "desktop:build": "pnpm --filter animama-desktop build",
     "desktop:pack": "pnpm --filter animama-desktop run pack",

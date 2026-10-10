@@ -8,7 +8,7 @@ import uuid
 from dataclasses import dataclass
 from pathlib import Path
 
-from animama.app.services.content_portability import MIXAMO_MOTION_PACK_ID
+from animama.app.services.content_portability import PRIVATE_PACK_IDS
 from animama.domain.content_sources import IncludedContentSource
 from animama.server.config import Settings
 from animama.utils.files import is_directory, path_is_link
@@ -116,9 +116,9 @@ def resolve_local_runtime_paths(settings: Settings) -> LocalRuntimePaths:
     )
 
 
-# Read-only Included packs besides core. The Mixamo-motion pack is non-portable
-# content bundled only into desktop and hosted builds (see content_portability).
-_INCLUDED_PACK_IDS = frozenset({"expanded-included-content", MIXAMO_MOTION_PACK_ID})
+# Read-only Included packs besides core. Private packs are non-portable content
+# bundled only into desktop and hosted builds (see content_portability).
+_INCLUDED_PACK_IDS = frozenset({"expanded-included-content", *PRIVATE_PACK_IDS})
 
 
 def _included_sources(settings: Settings, *, local_root: Path, data_root: Path) -> tuple[IncludedContentSource, ...]:

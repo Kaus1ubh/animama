@@ -1,10 +1,10 @@
 /**
- * The non-portable Mixamo-motion pack: verified private build input, staging
- * and leak scanning.
+ * Private, non-portable Included packs (Mixamo motion, licensed comedy sound
+ * effects): verified private build input, staging and leak scanning.
  *
- * The pack's bytes never enter Git, Docker contexts, self-host images or public
- * packages. The tracked, public-safe manifest lists every pack file by path,
- * size and SHA-256; the backend ships the same file as its restricted-hash
+ * A pack's bytes never enter Git, Docker contexts, self-host images or public
+ * packages. Each pack's tracked, public-safe manifest lists every file by path,
+ * size and SHA-256; the backend ships the same file as a restricted-hash
  * resource. Owner-only provenance stays in a private inventory beside the
  * build input and is never staged. Messages name paths only, never contents,
  * credentials or private locations.
@@ -28,57 +28,131 @@ import { pipeline } from "node:stream/promises";
 import { Readable } from "node:stream";
 import { readJson, repoRoot, run } from "./common.mjs";
 
-export const PACK_ID = "mixamo-motion";
-/** Tracked public-safe manifest; also the backend's restricted-hash resource. */
-export const MANIFEST_PATH = path.join(
-  repoRoot,
-  "src/backend/animama/resources/mixamo-motion-manifest.json",
-);
-/** Tracked public-safe licence inventory copied into the staged pack. */
-export const INVENTORY_PATH = path.join(
-  repoRoot,
-  "scripts/mixamo-motion/inventory.json",
-);
-/** Ignored build input; never inside `content/`. */
-export const INPUT_DIR = path.join(repoRoot, "build-inputs", PACK_ID);
-/** Owner-only provenance, fetched beside the input and never staged. */
-export const PRIVATE_INVENTORY_PATH = path.join(
-  repoRoot,
-  "build-inputs",
-  `${PACK_ID}.private.json`,
-);
-/** Where the pack lives inside a staged desktop runtime. */
-export const STAGED_RELATIVE = `content/${PACK_ID}`;
+const resources = path.join(repoRoot, "src/backend/animama/resources");
 
-/** Provenance every clip needs before a build may ship it (spec R8). */
-export const PRIVATE_FIELDS = [
-  "animation_name",
-  "animation_id",
-  "character",
-  "export_settings",
-  "download_date",
-  "licensee",
-  "conversion_tool",
-  "conversion_version",
-  "conversion_steps",
-  "sha256",
-];
+/**
+ * One private pack. Paths follow the pack ID: the tracked manifest (also the
+ * backend's restricted-hash resource), the tracked licence inventory copied
+ * into the staged pack, the ignored build input (never inside `content/`) and
+ * the owner-only provenance fetched beside it, never staged.
+ */
+function definePack({
+  id,
+  label,
+  payload,
+  recordKey,
+  records,
+  privateFields,
+  envPrefix,
+  requireEnv,
+}) {
+  return Object.freeze({
+    id,
+    label,
+    manifestPath: path.join(resources, `${id}-manifest.json`),
+    inventoryPath: path.join(repoRoot, "scripts", id, "inventory.json"),
+    inputDir: path.join(repoRoot, "build-inputs", id),
+    privateInventoryPath: path.join(
+      repoRoot,
+      "build-inputs",
+      `${id}.private.json`,
+    ),
+    /** Where the pack lives inside a staged desktop runtime. */
+    stagedRelative: `content/${id}`,
+    /** Files that need a provenance record; descriptors and sidecars do not. */
+    payload,
+    /** The private-inventory record that covers a payload path. */
+    recordKey,
+    /** The private inventory's record map. */
+    records,
+    /** Provenance every record needs before a build may ship it. */
+    privateFields,
+    envPrefix,
+    /** Release candidates set this to `1` so a missing pack fails the build. */
+    requireEnv,
+  });
+}
+
+export const MIXAMO_MOTION = definePack({
+  id: "mixamo-motion",
+  label: "Mixamo-motion",
+  payload: /\.vrma$/iu,
+  // A clip folder, `gestures/<id>`, holds one motion payload.
+  recordKey: (file) => file.split("/").slice(0, 2).join("/"),
+  records: "clips",
+  privateFields: [
+    "animation_name",
+    "animation_id",
+    "character",
+    "export_settings",
+    "download_date",
+    "licensee",
+    "conversion_tool",
+    "conversion_version",
+    "conversion_steps",
+    "sha256",
+  ],
+  envPrefix: "ANIMAMA_MIXAMO_R2",
+  requireEnv: "ANIMAMA_REQUIRE_MIXAMO_MOTION",
+});
+
+export const WOW_COMEDY_SFX = definePack({
+  id: "wow-comedy-sfx",
+  label: "Comedy sound",
+  payload: /\.ogg$/iu,
+  // Sounds are standalone files, each its own record.
+  recordKey: (file) => file,
+  records: "sounds",
+  privateFields: [
+    "vendor",
+    "product",
+    "license_tier",
+    "purchase_date",
+    "licensee",
+    "order_reference",
+    "source_file",
+    "sha256",
+  ],
+  envPrefix: "ANIMAMA_WOW_COMEDY_SFX_R2",
+  requireEnv: "ANIMAMA_REQUIRE_WOW_COMEDY_SFX",
+});
+
+/** Every private pack; the desktop supervisor mounts the same IDs. */
+export const PRIVATE_PACKS = Object.freeze([MIXAMO_MOTION, WOW_COMEDY_SFX]);
+
+export function packById(id) {
+  const pack = PRIVATE_PACKS.find((candidate) => candidate.id === id);
+  if (!pack)
+    throw new PackError(
+      `Unknown private pack; use one of: ${PRIVATE_PACKS.map((item) => item.id).join(", ")}`,
+    );
+  return pack;
+}
+
+/**
+ * Hashes of the vendor's watermarked preview sounds. They may never ship
+ * anywhere, so the release scan allows them in no location.
+ */
+export const PREVIEW_DENY_PATH = path.join(
+  resources,
+  "wow-comedy-sfx-preview-deny.json",
+);
 
 export class PackError extends Error {}
 
 const SHA256 = /^[0-9a-f]{64}$/u;
 
-/** Parse and validate the tracked manifest. */
-export function readManifest(file = MANIFEST_PATH) {
+/** Parse and validate a pack's tracked manifest. */
+export function readManifest(pack, file = pack.manifestPath) {
   const value = readJson(file);
   if (
     value?.schema_version !== 1 ||
-    value.pack_id !== PACK_ID ||
+    value.pack_id !== pack.id ||
     typeof value.version !== "string" ||
     !/^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/u.test(value.version) ||
     !Array.isArray(value.files)
   )
-    throw new PackError("The Mixamo-motion manifest is invalid");
+    throw new PackError(`The ${pack.label} manifest is invalid`);
   const seen = new Set();
   for (const item of value.files) {
     const valid =
@@ -88,9 +162,25 @@ export function readManifest(file = MANIFEST_PATH) {
       item.size_bytes > 0 &&
       SHA256.test(item.sha256 ?? "");
     if (!valid || seen.has(item.path))
-      throw new PackError("The Mixamo-motion manifest lists an invalid file");
+      throw new PackError(`The ${pack.label} manifest lists an invalid file`);
     seen.add(item.path);
   }
+  return value;
+}
+
+/** Parse the preview deny list: sizes and hashes only, no paths. */
+export function readDenyList(file = PREVIEW_DENY_PATH) {
+  const value = readJson(file);
+  const valid =
+    value?.schema_version === 1 &&
+    Array.isArray(value.files) &&
+    value.files.every(
+      (item) =>
+        Number.isSafeInteger(item?.size_bytes) &&
+        item.size_bytes > 0 &&
+        SHA256.test(item.sha256 ?? ""),
+    );
+  if (!valid) throw new PackError("The preview deny list is invalid");
   return value;
 }
 
@@ -103,7 +193,7 @@ function isSafeRelative(value) {
   );
 }
 
-/** Pack files are small motion assets, so whole-file reads keep this simple. */
+/** Pack files are small assets, so whole-file reads keep this simple. */
 function sha256File(file) {
   return createHash("sha256").update(readFileSync(file)).digest("hex");
 }
@@ -121,26 +211,20 @@ export function listFiles(root, relative = "", result = []) {
   return result;
 }
 
-/** Motion payloads that need Mixamo provenance; descriptors and styles do not. */
-const PAYLOAD = /\.vrma$/iu;
-
-/**
- * Clip folders (the first two path segments) holding a motion payload, each
- * with that payload's manifest entry.
- */
-export function manifestClips(manifest) {
-  const clips = new Map();
+/** Provenance records the manifest needs, each with its payload's entry. */
+export function manifestRecords(pack, manifest) {
+  const records = new Map();
   for (const file of manifest.files)
-    if (PAYLOAD.test(file.path))
-      clips.set(file.path.split("/").slice(0, 2).join("/"), file);
-  return clips;
+    if (pack.payload.test(file.path))
+      records.set(pack.recordKey(file.path), file);
+  return records;
 }
 
 /**
  * Check a build input against the manifest exactly, and the private inventory
  * for complete provenance. Returns problems as `{ path, reason }` only.
  */
-export function verifyPack({ dir, manifest, privateInventory }) {
+export function verifyPack({ pack, dir, manifest, privateInventory }) {
   const problems = [];
   const expected = new Map(manifest.files.map((file) => [file.path, file]));
   const found = existsSync(dir) ? listFiles(dir) : [];
@@ -162,19 +246,19 @@ export function verifyPack({ dir, manifest, privateInventory }) {
     if (!present.has(file.path))
       problems.push({ path: file.path, reason: "missing" });
   if (manifest.files.length) {
-    const records = privateInventory?.clips ?? {};
-    for (const [clip, payload] of manifestClips(manifest)) {
-      const record = records[clip];
+    const records = privateInventory?.[pack.records] ?? {};
+    for (const [key, payload] of manifestRecords(pack, manifest)) {
+      const record = records[key];
       const complete =
         record &&
-        PRIVATE_FIELDS.every(
+        pack.privateFields.every(
           (field) =>
             record[field] !== undefined &&
             record[field] !== null &&
             String(record[field]).trim() !== "",
         ) &&
         record.sha256 === payload.sha256;
-      if (!complete) problems.push({ path: clip, reason: "provenance" });
+      if (!complete) problems.push({ path: key, reason: "provenance" });
     }
   }
   return problems.sort((a, b) => a.path.localeCompare(b.path));
@@ -185,34 +269,35 @@ export function verifyPack({ dir, manifest, privateInventory }) {
  * simply has no pack, unless `required` (release candidates) is set.
  */
 export function stagePack({
+  pack,
   runtime,
-  input = INPUT_DIR,
-  manifest = readManifest(),
-  inventory = INVENTORY_PATH,
-  privateInventory = existsSync(PRIVATE_INVENTORY_PATH)
-    ? readJson(PRIVATE_INVENTORY_PATH)
+  input = pack.inputDir,
+  manifest = readManifest(pack),
+  inventory = pack.inventoryPath,
+  privateInventory = existsSync(pack.privateInventoryPath)
+    ? readJson(pack.privateInventoryPath)
     : null,
   required = false,
 }) {
   if (!existsSync(input)) {
     if (required)
       throw new PackError(
-        "The Mixamo-motion pack is required but the build input is missing; fetch it first",
+        `The ${pack.label} pack is required but the build input is missing; fetch it first`,
       );
     return { staged: false, files: 0 };
   }
   if (!manifest.files.length)
     throw new PackError(
-      "A Mixamo-motion build input exists but the manifest lists no files",
+      `A ${pack.label} build input exists but the manifest lists no files`,
     );
-  const problems = verifyPack({ dir: input, manifest, privateInventory });
+  const problems = verifyPack({ pack, dir: input, manifest, privateInventory });
   if (problems.length)
     throw new PackError(
-      `The Mixamo-motion build input does not match the manifest: ${problems
+      `The ${pack.label} build input does not match the manifest: ${problems
         .map((problem) => `${problem.path} (${problem.reason})`)
         .join(", ")}`,
     );
-  const destination = path.join(runtime, STAGED_RELATIVE);
+  const destination = path.join(runtime, pack.stagedRelative);
   rmSync(destination, { recursive: true, force: true });
   for (const file of manifest.files) {
     const target = path.join(destination, file.path);
@@ -244,20 +329,16 @@ function expand(file, into) {
 const MAX_ARCHIVE_DEPTH = 3;
 
 /**
- * Find files whose SHA-256 is a pack hash, in directories and archives
- * (zip/wheel/tar/tgz, nested up to three levels). Only files whose size equals
- * a pack file's size are hashed, so large trees and images stay cheap. Paths
- * matching an `allow` pattern (the staged pack itself) are not findings;
- * archives nested too deeply are findings. Symlinks are never followed.
+ * Find files whose SHA-256 is listed in `manifest` (a pack manifest or the
+ * preview deny list), in directories and archives (zip/wheel/tar/tgz, nested
+ * up to three levels). Only files whose size equals a listed size are hashed,
+ * so large trees and images stay cheap. Paths matching an `allow` pattern (the
+ * staged pack itself) are not findings; archives nested too deeply are
+ * findings. Symlinks are never followed.
  */
 export function scanForPackBytes(
   targets,
-  {
-    manifest = readManifest(),
-    allow = [],
-    expandArchives = true,
-    skipMissing = false,
-  } = {},
+  { manifest, allow = [], expandArchives = true, skipMissing = false } = {},
 ) {
   const findings = [];
   const hashes = new Set(manifest.files.map((file) => file.sha256));
@@ -305,14 +386,13 @@ export function scanForPackBytes(
 }
 
 /** Owner-only read or publish credentials; values are never printed. */
-export function packCredentials(env = process.env, role = "read") {
-  const prefix =
-    role === "read" ? "ANIMAMA_MIXAMO_R2_READ" : "ANIMAMA_MIXAMO_R2_WRITE";
+export function packCredentials(pack, env = process.env, role = "read") {
+  const prefix = `${pack.envPrefix}_${role === "read" ? "READ" : "WRITE"}`;
   const accountId = env.ANIMAMA_R2_ACCOUNT_ID ?? "";
   const accessKeyId = env[`${prefix}_ACCESS_KEY_ID`] ?? "";
   const secretAccessKey = env[`${prefix}_SECRET_ACCESS_KEY`] ?? "";
-  const bucket = env.ANIMAMA_MIXAMO_R2_BUCKET ?? "";
-  const keyPrefix = env.ANIMAMA_MIXAMO_R2_PREFIX ?? "";
+  const bucket = env[`${pack.envPrefix}_BUCKET`] ?? "";
+  const keyPrefix = env[`${pack.envPrefix}_PREFIX`] ?? "";
   if (
     !/^[a-f0-9]{32}$/u.test(accountId) ||
     !accessKeyId ||
@@ -321,7 +401,7 @@ export function packCredentials(env = process.env, role = "read") {
     !isSafeRelative(keyPrefix)
   )
     throw new PackError(
-      `Set ANIMAMA_R2_ACCOUNT_ID, ${prefix}_ACCESS_KEY_ID, ${prefix}_SECRET_ACCESS_KEY, ANIMAMA_MIXAMO_R2_BUCKET and ANIMAMA_MIXAMO_R2_PREFIX from the owner-only file`,
+      `Set ANIMAMA_R2_ACCOUNT_ID, ${prefix}_ACCESS_KEY_ID, ${prefix}_SECRET_ACCESS_KEY, ${pack.envPrefix}_BUCKET and ${pack.envPrefix}_PREFIX from the owner-only file`,
     );
   return { accountId, accessKeyId, secretAccessKey, bucket, keyPrefix };
 }
@@ -345,10 +425,11 @@ async function signed(credentials, method, key, headers = {}) {
 
 /** Download the pack and private inventory into the ignored build input. */
 export async function fetchPack({
-  manifest = readManifest(),
-  credentials = packCredentials(),
-  input = INPUT_DIR,
-  privateInventory = PRIVATE_INVENTORY_PATH,
+  pack,
+  manifest = readManifest(pack),
+  credentials = packCredentials(pack),
+  input = pack.inputDir,
+  privateInventory = pack.privateInventoryPath,
   fetch: fetchImpl = fetch,
 }) {
   if (!manifest.files.length)
@@ -386,6 +467,7 @@ export async function fetchPack({
     await download(file.path, path.join(staging, file.path));
   await download("private-inventory.json", `${privateInventory}.partial`);
   const problems = verifyPack({
+    pack,
     dir: staging,
     manifest,
     privateInventory: readJson(`${privateInventory}.partial`),
@@ -405,14 +487,16 @@ export async function fetchPack({
 
 /** Owner-only upload of a verified input; a dry run unless `confirm`. */
 export async function publishPack({
-  manifest = readManifest(),
-  input = INPUT_DIR,
-  privateInventory = PRIVATE_INVENTORY_PATH,
+  pack,
+  manifest = readManifest(pack),
+  input = pack.inputDir,
+  privateInventory = pack.privateInventoryPath,
   confirm = false,
-  credentials = confirm ? packCredentials(process.env, "write") : null,
+  credentials = confirm ? packCredentials(pack, process.env, "write") : null,
   fetch: fetchImpl = fetch,
 }) {
   const problems = verifyPack({
+    pack,
     dir: input,
     manifest,
     privateInventory: existsSync(privateInventory)
@@ -459,10 +543,10 @@ export async function publishPack({
 }
 
 /** Write a manifest for a verified local pack (owner, before publishing). */
-export function manifestFor(dir, version) {
+export function manifestFor(pack, dir, version) {
   return {
     schema_version: 1,
-    pack_id: PACK_ID,
+    pack_id: pack.id,
     version,
     files: listFiles(dir)
       .filter((file) => !file.link)

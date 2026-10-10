@@ -10,6 +10,8 @@ import pytest
 
 from animama.adapters.content_store import FilesystemContentStore
 from animama.app.services.content_portability import (
+    PRIVATE_PACK_IDS,
+    RESTRICTED_RESOURCES,
     parse_restricted_manifest,
     portability,
     restricted_sha256,
@@ -19,6 +21,8 @@ from animama.domain.content_sources import IncludedContentSource
 from animama.server.config import Settings
 from animama.server.local_runtime import LocalRuntimeConfigurationError, initialize_local_runtime
 from tests.test_local_content_store import _glb
+
+ROOT = Path(__file__).parents[1]
 
 _RULE = {
     "creator": "Fixture",
@@ -126,15 +130,34 @@ def test_the_tracked_manifest_parses_and_malformed_manifests_fail() -> None:
             parse_restricted_manifest(value)
 
 
-def test_runtime_accepts_the_mixamo_motion_pack_identity(tmp_path: Path) -> None:
+def test_every_private_pack_manifest_and_the_preview_deny_list_are_restricted() -> None:
+    resources = ROOT / "src/backend/animama/resources"
+    expected: set[str] = set()
+    for name, pack_id in RESTRICTED_RESOURCES:
+        value = json.loads((resources / name).read_text(encoding="utf-8"))
+        assert value.get("pack_id") == pack_id
+        expected |= parse_restricted_manifest(value, pack_id=pack_id)
+    assert {pack_id for _, pack_id in RESTRICTED_RESOURCES} - {None} == set(PRIVATE_PACK_IDS)
+    assert restricted_sha256() == frozenset(expected)
+
+
+def test_a_manifest_for_another_pack_is_refused() -> None:
+    value = {"schema_version": 1, "pack_id": "mixamo-motion", "files": []}
+    assert parse_restricted_manifest(value, pack_id="mixamo-motion") == frozenset()
+    with pytest.raises(ValueError):
+        parse_restricted_manifest(value, pack_id="wow-comedy-sfx")
+
+
+@pytest.mark.parametrize("pack_id", ["mixamo-motion", "wow-comedy-sfx"])
+def test_runtime_accepts_each_private_pack_identity(tmp_path: Path, pack_id: str) -> None:
     core, pack = tmp_path / "core", tmp_path / "pack"
     _inventory(core, {"glob": "**/*", **_RULE})
     _inventory(pack, {"glob": "**", "distribution": "non-portable", **_RULE})
 
-    def settings(pack_id: str) -> Settings:
+    def settings(declared: str) -> Settings:
         sources = [
             {"id": "core", "version": "v1", "root": str(core)},
-            {"id": "mixamo-motion", "version": "v1", "root": str(pack), "pack_id": pack_id},
+            {"id": pack_id, "version": "v1", "root": str(pack), "pack_id": declared},
         ]
         return Settings(
             animama_content_root=tmp_path / "content",
@@ -143,8 +166,8 @@ def test_runtime_accepts_the_mixamo_motion_pack_identity(tmp_path: Path) -> None
             animama_included_content_sources_json=json.dumps(sources),
         )
 
-    paths = initialize_local_runtime(settings("mixamo-motion"))
-    assert [source.pack_id for source in paths.included_sources] == [None, "mixamo-motion"]
+    paths = initialize_local_runtime(settings(pack_id))
+    assert [source.pack_id for source in paths.included_sources] == [None, pack_id]
     with pytest.raises(LocalRuntimeConfigurationError):
         initialize_local_runtime(settings("unknown-pack"))
 
