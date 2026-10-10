@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:double-peace-pop",
   "version": 1,
   "semantic_key": "double-peace-pop",
-  "name": "double-peace-pop",
+  "name": "Double Peace Pop",
   "ai_description": "Pop both hands into peace signs to celebrate, greet enthusiastically, or pose playfully.",
   "implementation": {
     "kind": "anima_clip",

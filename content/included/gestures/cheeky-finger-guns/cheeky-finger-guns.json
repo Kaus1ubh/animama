@@ -1,7 +1,7 @@
 {
   "schema": "animaPoseClip/2.0",
   "id": "cheeky-finger-guns",
-  "name": "cheeky-finger-guns",
+  "name": "Cheeky Finger Guns",
   "duration": 1.75,
   "basePose": "relaxedRest",
   "fadeIn": {
@@ -28,7 +28,7 @@
     {
       "id": "aim",
       "label": "Aim",
-      "time": 0.3
+      "time": 0.32
     },
     {
       "id": "fire",
@@ -52,6 +52,38 @@
     }
   ],
   "joints": {
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "aim",
+          "dt": 0.02
+        },
+        {
+          "v": 6,
+          "beat": "fire",
+          "dt": 0.05
+        },
+        {
+          "v": 3,
+          "beat": "fire",
+          "dt": 0.22
+        },
+        {
+          "v": 3,
+          "beat": "wink",
+          "dt": 0.05
+        },
+        {
+          "v": "base",
+          "beat": "lower"
+        }
+      ]
+    },
     "rightUpperArm": {
       "elevation": [
         {
@@ -59,26 +91,32 @@
           "beat": "start"
         },
         {
-          "v": 42,
+          "v": 60,
           "beat": "aim",
           "dt": 0.02
         },
         {
-          "v": 45,
+          "v": 58,
           "beat": "fire",
-          "dt": -0.1
+          "dt": -0.07
         },
         {
-          "v": 41,
+          "v": 62,
           "beat": "fire",
-          "dt": 0.04
+          "dt": 0.05
         },
         {
-          "v": 42,
-          "beat": "wink"
+          "v": 59,
+          "beat": "fire",
+          "dt": 0.22
         },
         {
-          "v": 25,
+          "v": 60,
+          "beat": "wink",
+          "dt": 0.05
+        },
+        {
+          "v": 32,
           "beat": "lower"
         },
         {
@@ -92,18 +130,23 @@
           "beat": "start"
         },
         {
-          "v": 60,
+          "v": 40,
+          "beat": "aim",
+          "dt": -0.1
+        },
+        {
+          "v": 62,
           "beat": "aim",
           "dt": 0.02
         },
         {
-          "v": 60,
-          "beat": "wink"
+          "v": 62,
+          "beat": "wink",
+          "dt": 0.05
         },
         {
-          "v": 45,
-          "beat": "lower",
-          "dt": 0.05
+          "v": 54,
+          "beat": "lower"
         },
         {
           "v": "base",
@@ -116,15 +159,27 @@
           "beat": "start"
         },
         {
-          "v": 30,
-          "beat": "aim"
+          "v": 8,
+          "beat": "aim",
+          "dt": -0.1
         },
         {
-          "v": 30,
-          "beat": "wink"
+          "v": 38,
+          "beat": "aim",
+          "dt": 0.06
         },
         {
-          "v": 5,
+          "v": 38,
+          "beat": "wink",
+          "dt": 0.05
+        },
+        {
+          "v": 10,
+          "beat": "lower",
+          "dt": -0.2
+        },
+        {
+          "v": 4,
           "beat": "lower",
           "dt": 0.05
         },
@@ -141,31 +196,37 @@
           "beat": "start"
         },
         {
-          "v": 25,
-          "beat": "aim",
-          "dt": -0.14
-        },
-        {
-          "v": 52,
-          "beat": "aim",
-          "dt": 0.06
-        },
-        {
-          "v": 64,
-          "beat": "fire",
-          "dt": -0.1
-        },
-        {
-          "v": 44,
-          "beat": "fire",
-          "dt": 0.04
-        },
-        {
-          "v": 50,
-          "beat": "wink"
-        },
-        {
           "v": 30,
+          "beat": "aim",
+          "dt": -0.12
+        },
+        {
+          "v": 58,
+          "beat": "aim",
+          "dt": 0.07
+        },
+        {
+          "v": 55,
+          "beat": "fire",
+          "dt": -0.07
+        },
+        {
+          "v": 62,
+          "beat": "fire",
+          "dt": 0.05
+        },
+        {
+          "v": 56,
+          "beat": "fire",
+          "dt": 0.22
+        },
+        {
+          "v": 58,
+          "beat": "wink",
+          "dt": 0.05
+        },
+        {
+          "v": 32,
           "beat": "lower"
         },
         {
@@ -179,12 +240,14 @@
           "beat": "start"
         },
         {
-          "v": 70,
-          "beat": "aim"
+          "v": 65,
+          "beat": "aim",
+          "dt": 0.06
         },
         {
-          "v": 70,
-          "beat": "wink"
+          "v": 65,
+          "beat": "wink",
+          "dt": 0.05
         },
         {
           "v": "base",
@@ -200,28 +263,87 @@
           "beat": "start"
         },
         {
-          "v": -5,
+          "v": 0,
           "beat": "aim",
-          "dt": 0.02
-        },
-        {
-          "v": -18,
-          "beat": "fire",
-          "dt": -0.1
-        },
-        {
-          "v": 6,
-          "beat": "fire",
-          "dt": 0.04
+          "dt": 0.06
         },
         {
           "v": 0,
-          "beat": "wink"
+          "beat": "wink",
+          "dt": 0.05
         },
         {
           "v": "base",
           "beat": "lower",
           "dt": 0.05
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -6,
+          "beat": "aim",
+          "dt": 0.08
+        },
+        {
+          "v": -9,
+          "beat": "fire",
+          "dt": -0.05
+        },
+        {
+          "v": 6,
+          "beat": "fire",
+          "dt": 0.06
+        },
+        {
+          "v": -4,
+          "beat": "fire",
+          "dt": 0.23
+        },
+        {
+          "v": -3,
+          "beat": "wink",
+          "dt": 0.05
+        },
+        {
+          "v": "base",
+          "beat": "lower",
+          "dt": 0.05
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "aim",
+          "dt": 0.05
+        },
+        {
+          "v": 6,
+          "beat": "fire",
+          "dt": 0.08
+        },
+        {
+          "v": 3,
+          "beat": "fire",
+          "dt": 0.25
+        },
+        {
+          "v": 3,
+          "beat": "wink",
+          "dt": 0.05
+        },
+        {
+          "v": "base",
+          "beat": "lower"
         }
       ]
     },
@@ -232,27 +354,34 @@
           "beat": "start"
         },
         {
-          "v": 42,
+          "v": 57,
           "beat": "aim",
-          "dt": 0.02
+          "dt": 0.05
         },
         {
-          "v": 45,
+          "v": 55,
           "beat": "fire",
-          "dt": -0.1
+          "dt": -0.04
         },
         {
-          "v": 41,
+          "v": 59,
           "beat": "fire",
-          "dt": 0.04
+          "dt": 0.08
         },
         {
-          "v": 42,
-          "beat": "wink"
+          "v": 56,
+          "beat": "fire",
+          "dt": 0.25
         },
         {
-          "v": 25,
-          "beat": "lower"
+          "v": 57,
+          "beat": "wink",
+          "dt": 0.08
+        },
+        {
+          "v": 32,
+          "beat": "lower",
+          "dt": 0.03
         },
         {
           "v": "base",
@@ -265,18 +394,24 @@
           "beat": "start"
         },
         {
-          "v": 60,
+          "v": 40,
           "beat": "aim",
-          "dt": 0.02
+          "dt": -0.07
         },
         {
-          "v": 60,
-          "beat": "wink"
-        },
-        {
-          "v": 45,
-          "beat": "lower",
+          "v": 62,
+          "beat": "aim",
           "dt": 0.05
+        },
+        {
+          "v": 62,
+          "beat": "wink",
+          "dt": 0.08
+        },
+        {
+          "v": 54,
+          "beat": "lower",
+          "dt": 0.03
         },
         {
           "v": "base",
@@ -289,17 +424,29 @@
           "beat": "start"
         },
         {
-          "v": 30,
-          "beat": "aim"
+          "v": 8,
+          "beat": "aim",
+          "dt": -0.07
         },
         {
-          "v": 30,
-          "beat": "wink"
+          "v": 43,
+          "beat": "aim",
+          "dt": 0.09
         },
         {
-          "v": 5,
+          "v": 43,
+          "beat": "wink",
+          "dt": 0.08
+        },
+        {
+          "v": 10,
           "beat": "lower",
-          "dt": 0.05
+          "dt": -0.17
+        },
+        {
+          "v": 4,
+          "beat": "lower",
+          "dt": 0.08
         },
         {
           "v": "base",
@@ -314,32 +461,39 @@
           "beat": "start"
         },
         {
-          "v": 25,
-          "beat": "aim",
-          "dt": -0.14
-        },
-        {
-          "v": 52,
-          "beat": "aim",
-          "dt": 0.06
-        },
-        {
-          "v": 64,
-          "beat": "fire",
-          "dt": -0.1
-        },
-        {
-          "v": 44,
-          "beat": "fire",
-          "dt": 0.04
-        },
-        {
-          "v": 50,
-          "beat": "wink"
-        },
-        {
           "v": 30,
-          "beat": "lower"
+          "beat": "aim",
+          "dt": -0.09
+        },
+        {
+          "v": 58,
+          "beat": "aim",
+          "dt": 0.1
+        },
+        {
+          "v": 55,
+          "beat": "fire",
+          "dt": -0.04
+        },
+        {
+          "v": 62,
+          "beat": "fire",
+          "dt": 0.08
+        },
+        {
+          "v": 56,
+          "beat": "fire",
+          "dt": 0.25
+        },
+        {
+          "v": 58,
+          "beat": "wink",
+          "dt": 0.08
+        },
+        {
+          "v": 32,
+          "beat": "lower",
+          "dt": 0.03
         },
         {
           "v": "base",
@@ -352,17 +506,19 @@
           "beat": "start"
         },
         {
-          "v": 70,
-          "beat": "aim"
+          "v": 65,
+          "beat": "aim",
+          "dt": 0.09
         },
         {
-          "v": 70,
-          "beat": "wink"
+          "v": 65,
+          "beat": "wink",
+          "dt": 0.08
         },
         {
           "v": "base",
           "beat": "lower",
-          "dt": 0.05
+          "dt": 0.08
         }
       ]
     },
@@ -373,32 +529,131 @@
           "beat": "start"
         },
         {
-          "v": -5,
+          "v": 0,
           "beat": "aim",
-          "dt": 0.02
-        },
-        {
-          "v": -18,
-          "beat": "fire",
-          "dt": -0.1
-        },
-        {
-          "v": 6,
-          "beat": "fire",
-          "dt": 0.04
+          "dt": 0.09
         },
         {
           "v": 0,
-          "beat": "wink"
+          "beat": "wink",
+          "dt": 0.08
         },
         {
           "v": "base",
           "beat": "lower",
-          "dt": 0.05
+          "dt": 0.08
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -6,
+          "beat": "aim",
+          "dt": 0.11
+        },
+        {
+          "v": -9,
+          "beat": "fire",
+          "dt": -0.02
+        },
+        {
+          "v": 6,
+          "beat": "fire",
+          "dt": 0.09
+        },
+        {
+          "v": -4,
+          "beat": "fire",
+          "dt": 0.26
+        },
+        {
+          "v": -3,
+          "beat": "wink",
+          "dt": 0.08
+        },
+        {
+          "v": "base",
+          "beat": "lower",
+          "dt": 0.08
+        }
+      ]
+    },
+    "spine": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1.5,
+          "beat": "aim",
+          "dt": -0.14
+        },
+        {
+          "v": 2,
+          "beat": "aim"
+        },
+        {
+          "v": -1.5,
+          "beat": "fire",
+          "dt": 0.04
+        },
+        {
+          "v": 1.5,
+          "beat": "fire",
+          "dt": 0.24
+        },
+        {
+          "v": 1.5,
+          "beat": "wink"
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.15
         }
       ]
     },
     "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "aim",
+          "dt": -0.13
+        },
+        {
+          "v": 3,
+          "beat": "aim",
+          "dt": 0.02
+        },
+        {
+          "v": -2,
+          "beat": "fire",
+          "dt": 0.05
+        },
+        {
+          "v": 2,
+          "beat": "fire",
+          "dt": 0.25
+        },
+        {
+          "v": 2,
+          "beat": "wink",
+          "dt": 0.03
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.15
+        }
+      ],
       "rotation": [
         {
           "v": 0,
@@ -410,7 +665,8 @@
         },
         {
           "v": -6,
-          "beat": "fire"
+          "beat": "fire",
+          "dt": 0.05
         },
         {
           "v": -4,
@@ -428,7 +684,7 @@
           "beat": "start"
         },
         {
-          "v": -3,
+          "v": -2,
           "beat": "aim"
         },
         {
@@ -449,21 +705,28 @@
           "beat": "start"
         },
         {
-          "v": 7,
-          "beat": "aim"
-        },
-        {
-          "v": 9,
-          "beat": "fire"
+          "v": 6,
+          "beat": "aim",
+          "dt": -0.03
         },
         {
           "v": 8,
-          "beat": "wink"
+          "beat": "fire",
+          "dt": 0.02
+        },
+        {
+          "v": 10,
+          "beat": "wink",
+          "dt": -0.03
+        },
+        {
+          "v": 5,
+          "beat": "lower"
         },
         {
           "v": 0,
           "beat": "settle",
-          "dt": -0.15
+          "dt": -0.12
         }
       ],
       "flexion": [
@@ -472,21 +735,33 @@
           "beat": "start"
         },
         {
+          "v": -3,
+          "beat": "aim",
+          "dt": -0.15
+        },
+        {
+          "v": 2,
+          "beat": "aim",
+          "dt": -0.02
+        },
+        {
           "v": -2,
-          "beat": "aim"
+          "beat": "fire",
+          "dt": 0.03
         },
         {
           "v": 1,
-          "beat": "fire"
+          "beat": "fire",
+          "dt": 0.2
         },
         {
-          "v": -1,
+          "v": 2,
           "beat": "wink"
         },
         {
           "v": 0,
           "beat": "settle",
-          "dt": -0.15
+          "dt": -0.12
         }
       ],
       "rotation": [
@@ -496,16 +771,17 @@
         },
         {
           "v": -5,
-          "beat": "aim"
+          "beat": "aim",
+          "dt": -0.03
         },
         {
-          "v": -5,
+          "v": -3,
           "beat": "wink"
         },
         {
           "v": 0,
           "beat": "settle",
-          "dt": -0.15
+          "dt": -0.12
         }
       ]
     }
@@ -529,6 +805,26 @@
         "beat": "settle",
         "dt": -0.15
       }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "aim"
+      },
+      {
+        "v": -0.008,
+        "beat": "fire",
+        "dt": 0.08
+      },
+      {
+        "v": 0,
+        "beat": "wink",
+        "dt": 0.06
+      }
     ]
   },
   "hands": {
@@ -539,8 +835,30 @@
       },
       {
         "preset": "point",
+        "fingers": {
+          "thumb": {
+            "curl": [-80, -30],
+            "palmarAbduction": -10
+          }
+        },
         "beat": "aim",
-        "dt": -0.06
+        "dt": -0.08
+      },
+      {
+        "preset": "point",
+        "fingers": {
+          "thumb": {
+            "curl": [-80, -30],
+            "palmarAbduction": -10
+          }
+        },
+        "beat": "fire",
+        "dt": -0.08
+      },
+      {
+        "preset": "point",
+        "beat": "fire",
+        "dt": 0.12
       },
       {
         "preset": "point",
@@ -560,18 +878,40 @@
       },
       {
         "preset": "point",
+        "fingers": {
+          "thumb": {
+            "curl": [-80, -30],
+            "palmarAbduction": -10
+          }
+        },
         "beat": "aim",
-        "dt": -0.06
+        "dt": -0.05
+      },
+      {
+        "preset": "point",
+        "fingers": {
+          "thumb": {
+            "curl": [-80, -30],
+            "palmarAbduction": -10
+          }
+        },
+        "beat": "fire",
+        "dt": -0.05
+      },
+      {
+        "preset": "point",
+        "beat": "fire",
+        "dt": 0.15
       },
       {
         "preset": "point",
         "beat": "lower",
-        "dt": -0.15
+        "dt": -0.12
       },
       {
         "preset": "relaxed",
         "beat": "lower",
-        "dt": 0.15
+        "dt": 0.18
       }
     ]
   },
@@ -584,7 +924,7 @@
       {
         "v": 0.6,
         "beat": "aim",
-        "dt": -0.05
+        "dt": -0.1
       },
       {
         "v": 0.55,
@@ -605,7 +945,7 @@
       {
         "v": 0,
         "beat": "fire",
-        "dt": 0.08
+        "dt": 0.1
       },
       {
         "v": 0.9,
@@ -615,12 +955,12 @@
       {
         "v": 0.9,
         "beat": "wink",
-        "dt": 0.15
+        "dt": 0.18
       },
       {
         "v": 0,
         "beat": "lower",
-        "dt": -0.15
+        "dt": -0.12
       }
     ]
   }

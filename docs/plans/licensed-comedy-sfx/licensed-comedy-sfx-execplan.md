@@ -188,7 +188,7 @@ starting revision; implementers re-check them.
     `src/backend/animama/resources/wow-comedy-sfx-preview-deny.json` lists their SHA-256 hashes
     (hashes only, no audio). It joins the backend's restricted set and the
     release scan, with no allowed location.
-  - **A new ADR (0019)** records optional accompanying sounds and the
+  - **A new ADR (0021)** records optional accompanying sounds and the
     non-portable sound policy, amending ADR 0018's scope.
 - 2026-10-09, owner (plan review): the optional sound link is accepted. Don't
   reuse the sounds the effects had before the 2026-09-02 cleanup; they were
@@ -224,6 +224,11 @@ starting revision; implementers re-check them.
   hidden too (revised after Code Review #2). The export review says how many
   built-in effect sounds stay with this app. The Scene Effect creator drops a
   licensed sound without a note: no built-in Scene Effect has one.
+- 2026-10-10, agent (merging `origin/main`): main added its own ADRs 0019 and
+  0020 (hand animation), so this plan's ADR is renumbered 0021; references
+  were updated. Main also promoted three new built-in Avatar Effects
+  (`finger_heart_pop`, `huff_puff`, `idea_bulb_fingertip`) that need sounds in
+  the G2 mapping.
 
 ## Phased implementation
 
@@ -790,7 +795,7 @@ criteria with real content. Depends on P1–P3. Contains owner gates.
    `content/mixamo-motion/` file only the Mixamo licence, and no
    `content/included-core/` file a pack licence (Phase 1 deferral). Confirm
    self-host `./reset.sh` starts with every effect VALID and silent.
-10. **Documentation.** ADR 0019 (optional accompanying sounds and the
+10. **Documentation.** ADR 0021 (optional accompanying sounds and the
     non-portable sound policy); a pack guide beside
     `docs/backend/operations/mixamo-motion-pack.md` (or a shared private-packs
     guide if that reads better); `content/included/README.md` (replace the
@@ -824,7 +829,7 @@ changes are committed after G2.
 
 #### Phase 4 progress (2026-10-10)
 
-- Done, not gated: ADR 0019 (proposed), the pack guide, README, runtime,
+- Done, not gated: ADR 0021 (proposed), the pack guide, README, runtime,
   Library and skill docs, WOW Sound credit in the packaged notice and licence
   docs, and effect promotion that keeps or attaches a licensed sound (step 8;
   15 promote tests pass).
@@ -859,7 +864,7 @@ list). Checks: 163 backend tests on the snapshot (165 with Phase 4 content),
 ruff and format, 706 web, 93 + 69 desktop and 15 effect-script tests,
 prettier, `pnpm -s check`, both `scan --git` runs, `verify` and `fetch`.
 
-- **FI-F1 (required):** ADR 0019 still gave the disproved "receiver keeps the
+- **FI-F1 (required):** ADR 0021 still gave the disproved "receiver keeps the
   sound" rationale and described a review list.
 - **FI-F2 (required before merge):** desktop docs and the release workflow
   described only the Mixamo pack.
@@ -873,7 +878,7 @@ prettier, `pnpm -s check`, both `scan --git` runs, `verify` and `fetch`.
 
 Revisions:
 
-- FI-F1 accepted: ADR 0019 states the silent Local copy, the count-only review
+- FI-F1 accepted: ADR 0021 states the silent Local copy, the count-only review
   note and the pending owner confirmation of the R3 divergence.
 - FI-F2 accepted for docs (`runtime-staging.md`, `platforms.md`,
   `feature-packs.md`, `redistribution-review.md`); the release workflow,

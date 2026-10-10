@@ -184,17 +184,23 @@ prove that the upstream provider stopped generating or billing. Preserve failed
 and interrupted attempts in both the evidence and the request budget; verify saved
 messages before claiming a completed turn survived reload.
 
-The active Library pose journey previews the tracked `shy-finger-poke` gesture
-on a real sample avatar. It checks a visible canvas, advancing pose time, resolved
-skeleton bones, all three current clip events, the eye effect and sparkle scene,
-plus protected resource responses. Screenshot and observation attachments retain
-the rendering evidence; the known single unresolved sample-avatar bone is allowed.
-The brief light-streak event must fire, but its active visibility is outside this
-pose check. The test permits only reads and gesture-preview preparation requests;
-it does not select an Anima through saved settings, chat, upload or play audio.
-Optional Local Mixamo VRMA playback and imported animation acceptance remain
-separate. Run this focused check on an already initialized named stack with the
-tracked avatar inputs:
+The active Library pose journey previews the tracked Have an Idea Gesture
+(`have-an-idea`) on a real sample avatar. It checks a visible canvas, advancing
+pose time, resolved skeleton bones, the `idea-bulb` event and its
+`idea_bulb_fingertip` Avatar Effect image, plus protected resource responses.
+The bulb event starts 2.6 s into the clip, so the check waits past it.
+Screenshot and observation attachments retain the rendering evidence; the known
+single unresolved sample-avatar bone is allowed. `playback-library.spec.ts` is
+outside the active `chromium` project and is only type-checked: its
+`library-gesture-have-an-idea` repeats the Gesture Avatar Effect proof, and
+`library-reaction-curiosity-3` would check Scene Effect playback on Curiosity
+Reaction 3, because no Included Gesture plays a Scene Effect. Active Scene
+Effect coverage comes from the imported Gesture and Reaction in
+`accountless-imported-playback.spec.ts`. The focused pose test permits only
+reads and gesture-preview preparation requests; it does not select an Anima
+through saved settings, chat, upload or play audio. Optional Local Mixamo VRMA
+playback and imported animation acceptance remain separate. Run this focused check on an already initialized
+named stack with the tracked avatar inputs:
 
 ```bash
 pnpm e2e:test -- --project chromium --no-deps --grep "accountless built-in pose playback"

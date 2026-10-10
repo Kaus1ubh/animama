@@ -18,7 +18,7 @@ def test_runtime_resource_audit_has_schema_and_starter_resources() -> None:
     evidence = resources.audit_resources()
     assert evidence["migration_count"] == 1
     assert evidence["sql_count"] == 2
-    assert evidence["gesture_count"] == 46
+    assert evidence["gesture_count"] == 45
     assert evidence["starter_policy"] == "builtin:starter-loadout"
     assert evidence["local_http_schema_version"] == 1
     assert evidence["phoneme_word_count"] == 2

@@ -42,20 +42,20 @@ for (const failure of [false, true]) {
     let owned: CreatorOwnedResponse | null = null;
     try {
       await prepareLibraryPreview({
-        contentName: "shy-finger-poke",
+        contentName: "Have an Idea",
         page,
         section: "gesture",
         selectAnnie: false,
       });
       await page
-        .getByRole("article", { name: "shy-finger-poke", exact: true })
+        .getByRole("article", { name: "Have an Idea", exact: true })
         .getByRole("link", { name: "Edit", exact: true })
         .click();
       const nameInput = page.getByRole("textbox", {
         name: "gesture name",
         exact: true,
       });
-      await expect(nameInput).toHaveValue("shy-finger-poke Custom");
+      await expect(nameInput).toHaveValue("Have an Idea Custom");
       await nameInput.fill(name);
       guard.armSave({
         family: "gestures",

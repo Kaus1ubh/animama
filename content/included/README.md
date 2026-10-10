@@ -53,7 +53,7 @@ holds no non-portable content. See
 Each built-in Avatar Effect names a licensed sound from the comedy sound pack
 through an optional dependency. Builds without that pack, including this source
 tree, drop the edge when scanning and play the effect silently
-([ADR 0019](../../docs/adr/0019-optional-licensed-effect-sounds.md)). Never put
+([ADR 0021](../../docs/adr/0021-optional-licensed-effect-sounds.md)). Never put
 licensed or vendor preview sounds under `sfx/` here: the folder is ignored by
 Git and Docker, and the preview files are restricted by hash.
 Owner-provided typed Sound Effects remain supported.

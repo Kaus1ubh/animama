@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:soldier-salute",
   "version": 1,
   "semantic_key": "soldier-salute",
-  "name": "soldier-salute",
+  "name": "Salute",
   "ai_description": "Give a salute to acknowledge a request, show respect, or playfully signal readiness to help.",
   "implementation": {
     "kind": "anima_clip",

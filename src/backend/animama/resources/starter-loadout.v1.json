@@ -4,10 +4,6 @@
   "version": 1,
   "gestures": [
     {
-      "content_id": "builtin:gesture:shy-finger-poke",
-      "version": 1
-    },
-    {
       "content_id": "builtin:gesture:shy-finger-poke-loop",
       "version": 1
     },

@@ -4,7 +4,7 @@
   "content_id": "builtin:gesture:double-thumbs-up",
   "version": 1,
   "semantic_key": "double-thumbs-up",
-  "name": "double-thumbs-up",
+  "name": "Double Thumbs Up",
   "ai_description": "Give two thumbs up to express enthusiastic approval, encouragement, or celebration of success.",
   "implementation": {
     "kind": "anima_clip",

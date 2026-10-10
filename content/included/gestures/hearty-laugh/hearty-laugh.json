@@ -72,72 +72,52 @@
           "beat": "burst"
         },
         {
-          "v": -8,
-          "beat": "laughing",
-          "dt": -0.461
-        },
-        {
-          "v": -6.88,
-          "beat": "laughing",
-          "dt": -0.38
-        },
-        {
-          "v": -8,
-          "beat": "laughing",
-          "dt": -0.263
-        },
-        {
-          "v": -6.58,
-          "beat": "laughing",
-          "dt": -0.21
-        },
-        {
-          "v": -8,
-          "beat": "laughing",
-          "dt": -0.049
-        },
-        {
-          "v": -7.1,
-          "beat": "laughing",
-          "dt": 0.06
-        },
-        {
-          "v": -8,
-          "beat": "laughing",
-          "dt": 0.172
-        },
-        {
-          "v": -6.72,
-          "beat": "laughing",
-          "dt": 0.22
-        },
-        {
-          "v": -8,
-          "beat": "laughing",
-          "dt": 0.404
-        },
-        {
-          "v": -7.17,
-          "beat": "laughing",
-          "dt": 0.54
-        },
-        {
-          "v": -8,
-          "beat": "laughing",
-          "dt": 0.67
+          "v": -8.6,
+          "beat": "burst",
+          "dt": 0.12
         },
         {
           "v": -7.4,
           "beat": "laughing",
-          "dt": 0.74
+          "dt": -0.3
         },
         {
-          "v": -6.27,
+          "v": -8.7,
+          "beat": "laughing",
+          "dt": -0.13
+        },
+        {
+          "v": -7.7,
+          "beat": "laughing",
+          "dt": 0.03
+        },
+        {
+          "v": -8.5,
+          "beat": "laughing",
+          "dt": 0.21
+        },
+        {
+          "v": -7.7,
+          "beat": "laughing",
+          "dt": 0.38
+        },
+        {
+          "v": -8.1,
+          "beat": "laughing",
+          "dt": 0.57
+        },
+        {
+          "v": -7.5,
+          "beat": "laughing",
+          "dt": 0.75
+        },
+        {
+          "v": -7.9,
           "beat": "recover",
-          "dt": -0.195
+          "dt": -0.26
         },
         {
-          "v": -3.84,
+          "v": -3.8,
           "beat": "recover",
           "dt": 0.04
         },
@@ -186,77 +166,57 @@
           "beat": "anticipate"
         },
         {
-          "v": -5,
+          "v": -5.2,
           "beat": "burst",
-          "dt": -0.02
+          "dt": 0.02
+        },
+        {
+          "v": -8,
+          "beat": "burst",
+          "dt": 0.15
+        },
+        {
+          "v": -6.4,
+          "beat": "laughing",
+          "dt": -0.27
         },
         {
           "v": -8,
           "beat": "laughing",
-          "dt": -0.481
+          "dt": -0.1
         },
         {
-          "v": -5.75,
+          "v": -6.65,
           "beat": "laughing",
-          "dt": -0.4
+          "dt": 0.06
         },
         {
-          "v": -8,
+          "v": -7.9,
           "beat": "laughing",
-          "dt": -0.283
+          "dt": 0.24
         },
         {
-          "v": -5.15,
+          "v": -6.85,
           "beat": "laughing",
+          "dt": 0.41
+        },
+        {
+          "v": -7.6,
+          "beat": "laughing",
+          "dt": 0.6
+        },
+        {
+          "v": -6.85,
+          "beat": "laughing",
+          "dt": 0.78
+        },
+        {
+          "v": -7.1,
+          "beat": "recover",
           "dt": -0.23
         },
         {
-          "v": -8,
-          "beat": "laughing",
-          "dt": -0.069
-        },
-        {
-          "v": -6.2,
-          "beat": "laughing",
-          "dt": 0.04
-        },
-        {
-          "v": -8,
-          "beat": "laughing",
-          "dt": 0.152
-        },
-        {
-          "v": -5.45,
-          "beat": "laughing",
-          "dt": 0.2
-        },
-        {
-          "v": -8,
-          "beat": "laughing",
-          "dt": 0.384
-        },
-        {
-          "v": -6.35,
-          "beat": "laughing",
-          "dt": 0.52
-        },
-        {
-          "v": -8,
-          "beat": "laughing",
-          "dt": 0.65
-        },
-        {
-          "v": -6.8,
-          "beat": "laughing",
-          "dt": 0.72
-        },
-        {
-          "v": -6.44,
-          "beat": "recover",
-          "dt": -0.215
-        },
-        {
-          "v": -3.56,
+          "v": -3.6,
           "beat": "recover",
           "dt": 0.02
         },
@@ -307,77 +267,57 @@
           "beat": "anticipate"
         },
         {
-          "v": -4.5,
+          "v": -4.6,
           "beat": "burst",
-          "dt": -0.01
+          "dt": 0.03
         },
         {
-          "v": -7,
-          "beat": "laughing",
-          "dt": -0.471
-        },
-        {
-          "v": -5.12,
-          "beat": "laughing",
-          "dt": -0.39
-        },
-        {
-          "v": -7,
-          "beat": "laughing",
-          "dt": -0.273
-        },
-        {
-          "v": -4.62,
-          "beat": "laughing",
-          "dt": -0.22
-        },
-        {
-          "v": -7,
-          "beat": "laughing",
-          "dt": -0.059
-        },
-        {
-          "v": -5.5,
-          "beat": "laughing",
-          "dt": 0.05
-        },
-        {
-          "v": -7,
-          "beat": "laughing",
-          "dt": 0.162
-        },
-        {
-          "v": -4.88,
-          "beat": "laughing",
-          "dt": 0.21
-        },
-        {
-          "v": -7,
-          "beat": "laughing",
-          "dt": 0.394
-        },
-        {
-          "v": -5.62,
-          "beat": "laughing",
-          "dt": 0.53
-        },
-        {
-          "v": -7,
-          "beat": "laughing",
-          "dt": 0.66
+          "v": -7.2,
+          "beat": "burst",
+          "dt": 0.16
         },
         {
           "v": -6,
           "beat": "laughing",
-          "dt": 0.73
+          "dt": -0.26
         },
         {
-          "v": -5.56,
+          "v": -7.2,
+          "beat": "laughing",
+          "dt": -0.09
+        },
+        {
+          "v": -6.2,
+          "beat": "laughing",
+          "dt": 0.07
+        },
+        {
+          "v": -7.1,
+          "beat": "laughing",
+          "dt": 0.25
+        },
+        {
+          "v": -6.3,
+          "beat": "laughing",
+          "dt": 0.42
+        },
+        {
+          "v": -6.9,
+          "beat": "laughing",
+          "dt": 0.61
+        },
+        {
+          "v": -6.35,
+          "beat": "laughing",
+          "dt": 0.79
+        },
+        {
+          "v": -6.4,
           "beat": "recover",
-          "dt": -0.205
+          "dt": -0.22
         },
         {
-          "v": -3.08,
+          "v": -3.1,
           "beat": "recover",
           "dt": 0.03
         },
@@ -440,77 +380,57 @@
           "dt": 0.02
         },
         {
-          "v": -3.5,
+          "v": -4.5,
           "beat": "burst",
-          "dt": 0.03
+          "dt": -0.03
+        },
+        {
+          "v": -7.2,
+          "beat": "burst",
+          "dt": 0.18
+        },
+        {
+          "v": -8,
+          "beat": "laughing",
+          "dt": -0.23
         },
         {
           "v": -7,
           "beat": "laughing",
-          "dt": -0.431
+          "dt": -0.06
         },
         {
-          "v": -4.38,
+          "v": -7.8,
           "beat": "laughing",
-          "dt": -0.35
+          "dt": 0.1
         },
         {
-          "v": -7,
+          "v": -6.9,
           "beat": "laughing",
-          "dt": -0.233
+          "dt": 0.28
         },
         {
-          "v": -3.68,
+          "v": -7.5,
           "beat": "laughing",
-          "dt": -0.18
+          "dt": 0.45
         },
         {
-          "v": -7,
+          "v": -6.6,
           "beat": "laughing",
-          "dt": -0.019
-        },
-        {
-          "v": -4.9,
-          "beat": "laughing",
-          "dt": 0.09
+          "dt": 0.64
         },
         {
           "v": -7,
           "beat": "laughing",
-          "dt": 0.202
-        },
-        {
-          "v": -4.03,
-          "beat": "laughing",
-          "dt": 0.25
-        },
-        {
-          "v": -7,
-          "beat": "laughing",
-          "dt": 0.434
-        },
-        {
-          "v": -5.07,
-          "beat": "laughing",
-          "dt": 0.57
-        },
-        {
-          "v": -7,
-          "beat": "laughing",
-          "dt": 0.7
+          "dt": 0.82
         },
         {
           "v": -5.6,
-          "beat": "laughing",
-          "dt": 0.77
-        },
-        {
-          "v": -5.27,
           "beat": "recover",
-          "dt": -0.165
+          "dt": -0.19
         },
         {
-          "v": -2.49,
+          "v": -2.5,
           "beat": "recover",
           "dt": 0.07
         },
@@ -531,7 +451,7 @@
           "beat": "start"
         },
         {
-          "v": 6,
+          "v": 7,
           "beat": "burst"
         },
         {
@@ -540,7 +460,7 @@
           "dt": 0.1
         },
         {
-          "v": 7,
+          "v": 8,
           "beat": "laughing",
           "dt": 0.7
         },
@@ -560,12 +480,12 @@
           "beat": "start"
         },
         {
-          "v": -4,
+          "v": -5,
           "beat": "burst",
           "dt": -0.1
         },
         {
-          "v": 3,
+          "v": 4,
           "beat": "laughing",
           "dt": 0.2
         },
@@ -587,84 +507,63 @@
           "beat": "start"
         },
         {
-          "v": 3,
+          "v": 2.5,
           "beat": "anticipate",
           "dt": 0.02
         },
         {
-          "v": 6.1,
+          "v": 6,
+          "beat": "burst"
+        },
+        {
+          "v": 1,
           "beat": "burst",
-          "dt": -0.02
-        },
-        {
-          "v": -0.9,
-          "beat": "laughing",
-          "dt": -0.481
-        },
-        {
-          "v": 4.35,
-          "beat": "laughing",
-          "dt": -0.4
-        },
-        {
-          "v": -0.9,
-          "beat": "laughing",
-          "dt": -0.283
-        },
-        {
-          "v": 5.75,
-          "beat": "laughing",
-          "dt": -0.23
-        },
-        {
-          "v": -0.9,
-          "beat": "laughing",
-          "dt": -0.069
-        },
-        {
-          "v": 3.3,
-          "beat": "laughing",
-          "dt": 0.04
-        },
-        {
-          "v": -0.9,
-          "beat": "laughing",
-          "dt": 0.152
-        },
-        {
-          "v": 5.05,
-          "beat": "laughing",
           "dt": 0.2
         },
         {
-          "v": -0.9,
+          "v": 4.3,
           "beat": "laughing",
-          "dt": 0.384
+          "dt": -0.25
         },
         {
-          "v": 2.95,
+          "v": 0.9,
           "beat": "laughing",
-          "dt": 0.52
+          "dt": -0.08
         },
         {
-          "v": -0.9,
+          "v": 3.9,
           "beat": "laughing",
-          "dt": 0.65
+          "dt": 0.08
         },
         {
-          "v": 1.9,
+          "v": 0.8,
           "beat": "laughing",
-          "dt": 0.72
+          "dt": 0.26
         },
         {
-          "v": -1.29,
+          "v": 3.4,
+          "beat": "laughing",
+          "dt": 0.43
+        },
+        {
+          "v": 0.6,
+          "beat": "laughing",
+          "dt": 0.62
+        },
+        {
+          "v": 2.8,
+          "beat": "laughing",
+          "dt": 0.8
+        },
+        {
+          "v": 0.6,
           "beat": "recover",
-          "dt": -0.215
+          "dt": -0.21
         },
         {
-          "v": 0.32,
+          "v": 0,
           "beat": "recover",
-          "dt": 0.02
+          "dt": 0.05
         },
         {
           "v": "base",
@@ -700,82 +599,62 @@
           "beat": "start"
         },
         {
-          "v": 4,
+          "v": 3.5,
           "beat": "anticipate",
           "dt": 0.02
         },
         {
-          "v": 6.6,
+          "v": 6.4,
           "beat": "burst",
-          "dt": 0.005
+          "dt": 0.02
         },
         {
-          "v": -0.9,
-          "beat": "laughing",
-          "dt": -0.456
+          "v": 1.2,
+          "beat": "burst",
+          "dt": 0.22
         },
         {
-          "v": 4.72,
+          "v": 4.7,
           "beat": "laughing",
-          "dt": -0.375
+          "dt": -0.235
         },
         {
-          "v": -0.9,
+          "v": 1.1,
           "beat": "laughing",
-          "dt": -0.258
+          "dt": -0.065
         },
         {
-          "v": 6.22,
+          "v": 4.2,
           "beat": "laughing",
-          "dt": -0.205
+          "dt": 0.095
         },
         {
-          "v": -0.9,
+          "v": 0.9,
           "beat": "laughing",
-          "dt": -0.043
+          "dt": 0.275
         },
         {
           "v": 3.6,
           "beat": "laughing",
-          "dt": 0.065
+          "dt": 0.445
         },
         {
-          "v": -0.9,
+          "v": 0.7,
           "beat": "laughing",
-          "dt": 0.177
+          "dt": 0.635
         },
         {
-          "v": 5.47,
+          "v": 2.9,
           "beat": "laughing",
-          "dt": 0.225
+          "dt": 0.815
         },
         {
-          "v": -0.9,
-          "beat": "laughing",
-          "dt": 0.409
-        },
-        {
-          "v": 3.23,
-          "beat": "laughing",
-          "dt": 0.545
-        },
-        {
-          "v": -0.9,
-          "beat": "laughing",
-          "dt": 0.675
-        },
-        {
-          "v": 2.1,
-          "beat": "laughing",
-          "dt": 0.745
-        },
-        {
-          "v": -1.34,
+          "v": 0.7,
           "beat": "recover",
-          "dt": -0.19
+          "dt": -0.195
         },
         {
-          "v": 0.41,
+          "v": 0.2,
           "beat": "recover",
           "dt": 0.045
         },
@@ -823,72 +702,52 @@
           "dt": 0.06
         },
         {
-          "v": 31,
-          "beat": "laughing",
-          "dt": -0.401
+          "v": 32,
+          "beat": "burst",
+          "dt": 0.2
         },
         {
-          "v": 33.25,
+          "v": 33,
           "beat": "laughing",
-          "dt": -0.32
+          "dt": -0.22
         },
         {
-          "v": 31,
+          "v": 31.9,
           "beat": "laughing",
-          "dt": -0.203
+          "dt": -0.05
         },
         {
-          "v": 33.85,
+          "v": 32.7,
           "beat": "laughing",
-          "dt": -0.15
+          "dt": 0.11
         },
         {
-          "v": 31,
+          "v": 31.8,
           "beat": "laughing",
-          "dt": 0.012
+          "dt": 0.29
         },
         {
-          "v": 32.8,
+          "v": 32.4,
           "beat": "laughing",
-          "dt": 0.12
+          "dt": 0.46
         },
         {
-          "v": 31,
+          "v": 31.6,
           "beat": "laughing",
-          "dt": 0.232
+          "dt": 0.65
         },
         {
-          "v": 33.55,
+          "v": 31.9,
           "beat": "laughing",
-          "dt": 0.28
+          "dt": 0.83
         },
         {
-          "v": 31,
-          "beat": "laughing",
-          "dt": 0.464
-        },
-        {
-          "v": 32.65,
-          "beat": "laughing",
-          "dt": 0.6
-        },
-        {
-          "v": 31,
-          "beat": "laughing",
-          "dt": 0.73
-        },
-        {
-          "v": 32.2,
-          "beat": "laughing",
-          "dt": 0.8
-        },
-        {
-          "v": 26.98,
+          "v": 27,
           "beat": "recover",
           "dt": -0.135
         },
         {
-          "v": 24.32,
+          "v": 24.3,
           "beat": "recover",
           "dt": 0.1
         },
@@ -977,72 +836,47 @@
           "dt": 0.1
         },
         {
-          "v": 80,
-          "beat": "laughing",
-          "dt": -0.361
+          "v": 80.5,
+          "beat": "burst",
+          "dt": 0.24
         },
         {
-          "v": 82.25,
+          "v": 82,
           "beat": "laughing",
-          "dt": -0.28
+          "dt": -0.19
         },
         {
-          "v": 80,
+          "v": 80.3,
           "beat": "laughing",
-          "dt": -0.164
+          "dt": -0.02
         },
         {
-          "v": 82.85,
+          "v": 81.6,
           "beat": "laughing",
-          "dt": -0.11
+          "dt": 0.14
         },
         {
-          "v": 80,
-          "beat": "laughing",
-          "dt": 0.051
-        },
-        {
-          "v": 81.8,
-          "beat": "laughing",
-          "dt": 0.16
-        },
-        {
-          "v": 80,
-          "beat": "laughing",
-          "dt": 0.272
-        },
-        {
-          "v": 82.55,
+          "v": 80.2,
           "beat": "laughing",
           "dt": 0.32
         },
         {
-          "v": 80,
+          "v": 81.2,
           "beat": "laughing",
-          "dt": 0.504
-        },
-        {
-          "v": 81.65,
-          "beat": "laughing",
-          "dt": 0.64
+          "dt": 0.49
         },
         {
           "v": 80,
           "beat": "laughing",
-          "dt": 0.77
+          "dt": 0.68
         },
         {
-          "v": 78.07,
-          "beat": "laughing",
-          "dt": 0.84
-        },
-        {
-          "v": 56.11,
+          "v": 56,
           "beat": "recover",
           "dt": -0.095
         },
         {
-          "v": 38.61,
+          "v": 38.6,
           "beat": "recover",
           "dt": 0.14
         },
@@ -1123,72 +957,52 @@
           "dt": 0.04
         },
         {
-          "v": 22,
-          "beat": "laughing",
-          "dt": -0.421
+          "v": 22.5,
+          "beat": "burst",
+          "dt": 0.21
         },
         {
-          "v": 25,
+          "v": 24.6,
           "beat": "laughing",
-          "dt": -0.34
+          "dt": -0.21
         },
         {
-          "v": 22,
+          "v": 22.4,
           "beat": "laughing",
-          "dt": -0.223
+          "dt": -0.04
         },
         {
-          "v": 25.8,
+          "v": 24.1,
           "beat": "laughing",
-          "dt": -0.17
+          "dt": 0.12
         },
         {
-          "v": 22,
+          "v": 22.3,
           "beat": "laughing",
-          "dt": -0.008
-        },
-        {
-          "v": 24.4,
-          "beat": "laughing",
-          "dt": 0.1
-        },
-        {
-          "v": 22,
-          "beat": "laughing",
-          "dt": 0.212
-        },
-        {
-          "v": 25.4,
-          "beat": "laughing",
-          "dt": 0.26
-        },
-        {
-          "v": 22,
-          "beat": "laughing",
-          "dt": 0.444
-        },
-        {
-          "v": 24.2,
-          "beat": "laughing",
-          "dt": 0.58
-        },
-        {
-          "v": 22,
-          "beat": "laughing",
-          "dt": 0.71
+          "dt": 0.3
         },
         {
           "v": 23.6,
           "beat": "laughing",
-          "dt": 0.78
+          "dt": 0.47
         },
         {
-          "v": 20.61,
+          "v": 22,
+          "beat": "laughing",
+          "dt": 0.66
+        },
+        {
+          "v": 23,
+          "beat": "laughing",
+          "dt": 0.84
+        },
+        {
+          "v": 21,
           "beat": "recover",
-          "dt": -0.155
+          "dt": -0.17
         },
         {
-          "v": 20.47,
+          "v": 20.5,
           "beat": "recover",
           "dt": 0.08
         },
@@ -1262,72 +1076,52 @@
           "dt": 0.08
         },
         {
-          "v": 30,
-          "beat": "laughing",
-          "dt": -0.381
+          "v": 31,
+          "beat": "burst",
+          "dt": 0.25
         },
         {
-          "v": 36,
+          "v": 34,
           "beat": "laughing",
-          "dt": -0.3
+          "dt": -0.18
         },
         {
-          "v": 30,
+          "v": 30.8,
           "beat": "laughing",
-          "dt": -0.184
+          "dt": -0.01
         },
         {
-          "v": 37.6,
+          "v": 33.4,
           "beat": "laughing",
-          "dt": -0.13
+          "dt": 0.15
         },
         {
-          "v": 30,
+          "v": 30.6,
           "beat": "laughing",
-          "dt": 0.032
+          "dt": 0.33
         },
         {
-          "v": 34.8,
+          "v": 32.7,
           "beat": "laughing",
-          "dt": 0.14
+          "dt": 0.5
         },
         {
-          "v": 30,
+          "v": 30.2,
           "beat": "laughing",
-          "dt": 0.252
+          "dt": 0.69
         },
         {
-          "v": 36.8,
+          "v": 31.6,
           "beat": "laughing",
-          "dt": 0.3
+          "dt": 0.87
         },
         {
-          "v": 30,
-          "beat": "laughing",
-          "dt": 0.484
-        },
-        {
-          "v": 34.4,
-          "beat": "laughing",
-          "dt": 0.62
-        },
-        {
-          "v": 30,
-          "beat": "laughing",
-          "dt": 0.75
-        },
-        {
-          "v": 32.69,
-          "beat": "laughing",
-          "dt": 0.82
-        },
-        {
-          "v": 22.68,
+          "v": 23,
           "beat": "recover",
-          "dt": -0.115
+          "dt": -0.12
         },
         {
-          "v": 19.04,
+          "v": 19,
           "beat": "recover",
           "dt": 0.12
         },
@@ -1369,12 +1163,12 @@
           "beat": "burst"
         },
         {
-          "v": 4,
+          "v": 6,
           "beat": "laughing",
           "dt": -0.1
         },
         {
-          "v": 15,
+          "v": 13,
           "beat": "laughing",
           "dt": 0.4
         },
@@ -1582,83 +1376,74 @@
         "dt": 0.07
       },
       {
-        "v": 0.25,
+        "v": 0.3,
         "beat": "burst",
         "dt": -0.08
       },
       {
-        "v": 0.75,
-        "beat": "burst"
+        "v": 0.72,
+        "beat": "burst",
+        "dt": 0.02
       },
       {
-        "v": 0.188,
-        "beat": "laughing",
-        "dt": -0.46
+        "v": 0.34,
+        "beat": "burst",
+        "dt": 0.16
       },
       {
-        "v": 0.562,
+        "v": 0.65,
         "beat": "laughing",
-        "dt": -0.38
+        "dt": -0.32
       },
       {
-        "v": 0.237,
+        "v": 0.32,
         "beat": "laughing",
-        "dt": -0.29
+        "dt": -0.17
       },
       {
-        "v": 0.712,
+        "v": 0.62,
         "beat": "laughing",
-        "dt": -0.21
+        "dt": -0.03
       },
       {
-        "v": 0.15,
+        "v": 0.31,
         "beat": "laughing",
-        "dt": -0.02
+        "dt": 0.12
       },
       {
-        "v": 0.45,
+        "v": 0.56,
         "beat": "laughing",
-        "dt": 0.06
-      },
-      {
-        "v": 0.212,
-        "beat": "laughing",
-        "dt": 0.14
-      },
-      {
-        "v": 0.637,
-        "beat": "laughing",
-        "dt": 0.22
-      },
-      {
-        "v": 0.138,
-        "beat": "laughing",
-        "dt": 0.46
-      },
-      {
-        "v": 0.413,
-        "beat": "laughing",
-        "dt": 0.54
-      },
-      {
-        "v": 0.1,
-        "beat": "laughing",
-        "dt": 0.66
+        "dt": 0.27
       },
       {
         "v": 0.3,
         "beat": "laughing",
-        "dt": 0.74
+        "dt": 0.42
       },
       {
-        "v": 0.075,
-        "beat": "recover",
-        "dt": -0.04
+        "v": 0.5,
+        "beat": "laughing",
+        "dt": 0.57
       },
       {
-        "v": 0.225,
+        "v": 0.28,
+        "beat": "laughing",
+        "dt": 0.73
+      },
+      {
+        "v": 0.42,
+        "beat": "laughing",
+        "dt": 0.89
+      },
+      {
+        "v": 0.18,
         "beat": "recover",
-        "dt": 0.04
+        "dt": -0.1
+      },
+      {
+        "v": 0.3,
+        "beat": "recover",
+        "dt": 0.07
       },
       {
         "v": 0.15,

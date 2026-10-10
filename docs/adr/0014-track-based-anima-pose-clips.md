@@ -1,7 +1,9 @@
 # 0014: Track-based Anima Pose Clips organised by beats
 
 - Status: accepted; 1.0 coexistence superseded by
-  [ADR 0016](0016-anima-pose-clip-2-only.md)
+  [ADR 0016](0016-anima-pose-clip-2-only.md); hand tracks limited to presets
+  with Curl and Spread, and creator finger edits converting a hand to finger
+  tracks, superseded by [ADR 0019](0019-hand-keys-with-fitted-presets-and-finger-offsets.md)
 - Recorded: 2026-10-06
 - Retrospective: no
 - Original decision date: 2026-10-05 (owner intent decisions in

@@ -7,6 +7,7 @@ import { chromium } from "playwright";
 import { createServer, loadConfigFromFile } from "vite";
 import { observeInitialNavigation } from "./fixtures/initial-navigation-diagnostics.mjs";
 import { createHostedWorkflowHttp } from "./fixtures/hosted-workflows-http.mjs";
+import { BROWSER_STEP_TIMEOUT_MS } from "./fixtures/browser-timeouts.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = "tests/fixtures/hosted-composition";
@@ -70,7 +71,7 @@ async function mount(route = "/", owner, { waitForSettings = true } = {}) {
     page = await browser.newPage({ viewport: { width: 1440, height: 900 } });
   const errors = [];
   page.on("pageerror", (cause) => errors.push(cause.message));
-  page.setDefaultTimeout(10000);
+  page.setDefaultTimeout(BROWSER_STEP_TIMEOUT_MS);
   await page.context().addCookies([
     {
       name: "fixture_session",
@@ -90,7 +91,7 @@ async function mount(route = "/", owner, { waitForSettings = true } = {}) {
           window.workflowFixture &&
           (!waitForSettings || !window.workflowFixture.settings.isLoading),
         waitForSettings,
-        { timeout: 15000 },
+        { timeout: BROWSER_STEP_TIMEOUT_MS },
       ),
   });
   return { page, errors, ...admission };
@@ -912,7 +913,7 @@ test("a Library import resolves its lost commit receipt after a real same-tab re
   await page.getByRole("button", { name: "Import", exact: true }).click();
   await page
     .getByRole("heading", { name: "Import complete", exact: true })
-    .waitFor({ timeout: 5000 });
+    .waitFor({ timeout: BROWSER_STEP_TIMEOUT_MS });
   assert.equal(
     api.calls.filter(
       (call) => call.owner === owner && call.path.endsWith("/commit"),

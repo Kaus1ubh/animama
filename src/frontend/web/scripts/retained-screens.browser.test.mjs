@@ -10,6 +10,7 @@ import {
   createHostedWorkflowHttp,
   hostedCapabilities,
 } from "./fixtures/hosted-workflows-http.mjs";
+import { BROWSER_STEP_TIMEOUT_MS } from "./fixtures/browser-timeouts.mjs";
 
 const root = fileURLToPath(new URL("..", import.meta.url));
 const fixture = "tests/fixtures/retained-screens";
@@ -145,7 +146,7 @@ async function mount(
   });
   const page = await context.newPage();
   page.on("pageerror", (error) => errors.push(error.message));
-  page.setDefaultTimeout(10000);
+  page.setDefaultTimeout(BROWSER_STEP_TIMEOUT_MS);
   const navigate = (next) =>
     page.goto(
       `${origin}/${fixture}/index.html?local=${local ? "1" : "0"}&route=${encodeURIComponent(next)}`,

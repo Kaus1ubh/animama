@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { chromium } from "playwright";
 import { createServer, loadConfigFromFile } from "vite";
+import { BROWSER_STEP_TIMEOUT_MS } from "./fixtures/browser-timeouts.mjs";
 
 const webRoot = fileURLToPath(new URL("..", import.meta.url));
 const fixture = "tests/fixtures/hosted-composition";
@@ -534,9 +535,11 @@ for (const viewport of [
         await dialog.waitFor({ state: "detached" });
 
         // A dismissed modal must release the page for ordinary pointer navigation.
+        // Playwright retries the hit-target check until this bound, so a page the
+        // modal leaves blocked still fails; the bound allows for slow CI runners.
         await page
           .getByRole("link", { name: "Open Library" })
-          .click({ timeout: 3000 });
+          .click({ timeout: 10_000 });
         assert.equal(new URL(page.url()).pathname, "/library");
       } finally {
         await page.close();
@@ -559,7 +562,7 @@ test("six excluded direct routes render their reason without issuing product mut
       await page
         .getByText(reason, { exact: false })
         .first()
-        .waitFor({ timeout: 10000 });
+        .waitFor({ timeout: BROWSER_STEP_TIMEOUT_MS });
     } catch (error) {
       throw new Error(
         `${route}: ${error.message}; content: ${await page.locator("body").innerText()}; location: ${page.url()}`,
@@ -577,7 +580,7 @@ test("an empty hosted roster stays useful when opened directly", async () => {
   const { page } = await mount("/animas");
   await page
     .getByText("Your Animas will appear here")
-    .waitFor({ timeout: 10000 });
+    .waitFor({ timeout: BROWSER_STEP_TIMEOUT_MS });
   assert.equal(
     await page.getByRole("link", { name: "Open Library" }).count(),
     1,

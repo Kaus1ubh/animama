@@ -6,7 +6,7 @@ tier (formerly Rare). The sounds are a second **non-portable** private Included
 source, `wow-comedy-sfx`, handled like the
 [Mixamo-motion pack](mixamo-motion-pack.md): never in Git, Docker build contexts,
 self-host images or the public package set. See
-[ADR 0019](../../adr/0019-optional-licensed-effect-sounds.md) and
+[ADR 0021](../../adr/0021-optional-licensed-effect-sounds.md) and
 [issue #399](https://github.com/raymond-van/animama/issues/399).
 
 ## How effects use the sounds

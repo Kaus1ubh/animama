@@ -57,7 +57,7 @@ def test_missing_required_dependency_fails_instead_of_trimming_a_starter(staged_
     allowed = {
         p.relative_to(staged_core).as_posix()
         for p in staged_core.rglob("*")
-        if p.is_file() and not p.relative_to(staged_core).as_posix().startswith("gestures/shy-finger-poke/")
+        if p.is_file() and not p.relative_to(staged_core).as_posix().startswith("gestures/finger-heart-pose/")
     }
     with pytest.raises(TypedContentAdmissionError, match="source_unavailable"):
         starter_inventory(staged_core, allowed_paths=allowed)

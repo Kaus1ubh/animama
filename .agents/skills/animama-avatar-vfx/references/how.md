@@ -229,7 +229,9 @@ From `src/frontend/web`, with no running stack:
 
 - `pnpm -s effects check <folder|library:<name>>` checks the art budget, the
   definition, the attachment on both Included Avatars and that the art is
-  visible; see the skill's workflow.
+  visible; see the skill's workflow. `--with-clip <clip.json|library:<gesture>>
+  --times …` checks hand- or foot-attached art in the pose of the Gesture
+  that uses it.
 - `pnpm -s effects:render <folder|descriptor.json|library:<name>> --out <png>`
   renders contact sheets on both Included Avatars (front, ¾ and face at several
   times). `--with-clip library:<gesture>` checks that body, sticker and silhouette

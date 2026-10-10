@@ -1,0 +1,738 @@
+# Deliver better hands, solved hand contacts and revised Included Gestures
+
+Source agreement: [spec](hand-animation-gestures-spec.md) for issue #314, agreed by
+the owner on 2026-10-09 with decisions D0–D6 (D3 changed: re-animate the legacy
+clips now).
+Authorized scope: Phases 1–4 and Phase 5 up to gate G3 (2026-10-09). G1 is
+satisfied. G2 (preview approval) and G3 (licence wording and promotion list)
+remain owner gates.
+Branch: `feat/hand-animation-gestures` in its existing worktree; pushed for the PR
+after the final integration review.
+Starting HEAD: merge commit `c52edb8a` (parents: prototype `430a089b`, `main` at
+`bfc0de4f`). Baseline for unchanged behavior: `bfc0de4f`.
+Delivery: #314 holds the published spec (2026-10-09T17:55:48Z); phase sub-issues
+#380–#384 with blocked-by links; the PR lists `Closes #314` and one `Closes #N`
+line per phase issue.
+
+## Purpose and context
+
+Make Gesture hands expressive and editable, make declared hand contacts land on
+every Avatar, catch the reviewed faults in checks, and revise, add, rename and
+remove the Included Gestures in the spec, with one owner review in
+`animation:preview` before promotion.
+
+Paths are relative to `src/frontend/web/src/` unless they start with `src/`,
+`content/`, `licenses/`, `tests/`, `docs/`, `.agents/` or `scripts/` (meaning
+`src/frontend/web/scripts/`). Skill references (`hands-and-face.md`,
+`clip-format.md`, `checks-and-review.md`, `human-movement.md`, `promote.md`) are
+under `.agents/skills/animama-animation/references/`.
+
+| Area | Entry points |
+| --- | --- |
+| Hand presets and fitting | `lib/avatar/poses/anatomy/handPresets.ts`, `handPresetIds.ts` |
+| Clip schema, sampler, vocabulary | `lib/avatar/poses/animaPoseClip/schemaV2.ts`, `prepareV2.ts`, `program.ts`, `clipVocabulary.ts`, `fixtures/v2-vocabulary.json` |
+| Joint model, legs | `lib/avatar/poses/anatomy/anatomy.ts`, `anatomy/legs.ts` |
+| Creator edits | `lib/avatar/poses/animaPoseClip/beatEditing.ts` (`setBeatPose`, `BeatPose`, `flattenHandToFingerTracks`, `moveBeat`, `fitContactsToClip`), `stores/pose-creator-store.ts` (`commitClipInlinePoseEdit`), `ui/pose-creator/poseCreatorHandInteraction.ts`, `usePoseCreatorHands.ts`, `PoseCreatorHandPanel.tsx` |
+| Checks and CLI | `lib/avatar/motion-authoring/checks.ts`, `cli.ts`, `includedGestures.test.ts` |
+| Scripts | `src/frontend/web/scripts/animation-render*`, `animation-preview*`, `animation-promote.mjs`, `effect-promote.mjs`, `effect-render*.mjs` |
+| Backend | `src/backend/animama/app/services/idle_clip_validation.py`, `content_package_capabilities.py`; `tests/test_pose_clip_v2.py` |
+| Content and records | `content/included/gestures/<slug>/`, `content/included/vfx/avatar/`, `content/included/licenses/inventory.json`, `licenses/source-review.json`, `src/backend/animama/resources/starter-loadout.v1.json`, `assets/vrm/animations/manifest.json` (backend copy via `uv run --no-sync python src/backend/packaging/shared_catalogs.py --write`) |
+| Docs and skill | `docs/frontend/runtime/avatar-animation.md`, `docs/adr/`, `.agents/skills/animama-animation/` |
+
+## Progress
+
+- [x] 2026-10-07 Prototype models A and B (Decision Log).
+- [x] 2026-10-09 Merge `main` `bfc0de4f` (clean); map code, content and tooling;
+      independent plan review (3 lenses, findings folded in).
+- [x] 2026-10-09 Prototype-only tools (A converter, tip-gap probe) removed from the
+      worktree; their results are summarized in the Decision Log and the Phase 1
+      pinch test reproduces the fit evidence.
+- [x] G1: owner agreed spec, plan and D0–D6 (2026-10-09).
+- [x] Phase 1: hand model (R1–R3); review #3 passed 2026-10-09; commit `4939106c`.
+- [x] Phase 2: contact solver, schema and checks (R4, R5, R6 retiming, R7, R8); review #3 passed 2026-10-09.
+- [x] Owner decisions D1–D6 (2026-10-09; D3 re-animate now).
+- [x] Phase 3: drafts and owner preview review (R10, R11, R13; gate G2) — 26 drafts and 3 effects; owner notes on Blow a Kiss, Blow a Kiss 2, Finger Heart Pose and Pout Huff applied and resolved; owner approved all Gestures (G2, 2026-10-09).
+- [x] Phase 4: creator write-back for solved arms and promotion tooling (R6 edits, R9); review #2 passed 2026-10-09.
+- [x] Phase 5: promotion, registries and final validation (R12, R13; gate G3
+      approved 2026-10-09). 3 effects and 2 Gestures added, 24 Gestures replaced, 5
+      display-name-only edits, `shy-finger-poke` and `storytelling` removed, starters
+      21 → 20; registries, pins, journeys and docs updated.
+- [x] Final integration review: review #2 passed 2026-10-09 (one repair round).
+- [ ] PR; owner merge approval.
+
+## Surprises & Discoveries
+
+- Included Avatars have near-identical finger rigs (pinch fitted on one leaves
+  6–7 mm on both) but very different arms: upper arm +20 %, forearm +10 %, whole
+  arm +6.2 cm, shoulder joints 4.8 cm closer on A_1 than Y_0.
+- Several declared contacts encode the faulty pose and pass: wrist at the elbow
+  with tolerance 0.10–0.12 m (Thinking Chin, Storytelling), wrist 18.8 cm beside
+  the hips (Hands on Hips).
+- `fist curl −25` makes a fingertip claw; the clap's palms face down.
+- Laughs oscillate at 4.5–5.5 Hz, phase-locked; hearty and medium share every
+  torso key; pulses are `dt` keys on one beat, so retiming beats cannot slow them.
+- No clip keys finger `joints`; editing a finger flattens the hand; nothing writes
+  `clip.hands` from the creator; `insertBeat` does not anchor hand keys.
+- `schemaV2.ts` rebuilds each contact from a fixed field list, dropping unknown
+  fields; the schema must land before contact fields are authored.
+- The backend rejects new presets on package import/export and Idle Style
+  eligibility but not on Local save; no backend test validates tracked Included
+  clips.
+- Legacy clips exceed joint limits (forearm deviation −70° to −138°, hand rotation
+  −39°, head lateral flexion 23.7°), so they are re-posed, not transcribed.
+- `animation promote` cannot rename, change loop kind or add dependencies;
+  `effects promote` replaces a Gesture with dependencies but cannot add one.
+- Starter Selector IDs come from the content-ID suffix.
+- HEAD fails `v2Vocabulary.test.ts` (prototype has 12 presets, fixture 7).
+
+## Decision Log
+
+- 2026-10-07, agent finding (D0 proposal): model B hybrid. Method: the eight-preset
+  gallery and two real Gestures (Thinking Chin Rest, Blow a Kiss) authored as hand
+  keys (B) and expanded to per-beat finger joints by a prototype converter (A).
+  B 8 keys/1 KB vs A 244 keys/12 KB; real Gestures 3–4 KB vs 12–13 KB. Tip gap of
+  fitted pinch/OK 6–7 mm on both Avatars; unfitted hand-written thumb angles
+  25–29 mm. Owner agreement pending (G1).
+- 2026-10-09, owner: build the solver here if it helps; agent assessment: it does.
+- 2026-10-09, owner: extend #314 to the Gesture list; review in `animation:preview`.
+- Proposed, agent: solver v1 pin-mode only, authored wrist kept, one solved
+  contact per side at a time, solved after legs; default blends 0.15 s; ramps of
+  consecutive solved contacts on one side shorten to meet midway (claps 0.20 s
+  apart chain without overlap); in clips with several contacts per moment only one
+  per side is solved, the rest stay check-only; contact-window stretching on retime
+  applies to solved contacts only (existing clips edit as before).
+- Proposed, agent: bulb is a new body-attached Avatar Effect on `rightHand` reusing
+  `idea_bulb.png`; `idea_bulb` stays for its three Reactions.
+- Proposed, agent: `animation:save` is not used; drafts promote from files.
+- 2026-10-09, agent (within approved outcome): the `thumbs-up` preset's fitted
+  thumb exceeded the thumb joint's hard limit (−69° to −70° vs −60°) on both
+  Included Avatars, so every clip using it failed `check`. The thumbs-up thumb is
+  now held in the natural range with its tip bent back; other fitted thumbs are
+  held within the hard limits, which changes only fits that were past them. No
+  Included clip used `thumbs-up` (baseline unchanged). Reported to the owner.
+- 2026-10-09, owner (G3): approved the promotion package (items, identities,
+  Right Finger Point loop change, AI descriptions A1–A8, licence and source-review
+  wording with agent-authored rules, effect records Option B, posed thumbnails via
+  a small template change, held loops `loop_count` 1, Left Peace Sign description
+  kept). Package: `.animama-drafts/hand-animation-gestures/promotion/PACKAGE.md`
+  (working file; the approved items and wording are recorded in the PR).
+- 2026-10-09, owner (G2): approved all new and revised Gestures after one round of
+  four preview notes (straight-finger kisses, reference finger heart with a heart
+  effect, huff puff effect on Pout Huff). Two further new Avatar Effects result:
+  `finger_heart_pop` and `huff_puff` (reusing Included heart and puff art).
+- 2026-10-09, owner: approve spec, plan and D0–D6 with recommendations, except
+  D3: re-animate the unlisted legacy clips in this issue. Each animation is drafted
+  by its own sub-agent in parallel, from scratch with the `animama-animation`
+  skill or as a revision of the current clip, at the author's discretion.
+
+## Phased implementation
+
+Every code phase: tests first where behavior is observable; phase checks; a
+bounded independent review (`sdlc-reviewer`: one full review, at most two repair
+rounds) recorded below; commit `<type>(<scope>)[p#]: <summary>`.
+
+### Phase 1 — Hand model (R1–R3)
+
+Issue: #380. Starting revision: `c52edb8a`. Gate: G1.
+
+1. **Branch hygiene.** `git reset --soft bfc0de4f`, keep the plan files, and fold
+   the prototype into the first `feat(animation)[p1]` commit (the `wip` commit and
+   local merge disappear; the branch becomes `main` + phase commits).
+2. **Baseline hashes.** A test helper samples every Included Gesture clip at fixed
+   times on both Included Avatars (headless VRM) and hashes quantized canonical
+   poses. Generate the fixture in a temporary detached worktree at `bfc0de4f`
+   with the helper copied in (`git worktree add --detach <tmp> bfc0de4f`), then
+   commit the fixture and helper here; remove the temporary worktree. Untouched
+   clips must match after every phase; Phase 5 re-baselines only revised items.
+3. **Presets and offsets.** Review and finish `handPresetIds.ts`/`handPresets.ts`
+   (12 presets; `HAND_DIGITS`; offset limit; existing seven unchanged).
+4. **Schema and vocabulary.** `schemaV2.ts` `fingers` validation with JSON paths;
+   vocabulary fixture gains digits, offset fields and limit; `v2Vocabulary.test.ts`
+   and `tests/test_pose_clip_v2.py` assert them; backend `V2_HAND_PRESETS` and
+   `fingers` validation; shared valid/invalid fixtures used by both suites; a
+   backend test validating every tracked Included Gesture clip; a package
+   export→import round trip keeping `fingers`.
+5. **Creator round trip.**
+   - `BeatPose` gains `hands?: Partial<Record<Side, HandShape>>`. The Hands panel
+     records preset, Curl and Spread intent on the clip inline edit;
+     `commitClipInlinePoseEdit` passes it; `setBeatPose` writes or replaces the
+     beat's hand key from it and excludes those fingers from decomposition. The
+     live preview of Curl/Spread uses `handShapeRotations(key)` so preview and
+     result match.
+   - Finger-bone edits at a beat with a hand key (dt 0) become `fingers` offsets,
+     decomposed against preset + Curl + Spread as fitted on the editing Avatar.
+     A beat without a key gets one from the sampled nearest key's preset. Edits
+     offsets cannot express (finger twist, non-proximal splay, thumb-distal
+     abduction or twist, beyond ±90°) become joint tracks for those bones; a
+     thumb-metacarpal edit becomes a rotation track. Either track is keyed at
+     every hand key with the currently sampled values, so other beats keep their
+     shape (sampler overrides hand shapes with finger tracks; a metacarpal track
+     changes thumb fitting at every key).
+   - Replace `beatEditing.test.ts` "turns a preset hand into finger keys before
+     editing a finger"; add tests on both Avatars.
+6. **Docs.** `hands-and-face.md` (presets, offsets, when finger `joints` are still
+   right, contact shapes); new ADR (next number) superseding ADR 0014 point 4 for
+   hands, cross-linked from 0014.
+
+Checks: `pnpm exec vitest run src/lib/avatar/poses src/ui/pose-creator src/stores
+src/lib/avatar/motion-authoring` (from `src/frontend/web`); `uv sync --python
+3.12.13` then `uv run pytest -q tests/test_pose_clip_v2.py
+tests/test_content_package_capabilities.py`; baseline hashes match.
+Completion: R1–R3 tests pass; pinch/OK tip gap < 1 cm on both Avatars; review
+passed.
+
+#### Code Review #1 Findings
+
+Reviewed 2026-10-09: uncommitted working tree on `ba23f02d` (baseline `bfc0de4f`),
+excluding `anatomy/arms.ts`/`arms.test.ts` (Phase 2) and `.animama-drafts/`.
+Independent `sdlc-reviewer` analysis with scratch probes; lead finding P1-R1-11
+from draft `check` evidence.
+
+- **P1-R1-01 (required):** `poseCreatorHandInteraction.ts:122-123` with
+  `setBoneDraft` (`pose-creator-store.ts:2325`): a shape recorded for the inline
+  edit is reused unchanged after a later Bones/gizmo finger edit, so the next
+  Curl/Spread silently discards that edit (probe: preset fist → index distal +40°
+  → Curl +5 ends 35° from the bend). Violates R3.
+- **P1-R1-02 (required):** `poseCreatorHandInteraction.ts:297-371`,
+  `beatEditing.ts:1121-1140`: Curl/Spread on a keyed hand places every finger of
+  the side at the shape, including bones with their own tracks, bones offsets
+  cannot express (twist) and unselected bones; probes lose a tracked twist and a
+  gizmo twist. Violates R3 ("affected bones only"); regression from `bfc0de4f`.
+- **P1-R1-03 (required):** `scripts/animation-render/render.ts:179` fails
+  `pnpm -s prettier:check`.
+- **P1-R1-04 (optional):** a beat without its own key gets offsets fitted only for
+  edited bones; untouched fingers shift up to 3.9° at mid-key beats; docs say
+  "offsets for the whole hand as shown".
+- **P1-R1-05 (optional):** `scripts/animation-render.mjs:114-116` usage text lists
+  side close-ups; actual views are front, ¾, below and palm.
+- **P1-R1-06 (optional):** `handPresets.ts:353-368` runs `fitPinch` four times
+  per side; ADR 0019 says once per hand key.
+- **P1-R1-07 (optional):** ADR 0019:75-77 claims offsets give the same rotation on
+  every Avatar; false for the fitted pinch/ok index.
+- **P1-R1-08 (optional):** `HandDigitOffset` duplicates
+  `AnimaPoseClipHandDigitOffset`.
+- **P1-R1-09 (optional, Phase 4):** `SKILL.md:102-103` still says finger joints
+  only for shapes presets cannot make.
+- **P1-R1-10 (optional):** no tests for the `--view hands` render path or nearest
+  key across a loop seam; baseline failures report hashes only.
+- **P1-R1-11 (required, lead):** the existing `thumbs-up` preset fits
+  `ThumbProximal.curl` to −68.9° (right) / −70.1° (left) on Y_0, beyond the −60°
+  hard limit, so any clip using it FAILs `check` (reproduced with a bare key by
+  three draft authors).
+
+#### Code Review #1 Revisions
+
+2026-10-09, repair round #1 (one of two allowed):
+
+- **P1-R1-01 accepted, fixed:** a recorded shape is refit to the shown fingers
+  before each Curl/Spread (`beatHandShape` takes the recorded shape and returns
+  `{shape, unshaped}`). Probe now ends 5.00° from the bend. Test "keeps a bone edit
+  through a later Curl".
+- **P1-R1-02 accepted, fixed:** Curl/Spread moves only selected bones; the shape
+  drives a selected bone only when it reproduces it within 0.5° and it has no own
+  track; others turn per bone as in Pose editing (shared `fitShownHand`). Tests
+  cover tracked bones, gizmo twist (fallback track keyed at every hand key) and
+  partial selection.
+- **P1-R1-03 accepted, fixed:** `render.ts` formatted; `pnpm -s prettier:check` clean.
+- **P1-R1-04 accepted as documentation:** the nearest-fit approximation for
+  untouched fingers at a keyless mid-key beat is documented in `setBeatHand` and
+  `avatar-animation.md` (holding them would add tracks for unedited fingers).
+- **P1-R1-05 accepted, fixed:** usage text lists front, ¾, below and palm.
+- **P1-R1-06 accepted, fixed:** pinch is fitted once per hand shape
+  (`HandShapeFits`); ADR wording now accurate.
+- **P1-R1-07 accepted, fixed:** ADR 0019 says offsets add the same component
+  change to each Avatar's fitted preset.
+- **P1-R1-08 accepted, fixed:** `HandDigitOffset` defined once in `handPresetIds.ts`.
+- **P1-R1-09 deferred to Phase 4** (skill `SKILL.md` decision rules), as planned.
+- **P1-R1-10 partly accepted:** loop-seam nearest-key test added; the `--view
+  hands` path is exercised by the checks run (render of `wave-hello`), a browser
+  test is not added; baseline hash failures stay hash-only (the clip and Avatar
+  are named, which suffices to reproduce).
+- **P1-R1-11 accepted, fixed:** fitted thumbs are kept inside the thumb's natural
+  range (`withinNaturalRange`); the thumbs-up thumb tip bends back 25°. Thumbs-up
+  ThumbProximal.curl is now −50.0° on both Avatars and sides; renders still read
+  upright. Only the three thumbs-up digests changed (deliberate, commented); a new
+  test keeps every joint of all 12 presets within hard limits on both Avatars.
+  This deviates from R1's "existing seven keep their exact shapes" for
+  `thumbs-up` only, because its old fit violated joint limits (Decision Log).
+
+Evidence after repairs: `tsc -b` clean; full web vitest 418 files / 3298 passed;
+`pnpm -s prettier:check` clean; `pnpm web:lint` clean; included-clip baseline
+unchanged. Earlier checks run (before repairs): `pnpm check`, `make check-test`
+(3413 passed), script and browser tests, both render paths.
+
+
+
+#### Code Review #2 Findings
+
+Targeted recheck 2026-10-09 (`sdlc-reviewer`, probes in the session scratchpad).
+Resolved: P1-R1-01, 03, 05, 06, 07, 08, 10; P1-R1-04 documentation accurate;
+P1-R1-02 resolved for the reported cases; P1-R1-11 resolved for `thumbs-up`.
+
+- **P1-R2-01 (required):** `withinNaturalRange` clamps every fitted thumb, so
+  `fist`, `point`, `peace` and `open-together` change (1.5–9.3°) whenever the thumb
+  metacarpal differs from Relaxed Rest's; 46 of 126 changed thumbs were within hard
+  limits before. Records claimed only `thumbs-up` changes. Included content is
+  unaffected (baseline passes).
+- **P1-R2-02 (required):** at a beat without its own hand key the blend error
+  alone exceeds the 0.5° rule, so whole-hand Curl/Spread, partial Curl and plain
+  Bones curls create fallback finger tracks with zero offsets (key and tracks
+  disagree); a regression from the P1-R1-02 fix.
+- Optional: `avatar-animation.md` cites "up to about 4° in tests" without a test.
+
+#### Code Review #2 Revisions
+
+Repair round #2 (last allowed), 2026-10-09:
+
+- **P1-R2-01 accepted, fixed:** fitted thumbs are held within the thumb joint's
+  hard limits (`withinJointRange(…, "hard")`), so a fit inside them is bit-for-bit
+  unchanged; only `thumbs-up` uses the natural range (curl −50°, tip −25°). Probe
+  over 7 presets × 27 metacarpal sets × both Avatars, sides and Curl variants:
+  differences are only `thumbs-up` and 80 fits whose `bfc0de4f` value was past
+  the hard limit; all 12 presets stay within hard limits for every set. New tests
+  pin a within-limit fit to its `bfc0de4f` quaternion and clamp an unreachable
+  one; ADR 0019 decision 2 and consequences updated.
+- **P1-R2-02 accepted, fixed:** a bone falls back only when the edit itself is
+  not expressible (`isOffsetExpressible` on the change, or offsets past ±90°),
+  not because of the blend approximation; missed bones still get their closest
+  offsets so the key and track agree. Probes: whole-hand Curl/Spread, partial
+  Curl and Bones curl at a keyless beat create 0 tracks; a twist creates only its
+  own fallback track; earlier probes unchanged. Tests on both Avatars and through
+  the real Hands tool on A_1.
+- Optional nit fixed: `avatar-animation.md` now says "a few degrees"; the code
+  comment cites the asserted 4.5° bound.
+
+Evidence: `tsc -b` clean; vitest poses/pose-creator/stores/action-editor/
+motion-authoring 74 files, 919 passed; anatomy/animaPoseClip/motion-authoring
+394 passed; included-clip baseline unchanged; prettier and eslint clean.
+
+#### Code Review #3 Findings
+
+Final targeted recheck 2026-10-09: **pass.** P1-R2-01 resolved (31,752 bones
+compared with `bfc0de4f`: only `thumbs-up` and fits past the hard limit differ;
+all 12 presets within hard limits for every metacarpal set). P1-R2-02 resolved
+(keyless whole/partial Curl, Spread and Bones curls create 0 tracks; twists only
+their own track). No regressions. Non-blocking: one long ADR line (wrapped);
+the P1-R1-11 revision entry is superseded by Revision #2.
+
+### Phase 2 — Contact solver, schema and checks (R4, R5, R6 retiming, R7, R8)
+
+Issue: #381. Starting revision: Phase 1 commit. Gate: G1.
+
+1. **Schema** (frontend, backend, shared vocabulary and fixtures): contact `point`
+   and `targetPoint` (`joint|palm|tip`; `palm` on hands, `tip` on fingers),
+   `facing` (palm toward target; check-only), `solve: { blendIn?, blendOut? }`
+   (0–2 s, default 0.15); solved effector is a hand or finger bone; target not on
+   the same arm; solved windows on one side must not overlap (ramps shorten to
+   meet midway, loop-wrapped); time fields at time precision. Package
+   export→import round trip keeps `point`, `targetPoint`, `facing` and `solve`.
+2. **Solver** `lib/avatar/poses/anatomy/arms.ts`: `CanonicalSkeleton` (parent map,
+   VRM 0 `(-x,y,-z)`), contact-point helpers shared with checks, Avatar `scale`
+   (reference height 1.25 m), `contactSolveWeight` (smootherstep, loop wrap),
+   `ArmReachSolver` (elbow change as a pre-multiplied rotation about the forearm
+   flexion axis, smallest change; minimal upper-arm swing; authored swivel kept;
+   reach and flexion clamped).
+3. **Preparation:** solvers built when `vrm` is set and the clip has solved
+   contacts; solve after legs from the final pose; dependent sides ordered, one
+   extra pass for mutual contacts; `solveContacts` option (default true).
+4. **Retiming:** `moveBeat` maps solved contact windows piecewise through old and
+   new beat times, then `fitContactsToClip`; unsolved contacts move as today.
+5. **Checks:** contacts at `point` with scale; solved tolerance 1.5 cm
+   ("unreachable on this Avatar"); parity on unsolved preparation; per-Avatar
+   range/smoothness on solved arm joints; WARN reach correction > 8 cm; WARN
+   `facing` > 45°; finger collisions (finger capsules against other fingers, palm,
+   other hand, outside declared contacts); oscillation WARN as defined in R8,
+   tested so a 3 Hz bounce and Wave Hello pass and the current laughs warn; WARN
+   solved head contact with unmuted head/torso layers.
+6. **Docs:** `avatar-animation.md` contacts, `clip-format.md`,
+   `checks-and-review.md`, `human-movement.md` (laugh rhythm), the ADR.
+
+Checks: new `arms.test.ts` on both Avatars (palm, tip and joint onto head, hips
+and the other forearm; authored target returns the authored pose; swivel kept;
+unreachable clamps; mutual contacts within 1 cm); `prepareV2`, `schemaV2`,
+`beatEditing` (incl. pins at `beatEditing.test.ts:356-421`), store, `legs.test.ts`,
+`checks.test.ts`, `includedGestures.test.ts` (WARNs allowed, no new FAIL);
+backend tests; baseline hashes match.
+Completion: tests pass, review passed.
+
+#### Code Review #1 Findings
+
+Reviewed 2026-10-09: uncommitted tree on `4939106c` (Phase 1 commit), excluding
+`.animama-drafts/`; independent `sdlc-reviewer` with scratch probes. Lead checks:
+`tsc -b` clean; full web vitest 418 files / 3371 passed; prettier and web lint
+clean; backend 360 passed; ruff clean.
+
+- **P2-R1-01 (required):** oscillation WARN fires after 3 swings (~1.5–2 cycles),
+  not three cycles as R8 says (`checks.ts:155, :753`); no boundary test.
+- **P2-R1-02 (required):** the solved-head-contact WARN omits `bounce`, which
+  rotates the neck and head (`checks.ts:923-929`).
+- **P2-R1-03 (optional):** unreachable targets clamp hard at full reach (√Δw
+  steps; 24–51°/frame at 60 Hz for targets 25 cm out); ADR names only straight
+  arms.
+- **P2-R1-04 (optional; lead: required):** mutual palm-to-palm solves are
+  degenerate (non-monotonic); docs, fixture and a test model a clap as two
+  solved palms while `clip-format.md` says one.
+- **P2-R1-05 (optional):** touching windows with different targets get zero
+  ramps and pop (19–22°).
+- **P2-R1-06 (optional):** no `joint`-point landing test though ADR 0020 says so.
+- **P2-R1-07 (optional, docs):** `[canonical]` scope for solved arms, facing
+  target for limbs, wave palm angle numbers.
+- Optional: duplicated hand/finger regexes, test-only `frames()`, schema importing
+  the solver for `CONTACT_POINTS`; laugh fixtures need classifying at source review.
+
+#### Code Review #1 Revisions
+
+2026-10-09, repair round #1 (one of two allowed):
+
+- **P2-R1-01 accepted, fixed:** the oscillation WARN needs three full cycles (six
+  reversals, mean rate > 4 Hz, ≥ 1.5° each); boundary tests (2–2.5 cycles pass, 3
+  warn); pre-revision laughs still warn.
+- **P2-R1-02 accepted, fixed:** `bounce` added to the head-moving layers; tests
+  and docs updated.
+- **P2-R1-03 accepted, fixed:** soft reach saturates the pinned distance over the
+  last 3 cm (targets at full reach miss by ~1.1 cm); bounded-speed tests on both
+  Avatars; ADR 0020 names the fast-motion causes.
+- **P2-R1-04 accepted (lead decision), fixed:** hand-to-hand solves are one-sided;
+  both validators reject mutual hand↔hand solves whose blended windows overlap
+  (loop-wrapped); crossed arms onto the other arm stay mutual; fixture, tests and
+  docs use the one-sided clap.
+- **P2-R1-05 accepted as documentation:** a touching window must continue the same
+  contact or leave a gap (smoothness catches pops); no schema rule.
+- **P2-R1-06 accepted, fixed:** `joint`-point landing scenarios added; the rig
+  cross-check now honours `targetPoint`.
+- **P2-R1-07 accepted:** docs corrected; `facing` for limb targets now aims at the
+  nearest point of the target segment (code and test), which also flags the
+  current Arms Crossed and Pout Huff (to be revised).
+- Optional code quality done: shared bone patterns and contact points in
+  import-free `contactPoints.ts`; `frames()` kept (used by two test files).
+
+Evidence: `tsc -b` clean; full web vitest 418 files, 3409 passed, 4 failed in
+`tests/local-api-proxy.test.ts` under load (file passes 8/8 alone; untouched by
+this branch); prettier and lint clean; backend 366 passed.
+
+
+#### Code Review #2 Findings
+
+Targeted recheck 2026-10-09: **pass.** P2-R1-01..07 resolved (oscillation boundary
+probe; bounce; soft reach makes steps proportional to the weight step; 4000-clip
+randomized parity probe with 0 front/back disagreements; docs). Optional:
+
+- **P2-R2-01 (optional):** a mixed mutual pair (one hand onto the other hand while
+  that hand is solved onto the first arm) is accepted and diverges in the solver;
+  checks FAIL it, but an imported package would play it.
+- **P2-R2-02 (optional, wording):** lopsided pulses are rated up to ~25% above
+  their cycle rate (odd interval count), unlike the docs' wording.
+- Nits: a backend comment cites `arms.ts` for contact points; mutual crossed arms
+  cost ~17.6 µs per sample.
+
+#### Code Review #2 Revisions
+
+Repair round #2 (last allowed), 2026-10-09:
+
+- **P2-R2-01 accepted, fixed:** both validators reject two overlapping solved
+  contacts on opposite sides whose targets each lie on the other arm when either
+  target is the other hand or fingers; crossed arms onto upper arms/forearms stay
+  mutual. Shared fixture cases (mixed pairs invalid; crossed arms and hand onto
+  chest valid); ADR 0020 decision 5 and docs updated.
+- **P2-R2-02 accepted, fixed in code:** oscillation is timed over whole cycles
+  (peak to peak and trough to trough), so lopsided pulses count at their true
+  rate; new uneven-pulse test; sub-frame timing test rewritten.
+- Nit fixed: backend comment cites `anatomy/contactPoints.ts`.
+
+Evidence: `tsc -b` clean; vitest poses + motion-authoring 537 passed; backend
+287 passed; ruff, mypy, eslint and prettier clean; baseline unchanged.
+
+#### Code Review #3 Findings
+
+Final targeted recheck 2026-10-09: **pass.** P2-R2-01 resolved (4000-clip
+randomized parity plus an independent oracle: 0 disagreements); P2-R2-02 resolved
+(lopsided 3.7 Hz pulse no longer warns; 3-cycle boundary unchanged). No
+regressions; one long doc line wrapped.
+
+### Phase 3 — Drafts and owner preview review (R10, R11, R13; gate G2)
+
+Issue: #382. Starting revision: Phase 1 commit (drafts without
+contacts) or Phase 2 commit (drafts with contacts). Gate: D1–D6 answered.
+Completion: G2 approval of every Gesture and the effect by name.
+
+Drafts live in `.animama-drafts/hand-animation-gestures/` (ignored). One sub-agent
+per animation, run in parallel, follows the `animama-animation` skill and either
+authors from scratch or revises the current clip (copied from
+`library:included/<slug>`), depending on the size of the change; a consistency
+pass across all drafts follows.
+Per item: `pnpm -s animation validate`, `check` (no FAIL; WARNs explained),
+`animation:render` body and `--view hands` sheets on both Avatars (`--side left`
+where relevant).
+
+- Solved contacts with `palm`/`tip` points: Arms Crossed and Pout Huff (palms on
+  forearms), Hands on Hips (`facing` toward the hips), Thinking Chin and Have an Idea (fist→chin; right elbow
+  into the upturned left palm via left supination, `facing` up), Right Face Palm,
+  Blow a Kiss and Blow a Kiss 2, Salute, Excited Triple Clap (palm→palm, ramps
+  ≤ 0.12 s).
+- Orientation: Face Palm, Kiss (`facing`); Small Wave palm toward the viewer
+  (checked in renders) with the wrist about shoulder width out.
+- Laughs: rewrite pulse keys (3–4 per burst, 2.5–3.3 Hz, decay, stagger; remove
+  Medium's forearm flap); keep the structures pinned by `beatEditing.test.ts`,
+  `pose-creator-store.v2.test.ts` and the generated-gesture e2e, or update those
+  tests deliberately in Phase 5.
+- Pins to preserve: Arms Crossed stays a loop with beat `end` and a whole-clip
+  first contact owned at 0; Thinking Chin keeps `basePose`; Right Face Palm has no
+  pops (`checks.test.ts:371-379`).
+- Re-animations (Finger Heart Pose per D5, Right Finger Point and Salute per D4,
+  and the D3 legacy clips: thumbs up/down, double thumbs, Left OK and Peace Sign,
+  Double Peace Pop, Thinking Hand on Chin): re-posed within joint limits, fades,
+  mutes and `plantFeet`, loop kinds kept. Thinking Hand on Chin is pinned by
+  `checks.test.ts:233-245` (face intersection without a contact); keep that test's
+  intent with a fixture copy of the current clip or update it in Phase 5.
+- Cat Monster Rawr and Cheeky Finger Guns per the spec.
+- New: Blow a Kiss 2; Have an Idea with `idea_bulb_fingertip` (effect drafted with
+  the `animama-avatar-vfx` skill, `pnpm -s effects check`, placement via
+  `effects:render <effect folder> --with-clip <clip> --times …`). For preview, the
+  draft effect sits in a scratch Local root
+  `<root>/vfx/avatar/idea_bulb_fingertip/` with a `content_id`, and Have an Idea is
+  previewed as a project file with a `ref` dependency and `--local-content <root>`
+  (the scratch descriptor needs `content_id` and `content_type: "avatar_effect"`).
+
+Gate G2: `pnpm -s animation:preview <first draft>`; the owner switches items and
+Compare (`library:included/<slug>`) in the pickers; notes are applied and closed
+with `pnpm -s animation resolve`; repeat until the owner approves each Gesture and
+the effect by name. Commits in this phase: plan evidence only
+(`docs(animation)[p3]`).
+
+### Phase 4 — Creator write-back for solved arms and promotion tooling (R6 edits, R9)
+
+Issue: #383. Starting revision: Phase 2 commit (may run in parallel
+with Phase 3). Gate: G1. Completion: tests pass; review passed.
+
+1. `setBeatPose`: `sampleAt` uses unsolved samples; inline commits convert edits
+   at solved beats into local changes on the authored arm
+   (`authored · before⁻¹ · next`); by-value inputs unchanged. Tests with a VRM
+   context on both Avatars.
+2. `animation promote`: `add` writes given `dependencies`; `name` and `loop`
+   changes only with an explicit `rename`/`loopChange` field; tests in
+   `scripts/animation-promote.test.mjs`. Rename-only legacy items are edited by
+   hand (meta and clip `name`) so their owner-authored licence rule stays.
+3. `effects check` gains `--with-clip <clip> [--times …]` so body-attached art
+   on a hand (the fingertip bulb) is checked in the pose it is used in; today it
+   renders arms down and reports "no visible art" (found 2026-10-09).
+4. Skill: `promote.md`, `SKILL.md` decision rules; document `--view hands`.
+
+Checks: store, `beatEditing`, `node --test scripts/*.test.mjs`. Review as above.
+
+#### Code Review #1 Findings
+
+Reviewed 2026-10-09: uncommitted tree on `b600b6a4`; independent `sdlc-reviewer`
+with probes (local-change conversion verified on both arms, joint and rotation
+tracks, near-gimbal and partial-solve beats; promote dry runs wrote nothing).
+
+- **P4-R1-01 (required):** the duplicate display-name refusal compares items only
+  with the pre-run metas, so two items in one run can share a name, and a valid
+  swap is refused (`animation-promote.mjs:271-282`).
+- **P4-R1-02 (optional):** `rename`/`loopChange` with no such change pass silently.
+- **P4-R1-03 (optional):** `animation promote` now loads playwright, vite and sharp
+  through `effect-promote.mjs`; `workingTreeRepo` ignores the injected fs.
+- **P4-R1-04 (optional, docs):** `avatar-vfx.md` lacks `--with-clip`; vfx
+  `promote.md` lacks the Gesture-with-new-effect order; animation `promote.md`
+  rename-only section omits the manifest name; two long lines.
+- **P4-R1-05 (optional):** `effects check --with-clip` ignores missing pose refs.
+
+#### Code Review #1 Revisions
+
+2026-10-09, repair round #1:
+
+- **P4-R1-01 accepted, fixed:** names are checked against the end state of the
+  run (existing metas with every item applied), case-insensitive; swaps allowed;
+  within-run tests.
+- **P4-R1-02 accepted, fixed:** `rename`/`loopChange` without such a change are
+  refused; tests.
+- **P4-R1-03 accepted, fixed:** shared dependency rules and the Included meta walk
+  live in dependency-free `scripts/included-dependencies.mjs`; `animation promote`
+  no longer loads the render stack; injected fs honoured (test).
+- **P4-R1-04 accepted, fixed:** `avatar-vfx.md` `--with-clip`; vfx promote order;
+  manifest name step for rename-only items; long lines wrapped.
+- **P4-R1-05 accepted, fixed:** `effects check` warns about clip poses missing from
+  the catalog.
+
+Evidence: script tests 69/69; effect-check browser test 2/2; eslint and prettier
+clean; real-repo dry runs wrote nothing (`git status` unchanged).
+
+
+#### Code Review #2 Findings
+
+Targeted recheck 2026-10-09: **pass.** P4-R1-01..05 resolved (within-run
+duplicate and swap probes; flags without changes refused; `animation promote`
+loads no render stack; docs; missing-pose WARN). No regressions; dry runs wrote
+nothing.
+
+Evidence before commit: `tsc -b` clean; full web vitest 417 of 418 files pass —
+`tests/local-api-proxy.test.ts` fails only while the owner's preview server holds
+port 5173 (passes 8/8 with the port free); prettier and web lint clean.
+
+### Phase 5 — Promotion, registries and final validation (R12, R13; gate G3)
+
+Issue: #384. Starting revision: Phases 3 and 4 complete. Completion:
+all acceptance criteria in the spec met except merge approval.
+
+Gate G3: the owner approves the licence and source-review wording and the promote
+`--dry-run` file list (mode and identity per item) before any write to
+`content/included`.
+
+1. Order: `effects promote` add `idea_bulb_fingertip`; `animation promote` add
+   Have an Idea (with `ref: builtin:avatar-effect:idea_bulb_fingertip`) and Blow a
+   Kiss 2; `animation promote` replace for each revised item (with rename/loop
+   fields where listed); hand edits of display names for rename-only items.
+2. Remove the `shy-finger-poke` and `storytelling` folders, storytelling's own
+   licence rule (`inventory.json`; `shy-finger-poke` falls under the generic
+   `gestures/**` rule, which stays) and both items' source-review records; starter policy v1, `EXPECTED_STARTER_GESTURE_IDS` and
+   both starter-count pins (`tests/test_anima_starters.py:450,476`) per D2, in one
+   commit with the content.
+3. Registries: manifest names, durations and loop kinds (+ backend copy sync);
+   `MOTION_CHECK_EXEMPT` for re-animated items; count pins
+   (`includedGestures.test.ts`, `catalog.content.test.ts`); effect picker template
+   and thumbnail `assets/effect-templates/idea_bulb_fingertip.webp`
+   (`pnpm -s effects:thumbnails`) with its source-review record (D6).
+4. Tests and journeys: retarget `accountless-library.spec.ts` and
+   `playback-library.spec.ts` (Have an Idea for Gesture `avatar_vfx`; a Reaction
+   such as `curiosity-3` for scene effects; drop the stale `sfx-cute-slide`
+   assertion), the discard specs, `tests/test_included_content_catalog.py`,
+   `tests/test_starter_content_closure.py`, `tests/test_non_portable_packages.py`
+   if affected; re-baseline hashes for revised items.
+5. Docs: `content/included/README.md:53`, `docs/frontend/testing/browser-journeys.md:158`,
+   `clip-format.md` examples.
+6. `git add`/`git rm` before backend tests and desktop staging (they read tracked
+   files only).
+
+Evidence 2026-10-09 (staged tree on `d373cd74`; task stack `animama-hands`,
+production build with `ANIMAMA_LLM_SKIP=1`, http://animama-hands.localhost:8300):
+
+- Promotion: each step dry-run first, then written in order (effects promote 11
+  changes; animation promote add 6 files, replace 42 files, replace-after-effects
+  5 files); the 26 written clips matched the G2-approved drafts byte for byte.
+- `pnpm check` exit 0; full web vitest 418 files, 3438 passed; `pnpm web:lint`,
+  prettier and `pnpm e2e:check` clean; `pnpm build` ok; script and browser script
+  tests pass (84 + 43).
+- `make check-test` passed (typed-content audit, ruff, mypy, pytest 3449 passed,
+  10 skipped); `shared_catalogs.py` check clean.
+- `pnpm desktop:runtime:stage` and `desktop:runtime:audit` (darwin-arm64) OK; the
+  release gate stays closed (pending licence records), as before.
+- E2E fast suite: 35 of 36 passed; the failure was the Library pose journey
+  expecting the folder name instead of the Selector ID `have_idea` (spec fixed).
+  Re-runs: the fixed journey, creator discard, generated-gesture round trip and
+  the complete-Anima imported playback passed; two journeys that timed out under
+  parallel load passed serially. `playback-library.spec.ts` is outside the active
+  `testMatch` (type-checked only).
+- Not performed: a live chat check with a paid model.
+
+Phase 5 was reviewed as part of the final integration review below.
+
+## Final integration review
+
+One full `sdlc-reviewer` pass over the PR against the spec, at most two repair
+rounds; then the owner's merge approval of the exact revision.
+
+Before the review, `main` (`3efefc5b`, 119 commits) was merged into the branch
+(`73d62314`); the only conflict was the ADR index, resolved by keeping main's rows
+and adding 0019 and 0020.
+
+#### Code Review #1 Findings
+
+Source `73d62314`, baseline `3efefc5b`, whole PR; full review of Phase 5,
+cross-phase checks for the rest.
+
+- FIR-R1-01 (required): `docs/frontend/runtime/mixamo-acquisition.md` and
+  `docs/frontend/desktop/runtime-staging.md` still gave 21 starter Gestures (R12).
+- FIR-R1-02 (optional): `browser-journeys.md` and the Library journey comment
+  presented `playback-library.spec.ts` proofs as active; it is type-checked only.
+- FIR-R1-03 (optional): plan records (empty Phase 5 review headings, "never
+  pushed", Outcomes not started; the Phase 3 record landed in the p5 commit).
+- FIR-R1-04 (optional): commit `50d5c8b1` calls Storytelling a test sequence; it
+  was the Included Gesture `storytelling` (`tell_story`).
+- FIR-R1-05 (evidence): per-item R13 results — all 26 promoted Gestures pass
+  `animation check` with no WARN; the three effects pass `effects check` on both
+  Avatars (bulb and heart with their Gestures).
+- FIR-R1-06 (pre-existing): the manifest gives `heart-hands-build` 1.55 s against
+  its 1.85 s clip, as at `3efefc5b`.
+- FIR-R1-07 (optional): copied Included clips under `motion-authoring/testing/`
+  have no source-review records.
+
+Passed: app and backend validation of all 43 Included Gestures; effect
+dependency resolution; reused art (same LFS objects); no dangling references to
+removed items; unique, consistent display names and byte-identical manifest copy;
+baseline hashes (14 untouched unchanged, 5 rename-only samples unchanged, 24
+re-baselined); licence rules and records; the merge; ownership boundaries.
+
+#### Code Review #1 Revisions
+
+- FIR-R1-01 accepted: both docs now say 20.
+- FIR-R1-02 accepted: the journeys doc says the spec is type-checked only and
+  names `accountless-imported-playback.spec.ts` as the active Scene Effect
+  coverage; the journey comment says the same.
+- FIR-R1-03 accepted: records updated here. The Phase 3 record stays in the p5
+  commit; a separate commit would add nothing.
+- FIR-R1-04 accepted for the PR text; history is not rewritten.
+- FIR-R1-05 accepted: recorded above and in the PR.
+- FIR-R1-06 accepted at the owner's request: the manifest and its backend copy
+  give Heart Hands 1.85 s, and `includedGestures.test.ts` now requires every
+  clip-backed manifest entry to match its clip's name, duration and loop.
+- FIR-R1-07 rejected: test fixtures follow the existing practice for code and
+  test files; they are byte-identical to their `bfc0de4f` sources.
+
+Evidence on `73d62314` before the repairs (docs and one comment only):
+`pnpm check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm e2e:check` clean;
+`pnpm web:test` 447 files, 3723 passed, 1 skipped; `pnpm build` ok;
+`pnpm openapi-ts` regenerated with no drift; `make check-test` (typed-content
+audit, ruff, mypy, pytest 3533 passed, 10 skipped).
+
+#### Code Review #2 Findings
+
+Targeted recheck of `5f88cad5`: FIR-R1-01 to FIR-R1-03 resolved; no regression
+or inaccurate statement. Result: pass, with one repair round used.
+
+Browser journeys on the task stack built from `73d62314` (`animama-hands`,
+production build, `ANIMAMA_LLM_SKIP=1`): full `pnpm e2e:test` 34 passed, 4 failed
+while other stacks and test containers loaded the host (load average about 8;
+the run took 1 h). The four failures (chat Stop and reply, avatar creator Save,
+pose content save and reopen, pose detail-load recovery) were timeouts and all
+passed when re-run serially (`--workers 1`, 36 s).
+
+After the owner asked to include FIR-R1-06: `includedGestures.test.ts`,
+`includedClipBaseline.test.ts` and `animationManifest.test.ts` 118 passed; the new
+manifest test fails on the old 1.55 s value; `tsc -b`, eslint and prettier
+clean; `shared_catalogs.py` check clean; starter, catalog and boundary pytest 48
+passed.
+
+## Validation and acceptance
+
+From `src/frontend`: `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build`,
+`pnpm desktop:runtime:stage`, `pnpm desktop:runtime:audit`. From the repo root:
+`uv run pytest -q`, `make check-test`, `uv run ruff check`, `make format-check`.
+E2E and a chat check on a task stack (`./reset.sh --name hands --base-port <p>`),
+URL recorded: `accountless-creator-generated-gesture` and the retargeted journeys.
+This change class needs full hosted Validation, which is disabled; the PR records
+`Validated revision: … · baseline: bfc0de4f`, local evidence, hosted Validation
+not run, and asks the owner to accept local evidence explicitly.
+
+## Idempotence and recovery
+
+- Phases 1, 2 and 4 change code only; reverting a phase commit restores the prior
+  behavior. They change how existing clips are edited in the creator (hand keys,
+  solved-contact windows) but not how they play (baseline hashes).
+- Drafts live in `.animama-drafts/`; promotion is the only write to
+  `content/included`, once per item after G3, after a `--dry-run`.
+- Removals break explicit equips of the removed items (Loadout warning, export
+  blocked) and invalidate in-progress Anima creation drafts; recover by removing
+  the binding or resetting a development database at the owner's discretion.
+
+## Outcomes & Retrospective
+
+Delivered R1–R13: twelve fitted hand presets with per-finger offsets and creator
+round trip; a per-Avatar solver for declared hand contacts with creator edits at
+solved beats; checks for oscillation, finger collisions, facing, reach and head
+layers; promotion tooling for renames, loop changes and dependencies; 26 Gestures
+drafted by parallel sub-agents, approved in one preview round with four notes,
+and promoted with three new Avatar Effects.
+
+Lessons: measuring contacts at their points (not joint origins) exposed faults
+that the old checks passed; an effect needs its Gesture's dependency to play, so
+effect-bearing drafts are reviewed from project files; owner review of licence
+wording is easier from one package file with per-kind text.

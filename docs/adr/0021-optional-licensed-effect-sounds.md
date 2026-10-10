@@ -1,4 +1,4 @@
-# 0019: Optional licensed sounds for built-in effects
+# 0021: Optional licensed sounds for built-in effects
 
 - Status: proposed (for owner acceptance with the PR)
 - Recorded: 2026-10-10

@@ -125,7 +125,7 @@ any of its files matches a hash in a private pack manifest or the vendor preview
 deny list under `animama/resources/` (`RESTRICTED_RESOURCES` in
 `content_portability.py`), wherever it is stored. The Included scan drops a
 built-in effect's optional sound edge when that sound isn't mounted
-([ADR 0019](../../adr/0019-optional-licensed-effect-sounds.md)). When a pack is
+([ADR 0021](../../adr/0021-optional-licensed-effect-sounds.md)). When a pack is
 unmounted, Included dependency edges are rebuilt rather than blocking the
 withdrawal; Local items, bindings and leases still block it. The
 scanner records the result in `provenance.distribution` after merging

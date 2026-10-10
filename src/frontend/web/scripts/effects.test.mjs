@@ -147,6 +147,44 @@ test("check results become pass, warn and fail lines", () => {
       "FAIL A_1_New: the effect is not active",
     ],
   );
+  // Clip poses missing from the catalog are reported once per effect.
+  assert.deepEqual(
+    summarizeCheck({
+      assets: [],
+      page: {
+        parseError: null,
+        avatars: [
+          avatar("AvatarSample_Y_0", [[50]], { missingPoseRefs: ["salute"] }),
+          avatar("AvatarSample_A_1_New", [[50]], {
+            missingPoseRefs: ["salute"],
+          }),
+        ],
+      },
+      times: [1],
+      views: ["front"],
+      tile,
+    }).map((line) => `${line.level} ${line.message}`),
+    [
+      "PASS Y_0: visible in 1 of 1 frames, up to 50 px (front, 1s)",
+      "PASS A_1_New: visible in 1 of 1 frames, up to 50 px (front, 1s)",
+      "WARN clip poses not in the app catalog rendered as the base pose: salute",
+    ],
+  );
+  // Bone-attached art checked arms down is pointed at --with-clip.
+  assert.match(
+    summarizeCheck({
+      assets: [],
+      page: {
+        parseError: null,
+        avatars: [avatar("AvatarSample_Y_0", [[0]])],
+      },
+      times: [1],
+      views: ["front"],
+      tile,
+      suggestClip: true,
+    })[0].message,
+    /no visible art \(.*try --times; on a bone a Gesture moves, check it in that pose with --with-clip <gesture>\)$/,
+  );
   assert.deepEqual(
     summarizeCheck({
       assets: [],
@@ -1095,4 +1133,29 @@ test("render refuses two sources with one stem for directory output", async () =
   ]).catch((error) => error);
   assert.equal(result.code, 2);
   assert.match(result.stdout, /share the stem "drop"/);
+});
+
+test("check refuses a --with-clip Gesture it cannot find", async () => {
+  const script = path.join(
+    path.dirname(fileURLToPath(import.meta.url)),
+    "effects.mjs",
+  );
+  const folder = path.join(dir, "posed", "drop");
+  await mkdir(folder, { recursive: true });
+  await writeFile(path.join(folder, "art.png"), await disc());
+  await writeFile(
+    path.join(folder, "drop.json"),
+    JSON.stringify({ content_type: "avatar_effect", definition: floating() }),
+  );
+  const missing = path.join(dir, "posed", "missing.clip.json");
+  const result = await promisify(execFile)(process.execPath, [
+    script,
+    "check",
+    folder,
+    "--with-clip",
+    missing,
+  ]).catch((error) => error);
+  assert.equal(result.code, 2);
+  assert.match(result.stdout, /missing\.clip\.json does not exist/);
+  assert.match(result.stdout, /--with-clip <clip>/);
 });

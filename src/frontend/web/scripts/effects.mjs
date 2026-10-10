@@ -6,6 +6,7 @@ import { DEFAULT_CHECK_TIMES, checkEffects } from "./effect-check.mjs";
 import { parseTimes } from "./effect-render.mjs";
 import {
   EffectSourceError,
+  resolveClipSource,
   resolveEffectSource,
 } from "./effect-render-sources.mjs";
 import {
@@ -29,7 +30,12 @@ const repoRoot = path.resolve(webRoot, "../../..");
 const defaultLocalContent = () =>
   process.env.ANIMAMA_LOCAL_CONTENT_HOST_PATH ?? null;
 
-const VALUE_OPTIONS = new Set(["--times", "--local-content", "--url"]);
+const VALUE_OPTIONS = new Set([
+  "--times",
+  "--with-clip",
+  "--local-content",
+  "--url",
+]);
 const FLAG_OPTIONS = new Set(["--help", "--dry-run"]);
 
 /** Split a subcommand's argv into positional inputs, value options and flags. */
@@ -95,23 +101,31 @@ async function loadWebModule(file) {
  * Avatar Effect authoring commands, the effect counterpart of
  * `pnpm -s animation`:
  *
- *   pnpm -s effects check <source...> [--times 0.25,1] [--local-content <dir>]
+ *   pnpm -s effects check <source...> [--times 0.25,1] [--with-clip <clip>]
+ *     [--local-content <dir>]
  *   pnpm -s effects save <items.json> [--url <app origin>]
  *   pnpm -s effects promote <items.json> [--dry-run]
  *
  * A source is an effect folder, a descriptor `.json`, or
- * `library:[included/|local/]<stem|content_id|name>`, as for `effects:render`.
+ * `library:[included/|local/]<stem|content_id|name>`, as for `effects:render`;
+ * so is `--with-clip`'s Gesture (a clip file, Gesture folder or
+ * `library:<gesture>`).
  */
 
 const USAGE = [
   "Usage:",
-  "  pnpm -s effects check <source...> [--times 0.25,1] [--local-content <dir>]",
+  "  pnpm -s effects check <source...> [--times 0.25,1] [--with-clip <clip>]",
+  "                         [--local-content <dir>]",
   "  pnpm -s effects save <items.json> [--url <app origin>]",
   "  pnpm -s effects promote <items.json> [--dry-run]",
   "",
   "check: the art against its attachment's budget, the /2 definition, the",
   "attachment on both Included Avatars, and visible art (each Avatar must show",
   "the effect in some frame). Exits 1 when any effect has a FAIL.",
+  "--with-clip <clip.json|Gesture folder|library:<gesture>> poses both Avatars",
+  "with that Gesture at each --times (seconds from its start, the effect",
+  "applied at 0), so art on a bone the Gesture moves, such as a hand, is",
+  "checked where the Gesture puts it.",
   "",
   'save: items.json is [{ "source": "<effect folder>", "name"?, "description"? }].',
   "Each source is saved as a Local Avatar Effect through the creator (a Local",
@@ -321,6 +335,10 @@ async function runCheck(argv, cwd) {
     ? path.resolve(cwd, values["--local-content"])
     : defaultLocalContent();
   const times = parseTimes(values["--times"], DEFAULT_CHECK_TIMES);
+  // The Gesture's pose, resolved as effects:render --with-clip resolves it.
+  const posed = values["--with-clip"]
+    ? await resolveClipSource(values["--with-clip"], { cwd, localContent })
+    : null;
   const effects = [];
   let ok = true;
   for (const spec of positional) {
@@ -333,7 +351,16 @@ async function runCheck(argv, cwd) {
     }
   }
   if (effects.length) {
-    const results = await checkEffects({ effects, times, localContent });
+    if (posed)
+      console.log(
+        `Posed by ${path.relative(cwd, posed.clipPath) || posed.clipPath} at ${times.join("s, ")}s.`,
+      );
+    const results = await checkEffects({
+      effects,
+      times,
+      localContent,
+      clip: posed?.clip ?? null,
+    });
     for (const { stem, lines } of results) {
       for (const { level, message } of lines)
         console.log(`${level} ${stem}: ${message}`);

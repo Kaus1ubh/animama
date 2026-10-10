@@ -9,7 +9,8 @@ promote.
 
 - The owner reviewed the saved Local item in the live preview on both
   Included Avatars, and that item has not changed since.
-- `pnpm -s effects check library:local/<name>` passes.
+- `pnpm -s effects check library:local/<name>` passes (for art on a hand or
+  foot, with `--with-clip <gesture> --times …` in the pose it is used in).
 - Decide each item's mode with the owner:
   - `add`: a new Included effect at a new stem;
   - `replace`: new art and settings for an existing Included effect (it
@@ -41,7 +42,7 @@ pnpm -s effects promote promote.json
 
 The source effect must have no sound. Every built-in effect plays one licensed
 sound from the private comedy pack, as an optional dependency
-([ADR 0019](../../../../docs/adr/0019-optional-licensed-effect-sounds.md)): an
+([ADR 0021](../../../../docs/adr/0021-optional-licensed-effect-sounds.md)): an
 add names it with `"sound": "<key>"`, a key in the tracked pack manifest
 (`src/backend/animama/resources/wow-comedy-sfx-manifest.json`), and a replace
 keeps the effect's current sound unless it names another. A sound not yet in
@@ -67,6 +68,12 @@ one promoted in the run is re-pointed at its Included ID. The Included meta
 (ID, version, name, placement hint) and the clip's id, role and lifetime are
 kept, and Reactions stay expression-only. Deleting an effect is allowed once
 the same run re-points every Reaction or Gesture that used it.
+
+A **new** Gesture that uses a new effect is not added here: promote the
+effect with `mode: "add"` first, then add the Gesture with
+`pnpm -s animation promote` (`mode: "add"` with `dependencies` naming the
+effect's `builtin:avatar-effect:<stem>` ID; see the `animama-animation`
+skill's promote reference).
 
 The tool validates each definition, its image names and its art, writes
 `content/included/vfx/avatar/<stem>/`, removes files a replacement no longer

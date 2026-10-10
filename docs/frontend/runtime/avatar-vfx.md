@@ -511,7 +511,10 @@ pnpm -s effects promote ./promote.json --dry-run
   against a baseline (for face effects, the same effect with transparent
   stand-in images, so closed eyes and face cleanup are in both): the art must
   show on every Avatar in some frame. `--times` defaults to
-  0.25 s and 1 s. It exits 1 on any FAIL.
+  0.25 s and 1 s. `--with-clip <clip.json|Gesture folder|library:<gesture>>`
+  poses both Avatars with that Gesture at each time (resolved as for
+  `effects:render`), so art on a hand or other moving bone is checked where
+  the Gesture puts it. It exits 1 on any FAIL.
 - `save` takes `[{ "source", "name"?, "description"? }]` and saves each source
   through the Avatar Effect creator in headless Chromium: it imports the
   editor document, chooses the images, saves, reads the item back and checks
@@ -578,7 +581,12 @@ pnpm -s effects:render --diff before.png after.png --out diff.png
 thumbnails (320 px WebP, 1 s after applying, or at the template's
 `thumbnail.time`; a `thumbnail.framing: "wide"` template is framed wider to
 show chest or side art) into `src/assets/effect-templates/`
-and removes files for templates that no longer exist. Run it after changing the
+and removes files for templates that no longer exist. For art attached to a
+hand, which hangs out of frame in the rest pose, set `thumbnail.clip` to an
+Included Gesture's folder stem with wide framing: Annie is posed by that
+Gesture sampled at the thumbnail time, with the effect applied at 0, as
+`--with-clip` does (for example `idea_bulb_fingertip` uses `have-an-idea` at
+3 s). Run it after changing the
 template list or an Included effect it uses, review the images, and keep that
 folder's README provenance current.
 

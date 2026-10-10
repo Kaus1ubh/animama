@@ -12,27 +12,29 @@ record lifecycle and planning ownership decisions; later records document produc
 and dates. Acceptance is not proof of unknown historical human approval,
 production readiness or publication rights.
 
-| ID   | Decision                                                                                                                                           | Status                                |
-| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------- |
-| 0001 | [Independent local product and packaged sharing](0001-independent-local-product-and-packaged-sharing.md)                                           | accepted                              |
-| 0002 | [Accountless installation ownership and local HTTP admission](0002-accountless-installation-and-http-admission.md)                                 | accepted                              |
-| 0003 | [Request-local direct chat and streamed delivery](0003-request-local-streamed-chat.md)                                                             | accepted                              |
-| 0004 | [Filesystem content, catalog persistence and recoverable mutations](0004-filesystem-content-and-recoverable-mutations.md)                          | accepted                              |
-| 0005 | [Client-rendered shared UI and local/native composition](0005-client-rendered-ui-and-local-native-composition.md)                                  | accepted                              |
-| 0006 | [Human and AI software development lifecycle](0006-human-ai-software-development-lifecycle.md)                                                     | accepted; planning superseded by 0007 |
-| 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                                           | accepted                              |
-| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted                              |
-| 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)                               | accepted                              |
-| 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted; partly superseded by 0012   |
-| 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted                              |
-| 0012 | [Parakeet speech models as backend model assets](0012-backend-parakeet-model-assets.md)                                                            | accepted                              |
-| 0013 | [Native Windows desktop packaging](0013-native-windows-desktop-packaging.md)                                                                       | accepted                              |
-| 0014 | [Track-based Anima Pose Clips organised by beats](0014-track-based-anima-pose-clips.md)                                                            | accepted; partly superseded by 0016   |
-| 0015 | [One Avatar Effect definition source and model-agnostic face parts](0015-avatar-effect-definition-source-and-face-parts.md)                        | accepted                              |
-| 0016 | [animaPoseClip/2.0 is the only clip format](0016-anima-pose-clip-2-only.md)                                                                        | accepted                              |
-| 0017 | [Common web application and hosted artifact](0017-common-web-application-and-hosted-artifact.md)                                                   | accepted                              |
-| 0018 | [Non-portable Included content for licensed built-in motion](0018-non-portable-included-content.md)                                                | accepted                              |
-| 0019 | [Optional licensed sounds for built-in effects](0019-optional-licensed-effect-sounds.md)                                                           | proposed                              |
+| ID   | Decision                                                                                                                                           | Status                                       |
+| ---- | -------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------- |
+| 0001 | [Independent local product and packaged sharing](0001-independent-local-product-and-packaged-sharing.md)                                           | accepted                                     |
+| 0002 | [Accountless installation ownership and local HTTP admission](0002-accountless-installation-and-http-admission.md)                                 | accepted                                     |
+| 0003 | [Request-local direct chat and streamed delivery](0003-request-local-streamed-chat.md)                                                             | accepted                                     |
+| 0004 | [Filesystem content, catalog persistence and recoverable mutations](0004-filesystem-content-and-recoverable-mutations.md)                          | accepted                                     |
+| 0005 | [Client-rendered shared UI and local/native composition](0005-client-rendered-ui-and-local-native-composition.md)                                  | accepted                                     |
+| 0006 | [Human and AI software development lifecycle](0006-human-ai-software-development-lifecycle.md)                                                     | accepted; planning superseded by 0007        |
+| 0007 | [Repository-owned specifications and execution plans](0007-repository-owned-planning.md)                                                           | accepted                                     |
+| 0008 | [Non-overridable companion guardrail](0008-non-overridable-companion-guardrail.md)                                                                 | accepted                                     |
+| 0009 | [Shared user memory and per-Anima relationship memory](0009-shared-user-memory-and-per-anima-relationship-memory.md)                               | accepted                                     |
+| 0010 | [Shared voice model objects and optional downloads](0010-shared-model-object-distribution.md)                                                      | accepted; partly superseded by 0012          |
+| 0011 | [Application-owned companion features and composition catalog policy](0011-application-owned-companion-features-and-composition-catalog-policy.md) | accepted                                     |
+| 0012 | [Parakeet speech models as backend model assets](0012-backend-parakeet-model-assets.md)                                                            | accepted                                     |
+| 0013 | [Native Windows desktop packaging](0013-native-windows-desktop-packaging.md)                                                                       | accepted                                     |
+| 0014 | [Track-based Anima Pose Clips organised by beats](0014-track-based-anima-pose-clips.md)                                                            | accepted; partly superseded by 0016 and 0019 |
+| 0015 | [One Avatar Effect definition source and model-agnostic face parts](0015-avatar-effect-definition-source-and-face-parts.md)                        | accepted                                     |
+| 0016 | [animaPoseClip/2.0 is the only clip format](0016-anima-pose-clip-2-only.md)                                                                        | accepted                                     |
+| 0017 | [Common web application and hosted artifact](0017-common-web-application-and-hosted-artifact.md)                                                   | accepted                                     |
+| 0018 | [Non-portable Included content for licensed built-in motion](0018-non-portable-included-content.md)                                                | accepted                                     |
+| 0019 | [Hand keys with fitted presets and per-finger offsets](0019-hand-keys-with-fitted-presets-and-finger-offsets.md)                                   | accepted                                     |
+| 0020 | [Solved hand contacts](0020-solved-hand-contacts.md)                                                                                               | accepted                                     |
+| 0021 | [Optional licensed sounds for built-in effects](0021-optional-licensed-effect-sounds.md)                                                           | proposed                                     |
 
 ## When and how to record a decision
 

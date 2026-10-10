@@ -58,7 +58,12 @@ its record sourced (`source ../../../.animama-stack.env`).
    in some frame. A time where nothing shows yet (before a late fade-in) is
    a WARN "nothing shows at …"; single missed views are listed as "not in
    …", expected for the face view's tight crop with stickers and body art.
-   Use `--times` for effects that appear late.
+   Use `--times` for effects that appear late. Art on a bone a Gesture moves
+   (a hand or foot) is out of frame or misplaced in the rest pose, where it
+   fails as "no visible art": check it in the pose it is used in with
+   `--with-clip <clip.json | library:<gesture>>` and `--times` inside the
+   moment it shows (seconds from the Gesture's start; the effect is applied
+   at 0).
 5. **Look:** `pnpm -s effects:render <folder> --out
    ../../../.animama-drafts/effects/<stem>-work/renders/<stem>.png` for
    contact sheets (front, ¾ and face on both Avatars). Pick `--times` that
