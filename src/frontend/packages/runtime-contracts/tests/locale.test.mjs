@@ -6,6 +6,7 @@ import {
   formattingLocale,
   isBetaLocale,
   isUiLocale,
+  localeDirection,
   localeNativeName,
   matchLocale,
   resolveLocale,
@@ -93,4 +94,11 @@ test("formatting uses the system region when its language matches the active loc
   assert.equal(formattingLocale("ko", ["en-US"]), "ko");
   assert.equal(formattingLocale("en", []), "en");
   assert.equal(formattingLocale("en", ["not a tag"]), "en");
+});
+
+test("current UI Locales are left-to-right; right-to-left languages are recognized", () => {
+  for (const tag of SUPPORTED_LOCALES)
+    assert.equal(localeDirection(tag), "ltr", tag);
+  assert.equal(localeDirection("ar-EG"), "rtl");
+  assert.equal(localeDirection("he_IL"), "rtl");
 });

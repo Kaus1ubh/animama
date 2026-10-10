@@ -10,10 +10,15 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 
 const frontendRoot = fileURLToPath(new URL("..", import.meta.url));
 
-/** Catalog sets: one directory per locale holding one JSON file per namespace. */
+/**
+ * Catalog sets: one directory per locale holding one JSON file per namespace,
+ * or, for a set with a `namespace`, one `<locale>.json` file per locale.
+ */
 export const CATALOG_SETS = [
   { name: "web", root: "web/src/locales" },
   { name: "product-ui", root: "packages/product-ui/src/locales" },
+  // The desktop shell's startup page, window titles and application menu.
+  { name: "desktop", root: "desktop/src/locales", namespace: "shell" },
 ];
 
 export const SOURCE_LOCALE = "en";
@@ -91,6 +96,13 @@ export async function loadCatalogSet(set, root = frontendRoot) {
   const directory = path.join(root, set.root);
   const locales = {};
   for (const entry of await readdir(directory, { withFileTypes: true })) {
+    if (set.namespace) {
+      if (entry.isFile() && entry.name.endsWith(".json"))
+        locales[entry.name.slice(0, -".json".length)] = {
+          [set.namespace]: await readJson(path.join(directory, entry.name)),
+        };
+      continue;
+    }
     if (!entry.isDirectory()) continue;
     const namespaces = {};
     for (const file of await readdir(path.join(directory, entry.name))) {

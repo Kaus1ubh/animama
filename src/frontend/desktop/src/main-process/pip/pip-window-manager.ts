@@ -1,6 +1,10 @@
 import { BrowserWindow, screen, type WebContents } from "electron";
 
 import type { DesktopConfig } from "../config.js";
+import {
+  keepLocalizedTitle,
+  type ShellLocale,
+} from "../locale/shell-locale.js";
 import { writeLog } from "../logging.js";
 import { installWindowGuards } from "../security/guards.js";
 
@@ -41,6 +45,8 @@ export type DesktopPipRuntimeMessage = {
 
 type PipWindowManagerOptions = {
   config: DesktopConfig;
+  /** Supplies the localized window title. */
+  locale: ShellLocale;
   cursorSnapshotChannel: string;
   preloadPath: string;
   runtimeMessageChannel: string;
@@ -384,6 +390,7 @@ function normalizeRuntimeMessage(value: unknown): DesktopPipRuntimeMessage {
 
 export class PipWindowManager {
   private readonly config: DesktopConfig;
+  private readonly locale: ShellLocale;
   private readonly cursorSnapshotChannel: string;
   private readonly preloadPath: string;
   private readonly runtimeMessageChannel: string;
@@ -406,6 +413,7 @@ export class PipWindowManager {
 
   constructor(options: PipWindowManagerOptions) {
     this.config = options.config;
+    this.locale = options.locale;
     this.cursorSnapshotChannel = options.cursorSnapshotChannel;
     this.preloadPath = options.preloadPath;
     this.runtimeMessageChannel = options.runtimeMessageChannel;
@@ -474,7 +482,7 @@ export class PipWindowManager {
       fullscreenable: false,
       show: false,
       type: "toolbar",
-      title: "Anima PiP",
+      title: this.locale.strings.text("windows.pip"),
       webPreferences: {
         preload: this.preloadPath,
         additionalArguments: ["--animama-window-role=pip"],
@@ -486,6 +494,7 @@ export class PipWindowManager {
       },
     });
     this.pipWindow = pipWindow;
+    keepLocalizedTitle(pipWindow, this.locale, "windows.pip");
     installWindowGuards(pipWindow, this.config.allowedWebOrigin);
     pipWindow.setAlwaysOnTop(true, "floating");
     pipWindow.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });

@@ -11,7 +11,8 @@
     "clean": "node scripts/clean-dist.mjs",
     "dev": "pnpm build && electron .",
     "dev_inspect": "pnpm build && electron --inspect=9229 .",
-    "check": "tsc -p tsconfig.json --noEmit",
+    "contracts:build": "pnpm --filter @animama/runtime-contracts build",
+    "check": "pnpm contracts:build && tsc -p tsconfig.json --noEmit",
     "build": "pnpm clean && pnpm check && node scripts/build.mjs",
     "pack": "pnpm pack:mac",
     "dist": "pnpm dist:mac",
@@ -29,7 +30,7 @@
     "dist:win": "node scripts/runtime/release-gate.mjs windows",
     "prettier": "prettier --config ../prettier.config.mjs --ignore-path ../.prettierignore --write 'src/**/*.{ts,cts,tsx,js,jsx,json,md}' 'scripts/**/*.{js,mjs,ts,cts}' '*.{js,mjs,ts,json,md,yml,yaml}' 'runtime/**/*.json' 'tests/**/*.{ts,mjs}'",
     "prettier:check": "prettier --config ../prettier.config.mjs --ignore-path ../.prettierignore --check 'src/**/*.{ts,cts,tsx,js,jsx,json,md}' 'scripts/**/*.{js,mjs,ts,cts}' '*.{js,mjs,ts,json,md,yml,yaml}' 'runtime/**/*.json' 'tests/**/*.{ts,mjs}'",
-    "test": "vitest run",
+    "test": "pnpm contracts:build && vitest run",
     "runtime:stage": "node scripts/runtime/stage.mjs",
     "runtime:audit": "node scripts/runtime/audit.mjs",
     "runtime:packs": "node scripts/runtime/feature-packs.mjs",
@@ -51,6 +52,7 @@
     "tar-stream": "3.2.1"
   },
   "devDependencies": {
+    "@animama/runtime-contracts": "workspace:*",
     "@electron/asar": "3.4.1",
     "@fontsource-variable/dm-sans": "^5.3.0",
     "@types/node": "^24.12.2",

@@ -4,6 +4,7 @@ import {
   initialLocale,
   pseudoLocaleActive,
   rememberAppliedLocale,
+  shareAppliedLocaleWithShell,
 } from "./locale-preference";
 
 function memoryStorage(): Storage {
@@ -63,5 +64,34 @@ describe("first-paint UI Locale", () => {
     expect(pseudoLocaleActive()).toBe(true);
     window.location.search = "?ui-locale=off";
     expect(pseudoLocaleActive()).toBe(false);
+  });
+});
+
+describe("desktop shell locale", () => {
+  it("reports the applied locale only from the desktop main window", () => {
+    const setApplied = vi.fn(async () => undefined);
+    for (const windowRole of ["pip", "quick-chat", "recovery", "main"]) {
+      vi.stubGlobal("window", {
+        animamaDesktop: { windowRole, locale: { setApplied } },
+      });
+      shareAppliedLocaleWithShell("ja");
+    }
+    expect(setApplied).toHaveBeenCalledOnce();
+    expect(setApplied).toHaveBeenCalledWith("ja");
+  });
+
+  it("skips browsers and shells without the locale bridge, and ignores a rejected report", async () => {
+    stubBrowser();
+    expect(() => shareAppliedLocaleWithShell("ko")).not.toThrow();
+    vi.stubGlobal("window", { animamaDesktop: { windowRole: "main" } });
+    expect(() => shareAppliedLocaleWithShell("ko")).not.toThrow();
+    const setApplied = vi.fn(async () => {
+      throw new Error("ipc_caller_rejected");
+    });
+    vi.stubGlobal("window", {
+      animamaDesktop: { windowRole: "main", locale: { setApplied } },
+    });
+    shareAppliedLocaleWithShell("ko");
+    await expect(setApplied.mock.results[0]!.value).rejects.toThrow();
   });
 });

@@ -45,6 +45,24 @@ export function rememberAppliedLocale(locale: UiLocale): void {
   }
 }
 
+/**
+ * Tell the desktop shell which locale the main window applied, so its menu,
+ * window titles and startup page follow it (also while the backend is down).
+ * Browsers, older shells and the PiP and Quick Chat windows are skipped.
+ */
+export function shareAppliedLocaleWithShell(locale: UiLocale): void {
+  const desktop =
+    typeof window === "undefined" ? undefined : window.animamaDesktop;
+  if (
+    desktop?.windowRole !== "main" ||
+    typeof desktop.locale?.setApplied !== "function"
+  )
+    return;
+  desktop.locale.setApplied(locale).catch(() => {
+    // The shell keeps its previous language; the app itself is unaffected.
+  });
+}
+
 function rememberedLocale(): UiLocale | null {
   try {
     const value = window.localStorage.getItem(APPLIED_LOCALE_KEY);

@@ -56,7 +56,7 @@
     "desktop:test:native-input": "node desktop/scripts/native/test-global-input-hook.mjs",
     "desktop:test:vault": "node desktop/scripts/native/test-vault-encryption.mjs",
     "desktop:test:termination": "node desktop/scripts/native/test-runtime-termination-windows.mjs",
-    "desktop:test": "node desktop/scripts/run-tests.mjs",
+    "desktop:test": "pnpm --filter @animama/runtime-contracts build && node desktop/scripts/run-tests.mjs",
     "desktop:runtime:stage": "pnpm --filter animama-desktop runtime:stage",
     "desktop:runtime:audit": "pnpm --filter animama-desktop runtime:audit",
     "desktop:runtime:packs": "pnpm --filter animama-desktop runtime:packs",

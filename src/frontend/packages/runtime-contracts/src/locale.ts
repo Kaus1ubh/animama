@@ -61,6 +61,20 @@ export function localeNativeName(locale: UiLocale): string {
   return NATIVE_NAMES[locale];
 }
 
+/** Languages written right-to-left; none is a UI Locale yet, but documents must not assume `ltr`. */
+const RIGHT_TO_LEFT_LANGUAGES: ReadonlySet<string> = new Set([
+  "ar",
+  "fa",
+  "he",
+  "ur",
+]);
+
+/** Text direction for a locale tag; all current UI Locales are left-to-right. */
+export function localeDirection(locale: string): "ltr" | "rtl" {
+  const language = locale.split(/[-_]/)[0]?.toLowerCase() ?? "";
+  return RIGHT_TO_LEFT_LANGUAGES.has(language) ? "rtl" : "ltr";
+}
+
 /**
  * Map any BCP 47 language tag to a supported UI Locale, or `null`.
  *

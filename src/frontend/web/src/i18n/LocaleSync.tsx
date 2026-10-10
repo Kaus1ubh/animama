@@ -4,7 +4,11 @@ import { systemPreferredLanguages } from "@animama/product-ui/i18n";
 import { resolveLocale } from "@animama/runtime-contracts/locale";
 
 import { useUserSettings } from "@/query/hooks/useUserSettings";
-import { pseudoLocaleActive, rememberAppliedLocale } from "./locale-preference";
+import {
+  pseudoLocaleActive,
+  rememberAppliedLocale,
+  shareAppliedLocaleWithShell,
+} from "./locale-preference";
 
 /** Bumps when the OS or browser language list changes, re-resolving "System default". */
 function useSystemLanguages(): readonly string[] {
@@ -20,7 +24,8 @@ function useSystemLanguages(): readonly string[] {
 /**
  * Applies the owner's UI Locale once App settings load, and whenever the saved
  * preference or the system language changes. Switching keeps every mounted
- * screen and its state; only text and formatting update.
+ * screen and its state; only text and formatting update. On desktop the shell
+ * follows the same locale; the pseudo-locale never reaches it.
  */
 export function LocaleSync() {
   const { i18n } = useTranslation();
@@ -32,6 +37,7 @@ export function LocaleSync() {
     if (!isSuccess || pseudoLocaleActive()) return;
     const locale = resolveLocale({ saved, preferred });
     rememberAppliedLocale(locale);
+    shareAppliedLocaleWithShell(locale);
     if (i18n.language !== locale) void i18n.changeLanguage(locale);
   }, [i18n, isSuccess, preferred, saved]);
 

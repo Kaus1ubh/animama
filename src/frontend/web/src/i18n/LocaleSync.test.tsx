@@ -29,7 +29,35 @@ afterEach(() => {
   act(() => root?.unmount());
   root = null;
   document.body.replaceChildren();
+  delete (window as { animamaDesktop?: unknown }).animamaDesktop;
+  window.sessionStorage.clear();
 });
+
+/** The desktop preload's bridge as the main app window sees it. */
+function stubDesktopMainWindow() {
+  const setApplied = vi.fn<(locale: string) => Promise<void>>(
+    async () => undefined,
+  );
+  Object.defineProperty(window, "animamaDesktop", {
+    configurable: true,
+    value: { isDesktop: true, windowRole: "main", locale: { setApplied } },
+  });
+  return setApplied;
+}
+
+async function mount(i18n: Awaited<ReturnType<typeof createWebI18n>>) {
+  const container = document.createElement("div");
+  document.body.append(container);
+  root = createRoot(container);
+  act(() =>
+    root!.render(
+      <AnimamaI18nProvider i18n={i18n}>
+        <LocaleSync />
+      </AnimamaI18nProvider>,
+    ),
+  );
+  await settle();
+}
 
 async function settle() {
   // Catalog chunks load asynchronously before the language change is announced.
@@ -67,5 +95,20 @@ describe("LocaleSync", () => {
     expect(container.textContent).toBe("言語");
     expect(document.documentElement.lang).toBe("ja");
     expect(document.documentElement.dir).toBe("ltr");
+  });
+
+  it("tells the desktop shell the locale it applied", async () => {
+    const setApplied = stubDesktopMainWindow();
+    settings.locale = "ko";
+    await mount(await createWebI18n("en"));
+    expect(setApplied).toHaveBeenLastCalledWith("ko");
+  });
+
+  it("never sends the development pseudo-locale to the desktop shell", async () => {
+    const setApplied = stubDesktopMainWindow();
+    window.sessionStorage.setItem("animama.ui-locale.pseudo", "1");
+    settings.locale = "ja";
+    await mount(await createWebI18n("en"));
+    expect(setApplied).not.toHaveBeenCalled();
   });
 });

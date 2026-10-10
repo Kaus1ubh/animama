@@ -70,7 +70,7 @@ Boundaries:
 - [x] Phase 5: Animas, Library and memory (R7); review #3 passed 2026-10-10.
 - [x] Phase 6: Settings, profile and sound (R7); review #2 passed 2026-10-10.
 - [x] Phase 7: creators (R7); review #2 passed 2026-10-10.
-- [ ] Phase 8: desktop shell (R8).
+- [x] Phase 8: desktop shell (R8); review #3 passed 2026-10-10; G2 pending.
 - [ ] Phase 9: completion, guards at full strength and pseudo-locale smoke (R7, R17).
 - [ ] Final integration review.
 - [ ] PR; owner gates G1–G3; owner merge approval.
@@ -158,6 +158,20 @@ Paused by the owner during Phase 7 and resumed the same day (2026-10-10).
   areas are web screens; product-ui chat failures have their own catalog keys.
 - Proposed, agent: #385 closes with this PR; AC12 evidence belongs to the linked
   Cloud issue, which #385 links. To confirm with the owner at PR time.
+- Proposed, agent (Phase 8; deviates from R8; owner confirms at G2): the
+  macOS microphone prompt follows the language macOS uses for the app (the
+  system language, or the app's language in System Settings), not the in-app
+  UI Locale. macOS picks `InfoPlist.strings` by that language. The startup page,
+  window titles and application menu follow the in-app locale as R8 requires.
+  - Alternative: the app could write its own per-app `AppleLanguages` default
+    (`systemPreferences.setUserDefault`), which would likely apply at the next
+    launch.
+  - Not chosen because:
+    - it would also change Chromium's locale and
+      `app.getPreferredSystemLanguages()`, which the shell and the "System
+      default" setting rely on;
+    - it changes an OS-level preference the owner manages in System Settings;
+    - it would lag one launch behind the in-app choice.
 
 ## Owner gates
 
@@ -165,6 +179,10 @@ Paused by the owner during Phase 7 and resumed the same day (2026-10-10).
   chat, Library, one creator and Settings at desktop size and one narrower size.
 - **G2 — Native desktop (AC8).** A macOS build shows the localized application
   menu and microphone prompt; the recovery page check runs on the owner's machine.
+  Also confirm that Start Dictation and Emoji & Symbols still appear under the
+  localized Edit menu when the in-app locale differs from the macOS language,
+  and that the microphone prompt follows the macOS language (see the Phase 8
+  decision).
 - **G3 — Pseudo-locale walkthrough (AC3).** The owner walks the converted screens
   under the pseudo-locale after the automated smoke passes.
 
@@ -1081,13 +1099,148 @@ Issue: #425.
 
 Checks: `pnpm desktop:check`, desktop unit tests; G2 on macOS.
 
+Results (2026-10-10, one agent; Phase 7 committed as `6739ca09`):
+
+- **Desktop catalogs:** `desktop/src/locales/<tag>.json` cover the startup and
+  recovery page, the application menu, and the PiP and Quick Chat titles.
+  English text is unchanged. A small typed lookup does `{{name}}`
+  interpolation and falls back to English; main has no i18next.
+- **Shell locale:** `main-process/locale/shell-locale.ts` uses the shared
+  `resolveLocale` and picks, in order:
+  1. the cached locale: `ui-locale.json` `{version: 1, locale}` in userData,
+     written atomically and read without following links, capped at 1 KB;
+     invalid content is ignored and replaced;
+  2. `app.getPreferredSystemLanguages()`;
+  3. English.
+- **Bridge:** `window.animamaDesktop.locale.setApplied` calls
+  `animama:locale:set`.
+  - It goes through the existing `handle()` caller check, so only the main role
+    can call it. A non-canonical tag returns `locale_invalid`.
+  - The bridge stays at version 2: the change is additive and
+    feature-detected.
+  - `LocaleSync` reports from the desktop main window only and never sends the
+    pseudo-locale.
+- **Recovery page:**
+  - It takes the string table and sets `<html lang dir>`.
+  - It escapes HTML and inline-script text.
+  - The hidden recovery window reloads after a locale change.
+- **Application menu:** `ui/application-menu.ts` spells out Electron 39's
+  default menu with catalog labels; roles and accelerators are unchanged. It is
+  installed at ready and rebuilt on change. Unpackaged runs lose Electron's
+  documentation Help links; packaged builds already had an empty Help menu.
+- **macOS microphone prompt:** `desktop/build/locales/{ja,ko,zh_CN,zh_TW}.lproj/InfoPlist.strings`
+  ship through mac `extraResources`. Electron already ships these lproj
+  folders, so no `CFBundleLocalizations` change is needed. An unsigned `--dir`
+  build placed the files at `Contents/Resources/<lproj>/InfoPlist.strings`.
+- **Other changes:**
+  - `localeDirection` moved into `@animama/runtime-contracts/locale`;
+    product-ui re-exports it.
+  - Desktop now depends on `@animama/runtime-contracts`.
+  - The catalog check covers the desktop catalogs: stale keys and placeholder
+    changes are errors, and missing keys are reported.
+- **Docs:** a "Desktop shell" section in `i18n.md`, plus one line each in the
+  desktop overview and the frontend `AGENTS.md`.
+- **Checks:**
+  - `pnpm desktop:check` passes.
+  - Desktop tests: 508 pass, 14 skipped.
+  - `pnpm i18n:check`, web `tsc` and web `vitest src/i18n` pass; eslint is
+    clean.
+  - Package tests (runtime-contracts, product-ui i18n) pass.
+  - New tests: `shell-locale.test.ts`, `macos-localizations.test.mjs`
+    (including `plutil -lint`), `runtime-ipc` locale cases, and web
+    `LocaleSync` and `locale-preference` tests.
+- **Left for G2:**
+  - the real menu bar under each locale;
+  - the microphone prompt, which follows the macOS language (or the app's
+    language in System Settings), not the in-app choice;
+  - the recovery page with the backend stopped after a switch;
+  - first launch following the OS language.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full review of the Phase 8 change set on
+`6739ca09`. Phase 9 files were excluded. It found these sound:
+- IPC: the main role only, top frame and exact origin, with the tag checked by
+  `isUiLocale`;
+- the cache file: no symlink following, a size cap, atomic `0600` writes in
+  userData;
+- resolution order, and the web bridge, which never sends the pseudo-locale and
+  cannot loop;
+- menu fidelity against Electron 39.8.9's default menu, including platform
+  differences;
+- recovery page escaping and the reload path;
+- the lproj files, which `plutil -lint` accepts.
+
+Findings:
+- **P8-R1-01 (required).** The desktop `check`, `build` and `test` scripts now
+  import `@animama/runtime-contracts/locale` but never build it, so they fail on
+  a clean checkout and can bundle a stale contract.
+- Optional:
+  - The microphone prompt follows the macOS language. That partly meets R8 and
+    should be recorded as a deviation.
+  - Desktop docs missed the `locale` bridge group and `ui-locale.json`.
+  - The recovery page replaced only the literal `{{path}}`.
+  - A startup-race corner case that cannot happen, because only the main window
+    reports.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P8-R1-01 accepted.**
+  - Desktop gets `contracts:build`. `check` and `test` run it first; `build`,
+    `dev` and the package scripts reach it through `check`.
+  - The root `desktop:test` builds the contract first too.
+  - Verified from a clean state: with `packages/runtime-contracts/dist` deleted,
+    `pnpm desktop:check` rebuilt it and passed.
+- **Microphone prompt accepted as a proposed deviation for the owner to
+  confirm at G2.** See the Decision Log entry, which names the per-app language
+  alternative and why it was not chosen. G2 also covers the system-added Edit
+  menu items.
+- **Docs accepted.** `desktop/overview.md` lists the `locale` methods and
+  `ui-locale.json`; `backend/operations/desktop-runtime.md` lists the cache.
+- **Placeholder accepted.** Main normalizes `{{ path }}` to `{{path}}` before
+  the page uses it.
+- **Startup race not changed.** Only the main window reports a locale, after
+  startup.
+- Checks after repair:
+  - `pnpm desktop:check` passes from a clean contract build.
+  - `pnpm desktop:test`: 508 pass, 14 skipped.
+  - `pnpm i18n:check` passes; desktop `prettier:check` is clean.
+
+Repair budget: one of two repair rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck. P8-R1-01 is resolved: every desktop entry point that
+compiles or bundles code now builds the contract first, or reaches a script that
+does, without recursion. The placeholder normalization and the docs are
+correct.
+
+- **P8-R2-01 (required).** The Decision Log entry contradicted itself. It
+  claimed no in-app control could change the prompt, although the app could
+  write its per-app `AppleLanguages`. It also had no actor or status.
+- Optional:
+  - the contract is rebuilt about 3 s more than needed after
+    `packages:build`;
+  - no test covers the spaced placeholder.
+
+#### Code Review #2 Revisions
+
+- **P8-R2-01 accepted.** The entry is now marked as proposed by the agent, a
+  deviation from R8 that the owner confirms at G2. It names the per-app `AppleLanguages` alternative and
+  why it was not chosen: Chromium's locale and the System default setting
+  depend on the OS languages, the preference belongs to the owner, and it would
+  lag one launch.
+- Optional, not changed:
+  - The extra rebuild is about 3 s.
+  - No catalog uses a spaced placeholder today; the normalization is a guard.
+
+Repair budget: two of two repair rounds used.
+
+#### Code Review #3 Findings
+
+Final targeted review. P8-R2-01 is resolved, and the entry agrees with G2, the
+spec and the "Desktop shell" docs. The macOS-added menu items follow the macOS
+language, as `i18n.md` says and G2 checks. Result: pass.
 
 ### Phase 9 — Completion (R7, R17)
 

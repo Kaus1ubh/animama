@@ -2,6 +2,7 @@ import { ipcRenderer, type IpcRendererEvent } from "electron";
 import type {
   CredentialsBridge,
   FeaturePacksBridge,
+  LocaleBridge,
   RuntimeBridge,
   RuntimeStatus,
   UpdatesBridge,
@@ -62,5 +63,10 @@ export function createUpdatesBridge(): UpdatesBridge {
       return () =>
         ipcRenderer.removeListener("animama:updates:status-changed", listener);
     },
+  };
+}
+export function createLocaleBridge(): LocaleBridge {
+  return {
+    setApplied: (locale) => ipcRenderer.invoke("animama:locale:set", locale),
   };
 }

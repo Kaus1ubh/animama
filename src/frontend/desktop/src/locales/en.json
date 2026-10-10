@@ -1,0 +1,108 @@
+{
+  "menu": {
+    "about": "About {{name}}",
+    "services": "Services",
+    "hide": "Hide {{name}}",
+    "hideOthers": "Hide Others",
+    "showAll": "Show All",
+    "quitApp": "Quit {{name}}",
+    "file": "File",
+    "closeWindow": "Close Window",
+    "close": "Close",
+    "exit": "Exit",
+    "quit": "Quit",
+    "edit": "Edit",
+    "undo": "Undo",
+    "redo": "Redo",
+    "cut": "Cut",
+    "copy": "Copy",
+    "paste": "Paste",
+    "pasteAndMatchStyle": "Paste and Match Style",
+    "delete": "Delete",
+    "selectAll": "Select All",
+    "substitutions": "Substitutions",
+    "showSubstitutions": "Show Substitutions",
+    "smartQuotes": "Smart Quotes",
+    "smartDashes": "Smart Dashes",
+    "textReplacement": "Text Replacement",
+    "speech": "Speech",
+    "startSpeaking": "Start Speaking",
+    "stopSpeaking": "Stop Speaking",
+    "view": "View",
+    "reload": "Reload",
+    "forceReload": "Force Reload",
+    "toggleDevTools": "Toggle Developer Tools",
+    "actualSize": "Actual Size",
+    "zoomIn": "Zoom In",
+    "zoomOut": "Zoom Out",
+    "toggleFullScreen": "Toggle Full Screen",
+    "window": "Window",
+    "minimize": "Minimize",
+    "zoom": "Zoom",
+    "bringAllToFront": "Bring All to Front",
+    "help": "Help"
+  },
+  "startup": {
+    "title": {
+      "error": "Animama needs attention",
+      "updating": "Installing update",
+      "stopping": "Closing Animama"
+    },
+    "status": {
+      "preparing": "Preparing your private local runtime…",
+      "ready": "Opening your app…",
+      "updating": "Local services are stopped. Verifying the downloaded app and restarting…",
+      "stopping": "Finishing work and stopping owned services…"
+    },
+    "stages": {
+      "validating": "Checking installed runtime files…",
+      "vault": "Unlocking protected settings…",
+      "application": "Opening your local application…",
+      "database": "Starting your private database…",
+      "migrations": "Preparing your local data…",
+      "backend": "Starting Animama services…"
+    },
+    "actions": {
+      "retry": "Retry",
+      "openLogs": "Open Logs",
+      "openBackups": "Open Backups",
+      "quit": "Quit"
+    },
+    "snapshot": "Snapshot: {{path}}",
+    "actionFailed": "The action could not finish. Open Logs, or quit and reopen Animama after fixing the problem.",
+    "genericError": "Startup could not finish. Open Logs for details, fix the problem, and retry. Your local data has been preserved.",
+    "secureStorage": {
+      "macos": "macOS secure storage is unavailable. Unlock your login keychain and retry.",
+      "windows": "Windows protected storage is unavailable for this account. Sign in to Windows with your own account, not a temporary profile, and retry."
+    },
+    "freshProfile": {
+      "macos": "quit Animama and run pnpm desktop:mac:reset to archive this profile and start fresh",
+      "windows": "quit Animama and rename %LOCALAPPDATA%\\Animama (for example to Animama.backup) to keep this profile and start fresh"
+    },
+    "advice": {
+      "gateway_port_in_use": "The saved application port is occupied. Close the other application using it and retry. Your data has not changed.",
+      "data_path_too_long": "Your Windows profile folder path is too long for Animama data. Use a Windows account whose profile path is shorter, then reopen Animama.",
+      "administrator_launch_unsupported": "Animama cannot run its private database with administrator rights. Quit, then open Animama normally instead of with Run as administrator. Your data has not changed.",
+      "vault_unreadable": "Protected settings could not be unlocked. Restore the matching vault and database backup; do not delete either to reset this error.",
+      "vault_missing_for_database": "This database is missing its matching vault. Restore both from your backup.",
+      "previous_runtime_running": "A process from an earlier launch is still running. Wait a few seconds and retry. If this continues, quit that Animama instance or restart your computer.",
+      "unsupported_postgresql_major": "This database needs a supported upgrade. Your existing data has been preserved.",
+      "runtime_manifest_invalid": "The runtime is missing or damaged. Reinstall a complete Animama build; your user data is separate.",
+      "runtime_file_invalid": "An installed runtime file is missing or damaged. Reinstall Animama without deleting your data.",
+      "unsupported_runtime_platform": "This Animama build needs macOS 15 or later on Apple silicon, or Windows 11 on x64. Your data has not changed.",
+      "runtime_busy": "Animama is still finishing local work. The previous configuration is preserved; wait for recovery and retry the change.",
+      "runtime_quiesce_failed": "Local work could not be stopped safely. The previous configuration is preserved. Open Logs or restart Animama before retrying.",
+      "migration_failed": "The database upgrade failed. The original snapshot is preserved below. Open Logs, fix the cause, and retry this version. Do not reset, downgrade, or restore automatically: that could discard newer data.",
+      "pre_migration_backup_failed": "The database snapshot could not be verified. No migration was started. Check disk space and Logs before retrying.",
+      "migration_recovery_required": "A previous database upgrade needs attention. Keep its snapshot and the current database. Open Logs and finish that upgrade before trying a different version.",
+      "update_install_timeout": "The installer did not finish in time. Services remain stopped for safety. Quit and reopen Animama, or reinstall the signed version. Do not reset your data.",
+      "owned_services_stop_failed": "Some Animama services could not stop. Quit again or restart your computer before updating. Your data is preserved.",
+      "database_schema_mismatch": "Your local database does not match the structure this version of Animama expects, so startup stopped before using it. Your local data is preserved, and retrying will not change this. For a development build, {{freshProfile}}. Otherwise, reopen the Animama version that created this data.",
+      "content_startup_failed": "Animama could not reconcile its content library, so startup stopped instead of running incomplete. Your local data is preserved. Open Logs for details, then retry. If a development build keeps failing here, {{freshProfile}}."
+    }
+  },
+  "windows": {
+    "pip": "Anima PiP",
+    "quickChat": "Anima Quick Chat"
+  }
+}

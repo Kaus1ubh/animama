@@ -7,6 +7,7 @@ import { createShortcutsBridge } from "./main-process/shortcuts/shortcuts-preloa
 import {
   createCredentialsBridge,
   createFeaturePacksBridge,
+  createLocaleBridge,
   createRuntimeBridge,
   createUpdatesBridge,
 } from "./main-process/runtime/runtime-preload.cjs";
@@ -32,4 +33,5 @@ contextBridge.exposeInMainWorld("animamaDesktop", {
   credentials: createCredentialsBridge(),
   featurePacks: createFeaturePacksBridge(),
   updates: createUpdatesBridge(),
+  locale: createLocaleBridge(),
 });

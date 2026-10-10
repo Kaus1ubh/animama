@@ -7,6 +7,7 @@ import {
   createRuntimePage,
   STARTUP_THEME,
 } from "../src/main-process/runtime/recovery.js";
+import { shellStrings } from "../src/main-process/locale/shell-locale.js";
 import {
   RuntimeIpcCallers,
   installRuntimeIpc,
@@ -343,6 +344,55 @@ describe("privileged runtime IPC", () => {
     expect(main.contents.send).not.toHaveBeenCalled();
   });
 
+  it("accepts an applied locale only as a canonical tag from the main window", async () => {
+    const setLocale = vi.fn();
+    operations.setLocale = setLocale;
+    await expect(
+      invoke("locale:set", main.event, "zh-Hant"),
+    ).resolves.toBeUndefined();
+    expect(setLocale).toHaveBeenCalledWith("zh-Hant");
+    // The development pseudo-locale, legacy and partial tags never reach the cache.
+    for (const invalid of ["en-XA", "en-US", "zh", "JA", "", 42, null, ["ja"]])
+      await expect(invoke("locale:set", main.event, invalid)).rejects.toThrow(
+        "locale_invalid",
+      );
+    await expect(invoke("locale:set", main.event, "ja", "ko")).rejects.toThrow(
+      "ipc_arguments_invalid",
+    );
+    // The recovery page, unregistered PiP/Quick Chat windows and child frames.
+    await expect(invoke("locale:set", recovery.event, "ja")).rejects.toThrow(
+      "ipc_caller_rejected",
+    );
+    const companion = caller(4, "http://127.0.0.1:41234/desktop/pip/a");
+    await expect(invoke("locale:set", companion.event, "ja")).rejects.toThrow(
+      "ipc_caller_rejected",
+    );
+    await expect(
+      invoke(
+        "locale:set",
+        {
+          ...main.event,
+          senderFrame: { url: main.frame.url },
+        } as IpcMainInvokeEvent,
+        "ja",
+      ),
+    ).rejects.toThrow("ipc_caller_rejected");
+    expect(setLocale).toHaveBeenCalledOnce();
+    operations.setLocale = undefined;
+    await expect(invoke("locale:set", main.event, "ja")).rejects.toThrow(
+      "feature_unavailable",
+    );
+  });
+
+  it("keeps one cleanup when a window is registered again for a reloaded page", () => {
+    callers.register(recovery.window, "recovery", "data:text/html,reloaded");
+    expect(
+      recovery.contents.once.mock.calls.filter(
+        ([name]) => name === "destroyed",
+      ),
+    ).toHaveLength(1);
+  });
+
   it("does not return exception payloads or broadcast after an untrusted navigation", async () => {
     operations.retry = async () => {
       throw new Error("database URL and secret must remain in main");
@@ -358,7 +408,11 @@ describe("privileged runtime IPC", () => {
 });
 
 /** Run the emitted page script without browser or Electron dependencies. */
-async function loadRuntimePage(url: string, windowRole: string) {
+async function loadRuntimePage(
+  url: string,
+  windowRole: string,
+  html = createRuntimePage(shellStrings("en")),
+) {
   const elements = new Map<string, Record<string, unknown>>();
   const element = (selector: string) => {
     if (!elements.has(selector)) elements.set(selector, {});
@@ -370,9 +424,7 @@ async function loadRuntimePage(url: string, windowRole: string) {
   let render: ((status: RuntimeStatus) => void) | undefined;
   const location = new URL(url);
   element("body").dataset = {};
-  const script = createRuntimePage().match(
-    /<script nonce="[^"]+">([\s\S]*?)<\/script>/u,
-  )![1]!;
+  const script = html.match(/<script nonce="[^"]+">([\s\S]*?)<\/script>/u)![1]!;
   runInNewContext(script, {
     location: {
       protocol: location.protocol,
@@ -477,6 +529,73 @@ describe("independent runtime recovery page", () => {
     expect(page.element("#detail").hidden).toBe(false);
     expect(page.element("#actions").hidden).toBe(false);
     expect(page.element("#retry").hidden).toBe(false);
+  });
+
+  it("renders in the shell locale, including its lang and direction", async () => {
+    const html = createRuntimePage(shellStrings("ja"), "darwin");
+    expect(html).toMatch(/^<!doctype html><html lang="ja" dir="ltr">/u);
+    expect(html).toContain(
+      '<p id="message" role="status">プライベートなローカルランタイムを準備しています…</p>',
+    );
+    expect(html).toContain(">再試行</button>");
+    expect(html).toContain(">ログを開く</button>");
+    expect(html).not.toMatch(/Open Logs|Preparing your private/u);
+    const page = await loadRuntimePage(
+      "data:text/html,recovery",
+      "recovery",
+      html,
+    );
+    page.render({ state: "starting", stage: "database" });
+    expect(page.element("#message").textContent).toBe(
+      "プライベートデータベースを起動しています…",
+    );
+    page.render({
+      state: "error",
+      code: "migration_failed",
+      backup: "/backups/$&-snapshot",
+    });
+    expect(page.element("#title").textContent).toBe("Animama で対応が必要です");
+    expect(page.element("#message").textContent).toMatch(
+      /^データベースのアップグレードに失敗しました。/u,
+    );
+    // The path is inserted literally, never as a replacement pattern.
+    expect(page.element("#backup").textContent).toBe(
+      "スナップショット: /backups/$&-snapshot",
+    );
+    page.render({ state: "error", code: "constructor" });
+    expect(page.element("#message").textContent).toMatch(
+      /^起動を完了できませんでした。/u,
+    );
+  });
+
+  it.each([
+    ["darwin", "ログインキーチェーン", "pnpm desktop:mac:reset"],
+    ["win32", "一時プロファイル", "%LOCALAPPDATA%\\Animama"],
+  ] as const)(
+    "gives %s its own secure-storage and fresh-profile advice in the shell locale",
+    async (platform, storage, reset) => {
+      const page = await loadRuntimePage(
+        "data:text/html,recovery",
+        "recovery",
+        createRuntimePage(shellStrings("ja"), platform),
+      );
+      page.render({ state: "error", code: "secure_storage_unavailable" });
+      expect(page.element("#message").textContent).toContain(storage);
+      page.render({ state: "error", code: "database_schema_mismatch" });
+      const message = String(page.element("#message").textContent);
+      expect(message).toContain(reset);
+      expect(message).not.toContain("{{");
+    },
+  );
+
+  it("escapes catalog text for the page's HTML and inline script", () => {
+    const html = createRuntimePage({
+      ...shellStrings("en"),
+      text: () => `</script><b>"&'`,
+    });
+    expect(html).not.toContain("<b>");
+    expect(html).toContain("&lt;/script&gt;&lt;b&gt;&quot;&amp;&#39;");
+    expect(html.match(/<\/script>/gu)).toHaveLength(1);
   });
 
   it("mirrors the app theme tokens it uses", () => {

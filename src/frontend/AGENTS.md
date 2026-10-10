@@ -170,6 +170,8 @@ or migration behavior.
 - Word backend failures from their codes; do not render backend English as the
   primary message. Format dates and numbers with `useFormatters()`.
 - Never translate stored data or IDs; map them to catalog keys for display.
+- Electron shell text (startup page, menu, window titles) uses
+  `desktop/src/locales/<tag>.json` through the main process's shell strings.
 - Run `pnpm i18n:check`; `pnpm i18n:status` lists untranslated keys.
 
 ### Routing

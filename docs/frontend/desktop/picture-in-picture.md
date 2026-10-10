@@ -275,9 +275,10 @@ normal browser app and main Electron scene still use DOM `pointermove`.
 
 ## Linux Window Manager Notes
 
-On X11, `xprop` may show the PiP page title as `Anima Web` because Electron
-updates the native window title from the web document title after load. The PiP
-window is still distinguishable by window type:
+The PiP window keeps its shell title (`Anima PiP`, translated with the
+[shell locale](../architecture/i18n.md#desktop-shell)) instead of the web
+document title, so title rules break when the locale changes. Match the window
+type instead:
 
 ```text
 _NET_WM_WINDOW_TYPE = _NET_WM_WINDOW_TYPE_TOOLBAR

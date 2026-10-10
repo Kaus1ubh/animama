@@ -8,6 +8,7 @@ import {
   SOURCE_LOCALE,
   SUPPORTED_LOCALES,
   isUiLocale,
+  localeDirection,
   type UiLocale,
 } from "@animama/runtime-contracts/locale";
 import productEnglish from "../locales/en/product.json";
@@ -129,11 +130,9 @@ export async function createAnimamaI18n(
   return instance;
 }
 
-/** Text direction for a locale tag; all current UI Locales are left-to-right. */
-export function localeDirection(locale: string): "ltr" | "rtl" {
-  const language = locale.split(/[-_]/)[0]?.toLowerCase() ?? "";
-  return ["ar", "fa", "he", "ur"].includes(language) ? "rtl" : "ltr";
-}
+// The direction rule is part of the shared locale contract so the desktop shell
+// and other consumers without this runtime use the same one.
+export { localeDirection };
 
 /** Apply a locale to `<html lang>` and `<html dir>`. */
 export function applyDocumentLocale(
