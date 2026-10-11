@@ -62,7 +62,7 @@ def build_gruut_sse_text(
         _log.warning(
             "gruut processing failed",
             lang=lang,
-            error=str(exc),
+            error_type=type(exc).__name__,
             duration_ms=round((perf_counter() - started_at) * 1000, 3),
         )
         return None
