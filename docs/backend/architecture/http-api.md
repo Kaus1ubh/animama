@@ -10,8 +10,9 @@ Tests use explicit fixture bootstrap and dependency overrides.
 
 Shared product routes (ADR 0021) live in `product_http/routes/`. They take owner
 sessions, repositories, policy, content services, byte delivery, upload storage,
-speech, the model catalog and the Memory Manager service from the
-`ProductPorts` the composition installs, never from `get_async_session`, so tests
+speech, the model catalog, the Memory Manager service, and the chat policy,
+chat-turn guard and turn collaborators from the `ProductPorts` the composition
+installs, never from `get_async_session`, so tests
 replace the ports (see `tests/product_http_support.py`) or call handlers with an
 explicit repository bundle. Each composition delivers verified files, runtime JSON
 and package archives under its own caching policy; the paragraphs below describe
@@ -172,7 +173,8 @@ Anima creation. The local composition always reports both `true`; React hides
 the corresponding entry points only when a value is `false`.
 `model_configuration` is true when the composition's
 catalog policy enables owner models, which only the local composition does; the
-[model configuration routes](#model-configuration) exist only then. The
+local-only [model configuration routes](#model-configuration) exist only then.
+The shared `GET /v1/model-roles` report is served by every composition. The
 self-host composition returns a null document `pack_id`; the Electron
 supervisor supplies pack-dependent settings. An enabled worker is `starting`
 until its expected instance has a heartbeat, `ready` for twenty seconds after
@@ -821,9 +823,11 @@ Durable state remains in the database.
 
 ## Model Providers
 
-The model provider router supports:
+The shared model catalog router (`product_http/routes/model_catalog.py`) supports:
 
 - `GET /v1/model-providers`: public model catalog for frontend selection
+- `GET /v1/model-roles`: the model-role report described
+  [below](#model-role-report)
 
 The route returns active serialized `model_providers` rows whose connection is
 active and which the composition's `ModelCatalogPolicy` allows: built-in rows
@@ -861,6 +865,16 @@ Each row also carries:
 `503 {"detail": {"code": "model_catalog_unavailable"}}` instead of a partial or
 static catalog. The [model catalog](../model-catalog.md) describes built-in rows
 and capabilities.
+
+### Model role report
+
+`GET /v1/model-roles` (shared) reports, for each role (`chat`, `utility`,
+`memory_manager`, `embeddings`), the effective row, its label and connection
+name, its `source` (`owner`, `default`, `inherited` or `off`), the owner's
+requested row and `assignment_available` (false when that request fell back).
+`embeddings_refresh` reports `state` (`off`, `current`, `re_embedding` or
+`retrying`), the `pending` row count and the last failure's `error_category`,
+as the composition's embedding refresh status reports them.
 
 ## Model Configuration
 
@@ -956,13 +970,6 @@ carry a key value.
   long-context price step (`400 early_compaction_unavailable` otherwise).
 - `DELETE /v1/model-providers/{model_provider_id}?confirm=`: retire an owner
   row. Built-in rows can only be hidden (`400 model_read_only`).
-- `GET /v1/model-roles`: for each role (`chat`, `utility`, `memory_manager`,
-  `embeddings`), the effective row, its label and connection name, its
-  `source` (`owner`, `default`, `inherited` or `off`), the owner's requested
-  row and `assignment_available` (false when that request fell back).
-  `embeddings_refresh` reports `state` (`off`, `current`, `re_embedding` or
-  `retrying`), the `pending` row count and the last failure's
-  `error_category`.
 
 A connection's `credential` takes one of three modes:
 
