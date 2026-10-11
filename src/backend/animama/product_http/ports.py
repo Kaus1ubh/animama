@@ -17,6 +17,12 @@ from typing import Annotated, Protocol, cast
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.app.contracts.elevenlabs import (
+    PyElevenLabsAudioResponse,
+    PyElevenLabsSoundEffectsRequest,
+    PyElevenLabsTextToSpeechRequest,
+    PyElevenLabsVoice,
+)
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.ports.anima_chat_profile_port import AnimaChatProfileRepository
 from animama.app.ports.anima_port import AnimaRepository
@@ -131,6 +137,42 @@ class ProductContent:
     runtime: AnimaRuntimeService
 
 
+class ProductSpeech(Protocol):
+    """Paid speech operations a composition offers its owners (ElevenLabs).
+
+    The composition holds the provider credentials, retries, concurrency and any
+    metering; it may refuse an operation it does not offer with ``HTTPException`` or
+    ``ProductRefusal``. ``audio_upload_max_bytes`` bounds each uploaded sample.
+    """
+
+    @property
+    def audio_upload_max_bytes(self) -> int: ...
+
+    async def clone_voice(
+        self,
+        principal: RequestPrincipal,
+        *,
+        name: str,
+        files: list[tuple[str, bytes, str]],
+        description: str | None,
+        remove_background_noise: bool,
+    ) -> PyElevenLabsVoice:
+        """Clone a voice from ``(filename, bytes, content type)`` samples, owned by ``principal``."""
+        ...
+
+    async def synthesize_text(
+        self, principal: RequestPrincipal, request: PyElevenLabsTextToSpeechRequest
+    ) -> PyElevenLabsAudioResponse:
+        """Speak ``request.text`` with one of ``principal``'s voices."""
+        ...
+
+    async def generate_sound_effect(
+        self, principal: RequestPrincipal, request: PyElevenLabsSoundEffectsRequest
+    ) -> PyElevenLabsAudioResponse:
+        """Generate a sound effect for ``principal`` from ``request.text``."""
+        ...
+
+
 @dataclass(frozen=True)
 class ProductPolicy:
     """Owner limits a composition enforces on the shared routes."""
@@ -142,7 +184,7 @@ class ProductPorts(Protocol):
     """The composition-owned collaborators of shared product handlers.
 
     Shared dependencies call the synchronous members (``policy``,
-    ``model_catalog_policy``, ``model_role_defaults``, ``repositories``,
+    ``model_catalog_policy``, ``model_role_defaults``, ``speech``, ``repositories``,
     ``content``, ``file_response``, ``download_response``, ``crisis_resources``
     and ``user_settings_changed``) on the event loop, so they must not block.
     """
@@ -252,6 +294,11 @@ class ProductPorts(Protocol):
 
         ``embedding_model_id`` is that row, or ``None`` while embeddings are off.
         """
+        ...
+
+    @property
+    def speech(self) -> ProductSpeech:
+        """The composition's paid speech operations."""
         ...
 
     async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:

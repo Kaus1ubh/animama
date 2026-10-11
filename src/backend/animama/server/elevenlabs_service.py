@@ -18,16 +18,17 @@ import httpx
 from elevenlabs.client import ElevenLabs
 from elevenlabs.core import ApiError
 from elevenlabs.types.voice_settings import VoiceSettings
-from fastapi import HTTPException, UploadFile, status
+from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.concurrency import run_in_threadpool
 
 from animama.app.model_clients.credential_store import ELEVENLABS_CREDENTIAL_ENV, CredentialSnapshot
 from animama.app.voice_emotional_tone import elevenlabs_v3_text_with_emotional_prefix
+from animama.domain.request_principal import RequestPrincipal
 from animama.logging_config import get_logger
 from animama.orm.anima import ORMAnima
 from animama.orm.settings import ORMAnimaSettings
-from animama.server.config import settings
+from animama.server.config import Settings, settings
 from animama.server.gruut_text import build_gruut_sse_text
 from animama.server.runtime_credentials import runtime_credentials
 from animama.server.schemas.elevenlabs import (
@@ -616,21 +617,6 @@ def _build_voice_settings(request: PyElevenLabsTextToSpeechRequest) -> VoiceSett
     return VoiceSettings(**payload)
 
 
-async def read_audio_upload(upload: UploadFile) -> tuple[str, bytes, str]:
-    filename = (upload.filename or "audio-sample").strip() or "audio-sample"
-    content_type = (upload.content_type or "application/octet-stream").strip() or "application/octet-stream"
-    data = await upload.read()
-    await upload.close()
-    if not data:
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Uploaded audio file is empty")
-    if len(data) > settings.elevenlabs_audio_max_upload_bytes:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Uploaded audio exceeds the {settings.elevenlabs_audio_max_upload_bytes} byte limit",
-        )
-    return filename, data, content_type
-
-
 async def clone_voice(
     *,
     user_id: str,
@@ -1142,3 +1128,45 @@ async def stream_finalized_tts_chunks(
                 "error": message or "ElevenLabs finalized TTS stream failed.",
                 "code": "elevenlabs_stream_failed",
             }
+
+
+class LocalSpeech:
+    """The local composition's speech port: ElevenLabs with the process credential store.
+
+    Cloned voices carry the owner's label, and text-to-speech only speaks with a
+    voice labelled for the caller.
+    """
+
+    def __init__(self, app_settings: Settings) -> None:
+        self._settings = app_settings
+
+    @property
+    def audio_upload_max_bytes(self) -> int:
+        return self._settings.elevenlabs_audio_max_upload_bytes
+
+    async def clone_voice(
+        self,
+        principal: RequestPrincipal,
+        *,
+        name: str,
+        files: list[tuple[str, bytes, str]],
+        description: str | None,
+        remove_background_noise: bool,
+    ) -> PyElevenLabsVoice:
+        return await clone_voice(
+            user_id=principal.id,
+            name=name,
+            files=files,
+            description=description,
+            remove_background_noise=remove_background_noise,
+        )
+
+    async def synthesize_text(
+        self, principal: RequestPrincipal, request: PyElevenLabsTextToSpeechRequest
+    ) -> PyElevenLabsAudioResponse:
+        return await synthesize_text(user_id=principal.id, request=request)
+
+    async def generate_sound_effect(
+        self, principal: RequestPrincipal, request: PyElevenLabsSoundEffectsRequest
+    ) -> PyElevenLabsAudioResponse:
+        return await generate_sound_effect(request)

@@ -38,6 +38,7 @@ from animama.product_http.ports import ProductContent, ProductPolicy, ProductRef
 from animama.server.companion_safety import runtime_crisis_resources
 from animama.server.config import Settings
 from animama.server.deps import get_async_session_factory
+from animama.server.elevenlabs_service import LocalSpeech
 from animama.server.embedding_refresh import (
     embedding_refresh_status,
     get_embedding_refresh_worker,
@@ -140,6 +141,11 @@ class LocalProductPorts:
     @property
     def model_role_defaults(self) -> ModelRoleDefaults:
         return model_role_defaults(runtime_settings_for(self._app))
+
+    @property
+    def speech(self) -> LocalSpeech:
+        # Credentials, retries and the concurrency limit stay process-wide in elevenlabs_service.
+        return LocalSpeech(runtime_settings_for(self._app))
 
     @asynccontextmanager
     async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[AsyncSession]:

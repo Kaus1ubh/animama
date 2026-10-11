@@ -22,6 +22,12 @@ from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
+from animama.app.contracts.elevenlabs import (
+    PyElevenLabsAudioResponse,
+    PyElevenLabsSoundEffectsRequest,
+    PyElevenLabsTextToSpeechRequest,
+    PyElevenLabsVoice,
+)
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
 from animama.app.services.content_package_export import DownloadLease
@@ -87,6 +93,38 @@ async def save_display_name(session: AsyncSession, principal: RequestPrincipal, 
     return profile.display_name
 
 
+@dataclass
+class FakeSpeech:
+    """Records each speech operation with its owner and arguments; never calls a provider."""
+
+    audio_upload_max_bytes: int = 1024
+    calls: list[tuple[str, str, object]] = field(default_factory=list)
+
+    async def clone_voice(
+        self,
+        principal: RequestPrincipal,
+        *,
+        name: str,
+        files: list[tuple[str, bytes, str]],
+        description: str | None,
+        remove_background_noise: bool,
+    ) -> PyElevenLabsVoice:
+        self.calls.append(("clone", principal.id, (name, files, description, remove_background_noise)))
+        return PyElevenLabsVoice(voice_id=f"voice-{principal.id}", name=name, labels={"owner_user_id": principal.id})
+
+    async def synthesize_text(
+        self, principal: RequestPrincipal, request: PyElevenLabsTextToSpeechRequest
+    ) -> PyElevenLabsAudioResponse:
+        self.calls.append(("text_to_speech", principal.id, request))
+        return PyElevenLabsAudioResponse(audio_base64="", media_type="audio/mpeg", voice_id=request.voice_id)
+
+    async def generate_sound_effect(
+        self, principal: RequestPrincipal, request: PyElevenLabsSoundEffectsRequest
+    ) -> PyElevenLabsAudioResponse:
+        self.calls.append(("sound_effect", principal.id, request))
+        return PyElevenLabsAudioResponse(audio_base64="", media_type="audio/mpeg")
+
+
 class DoubleCollaborators:
     """The non-session collaborators both port doubles share.
 
@@ -98,6 +136,7 @@ class DoubleCollaborators:
     content_root: Path | None
     model_catalog_policy: ModelCatalogPolicy
     model_role_defaults: ModelRoleDefaults
+    speech: FakeSpeech
 
     @asynccontextmanager
     async def content(self, session: AsyncSession, principal: RequestPrincipal) -> AsyncIterator[ProductContent]:
@@ -180,6 +219,7 @@ class DeferredCommitPorts(DoubleCollaborators):
     policy: ProductPolicy = field(default_factory=lambda: TEST_POLICY)
     model_catalog_policy: ModelCatalogPolicy = field(default_factory=ModelCatalogPolicy)
     model_role_defaults: ModelRoleDefaults = field(default_factory=lambda: TEST_ROLE_DEFAULTS)
+    speech: FakeSpeech = field(default_factory=FakeSpeech)
     commits_requested: int = 0
     commits: int = 0
     rollbacks: int = 0
@@ -241,6 +281,7 @@ class SessionPorts(DoubleCollaborators):
     policy: ProductPolicy = field(default_factory=lambda: TEST_POLICY)
     model_catalog_policy: ModelCatalogPolicy = field(default_factory=ModelCatalogPolicy)
     model_role_defaults: ModelRoleDefaults = field(default_factory=lambda: TEST_ROLE_DEFAULTS)
+    speech: FakeSpeech = field(default_factory=FakeSpeech)
     settings_changes: list[str] = field(default_factory=list)
     content_root: Path | None = None
 

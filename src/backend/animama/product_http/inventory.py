@@ -6,15 +6,17 @@ Each route has one disposition:
   ``stage`` (2 owner-scoped, 3 content, 4 paid utilities, 5 chat streaming). Every
   composition mounts it.
 - ``local``: owned by the local composition (installation bootstrap and runtime
-  context, model custody, owner events, archive, health, telemetry and the web
-  asset catch-all). A consumer serves its own equivalent or nothing.
+  context, model custody, owner events, archive, ElevenLabs audio isolation,
+  health, telemetry and the web asset catch-all). A consumer serves its own
+  equivalent or nothing.
 - ``hosted-excluded``: withheld by a false permission in
   ``contracts/runtime-capabilities/hosted.json``, named by ``capability``.
 
 ``access`` names the port a handler needs: ``read`` or ``write`` sessions (the
-composition keeps commit authority), a ``stream`` response, or ``bytes`` delivered
-under the composition's caching policy. Until a family moves into this package the
-value is provisional; a test binds it to the session a moved handler depends on.
+composition keeps commit authority), a ``stream`` response, ``bytes`` delivered
+under the composition's caching policy, or the ``speech`` port without a session.
+Until a family moves into this package the value is provisional; a test binds it to
+the session a moved handler depends on.
 
 Entries follow the local app's route order, one per method, which matters:
 ``/v1/animas/creation-options`` must match before ``/v1/animas/{anima_id}``, and
@@ -29,7 +31,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 Disposition = Literal["shared", "local", "hosted-excluded"]
-Access = Literal["read", "write", "stream", "bytes"]
+Access = Literal["read", "write", "stream", "bytes", "speech"]
 Stage = Literal[2, 3, 4, 5]
 # Stages whose shared routes this package serves today; later stages' shared routes
 # are still served by the local composition until they move.
@@ -249,10 +251,11 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(2, "DELETE", "/v1/chats/{chat_id}", "delete_chat", "write"),
     _shared(2, "GET", "/v1/chats/{chat_id}/messages", "list_chat_messages", "read"),
     # ElevenLabs speech and voices
-    _shared(4, "POST", "/v1/elevenlabs/voices/clone", "clone_voice_endpoint", "write"),
-    _shared(4, "POST", "/v1/elevenlabs/text-to-speech", "text_to_speech_endpoint", "write"),
-    _shared(4, "POST", "/v1/elevenlabs/sound-effects", "sound_effects_endpoint", "write"),
-    _shared(4, "POST", "/v1/elevenlabs/audio-isolation", "audio_isolation_endpoint", "write"),
+    _shared(4, "POST", "/v1/elevenlabs/voices/clone", "clone_voice_endpoint", "speech"),
+    _shared(4, "POST", "/v1/elevenlabs/text-to-speech", "text_to_speech_endpoint", "speech"),
+    _shared(4, "POST", "/v1/elevenlabs/sound-effects", "sound_effects_endpoint", "speech"),
+    # Audio isolation has no web caller and stays local (owner, 2026-10-10).
+    _local("POST", "/v1/elevenlabs/audio-isolation", "audio_isolation_endpoint", "write"),
     # Owner events
     _local("GET", "/v1/events:sse", "get_owner_events_sse", "stream"),
     # Anima archive (no web caller; stays local)

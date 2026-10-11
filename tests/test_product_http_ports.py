@@ -41,7 +41,7 @@ from animama.server.app import create_local_app
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.product_ports import LocalProductPorts, local_file_response
-from tests.product_http_support import HOSTED_CAPABILITIES
+from tests.product_http_support import HOSTED_CAPABILITIES, FakeSpeech
 
 OWNER = RequestPrincipal(id="owner")
 
@@ -76,6 +76,7 @@ class RecordingPorts:
     policy = ProductPolicy(memory_file_max_bytes=1)
     model_catalog_policy = ModelCatalogPolicy()
     model_role_defaults = ModelRoleDefaults(chat="chat-model")
+    speech = FakeSpeech()
 
     def __init__(self, *, fail_commit: bool = False) -> None:
         self.opened: list[tuple[str, str]] = []

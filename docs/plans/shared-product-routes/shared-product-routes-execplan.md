@@ -62,8 +62,8 @@ journeys on a named built stack.
 - [x] PR #429 merged on 2026-10-10 as `d42eaad9` (ordinary merge commit), after one
   owner-approved full hosted `Validation` run (38082652779, passed). Phase issues
   #438–#440 are closed; #379 stays open for stages 4 and 5.
-- [ ] Phase 4: paid utilities and catalog reads (18 shared routes; the unused audio
-  isolation route is removed), issue #451. Approved 2026-10-10; in progress.
+- [ ] Phase 4: paid utilities and catalog reads (18 shared routes; audio isolation
+  stays local-only), issue #451. Approved 2026-10-10; in progress.
 - [ ] Phase 5: chat streaming with the chat-turn guard, issue #452. Approved
   2026-10-10; depends on Phase 4.
 - [ ] Final integration review of Phases 4 and 5.
@@ -169,10 +169,13 @@ models, which changed chat, compaction and the Memory Manager):
   `Validation` run, merge or package promotion without the owner's approval.
 - 2026-10-10, owner: approved the Phase 4 and Phase 5 sections at `2358264f`,
   including the four defaults below. Phase issues: #451 (Phase 4), #452 (Phase 5).
-- 2026-10-10, owner: ElevenLabs audio isolation is not needed. No client calls
-  `POST /v1/elevenlabs/audio-isolation` (only the generated SDK exports it), so
-  Phase 4 removes the route, its service function and tests instead of sharing it.
-  This is the one intended OpenAPI and SDK change; stage 4 has 18 shared routes.
+- 2026-10-10, owner: ElevenLabs audio isolation is not needed in the shared
+  package. No client calls `POST /v1/elevenlabs/audio-isolation` (only the generated
+  SDK exports it). Removing it would change the OpenAPI document, which the
+  package-set compatibility check treats as structural (local-http 5.0.0,
+  runtime-contracts 0.5.0, a new major for consumers to admit), so the owner chose to
+  keep it local-only: the inventory classifies it `local`, no contract changes, and
+  stage 4 has 18 shared routes.
 - Proposed defaults for Phases 4 and 5, approved by the owner on 2026-10-10 (the
   question, then the decision in brackets):
   1. How owner default 5 (model-role validation) is applied [shared settings writes
@@ -357,7 +360,7 @@ approved this section and Phase 5 on 2026-10-10.
 Requirements: #379 stage 4, the inventory routes marked stage 4: voice-catalog
 uploads (4); ElevenLabs voice cloning, text-to-speech and sound effects (3);
 `GET /v1/model-providers` and `GET /v1/model-roles` (2); Memory Manager runs and
-approvals (9). The unused audio isolation route is removed (owner, 2026-10-10).
+approvals (9). Audio isolation stays local-only (owner, 2026-10-10).
 Owner default 5 (model-role validation through the model-catalog port) also lands
 here. Issue: [#451](https://github.com/raymond-van/animama/issues/451). Starting
 source: `main` at `1ef26b35`.
@@ -399,8 +402,7 @@ Phases 2 and 3:
    writes are unchanged.
 2. Memory Manager runs and approvals.
 3. ElevenLabs utilities, keeping the `elevenlabs` tag and today's error bodies;
-   the audio isolation route, `isolate_audio` and their tests are removed first, in
-   their own commit, with the regenerated SDK.
+   audio isolation stays in the local router, after the shared three.
 4. Voice-catalog uploads, with request-time directory creation removed.
 5. `SERVED_STAGES` becomes `{2, 3, 4}`; the consumer and inventory tests pin the 147
    served routes and the `ROUTERS` order.
@@ -409,8 +411,8 @@ Checks per family: its suites; two-owner isolation and deferred-commit tests for
 every route (another owner's upload, run, approval or Anima is not found and commits
 nothing; owner writes commit once through the composition); the read-session guard
 for the GET routes; `pnpm openapi-ts:check` with no SDK diff; the OpenAPI document
-unchanged except for the removed audio isolation operation; ruff, mypy, the
-boundary checker and the in-repo installed-wheel consumer. Access classes are bound
+unchanged; ruff, mypy, the boundary checker and the in-repo installed-wheel
+consumer. Access classes are bound
 as each family moves (P1-04): the three speech utilities open no session, so their
 class is corrected to match.
 
@@ -426,7 +428,7 @@ Risks and mitigations:
   the route tests use a fake speech port.
 
 Completion: the 18 routes are served from `product_http`, audio isolation is
-removed, owner default 5 is applied,
+local-only, owner default 5 is applied,
 the checks pass and Code Review #1 for the phase passes within its bound.
 
 ### Phase 5: Chat streaming
@@ -775,8 +777,7 @@ Phases 4 and 5 add, run locally with output written to files and exit codes chec
 `uv run ruff check`, `uv run mypy` (the configured targets), `make check-test`,
 `uv run --no-sync python scripts/repository-boundary/check-python-imports.py`, the
 in-repo installed-wheel consumer (`tests/test_product_http_consumer.py`),
-`pnpm openapi-ts:check` (no SDK diff after the regenerated audio isolation removal),
-the golden chat transcripts, and the full
+`pnpm openapi-ts:check` (no SDK diff), the golden chat transcripts, and the full
 `pnpm e2e:test` on a named built stack (distinct `--name` and `--base-port`, torn
 down after its last use). Acceptance: all 148 shared routes are served from
 `product_http`; `SERVED_STAGES` is `{2, 3, 4, 5}`; the shared chat route passes the
