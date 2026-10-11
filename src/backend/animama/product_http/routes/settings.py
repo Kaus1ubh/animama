@@ -30,12 +30,13 @@ def _service(repositories: ProductRepositories) -> SettingsService:
 async def _refuse_unusable_model_roles(
     ports: ProductPorts, repositories: ProductRepositories, patch: dict[str, Any]
 ) -> None:
-    """Refuse a role preference naming a row unable to do that role, when the composition validates them."""
+    """Refuse a role preference the composition's catalog cannot serve, when it validates them."""
 
+    policy = ports.model_catalog_policy
     preferences = patch.get("preferences")
-    if not ports.model_catalog_policy.validate_role_preferences or not isinstance(preferences, dict):
+    if not policy.validate_role_preferences or not isinstance(preferences, dict):
         return
-    if await unusable_role_preferences(repositories.model_providers, preferences):
+    if await unusable_role_preferences(repositories.model_providers, preferences, offered=policy.allows):
         raise HTTPException(status_code=422, detail={"code": "model_role_unavailable"})
 
 

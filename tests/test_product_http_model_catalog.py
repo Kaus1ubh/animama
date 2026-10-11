@@ -17,6 +17,7 @@ from tests.product_http_support import DeferredCommitPorts, TwoOwnerComposition,
 
 CHAT = "OpenAIResponsesHTTPAgent:gpt-6-luna"
 EMBEDDING = "OpenAIHTTPAgent:text-embedding-3-small"
+ANTHROPIC = "AnthropicMessagesHTTPAgent:claude-haiku-5-5"
 USER_SETTINGS = "/v1/users/me/settings"
 
 
@@ -55,7 +56,7 @@ async def test_catalog_and_roles_are_read_only_and_resolve_each_owners_preferenc
     # The port's policy decides the rows: here built-in OpenAI rows, not other built-in connections.
     listed = {row["id"] for row in catalog}
     assert CHAT in listed
-    assert "AnthropicMessagesHTTPAgent:claude-haiku-5-5" not in listed
+    assert ANTHROPIC not in listed
     embeddings_a = next(role for role in roles_a["roles"] if role["role"] == "embeddings")
     assert (embeddings_a["source"], embeddings_a["model_provider_id"]) == ("owner", EMBEDDING)
     assert roles_a["embeddings_refresh"]["state"] == "current"
@@ -80,13 +81,15 @@ async def test_a_validating_composition_refuses_role_preferences_its_catalog_can
 
     async with composition.client(owner) as client:
         refused = [
-            # An embeddings row cannot do the utility role; a missing row cannot do any.
+            # An embeddings row cannot do the utility role; a missing row cannot do any;
+            # the default policy does not offer the built-in Anthropic connection's rows.
             await client.post(
                 USER_SETTINGS, json={"preferences": {"models": {"utility_model_provider_id": EMBEDDING}}}
             ),
             await client.patch(
                 USER_SETTINGS, json={"preferences": {"chat": {"default_model_provider_id": "missing:row"}}}
             ),
+            await client.patch(USER_SETTINGS, json={"preferences": {"chat": {"default_model_provider_id": ANTHROPIC}}}),
         ]
         stored = await client.patch(
             USER_SETTINGS,

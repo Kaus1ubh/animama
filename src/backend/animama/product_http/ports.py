@@ -126,6 +126,12 @@ class ProductRefusal(Exception):
         self.code = code
 
 
+def refusal_error(exc: ProductRefusal) -> HTTPException:
+    """The HTTP error a shared route raises for a composition's refusal."""
+
+    return HTTPException(status_code=exc.status_code, detail={"code": exc.code})
+
+
 @dataclass(frozen=True)
 class ProductContent:
     """Content services for one owner over one session.
@@ -147,8 +153,9 @@ class ProductSpeech(Protocol):
     """Paid speech operations a composition offers its owners (ElevenLabs).
 
     The composition holds the provider credentials, retries, concurrency and any
-    metering; it may refuse an operation it does not offer with ``HTTPException`` or
-    ``ProductRefusal``. ``audio_upload_max_bytes`` bounds each uploaded sample.
+    metering; it refuses an operation it does not offer with ``ProductRefusal`` (or
+    an ``HTTPException`` with its own body). ``audio_upload_max_bytes`` bounds each
+    uploaded sample.
     """
 
     @property
@@ -193,7 +200,8 @@ class ProductPolicy:
 class ProductUploads:
     """Where an owner's staged uploads live: private storage and a spool directory.
 
-    A composition prepares both before serving; a request never creates them.
+    A composition prepares both before serving; a request never creates them (the
+    storage creates only each upload's own subdirectories).
     """
 
     private_files: PrivateFileStorage
@@ -329,7 +337,8 @@ class ProductPorts(Protocol):
     async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:
         """``principal``'s Memory Manager over ``session``, on this composition's model runtime.
 
-        A composition may wrap the service's operations with its own admission.
+        A composition may wrap the service's operations with its own admission and
+        refuse one with ``ProductRefusal``, here or from the operation.
         """
         ...
 

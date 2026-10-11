@@ -3,7 +3,7 @@
 An owner stages a ``.bin`` upload, sends its bytes into the composition's private
 storage, then finalizes it into a normal Local ``voices/`` content file (see
 :class:`VoiceCatalogUploadService`). The composition supplies the storage, the
-spool directory and the limits; no request creates a directory.
+spool directory and the limits; a request never creates the runtime layout.
 """
 
 from __future__ import annotations
@@ -26,7 +26,14 @@ from animama.app.services.voice_catalog_upload_service import (
     VoiceCatalogUploadStateError,
 )
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.ports import Ports, ProductPorts, ProductRepositories, WriteContent, WriteRepositories
+from animama.product_http.ports import (
+    Ports,
+    ProductPorts,
+    ProductRepositories,
+    ProductUploads,
+    WriteContent,
+    WriteRepositories,
+)
 from animama.product_http.principal import get_current_principal
 from animama.product_http.uploads import UploadEnvelopeError, spool_bounded_request
 
@@ -45,12 +52,12 @@ _STATUS: tuple[tuple[type[VoiceCatalogUploadError], int], ...] = (
 
 
 def _service(
-    ports: ProductPorts, repositories: ProductRepositories, user: RequestPrincipal
+    ports: ProductPorts, repositories: ProductRepositories, uploads: ProductUploads
 ) -> VoiceCatalogUploadService:
     policy = ports.policy
     return VoiceCatalogUploadService(
         uploads=repositories.voice_catalog_uploads,
-        private_files=ports.uploads(user).private_files,
+        private_files=uploads.private_files,
         uow=repositories.unit_of_work,
         max_upload_bytes=policy.voice_catalog_max_upload_bytes,
         upload_ttl_seconds=policy.private_upload_ttl_seconds,
@@ -74,7 +81,7 @@ async def init_anima_voice_catalog_upload(
     user: UserDep,
 ) -> PyAvatarUploadInitResponse:
     try:
-        upload = await _service(ports, repositories, user).initiate(
+        upload = await _service(ports, repositories, ports.uploads(user)).initiate(
             user_id=user.id, filename=req.filename, size_bytes=req.size_bytes, content_type=req.content_type
         )
     except VoiceCatalogUploadError as exc:
@@ -102,7 +109,8 @@ async def upload_anima_voice_catalog_content(
 ) -> Response:
     """Stream one owner-scoped Pocket voice catalog into private staging."""
 
-    service = _service(ports, repositories, user)
+    uploads = ports.uploads(user)
+    service = _service(ports, repositories, uploads)
     try:
         upload = await service.pending_upload(user_id=user.id, upload_id=upload_id)
         try:
@@ -110,7 +118,7 @@ async def upload_anima_voice_catalog_content(
                 request,
                 expected_size_bytes=upload.declared_size_bytes,
                 max_size_bytes=ports.policy.voice_catalog_max_upload_bytes,
-                staging_directory=ports.uploads(user).staging_directory,
+                staging_directory=uploads.staging_directory,
             )
         except UploadEnvelopeError as exc:
             raise HTTPException(status_code=422, detail={"code": exc.code}) from exc
@@ -137,7 +145,7 @@ async def finalize_anima_voice_catalog_upload(
     """Validate and publish a normal readable ``content/local/voices`` file."""
 
     try:
-        saved = await _service(ports, repositories, user).finalize(
+        saved = await _service(ports, repositories, ports.uploads(user)).finalize(
             user_id=user.id,
             upload_id=upload_id,
             content=content.catalog,
@@ -161,7 +169,7 @@ async def abort_anima_voice_catalog_upload(
     user: UserDep,
 ) -> Response:
     try:
-        await _service(ports, repositories, user).abort(user_id=user.id, upload_id=upload_id)
+        await _service(ports, repositories, ports.uploads(user)).abort(user_id=user.id, upload_id=upload_id)
     except VoiceCatalogUploadError as exc:
         raise _http_error(exc) from exc
     return Response(status_code=status.HTTP_204_NO_CONTENT)

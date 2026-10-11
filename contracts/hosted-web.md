@@ -11,16 +11,18 @@ Product routes every composition serves live in `animama.product_http` ([ADR
 0021](../docs/adr/0021-shared-product-http-routes.md)). A consumer mounts
 `animama.product_http.routes.ROUTERS` from the published wheel, installs its own
 `ProductPorts` (owner sessions under its commit authority, repositories, content
-services and byte delivery, upload storage, speech, the model catalog policy and
-role defaults, and the Memory Manager service) and sets its request-principal
-resolver as `app.state.request_principal_resolver`; without either, shared routes
-answer 503. Its content port decides package admission: a composition that
-withholds Anima creation builds `ContentPackageService(allow_anima_import=False)`.
-A composition that serves only its own catalog sets
-`ModelCatalogPolicy(validate_role_preferences=True)`, so settings writes refuse a
-role preference its catalog cannot serve (`422 model_role_unavailable`); its
-speech port refuses speech operations it does not offer, and its Memory Manager
-port may wrap each operation with its own admission. The route
+services and byte delivery, upload storage, speech, the model catalog policy, role
+defaults and embedding refresh status, and the Memory Manager service) and sets its
+request-principal resolver as `app.state.request_principal_resolver`; without
+either, shared routes answer 503. Its content port decides package admission: a
+composition that withholds Anima creation builds
+`ContentPackageService(allow_anima_import=False)`. A composition that serves only
+its own catalog sets `ModelCatalogPolicy(validate_role_preferences=True)`, so
+settings writes refuse a role preference its catalog cannot serve
+(`422 model_role_unavailable`). Its speech port refuses an operation it does not
+offer, and its Memory Manager port may wrap each operation with its own admission;
+either refuses with `ProductRefusal`, which the route reports as `{"code": code}`
+with the refusal's status. The route
 inventory marks each route shared, local-only or withheld by a capability; shared
 routes of later stages remain consumer-owned until they move. Shared byte routes
 answer GET only: a consumer that serves HEAD or Range for them adds those through

@@ -17,7 +17,7 @@ from animama.app.contracts.elevenlabs import (
     PyElevenLabsVoice,
 )
 from animama.domain.request_principal import RequestPrincipal
-from animama.product_http.ports import Ports
+from animama.product_http.ports import Ports, ProductRefusal, refusal_error
 from animama.product_http.principal import get_current_principal
 from animama.product_http.uploads import read_audio_upload
 
@@ -39,13 +39,16 @@ async def clone_voice_endpoint(
 ) -> PyElevenLabsVoice:
     speech = ports.speech
     prepared_files = [await read_audio_upload(upload, max_bytes=speech.audio_upload_max_bytes) for upload in files]
-    return await speech.clone_voice(
-        user,
-        name=name.strip(),
-        files=prepared_files,
-        description=description.strip() if isinstance(description, str) and description.strip() else None,
-        remove_background_noise=remove_background_noise,
-    )
+    try:
+        return await speech.clone_voice(
+            user,
+            name=name.strip(),
+            files=prepared_files,
+            description=description.strip() if isinstance(description, str) and description.strip() else None,
+            remove_background_noise=remove_background_noise,
+        )
+    except ProductRefusal as exc:
+        raise refusal_error(exc) from exc
 
 
 @router.post(
@@ -58,7 +61,10 @@ async def text_to_speech_endpoint(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     ports: Ports,
 ) -> PyElevenLabsAudioResponse:
-    return await ports.speech.synthesize_text(user, req)
+    try:
+        return await ports.speech.synthesize_text(user, req)
+    except ProductRefusal as exc:
+        raise refusal_error(exc) from exc
 
 
 @router.post(
@@ -71,7 +77,10 @@ async def sound_effects_endpoint(
     user: Annotated[RequestPrincipal, Depends(get_current_principal)],
     ports: Ports,
 ) -> PyElevenLabsAudioResponse:
-    return await ports.speech.generate_sound_effect(user, req)
+    try:
+        return await ports.speech.generate_sound_effect(user, req)
+    except ProductRefusal as exc:
+        raise refusal_error(exc) from exc
 
 
 __all__ = ["router"]

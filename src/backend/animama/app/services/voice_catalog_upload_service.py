@@ -201,7 +201,8 @@ class VoiceCatalogUploadService:
         await self._uploads.set_status(upload_id=upload.id, user_id=user_id, status=STATUS_FINALIZED)
         await self._uow.commit()
         if not self._private_files.delete(upload.storage_locator):
-            # The record keeps the locator, so cleanup can remove the bytes later.
+            # The finalized record keeps the locator and this error. The cleanup
+            # worker does not select finalized rows, so the bytes stay in staging.
             await self._uploads.set_status(
                 upload_id=upload.id, user_id=user_id, status=STATUS_FINALIZED, last_error="cleanup_pending"
             )

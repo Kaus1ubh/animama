@@ -183,6 +183,9 @@ class LocalProductPorts:
     def uploads(self, principal: RequestPrincipal) -> ProductUploads:
         # One installation owner: its private files live under the data root's allowlisted areas.
         paths = self._runtime_paths()
+        if not paths.uploads_staging_root.is_dir():
+            # Startup created it; a request never recreates a missing or unmounted root.
+            raise HTTPException(status_code=503, detail={"code": "uploads_unavailable"})
         return ProductUploads(
             private_files=FilesystemPrivateFileStorage(paths), staging_directory=paths.uploads_staging_root
         )

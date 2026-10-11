@@ -38,7 +38,10 @@ async def spool_bounded_request(
     max_size_bytes: int,
     staging_directory: Path | None = None,
 ) -> SpooledUpload:
-    """Stream a request body to a bounded disk-backed spool without buffering it in RAM."""
+    """Stream a request body to a bounded disk-backed spool without buffering it in RAM.
+
+    ``staging_directory`` must already exist; a request never creates it.
+    """
 
     if expected_size_bytes < 1 or expected_size_bytes > max_size_bytes:
         raise UploadEnvelopeError("upload_size_invalid")
@@ -49,8 +52,6 @@ async def spool_bounded_request(
                 raise UploadEnvelopeError("upload_size_mismatch")
         except ValueError as exc:
             raise UploadEnvelopeError("upload_size_invalid") from exc
-    if staging_directory is not None:
-        staging_directory.mkdir(parents=True, exist_ok=True)
     stream = SpooledTemporaryFile(
         max_size=1024 * 1024,
         mode="w+b",

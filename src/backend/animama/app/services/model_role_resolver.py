@@ -16,6 +16,7 @@ model configuration (hosted), only operator defaults apply.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any
 
@@ -171,9 +172,12 @@ def role_preference(preferences: dict[str, Any], section: str, key: str) -> str 
 
 
 async def unusable_role_preferences(
-    model_providers: ModelProviderRepository, preferences: dict[str, Any]
+    model_providers: ModelProviderRepository,
+    preferences: dict[str, Any],
+    *,
+    offered: Callable[[ModelProvider], bool],
 ) -> tuple[str, ...]:
-    """The roles whose preference in ``preferences`` names a row that cannot do the role's job."""
+    """The roles whose preference names a row the catalog does not offer or that cannot do the role's job."""
 
     unusable = []
     for role, path in ROLE_PREFERENCE_PATHS.items():
@@ -181,7 +185,7 @@ async def unusable_role_preferences(
         if selected is None:
             continue
         row = await model_providers.get(selected)
-        if row is None or not usable_for_role(role, row):
+        if row is None or not offered(row) or not usable_for_role(role, row):
             unusable.append(role)
     return tuple(unusable)
 

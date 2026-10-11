@@ -51,7 +51,14 @@ from animama.domain.memory_manager import (
 )
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.settings import preferred_time_zone
-from animama.product_http.ports import Ports, ProductRepositories, ReadSession, WriteSession
+from animama.product_http.ports import (
+    Ports,
+    ProductRefusal,
+    ProductRepositories,
+    ReadSession,
+    WriteSession,
+    refusal_error,
+)
 from animama.product_http.principal import get_current_principal
 
 router = APIRouter()
@@ -170,6 +177,8 @@ def _to_run_response(snapshot: MemoryManagerRunSnapshot) -> PyMemoryManagerRunRe
 
 
 def _raise_http_error(exc: Exception) -> NoReturn:
+    if isinstance(exc, ProductRefusal):
+        raise refusal_error(exc) from exc
     if isinstance(exc, MemoryManagerValidationError | MemoryEpisodeValidationError):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=exc.detail) from exc
     if isinstance(exc, MemoryManagerNotFoundError | MemoryEpisodeNotFoundError):
@@ -202,7 +211,7 @@ async def create_memory_manager_run(
             auto_approve_diffs=req.auto_approve_diffs,
             metadata=req.metadata,
         )
-    except MemoryManagerError as exc:
+    except (MemoryManagerError, ProductRefusal) as exc:
         _raise_http_error(exc)
     return _to_run_response(snapshot)
 
@@ -226,7 +235,7 @@ async def create_episode_processing_memory_manager_run(
             user_id=user.id,
             auto_approve_diffs=req.auto_approve_diffs,
         )
-    except MemoryManagerError as exc:
+    except (MemoryManagerError, ProductRefusal) as exc:
         _raise_http_error(exc)
     return _to_run_response(snapshot)
 
@@ -257,7 +266,7 @@ async def create_reflection_memory_manager_run(
             auto_approve_diffs=req.auto_approve_diffs,
             timezone=await _owner_timezone(ports.repositories(session), user.id),
         )
-    except MemoryManagerError as exc:
+    except (MemoryManagerError, ProductRefusal) as exc:
         _raise_http_error(exc)
     return _to_run_response(snapshot)
 
@@ -277,7 +286,7 @@ async def get_current_memory_manager_run(
     try:
         service = await ports.memory_manager(session, user)
         snapshot = await service.get_current_run_snapshot(user_id=user.id)
-    except MemoryManagerError as exc:
+    except (MemoryManagerError, ProductRefusal) as exc:
         _raise_http_error(exc)
     return _to_run_response(snapshot) if snapshot is not None else None
 
@@ -298,7 +307,7 @@ async def get_memory_manager_run(
     try:
         service = await ports.memory_manager(session, user)
         snapshot = await service.get_run_snapshot(user_id=user.id, run_id=run_id)
-    except MemoryManagerError as exc:
+    except (MemoryManagerError, ProductRefusal) as exc:
         _raise_http_error(exc)
     return _to_run_response(snapshot)
 
@@ -319,7 +328,7 @@ async def complete_memory_manager_run(
     try:
         service = await ports.memory_manager(session, user)
         snapshot = await service.complete_run(user_id=user.id, run_id=run_id)
-    except MemoryManagerError as exc:
+    except (MemoryManagerError, ProductRefusal) as exc:
         _raise_http_error(exc)
     return _to_run_response(snapshot)
 
@@ -346,7 +355,7 @@ async def append_memory_manager_message(
             content=req.content,
             auto_approve_diffs=req.auto_approve_diffs,
         )
-    except MemoryManagerError as exc:
+    except (MemoryManagerError, ProductRefusal) as exc:
         _raise_http_error(exc)
     return _to_run_response(snapshot)
 
@@ -373,7 +382,7 @@ async def decide_memory_manager_approval(
             decision=req.decision,
             feedback=req.feedback,
         )
-    except MemoryManagerError as exc:
+    except (MemoryManagerError, ProductRefusal) as exc:
         _raise_http_error(exc)
     return _to_manager_approval(approval)
 
@@ -397,7 +406,7 @@ async def undo_memory_manager_approval(
             user_id=user.id,
             approval_id=approval_id,
         )
-    except MemoryManagerError as exc:
+    except (MemoryManagerError, ProductRefusal) as exc:
         _raise_http_error(exc)
     return _to_approval_undo_response(result)
 

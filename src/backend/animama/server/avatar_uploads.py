@@ -8,7 +8,6 @@ remove expired or abandoned staged bytes.
 from __future__ import annotations
 
 from datetime import UTC, datetime
-from typing import Literal
 
 from sqlalchemy import asc, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,17 +16,10 @@ from animama.domain.staged_upload import (
     STATUS_ABORTED,
     STATUS_CLEANUP_PENDING,
     STATUS_EXPIRED,
-    STATUS_FINALIZED,
     STATUS_PENDING,
     StagedUploadStatus,
 )
 from animama.orm import ORMAvatarUpload
-
-AvatarUploadStatus = StagedUploadStatus
-AvatarUploadType = Literal["avatar_vrm", "pocket_voice_catalog"]
-
-UPLOAD_TYPE_AVATAR_VRM: AvatarUploadType = "avatar_vrm"
-UPLOAD_TYPE_POCKET_VOICE_CATALOG: AvatarUploadType = "pocket_voice_catalog"
 
 
 def utcnow() -> datetime:
@@ -58,7 +50,7 @@ async def list_uploads_for_cleanup(
 def set_upload_status(
     upload: ORMAvatarUpload,
     *,
-    status: AvatarUploadStatus,
+    status: StagedUploadStatus,
     last_error: str | None = None,
     avatar_id: str | None = None,
     anima_id: str | None = None,
@@ -73,16 +65,11 @@ def set_upload_status(
 
 
 __all__ = [
-    "UPLOAD_TYPE_AVATAR_VRM",
-    "UPLOAD_TYPE_POCKET_VOICE_CATALOG",
-    "AvatarUploadStatus",
     "STATUS_ABORTED",
     "STATUS_CLEANUP_PENDING",
     "STATUS_EXPIRED",
-    "STATUS_FINALIZED",
     "STATUS_PENDING",
     "list_uploads_for_cleanup",
     "set_upload_status",
-    "AvatarUploadType",
     "utcnow",
 ]

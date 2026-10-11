@@ -11,7 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from animama.domain.staged_upload import STATUS_PENDING, StagedUploadStatus, VoiceCatalogUpload
 from animama.orm import ORMAvatarUpload
 
-# The upload type the cleanup worker shares with avatar VRM uploads.
+# The table also holds avatar VRM uploads; this type marks voice catalogs.
 UPLOAD_TYPE_POCKET_VOICE_CATALOG = "pocket_voice_catalog"
 
 

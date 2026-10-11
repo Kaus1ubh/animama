@@ -101,7 +101,17 @@ async def test_upload_requests_use_the_runtime_layout_startup_prepared(async_ses
             assert (await client.put(f"{UPLOADS}/{upload_id}/content", content=payload)).status_code == 204
             assert (await client.post(f"{UPLOADS}/{upload_id}:finalize")).status_code == 200
             assert (await client.delete(f"{UPLOADS}/{await _stage(client, payload)}")).status_code == 204
+            pending = await _stage(client, payload)
+            # Without its staging root the upload fails closed instead of recreating it.
+            shutil.rmtree(paths.uploads_staging_root)
+            refused = [
+                await client.put(f"{UPLOADS}/{pending}/content", content=payload),
+                await client.post(UPLOADS, json={"filename": "Wren.bin", "size_bytes": len(payload)}),
+            ]
         assert not paths.derivatives_root.exists()
+        for response in refused:
+            assert (response.status_code, response.json()) == (503, {"detail": {"code": "uploads_unavailable"}})
+        assert not paths.uploads_staging_root.exists()
     finally:
         await async_session.execute(delete(ORMAvatarUpload).where(ORMAvatarUpload.user_id == "voice-layout-owner"))
         await async_session.execute(

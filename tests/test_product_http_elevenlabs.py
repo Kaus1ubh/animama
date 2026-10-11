@@ -7,6 +7,7 @@ from pathlib import Path
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from animama.product_http.ports import ProductRefusal
 from animama.product_http.routes import elevenlabs
 from tests.product_http_support import DeferredCommitPorts, FakeSpeech, TwoOwnerComposition, product_app
 
@@ -59,8 +60,16 @@ async def test_uploads_are_bounded_by_the_ports_limit(
 
 
 class _NoSpeech(FakeSpeech):
+    """A composition without ElevenLabs refuses each operation."""
+
+    async def clone_voice(self, principal, **_values):  # noqa: ANN001, ANN003, ANN201
+        raise ProductRefusal(503, "speech_unavailable")
+
+    async def synthesize_text(self, principal, request):  # noqa: ANN001, ANN201
+        raise ProductRefusal(503, "speech_unavailable")
+
     async def generate_sound_effect(self, principal, request):  # noqa: ANN001, ANN201
-        raise HTTPException(status_code=503, detail={"code": "speech_unavailable"})
+        raise HTTPException(status_code=503, detail={"code": "speech_unavailable", "provider": "none"})
 
 
 async def test_a_composition_without_speech_refuses_through_its_port(
@@ -70,6 +79,13 @@ async def test_a_composition_without_speech_refuses_through_its_port(
     composition = TwoOwnerComposition(product_app(elevenlabs.router, ports=ports), tmp_path)
 
     async with composition.client(composition.owners[0]) as client:
-        response = await client.post("/v1/elevenlabs/sound-effects", json={"text": "A door creaks"})
+        cloned = await client.post(
+            "/v1/elevenlabs/voices/clone", data={"name": "Wren"}, files=[("files", ("a.wav", b"riff", "audio/wav"))]
+        )
+        spoken = await client.post("/v1/elevenlabs/text-to-speech", json={"voice_id": "voice-a", "text": "Hello"})
+        effect = await client.post("/v1/elevenlabs/sound-effects", json={"text": "A door creaks"})
 
-    assert (response.status_code, response.json()) == (503, {"detail": {"code": "speech_unavailable"}})
+    # A ProductRefusal keeps its status and code; an HTTPException keeps its own body.
+    for response in (cloned, spoken):
+        assert (response.status_code, response.json()) == (503, {"detail": {"code": "speech_unavailable"}})
+    assert (effect.status_code, effect.json()) == (503, {"detail": {"code": "speech_unavailable", "provider": "none"}})

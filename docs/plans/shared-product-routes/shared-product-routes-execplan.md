@@ -702,6 +702,70 @@ corrected, the last inert session overrides and duplicate store builders are gon
 and this record cites its commits and validation. The first content request still
 builds the local coordinator, whose roots startup already created. Result: pass.
 
+### Phase 4 review record
+
+Implementation on `refactor/share-utility-and-chat-routes` from `1ef26b35`: model
+catalog reads and owner default 5 (`0c620591`), Memory Manager (`d619b69b`),
+ElevenLabs utilities (`316c4a8c`), voice-catalog uploads (`22f1aa77`), and serving
+stage 4 with the docs (`56b24c0b`). Audio isolation stays local (owner decision).
+`make check-test` on `56b24c0b`: 3,892 passed and 24 failed. All 24 failures came
+from Git LFS pointer files in this new worktree (Included VRM, sound and SVG content
+was not hydrated). After `git lfs checkout` from the local object cache (no
+download), the 24 pass. Ruff, mypy, the boundary checker, the installed-wheel
+consumer and `pnpm openapi-ts:check` (no SDK diff) passed.
+
+Code Review #1 Findings (at `56b24c0b`; the OpenAPI document is byte-identical to the
+baseline export):
+
+- P4R-01 (blocking): the shared spooler created its staging directory on every
+  request (`mkdir(parents=True)`), so a removed staging or data root was recreated
+  instead of failing closed; the layout test removed only the derivatives root.
+- P4R-02 (blocking): the two-owner and deferred-commit test never sent
+  `runs:process-episodes`, and covered owner a's message and Reflection writes only
+  through owner b's 404s. `d619b69b`'s message overstated the coverage.
+- P4R-03 (blocking): a `ProductRefusal` from the speech port, which its docstring
+  allows, answered 500; the Memory Manager port named no refusal type.
+- P4R-04: role-preference validation ignored the catalog policy, so a row the
+  composition does not offer (the built-in Anthropic row under the default policy)
+  was accepted.
+- P4R-05: the finalize comment claimed cleanup removes bytes left by a failed
+  delete; the cleanup worker never selects finalized rows.
+- P4R-06: consumer limitations to record (below).
+- Optional: O-01 bind the `speech` access class in the inventory test; O-02 no test
+  covered `LocalSpeech` passing the caller's ID; O-03 unused upload exports and a
+  duplicated type literal; O-04 the upload PUT built the uploads port twice; O-05
+  the hosted contract's port list omitted the embedding refresh status.
+
+Code Review #1 Revisions:
+
+- P4R-01: the spooler no longer creates directories; the local uploads port answers
+  503 `{"code": "uploads_unavailable"}` when the staging root is missing. The layout
+  test removes the staging root and shows that an upload and an initiate are refused
+  without recreating it. A spooler unit test shows that a missing directory stays
+  missing (the user-files route still prepares its own through
+  `initialize_local_runtime`).
+- P4R-02: the two-owner test seeds a pending episode and an Anima with an uncovered
+  turn. Owner b's `runs:process-episodes` answers 409 and commits nothing; owner a's
+  message, episode processing (with its note approved) and Reflection each commit
+  once through the composition.
+- P4R-03: `refusal_error` turns a `ProductRefusal` into `{"code": code}` with its
+  status. The speech, Memory Manager and profile routes use it, and the speech and
+  Memory Manager port docstrings name it. Tests cover both a speech refusal and a
+  Memory Manager admission refusal.
+- P4R-04: validation also refuses a row that `ModelCatalogPolicy.allows` rejects;
+  the test adds the Anthropic row.
+- P4R-05: the comment states the cleanup worker's actual behaviour.
+- P4R-06, recorded as consumer limitations (like FI-05):
+  - Under a deferring composition, the Memory Manager's step commits (create the
+    run, then its first message; decide, then resume) collapse into one
+    transaction. A later failure then discards the run the local app would keep, and
+    the model call runs while the earlier step's row locks are held.
+  - Voice-catalog finalize deletes the staged bytes before the deferred commit; a
+    retry recovers through the rescan.
+  - The read-session guard runs the Memory Manager reads with the deterministic
+    runtime; that role resolution only reads is shown by inspection.
+- O-01 to O-05 are applied.
+
 ## Final integration review
 
 After Phase 3: one final review of combined acceptance (unchanged local behaviour,

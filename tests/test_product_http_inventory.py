@@ -166,6 +166,10 @@ def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> No
             if spec.access == "read":
                 # A read route never opens a write session the composition must settle.
                 assert not depends_on(route.dependant, get_write_session), (method, route.path)
+            if spec.access == "speech":
+                # Speech utilities call the speech port and open no session at all.
+                assert not depends_on(route.dependant, get_read_session), (method, route.path)
+                assert not depends_on(route.dependant, get_write_session), (method, route.path)
 
 
 def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
