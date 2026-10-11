@@ -128,12 +128,14 @@ async def save_display_name(session: AsyncSession, principal: RequestPrincipal, 
 class FakeSpeech:
     """Records each speech operation with its owner and arguments; never calls a provider.
 
-    With ``refusal`` set, the chat-turn operations decline with it.
+    With ``refusal`` set, the chat-turn operations decline with it; with
+    ``stream_refusal`` set, a finalized segment declines while it streams.
     """
 
     audio_upload_max_bytes: int = 1024
     calls: list[tuple[str, str, object]] = field(default_factory=list)
     refusal: ProductRefusal | None = None
+    stream_refusal: ProductRefusal | None = None
 
     async def clone_voice(
         self,
@@ -208,6 +210,8 @@ class FakeSpeech:
         return FakeFinalizedSpeech(voice_id=voice_id, model_id=model_id or "eleven_v3")
 
     async def stream_finalized(self, prepared: FinalizedSpeech) -> AsyncIterator[dict[str, Any]]:
+        if self.stream_refusal is not None:
+            raise self.stream_refusal
         frame = {"model_id": prepared.model_id, "output_format": prepared.output_format}
         yield {"type": "audio", "audio_base64": "AAAA", **frame}
         yield {"type": "done", **frame}

@@ -200,9 +200,9 @@ class ProductSpeech(Protocol):
     an ``HTTPException`` with its own body). ``audio_upload_max_bytes`` bounds each
     uploaded sample. The chat-turn operations resolve the Anima's voice through the
     ``voice`` the turn supplies, after the composition's own checks. They decline
-    a reply's speech with ``ProductRefusal``, whose code and status the speech error
-    frame carries; other errors' messages reach the browser in those frames, so
-    they must be safe to show.
+    a reply's speech with ``ProductRefusal``, whose code the speech error frame
+    carries (``tts.session.error`` also its status); other errors' messages reach
+    the browser in those frames, so they must be safe to show.
     """
 
     @property

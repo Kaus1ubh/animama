@@ -514,12 +514,14 @@ class FinalizedTtsStreamBootstrap:
                 run_id=self.run_id,
                 error=str(exc),
             )
+            refused = isinstance(exc, ProductRefusal)
             await self.queue.put(
                 format_tts_error_event(
                     run_id=self.run_id,
                     model_id=self.model_id or "eleven_v3",
-                    error=str(exc) or "ElevenLabs finalized TTS failed.",
-                    code="elevenlabs_stream_failed",
+                    error=("" if refused else str(exc)) or "ElevenLabs finalized TTS failed.",
+                    # A composition that declines a streamed segment names why.
+                    code=exc.code if isinstance(exc, ProductRefusal) else "elevenlabs_stream_failed",
                 )
             )
         finally:

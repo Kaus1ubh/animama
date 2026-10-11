@@ -11,7 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncGenerator, AsyncIterator, MutableMapping
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from dataclasses import dataclass, replace
 from pathlib import Path
 from types import SimpleNamespace
@@ -25,6 +25,7 @@ from sqlalchemy import delete, func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
+from animama.app.chat import DirectChatTurnExecutor, PreparedDirectChatTurn
 from animama.app.model_clients import ModelClientProviderError, StaticModelClientRegistry
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.model_role_resolver import ModelRoleDefaults
@@ -462,13 +463,22 @@ async def test_a_speech_refusal_keeps_its_code_in_the_speech_frames(guarded: Gua
     assert [lease.settlements for lease in guarded.ports.chat_guard.leases] == [["completed"], ["completed"]]
 
 
-async def test_cancelling_a_turn_stopped_by_a_full_bridge_closes_its_stream() -> None:
+async def test_cancelling_a_turn_stopped_by_a_full_bridge_stops_its_provider_stream() -> None:
     # A client that stops reading fills the bridge; the turn's task then waits to publish.
-    closed: list[bool] = []
     produced: list[int] = []
+    provider_cancelled: list[bool] = []
 
-    class _Executor:
-        async def stream_prepared_turn(self, prepared: object) -> AsyncGenerator[Event, None]:
+    class _Executor(DirectChatTurnExecutor):
+        """The real ``stream_prepared_turn`` over stand-ins for the two streams it delegates to."""
+
+        async def _fit_to_context_window(
+            self, prepared: PreparedDirectChatTurn
+        ) -> AsyncGenerator[Event | PreparedDirectChatTurn, None]:
+            yield prepared
+
+        async def _stream_fitted_turn(self, prepared: PreparedDirectChatTurn) -> AsyncGenerator[Event, None]:
+            # As in the real turn, a provider task feeds the stream and its cleanup cancels it.
+            provider = asyncio.create_task(asyncio.Event().wait(), name="direct-chat-model-stream-run-1")
             try:
                 index = 0
                 while True:
@@ -481,15 +491,19 @@ async def test_cancelling_a_turn_stopped_by_a_full_bridge_closes_its_stream() ->
                         payload=RunStatusPayload(run_id="run-1", status="searching_web", phase="started"),
                     )
             finally:
-                closed.append(True)
+                provider.cancel()
+                with suppress(asyncio.CancelledError):
+                    await provider
+                provider_cancelled.append(provider.cancelled())
 
-    provider = SimpleNamespace(id="row", provider_type="OpenAIResponsesHTTPAgent", model="model")
+    provider_row = SimpleNamespace(id="row", provider_type="OpenAIResponsesHTTPAgent", model="model")
     prepared = SimpleNamespace(
         request=SimpleNamespace(anima_id="anima-1", chat_id="chat-1", run_id="run-1"),
-        model_request=SimpleNamespace(model_provider=provider),
+        model_request=SimpleNamespace(model_provider=provider_row),
     )
     bridge = DirectChatEventBridge(anima_id="anima-1", queue_size=2)
-    task = asyncio.create_task(run_prepared_direct_turn(cast(Any, _Executor()), cast(Any, prepared), bridge))
+    executor = _Executor.__new__(_Executor)  # its collaborators are not needed here
+    task = asyncio.create_task(run_prepared_direct_turn(executor, cast(Any, prepared), bridge))
     # Two events fill the bridge; the task then waits to publish the third.
     while len(produced) < 3:
         await asyncio.sleep(0)
@@ -499,5 +513,21 @@ async def test_cancelling_a_turn_stopped_by_a_full_bridge_closes_its_stream() ->
     with pytest.raises(asyncio.CancelledError):
         await task
 
-    # The stream closed before its task ended, not later when the generator is collected.
-    assert closed == [True]
+    # The provider stream stopped before the turn's task ended, not when its generator is collected.
+    assert provider_cancelled == [True]
+    assert not [t for t in asyncio.all_tasks() if not t.done() and t.get_name().startswith("direct-chat-model-stream")]
+
+
+async def test_a_refusal_while_streaming_speech_keeps_its_code(guarded: GuardedChat) -> None:
+    guarded.ports.speech.stream_refusal = ProductRefusal(402, "speech_allowance_exhausted")
+    guarded.model.replies.append(structured("Hello there. The kettle is on."))
+
+    response = await guarded.turn(
+        "declined-stream",
+        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"}},
+    )
+
+    speech = [data for name, data in frames(response.text) if name == "tts.error"]
+    assert speech and {data["code"] for data in speech} == {"speech_allowance_exhausted"}
+    [lease] = guarded.ports.chat_guard.leases
+    assert lease.settlements == ["completed"]
