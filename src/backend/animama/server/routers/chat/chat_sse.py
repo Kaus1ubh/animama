@@ -195,7 +195,7 @@ async def stream_direct_chat_sse(
                     chat_id=chat_id,
                     run_id=run_id,
                     reason=_chat_title_generation_skip_reason(chat, chat_options=turn.chat_options),
-                    chat_title=getattr(chat, "title", None),
+                    chat_has_title=bool(getattr(chat, "title", None)),
                     chat_next_turn=getattr(chat, "next_turn", None),
                 )
             # TTS setup may produce early SSE frames before the model completes,
