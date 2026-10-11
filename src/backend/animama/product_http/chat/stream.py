@@ -503,6 +503,19 @@ async def stream_direct_chat_sse(
                     {"run_id": run_id, "error": stopped.stop.message, "code": stopped.stop.code},
                     event_id=f"error-{run_id}",
                 )
+            else:
+                # The saved reply's frames still queued reach the client before it completes.
+                async for frame in drain_pending_events(
+                    bridge,
+                    run_id=run_id,
+                    anima_id=anima_id,
+                    sessions=sessions,
+                    state=state,
+                    build_gruut_sse_text=build_gruut_sse_text,
+                    stream_user_response=True,
+                    stream_emotion_update=True,
+                ):
+                    yield frame
             if not completed_emitted:
                 frame = completed_frame() if progress.saved else None
                 yield frame or fallback_run_completed_frame(run_id=run_id, chat_id=chat_id)

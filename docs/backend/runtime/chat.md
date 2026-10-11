@@ -205,7 +205,8 @@ settle usage and recheck a session lease.
   `completed` (the reply was saved, or an incognito turn finished), `failed`
   (an error before the reply was saved) or `interrupted` (a stop or disconnect
   before the reply was saved). A refused turn has no lease to settle. A reply save that has
-  begun finishes even if the turn is stopped or the client leaves.
+  begun finishes, within the five-second cleanup bound, even if the turn is
+  stopped or the client leaves.
 
 The composition's chat policy also sets title and compaction settings and,
 optionally, `public_error_text`, which replaces the text and details of

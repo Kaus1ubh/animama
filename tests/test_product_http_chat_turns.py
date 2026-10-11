@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 from collections.abc import AsyncIterator, MutableMapping
+from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
 from typing import Any
@@ -220,6 +221,43 @@ async def test_a_stop_after_the_reply_is_saved_keeps_it_and_skips_the_rest(guard
     assert await guarded.replies("saved") == 1
     chat = await guarded.chat("saved")
     assert chat is not None and chat.title is None
+
+
+async def test_a_stop_while_the_reply_saves_keeps_the_reply_and_its_frames(
+    guarded: GuardedChat, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    guarded.model.replies.append(structured("Good morning! Shall we have tea?"))
+    original = guarded.ports.write_session
+
+    @asynccontextmanager
+    async def slow_save(principal: Any) -> AsyncIterator[Any]:
+        # The reply save takes long enough for a check to land while it runs.
+        current = asyncio.current_task()
+        if current is not None and current.get_name() == "direct-chat-save":
+            await asyncio.sleep(0.3)
+        async with original(principal) as session:
+            yield session
+
+    async def while_saving() -> ChatTurnStop | None:
+        saving = any(task.get_name() == "direct-chat-save" and not task.done() for task in asyncio.all_tasks())
+        return STOP if saving else None
+
+    monkeypatch.setattr(guarded.ports, "write_session", slow_save)
+    guarded.ports.chat_guard.stop = while_saving
+
+    response = await guarded.turn("while-saving")
+
+    parsed = frames(response.text)
+    names = [name for name, _data in parsed]
+    # The save finished, its reply reached the client, and the stop skipped the title.
+    assert "error" not in names and "chat.title.updated" not in names
+    speech = "".join(str(data.get("text", "")) for name, data in parsed if name == "user.response")
+    assert "Shall we have tea?" in speech
+    assert names[-1] == "run.completed"
+    [lease] = guarded.ports.chat_guard.leases
+    assert lease.settlements == ["completed"]
+    assert lease.running_at_settlement == []
+    assert await guarded.replies("while-saving") == 1
 
 
 async def test_a_provider_failure_settles_failed_with_public_error_text(guarded: GuardedChat) -> None:
