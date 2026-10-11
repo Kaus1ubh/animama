@@ -23,10 +23,12 @@ from starlette.concurrency import run_in_threadpool
 
 from animama.app.gruut_text import build_gruut_sse_text
 from animama.app.model_clients.credential_store import ELEVENLABS_CREDENTIAL_ENV, CredentialSnapshot
-from animama.app.voice_emotional_tone import elevenlabs_v3_text_with_emotional_prefix
+from animama.app.voice_emotional_tone import (
+    bounded_finalized_tts_previous_text,
+    elevenlabs_v3_text_with_emotional_prefix,
+)
 from animama.domain.request_principal import RequestPrincipal
 from animama.logging_config import get_logger
-from animama.product_http.chat.tts import bounded_finalized_tts_previous_text
 from animama.product_http.ports import VoiceResolver
 from animama.server.config import Settings, settings
 from animama.server.runtime_credentials import runtime_credentials

@@ -5,6 +5,7 @@ import base64
 import hashlib
 import json
 from collections.abc import AsyncGenerator, Callable, Mapping
+from contextlib import asynccontextmanager
 from datetime import UTC, datetime, timedelta
 from functools import cached_property
 from pathlib import Path
@@ -64,6 +65,7 @@ from animama.product_http.chat import (
 )
 from animama.product_http.chat.setup_helpers import chat_manager as product_chat_manager
 from animama.product_http.chat.sse_events import SsePreparedTtsSpeechSegment
+from animama.product_http.chat.stream import hold_chat_turn
 from animama.product_http.ports import install_product_ports
 from animama.product_http.routes import chat_turns, chats as chats_router
 from animama.product_http.routes.chat_turns import router
@@ -524,11 +526,11 @@ def _test_request(*, runtime_settings: Settings | None = None) -> Request:
 async def chat_anima_direct_sse(
     anima_id: str, req: PyAnimaChatRequest, *, request: Request, user: RequestPrincipal
 ) -> StreamingResponse:
-    """Call the shared handler as FastAPI does: on a write session that closes when it returns."""
+    """Call the shared handler as FastAPI does: its turn hold around a write session that closes when it returns."""
 
     ports = request.app.state.product_ports
-    async with ports.write_session(user) as session:
-        return await chat_turns.chat_anima_direct_sse(anima_id, req, ports, session, user)
+    async with asynccontextmanager(hold_chat_turn)() as hold, ports.write_session(user) as session:
+        return await chat_turns.chat_anima_direct_sse(anima_id, req, ports, hold, session, user)
 
 
 def _chat_request(**values: Any) -> PyAnimaChatRequest:

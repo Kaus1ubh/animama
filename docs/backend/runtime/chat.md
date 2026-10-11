@@ -191,23 +191,26 @@ settle usage and recheck a session lease.
   revision checks and before anything is written or a model is called. A refusal
   (`ProductRefusal`, reported as `detail.code`, or the composition's own
   exception) ends the request with no chat created.
-- **Checks.** The lease's `check` runs at every poll while the model streams
-  (about every 50 ms) and before each frame and step after the reply. A stop
-  before the reply is saved cancels the model and ends the stream with
-  `event: error` (`{"run_id", "error": <stop message>, "code": <stop code>}`)
-  and one `run.completed`. A stop after the reply is saved skips the remaining
-  optional work (title, compaction, speech) and ends with the normal
-  `run.completed`.
+- **Checks.** The lease's `check` runs before each event the stream drains
+  while the model runs (at least every 50 ms) and before each step and frame of
+  a successful reply's completion (speech, title, compaction). A stop before
+  the reply is saved cancels the model and ends the stream with `event: error`
+  (`{"run_id", "error": <stop message>, "code": <stop code>}`) and one
+  `run.completed`. A stop after the reply is saved skips the remaining
+  optional work, cancelling title and speech tasks still running, and ends with
+  the normal `run.completed`.
 - **Settlement.** `settle` runs exactly once, after every turn task has stopped,
-  with `unstarted` (setup failed after admission, or nothing was dispatched),
+  with `unstarted` (setup, or the composition's own commit of the setup
+  session, failed after admission, or nothing was dispatched),
   `completed` (the reply was saved, or an incognito turn finished), `failed`
   (an error before the reply was saved) or `interrupted` (a stop or disconnect
   before the reply was saved). A refused turn has no lease to settle. A reply save that has
   begun finishes even if the turn is stopped or the client leaves.
 
 The composition's chat policy also sets title and compaction settings and,
-optionally, `public_error_text`, which replaces error frames' text and details
-and turns codes outside a short lowercase pattern into `turn_failed`.
+optionally, `public_error_text`, which replaces the text and details of
+`event: error` frames and turns their codes outside a short lowercase pattern
+into `turn_failed`. Speech error frames carry the speech port's own messages.
 
 ## What It Deliberately Does Not Do
 

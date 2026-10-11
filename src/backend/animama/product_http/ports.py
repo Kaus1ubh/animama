@@ -199,7 +199,8 @@ class ProductSpeech(Protocol):
     metering; it refuses an operation it does not offer with ``ProductRefusal`` (or
     an ``HTTPException`` with its own body). ``audio_upload_max_bytes`` bounds each
     uploaded sample. The chat-turn operations resolve the Anima's voice through the
-    ``voice`` the turn supplies, after the composition's own checks.
+    ``voice`` the turn supplies, after the composition's own checks. Their error
+    messages reach the browser in speech error frames, so they must be safe to show.
     """
 
     @property
@@ -269,9 +270,10 @@ class ProductSpeech(Protocol):
 class ChatTurnPolicy:
     """How a composition runs chat turns.
 
-    ``public_error_text``, when set, replaces the text of turn error frames, and
-    codes outside a short lowercase pattern become ``turn_failed``, so provider
-    detail never reaches a browser. The local composition keeps both.
+    ``public_error_text``, when set, replaces the text and details of the turn's
+    ``error`` frames, and their codes outside a short lowercase pattern become
+    ``turn_failed``, so model-provider detail never reaches a browser. Speech error
+    frames carry the speech port's own messages. The local composition keeps both.
     """
 
     compaction: ChatCompactionSettings
@@ -300,7 +302,8 @@ class ChatTurnStop:
 
 
 ChatTurnOutcome = Literal["unstarted", "completed", "failed", "interrupted"]
-"""How a turn ended: refused or failed setup, success, an error, or a disconnect or stop."""
+"""How an admitted turn ended: nothing dispatched (setup failed), the reply saved (or an
+incognito turn finished), an error before the save, or a stop or disconnect before it."""
 
 
 class ChatTurnLease(Protocol):
@@ -309,15 +312,20 @@ class ChatTurnLease(Protocol):
     async def check(self) -> ChatTurnStop | None:
         """Return a stop when the turn must end now.
 
-        Awaited at every poll while the model streams (about every 50 ms) and before
-        each frame and step after the reply, so it must return quickly. A stop
-        before the reply is saved ends the turn with an error frame; afterwards the
-        remaining optional work is skipped.
+        Awaited before each event the stream drains while the model runs (at least
+        every 50 ms) and before each step and frame of a successful reply's completion
+        (speech, title, compaction), so it must return quickly. A stop before the
+        reply is saved ends the turn with an error frame; afterwards the remaining
+        optional work is skipped.
         """
         ...
 
     async def settle(self, outcome: ChatTurnOutcome) -> None:
-        """Called exactly once, after every turn task stopped, shielded from cancellation."""
+        """Called exactly once, after every turn task stopped, shielded from cancellation.
+
+        A request that fails before its response runs, including when the
+        composition's own commit of the setup session fails, settles ``unstarted``.
+        """
         ...
 
 
@@ -498,8 +506,9 @@ class ProductPorts(Protocol):
         """Admit one chat turn before any write or paid work, or refuse it.
 
         A composition refuses with its own exception, rendered by its exception
-        handlers, or with ``ProductRefusal``. The returned lease is settled exactly
-        once, including when setup fails after admission.
+        handlers, or with ``ProductRefusal``; a refused turn has no lease. The
+        returned lease is settled exactly once, including when setup, or the
+        composition's own commit of the setup session, fails after admission.
         """
         ...
 

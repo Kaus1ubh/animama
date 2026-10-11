@@ -29,6 +29,7 @@ from animama.app.contracts.elevenlabs import (
     PyElevenLabsRealtimeTtsSessionResponse,
     PyElevenLabsVoice,
 )
+from animama.app.voice_emotional_tone import bounded_finalized_tts_previous_text
 from animama.logging import get_logger
 from animama.product_http.ports import ProductRepositories, ProductSpeech, VoiceResolver
 
@@ -50,16 +51,6 @@ FINALIZED_TTS_PARAGRAPH_MAX_SEGMENTS = 4
 FINALIZED_TTS_PARAGRAPH_MAX_VISIBLE_CHARS = 600
 FINALIZED_TTS_PARAGRAPH_LEADING_PAUSE_SEC = 0.4
 FINALIZED_TTS_PCM_SAMPLE_RATE = 24000
-FINALIZED_TTS_PREVIOUS_TEXT_LIMIT = 500
-
-
-def bounded_finalized_tts_previous_text(*texts: str | None) -> str | None:
-    """Return normalized provider context text capped to the continuity budget."""
-
-    normalized = " ".join(" ".join(text.split()) for text in texts if isinstance(text, str) and text.strip()).strip()
-    if not normalized:
-        return None
-    return normalized[-FINALIZED_TTS_PREVIOUS_TEXT_LIMIT:]
 
 
 def resolve_realtime_voice_from_preferences(preferences: dict[str, Any] | None) -> PyElevenLabsVoice:
@@ -663,7 +654,6 @@ __all__ = [
     "FinalizedTtsStreamBootstrap",
     "TtsSessionBootstrap",
     "anima_elevenlabs_voice",
-    "bounded_finalized_tts_previous_text",
     "elevenlabs_finalized_tts_chunking",
     "elevenlabs_finalized_tts_model_id",
     "elevenlabs_tts_options",

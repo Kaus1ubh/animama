@@ -37,8 +37,10 @@ exactly once, after every turn task stopped, as `unstarted`, `completed`, `faile
 or `interrupted`; a stop before the reply is saved ends the turn with an error
 frame carrying its code and message ([chat-turn
 guard](../docs/backend/runtime/chat.md#chat-turn-guard)). The chat policy's
-`public_error_text` replaces error frames' text and details. Frames carry gruut
-phoneme payloads only where the wheel's `server` extra is installed.
+`public_error_text` replaces the text and details of `error` frames; speech error
+frames carry the speech port's own messages, so it raises only browser-safe ones.
+Frames carry gruut phoneme payloads only where the wheel's `server` extra is
+installed.
 
 ## Admission and browser lifetime
 

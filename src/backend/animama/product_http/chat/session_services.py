@@ -41,7 +41,7 @@ class SessionBackedChatTurnRecorder:
         async def _record(repositories: ProductRepositories) -> Any:
             return await self._chat_manager_factory(repositories).record_turn(**kwargs)
 
-        saving = asyncio.ensure_future(with_short_lived_session(self._sessions, _record))
+        saving = asyncio.create_task(with_short_lived_session(self._sessions, _record), name="direct-chat-save")
         try:
             result = await asyncio.shield(saving)
         except asyncio.CancelledError:

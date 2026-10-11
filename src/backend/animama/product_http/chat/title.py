@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import asyncio
-from contextlib import suppress
 
 from animama.app.chat.options import DirectChatOptions
 from animama.app.model_clients import ModelClientRegistry
@@ -143,14 +142,6 @@ async def persist_generated_chat_title(
     return chat.title
 
 
-async def cancel_chat_title_task(task: asyncio.Task[ChatTitleGenerationResult] | None) -> None:
-    if task is None or task.done():
-        return
-    task.cancel()
-    with suppress(asyncio.CancelledError):
-        await task
-
-
 async def chat_title_updated_frame(
     *,
     title_task: asyncio.Task[ChatTitleGenerationResult] | None,
@@ -209,7 +200,6 @@ async def chat_title_updated_frame(
 __all__ = [
     "ChatTitleGenerationResult",
     "ChatTitleGenerationSettings",
-    "cancel_chat_title_task",
     "chat_title_generation_skip_reason",
     "chat_title_updated_frame",
     "direct_model_prompt_runner",

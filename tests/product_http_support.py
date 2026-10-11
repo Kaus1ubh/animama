@@ -12,6 +12,7 @@ Nothing here is installed outside tests.
 
 from __future__ import annotations
 
+import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
@@ -217,13 +218,17 @@ StopRule = Callable[[], Awaitable[ChatTurnStop | None]]
 
 @dataclass
 class RecordingChatTurnLease:
-    """One admitted turn's lease: its ``stop`` rule may end the turn at any check."""
+    """One admitted turn's lease: its ``stop`` rule may end the turn at any check.
+
+    Each settlement also records the turn's tasks still running at that moment.
+    """
 
     admission: ChatTurnAdmission
     owner: str
     stop: StopRule | None = None
     checks: int = 0
     settlements: list[ChatTurnOutcome] = field(default_factory=list)
+    running_at_settlement: list[str] = field(default_factory=list)
 
     async def check(self) -> ChatTurnStop | None:
         self.checks += 1
@@ -231,6 +236,11 @@ class RecordingChatTurnLease:
 
     async def settle(self, outcome: ChatTurnOutcome) -> None:
         self.settlements.append(outcome)
+        self.running_at_settlement.extend(
+            task.get_name()
+            for task in asyncio.all_tasks()
+            if not task.done() and task.get_name().startswith("direct-chat-")
+        )
 
 
 @dataclass
@@ -359,6 +369,10 @@ class DoubleCollaborators:
         )
 
 
+class DeferredCommitFailed(RuntimeError):
+    """A deferred commit that ``DeferredCommitPorts.fail_next_commit`` failed."""
+
+
 @dataclass
 class DeferredCommitPorts(DoubleCollaborators):
     """Ports whose write sessions defer handler commits to the session's end.
@@ -371,6 +385,8 @@ class DeferredCommitPorts(DoubleCollaborators):
     ``session.begin()`` after a deferred commit fails because a transaction is open.
     Read sessions refuse to flush or commit, so a route classified ``read`` that
     writes fails its test. Each opened session records its owner in ``owners``.
+    With ``fail_next_commit`` set, the next deferred commit rolls back and raises
+    instead, as a composition's commit or lease recheck can.
     """
 
     session_factory: async_sessionmaker[AsyncSession]
@@ -384,6 +400,7 @@ class DeferredCommitPorts(DoubleCollaborators):
     commits_requested: int = 0
     commits: int = 0
     rollbacks: int = 0
+    fail_next_commit: bool = False
     owners: list[str] = field(default_factory=list)
     settings_changes: list[str] = field(default_factory=list)
     content_root: Path | None = None
@@ -423,6 +440,11 @@ class DeferredCommitPorts(DoubleCollaborators):
                 await session.rollback()
                 self.rollbacks += 1
                 raise
+            if requested and self.fail_next_commit:
+                self.fail_next_commit = False
+                await session.rollback()
+                self.rollbacks += 1
+                raise DeferredCommitFailed("the composition's deferred commit failed")
             if requested:
                 await commit()
                 self.commits += 1

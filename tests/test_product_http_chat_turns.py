@@ -31,14 +31,15 @@ from animama.orm import ORMAnima, ORMChat, ORMChatMessage
 from animama.product_http.chat.tts import anima_elevenlabs_voice
 from animama.product_http.ports import ChatTurnStop, ProductRefusal
 from animama.product_http.routes import chat_turns
+from tests.chat_turn_support import CHAT_ROW, ScriptedModel, remove_chat_owner, seed_chat_owner, structured
 from tests.product_http_support import (
     OWNER_HEADER,
     TEST_CHAT_POLICY,
+    DeferredCommitFailed,
     DeferredCommitPorts,
     TwoOwnerComposition,
     product_app,
 )
-from tests.test_chat_sse_golden import CHAT_ROW, ScriptedModel, remove_chat_owner, seed_chat_owner, structured
 
 STOP = ChatTurnStop(code="credits_exhausted", message="Your credits ran out.")
 
@@ -194,6 +195,7 @@ async def test_a_stop_while_the_model_streams_ends_the_turn_unsaved(guarded: Gua
     assert guarded.model.cancelled
     [lease] = guarded.ports.chat_guard.leases
     assert lease.settlements == ["interrupted"]
+    assert lease.running_at_settlement == []
     assert await guarded.replies("stopped") == 0
 
 
@@ -214,6 +216,7 @@ async def test_a_stop_after_the_reply_is_saved_keeps_it_and_skips_the_rest(guard
     assert names[-1] == "run.completed"
     [lease] = guarded.ports.chat_guard.leases
     assert lease.settlements == ["completed"]
+    assert lease.running_at_settlement == []
     assert await guarded.replies("saved") == 1
     chat = await guarded.chat("saved")
     assert chat is not None and chat.title is None
@@ -232,6 +235,32 @@ async def test_a_provider_failure_settles_failed_with_public_error_text(guarded:
     assert parsed[-1][0] == "run.completed"
     [lease] = guarded.ports.chat_guard.leases
     assert lease.settlements == ["failed"]
+
+
+async def test_a_failed_setup_commit_still_settles_the_turn(guarded: GuardedChat) -> None:
+    # The composition's commit of the setup session (the new chat) fails after the
+    # handler returned its response, so that response never runs.
+    guarded.ports.fail_next_commit = True
+
+    with pytest.raises(DeferredCommitFailed):
+        await guarded.turn("commit-failed")
+
+    [lease] = guarded.ports.chat_guard.leases
+    assert lease.settlements == ["unstarted"]
+    assert guarded.model.requests == []
+    assert await guarded.chat("commit-failed") is None
+
+
+async def test_a_finished_incognito_turn_settles_completed(guarded: GuardedChat) -> None:
+    guarded.model.replies.append(structured("Good morning!"))
+
+    response = await guarded.turn("incognito", dispatch_options={"incognito": True})
+
+    assert [name for name, _data in frames(response.text)][-1] == "run.completed"
+    [lease] = guarded.ports.chat_guard.leases
+    # Nothing is recorded, yet the finished turn completes.
+    assert lease.settlements == ["completed"]
+    assert await guarded.replies("incognito") == 0
 
 
 async def test_setup_failure_after_admission_settles_unstarted_and_rolls_back(guarded: GuardedChat) -> None:
@@ -297,7 +326,7 @@ async def test_a_disconnect_stops_the_turn_and_settles_once(guarded: GuardedChat
     assert lease.settlements == ["interrupted"]
     assert guarded.model.cancelled
     # The lease settled only after every turn task had stopped.
-    assert not [task for task in asyncio.all_tasks() if not task.done() and task.get_name().startswith("direct-chat-")]
+    assert lease.running_at_settlement == []
     assert await guarded.replies("gone") == 0
 
 
