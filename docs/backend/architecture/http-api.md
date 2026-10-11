@@ -39,7 +39,8 @@ Local setup and host/key administration schemas remain in the server composition
 - `product_http/routes/voice_catalogs.py` (shared): Pocket voice-catalog
   uploads: staging, the bounded byte upload into the composition's private
   storage, finalize into a Local `voices/` file, and abort.
-- `server/routers/anima.py`: direct chat SSE (stage 5 of the shared-route plan).
+- `product_http/routes/chat_turns.py` (shared): direct chat SSE, under the
+  composition's [chat-turn guard](../runtime/chat.md#chat-turn-guard).
 - `product_http/routes/model_catalog.py` (shared): the provider/model catalog
   for model selection, under the composition's catalog policy, and the
   model-role report.

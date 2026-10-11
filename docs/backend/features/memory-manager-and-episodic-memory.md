@@ -1210,7 +1210,7 @@ Direct chat capture:
 - `src/backend/animama/app/main_structured_response.py`
 - `src/backend/animama/app/chat/memory_context.py`
 - `src/backend/animama/app/chat/direct_executor.py`
-- `src/backend/animama/server/routers/chat/session_services.py`
+- `src/backend/animama/product_http/chat/session_services.py`
 
 Tests:
 

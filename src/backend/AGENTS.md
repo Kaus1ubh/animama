@@ -6,14 +6,14 @@ specific docs linked from there.
 
 ## Backend Shape
 
-- `server/` is the FastAPI delivery layer: local app startup, routers,
-  dependency wiring, direct chat SSE orchestration, notification
-  WebSocket handling, asset helpers, and persistence sinks/subscribers.
+- `server/` is the FastAPI delivery layer: local app startup, local routers,
+  dependency wiring, the local ports, notification WebSocket handling, asset
+  helpers, and persistence sinks/subscribers.
 - `product_http/` holds the product HTTP shared by every composition (ADR 0021):
   the route inventory, the request principal, the composition-installed
-  `ProductPorts` and the shared routers of stages 2 to 4 (stage 5, chat SSE, is
-  still in `server/routers/`). Each composition
-  installs its ports with `install_product_ports`; the local app installs
+  `ProductPorts`, the shared routers of every stage and the direct chat SSE
+  turn (`product_http/chat/`). Each composition installs its ports with
+  `install_product_ports`; the local app installs
   `server/product_ports.py::LocalProductPorts`. It is shared code.
 - `domain/` contains framework-free dataclasses and event types.
 - `app/services/` contains use-case services over repository ports.
@@ -83,18 +83,21 @@ apply the [reader-value standard](../../AGENTS.md#documentation).
 
 ## Runtime Notes
 
-Normal chat uses `server/routers/chat/chat_sse.py` through
-`POST /v1/animas/{anima_id}/chat:sse`. It resolves a anima chat profile
-or request `model_provider_id`, validates the selected `model_providers` row,
-prepares the direct turn through `server/routers/chat/turn_setup.py`, invokes a
-shared direct model client through `DirectChatTurnExecutor`, derives emotion and
-gesture updates from the main structured response, uses request-local SSE
-formatting in `server/sse_events.py` and bridge helpers in
-`server/routers/chat/sse_runtime.py`, and performs request-local cleanup. The
-route owns the single public `run.completed` frame after TTS, title generation,
-compaction, and other success-side effects. Provider stream observations stay
-behind the model-client boundary as sanitized `MC*` events and compact metadata;
-do not expose raw upstream OpenAI stream events directly over `chat:sse`.
+Normal chat is the shared `POST /v1/animas/{anima_id}/chat:sse` route
+(`product_http/routes/chat_turns.py`), whose stream and chat-turn lease live in
+`product_http/chat/stream.py`. It resolves a anima chat profile or request
+`model_provider_id`, validates the selected `model_providers` row, prepares the
+direct turn through `product_http/chat/turn_setup.py`, invokes a shared direct
+model client through `DirectChatTurnExecutor`, derives emotion and gesture
+updates from the main structured response, formats frames in
+`product_http/chat/sse_events.py` with bridge helpers in
+`product_http/chat/sse_runtime.py`, and performs request-local cleanup. Its
+collaborators come from the composition's ports (locally
+`server/product_ports.py`). The route owns the single public `run.completed`
+frame after TTS, title generation, compaction, and other success-side effects.
+Provider stream observations stay behind the model-client boundary as sanitized
+`MC*` events and compact metadata; do not expose raw upstream OpenAI stream
+events directly over `chat:sse`.
 
 ## Auth And Ownership
 

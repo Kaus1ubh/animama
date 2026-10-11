@@ -85,8 +85,8 @@ model-facing list. When `disable_memory_influence` is true, direct chat omits
 the list and `MEMORIES.md` while still injecting anima identity.
 
 Memory influence, memory updates and emotion updates resolve per turn in
-`app/chat/options.py` (`merge_chat_request_options`; the local
-`server/chat_options.py` only loads the stored preferences): a request option
+`app/chat/options.py` (`merge_chat_request_options`; the shared
+`product_http/chat/options.py` only loads the stored preferences): a request option
 wins, then the Anima's `anima_settings.preferences`, then the owner's App
 Settings in `user_settings.preferences`, then enabled. New Animas store no
 memory/emotion flags, so they follow App Settings until an Anima sets its own

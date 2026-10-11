@@ -12,9 +12,10 @@ Product routes every composition serves live in `animama.product_http` ([ADR
 `animama.product_http.routes.ROUTERS` from the published wheel, installs its own
 `ProductPorts` (owner sessions under its commit authority, repositories, content
 services and byte delivery, upload storage, speech, the model catalog policy, role
-defaults and embedding refresh status, and the Memory Manager service) and sets its
-request-principal resolver as `app.state.request_principal_resolver`; without
-either, shared routes answer 503. Its content port decides package admission: a
+defaults and embedding refresh status, the Memory Manager service, and the chat
+policy, chat-turn guard and turn collaborators) and sets its request-principal
+resolver as `app.state.request_principal_resolver`; without either, shared routes
+answer 503. Its content port decides package admission: a
 composition that withholds Anima creation builds
 `ContentPackageService(allow_anima_import=False)`. A composition that serves only
 its own catalog sets `ModelCatalogPolicy(validate_role_preferences=True)`, so
@@ -23,10 +24,21 @@ settings writes refuse a role preference its catalog cannot serve
 offer, and its Memory Manager port may wrap each operation with its own admission;
 either refuses with `ProductRefusal`, which the route reports as `detail.code`
 with the refusal's status. The route
-inventory marks each route shared, local-only or withheld by a capability; shared
-routes of later stages remain consumer-owned until they move. Shared byte routes
-answer GET only: a consumer that serves HEAD or Range for them adds those through
-its own delivery port or routes.
+inventory marks each route shared, local-only or withheld by a capability. Shared
+byte routes answer GET only: a consumer that serves HEAD or Range for them adds
+those through its own delivery port or routes.
+
+`POST /v1/animas/{anima_id}/chat:sse` asks the consumer's guard to admit each turn
+(`admit_chat_turn`) after the Anima ownership and runtime-revision checks and
+before any write or model call, then runs it with the consumer's model clients,
+web search, attachment embedder and speech (`chat_turn`). The guard's lease is
+checked while the model streams and before each step after the reply, and settled
+exactly once, after every turn task stopped, as `unstarted`, `completed`, `failed`
+or `interrupted`; a stop before the reply is saved ends the turn with an error
+frame carrying its code and message ([chat-turn
+guard](../docs/backend/runtime/chat.md#chat-turn-guard)). The chat policy's
+`public_error_text` replaces error frames' text and details. Frames carry gruut
+phoneme payloads only where the wheel's `server` extra is installed.
 
 ## Admission and browser lifetime
 
