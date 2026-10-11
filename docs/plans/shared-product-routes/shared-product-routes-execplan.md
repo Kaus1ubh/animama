@@ -69,8 +69,8 @@ journeys on a named built stack.
 - [ ] Phase 5: chat streaming with the chat-turn guard, issue #452. Approved
   2026-10-10. Implemented 2026-10-10: golden transcripts on the unchanged route
   (`3d6dac82`), the move with the guard and stage 5 served (`6061c74a`), guard and
-  two-owner tests (`abb956d1`) and docs (`10fbc91f`); review repairs in `1785ef1a`.
-  Code Review #2 (targeted) is pending.
+  two-owner tests (`abb956d1`) and docs (`10fbc91f`); review repairs in `1785ef1a`
+  and the Code Review #2 note in `69aebcc2`. Code Review #2 (targeted) passed.
 - [ ] Final integration review of Phases 4 and 5.
 
 ## Surprises & Discoveries
@@ -910,6 +910,21 @@ Code Review #1 Revisions (`1785ef1a`):
   boundary checker and 551 tests across 25 chat-related suites passed; the guard and
   golden suites passed four repeated runs.
 - Repair rounds used: 1 of 2.
+
+Code Review #2 (targeted, at `5689fd8f`): P5R-01 to P5R-07 are resolved with no
+regressions (the deferred-commit probe now settles `unstarted`; a stop during a
+slowed save now settles `completed` with the reply saved). Notes, applied in
+`69aebcc2`:
+
+- A save that has begun finishes only within the five-second cleanup bound; the chat
+  guide says so.
+- A stop landing while the reply was saving ended the stream without draining the
+  reply's queued frames, so the client lost them although the reply was saved and
+  the turn settled `completed` (hosted only; the local lease never stops). The stop
+  path now drains them before `run.completed`, and a test with a slowed save shows
+  the reply text arrives (it fails without the fix).
+
+Result: pass.
 
 Limitations for a consumer adopting the chat route (like FI-05):
 
