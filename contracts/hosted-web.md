@@ -30,7 +30,9 @@ those through its own delivery port or routes.
 
 `POST /v1/animas/{anima_id}/chat:sse` asks the consumer's guard to admit each turn
 (`admit_chat_turn`) after the Anima ownership and runtime-revision checks and
-before any write or model call, then runs it with the consumer's model clients,
+before any write or model call; a refusal is a `ProductRefusal` (reported as
+`detail.code` with its status) or the consumer's own exception. It then runs the
+turn with the consumer's model clients,
 web search, attachment embedder and speech (`chat_turn`). The guard's lease is
 checked while the model streams and before each step after the reply, and settled
 exactly once, after every turn task stopped, as `unstarted`, `completed`, `failed`
@@ -38,7 +40,9 @@ or `interrupted`; a stop before the reply is saved ends the turn with an error
 frame carrying its code and message ([chat-turn
 guard](../docs/backend/runtime/chat.md#chat-turn-guard)). The chat policy's
 `public_error_text` replaces the text and details of `error` frames; speech error
-frames carry the speech port's own messages, so it raises only browser-safe ones.
+frames carry the speech port's own messages, so it raises only browser-safe ones,
+and a speech decline (`ProductRefusal`, such as `speech_allowance_exhausted`)
+keeps its code in `tts.session.error` or `tts.error`.
 Frames carry gruut phoneme payloads only where the wheel's `server` extra is
 installed.
 

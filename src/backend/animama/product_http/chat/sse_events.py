@@ -20,6 +20,7 @@ from animama.app.main_structured_response import (
 from animama.domain.emotions import emotion_values_payload
 from animama.domain.events import EventType
 from animama.logging import get_logger
+from animama.product_http.ports import ProductRefusal
 
 from .emotional_state import persist_emotional_state_update
 from .setup_helpers import TurnSessions
@@ -225,6 +226,11 @@ def format_tts_session_error_event(*, run_id: str, exc: BaseException) -> str:
     }
     if isinstance(exc, HTTPException):
         data.update(_http_exception_error_fields(exc))
+        data["status_code"] = exc.status_code
+    elif isinstance(exc, ProductRefusal):
+        # The composition declined this reply's speech; its code tells the browser why.
+        data["error"] = "Failed to initialize ElevenLabs realtime TTS"
+        data["code"] = exc.code
         data["status_code"] = exc.status_code
     else:
         data["error"] = str(exc) or "Failed to initialize ElevenLabs realtime TTS"

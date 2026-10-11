@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import asyncio
 import json
-from collections.abc import AsyncIterator, MutableMapping
+from collections.abc import AsyncGenerator, AsyncIterator, MutableMapping
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
 from pathlib import Path
-from typing import Any
+from types import SimpleNamespace
+from typing import Any, cast
 from uuid import uuid4
 
 import httpx
@@ -28,7 +29,9 @@ from animama.app.model_clients import ModelClientProviderError, StaticModelClien
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.domain.chat import MessageRole
+from animama.domain.events import Event, EventType, RunStatusPayload
 from animama.orm import ORMAnima, ORMChat, ORMChatMessage
+from animama.product_http.chat.sse_runtime import DirectChatEventBridge, run_prepared_direct_turn
 from animama.product_http.chat.tts import anima_elevenlabs_voice
 from animama.product_http.ports import ChatTurnStop, ProductRefusal
 from animama.product_http.routes import chat_turns
@@ -434,3 +437,67 @@ async def test_speech_resolves_only_the_callers_anima_voice(guarded: GuardedChat
                 await anima_elevenlabs_voice(repositories, user_id=user_id, anima_id=anima_id)
             assert raised.value.status_code == 404
         await session.rollback()
+
+
+async def test_a_speech_refusal_keeps_its_code_in_the_speech_frames(guarded: GuardedChat) -> None:
+    guarded.ports.speech.refusal = ProductRefusal(402, "speech_allowance_exhausted")
+    guarded.model.replies.extend(
+        [structured("Hello there. The kettle is on."), structured("Hello again. The tea is ready.")]
+    )
+
+    realtime = await guarded.turn(
+        "declined-realtime",
+        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_flash_v2_5"}},
+    )
+    finalized = await guarded.turn(
+        "declined-finalized",
+        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"}},
+    )
+
+    sessions = [data for name, data in frames(realtime.text) if name == "tts.session.error"]
+    assert [(data["code"], data["status_code"]) for data in sessions] == [("speech_allowance_exhausted", 402)]
+    speech = [data for name, data in frames(finalized.text) if name == "tts.error"]
+    assert speech and {data["code"] for data in speech} == {"speech_allowance_exhausted"}
+    # Declined speech leaves the turns themselves complete.
+    assert [lease.settlements for lease in guarded.ports.chat_guard.leases] == [["completed"], ["completed"]]
+
+
+async def test_cancelling_a_turn_stopped_by_a_full_bridge_closes_its_stream() -> None:
+    # A client that stops reading fills the bridge; the turn's task then waits to publish.
+    closed: list[bool] = []
+    produced: list[int] = []
+
+    class _Executor:
+        async def stream_prepared_turn(self, prepared: object) -> AsyncGenerator[Event, None]:
+            try:
+                index = 0
+                while True:
+                    index += 1
+                    produced.append(index)
+                    yield Event(
+                        event_id=f"status-{index}",
+                        anima_id="anima-1",
+                        type=EventType.RUN_STATUS,
+                        payload=RunStatusPayload(run_id="run-1", status="searching_web", phase="started"),
+                    )
+            finally:
+                closed.append(True)
+
+    provider = SimpleNamespace(id="row", provider_type="OpenAIResponsesHTTPAgent", model="model")
+    prepared = SimpleNamespace(
+        request=SimpleNamespace(anima_id="anima-1", chat_id="chat-1", run_id="run-1"),
+        model_request=SimpleNamespace(model_provider=provider),
+    )
+    bridge = DirectChatEventBridge(anima_id="anima-1", queue_size=2)
+    task = asyncio.create_task(run_prepared_direct_turn(cast(Any, _Executor()), cast(Any, prepared), bridge))
+    # Two events fill the bridge; the task then waits to publish the third.
+    while len(produced) < 3:
+        await asyncio.sleep(0)
+    await asyncio.sleep(0)
+
+    task.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await task
+
+    # The stream closed before its task ended, not later when the generator is collected.
+    assert closed == [True]

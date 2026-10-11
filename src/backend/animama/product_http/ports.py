@@ -199,8 +199,10 @@ class ProductSpeech(Protocol):
     metering; it refuses an operation it does not offer with ``ProductRefusal`` (or
     an ``HTTPException`` with its own body). ``audio_upload_max_bytes`` bounds each
     uploaded sample. The chat-turn operations resolve the Anima's voice through the
-    ``voice`` the turn supplies, after the composition's own checks. Their error
-    messages reach the browser in speech error frames, so they must be safe to show.
+    ``voice`` the turn supplies, after the composition's own checks. They decline
+    a reply's speech with ``ProductRefusal``, whose code and status the speech error
+    frame carries; other errors' messages reach the browser in those frames, so
+    they must be safe to show.
     """
 
     @property
@@ -313,8 +315,9 @@ class ChatTurnLease(Protocol):
         """Return a stop when the turn must end now.
 
         Awaited before each event the stream drains while the model runs (at least
-        every 50 ms) and before each step and frame of a successful reply's completion
-        (speech, title, compaction), so it must return quickly. A stop before the
+        every 50 ms while the client keeps reading) and before each step and frame of
+        a successful reply's completion (speech, title, compaction), so it must
+        return quickly. A stop before the
         reply is saved ends the turn with an error frame; afterwards the remaining
         optional work is skipped.
         """

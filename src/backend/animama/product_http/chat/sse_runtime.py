@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
+from contextlib import aclosing
 from typing import Any
 
 from animama.app.chat import DirectChatTurnExecutor, PreparedDirectChatTurn
@@ -176,9 +177,13 @@ async def run_prepared_direct_turn(
     )
     events: list[Event] = []
     try:
-        async for event in executor.stream_prepared_turn(prepared_turn):
-            events.append(event)
-            await bridge.publish(event)
+        # Closing the turn's stream when this task is cancelled (for example while a
+        # full bridge waits for a slow client) stops its provider stream before the
+        # task ends, so nothing still runs when the lease settles.
+        async with aclosing(executor.stream_prepared_turn(prepared_turn)) as turn_events:
+            async for event in turn_events:
+                events.append(event)
+                await bridge.publish(event)
     except asyncio.CancelledError:
         raise
     except Exception as exc:

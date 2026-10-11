@@ -126,10 +126,14 @@ async def save_display_name(session: AsyncSession, principal: RequestPrincipal, 
 
 @dataclass
 class FakeSpeech:
-    """Records each speech operation with its owner and arguments; never calls a provider."""
+    """Records each speech operation with its owner and arguments; never calls a provider.
+
+    With ``refusal`` set, the chat-turn operations decline with it.
+    """
 
     audio_upload_max_bytes: int = 1024
     calls: list[tuple[str, str, object]] = field(default_factory=list)
+    refusal: ProductRefusal | None = None
 
     async def clone_voice(
         self,
@@ -163,6 +167,8 @@ class FakeSpeech:
         language_code: str | None,
         model_id: str | None,
     ) -> PyElevenLabsRealtimeTtsSessionResponse:
+        if self.refusal is not None:
+            raise self.refusal
         # Resolving the voice runs the turn's owner check, as a provider call would.
         resolved = await voice()
         self.calls.append(("realtime_session", principal.id, resolved.voice_id))
@@ -193,6 +199,8 @@ class FakeSpeech:
         previous_text: str | None,
         apply_emotional_prefix: bool,
     ) -> FakeFinalizedSpeech:
+        if self.refusal is not None:
+            raise self.refusal
         if voice_id is None:
             assert voice is not None, "the first segment resolves the Anima's voice"
             voice_id = (await voice()).voice_id

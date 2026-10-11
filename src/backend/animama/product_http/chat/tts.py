@@ -31,7 +31,7 @@ from animama.app.contracts.elevenlabs import (
 )
 from animama.app.voice_emotional_tone import bounded_finalized_tts_previous_text
 from animama.logging import get_logger
-from animama.product_http.ports import ProductRepositories, ProductSpeech, VoiceResolver
+from animama.product_http.ports import ProductRefusal, ProductRepositories, ProductSpeech, VoiceResolver
 
 from .setup_helpers import TurnSessions
 from .sse_events import (
@@ -595,12 +595,14 @@ class FinalizedTtsStreamBootstrap:
                 part_index=batch.part_index,
                 error=str(exc),
             )
+            refused = isinstance(exc, ProductRefusal)
             await self.queue.put(
                 format_tts_error_event(
                     run_id=self.run_id,
                     model_id=self.model_id or "eleven_v3",
-                    error=str(exc) or "ElevenLabs finalized TTS setup failed.",
-                    code="elevenlabs_stream_setup_failed",
+                    error=("" if refused else str(exc)) or "ElevenLabs finalized TTS setup failed.",
+                    # A composition that declines this reply's speech names why.
+                    code=exc.code if isinstance(exc, ProductRefusal) else "elevenlabs_stream_setup_failed",
                 )
             )
             return False

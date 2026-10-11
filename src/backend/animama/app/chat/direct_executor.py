@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import suppress
 from dataclasses import replace
 from typing import Any, cast
@@ -562,8 +562,11 @@ class DirectChatTurnExecutor:
             visible_history=tuple(compiled_history),
         )
 
-    async def stream_prepared_turn(self, prepared: PreparedDirectChatTurn) -> AsyncIterator[Event]:
-        """Invoke the model client and translate the final result into domain events."""
+    async def stream_prepared_turn(self, prepared: PreparedDirectChatTurn) -> AsyncGenerator[Event, None]:
+        """Invoke the model client and translate the final result into domain events.
+
+        A caller that stops early closes the generator, which stops its provider stream.
+        """
 
         fitted: PreparedDirectChatTurn | None = None
         async for item in self._fit_to_context_window(prepared):

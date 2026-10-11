@@ -192,7 +192,9 @@ settle usage and recheck a session lease.
   (`ProductRefusal`, reported as `detail.code`, or the composition's own
   exception) ends the request with no chat created.
 - **Checks.** The lease's `check` runs before each event the stream drains
-  while the model runs (at least every 50 ms) and before each step and frame of
+  while the model runs (at least every 50 ms while the client keeps reading;
+  a client that stops reading holds the stream at its next frame) and before
+  each step and frame of
   a successful reply's completion (speech, title, compaction). A stop before
   the reply is saved cancels the model and ends the stream with `event: error`
   (`{"run_id", "error": <stop message>, "code": <stop code>}`) and one
@@ -211,7 +213,9 @@ settle usage and recheck a session lease.
 The composition's chat policy also sets title and compaction settings and,
 optionally, `public_error_text`, which replaces the text and details of
 `event: error` frames and turns their codes outside a short lowercase pattern
-into `turn_failed`. Speech error frames carry the speech port's own messages.
+into `turn_failed`. Speech error frames carry the speech port's own messages;
+a speech port that declines a reply's speech raises `ProductRefusal`, and the
+frame (`tts.session.error` or `tts.error`) carries its code.
 
 ## What It Deliberately Does Not Do
 
