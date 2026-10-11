@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
 from animama.app.services.embedding_refresh_service import EmbeddingRefreshStatus
+from animama.app.services.memory_manager_service import MemoryManagerService
 from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
 from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.domain.content_catalog import VerifiedContentFile
@@ -133,6 +134,9 @@ class RecordingPorts:
     async def embedding_refresh_status(
         self, session: AsyncSession, principal: RequestPrincipal, embedding_model_id: str | None
     ) -> EmbeddingRefreshStatus:
+        raise NotImplementedError
+
+    async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:
         raise NotImplementedError
 
 

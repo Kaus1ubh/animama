@@ -14,7 +14,7 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 from fastapi import APIRouter, FastAPI, HTTPException, Request, Response, WebSocket
 from httpx import ASGITransport, AsyncClient
@@ -31,6 +31,7 @@ from animama.app.services.embedding_refresh_service import (
     EMBEDDINGS_STATE_OFF,
     EmbeddingRefreshStatus,
 )
+from animama.app.services.memory_manager_service import MemoryManagerService
 from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
 from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.app.services.user_profile_service import UserProfileService
@@ -38,9 +39,16 @@ from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfilePatch
 from animama.product_http.delivery import PackageDownloadResponse, encoded_json_response, verified_file_response
-from animama.product_http.ports import ProductContent, ProductPolicy, ProductPorts, install_product_ports
+from animama.product_http.ports import (
+    ProductContent,
+    ProductPolicy,
+    ProductPorts,
+    install_product_ports,
+    model_role_resolver,
+)
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
+from animama.server.memory_manager import local_memory_manager_service
 from animama.server.product_ports import LocalProductPorts, local_product_content
 
 OWNER_HEADER = "X-Test-Owner"
@@ -142,6 +150,16 @@ class DoubleCollaborators:
         # These compositions keep no vectors, so any embeddings role is current.
         state = EMBEDDINGS_STATE_OFF if embedding_model_id is None else EMBEDDINGS_STATE_CURRENT
         return EmbeddingRefreshStatus(state=state)
+
+    async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:
+        # The model-free runtime drafts an approval for any message naming a markdown path.
+        return await local_memory_manager_service(
+            session,
+            principal.id,
+            roles=model_role_resolver(cast(ProductPorts, self), self.repositories(session)),
+            runtime_settings=Settings(anima_memory_file_max_bytes=TEST_POLICY.memory_file_max_bytes),
+            llm_skip=True,
+        )
 
 
 @dataclass
@@ -246,6 +264,17 @@ def install_local_ports(app: FastAPI, session: AsyncSession) -> None:
 
     app.state.session_factory = session_factory
     install_product_ports(app, LocalProductPorts(app))
+
+
+def local_ports(*, policy: ModelCatalogPolicy | None = None) -> LocalProductPorts:
+    """The local composition's ports for direct handler calls that pass their own session.
+
+    The policy defaults to the local one (owner models and roles); runtime settings are the process's.
+    """
+
+    app = FastAPI()
+    app.state.model_catalog_policy = policy or ModelCatalogPolicy.local()
+    return LocalProductPorts(app)
 
 
 def product_app(*routers: APIRouter, ports: ProductPorts | None, resolver: Any = None) -> FastAPI:

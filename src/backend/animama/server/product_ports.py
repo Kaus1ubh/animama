@@ -27,13 +27,14 @@ from animama.app.services.content_package_service import ContentPackageService
 from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.content_save_service import ContentSaveService
 from animama.app.services.embedding_refresh_service import EmbeddingRefreshStatus
+from animama.app.services.memory_manager_service import MemoryManagerService
 from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
 from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.app.services.typed_content_service import TypedContentService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.delivery import PackageDownloadResponse, encoded_json_response, verified_file_response
-from animama.product_http.ports import ProductContent, ProductPolicy, ProductRefusal
+from animama.product_http.ports import ProductContent, ProductPolicy, ProductRefusal, model_role_resolver
 from animama.server.companion_safety import runtime_crisis_resources
 from animama.server.config import Settings
 from animama.server.deps import get_async_session_factory
@@ -48,6 +49,7 @@ from animama.server.installation_personalization import (
     InstallationPrincipalMismatchError,
 )
 from animama.server.local_runtime import LocalRuntimePaths, local_content_store
+from animama.server.memory_manager import local_memory_manager_service
 from animama.server.model_roles import composition_model_policy, model_role_defaults
 from animama.server.runtime_capabilities import local_runtime_capabilities, runtime_settings_for
 
@@ -211,4 +213,12 @@ class LocalProductPorts:
             owner_id=principal.id,
             embedding_model_id=embedding_model_id,
             worker=get_embedding_refresh_worker(self._app),
+        )
+
+    async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:
+        return await local_memory_manager_service(
+            session,
+            principal.id,
+            roles=model_role_resolver(self, self.repositories(session)),
+            runtime_settings=runtime_settings_for(self._app),
         )

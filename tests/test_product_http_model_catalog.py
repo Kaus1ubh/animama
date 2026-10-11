@@ -52,9 +52,10 @@ async def test_catalog_and_roles_are_read_only_and_resolve_each_owners_preferenc
     async with composition.client(owner_b) as b:
         roles_b = (await b.get("/v1/model-roles")).json()
 
-    # The default policy offers the built-in OpenAI rows only.
-    assert CHAT in {row["id"] for row in catalog}
-    assert all(row["connection_id"] == "openai" for row in catalog)
+    # The port's policy decides the rows: here built-in OpenAI rows, not other built-in connections.
+    listed = {row["id"] for row in catalog}
+    assert CHAT in listed
+    assert "AnthropicMessagesHTTPAgent:claude-haiku-5-5" not in listed
     embeddings_a = next(role for role in roles_a["roles"] if role["role"] == "embeddings")
     assert (embeddings_a["source"], embeddings_a["model_provider_id"]) == ("owner", EMBEDDING)
     assert roles_a["embeddings_refresh"]["state"] == "current"

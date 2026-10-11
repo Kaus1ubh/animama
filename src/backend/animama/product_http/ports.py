@@ -41,6 +41,7 @@ from animama.app.services.content_package_export import DownloadLease
 from animama.app.services.content_package_service import ContentPackageService
 from animama.app.services.content_save_service import ContentSaveService
 from animama.app.services.embedding_refresh_service import EmbeddingRefreshStatus
+from animama.app.services.memory_manager_service import MemoryManagerService
 from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
 from animama.app.services.model_role_resolver import ModelRoleDefaults, ModelRoleResolver
 from animama.app.services.typed_content_service import TypedContentService
@@ -250,6 +251,13 @@ class ProductPorts(Protocol):
         """Whether ``principal``'s stored vectors match the row doing the embeddings role.
 
         ``embedding_model_id`` is that row, or ``None`` while embeddings are off.
+        """
+        ...
+
+    async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:
+        """``principal``'s Memory Manager over ``session``, on this composition's model runtime.
+
+        A composition may wrap the service's operations with its own admission.
         """
         ...
 

@@ -35,13 +35,14 @@ from animama.orm.chat_compactions import ORMChatCompaction
 from animama.orm.settings import ORMUserSettings
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
+from animama.server.config import settings
 from animama.server.embedding_refresh import EmbeddingRefreshWorker
 from animama.server.embeddings import role_embedder
+from animama.server.memory_manager import local_memory_manager_service
 from animama.server.model_clients import build_model_client_registry
 from animama.server.model_roles import ModelRoleSettings
 from animama.server.routers import anima as anima_router
 from animama.server.routers.chat import compaction as chat_compaction, title as chat_title
-from animama.server.routers.memory_manager import _manager_service
 from tests import test_anima_chat_sse as sse
 
 LOCAL_BASE_URL = "http://127.0.0.1:11434/v1"
@@ -276,7 +277,9 @@ async def test_local_roles_complete_every_job_without_an_openai_request(
     compact_chunks = await _chat_turn(registry, anima_id, compact_chat, owner_id, "run-local-compact")
 
     # A Memory Manager run proposes a patch, waits for approval and finishes.
-    manager = await _manager_service(async_session, owner_id, LOCAL_ROLES)
+    manager = await local_memory_manager_service(
+        async_session, owner_id, roles=LOCAL_ROLES.resolver(async_session), runtime_settings=settings
+    )
     waiting = await manager.create_run(user_id=owner_id, initial_message="Remember that I love the moon")
     await manager.decide_approval(user_id=owner_id, approval_id=waiting.approvals[0].id, decision="approve")
     finished = await manager.get_run_snapshot(user_id=owner_id, run_id=waiting.run.id)
