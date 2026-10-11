@@ -16,8 +16,10 @@ from animama.adapters.repositories.sqlalchemy.anima_chat_profile_repo import SQL
 from animama.adapters.repositories.sqlalchemy.anima_presentation_repo import SQLAlchemyAnimaPresentationRepository
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.avatar_repo import SQLAlchemyAvatarRepository
+from animama.adapters.repositories.sqlalchemy.chat_compaction_repo import SQLAlchemyChatCompactionRepository
 from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
 from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
+from animama.adapters.repositories.sqlalchemy.companion_safety_repo import SQLAlchemyCompanionSafetyRepository
 from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlchemyContentCatalog
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
 from animama.adapters.repositories.sqlalchemy.memory_episode_repo import SQLAlchemyMemoryEpisodeRepository
@@ -27,9 +29,11 @@ from animama.adapters.repositories.sqlalchemy.settings_repo import (
     SQLAlchemyUserSettingsRepository,
 )
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
+from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
 from animama.adapters.repositories.sqlalchemy.voice_catalog_upload_repo import SQLAlchemyVoiceCatalogUploadRepository
 from animama.app.services.anima_loadout_service import AnimaLoadoutService
+from animama.app.services.anima_runtime_service import AnimaRuntimeService
 
 
 class SQLAlchemyProductRepositories:
@@ -61,6 +65,10 @@ class SQLAlchemyProductRepositories:
     @cached_property
     def chat_messages(self) -> SQLAlchemyChatMessageRepository:
         return SQLAlchemyChatMessageRepository(self._session)
+
+    @cached_property
+    def chat_compactions(self) -> SQLAlchemyChatCompactionRepository:
+        return SQLAlchemyChatCompactionRepository(self._session)
 
     @cached_property
     def memory_entries(self) -> SQLAlchemyMemoryEntryRepository:
@@ -97,6 +105,18 @@ class SQLAlchemyProductRepositories:
     @cached_property
     def voice_catalog_uploads(self) -> SQLAlchemyVoiceCatalogUploadRepository:
         return SQLAlchemyVoiceCatalogUploadRepository(self._session)
+
+    @cached_property
+    def user_file_processing(self) -> SQLAlchemyUserFileProcessingRepository:
+        return SQLAlchemyUserFileProcessingRepository(self._session)
+
+    @cached_property
+    def companion_safety(self) -> SQLAlchemyCompanionSafetyRepository:
+        return SQLAlchemyCompanionSafetyRepository(self._session)
+
+    @cached_property
+    def anima_runtime_snapshots(self) -> AnimaRuntimeService:
+        return AnimaRuntimeService(self._session)
 
     @cached_property
     def unit_of_work(self) -> SQLAlchemyUnitOfWork:

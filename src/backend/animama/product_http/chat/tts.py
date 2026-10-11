@@ -1,3 +1,11 @@
+"""ElevenLabs speech for a chat reply: a realtime session, or finalized audio pushed in the stream.
+
+The composition's speech port makes every provider call. This module decides when
+speech starts, batches the reply's prepared speech segments and resolves the
+Anima's voice from the owner's settings (an Anima the caller does not own,
+including an unowned one, is not found).
+"""
+
 from __future__ import annotations
 
 import asyncio
@@ -7,21 +15,25 @@ from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any
 
+from fastapi import HTTPException, status
+
 from animama.app.chat.options import (
     DEFAULT_FINALIZED_TTS_CHUNKING,
     DirectChatFinalizedTtsChunking,
     DirectChatOptions,
     DirectChatTtsOptions,
 )
-from animama.logging_config import get_logger
-from animama.server.elevenlabs_service import (
-    bounded_finalized_tts_previous_text,
-    prepare_finalized_tts_stream_from_text,
-    resolve_realtime_tts_session,
-    stream_finalized_tts_chunks,
+from animama.app.contracts.elevenlabs import (
+    SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS,
+    PyElevenLabsAnimaVoiceProfileInput,
+    PyElevenLabsRealtimeTtsSessionResponse,
+    PyElevenLabsVoice,
 )
-from animama.server.schemas.elevenlabs import SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS
-from animama.server.sse_events import (
+from animama.logging import get_logger
+from animama.product_http.ports import ProductRepositories, ProductSpeech, VoiceResolver
+
+from .setup_helpers import TurnSessions
+from .sse_events import (
     TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS,
     SsePreparedTtsSpeechSegment,
     SseTextState,
@@ -32,12 +44,74 @@ from animama.server.sse_events import (
     format_tts_session_event,
 )
 
-_log = get_logger("server.routers.chat.tts")
+_log = get_logger("product_http.chat.tts")
 FINALIZED_TTS_BATCH_TEXT_BASIS_VISIBLE_TEXT = "visible_text"
 FINALIZED_TTS_PARAGRAPH_MAX_SEGMENTS = 4
 FINALIZED_TTS_PARAGRAPH_MAX_VISIBLE_CHARS = 600
 FINALIZED_TTS_PARAGRAPH_LEADING_PAUSE_SEC = 0.4
 FINALIZED_TTS_PCM_SAMPLE_RATE = 24000
+FINALIZED_TTS_PREVIOUS_TEXT_LIMIT = 500
+
+
+def bounded_finalized_tts_previous_text(*texts: str | None) -> str | None:
+    """Return normalized provider context text capped to the continuity budget."""
+
+    normalized = " ".join(" ".join(text.split()) for text in texts if isinstance(text, str) and text.strip()).strip()
+    if not normalized:
+        return None
+    return normalized[-FINALIZED_TTS_PREVIOUS_TEXT_LIMIT:]
+
+
+def resolve_realtime_voice_from_preferences(preferences: dict[str, Any] | None) -> PyElevenLabsVoice:
+    """The ElevenLabs voice an Anima's settings name, or 409 when they name none."""
+
+    speech = preferences.get("speech") if isinstance(preferences, dict) else None
+    elevenlabs = speech.get("elevenlabs") if isinstance(speech, dict) else None
+    if not isinstance(elevenlabs, dict):
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Anima does not have an ElevenLabs voice profile",
+        )
+
+    try:
+        profile = PyElevenLabsAnimaVoiceProfileInput.model_validate(elevenlabs)
+    except Exception as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Anima does not have a usable ElevenLabs voice profile",
+        ) from exc
+
+    primary_voice = profile.primary_voice
+    if primary_voice.voice_id.strip():
+        return primary_voice
+
+    raise HTTPException(
+        status_code=status.HTTP_409_CONFLICT,
+        detail="Anima does not have a usable ElevenLabs voice profile",
+    )
+
+
+async def anima_elevenlabs_voice(
+    repositories: ProductRepositories, *, user_id: str, anima_id: str
+) -> PyElevenLabsVoice:
+    """The owned Anima's ElevenLabs voice; any other Anima is not found."""
+
+    if not await repositories.animas.is_owned_by_user(user_id=user_id, anima_id=anima_id):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Anima not found")
+    anima_settings = await repositories.anima_settings.get(user_id=user_id, anima_id=anima_id)
+    return resolve_realtime_voice_from_preferences(anima_settings.preferences if anima_settings is not None else {})
+
+
+def anima_voice_resolver(sessions: TurnSessions, anima_id: str) -> VoiceResolver:
+    """Resolve the Anima's voice in a short read session when the speech port asks for it."""
+
+    async def resolve() -> PyElevenLabsVoice:
+        async with sessions.read() as session:
+            return await anima_elevenlabs_voice(
+                sessions.repositories(session), user_id=sessions.principal.id, anima_id=anima_id
+            )
+
+    return resolve
 
 
 def elevenlabs_tts_options(chat_options: DirectChatOptions) -> DirectChatTtsOptions | None:
@@ -76,34 +150,18 @@ def elevenlabs_finalized_tts_chunking(chat_options: DirectChatOptions) -> Direct
 
 async def resolve_realtime_tts_session_for_stream(
     *,
-    session_factory: Any,
-    user_id: str,
+    speech: ProductSpeech,
+    sessions: TurnSessions,
     anima_id: str,
-    run_id: str,
     language_code: str | None,
     model_id: str | None,
-) -> Any:
-    tts_session = session_factory()
-    try:
-        return await resolve_realtime_tts_session(
-            session=tts_session,
-            user_id=user_id,
-            anima_id=anima_id,
-            emotion_label=None,
-            emotion_intensity=None,
-            language_code=language_code,
-            model_id=model_id,
-        )
-    finally:
-        try:
-            await tts_session.close()
-        except Exception as exc:
-            _log.warning(
-                "HTTP Anima Direct Chat SSE TTS Session Close Failed",
-                anima_id=anima_id,
-                run_id=run_id,
-                error=str(exc),
-            )
+) -> PyElevenLabsRealtimeTtsSessionResponse:
+    return await speech.realtime_session(
+        sessions.principal,
+        voice=anima_voice_resolver(sessions, anima_id),
+        language_code=language_code,
+        model_id=model_id,
+    )
 
 
 @dataclass(slots=True)
@@ -119,8 +177,8 @@ class TtsSessionBootstrap:
         cls,
         *,
         chat_options: DirectChatOptions,
-        session_factory: Any,
-        user_id: str,
+        speech: ProductSpeech,
+        sessions: TurnSessions,
         anima_id: str,
         run_id: str,
     ) -> TtsSessionBootstrap:
@@ -133,10 +191,9 @@ class TtsSessionBootstrap:
 
         task = asyncio.create_task(
             resolve_realtime_tts_session_for_stream(
-                session_factory=session_factory,
-                user_id=user_id,
+                speech=speech,
+                sessions=sessions,
                 anima_id=anima_id,
-                run_id=run_id,
                 language_code=tts_options.language_code,
                 model_id=model_id,
             ),
@@ -163,17 +220,15 @@ class TtsSessionBootstrap:
         return format_tts_session_event(run_id=self.run_id, session=tts_session)
 
     async def cancel(self) -> None:
-        if self.task is None:
-            return
         task = self.task
-        self.task = None
-        if not task.done():
-            task.cancel()
-            with suppress(asyncio.CancelledError):
-                await task
+        if task is None:
             return
-        with suppress(Exception):
-            task.result()
+        task.cancel()
+        with suppress(asyncio.CancelledError, Exception):
+            await task
+        # A wait cut short by the caller's own cancellation keeps the task for the next cancel.
+        if task.done():
+            self.task = None
 
     def _frame_from_completed_task(self, task: asyncio.Task[Any]) -> str:
         try:
@@ -273,8 +328,8 @@ class FinalizedTtsStreamBootstrap:
     """Starts and drains backend-pushed finalized ElevenLabs TTS for one run."""
 
     chat_options: DirectChatOptions
-    session_factory: Any
-    user_id: str
+    speech: ProductSpeech
+    sessions: TurnSessions
     anima_id: str
     run_id: str
     model_id: str | None
@@ -289,15 +344,15 @@ class FinalizedTtsStreamBootstrap:
         cls,
         *,
         chat_options: DirectChatOptions,
-        session_factory: Any,
-        user_id: str,
+        speech: ProductSpeech,
+        sessions: TurnSessions,
         anima_id: str,
         run_id: str,
     ) -> FinalizedTtsStreamBootstrap:
         return cls(
             chat_options=chat_options,
-            session_factory=session_factory,
-            user_id=user_id,
+            speech=speech,
+            sessions=sessions,
             anima_id=anima_id,
             run_id=run_id,
             model_id=elevenlabs_finalized_tts_model_id(chat_options),
@@ -352,18 +407,16 @@ class FinalizedTtsStreamBootstrap:
         return None
 
     async def cancel(self) -> None:
-        if self.task is None:
-            return
         task = self.task
-        self.task = None
-        self.completed = True
-        if not task.done():
-            task.cancel()
-            with suppress(asyncio.CancelledError):
-                await task
+        if task is None:
             return
-        with suppress(Exception):
-            task.result()
+        self.completed = True
+        task.cancel()
+        with suppress(asyncio.CancelledError, Exception):
+            await task
+        # A wait cut short by the caller's own cancellation keeps the task for the next cancel.
+        if task.done():
+            self.task = None
 
     @staticmethod
     def _has_prepared_speech(state: SseTextState) -> bool:
@@ -521,27 +574,23 @@ class FinalizedTtsStreamBootstrap:
         previous_text: str | None,
         apply_emotional_prefix: bool,
     ) -> bool:
-        tts_session = self.session_factory() if self.resolved_voice_id is None else None
         try:
-            prepare_kwargs: dict[str, Any] = {
-                "user_id": self.user_id,
-                "anima_id": self.anima_id,
-                "run_id": self.run_id,
-                "text": batch.text,
-                "model_id": self.model_id,
-                "language_code": self._language_code(),
-                "text_basis": batch.text_basis,
-                "emotional_tone": emotional_tone,
-                "emotional_state": emotional_state,
-                "previous_text": previous_text,
-                "apply_emotional_prefix": apply_emotional_prefix,
-            }
-            if tts_session is not None:
-                prepare_kwargs["session"] = tts_session
-            if self.resolved_voice_id is not None:
-                prepare_kwargs["voice_id"] = self.resolved_voice_id
-
-            prepared = await prepare_finalized_tts_stream_from_text(**prepare_kwargs)
+            # Later segments reuse the voice the first one resolved.
+            prepared = await self.speech.prepare_finalized(
+                self.sessions.principal,
+                voice=anima_voice_resolver(self.sessions, self.anima_id) if self.resolved_voice_id is None else None,
+                voice_id=self.resolved_voice_id,
+                anima_id=self.anima_id,
+                run_id=self.run_id,
+                text=batch.text,
+                model_id=self.model_id,
+                language_code=self._language_code(),
+                text_basis=batch.text_basis,
+                emotional_tone=emotional_tone,
+                emotional_state=emotional_state,
+                previous_text=previous_text,
+                apply_emotional_prefix=apply_emotional_prefix,
+            )
             prepared_voice_id = getattr(prepared, "voice_id", None)
             if isinstance(prepared_voice_id, str) and prepared_voice_id.strip():
                 self.resolved_voice_id = prepared_voice_id.strip()
@@ -564,12 +613,8 @@ class FinalizedTtsStreamBootstrap:
                 )
             )
             return False
-        finally:
-            if tts_session is not None and (close := getattr(tts_session, "close", None)) is not None:
-                with suppress(Exception):
-                    await close()
 
-        async for payload in stream_finalized_tts_chunks(prepared):
+        async for payload in self.speech.stream_finalized(prepared):
             payload_type = payload.get("type")
             if payload_type == "audio":
                 frame = format_tts_audio_event(run_id=self.run_id, payload=payload)
@@ -608,89 +653,6 @@ class FinalizedTtsStreamBootstrap:
             self.task = None
 
 
-async def stream_finalized_tts_frames(
-    *,
-    chat_options: DirectChatOptions,
-    session_factory: Any,
-    user_id: str,
-    anima_id: str,
-    run_id: str,
-    text: str | None = None,
-    text_basis: str | None = None,
-    emotional_tone: str | None = None,
-    emotional_state: dict[str, int] | None = None,
-) -> AsyncIterator[str]:
-    model_id = elevenlabs_finalized_tts_model_id(chat_options)
-    if model_id is None:
-        return
-
-    tts_options = elevenlabs_tts_options(chat_options)
-    language_code = tts_options.language_code if tts_options is not None else None
-    if text_basis != TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS or not isinstance(text, str) or not text.strip():
-        yield format_tts_error_event(
-            run_id=run_id,
-            model_id=model_id,
-            error="ElevenLabs v3 TTS did not receive prepared speech text for this response.",
-            code="missing_tts_text",
-        )
-        return
-
-    tts_session = session_factory()
-    try:
-        prepared = await prepare_finalized_tts_stream_from_text(
-            session=tts_session,
-            user_id=user_id,
-            anima_id=anima_id,
-            run_id=run_id,
-            text=text,
-            model_id=model_id,
-            language_code=language_code,
-            text_basis=text_basis,
-            emotional_tone=emotional_tone,
-            emotional_state=emotional_state,
-        )
-    except asyncio.CancelledError:
-        raise
-    except Exception as exc:
-        _log.warning(
-            "HTTP Anima Direct Chat SSE finalized TTS setup failed",
-            anima_id=anima_id,
-            run_id=run_id,
-            error=str(exc),
-        )
-        yield format_tts_error_event(
-            run_id=run_id,
-            model_id=model_id,
-            error=str(exc) or "ElevenLabs finalized TTS setup failed.",
-            code="elevenlabs_stream_setup_failed",
-        )
-        return
-    finally:
-        close = getattr(tts_session, "close", None)
-        if close is not None:
-            with suppress(Exception):
-                await close()
-
-    async for payload in stream_finalized_tts_chunks(prepared):
-        payload_type = payload.get("type")
-        if payload_type == "audio":
-            frame = format_tts_audio_event(run_id=run_id, payload=payload)
-            if frame is not None:
-                yield frame
-        elif payload_type == "done":
-            yield format_tts_done_event(run_id=run_id, payload=payload)
-        elif payload_type == "error":
-            error = payload.get("error")
-            code = payload.get("code")
-            yield format_tts_error_event(
-                run_id=run_id,
-                model_id=prepared.model_id,
-                output_format=prepared.output_format,
-                error=error if isinstance(error, str) and error else "ElevenLabs finalized TTS failed.",
-                code=code if isinstance(code, str) and code else "elevenlabs_stream_failed",
-            )
-
-
 def _finalized_tts_silence_audio_base64(*, duration_sec: float, sample_rate: int) -> str:
     sample_count = max(0, round(duration_sec * sample_rate))
     return base64.b64encode(b"\x00\x00" * sample_count).decode("ascii")
@@ -700,11 +662,11 @@ __all__ = [
     "FinalizedTtsSegmentBatcher",
     "FinalizedTtsStreamBootstrap",
     "TtsSessionBootstrap",
+    "anima_elevenlabs_voice",
+    "bounded_finalized_tts_previous_text",
     "elevenlabs_finalized_tts_chunking",
     "elevenlabs_finalized_tts_model_id",
     "elevenlabs_tts_options",
-    "resolve_realtime_tts_session",
-    "stream_finalized_tts_chunks",
-    "stream_finalized_tts_frames",
+    "resolve_realtime_voice_from_preferences",
     "tts_speech_payload_enabled",
 ]

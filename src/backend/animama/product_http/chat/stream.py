@@ -1,38 +1,48 @@
+"""Prepare and stream one ``POST /v1/animas/{anima_id}/chat:sse`` direct turn (ADR 0021).
+
+The composition's chat-turn lease guards the whole turn: it is admitted after the
+owner and runtime-revision checks and before anything is written or dispatched,
+checked while the model streams and before each step after the reply, and settled
+exactly once when the response ends.
+"""
+
 from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator
 from contextlib import suppress
+from dataclasses import dataclass
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+import anyio
+from fastapi import HTTPException
 from fastapi.responses import StreamingResponse
+from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.types import Receive, Scope, Send
 
 from animama.app.chat.completion import complete_successful_turn
-from animama.app.model_clients import ModelClientRegistry
+from animama.app.contracts.chat import PyAnimaChatRequest
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationResult
 from animama.domain.events import EventType
 from animama.domain.request_principal import RequestPrincipal
-from animama.logging_config import get_logger
-from animama.server.config import settings
-from animama.server.deps import get_async_session_factory
-from animama.server.model_roles import ModelRoleSettings
-from animama.server.schemas.chat import PyAnimaChatRequest
-from animama.server.sse_events import (
-    GruutSseTextBuilder,
-    SseTextState,
-    format_error_event,
+from animama.logging import get_logger
+from animama.product_http.ports import (
+    ChatTurnAdmission,
+    ChatTurnLease,
+    ChatTurnOutcome,
+    ProductPorts,
+    ProductRefusal,
+    refusal_error,
 )
-from animama.server.web_search import composition_web_search_enabled
 
-from .compaction import (
-    compact_chat_after_success as _compact_chat_after_success,
-)
+from .compaction import compact_chat_after_success as _compact_chat_after_success
 from .safety import ai_notice_frame, attach_crisis_resources
-from .setup_helpers import chat_manager as _chat_manager
+from .setup_helpers import TurnSessions
+from .sse_events import GruutSseTextBuilder, SseTextState, format_error_event, format_sse
 from .sse_runtime import (
     DirectChatEventBridge,
+    TurnStopped,
     direct_run_completed_frame,
     drain_events_while_task_runs,
     drain_pending_events,
@@ -52,117 +62,176 @@ from .tts import (
     TtsSessionBootstrap as _TtsSessionBootstrap,
     tts_speech_payload_enabled as _tts_speech_payload_enabled,
 )
-from .turn_setup import DirectChatTurnSetup, prepare_direct_chat_turn
+from .turn_setup import prepare_direct_chat_turn, resolve_turn_target
 
-_log = get_logger("server.routers.chat.chat_sse")
+_log = get_logger("product_http.chat.stream")
+# Bound on the shielded cleanup that stops the turn's tasks and settles its lease.
+_SETTLE_TIMEOUT_SECONDS = 5.0
 
-__all__ = [
-    "DirectChatEventBridge",
-    "_chat_manager",
-    "stream_direct_chat_sse",
-]
+__all__ = ["DirectChatEventBridge", "stream_direct_chat_sse"]
+
+
+@dataclass
+class _TurnProgress:
+    """How far the turn got. Read when the lease settles, after every turn task stopped."""
+
+    dispatched: bool = False
+    saved: bool = False
+    failed: bool = False
+
+    def reply_saved(self) -> None:
+        self.saved = True
+
+    @property
+    def outcome(self) -> ChatTurnOutcome:
+        # A saved reply completes the turn, whatever later optional work did.
+        if not self.dispatched:
+            return "unstarted"
+        if self.saved:
+            return "completed"
+        return "failed" if self.failed else "interrupted"
+
+
+class _LeasedStreamingResponse(StreamingResponse):
+    """A turn's stream that settles its lease once the response ends, even if the body never ran."""
+
+    def __init__(
+        self,
+        content: AsyncGenerator[str, None],
+        *,
+        lease: ChatTurnLease,
+        progress: _TurnProgress,
+        headers: dict[str, str],
+    ) -> None:
+        super().__init__(content, media_type="text/event-stream", headers=headers)
+        self._body = content
+        self._lease = lease
+        self._progress = progress
+
+    async def __call__(self, scope: Scope, receive: Receive, send: Send) -> None:
+        try:
+            await super().__call__(scope, receive, send)
+        finally:
+            # A disconnect can leave the body suspended at a frame; closing it runs its
+            # shielded cleanup, which stops every turn task, so the composition settles
+            # only once nothing still runs. Settling has its own bound.
+            with anyio.move_on_after(_SETTLE_TIMEOUT_SECONDS, shield=True):
+                await self._body.aclose()
+            with anyio.move_on_after(_SETTLE_TIMEOUT_SECONDS, shield=True):
+                await self._lease.settle(self._progress.outcome)
 
 
 async def stream_direct_chat_sse(
     *,
-    app: FastAPI,
+    ports: ProductPorts,
+    session: AsyncSession,
     anima_id: str,
     req: PyAnimaChatRequest,
     user: RequestPrincipal,
-    model_client_registry: ModelClientRegistry | None,
     build_gruut_sse_text: GruutSseTextBuilder,
 ) -> StreamingResponse:
     """Prepare and stream one `POST /chat:sse` direct avatar companion turn.
 
-    The HTTP handler does only route-level work: allocate request identifiers,
-    prepare the app-layer turn while the request DB session is open, then return
-    a StreamingResponse whose generator owns the long-running model call and all
-    downstream SSE side effects.
+    The handler does only route-level work: allocate request identifiers, check
+    the owner's Anima, admit the turn and prepare it on the handler's write
+    ``session`` (which closes before the stream starts), then return a streaming
+    response whose generator owns the long-running model call and all downstream
+    SSE side effects. Stream-time work opens its own short-lived sessions.
     """
 
     _log.info("HTTP Anima Direct Chat SSE Start", anima_id=anima_id)
-    if model_client_registry is None:
-        raise HTTPException(status_code=503, detail="Model client registry is unavailable")
-
-    # The setup session is intentionally short lived. The stream itself can run
-    # for a long time, so later persistence work opens request-local sessions
-    # through the factory instead of holding this setup session open.
-    session_factory = get_async_session_factory(app)
-    session = session_factory()
-    session_closed = False
-    cleanup_done = False
-    turn: DirectChatTurnSetup | None = None
     run_id = req.run_id or f"run-{uuid.uuid4().hex}"
     chat_id = req.chat_id or f"chat-{uuid.uuid4().hex}"
-    model_roles = ModelRoleSettings.for_app(app)
-
-    async def _close_session() -> None:
-        """Close the setup session exactly once across setup and stream cleanup."""
-
-        nonlocal session_closed
-        if session_closed:
-            return
-        session_closed = True
-        try:
-            await session.close()
-            _log.info("HTTP Anima Direct Chat SSE Session Closed", anima_id=anima_id)
-        except Exception as exc:
-            _log.warning("HTTP Anima Direct Chat SSE Session Close Failed", anima_id=anima_id, error=str(exc))
-
-    async def _cleanup() -> None:
-        """Run idempotent request cleanup shared by setup failure and stream exit."""
-
-        nonlocal cleanup_done
-        if cleanup_done:
-            return
-        cleanup_done = True
-        await _close_session()
-
+    repositories = ports.repositories(session)
+    target = await resolve_turn_target(repositories, anima_id=anima_id, req=req, user=user)
     try:
+        lease = await ports.admit_chat_turn(
+            user, ChatTurnAdmission(anima_id=anima_id, chat_id=chat_id, run_id=run_id, request=req)
+        )
+    except ProductRefusal as exc:
+        raise refusal_error(exc) from exc
+    progress = _TurnProgress()
+    sessions = TurnSessions(ports, user)
+    policy = ports.chat_policy
+    try:
+        services = ports.chat_turn(user, lease)
+        model_client_registry = services.model_clients
+        if model_client_registry is None:
+            raise HTTPException(status_code=503, detail="Model client registry is unavailable")
         turn = await prepare_direct_chat_turn(
             session=session,
-            session_factory=session_factory,
+            repositories=repositories,
+            sessions=sessions,
+            services=services,
+            model_client_registry=model_client_registry,
+            target=target,
             anima_id=anima_id,
             req=req,
-            user=user,
             run_id=run_id,
             chat_id=chat_id,
-            model_client_registry=model_client_registry,
-            runtime_settings=getattr(app.state, "runtime_settings", settings),
-            model_roles=model_roles,
-            web_search_enabled=composition_web_search_enabled(app),
+            on_recorded=progress.reply_saved,
         )
-    except Exception:
-        await _cleanup()
+    except BaseException:
+        # Nothing was dispatched: release the admitted turn before the error propagates.
+        with anyio.move_on_after(_SETTLE_TIMEOUT_SECONDS, shield=True):
+            await lease.settle(progress.outcome)
         raise
 
-    # `PreparedDirectChatTurn` contains immutable domain/app state and provider
-    # request data, so the route can release the setup session before opening
-    # the client-facing SSE stream.
-    await _cleanup()
-
+    speech = services.speech
     bridge = DirectChatEventBridge(anima_id=anima_id)
     chat = turn.prepared_turn.chat
 
-    async def _event_stream() -> AsyncIterator[str]:
+    async def check_lease() -> None:
+        stop = await lease.check()
+        if stop is not None:
+            raise TurnStopped(stop)
+
+    async def _event_stream() -> AsyncGenerator[str, None]:
         """Bridge app-domain turn events, TTS/title side work, and final SSE frames."""
 
         frame: str | None
         state = SseTextState(
             emotional_state=turn.emotional_state,
             tts_speech_payload_enabled=_tts_speech_payload_enabled(turn.chat_options),
+            public_error_text=policy.public_error_text,
         )
         active_task: asyncio.Task[Any] | None = None
         title_task: asyncio.Task[ChatTitleGenerationResult] | None = None
         tts_bootstrap = _TtsSessionBootstrap(run_id=run_id, anima_id=anima_id)
         finalized_tts = _FinalizedTtsStreamBootstrap.start_if_requested(
             chat_options=turn.chat_options,
-            session_factory=session_factory,
-            user_id=user.id,
+            speech=speech,
+            sessions=sessions,
             anima_id=anima_id,
             run_id=run_id,
         )
         completed_emitted = False
+
+        def completed_frame() -> str | None:
+            nonlocal completed_emitted
+            frame = direct_run_completed_frame(
+                anima_id=anima_id,
+                chat_id=chat_id,
+                user_id=user.id,
+                run_id=run_id,
+                state=state,
+                build_gruut_sse_text=build_gruut_sse_text,
+            )
+            if frame is not None:
+                completed_emitted = True
+            return frame
+
+        async def stop_turn_tasks() -> None:
+            """Cancel the turn's title, model and speech tasks and wait until each has stopped."""
+
+            await _cancel_chat_title_task(title_task)
+            if active_task is not None and not active_task.done():
+                active_task.cancel()
+                with suppress(asyncio.CancelledError, Exception):
+                    await active_task
+            await tts_bootstrap.cancel()
+            await finalized_tts.cancel()
+
         attach_crisis_resources(turn.safety, state)
         _log.info(
             "HTTP Anima Direct Chat SSE Stream Open",
@@ -174,17 +243,17 @@ async def stream_direct_chat_sse(
             # Title generation is independent from the main assistant response.
             # It runs in parallel and is only surfaced after the direct turn has
             # succeeded so title failures do not corrupt the model stream.
-            if _should_generate_chat_title(chat, chat_options=turn.chat_options):
+            if _should_generate_chat_title(chat, chat_options=turn.chat_options, settings=policy.title_generation):
                 title_task = asyncio.create_task(
                     _generate_chat_title_for_stream(
-                        session_factory=session_factory,
+                        sessions=sessions,
                         model_client_registry=model_client_registry,
+                        settings=policy.title_generation,
                         anima_id=anima_id,
                         user_id=user.id,
                         chat_id=chat_id,
                         run_id=run_id,
                         message=req.message,
-                        model_roles=model_roles,
                     ),
                     name=f"direct-chat-title-{run_id}",
                 )
@@ -194,7 +263,9 @@ async def stream_direct_chat_sse(
                     anima_id=anima_id,
                     chat_id=chat_id,
                     run_id=run_id,
-                    reason=_chat_title_generation_skip_reason(chat, chat_options=turn.chat_options),
+                    reason=_chat_title_generation_skip_reason(
+                        chat, chat_options=turn.chat_options, settings=policy.title_generation
+                    ),
                     chat_title=getattr(chat, "title", None),
                     chat_next_turn=getattr(chat, "next_turn", None),
                 )
@@ -202,8 +273,8 @@ async def stream_direct_chat_sse(
             # while finalized TTS waits until the final assistant text is known.
             tts_bootstrap = _TtsSessionBootstrap.start_if_requested(
                 chat_options=turn.chat_options,
-                session_factory=session_factory,
-                user_id=user.id,
+                speech=speech,
+                sessions=sessions,
                 anima_id=anima_id,
                 run_id=run_id,
             )
@@ -221,6 +292,7 @@ async def stream_direct_chat_sse(
                 run_prepared_direct_turn(turn.executor, turn.prepared_turn, bridge),
                 name=f"direct-chat-model-client-{run_id}",
             )
+            progress.dispatched = True
             _log.info(
                 "Direct chat model turn task scheduled",
                 anima_id=anima_id,
@@ -233,7 +305,7 @@ async def stream_direct_chat_sse(
             # first text; its events wait in the bridge until drained.
             notice = await ai_notice_frame(
                 turn.safety,
-                session_factory=session_factory,
+                sessions=sessions,
                 user_id=user.id,
                 run_id=run_id,
                 anima_name=turn.prepared_turn.memory_context.anima_name,
@@ -245,12 +317,13 @@ async def stream_direct_chat_sse(
                 bridge,
                 run_id=run_id,
                 anima_id=anima_id,
-                session_factory=session_factory,
+                sessions=sessions,
                 state=state,
                 build_gruut_sse_text=build_gruut_sse_text,
                 stream_user_response=True,
                 stream_emotion_update=True,
                 poll_extra_frame=_poll_tts_frame,
+                check_lease=check_lease,
             ):
                 yield frame
 
@@ -268,7 +341,7 @@ async def stream_direct_chat_sse(
                 bridge,
                 run_id=run_id,
                 anima_id=anima_id,
-                session_factory=session_factory,
+                sessions=sessions,
                 state=state,
                 build_gruut_sse_text=build_gruut_sse_text,
                 stream_user_response=True,
@@ -286,20 +359,10 @@ async def stream_direct_chat_sse(
                     chat_id=chat_id,
                     run_id=run_id,
                 )
-                await _cancel_chat_title_task(title_task)
-                title_task = None
-                await tts_bootstrap.cancel()
-                await finalized_tts.cancel()
-                frame = direct_run_completed_frame(
-                    anima_id=anima_id,
-                    chat_id=chat_id,
-                    user_id=user.id,
-                    run_id=run_id,
-                    state=state,
-                    build_gruut_sse_text=build_gruut_sse_text,
-                )
+                progress.failed = True
+                await stop_turn_tasks()
+                frame = completed_frame()
                 if frame is not None:
-                    completed_emitted = True
                     _log.info(
                         "Direct chat run.completed emitted after app-layer error",
                         anima_id=anima_id,
@@ -309,6 +372,8 @@ async def stream_direct_chat_sse(
                     yield frame
                 return
 
+            # The reply is recorded (or, incognito, complete); only optional work remains.
+            progress.saved = True
             # The model turn succeeded. Flush remaining non-text events before
             # optional post-turn side effects so the user-visible response order
             # remains assistant text/emotion first, then TTS/title/compaction.
@@ -320,11 +385,16 @@ async def stream_direct_chat_sse(
             )
             finalized_tts.start_if_ready(state)
 
+            async def finish_session() -> str | None:
+                await check_lease()
+                return await tts_bootstrap.finish_frame()
+
             async def finish_title() -> str | None:
                 nonlocal title_task
+                await check_lease()
                 frame = await _chat_title_updated_frame(
                     title_task=title_task,
-                    session_factory=session_factory,
+                    sessions=sessions,
                     anima_id=anima_id,
                     user_id=user.id,
                     chat_id=chat_id,
@@ -333,19 +403,19 @@ async def stream_direct_chat_sse(
                 title_task = None
                 return frame
 
-            def completed_frame() -> str | None:
-                nonlocal completed_emitted
-                frame = direct_run_completed_frame(
-                    anima_id=anima_id,
+            async def compact() -> None:
+                await check_lease()
+                await _compact_chat_after_success(
+                    sessions=sessions,
+                    model_client_registry=model_client_registry,
                     chat_id=chat_id,
                     user_id=user.id,
+                    anima_id=anima_id,
                     run_id=run_id,
-                    state=state,
-                    build_gruut_sse_text=build_gruut_sse_text,
+                    chat_options=turn.chat_options,
+                    settings=policy.compaction,
+                    model_provider=turn.prepared_turn.model_request.model_provider,
                 )
-                if frame is not None:
-                    completed_emitted = True
-                return frame
 
             async for frame in complete_successful_turn(
                 options=turn.chat_options,
@@ -353,53 +423,57 @@ async def stream_direct_chat_sse(
                     bridge,
                     run_id=run_id,
                     anima_id=anima_id,
-                    session_factory=session_factory,
+                    sessions=sessions,
                     state=state,
                     build_gruut_sse_text=build_gruut_sse_text,
                     stream_user_response=False,
                     stream_emotion_update=True,
                 ),
-                finish_session=tts_bootstrap.finish_frame,
+                finish_session=finish_session,
                 speech_events=finalized_tts.finish_frames(state),
                 finish_title=finish_title,
-                compact=lambda: _compact_chat_after_success(
-                    session_factory=session_factory,
-                    model_client_registry=model_client_registry,
-                    chat_id=chat_id,
-                    user_id=user.id,
-                    anima_id=anima_id,
-                    run_id=run_id,
-                    chat_options=turn.chat_options,
-                    model_roles=model_roles,
-                    model_provider=turn.prepared_turn.model_request.model_provider,
-                ),
+                compact=compact,
                 completed=completed_frame,
             ):
+                if not completed_emitted:
+                    await check_lease()
                 yield frame
+        except TurnStopped as stopped:
+            # The composition ended the turn: stop its work first, so whether the
+            # reply was saved is settled, then end the stream.
+            await stop_turn_tasks()
+            _log.info(
+                "HTTP Anima Direct Chat SSE Stream Stopped",
+                anima_id=anima_id,
+                run_id=run_id,
+                code=stopped.stop.code,
+                reply_saved=progress.saved,
+            )
+            if not progress.saved:
+                yield format_sse(
+                    "error",
+                    {"run_id": run_id, "error": stopped.stop.message, "code": stopped.stop.code},
+                    event_id=f"error-{run_id}",
+                )
+            if not completed_emitted:
+                frame = completed_frame() if progress.saved else None
+                yield frame or fallback_run_completed_frame(run_id=run_id, chat_id=chat_id)
         except asyncio.CancelledError:
-            await _cancel_chat_title_task(title_task)
-            title_task = None
             _log.info("HTTP Anima Direct Chat SSE Stream Cancelled", anima_id=anima_id, run_id=run_id)
             raise
         except GeneratorExit:
             _log.info("HTTP Anima Direct Chat SSE Stream Closed", anima_id=anima_id, run_id=run_id)
             raise
         except Exception as exc:
-            await _cancel_chat_title_task(title_task)
-            title_task = None
+            # After the reply is recorded, an optional step's failure does not undo it.
+            progress.failed = True
             _log.error(
                 "HTTP Anima Direct Chat SSE Stream Error",
                 anima_id=anima_id,
                 run_id=run_id,
                 error=str(exc),
             )
-            if active_task is not None and not active_task.done():
-                active_task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await active_task
-                active_task = None
-            await tts_bootstrap.cancel()
-            await finalized_tts.cancel()
+            await stop_turn_tasks()
             error_event = unexpected_error_event(
                 exc,
                 anima_id=anima_id,
@@ -407,14 +481,14 @@ async def stream_direct_chat_sse(
                 user_id=user.id,
                 run_id=run_id,
             )
-            frame = format_error_event(error_event, run_id=run_id)
+            frame = format_error_event(error_event, run_id=run_id, public_error_text=state.public_error_text)
             if frame is not None:
                 yield frame
             async for frame in drain_pending_events(
                 bridge,
                 run_id=run_id,
                 anima_id=anima_id,
-                session_factory=session_factory,
+                sessions=sessions,
                 state=state,
                 build_gruut_sse_text=build_gruut_sse_text,
                 stream_user_response=False,
@@ -426,15 +500,10 @@ async def stream_direct_chat_sse(
         finally:
             # Client disconnects, generator errors, and normal completion all
             # converge here so background title/TTS/model tasks cannot outlive
-            # the request that created them.
-            await _cancel_chat_title_task(title_task)
-            if active_task is not None and not active_task.done():
-                active_task.cancel()
-                with suppress(asyncio.CancelledError):
-                    await active_task
-            await tts_bootstrap.cancel()
-            await finalized_tts.cancel()
-            await _cleanup()
+            # the request that created them. A disconnect cancels the body, so
+            # the wait is shielded (and bounded).
+            with anyio.move_on_after(_SETTLE_TIMEOUT_SECONDS, shield=True):
+                await stop_turn_tasks()
             _log.info(
                 "HTTP Anima Direct Chat SSE Stream Cleanup Complete",
                 anima_id=anima_id,
@@ -448,4 +517,4 @@ async def stream_direct_chat_sse(
         "Connection": "keep-alive",
         "X-Accel-Buffering": "no",
     }
-    return StreamingResponse(_event_stream(), media_type="text/event-stream", headers=headers)
+    return _LeasedStreamingResponse(_event_stream(), lease=lease, progress=progress, headers=headers)

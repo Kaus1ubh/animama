@@ -5,12 +5,14 @@
 read sessions, and ``TwoOwnerComposition`` serves two owners from one database with
 separate roots.
 ``install_local_ports`` gives local-app tests the local ports on their own session.
+Chat turns on the doubles use the ports' ``model_clients``, ``FakeSpeech`` and a
+``RecordingChatGuard`` that keeps every lease it grants.
 Nothing here is installed outside tests.
 """
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -25,12 +27,18 @@ from animama.adapters.content_store.private_file_store import FilesystemPrivateF
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.contracts.elevenlabs import (
     PyElevenLabsAudioResponse,
+    PyElevenLabsRealtimeTtsSessionResponse,
     PyElevenLabsSoundEffectsRequest,
     PyElevenLabsTextToSpeechRequest,
     PyElevenLabsVoice,
 )
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
+from animama.app.model_clients import ModelClientRegistry
+from animama.app.ports.text_embedder import TextEmbedder
+from animama.app.safety.config import OperatorSafetyConfig
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
+from animama.app.services.chat_compaction_service import ChatCompactionSettings
+from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.content_package_export import DownloadLease
 from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.embedding_refresh_service import (
@@ -42,15 +50,25 @@ from animama.app.services.memory_manager_service import MemoryManagerService
 from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
 from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.app.services.user_profile_service import UserProfileService
+from animama.app.web_search import WebSearchToolService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfilePatch
+from animama.product_http.chat.setup_helpers import TurnSessions
 from animama.product_http.delivery import PackageDownloadResponse, encoded_json_response, verified_file_response
 from animama.product_http.ports import (
+    ChatTurnAdmission,
+    ChatTurnLease,
+    ChatTurnOutcome,
+    ChatTurnPolicy,
+    ChatTurnStop,
+    FinalizedSpeech,
     ProductContent,
     ProductPolicy,
     ProductPorts,
+    ProductRefusal,
     ProductUploads,
+    VoiceResolver,
     install_product_ports,
     model_role_resolver,
 )
@@ -65,6 +83,14 @@ TEST_POLICY = ProductPolicy(
     memory_file_max_bytes=32 * 1024, voice_catalog_max_upload_bytes=25 * 1024 * 1024, private_upload_ttl_seconds=900
 )
 TEST_ROLE_DEFAULTS = ModelRoleDefaults(chat="OpenAIResponsesHTTPAgent:gpt-6-luna")
+# A hosted-like turn: no optional model work, and error frames hide provider detail.
+TEST_CHAT_POLICY = ChatTurnPolicy(
+    compaction=ChatCompactionSettings(enabled=False),
+    presend_compaction_timeout_seconds=1.0,
+    title_generation=ChatTitleGenerationSettings(enabled=False),
+    companion_safety=OperatorSafetyConfig(),
+    public_error_text="The reply could not be completed.",
+)
 # What a hosted consumer reports; the test doubles report it too.
 HOSTED_CAPABILITIES = RuntimeCapabilities.model_validate_json(
     (Path(__file__).resolve().parents[1] / "contracts/runtime-capabilities/hosted.json").read_text()
@@ -128,6 +154,114 @@ class FakeSpeech:
         self.calls.append(("sound_effect", principal.id, request))
         return PyElevenLabsAudioResponse(audio_base64="", media_type="audio/mpeg")
 
+    async def realtime_session(
+        self,
+        principal: RequestPrincipal,
+        *,
+        voice: VoiceResolver,
+        language_code: str | None,
+        model_id: str | None,
+    ) -> PyElevenLabsRealtimeTtsSessionResponse:
+        # Resolving the voice runs the turn's owner check, as a provider call would.
+        resolved = await voice()
+        self.calls.append(("realtime_session", principal.id, resolved.voice_id))
+        return PyElevenLabsRealtimeTtsSessionResponse(
+            voice_id=resolved.voice_id,
+            model_id=model_id or "eleven_flash_v2_5",
+            output_format="pcm_24000",
+            sync_alignment=False,
+            language_code=language_code,
+            token="fake-speech-token",
+            websocket_base_url="wss://speech.invalid",
+        )
+
+    async def prepare_finalized(
+        self,
+        principal: RequestPrincipal,
+        *,
+        voice: VoiceResolver | None,
+        voice_id: str | None,
+        anima_id: str,
+        run_id: str,
+        text: str,
+        model_id: str | None,
+        language_code: str | None,
+        text_basis: str,
+        emotional_tone: str | None,
+        emotional_state: dict[str, int] | None,
+        previous_text: str | None,
+        apply_emotional_prefix: bool,
+    ) -> FakeFinalizedSpeech:
+        if voice_id is None:
+            assert voice is not None, "the first segment resolves the Anima's voice"
+            voice_id = (await voice()).voice_id
+        self.calls.append(("prepare_finalized", principal.id, text))
+        return FakeFinalizedSpeech(voice_id=voice_id, model_id=model_id or "eleven_v3")
+
+    async def stream_finalized(self, prepared: FinalizedSpeech) -> AsyncIterator[dict[str, Any]]:
+        frame = {"model_id": prepared.model_id, "output_format": prepared.output_format}
+        yield {"type": "audio", "audio_base64": "AAAA", **frame}
+        yield {"type": "done", **frame}
+
+
+@dataclass(frozen=True)
+class FakeFinalizedSpeech:
+    voice_id: str
+    model_id: str
+    output_format: str = "pcm_24000"
+
+
+# Decides at each check whether the turn must stop now.
+StopRule = Callable[[], Awaitable[ChatTurnStop | None]]
+
+
+@dataclass
+class RecordingChatTurnLease:
+    """One admitted turn's lease: its ``stop`` rule may end the turn at any check."""
+
+    admission: ChatTurnAdmission
+    owner: str
+    stop: StopRule | None = None
+    checks: int = 0
+    settlements: list[ChatTurnOutcome] = field(default_factory=list)
+
+    async def check(self) -> ChatTurnStop | None:
+        self.checks += 1
+        return None if self.stop is None else await self.stop()
+
+    async def settle(self, outcome: ChatTurnOutcome) -> None:
+        self.settlements.append(outcome)
+
+
+@dataclass
+class RecordingChatGuard:
+    """A chat-turn guard that keeps every lease it grants, or refuses every turn with ``refusal``."""
+
+    refusal: ProductRefusal | None = None
+    stop: StopRule | None = None
+    leases: list[RecordingChatTurnLease] = field(default_factory=list)
+
+    async def admit(self, principal: RequestPrincipal, admission: ChatTurnAdmission) -> RecordingChatTurnLease:
+        if self.refusal is not None:
+            raise self.refusal
+        lease = RecordingChatTurnLease(admission=admission, owner=principal.id, stop=self.stop)
+        self.leases.append(lease)
+        return lease
+
+
+@dataclass
+class FakeChatTurnServices:
+    """A turn's collaborators on the doubles: their model clients and speech; no search or embeddings."""
+
+    model_clients: ModelClientRegistry | None
+    speech: FakeSpeech
+
+    async def web_search_tool(self, session: AsyncSession) -> WebSearchToolService | None:
+        return None
+
+    async def attachment_embedder(self, session: AsyncSession) -> TextEmbedder | None:
+        return None
+
 
 class DoubleCollaborators:
     """The non-session collaborators both port doubles share.
@@ -141,6 +275,9 @@ class DoubleCollaborators:
     model_catalog_policy: ModelCatalogPolicy
     model_role_defaults: ModelRoleDefaults
     speech: FakeSpeech
+    chat_policy: ChatTurnPolicy
+    chat_guard: RecordingChatGuard
+    model_clients: ModelClientRegistry | None
 
     def _owner_runtime(self, principal: RequestPrincipal) -> tuple[Settings, LocalRuntimePaths]:
         if self.content_root is None:
@@ -203,6 +340,14 @@ class DoubleCollaborators:
         state = EMBEDDINGS_STATE_OFF if embedding_model_id is None else EMBEDDINGS_STATE_CURRENT
         return EmbeddingRefreshStatus(state=state)
 
+    async def admit_chat_turn(
+        self, principal: RequestPrincipal, admission: ChatTurnAdmission
+    ) -> RecordingChatTurnLease:
+        return await self.chat_guard.admit(principal, admission)
+
+    def chat_turn(self, principal: RequestPrincipal, lease: ChatTurnLease) -> FakeChatTurnServices:
+        return FakeChatTurnServices(model_clients=self.model_clients, speech=self.speech)
+
     async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:
         # The model-free runtime drafts an approval for any message naming a markdown path.
         return await local_memory_manager_service(
@@ -233,6 +378,9 @@ class DeferredCommitPorts(DoubleCollaborators):
     model_catalog_policy: ModelCatalogPolicy = field(default_factory=ModelCatalogPolicy)
     model_role_defaults: ModelRoleDefaults = field(default_factory=lambda: TEST_ROLE_DEFAULTS)
     speech: FakeSpeech = field(default_factory=FakeSpeech)
+    chat_policy: ChatTurnPolicy = field(default_factory=lambda: TEST_CHAT_POLICY)
+    chat_guard: RecordingChatGuard = field(default_factory=RecordingChatGuard)
+    model_clients: ModelClientRegistry | None = None
     commits_requested: int = 0
     commits: int = 0
     rollbacks: int = 0
@@ -295,6 +443,9 @@ class SessionPorts(DoubleCollaborators):
     model_catalog_policy: ModelCatalogPolicy = field(default_factory=ModelCatalogPolicy)
     model_role_defaults: ModelRoleDefaults = field(default_factory=lambda: TEST_ROLE_DEFAULTS)
     speech: FakeSpeech = field(default_factory=FakeSpeech)
+    chat_policy: ChatTurnPolicy = field(default_factory=lambda: TEST_CHAT_POLICY)
+    chat_guard: RecordingChatGuard = field(default_factory=RecordingChatGuard)
+    model_clients: ModelClientRegistry | None = None
     settings_changes: list[str] = field(default_factory=list)
     content_root: Path | None = None
 
@@ -318,6 +469,14 @@ def install_local_ports(app: FastAPI, session: AsyncSession) -> None:
 
     app.state.session_factory = session_factory
     install_product_ports(app, LocalProductPorts(app))
+
+
+def local_turn_sessions(session_factory: Any, owner: str) -> TurnSessions:
+    """A chat turn's short-lived owner sessions, opened as the local composition opens them."""
+
+    app = FastAPI()
+    app.state.session_factory = session_factory
+    return TurnSessions(LocalProductPorts(app), RequestPrincipal(id=owner))
 
 
 def local_ports(*, policy: ModelCatalogPolicy | None = None) -> LocalProductPorts:

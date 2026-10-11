@@ -1,13 +1,10 @@
+"""Chat history compaction around a direct turn: before it (to fit) and after it (past a threshold)."""
+
 from __future__ import annotations
 
 import asyncio
-from contextlib import suppress
 from typing import Any
 
-from animama.adapters.repositories.sqlalchemy.chat_compaction_repo import SQLAlchemyChatCompactionRepository
-from animama.adapters.repositories.sqlalchemy.chat_message_repo import SQLAlchemyChatMessageRepository
-from animama.adapters.repositories.sqlalchemy.chat_repo import SQLAlchemyChatRepository
-from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.chat.direct_turn.constants import NATIVE_COMPACTION_PROVIDERS
 from animama.app.chat.direct_turn.types import PreSendCompactionRequest, PreSendCompactor
 from animama.app.chat.options import DirectChatOptions
@@ -16,62 +13,55 @@ from animama.app.model_clients.context_budget import context_budget_for_model
 from animama.app.services.chat_compaction_service import ChatCompactionService, ChatCompactionSettings
 from animama.app.services.direct_model_prompt_runner import DirectModelPromptRunner
 from animama.domain import ModelProvider
-from animama.logging_config import get_logger
-from animama.server.config import settings
-from animama.server.model_roles import ModelRoleSettings
+from animama.logging import get_logger
+from animama.product_http.ports import ProductRepositories, model_role_resolver
 
-from .setup_helpers import chat_manager
+from .setup_helpers import TurnSessions, chat_manager
 
-_log = get_logger("server.routers.chat.compaction")
-
-
-def chat_compaction_settings() -> ChatCompactionSettings:
-    return ChatCompactionSettings(
-        enabled=settings.anima_chat_compaction_enabled,
-        threshold_tokens=settings.anima_chat_compaction_threshold_tokens,
-        recent_message_min_count=settings.anima_chat_compaction_recent_message_min_count,
-        prompt_version=settings.anima_chat_compaction_prompt_version,
-    )
+_log = get_logger("product_http.chat.compaction")
 
 
 def direct_model_prompt_runner(
-    session: Any,
+    sessions: TurnSessions,
+    repositories: ProductRepositories,
     model_client_registry: ModelClientRegistry,
-    model_roles: ModelRoleSettings,
 ) -> DirectModelPromptRunner:
     return DirectModelPromptRunner(
         registry=model_client_registry,
-        role_resolver=model_roles.resolver(session),
+        role_resolver=model_role_resolver(sessions.ports, repositories),
     )
 
 
 def chat_compaction_service(
-    session: Any,
+    sessions: TurnSessions,
+    repositories: ProductRepositories,
     model_client_registry: ModelClientRegistry,
-    model_roles: ModelRoleSettings,
+    settings: ChatCompactionSettings,
 ) -> ChatCompactionService:
     return ChatCompactionService(
-        chats=SQLAlchemyChatRepository(session),
-        messages=SQLAlchemyChatMessageRepository(session),
-        compactions=SQLAlchemyChatCompactionRepository(session),
-        uow=SQLAlchemyUnitOfWork(session),
-        model_runner=direct_model_prompt_runner(session, model_client_registry, model_roles),
-        settings=chat_compaction_settings(),
+        chats=repositories.chats,
+        messages=repositories.chat_messages,
+        compactions=repositories.chat_compactions,
+        uow=repositories.unit_of_work,
+        model_runner=direct_model_prompt_runner(sessions, repositories, model_client_registry),
+        settings=settings,
     )
 
 
 def pre_send_compactor(
     *,
-    session_factory: Any,
+    sessions: TurnSessions,
     model_client_registry: ModelClientRegistry,
-    model_roles: ModelRoleSettings,
+    settings: ChatCompactionSettings,
 ) -> PreSendCompactor:
     """Compact in a fresh session before a turn that would not fit its model's window."""
 
     async def compact(request: PreSendCompactionRequest) -> Any | None:
-        session = session_factory()
-        try:
-            result = await chat_compaction_service(session, model_client_registry, model_roles).compact_for_budget(
+        async with sessions.write() as session:
+            repositories = sessions.repositories(session)
+            result = await chat_compaction_service(
+                sessions, repositories, model_client_registry, settings
+            ).compact_for_budget(
                 chat_id=request.chat_id,
                 user_id=request.user_id,
                 anima_id=request.anima_id,
@@ -88,32 +78,21 @@ def pre_send_compactor(
             )
             if not result.compacted:
                 return None
-            return await chat_manager(session).get_chat_context(chat_id=request.chat_id)
-        except BaseException:
-            rollback = getattr(session, "rollback", None)
-            if rollback is not None:
-                with suppress(Exception):
-                    await rollback()
-            raise
-        finally:
-            close = getattr(session, "close", None)
-            if close is not None:
-                with suppress(Exception):
-                    await close()
+            return await chat_manager(repositories).get_chat_context(chat_id=request.chat_id)
 
     return compact
 
 
 async def compact_chat_after_success(
     *,
-    session_factory: Any,
+    sessions: TurnSessions,
     model_client_registry: ModelClientRegistry,
     chat_id: str,
     user_id: str,
     anima_id: str,
     run_id: str,
     chat_options: DirectChatOptions,
-    model_roles: ModelRoleSettings,
+    settings: ChatCompactionSettings,
     model_provider: ModelProvider | None = None,
 ) -> None:
     """Compact after a successful turn once the chat's context crosses the threshold.
@@ -144,25 +123,23 @@ async def compact_chat_after_success(
         )
         return
 
-    session = session_factory()
+    budget = context_budget_for_model(model_provider) if model_provider is not None else None
     try:
-        expire_all = getattr(session, "expire_all", None)
-        if expire_all is not None:
-            expire_all()
-        budget = context_budget_for_model(model_provider) if model_provider is not None else None
-        result = await chat_compaction_service(session, model_client_registry, model_roles).maybe_compact_chat(
-            chat_id=chat_id,
-            user_id=user_id,
-            anima_id=anima_id,
-            threshold_tokens=budget.post_response_trigger_tokens if budget is not None else None,
-        )
+        async with sessions.write() as session:
+            # Read the turn just recorded, even from a session that saw the chat before.
+            session.expire_all()
+            repositories = sessions.repositories(session)
+            result = await chat_compaction_service(
+                sessions, repositories, model_client_registry, settings
+            ).maybe_compact_chat(
+                chat_id=chat_id,
+                user_id=user_id,
+                anima_id=anima_id,
+                threshold_tokens=budget.post_response_trigger_tokens if budget is not None else None,
+            )
     except asyncio.CancelledError:
         raise
     except Exception as exc:
-        rollback = getattr(session, "rollback", None)
-        if rollback is not None:
-            with suppress(Exception):
-                await rollback()
         _log.warning(
             "Direct chat post-response compaction failed",
             anima_id=anima_id,
@@ -171,11 +148,6 @@ async def compact_chat_after_success(
             error=str(exc),
         )
         return
-    finally:
-        close = getattr(session, "close", None)
-        if close is not None:
-            with suppress(Exception):
-                await close()
 
     _log.info(
         "Direct chat post-response compaction checked",
@@ -191,7 +163,7 @@ async def compact_chat_after_success(
 
 __all__ = [
     "ChatCompactionSettings",
-    "chat_compaction_settings",
+    "chat_compaction_service",
     "compact_chat_after_success",
     "direct_model_prompt_runner",
     "pre_send_compactor",

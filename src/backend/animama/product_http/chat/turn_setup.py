@@ -1,18 +1,18 @@
+"""Setup of one direct chat turn: the owner's Anima and runtime revision, then the executor.
+
+``resolve_turn_target`` only reads, so a composition can admit the turn after it
+and before ``prepare_direct_chat_turn`` writes anything (it may create the chat).
+"""
+
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import UTC, datetime
-from typing import Any
 
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from animama.adapters.repositories.sqlalchemy.anima_chat_profile_repo import SQLAlchemyAnimaChatProfileRepository
-from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
-from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
-from animama.adapters.repositories.sqlalchemy.model_provider_repo import SQLAlchemyModelProviderRepository
-from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
-from animama.adapters.repositories.sqlalchemy.user_file_processing_repo import SQLAlchemyUserFileProcessingRepository
 from animama.app.chat import (
     DirectChatAttachmentContext,
     DirectChatMemoryContextService,
@@ -24,34 +24,38 @@ from animama.app.chat import (
     RuntimeGestureDescriptor,
 )
 from animama.app.chat.memory_search import validate_searchable_attached_files
+from animama.app.contracts.chat import PyAnimaChatRequest
 from animama.app.model_clients import ModelClientRegistry
 from animama.app.services.anima_chat_profile_service import AnimaChatProfileService
-from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.app.services.chat_manager import ChatApiStandardConflictError
 from animama.app.services.memory_entry_service import MemoryEntryService
 from animama.app.services.user_file_overview import deserialize_user_file_overview
-from animama.domain.emotions import normalize_emotional_state
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_file import UserFile
-from animama.logging_config import get_logger
-from animama.orm import ORMAnima
-from animama.server.chat_options import DirectChatOptions, resolve_chat_request_options
-from animama.server.config import Settings, settings
-from animama.server.embeddings import role_embedder
-from animama.server.model_roles import ModelRoleSettings
-from animama.server.schemas.chat import PyAnimaChatRequest
-from animama.server.web_search import turn_web_search_tool
+from animama.logging import get_logger
+from animama.product_http.ports import ChatTurnServices, ProductRepositories
 
 from .compaction import pre_send_compactor
+from .options import DirectChatOptions, resolve_chat_request_options
 from .safety import TurnSafety, prepare_turn_safety
 from .session_services import (
     SessionBackedChatTurnRecorder,
     SessionBackedMemoryEpisodeRecorder,
     SessionBackedMemoryToolService,
 )
-from .setup_helpers import chat_manager
+from .setup_helpers import TurnSessions, chat_manager
 
-_log = get_logger("server.routers.chat.turn_setup")
+_log = get_logger("product_http.chat.turn_setup")
+
+
+@dataclass(frozen=True, slots=True)
+class TurnTarget:
+    """The owner's Anima as a turn starts: its stored mood and the runtime revision it mounted."""
+
+    emotional_state: dict[str, int] | None
+    runtime_revision: str
+    gesture_ids: tuple[str, ...]
+    gesture_descriptors: tuple[RuntimeGestureDescriptor, ...]
 
 
 @dataclass(slots=True)
@@ -88,43 +92,28 @@ def _attachment_prompt_context(user_file: UserFile, *, chunk_count: int) -> Dire
     )
 
 
-async def prepare_direct_chat_turn(
+async def resolve_turn_target(
+    repositories: ProductRepositories,
     *,
-    session: AsyncSession,
-    session_factory: Any,
     anima_id: str,
     req: PyAnimaChatRequest,
     user: RequestPrincipal,
-    run_id: str,
-    chat_id: str,
-    model_client_registry: ModelClientRegistry,
-    model_roles: ModelRoleSettings,
-    runtime_settings: Settings = settings,
-    web_search_enabled: bool = False,
-) -> DirectChatTurnSetup:
-    """Validate route inputs and build the app-layer direct chat turn.
-
-    This function is the synchronous-feeling setup phase for `chat:sse`: it
-    checks anima ownership, resolves request options, wires repositories and
-    services around the current session, and asks `DirectChatTurnExecutor` to
-    prepare the provider-neutral model request before the stream opens.
-    """
+) -> TurnTarget:
+    """Check the caller's Anima and its mounted runtime revision; reads only."""
 
     # Ownership is enforced before any model/provider setup so callers cannot
-    # infer chat or model state for another user's anima.
-    orm_anima = await session.get(ORMAnima, anima_id)
-    if orm_anima is None or (orm_anima.user_id is not None and orm_anima.user_id != user.id):
+    # infer chat or model state for another owner's Anima, or an unowned one.
+    animas = repositories.animas
+    if not await animas.is_owned_by_user(user_id=user.id, anima_id=anima_id):
         raise HTTPException(status_code=404, detail="Anima not found")
-    emotional_state = (
-        normalize_emotional_state(orm_anima.emotional_state) if orm_anima.emotional_state is not None else None
-    )
+    emotional_state = await animas.stored_emotional_state(anima_id)
 
     # Browser chat mounts an immutable runtime revision before sending. Resolve
     # and fence that exact catalog while the setup session is still open and
     # before provider selection, prompt construction, or model invocation.
     if req.runtime_revision is None:
         raise HTTPException(status_code=409, detail={"code": "runtime_remount_required"})
-    snapshot = await AnimaRuntimeService(session).get_snapshot(
+    snapshot = await repositories.anima_runtime_snapshots.get_snapshot(
         user_id=user.id,
         anima_id=anima_id,
         revision=req.runtime_revision,
@@ -132,26 +121,53 @@ async def prepare_direct_chat_turn(
     if snapshot is None or snapshot.expires_at <= datetime.now(UTC):
         raise HTTPException(status_code=409, detail={"code": "runtime_remount_required"})
     catalog = snapshot.catalog
-    resolved_runtime_gesture_ids = tuple(
-        str(row["semantic_key"]) for row in catalog.get("gestures", []) if row.get("semantic_key")
+    return TurnTarget(
+        emotional_state=emotional_state,
+        runtime_revision=req.runtime_revision,
+        gesture_ids=tuple(str(row["semantic_key"]) for row in catalog.get("gestures", []) if row.get("semantic_key")),
+        gesture_descriptors=tuple(
+            RuntimeGestureDescriptor(
+                selector=str(row["semantic_key"]),
+                name=str(row.get("name") or row["semantic_key"]),
+                description=str(row.get("description") or row.get("name") or row["semantic_key"]),
+            )
+            for row in catalog.get("gestures", [])
+            if row.get("semantic_key")
+        ),
     )
-    runtime_gesture_descriptors = tuple(
-        RuntimeGestureDescriptor(
-            selector=str(row["semantic_key"]),
-            name=str(row.get("name") or row["semantic_key"]),
-            description=str(row.get("description") or row.get("name") or row["semantic_key"]),
-        )
-        for row in catalog.get("gestures", [])
-        if row.get("semantic_key")
-    )
-    runtime_revision = req.runtime_revision
+
+
+async def prepare_direct_chat_turn(
+    *,
+    session: AsyncSession,
+    repositories: ProductRepositories,
+    sessions: TurnSessions,
+    services: ChatTurnServices,
+    model_client_registry: ModelClientRegistry,
+    target: TurnTarget,
+    anima_id: str,
+    req: PyAnimaChatRequest,
+    run_id: str,
+    chat_id: str,
+    on_recorded: Callable[[], None] | None = None,
+) -> DirectChatTurnSetup:
+    """Build the app-layer direct chat turn on the setup ``session`` and its ``repositories``.
+
+    Resolves request options, the turn's safety, attachments and collaborators,
+    and asks `DirectChatTurnExecutor` to prepare the provider-neutral model
+    request before the stream opens. ``on_recorded`` runs once the turn is saved.
+    """
+
+    user = sessions.principal
+    ports = sessions.ports
+    policy = ports.chat_policy
 
     # Route request options are merged with persisted user/anima settings before
     # reaching app-layer direct chat code.
     request_options = req.dispatch_options.model_dump(exclude_unset=True) if req.dispatch_options else None
     chat_options = DirectChatOptions.from_value(
         await resolve_chat_request_options(
-            session=session,
+            repositories=repositories,
             user=user,
             anima_id=anima_id,
             request_opts=request_options,
@@ -159,13 +175,14 @@ async def prepare_direct_chat_turn(
     )
     # Companion safety (notice cadence, moderation, crisis resources) never blocks the turn.
     safety = await prepare_turn_safety(
-        session=session,
+        repositories=repositories,
         user_id=user.id,
         client_context=req.client_context,
-        runtime_settings=runtime_settings,
+        operator=policy.companion_safety,
+        crisis_resources=ports.crisis_resources(),
     )
     validated_attachments = await validate_searchable_attached_files(
-        user_file_processing=SQLAlchemyUserFileProcessingRepository(session),
+        user_file_processing=repositories.user_file_processing,
         user_id=user.id,
         file_ids=req.attached_file_ids,
     )
@@ -187,46 +204,46 @@ async def prepare_direct_chat_turn(
 
     # Only attached uploads are searched during the turn, so the embeddings role
     # is resolved only when files are attached.
-    upload_embedder = await role_embedder(session, user.id, model_roles) if attached_files else None
+    upload_embedder = await services.attachment_embedder(session) if attached_files else None
 
-    # The executor itself is app-layer code. The route constructs SQLAlchemy
-    # adapters here so dependency direction remains server -> app -> adapters.
-    model_providers = SQLAlchemyModelProviderRepository(session)
     executor = DirectChatTurnExecutor(
         registry=model_client_registry,
         profile_service=AnimaChatProfileService(
-            profiles=SQLAlchemyAnimaChatProfileRepository(session),
-            model_providers=model_providers,
+            profiles=repositories.anima_chat_profiles,
+            model_providers=repositories.model_providers,
         ),
-        model_providers=model_providers,
-        chat_manager=chat_manager(session),
-        turn_recorder=SessionBackedChatTurnRecorder(session_factory, chat_manager_factory=chat_manager),
-        memory_episode_recorder=SessionBackedMemoryEpisodeRecorder(session_factory),
+        model_providers=repositories.model_providers,
+        chat_manager=chat_manager(repositories),
+        turn_recorder=SessionBackedChatTurnRecorder(
+            sessions, chat_manager_factory=chat_manager, on_recorded=on_recorded
+        ),
+        memory_episode_recorder=SessionBackedMemoryEpisodeRecorder(sessions),
         memory_context_service=DirectChatMemoryContextService(
             memory_entries=MemoryEntryService(
-                memory_entries=SQLAlchemyMemoryEntryRepository(session),
-                uow=SQLAlchemyUnitOfWork(session),
-                animas=SQLAlchemyAnimaRepository(session),
+                memory_entries=repositories.memory_entries,
+                uow=repositories.unit_of_work,
+                animas=repositories.animas,
                 commit_on_write=False,
             ),
-            animas=SQLAlchemyAnimaRepository(session),
+            animas=repositories.animas,
         ),
         memory_tool_service=SessionBackedMemoryToolService(
-            session_factory,
+            sessions,
+            max_file_bytes=ports.policy.memory_file_max_bytes,
             embedder_factory=lambda: upload_embedder,
             allowed_uploaded_files={user_file.id: user_file.original_filename for user_file in attached_files},
         ),
         pre_send_compactor=(
             pre_send_compactor(
-                session_factory=session_factory,
+                sessions=sessions,
                 model_client_registry=model_client_registry,
-                model_roles=model_roles,
+                settings=policy.compaction,
             )
-            if runtime_settings.anima_chat_compaction_enabled
+            if policy.compaction.enabled
             else None
         ),
-        pre_send_compaction_timeout_seconds=runtime_settings.anima_chat_presend_compaction_timeout_seconds,
-        web_search_tool=await turn_web_search_tool(session, enabled=web_search_enabled),
+        pre_send_compaction_timeout_seconds=policy.presend_compaction_timeout_seconds,
+        web_search_tool=await services.web_search_tool(session),
     )
     direct_request = DirectChatTurnRequest(
         anima_id=anima_id,
@@ -238,10 +255,10 @@ async def prepare_direct_chat_turn(
         attached_file_ids=attached_file_ids,
         attached_files=attachment_context,
         request_options=chat_options,
-        emotional_state=emotional_state,
-        runtime_revision=runtime_revision,
-        runtime_gesture_ids=resolved_runtime_gesture_ids,
-        runtime_gesture_descriptors=runtime_gesture_descriptors,
+        emotional_state=target.emotional_state,
+        runtime_revision=target.runtime_revision,
+        runtime_gesture_ids=target.gesture_ids,
+        runtime_gesture_descriptors=target.gesture_descriptors,
         provider_moderation=safety.provider_moderation,
     )
     try:
@@ -268,7 +285,7 @@ async def prepare_direct_chat_turn(
         request_override=req.model_provider_id is not None,
     )
     return DirectChatTurnSetup(
-        emotional_state=emotional_state,
+        emotional_state=target.emotional_state,
         chat_options=chat_options,
         executor=executor,
         prepared_turn=prepared_turn,
@@ -276,4 +293,4 @@ async def prepare_direct_chat_turn(
     )
 
 
-__all__ = ["DirectChatTurnSetup", "prepare_direct_chat_turn"]
+__all__ = ["DirectChatTurnSetup", "TurnTarget", "prepare_direct_chat_turn", "resolve_turn_target"]

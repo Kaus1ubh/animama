@@ -13,10 +13,10 @@ Each route has one disposition:
   ``contracts/runtime-capabilities/hosted.json``, named by ``capability``.
 
 ``access`` names the port a handler needs: ``read`` or ``write`` sessions (the
-composition keeps commit authority), a ``stream`` response, ``bytes`` delivered
-under the composition's caching policy, or the ``speech`` port without a session.
-Until a family moves into this package the value is provisional; a test binds it to
-the session a moved handler depends on.
+composition keeps commit authority), a ``stream`` response prepared on a write
+session that ends before the body runs, ``bytes`` delivered under the composition's
+caching policy, or the ``speech`` port without a session. A test binds it to the
+session each shared handler depends on; for local routes it only describes them.
 
 Entries follow the local app's route order, one per method, which matters:
 ``/v1/animas/creation-options`` must match before ``/v1/animas/{anima_id}``, and
@@ -33,9 +33,9 @@ from typing import Literal
 Disposition = Literal["shared", "local", "hosted-excluded"]
 Access = Literal["read", "write", "stream", "bytes", "speech"]
 Stage = Literal[2, 3, 4, 5]
-# Stages whose shared routes this package serves today; later stages' shared routes
-# are still served by the local composition until they move.
-SERVED_STAGES: frozenset[Stage] = frozenset({2, 3, 4})
+# Stages whose shared routes this package serves: every stage, since chat streaming
+# (stage 5) moved. Tests keep the routers and the local composition in step with it.
+SERVED_STAGES: frozenset[Stage] = frozenset({2, 3, 4, 5})
 
 
 @dataclass(frozen=True)

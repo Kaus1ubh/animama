@@ -1,8 +1,8 @@
 """Product chat over real loopback HTTP, with no provider or database IO.
 
-Only persistence/context adapters and the provider boundary are doubles. The
-Anima router, turn preparation/executor, structured parser, SSE bridge, local
-admission/principal resolver and Uvicorn protocol execute normally. Incognito
+Only the repositories, context adapters and the provider boundary are doubles. The
+shared chat router and local ports, turn preparation/executor, structured parser,
+SSE bridge, local admission/principal resolver and Uvicorn protocol execute normally. Incognito
 turns explicitly disable optional emotion/memory/TTS side effects; persistence
 and those optional integrations have separate acceptance tests.
 """
@@ -35,6 +35,7 @@ from animama.app.model_clients import (
     ModelClientRequest,
     StaticModelClientRegistry,
 )
+from animama.app.safety.ai_notice import AiNoticeState
 from animama.domain.anima_chat_profile import AnimaChatProfile
 from animama.domain.model_provider import ModelProvider, ModelProviderCapabilities
 from animama.domain.usage import Usage
@@ -42,9 +43,10 @@ from animama.local.http.composition import install_local_http
 from animama.local.http.config import LocalHTTPConfig
 from animama.local.http.lifecycle import LocalHTTPLifecycle
 from animama.local.http.protocol import LocalH11Protocol
-from animama.orm.anima import ORMAnima
-from animama.server.routers.anima import router
-from animama.server.routers.chat import chat_sse, turn_setup
+from animama.product_http.chat import turn_setup
+from animama.product_http.ports import install_product_ports
+from animama.product_http.routes.chat_turns import router
+from animama.server.product_ports import LocalProductPorts
 
 _OWNER = "chat-transport-owner"
 _ANIMA = "chat-transport-anima"
@@ -94,17 +96,30 @@ class _Provider:
 
 
 class _Session:
-    """Fail closed if transport tests accidentally start using real persistence."""
+    """A session with no queries, so a real repository fails closed on it."""
 
     def __init__(self) -> None:
         self.close_calls = 0
 
-    async def get(self, model: type, key: str) -> object:
-        assert model is ORMAnima and key == _ANIMA
-        return SimpleNamespace(id=_ANIMA, user_id=_OWNER, emotional_state=None)
-
     async def close(self) -> None:
         self.close_calls += 1
+
+    async def __aenter__(self) -> _Session:
+        return self
+
+    async def __aexit__(self, *_exc_info: object) -> None:
+        await self.close()
+
+
+class _TransportPorts(LocalProductPorts):
+    """The local ports over the fixture's repositories."""
+
+    def __init__(self, app: FastAPI, repositories: SimpleNamespace) -> None:
+        super().__init__(app)
+        self._fixture_repositories = repositories
+
+    def repositories(self, session: Any) -> Any:
+        return self._fixture_repositories
 
 
 @dataclass
@@ -132,7 +147,7 @@ class _LiveChat:
         ], "Request-local chat tasks survived transport cleanup"
 
 
-def _install_context(monkeypatch: pytest.MonkeyPatch, sessions: list[_Session]) -> None:
+def _install_context(monkeypatch: pytest.MonkeyPatch, app: FastAPI, sessions: list[_Session]) -> None:
     """Supply only fixture-owned repository/context inputs, retaining real setup."""
 
     def session_factory() -> _Session:
@@ -155,20 +170,35 @@ def _install_context(monkeypatch: pytest.MonkeyPatch, sessions: list[_Session]) 
         ensure_owned_chat=AsyncMock(return_value=SimpleNamespace(metadata={}, openai_previous_response_id=None)),
         get_chat_context=AsyncMock(return_value=SimpleNamespace(messages=[], blocks=[])),
     )
-    monkeypatch.setattr(chat_sse, "get_async_session_factory", lambda _app: session_factory)
-    monkeypatch.setattr(turn_setup, "chat_manager", lambda _session: chat_manager)
-    monkeypatch.setattr(
-        turn_setup,
-        "SQLAlchemyModelProviderRepository",
-        lambda _session: SimpleNamespace(get=AsyncMock(return_value=provider)),
-    )
-    monkeypatch.setattr(
-        turn_setup,
-        "SQLAlchemyAnimaChatProfileRepository",
-        lambda _session: SimpleNamespace(
+    repositories = SimpleNamespace(
+        animas=SimpleNamespace(
+            is_owned_by_user=AsyncMock(
+                side_effect=lambda *, user_id, anima_id: (user_id, anima_id) == (_OWNER, _ANIMA)
+            ),
+            stored_emotional_state=AsyncMock(return_value=None),
+        ),
+        anima_runtime_snapshots=SimpleNamespace(
+            get_snapshot=AsyncMock(
+                return_value=SimpleNamespace(
+                    expires_at=datetime.now(UTC) + timedelta(minutes=5), catalog={"gestures": []}
+                )
+            )
+        ),
+        model_providers=SimpleNamespace(get=AsyncMock(return_value=provider)),
+        anima_chat_profiles=SimpleNamespace(
             get=AsyncMock(return_value=AnimaChatProfile(anima_id=_ANIMA, default_model_provider_id=provider.id))
         ),
+        user_settings=SimpleNamespace(get=AsyncMock(return_value=None)),
+        companion_safety=SimpleNamespace(
+            lock_ai_notice_state=AsyncMock(return_value=AiNoticeState()), save_ai_notice_state=AsyncMock()
+        ),
+        unit_of_work=SimpleNamespace(commit=AsyncMock()),
+        memory_entries=None,
+        user_file_processing=None,
     )
+    app.state.session_factory = session_factory
+    install_product_ports(app, _TransportPorts(app, repositories))
+    monkeypatch.setattr(turn_setup, "chat_manager", lambda _repositories: chat_manager)
     monkeypatch.setattr(
         turn_setup,
         "resolve_chat_request_options",
@@ -193,17 +223,6 @@ def _install_context(monkeypatch: pytest.MonkeyPatch, sessions: list[_Session]) 
             )
         ),
     )
-    monkeypatch.setattr(
-        turn_setup,
-        "AnimaRuntimeService",
-        lambda _session: SimpleNamespace(
-            get_snapshot=AsyncMock(
-                return_value=SimpleNamespace(
-                    expires_at=datetime.now(UTC) + timedelta(minutes=5), catalog={"gestures": []}
-                )
-            )
-        ),
-    )
 
 
 @asynccontextmanager
@@ -211,9 +230,9 @@ async def _serve(monkeypatch: pytest.MonkeyPatch, turns: list[_ProviderTurn]) ->
     """Own just one ephemeral loopback socket; never attach to a running stack."""
 
     sessions: list[_Session] = []
-    _install_context(monkeypatch, sessions)
     provider = _Provider(turns)
     app = FastAPI(docs_url=None, redoc_url=None, openapi_url=None)
+    _install_context(monkeypatch, app, sessions)
     app.include_router(router)
     app.state.model_client_registry = StaticModelClientRegistry({"OpenAIHTTPAgent": provider})
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as listener:

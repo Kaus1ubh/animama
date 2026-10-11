@@ -8,7 +8,6 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
-from fastapi import FastAPI, Request
 
 from animama.adapters.model_clients.openai_responses.final import input_moderation_from_response
 from animama.adapters.model_clients.openai_responses.request import create_response_kwargs
@@ -29,10 +28,10 @@ from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.usage import Usage
 from animama.orm.companion_safety import ORMCompanionSafetyState
+from animama.product_http.chat.safety import TurnSafety, ai_notice_frame
 from animama.server.config import Settings
-from animama.server.routers.anima import chat_anima_direct_sse
-from animama.server.routers.chat.safety import TurnSafety, ai_notice_frame
 from tests import test_anima_chat_sse as route
+from tests.product_http_support import local_turn_sessions
 
 CRISIS_MESSAGE = "I want to kill myself"
 
@@ -118,19 +117,11 @@ def test_responses_request_carries_moderation_field_only_when_requested() -> Non
 # --- Route-level safety frames ---------------------------------------------------
 
 
-def _request(runtime_settings: Settings | None = None) -> Request:
-    app = FastAPI()
-    app.state.model_client_registry = route._CURRENT_TEST_REGISTRY
-    if runtime_settings is not None:
-        app.state.runtime_settings = runtime_settings
-    return Request({"type": "http", "app": app})
-
-
 async def _run(message: str, *, runtime_settings: Settings | None = None, **chat_values: Any) -> list[str]:
-    response = await chat_anima_direct_sse(
+    response = await route.chat_anima_direct_sse(
         "anima-1",
         route._chat_request(message=message, run_id="run-1", chat_id="chat-1", **chat_values),
-        request=_request(runtime_settings),
+        request=route._test_request(runtime_settings=runtime_settings),
         user=RequestPrincipal(id="user-1"),
     )
     return await route._collect_chunks(response)
@@ -281,11 +272,10 @@ def _turn_safety() -> TurnSafety:
 
 async def test_ai_notice_is_recorded_once_per_day_across_turns(async_session_factory) -> None:
     owner = f"notice-owner-{uuid4()}"
-    first = await ai_notice_frame(
-        _turn_safety(), session_factory=async_session_factory, user_id=owner, run_id="run-a", anima_name="Annie"
-    )
+    sessions = local_turn_sessions(async_session_factory, owner)
+    first = await ai_notice_frame(_turn_safety(), sessions=sessions, user_id=owner, run_id="run-a", anima_name="Annie")
     second = await ai_notice_frame(
-        _turn_safety(), session_factory=async_session_factory, user_id=owner, run_id="run-b", anima_name="Caitlyn"
+        _turn_safety(), sessions=sessions, user_id=owner, run_id="run-b", anima_name="Caitlyn"
     )
     assert first is not None and '"kind": "start"' in first
     assert second is None
@@ -299,7 +289,11 @@ async def test_ai_notice_is_shown_when_state_is_unavailable() -> None:
         raise RuntimeError("database unavailable")
 
     frame = await ai_notice_frame(
-        _turn_safety(), session_factory=broken_factory, user_id="owner", run_id="run-x", anima_name=None
+        _turn_safety(),
+        sessions=local_turn_sessions(broken_factory, "owner"),
+        user_id="owner",
+        run_id="run-x",
+        anima_name=None,
     )
     assert frame is not None and '"kind": "start"' in frame
 

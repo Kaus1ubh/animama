@@ -35,7 +35,6 @@ from animama.domain.model_connection import REASONING_MODE_OPENAI_EFFORT
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMChat, ORMChatMessage, ORMModelProvider
 from animama.orm.anima import ORMAnima
-from animama.server.routers.anima import chat_anima_direct_sse
 from tests.test_anima_chat_sse import (
     _chat_request,
     _collect_chunks,
@@ -46,6 +45,7 @@ from tests.test_anima_chat_sse import (
     _seed_chat_model_provider,
     _seed_owner_connection,
     _test_request,
+    chat_anima_direct_sse,
 )
 from tests.test_model_client_registry import _owner_connection
 from tests.test_model_connection_credentials import _HOSTILE_PROCESS_ENVIRONMENT, _headers_sent_by_real_sdk

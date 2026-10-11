@@ -18,10 +18,14 @@ from animama.adapters.repositories.sqlalchemy.content_catalog_repo import SQLAlc
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
+from animama.app.model_clients import ModelClientRegistry
+from animama.app.ports.text_embedder import TextEmbedder
 from animama.app.safety.crisis_resources import CrisisResourceTable
 from animama.app.services.anima_package_source_service import AnimaPackageSourceService
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.app.services.avatar_face_parts_service import AvatarFacePartsService
+from animama.app.services.chat_compaction_service import ChatCompactionSettings
+from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_export import DownloadLease
 from animama.app.services.content_package_service import ContentPackageService
@@ -32,10 +36,15 @@ from animama.app.services.memory_manager_service import MemoryManagerService
 from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
 from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.app.services.typed_content_service import TypedContentService
+from animama.app.web_search import WebSearchToolService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.delivery import PackageDownloadResponse, encoded_json_response, verified_file_response
 from animama.product_http.ports import (
+    ChatTurnAdmission,
+    ChatTurnLease,
+    ChatTurnOutcome,
+    ChatTurnPolicy,
     ProductContent,
     ProductPolicy,
     ProductRefusal,
@@ -51,6 +60,7 @@ from animama.server.embedding_refresh import (
     get_embedding_refresh_worker,
     wake_embedding_refresh,
 )
+from animama.server.embeddings import role_embedder
 from animama.server.installation_personalization import (
     FirstRunIncompleteError,
     InstallationPersonalizationService,
@@ -58,8 +68,10 @@ from animama.server.installation_personalization import (
 )
 from animama.server.local_runtime import LocalRuntimePaths, local_content_store
 from animama.server.memory_manager import local_memory_manager_service
-from animama.server.model_roles import composition_model_policy, model_role_defaults
+from animama.server.model_clients import get_model_client_registry
+from animama.server.model_roles import ModelRoleSettings, composition_model_policy, model_role_defaults
 from animama.server.runtime_capabilities import local_runtime_capabilities, runtime_settings_for
+from animama.server.web_search import composition_web_search_enabled, turn_web_search_tool
 
 
 def local_product_content(
@@ -103,6 +115,38 @@ def local_product_content(
         store=store,
         runtime=AnimaRuntimeService(session, store=store),
     )
+
+
+class LocalChatTurnLease:
+    """The local guard admits every turn: one owner, no metering and no session lease."""
+
+    async def check(self) -> None:
+        return None
+
+    async def settle(self, outcome: ChatTurnOutcome) -> None:
+        return None
+
+
+class LocalChatTurnServices:
+    """A local turn's collaborators: the app's model clients, owner web search and embeddings."""
+
+    def __init__(self, app: FastAPI, principal: RequestPrincipal) -> None:
+        self._app = app
+        self._principal = principal
+
+    @property
+    def model_clients(self) -> ModelClientRegistry | None:
+        return get_model_client_registry(self._app)
+
+    async def web_search_tool(self, session: AsyncSession) -> WebSearchToolService | None:
+        return await turn_web_search_tool(session, enabled=composition_web_search_enabled(self._app))
+
+    async def attachment_embedder(self, session: AsyncSession) -> TextEmbedder | None:
+        return await role_embedder(session, self._principal.id, ModelRoleSettings.for_app(self._app))
+
+    @property
+    def speech(self) -> LocalSpeech:
+        return LocalSpeech(runtime_settings_for(self._app))
 
 
 def local_file_response(file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool) -> Response:
@@ -157,6 +201,33 @@ class LocalProductPorts:
     def speech(self) -> LocalSpeech:
         # Credentials, retries and the concurrency limit stay process-wide in elevenlabs_service.
         return LocalSpeech(runtime_settings_for(self._app))
+
+    @property
+    def chat_policy(self) -> ChatTurnPolicy:
+        settings = runtime_settings_for(self._app)
+        return ChatTurnPolicy(
+            compaction=ChatCompactionSettings(
+                enabled=settings.anima_chat_compaction_enabled,
+                threshold_tokens=settings.anima_chat_compaction_threshold_tokens,
+                recent_message_min_count=settings.anima_chat_compaction_recent_message_min_count,
+                prompt_version=settings.anima_chat_compaction_prompt_version,
+            ),
+            presend_compaction_timeout_seconds=settings.anima_chat_presend_compaction_timeout_seconds,
+            title_generation=ChatTitleGenerationSettings(
+                enabled=settings.anima_chat_title_generation_enabled,
+                prompt_version=settings.anima_chat_title_generation_prompt_version,
+                max_chars=settings.anima_chat_title_generation_max_chars,
+                timeout_seconds=settings.anima_chat_title_generation_timeout_seconds,
+                reasoning_effort=settings.anima_chat_title_generation_reasoning_effort,
+            ),
+            companion_safety=settings.companion_safety,
+        )
+
+    async def admit_chat_turn(self, principal: RequestPrincipal, admission: ChatTurnAdmission) -> ChatTurnLease:
+        return LocalChatTurnLease()
+
+    def chat_turn(self, principal: RequestPrincipal, lease: ChatTurnLease) -> LocalChatTurnServices:
+        return LocalChatTurnServices(self._app, principal)
 
     @asynccontextmanager
     async def read_session(self, principal: RequestPrincipal) -> AsyncIterator[AsyncSession]:

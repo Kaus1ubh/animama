@@ -6,6 +6,7 @@ from typing import Any
 
 import pytest
 
+from animama.app.contracts.elevenlabs import PyElevenLabsVoice
 from animama.app.voice_emotional_tone import (
     elevenlabs_v3_text_with_emotional_prefix,
     normalize_elevenlabs_emotional_tone,
@@ -19,25 +20,10 @@ from animama.server.elevenlabs_service import (
 )
 
 
-class _FakeSession:
-    async def get(self, model: Any, key: Any) -> Any:
-        if getattr(model, "__name__", "") == "ORMAnima":
-            return SimpleNamespace(id="anima-1", user_id="test-user") if key == "anima-1" else None
-        if getattr(model, "__name__", "") == "ORMAnimaSettings":
-            if key != ("test-user", "anima-1"):
-                return None
-            return SimpleNamespace(
-                user_id="test-user",
-                anima_id="anima-1",
-                preferences={
-                    "speech": {
-                        "elevenlabs": {
-                            "primary_voice": {"voice_id": "voice-primary"},
-                        }
-                    }
-                },
-            )
-        return None
+async def _primary_voice() -> PyElevenLabsVoice:
+    """The Anima's voice, as the chat route's resolver reads it from the owner's settings."""
+
+    return PyElevenLabsVoice(voice_id="voice-primary")
 
 
 def test_removed_elevenlabs_tts_proxy_routes_are_not_registered() -> None:
@@ -146,11 +132,7 @@ async def test_realtime_tts_session_is_direct_only(
     )
 
     payload = await resolve_realtime_tts_session(
-        session=_FakeSession(),  # type: ignore[arg-type]
-        user_id="test-user",
-        anima_id="anima-1",
-        emotion_label=None,
-        emotion_intensity=None,
+        voice=_primary_voice,
         language_code="en",
         model_id="eleven_flash_v2_5",
     )
@@ -187,8 +169,7 @@ async def test_internal_finalized_tts_stream_uses_prepared_text(
     monkeypatch.setattr("animama.server.elevenlabs_service.build_gruut_sse_text", _unexpected_gruut)
 
     prepared = await prepare_finalized_tts_stream_from_text(
-        session=_FakeSession(),  # type: ignore[arg-type]
-        user_id="test-user",
+        voice=_primary_voice,
         anima_id="anima-1",
         run_id="run-1",
         text="Call one hundred.",
@@ -221,8 +202,7 @@ async def test_internal_finalized_tts_stream_omits_previous_text_for_eleven_v3(
     )
 
     prepared = await prepare_finalized_tts_stream_from_text(
-        session=_FakeSession(),  # type: ignore[arg-type]
-        user_id="test-user",
+        voice=_primary_voice,
         anima_id="anima-1",
         run_id="run-1",
         text="Second segment.",
@@ -253,8 +233,7 @@ async def test_internal_finalized_tts_stream_prefixes_eleven_v3_provider_text(
     )
 
     prepared = await prepare_finalized_tts_stream_from_text(
-        session=_FakeSession(),  # type: ignore[arg-type]
-        user_id="test-user",
+        voice=_primary_voice,
         anima_id="anima-1",
         run_id="run-1",
         text="Call one hundred.",
@@ -284,8 +263,7 @@ async def test_internal_finalized_tts_stream_can_skip_eleven_v3_emotional_prefix
     )
 
     prepared = await prepare_finalized_tts_stream_from_text(
-        session=_FakeSession(),  # type: ignore[arg-type]
-        user_id="test-user",
+        voice=_primary_voice,
         anima_id="anima-1",
         run_id="run-1",
         text="Call one hundred.",
@@ -320,8 +298,6 @@ async def test_internal_finalized_tts_stream_uses_resolved_voice_id_without_vali
     monkeypatch.setattr("animama.server.elevenlabs_service.build_gruut_sse_text", _unexpected_gruut)
 
     prepared = await prepare_finalized_tts_stream_from_text(
-        session=None,
-        user_id="test-user",
         anima_id="anima-1",
         run_id="run-1",
         text="Call one hundred.",

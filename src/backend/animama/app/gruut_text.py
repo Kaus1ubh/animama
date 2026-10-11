@@ -1,12 +1,18 @@
+"""Tokenized text and per-word phonemes for chat frames and speech (gruut).
+
+gruut comes with the ``server`` extra. Without it, ``build_gruut_sse_text`` returns
+``None`` and frames carry no phoneme payloads.
+"""
+
 from __future__ import annotations
 
 from time import perf_counter
 from types import ModuleType
 from typing import Literal
 
-from animama.logging_config import get_logger
+from animama.logging import get_logger
 
-_log = get_logger("server.gruut_text")
+_log = get_logger("app.gruut_text")
 
 _gruut: ModuleType | None
 try:

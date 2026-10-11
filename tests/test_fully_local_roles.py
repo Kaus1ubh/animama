@@ -16,7 +16,7 @@ from uuid import uuid4
 
 import httpx
 import pytest
-from fastapi import FastAPI, Request
+from fastapi import Request
 from openai import AsyncOpenAI
 from sqlalchemy import delete, select
 
@@ -25,8 +25,6 @@ from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.model_clients import StaticModelClientRegistry
 from animama.app.model_clients.credentials import static_credential_resolver
 from animama.app.services.archive_service import ArchiveService
-from animama.app.services.chat_compaction_service import ChatCompactionSettings
-from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMChat, ORMModelProvider
@@ -41,8 +39,6 @@ from animama.server.embeddings import role_embedder
 from animama.server.memory_manager import local_memory_manager_service
 from animama.server.model_clients import build_model_client_registry
 from animama.server.model_roles import ModelRoleSettings
-from animama.server.routers import anima as anima_router
-from animama.server.routers.chat import compaction as chat_compaction, title as chat_title
 from tests import test_anima_chat_sse as sse
 
 LOCAL_BASE_URL = "http://127.0.0.1:11434/v1"
@@ -213,7 +209,7 @@ async def _seed_local_roles(session, owner_id: str) -> None:  # noqa: ANN001
 def _local_request(registry: StaticModelClientRegistry) -> Request:
     """A request to the local composition, which enables owner model roles."""
 
-    app = FastAPI()
+    app = sse._route_app()
     app.state.model_client_registry = registry
     app.state.model_catalog_policy = ModelCatalogPolicy(owner_models_enabled=True)
     return Request({"type": "http", "app": app})
@@ -222,7 +218,7 @@ def _local_request(registry: StaticModelClientRegistry) -> Request:
 async def _chat_turn(
     registry: StaticModelClientRegistry, anima_id: str, chat_id: str, owner_id: str, run_id: str
 ) -> list[str]:
-    response = await anima_router.chat_anima_direct_sse(
+    response = await sse.chat_anima_direct_sse(
         anima_id,
         sse._chat_request(message="Tell me about the moon", run_id=run_id, chat_id=chat_id),
         request=_local_request(registry),
@@ -260,15 +256,13 @@ async def test_local_roles_complete_every_job_without_an_openai_request(
         monkeypatch, async_session_factory, model_client=local_client, default_model_provider_id=CHAT_ROW
     )
     registry.register("OpenAIResponsesHTTPAgent", _ForbiddenClient())
-    monkeypatch.setattr(
-        chat_title,
-        "chat_title_generation_settings",
-        lambda: ChatTitleGenerationSettings(enabled=True, prompt_version="local-title", max_chars=48),
-    )
-    monkeypatch.setattr(
-        chat_compaction,
-        "chat_compaction_settings",
-        lambda: ChatCompactionSettings(enabled=True, threshold_tokens=1, recent_message_min_count=2),
+    sse._CURRENT_SETTINGS_UPDATES.update(
+        anima_chat_title_generation_enabled=True,
+        anima_chat_title_generation_prompt_version="local-title",
+        anima_chat_title_generation_max_chars=48,
+        anima_chat_compaction_enabled=True,
+        anima_chat_compaction_threshold_tokens=1,
+        anima_chat_compaction_recent_message_min_count=2,
     )
 
     # A chat turn and the first-turn title.

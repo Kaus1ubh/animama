@@ -28,6 +28,9 @@ from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.delivery import PackageDownloadResponse
 from animama.product_http.ports import (
+    ChatTurnAdmission,
+    ChatTurnLease,
+    ChatTurnServices,
     ProductPolicy,
     ProductUploads,
     ReadContent,
@@ -42,7 +45,7 @@ from animama.server.app import create_local_app
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.product_ports import LocalProductPorts, local_file_response
-from tests.product_http_support import HOSTED_CAPABILITIES, FakeSpeech
+from tests.product_http_support import HOSTED_CAPABILITIES, TEST_CHAT_POLICY, FakeSpeech
 
 OWNER = RequestPrincipal(id="owner")
 
@@ -78,6 +81,7 @@ class RecordingPorts:
     model_catalog_policy = ModelCatalogPolicy()
     model_role_defaults = ModelRoleDefaults(chat="chat-model")
     speech = FakeSpeech()
+    chat_policy = TEST_CHAT_POLICY
 
     def __init__(self, *, fail_commit: bool = False) -> None:
         self.opened: list[tuple[str, str]] = []
@@ -142,6 +146,12 @@ class RecordingPorts:
         raise NotImplementedError
 
     def uploads(self, principal: RequestPrincipal) -> ProductUploads:
+        raise NotImplementedError
+
+    async def admit_chat_turn(self, principal: RequestPrincipal, admission: ChatTurnAdmission) -> ChatTurnLease:
+        raise NotImplementedError
+
+    def chat_turn(self, principal: RequestPrincipal, lease: ChatTurnLease) -> ChatTurnServices:
         raise NotImplementedError
 
 

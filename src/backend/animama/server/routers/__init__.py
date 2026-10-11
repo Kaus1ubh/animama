@@ -4,6 +4,7 @@ from animama.product_http.routes import (
     anima_runtime,
     animas,
     avatars,
+    chat_turns,
     chats,
     content as shared_content,
     elevenlabs as shared_elevenlabs,
@@ -21,7 +22,6 @@ from animama.product_http.routes import (
 )
 
 from . import (
-    anima,
     anima_creation,
     archive,
     content,
@@ -39,7 +39,7 @@ router = APIRouter()
 router.include_router(anima_creation.router)
 router.include_router(animas.router)
 router.include_router(voice_catalogs.router)
-router.include_router(anima.router)
+router.include_router(chat_turns.router)
 router.include_router(loadouts.router)
 router.include_router(anima_runtime.router)
 router.include_router(model_catalog.router)

@@ -35,6 +35,14 @@ class SQLAlchemyCompanionSafetyRepository:
         assert row is not None
         return row
 
+    async def lock_ai_notice_state(self, user_id: str) -> AiNoticeState:
+        return ai_notice_state(await self.lock(user_id))
+
+    async def save_ai_notice_state(self, user_id: str, state: AiNoticeState) -> None:
+        # The row is in the session after lock_ai_notice_state; locking again is a no-op read.
+        row = await self._session.get(ORMCompanionSafetyState, user_id) or await self.lock(user_id)
+        apply_ai_notice_state(row, state)
+
     async def get_age_status(self, user_id: str) -> AgeStatus:
         status = await self._session.scalar(
             select(ORMCompanionSafetyState.age_status).where(ORMCompanionSafetyState.user_id == user_id)

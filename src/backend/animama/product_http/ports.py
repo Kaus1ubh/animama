@@ -9,28 +9,34 @@ the ports they need as they move into this package.
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Annotated, Protocol, cast
+from typing import Annotated, Any, Literal, Protocol, cast
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.app.contracts.chat import PyAnimaChatRequest
 from animama.app.contracts.elevenlabs import (
     PyElevenLabsAudioResponse,
+    PyElevenLabsRealtimeTtsSessionResponse,
     PyElevenLabsSoundEffectsRequest,
     PyElevenLabsTextToSpeechRequest,
     PyElevenLabsVoice,
 )
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
+from animama.app.model_clients import ModelClientRegistry
 from animama.app.ports.anima_chat_profile_port import AnimaChatProfileRepository
 from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.anima_presentation_port import AnimaPresentationRepository
+from animama.app.ports.anima_runtime_snapshot_port import AnimaRuntimeSnapshotReader
 from animama.app.ports.avatar_port import AvatarRepository
+from animama.app.ports.chat_compaction_port import ChatCompactionRepository
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.chat_port import ChatRepository
+from animama.app.ports.companion_safety_port import CompanionSafetyStateRepository
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.ports.content_store import ContentStore
 from animama.app.ports.memory_entry_port import MemoryEntryRepository
@@ -38,13 +44,18 @@ from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.ports.model_provider_port import ModelProviderRepository
 from animama.app.ports.private_file_storage import PrivateFileStorage
 from animama.app.ports.settings_port import AnimaSettingsRepository, UserSettingsRepository
+from animama.app.ports.text_embedder import TextEmbedder
 from animama.app.ports.uow_port import UnitOfWork
+from animama.app.ports.user_file_processing_port import UserFileProcessingRepository
 from animama.app.ports.user_profile_port import UserProfileRepository
 from animama.app.ports.voice_catalog_upload_port import VoiceCatalogUploadRepository
+from animama.app.safety.config import OperatorSafetyConfig
 from animama.app.safety.crisis_resources import CrisisResourceTable
 from animama.app.services.anima_loadout_service import AnimaLoadoutService
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
 from animama.app.services.avatar_face_parts_service import AvatarFacePartsService
+from animama.app.services.chat_compaction_service import ChatCompactionSettings
+from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.content_catalog_service import ContentCatalogService
 from animama.app.services.content_package_export import DownloadLease
 from animama.app.services.content_package_service import ContentPackageService
@@ -54,6 +65,7 @@ from animama.app.services.memory_manager_service import MemoryManagerService
 from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
 from animama.app.services.model_role_resolver import ModelRoleDefaults, ModelRoleResolver
 from animama.app.services.typed_content_service import TypedContentService
+from animama.app.web_search import WebSearchToolService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.principal import get_current_principal
@@ -81,6 +93,9 @@ class ProductRepositories(Protocol):
 
     @property
     def chat_messages(self) -> ChatMessageRepository: ...
+
+    @property
+    def chat_compactions(self) -> ChatCompactionRepository: ...
 
     @property
     def memory_entries(self) -> MemoryEntryRepository: ...
@@ -112,6 +127,17 @@ class ProductRepositories(Protocol):
 
     @property
     def voice_catalog_uploads(self) -> VoiceCatalogUploadRepository: ...
+
+    @property
+    def user_file_processing(self) -> UserFileProcessingRepository:
+        """Uploaded files a chat turn may search; a composition without them reports none."""
+        ...
+
+    @property
+    def companion_safety(self) -> CompanionSafetyStateRepository: ...
+
+    @property
+    def anima_runtime_snapshots(self) -> AnimaRuntimeSnapshotReader: ...
 
     @property
     def unit_of_work(self) -> UnitOfWork: ...
@@ -149,13 +175,31 @@ class ProductContent:
     runtime: AnimaRuntimeService
 
 
+VoiceResolver = Callable[[], Awaitable[PyElevenLabsVoice]]
+"""Looks up the Anima's ElevenLabs voice when a speech operation needs it."""
+
+
+class FinalizedSpeech(Protocol):
+    """One reply segment prepared for finalized (eleven_v3) speech."""
+
+    @property
+    def voice_id(self) -> str: ...
+
+    @property
+    def model_id(self) -> str: ...
+
+    @property
+    def output_format(self) -> str: ...
+
+
 class ProductSpeech(Protocol):
     """Paid speech operations a composition offers its owners (ElevenLabs).
 
     The composition holds the provider credentials, retries, concurrency and any
     metering; it refuses an operation it does not offer with ``ProductRefusal`` (or
     an ``HTTPException`` with its own body). ``audio_upload_max_bytes`` bounds each
-    uploaded sample.
+    uploaded sample. The chat-turn operations resolve the Anima's voice through the
+    ``voice`` the turn supplies, after the composition's own checks.
     """
 
     @property
@@ -185,6 +229,119 @@ class ProductSpeech(Protocol):
         """Generate a sound effect for ``principal`` from ``request.text``."""
         ...
 
+    async def realtime_session(
+        self,
+        principal: RequestPrincipal,
+        *,
+        voice: VoiceResolver,
+        language_code: str | None,
+        model_id: str | None,
+    ) -> PyElevenLabsRealtimeTtsSessionResponse:
+        """Describe a realtime speech session for one chat reply."""
+        ...
+
+    async def prepare_finalized(
+        self,
+        principal: RequestPrincipal,
+        *,
+        voice: VoiceResolver | None,
+        voice_id: str | None,
+        anima_id: str,
+        run_id: str,
+        text: str,
+        model_id: str | None,
+        language_code: str | None,
+        text_basis: str,
+        emotional_tone: str | None,
+        emotional_state: dict[str, int] | None,
+        previous_text: str | None,
+        apply_emotional_prefix: bool,
+    ) -> FinalizedSpeech:
+        """Prepare one reply segment; ``voice_id`` reuses the voice an earlier segment resolved."""
+        ...
+
+    def stream_finalized(self, prepared: FinalizedSpeech) -> AsyncIterator[dict[str, Any]]:
+        """Stream the segment's audio as ``audio`` payloads, then ``done`` or ``error``."""
+        ...
+
+
+@dataclass(frozen=True)
+class ChatTurnPolicy:
+    """How a composition runs chat turns.
+
+    ``public_error_text``, when set, replaces the text of turn error frames, and
+    codes outside a short lowercase pattern become ``turn_failed``, so provider
+    detail never reaches a browser. The local composition keeps both.
+    """
+
+    compaction: ChatCompactionSettings
+    presend_compaction_timeout_seconds: float
+    title_generation: ChatTitleGenerationSettings
+    companion_safety: OperatorSafetyConfig
+    public_error_text: str | None = None
+
+
+@dataclass(frozen=True)
+class ChatTurnAdmission:
+    """A chat turn asking to start: its Anima, chat and run, and the parsed request."""
+
+    anima_id: str
+    chat_id: str
+    run_id: str
+    request: PyAnimaChatRequest
+
+
+@dataclass(frozen=True)
+class ChatTurnStop:
+    """Why a composition ends a running turn: the error frame's code and message."""
+
+    code: str
+    message: str
+
+
+ChatTurnOutcome = Literal["unstarted", "completed", "failed", "interrupted"]
+"""How a turn ended: refused or failed setup, success, an error, or a disconnect or stop."""
+
+
+class ChatTurnLease(Protocol):
+    """The composition's hold on one admitted chat turn."""
+
+    async def check(self) -> ChatTurnStop | None:
+        """Return a stop when the turn must end now.
+
+        Awaited at every poll while the model streams (about every 50 ms) and before
+        each frame and step after the reply, so it must return quickly. A stop
+        before the reply is saved ends the turn with an error frame; afterwards the
+        remaining optional work is skipped.
+        """
+        ...
+
+    async def settle(self, outcome: ChatTurnOutcome) -> None:
+        """Called exactly once, after every turn task stopped, shielded from cancellation."""
+        ...
+
+
+class ChatTurnServices(Protocol):
+    """The paid collaborators of one admitted chat turn, which a composition may bind to its lease."""
+
+    @property
+    def model_clients(self) -> ModelClientRegistry | None:
+        """The model-client registry, or ``None`` while it is unavailable."""
+        ...
+
+    async def web_search_tool(self, session: AsyncSession) -> WebSearchToolService | None:
+        """The turn's web-search tool, or ``None`` when search is off."""
+        ...
+
+    async def attachment_embedder(self, session: AsyncSession) -> TextEmbedder | None:
+        """The embedder for the turn's attached files, or ``None`` while embeddings are off."""
+        ...
+
+    @property
+    def speech(self) -> ProductSpeech:
+        """The reply's speech operations."""
+        ...
+
 
 @dataclass(frozen=True)
 class ProductPolicy:
@@ -211,11 +368,11 @@ class ProductUploads:
 class ProductPorts(Protocol):
     """The composition-owned collaborators of shared product handlers.
 
-    Shared dependencies call the synchronous members (``policy``,
+    Shared dependencies call the synchronous members (``policy``, ``chat_policy``,
     ``model_catalog_policy``, ``model_role_defaults``, ``speech``, ``uploads``,
-    ``repositories``, ``content``, ``file_response``, ``download_response``,
-    ``crisis_resources`` and ``user_settings_changed``) on the event loop, so they
-    must not block.
+    ``chat_turn``, ``repositories``, ``content``, ``file_response``,
+    ``download_response``, ``crisis_resources`` and ``user_settings_changed``) on the
+    event loop, so they must not block.
     """
 
     @property
@@ -332,6 +489,22 @@ class ProductPorts(Protocol):
 
     def uploads(self, principal: RequestPrincipal) -> ProductUploads:
         """Private storage and the spool directory for ``principal``'s staged uploads."""
+        ...
+
+    @property
+    def chat_policy(self) -> ChatTurnPolicy: ...
+
+    async def admit_chat_turn(self, principal: RequestPrincipal, admission: ChatTurnAdmission) -> ChatTurnLease:
+        """Admit one chat turn before any write or paid work, or refuse it.
+
+        A composition refuses with its own exception, rendered by its exception
+        handlers, or with ``ProductRefusal``. The returned lease is settled exactly
+        once, including when setup fails after admission.
+        """
+        ...
+
+    def chat_turn(self, principal: RequestPrincipal, lease: ChatTurnLease) -> ChatTurnServices:
+        """The admitted turn's paid collaborators."""
         ...
 
     async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:

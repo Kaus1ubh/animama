@@ -53,6 +53,16 @@ class AnimaRepository(Protocol):
 
         raise NotImplementedError
 
+    async def stored_emotional_state(self, anima_id: str) -> dict[str, int] | None:
+        """Return the Anima's stored emotional state, normalized, or ``None`` when none is stored."""
+
+        raise NotImplementedError
+
+    async def record_emotional_state(self, *, user_id: str, anima_id: str, emotional_state: dict[str, int]) -> bool:
+        """Store the owned Anima's normalized emotional state; return whether it changed."""
+
+        raise NotImplementedError
+
     async def lock_definition(self, *, user_id: str, anima_id: str, expected_revision: int | None = None) -> Anima:
         """Lock the owned aggregate before any memory/loadout row locks.
 

@@ -1,14 +1,19 @@
+"""The bridge from a direct turn's domain events to SSE frames, and its terminal frames."""
+
 from __future__ import annotations
 
 import asyncio
-from collections.abc import AsyncIterator, Callable, Mapping
+from collections.abc import AsyncIterator, Awaitable, Callable, Mapping
 from typing import Any
 
 from animama.app.chat import DirectChatTurnExecutor, PreparedDirectChatTurn
 from animama.domain.emotions import emotional_state_from_values
 from animama.domain.events import ErrorPayload, Event, EventType, RunCompletedPayload
-from animama.logging_config import get_logger
-from animama.server.sse_events import (
+from animama.logging import get_logger
+from animama.product_http.ports import ChatTurnStop
+
+from .setup_helpers import TurnSessions
+from .sse_events import (
     GruutSseTextBuilder,
     SseTextState,
     format_avatar_gesture_requested_event,
@@ -23,7 +28,17 @@ from animama.server.sse_events import (
     persist_sse_side_effect,
 )
 
-_log = get_logger("server.routers.chat.sse_runtime")
+_log = get_logger("product_http.chat.sse_runtime")
+LeaseCheck = Callable[[], Awaitable[None]]
+"""Awaited between frames; raises ``TurnStopped`` when the composition ends the turn."""
+
+
+class TurnStopped(Exception):
+    """The composition's lease ended the turn; ``stop`` carries the error frame's code and message."""
+
+    def __init__(self, stop: ChatTurnStop) -> None:
+        super().__init__(stop.code)
+        self.stop = stop
 
 
 class DirectChatEventBridge:
@@ -53,7 +68,7 @@ async def drain_pending_events(
     *,
     run_id: str,
     anima_id: str,
-    session_factory: Any,
+    sessions: TurnSessions,
     state: SseTextState,
     build_gruut_sse_text: GruutSseTextBuilder,
     stream_user_response: bool,
@@ -71,7 +86,7 @@ async def drain_pending_events(
             event,
             run_id=run_id,
             anima_id=anima_id,
-            session_factory=session_factory,
+            sessions=sessions,
             state=state,
             build_gruut_sse_text=build_gruut_sse_text,
             stream_user_response=stream_user_response,
@@ -87,16 +102,19 @@ async def drain_events_while_task_runs(
     *,
     run_id: str,
     anima_id: str,
-    session_factory: Any,
+    sessions: TurnSessions,
     state: SseTextState,
     build_gruut_sse_text: GruutSseTextBuilder,
     stream_user_response: bool,
     stream_emotion_update: bool,
     poll_extra_frame: Callable[[], str | None] | None = None,
+    check_lease: LeaseCheck | None = None,
 ) -> AsyncIterator[str]:
     """Drain the event bridge while the model-client task is still running."""
 
     while not task.done():
+        if check_lease is not None:
+            await check_lease()
         if poll_extra_frame is not None:
             # Optional subsystems such as TTS can become ready without publishing
             # app-domain events, so poll them between queue waits.
@@ -112,7 +130,7 @@ async def drain_events_while_task_runs(
             event,
             run_id=run_id,
             anima_id=anima_id,
-            session_factory=session_factory,
+            sessions=sessions,
             state=state,
             build_gruut_sse_text=build_gruut_sse_text,
             stream_user_response=stream_user_response,
@@ -130,7 +148,7 @@ async def drain_events_while_task_runs(
         bridge,
         run_id=run_id,
         anima_id=anima_id,
-        session_factory=session_factory,
+        sessions=sessions,
         state=state,
         build_gruut_sse_text=build_gruut_sse_text,
         stream_user_response=stream_user_response,
@@ -256,7 +274,7 @@ async def _handle_direct_event(
     *,
     run_id: str,
     anima_id: str,
-    session_factory: Any,
+    sessions: TurnSessions,
     state: SseTextState,
     build_gruut_sse_text: GruutSseTextBuilder,
     stream_user_response: bool,
@@ -271,7 +289,7 @@ async def _handle_direct_event(
         event,
         run_id=run_id,
         anima_id=anima_id,
-        session_factory=session_factory,
+        sessions=sessions,
     )
 
     frame: str | None = None
@@ -292,7 +310,7 @@ async def _handle_direct_event(
     elif event.type == EventType.AVATAR_GESTURE_REQUESTED:
         frame = format_avatar_gesture_requested_event(event, run_id=run_id)
     elif stream_error and event.type == EventType.ERROR:
-        frame = format_error_event(event, run_id=run_id)
+        frame = format_error_event(event, run_id=run_id, public_error_text=state.public_error_text)
     elif event.type == EventType.CRISIS_SUPPORT:
         frame = format_crisis_support_event(run_id=run_id, source=event.payload.source, state=state)
     elif event.type == EventType.MEMORY_UPDATED:
