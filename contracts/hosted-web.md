@@ -21,7 +21,7 @@ its own catalog sets `ModelCatalogPolicy(validate_role_preferences=True)`, so
 settings writes refuse a role preference its catalog cannot serve
 (`422 model_role_unavailable`). Its speech port refuses an operation it does not
 offer, and its Memory Manager port may wrap each operation with its own admission;
-either refuses with `ProductRefusal`, which the route reports as `{"code": code}`
+either refuses with `ProductRefusal`, which the route reports as `detail.code`
 with the refusal's status. The route
 inventory marks each route shared, local-only or withheld by a capability; shared
 routes of later stages remain consumer-owned until they move. Shared byte routes

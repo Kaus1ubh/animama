@@ -62,8 +62,10 @@ journeys on a named built stack.
 - [x] PR #429 merged on 2026-10-10 as `d42eaad9` (ordinary merge commit), after one
   owner-approved full hosted `Validation` run (38082652779, passed). Phase issues
   #438–#440 are closed; #379 stays open for stages 4 and 5.
-- [ ] Phase 4: paid utilities and catalog reads (18 shared routes; audio isolation
-  stays local-only), issue #451. Approved 2026-10-10; in progress.
+- [x] Phase 4: paid utilities and catalog reads (18 shared routes; audio isolation
+  stays local-only), issue #451. Implemented 2026-10-10 in `0c620591`, `d619b69b`,
+  `316c4a8c`, `22f1aa77` and `56b24c0b`; review repairs in `4f4b78c3`.
+  `make check-test` passed on `4f4b78c3` and the targeted Code Review #2 passed.
 - [ ] Phase 5: chat streaming with the chat-turn guard, issue #452. Approved
   2026-10-10; depends on Phase 4.
 - [ ] Final integration review of Phases 4 and 5.
@@ -765,6 +767,17 @@ Code Review #1 Revisions:
   - The read-session guard runs the Memory Manager reads with the deterministic
     runtime; that role resolution only reads is shown by inspection.
 - O-01 to O-05 are applied.
+- Commit: `4f4b78c3`. Validation on `4f4b78c3`: ruff, the format check, mypy, the
+  boundary checker, 322 tests across the Phase 4 and migrated suites, and
+  `pnpm openapi-ts:check` (no SDK diff) passed; `make check-test` passed (3,920
+  passed, 27 skipped) with the LFS content hydrated.
+- Repair rounds used: 1 of 2.
+
+Code Review #2 (targeted, at `4f4b78c3`): P4R-01 to P4R-06 and O-01 to O-05 are
+resolved, and the OpenAPI export is still byte-identical to the baseline's. Its one
+note (R2-01: the hosted contract and the `ProductRefusal` docstring described the
+refusal body as `{"code": code}`, where the body is `detail.code`) is applied.
+Result: pass.
 
 ## Final integration review
 

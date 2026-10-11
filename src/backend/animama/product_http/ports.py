@@ -118,7 +118,7 @@ class ProductRepositories(Protocol):
 
 
 class ProductRefusal(Exception):
-    """A composition-specific refusal a shared route reports as ``{"code": code}``."""
+    """A composition-specific refusal a shared route reports as ``detail.code`` with its status."""
 
     def __init__(self, status_code: int, code: str) -> None:
         super().__init__(code)
