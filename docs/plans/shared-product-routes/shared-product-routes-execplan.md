@@ -67,7 +67,10 @@ journeys on a named built stack.
   `316c4a8c`, `22f1aa77` and `56b24c0b`; review repairs in `4f4b78c3`.
   `make check-test` passed on `4f4b78c3` and the targeted Code Review #2 passed.
 - [ ] Phase 5: chat streaming with the chat-turn guard, issue #452. Approved
-  2026-10-10; depends on Phase 4.
+  2026-10-10. Implemented 2026-10-10: golden transcripts on the unchanged route
+  (`3d6dac82`), the move with the guard and stage 5 served (`6061c74a`), guard and
+  two-owner tests (`abb956d1`) and docs (`10fbc91f`); review repairs in `1785ef1a`.
+  Code Review #2 (targeted) is pending.
 - [ ] Final integration review of Phases 4 and 5.
 
 ## Surprises & Discoveries
@@ -162,6 +165,41 @@ models, which changed chat, compaction and the Memory Manager):
   its own exception handlers; nested model, search, title, compaction and speech
   work reserves before dispatch, and error frames must not expose provider detail.
 
+Phase 5, during implementation (2026-10-10):
+
+- Starlette cancels a streaming body through anyio when the client leaves, and anyio
+  re-cancels every later await in that task. The chat stream's `finally` cleanup
+  could therefore be cut short, so the title, speech and model tasks it cancelled
+  could still be running when the response ended. Settling a lease "after every
+  task stopped" needed that cleanup shielded.
+- A cancellation landing while the reply was being saved could abort the save, or
+  surface after the commit so the turn looked unsaved. The guard tests' stop after
+  the save found it, and found that a stop during streaming with the reply already
+  saved reached the completion-frame helper before its definition.
+- The local route checked the model-client registry before the Anima. The registry
+  is now a turn collaborator (`chat_turn`), so a missing registry answers 503 after
+  the owner and runtime checks and after admission.
+- Title and compaction settings were read from the process settings; they now come
+  from the composition's chat policy, locally the app's runtime settings (the same
+  values in every production entrypoint). Title generation only reads, so it runs
+  on a read session and saves the title in its own write session.
+- Dead code went with the move: `stream_finalized_tts_frames`,
+  `prepare_finalized_tts_stream` and `resolve_anima_elevenlabs_voice`, and the
+  unused emotion parameters of `resolve_realtime_voice_from_preferences`.
+- The planned compaction transcript is not recorded: post-reply compaction emits no
+  frames, and the compaction suites cover it.
+- Phoneme payloads need gruut, which the wheel's `server` extra installs;
+  `app/gruut_text.py` returns no payload without it. It logs the reply text at info
+  level (pre-existing), which matters once a hosted composition runs it; a separate
+  task removes that.
+- The chat suites patched about 40 server internals. They now drive the shared
+  handler through test ports; the 67 direct calls keep their shape through a test
+  wrapper that opens the handler's write session, and the suites keep all 78 tests.
+- FastAPI ends function-scoped dependencies after the handler returns and before it
+  runs the response. A composition whose commit of the setup session fails there
+  discards the response, so settling only in the response left such a turn's lease
+  held (P5R-01).
+
 ## Decision Log
 
 - 2026-10-10, owner: after #429, continue #379 with stages 4 and 5 from current
@@ -195,6 +233,35 @@ models, which changed chat, compaction and the Memory Manager):
   4. Error text in chat error frames [a composition's chat policy may replace error
      text with fixed copy and codes outside a safe pattern with a generic code; the
      local policy keeps today's text and codes].
+- 2026-10-10, agent (Phase 5 implementation):
+  - Setup runs on the handler's function-scoped write session, so a composition
+    settles setup writes (a new chat) before the body runs. Stream work (recording,
+    episodes, memory tools, the AI notice state, emotional state, titles,
+    compaction and voice lookups) opens short-lived owner sessions through the ports
+    (`TurnSessions`).
+  - A refused admission returns no lease, so only admitted turns settle; `unstarted`
+    means admitted with nothing dispatched (this section's guard contract said
+    "refused or failed setup").
+  - The outcome is read when the lease settles: a saved reply completes the turn
+    whatever later optional work did. A reply save that has begun finishes even if
+    the turn is cancelled. The stream's cleanup and the settlement each run shielded,
+    bounded at five seconds.
+  - Chat speech joins `ProductSpeech` (`realtime_session`, `prepare_finalized`,
+    `stream_finalized`). The turn passes a voice resolver that looks up the caller's
+    Anima voice, owner-strict, in a short read session; the composition calls it
+    after its own checks, which keeps the local order of the key, model, voice and
+    access checks.
+  - `ProductRepositories` gains chat compactions, user-file processing,
+    companion-safety state and runtime snapshots, and the Anima repository gains
+    `stored_emotional_state` and an owner-checked `record_emotional_state`.
+  - The error-text policy of default 4 is `ChatTurnPolicy.public_error_text`. It
+    covers `error` frames; speech error frames carry the speech port's own
+    messages, which a hosted speech port uses for its denial copy.
+  - A stop cancels the turn's background title and speech tasks rather than letting
+    an in-flight call finish, as default 3 and this section's risk text expected;
+    only compaction, which runs inline, finishes a call in flight (P5R-06). The
+    composition's collaborators still recheck their own reservations at dispatch.
+
 - 2026-10-10, agent (implementation):
   - Ports grow with the families. Phase 1 defines `ProductPorts` with read and
     write sessions and the install/503 mechanism. Policy limits, profiles, safety
@@ -778,6 +845,86 @@ resolved, and the OpenAPI export is still byte-identical to the baseline's. Its 
 note (R2-01: the hosted contract and the `ProductRefusal` docstring described the
 refusal body as `{"code": code}`, where the body is `detail.code`) is applied.
 Result: pass.
+
+### Phase 5 review record
+
+Implementation from `e82d5026`: golden transcripts on the unchanged route
+(`3d6dac82`), the move with the guard and stage 5 served (`6061c74a`), guard and
+two-owner tests (`abb956d1`) and docs (`10fbc91f`). Validation on `10fbc91f`:
+`make check-test` passed (3,935 passed, 27 skipped; the two newest guard tests,
+added after its collection, passed separately); ruff, mypy over `src` and `tests`,
+the boundary checker (0 forbidden edges), the installed-wheel consumer and
+`pnpm openapi-ts:check` (SDK current) passed; the OpenAPI export is byte-identical
+to `e82d5026`'s; the full `pnpm e2e:test` on the built stack `animama-sharechat`
+serving `10fbc91f` passed 40 of 40 (11.3 min).
+
+Code Review #1 Findings (at `10fbc91f`):
+
+- P5R-01 (blocking): a composition's commit of the setup session runs when FastAPI
+  ends the function-scoped write session, after the handler returned. If it raised,
+  the response never ran and neither settlement path did, so an admitted lease
+  stayed held (a scratch probe with a failing deferred commit: no settlement).
+- P5R-02: only the recorder's first wait was shielded. A client leaving while the
+  stop or error path waited in the unshielded task stop cancelled the model task a
+  second time, which aborted a reply save it had begun; those waits were also
+  unbounded. A finished task's error was not retrieved when a stop followed it.
+- P5R-03: wording: the outcome docstring still named refused turns; the public error
+  text covers `error` frames only, not speech error frames; `check()` runs before
+  each drained event (not "about every 50 ms"), and frames drained right after the
+  model finishes are not checked; "exactly once" depended on P5R-01.
+- P5R-04: the disconnect test asserted no running tasks after the request returned,
+  not when the lease settled; the save task had no name.
+- P5R-05: a finished incognito turn was marked done only after the final drain, so a
+  disconnect during that drain settled it `interrupted`.
+- P5R-06: a stop cancels background title and speech tasks; record the deviation
+  from default 3.
+- P5R-07: the previous-text helper belongs in `app/`; `_LeasedStreamingResponse`
+  keeps the body twice; the guard tests import helpers from another test module; a
+  Responses continuation retry reloads chat context through the setup session's
+  chat manager after that session closed (pre-existing).
+
+Code Review #1 Revisions (`1785ef1a`):
+
+- P5R-01: a function-scoped `TurnHold` dependency, declared before the write
+  session, holds the admitted lease and settles it `unstarted` when the request
+  fails before its response runs, including a failed setup commit; the handler's
+  own settlement path is gone. `DeferredCommitPorts.fail_next_commit` makes the next
+  deferred commit roll back and raise, and a test shows the turn settles once.
+- P5R-02: stopping the turn's tasks is shielded and bounded at every call site, a
+  task already cancelling is not cancelled again, and finished tasks are awaited so
+  their errors are retrieved.
+- P5R-03: the port docstrings, the chat guide and the hosted contract state the
+  check points, the public error text's scope (speech error frames carry the speech
+  port's messages, which must be browser-safe) and what each outcome covers.
+- P5R-04: the recording lease captures the `direct-chat-*` tasks still running when
+  it settles, the save task is named `direct-chat-save`, and the stop, save and
+  disconnect tests assert none ran.
+- P5R-05: a turn is marked finished as soon as its task returns without an error; a
+  test covers an incognito turn.
+- P5R-06: recorded in the Decision Log.
+- P5R-07: the helper moved to `app/voice_emotional_tone.py`; the shared helpers moved
+  to `tests/chat_turn_support.py`; `_body` stays as the typed generator
+  `aclose()` needs, with a comment; the continuation retry is a recorded
+  limitation below.
+- Validation on `1785ef1a`: ruff, the format check, mypy over `src` and `tests`, the
+  boundary checker and 551 tests across 25 chat-related suites passed; the guard and
+  golden suites passed four repeated runs.
+- Repair rounds used: 1 of 2.
+
+Limitations for a consumer adopting the chat route (like FI-05):
+
+- A stop takes effect at the next check; work in flight inside the model task (a
+  tool call, web search or pre-send compaction) runs until its own await returns or
+  is cancelled with the task.
+- The Responses continuation retry reads chat context through the setup session's
+  chat manager after that session closed, outside the composition's session
+  lifecycle (reads only; unchanged behaviour).
+- `settle` and the shielded cleanup are each bounded at five seconds; a slower
+  settlement is abandoned, so a composition settles quickly (for example by
+  enqueueing).
+- Speech error frames carry the speech port's exception messages.
+- The voice resolver opens one short read session for the first speech segment or
+  the realtime session.
 
 ## Final integration review
 
