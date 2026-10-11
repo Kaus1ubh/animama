@@ -8,6 +8,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, HTTPException, Request, Response
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.content_store.private_file_store import FilesystemPrivateFileStorage
 from animama.adapters.repositories.sqlalchemy.anima_aggregate_uow import SQLAlchemyAnimaAggregateUnitOfWork
 from animama.adapters.repositories.sqlalchemy.anima_package_source_repo import SQLAlchemyAnimaPackageSourceRepository
 from animama.adapters.repositories.sqlalchemy.avatar_face_part_override_repo import (
@@ -34,7 +35,13 @@ from animama.app.services.typed_content_service import TypedContentService
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.delivery import PackageDownloadResponse, encoded_json_response, verified_file_response
-from animama.product_http.ports import ProductContent, ProductPolicy, ProductRefusal, model_role_resolver
+from animama.product_http.ports import (
+    ProductContent,
+    ProductPolicy,
+    ProductRefusal,
+    ProductUploads,
+    model_role_resolver,
+)
 from animama.server.companion_safety import runtime_crisis_resources
 from animama.server.config import Settings
 from animama.server.deps import get_async_session_factory
@@ -131,7 +138,11 @@ class LocalProductPorts:
     def policy(self) -> ProductPolicy:
         # The app's own runtime settings, read per request like the sessions.
         settings = runtime_settings_for(self._app)
-        return ProductPolicy(memory_file_max_bytes=settings.anima_memory_file_max_bytes)
+        return ProductPolicy(
+            memory_file_max_bytes=settings.anima_memory_file_max_bytes,
+            voice_catalog_max_upload_bytes=settings.anima_pocket_voice_catalog_max_upload_bytes,
+            private_upload_ttl_seconds=settings.private_upload_url_ttl_seconds,
+        )
 
     @property
     def model_catalog_policy(self) -> ModelCatalogPolicy:
@@ -157,13 +168,24 @@ class LocalProductPorts:
     def repositories(self, session: AsyncSession) -> SQLAlchemyProductRepositories:
         return SQLAlchemyProductRepositories(session)
 
-    @asynccontextmanager
-    async def content(self, session: AsyncSession, principal: RequestPrincipal) -> AsyncIterator[ProductContent]:
+    def _runtime_paths(self) -> LocalRuntimePaths:
         # Startup prepares the runtime paths; a request never creates them.
         paths = getattr(self._app.state, "local_runtime_paths", None)
         if not isinstance(paths, LocalRuntimePaths):
             raise HTTPException(status_code=503, detail={"code": "content_unavailable"})
+        return paths
+
+    @asynccontextmanager
+    async def content(self, session: AsyncSession, principal: RequestPrincipal) -> AsyncIterator[ProductContent]:
+        paths = self._runtime_paths()
         yield local_product_content(session, paths, runtime_settings_for(self._app), self._package_stages(paths))
+
+    def uploads(self, principal: RequestPrincipal) -> ProductUploads:
+        # One installation owner: its private files live under the data root's allowlisted areas.
+        paths = self._runtime_paths()
+        return ProductUploads(
+            private_files=FilesystemPrivateFileStorage(paths), staging_directory=paths.uploads_staging_root
+        )
 
     def file_response(
         self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool

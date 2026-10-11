@@ -29,6 +29,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.delivery import PackageDownloadResponse
 from animama.product_http.ports import (
     ProductPolicy,
+    ProductUploads,
     ReadContent,
     ReadRepositories,
     ReadSession,
@@ -73,7 +74,7 @@ def session_probe_app(*, resolver: object | None = FixedOwner()) -> FastAPI:
 class RecordingPorts:
     """Opens placeholder sessions and records whose they are; can fail the deferred commit."""
 
-    policy = ProductPolicy(memory_file_max_bytes=1)
+    policy = ProductPolicy(memory_file_max_bytes=1, voice_catalog_max_upload_bytes=1, private_upload_ttl_seconds=1)
     model_catalog_policy = ModelCatalogPolicy()
     model_role_defaults = ModelRoleDefaults(chat="chat-model")
     speech = FakeSpeech()
@@ -138,6 +139,9 @@ class RecordingPorts:
         raise NotImplementedError
 
     async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:
+        raise NotImplementedError
+
+    def uploads(self, principal: RequestPrincipal) -> ProductUploads:
         raise NotImplementedError
 
 
@@ -235,10 +239,14 @@ def test_local_policy_follows_the_apps_runtime_settings(tmp_path: Path) -> None:
             animama_content_root=tmp_path / "content",
             animama_data_root=tmp_path / "data",
             anima_memory_file_max_bytes=1234,
+            anima_pocket_voice_catalog_max_upload_bytes=5678,
+            private_upload_url_ttl_seconds=60,
         ),
         session_factory=MagicMock(),
     )
-    assert app.state.product_ports.policy == ProductPolicy(memory_file_max_bytes=1234)
+    assert app.state.product_ports.policy == ProductPolicy(
+        memory_file_max_bytes=1234, voice_catalog_max_upload_bytes=5678, private_upload_ttl_seconds=60
+    )
 
 
 class ContentRecordingPorts(RecordingPorts):

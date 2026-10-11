@@ -21,6 +21,7 @@ from httpx import ASGITransport, AsyncClient
 from sqlalchemy import event
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
+from animama.adapters.content_store.private_file_store import FilesystemPrivateFileStorage
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.app.contracts.elevenlabs import (
     PyElevenLabsAudioResponse,
@@ -49,17 +50,20 @@ from animama.product_http.ports import (
     ProductContent,
     ProductPolicy,
     ProductPorts,
+    ProductUploads,
     install_product_ports,
     model_role_resolver,
 )
 from animama.server.config import Settings
-from animama.server.local_runtime import initialize_local_runtime
+from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
 from animama.server.memory_manager import local_memory_manager_service
 from animama.server.product_ports import LocalProductPorts, local_product_content
 
 OWNER_HEADER = "X-Test-Owner"
 # The local default limits and chat model (server/config.py).
-TEST_POLICY = ProductPolicy(memory_file_max_bytes=32 * 1024)
+TEST_POLICY = ProductPolicy(
+    memory_file_max_bytes=32 * 1024, voice_catalog_max_upload_bytes=25 * 1024 * 1024, private_upload_ttl_seconds=900
+)
 TEST_ROLE_DEFAULTS = ModelRoleDefaults(chat="OpenAIResponsesHTTPAgent:gpt-6-luna")
 # What a hosted consumer reports; the test doubles report it too.
 HOSTED_CAPABILITIES = RuntimeCapabilities.model_validate_json(
@@ -138,15 +142,24 @@ class DoubleCollaborators:
     model_role_defaults: ModelRoleDefaults
     speech: FakeSpeech
 
-    @asynccontextmanager
-    async def content(self, session: AsyncSession, principal: RequestPrincipal) -> AsyncIterator[ProductContent]:
+    def _owner_runtime(self, principal: RequestPrincipal) -> tuple[Settings, LocalRuntimePaths]:
         if self.content_root is None:
-            raise AssertionError("pass content_root to serve content routes")
+            raise AssertionError("pass content_root to serve content and upload routes")
         root = self.content_root / principal.id
         settings = Settings(animama_content_root=root / "content", animama_data_root=root / "data")
-        paths = initialize_local_runtime(settings)
+        return settings, initialize_local_runtime(settings)
+
+    @asynccontextmanager
+    async def content(self, session: AsyncSession, principal: RequestPrincipal) -> AsyncIterator[ProductContent]:
+        settings, paths = self._owner_runtime(principal)
         stages = PackageStageService(imports_root=paths.imports_staging_root, exports_root=paths.exports_staging_root)
         yield local_product_content(session, paths, settings, stages)
+
+    def uploads(self, principal: RequestPrincipal) -> ProductUploads:
+        _settings, paths = self._owner_runtime(principal)
+        return ProductUploads(
+            private_files=FilesystemPrivateFileStorage(paths), staging_directory=paths.uploads_staging_root
+        )
 
     def file_response(
         self, request: Request, file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool

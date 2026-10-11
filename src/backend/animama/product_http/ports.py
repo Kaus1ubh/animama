@@ -12,6 +12,7 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from contextlib import AbstractAsyncContextManager
 from dataclasses import dataclass
+from pathlib import Path
 from typing import Annotated, Protocol, cast
 
 from fastapi import Depends, FastAPI, HTTPException, Request, Response
@@ -35,9 +36,11 @@ from animama.app.ports.content_store import ContentStore
 from animama.app.ports.memory_entry_port import MemoryEntryRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.ports.model_provider_port import ModelProviderRepository
+from animama.app.ports.private_file_storage import PrivateFileStorage
 from animama.app.ports.settings_port import AnimaSettingsRepository, UserSettingsRepository
 from animama.app.ports.uow_port import UnitOfWork
 from animama.app.ports.user_profile_port import UserProfileRepository
+from animama.app.ports.voice_catalog_upload_port import VoiceCatalogUploadRepository
 from animama.app.safety.crisis_resources import CrisisResourceTable
 from animama.app.services.anima_loadout_service import AnimaLoadoutService
 from animama.app.services.anima_runtime_service import AnimaRuntimeService
@@ -106,6 +109,9 @@ class ProductRepositories(Protocol):
     def anima_loadouts(self) -> AnimaLoadoutService:
         """The Anima loadout aggregate, which works on the session directly."""
         ...
+
+    @property
+    def voice_catalog_uploads(self) -> VoiceCatalogUploadRepository: ...
 
     @property
     def unit_of_work(self) -> UnitOfWork: ...
@@ -178,15 +184,30 @@ class ProductPolicy:
     """Owner limits a composition enforces on the shared routes."""
 
     memory_file_max_bytes: int
+    voice_catalog_max_upload_bytes: int
+    # How long a staged upload waits for its bytes.
+    private_upload_ttl_seconds: int
+
+
+@dataclass(frozen=True)
+class ProductUploads:
+    """Where an owner's staged uploads live: private storage and a spool directory.
+
+    A composition prepares both before serving; a request never creates them.
+    """
+
+    private_files: PrivateFileStorage
+    staging_directory: Path
 
 
 class ProductPorts(Protocol):
     """The composition-owned collaborators of shared product handlers.
 
     Shared dependencies call the synchronous members (``policy``,
-    ``model_catalog_policy``, ``model_role_defaults``, ``speech``, ``repositories``,
-    ``content``, ``file_response``, ``download_response``, ``crisis_resources``
-    and ``user_settings_changed``) on the event loop, so they must not block.
+    ``model_catalog_policy``, ``model_role_defaults``, ``speech``, ``uploads``,
+    ``repositories``, ``content``, ``file_response``, ``download_response``,
+    ``crisis_resources`` and ``user_settings_changed``) on the event loop, so they
+    must not block.
     """
 
     @property
@@ -299,6 +320,10 @@ class ProductPorts(Protocol):
     @property
     def speech(self) -> ProductSpeech:
         """The composition's paid speech operations."""
+        ...
+
+    def uploads(self, principal: RequestPrincipal) -> ProductUploads:
+        """Private storage and the spool directory for ``principal``'s staged uploads."""
         ...
 
     async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:

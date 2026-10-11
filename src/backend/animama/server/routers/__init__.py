@@ -17,6 +17,7 @@ from animama.product_http.routes import (
     safety,
     settings,
     typed_content,
+    voice_catalogs,
 )
 
 from . import (
@@ -37,6 +38,7 @@ router = APIRouter()
 
 router.include_router(anima_creation.router)
 router.include_router(animas.router)
+router.include_router(voice_catalogs.router)
 router.include_router(anima.router)
 router.include_router(loadouts.router)
 router.include_router(anima_runtime.router)

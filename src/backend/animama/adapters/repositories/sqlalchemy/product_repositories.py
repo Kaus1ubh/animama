@@ -28,6 +28,7 @@ from animama.adapters.repositories.sqlalchemy.settings_repo import (
 )
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.adapters.repositories.sqlalchemy.user_profile_repo import SQLAlchemyUserProfileRepository
+from animama.adapters.repositories.sqlalchemy.voice_catalog_upload_repo import SQLAlchemyVoiceCatalogUploadRepository
 from animama.app.services.anima_loadout_service import AnimaLoadoutService
 
 
@@ -92,6 +93,10 @@ class SQLAlchemyProductRepositories:
     @cached_property
     def anima_loadouts(self) -> AnimaLoadoutService:
         return AnimaLoadoutService(self._session)
+
+    @cached_property
+    def voice_catalog_uploads(self) -> SQLAlchemyVoiceCatalogUploadRepository:
+        return SQLAlchemyVoiceCatalogUploadRepository(self._session)
 
     @cached_property
     def unit_of_work(self) -> SQLAlchemyUnitOfWork:
