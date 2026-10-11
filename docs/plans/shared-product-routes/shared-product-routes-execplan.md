@@ -72,7 +72,8 @@ journeys on a named built stack.
   two-owner tests (`abb956d1`) and docs (`10fbc91f`); review repairs in `1785ef1a`
   and the Code Review #2 note in `69aebcc2`. Code Review #2 (targeted) passed.
 - [ ] Final integration review of Phases 4 and 5: review #1 (FI4-01 to FI4-05) is
-  repaired in `ed58bca4` and `9bb10549`; the targeted recheck is pending.
+  repaired in `ed58bca4` and `9bb10549`; the recheck's FI4-03 and FI4-06 in
+  `be8e337c`, its final verification is pending.
 
 ## Surprises & Discoveries
 
@@ -1054,8 +1055,8 @@ Revisions:
   change to the session response and its frame, for the owner to schedule.
 - FI4-03 (`9bb10549`): the turn task closes the executor's stream with `aclosing`
   (the stream is typed as the async generator it is); the docs say checks wait
-  while a client is not reading. A test cancels a turn blocked on a full bridge and
-  shows the stream closed before the task ended; it fails without the fix.
+  while a client is not reading. That closed only the outer stream (see the
+  recheck below).
 - FI4-04 (`9bb10549`): both frames carry a refusal's code (and the session frame its
   status); the port docstring, the chat guide and the hosted contract say how
   speech declines and admission refusals are reported. A test declines realtime and
@@ -1064,6 +1065,28 @@ Revisions:
 - Validation on `9bb10549`: ruff, the format check, mypy, the boundary checker and
   557 tests across 26 chat-related suites passed.
 - Repair rounds used: 1 of 2.
+
+Code Review #2 (targeted, at `710dc516`): FI4-01, FI4-02 and FI4-05 are resolved,
+FI4-04 for the two operations it named, and the OpenAPI export is still
+byte-identical. Findings:
+
+- FI4-03 (blocking, not resolved): `stream_prepared_turn` delegated to
+  `_stream_fitted_turn` with a plain `async for`, and that inner stream owns the
+  provider collector and the cleanup that cancels it. Closing the outer stream left
+  it suspended, so the collector still ran when the turn's task ended (a repro with
+  the real method). The record and comments claimed the guarantee; the test passed
+  only because its stand-in put the cleanup in the outer stream.
+- FI4-06: a `ProductRefusal` raised from `stream_finalized` still became
+  `elevenlabs_stream_failed`, and the port docstring said `tts.error` carries a
+  status, which it has no field for.
+
+Revisions (`be8e337c`): `stream_prepared_turn` closes both delegated streams with
+`aclosing`; the regression test runs the real `stream_prepared_turn` over stand-ins
+for the two private streams and fails without the fix. A refusal while a segment
+streams keeps its code, with a test that fails without the fix, and the docstring
+names the status only for the session frame. Validation on `be8e337c`: ruff, the
+format check, mypy, the boundary checker and 571 tests across 27 chat-related suites
+passed. Repair rounds used: 2 of 2.
 
 ## Validation and acceptance
 
