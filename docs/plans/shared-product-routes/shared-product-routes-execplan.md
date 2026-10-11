@@ -71,9 +71,9 @@ journeys on a named built stack.
   (`3d6dac82`), the move with the guard and stage 5 served (`6061c74a`), guard and
   two-owner tests (`abb956d1`) and docs (`10fbc91f`); review repairs in `1785ef1a`
   and the Code Review #2 note in `69aebcc2`. Code Review #2 (targeted) passed.
-- [ ] Final integration review of Phases 4 and 5: review #1 (FI4-01 to FI4-05) is
-  repaired in `ed58bca4` and `9bb10549`; the recheck's FI4-03 and FI4-06 in
-  `be8e337c`, its final verification is pending.
+- [x] Final integration review of Phases 4 and 5: review #1 (FI4-01 to FI4-05) is
+  repaired in `ed58bca4` and `9bb10549`, the recheck's FI4-03 and FI4-06 in
+  `be8e337c`, and the final verification passed (repair rounds 2 of 2).
 
 ## Surprises & Discoveries
 
@@ -1087,6 +1087,19 @@ streams keeps its code, with a test that fails without the fix, and the docstrin
 names the status only for the session frame. Validation on `be8e337c`: ruff, the
 format check, mypy, the boundary checker and 571 tests across 27 chat-related suites
 passed. Repair rounds used: 2 of 2.
+
+Code Review #3 (final verification, at `acd6840e`): FI4-03 and FI4-06 are resolved.
+A repro with the real `stream_prepared_turn` and a scratch test through the real
+route, executor and a one-slot bridge leave no `direct-chat-*` task running at
+settlement (the scratch test fails at `40994a89`), and nested `aclosing` cannot
+swallow cancellation in these streams. The golden transcripts, the OpenAPI export
+and the installed consumer are unchanged. Result: pass.
+
+Final-candidate evidence on `acd6840e` (code `be8e337c`), clean: `make check-test`
+passed (3,943 passed, 27 skipped); `pnpm openapi-ts:check` passed (SDK current);
+the OpenAPI export is byte-identical to the baseline's;
+`scripts/check-repository-dependencies.py` reports no private dependencies; the full
+`pnpm e2e:test` on the purged `animama-sharechat` stack passed 40 of 40 (10.9 min).
 
 ## Validation and acceptance
 
