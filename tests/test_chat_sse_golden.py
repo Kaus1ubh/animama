@@ -95,6 +95,7 @@ class ScriptedModel:
     moderation: ModelClientModeration | None = None
     # When set, a chat turn streams its first part and then waits for this event.
     hold: asyncio.Event | None = None
+    holding: asyncio.Event = field(default_factory=asyncio.Event)
     cancelled: bool = False
     requests: list[ModelClientRequest] = field(default_factory=list)
 
@@ -114,6 +115,7 @@ class ScriptedModel:
                 # Stream the first sentence and part of the next, then wait.
                 cut = text.index("S", text.index(". ")) + 1
                 yield ModelClientDelta(kind="text_delta", text=text[:cut])
+                self.holding.set()
                 try:
                     await self.hold.wait()
                 except asyncio.CancelledError:
@@ -212,15 +214,12 @@ class ChatWorld:
         return response.text
 
 
-@pytest.fixture
-async def world(
-    async_session_factory: async_sessionmaker[AsyncSession],
-    monkeypatch: pytest.MonkeyPatch,
-    set_runtime_credentials: Callable[..., None],
-) -> AsyncIterator[ChatWorld]:
-    owner = f"golden-owner-{uuid4().hex[:8]}"
-    anima_id = f"golden-anima-{uuid4().hex[:8]}"
-    async with async_session_factory() as session:
+async def seed_chat_owner(
+    factory: async_sessionmaker[AsyncSession], *, owner: str, anima_id: str, revision: str = REVISION
+) -> None:
+    """An owner's Anima ready to chat: its mood, memory files, chat model, voice and mounted ``revision``."""
+
+    async with factory() as session:
         await ModelProviderCatalogService(
             model_providers=SQLAlchemyModelProviderRepository(session), uow=SQLAlchemyUnitOfWork(session)
         ).sync_from_registry()
@@ -257,7 +256,7 @@ async def world(
                 owner_user_id=owner,
                 anima_id=anima_id,
                 loadout_revision=1,
-                effective_revision=REVISION,
+                effective_revision=revision,
                 catalog_digest="0" * 64,
                 catalog={"gestures": [{"semantic_key": "wave", "name": "Wave", "description": "A friendly wave"}]},
                 expires_at=datetime.now(UTC) + timedelta(hours=1),
@@ -265,6 +264,23 @@ async def world(
         )
         await session.commit()
 
+
+async def remove_chat_owner(factory: async_sessionmaker[AsyncSession], *, owner: str, anima_id: str) -> None:
+    async with factory() as session:
+        await session.execute(delete(ORMAnima).where(ORMAnima.id == anima_id))
+        await session.execute(delete(ORMAnimaSettings).where(ORMAnimaSettings.user_id == owner))
+        await session.commit()
+
+
+@pytest.fixture
+async def world(
+    async_session_factory: async_sessionmaker[AsyncSession],
+    monkeypatch: pytest.MonkeyPatch,
+    set_runtime_credentials: Callable[..., None],
+) -> AsyncIterator[ChatWorld]:
+    owner = f"golden-owner-{uuid4().hex[:8]}"
+    anima_id = f"golden-anima-{uuid4().hex[:8]}"
+    await seed_chat_owner(async_session_factory, owner=owner, anima_id=anima_id)
     model = ScriptedModel()
     app = FastAPI()
     app.include_router(api_router)
@@ -287,10 +303,7 @@ async def world(
     try:
         yield ChatWorld(app, async_session_factory, model, owner, anima_id, fake)
     finally:
-        async with async_session_factory() as session:
-            await session.execute(delete(ORMAnima).where(ORMAnima.id == anima_id))
-            await session.execute(delete(ORMAnimaSettings).where(ORMAnimaSettings.user_id == owner))
-            await session.commit()
+        await remove_chat_owner(async_session_factory, owner=owner, anima_id=anima_id)
 
 
 async def test_reply_with_emotion_gesture_memory_title_and_notice(world: ChatWorld) -> None:
