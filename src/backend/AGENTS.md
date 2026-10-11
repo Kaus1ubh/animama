@@ -11,7 +11,7 @@ specific docs linked from there.
   WebSocket handling, asset helpers, and persistence sinks/subscribers.
 - `product_http/` holds the product HTTP shared by every composition (ADR 0021):
   the route inventory, the request principal, the composition-installed
-  `ProductPorts` and the shared routers of stages 2 and 3 (stages 4 and 5 are
+  `ProductPorts` and the shared routers of stages 2 to 4 (stage 5, chat SSE, is
   still in `server/routers/`). Each composition
   installs its ports with `install_product_ports`; the local app installs
   `server/product_ports.py::LocalProductPorts`. It is shared code.

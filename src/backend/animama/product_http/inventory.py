@@ -35,7 +35,7 @@ Access = Literal["read", "write", "stream", "bytes", "speech"]
 Stage = Literal[2, 3, 4, 5]
 # Stages whose shared routes this package serves today; later stages' shared routes
 # are still served by the local composition until they move.
-SERVED_STAGES: frozenset[Stage] = frozenset({2, 3})
+SERVED_STAGES: frozenset[Stage] = frozenset({2, 3, 4})
 
 
 @dataclass(frozen=True)

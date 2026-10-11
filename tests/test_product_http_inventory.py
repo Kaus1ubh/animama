@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections import Counter
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -167,11 +168,6 @@ def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> No
                 assert not depends_on(route.dependant, get_write_session), (method, route.path)
 
 
-# ExecPlan Phase 4 moves stage 4 family by family: each of its shared routes may be
-# served from either place until the stage is served and joins SERVED_STAGES.
-MOVING_STAGES = frozenset({4})
-
-
 def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
     modules: dict[tuple[str, str], str] = {}
     for route in local_app(tmp_path, desktop=True, web_root=True).router.routes:
@@ -183,8 +179,14 @@ def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
         served = modules[(spec.method, spec.path)].startswith("animama.product_http.")
         if spec.disposition != "shared":
             assert not served, (spec.method, spec.path)
-        elif spec.stage not in MOVING_STAGES:
+        else:
             assert served == (spec.stage in SERVED_STAGES), (spec.method, spec.path, spec.stage)
+
+
+def test_each_stage_shares_the_planned_routes() -> None:
+    # The ExecPlan's stages; audio isolation stays local (owner, 2026-10-10).
+    shared = Counter(spec.stage for spec in ROUTES if spec.disposition == "shared")
+    assert shared == {2: 45, 3: 84, 4: 18, 5: 1}
 
 
 def test_routers_mount_the_served_routes_in_inventory_order() -> None:

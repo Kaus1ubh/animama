@@ -9,7 +9,8 @@ admission state. Browser identity and Authorization headers select no owner.
 Tests use explicit fixture bootstrap and dependency overrides.
 
 Shared product routes (ADR 0021) live in `product_http/routes/`. They take owner
-sessions, repositories, policy, content services and byte delivery from the
+sessions, repositories, policy, content services, byte delivery, upload storage,
+speech, the model catalog and the Memory Manager service from the
 `ProductPorts` the composition installs, never from `get_async_session`, so tests
 replace the ports (see `tests/product_http_support.py`) or call handlers with an
 explicit repository bundle. Each composition delivers verified files, runtime JSON
@@ -35,14 +36,17 @@ Local setup and host/key administration schemas remain in the server composition
   included in public OpenAPI or mounted in self-host composition.
 - `product_http/routes/animas.py` (shared): Anima list, reads, edits,
   chat-profile and emotional-state updates, and deletion.
-- `server/routers/anima.py`: direct chat SSE and voice catalog uploads (stages 4
-  and 5 of the shared-route plan).
-- `server/routers/model_provider.py`: active provider/model catalog for
-  frontend model selection.
-- `server/routers/model_configuration.py`: owner model connections, models,
-  capability probe (Anthropic's Models API on the built-in Anthropic
-  connection) and model roles. Only `create_local_app` mounts it, outside
-  the shared `/v1` aggregate, because it sends requests to owner-supplied URLs.
+- `product_http/routes/voice_catalogs.py` (shared): Pocket voice-catalog
+  uploads: staging, the bounded byte upload into the composition's private
+  storage, finalize into a Local `voices/` file, and abort.
+- `server/routers/anima.py`: direct chat SSE (stage 5 of the shared-route plan).
+- `product_http/routes/model_catalog.py` (shared): the provider/model catalog
+  for model selection, under the composition's catalog policy, and the
+  model-role report.
+- `server/routers/model_configuration.py`: owner model connections, models and
+  the capability probe (Anthropic's Models API on the built-in Anthropic
+  connection). Only `create_local_app` mounts it, outside the shared `/v1`
+  aggregate, because it sends requests to owner-supplied URLs.
 - `server/routers/web_search.py`: owner application web search settings and
   Test. Only `create_local_app` mounts it, because a SearXNG URL is
   owner-supplied and Test sends a query to the configured backend.
@@ -74,13 +78,17 @@ Local setup and host/key administration schemas remain in the server composition
 - `product_http/routes/memory.py` (shared): scoped markdown memory entry tree
   listing, path lookup, create, patch, move/rename, and soft-delete routes, and
   the episodic-memory listing.
-- `server/routers/memory_manager.py`: Reflection and manual memory-manager
-  run/message/approval routes.
+- `product_http/routes/memory_manager.py` (shared): Reflection and manual
+  Memory Manager run/message/approval routes; the composition's ports build the
+  owner's service and choose its model runtime (`server/memory_manager.py`
+  locally).
 - `product_http/routes/safety.py` (shared): owner-visible crisis-resource regions
   from the composition's crisis-resource table.
 - `server/routers/archive.py`: archive metadata/passages and embedding search.
-- `server/routers/elevenlabs.py`: ElevenLabs clone, text-to-speech, sound
-  effects, audio isolation, and realtime TTS session helpers.
+- `product_http/routes/elevenlabs.py` (shared): ElevenLabs voice cloning,
+  text-to-speech and sound effects through the composition's speech port.
+- `server/routers/elevenlabs.py`: ElevenLabs audio isolation, which has no web
+  caller and stays local.
 
 ## Health
 
@@ -1249,8 +1257,11 @@ User `preferences` also hold model choices as catalog row IDs:
 - `models.memory_manager_model_provider_id`: the Memory Manager;
 - `models.embedding_model_provider_id`: upload and archive embeddings.
 
-`PATCH /v1/users/me/settings` replaces the whole `preferences` object without
-validating these IDs. Role resolution checks the row when it is used and falls
+`PATCH /v1/users/me/settings` replaces the whole `preferences` object. The local
+composition stores these IDs without validating them; a composition whose
+catalog policy sets `validate_role_preferences` refuses an ID naming a row that
+cannot do its role with `422 {"detail":{"code":"model_role_unavailable"}}`.
+Role resolution checks the row when it is used and falls
 back to the role's default when the row is removed, of the wrong kind or lacks
 a needed capability: the operator default (`ANIMAMA_DEFAULT_MODEL_PROVIDER_ID`
 for chat, `ANIMAMA_DEFAULT_{UTILITY,MEMORY_MANAGER,EMBEDDING}_MODEL_PROVIDER_ID`
