@@ -127,7 +127,8 @@ backend to `src/backend/animama/`, content to `content/included/`.
       (2026-10-10); review passed at round 2.
 - [x] P2 — Particle library: 14 effects saved as Local content (2026-10-12);
       owner approved; platform review passed at round 3.
-- [ ] P3 — Scene backgrounds and the sticker art. Gate G2 per family.
+- [x] P3 — Scene backgrounds and sticker art: 24 presets saved, 44 stickers
+      (2026-10-12); G2 pending the owner's morning review.
 - [ ] P4 — Animama sticker set and Twemoji removal (R11).
 - [ ] P5 — Reaction ladder (R12) and performance. Gate G4.
 - [ ] P6 — Promotion and removal (R13, R14). Gate G3.
@@ -579,6 +580,43 @@ burst counts round up (fixed).
 Completion: 24 presets approved and saved; the sticker set's files listed.
 
 #### P3 record
+
+Starting source and issue: `4de81cf2`, #447. Built by four agents (at most
+three at once from 2026-10-12, per the owner), each following
+`animama-scene-vfx` and `animama-effect-assets` with generated flat anime art.
+
+All 23 new presets (`.animama-drafts/plan2/scenes/<family>-<emotion>/`, named
+`<Family> <Emotion>`) pass `effects check` (Scene limits, image budgets) with no
+FAIL, held (`durationMs: null`), no emoji items, scatters `keepFaceClear`; each
+has a chat-shaped render (960×600, front, both Avatars) and each family a
+review sheet; `scene-presets-board.jpg` stacks the eight. All 23 were saved with
+`effects save` (read back, compared, reopened); with Gloom Sadness the stack
+holds 24 Scene presets. A backup package of the 39 Local Particle and Scene
+items is kept outside the worktree (primary checkout
+`.animama-drafts/particle-scene-effects-plan1/exports/plan2-library-p3.zip`).
+
+Sticker set: 44 images (`.animama-drafts/plan2/stickers/`, family map in
+`families.json`): 36 used by the presets (two `scene-tile`s: `bokeh-tile`,
+`star-field-tile`; `steam-puff` shared by Affection and Rejection; `raindrop` is
+Gloom Sadness's drop) and 8 generic extras with a contact sheet and a test
+Scene (`scenes/generic-test/`). Every image passes its budget.
+
+Departures from the briefs, for the owner's review: Admiration sparkles 14–34 px;
+Embarrassment and Annoyance steam without spin (spin accumulates over a held
+Scene and tipped the puffs over); outlines thickened on the white sparkle and
+the gold and silver glints; Amusement 34 items (a diagonal drifter shows only
+~40% of its items at once); Nervousness drops 36–60 px; Disappointment drizzle
+16–30 px at 0.7–0.95 opacity; seeds chosen from sweeps.
+
+Watch at review: diagonal drifters graze the hair (none crossed the face in
+sampled frames); Caring is sparse and its sparkles faint; Respect's silver
+glints and Optimism's gold twinkles are low-contrast by design; Nervousness's
+drops can read as rain next to Gloom; Remorse versus Alarm Confusion (both
+purple spirals); Curiosity shows 1–2 comets at a time. Motion was judged from
+stills.
+
+G2 for the presets and stickers: pending the owner's morning review (owner
+authorization, 2026-10-12).
 
 #### Code Review #1 Findings
 
