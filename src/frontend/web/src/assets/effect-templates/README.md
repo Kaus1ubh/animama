@@ -21,7 +21,9 @@ with the portrait capture's head framing and lighting, the effect applied from
 its Included descriptor and held for 1 s, at 320×320 px. A template marked
 `thumbnail: { framing: "wide" }` (art on the chest or beside the head) is
 framed 2.2 times wider, and `framing: "body"` (art at the belly, hips or a
-lowered hand) 4 times wider; one with a `time` is captured at that moment instead
+lowered hand) 3.2 times wider with the camera aimed lower, so the frame runs
+from the head to the upper thighs centred on the torso; one with a `time` is
+captured at that moment instead
 (looping art that has faded out at 1 s). A `clip` names an Included Gesture by
 folder stem that poses Annie, for art attached to a hand that hangs out of
 frame at rest, or that is placed for that pose: the clip is sampled at `time`

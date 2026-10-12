@@ -302,7 +302,8 @@ Non-goals:
       reason. Body and hand renders exist for both Avatars.
 - [ ] **Effects.** Every Gesture and effect pair passes `effects check
       --with-clip` on both Avatars. Every new Avatar Effect has a thumbnail
-      and one optional pack sound. The integrity test from #405 passes.
+      and at most one optional pack sound (silent effects per G2b, R5). The
+      integrity test from #405, as revised, passes.
 - [ ] **G2a.** The owner approves every new Gesture and its effects in the
       preview session, with notes resolved.
 - [ ] **G2b.** The owner approves the effects on existing Gestures and every new

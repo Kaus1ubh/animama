@@ -10,6 +10,7 @@ import {
   INCLUDED_CONTENT_ROOT,
 } from "./effect-render-sources.mjs";
 import {
+  BODY_FRAMING_DROP,
   BODY_FRAMING_SCALE,
   THUMBNAIL_DIR,
   WIDE_FRAMING_SCALE,
@@ -34,6 +35,7 @@ test("resolves a template's Included Gesture clip into its thumbnail job", async
   assert.deepEqual(job.clip, await includedClip("have-an-idea"));
   assert.equal(job.time, posed.thumbnail.time);
   assert.equal(job.framingScale, WIDE_FRAMING_SCALE);
+  assert.equal(job.framingDrop, undefined);
   assert.equal(
     job.outFile,
     path.join(THUMBNAIL_DIR, "idea_bulb_fingertip.webp"),
@@ -43,10 +45,13 @@ test("resolves a template's Included Gesture clip into its thumbnail job", async
   assert.equal(rest.clip, null);
   assert.equal(rest.time, undefined);
   assert.equal(rest.framingScale, 1);
+  assert.equal(rest.framingDrop, undefined);
 
   const [body] = selectTemplates(["badum_burst"]);
   assert.equal(body.thumbnail?.framing, "body");
-  assert.equal((await thumbnailJob(body)).framingScale, BODY_FRAMING_SCALE);
+  const bodyJob = await thumbnailJob(body);
+  assert.equal(bodyJob.framingScale, BODY_FRAMING_SCALE);
+  assert.equal(bodyJob.framingDrop, BODY_FRAMING_DROP);
 
   await assert.rejects(
     thumbnailJob({ ...posed, thumbnail: { clip: "no-such-gesture" } }),

@@ -15,9 +15,11 @@ one `Closes #N` line each.
 
 ## Purpose and context
 
-Add 30 Included Gestures that cover the missing emotions and conversation beats.
-Give new and existing Gestures action-bound Avatar Effects where an effect adds
-meaning. Give every new effect a sound from the licensed pack (#399). Rewrite
+Add Included Gestures that cover the missing emotions and conversation beats:
+30 (R1), 22 more (R1b) and 12 idles with a Streamer Idle style (R10). Give new
+and existing Gestures Avatar Effects where an effect adds meaning, with a
+sound from the licensed pack (#399) unless the owner kept the effect silent
+(G2b). Rewrite
 all AI descriptions to say when to use each Gesture, and add a few starters
 chosen with a small selection evaluation. Fix the capsule check's palm-to-palm
 false positive. Promote everything after two preview rounds (G2a, G2b) and a
@@ -50,12 +52,16 @@ the git-ignored `.animama-drafts/gesture-catalog-expansion/` of this worktree.
       review #2 passed 2026-10-10.
 - [x] Phase 2 (#413): 64 new drafts (30 R1 Gestures, 12 R10 idles, 22 R1b
       Gestures), stretched 1.1×, each passing `check` with 0 FAIL (Cover Face
-      and Peek keeps one explained WARN). G2a approved 2026-10-10 in two sets:
-      the first 42 after two note rounds, then the R1b set after one note
+      and Peek keeps one WARN: A_1's solver turns `leftUpperArm` to 90.3°
+      against the 90° natural limit for about 0.05 s at 2.12–2.17 s while the
+      palm contact holds; the owner approved the motion at G2a). G2a
+      approved 2026-10-10 in two sets: the first 42 after two note rounds, then the R1b set after one note
       round and effect removals. Effects ship on 30 of the 52 one-shots and
       7 of the 12 idles (see `EFFECTS.md`).
-- [ ] Phase 3 (#414): harness committed (`265fc232`); evaluation run 2026-10-10
-      (pass rule met); descriptions and the starter proposal go to G3. AI descriptions and the selection evaluation (R6, R7).
+- [x] Phase 3 (#414): harness committed (`265fc232`, review #2 passed);
+      evaluation run 2026-10-10 and rerun 2026-10-11 with the final
+      descriptions (pass rule met); descriptions and starters approved at G3
+      and promoted in Phase 6.
 - [x] Phase 4 (#415): effect list approved; effects on ten existing Gestures
       drafted and approved 2026-10-10 (Excited Triple Clap keeps only its R8
       contact cleanup). Sounds follow in Phase 5.
@@ -510,8 +516,11 @@ harness code.
 Setup:
 - **Model:** `OpenAIResponsesHTTPAgent:gpt-6-luna` on task stack `gce` (the
   owner's choice), incognito.
-- **Inputs:** `eval/` (git-ignored: the generator, the prompt set of 60 items
-  plus 2 × 30-turn chats, and three loadouts).
+- **Inputs:** the 2026-10-10 inputs are archived in the drafts folder; the
+  final run's prompt set (with expected fits) and loadouts are tracked as
+  `gesture-selection-eval-*.json` beside this plan, described in
+  [gesture-selection-eval.md](gesture-selection-eval.md). The generators stay
+  in the ignored `eval/` folder because they read the drafts.
 - **Runs:** 3 repeats per item and 1 per scripted chat, 720 calls per
   reasoning level, no errors.
 - **Cost:** about 3.0M input tokens per run, of which about 2.55M cached, and
@@ -833,6 +842,9 @@ Phase 6 is reviewed as part of the final integration review.
 
 #### Phase 6 record (2026-10-11)
 
+- **Final `main` merge.** `origin/main` at `f7eb367c` (#454, #456) merged
+  cleanly as `fc1fae09` before the final review; no hand resolutions.
+
 - **Promotion** (dry run before each write; results matched): `effects
   promote` 109 changes (44 Avatar Effects, 33 with sounds and 11 silent, plus
   the 10 existing Gestures' clips and dependencies); `animation promote` adds
@@ -866,11 +878,44 @@ the review, merge the latest `main` into the branch and record conflicts.
 
 #### Code Review #1 Findings
 
-Not started.
+2026-10-12, `sdlc-reviewer` on `fc1fae09` (latest `main` merged).
+- **FIR-R1-01 (required).** The R7 prompt set and expected fits were only in
+  the ignored `eval/` folder.
+- **FIR-R1-02 (required).** Both skills still said emotion face paint belongs
+  to Reactions, against the G2a relaxation and shipped content.
+- **FIR-R1-03 (required).** The plan record was stale: Phase 3 unchecked, the
+  final merge unrecorded, the no-pack check unreported, the accepted WARN's
+  reason missing.
+- **FIR-R1-04 (required unless accepted).** `body`-framed thumbnails cut off
+  the ba-dum burst art.
+- **FIR-R1-05 to 07 (optional).** Stale "one sound" acceptance wording and
+  plan purpose; 11 new descriptions using she/her; two description-only
+  legacy metas (`meme-dab`, `shy-finger-poke-loop`) stay under the
+  owner-authored rule.
+- Verified without findings: content integrity, licence rule ordering and
+  records, sounds and stacking, registries and pins, Streamer Idle, code, the
+  merge, and no tracked private data.
 
 #### Code Review #1 Revisions
 
-Not started.
+- **01:** the final run's prompt set (with expected fits) and loadouts are
+  tracked as `gesture-selection-eval-*.json` with
+  [gesture-selection-eval.md](gesture-selection-eval.md); the generators stay
+  ignored because they read the drafts.
+- **02:** both skills state the current rule: prefer action-bound effects;
+  reusing Included blush, sweat, anger or gloom is allowed where it adds
+  meaning.
+- **03:** Progress, the merge, the WARN reason and Phase 3 are recorded; the
+  no-pack check runs on the journey stack below.
+- **04:** `body` framing aims lower (`framingDrop` in the portrait capture,
+  scale 3.2, drop 0.28); only the three body-framed thumbnails changed; head
+  and wide renders are byte-identical. Tests: portrait vitest 31 passed,
+  thumbnail browser test 2 passed, `tsc -b` clean.
+- **05:** fixed (spec acceptance wording, plan purpose).
+- **06:** fixed; the shipped descriptions are pronoun-neutral like the rest of
+  the catalog (the tracked eval loadouts keep the evaluated text).
+- **07:** accepted: the two legacy metas keep their owner-authored rule; only
+  their short AI description text changed, approved at G3.
 
 ## Validation and acceptance
 

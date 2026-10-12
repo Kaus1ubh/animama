@@ -638,8 +638,8 @@ pnpm -s effects:render --diff before.png after.png --out diff.png
 `pnpm -s effects:thumbnails [template-id...]` regenerates the picker's Avatar FX
 thumbnails (320 px WebP, 1 s after applying, or at the template's
 `thumbnail.time`; a `thumbnail.framing: "wide"` template is framed wider to
-show chest or side art, and `"body"` widest, down to the hips, for art at the
-belly or a lowered hand) into `src/assets/effect-templates/`
+show chest or side art, and `"body"` is framed from the head to the upper
+thighs, centred on the torso, for art at the belly, hips or a lowered hand) into `src/assets/effect-templates/`
 and removes files for templates that no longer exist. For art attached to a
 hand, which hangs out of frame in the rest pose, set `thumbnail.clip` to an
 Included Gesture's folder stem with wide framing: Annie is posed by that

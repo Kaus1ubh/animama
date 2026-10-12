@@ -128,10 +128,11 @@ Included Gesture's bytes is a promotion (step 9) with `mode: "replace"`.
 - Effects in a Gesture are action-bound: play an Avatar Effect only where it
   carries the motion's meaning, anchored to the acting hand, mouth, head or
   body (or coming out of the motion as a puff, pop, impact or sparkle) and
-  timed to a beat. Most conversation beats stay clean. Emotion face paint
-  (blush, tears, gloom, sweat drops, anger veins, eye effects, face textures)
-  belongs to Reactions, which play it in the same turn. Reuse an Included
-  effect before asking for new art.
+  timed to a beat. Most conversation beats stay clean. Reactions already show
+  emotion face paint in the same turn, so prefer action-bound effects; reusing
+  an Included blush, sweat, anger or gloom effect is allowed where it adds to
+  the Gesture's meaning, accepting some doubling with Reactions. Reuse an
+  Included effect before asking for new art.
 - A Gesture sounds only through its effects (no `sfx` events). When effects
   start together, keep one sound and set `playAccompanyingSound: false` on
   the others; an idle Gesture sets it on every effect event.

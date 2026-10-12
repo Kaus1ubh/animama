@@ -123,8 +123,9 @@ promotion with `"mode": "replace"`.
   [what](references/what.md).
 - An effect a Gesture plays is action-bound: it carries the motion's meaning,
   sits on the acting hand, mouth, head or body (or comes out of the motion)
-  and lands on a beat. Emotion face paint (blush, tears, gloom, sweat drops,
-  anger veins, eye effects, face textures) stays with Reactions. Effects only
+  and lands on a beat. Reactions already show emotion face paint, so prefer
+  action-bound art; a Gesture may still reuse an Included blush, sweat, anger
+  or gloom effect where it adds meaning. Effects only
   idle Gestures play are silent (`"sound": null` when promoted), and idle
   Gestures set `playAccompanyingSound: false` on every effect event.
 - An effect owns its own motion (pulse, spin, drift, keyframes, flipbook);
