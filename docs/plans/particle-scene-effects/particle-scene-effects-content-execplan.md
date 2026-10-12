@@ -134,8 +134,9 @@ backend to `src/backend/animama/`, content to `content/included/`.
 - [x] P5 — Reaction ladder: 43 project files, benchmarks within budget
       (2026-10-12); G4 pending the owner's review.
 - [x] P6 — Promotion and removal (2026-10-12); G3 waived for the night,
-      pending the owner's review; review passed at round 1 after the record.
-- [ ] P7 — Documentation and acceptance.
+      pending the owner's review; review passed at round 2 (`42d896a0`).
+- [x] P7 — Documentation and acceptance (2026-10-12): `main` merged, full
+      checks and e2e (40) pass, chat check done.
 - [ ] Final integration review and PR.
 
 ## Surprises & Discoveries
@@ -987,6 +988,18 @@ longer held; F4 the Twemoji evidence page; F5 a pre-existing unmatched
 - **F4 recorded:** the evidence page stays as the deliberate exception.
 - **F5, F6:** noted, unchanged.
 
+#### Code Review #2 Findings
+
+Round 2 (targeted recheck of `42d896a0`): F1 and F3 resolved; the record's
+counts recomputed from `promote-p6.json`, `art-particles.json` and the tree
+match; the commit holds only the reviewed tree plus the plan and comment, with
+nothing from `.animama-drafts`. Non-blocking: the Progress line said round 1.
+Result: pass.
+
+#### Code Review #2 Revisions
+
+- Progress line corrected to round 2.
+
 ### P7 — Documentation and acceptance. #445
 
 1. Docs: `docs/frontend/runtime/avatar-particle-vfx.md` (Included library,
@@ -1000,6 +1013,56 @@ longer held; F4 the Twemoji evidence page; F5 a pre-existing unmatched
    3, with screenshots for the PR.
 
 #### P7 record
+
+Starting source and issue: `42d896a0`, #445.
+
+- **Merge of `main`** (`71fb294b`, 80 commits): main gave built-in Avatar
+  Effects licensed sounds and set `playAccompanyingSound: false` on 14
+  Reactions' Avatar Effect events. Ten of those Reactions conflicted with the
+  P6 replacements; each keeps the P6 clip with main's flags applied to the same
+  event IDs (all 12 events still exist with the same `effectId`). The desktop
+  attribution keeps main's WOW Sound notice without Twemoji. The Included,
+  catalog, removed-effect, emoji-item and package-capability tests pass on the
+  merge (111).
+- **Docs** (step 1): the runtime guides, Reaction description, redistribution
+  review and skills were brought up to date in P6; P7 also corrects
+  `animama-particle-vfx`'s `integration.md` (the catalog is read from the
+  Included descriptors). A search of `docs/` and `.agents/` for the removed
+  stems and Twemoji finds only the legacy emoji-item handling, the
+  `hearts-v1`/`rain-cloud` brief examples (both kept) and the evidence page
+  exception. `local-content-runtime.md` and the attribution docs need no
+  change.
+
+Checks (step 2) on `71fb294b` plus the docs edits: `uv sync --python
+3.12.13` and `pnpm install --frozen-lockfile` (main changed dependencies);
+`uv run pytest -q` 3958 passed, 27 skipped; `uv run ruff check` and `make
+check` pass; from `src/frontend` `pnpm check`, `pnpm web:lint`, `pnpm
+prettier:check`, `pnpm build` and `pnpm desktop:check` pass; `pnpm web:test`
+465 files, 3935 passed, 1 skipped, plus the script suites (13 and 114) with no
+failure; `pnpm openapi-ts` leaves the generated client unchanged.
+
+Full `pnpm e2e:test` (step 2) on the merged source: a built stack
+`animama-particle-e2e` (`http://animama-particle-e2e.localhost:8660`,
+`ANIMAMA_LLM_SKIP=1`), purged and rebuilt from `71fb294b`, 40 passed in
+13.9 min; the stack and its volume were removed afterwards. An earlier run on
+`42d896a0` was stopped once the merge was needed.
+
+Chat check (step 3), task stack `animama-particle-content`, now in
+development mode with the debug panel (`http://animama-particle-content.localhost:8620`).
+The stack's database predated main's baseline change, so it was purged after
+its Local content was copied to `.animama-drafts/plan2/stack-local-backup-2026-10-12/`
+(everything it held is now Included or in the drafts), and first-run setup
+was repeated. Two real chat turns with Annie (`gpt-6-luna`) played a Delight
+intensity-3 Reaction (the Delight background with confetti, after Love's Doki
+Doki) and a Gloom intensity-2 Reaction (Rain Cloud above the head). The debug
+panel's Reaction player cannot show these clips outside a reply: a Reaction
+lasts only while the Avatar talks, so it ends at once. One Reaction per family
+at intensities 2 and 3 (love, gratitude, joy, desire, confusion, anger,
+disgust, sadness) was therefore rendered with `effects:render --with-clip
+library:reaction/<id>` on both Included Avatars at 0.4, 1.2 and 2.4 s; all 16
+ran with no controller warning, and each shows its ladder slot
+(`.animama-drafts/plan2/p7-chat/`, board `reaction-board.jpg`, chat
+screenshots `chat-delight.jpg`, `chat-gloom.jpg`).
 
 #### Code Review #1 Findings
 
