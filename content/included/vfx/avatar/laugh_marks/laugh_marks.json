@@ -1,0 +1,117 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:laugh_marks",
+  "version": 1,
+  "name": "Laugh Marks",
+  "description": "Yellow manga laugh marks (two crossed arcs) pop beside the head on the Avatar's left and bump on every \"ho\", for a haughty \"ohohoho\" noble-lady laugh or a gloating cackle.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": 0.155,
+        "y": 0.11,
+        "z": 0.04
+      },
+      "size": 0.085,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "laugh_marks.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "rotationDeg": 0,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.1,
+            "opacity": 1,
+            "scale": 1.15
+          },
+          {
+            "t": 0.18,
+            "scale": 1
+          },
+          {
+            "t": 0.418,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.488,
+            "scale": 1.12,
+            "rotationDeg": -4
+          },
+          {
+            "t": 0.598,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.803,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.873,
+            "scale": 1.09,
+            "rotationDeg": -4
+          },
+          {
+            "t": 0.983,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 1.188,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 1.258,
+            "scale": 1.06,
+            "rotationDeg": -4
+          },
+          {
+            "t": 1.368,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 1.5,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 2.1,
+            "offset": {
+              "x": 0.004,
+              "y": 0.012
+            }
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "laugh_marks.png",
+      "role": "image"
+    }
+  ]
+}

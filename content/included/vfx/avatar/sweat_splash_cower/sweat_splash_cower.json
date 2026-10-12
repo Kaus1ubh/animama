@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:sweat_splash_cower",
+  "version": 1,
+  "name": "Sweat Splash",
+  "description": "Three light-blue sweat beads flick off the top of the head on the Avatar's left and quiver while the Avatar cowers and trembles behind its raised hands, for a scared, panicky moment.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:funny_sweat_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": 0.125,
+        "y": 0.19,
+        "z": 0.05
+      },
+      "size": 0.07,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "sweat_splash.png"
+    },
+    "motion": {
+      "pulse": {
+        "scaleMin": 0.95,
+        "scaleMax": 1.04,
+        "cyclesPerSecond": 2.8
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.12,
+            "opacity": 1,
+            "scale": 1.15
+          },
+          {
+            "t": 0.2,
+            "scale": 1,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 1.6,
+            "offset": {
+              "x": 0.006,
+              "y": 0.006
+            }
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "sweat_splash.png",
+      "role": "image"
+    }
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:fighting-fist-pump",
+  "version": 1,
+  "semantic_key": "fighting_fist_pump",
+  "name": "Fighting! Fist Pump",
+  "ai_description": "Use when cheering someone on or encouraging them before a challenge (\"You can do it!\", \"Fighting!\", \"Ganbatte!\"), or when psyching yourself up. Raises both fists in front of the chest and pumps them down once with a determined, bright smile and a small bounce.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "fighting-fist-pump.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -1,7 +1,7 @@
 # Optional Local Mixamo animations
 
 Animama starts and creates its two starter companions without Mixamo assets.
-The shipped starter pack has 20 project-authored gestures and 72 reactions;
+The shipped starter pack has 25 project-authored gestures and 72 reactions;
 new companions have an empty Idle selection. Required selected content still
 passes the normal strict revision, dependency and file checks, including the
 tracked-only native staging gate.

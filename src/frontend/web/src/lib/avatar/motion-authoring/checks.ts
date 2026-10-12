@@ -7,6 +7,7 @@ import {
   type AnimaPoseClipV2,
 } from "../poses/animaPoseClip";
 import type { AnimaPoseClipMutableLayerId } from "../poses/animaPoseClip/clipVocabulary";
+import { solvedContactWindows } from "../poses/animaPoseClip/prepareV2";
 import {
   createAnimaPoseClipProgram,
   type AnimaPoseClipProgram,
@@ -199,9 +200,17 @@ export const MOTION_CHECK_THRESHOLDS = {
 } as const;
 
 type Pose = VRMPose;
-type Capsule = { a: Vector3; b: Vector3; radius: number };
+export type Capsule = { a: Vector3; b: Vector3; radius: number };
+/**
+ * A contact whose touch the intersection check allows: over its window and,
+ * when solved, the ramps playback blends the solve in and out over.
+ */
+export type TouchingContact = MotionCheckContact & {
+  blendIn?: number;
+  blendOut?: number;
+};
 /** A contact as checked: solved when the clip declares `solve` for it. */
-type CheckedContact = MotionCheckContact & { solved: boolean };
+type CheckedContact = TouchingContact & { solved: boolean };
 
 const T = MOTION_CHECK_THRESHOLDS;
 const SIDES = ["left", "right"] as const;
@@ -291,6 +300,7 @@ export function checkMotion(
     [...solvedSides].flatMap((side) => [`${side}UpperArm`, `${side}LowerArm`]),
   );
   const rotationsFromRest: Record<string, Map<string, Quaternion>[]> = {};
+  const timeline = { duration, loop: clip.loop === true };
   for (const [index, avatar] of avatars.entries()) {
     const avatarPoses =
       index === 0 ? canonicalPoses : samplesOf(programs[index]);
@@ -312,8 +322,9 @@ export function checkMotion(
         frames.map((frame) => body.capsules(frame)),
         restPenetration,
         contacts,
+        timeline,
       ),
-      ...checkFingers(avatar.id, times, frames, body, contacts),
+      ...checkFingers(avatar.id, times, frames, body, contacts, timeline),
       ...checkContacts(
         avatar.id,
         times,
@@ -360,9 +371,14 @@ function keysLegs(clip: AnimaPoseClipV2): boolean {
 /** A clip's declared contacts, in seconds from its start. */
 function clipContacts(clip: AnimaPoseClipV2): CheckedContact[] {
   const beatTimes = new Map(clip.beats.map(({ id, time }) => [id, time]));
-  return (clip.contacts ?? []).map((contact) => {
+  const solveWindows = new Map(
+    solvedContactWindows(clip).map((window) => [window.index, window]),
+  );
+  return (clip.contacts ?? []).map((contact, index) => {
     const time = beatTimes.get(contact.beat) ?? 0;
+    const window = solveWindows.get(index);
     return {
+      ...(window ? { blendIn: window.blendIn, blendOut: window.blendOut } : {}),
       bone: contact.bone,
       target: contact.target,
       from: time + contact.from,
@@ -1138,9 +1154,22 @@ class AvatarBody {
         .clone()
         .multiplyScalar(2)
         .sub(get(`${side}MiddleIntermediate`));
-      result[`${side}Forearm`] = {
-        a: get(`${side}LowerArm`),
-        b: get(`${side}Hand`),
+      const elbow = get(`${side}LowerArm`);
+      const wrist = get(`${side}Hand`);
+      result[`${side}Forearm`] = { a: elbow, b: wrist, radius: 0.035 * s };
+      // The forearm short of a palm length from the wrist, which the other
+      // hand must still clear while the palms press together.
+      const palmBase = frame.positions.get(`${side}MiddleProximal`);
+      const palmLength = palmBase ? palmBase.distanceTo(wrist) : 0.08 * s;
+      const forearmLength = elbow.distanceTo(wrist);
+      result[`${side}ForearmProximal`] = {
+        a: elbow,
+        b: elbow
+          .clone()
+          .lerp(
+            wrist,
+            forearmLength > palmLength ? 1 - palmLength / forearmLength : 0,
+          ),
         radius: 0.035 * s,
       };
       result[`${side}Hand`] = {
@@ -1220,18 +1249,31 @@ const INTERSECTION_PAIRS: readonly [string, string][] = [
   ["rightHand", "leftForearm"],
 ];
 
+/** How far two capsules overlap, metres (negative when they are apart). */
+function penetration(a: Capsule, b: Capsule): number {
+  return a.radius + b.radius - segmentDistance(a.a, a.b, b.a, b.b);
+}
+
 function penetrations(capsules: Record<string, Capsule>): Map<string, number> {
   const result = new Map<string, number>();
-  for (const [first, second] of INTERSECTION_PAIRS) {
-    const a = capsules[first];
-    const b = capsules[second];
+  for (const [first, second] of INTERSECTION_PAIRS)
     result.set(
       `${first}/${second}`,
-      a.radius + b.radius - segmentDistance(a.a, a.b, b.a, b.b),
+      penetration(capsules[first], capsules[second]),
     );
-  }
   return result;
 }
+
+/**
+ * Pressed palms put the wrists a few centimetres apart, inside the hand and
+ * forearm capsules' radii. During a hand-to-hand contact each hand is measured
+ * against only the part of the other forearm more than a palm length from its
+ * wrist, so a hand pressed into the forearm itself is still reported.
+ */
+const PALM_TO_PALM_FOREARMS: Readonly<Record<string, string>> = {
+  "leftHand/rightForearm": "rightForearmProximal",
+  "rightHand/leftForearm": "leftForearmProximal",
+};
 
 /** Map a contact bone to the body volume it belongs to. */
 function contactVolume(bone: string): string | null {
@@ -1248,30 +1290,61 @@ function contactVolume(bone: string): string | null {
   return null;
 }
 
-function checkIntersections(
+/**
+ * Whether a contact allows its touch at clip time `time`: inside its window,
+ * or, when solved, inside the ramps over which playback moves the hand onto
+ * and off its target. Loop clips wrap the ramps across the seam.
+ */
+function touchingAt(
+  contact: TouchingContact,
+  time: number,
+  duration: number,
+  loop: boolean,
+): boolean {
+  const from = contact.from - (contact.blendIn ?? 0) - 1e-6;
+  const to = contact.to + (contact.blendOut ?? 0) + 1e-6;
+  const shifts = loop ? [0, -duration, duration] : [0];
+  return shifts.some((shift) => time + shift >= from && time + shift <= to);
+}
+
+/**
+ * FAIL where two body capsules overlap beyond their overlap at rest plus a
+ * margin, except pairs a touching contact declares. Exported for tests.
+ */
+export function checkIntersections(
   avatar: string,
   times: readonly number[],
   frames: readonly Record<string, Capsule>[],
   rest: Map<string, number>,
-  contacts: readonly MotionCheckContact[],
+  contacts: readonly TouchingContact[],
+  clip: { duration: number; loop: boolean },
 ): MotionCheckFinding[] {
   const findings: MotionCheckFinding[] = [];
   frames.forEach((capsules, index) => {
     const time = times[index];
+    const touching = contacts
+      .filter((contact) => touchingAt(contact, time, clip.duration, clip.loop))
+      .flatMap((contact) => {
+        const a = contactVolume(contact.bone);
+        const b = contactVolume(contact.target);
+        return a && b ? [[a, b] as const] : [];
+      });
     const allowed = new Set(
-      contacts
-        .filter((contact) => time >= contact.from && time <= contact.to)
-        .flatMap((contact) => {
-          const a = contactVolume(contact.bone);
-          const b = contactVolume(contact.target);
-          if (!a || !b) return [];
-          // Touching the face also reaches the neck and jaw line.
-          const targets = b === "head" ? ["head", "neck"] : [b];
-          return targets.flatMap((t) => [`${a}/${t}`, `${t}/${a}`]);
-        }),
+      touching.flatMap(([a, b]) => {
+        // Touching the face also reaches the neck and jaw line.
+        const targets = b === "head" ? ["head", "neck"] : [b];
+        return targets.flatMap((t) => [`${a}/${t}`, `${t}/${a}`]);
+      }),
     );
-    for (const [pair, depth] of penetrations(capsules)) {
+    const palmToPalm = touching.some(
+      ([a, b]) => a !== b && a.endsWith("Hand") && b.endsWith("Hand"),
+    );
+    for (const [pair, measured] of penetrations(capsules)) {
       if (allowed.has(pair)) continue;
+      const proximal = palmToPalm ? PALM_TO_PALM_FOREARMS[pair] : undefined;
+      const depth = proximal
+        ? penetration(capsules[pair.split("/")[0]], capsules[proximal])
+        : measured;
       const limit = Math.max(0, rest.get(pair) ?? 0) + T.intersectionMargin;
       if (depth > limit)
         findings.push({
@@ -1318,25 +1391,25 @@ type PlacedHand = {
  * Proximal finger segments are not checked against their own palm (they join
  * it), and the thumb not against the fingers of its own hand: fitted shapes
  * (fist, point, peace, pinch, OK) press it onto them by design. A declared
- * contact allows the parts it names while it lasts: two digits, or a digit
+ * contact allows the parts it names while it touches: two digits, or a digit
  * and its palm, of one hand; any parts of the two hands for a hand-to-hand
- * contact. Overlaps between the two hands only warn.
+ * contact, over the same span as for body volumes (`touchingAt`). Overlaps
+ * between the two hands only warn.
  */
 function checkFingers(
   avatar: string,
   times: readonly number[],
   frames: readonly Frame[],
   body: AvatarBody,
-  contacts: readonly MotionCheckContact[],
+  contacts: readonly TouchingContact[],
+  clip: { duration: number; loop: boolean },
 ): MotionCheckFinding[] {
   const hands = SIDES.flatMap((side) => body.hands[side] ?? []);
   const findings: MotionCheckFinding[] = [];
   frames.forEach((frame, index) => {
     const time = times[index];
     const named = contacts
-      .filter(
-        (contact) => time >= contact.from - 1e-6 && time <= contact.to + 1e-6,
-      )
+      .filter((contact) => touchingAt(contact, time, clip.duration, clip.loop))
       .flatMap((contact) => {
         const bone = fingerPart(contact.bone);
         const target = fingerPart(contact.target);

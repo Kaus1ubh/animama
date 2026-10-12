@@ -1,0 +1,127 @@
+[
+  {
+    "selector": "apology_bow",
+    "name": "Apology Bow",
+    "description": "Use when apologising sincerely or admitting a mistake (\"I'm so sorry!\"). Presses the palms together at the chest and bows quickly and deeply with eyes squeezed shut and a sorry face."
+  },
+  {
+    "selector": "arms-crossed",
+    "name": "Arms Crossed",
+    "description": "Use while skeptical, unconvinced or holding a firm stance; steady rather than sulky. Holds both arms crossed with a slight head tilt and a faintly stern look."
+  },
+  {
+    "selector": "cat-monster-rawr",
+    "name": "Cat Monster Rawr",
+    "description": "Use when playfully pretending to be a monster: a mock roar, teasing or silly intimidation, not cute. Crouches with claws up by the face, roars wide-mouthed, then swipes the claws."
+  },
+  {
+    "selector": "cheeky-finger-guns",
+    "name": "Cheeky Finger Guns",
+    "description": "Use to punctuate a joke, a cheeky compliment or confident agreement. Aims finger guns with both hands, fires them and winks."
+  },
+  {
+    "selector": "double-peace-pop",
+    "name": "Double Peace Pop",
+    "description": "Use to celebrate, greet with excitement or pose playfully, with more energy than a one-hand peace sign. Pops up peace signs with both hands, sways and winks with a big smile."
+  },
+  {
+    "selector": "double-thumbs-down",
+    "name": "Double Thumbs Down",
+    "description": "Use for strong or playfully exaggerated disapproval or rejection; stronger than one thumb. Drops both thumbs down, pushes them twice like a \"boo\" and pouts."
+  },
+  {
+    "selector": "double-thumbs-up",
+    "name": "Double Thumbs Up",
+    "description": "Use for enthusiastic approval, encouragement or celebrating someone's success; stronger than one thumb. Pops both thumbs up, pumps them twice and winks."
+  },
+  {
+    "selector": "explain_open_palms",
+    "name": "Explain with Open Palms",
+    "description": "Use only when the reply walks through an explanation, steps or reasons (\"let me explain\", \"here's why\"); not for short answers, greetings or small talk. Raises both open palms in front and offers them outward in two small beats, with an attentive, slight smile."
+  },
+  {
+    "selector": "finger-heart-pose",
+    "name": "Finger Heart Pose",
+    "description": "Use for a sweet thank-you, appreciation or cute affection. Raises a finger heart beside the cheek with a wink while a little heart pops up above the fingers."
+  },
+  {
+    "selector": "goodbye_wave",
+    "name": "Goodbye Wave",
+    "description": "Use when saying goodbye or ending a chat warmly. Raises the right arm high and waves broadly, then lays the hand on the heart with a small nod and a smile."
+  },
+  {
+    "selector": "hands-on-hips",
+    "name": "Hands on Hips",
+    "description": "Use while feeling confident, determined or playfully impatient. Stands with both hands on the hips, shifting weight side to side with a smile."
+  },
+  {
+    "selector": "heart-hands-build",
+    "name": "Heart Hands",
+    "description": "Use to send warm affection, gratitude or support. Brings both hands together into a heart shape with a big beaming smile."
+  },
+  {
+    "selector": "left-ok-sign",
+    "name": "Left OK Sign",
+    "description": "Use while confirming that something is correct, ready or going well. Holds up a left-hand OK sign with a smile and a tilted head."
+  },
+  {
+    "selector": "left-peace-sign",
+    "name": "Left Peace Sign",
+    "description": "Use while greeting casually, reassuring or posing in a relaxed, cheerful way. Pops up a left-hand peace sign and holds it with a wink."
+  },
+  {
+    "selector": "prayer_hands_thanks",
+    "name": "Prayer Hands Thanks",
+    "description": "Use when thanking the user warmly or showing happy gratitude for help, a gift or kind words. Presses the palms together at the chest and gives a small double nod with a closed-eye smile."
+  },
+  {
+    "selector": "right-face-palm",
+    "name": "Right Face Palm",
+    "description": "Use when reacting to an obvious mistake, an awkward moment or something exasperating, not for shyness. Covers the face with the right hand, eyes shut, with a small head shake."
+  },
+  {
+    "selector": "right-finger-point",
+    "name": "Right Finger Point",
+    "description": "Use to point at the user: a playful call-out, a \"you!\" or a pointed reminder. Jabs the right index finger forward three times with a smile."
+  },
+  {
+    "selector": "right-thumbs-down",
+    "name": "Right Thumbs Down",
+    "description": "Use while disapproving, disagreeing or showing disappointment. Holds a right thumbs down with a small \"boo\" push and a pout."
+  },
+  {
+    "selector": "right-thumbs-up",
+    "name": "Right Thumbs Up",
+    "description": "Use while approving, agreeing, encouraging or reassuring. Holds up a right thumbs up with a small pump and a smile."
+  },
+  {
+    "selector": "shy-finger-poke-loop",
+    "name": "Shy Finger Poke Loop",
+    "description": "Use while feeling bashful, nervous or hesitant, such as making a shy request or confession. Bows the head and keeps tapping the index fingers together."
+  },
+  {
+    "selector": "single-hand-on-heart",
+    "name": "Hand on Heart",
+    "description": "Use while speaking sincerely: heartfelt gratitude, empathy or a personal promise. Holds the right hand over the heart with a calm, gentle face."
+  },
+  {
+    "selector": "soldier-salute",
+    "name": "Salute",
+    "description": "Use when acknowledging a request, accepting a task or playfully reporting ready to help. Snaps a right-hand salute to the brow with a nod and a wink."
+  },
+  {
+    "selector": "tear_wipe",
+    "name": "Tear Wipe",
+    "description": "Use when feeling sad, hurt or moved to tears but trying to stay brave, such as after bad news, a goodbye or a touching moment. Lowers the head, wipes under the right eye twice with a curled knuckle and a sniffle, then looks up with a small brave smile."
+  },
+  {
+    "selector": "thinking-hand-on-chin-hold",
+    "name": "Thinking Hand on Chin",
+    "description": "Use while openly pausing to think before answering (\"hmm, let me think…\"); not for ordinary answers or explanations, and lighter than a deep ponder. Thumb under the jaw and index along the cheek, glancing up as the finger taps."
+  },
+  {
+    "selector": "thinking-head-scratch",
+    "name": "Thinking Head Scratch",
+    "description": "Use while puzzled or trying to work something out; thinking, not sheepish. Keeps a hand on the head, scratching now and then, with a tilted head and an upward glance."
+  }
+]

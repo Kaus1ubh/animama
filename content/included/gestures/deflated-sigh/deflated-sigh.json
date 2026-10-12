@@ -423,5 +423,19 @@
         "dt": 0.05
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "sigh-puff",
+      "time": 0.92,
+      "kind": "avatar_vfx",
+      "effectId": "sigh_puff",
+      "duration": 1.48,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.15
+        }
+      }
+    }
+  ]
 }

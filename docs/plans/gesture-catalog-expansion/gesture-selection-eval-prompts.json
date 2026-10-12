@@ -1,0 +1,597 @@
+{
+  "items": [
+    {
+      "id": "sadness-pet-loss",
+      "message": "My old dog passed away this morning. He was fourteen.",
+      "acceptable": ["tear_wipe", "single-hand-on-heart", "head_pat", null, "virtual_hug", "downcast_sigh"],
+      "tags": ["emotion", "emotion:sadness"]
+    },
+    {
+      "id": "sadness-friend-moving",
+      "message": "My best friend is moving across the country next week. It won't be the same.",
+      "acceptable": ["tear_wipe", "single-hand-on-heart", "head_pat", "deflated_sigh", "virtual_hug", "downcast_sigh"],
+      "tags": ["emotion", "emotion:sadness"]
+    },
+    {
+      "id": "anger-parking-dent",
+      "message": "Someone dented my car in the parking lot and drove off without leaving a note!",
+      "acceptable": ["grr_fists", "pout_huff", "double-thumbs-down", "right-thumbs-down", "simmering_huff"],
+      "tags": ["emotion", "emotion:anger"]
+    },
+    {
+      "id": "anger-credit-taken",
+      "message": "My coworker presented my project as his own in today's meeting.",
+      "acceptable": [
+        "grr_fists",
+        "pout_huff",
+        "double-thumbs-down",
+        "right-thumbs-down",
+        "single-hand-on-heart",
+        "simmering_huff"
+      ],
+      "tags": ["emotion", "emotion:anger"]
+    },
+    {
+      "id": "disgust-hair-sandwich",
+      "message": "I found a hair baked into my sandwich. After I'd already eaten half of it.",
+      "acceptable": ["ew_recoil", "double-thumbs-down", "right-thumbs-down"],
+      "tags": ["emotion", "emotion:disgust"]
+    },
+    {
+      "id": "disgust-odd-pizza",
+      "message": "I made a pizza with sardines, banana and chocolate sauce. Want a slice?",
+      "acceptable": [
+        "ew_recoil",
+        "head_shake_no",
+        "double-thumbs-down",
+        "right-thumbs-down",
+        "laugh_mild",
+        "big_x_batsu"
+      ],
+      "tags": ["emotion", "emotion:disgust"]
+    },
+    {
+      "id": "fear-spider",
+      "message": "There's a huge spider on the ceiling right above my bed. What do I do?!",
+      "acceptable": ["cower_hands_up", "surprise_gasp", "nervous_fidget"],
+      "tags": ["emotion", "emotion:fear"]
+    },
+    {
+      "id": "fear-scary-story",
+      "message": "Let's tell scary stories. You're alone in a dark house, and the door behind you slowly creaks open...",
+      "acceptable": ["cower_hands_up", "surprise_gasp", "nervous_fidget"],
+      "tags": ["emotion", "emotion:fear"]
+    },
+    {
+      "id": "embarrassment-wrong-fact",
+      "message": "You told me penguins live at the North Pole. They live in the south, you know!",
+      "acceptable": [
+        "nervous_head_scratch",
+        "right-face-palm",
+        "cover_face_peek",
+        "shy_giggle",
+        "apology_bow",
+        "polite_bow",
+        "tehepero",
+        "flustered_fan"
+      ],
+      "tags": ["emotion", "emotion:embarrassment"]
+    },
+    {
+      "id": "embarrassment-teased",
+      "message": "You looked so cute when you got flustered just now. Do it again!",
+      "acceptable": [
+        "cover_face_peek",
+        "shy_giggle",
+        "shy-finger-poke-loop",
+        "nervous_head_scratch",
+        "pout_huff",
+        "flustered_fan",
+        "nervous_fidget"
+      ],
+      "tags": ["emotion", "emotion:embarrassment"]
+    },
+    {
+      "id": "desire-cinnamon-rolls",
+      "message": "I'm taking a tray of warm cinnamon rolls out of the oven. Want one?",
+      "acceptable": [
+        "please_hands",
+        "enthusiastic_yes",
+        "kyaa_cheeks",
+        "double-thumbs-up",
+        "right-thumbs-up",
+        "chefs_kiss"
+      ],
+      "tags": ["emotion", "emotion:desire"]
+    },
+    {
+      "id": "desire-story-ending",
+      "message": "I know how the mystery ends, but I'm only telling you if you ask really nicely.",
+      "acceptable": ["please_hands", "shy-finger-poke-loop"],
+      "tags": ["emotion", "emotion:desire"]
+    },
+    {
+      "id": "optimism-new-job",
+      "message": "Tomorrow's my first day at the new job. Wish me luck!",
+      "acceptable": ["fighting_fist_pump", "double-thumbs-up", "right-thumbs-up", "fingers_crossed", "fist_bump"],
+      "tags": ["emotion", "emotion:optimism"]
+    },
+    {
+      "id": "optimism-retake-test",
+      "message": "I didn't pass my driving test, but I've already booked another try next month.",
+      "acceptable": [
+        "fighting_fist_pump",
+        "right-thumbs-up",
+        "double-thumbs-up",
+        "head_pat",
+        "fingers_crossed",
+        "fist_bump"
+      ],
+      "tags": ["emotion", "emotion:optimism"]
+    },
+    {
+      "id": "remorse-missed-reminder",
+      "message": "You forgot to remind me about the dentist like I asked, and I missed the appointment.",
+      "acceptable": ["apology_bow", "polite_bow", "single-hand-on-heart", "downcast_sigh"],
+      "tags": ["emotion", "emotion:remorse"]
+    },
+    {
+      "id": "remorse-hurtful-joke",
+      "message": "That joke you made about my cooking kind of stung, to be honest.",
+      "acceptable": ["apology_bow", "polite_bow", "single-hand-on-heart", "downcast_sigh"],
+      "tags": ["emotion", "emotion:remorse"]
+    },
+    {
+      "id": "gratitude-playlist",
+      "message": "I made you a playlist of songs I think you'd love.",
+      "acceptable": [
+        "prayer_hands_thanks",
+        "heart-hands-build",
+        "finger-heart-pose",
+        "single-hand-on-heart",
+        "kyaa_cheeks",
+        "blow_kiss",
+        "blow_kiss_both",
+        "polite_bow",
+        "virtual_hug"
+      ],
+      "tags": ["emotion", "emotion:gratitude"]
+    },
+    {
+      "id": "gratitude-told-friends",
+      "message": "I told my friends about you, and they all think you sound lovely.",
+      "acceptable": [
+        "prayer_hands_thanks",
+        "heart-hands-build",
+        "finger-heart-pose",
+        "single-hand-on-heart",
+        "kyaa_cheeks",
+        "shy_giggle",
+        "cover_face_peek",
+        "blow_kiss",
+        "flustered_fan"
+      ],
+      "tags": ["emotion", "emotion:gratitude"]
+    },
+    {
+      "id": "explain-rainbows",
+      "message": "Can you explain how rainbows form? Keep it simple.",
+      "acceptable": ["explain_open_palms", "count_on_fingers", null],
+      "tags": ["beat", "beat:explain"]
+    },
+    {
+      "id": "explain-cats-tables",
+      "message": "Why do cats knock things off tables? Give me your best theory.",
+      "acceptable": [
+        "explain_open_palms",
+        "have_idea",
+        "thinking-hand-on-chin-hold",
+        "thinking_chin_rest",
+        "count_on_fingers",
+        "pon_realization",
+        "hmm_drift"
+      ],
+      "tags": ["beat", "beat:explain"]
+    },
+    {
+      "id": "compare-cat-or-dog",
+      "message": "Should I adopt a cat or a dog? I really can't decide.",
+      "acceptable": ["on_one_hand", "thinking-hand-on-chin-hold", "thinking_chin_rest", "hmm_drift"],
+      "tags": ["beat", "beat:compare"]
+    },
+    {
+      "id": "compare-home-or-office",
+      "message": "What are the pros and cons of working from home versus going into an office?",
+      "acceptable": ["on_one_hand", "count_on_fingers", "explain_open_palms", null],
+      "tags": ["beat", "beat:compare"]
+    },
+    {
+      "id": "list-pour-over",
+      "message": "What are the steps for making a good pour-over coffee?",
+      "acceptable": ["count_on_fingers", "explain_open_palms", null],
+      "tags": ["beat", "beat:list"]
+    },
+    {
+      "id": "list-sleep-tips",
+      "message": "Give me three quick tips for falling asleep faster.",
+      "acceptable": ["count_on_fingers", "explain_open_palms"],
+      "tags": ["beat", "beat:list"]
+    },
+    {
+      "id": "emphasise-backups",
+      "message": "Is it really that important to back up my files? It's such a hassle.",
+      "acceptable": ["emphasise_point", "right-finger-point", "nod_yes", "enthusiastic_yes"],
+      "tags": ["beat", "beat:emphasise"]
+    },
+    {
+      "id": "meh-opening-line",
+      "message": "I rewrote my story's opening line: 'It was a day like any other day.' Gripping, right?",
+      "acceptable": ["so_so_wobble", "shrug", "thinking-hand-on-chin-hold", "head_shake_no", "hmm_drift"],
+      "tags": ["beat", "beat:meh"]
+    },
+    {
+      "id": "meh-rainy-mondays",
+      "message": "Be honest: how do you feel about rainy Mondays?",
+      "acceptable": ["so_so_wobble", "shrug", "deflated_sigh", "bored_wait"],
+      "tags": ["beat", "beat:meh"]
+    },
+    {
+      "id": "wait-sailboat",
+      "message": "Okay, I've decided: I'm quitting my job tomorrow and moving onto a sailboat. No plan yet!",
+      "acceptable": ["wait_stop_palm", "surprise_gasp"],
+      "tags": ["beat", "beat:wait"]
+    },
+    {
+      "id": "wait-spoiler",
+      "message": "So in the finale, it turns out the detective was actually the—",
+      "acceptable": ["wait_stop_palm", "shh_finger", "big_x_batsu"],
+      "tags": ["beat", "beat:wait"]
+    },
+    {
+      "id": "secret-surprise-party",
+      "message": "Can you keep a secret? I'm planning a surprise party for my sister.",
+      "acceptable": [
+        "shh_finger",
+        "nod_yes",
+        "enthusiastic_yes",
+        "left-ok-sign",
+        "soldier-salute",
+        "zip_lips",
+        "pinky_promise",
+        "scheming_hands"
+      ],
+      "tags": ["beat", "beat:secret"]
+    },
+    {
+      "id": "secret-hint",
+      "message": "Come on, what surprise are you planning for me? Just a tiny hint?",
+      "acceptable": ["shh_finger", "tongue_out_bleh", "head_shake_no", "zip_lips", "scheming_hands", "tiny_bit"],
+      "tags": ["beat", "beat:secret"]
+    },
+    {
+      "id": "invite-dance-class",
+      "message": "There's a beginner dance class tonight, but I'm too shy to go alone.",
+      "acceptable": ["beckon_come_here", "fighting_fist_pump", "head_pat", "right-thumbs-up", "fist_bump"],
+      "tags": ["beat", "beat:invite"]
+    },
+    {
+      "id": "sarcasm-optional-meeting",
+      "message": "My boss scheduled a third weekend meeting this month. It's 'optional', of course.",
+      "acceptable": ["air_quotes", "arms-crossed", "right-face-palm", "deflated_sigh", "simmering_huff"],
+      "tags": ["beat", "beat:sarcasm"]
+    },
+    {
+      "id": "sarcasm-lost-suitcase",
+      "message": "The airline says my lost suitcase is 'enjoying an adventure'. How thoughtful of them.",
+      "acceptable": ["air_quotes", "right-face-palm", "deflated_sigh", "arms-crossed", "simmering_huff"],
+      "tags": ["beat", "beat:sarcasm"]
+    },
+    {
+      "id": "greeting-morning",
+      "message": "Good morning! I just woke up.",
+      "acceptable": ["wave_hello", "shy_wave", "left-peace-sign", "double-peace-pop"],
+      "tags": ["greeting"]
+    },
+    {
+      "id": "greeting-back",
+      "message": "Hey, I'm back! Did you miss me?",
+      "acceptable": [
+        "wave_hello",
+        "shy_wave",
+        "double-peace-pop",
+        "left-peace-sign",
+        "enthusiastic_yes",
+        "kyaa_cheeks",
+        "heart-hands-build",
+        "virtual_hug"
+      ],
+      "tags": ["greeting"]
+    },
+    {
+      "id": "greeting-first-meeting",
+      "message": "Hi there. It's my first time talking to you, so... nice to meet you.",
+      "acceptable": ["wave_hello", "shy_wave", "polite_bow", "left-peace-sign"],
+      "tags": ["greeting"]
+    },
+    {
+      "id": "goodbye-good-night",
+      "message": "I need to head to bed now. Good night!",
+      "acceptable": ["goodbye_wave", "shy_wave", "blow_kiss", "wave_hello"],
+      "tags": ["goodbye"]
+    },
+    {
+      "id": "goodbye-off-to-work",
+      "message": "Okay, I've got to run to work. Talk later!",
+      "acceptable": [
+        "goodbye_wave",
+        "wave_hello",
+        "shy_wave",
+        "left-peace-sign",
+        "peace_over_eye",
+        "fighting_fist_pump",
+        "blow_kiss",
+        "fist_bump"
+      ],
+      "tags": ["goodbye"]
+    },
+    {
+      "id": "goodbye-long-trip",
+      "message": "This is my last chat before I go travelling for a month. I'll miss you!",
+      "acceptable": [
+        "goodbye_wave",
+        "wave_hello",
+        "blow_kiss",
+        "blow_kiss_both",
+        "tear_wipe",
+        "heart-hands-build",
+        "single-hand-on-heart",
+        "virtual_hug"
+      ],
+      "tags": ["goodbye"]
+    },
+    {
+      "id": "praise-good-advice",
+      "message": "Your advice yesterday was spot on. It totally worked!",
+      "acceptable": [
+        "double-thumbs-up",
+        "right-thumbs-up",
+        "excited_clap",
+        "flex_strong",
+        "smug_heh",
+        "peace_over_eye",
+        "double-peace-pop",
+        "shy_giggle",
+        "nervous_head_scratch",
+        "high_five",
+        "flustered_fan"
+      ],
+      "tags": ["praise"]
+    },
+    {
+      "id": "praise-riddle-solved",
+      "message": "You solved my riddle on the first try! How did you do that?",
+      "acceptable": [
+        "smug_heh",
+        "flex_strong",
+        "ohohoho_noble_laugh",
+        "peace_over_eye",
+        "double-peace-pop",
+        "celebration",
+        "meme-dab",
+        "cheeky-finger-guns"
+      ],
+      "tags": ["praise"]
+    },
+    {
+      "id": "celebration-got-job",
+      "message": "I got the job!!! They called me an hour ago!",
+      "acceptable": [
+        "excited_clap",
+        "celebration",
+        "double-thumbs-up",
+        "double-peace-pop",
+        "kyaa_cheeks",
+        "enthusiastic_yes",
+        "head_pat",
+        "high_five",
+        "virtual_hug"
+      ],
+      "tags": ["celebration"]
+    },
+    {
+      "id": "celebration-marathon",
+      "message": "I finished my first marathon. Five hours, but I did it!",
+      "acceptable": [
+        "excited_clap",
+        "celebration",
+        "double-thumbs-up",
+        "right-thumbs-up",
+        "head_pat",
+        "double-peace-pop",
+        "high_five"
+      ],
+      "tags": ["celebration"]
+    },
+    {
+      "id": "joke-scarecrow",
+      "message": "Why did the scarecrow win an award? Because he was outstanding in his field.",
+      "acceptable": ["laugh_mild", "laugh_medium", "cheeky-finger-guns", "right-face-palm"],
+      "tags": ["joke"]
+    },
+    {
+      "id": "joke-juggling-eggs",
+      "message": "I tried to impress my date by juggling eggs. Three seconds later there was omelette on the ceiling, the dog and my date.",
+      "acceptable": ["laugh_hard", "laugh_hysterical", "laugh_medium", "soul_leaves_body"],
+      "tags": ["joke"]
+    },
+    {
+      "id": "thinking-history-era",
+      "message": "If you could live in any era of history, which one would you pick?",
+      "acceptable": [
+        "thinking_chin_rest",
+        "thinking-hand-on-chin-hold",
+        "thinking-head-scratch",
+        "have_idea",
+        "hmm_drift"
+      ],
+      "tags": ["thinking"]
+    },
+    {
+      "id": "thinking-riddle",
+      "message": "Here's a riddle: what has keys but can't open locks?",
+      "acceptable": [
+        "thinking-hand-on-chin-hold",
+        "thinking_chin_rest",
+        "thinking-head-scratch",
+        "have_idea",
+        "hmm_drift",
+        "pon_realization"
+      ],
+      "tags": ["thinking"]
+    },
+    {
+      "id": "surprise-secret-twin",
+      "message": "Guess what? I just found out I have a twin I never knew about.",
+      "acceptable": ["surprise_gasp", "mind_blown", "wait_stop_palm"],
+      "tags": ["surprise"]
+    },
+    {
+      "id": "surprise-octopus",
+      "message": "Did you know octopuses have three hearts and blue blood?",
+      "acceptable": ["mind_blown", "surprise_gasp"],
+      "tags": ["surprise"]
+    },
+    {
+      "id": "neutral-boiling-point",
+      "message": "What's the boiling point of water in Fahrenheit?",
+      "acceptable": [null],
+      "tags": ["neutral"]
+    },
+    {
+      "id": "neutral-minutes",
+      "message": "How many minutes are in three and a half hours?",
+      "acceptable": [null],
+      "tags": ["neutral"]
+    },
+    {
+      "id": "neutral-plural-cactus",
+      "message": "What's the plural of 'cactus'?",
+      "acceptable": [null],
+      "tags": ["neutral"]
+    },
+    {
+      "id": "neutral-tokyo-time-zone",
+      "message": "Which time zone does Tokyo use?",
+      "acceptable": [null],
+      "tags": ["neutral"]
+    },
+    {
+      "id": "neutral-teaspoons",
+      "message": "How many teaspoons are in a tablespoon?",
+      "acceptable": [null],
+      "tags": ["neutral"]
+    },
+    {
+      "id": "neutral-spelling",
+      "message": "How do you spell 'necessary'?",
+      "acceptable": [null],
+      "tags": ["neutral"]
+    },
+    {
+      "id": "neutral-capital-canada",
+      "message": "What's the capital of Canada?",
+      "acceptable": [null],
+      "tags": ["neutral"]
+    },
+    {
+      "id": "neutral-celsius",
+      "message": "Convert 20 degrees Celsius to Fahrenheit, please.",
+      "acceptable": [null],
+      "tags": ["neutral"]
+    },
+    {
+      "id": "neutral-laundry",
+      "message": "Not much going on today. Just doing laundry.",
+      "acceptable": [null, "nod_yes", "attentive_lean_in"],
+      "tags": ["neutral"]
+    },
+    {
+      "id": "neutral-making-tea",
+      "message": "I'm making some tea. Back in a minute.",
+      "acceptable": [null, "nod_yes", "left-ok-sign", "right-thumbs-up"],
+      "tags": ["neutral"]
+    }
+  ],
+  "scripted_chats": [
+    {
+      "id": "stressful-week",
+      "turns": [
+        "Hey. Long day.",
+        "Honestly, this whole week has been rough.",
+        "My manager moved our deadline up by three days without asking anyone.",
+        "And then the printer jammed right before my presentation. Of course it did.",
+        "I ended up presenting from my phone. It was a bit of a disaster.",
+        "Sorry, I'm just dumping all of this on you.",
+        "Thanks. It helps to say it out loud.",
+        "On top of that, I've barely slept. Maybe five hours a night.",
+        "Any tips for winding down when my brain won't stop?",
+        "The breathing one sounds weird, but I'll try it.",
+        "Okay, I tried it. Weirdly, it kind of worked.",
+        "Also, my neighbour's dog has started howling at six every morning.",
+        "I'm starting to think the dog has a better sleep schedule than me.",
+        "Anyway. Tomorrow I have to ask my manager for more time on the project.",
+        "What if she just says no?",
+        "How should I phrase it so it doesn't sound like I'm complaining?",
+        "Okay, let me try: 'To do this well, I need until Friday.' Better?",
+        "Alright. Wish me luck.",
+        "...I'm back. Guess what?",
+        "She said yes! I've got until Friday!",
+        "And she actually thanked me for raising it early.",
+        "I can't believe I was so worried about it.",
+        "You were right about being direct, by the way.",
+        "I think I'll treat myself to takeout tonight. Noodles or pizza?",
+        "Noodles it is.",
+        "Oh, an old friend from university just texted. She's in town this weekend.",
+        "We haven't seen each other in four years.",
+        "Do you think it'll be awkward after so long?",
+        "Thanks for sticking with me through this week.",
+        "Okay, I'm off to get those noodles. Good night!"
+      ]
+    },
+    {
+      "id": "trip-and-hobby",
+      "turns": [
+        "Hi! I've got some exciting news.",
+        "I'm finally taking a holiday next month. Two whole weeks!",
+        "I can't decide between a beach trip and hiking in the mountains.",
+        "What would you pick?",
+        "Good point. Mountains, then.",
+        "What should I pack for a week of hiking?",
+        "I don't own proper hiking boots. Do sneakers count?",
+        "Fine, fine, I'll buy boots.",
+        "Here's a confession: I've never actually camped before.",
+        "What if a bear shows up at my tent?",
+        "Okay, that's less scary than I imagined.",
+        "Also, I've decided to take up watercolour painting on the trip.",
+        "I've painted exactly once. It looked like a soggy potato.",
+        "How do you even start with watercolours?",
+        "Wait, do you paint the light parts first or last?",
+        "Huh, that's backwards from what I thought.",
+        "I just did a practice sky. It's... a sky. I guess.",
+        "Actually, the second try looks way better!",
+        "I even added little birds.",
+        "My sister says my birds look like flying commas.",
+        "Rude, but fair.",
+        "Should I bring my sketchbook or buy a new one there?",
+        "Do you think I can paint the sunrise from the summit?",
+        "Okay, I'll set an alarm for half past four. Ugh.",
+        "Can you keep a secret? I'm going to paint something for my sister as a thank-you.",
+        "Don't tell her about the commas comment, though.",
+        "I think I've got everything planned now.",
+        "Thanks for helping me figure all this out.",
+        "I'll tell you all about it when I'm back.",
+        "Bye for now!"
+      ]
+    }
+  ]
+}

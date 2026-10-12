@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:hair-tuck-settle",
+  "version": 1,
+  "semantic_key": "hair_tuck_settle",
+  "name": "Hair Tuck & Settle",
+  "ai_description": "Use as an idle while waiting or listening quietly between messages, a casual self-tidying habit. Tucks hair behind one ear with the fingertips while the head tips into the hand, then lowers it and rolls the shoulders into a relaxed posture reset.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "hair-tuck-settle.json",
+      "role": "sequence"
+    }
+  ]
+}

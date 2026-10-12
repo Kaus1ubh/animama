@@ -95,6 +95,19 @@ def main_structured_response_guidance(
     return guidance
 
 
+def render_available_gestures(descriptors: Sequence[RuntimeGestureDescriptor]) -> str:
+    """Render the equipped Gesture list the model chooses from, or ``""`` when none are equipped.
+
+    Each row pairs the exact selector allowed by the reply schema's ``gesture``
+    enum with the Gesture's name and AI description.
+    """
+
+    if not descriptors:
+        return ""
+    rows = "\n".join(f"- {row.selector}: {row.name} — {row.description}" for row in descriptors)
+    return f"Available Gestures for this Anima:\n{rows}"
+
+
 def gesture_response_guidance(guidance: str, descriptors: Sequence[RuntimeGestureDescriptor]) -> str:
     """Append the Anima's AI-selectable Gestures to the response guidance.
 
@@ -102,10 +115,8 @@ def gesture_response_guidance(guidance: str, descriptors: Sequence[RuntimeGestur
     stable instructions stay byte-identical.
     """
 
-    if not descriptors:
-        return guidance
-    rows = "\n".join(f"- {row.selector}: {row.name} — {row.description}" for row in descriptors)
-    return f"{guidance}\n\nAvailable Gestures for this Anima:\n{rows}"
+    gesture_list = render_available_gestures(descriptors)
+    return f"{guidance}\n\n{gesture_list}" if gesture_list else guidance
 
 
 def response_model_agent_id(node_id: str) -> str:
@@ -126,6 +137,7 @@ __all__ = [
     "build_main_structured_response_format",
     "main_structured_response_format_for_model",
     "main_structured_response_guidance",
+    "render_available_gestures",
     "response_model_agent_id",
     "supports_structured_reply",
     "turn_response_format",

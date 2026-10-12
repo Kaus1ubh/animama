@@ -5,12 +5,19 @@
   "version": 1,
   "semantic_key": "single-hand-on-heart",
   "name": "Hand on Heart",
-  "ai_description": "Place one hand over the heart to convey sincerity, heartfelt gratitude, empathy, or a personal promise.",
+  "ai_description": "Use while speaking sincerely: heartfelt gratitude, empathy or a personal promise. Holds the right hand over the heart with a calm, gentle face.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:heart_throb",
+      "alias": "heart_throb",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
   "files": [
     {
       "path": "single-hand-on-heart.json",

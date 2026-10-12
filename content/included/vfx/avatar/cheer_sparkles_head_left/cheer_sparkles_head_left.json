@@ -1,0 +1,97 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:cheer_sparkles_head_left",
+  "version": 1,
+  "name": "Cheer Sparkles Left",
+  "description": "A bright burst of yellow sparkles, a star and short impact dashes pops above the raised left hand at head-top height and lingers, swelling a little, for a two-handed cheer. The left twin of Cheer Sparkles, anchored to the head.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:correct_answer_04",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": 0.12,
+        "y": 0.2,
+        "z": 0.25
+      },
+      "size": 0.12,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "cheer_sparkles.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.08,
+            "opacity": 1,
+            "scale": 1.18
+          },
+          {
+            "t": 0.16,
+            "scale": 0.95
+          },
+          {
+            "t": 0.24,
+            "scale": 1,
+            "offset": {
+              "x": 0,
+              "y": 0.004
+            }
+          },
+          {
+            "t": 0.7,
+            "scale": 1.08,
+            "offset": {
+              "x": 0,
+              "y": 0.016
+            }
+          },
+          {
+            "t": 1.1,
+            "scale": 1.11,
+            "offset": {
+              "x": 0,
+              "y": 0.024
+            }
+          },
+          {
+            "t": 1.5,
+            "scale": 1.13,
+            "offset": {
+              "x": 0,
+              "y": 0.03
+            }
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "cheer_sparkles.png",
+      "role": "image"
+    }
+  ]
+}

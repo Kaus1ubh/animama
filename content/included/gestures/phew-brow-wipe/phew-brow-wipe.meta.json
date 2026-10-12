@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:phew-brow-wipe",
+  "version": 1,
+  "semantic_key": "phew_brow_wipe",
+  "name": "Phew Brow Wipe",
+  "ai_description": "Use when relieved that something turned out fine, after a close call, a scare or finishing something tough. Wipes the back of the wrist across the brow, flicks it off and lets out a big 'phew' with a relieved closed-eye smile.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:sigh_puff",
+      "alias": "sigh_puff",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "phew-brow-wipe.json",
+      "role": "sequence"
+    }
+  ]
+}

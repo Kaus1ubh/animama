@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:bleh_lettering_head",
+  "version": 1,
+  "name": "Bleh Lettering",
+  "description": "Purple manga lettering \"BLEH~\" pops up beside the head on the Avatar's right, above the hand pulling down an eyelid, and wobbles once, for a cheeky akanbe tease. Head-anchored, so it stays after the hand lets go.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:funny_bubble_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": -0.142,
+        "y": 0.143,
+        "z": 0.112
+      },
+      "size": 0.055,
+      "facing": "camera",
+      "rotationDeg": -8
+    },
+    "art": {
+      "image": "bleh_lettering.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3
+          },
+          {
+            "t": 0.12,
+            "opacity": 1,
+            "scale": 1.15
+          },
+          {
+            "t": 0.2,
+            "scale": 1
+          },
+          {
+            "t": 0.26,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.34,
+            "rotationDeg": 8
+          },
+          {
+            "t": 0.44,
+            "rotationDeg": -5
+          },
+          {
+            "t": 0.52,
+            "rotationDeg": 0
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "bleh_lettering.png",
+      "role": "image"
+    }
+  ]
+}

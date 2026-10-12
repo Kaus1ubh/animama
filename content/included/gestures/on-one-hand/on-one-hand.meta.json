@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:on-one-hand",
+  "version": 1,
+  "semantic_key": "on_one_hand",
+  "name": "On One Hand, On the Other",
+  "ai_description": "Use when comparing two options, weighing pros and cons or saying \"on the other hand\". Presents one open palm to each side in turn, tilting the head toward each with a thoughtful look.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "on-one-hand.json",
+      "role": "sequence"
+    }
+  ]
+}

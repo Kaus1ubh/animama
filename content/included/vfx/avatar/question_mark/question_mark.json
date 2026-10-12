@@ -1,0 +1,129 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:question_mark",
+  "version": 1,
+  "name": "Question Mark",
+  "description": "A chunky blue cartoon question mark pops up above the head and bobs with a little tilt, the anime puzzled \"?\" for scratching the head, wondering and working something out.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:thought_bubble_chime",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": 0.08,
+        "y": 0.25,
+        "z": 0.02
+      },
+      "size": 0.085,
+      "facing": "camera",
+      "rotationDeg": -10
+    },
+    "art": {
+      "image": "question_mark.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "rotationDeg": 0,
+            "offset": {
+              "x": 0,
+              "y": -0.01
+            }
+          },
+          {
+            "t": 0.1,
+            "opacity": 1,
+            "scale": 1.18,
+            "offset": {
+              "x": 0,
+              "y": 0.004
+            }
+          },
+          {
+            "t": 0.18,
+            "scale": 0.94,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.26,
+            "scale": 1
+          },
+          {
+            "t": 0.45,
+            "rotationDeg": 4,
+            "offset": {
+              "x": 0,
+              "y": 0.008
+            }
+          },
+          {
+            "t": 0.7,
+            "scale": 1.07,
+            "rotationDeg": -3,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.8,
+            "scale": 1
+          },
+          {
+            "t": 1,
+            "rotationDeg": 4,
+            "offset": {
+              "x": 0,
+              "y": 0.008
+            }
+          },
+          {
+            "t": 1.3,
+            "scale": 1.1,
+            "rotationDeg": -6,
+            "offset": {
+              "x": 0,
+              "y": 0.012
+            }
+          },
+          {
+            "t": 1.42,
+            "scale": 1
+          },
+          {
+            "t": 1.6,
+            "rotationDeg": 0,
+            "offset": {
+              "x": 0,
+              "y": 0.006
+            }
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "question_mark.png",
+      "role": "image"
+    }
+  ]
+}

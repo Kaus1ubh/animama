@@ -73,6 +73,9 @@ Consequences:
   vendor's soundboard and sound-library restrictions.
 - Release remains gated on the vendor's written confirmation of the
   distribution model.
+- A built-in effect has at most one sound. Some are silent by owner choice
+  (2026-10-11, [issue #409](https://github.com/raymond-van/animama/issues/409)):
+  effects used only by idles, and gags the owner preferred quiet.
 
 ## Evidence
 

@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:emphasis_lines_peek",
+  "version": 1,
+  "name": "Emphasis Lines",
+  "description": "Three short yellow emphasis wedges flare up and out beside the Avatar's right eye as it peeks out through its fingers, the shojo look! accent on a shy peek.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:fast_swish_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": -0.1,
+        "y": 0.12,
+        "z": 0.14
+      },
+      "size": 0.085,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "emphasis_lines-mirrored.png"
+    },
+    "motion": {
+      "pulse": {
+        "scaleMin": 0.96,
+        "scaleMax": 1.05,
+        "cyclesPerSecond": 2
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.12,
+            "opacity": 1,
+            "scale": 1.15
+          },
+          {
+            "t": 0.2,
+            "scale": 1
+          },
+          {
+            "t": 0.5,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.9,
+            "offset": {
+              "x": -0.03,
+              "y": 0.012
+            }
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "emphasis_lines-mirrored.png",
+      "role": "image"
+    }
+  ]
+}

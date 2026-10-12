@@ -529,7 +529,7 @@ class DirectChatTurnExecutor:
                 memory_tool_specs=memory_tool_specs,
                 visible_history=compiled_history,
                 response_format=response_format,
-                response_format_guidance=self._gesture_guidance(
+                response_format_guidance=gesture_response_guidance(
                     main_structured_response_guidance(model_provider, output_type),
                     request.runtime_gesture_descriptors,
                 ),
@@ -1021,7 +1021,7 @@ class DirectChatTurnExecutor:
             memory_tool_specs=prepared.memory_tool_specs,
             visible_history=visible_history,
             response_format=cast(dict[str, Any] | None, model_request.prompt.response_format),
-            response_format_guidance=self._gesture_guidance(
+            response_format_guidance=gesture_response_guidance(
                 main_structured_response_guidance(model_request.model_provider, prepared.output_type),
                 prepared.request.runtime_gesture_descriptors,
             ),
@@ -1177,13 +1177,6 @@ class DirectChatTurnExecutor:
                 f"Anima default model provider not found: {profile.default_model_provider_id}"
             )
         return model_provider
-
-    @staticmethod
-    def _gesture_guidance(
-        guidance: str,
-        descriptors: tuple[RuntimeGestureDescriptor, ...],
-    ) -> str:
-        return gesture_response_guidance(guidance, descriptors)
 
     def _build_prompt(
         self,

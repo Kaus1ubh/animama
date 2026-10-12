@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:zzz",
+  "version": 1,
+  "name": "Zzz",
+  "description": "A small bubbly blue Zzz builds up letter by letter beside the head and drifts up, the anime dozing-off mark for sleepy, nodding-off idles.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": 0.15,
+        "y": 0.13,
+        "z": 0.03
+      },
+      "size": 0.08,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "zzz-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "rows": 1,
+        "frames": 4,
+        "fps": 2.5,
+        "loop": "once"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.7,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.2,
+            "opacity": 1,
+            "scale": 1
+          },
+          {
+            "t": 1.6,
+            "offset": {
+              "x": 0.008,
+              "y": 0.012
+            }
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "zzz-sheet.png",
+      "role": "image"
+    }
+  ]
+}

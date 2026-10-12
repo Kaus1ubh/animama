@@ -1,0 +1,81 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:kira_star_wish",
+  "version": 1,
+  "name": "Kira Star Wish",
+  "description": "A small white-and-gold four-point \"kira\" star twinkles up and outward of the right hand's crossed fingers, a hopeful \"please let it happen\" sparkle for a fingers-crossed wish.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:digital_chime_magical_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "rightHand",
+      "offset": {
+        "x": -0.143,
+        "y": 0.017,
+        "z": 0.083
+      },
+      "size": 0.06,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "kira_star.png"
+    },
+    "motion": {
+      "pulse": {
+        "scaleMin": 0.9,
+        "scaleMax": 1.08,
+        "cyclesPerSecond": 1.6
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.2,
+            "rotationDeg": -45
+          },
+          {
+            "t": 0.1,
+            "opacity": 1,
+            "scale": 1.25,
+            "rotationDeg": 8
+          },
+          {
+            "t": 0.2,
+            "scale": 0.92,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.28,
+            "scale": 1
+          },
+          {
+            "t": 0.36,
+            "scale": 1.12
+          },
+          {
+            "t": 0.46,
+            "scale": 1
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "kira_star.png",
+      "role": "image"
+    }
+  ]
+}

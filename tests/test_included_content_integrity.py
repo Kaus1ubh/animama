@@ -56,6 +56,61 @@ def test_private_pack_inventories_are_public_safe_and_non_portable(pack_id: str,
     assert all(set(item) == {"path", "size_bytes", "sha256"} for item in manifest["files"])
 
 
+# Public sources of the Mixamo pack's identities: its folder IDs (also its
+# content-ID suffixes), the Selector IDs its descriptor templates started from,
+# and the renames recorded in docs/plans/mixamo-built-in-motion (v1 `dance`,
+# `yawn`, `quick_shrug`; v2 idle loops without the `mixamo-idle-` prefix). The
+# other pack v2 renames are private, so new names are also checked by hand
+# before promotion.
+PACK_IDENTITY_SOURCES = (
+    "src/backend/animama/resources/mixamo-motion-manifest.json",
+    "scripts/mixamo-assets.json",
+)
+DOCUMENTED_PACK_RENAMES = {"dance", "yawn", "quick_shrug"}
+# Core Palms Up Shrug kept `shrug`; the pack's clip became `quick_shrug` (#242).
+ACCEPTED_PACK_OVERLAPS = {("palms-up-shrug", "shrug")}
+
+
+def _identity(value: str) -> str:
+    """Compare snake_case Selector IDs with kebab-case content-ID suffixes."""
+    return value.replace("-", "_")
+
+
+def _mixamo_pack_identities() -> set[str]:
+    manifest = json.loads((ROOT / PACK_IDENTITY_SOURCES[0]).read_text(encoding="utf-8"))
+    folders = {Path(entry["path"]).parts[1] for entry in manifest["files"] if entry["path"].startswith("gestures/")}
+    idle_loops = {folder.removeprefix("mixamo-idle-") for folder in folders if folder.startswith("mixamo-idle-")}
+    templates = json.loads((ROOT / PACK_IDENTITY_SOURCES[1]).read_text(encoding="utf-8"))
+    keys = {asset["document"]["semantic_key"] for asset in templates["assets"]}
+    renames = DOCUMENTED_PACK_RENAMES | {f"idle_{loop}" for loop in idle_loops}
+    return {_identity(value) for value in folders | keys | renames}
+
+
+def _pack_collisions(metas: list[dict[str, Any]], pack: set[str]) -> list[tuple[str, str]]:
+    """Core Gestures whose Selector ID or content-ID suffix is also a pack identity."""
+    collisions = []
+    for meta in metas:
+        folder = meta["content_id"].rsplit(":", 1)[-1]
+        for value in sorted({meta["semantic_key"], folder}):
+            if _identity(value) in pack and (folder, value) not in ACCEPTED_PACK_OVERLAPS:
+                collisions.append((folder, value))
+    return collisions
+
+
+def test_core_gesture_identities_stay_distinct_from_the_mixamo_pack() -> None:
+    pack = _mixamo_pack_identities()
+    assert {"crying", "wave", "telling_secret", "yawn", "idle_bored"} <= pack
+    metas = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted((ROOT / "content/included/gestures").glob("*/*.meta.json"))
+    ]
+    assert len(metas) >= 107
+    assert _pack_collisions(metas, pack) == []
+    assert _pack_collisions([{"content_id": "builtin:gesture:goodbye-wave", "semantic_key": "wave"}], pack) == [
+        ("goodbye-wave", "wave")
+    ]
+
+
 def test_the_preview_deny_list_holds_hashes_only() -> None:
     deny = json.loads(
         (ROOT / "src/backend/animama/resources/wow-comedy-sfx-preview-deny.json").read_text(encoding="utf-8")
@@ -129,8 +184,12 @@ def test_every_reaction_emotion_has_a_variant_with_an_avatar_effect() -> None:
     assert [emotion for emotion, has_effect in emotions.items() if not has_effect] == []
 
 
-def test_every_included_avatar_effect_has_one_optional_licensed_sound() -> None:
-    """Each built-in Avatar Effect plays one sound from the private comedy pack."""
+def test_included_avatar_effect_sounds_are_optional_licensed_pack_sounds() -> None:
+    """A built-in Avatar Effect plays at most one sound, from the private comedy pack.
+
+    Most effects have one; some are silent by owner choice (idle-only effects,
+    and gags the owner preferred quiet, #409).
+    """
 
     manifest = json.loads(
         (ROOT / "src/backend/animama/resources/wow-comedy-sfx-manifest.json").read_text(encoding="utf-8")
@@ -141,7 +200,12 @@ def test_every_included_avatar_effect_has_one_optional_licensed_sound() -> None:
     referenced: set[str] = set()
     for path in effects:
         document = json.loads(path.read_text(encoding="utf-8"))
-        [edge] = document["dependencies"]
+        edges = document["dependencies"]
+        assert len(edges) <= 1, path.name
+        if not edges:
+            assert "soundAlias" not in document["definition"], path.name
+            continue
+        [edge] = edges
         assert edge["content_type"] == "sound_effect" and edge["optional"] is True, path.name
         assert document["definition"]["soundAlias"] == edge["alias"], path.name
         key = edge["ref"].removeprefix("builtin:sound-effect:")
@@ -168,3 +232,21 @@ def test_stacked_avatar_effects_play_one_accompanying_sound_at_a_time() -> None:
             if event.get("kind") == "avatar_vfx" and event.get("playAccompanyingSound", True)
         )
         assert all(later - earlier >= 0.3 for earlier, later in pairwise(audible)), path.name
+
+
+def test_included_idle_gestures_play_no_accompanying_sound() -> None:
+    """Idle Gestures play while the Anima is quiet, so their effects stay silent."""
+
+    styles = sorted((ROOT / "content/included/idle-styles").glob("*/*.json"))
+    assert styles
+    for style_path in styles:
+        style = json.loads(style_path.read_text(encoding="utf-8"))
+        for edge in style["dependencies"]:
+            if edge["kind"] != "gesture":
+                continue
+            slug = edge["ref"].removeprefix("builtin:gesture:")
+            clip = json.loads((ROOT / f"content/included/gestures/{slug}/{slug}.json").read_text(encoding="utf-8"))
+            for event in clip.get("events", []):
+                assert event.get("kind") != "sfx", (style_path.name, slug, event.get("id"))
+                if event.get("kind") == "avatar_vfx":
+                    assert event.get("playAccompanyingSound") is False, (style_path.name, slug, event.get("id"))

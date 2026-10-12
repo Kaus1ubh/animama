@@ -2081,5 +2081,19 @@
         "dt": 0.1
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "rawr-lettering",
+      "time": 0.72,
+      "kind": "avatar_vfx",
+      "effectId": "rawr_lettering_chest",
+      "duration": 1.48,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.18
+        }
+      }
+    }
+  ]
 }
