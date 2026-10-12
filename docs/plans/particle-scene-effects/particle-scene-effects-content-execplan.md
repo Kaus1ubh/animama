@@ -130,7 +130,8 @@ backend to `src/backend/animama/`, content to `content/included/`.
 - [x] P3 — Scene backgrounds and sticker art: 24 presets saved, 44 stickers
       (2026-10-12); G2 pending the owner's morning review.
 - [ ] P4 — Animama sticker set and Twemoji removal (R11).
-- [ ] P5 — Reaction ladder (R12) and performance. Gate G4.
+- [x] P5 — Reaction ladder: 43 project files, benchmarks within budget
+      (2026-10-12); G4 pending the owner's review.
 - [ ] P6 — Promotion and removal (R13, R14). Gate G3.
 - [ ] P7 — Documentation and acceptance.
 - [ ] Final integration review and PR.
@@ -711,6 +712,43 @@ Completion: G4 approved; every emotion has a background at intensity 3; the
 benchmark is within budget or the owner has decided.
 
 #### P5 record
+
+Starting source and issue: `526c0e7e`, #448. Drafts under
+`.animama-drafts/plan2/reactions/` (generator `work/build.py`).
+
+- **Project files:** 43 `animamaActionProject/1.0` files, one per Reaction whose
+  Particle or Scene Effects change (disapproval-2, embarrassment-2, fear-2,
+  nervousness-2 and remorse-2 keep none, and no intensity-1 Reaction has one).
+  Each is the Included clip with only its effect events and dependencies
+  changed: Particle events at 0.12 s (intensity 2) and 0.1 s (intensity 3),
+  each `duration` set to the effect's `duration_seconds` (`hearts-v1` 3 s), the
+  background `scene-emotion-background` at 0 s; dependencies carry the Local
+  `ref` that promote re-points to the Included ID in the same run.
+- **Ladder:** the G1 table with the agent proposals for the four effects added
+  later — caring-2 Sparkle Hearts, desire-3 Heart Fireworks, optimism-3 Golden
+  Willow, and excitement-3 Star Burst plus Fireworks Show (alone, Fireworks Show
+  nearly vanished on the hot Delight Excitement background). Every emotion has a
+  background at intensity 3 and all 16 Particle Effects are used. Full table:
+  `ladder-final.md`; one frame per intensity-3 Reaction: `ladder-board.jpg`.
+- **Validation:** `pnpm -s animation validate` and `pnpm -s animation check` pass
+  on all 43 sequences; `effects promote promote.json --dry-run` plans 261
+  changes with no `local:` ref left (Reaction replacements need their Local
+  effects in the same run, so P6 promotes everything in one run).
+- **Performance** (`effects:bench --reaction`, Apple M5, 1600×1200, added mean
+  frame interval / GPU in ms, Y_0 and A_1): joy-3 1.59/1.22 and 0.35/0.42;
+  grief-3 1.28/1.30 and 0.82/0.73; excitement-3 (both effects) 1.17/1.08 and
+  0.25/0.63; admiration-3 1.14/0.98; gratitude-3 0.97/1.05; love-3 0.92/0.93;
+  desire-3 0.81/0.93; optimism-3 0.81/0.67 (1.14 over its whole span); anger-3
+  0.63/0.95; caring-2 about 0.5/0.7. All within the 4 ms budget.
+
+Departure: no Local Reactions were saved and no chat check ran before promotion;
+the wired Reactions are checked in chat on the promoted branch content (P7) and
+can be previewed now with `pnpm -s animation:preview <emotion>-<n>.project.json`.
+
+For G4 (pending the owner's review): Halo Rays reads olive on Gratitude's pale
+peach and blends into Confidence's gold rays; curiosity-3's orbiting question
+marks pass over its `idea_bulb` Avatar Effect; joy-3's Star Burst is pale on
+yellow; embarrassment-3, joy-3 and disgust-3 repeat their background's motif.
 
 #### Code Review #1 Findings
 
