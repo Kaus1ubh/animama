@@ -13,6 +13,7 @@ import {
 } from "@/lib/speech/pocket/voice-preferences";
 import { voiceCloneSampleSource } from "@/lib/speech/pocket/voice-clones";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useVoiceClones } from "@/query/hooks/useVoiceClones";
 import { useVoiceSelection } from "@/query/mutations/useVoiceSelection";
 import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
@@ -65,6 +66,16 @@ export function elevenLabsVoiceId(
     : "";
 }
 
+/** The Anima's saved Gemini prebuilt voice, if any. */
+export function geminiVoice(
+  speech: { [key: string]: unknown } | undefined,
+): string | null {
+  const profile = speech?.gemini;
+  if (!profile || typeof profile !== "object" || !("voice" in profile))
+    return null;
+  return typeof profile.voice === "string" ? profile.voice : null;
+}
+
 /** Persist choices independently of which provider is currently used for replies. */
 export function AnimaVoicesEditor() {
   const apiClient = useProductApiClient();
@@ -78,6 +89,7 @@ export function AnimaVoicesEditor() {
     isUpdating,
   } = useSettings();
   const runtime = usePocketTtsRuntime();
+  const geminiTts = useRuntimeCapabilities().data?.gemini_tts ?? null;
   const downloads = usePocketVoiceDownloads({ enabled: true });
   const pending = useRef(false);
   const [saving, setSaving] = useState(false);
@@ -95,9 +107,11 @@ export function AnimaVoicesEditor() {
       ? "PocketTTS"
       : configuredProvider === "elevenlabs"
         ? "ElevenLabs"
-        : configuredProvider === "browser"
-          ? "Browser"
-          : null;
+        : configuredProvider === "gemini"
+          ? "Gemini"
+          : configuredProvider === "browser"
+            ? "Browser"
+            : null;
   const activeProvider = effectivePreferences.speech?.tts_enabled
     ? configuredProvider
     : null;
@@ -107,6 +121,12 @@ export function AnimaVoicesEditor() {
     DEFAULT_POCKET_VOICE;
   const download = downloads.availability(pocketVoice);
   const savedElevenLabs = elevenLabsVoiceId(animaPreferences?.speech);
+  // An unknown saved name is spoken with the default voice, so show that one.
+  const savedGeminiVoice = geminiVoice(animaPreferences?.speech);
+  const selectedGeminiVoice = geminiTts
+    ? (geminiTts.voices.find((voice) => voice === savedGeminiVoice) ??
+      geminiTts.default_voice)
+    : null;
   const loadout = useAnimaLoadout(animaId);
   const library = useVoiceClones({
     enabled: configuredProvider === "pocket_tts",
@@ -128,7 +148,12 @@ export function AnimaVoicesEditor() {
     : pocketVoice;
 
   const saveProvider = async (provider: string) => {
-    if (provider !== "pocket_tts" && provider !== "elevenlabs") return;
+    if (
+      provider !== "pocket_tts" &&
+      provider !== "elevenlabs" &&
+      !(provider === "gemini" && geminiTts)
+    )
+      return;
     if (disabled || pending.current) return;
     pending.current = true;
     setSaving(true);
@@ -229,6 +254,9 @@ export function AnimaVoicesEditor() {
             <SelectContent>
               <SelectItem value="pocket_tts">PocketTTS</SelectItem>
               <SelectItem value="elevenlabs">ElevenLabs</SelectItem>
+              {geminiTts ? (
+                <SelectItem value="gemini">Gemini</SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
         </div>
@@ -350,6 +378,52 @@ export function AnimaVoicesEditor() {
               }
             }}
           />
+        </section>
+      ) : null}
+      {configuredProvider === "gemini" && geminiTts ? (
+        <section className="space-y-3" aria-label="Gemini voice">
+          <ProviderHeading name="Gemini" active={activeProvider === "gemini"} />
+          <div className="flex items-center justify-between gap-4">
+            <label
+              htmlFor="anima-gemini-voice"
+              className="text-muted-foreground text-xs"
+            >
+              Voice
+            </label>
+            <Select
+              value={selectedGeminiVoice ?? undefined}
+              onValueChange={(voice) => {
+                if (disabled || pending.current) return;
+                pending.current = true;
+                setSaving(true);
+                void updateAnimaPreferences({ speech: { gemini: { voice } } })
+                  .then(() => toast.success("Gemini voice saved."))
+                  .catch(() =>
+                    toast.error("Failed to save Gemini voice. Try again."),
+                  )
+                  .finally(() => {
+                    pending.current = false;
+                    setSaving(false);
+                  });
+              }}
+              disabled={disabled}
+            >
+              <SelectTrigger
+                id="anima-gemini-voice"
+                aria-label="Gemini voice"
+                className="w-48 min-w-0"
+              >
+                <SelectValue>{selectedGeminiVoice}</SelectValue>
+              </SelectTrigger>
+              <SelectContent>
+                {geminiTts.voices.map((voice) => (
+                  <SelectItem key={voice} value={voice}>
+                    {voice}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
         </section>
       ) : null}
     </div>

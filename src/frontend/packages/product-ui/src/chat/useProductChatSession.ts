@@ -910,14 +910,14 @@ export function useProductChatSession({
         const useMainStructuredResponse = ttsEnabled;
         const ttsProvider = speech.provider;
         const elevenLabsModelId = speech.elevenLabsModelId;
-        const shouldQueueViseme =
-          ttsEnabled &&
-          (ttsProvider === "pocket_tts" || ttsProvider === "elevenlabs");
         const visemeProvider =
-          ttsProvider === "pocket_tts" || ttsProvider === "elevenlabs"
+          ttsProvider === "pocket_tts" ||
+          ttsProvider === "elevenlabs" ||
+          ttsProvider === "gemini"
             ? ttsProvider
             : undefined;
-        const isFinalizedElevenLabsTts = speech.finalizedElevenLabs;
+        const shouldQueueViseme = ttsEnabled && visemeProvider !== undefined;
+        const isFinalizedServerAudio = speech.finalizedServerAudio;
 
         // 4) Start local run state before opening SSE:
         // - optimistic user message
@@ -1285,8 +1285,7 @@ export function useProductChatSession({
             const audioRunId = data.run_id ?? runId;
             if (
               !ttsEnabled ||
-              ttsProvider !== "elevenlabs" ||
-              !isFinalizedElevenLabsTts ||
+              !isFinalizedServerAudio ||
               speechFellBackToPocket ||
               ttsSkippedForRun(audioRunId)
             ) {
@@ -1298,8 +1297,7 @@ export function useProductChatSession({
             const audioRunId = data.run_id ?? runId;
             if (
               !ttsEnabled ||
-              ttsProvider !== "elevenlabs" ||
-              !isFinalizedElevenLabsTts ||
+              !isFinalizedServerAudio ||
               speechFellBackToPocket ||
               ttsSkippedForRun(audioRunId)
             ) {
@@ -1311,8 +1309,7 @@ export function useProductChatSession({
             const audioRunId = data.run_id ?? runId;
             if (
               !ttsEnabled ||
-              ttsProvider !== "elevenlabs" ||
-              !isFinalizedElevenLabsTts ||
+              !isFinalizedServerAudio ||
               speechFellBackToPocket
             ) {
               return;

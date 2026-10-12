@@ -50,7 +50,7 @@ export type ChatSessionEffects = {
     runId: string;
     phonemizedText: string[][] | null;
     tokenizedText: string | null;
-    provider?: "pocket_tts" | "elevenlabs";
+    provider?: "pocket_tts" | "elevenlabs" | "gemini";
   }) => void;
   clearAvatarVisemeBridgeRun: (
     runId?: string | null,
@@ -139,9 +139,10 @@ export const textOnlyChatEffects: ChatSessionEffects = {
 
 export type ChatSpeechPolicy = {
   enabled: boolean;
-  provider: "browser" | "pocket_tts" | "elevenlabs" | null;
+  provider: "browser" | "pocket_tts" | "elevenlabs" | "gemini" | null;
   elevenLabsModelId: string | null;
-  finalizedElevenLabs: boolean;
+  /** The server pushes the reply's audio as `tts.audio` frames (ElevenLabs v3 or Gemini). */
+  finalizedServerAudio: boolean;
   dispatchOptions?: PyAnimaDispatchOptions;
 };
 
@@ -149,5 +150,5 @@ export const textOnlySpeechPolicy: ChatSpeechPolicy = {
   enabled: false,
   provider: null,
   elevenLabsModelId: null,
-  finalizedElevenLabs: false,
+  finalizedServerAudio: false,
 };

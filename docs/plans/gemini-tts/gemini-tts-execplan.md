@@ -52,7 +52,8 @@ Ownership and boundaries:
 
 - [x] Phase 1: Live measurement and the backend Gemini voice. Done
       2026-10-11; Review #3 passed (repair round 2).
-- [ ] Phase 2: Voice settings, playback and lip-sync.
+- [x] Phase 2: Voice settings, playback and lip-sync. Done 2026-10-11;
+      Review #2 passed (repair round 1).
 - [ ] Phase 3: Desktop key.
 - [ ] Phase 4: Documentation, release note and owner listening check.
 - [ ] Final integration review.
@@ -336,7 +337,7 @@ config commands, `pnpm check`.
 Completion: tests pass; D22 and the byte order are recorded; review leaves no
 blocker.
 
-Phase record: issue #458; starting source `fd4fea0f`; commit —.
+Phase record: issue #458; starting source `fd4fea0f`; commit `65c37cca`.
 
 Results (2026-10-11, working tree on `077b8c8f`):
 
@@ -517,8 +518,8 @@ prebuilt voice per Anima; replies play with lip-sync; a voice error shows the
 existing "Text-to-speech unavailable" notice while the reply stays.
 
 1. `gemini` joins `TtsProviderPreference`, `TTS_PROVIDERS` and the provider
-   options, offered only when `provider_credentials` is true and Web Audio is
-   available. It is never chosen automatically.
+   options, offered only when runtime capabilities report `gemini_tts` and Web
+   Audio is available. It is never chosen automatically.
 2. `SpeechPreferences` gains the Gemini TTS model (Flash-Lite default) with a
    select beside the ElevenLabs model in `ApplicationSettingsModal`.
 3. `VoiceLoadoutSection` offers Gemini with a select of the generated voice
@@ -531,7 +532,8 @@ existing "Text-to-speech unavailable" notice while the reply stays.
    emitted provider. Reuse the existing decoder and scheduler.
 6. The lip-sync guards in `useChatSession.ts`, `useProductChatSession.ts` and
    `avatar-lipsync-bridge-store.ts` accept `gemini`.
-7. `useChatSse.ts` accepts `provider: "gemini"` on `tts.*` frames.
+7. `useChatSse.ts` accepts `provider: "gemini"` on `tts.*` frames (no change
+   needed: its `provider` field is already any string).
 
 Tests: provider options with and without provider credentials; preferences
 defaults; dispatch payload; playback start, duration and end signals for
@@ -545,15 +547,157 @@ section at 1440×900, then a narrow width, on the task stack.
 Completion: checks pass; the visual check matches existing styling; review
 leaves no blocker.
 
-Phase record: issue #459; starting source —; commit —.
+Phase record: issue #459; starting source `65c37cca`; commit —.
+
+Implementation (2026-10-11):
+
+- **Settings:** `TtsProviderPreference` and `TTS_PROVIDERS` gain `gemini`.
+  `getTtsProviderOptions(platform, { gemini })` lists Gemini only when
+  runtime capabilities report `gemini_tts`, and automatic fallback never
+  chooses it. `SpeechPreferences.tts_gemini_model_id`
+  (`GEMINI_TTS_MODEL_OPTIONS`, Flash-Lite default) has a "Gemini model" row in
+  App Settings → Voice, shown for the Gemini provider, with a note that Google
+  bills the owner's key.
+- **Per Anima:** `VoiceLoadoutSection` offers Gemini where it is offered and a
+  voice select from the capability's voices, saved at `speech.gemini.voice`.
+- **Dispatch:** `buildGeminiChatTtsDispatchOptions` sends `provider: "gemini"`,
+  the model and sentence chunking.
+- **Session:** `ChatSpeechPolicy.finalizedElevenLabs` becomes
+  `finalizedServerAudio` (ElevenLabs v3 or Gemini); the three `tts.*` gates in
+  `useProductChatSession` use it, and visemes queue for Gemini.
+- **Playback:** `useTtsPlayback` treats Gemini runs as server-pushed: it
+  prepares the shared finalized runtime instead of streaming text, routes
+  pushed audio, completion and failure to it, and reports the run's own
+  provider in the audio signals, so lip-sync accepts Gemini.
+  `useChatSession` and the lip-sync store accept `gemini`.
+- **Tests:** provider options and fallback; preferences; the dispatch builder;
+  Gemini playback (no text streaming, pushed audio, provider in signals);
+  lip-sync acceptance; the voice picker with and without the capability; two
+  product-ui lifecycle tests (pushed Gemini audio reaches the finalized adapter;
+  a Gemini error ends speech without Pocket fallback).
+- **Checks:** `pnpm check`, `pnpm web:lint`, `pnpm prettier:check` and
+  `pnpm packages:check` pass; `pnpm web:test` 3,900 passed and 1 skipped (463
+  files); `pnpm packages:test` passes (product-ui 29 of 29).
+- **Visual check** (2026-10-11) on the task stack `animama-gemini-tts`
+  (`http://animama-gemini-tts.localhost:8860`, development mode, base port
+  8860; only the web app is published):
+  - the stack reports `gemini_tts` (2 models, 30 voices) and loads the key;
+  - App Settings → Voice lists Gemini, and choosing it shows the "Gemini
+    model" row (Flash-Lite TTS) with the billing note, styled like the
+    ElevenLabs rows;
+  - Loadout → Voices shows "Gemini (app)", the active-provider badge and the
+    voice picker; choosing Puck saves `speech.gemini.voice`;
+  - at 420 px wide the section fits with no horizontal overflow.
+
+  The desktop-size check used a 1024 px pane (the 1440 × 900 emulation did
+  not fit the hidden pane). No spoken reply was played; the owner listening
+  check in Phase 4 covers audio and lip-sync.
 
 #### Code Review #1 Findings
 
-Not started.
+Independent `sdlc-reviewer`, full initial review of the working tree on
+`65c37cca`. **Result: pass, no blocking findings.** It verified every playback
+path for each provider, the Pocket fallback guards, the flag rename, that
+Gemini is never chosen automatically, capability timing (local capabilities
+arrive with admission), the error notice, lip-sync and voice storage. Checks:
+web `tsc`, product-ui check, `web:lint`, `prettier:check`, 171 focused vitest
+tests, the product-ui lifecycle file (29 of 29), `git diff --check`.
+
+- **P2-R1-F1:** with a saved `gemini` provider and no `gemini_tts`
+  capability, the chat policy dropped Gemini but playback still resolved it,
+  prepared a finalized run and waited for audio that never came, leaving the
+  avatar thinking; the settings modal showed the same split. Latent: the local
+  composition always reports the capability.
+- **P2-R1-F2 (required before the PR):** `product-ui` declarations changed
+  (and Phase 1 changed the `runtime-contracts` declarations and the OpenAPI
+  structure) without the version bumps that `scripts/package-sets/README.md`
+  requires.
+- **P2-R1-F3:** tests the plan lists were missing: saving the Gemini voice,
+  the gate without the capability, the duration signal, and a lifecycle case
+  that exercises the allowance guard and keeps the reply text.
+- **P2-R1-F4 (optional):** the hosted admission guard did not reject
+  `gemini_tts`; step 1 still named `provider_credentials`.
+- **P2-R1-F5 (optional):** "Stream chunked Text-to-Speech" stayed enabled for
+  Gemini, where it has no effect.
+- **P2-R1-F6 (optional):** `isFinalizedServerProvider` was declared as a type
+  guard but returns false for realtime ElevenLabs.
+- **P2-R1-F7 (optional):** an unknown saved voice showed as is while the
+  backend speaks `Kore`; a duplicated fallback.
+- **P2-R1-F8 (optional):** the Gemini model type was written by hand.
+- **P2-R1-F9 (plan record):** step 7 needed no change; `pnpm build` and the
+  visual check were not yet recorded.
 
 #### Code Review #1 Revisions
 
-Not started.
+- **F1 (fixed):** `resolvePreferredTtsProvider` takes `offers`; a saved
+  `gemini` without the offer falls back like an unsupported provider.
+  `useChatSession`, `useTtsPlayback` (new `geminiTtsOffered` option) and the
+  settings modal's initialization pass the offer; the special case in
+  `useChatSession` is gone. Tests: resolution with and without the offer, and
+  playback that prepares nothing without it.
+- **F2 (to do, before the PR):** a separate `build(voice)` commit bumps
+  `product-ui` to 0.9.0, `runtime-contracts` to 0.5.0 and `local-http` to 5.0.0,
+  updating `contracts/versions.json`, `contracts/hosted-web.md` and
+  `docs/backend/architecture/http-api.md`, as in `afc2fc40`.
+- **F3 (fixed):** `VoiceLoadoutSection.gemini.test.tsx` checks the saved voice
+  (`{speech: {gemini: {voice}}}`) and the default shown for an unknown name;
+  the playback test asserts the duration signal; a lifecycle test sends a
+  Gemini `tts.error` with the allowance code and checks there is no Pocket
+  fallback and the reply text stays.
+- **F4 (fixed):** the hosted guard rejects `gemini_tts`, with a test; step 1
+  is corrected.
+- **F5 (fixed):** the switch is off and disabled for Gemini ("Unavailable with
+  Gemini.").
+- **F6 (fixed):** it returns a plain `boolean`.
+- **F7 (fixed):** an unknown saved voice shows the default; the duplicate
+  fallback is gone.
+- **F8 (fixed):** `GeminiTtsModelId` is `GeminiTtsCapability["models"][number]`.
+- **F9 (fixed):** step 7 notes no change; `pnpm build` passed; the visual
+  check is recorded above.
+
+Verification: web `tsc`, `web:lint` and `prettier:check` pass; 75 focused
+vitest tests and the hosted-composition tests (66) pass; the product-ui
+lifecycle file passes 30 of 30; `pnpm build` passes.
+
+Repair budget: one of two rounds used.
+
+#### Code Review #2 Findings
+
+Independent `sdlc-reviewer`, targeted recheck (repair round 1). **Result: pass,
+no blocking findings.** It verified F1 and F3–F9, found no regressions (ElevenLabs,
+Pocket and browser resolution are unchanged; setup never offers Gemini; hosted
+payloads without `gemini_tts` are still admitted, and no Cloud producer
+reports it), and confirmed the recorded F2 bump plan against
+`scripts/package-sets/README.md` and `afc2fc40`. Checks: web `tsc`,
+`web:lint`, `prettier:check`, 867 vitest tests across the touched and
+neighbouring areas, product-ui check, the lifecycle file (30 of 30).
+
+- **P2-R2-F1 (non-blocking):** two comments in `preferences.ts` promised more
+  than the code does.
+- **P2-R2-F2 (non-blocking):** a playback test's name overstated what the
+  mocked resolver shows.
+- **P2-R2-F3 (non-blocking):** the hosted Gemini case asserted only
+  `unavailable`, which a parse failure also returns.
+- **P2-R2-F4 (record):** rerun the full Phase 2 checks on the final tree;
+  mention the `finalizedServerAudio` rename with the package bump.
+
+#### Code Review #2 Revisions
+
+- **F1–F2 (fixed):** comments reworded; the test is "does not prepare Gemini
+  playback without the composition's offer".
+- **F3 (fixed):** a separate test asserts the "incompatible application
+  capabilities" message for `gemini_tts`.
+- **F4 (done):** the full checks are recorded below; the `build(voice)` commit
+  names the rename.
+
+No further review round was needed: Review #2 found no blocking issue and its
+revisions are comments, a test name and a test.
+
+Final checks on the Phase 2 tree: `pnpm check`, `pnpm web:lint`,
+`pnpm prettier:check` and `pnpm packages:check` pass; `pnpm web:test` passed
+its vitest part (3,904 passed, 1 skipped, 464 files) before a 25-minute
+command timeout stopped its browser-script tests; rerunning those alone
+(`pnpm --filter animama-web test:source`) passed 216 of 216.
 
 ### Phase 3: Desktop key
 

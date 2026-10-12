@@ -12,6 +12,7 @@ import {
   resolveElevenLabsV3FinalizedChunking,
   resolvePreferences,
   toElevenLabsV3FinalizedChunking,
+  toGeminiTtsModelId,
 } from "./preferences";
 
 describe("Anima TTS provider", () => {
@@ -170,5 +171,18 @@ describe("model role preferences", () => {
     expect(modelRolePreferencePath("utility")).toBe(
       "models.utility_model_provider_id",
     );
+  });
+});
+
+describe("Gemini TTS model preference", () => {
+  it("accepts only the Gemini speech models", () => {
+    expect(toGeminiTtsModelId("gemini-3.8-flash-lite-tts")).toBe(
+      "gemini-3.8-flash-lite-tts",
+    );
+    expect(toGeminiTtsModelId("gemini-3.8-flash-tts")).toBe(
+      "gemini-3.8-flash-tts",
+    );
+    expect(toGeminiTtsModelId("eleven_v3")).toBeNull();
+    expect(toGeminiTtsModelId(undefined)).toBeNull();
   });
 });

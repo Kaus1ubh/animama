@@ -33,6 +33,8 @@ import { WebSearchSettings } from "@/ui/settings/web-search/WebSearchSettings";
 import {
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
   DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
+  DEFAULT_GEMINI_TTS_MODEL_ID,
+  GEMINI_TTS_MODEL_OPTIONS,
   DEFAULT_ANIMAMA_PREFERENCES,
   ELEVENLABS_TTS_MODEL_OPTIONS,
   ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS,
@@ -41,8 +43,10 @@ import {
   mergePreferences,
   resolveElevenLabsV3FinalizedChunking,
   toElevenLabsTtsModelId,
+  toGeminiTtsModelId,
   toElevenLabsV3FinalizedChunking,
   type ElevenLabsTtsModelId,
+  type GeminiTtsModelId,
   type ElevenLabsV3FinalizedChunking,
   type ModelRole,
   type SettingsPreferences,
@@ -404,6 +408,8 @@ export function ApplicationSettingsModal({
     useState<TtsProvider | null>(null);
   const [selectedElevenLabsModelId, setSelectedElevenLabsModelId] =
     useState<ElevenLabsTtsModelId>(DEFAULT_ELEVENLABS_TTS_MODEL_ID);
+  const [selectedGeminiModelId, setSelectedGeminiModelId] =
+    useState<GeminiTtsModelId>(DEFAULT_GEMINI_TTS_MODEL_ID);
   const [
     selectedElevenLabsV3FinalizedChunking,
     setSelectedElevenLabsV3FinalizedChunking,
@@ -445,6 +451,9 @@ export function ApplicationSettingsModal({
   const savedElevenLabsModelIdRef = useRef<ElevenLabsTtsModelId>(
     DEFAULT_ELEVENLABS_TTS_MODEL_ID,
   );
+  const savedGeminiModelIdRef = useRef<GeminiTtsModelId>(
+    DEFAULT_GEMINI_TTS_MODEL_ID,
+  );
   const savedElevenLabsV3FinalizedChunkingRef =
     useRef<ElevenLabsV3FinalizedChunking>(
       DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
@@ -473,6 +482,9 @@ export function ApplicationSettingsModal({
     toElevenLabsTtsModelId(
       resolvedUserPreferences?.speech?.tts_elevenlabs_model_id,
     ) ?? DEFAULT_ELEVENLABS_TTS_MODEL_ID;
+  const savedGeminiModelId =
+    toGeminiTtsModelId(resolvedUserPreferences?.speech?.tts_gemini_model_id) ??
+    DEFAULT_GEMINI_TTS_MODEL_ID;
   const savedElevenLabsV3FinalizedChunking =
     resolveElevenLabsV3FinalizedChunking(
       resolvedUserPreferences?.speech?.tts_elevenlabs_v3_finalized_chunking,
@@ -501,6 +513,10 @@ export function ApplicationSettingsModal({
   useEffect(() => {
     savedElevenLabsModelIdRef.current = savedElevenLabsModelId;
   }, [savedElevenLabsModelId]);
+
+  useEffect(() => {
+    savedGeminiModelIdRef.current = savedGeminiModelId;
+  }, [savedGeminiModelId]);
 
   useEffect(() => {
     savedElevenLabsV3FinalizedChunkingRef.current =
@@ -552,6 +568,7 @@ export function ApplicationSettingsModal({
     setSelectedSttProvider(savedSttProvider);
     setSelectedTtsProvider(savedTtsProvider);
     setSelectedElevenLabsModelId(savedElevenLabsModelId);
+    setSelectedGeminiModelId(savedGeminiModelId);
     setSelectedElevenLabsV3FinalizedChunking(
       savedElevenLabsV3FinalizedChunking,
     );
@@ -570,6 +587,7 @@ export function ApplicationSettingsModal({
     open,
     savedSttProvider,
     savedElevenLabsModelId,
+    savedGeminiModelId,
     savedElevenLabsV3FinalizedChunking,
     savedTtsEnabled,
     savedTtsProvider,
@@ -586,6 +604,7 @@ export function ApplicationSettingsModal({
     const initialSavedSttProvider = savedSttProviderRef.current;
     const initialSavedTtsProvider = savedTtsProviderRef.current;
     const initialSavedElevenLabsModelId = savedElevenLabsModelIdRef.current;
+    const initialSavedGeminiModelId = savedGeminiModelIdRef.current;
     const initialSavedElevenLabsV3FinalizedChunking =
       savedElevenLabsV3FinalizedChunkingRef.current;
     const initialSavedTtsEnabled = savedTtsEnabledRef.current;
@@ -606,12 +625,14 @@ export function ApplicationSettingsModal({
         const resolvedTts = resolvePreferredTtsProvider({
           savedProvider: initialSavedTtsProvider,
           platform,
+          offers: { gemini: capabilities.gemini_tts != null },
         });
 
         if (cancelled) return;
         setSelectedSttProvider(resolved.provider);
         setSelectedTtsProvider(resolvedTts.provider);
         setSelectedElevenLabsModelId(initialSavedElevenLabsModelId);
+        setSelectedGeminiModelId(initialSavedGeminiModelId);
         setSelectedElevenLabsV3FinalizedChunking(
           initialSavedElevenLabsV3FinalizedChunking,
         );
@@ -699,9 +720,10 @@ export function ApplicationSettingsModal({
       getSttSettingsOptions(getSttProviderOptions(parakeetAvailable, platform)),
     [parakeetAvailable, platform],
   );
+  const geminiTtsOffered = runtimeCapabilities.data?.gemini_tts != null;
   const ttsProviderOptions = useMemo(
-    () => getTtsProviderOptions(platform),
-    [platform],
+    () => getTtsProviderOptions(platform, { gemini: geminiTtsOffered }),
+    [geminiTtsOffered, platform],
   );
 
   const selectedSttOption = getSttSettingsSelection(
@@ -717,6 +739,9 @@ export function ApplicationSettingsModal({
   const currentElevenLabsModelOption = ELEVENLABS_TTS_MODEL_OPTIONS.find(
     (option) => option.id === selectedElevenLabsModelId,
   );
+  const currentGeminiModelOption = GEMINI_TTS_MODEL_OPTIONS.find(
+    (option) => option.id === selectedGeminiModelId,
+  );
   const currentElevenLabsV3FinalizedChunkingOption =
     ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS.find(
       (option) => option.id === selectedElevenLabsV3FinalizedChunking,
@@ -724,6 +749,12 @@ export function ApplicationSettingsModal({
   const selectedElevenLabsModelIsFinalized =
     selectedTtsProvider === "elevenlabs" &&
     isElevenLabsFinalizedTtsModelId(selectedElevenLabsModelId);
+  // The server pushes ElevenLabs v3 and Gemini audio whole, so streaming text chunks does not apply.
+  const streamChunksUnavailableReason = selectedElevenLabsModelIsFinalized
+    ? "Unavailable with Eleven v3."
+    : selectedTtsProvider === "gemini"
+      ? "Unavailable with Gemini."
+      : null;
 
   const firstAvailableTtsProvider = useMemo(() => {
     return ttsProviderOptions.find((option) => !option.disabled)?.id ?? null;
@@ -802,6 +833,7 @@ export function ApplicationSettingsModal({
         tts_enabled: boolean;
         tts_provider?: TtsProvider;
         tts_elevenlabs_model_id?: ElevenLabsTtsModelId;
+        tts_gemini_model_id?: GeminiTtsModelId;
       } = {
         tts_enabled: nextEnabled,
       };
@@ -810,6 +842,9 @@ export function ApplicationSettingsModal({
       }
       if (nextProvider === "elevenlabs") {
         speechPatch.tts_elevenlabs_model_id = selectedElevenLabsModelId;
+      }
+      if (nextProvider === "gemini") {
+        speechPatch.tts_gemini_model_id = selectedGeminiModelId;
       }
 
       void updateUserPreferences({
@@ -828,6 +863,7 @@ export function ApplicationSettingsModal({
       isSaving,
       selectedTtsProvider,
       selectedElevenLabsModelId,
+      selectedGeminiModelId,
       ttsEnabled,
       ttsProviderOptions,
       updateUserPreferences,
@@ -861,6 +897,9 @@ export function ApplicationSettingsModal({
           ...(nextProvider === "elevenlabs"
             ? { tts_elevenlabs_model_id: selectedElevenLabsModelId }
             : {}),
+          ...(nextProvider === "gemini"
+            ? { tts_gemini_model_id: selectedGeminiModelId }
+            : {}),
         },
       })
         .catch(() => {
@@ -875,6 +914,7 @@ export function ApplicationSettingsModal({
       isSaving,
       selectedTtsProvider,
       selectedElevenLabsModelId,
+      selectedGeminiModelId,
       ttsEnabled,
       ttsProviderOptions,
       updateUserPreferences,
@@ -887,7 +927,7 @@ export function ApplicationSettingsModal({
         isSaving ||
         isInitializing ||
         !ttsEnabled ||
-        selectedElevenLabsModelIsFinalized
+        streamChunksUnavailableReason
       ) {
         return;
       }
@@ -909,7 +949,7 @@ export function ApplicationSettingsModal({
       isSaving,
       ttsEnabled,
       ttsStreamChunks,
-      selectedElevenLabsModelIsFinalized,
+      streamChunksUnavailableReason,
       updateUserPreferences,
     ],
   );
@@ -944,6 +984,42 @@ export function ApplicationSettingsModal({
       isInitializing,
       isSaving,
       selectedElevenLabsModelId,
+      selectedTtsProvider,
+      ttsEnabled,
+      updateUserPreferences,
+    ],
+  );
+
+  const handleGeminiModelChange = useCallback(
+    (value: string) => {
+      const nextModel = toGeminiTtsModelId(value);
+      if (
+        !nextModel ||
+        isSaving ||
+        isInitializing ||
+        !ttsEnabled ||
+        selectedTtsProvider !== "gemini"
+      ) {
+        return;
+      }
+
+      const previous = selectedGeminiModelId;
+      setSelectedGeminiModelId(nextModel);
+      setIsSaving(true);
+
+      void updateUserPreferences({
+        speech: { tts_gemini_model_id: nextModel },
+      })
+        .catch(() => {
+          setSelectedGeminiModelId(previous);
+          toast.error("Failed to update Gemini model.");
+        })
+        .finally(() => setIsSaving(false));
+    },
+    [
+      isInitializing,
+      isSaving,
+      selectedGeminiModelId,
       selectedTtsProvider,
       ttsEnabled,
       updateUserPreferences,
@@ -1451,18 +1527,15 @@ export function ApplicationSettingsModal({
         <SettingsRow
           label="Stream chunked Text-to-Speech"
           description={
-            selectedElevenLabsModelIsFinalized
-              ? "Unavailable with Eleven v3."
-              : "Start speaking before the full response is ready."
+            streamChunksUnavailableReason ??
+            "Start speaking before the full response is ready."
           }
           control={
             <Switch
-              checked={
-                selectedElevenLabsModelIsFinalized ? false : ttsStreamChunks
-              }
+              checked={streamChunksUnavailableReason ? false : ttsStreamChunks}
               onCheckedChange={handleTtsStreamChunksChange}
               disabled={
-                isBusy || !ttsEnabled || selectedElevenLabsModelIsFinalized
+                isBusy || !ttsEnabled || Boolean(streamChunksUnavailableReason)
               }
               aria-label="Stream chunked Text-to-Speech"
             />
@@ -1475,7 +1548,14 @@ export function ApplicationSettingsModal({
       section: "Voice",
       group: "Text-to-Speech",
       label: "Default Text-to-Speech provider",
-      keywords: ["tts", "text-to-speech", "pocket", "elevenlabs", "voice"],
+      keywords: [
+        "tts",
+        "text-to-speech",
+        "pocket",
+        "elevenlabs",
+        "gemini",
+        "voice",
+      ],
       render: () => (
         <SettingsRow
           label="Default provider"
@@ -1607,6 +1687,46 @@ export function ApplicationSettingsModal({
             </Select>
           }
         />
+      ),
+    },
+    {
+      id: "gemini-model",
+      section: "Voice",
+      group: "Text-to-Speech",
+      label: "Gemini model",
+      keywords: ["tts", "gemini", "google", "flash", "voice"],
+      hidden: !ttsEnabled || selectedTtsProvider !== "gemini",
+      render: () => (
+        <SettingsRow
+          label="Gemini model"
+          description={currentGeminiModelOption?.description}
+          control={
+            <Select
+              value={selectedGeminiModelId}
+              onValueChange={handleGeminiModelChange}
+              disabled={isBusy}
+            >
+              <SelectTrigger
+                className={SELECT_TRIGGER_CLASS_NAME}
+                aria-label="Gemini model"
+              >
+                <SelectValue placeholder="Select model" />
+              </SelectTrigger>
+              <SelectContent>
+                {GEMINI_TTS_MODEL_OPTIONS.map((option) => (
+                  <SelectItem key={option.id} value={option.id}>
+                    {option.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          }
+        >
+          <p className="text-muted-foreground text-xs">
+            Google bills Gemini speech to your API key. Choose each Anima's
+            voice in Loadout → Voices.
+          </p>
+        </SettingsRow>
       ),
     },
     {
