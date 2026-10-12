@@ -1,7 +1,7 @@
 # Release Avatar canvas memory promptly
 
 Status: Agreed
-Snapshot: [issue #472](https://github.com/raymond-van/animama/issues/472), published and read back at 2026-10-12T21:36:42Z. The issue is authoritative.
+Snapshot: [issue #472](https://github.com/raymond-van/animama/issues/472), published at 2026-10-12T21:36:42Z and updated at 2026-10-12T23:25:36Z for the R5 deferral. The issue is authoritative.
 Owner decision: 2026-10-12, the owner asked to expand issue #472 to fix the memory
 leaks and churn found while investigating Library previews, and then to include
 investigating and fixing PiP and desktop window memory. On 2026-10-12 the owner
@@ -64,7 +64,7 @@ Non-goals:
 - **R2 Detach before dispose.** Disposing or unloading an Avatar removes its model from any scene before releasing its GPU resources. No later frame can draw, and so re-upload, disposed resources. Switching a creator's preview model leaves no growth after GC that scales with the number of switches.
 - **R3 Release decoded textures.** Unloading an Avatar promptly releases the decoded image data of the model textures it owns. An unload or dispose drops every externally supplied callback and event sink, so an old closure cannot keep a previous model alive.
 - **R4 One live scroll tracker.** At most one router tracks scroll positions at a time, and it belongs to the current admitted session. A retired or never-mounted router tracks no elements. Readmitting a new session still builds a fresh router and QueryClient for that session.
-- **R5 Chat keeps its renderer across Animas.** Switching Anima in chat keeps the WebGL renderer and loads the new Anima's model into it. All state scoped to the previous Anima still resets: chat, safety notice and crisis card, avatar transform, scene, emotion and playback. The new Anima appears exactly as a fresh visit would show it.
+- **R5 Chat keeps its renderer across Animas (deferred; see Open questions and decisions).** Switching Anima in chat keeps the WebGL renderer and loads the new Anima's model into it. All state scoped to the previous Anima still resets: chat, safety notice and crisis card, avatar transform, scene, emotion and playback. The new Anima appears exactly as a fresh visit would show it.
 - **R6 Desktop and PiP windows release memory.** Repeatedly opening and closing native PiP, browser Document PiP and Quick Chat, and switching Anima while PiP is open, leaves no growth after GC that scales with repetitions in any affected process. That covers the main renderer, the auxiliary window renderers, the GPU process and the Electron main process. A closed auxiliary window releases its renderer, canvas, Avatar, IPC listeners and snapshot subscriptions. While PiP is open, the main window's suspended scene does not keep work or allocations running that exist only for its own rendering.
 
 ## Constraints
@@ -105,7 +105,7 @@ All browser measurements use a built task stack, an isolated Chrome and forced G
 
 ## Open questions and decisions
 
-- **R5 included (owner, 2026-10-12).** It is the riskiest item, because chat state is currently reset by remounting. The owner chose to include it rather than rely on R3 alone.
+- **R5 deferred (owner, 2026-10-12).** The owner first included R5. Phase 2 measurements then showed its remaining benefit is small. Switching Anima must load the other Anima's model either way, and the old renderer and model are already released promptly: the GPU stays flat and memory returns to baseline after GC. What remains is one WebGL context and scene rebuild per switch. Against that saving, the change would need an explicit reset for every piece of per-Anima state the remount now handles. On review the owner chose to defer R5. It stays a follow-up in #478.
 - **R6 behavior changes.** Any R6 fix that would change visible behavior, rather than only release memory, goes back to the owner. An example is unloading the main window's Avatar while PiP is open.
 - **R4 implementation choice (agent, 2026-10-12):** keep one router per admitted session for hosted isolation, rather than one router for the page lifetime.
 
