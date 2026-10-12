@@ -140,8 +140,10 @@ Ownership and boundaries:
   - audio tags as new scope behind intent discovery.
 
   Phases 1–2 authorized.
-- [ ] Phase 1: realtime v4 Turbo over the dialogue socket.
-- [ ] Phase 2: finalized v4, model cleanup and every language.
+- [x] Spec published to #471 at `5e0c6797` and read back (2026-10-12). Phase
+  issues #480 and #481 were created as native sub-issues of #471.
+- [ ] Phase 1 (#480): realtime v4 Turbo over the dialogue socket.
+- [ ] Phase 2 (#481): finalized v4, model cleanup and every language.
 - [ ] Phase 3: timing plumbing and the timing evidence module (not yet
   authorized).
 - [ ] Phase 4: side-by-side view with pluggable plan sources (not yet
@@ -302,8 +304,9 @@ authorized.
 
 ### Phase 1: realtime v4 Turbo over the dialogue socket
 
-Requirements: R1, R3 (realtime models), R5 (browser frame compatibility).
-Starting source: `0b28c30a` on `feat/eleven-v4` (base `95a2db39`).
+Issue: #480. Requirements: R1, R3 (realtime models), R5 (browser frame
+compatibility). Starting source: `5e0c6797` on `feat/eleven-v4` (base
+`95a2db39`).
 
 Outcome:
 
@@ -441,7 +444,8 @@ Pending.
 
 ### Phase 2: finalized v4, model cleanup and every language
 
-Requirements: R2, R3 (finalized and cleanup), R6, R7. Depends on Phase 1.
+Issue: #481. Requirements: R2, R3 (finalized and cleanup), R6 and R7. Depends on
+Phase 1.
 
 Outcome:
 

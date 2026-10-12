@@ -12,8 +12,10 @@ Owner decisions, 2026-10-12, in D1–D12 below:
   linked issue [#479](https://github.com/raymond-van/animama/issues/479) after
   intent discovery (D12).
 
-Authoritative source: this draft, until `workspace-setup` publishes it to
-[issue #471](https://github.com/raymond-van/animama/issues/471).
+Authoritative source: parent issue
+[#471](https://github.com/raymond-van/animama/issues/471), published on
+2026-10-12 (updated 23:23 UTC) from this file at `5e0c6797`. This file is that
+snapshot. Refresh it from the issue before resuming.
 Research: [eleven-v4-research.md](eleven-v4-research.md) (spike of 2026-10-12).
 
 ## Problem and intended users
@@ -404,8 +406,8 @@ Exclude:
 
 ## Spec
 
-This document, before publication. After `workspace-setup` publishes it:
-[issue #471](https://github.com/raymond-van/animama/issues/471).
+[Issue #471](https://github.com/raymond-van/animama/issues/471), published from
+this file on 2026-10-12.
 
 ## ExecPlan
 
@@ -414,4 +416,10 @@ This document, before publication. After `workspace-setup` publishes it:
 
 ## Delivery links
 
-The phase issues and PR are added here once implementation is authorized.
+- Phase 1: [#480](https://github.com/raymond-van/animama/issues/480) (realtime
+  v4 Turbo).
+- Phase 2: [#481](https://github.com/raymond-van/animama/issues/481) (finalized
+  v4, model cleanup and every language).
+- Phases 3–5: issues follow when they are authorized.
+- Linked: [#479](https://github.com/raymond-van/animama/issues/479) (audio tags).
+- Branch: `feat/eleven-v4`, delivered in one PR.
