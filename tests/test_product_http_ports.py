@@ -20,11 +20,19 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.app.contracts.runtime_capabilities import RuntimeCapabilities
 from animama.app.safety.crisis_resources import CrisisResourceTable, crisis_resource_table
+from animama.app.services.embedding_refresh_service import EmbeddingRefreshStatus
+from animama.app.services.memory_manager_service import MemoryManagerService
+from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy
+from animama.app.services.model_role_resolver import ModelRoleDefaults
 from animama.domain.content_catalog import VerifiedContentFile
 from animama.domain.request_principal import RequestPrincipal
 from animama.product_http.delivery import PackageDownloadResponse
 from animama.product_http.ports import (
+    ChatTurnAdmission,
+    ChatTurnLease,
+    ChatTurnServices,
     ProductPolicy,
+    ProductUploads,
     ReadContent,
     ReadRepositories,
     ReadSession,
@@ -37,7 +45,7 @@ from animama.server.app import create_local_app
 from animama.server.config import Settings
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.product_ports import LocalProductPorts, local_file_response
-from tests.product_http_support import HOSTED_CAPABILITIES
+from tests.product_http_support import HOSTED_CAPABILITIES, TEST_CHAT_POLICY, FakeSpeech
 
 OWNER = RequestPrincipal(id="owner")
 
@@ -69,7 +77,11 @@ def session_probe_app(*, resolver: object | None = FixedOwner()) -> FastAPI:
 class RecordingPorts:
     """Opens placeholder sessions and records whose they are; can fail the deferred commit."""
 
-    policy = ProductPolicy(memory_file_max_bytes=1)
+    policy = ProductPolicy(memory_file_max_bytes=1, voice_catalog_max_upload_bytes=1, private_upload_ttl_seconds=1)
+    model_catalog_policy = ModelCatalogPolicy()
+    model_role_defaults = ModelRoleDefaults(chat="chat-model")
+    speech = FakeSpeech()
+    chat_policy = TEST_CHAT_POLICY
 
     def __init__(self, *, fail_commit: bool = False) -> None:
         self.opened: list[tuple[str, str]] = []
@@ -124,6 +136,23 @@ class RecordingPorts:
 
     def user_settings_changed(self, principal: RequestPrincipal) -> None:
         pass
+
+    async def embedding_refresh_status(
+        self, session: AsyncSession, principal: RequestPrincipal, embedding_model_id: str | None
+    ) -> EmbeddingRefreshStatus:
+        raise NotImplementedError
+
+    async def memory_manager(self, session: AsyncSession, principal: RequestPrincipal) -> MemoryManagerService:
+        raise NotImplementedError
+
+    def uploads(self, principal: RequestPrincipal) -> ProductUploads:
+        raise NotImplementedError
+
+    async def admit_chat_turn(self, principal: RequestPrincipal, admission: ChatTurnAdmission) -> ChatTurnLease:
+        raise NotImplementedError
+
+    def chat_turn(self, principal: RequestPrincipal, lease: ChatTurnLease) -> ChatTurnServices:
+        raise NotImplementedError
 
 
 def test_shared_routes_fail_closed_without_installed_ports() -> None:
@@ -220,10 +249,14 @@ def test_local_policy_follows_the_apps_runtime_settings(tmp_path: Path) -> None:
             animama_content_root=tmp_path / "content",
             animama_data_root=tmp_path / "data",
             anima_memory_file_max_bytes=1234,
+            anima_pocket_voice_catalog_max_upload_bytes=5678,
+            private_upload_url_ttl_seconds=60,
         ),
         session_factory=MagicMock(),
     )
-    assert app.state.product_ports.policy == ProductPolicy(memory_file_max_bytes=1234)
+    assert app.state.product_ports.policy == ProductPolicy(
+        memory_file_max_bytes=1234, voice_catalog_max_upload_bytes=5678, private_upload_ttl_seconds=60
+    )
 
 
 class ContentRecordingPorts(RecordingPorts):

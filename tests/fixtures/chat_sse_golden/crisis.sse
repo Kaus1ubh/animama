@@ -1,0 +1,28 @@
+id: safety-ai-notice-run-crisis
+event: safety.ai_notice
+data: {"type": "safety.ai_notice", "run_id": "run-crisis", "kind": "start", "anima_name": "Mika"}
+
+id: user-response-stream-speech-0-run-crisis
+event: user.response
+data: {"event_id": "user-response-stream-speech-0-run-crisis", "run_id": "run-crisis", "node_id": "direct-chat:model-client", "text": "I am here with you.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false, "tokenized_text": "I am here with you.", "phonemized_text": [["\u02c8a\u026a"], ["\u02c8\u00e6", "m"], ["h", "\u02c8\u026a", "\u0279"], ["w", "\u02c8\u026a", "\u03b8"], ["j", "\u02c8u"]]}
+
+id: user-response-stream-speech-1-run-crisis
+event: user.response
+data: {"event_id": "user-response-stream-speech-1-run-crisis", "run_id": "run-crisis", "node_id": "direct-chat:model-client", "text": " You are not alone.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 1, "part_final": true, "tokenized_text": "You are not alone.", "phonemized_text": [["j", "\u02c8u"], ["\u02c8\u0251", "\u0279"], ["n", "\u02c8\u0251", "t"], ["\u0259", "l", "\u02c8o\u028a", "n"]]}
+
+id: safety-crisis-support-run-crisis
+event: safety.crisis_support
+data: {"type": "safety.crisis_support", "run_id": "run-crisis", "source": "moderation", "resources": {"code": "fallback", "label": "Other regions", "emergency_number": null, "services": [], "source_url": null, "verified_on": "2026-09-25"}}
+
+id: emotion-update-run-crisis-direct-chat:model-client
+event: emotion.update
+data: {"event_id": "emotion-update-run-crisis-direct-chat:model-client", "run_id": "run-crisis", "node_id": "direct-chat:model-client", "emotions": [{"emotion": "admiration", "value": 0}, {"emotion": "caring", "value": 6}, {"emotion": "love", "value": 0}, {"emotion": "respect", "value": 0}, {"emotion": "confidence", "value": 0}, {"emotion": "gratitude", "value": 0}, {"emotion": "amusement", "value": 0}, {"emotion": "excitement", "value": 0}, {"emotion": "joy", "value": 12}, {"emotion": "desire", "value": 0}, {"emotion": "curiosity", "value": 8}, {"emotion": "optimism", "value": 0}, {"emotion": "fear", "value": 0}, {"emotion": "nervousness", "value": 0}, {"emotion": "confusion", "value": 0}, {"emotion": "anger", "value": 0}, {"emotion": "annoyance", "value": 0}, {"emotion": "disapproval", "value": 0}, {"emotion": "disgust", "value": 0}, {"emotion": "embarrassment", "value": 0}, {"emotion": "remorse", "value": 0}, {"emotion": "disappointment", "value": 0}, {"emotion": "grief", "value": 0}, {"emotion": "sadness", "value": 3}], "emotional_tone": "sadness", "emotional_intensity": 1, "promoted_emotion": "sadness", "demoted_emotion": "amusement"}
+
+id: chat-title-updated-run-crisis
+event: chat.title.updated
+data: {"type": "chat.title.updated", "run_id": "run-crisis", "chat_id": "chat-crisis-<name-0>", "title": "Morning Tea"}
+
+id: run-completed-run-crisis
+event: run.completed
+data: {"run_id": "run-crisis", "chat_id": "chat-crisis-<name-0>"}
+

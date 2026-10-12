@@ -16,7 +16,7 @@ _runtime_routes = (
 )
 
 # Pydantic registers these field validators on server/schemas/chat.py's request model.
-# The request model is consumed by server/routers/chat/chat_sse.py.
+# The request model is consumed by product_http/routes/chat_turns.py.
 _chat_validators = (
     PyAnimaChatRequest.trim_message,
     PyAnimaChatRequest.trim_model_provider_id,

@@ -40,24 +40,19 @@ from animama.app.services.model_configuration_service import (
     OwnerModelPatch,
     detect_local_server,
 )
-from animama.app.services.model_role_resolver import MODEL_ROLES, ROLE_EMBEDDINGS, ResolvedModelRole
 from animama.domain import ModelProvider
 from animama.domain.model_connection import MODEL_KIND_EMBEDDING, ModelConnection, ModelConnectionCompatibility
 from animama.domain.request_principal import RequestPrincipal
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.embedding_refresh import (
-    embedding_refresh_status,
-    get_embedding_refresh_worker,
     wake_embedding_refresh,
 )
 from animama.server.model_clients import build_model_credential_resolver
-from animama.server.model_roles import ModelRoleSettings, get_model_role_settings
 from animama.server.runtime_capabilities import get_runtime_settings
 from animama.server.schemas.model_configuration import (
     PyAvailableModels,
     PyConfiguredModel,
-    PyEmbeddingRefreshStatus,
     PyModelCapabilitiesView,
     PyModelConnection,
     PyModelConnectionCompatibility,
@@ -69,8 +64,6 @@ from animama.server.schemas.model_configuration import (
     PyModelProbeRequest,
     PyModelProbeStep,
     PyModelRemovalResult,
-    PyModelRoleAssignment,
-    PyModelRoles,
     PyModelUsage,
     PyModelUsageAnima,
     PyOpenRouterModel,
@@ -449,47 +442,6 @@ async def remove_model(
         raise _http_error(exc) from exc
     wake_embedding_refresh(request.app)
     return PyModelRemovalResult(removed=True, usage=_usage_view(usage))
-
-
-@router.get("/v1/model-roles", response_model=PyModelRoles)
-async def get_model_roles(
-    request: Request,
-    session: Annotated[AsyncSession, Depends(get_async_session)],
-    principal: Annotated[RequestPrincipal, Depends(get_current_principal)],
-    roles: Annotated[ModelRoleSettings, Depends(get_model_role_settings)],
-) -> PyModelRoles:
-    """Report the row doing each role's job and whether stored vectors match the embeddings role."""
-
-    resolver = roles.resolver(session)
-    resolved = [await resolver.resolve(principal.id, role) for role in MODEL_ROLES]
-    embeddings = next(role for role in resolved if role.role == ROLE_EMBEDDINGS)
-    refresh = await embedding_refresh_status(
-        session,
-        owner_id=principal.id,
-        embedding_model_id=embeddings.model_provider.id if embeddings.model_provider is not None else None,
-        worker=get_embedding_refresh_worker(request.app),
-    )
-    return PyModelRoles(
-        roles=[_role_view(role) for role in resolved],
-        embeddings_refresh=PyEmbeddingRefreshStatus(
-            state=refresh.state,
-            pending=refresh.pending,
-            error_category=refresh.error_category,
-        ),
-    )
-
-
-def _role_view(resolved: ResolvedModelRole) -> PyModelRoleAssignment:
-    row = resolved.model_provider
-    return PyModelRoleAssignment(
-        role=resolved.role,
-        source=resolved.source,
-        model_provider_id=row.id if row is not None else None,
-        model_label=row.model_label if row is not None else None,
-        connection_name=row.connection.name if row is not None and row.connection is not None else None,
-        requested_model_provider_id=resolved.requested_id,
-        assignment_available=resolved.assignment_available,
-    )
 
 
 async def _connection_or_404(session: AsyncSession, connection_id: str) -> ModelConnection:

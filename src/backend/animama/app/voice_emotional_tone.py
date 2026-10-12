@@ -187,8 +187,22 @@ def elevenlabs_v3_text_with_emotional_prefix(
     )
 
 
+# Continuity text an earlier finalized speech segment hands to the next one.
+FINALIZED_TTS_PREVIOUS_TEXT_LIMIT = 500
+
+
+def bounded_finalized_tts_previous_text(*texts: str | None) -> str | None:
+    """Return normalized provider context text capped to the continuity budget."""
+
+    normalized = " ".join(" ".join(text.split()) for text in texts if isinstance(text, str) and text.strip()).strip()
+    if not normalized:
+        return None
+    return normalized[-FINALIZED_TTS_PREVIOUS_TEXT_LIMIT:]
+
+
 __all__ = [
     "CANONICAL_EMOTION_TO_ELEVENLABS_TONE",
+    "FINALIZED_TTS_PREVIOUS_TEXT_LIMIT",
     "DEFAULT_ELEVENLABS_V3_PREFIX",
     "DEFAULT_ELEVENLABS_V3_TONE_KEY",
     "ELEVENLABS_TONE_TO_CANONICAL_EMOTION",
@@ -196,6 +210,7 @@ __all__ = [
     "VOICE_EMOTIONAL_TONE_VALUES",
     "ElevenLabsEmotionalTone",
     "ElevenLabsTonePrefixResult",
+    "bounded_finalized_tts_previous_text",
     "elevenlabs_v3_text_with_emotional_prefix",
     "normalize_elevenlabs_emotional_tone",
     "validate_voice_emotional_tone",

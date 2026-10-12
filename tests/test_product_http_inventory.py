@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from collections import Counter
 from pathlib import Path
 from typing import Any
 from unittest import mock
@@ -165,6 +166,13 @@ def test_moved_handlers_use_the_session_their_access_names(tmp_path: Path) -> No
             if spec.access == "read":
                 # A read route never opens a write session the composition must settle.
                 assert not depends_on(route.dependant, get_write_session), (method, route.path)
+            if spec.access == "stream":
+                # A stream prepares on a write session that the composition settles before the body runs.
+                assert depends_on(route.dependant, get_write_session), (method, route.path)
+            if spec.access == "speech":
+                # Speech utilities call the speech port and open no session at all.
+                assert not depends_on(route.dependant, get_read_session), (method, route.path)
+                assert not depends_on(route.dependant, get_write_session), (method, route.path)
 
 
 def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
@@ -180,6 +188,12 @@ def test_the_package_serves_exactly_the_served_stages(tmp_path: Path) -> None:
             assert not served, (spec.method, spec.path)
         else:
             assert served == (spec.stage in SERVED_STAGES), (spec.method, spec.path, spec.stage)
+
+
+def test_each_stage_shares_the_planned_routes() -> None:
+    # The ExecPlan's stages; audio isolation stays local (owner, 2026-10-10).
+    shared = Counter(spec.stage for spec in ROUTES if spec.disposition == "shared")
+    assert shared == {2: 45, 3: 84, 4: 18, 5: 1}
 
 
 def test_routers_mount_the_served_routes_in_inventory_order() -> None:

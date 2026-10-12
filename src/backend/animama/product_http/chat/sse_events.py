@@ -1,3 +1,5 @@
+"""Wire frames of a direct chat turn over SSE, and the state they carry between events."""
+
 from __future__ import annotations
 
 import json
@@ -9,6 +11,7 @@ from typing import Any
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 
+from animama.app.contracts.elevenlabs import PyElevenLabsRealtimeTtsSessionResponse
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
     MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE,
@@ -16,11 +19,15 @@ from animama.app.main_structured_response import (
 )
 from animama.domain.emotions import emotion_values_payload
 from animama.domain.events import EventType
-from animama.logging_config import get_logger
-from animama.server.emotional_state_persistence import persist_emotional_state_update
-from animama.server.schemas.elevenlabs import PyElevenLabsRealtimeTtsSessionResponse
+from animama.logging import get_logger
+from animama.product_http.ports import ProductRefusal
 
-_log = get_logger("server.sse_events")
+from .emotional_state import persist_emotional_state_update
+from .setup_helpers import TurnSessions
+
+_log = get_logger("product_http.chat.sse_events")
+# Codes a composition with public error text still shows: short lowercase identifiers.
+_PUBLIC_ERROR_CODE = re.compile(r"^[a-z0-9_.]{1,64}$")
 
 GruutSseTextBuilder = Callable[..., Mapping[str, object] | None]
 TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS = "gruut_text_with_ws"
@@ -57,6 +64,8 @@ class SseTextState:
     crisis_resources: Mapping[str, Any] | None = None
     """Resolved crisis-resource region for this turn, attached to crisis frames."""
     crisis_support_emitted: bool = False
+    public_error_text: str | None = None
+    """The composition's fixed error text for turn error frames, if it hides error detail."""
 
 
 def _payload_value(payload: Any, key: str) -> Any:
@@ -218,6 +227,11 @@ def format_tts_session_error_event(*, run_id: str, exc: BaseException) -> str:
     if isinstance(exc, HTTPException):
         data.update(_http_exception_error_fields(exc))
         data["status_code"] = exc.status_code
+    elif isinstance(exc, ProductRefusal):
+        # The composition declined this reply's speech; its code tells the browser why.
+        data["error"] = "Failed to initialize ElevenLabs realtime TTS"
+        data["code"] = exc.code
+        data["status_code"] = exc.status_code
     else:
         data["error"] = str(exc) or "Failed to initialize ElevenLabs realtime TTS"
         data["code"] = "tts_session_setup_failed"
@@ -343,7 +357,7 @@ async def persist_sse_side_effect(
     *,
     run_id: str,
     anima_id: str,
-    session_factory: Any,
+    sessions: TurnSessions,
 ) -> bool:
     """Persist current-run SSE side effects for one matching event."""
     payload = getattr(event, "payload", None)
@@ -352,7 +366,7 @@ async def persist_sse_side_effect(
     event_type = getattr(event, "type", None)
     try:
         if event_type == EventType.EMOTION_UPDATE:
-            return await persist_emotional_state_update(session_factory, anima_id, payload)
+            return await persist_emotional_state_update(sessions, anima_id, payload)
     except Exception:
         _log.exception(
             "SSE side-effect sink failed",
@@ -475,7 +489,9 @@ def format_avatar_gesture_requested_event(event: Any, *, run_id: str) -> str | N
     return format_sse("avatar.gesture.requested", data, event_id=str(getattr(event, "event_id", "")))
 
 
-def format_error_event(event: Any, *, run_id: str) -> str | None:
+def format_error_event(event: Any, *, run_id: str, public_error_text: str | None = None) -> str | None:
+    """Format a turn error; ``public_error_text`` hides its text, details and unsafe codes."""
+
     payload = getattr(event, "payload", None)
     payload_run_id = _payload_run_id(payload)
     if payload_run_id != run_id:
@@ -484,6 +500,13 @@ def format_error_event(event: Any, *, run_id: str) -> str | None:
     message = _payload_value(payload, "message")
     code = _payload_value(payload, "code")
     details = _payload_value(payload, "details")
+    if public_error_text is not None:
+        safe_code = code if isinstance(code, str) and _PUBLIC_ERROR_CODE.fullmatch(code) else "turn_failed"
+        return format_sse(
+            "error",
+            {"run_id": payload_run_id, "error": public_error_text, "code": safe_code},
+            event_id=str(getattr(event, "event_id", "")),
+        )
     data: dict[str, object] = {
         "run_id": payload_run_id,
         "error": str(message or "Runtime error"),

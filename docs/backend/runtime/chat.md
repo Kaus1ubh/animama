@@ -5,10 +5,14 @@ for the normal avatar companion turn. It executes one direct model-client turn,
 derives emotion updates from the primary response's structured metadata, and
 persists the turn.
 
-Implementation entrypoints are `server/routers/chat/chat_sse.py` for stream
-lifecycle, `turn_setup.py` for admission and preparation, `sse_runtime.py` for
+The route is shared by every composition ([ADR 0021](../../adr/0021-shared-product-http-routes.md)).
+Implementation entrypoints under `product_http/chat/` are `stream.py` for the
+stream lifecycle and the [chat-turn guard](#chat-turn-guard), `turn_setup.py`
+for the owner checks and preparation, `sse_runtime.py` and `sse_events.py` for
 frames, `session_services.py` for short-lived persistence, and
-`app/chat/direct_executor.py` for model/tool execution.
+`app/chat/direct_executor.py` for model/tool execution. The composition supplies
+the sessions, repositories, model clients, speech and policy through its ports;
+the local ones are in `server/product_ports.py`.
 
 ## Request Contract
 
@@ -145,10 +149,11 @@ catalog, including owner-added rows and model connections, is described in
 ## Step-By-Step Flow
 
 1. The local HTTP boundary admits the request and resolves the installation
-   principal. Setup validates Anima/chat ownership, the issued runtime snapshot,
-   model capabilities, and chat API-standard compatibility before opening SSE.
-   It also resolves [companion safety](#companion-safety), which never blocks
-   the turn.
+   principal. Setup validates Anima ownership and the issued runtime snapshot,
+   then the composition [admits the turn](#chat-turn-guard), then setup
+   validates chat ownership, model capabilities, and chat API-standard
+   compatibility before opening SSE. It also resolves
+   [companion safety](#companion-safety), which never blocks the turn.
 2. The executor loads required `IDENTITY.md`, optional `MEMORIES.md`, current
    memory/attachment navigation, and local history when the provider needs
    replay. It assembles
@@ -176,6 +181,42 @@ catalog, including owner-added rows and model connections, is described in
 See [memory](../features/memory.md), [user files](../features/user-files.md), and
 [model clients](model-client-providers.md) for tool, prompt, and replay contracts.
 
+## Chat-turn guard
+
+A composition guards each whole turn through its ports. The local composition
+admits every turn and its lease does nothing; a hosted one can reserve and
+settle usage and recheck a session lease.
+
+- **Admission.** `admit_chat_turn` runs after the Anima ownership and runtime
+  revision checks and before anything is written or a model is called. A refusal
+  (`ProductRefusal`, reported as `detail.code`, or the composition's own
+  exception) ends the request with no chat created.
+- **Checks.** The lease's `check` runs before each event the stream drains
+  while the model runs (at least every 50 ms while the client keeps reading;
+  a client that stops reading holds the stream at its next frame) and before
+  each step and frame of
+  a successful reply's completion (speech, title, compaction). A stop before
+  the reply is saved cancels the model and ends the stream with `event: error`
+  (`{"run_id", "error": <stop message>, "code": <stop code>}`) and one
+  `run.completed`. A stop after the reply is saved skips the remaining
+  optional work, cancelling title and speech tasks still running, and ends with
+  the normal `run.completed`.
+- **Settlement.** `settle` runs exactly once, after every turn task has stopped,
+  with `unstarted` (setup, or the composition's own commit of the setup
+  session, failed after admission, or nothing was dispatched),
+  `completed` (the reply was saved, or an incognito turn finished), `failed`
+  (an error before the reply was saved) or `interrupted` (a stop or disconnect
+  before the reply was saved). A refused turn has no lease to settle. A reply save that has
+  begun finishes, within the five-second cleanup bound, even if the turn is
+  stopped or the client leaves.
+
+The composition's chat policy also sets title and compaction settings and,
+optionally, `public_error_text`, which replaces the text and details of
+`event: error` frames and turns their codes outside a short lowercase pattern
+into `turn_failed`. Speech error frames carry the speech port's own messages;
+a speech port that declines a reply's speech raises `ProductRefusal`, and the
+frame (`tts.session.error` or `tts.error`) carries its code.
+
 ## What It Deliberately Does Not Do
 
 Direct chat runs one companion turn. Memory tools operate on user-scope files
@@ -184,7 +225,7 @@ edit Anima identity, move/delete files, or change arbitrary metadata. Workflow o
 
 ## Companion Safety
 
-`server/routers/chat/safety.py` and `app/safety/` own per-turn safety. The
+`product_http/chat/safety.py` and `app/safety/` own per-turn safety. The
 user-facing contract is the [safety and crisis protocol](../../safety/crisis-protocol.md).
 
 - **Companion Guardrails.** `COMPANION_GUARDRAILS` is always the final
@@ -395,7 +436,7 @@ Chat persistence is owned by `DirectChatTurnExecutor` through `ChatManager`.
 The executor fetches visible chat history by chat ID during setup, then records
 the user/assistant turn through a separate short-lived recorder session unless
 the request is incognito. The route supplies that recorder through
-`server/routers/chat/session_services.py`, so the setup session can close before
+`product_http/chat/session_services.py`, so the setup session can close before
 upstream model streaming begins. Assistant message usage is persisted on the message
 row and added eagerly to the parent `chats.cum_*` usage counters in the same
 unit of work. The parent chat's `active_context_tokens` is replaced with the
@@ -440,7 +481,8 @@ Settings assignment `models.utility_model_provider_id`, else
 hidden title prompt defaults to a low reasoning effort (sent only when the
 utility model supports it) and a 20 second timeout through
 `ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT` and
-`ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`. On an Anthropic utility model,
+`ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`; the local composition reads these
+and the `ANIMAMA_CHAT_COMPACTION_*` settings from the app's runtime settings. On an Anthropic utility model,
 title and compaction prompts use effort `low` unless set and are never
 server-compacted ([prompt-only maintenance calls](model-client-providers.md#prompt-only-maintenance-calls)).
 Incognito turns skip title generation.
@@ -501,14 +543,14 @@ that already committed remain.
 Setup-time validation failures such as missing animas, foreign chats,
 inactive model rows or connections, non-chat rows, owner rows without a context
 window, unsupported capabilities, missing direct clients, or a
-missing app-scoped registry return normal HTTP errors before `StreamingResponse`
-is opened.
+missing app-scoped registry (`503`, checked after the owner and runtime checks)
+return normal HTTP errors before `StreamingResponse` is opened.
 
 If the client closes the SSE stream early, the generator cancels the active
 executor task without emitting `run.completed`. The setup database session has
 already been closed before model streaming begins, and any auxiliary
-title/TTS/final-persistence work is cancelled or cleaned up by its own
-short-lived session owner. Shared registry clients remain app-scoped and are
+title/TTS work is cancelled; a reply save that has begun finishes in its own
+short-lived session. Shared registry clients remain app-scoped and are
 not closed by request cancellation. This matches the expectation that
 cancellation is not a completed chat turn.
 
@@ -516,8 +558,9 @@ Post-response compaction failures are logged but do not emit `event: error` and
 do not alter the already-completed assistant response. Pre-response hard-ceiling
 protection is not part of the current compaction path.
 
-Request-local cleanup runs in `finally` and is guarded so each task/session is
-settled at most once.
+Request-local cleanup runs in `finally`, shielded from the disconnect's
+cancellation and bounded to five seconds, and waits until each task has stopped;
+only then does the response settle the turn's lease.
 
 ## Runtime scope
 
@@ -528,9 +571,9 @@ contract and ownership review.
 ## Transport verification
 
 Run `uv run pytest -q tests/test_anima_chat_sse_transport.py` from the repository
-root. It serves the real Anima router, local admission/principal resolution,
-direct executor, structured parser and SSE bridge through Uvicorn on an owned
-ephemeral loopback socket. A controlled provider double holds the final bytes
+root. It serves the shared chat router over the local ports, local
+admission/principal resolution, direct executor, structured parser and SSE
+bridge through Uvicorn on an owned ephemeral loopback socket. A controlled provider double holds the final bytes
 until the client observes an incremental frame. Separate cases verify terminal
 errors, disconnect cleanup and a successful next request on the same registry.
 

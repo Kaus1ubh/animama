@@ -58,7 +58,7 @@ def test_memory_updates_stop_when_memory_is_off_at_another_level() -> None:
 def test_local_chat_options_reuses_the_neutral_merger() -> None:
     """Local HTTP composition and installed consumers share one resolution policy."""
 
-    from animama.server.chat_options import merge_chat_request_options as local_merge
+    from animama.product_http.chat.options import merge_chat_request_options as local_merge
 
     assert local_merge is merge_chat_request_options
 

@@ -392,11 +392,15 @@ def test_responses_native_compaction_defaults_to_90000_tokens() -> None:
 
 
 def test_app_compaction_cap_defaults_to_90000_tokens() -> None:
-    from animama.server.config import settings
-    from animama.server.routers.chat.compaction import chat_compaction_settings
+    from fastapi import FastAPI
 
+    from animama.server.config import settings
+    from animama.server.product_ports import LocalProductPorts
+
+    app = FastAPI()
+    app.state.runtime_settings = settings
     assert settings.anima_chat_compaction_threshold_tokens == 90_000
-    assert chat_compaction_settings().threshold_tokens == 90_000
+    assert LocalProductPorts(app).chat_policy.compaction.threshold_tokens == 90_000
 
 
 def test_owner_text_cannot_close_the_anthropic_identity_or_memories_delimiters() -> None:
