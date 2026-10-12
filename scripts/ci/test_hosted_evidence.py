@@ -35,7 +35,7 @@ class Fixture:
         self.paths = []
         self.downloads = []
         self.selection = {
-            "schema_version": 2,
+            "schema_version": 3,
             "event": "pull_request",
             "reusable": False,
             "diff_error": None,
@@ -257,11 +257,17 @@ class HostedEvidenceTests(unittest.TestCase):
             self.assertFalse(fixture.verify()["accepted"])
 
     def test_reduced_failed_or_incomplete_receipts_are_rejected(self):
-        for kind in ("reduced", "failed", "step", "missing_check", "failed_check"):
+        for kind in ("reduced", "selective", "old_schema", "failed", "step", "missing_check", "failed_check"):
             with self.subTest(kind=kind):
                 fixture = Fixture()
                 if kind == "reduced":
                     fixture.selection["plan"] = _plan("docs", "Documentation")
+                elif kind == "selective":
+                    # A full PR run that skipped the promotion suite is never promotion-complete.
+                    fixture.selection["plan"] = _plan("selective", "Full PR", ["promotion"])
+                elif kind == "old_schema":
+                    fixture.selection["plan"] = fixture.selection["plan"] | {"schema_version": 2}
+                    fixture.selection["schema_version"] = 2
                 elif kind == "failed":
                     fixture.receipt["success"] = False
                 elif kind == "step":

@@ -14,7 +14,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 import validation
-from validation_policy import UNTIMED, choose_plan
+from validation_policy import SUITES, UNTIMED, choose_plan
 
 
 class GitSelectionTests(unittest.TestCase):
@@ -84,6 +84,39 @@ class GitSelectionTests(unittest.TestCase):
             self.run_plan("pull_request", self.event(head))
             self.run_plan("workflow_dispatch", {})
         evidence.assert_not_called()
+
+    def outputs(self):
+        lines = (Path(self.directory.name) / "outputs").read_text().splitlines()
+        return dict(line.split("=", 1) for line in lines)
+
+    def test_step_outputs_follow_the_selected_suites(self):
+        for path in ("tests/test_example.py", "src/backend/animama/example.py", "uv.lock"):
+            self.write(path, "original\n")
+        self.base = self.commit("inputs")
+        for path, mode, promotion, groups, retention in (
+            ("tests/test_example.py", "selective", "false", "core", "3"),
+            ("src/backend/animama/example.py", "selective", "true", "core", "3"),
+            ("uv.lock", "full", "true", "core,hosted,tooling", "14"),
+        ):
+            with self.subTest(path=path):
+                self.git("checkout", "-q", "--detach", self.base)
+                self.write(path, "changed\n")
+                head = self.commit(f"change {path}")
+                (Path(self.directory.name) / "outputs").unlink(missing_ok=True)
+                with patch("github_evidence.review_for_event", return_value={"accepted": False, "reason": "x"}):
+                    receipt = self.run_plan("pull_request", self.event(head))
+                self.assertEqual(receipt["plan"]["mode"], mode)
+                outputs = self.outputs()
+                self.assertEqual(
+                    (outputs["mode"], outputs["promotion"], outputs["browser-groups"], outputs["retention"]),
+                    (mode, promotion, groups, retention),
+                )
+                self.assertEqual(outputs["baseline"], self.base)
+        (Path(self.directory.name) / "outputs").unlink()
+        with patch("hosted_evidence.hosted_for_main", return_value={"accepted": False}):
+            self.run_plan("push", {"ref": "refs/heads/main", "before": self.base, "after": head})
+        outputs = self.outputs()
+        self.assertEqual((outputs["mode"], outputs["promotion"], outputs["retention"]), ("full", "true", "14"))
 
     def test_complete_diff_includes_earlier_commits(self):
         self.write("docs/backend/a.md", "earlier\n")
@@ -178,12 +211,32 @@ class GitSelectionTests(unittest.TestCase):
                     "github_evidence.review_for_event", return_value={"accepted": reviewed, "reason": "fixture"}
                 ) as review:
                     receipt = self.run_plan(event_name, event)
-                self.assertEqual(receipt["plan"]["mode"], "backend" if reviewed is True else "full")
+                # A full PR run of an unpackaged test file skips the promotion suite.
+                unreviewed = "selective" if event_name == "pull_request" else "full"
+                self.assertEqual(receipt["plan"]["mode"], "backend" if reviewed is True else unreviewed)
                 review.assert_called_once()
                 self.assertEqual(review.call_args.kwargs["source_commit"], head)
                 self.assertEqual(review.call_args.kwargs["source_tree"], self.git("rev-parse", "HEAD^{tree}"))
                 self.assertEqual(review.call_args.kwargs["baseline"], self.base)
                 self.assertEqual(set(review.call_args.kwargs["required_checks"]), {"backend-full"})
+
+    def test_full_pr_selection_ignores_test_imports_but_not_special_files(self):
+        self.write("tests/test_example.py", "assert True\n")
+        self.write("tests/run_example.sh", "true\n")
+        self.base = self.commit("existing test")
+        self.write("tests/test_example.py", "import json\nassert json\n")
+        head = self.commit("test imports")
+        with patch("github_evidence.review_for_event", return_value={"accepted": False, "reason": "fixture"}):
+            receipt = self.run_plan("pull_request", self.event(head))
+        self.assertEqual(receipt["plan"]["mode"], "selective")
+        self.assertEqual([row["suite"] for row in receipt["plan"]["skipped"]], sorted(SUITES))
+        self.base = head
+        (self.root / "tests/run_example.sh").chmod(0o755)
+        self.git("add", "--chmod=+x", "tests/run_example.sh")
+        head = self.commit("executable helper")
+        with patch("github_evidence.review_for_event", return_value={"accepted": False, "reason": "fixture"}):
+            receipt = self.run_plan("pull_request", self.event(head))
+        self.assertEqual((receipt["plan"]["mode"], receipt["plan"]["skipped"]), ("full", []))
 
     def test_high_risk_path_and_explicit_full_do_not_consult_local_review(self):
         self.write("uv.lock", "version = 1\n")

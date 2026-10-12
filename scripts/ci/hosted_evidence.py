@@ -201,7 +201,7 @@ def hosted_for_main(
         tested = selection["source_commit"]
         _require(_sha(tested), "Malformed tested commit")
         _require(
-            selection["schema_version"] == 2
+            selection["schema_version"] == 3
             and selection["event"] == "pull_request"
             and selection["reusable"] is False
             and selection["diff_error"] is None

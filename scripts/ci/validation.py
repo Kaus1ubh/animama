@@ -13,6 +13,7 @@ import re
 import subprocess
 from pathlib import Path
 
+from browser_tests import browser_groups
 from validation_policy import LOCAL_CHECKS, UNTIMED, choose_plan, classify, evaluate
 
 SHA = re.compile(r"[0-9a-f]{40}")
@@ -161,10 +162,15 @@ def changed_dependencies(root: Path, merge_base: str | None, source_head: str, c
 
 
 def special_inputs(
-    root: Path, merge_base: str | None, changes: list[dict] | None, *, source_head: str = "HEAD"
+    root: Path,
+    merge_base: str | None,
+    changes: list[dict] | None,
+    *,
+    source_head: str = "HEAD",
+    dependencies: bool = True,
 ) -> set[str]:
-    """Special files and changed/uncertain dependencies require full validation."""
-    excluded = changed_dependencies(root, merge_base, source_head, changes)
+    """Special files and (unless disabled) changed/uncertain dependencies require full validation."""
+    excluded = changed_dependencies(root, merge_base, source_head, changes) if dependencies else set()
     for revision in filter(None, ("HEAD", merge_base)):
         for entry in git(root, "ls-tree", "-r", "-z", revision).split(b"\0"):
             if entry:
@@ -249,11 +255,14 @@ def plan(root: Path, output: Path) -> None:
         error = str(exc)
     try:
         dependency_head = exact_sha(event["pull_request"]["head"]["sha"]) if event_name == "pull_request" else source
-        excluded = special_inputs(root, merge_base, changes, source_head=dependency_head)
+        # Links, executables and LFS inputs select every suite; changed imports only
+        # matter to the reduced profiles' allowlists.
+        special = special_inputs(root, merge_base, changes, source_head=dependency_head, dependencies=False)
+        excluded = special | changed_dependencies(root, merge_base, dependency_head, changes)
     except (ValueError, KeyError, TypeError, OSError):
-        excluded, error = set(), "Cannot establish special-input exclusions"
+        excluded, special, error = set(), set(), "Cannot establish special-input exclusions"
     # Local assertions never reduce high-risk changes. Hosted full results may.
-    selected = choose_plan(event_name, event, changes, error, reusable, excluded)
+    selected = choose_plan(event_name, event, changes, error, reusable, excluded, special_paths=special)
     area = classify(changes, excluded)
     reviewed = {"accepted": False, "reason": "Not applicable to this selection"}
     pr = event.get("pull_request", {})
@@ -272,7 +281,9 @@ def plan(root: Path, output: Path) -> None:
         if docs_override.get("allow_focused") is not True:
             # Keep the known baseline: uncertain PR metadata expands coverage,
             # rather than failing source selection before full checks can run.
-            selected = choose_plan(event_name, event, changes, "Main documentation override", reusable, excluded)
+            selected = choose_plan(
+                event_name, event, changes, "Main documentation override", reusable, excluded, special_paths=special
+            )
             selected["reason"] = docs_override["reason"]
         if docs_override.get("full_requested") is True:
             explicit = True
@@ -287,7 +298,14 @@ def plan(root: Path, output: Path) -> None:
             now=datetime.now(UTC),
         )
         selected = choose_plan(
-            event_name, event, changes, error, reusable, excluded, local_reviewed=reviewed.get("accepted") is True
+            event_name,
+            event,
+            changes,
+            error,
+            reusable,
+            excluded,
+            local_reviewed=reviewed.get("accepted") is True,
+            special_paths=special,
         )
     if event_name == "schedule" and not reusable:
         selected = choose_plan(
@@ -303,7 +321,7 @@ def plan(root: Path, output: Path) -> None:
         if hosted.get("accepted") is True:
             selected = choose_plan(event_name, event, changes, hosted_verified=True)
     receipt = {
-        "schema_version": 2,
+        "schema_version": 3,
         "source_commit": source,
         "source_tree": tree,
         "event": event_name,
@@ -324,11 +342,16 @@ def plan(root: Path, output: Path) -> None:
         "cold_cache": inputs.get("cold-cache", False),
     }
     write_json(output, receipt)
+    skipped = {row["suite"] for row in selected.get("skipped", [])}
+    promotion = selected["mode"] in {"full", "selective"} and "promotion" not in skipped
     with open(os.environ["GITHUB_OUTPUT"], "a") as target:
         target.write("mode=" + selected["mode"] + "\n")
         target.write("baseline=" + (baseline or "") + "\n")
-        target.write(f"retention={14 if explicit or event_name == 'schedule' else 3}\n")
-    if selected["mode"] == "full" and (baseline is None or baseline == "0" * 40):
+        target.write("promotion=" + ("true" if promotion else "false") + "\n")
+        target.write("browser-groups=" + ",".join(browser_groups(skipped)) + "\n")
+        # Promotion-complete sets outlive the reuse window and serve later baselines.
+        target.write(f"retention={14 if explicit or event_name == 'schedule' or selected['mode'] == 'full' else 3}\n")
+    if promotion and (baseline is None or baseline == "0" * 40):
         raise ValueError("Full validation requires an exact compatibility baseline")
     print(json.dumps(receipt, indent=2))
 
