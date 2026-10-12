@@ -192,9 +192,9 @@ Phase 5, during implementation (2026-10-10):
 - The planned compaction transcript is not recorded: post-reply compaction emits no
   frames, and the compaction suites cover it.
 - Phoneme payloads need gruut, which the wheel's `server` extra installs;
-  `app/gruut_text.py` returns no payload without it. It logs the reply text at info
-  level (pre-existing), which matters once a hosted composition runs it; a separate
-  task removes that.
+  `app/gruut_text.py` returns no payload without it. It logged the reply text at
+  info level (pre-existing), which matters once a hosted composition runs it; #456
+  removed that, and merging `main` carried the fix to the moved module.
 - The chat suites patched about 40 server internals. They now drive the shared
   handler through test ports; the 67 direct calls keep their shape through a test
   wrapper that opens the handler's write session, and the suites keep all 78 tests.
