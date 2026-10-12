@@ -587,7 +587,8 @@ three at once from 2026-10-12, per the owner), each following
 
 All 23 new presets (`.animama-drafts/plan2/scenes/<family>-<emotion>/`, named
 `<Family> <Emotion>`) pass `effects check` (Scene limits, image budgets) with no
-FAIL, held (`durationMs: null`), no emoji items, scatters `keepFaceClear`; each
+FAIL, held (`durationMs: null`), no emoji items, every scatter the brief keeps
+clear set `keepFaceClear`; each
 has a chat-shaped render (960×600, front, both Avatars) and each family a
 review sheet; `scene-presets-board.jpg` stacks the eight. All 23 were saved with
 `effects save` (read back, compared, reopened); with Gloom Sadness the stack
@@ -599,11 +600,26 @@ Sticker set: 44 images (`.animama-drafts/plan2/stickers/`, family map in
 `families.json`): 36 used by the presets (two `scene-tile`s: `bokeh-tile`,
 `star-field-tile`; `steam-puff` shared by Affection and Rejection; `raindrop` is
 Gloom Sadness's drop) and 8 generic extras with a contact sheet and a test
-Scene (`scenes/generic-test/`). Every image passes its budget.
+Scene (`scenes/generic-test/`). Every image passes its budget. `families.json`
+gives each its family, a unique label (taken from the presets' items) and its
+budget, for the P4 manifest.
+
+Checks: `POST /v1/content:rescan` → 39 of 39 Local items valid (15 Particle, 24
+Scene); `pnpm -s effects check` on each of the 23 folders → all pass (two batch
+runs hit harness errors while P4 rebuilt `runtime-contracts`; rerun one at a
+time); `pnpm -s effects:assets check --budget scene-sticker|scene-tile` on the
+44 stickers → all pass (`leaf` keeps an intended padding warning).
+
+Commit `46c4e231` (this record) also carries P4's staged deletion of the 28
+Twemoji mirror SVGs and their README: the P4 agent had staged them in the
+shared index. Until P4's commit removes the matching rules, records, alias and
+tests, that revision fails `test_builtin_capabilities_match_shared_inventory_and_shipped_resources`
+and `test_included_content_catalog.py`'s Twemoji asset check. The pushed
+commit is not rewritten; later commits use explicit paths.
 
 Departures from the briefs, for the owner's review: Admiration sparkles 14–34 px;
 Embarrassment and Annoyance steam without spin (spin accumulates over a held
-Scene and tipped the puffs over); outlines thickened on the white sparkle and
+Scene and tipped the puffs over), Annoyance's steam tilt ±15° (was ±20°); outlines thickened on the white sparkle and
 the gold and silver glints; Amusement 34 items (a diagonal drifter shows only
 ~40% of its items at once); Nervousness drops 36–60 px; Disappointment drizzle
 16–30 px at 0.7–0.95 opacity; seeds chosen from sweeps.
@@ -620,7 +636,23 @@ authorization, 2026-10-12).
 
 #### Code Review #1 Findings
 
+Round 1 (`sdlc-reviewer`, `46c4e231`): records, briefs, saved copies (byte-equal
+images), Scene limits and the sticker set verified. Required: **P3-R1-F1** the
+P3 commit carried P4's Twemoji mirror deletion, leaving an inconsistent tree.
+Optional: F2 `keepFaceClear` wording; F3 an unlisted ±15° tilt; F4 sticker
+labels and budgets missing; F5 promote keeps Included names and descriptions on
+replace and takes source names on add; F6 sticker records must use the owner
+form or promote adds an exact-path rule per copy; F7 no Checks line or commit.
+
 #### Code Review #1 Revisions
+
+- **F1 accepted:** disclosed above; P4's commit completes the removal; the P4
+  agent stopped staging and commits use explicit paths.
+- **F2, F3, F7 accepted:** wording, departure and Checks added.
+- **F4 accepted:** labels and budgets in `families.json`.
+- **F5 accepted for P6:** each of the 19 replaces gets its brief's description
+  and the 5 adds a deliberate `Emotion <E>` name.
+- **F6 accepted for P4:** the sticker records use the owner form.
 
 ### P4 — Animama sticker set and Twemoji removal (R11). #444
 
