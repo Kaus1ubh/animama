@@ -152,6 +152,52 @@ Steps:
 
 Recovery: revert the phase commit. No data or contract changes.
 
+Results (2026-10-12):
+- **Changes:**
+  - New `lib/avatar/releaseModelScene.ts` detaches the model, runs `VRMUtils.deepDispose`, then closes the ImageBitmaps behind its textures.
+  - `Avatar.unload()` detaches first and uses the helper; so do the disposed-after-load path and `preloadVrm()`.
+  - `dispose()` clears both clip event sinks, the cursor look-at provider and the viewport element.
+  - `VerifiedByteLoader` passes the verified view straight to `Blob`. The old code made an extra full copy of the model first.
+  - The Avatar cleanup constraint is documented in `docs/frontend/runtime/avatar-animation.md`.
+- **Caller audit:** every `avatar.load()` caller creates a fresh Avatar per load. The exception is the Library Dock, which retries a failed load on the same Avatar; that is safe, because the model is attached only after a successful load. No caller needs per-caller ordering.
+- **Local checks:**
+  - `pnpm check` and `pnpm web:lint` exit 0.
+  - `pnpm web:test` exit 0: Vitest 473 files, 4204 passed; browser scripts 0 failures.
+  - Prettier check passes on the changed files.
+  - The new tests fail on the phase baseline.
+- **Built task stack `animama-dockfix`** (isolated Chrome, forced GC; before = baseline main build from the investigation):
+
+  | Scenario | Before | After |
+  | --- | --- | --- |
+  | Avatar Effect creator, 20 preview-model switches: renderer after GC | 520 → 1705 MB | 306 → 329 MB |
+  | Same: GPU | 885 → 2129 MB | 778 → 825 MB |
+  | Same: live ImageBitmaps | 52 → 356 after GC | one model's set (26–29) throughout, before any GC |
+  | Chat, 10 Chat only ↔ Avatar + Chat toggles: live ImageBitmaps after GC | 78 | 26 |
+  | Same: canvases alive | 2 extra detached | 1 |
+
+  - In chat-only mode, live bitmaps drop to 0 before any GC.
+  - Chat Anima switching still creates one WebGL context per switch; that is Phase 5. Live decoded textures stay bounded to the current model (88–119 MB). The remaining per-switch peak is the model's ArrayBuffers and the new context.
+  - No console errors about closed images or `texImage2D`.
+- **Visual checks:** models render after switching in chat, `/animas/<id>` (including the carousel), the Avatar Effect creator (Annie ↔ Caitlyn) and the Library Dock (Annie → Caitlyn → Gesture).
+
+#### Code Review #1 Findings
+
+Independent `sdlc-reviewer` review of the working tree against `305665d8`: pass, no blocking findings. Optional findings:
+- P2-CR1-N1: assert a precondition in the retention test.
+- P2-CR1-N2: read uniforms only for shader materials, as `deepDispose` does.
+- P2-CR1-N3: detach at the very start of `unload()`.
+- P2-CR1-N4: document the cleanup constraint.
+- P2-CR1-N5: a pre-existing `sha256Hex` slice.
+
+The review also corrected the caller audit for the Dock's same-Avatar retry. It confirmed that no model texture is shared across loads or with other surfaces, that R3F `<primitive>` removal is safe, and that the cleared fields are unused after dispose.
+
+#### Code Review #1 Revisions
+
+- **Accepted and fixed:** N1 to N4. Focused tests (75 files), eslint, `tsc -b` and prettier pass.
+- **Deferred:** N5. The slice never copies for whole-buffer model bytes, and it is outside this phase.
+
+Code Review #2 (repair round 1 of 2) passed and confirmed N1–N4 with no regressions. P2-CR2-N1, a doc wording nit (sinks are dropped on disposal, not on unload), was accepted and fixed. One repair round remains unused.
+
 ### Phase 3: One live scroll tracker per admitted session (R4)
 
 Issue: [#476](https://github.com/raymond-van/animama/issues/476). Depends on nothing; it runs after Phase 2 to keep reviews focused.
