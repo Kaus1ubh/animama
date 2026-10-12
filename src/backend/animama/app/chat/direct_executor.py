@@ -2,8 +2,8 @@ from __future__ import annotations
 
 import asyncio
 import uuid
-from collections.abc import AsyncIterator
-from contextlib import suppress
+from collections.abc import AsyncGenerator, AsyncIterator
+from contextlib import aclosing, suppress
 from dataclasses import replace
 from typing import Any, cast
 
@@ -562,21 +562,28 @@ class DirectChatTurnExecutor:
             visible_history=tuple(compiled_history),
         )
 
-    async def stream_prepared_turn(self, prepared: PreparedDirectChatTurn) -> AsyncIterator[Event]:
-        """Invoke the model client and translate the final result into domain events."""
+    async def stream_prepared_turn(self, prepared: PreparedDirectChatTurn) -> AsyncGenerator[Event, None]:
+        """Invoke the model client and translate the final result into domain events.
 
+        A caller that stops early closes the generator, which stops its provider stream.
+        """
+
+        # Each delegated stream is closed with this one, so its own cleanup (the
+        # provider collector's cancellation) finishes before the caller moves on.
         fitted: PreparedDirectChatTurn | None = None
-        async for item in self._fit_to_context_window(prepared):
-            if isinstance(item, Event):
-                yield item
-            else:
-                fitted = item
+        async with aclosing(self._fit_to_context_window(prepared)) as fitting:
+            async for item in fitting:
+                if isinstance(item, Event):
+                    yield item
+                else:
+                    fitted = item
         if fitted is None:
             return
-        async for event in self._stream_fitted_turn(fitted):
-            yield event
+        async with aclosing(self._stream_fitted_turn(fitted)) as events:
+            async for event in events:
+                yield event
 
-    async def _stream_fitted_turn(self, prepared: PreparedDirectChatTurn) -> AsyncIterator[Event]:
+    async def _stream_fitted_turn(self, prepared: PreparedDirectChatTurn) -> AsyncGenerator[Event, None]:
         """Stream a turn whose prompt fits the model's context window."""
 
         _log.info(
@@ -1025,7 +1032,7 @@ class DirectChatTurnExecutor:
 
     async def _fit_to_context_window(
         self, prepared: PreparedDirectChatTurn
-    ) -> AsyncIterator[Event | PreparedDirectChatTurn]:
+    ) -> AsyncGenerator[Event | PreparedDirectChatTurn, None]:
         """Yield status events, then the turn with a prompt that fits, or an error event instead.
 
         A prompt above the trigger is compacted first (when a compactor is

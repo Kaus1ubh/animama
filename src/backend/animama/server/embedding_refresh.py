@@ -10,7 +10,6 @@ from __future__ import annotations
 
 import asyncio
 from contextlib import suppress
-from dataclasses import dataclass
 from typing import Any
 
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
@@ -20,7 +19,14 @@ from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.model_clients import ModelClientError
 from animama.app.model_clients.error_categories import ERROR_PROVIDER_ERROR, model_error_category
 from animama.app.ports.embedding_refresh_port import EmbeddingRefreshCounts
-from animama.app.services.embedding_refresh_service import EmbeddingRefreshService
+from animama.app.services.embedding_refresh_service import (
+    EMBEDDINGS_STATE_CURRENT,
+    EMBEDDINGS_STATE_OFF,
+    EMBEDDINGS_STATE_REEMBEDDING,
+    EMBEDDINGS_STATE_RETRYING,
+    EmbeddingRefreshService,
+    EmbeddingRefreshStatus,
+)
 from animama.logging import get_logger
 from animama.server.embeddings import role_embedder
 from animama.server.model_roles import ModelRoleSettings
@@ -30,22 +36,8 @@ EMBEDDING_REFRESH_IDLE_SECONDS = 60.0
 EMBEDDING_REFRESH_MIN_BACKOFF_SECONDS = 5.0
 EMBEDDING_REFRESH_MAX_BACKOFF_SECONDS = 600.0
 
-EMBEDDINGS_STATE_OFF = "off"
-EMBEDDINGS_STATE_CURRENT = "current"
-EMBEDDINGS_STATE_REEMBEDDING = "re_embedding"
-EMBEDDINGS_STATE_RETRYING = "retrying"
-
 _STATE_ATTR = "embedding_refresh_worker"
 _log = get_logger("server.embedding_refresh")
-
-
-@dataclass(frozen=True, slots=True)
-class EmbeddingRefreshStatus:
-    """Re-embedding progress for one owner, reported with the embeddings role."""
-
-    state: str
-    pending: int = 0
-    error_category: str | None = None
 
 
 class EmbeddingRefreshWorker:

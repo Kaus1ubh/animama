@@ -27,6 +27,10 @@ import {
 } from "../../scripts/e2e/content-ledger.mjs";
 import { resolvePackageImportOwnership } from "../../scripts/e2e/package-import-ownership.mjs";
 import {
+  PackageStageLedger,
+  releasePackageStages,
+} from "../../scripts/e2e/package-stages.mjs";
+import {
   createLocalCatalogClient,
   localCatalogSnapshot,
   stableJsonSha256,
@@ -185,6 +189,7 @@ type AnimamaFixtures = {
   animamaEvidence: EvidenceAttachment;
   captureBrowserEvidence: void;
   creatorContent: CreatorContentFixture;
+  releaseOpenPackageStages: void;
 };
 
 function requiredEnvironment(name: string): string {
@@ -689,6 +694,63 @@ export const test = base.extend<AnimamaFixtures>({
       if (writeErrors.length > 0) {
         throw new Error(
           `Browser evidence capture failed ${writeErrors.length} time(s); inspect the private runner log.`,
+        );
+      }
+    },
+    { auto: true },
+  ],
+
+  // Package stages count toward the owner's two-stage limit until released or
+  // expired. Release any a journey left open (for example a committed import
+  // whose dialog it navigated away from) so later journeys are unaffected.
+  // Helpers that open stages through `page.request` release their own.
+  releaseOpenPackageStages: [
+    async ({ context, animamaEvidence }, use) => {
+      const ledger = new PackageStageLedger();
+      const pendingReads = new Set<Promise<void>>();
+      const unreadable: string[] = [];
+      const onResponse = (response: Response) => {
+        const method = response.request().method();
+        const pending = ledger
+          .observe({
+            method,
+            url: response.url(),
+            status: response.status(),
+            json: () => response.json(),
+          })
+          .catch(() => {
+            unreadable.push(`${method} ${new URL(response.url()).pathname}`);
+          });
+        pendingReads.add(pending);
+        void pending.finally(() => pendingReads.delete(pending));
+      };
+      context.on("response", onResponse);
+      await use();
+      context.off("response", onResponse);
+      await Promise.allSettled([...pendingReads]);
+
+      const open = ledger.open();
+      if (open.length === 0 && unreadable.length === 0) return;
+      const client = await createLocalCatalogClient({
+        apiUrl: requiredEnvironment("ANIMAMA_E2E_API_URL"),
+      });
+      let outcome;
+      try {
+        outcome = await releasePackageStages(client, open);
+      } finally {
+        await client.close();
+      }
+      await animamaEvidence.attachJson(
+        "package-stages-released-after-journey",
+        {
+          ...outcome,
+          unreadable,
+        },
+      );
+      // An unknown stage ID may still be counting toward the limit.
+      if (outcome.held.length > 0 || unreadable.length > 0) {
+        throw new Error(
+          `Package stages may remain open after the journey: ${outcome.held.length} held, ${unreadable.length} unreadable replies. See package-stages-released-after-journey.`,
         );
       }
     },

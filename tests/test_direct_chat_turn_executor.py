@@ -69,7 +69,7 @@ from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.events import EventType
 from animama.domain.usage import Usage
 from animama.domain.user_file_processing import UserFileOutlineItem
-from animama.server.sse_events import SseTextState, format_user_response_event
+from animama.product_http.chat.sse_events import SseTextState, format_user_response_event
 
 _DEFAULT = object()
 

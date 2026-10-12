@@ -958,8 +958,9 @@ as described under [Reflection](#reflection).
 
 ## Configuration
 
-The Memory Manager runtime is selected per request in
-`src/backend/animama/server/routers/memory_manager.py`.
+The shared routes ask the composition's ports for the owner's Memory Manager
+service; locally its runtime is selected per request in
+`src/backend/animama/server/memory_manager.py`.
 
 Environment and settings:
 
@@ -1101,7 +1102,8 @@ uv run ruff check \
   src/backend/animama/orm/memory_manager.py \
   src/backend/animama/app/services/memory_manager_service.py \
   src/backend/animama/adapters/memory_manager \
-  src/backend/animama/server/routers/memory_manager.py \
+  src/backend/animama/server/memory_manager.py \
+  src/backend/animama/product_http/routes/memory_manager.py \
   src/backend/animama/server/schemas/memory_manager.py \
   tests/test_memory_manager.py \
   tests/test_memory_episodes.py
@@ -1176,8 +1178,9 @@ HTTP schemas and routes:
 
 - `src/backend/animama/app/contracts/memory_manager.py` (`server/schemas`
   re-exports it)
-- `src/backend/animama/server/routers/memory_manager.py` (runs, messages and
-  approvals)
+- `src/backend/animama/product_http/routes/memory_manager.py` (the shared runs,
+  messages and approvals; the local runtime selection is
+  `src/backend/animama/server/memory_manager.py`)
 - `src/backend/animama/product_http/routes/memory.py` (the shared episode listing,
   `GET /v1/memory/episodes`)
 
@@ -1207,7 +1210,7 @@ Direct chat capture:
 - `src/backend/animama/app/main_structured_response.py`
 - `src/backend/animama/app/chat/memory_context.py`
 - `src/backend/animama/app/chat/direct_executor.py`
-- `src/backend/animama/server/routers/chat/session_services.py`
+- `src/backend/animama/product_http/chat/session_services.py`
 
 Tests:
 

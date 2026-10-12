@@ -6,12 +6,11 @@ detection plus `chat:sse` TTS/session events.
 
 ## ElevenLabs
 
-`server/routers/elevenlabs.py` exposes ElevenLabs operations:
-
-- voice clone
-- text-to-speech synthesis
-- sound effects
-- audio isolation
+The shared `product_http/routes/elevenlabs.py` exposes voice cloning,
+text-to-speech synthesis and sound effects through the composition's speech
+port; the local port (`LocalSpeech` in `server/elevenlabs_service.py`) keeps the
+key, retries, concurrency limit and owner labels. Audio isolation stays a local
+route in `server/routers/elevenlabs.py`.
 
 Anima-specific ElevenLabs configuration contains one voice only:
 `speech.elevenlabs.primary_voice`. Legacy persisted `variants` maps are accepted
@@ -170,8 +169,10 @@ Deletion uses the normal content Delete endpoint and refuses voices still bound
 to any Anima. Selecting a built-in voice removes the clone binding.
 
 Legacy Animas may reference a Pocket voice catalog uploaded through the dedicated
-`/v1/animas/voice-catalogs/uploads` lifecycle. The authenticated PUT is bounded
-under `data/staging/uploads`; finalization validates the catalog and publishes
+`/v1/animas/voice-catalogs/uploads` lifecycle (shared routes over
+`VoiceCatalogUploadService`). The authenticated PUT is bounded and spooled under
+the composition's staging directory (`data/staging/uploads` locally) into its
+private storage; finalization validates the catalog and publishes
 a normal standalone file plus metadata sidecar under
 `content/local/voices`. This voice-specific upload path is separate from
 private chat attachments; see

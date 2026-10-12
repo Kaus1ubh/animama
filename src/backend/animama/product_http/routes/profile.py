@@ -10,7 +10,7 @@ from animama.app.contracts.user_profile import PyUserProfile, PyUserProfileUpdat
 from animama.app.services.user_profile_service import UserProfileService
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.user_profile import UserProfile, UserProfileInvalidError, UserProfileNotFoundError
-from animama.product_http.ports import Ports, ProductRefusal, ReadRepositories, WriteSession
+from animama.product_http.ports import Ports, ProductRefusal, ReadRepositories, WriteSession, refusal_error
 from animama.product_http.principal import get_current_principal
 
 router = APIRouter()
@@ -57,7 +57,7 @@ async def update_user_profile(
     except (UserProfileNotFoundError, UserProfileInvalidError) as exc:
         _raise_profile_error(exc)
     except ProductRefusal as exc:
-        raise HTTPException(status_code=exc.status_code, detail={"code": exc.code}) from exc
+        raise refusal_error(exc) from exc
     return PyUserProfile(display_name=display_name)
 
 

@@ -578,7 +578,8 @@ async def test_anthropic_chats_never_use_application_compaction_or_window_fittin
 @pytest.mark.asyncio
 async def test_post_response_compaction_skips_anthropic_and_still_runs_for_chat_completions(monkeypatch) -> None:
     from animama.app.chat.options import DirectChatOptions
-    from animama.server.routers.chat import compaction as chat_compaction
+    from animama.product_http.chat import compaction as chat_compaction
+    from tests.product_http_support import local_turn_sessions
 
     calls: list[dict[str, Any]] = []
 
@@ -597,20 +598,26 @@ async def test_post_response_compaction_skips_anthropic_and_still_runs_for_chat_
             )()
 
     class _Session:
-        async def close(self) -> None:
+        def expire_all(self) -> None:
+            return None
+
+        async def __aenter__(self) -> _Session:
+            return self
+
+        async def __aexit__(self, *_exc_info: object) -> None:
             return None
 
     monkeypatch.setattr(chat_compaction, "chat_compaction_service", lambda *_args: _Service())
     for provider in (_anthropic_provider(), executor_helpers._provider()):
         await chat_compaction.compact_chat_after_success(
-            session_factory=_Session,
+            sessions=local_turn_sessions(_Session, "user-1"),
             model_client_registry=object(),  # type: ignore[arg-type]
             chat_id="chat-1",
             user_id="user-1",
             anima_id="anima-1",
             run_id="run-1",
             chat_options=DirectChatOptions(),
-            model_roles=object(),  # type: ignore[arg-type]
+            settings=chat_compaction.ChatCompactionSettings(),
             model_provider=provider,
         )
 

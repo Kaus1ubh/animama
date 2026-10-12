@@ -78,7 +78,6 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMChat, ORMChatMessage, ORMModelProvider
 from animama.orm.base import Base
 from animama.server.model_clients import build_model_client_registry
-from animama.server.routers.anima import chat_anima_direct_sse
 from animama.server.routers.model_configuration import get_anthropic_connection_probe
 from animama.utils.type_helpers import coerce_provider_type
 from tests.anthropic_fakes import (
@@ -804,7 +803,7 @@ async def test_a_mock_mode_turn_on_an_anthropic_row_records_the_anthropic_api_st
     chat_sse_helpers._install_db_route_mocks(monkeypatch, async_session_factory, default_model_provider_id=HAIKU_ID)
     monkeypatch.setattr(chat_sse_helpers, "_CURRENT_TEST_REGISTRY", build_model_client_registry())
 
-    response = await chat_anima_direct_sse(
+    response = await chat_sse_helpers.chat_anima_direct_sse(
         anima_id,
         chat_sse_helpers._chat_request(message="hello claude", run_id=f"run-{chat_id}", chat_id=chat_id),
         request=chat_sse_helpers._test_request(),
@@ -834,7 +833,7 @@ async def test_a_turn_on_an_anthropic_row_without_its_client_fails_before_any_re
     )
 
     with pytest.raises(HTTPException) as caught:
-        await chat_anima_direct_sse(
+        await chat_sse_helpers.chat_anima_direct_sse(
             anima_id,
             chat_sse_helpers._chat_request(message="hello", run_id=f"run-{chat_id}", chat_id=chat_id),
             request=chat_sse_helpers._test_request(),
@@ -866,7 +865,7 @@ async def test_a_turn_without_the_anthropic_key_reports_the_missing_key_naming_t
         ),
     )
 
-    response = await chat_anima_direct_sse(
+    response = await chat_sse_helpers.chat_anima_direct_sse(
         anima_id,
         chat_sse_helpers._chat_request(message="hello", run_id=f"run-{chat_id}", chat_id=chat_id),
         request=chat_sse_helpers._test_request(),
@@ -902,7 +901,7 @@ async def test_an_anthropic_turn_keeps_the_key_out_of_rows_responses_and_logs(
     )
 
     with captured_anima_log_records() as records:
-        response = await chat_anima_direct_sse(
+        response = await chat_sse_helpers.chat_anima_direct_sse(
             anima_id,
             chat_sse_helpers._chat_request(message="hello claude", run_id=f"run-{chat_id}", chat_id=chat_id),
             request=chat_sse_helpers._test_request(),

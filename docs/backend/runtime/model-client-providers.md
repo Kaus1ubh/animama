@@ -33,7 +33,7 @@ opened stream.
   and `error` domain events
 - persists user and assistant chat messages through `ChatManager`
 
-The public `run.completed` SSE frame is formatted by `chat_sse.py`. The shared
+The public `run.completed` SSE frame is formatted by `product_http/chat/stream.py`. The shared
 `app/chat/completion.py` sequence flushes safety/emotion events, TTS, title and
 compaction before invoking that completion callback once. Incognito skips title
 and compaction; memory-update switches remain the executor's responsibility.
@@ -232,14 +232,16 @@ persists that metadata in assistant `message_data.model_client.raw_provider_meta
 For OpenAI Responses rows that include a final response ID, the same compact
 summary is also copied into `message_data.openai.stream_event_summary`.
 
-Normal INFO logs stay content-free unless preview logging is enabled. The local
-Docker Compose `animama-server` service sets
-`ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS=true` by default so local debugging includes
-truncated prompt, response, tool argument, and tool result previews in selected
-model-client lifecycle logs. `ANIMAMA_MODEL_CLIENT_LOG_PREVIEW_CHARS` controls
-each preview length and defaults to 240 characters. Preview logs are redacted
-for obvious secret shapes but can still include user, memory, file, or tool
-content, so disable them in shared or long-retention environments.
+Normal INFO logs stay content-free unless preview logging is enabled. Preview
+logging is off by default, including in Docker Compose. For local debugging, set
+`ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS=true` in the worktree `.env` (or the shell)
+and rerun `./reset.sh`; selected model-client lifecycle logs then include
+truncated prompt, response, tool argument, and tool result previews.
+`ANIMAMA_MODEL_CLIENT_LOG_PREVIEW_CHARS` controls each preview length and
+defaults to 240 characters. Preview logs are redacted for obvious secret shapes
+but can still include user, memory, file, or tool content, and Compose persists
+logs under `.animama-logs` for seven days, so turn previews off again after
+debugging and never enable them in shared or hosted environments.
 
 `stream_event_summary` can include:
 

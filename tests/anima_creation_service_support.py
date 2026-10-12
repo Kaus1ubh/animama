@@ -35,11 +35,11 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMAvatar, ORMModelProvider
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
-from animama.product_http.routes import loadouts, typed_content
+from animama.product_http.routes import chat_turns, loadouts, typed_content
 from animama.server.config import Settings, settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
-from animama.server.routers import anima, anima_creation
+from animama.server.routers import anima_creation
 from tests.product_http_support import install_local_ports
 
 
@@ -187,7 +187,7 @@ class AnimaCreationFixture:
         app = FastAPI()
         app.state.local_runtime_paths = self.paths
         app.include_router(anima_creation.router)
-        app.include_router(anima.router)
+        app.include_router(chat_turns.router)
         app.include_router(loadouts.router)
         app.include_router(typed_content.router)
 

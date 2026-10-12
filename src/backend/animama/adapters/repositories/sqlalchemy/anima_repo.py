@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import noload, selectinload
 
 from animama.domain.anima_definition import ANIMA_IDENTITY_PATH, AnimaDefinitionError, normalize_display_name
+from animama.domain.emotions import normalize_emotional_state
 from animama.logging import get_logger
 from animama.orm.anima_definition import ORMAnimaDefinitionRevision
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
@@ -78,6 +79,19 @@ class SQLAlchemyAnimaRepository(AnimaRepository):
         await self._s.flush()
         await self._s.refresh(orm)
         return anima_orm_to_domain(orm)
+
+    async def stored_emotional_state(self, anima_id: str) -> dict[str, int] | None:
+        orm = await self._s.get(ORMAnima, anima_id)
+        if orm is None or orm.emotional_state is None:
+            return None
+        return normalize_emotional_state(orm.emotional_state)
+
+    async def record_emotional_state(self, *, user_id: str, anima_id: str, emotional_state: dict[str, int]) -> bool:
+        orm = await self._s.get(ORMAnima, anima_id)
+        if orm is None or orm.user_id != user_id or normalize_emotional_state(orm.emotional_state) == emotional_state:
+            return False
+        orm.emotional_state = emotional_state
+        return True
 
     async def lock_definition(self, *, user_id: str, anima_id: str, expected_revision: int | None = None) -> Anima:
         row = (
