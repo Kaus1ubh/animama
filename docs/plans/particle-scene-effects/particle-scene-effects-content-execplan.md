@@ -145,8 +145,9 @@ backend to `src/backend/animama/`, content to `content/included/`.
       render, pending the owner's review); review passed at round 1.
 - [x] Final integration review (2026-10-12): passed at round 2; PR opened
       for the owner's review (gates G2–G4 and merge pending).
-- [ ] P8 — Owner review revisions (#466): level-1 Avatar Effects, even
-      sticker placement, Heart Burst at the chest.
+- [x] P8 — Owner review revisions (#466), 2026-10-12: level-1 Avatar
+      Effects, even sticker placement, Heart Burst at the chest; `main`
+      merged; review passed at round 2, final integration round 3 recorded.
 
 ## Surprises & Discoveries
 
@@ -1240,6 +1241,15 @@ Starting source and issue: `2d6c5174`, #466.
   from this record, #297 and the snapshot) and optional notes (the e2e scroll
   loop's stale 73, the sound-rule wording, "above"), all fixed here. The
   budget is spent, so these record fixes were not independently re-reviewed.
+
+Checks (`9d8dacb1`; `b8281eca` changes only records and the template journey's
+scroll loop): `uv run pytest -q` 4057 passed, 27 skipped; `ruff`, `make
+check`, `pnpm check`, `web:lint`, `prettier:check`, `build`, `desktop:check`
+pass; `openapi-ts` unchanged; `pnpm web:test` on `b8281eca` vitest 4162
+passed, browser scripts 113 passed and one unrelated `setup-downloads` timeout
+that passed twice alone (an earlier run's deterministic-render failure under
+load also passed twice alone); full `pnpm e2e:test` 40 passed (17.7 min) on a
+purged built stack.
 
 #### Code Review #1 Findings
 
