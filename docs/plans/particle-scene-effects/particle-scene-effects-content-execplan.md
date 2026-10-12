@@ -739,7 +739,8 @@ Starting source and issue: `526c0e7e`, #448. Drafts under
   grief-3 1.28/1.30 and 0.82/0.73; excitement-3 (both effects) 1.17/1.08 and
   0.25/0.63; admiration-3 1.14/0.98; gratitude-3 0.97/1.05; love-3 0.92/0.93;
   desire-3 0.81/0.93; optimism-3 0.81/0.67 (1.14 over its whole span); anger-3
-  0.63/0.95; caring-2 about 0.5/0.7. All within the 4 ms budget.
+  0.63/0.95; caring-2 0.39/0.66 (0.44 over its whole span). All within the 4 ms
+  budget.
 
 Departure: no Local Reactions were saved and no chat check ran before promotion;
 the wired Reactions are checked in chat on the promoted branch content (P7) and
@@ -749,10 +750,27 @@ For G4 (pending the owner's review): Halo Rays reads olive on Gratitude's pale
 peach and blends into Confidence's gold rays; curiosity-3's orbiting question
 marks pass over its `idea_bulb` Avatar Effect; joy-3's Star Burst is pale on
 yellow; embarrassment-3, joy-3 and disgust-3 repeat their background's motif.
+Effects with a `duration` are cleared at start + duration and when the Reaction
+ends, so short replies cut the longer new effects short, as before.
 
 #### Code Review #1 Findings
 
+Round 1 (`sdlc-reviewer`, `31d524cd`): every project file changes only effect
+events and dependencies; the ladder, aliases, refs and durations match; the dry
+run plans 261 changes with no `local:` ref and writes nothing; joy-3 and
+excitement-3 re-benchmarked within budget. Required: **P5-R1-F1** the
+excitement-3 render, board cell and benchmark row showed the earlier Fireworks
+Show–only version. Optional: F2 `promote.json` lacks the P3-agreed names and
+descriptions and the deletes (P6 hand-off); F3 a coverage count; F4 stale logs;
+F5 rounded caring-2 numbers; F6 the ticked box before G4.
+
 #### Code Review #1 Revisions
+
+- **F1 accepted:** excitement-3 re-rendered (sheet and detail), board rebuilt,
+  its benchmark row replaced with the final version's numbers.
+- **F2 accepted for P6:** P6's `promote.json` adds the replace descriptions, the
+  add names and the deletes.
+- **F3, F5 accepted:** fixed. **F4, F6:** noted; the fresh dry run matched.
 
 ### P6 — Promotion and removal (R13, R14). Gate G3. #449
 
