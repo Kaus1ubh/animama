@@ -296,7 +296,7 @@ export function validateParticleVFXEditorDraft(
       code: "particle-budget-exceeded",
       message: Number.isFinite(estimatedParticles)
         ? `Estimated ${estimatedParticles} particles exceeds the catalog budget of ${budget}.`
-        : `Particle use cannot be estimated (an emission, burst or duration value is unsupported); the catalog budget is ${budget}.`,
+        : `Particle use cannot be estimated (an emission, lifetime, burst or duration value is unsupported); the catalog budget is ${budget}.`,
       target: "performanceBudget.maxParticles",
     });
   }

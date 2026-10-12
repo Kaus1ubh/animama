@@ -76,6 +76,7 @@ type MockParticleSystem = {
   emitter: MockParticleEmitter | null;
   _renderer: { deleteSystem: (system: MockParticleSystem) => void } | null;
   clone: () => MockParticleSystem;
+  getRendererSettings: () => { material: { toneMapped?: boolean } };
   dispose: ReturnType<typeof vi.fn>;
   play: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
@@ -88,6 +89,7 @@ type MockLoadQueueItem =
 type MockBatch = Object3D & {
   dispose: ReturnType<typeof vi.fn>;
   material: MeshBasicMaterial;
+  settings: { material: MeshBasicMaterial };
 };
 
 type MockBatchRenderer = Object3D & {
@@ -127,6 +129,7 @@ vi.mock("three.quarks", async () => {
         const batch = new THREE.Object3D() as MockBatch;
         batch.dispose = vi.fn();
         batch.material = new THREE.MeshBasicMaterial();
+        batch.settings = { material: batch.material };
         this.batches.push(batch);
         this.add(batch);
       }
@@ -256,6 +259,8 @@ function createMockParticleSystem(
       quarksMockState.createdSystems.push(cloned);
       return cloned;
     },
+    // Tone-mapped like every Included effect, so batching stays stock.
+    getRendererSettings: () => ({ material: { toneMapped: true } }),
     dispose: vi.fn(() => {
       system._renderer?.deleteSystem(system);
       system.emitter?.parent?.remove(system.emitter);

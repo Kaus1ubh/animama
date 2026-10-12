@@ -51,7 +51,7 @@ outputs into typed entries. Final typed entries use safe manifest-relative
 texture paths.
 
 Use PNG with transparent alpha for billboards, prefer square 256x256 or
-512x512 textures for static sprites, disable particle material depth writes,
+512x512 textures for static sprites (up to 1024x1024 for detailed hero art), disable particle material depth writes,
 and keep local-space emitters for effects that should follow avatar anchors.
 Curated flipbook atlases are tracked in the same texture directory. The
 generator normalizes Brackeys TGA flipbooks and predrawn PNG atlases into PNG
@@ -76,6 +76,23 @@ package import):
 | Each texture | 4 MiB, 2048 px per side, 2048² px |
 | Per effect | 16 textures, 32 MiB |
 | Sprite sheet grid | at most 16 tiles each way (U and V tile counts) |
+
+three.quarks' billboard shader tone-maps (ACES Filmic in chat) but has no
+sRGB output step, so a texture with an empty `colorSpace` (every Included
+effect) shows pure white near RGB 194. A manifest may set a texture's
+`colorSpace` to `"srgb"`; the loader, creator preview, review renders and Save
+keep it, but it only darkens mid-tones and does not restore white.
+
+A manifest material may set the three.js field `toneMapped: false` to skip
+tone mapping for the emitters that use it. Their stored texture values then
+reach the canvas unchanged (white 255, grey 128 stays 128) with the texture's
+`colorSpace` left empty; an `"srgb"` texture would render darker. Animama's
+batch renderer (`lib/avatar/particle-vfx/batchedRenderer.ts`) keeps such
+emitters out of tone-mapped batches; chat, the creator preview and the review
+renders all use it, and Save, export and the backend keep the field.
+Materials without it render exactly as before. Switching an effect retunes
+its colours: tone mapping compresses highlights and shifts saturated hues,
+so art and `startColor` tuned under it look brighter and harsher without it.
 
 Save also packages each built-in creator texture an emitter uses (the
 curated files below, referenced as `textures/<file>`) as a file of the saved
@@ -119,7 +136,21 @@ browser recovery, as in the other effect creators; the stable editor route
 carries only the catalog item ID.
 
 The editor preserves the existing curated texture manifest, particle-budget
-validation, import/export tools, and Three.quarks preview lifecycle. Save uses
+validation, import/export tools, and Three.quarks preview lifecycle.
+Its estimate (`editor/particleEstimate.ts`) is a conservative bound on the
+particles alive at once, which the declared `max_particles` must cover: each
+emitter contributes its maximum `emissionOverTime` × the upper bound of
+`startLife` (capped by its `duration` plus one 0.1 s frame unless it loops)
+plus one for the runtime's rounding up, a trail's life extended by the frames
+its trail takes to drain (`startLength` × 0.1 s), each burst's count (rounded up) for every
+assumed wave (`cycle`, `interval` apart; three.quarks 0.17.1 fires each burst
+once per loop, so this only over-counts) and, for a looping emitter, every
+repeat whose particles are still alive; emitter peaks are summed. A 30 s loop
+at 20/s with 2 s lives counts 41, not the 600 it emits. Save refuses an
+estimate above the declared budget or 512, and `effects check` prints it. A
+Local effect saved before this estimate (it counted every particle emitted)
+can now read lower, or, for a loop whose lives outlast the other emitters,
+higher, so re-Saving it may ask for a larger budget; it still loads and plays. Save uses
 `PUT /v1/particle-effects/{entry_name}` and atomically replaces the ordinary
 Local entry. It never equips the effect to an Anima; Gesture and Reaction
 creators reference it as a dependency.

@@ -18,12 +18,17 @@ import {
 } from "@/lib/avatar/poses/animaPoseClip/program";
 import { getResolvedAvatarPose } from "@/lib/avatar/poses/catalog";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
-import { buildSceneCameraPreset } from "@/ui/main/canvas/sceneCameraPresets";
 import { updatePoseCreatorAvatarFrame } from "@/ui/pose-creator/poseCreatorAvatarFrame";
 
 import { ReviewStage } from "./reviewStage";
 import { missingSceneMessage } from "./sceneBands";
-import { createStage, effectEntry, type EffectSource } from "./stage";
+import {
+  chatPortraitFraming,
+  createStage,
+  effectEntry,
+  type EffectSource,
+  type Framing,
+} from "./stage";
 
 /**
  * Headless effect review page (driven by `scripts/effect-render.mjs` and
@@ -407,8 +412,6 @@ class EffectSession {
   }
 }
 
-type Framing = { position: THREE.Vector3; target: THREE.Vector3; fov: number };
-
 /** Place `camera` for a view: chat Portrait framing, or a face close-up. */
 function placeCamera(
   camera: THREE.PerspectiveCamera,
@@ -433,18 +436,6 @@ function placeCamera(
     camera.lookAt(portrait.target);
   }
   camera.updateProjectionMatrix();
-}
-
-/** The chat's Portrait camera preset for the Avatar at rest. */
-function portraitFraming(avatar: Avatar): Framing {
-  const { position, orbitTarget, fov } = buildSceneCameraPreset("portrait", {
-    avatar,
-  }).settings;
-  return {
-    position: new THREE.Vector3(position.x, position.y, position.z),
-    target: new THREE.Vector3(orbitTarget.x, orbitTarget.y, orbitTarget.z),
-    fov,
-  };
 }
 
 /** The one open stage: its renderer, session and Avatar framing. */
@@ -503,7 +494,7 @@ async function openReviewStage(
     );
     stage.attachCanvas(renderer.domElement, session.avatar);
     scene.add(session.avatar.scene!);
-    const framing = portraitFraming(session.avatar);
+    const framing = chatPortraitFraming(session.avatar);
     await session.apply(request);
     open = { stage, renderer, scene, camera, session, framing };
     return {
@@ -557,7 +548,7 @@ async function renderThumbnail(
     );
     const { avatar } = session;
     scene.add(avatar.scene!);
-    const framing = portraitFraming(avatar);
+    const framing = chatPortraitFraming(avatar);
     await session.apply(request);
     await session.advanceTo(request.time);
     // The capture keeps only the view direction of this front camera.

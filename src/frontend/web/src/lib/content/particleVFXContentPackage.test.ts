@@ -170,6 +170,44 @@ describe("Particle VFX editable content package", () => {
     expect(built.notices).toHaveLength(2);
   });
 
+  it("fits up to sixteen named emitters to the Avatar rectangle", async () => {
+    let draft = namedDraft();
+    while (draft.emitters.length < 16) {
+      draft = addParticleVFXEditorEmitter(draft);
+    }
+    const emitterNames = draft.emitters.map((emitter) => emitter.name);
+    draft.catalog.performanceBudget.maxParticles = 512;
+    draft.catalog.shapeAutoFit = {
+      kind: "avatarBoundsRectangle",
+      padding: { width: 0.2, height: 0.3 },
+      emitterNames,
+    };
+    const built = await buildParticleVFXContentPackage({
+      draft,
+      resources: [resource("textures/soft-dot.png", PNG, "image/png")],
+    });
+    const defaults = (
+      built.authoringManifest.runtime_defaults as {
+        slots: { particle_vfx: Record<string, unknown> };
+      }
+    ).slots.particle_vfx;
+
+    expect(defaults.shape_auto_fit).toMatchObject({
+      emitter_names: emitterNames,
+    });
+
+    draft.catalog.shapeAutoFit = {
+      ...draft.catalog.shapeAutoFit,
+      emitterNames: [...emitterNames, "emitter-17"],
+    };
+    await expect(
+      buildParticleVFXContentPackage({
+        draft,
+        resources: [resource("textures/soft-dot.png", PNG, "image/png")],
+      }),
+    ).rejects.toThrow("match up to 16 emitters");
+  });
+
   it("round-trips a multi-emitter authoring package with shared texture and runtime metadata", async () => {
     let draft = namedDraft();
     draft = addParticleVFXEditorEmitter(draft);
@@ -237,6 +275,53 @@ describe("Particle VFX editable content package", () => {
         padding: { width: 0.15, height: 0.25 },
       },
     });
+  });
+
+  it("keeps a texture's authored colour space through Save", async () => {
+    const draft = namedDraft();
+    const [texture] = draft.quarksJson.textures as { colorSpace: string }[];
+    texture!.colorSpace = "srgb";
+
+    const built = await buildParticleVFXContentPackage({
+      draft,
+      resources: [resource("textures/soft-dot.png", PNG, "image/png")],
+    });
+    const manifest = JSON.parse(await built.manifestFile.text()) as {
+      textures: { colorSpace: string }[];
+    };
+
+    expect(manifest.textures.map(({ colorSpace }) => colorSpace)).toEqual([
+      "srgb",
+    ]);
+    expect(
+      (built.normalizedDraft.quarksJson.textures as { colorSpace: string }[])[0]
+        ?.colorSpace,
+    ).toBe("srgb");
+  });
+
+  it("keeps a material's tone-mapping opt-out through Save", async () => {
+    const draft = namedDraft();
+    const [material] = draft.quarksJson.materials as { toneMapped?: boolean }[];
+    material!.toneMapped = false;
+
+    const built = await buildParticleVFXContentPackage({
+      draft,
+      resources: [resource("textures/soft-dot.png", PNG, "image/png")],
+    });
+    const manifest = JSON.parse(await built.manifestFile.text()) as {
+      materials: { toneMapped?: boolean }[];
+    };
+
+    expect(manifest.materials.map(({ toneMapped }) => toneMapped)).toEqual([
+      false,
+    ]);
+    expect(
+      (
+        built.normalizedDraft.quarksJson.materials as {
+          toneMapped?: boolean;
+        }[]
+      )[0]?.toneMapped,
+    ).toBe(false);
   });
 
   it("rejects unsafe and content-type-mismatched resources before upload", async () => {

@@ -159,6 +159,35 @@ backend to `src/backend/animama/`, content to `content/included/`.
   deleted by #406).
 - 2026-10-10, owner: quality bar is Heart Burst's level; simpler effects are
   fine, and sparkles or rings are not required in each.
+- 2026-10-11, owner (P2, G2 notes): raise the Particle emitter limit from 8
+  to 16 and any other limit or budget that gets in the way of excellent
+  effects (spec's allowed runtime change, reason: layered effects such as
+  four-wisp Gloom wisps and continuous auras need more emitters); every new
+  Particle Effect lasts 20% longer; the headed preview gains a Portrait
+  camera. Per-effect notes: twinkle shimmer yellow without bokeh; halo rays
+  whiter and brighter with sparkles instead of beads; question marks upright;
+  confetti rains across the screen; rage aura reads as one continuous aura;
+  stink miasma becomes an aura; fume puffs become two long-lived ear jets;
+  gloom wisps gets a fourth wisp. Star burst and rain cloud had no notes.
+- 2026-10-11, owner (P2), the platform changes and their reasons:
+  - **Emitter limit 16** (was 8; also the auto-fit `emitter_names` cap):
+    layered effects such as four-wisp Gloom wisps and closed auras need more
+    emitters; the runtime has no per-emitter cap.
+  - **Art budgets** `particle-texture` 1024 px / 512 KiB (was 512 px /
+    256 KiB) and `particle-sheet` 2048 px / 2 MiB (was 1 MiB): the halo-rays
+    ray fan had to be shrunk to fit; both stay within the 4 MiB / 2048 px
+    hard limits.
+  - **Particle estimate** is a conservative bound on particles alive at once
+    (was every particle emitted): a long loop was refused though few
+    particles were on screen. Bounded against three.quarks 0.17.1's emission
+    (one clamped frame past a one-shot window, rounding up, trails draining).
+  - **Opt-in true white** (`toneMapped: false` on a manifest material, a
+    batch renderer that keeps such emitters in untoned batches): white art
+    rendered about RGB 194 under ACES Filmic; existing effects stay stock.
+  - **OrbitOverLife axis and `prewarm` kept on clone**: three.quarks 0.17.1's
+    clones drop both, so instances orbited their local Y; Local effects with
+    another axis now orbit as authored.
+  - **Portrait camera** in the headed preview, sharing chat's framing.
 - 2026-10-09, owner (Plan 1 G1): the eight family designs, capabilities C1–C6,
   embarrassment in Affection.
 - 2026-10-10, owner (G1): approved the three proposals below, kept Fume
@@ -417,9 +446,71 @@ changes recorded), each with a clean `effects check`.
 
 #### P2 record
 
+Starting source and issue: `74c8395e`, #446. Task stack `animama-particle-content`
+(built, `http://animama-particle-content.localhost:8620`); Heart Burst and Gloom
+Sadness imported from the Plan 1 package and re-checked (pass; only intended
+`interior_translucency` warnings on glow art). Headed preview of the drafts on
+port 5180.
+
+Drafts (`.animama-drafts/plan2/effects/<stem>/`, built by `<stem>-work/build.py`)
+for the 10 new effects passed `effects check` in three batches. At G2 the owner
+left notes on seven and asked for the platform changes in the Decision Log; the
+effects were revised (twinkle shimmer yellow, no bokeh; halo rays white with
+sparkles; upright question marks; confetti raining across the view; closed
+oval auras; two ear jets for fume puffs; four gloom wisps) and are being
+retuned for true white and a 20% longer visible span.
+
+Platform changes (tests first): emitter limit 16 (readiness and the auto-fit
+`emitter_names` cap); art budgets `particle-texture` 1024 px / 512 KiB and
+`particle-sheet` 2048 px / 2 MiB; a peak-alive particle estimate bounded
+against three.quarks 0.17.1 emission (checked by simulating the real runtime
+at 1/144–0.1 s steps: no Included effect's peak exceeds it); opt-in
+`toneMapped: false` through `createParticleVFXBatchedRenderer` (white 255 vs
+195 in a browser pixel test; stock batching while nothing opts out);
+`cloneParticleVFXPrefab` keeping OrbitOverLife axes and `prewarm`; a Portrait
+camera preset sharing `chatPortraitFraming` with `effects:render`.
+
+Checks: vitest on `src/lib/avatar/particle-vfx`, `particleVFXContentPackage`,
+`tests/avatar` and `src/ui/particle-vfx-creator` (359 pass); `node --test`
+effect script tests (61 pass); browser tests for effect-check, effect-render
+and animation-preview (17 pass, round 1); `pnpm check`, `pnpm web:lint`,
+`pnpm prettier:check` pass.
+
 #### Code Review #1 Findings
 
+Platform changes, round 1 (`sdlc-reviewer`, working tree on `74c8395e`):
+**P2-R1-F1** (required) the peak-alive estimate undercounted three.quarks
+0.17.1's emission (one frame past a one-shot window, rounding up, trails
+draining after their life); **P2-R1-F2** (required) the Decision Log did not
+record each runtime and limit change with its reason; optional **F3** burst
+wording implied `cycle`/`interval` fire, **F4** clones also drop `prewarm`,
+**F5** re-Save of older Local effects may need a larger budget.
+
 #### Code Review #1 Revisions
+
+All accepted: the estimate adds one per rate emitter, a 0.1 s frame to one-shot
+windows and `startLength` × 0.1 s to trail lives (default 30), with tests from
+the reviewer's simulations; a Decision Log entry per change; wording fixed;
+`prewarm` copied on clone (test); the re-Save note in the runtime guide. The
+controller tests' three.quarks mock was completed and the batch renderer takes
+three.quarks' own path while every emitter is tone-mapped.
+
+#### Code Review #2 Findings
+
+Round 2: F1–F5 resolved (simulated peaks within the new estimate). Required:
+**P2-R2-F1** Prettier failed on the two estimate files; **P2-R2-F2** the skill's
+`effect-folder.md` still described the old estimate. Optional **P2-R2-F3**
+fractional burst counts spawn their ceiling.
+
+#### Code Review #2 Revisions
+
+All accepted: formatted; the skill bullet matches the code; `Math.ceil` per
+burst with a test.
+
+#### Code Review #3 Findings
+
+Round 3 (final): **pass**; optional **P2-R3-F1** the runtime guide did not say
+burst counts round up (fixed).
 
 ### P3 — Scene backgrounds and the sticker art (R10). Gate G2 per family. #447
 

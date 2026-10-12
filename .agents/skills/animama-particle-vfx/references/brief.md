@@ -42,13 +42,14 @@ to use your judgement; state the choices you made in the brief.
 - **Art direction:** <what each texture shows, colours, glow; single sprites
   or a sprite sheet with its tile grid; built-in textures reused>
 - **Budget:** <declared maximum particles (at most 512) and the expected
-  estimate; texture budgets `particle-texture` / `particle-sheet`>
+  estimate of particles alive at once; texture budgets `particle-texture` /
+  `particle-sheet`>
 ```
 
 ## Mechanics
 
 The mechanic is how the particles are emitted; most effects are one of these
-or a stack of them (one emitter each, up to eight):
+or a stack of them (one emitter each, up to 16):
 
 | Mechanic | Emitter settings | Included example |
 | --- | --- | --- |

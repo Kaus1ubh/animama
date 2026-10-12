@@ -68,16 +68,16 @@ export const BUDGETS = {
   silhouette: { maxDimension: 1024, maxKiB: 512 },
   /** A whole flipbook sheet; keep each frame near 256 px. */
   flipbook: { maxDimension: 2048, maxKiB: 1024 },
-  /** One Particle sprite. */
+  /** One Particle sprite; large enough for detailed rays and rings. */
   "particle-texture": {
-    maxDimension: 512,
-    maxKiB: 256,
+    maxDimension: 1024,
+    maxKiB: 512,
     limits: EFFECT_ART_LIMITS.particleTexture,
   },
   /** A Particle sprite sheet; keep each tile near 256 px. */
   "particle-sheet": {
     maxDimension: 2048,
-    maxKiB: 1024,
+    maxKiB: 2048,
     limits: EFFECT_ART_LIMITS.particleTexture,
   },
   /** A Scene marquee item. */

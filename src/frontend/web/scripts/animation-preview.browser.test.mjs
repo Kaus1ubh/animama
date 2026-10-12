@@ -178,6 +178,33 @@ test("previews an animaPoseClip/2.0 clip", async () => {
       scrubber.dispatchEvent(new Event("input"));
     });
     assert.equal(await page.evaluate(() => window.animationPreview.time), 0.6);
+
+    // Portrait frames each Avatar as the chat's Portrait camera preset does:
+    // 1.6 m in front of the rest head, 35° field of view, aimed 0.1 m below.
+    await page.click('#cameras button[data-camera="portrait"]');
+    assert.equal(
+      await page.getAttribute(
+        '#cameras button[data-camera="portrait"]',
+        "aria-pressed",
+      ),
+      "true",
+    );
+    await page.waitForFunction(() =>
+      window.animationPreview.cameras.every((view) => view.fov === 35),
+    );
+    const views = await page.evaluate(() => window.animationPreview.cameras);
+    assert.equal(views.length, 2);
+    for (const view of views) {
+      const [x, y, z] = view.position;
+      assert.ok(Math.abs(x) < 1e-6 && Math.abs(z - 1.6) < 1e-6, view.position);
+      assert.ok(y > 1 && y < 1.7, `head height ${y}`);
+      assert.ok(Math.abs(view.target[1] - (y - 0.1)) < 1e-6, view.target);
+    }
+    // The other presets keep their own framing.
+    await page.click('#cameras button[data-camera="front"]');
+    await page.waitForFunction(() =>
+      window.animationPreview.cameras.every((view) => view.fov === 30),
+    );
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();

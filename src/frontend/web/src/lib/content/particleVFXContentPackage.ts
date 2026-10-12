@@ -1,5 +1,6 @@
 import {
   PARTICLE_VFX_EDITOR_TEXTURES,
+  PARTICLE_VFX_MAX_EMITTERS,
   createParticleVFXEditorDraftFromImport,
   validateParticleVFXContentReadiness,
   type ParticleVFXEditorCatalogDraft,
@@ -448,12 +449,12 @@ function validateRuntimeDefaults(catalog: ParticleVFXEditorCatalogDraft): void {
   if (
     fit.emitterNames &&
     (fit.emitterNames.length < 1 ||
-      fit.emitterNames.length > 8 ||
+      fit.emitterNames.length > PARTICLE_VFX_MAX_EMITTERS ||
       new Set(fit.emitterNames).size !== fit.emitterNames.length ||
       fit.emitterNames.some((name) => !name.trim() || name.length > 120))
   ) {
     throw new ParticleVFXContentPackageError(
-      "Rectangle auto-fit emitter names must be unique and match up to eight emitters.",
+      `Rectangle auto-fit emitter names must be unique and match up to ${PARTICLE_VFX_MAX_EMITTERS} emitters.`,
     );
   }
 }

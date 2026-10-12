@@ -64,6 +64,7 @@ import {
   applyParticleVFXEmitterPatch,
   buildParticleVFXEditorExport,
   createDefaultParticleVFXTransform,
+  createParticleVFXBatchedRenderer,
   createParticleVFXEditorDraftFromBlank,
   createParticleVFXEditorDraftFromImport,
   duplicateParticleVFXEditorEmitter,
@@ -606,7 +607,7 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
       emitter.name.toLowerCase().includes(query),
     );
   }, [draft?.emitters, emitterQuery]);
-  // The estimate Save enforces.
+  // The estimate of particles alive at once that Save enforces.
   const estimatedParticles = draft
     ? estimateParticleVFXParticles(draft.quarksJson)
     : 0;
@@ -1069,8 +1070,8 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
             <h2 className="text-sm font-semibold">Settings</h2>
             <p className="text-muted-foreground mt-1 text-xs">
               {Number.isFinite(estimatedParticles)
-                ? `Estimated total: up to ${estimatedParticles} particles`
-                : "Estimated total: cannot be estimated (an emission, burst or duration value is unsupported)"}
+                ? `Estimated at once: up to ${estimatedParticles} particles`
+                : "Estimated at once: cannot be estimated (an emission, lifetime, burst or duration value is unsupported)"}
             </p>
             <div className="mt-3 space-y-3">
               <SelectField
@@ -1936,7 +1937,9 @@ function QuarksPreviewObject({
         if (disposed) return;
         quarks = module;
         const loader = new module.QuarksLoader();
-        const batch = new module.BatchedRenderer() as PreviewBatchRenderer;
+        const batch = createParticleVFXBatchedRenderer(
+          module,
+        ) as PreviewBatchRenderer;
         batch.name = "ParticleVFXCreatorPreviewBatch";
         const previewJson = JSON.parse(JSON.stringify(json)) as unknown;
         loader.parse(previewJson, (parsedObject) => {

@@ -26,7 +26,12 @@ import { effectSourceEntry } from "@/lib/avatar/vfx/effectSource";
 import { applyAvatarVFXEffectById } from "@/lib/avatar/vfx/runtime";
 
 import { SceneBands, missingSceneMessage } from "../effect-render/sceneBands";
-import { addChatLights, applyChatColorPipeline } from "../effect-render/stage";
+import {
+  addChatLights,
+  applyChatColorPipeline,
+  chatPortraitFraming,
+  type Framing,
+} from "../effect-render/stage";
 
 /**
  * Motion and effect preview page (served by `scripts/animation-preview.mjs`).
@@ -47,7 +52,7 @@ import { addChatLights, applyChatColorPipeline } from "../effect-render/stage";
  */
 
 type ServerState = PreviewState & { avatars: { id: string; url: string }[] };
-type CameraPreset = "front" | "threeQuarter" | "side" | "face";
+type CameraPreset = "front" | "threeQuarter" | "side" | "face" | "portrait";
 
 type RowView = {
   key: string;
@@ -80,6 +85,10 @@ type Cell = {
   camera: THREE.PerspectiveCamera;
   /** Rest head height, which frames every camera preset. */
   headHeight: number;
+  /** The chat's Portrait camera preset for the Avatar at rest. */
+  portrait: Framing;
+  /** Where the camera looks, for the browser test. */
+  cameraTarget: THREE.Vector3;
   label: HTMLDivElement;
   playingVersion: string | null;
   /**
@@ -117,6 +126,8 @@ type CellDiagnostics = {
 };
 
 const FRAME = 1 / 30;
+/** Field of view of every camera preset but Portrait, which uses the chat's. */
+const PREVIEW_FOV = 30;
 /** Applied id of an effect source, distinct from any clip event's. */
 const PREVIEW_EFFECT_ID = "animation-preview:effect";
 /** An effect source without `--duration` is applied again this often. */
@@ -228,7 +239,7 @@ async function createCell(row: RowView, avatarId: string, url: string) {
   // The view's backdrop is its Scene host's (see preview.css).
   const scene = new THREE.Scene();
   addChatLights(scene);
-  const camera = new THREE.PerspectiveCamera(30, 1, 0.05, 20);
+  const camera = new THREE.PerspectiveCamera(PREVIEW_FOV, 1, 0.05, 20);
   const media = new PreviewMediaProvider(row.media ?? EMPTY_PREVIEW_MEDIA);
   const avatar = new Avatar(camera, ui.canvas, {
     motionCatalog: BUILT_IN_AVATAR_MOTION_CATALOG,
@@ -259,6 +270,8 @@ async function createCell(row: RowView, avatarId: string, url: string) {
     scene,
     camera,
     headHeight: head.y,
+    portrait: chatPortraitFraming(avatar),
+    cameraTarget: new THREE.Vector3(),
     label,
     playingVersion: null,
     builtFor: usesEffects(row) ? row.version : null,
@@ -617,11 +630,17 @@ function render() {
 }
 
 function placeCamera(cell: Cell) {
-  const { camera, headHeight } = cell;
-  if (playback.camera === "face") {
+  const { camera, headHeight, cameraTarget } = cell;
+  camera.fov = playback.camera === "portrait" ? cell.portrait.fov : PREVIEW_FOV;
+  if (playback.camera === "portrait") {
+    // Fixed at the rest head, as chat frames it, so a Gesture moves in frame.
+    cameraTarget.copy(cell.portrait.target);
+    camera.position.copy(cell.portrait.position);
+    camera.lookAt(cameraTarget);
+  } else if (playback.camera === "face") {
     const face = cell.avatar
       .vrm!.humanoid.getRawBoneNode("head")!
-      .getWorldPosition(new THREE.Vector3())
+      .getWorldPosition(cameraTarget)
       .add(new THREE.Vector3(0, headHeight * 0.04, 0));
     camera.position.set(face.x, face.y, face.z + headHeight * 0.55);
     camera.lookAt(face);
@@ -631,7 +650,7 @@ function placeCamera(cell: Cell) {
       playback.camera
     ];
     const distance = headHeight * 2.9;
-    const target = new THREE.Vector3(0, headHeight * 0.55, 0);
+    const target = cameraTarget.set(0, headHeight * 0.55, 0);
     camera.position.set(
       Math.sin(angle) * distance,
       target.y + headHeight * 0.1,
@@ -711,6 +730,12 @@ function refreshDiagnostics() {
     ...diagnostics,
   }));
   window.animationPreview.notices = lines;
+  window.animationPreview.cameras = cells.map((cell) => ({
+    avatar: cell.avatarId,
+    fov: cell.camera.fov,
+    position: cell.camera.position.toArray(),
+    target: cell.cameraTarget.toArray(),
+  }));
 }
 
 // ── Transport and markers ───────────────────────────────────────────────
@@ -1084,6 +1109,13 @@ declare global {
       effects: CellDiagnostics[];
       /** The lines of the effect warnings panel. */
       notices: string[];
+      /** Each cell's camera, refreshed with the effects. */
+      cameras: {
+        avatar: string;
+        fov: number;
+        position: [number, number, number];
+        target: [number, number, number];
+      }[];
     };
   }
 }
@@ -1094,6 +1126,7 @@ window.animationPreview = {
   error: null,
   effects: [],
   notices: [],
+  cameras: [],
 };
 
 async function start() {
