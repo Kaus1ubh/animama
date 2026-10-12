@@ -152,7 +152,7 @@ Relevant files:
 
 - `src/backend/animama/app/primary_emotion_update.py`
 - `src/backend/animama/app/voice_emotional_tone.py`
-- `src/backend/animama/server/routers/chat/chat_sse.py`
+- `src/backend/animama/product_http/chat/stream.py`
 - `src/backend/animama/app/main_structured_response.py`
 
 ### Backend `emotion.update` event
@@ -192,9 +192,9 @@ Important details:
 Relevant files:
 
 - `src/backend/animama/domain/events.py`
-- `src/backend/animama/server/routers/chat/chat_sse.py`
-- `src/backend/animama/server/sse_events.py`
-- `src/backend/animama/server/emotional_state_persistence.py`
+- `src/backend/animama/product_http/chat/stream.py`
+- `src/backend/animama/product_http/chat/sse_events.py`
+- `src/backend/animama/product_http/chat/emotional_state.py`
 
 ### Gesture selection lives outside emotion updates
 
@@ -209,7 +209,7 @@ manifest.
 
 Relevant files:
 
-- `src/backend/animama/server/routers/chat/turn_setup.py`
+- `src/backend/animama/product_http/chat/turn_setup.py`
 - `src/frontend/web/src/lib/runtime-content/AnimaRuntimeCatalog.ts`
 - `src/frontend/web/src/lib/avatar/planner/AvatarPlanner.ts`
 

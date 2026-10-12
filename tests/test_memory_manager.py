@@ -86,9 +86,7 @@ from animama.orm import (
     ORMMemoryManagerRun,
     ORMUserSettings,
 )
-from animama.product_http.routes import memory as memory_entries_router
-from animama.server.model_roles import ModelRoleSettings
-from animama.server.routers import memory_manager as memory_manager_router
+from animama.product_http.routes import memory as memory_entries_router, memory_manager as memory_manager_router
 from animama.server.schemas.memory_entry import PyMemoryEntryCreateRequest, PyMemoryEntryRevertRequest
 from animama.server.schemas.memory_manager import (
     PyMemoryManagerApprovalDecisionRequest,
@@ -97,7 +95,7 @@ from animama.server.schemas.memory_manager import (
     PyMemoryManagerRun,
     PyMemoryManagerRunCreateRequest,
 )
-from tests.product_http_support import TEST_POLICY
+from tests.product_http_support import TEST_POLICY, local_ports
 
 _T = TypeVar("_T")
 
@@ -120,7 +118,7 @@ def _manager_model(
     )
 
 
-_LOCAL_ROLES = ModelRoleSettings(owner_roles_enabled=True)
+_LOCAL_PORTS = local_ports()
 
 
 def _manager_credentials(**environ: str) -> StoreModelCredentialResolver:
@@ -226,7 +224,7 @@ async def test_manager_service_uses_the_memory_manager_role(
     await async_session.commit()
     monkeypatch.delenv("ANIMAMA_LLM_SKIP")
 
-    service = await memory_manager_router._manager_service(async_session, user_id, _LOCAL_ROLES)
+    service = await _LOCAL_PORTS.memory_manager(async_session, _user(user_id))
 
     # The selector runs new messages on the runtime of the role row's provider type.
     assert isinstance(service._runtime, MemoryManagerRuntimeSelector)
@@ -330,7 +328,7 @@ async def test_episode_processing_route_rejects_no_work_without_superseding_acti
 ) -> None:
     user_id = f"user-{uuid.uuid4()}"
     active = await memory_manager_router.create_memory_manager_run(
-        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
 
     with pytest.raises(HTTPException) as exc_info:
@@ -338,13 +336,13 @@ async def test_episode_processing_route_rejects_no_work_without_superseding_acti
             PyMemoryManagerEpisodeProcessingRunCreateRequest(),
             session=async_session,
             user=_user(user_id),
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
 
     assert exc_info.value.status_code == 409
     assert exc_info.value.detail == "No pending episodes are available to process"
     current = await memory_manager_router.get_current_memory_manager_run(
-        session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert current is not None
     assert current.run.id == active.run.id
@@ -371,14 +369,14 @@ async def test_episode_processing_fixed_batch_is_safe_ordered_and_capped_at_fift
         created_ids.append(item.id)
 
     superseded = await memory_manager_router.create_memory_manager_run(
-        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
 
     response = await memory_manager_router.create_episode_processing_memory_manager_run(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     assert response.run.kind == MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING
@@ -414,7 +412,7 @@ async def test_episode_processing_fixed_batch_is_safe_ordered_and_capped_at_fift
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     processed = await service.list_episode_items(user_id=user_id, status=MEMORY_EPISODE_STATUS_PROCESSED)
     pending = await service.list_episode_items(user_id=user_id, status=MEMORY_EPISODE_STATUS_PENDING)
@@ -442,7 +440,7 @@ async def test_episode_processing_feedback_version_finalizes_fixed_batch_and_all
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert started.run.status == "waiting_approval"
     assert len(started.approvals) == 1
@@ -457,13 +455,13 @@ async def test_episode_processing_feedback_version_finalizes_fixed_batch_and_all
         ),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert rejected.status == "rejected"
     assert rejected.decision_feedback == "Keep this in projects/animama.md instead."
 
     revised = await memory_manager_router.get_memory_manager_run(
-        started.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        started.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert revised.run.status == "waiting_approval"
     assert revised.run.task is not None and revised.run.task.status == "processing"
@@ -479,10 +477,10 @@ async def test_episode_processing_feedback_version_finalizes_fixed_batch_and_all
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     completed = await memory_manager_router.get_memory_manager_run(
-        started.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        started.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert completed.run.status == "active"
     assert completed.run.kind == MEMORY_MANAGER_RUN_KIND_EPISODE_PROCESSING
@@ -503,7 +501,7 @@ async def test_episode_processing_feedback_version_finalizes_fixed_batch_and_all
         PyMemoryManagerMessageCreateRequest(content="What else should we improve?"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert follow_up.run.status == "active"
     assert follow_up.run.task is not None and follow_up.run.task.status == "processed"
@@ -537,7 +535,7 @@ async def test_episode_processing_no_patch_and_auto_approve_terminal_paths(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(no_patch_user),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert no_patch.run.status == "active"
     assert no_patch.run.task is not None and no_patch.run.task.status == "processed"
@@ -547,7 +545,7 @@ async def test_episode_processing_no_patch_and_auto_approve_terminal_paths(
         run_id=no_patch.run.id,
     )
     assert no_patch_stored is not None
-    manager_service = await memory_manager_router._manager_service(async_session, no_patch_user, _LOCAL_ROLES)
+    manager_service = await _LOCAL_PORTS.memory_manager(async_session, _user(no_patch_user))
     repeated = await manager_service._finalize_episode_processing_run(no_patch_stored)
     assert repeated.task_state == no_patch_stored.task_state
 
@@ -564,7 +562,7 @@ async def test_episode_processing_no_patch_and_auto_approve_terminal_paths(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(auto_approve_diffs=True),
         session=async_session,
         user=_user(auto_user),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert auto.run.status == "active"
     assert auto.run.task is not None and auto.run.task.status == "processed"
@@ -583,14 +581,14 @@ async def test_episode_processing_no_patch_and_auto_approve_terminal_paths(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(reject_user),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     await memory_manager_router.decide_memory_manager_approval(
         rejecting.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="reject"),
         session=async_session,
         user=_user(reject_user),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     rejected = await _episode_service(async_session).list_episode_items(
         user_id=reject_user,
@@ -619,7 +617,7 @@ async def test_episode_processing_blocks_other_users_and_waiting_approval_runs(
             PyMemoryManagerEpisodeProcessingRunCreateRequest(),
             session=async_session,
             user=_user(owner_id),
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
     assert no_work.value.status_code == 409
 
@@ -635,7 +633,7 @@ async def test_episode_processing_blocks_other_users_and_waiting_approval_runs(
         PyMemoryManagerRunCreateRequest(message="Update notes/waiting.md with this fact."),
         session=async_session,
         user=_user(owner_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert waiting.run.status == "waiting_approval"
     with pytest.raises(HTTPException) as conflict:
@@ -643,7 +641,7 @@ async def test_episode_processing_blocks_other_users_and_waiting_approval_runs(
             PyMemoryManagerEpisodeProcessingRunCreateRequest(),
             session=async_session,
             user=_user(owner_id),
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
     assert conflict.value.status_code == 409
 
@@ -667,7 +665,7 @@ async def test_episode_processing_conflicting_provenance_prevents_finalization(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     await episode_service.mark_items_processed(
         user_id=user_id,
@@ -681,12 +679,12 @@ async def test_episode_processing_conflicting_provenance_prevents_finalization(
             PyMemoryManagerApprovalDecisionRequest(decision="reject"),
             session=async_session,
             user=_user(user_id),
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
     assert conflict.value.status_code == 409
 
     snapshot = await memory_manager_router.get_memory_manager_run(
-        started.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        started.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert snapshot.run.status == "waiting_approval"
     assert snapshot.run.task is not None and snapshot.run.task.status == "processing"
@@ -716,7 +714,7 @@ async def test_concurrent_episode_processing_creation_leaves_one_open_run(
                     PyMemoryManagerEpisodeProcessingRunCreateRequest(),
                     session=session,
                     user=_user(user_id),
-                    roles=_LOCAL_ROLES,
+                    ports=_LOCAL_PORTS,
                 )
             except HTTPException as exc:
                 return exc
@@ -743,7 +741,7 @@ async def test_approval_feedback_is_reject_only_and_persisted(
         PyMemoryManagerRunCreateRequest(message="Update notes/feedback.md with this fact."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     with pytest.raises(HTTPException) as exc_info:
         await memory_manager_router.decide_memory_manager_approval(
@@ -751,7 +749,7 @@ async def test_approval_feedback_is_reject_only_and_persisted(
             PyMemoryManagerApprovalDecisionRequest(decision="approve", feedback="Use another file."),
             session=async_session,
             user=_user(user_id),
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
     assert exc_info.value.status_code == 400
 
@@ -760,7 +758,7 @@ async def test_approval_feedback_is_reject_only_and_persisted(
         PyMemoryManagerApprovalDecisionRequest(decision="reject", feedback="  Use another file.  "),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert rejected.decision_feedback == "Use another file."
 
@@ -773,7 +771,7 @@ async def test_memory_manager_create_preview_does_not_mutate_memory(
     user_id = f"user-{uuid.uuid4()}"
 
     created = await memory_manager_router.create_memory_manager_run(
-        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert created.run.status == "active"
     assert created.messages == []
@@ -784,7 +782,7 @@ async def test_memory_manager_create_preview_does_not_mutate_memory(
         PyMemoryManagerMessageCreateRequest(content="Create a memory file in people/shirley.md for my sister Shirley"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     assert response.run.status == "waiting_approval"
@@ -818,7 +816,7 @@ async def test_memory_manager_auto_approve_is_backend_orchestrated_for_create_an
         ),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     assert created.run.status == "active"
@@ -838,7 +836,7 @@ async def test_memory_manager_auto_approve_is_backend_orchestrated_for_create_an
         ),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     assert appended.run.status == "active"
@@ -1170,25 +1168,25 @@ async def test_memory_manager_run_completion_is_owned_idempotent_and_terminal(
         PyMemoryManagerRunCreateRequest(message="Review my memory files without changing anything."),
         session=async_session,
         user=_user(owner_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert created.run.status == "active"
 
     with pytest.raises(HTTPException) as foreign_completion:
         await memory_manager_router.complete_memory_manager_run(
-            created.run.id, session=async_session, user=_user(other_id), roles=_LOCAL_ROLES
+            created.run.id, session=async_session, user=_user(other_id), ports=_LOCAL_PORTS
         )
     assert foreign_completion.value.status_code == 404
 
     completed = await memory_manager_router.complete_memory_manager_run(
-        created.run.id, session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
+        created.run.id, session=async_session, user=_user(owner_id), ports=_LOCAL_PORTS
     )
     assert completed.run.status == "completed"
     assert completed.run.completed_at is not None
     completed_at = completed.run.completed_at
 
     repeated = await memory_manager_router.complete_memory_manager_run(
-        created.run.id, session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
+        created.run.id, session=async_session, user=_user(owner_id), ports=_LOCAL_PORTS
     )
     assert repeated.run.status == "completed"
     assert repeated.run.completed_at == completed_at
@@ -1199,7 +1197,7 @@ async def test_memory_manager_run_completion_is_owned_idempotent_and_terminal(
             PyMemoryManagerMessageCreateRequest(content="This run should be closed."),
             session=async_session,
             user=_user(owner_id),
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
     assert append_to_completed.value.status_code == 409
 
@@ -1215,19 +1213,19 @@ async def test_memory_manager_create_supersedes_active_run_and_recovers_current(
         PyMemoryManagerRunCreateRequest(message="Review my memory files without changing anything."),
         session=async_session,
         user=_user(owner_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert first.run.status == "active"
     assert len(first.messages) == 2
 
     second = await memory_manager_router.create_memory_manager_run(
-        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
+        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(owner_id), ports=_LOCAL_PORTS
     )
     assert second.run.status == "active"
     assert second.run.id != first.run.id
 
     superseded = await memory_manager_router.get_memory_manager_run(
-        first.run.id, session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
+        first.run.id, session=async_session, user=_user(owner_id), ports=_LOCAL_PORTS
     )
     assert superseded.run.status == "completed"
     assert superseded.run.completed_at is not None
@@ -1235,13 +1233,13 @@ async def test_memory_manager_create_supersedes_active_run_and_recovers_current(
     assert [message.content for message in superseded.messages] == [message.content for message in first.messages]
 
     current = await memory_manager_router.get_current_memory_manager_run(
-        session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
+        session=async_session, user=_user(owner_id), ports=_LOCAL_PORTS
     )
     assert current is not None
     assert current.run.id == second.run.id
 
     foreign_current = await memory_manager_router.get_current_memory_manager_run(
-        session=async_session, user=_user(other_id), roles=_LOCAL_ROLES
+        session=async_session, user=_user(other_id), ports=_LOCAL_PORTS
     )
     assert foreign_current is None
 
@@ -1256,18 +1254,18 @@ async def test_memory_manager_create_rejects_when_current_run_waits_for_approval
         PyMemoryManagerRunCreateRequest(message="Create notes/pending-new-run.md with a pending note."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert waiting.run.status == "waiting_approval"
 
     with pytest.raises(HTTPException) as conflict:
         await memory_manager_router.create_memory_manager_run(
-            PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+            PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
         )
     assert conflict.value.status_code == 409
 
     current = await memory_manager_router.get_current_memory_manager_run(
-        session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert current is not None
     assert current.run.id == waiting.run.id
@@ -1284,19 +1282,19 @@ async def test_memory_manager_run_completion_rejects_pending_approvals(
         PyMemoryManagerRunCreateRequest(message="Create notes/pending.md with a pending note."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert created.run.status == "waiting_approval"
     assert created.approvals[0].status == "pending"
 
     with pytest.raises(HTTPException) as pending_completion:
         await memory_manager_router.complete_memory_manager_run(
-            created.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+            created.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
         )
     assert pending_completion.value.status_code == 409
 
     unchanged = await memory_manager_router.get_memory_manager_run(
-        created.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        created.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert unchanged.run.status == "waiting_approval"
     assert unchanged.run.completed_at is None
@@ -1324,7 +1322,7 @@ async def test_memory_manager_update_preview_uses_current_version_without_mutati
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a durable note about the memory manager."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     assert created.run.status == "waiting_approval"
@@ -1356,13 +1354,13 @@ async def test_memory_manager_approval_decisions_and_ownership_boundaries(
         PyMemoryManagerRunCreateRequest(message="Create notes/preferences.md with a preference note."),
         session=async_session,
         user=_user(owner_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     approval_id = run.approvals[0].id
 
     with pytest.raises(HTTPException) as foreign_run:
         await memory_manager_router.get_memory_manager_run(
-            run.run.id, session=async_session, user=_user(other_id), roles=_LOCAL_ROLES
+            run.run.id, session=async_session, user=_user(other_id), ports=_LOCAL_PORTS
         )
     assert foreign_run.value.status_code == 404
 
@@ -1372,7 +1370,7 @@ async def test_memory_manager_approval_decisions_and_ownership_boundaries(
             PyMemoryManagerApprovalDecisionRequest(decision="approve"),
             session=async_session,
             user=_user(other_id),
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
     assert foreign_decision.value.status_code == 404
 
@@ -1381,13 +1379,13 @@ async def test_memory_manager_approval_decisions_and_ownership_boundaries(
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(owner_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert approved.status == "approved"
     assert approved.decided_at is not None
 
     snapshot = await memory_manager_router.get_memory_manager_run(
-        run.run.id, session=async_session, user=_user(owner_id), roles=_LOCAL_ROLES
+        run.run.id, session=async_session, user=_user(owner_id), ports=_LOCAL_PORTS
     )
     assert snapshot.run.status == "active"
     stored = await _memory_entry_service(async_session).get_entry_by_path(
@@ -1415,7 +1413,7 @@ async def test_memory_manager_approval_decisions_and_ownership_boundaries(
             PyMemoryManagerApprovalDecisionRequest(decision="reject"),
             session=async_session,
             user=_user(owner_id),
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
     assert repeated_decision.value.status_code == 409
 
@@ -1423,14 +1421,14 @@ async def test_memory_manager_approval_decisions_and_ownership_boundaries(
         PyMemoryManagerRunCreateRequest(message="Create notes/rejected.md with a rejected preference note."),
         session=async_session,
         user=_user(owner_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     rejected = await memory_manager_router.decide_memory_manager_approval(
         reject_run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="reject"),
         session=async_session,
         user=_user(owner_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert rejected.status == "rejected"
     with pytest.raises(MemoryEntryNotFoundError):
@@ -1455,7 +1453,7 @@ async def test_memory_manager_approved_update_commits_current_file(async_session
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a durable note about the memory manager."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     approved = await memory_manager_router.decide_memory_manager_approval(
@@ -1463,7 +1461,7 @@ async def test_memory_manager_approved_update_commits_current_file(async_session
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     assert approved.status == "approved"
@@ -1499,7 +1497,7 @@ async def test_latest_approved_update_can_be_undone_idempotently(
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a durable note about approval Undo."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     stored_approval = await async_session.scalar(
         select(ORMMemoryManagerApproval).where(
@@ -1515,7 +1513,7 @@ async def test_latest_approved_update_can_be_undone_idempotently(
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     assert approved.status == "approved"
@@ -1531,7 +1529,7 @@ async def test_latest_approved_update_can_be_undone_idempotently(
     )
     assert applied.description == "Temporary description from the approved patch"
     result = await memory_manager_router.undo_memory_manager_approval(
-        approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        approved.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert result.approval.status == "approved"
     assert result.approval.can_undo is False
@@ -1567,7 +1565,7 @@ async def test_latest_approved_update_can_be_undone_idempotently(
     }
 
     repeated = await memory_manager_router.undo_memory_manager_approval(
-        approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        approved.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert repeated.undo_version == 3
     versions = (
@@ -1579,7 +1577,7 @@ async def test_latest_approved_update_can_be_undone_idempotently(
 
     with pytest.raises(HTTPException) as foreign:
         await memory_manager_router.undo_memory_manager_approval(
-            approved.id, session=async_session, user=_user(f"user-{uuid.uuid4()}"), roles=_LOCAL_ROLES
+            approved.id, session=async_session, user=_user(f"user-{uuid.uuid4()}"), ports=_LOCAL_PORTS
         )
     assert foreign.value.status_code == 404
 
@@ -1594,20 +1592,20 @@ async def test_approved_create_undo_deletes_only_file_and_retains_parent(
         PyMemoryManagerRunCreateRequest(message="Create notes/preferences.md with a preference note."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     approved = await memory_manager_router.decide_memory_manager_approval(
         run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert approved.applied_version == 1
     assert approved.can_undo is True
 
     result = await memory_manager_router.undo_memory_manager_approval(
-        approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        approved.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert result.deleted is True
     assert result.undo_version == 2
@@ -1640,27 +1638,27 @@ async def test_pending_approval_in_same_run_blocks_prior_undo(
         PyMemoryManagerRunCreateRequest(message="Create notes/first.md with a first note."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     approved = await memory_manager_router.decide_memory_manager_approval(
         run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     waiting = await memory_manager_router.append_memory_manager_message(
         run.run.id,
         PyMemoryManagerMessageCreateRequest(content="Create notes/second.md with a second note."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert waiting.run.status == "waiting_approval"
     assert waiting.approvals[0].can_undo is False
     with pytest.raises(HTTPException) as conflict:
         await memory_manager_router.undo_memory_manager_approval(
-            approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+            approved.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
         )
     assert conflict.value.status_code == 409
 
@@ -1683,14 +1681,14 @@ async def test_episode_processing_undo_keeps_fixed_batch_processed(
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     approved = await memory_manager_router.decide_memory_manager_approval(
         processing.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert approved.can_undo is True
     processed = await _episode_service(async_session).list_episode_items(
@@ -1700,7 +1698,7 @@ async def test_episode_processing_undo_keeps_fixed_batch_processed(
     assert [item.id for item in processed] == [episode.id]
 
     await memory_manager_router.undo_memory_manager_approval(
-        approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        approved.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     still_processed = await _episode_service(async_session).list_episode_items(
         user_id=user_id,
@@ -1730,14 +1728,14 @@ async def test_later_edit_blocks_undo(
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a manager note."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     approved = await memory_manager_router.decide_memory_manager_approval(
         run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     await _memory_entry_service(async_session).patch_entry(
         user_id=user_id,
@@ -1747,12 +1745,12 @@ async def test_later_edit_blocks_undo(
         content_set=True,
     )
     snapshot = await memory_manager_router.get_memory_manager_run(
-        run.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        run.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert snapshot.approvals[0].can_undo is False
     with pytest.raises(HTTPException) as stale:
         await memory_manager_router.undo_memory_manager_approval(
-            approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+            approved.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
         )
     assert stale.value.status_code == 409
 
@@ -1777,43 +1775,43 @@ async def test_undone_latest_approval_does_not_make_older_approval_eligible(
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a first manager note."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     first = await memory_manager_router.decide_memory_manager_approval(
         run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     second_pending = await memory_manager_router.append_memory_manager_message(
         run.run.id,
         PyMemoryManagerMessageCreateRequest(content="Update profile.md with a second manager note."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     second = await memory_manager_router.decide_memory_manager_approval(
         second_pending.approvals[-1].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     assert first.applied_version == 2
     assert second.applied_version == 3
     await memory_manager_router.undo_memory_manager_approval(
-        second.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        second.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     snapshot = await memory_manager_router.get_memory_manager_run(
-        run.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        run.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert snapshot.approvals[0].can_undo is False
     assert snapshot.approvals[1].undone_at is not None
     with pytest.raises(HTTPException) as stale:
         await memory_manager_router.undo_memory_manager_approval(
-            first.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+            first.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
         )
     assert stale.value.status_code == 409
 
@@ -1835,14 +1833,14 @@ async def test_undo_rolls_back_entry_and_approval_when_version_append_fails(
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a manager note."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     approved = await memory_manager_router.decide_memory_manager_approval(
         run.approvals[0].id,
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     applied = await memory_entries_router.get_memory_entry(
         profile.id,
@@ -1860,7 +1858,7 @@ async def test_undo_rolls_back_entry_and_approval_when_version_append_fails(
     monkeypatch.setattr(SQLAlchemyMemoryEntryRepository, "append_version", fail_undo_append)
     with pytest.raises(RuntimeError, match="undo version append failed"):
         await memory_manager_router.undo_memory_manager_approval(
-            approved.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+            approved.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
         )
 
     current = await memory_entries_router.get_memory_entry(
@@ -2039,7 +2037,7 @@ async def test_memory_manager_stale_version_conflict_leaves_approval_pending(
         PyMemoryManagerRunCreateRequest(message="Update profile.md with a durable note about stale versions."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert run.approvals[0].preview.expected_version == 1
 
@@ -2057,12 +2055,12 @@ async def test_memory_manager_stale_version_conflict_leaves_approval_pending(
             PyMemoryManagerApprovalDecisionRequest(decision="approve"),
             session=async_session,
             user=_user(user_id),
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
     assert conflict.value.status_code == 409
 
     snapshot = await memory_manager_router.get_memory_manager_run(
-        run.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        run.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert snapshot.run.status == "waiting_approval"
     assert snapshot.approvals[0].status == "pending"
@@ -2332,7 +2330,7 @@ async def test_openai_agents_runtime_rebuilds_specialized_batch_then_returns_to_
         PyMemoryManagerEpisodeProcessingRunCreateRequest(),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     repository = SQLAlchemyMemoryManagerRepository(async_session)
     processing_run = await repository.get_run(user_id=user_id, run_id=started.run.id)
@@ -2362,7 +2360,7 @@ async def test_openai_agents_runtime_rebuilds_specialized_batch_then_returns_to_
         PyMemoryManagerApprovalDecisionRequest(decision="reject"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     processed_run = await repository.get_run(user_id=user_id, run_id=started.run.id)
     assert processed_run is not None
@@ -2979,7 +2977,7 @@ async def test_memory_manager_does_not_preview_episode_log_edits(async_session, 
         PyMemoryManagerRunCreateRequest(message="Update episodes/2026/07/2026-07-07.md with this manual note."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     assert run.run.status == "active"

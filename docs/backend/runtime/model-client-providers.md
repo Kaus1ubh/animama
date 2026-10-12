@@ -33,7 +33,7 @@ opened stream.
   and `error` domain events
 - persists user and assistant chat messages through `ChatManager`
 
-The public `run.completed` SSE frame is formatted by `chat_sse.py`. The shared
+The public `run.completed` SSE frame is formatted by `product_http/chat/stream.py`. The shared
 `app/chat/completion.py` sequence flushes safety/emotion events, TTS, title and
 compaction before invoking that completion callback once. Incognito skips title
 and compaction; memory-update switches remain the executor's responsibility.

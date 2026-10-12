@@ -10,6 +10,7 @@ having no vector, so one bad passage cannot stall the rest.
 from __future__ import annotations
 
 from collections.abc import Awaitable, Callable, Sequence
+from dataclasses import dataclass
 
 from animama.app.model_clients import ModelClientError
 from animama.app.model_clients.error_categories import (
@@ -41,6 +42,21 @@ _MODEL_CHECK_TEXT = "Animama embeddings check"
 
 _Vectors = list[tuple[StaleEmbeddingText, list[float] | None]]
 _RecordRejections = Callable[..., Awaitable[dict[str | int, int]]]
+
+
+EMBEDDINGS_STATE_OFF = "off"
+EMBEDDINGS_STATE_CURRENT = "current"
+EMBEDDINGS_STATE_REEMBEDDING = "re_embedding"
+EMBEDDINGS_STATE_RETRYING = "retrying"
+
+
+@dataclass(frozen=True, slots=True)
+class EmbeddingRefreshStatus:
+    """Re-embedding progress for one owner, reported with the embeddings role."""
+
+    state: str
+    pending: int = 0
+    error_category: str | None = None
 
 
 class EmbeddingRefreshError(RuntimeError):
@@ -215,7 +231,12 @@ class EmbeddingRefreshService:
 
 __all__ = [
     "DEFAULT_EMBEDDING_REFRESH_BATCH_SIZE",
+    "EMBEDDINGS_STATE_CURRENT",
+    "EMBEDDINGS_STATE_OFF",
+    "EMBEDDINGS_STATE_REEMBEDDING",
+    "EMBEDDINGS_STATE_RETRYING",
     "MAX_TEXT_REJECTIONS",
     "EmbeddingRefreshError",
     "EmbeddingRefreshService",
+    "EmbeddingRefreshStatus",
 ]

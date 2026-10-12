@@ -41,12 +41,14 @@ from animama.domain.usage import Usage
 from animama.orm.settings import ORMUserSettings
 from animama.orm.user_file import ORMUserFile
 from animama.orm.user_file_chunk import ORMUserFileChunk
+from animama.product_http.routes import model_catalog
 from animama.server.app import create_local_app
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.model_roles import ModelRoleSettings
 from animama.server.routers import model_configuration
 from tests.local_http_client import local_client
+from tests.product_http_support import install_local_ports
 
 CHAT = "OpenAIResponsesHTTPAgent:gpt-6-luna"
 
@@ -222,6 +224,7 @@ def _app(session, tmp_path, owner_id: str) -> FastAPI:  # noqa: ANN001
     app.state.local_runtime_paths = SimpleNamespace(included_sources=(), operations_root=tmp_path / "operations")
     app.state.model_catalog_policy = ModelCatalogPolicy(owner_models_enabled=True)
     app.include_router(model_configuration.router)
+    app.include_router(model_catalog.router)
 
     async def principal():
         return RequestPrincipal(id=owner_id)
@@ -231,6 +234,7 @@ def _app(session, tmp_path, owner_id: str) -> FastAPI:  # noqa: ANN001
 
     app.dependency_overrides[get_current_principal] = principal
     app.dependency_overrides[get_async_session] = database
+    install_local_ports(app, session)
     return app
 
 

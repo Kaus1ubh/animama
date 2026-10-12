@@ -26,11 +26,16 @@ class ModelCatalogPolicy:
     default: built-in rows of the OpenAI connection only, optionally restricted
     further with ``builtin_allowlist``. An allowlist names exact rows, so it can
     also admit rows of another built-in connection.
+
+    ``validate_role_preferences`` makes owner settings writes refuse a model-role
+    preference naming a row that cannot do that role. The local composition
+    stores any value and falls back when the role resolves.
     """
 
     owner_models_enabled: bool = False
     builtin_allowlist: frozenset[str] | None = None
     builtin_connection_ids: frozenset[str] = frozenset({BUILTIN_OPENAI_CONNECTION_ID})
+    validate_role_preferences: bool = False
 
     @classmethod
     def local(cls) -> ModelCatalogPolicy:

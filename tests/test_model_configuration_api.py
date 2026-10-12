@@ -18,11 +18,13 @@ from animama.app.services.model_provider_catalog_service import ModelCatalogPoli
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMAnimaChatProfile, ORMModelProvider
 from animama.orm.settings import ORMUserSettings
+from animama.product_http.routes import model_catalog
 from animama.server.config import Settings
 from animama.server.deps import get_async_session, get_current_principal
-from animama.server.routers import model_configuration, model_provider, router as shared_router
+from animama.server.routers import model_configuration, router as shared_router
 from animama.server.routers.model_configuration import get_model_connection_probe
 from tests.local_http_client import local_client
+from tests.product_http_support import install_local_ports
 
 
 class _FakeProbe:
@@ -68,7 +70,7 @@ def _app(session, tmp_path, owner_id: str, probe: _FakeProbe | None = None, **se
     app.state.local_runtime_paths = SimpleNamespace(included_sources=(), operations_root=tmp_path / "operations")
     app.state.model_catalog_policy = ModelCatalogPolicy(owner_models_enabled=True)
     app.include_router(model_configuration.router)
-    app.include_router(model_provider.router)
+    app.include_router(model_catalog.router)
 
     async def principal():
         return RequestPrincipal(id=owner_id)
@@ -79,6 +81,8 @@ def _app(session, tmp_path, owner_id: str, probe: _FakeProbe | None = None, **se
     app.dependency_overrides[get_current_principal] = principal
     app.dependency_overrides[get_async_session] = database
     app.dependency_overrides[get_model_connection_probe] = lambda: probe or _FakeProbe()
+    # The shared catalog reads use the local ports on the same session.
+    install_local_ports(app, session)
     return app
 
 
@@ -676,7 +680,6 @@ async def test_catalog_failures_are_reported_instead_of_a_static_catalog(tmp_pat
 
 async def test_runtime_capabilities_report_model_configuration_from_the_composition(async_session, tmp_path, owner_id):
     from animama.product_http.routes import runtime_capabilities
-    from tests.product_http_support import install_local_ports
 
     local = _app(async_session, tmp_path, owner_id, animama_user_file_processing_enabled=False)
     local.include_router(runtime_capabilities.router)

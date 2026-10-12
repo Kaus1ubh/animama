@@ -9,6 +9,7 @@ import pytest
 from elevenlabs.core import ApiError
 from fastapi import HTTPException
 
+from animama.product_http.chat.tts import resolve_realtime_voice_from_preferences
 from animama.server.elevenlabs_service import (
     clear_elevenlabs_voice_access_cache,
     clone_voice,
@@ -18,7 +19,6 @@ from animama.server.elevenlabs_service import (
     isolate_audio,
     mint_tts_websocket_single_use_token,
     normalize_voice_profile,
-    resolve_realtime_voice_from_preferences,
     synthesize_text,
     validate_elevenlabs_voice_profile,
 )
@@ -330,6 +330,7 @@ def test_normalize_voice_profile_ignores_legacy_variants() -> None:
 
 
 def test_resolve_realtime_voice_from_preferences_uses_primary_voice_only() -> None:
+    # Emotion variants are stored but never chosen: every reply speaks with the primary voice.
     preferences = {
         "speech": {
             "elevenlabs": {
@@ -342,34 +343,12 @@ def test_resolve_realtime_voice_from_preferences_uses_primary_voice_only() -> No
         }
     }
 
-    delighted = resolve_realtime_voice_from_preferences(
-        preferences,
-        emotion_label="delight",
-        emotion_intensity=3,
-    )
-    gloomy = resolve_realtime_voice_from_preferences(
-        preferences,
-        emotion_label="gloom",
-        emotion_intensity=3,
-    )
-    neutral = resolve_realtime_voice_from_preferences(
-        preferences,
-        emotion_label="neutral",
-        emotion_intensity=1,
-    )
-
-    assert delighted.voice_id == "voice-primary"
-    assert gloomy.voice_id == "voice-primary"
-    assert neutral.voice_id == "voice-primary"
+    assert resolve_realtime_voice_from_preferences(preferences).voice_id == "voice-primary"
 
 
 def test_resolve_realtime_voice_from_preferences_rejects_missing_profile() -> None:
     with pytest.raises(HTTPException) as exc_info:
-        resolve_realtime_voice_from_preferences(
-            {"speech": {}},
-            emotion_label="neutral",
-            emotion_intensity=1,
-        )
+        resolve_realtime_voice_from_preferences({"speech": {}})
 
     assert exc_info.value.status_code == 409
 
@@ -465,3 +444,39 @@ async def test_validate_elevenlabs_voice_profile_fresh_validates_and_primes_cach
     await ensure_elevenlabs_voice_accessible(voice_id="voice-owned")
 
     assert fake_client.voices.get_calls == ["voice-owned"]
+
+
+@pytest.mark.asyncio
+async def test_local_speech_port_acts_as_the_requesting_owner(monkeypatch: pytest.MonkeyPatch) -> None:
+    from animama.domain.request_principal import RequestPrincipal
+    from animama.server import elevenlabs_service
+    from animama.server.config import Settings
+
+    calls: list[tuple[str, dict[str, Any]]] = []
+
+    async def record(operation: str, /, **kwargs: Any) -> str:
+        calls.append((operation, kwargs))
+        return operation
+
+    monkeypatch.setattr(elevenlabs_service, "clone_voice", lambda **kwargs: record("clone", **kwargs))
+    monkeypatch.setattr(elevenlabs_service, "synthesize_text", lambda **kwargs: record("speak", **kwargs))
+    monkeypatch.setattr(elevenlabs_service, "generate_sound_effect", lambda request: record("effect", request=request))
+    speech = elevenlabs_service.LocalSpeech(Settings(elevenlabs_audio_max_upload_bytes=123))
+    owner = RequestPrincipal(id="owner-1")
+    tts = PyElevenLabsTextToSpeechRequest(voice_id="voice-owned", text="Hi")
+    effect = PyElevenLabsSoundEffectsRequest(text="Rain")
+
+    await speech.clone_voice(owner, name="Wren", files=[], description=None, remove_background_noise=True)
+    await speech.synthesize_text(owner, tts)
+    await speech.generate_sound_effect(owner, effect)
+
+    # Voice ownership labels and checks use the caller's ID.
+    assert calls == [
+        (
+            "clone",
+            {"user_id": "owner-1", "name": "Wren", "files": [], "description": None, "remove_background_noise": True},
+        ),
+        ("speak", {"user_id": "owner-1", "request": tts}),
+        ("effect", {"request": effect}),
+    ]
+    assert speech.audio_upload_max_bytes == 123

@@ -5,8 +5,8 @@ from collections.abc import Iterator
 
 import pytest
 
-from animama.server import gruut_text
-from animama.server.gruut_text import build_gruut_sse_text
+from animama.app import gruut_text
+from animama.app.gruut_text import build_gruut_sse_text
 
 REPLY = "Some private reply."
 _STANDARD_RECORD_FIELDS = set(logging.makeLogRecord({}).__dict__) | {"message", "asctime"}
@@ -27,14 +27,17 @@ def gruut_records() -> Iterator[list[logging.LogRecord]]:
     # propagation configured by the host composition.
     logger = gruut_text._log.logger
     handler = _RecordList()
-    previous_level = logger.level
+    previous_level, previous_disabled = logger.level, logger.disabled
     logger.addHandler(handler)
     logger.setLevel(logging.DEBUG)
+    # Alembic's fileConfig in the migration tests disables loggers that already exist.
+    logger.disabled = False
     try:
         yield handler.records
     finally:
         logger.removeHandler(handler)
         logger.setLevel(previous_level)
+        logger.disabled = previous_disabled
 
 
 def _logged_content(record: logging.LogRecord) -> str:

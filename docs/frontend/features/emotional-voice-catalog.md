@@ -17,8 +17,8 @@ Current files:
 - `src/frontend/web/public/tts/workers/inference-worker.js`
 - `src/frontend/web/src/lib/speech/pocket/anima-voice-selection.ts`
 - `src/frontend/web/src/hooks/use-tts-playback.ts`
-- `src/backend/animama/server/pocket_voice_catalog.py`
-- `src/backend/animama/server/avatar_uploads.py`
+- `src/backend/animama/app/services/pocket_voice_catalog.py`
+- `src/backend/animama/app/services/voice_catalog_upload_service.py`
 
 Catalog-building primitives do not establish a complete user-facing voice
 authoring workflow. Use the [voice runtime guide](../runtime/voice.md) for

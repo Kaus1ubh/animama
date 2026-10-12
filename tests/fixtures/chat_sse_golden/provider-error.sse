@@ -1,0 +1,12 @@
+id: safety-ai-notice-run-provider-error
+event: safety.ai_notice
+data: {"type": "safety.ai_notice", "run_id": "run-provider-error", "kind": "start", "anima_name": "Mika"}
+
+id: error-run-provider-error
+event: error
+data: {"run_id": "run-provider-error", "error": "Fixture provider unavailable", "code": "fixture_provider_failed", "details": {"category": "provider_error", "connection_id": "openai", "connection_name": "OpenAI", "connection_preset": "openai", "provider": "openai"}}
+
+id: run-completed-run-provider-error
+event: run.completed
+data: {"run_id": "run-provider-error", "chat_id": "chat-provider-error-<name-0>"}
+
