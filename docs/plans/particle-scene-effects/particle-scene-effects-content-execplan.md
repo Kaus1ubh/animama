@@ -145,6 +145,8 @@ backend to `src/backend/animama/`, content to `content/included/`.
       render, pending the owner's review); review passed at round 1.
 - [x] Final integration review (2026-10-12): passed at round 2; PR opened
       for the owner's review (gates G2–G4 and merge pending).
+- [ ] P8 — Owner review revisions (#466): level-1 Avatar Effects, even
+      sticker placement, Heart Burst at the chest.
 
 ## Surprises & Discoveries
 
@@ -164,6 +166,20 @@ backend to `src/backend/animama/`, content to `content/included/`.
 
 ## Decision Log
 
+- 2026-10-12, owner (review of PR #463): G2 (Scene backgrounds and stickers),
+  G3 (promotion and removal) and G4 (the ladder, including the four agent
+  proposals) are approved, with the Scene creator's family templates, except
+  for three revisions taken as P8:
+  - every level-1 Reaction plays a fitting Avatar Effect, new where none fits
+    (owner approved the mapping in P8; four new effects); level-1 Avatar
+    Effects play without their accompanying sound;
+  - still Scene stickers sit in the upper half of the scene (the default camera
+    shows the upper half), and in every Scene Effect stickers do not overlap
+    and are spread evenly, with no bunching or empty stretches;
+  - Heart Burst plays at the chest rather than above the head; caring-3 drops
+    its chest `heart_throb`, which the burst now covers.
+  This changes R12's intensity-1 rule from "expression only" to "expression
+  and an Avatar Effect, with no Particle or Scene Effect".
 - 2026-10-10, owner: R9 final set is the 12 proposed candidates except Sweat
   Spray (rejected in Plan 1's dry run for its idea and art).
 - 2026-10-10, owner: the approved Local Heart Burst and Gloom Sadness are used
@@ -1088,6 +1104,44 @@ search claim should exclude `docs/plans/`, where
 - **F1 accepted:** Progress and the record label the chat check a departure.
 - **F2 accepted:** the search claim now excludes `docs/plans/`; the historical
   records stay unchanged.
+
+### P8 — Owner review revisions (R10, R12). #466
+
+Authorized by the owner's review (Decision Log, 2026-10-12).
+
+1. **Placement (runtime):** `scatterPlacements` spreads still items evenly
+   (seeded best-candidate placement), keeping them clear of each other across
+   a Scene's scatter layers, and gives drifting items evenly spaced lanes and
+   evenly spread phases; tests pin no overlap and even coverage. This changes
+   where existing Local Scenes' stickers sit; the creator shows it.
+2. **Backgrounds:** the 24 emotion backgrounds' still scatter layers move to
+   the upper half (`regionBottom` ≤ 0.5); IDs and versions kept, as promote
+   replacements do.
+3. **Heart Burst:** its default anchor becomes `chest`, tuned on both
+   Avatars; caring-3 drops `heart_throb`.
+4. **Level 1:** four new Avatar Effects (`sparkle_pop`, `emote_question`,
+   `sigh_puff`, `single_tear`) through the effect skills, approved by the owner
+   in preview, then promoted; each level-1 Reaction gains its mapped Avatar
+   Effect at 0.1 s with `playAccompanyingSound: false`.
+5. Docs (`scene-vfx.md` placement, `avatar-animation.md` level 1), full
+   checks, full e2e, review.
+
+| Family | Level-1 Avatar Effect |
+| --- | --- |
+| Affection | admiration `star3`, caring `heart_throb`, love `blush`, embarrassment `blush_band` (kept) |
+| Esteem | respect `sparkle_pop`, confidence `sparkle_pop`, gratitude `heart_throb` |
+| Delight | amusement `mouth_w`, excitement `star3`, joy `mouth_hover_w` |
+| Drive | desire `blush`, curiosity `emote_question`, optimism `sparkle_pop` |
+| Alarm | fear `eye_0`, nervousness `sweat_drop`, confusion `emote_question` |
+| Rejection | anger `angry`, annoyance `huff_puff`, disapproval `eye` |
+| Revulsion | disgust `eye`, remorse `sweat_drop` |
+| Gloom | disappointment `sigh_puff`, grief `single_tear`, sadness `single_tear` |
+
+#### P8 record
+
+#### Code Review #1 Findings
+
+#### Code Review #1 Revisions
 
 ## Final integration review
 
