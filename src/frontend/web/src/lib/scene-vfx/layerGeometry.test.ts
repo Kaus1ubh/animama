@@ -495,3 +495,296 @@ describe("Scatter placement", () => {
     }
   });
 });
+
+/** A layer with one item, copying an Included background's settings. */
+const included = (
+  settings: Omit<ResolvedSceneBackgroundScatterLayer, "enabled" | "items">,
+): ResolvedSceneBackgroundScatterLayer => ({
+  enabled: true,
+  items: [{ id: "sticker", kind: "png", label: "Sticker", src: "blob:s" }],
+  ...settings,
+});
+const stillSticker = {
+  regionTop: 0.04,
+  regionBottom: 0.5,
+  keepFaceClear: true,
+  direction: "static",
+  speedPxPerSec: 0,
+} as const;
+const noSpin = {
+  minSpinDegPerSec: 0,
+  maxSpinDegPerSec: 0,
+  alternateSpin: false,
+};
+const unrotated = { minRotationDeg: 0, maxRotationDeg: 0 };
+
+/** The scatter layers of five Included backgrounds (P8 settings). */
+const BACKGROUNDS: Record<string, ResolvedSceneBackgroundScatterLayer[]> = {
+  fear: [
+    included({
+      ...stillSticker,
+      ...noSpin,
+      count: 4,
+      seed: 177,
+      minSize: 120,
+      maxSize: 170,
+      minRotationDeg: -18,
+      maxRotationDeg: 18,
+      minOpacity: 0.9,
+      maxOpacity: 1,
+      pulse: "flicker",
+    }),
+  ],
+  remorse: [
+    included({
+      ...stillSticker,
+      count: 4,
+      seed: 89,
+      minSize: 110,
+      maxSize: 170,
+      minRotationDeg: 0,
+      maxRotationDeg: 360,
+      minOpacity: 0.35,
+      maxOpacity: 0.6,
+      minSpinDegPerSec: 8,
+      maxSpinDegPerSec: 18,
+      alternateSpin: false,
+      pulse: "none",
+    }),
+    included({
+      ...noSpin,
+      ...unrotated,
+      count: 8,
+      seed: 58,
+      minSize: 10,
+      maxSize: 24,
+      minOpacity: 0.4,
+      maxOpacity: 0.7,
+      regionTop: 0,
+      regionBottom: 1,
+      keepFaceClear: true,
+      direction: "up",
+      speedPxPerSec: 14,
+      pulse: "none",
+    }),
+  ],
+  disgust: [
+    included({
+      ...stillSticker,
+      count: 5,
+      seed: 21,
+      minSize: 90,
+      maxSize: 150,
+      minRotationDeg: 0,
+      maxRotationDeg: 360,
+      minOpacity: 0.55,
+      maxOpacity: 0.85,
+      minSpinDegPerSec: 25,
+      maxSpinDegPerSec: 50,
+      alternateSpin: true,
+      pulse: "none",
+    }),
+    included({
+      ...noSpin,
+      ...unrotated,
+      count: 12,
+      seed: 48,
+      minSize: 12,
+      maxSize: 30,
+      minOpacity: 0.6,
+      maxOpacity: 0.9,
+      regionTop: 0,
+      regionBottom: 1,
+      keepFaceClear: true,
+      direction: "up",
+      speedPxPerSec: 30,
+      pulse: "none",
+    }),
+  ],
+  confusion: [
+    included({
+      ...stillSticker,
+      count: 5,
+      seed: 12,
+      minSize: 90,
+      maxSize: 140,
+      minRotationDeg: 0,
+      maxRotationDeg: 360,
+      minOpacity: 0.7,
+      maxOpacity: 0.9,
+      minSpinDegPerSec: 40,
+      maxSpinDegPerSec: 80,
+      alternateSpin: true,
+      pulse: "none",
+    }),
+  ],
+  excitement: [
+    included({
+      ...stillSticker,
+      ...noSpin,
+      count: 10,
+      seed: 47,
+      minSize: 56,
+      maxSize: 96,
+      minRotationDeg: -30,
+      maxRotationDeg: 30,
+      minOpacity: 0.9,
+      maxOpacity: 1,
+      pulse: "pop",
+    }),
+    included({
+      count: 32,
+      seed: 72,
+      minSize: 12,
+      maxSize: 24,
+      minRotationDeg: 0,
+      maxRotationDeg: 180,
+      minOpacity: 0.9,
+      maxOpacity: 1,
+      regionTop: 0,
+      regionBottom: 1,
+      keepFaceClear: false,
+      direction: "diagonal-up-left",
+      speedPxPerSec: 110,
+      minSpinDegPerSec: 120,
+      maxSpinDegPerSec: 300,
+      alternateSpin: true,
+      pulse: "none",
+    }),
+  ],
+};
+
+/** Joy's two layers, both drifting up and to the left at different speeds. */
+const JOY = [
+  included({
+    count: 18,
+    seed: 61,
+    minSize: 40,
+    maxSize: 76,
+    minRotationDeg: -25,
+    maxRotationDeg: 25,
+    minOpacity: 1,
+    maxOpacity: 1,
+    regionTop: 0,
+    regionBottom: 1,
+    keepFaceClear: true,
+    direction: "diagonal-up-left",
+    speedPxPerSec: 55,
+    minSpinDegPerSec: 0,
+    maxSpinDegPerSec: 25,
+    alternateSpin: true,
+    pulse: "pop",
+  }),
+  included({
+    count: 26,
+    seed: 62,
+    minSize: 12,
+    maxSize: 22,
+    minRotationDeg: 0,
+    maxRotationDeg: 180,
+    minOpacity: 0.9,
+    maxOpacity: 1,
+    regionTop: 0,
+    regionBottom: 1,
+    keepFaceClear: false,
+    direction: "diagonal-up-left",
+    speedPxPerSec: 70,
+    minSpinDegPerSec: 90,
+    maxSpinDegPerSec: 220,
+    alternateSpin: true,
+    pulse: "none",
+  }),
+];
+
+const VIEWS = [
+  [420, 560],
+  [420, 420],
+  [720, 640],
+  [1280, 900],
+] as const;
+
+describe("Scene scatter fit", () => {
+  it.each(Object.keys(BACKGROUNDS))(
+    "shrinks %s's still stickers until none overlap in small views",
+    (name) => {
+      for (const [width, height] of VIEWS) {
+        const placed = sceneScatterPlacements(BACKGROUNDS[name], width, height);
+        const still = placed.filter(
+          (_, index) => BACKGROUNDS[name][index].speedPxPerSec === 0,
+        );
+        expect(smallestGap(still.flat())).toBeGreaterThanOrEqual(0);
+        still.forEach((items, index) => {
+          const layer = BACKGROUNDS[name][index];
+          for (const item of items)
+            expect(item.size).toBeGreaterThanOrEqual(
+              0.4 * layer.minSize - 1e-9,
+            );
+        });
+      }
+    },
+  );
+
+  it("keeps full sizes where the stickers fit", () => {
+    for (const layers of Object.values(BACKGROUNDS)) {
+      const sizes = (width: number, height: number) =>
+        sceneScatterPlacements(layers, width, height).map((items) =>
+          items.map((item) => item.size),
+        );
+      expect(sizes(1280, 900)).toEqual(sizes(2560, 1800));
+    }
+    const small = sceneScatterPlacements(BACKGROUNDS.fear, 420, 420)[0];
+    const large = sceneScatterPlacements(BACKGROUNDS.fear, 1280, 900)[0];
+    small.forEach((item, index) =>
+      expect(item.size).toBeLessThan(large[index].size),
+    );
+  });
+
+  it.each(VIEWS)(
+    "keeps joy's same-direction layers in separate lanes at %i×%i",
+    (width, height) => {
+      const [stars, confetti] = sceneScatterPlacements(JOY, width, height);
+      expect(stars).toHaveLength(18);
+      expect(confetti).toHaveLength(26);
+      for (let frame = 0; frame < 200; frame += 1)
+        expect(
+          smallestGap([...stars, ...confetti], frame * 0.37),
+        ).toBeGreaterThanOrEqual(0);
+      // Interleaved: each layer reaches across the shared span.
+      const offset = (item: ScatterPlacement) => {
+        const { x, y } = centre(item);
+        return (x - width / 2) * Math.SQRT1_2 - (y - height / 2) * Math.SQRT1_2;
+      };
+      const halfView = ((width + height) * Math.SQRT1_2) / 2;
+      for (const items of [stars, confetti]) {
+        const offsets = items.map(offset);
+        expect(Math.min(...offsets)).toBeLessThan(-0.6 * halfView);
+        expect(Math.max(...offsets)).toBeGreaterThan(0.6 * halfView);
+      }
+    },
+  );
+
+  it("keeps same-direction layers in their own regions when these do not meet", () => {
+    const upper = scatter({
+      direction: "left",
+      speedPxPerSec: 40,
+      count: 12,
+      minSize: 20,
+      maxSize: 30,
+      regionTop: 0,
+      regionBottom: 0.3,
+      seed: 3,
+    });
+    const lower = { ...upper, regionTop: 0.6, regionBottom: 1, seed: 4 };
+    const [first, second] = sceneScatterPlacements(
+      [upper, lower],
+      WIDTH,
+      HEIGHT,
+    );
+    expect(first).toEqual(scatterPlacements(upper, WIDTH, HEIGHT));
+    expect(second).toEqual(scatterPlacements(lower, WIDTH, HEIGHT));
+    for (const item of first)
+      expect(item.y + item.size).toBeLessThanOrEqual(0.3 * HEIGHT + 1e-6);
+    for (const item of second)
+      expect(item.y).toBeGreaterThanOrEqual(0.6 * HEIGHT - 1e-6);
+  });
+});

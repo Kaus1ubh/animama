@@ -135,7 +135,10 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("angry", "Angry", "around-head"),
   included("emote", "Emote !", "around-head"),
   included("emote_question", "Emote Question", "around-head", { time: 0.3 }),
-  included("sparkle_pop", "Sparkle Pop", "around-head", { time: 0.66 }),
+  included("sparkle_pop", "Sparkle Pop", "around-head", {
+    framing: "wide",
+    time: 0.66,
+  }),
   included("sweat_drop", "Sweat Drop", "around-head"),
   included("gloom_lines", "Gloom Lines", "around-head"),
   included("steam_puffs", "Steam Puffs", "around-head", {
@@ -146,7 +149,7 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("idea_bulb", "Idea Bulb", "around-head", { framing: "wide" }),
   included("huff_puff", "Huff Puff", "around-head", { time: 0.3 }),
   included("sigh_puff", "Sigh Puff", "around-head", { time: 0.5 }),
-  included("heh", "Heh", "around-head", { time: 0.5 }),
+  included("heh", "Heh", "around-head", { framing: "wide", time: 0.5 }),
   included("mouth_w", "Mouth w", "mouth"),
   included("mouth_hover_w", "Mouth Hover w", "mouth"),
   included("heart_throb", "Heart Throb", "body", { framing: "wide" }),

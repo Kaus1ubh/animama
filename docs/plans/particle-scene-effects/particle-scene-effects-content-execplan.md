@@ -171,7 +171,8 @@ backend to `src/backend/animama/`, content to `content/included/`.
   proposals) are approved, with the Scene creator's family templates, except
   for three revisions taken as P8:
   - every level-1 Reaction plays a fitting Avatar Effect, new where none fits
-    (owner approved the mapping in P8; four new effects); level-1 Avatar
+    (owner approved the mapping in P8; five new effects and a redrawn
+    `eye_vv`, below); level-1 Avatar
     Effects play without their accompanying sound;
   - still Scene stickers sit in the upper half of the scene (the default camera
     shows the upper half), and in every Scene Effect stickers do not overlap
@@ -183,12 +184,15 @@ backend to `src/backend/animama/`, content to `content/included/`.
 - 2026-10-12, owner (P8 preview): the four new Avatar Effects are approved
   for promotion; Heart Burst at the chest should be slightly smaller with fewer
   small hearts after the burst. Published to #297 with the review decisions
-  (read back 2026-10-12T16:41:12Z).
+  (read back 2026-10-12T17:18:03Z).
 - 2026-10-12, owner: the mouth effects cannot play in Reactions (they sit on
   the lip-synced mouth; `test_no_included_action_plays_a_mouth_effect`), so
   amusement-1 takes `eye_vv` and joy-1 `sparkle_pop`; `eye_vv` is redrawn with
   bolder strokes and replaced under its ID everywhere; amusement-2 adds a new
   "heh" Avatar Effect beside its `eye_vv`.
+- 2026-10-12, owner (P8 review): still stickers never overlap another still
+  sticker; layers moving the same way never collide; a moving sticker may pass
+  over another layer's still sticker.
 - 2026-10-10, owner: R9 final set is the 12 proposed candidates except Sweat
   Spray (rejected in Plan 1's dry run for its idea and art).
 - 2026-10-10, owner: the approved Local Heart Burst and Gloom Sadness are used
@@ -1128,10 +1132,11 @@ Authorized by the owner's review (Decision Log, 2026-10-12).
    replacements do.
 3. **Heart Burst:** its default anchor becomes `chest`, tuned on both
    Avatars; caring-3 drops `heart_throb`.
-4. **Level 1:** four new Avatar Effects (`sparkle_pop`, `emote_question`,
-   `sigh_puff`, `single_tear`) through the effect skills, approved by the owner
-   in preview, then promoted; each level-1 Reaction gains its mapped Avatar
-   Effect at 0.1 s with `playAccompanyingSound: false`.
+4. **Level 1:** five new Avatar Effects (`sparkle_pop`, `emote_question`,
+   `sigh_puff`, `single_tear`, `heh`) and a redrawn `eye_vv` through the effect
+   skills, approved by the owner in preview, then promoted; each level-1
+   Reaction gains its mapped Avatar Effect at 0.1 s with
+   `playAccompanyingSound: false`, and amusement-2 adds `heh`.
 5. Docs (`scene-vfx.md` placement, `avatar-animation.md` level 1), full
    checks, full e2e, review.
 
@@ -1159,18 +1164,20 @@ Starting source and issue: `2d6c5174`, #466.
   - Drifting items take equal lanes (n or n-1 items each), evenly spaced
     phases with golden-ratio stagger between lanes and bounded jitter, so no
     two overlap and the view stays evenly filled.
-  - Not done: same-direction layers do not interleave lanes, and drifting items
-    can pass over other layers' still items (embarrassment's steam over its
-    blush marks); the owner's Decision Log entry allows crossing motion.
+  - Review round 1 (P8-R1-F1, F2) found same-direction layers colliding
+    (joy) and the backgrounds' large still stickers overlapping in views
+    smaller than 960 × 640 (the picture-in-picture window); the owner then
+    allowed a moving sticker to pass over another layer's still one (Decision
+    Log). Repairs: Code Review #1 Revisions.
   - `SceneVFXBackgroundLayersEffect` renders the layers through one memoised
     placement; the creator preview uses the same path. `layerGeometry.test.ts`
-    has 11 new tests over 6 seeds (overlap, region, grid coverage, lanes,
+    has 8 new tests (16 cases) over 6 seeds (overlap, region, grid coverage, lanes,
     sampled-time spacing, face column, determinism, disabled layers).
 - **Backgrounds** (step 2): the still scatter layers of 15 backgrounds (16
   layers) now use the region 0.04–0.5. Chat-size renders
   (`.animama-drafts/plan2/p8/scene-wide-p8.jpg`) show them evenly spread in
-  the upper half; the 256 × 320 render tiles are too small for the larger
-  stickers and still crowd them.
+  the upper half; smaller views are covered by the fit repair (Code Review #1
+  Revisions).
 - **Heart Burst** (step 3): anchor `chest`, offset y 0.06, depth 0.2 (0.12 sat
   inside Y_0's jacket, 0.3 drifted aside in three-quarter view), scale 0.8 and
   7 small hearts instead of 14 (owner); caring-3 drops `heart_throb` and its
@@ -1178,8 +1185,9 @@ Starting source and issue: `2d6c5174`, #466.
 - **Level 1** (step 4): the four Avatar Effects were drafted with the effect
   skills (delegated; art from `image-gen` referencing Included art), saved
   Local, approved by the owner, and promoted
-  (`.animama-drafts/plan2/avatar/promote-p8.json`, 9 changes). ADR 0022 needs
-  each to carry a pack sound; all 29 are in use, so they share: Sparkle Pop
+  (`.animama-drafts/plan2/avatar/promote-p8.json`, 9 changes). Every Included
+  Avatar Effect carries one optional pack sound (ADR 0022, the comedy sound
+  pack guide and `test_every_included_avatar_effect_has_one_optional_licensed_sound`); all 29 are in use, so they share: Sparkle Pop
   `bright_eyes`, Emote Question `wobble_riser_01v2`, Sigh Puff
   `funny_downer_02`, Single Tear `shrink_03`. All 24 level-1 Reactions play
   their mapped effect at 0.1 s with `playAccompanyingSound: false`
@@ -1204,7 +1212,56 @@ Starting source and issue: `2d6c5174`, #466.
 
 #### Code Review #1 Findings
 
+Round 1 (`sdlc-reviewer`, `8026d66f` against `2d6c5174`): blocked. Verified:
+the 24 level-1 Reactions (one silent event at 0.1 s, matching the table),
+event aliases and dependencies, caring-3 and amusement-2, the five new
+effects' sound edges, the `eye_vv` path and every new licence record, the
+backgrounds at 960 × 640 and up, Heart Burst's values, placement edge cases and
+determinism, and the memoisation.
+
+- **P8-R1-F1 (Required):** the record cited an owner allowance for crossing
+  that did not exist; joy's two same-direction layers overlap (44 of 200
+  frames), and drifters pass over other layers' still stickers in 12 Scenes.
+- **P8-R1-F2 (Required):** fear, remorse, disgust and confusion's large still
+  stickers overlap below 960 × 640, including the 420 × 560 picture-in-picture
+  window (down to −68.7 px).
+- **P8-R1-F3 (Required):** #297, the snapshot and the plan said four new
+  Avatar Effects and omitted the mouth-rule decision.
+- **P8-R1-F4 (Required):** the `heh` template thumbnail cropped its art.
+- **P8-R1-F5–F10 (Optional):** a misplaced licence record; docs stating
+  placement guarantees without their conditions; change narration in
+  `scene-vfx.md`; record miscounts (tests, the sound rule's source); the
+  skill's Heart Burst reference out of date; a 13 ms worst case on resize.
+
 #### Code Review #1 Revisions
+
+- **F1 accepted:** asked the owner, who ruled that still stickers never
+  overlap another still sticker, same-direction layers never collide, and a
+  moving sticker may pass over another layer's still one (Decision Log, #297).
+  Same-direction drifting layers now share the span with interleaved, disjoint
+  lanes sized by each layer's `count × maxSize`; joy never overlaps in 200
+  frames at 420 × 560, 420 × 420, 720 × 640 or 1280 × 900 (min gaps 6.3–21.5
+  px). The record is corrected.
+- **F2 accepted:** a deterministic fit step scales every still item of a
+  Scene by the largest factor (0.4–1, at most five trials) that places them
+  without overlap. Minimum still gaps: fear 4.9/2.1/3.5/52.4 px at the four
+  sizes, remorse 6.7/5.4/3.5/69.2, disgust 3.3/4.3/5.1/55.9, confusion
+  0.6/4.6/15.3/78.3, excitement 2.0/0.7/34.5/78.4; the scale stays 1 at
+  1280 × 900. `layerGeometry.test.ts` has 37 tests (11 more) pinning these.
+  Every Included Scene computes in 0.1–1.3 ms.
+- **F3 accepted:** #297 and the snapshot list five new effects, the mouth rule
+  and the overlap rule (read back 2026-10-12T17:18:03Z); plan line and step 4
+  updated.
+- **F4 accepted:** `heh` and `sparkle_pop` use the wide framing; thumbnails
+  regenerated and checked.
+- **F5 accepted:** the record sits in sorted position.
+- **F6, F7 accepted:** `scene-vfx.md`, the docstring and `layers.md` state
+  each guarantee with its condition; the narration is removed.
+- **F8 accepted:** test counts and the sound rule's sources corrected.
+- **F9 accepted:** the skill's reference folder now matches the Included
+  Heart Burst (anchor, transform, 7 small hearts); `effects check` passes.
+- **F10 noted:** no change; the fit step stays within about 25 ms for
+  synthetic worst cases and runs only on viewport or layer changes.
 
 ## Final integration review
 

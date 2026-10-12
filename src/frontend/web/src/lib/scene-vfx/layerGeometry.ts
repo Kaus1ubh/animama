@@ -171,30 +171,84 @@ function pointInSpans(spans: Span[], t: number): number {
 }
 
 /**
- * Equal lanes for `count` drifters across `spans`: as many lanes of at
- * least `laneSize` as fit, then as few as hold the same number of items
- * each (so lanes differ by at most one item), shared between the spans in
- * proportion to how many fit in each.
+ * Lanes for drifting layers that share `spans` (one layer, or layers moving
+ * the same way): each layer gets its own lanes, never shared, since layers
+ * can move at different speeds. A layer's part of each span is in
+ * proportion to `count × laneSize`; in it, it takes as many lanes of at
+ * least `laneSize` as fit, then as few as hold the same number of items each
+ * (so its lanes differ by at most one item). Inside each span the layers'
+ * lanes are interleaved evenly and widened in proportion to fill it.
+ * Returns each layer's lanes in order across the motion.
  */
-function laneCells(spans: Span[], count: number, laneSize: number): Span[] {
-  const fits = spans.map((span) =>
-    Math.max(1, Math.floor(span.length / Math.max(laneSize, 1e-3))),
-  );
-  const capacity = sum(fits);
-  const lanes = Math.ceil(count / Math.ceil(count / capacity));
-  const exact = fits.map((fit) => (lanes * fit) / capacity);
-  const shares = exact.map(Math.floor);
-  exact
-    .map((value, index) => ({ index, rest: value - shares[index] }))
-    .sort((a, b) => b.rest - a.rest || a.index - b.index)
-    .slice(0, lanes - sum(shares))
-    .forEach(({ index }) => (shares[index] += 1));
-  return spans.flatMap((span, index) =>
-    Array.from({ length: shares[index] }, (_, lane) => ({
-      start: span.start + (lane * span.length) / shares[index],
-      length: span.length / shares[index],
-    })),
-  );
+function sharedLaneCells(
+  spans: Span[],
+  layers: { count: number; laneSize: number }[],
+): Span[][] {
+  const totalWeight = sum(layers.map((layer) => layer.count * layer.laneSize));
+  const shares = layers.map(({ count, laneSize }) => {
+    const fits = spans.map((span) =>
+      Math.floor(
+        (span.length * count * laneSize) /
+          Math.max(totalWeight, 1e-9) /
+          Math.max(laneSize, 1e-3),
+      ),
+    );
+    // A layer whose items fit nowhere still gets one (too narrow) lane.
+    if (sum(fits) === 0) {
+      const longest = spans.reduce(
+        (best, span, index) =>
+          span.length > spans[best].length ? index : best,
+        0,
+      );
+      fits[longest] = 1;
+    }
+    const capacity = sum(fits);
+    const lanes = Math.ceil(count / Math.ceil(count / capacity));
+    const exact = fits.map((fit) => (lanes * fit) / capacity);
+    const counts = exact.map(Math.floor);
+    exact
+      .map((value, index) => ({ index, rest: value - counts[index] }))
+      .sort((a, b) => b.rest - a.rest || a.index - b.index)
+      .slice(0, lanes - sum(counts))
+      .forEach(({ index }) => (counts[index] += 1));
+    return counts;
+  });
+  const cells = layers.map((): Span[] => []);
+  spans.forEach((span, spanIndex) => {
+    const lanes = layers
+      .flatMap(({ laneSize }, layer) => {
+        const count = shares[layer][spanIndex];
+        return Array.from({ length: count }, (_, lane) => ({
+          layer,
+          laneSize,
+          ideal: (lane + 0.5) / count,
+        }));
+      })
+      .sort((a, b) => a.ideal - b.ideal || a.layer - b.layer);
+    const widen =
+      span.length / Math.max(sum(lanes.map((lane) => lane.laneSize)), 1e-9);
+    let start = span.start;
+    for (const { layer, laneSize } of lanes) {
+      cells[layer].push({ start, length: laneSize * widen });
+      start += laneSize * widen;
+    }
+  });
+  return cells;
+}
+
+/** `spans` merged where they overlap or touch, in order. */
+function mergeSpans(spans: Span[]): Span[] {
+  const merged: Span[] = [];
+  for (const span of [...spans].sort((a, b) => a.start - b.start)) {
+    const last = merged[merged.length - 1];
+    if (last && span.start <= last.start + last.length)
+      last.length = Math.max(
+        last.length,
+        span.start + span.length - last.start,
+      );
+    else merged.push({ ...span });
+  }
+  return merged;
 }
 
 /**
@@ -253,7 +307,8 @@ function driftSlots(
  * `obstacles`) and from the area's edges (the region's and the face
  * column's) at half weight, so gaps to
  * neighbours and to the border come out even. When every candidate
- * overlaps, more are drawn and the least-overlapping wins.
+ * overlaps, more are drawn and the least-overlapping wins, or, with
+ * `stopOnOverlap`, placement gives up and returns null.
  */
 function stillCentres(
   sizes: number[],
@@ -261,7 +316,8 @@ function stillCentres(
   faceColumn: { left: number; right: number; bottom: number } | null,
   obstacles: Disc[],
   random: () => number,
-): { x: number; y: number }[] {
+  stopOnOverlap: boolean,
+): { x: number; y: number }[] | null {
   const placed = [...obstacles];
   const centres: { x: number; y: number }[] = [];
   const order = sizes
@@ -322,56 +378,139 @@ function stillCentres(
         bestScore = nextScore;
       }
     }
+    if (bestScore < 0 && stopOnOverlap) return null;
     centres[index] = best;
     placed.push({ ...best, size });
   }
   return centres;
 }
 
+/** How many items a scatter layer draws (none without items). */
+const itemCount = (layer: ResolvedSceneBackgroundScatterLayer) =>
+  layer.items.length === 0
+    ? 0
+    : Math.round(clamp(layer.count, 0, SCENE_EFFECT_LIMITS.scatter.count[1]));
+
+/** Whether a scatter layer's items drift. */
+function drifts(layer: ResolvedSceneBackgroundScatterLayer): boolean {
+  const v = directionVector(layer.direction);
+  return layer.speedPxPerSec > 0 && (v.x !== 0 || v.y !== 0);
+}
+
 /**
- * Place a scatter layer's items in a `width` × `height` view. Sizes,
- * rotations, opacities, motion and positions all come from the seed, so the
- * same layer and view always give the same picture. Items count as circles
- * of their size.
- *
- * - A still item rests wholly inside the region (and the view), spread by
- *   best-candidate placement so items do not overlap whenever they fit, and
- *   gaps between them and to the region's edges are even. A crowded region
- *   keeps the least overlap. Still items also stay clear of `obstacles`:
- *   the still items of the Scene's other scatter layers.
- * - A drifting item crosses the whole view on a track that starts and ends
- *   off-screen, in one of equal lanes across the motion (the region for
- *   left and right motion), with as many lanes as the largest item fits.
- *   Each lane's items are evenly spaced along the track and neighbouring
- *   lanes are staggered, so the layer stays evenly filled at every moment,
- *   items never touch, and nothing appears or vanishes mid-view.
- *
- * `keepFaceClear` keeps still items' centres out of the column behind the
- * head, and up and down drifters' lanes outside that column's width.
+ * The span across the motion that a drifting layer's lanes divide: the
+ * region for left and right motion, the view width for up and down (minus
+ * the face column with `keepFaceClear`), and the centre offsets that reach
+ * the view for diagonals.
  */
-export function scatterPlacements(
+function driftSpans(
   layer: ResolvedSceneBackgroundScatterLayer,
   width: number,
   height: number,
-  obstacles: readonly ScatterPlacement[] = [],
-): ScatterPlacement[] {
-  if (layer.items.length === 0 || width <= 0 || height <= 0) return [];
-  const count = Math.round(
-    clamp(layer.count, 0, SCENE_EFFECT_LIMITS.scatter.count[1]),
-  );
+): Span[] {
+  const v = directionVector(layer.direction);
+  if (v.y === 0) {
+    const top = Math.min(layer.regionTop, layer.regionBottom) * height;
+    const bottom = Math.max(layer.regionTop, layer.regionBottom) * height;
+    return [{ start: top, length: bottom - top }];
+  }
+  if (v.x === 0)
+    return layer.keepFaceClear
+      ? cutSpans(
+          [{ start: 0, length: width }],
+          FACE_COLUMN.left * width,
+          FACE_COLUMN.right * width,
+        )
+      : [{ start: 0, length: width }];
+  const halfSpan =
+    (Math.abs(v.y) * width + Math.abs(v.x) * height) / 2 + layer.maxSize;
+  return [{ start: -halfSpan, length: 2 * halfSpan }];
+}
+
+/**
+ * Lanes for each drifting layer (null for the others). Layers moving the
+ * same way whose spans meet are grouped and share the merged span, minus
+ * the face column when any of them keeps it clear, so each holds its own
+ * lanes and they never collide.
+ */
+function driftLanes(
+  layers: readonly ResolvedSceneBackgroundScatterLayer[],
+  width: number,
+  height: number,
+): (Span[] | null)[] {
+  type Group = { direction: string; spans: Span[]; members: number[] };
+  let groups: Group[] = [];
+  layers.forEach((layer, index) => {
+    if (!layer.enabled || !drifts(layer) || itemCount(layer) === 0) return;
+    const spans = driftSpans(layer, width, height);
+    const meets = (group: Group) =>
+      group.direction === layer.direction &&
+      group.spans.some((a) =>
+        spans.some(
+          (b) => a.start < b.start + b.length && b.start < a.start + a.length,
+        ),
+      );
+    const joined = groups.filter(meets);
+    groups = groups.filter((group) => !meets(group));
+    groups.push({
+      direction: layer.direction,
+      spans: mergeSpans([...spans, ...joined.flatMap((group) => group.spans)]),
+      members: [...joined.flatMap((group) => group.members), index].sort(
+        (a, b) => a - b,
+      ),
+    });
+  });
+  const lanes: (Span[] | null)[] = layers.map(() => null);
+  for (const { spans, members } of groups) {
+    const vertical = directionVector(layers[members[0]].direction).x === 0;
+    const shared =
+      vertical && members.some((index) => layers[index].keepFaceClear)
+        ? cutSpans(spans, FACE_COLUMN.left * width, FACE_COLUMN.right * width)
+        : spans;
+    sharedLaneCells(
+      shared,
+      members.map((index) => ({
+        count: itemCount(layers[index]),
+        laneSize: layers[index].maxSize,
+      })),
+    ).forEach((cells, member) => (lanes[members[member]] = cells));
+  }
+  return lanes;
+}
+
+/**
+ * Place one layer's items. A drifting layer runs in `lanes`; a still layer
+ * draws its items at `stillScale` of their size and keeps them clear of
+ * `obstacles`, or returns null with `stopOnOverlap` when they do not fit.
+ */
+function placeLayer(
+  layer: ResolvedSceneBackgroundScatterLayer,
+  width: number,
+  height: number,
+  {
+    lanes = null,
+    obstacles = [],
+    stillScale = 1,
+    stopOnOverlap = false,
+  }: {
+    lanes?: Span[] | null;
+    obstacles?: Disc[];
+    stillScale?: number;
+    stopOnOverlap?: boolean;
+  },
+): ScatterPlacement[] | null {
+  const count = itemCount(layer);
   if (count === 0) return [];
   const random = createMulberry32(layer.seed);
   const v = directionVector(layer.direction);
-  const moving = layer.speedPxPerSec > 0 && (v.x !== 0 || v.y !== 0);
+  const moving = drifts(layer);
   const margin = layer.maxSize;
   const top = Math.min(layer.regionTop, layer.regionBottom) * height;
   const bottom = Math.max(layer.regionTop, layer.regionBottom) * height;
-  // Half the track along the motion, and half the span across it.
+  // Half the track along the motion, and the direction across it.
   const across = { x: -v.y, y: v.x };
   const halfTrack =
     (Math.abs(v.x) * width + Math.abs(v.y) * height) / 2 + margin;
-  const halfSpan =
-    (Math.abs(across.x) * width + Math.abs(across.y) * height) / 2 + margin;
   const travel =
     v.y === 0
       ? width + 2 * margin
@@ -382,7 +521,8 @@ export function scatterPlacements(
 
   // Each item's look first, so placement can use the sizes.
   const looks = Array.from({ length: count }, (_, index) => {
-    const size = lerp(layer.minSize, layer.maxSize, random());
+    const size =
+      lerp(layer.minSize, layer.maxSize, random()) * (moving ? 1 : stillScale);
     const rotationDeg = lerp(
       layer.minRotationDeg,
       layer.maxRotationDeg,
@@ -424,7 +564,7 @@ export function scatterPlacements(
   let centres: { x: number; y: number }[];
   let phases: number[] = [];
   if (!moving) {
-    centres = stillCentres(
+    const resting = stillCentres(
       sizes,
       { width, top, bottom },
       layer.keepFaceClear
@@ -434,31 +574,18 @@ export function scatterPlacements(
             bottom: FACE_COLUMN.bottom * height,
           }
         : null,
-      obstacles
-        .filter((other) => other.drift === null)
-        .map((other) => ({
-          x: other.x + other.size / 2,
-          y: other.y + other.size / 2,
-          size: other.size,
-        })),
+      obstacles,
       random,
+      stopOnOverlap,
     );
+    if (!resting) return null;
+    centres = resting;
   } else {
-    // The span across the motion that the lanes divide.
-    const spans: Span[] =
-      v.y === 0
-        ? [{ start: top, length: bottom - top }]
-        : v.x === 0
-          ? layer.keepFaceClear
-            ? cutSpans(
-                [{ start: 0, length: width }],
-                FACE_COLUMN.left * width,
-                FACE_COLUMN.right * width,
-              )
-            : [{ start: 0, length: width }]
-          : [{ start: -halfSpan, length: 2 * halfSpan }];
     const slots = driftSlots(
-      laneCells(spans, count, layer.maxSize),
+      lanes ??
+        sharedLaneCells(driftSpans(layer, width, height), [
+          { count, laneSize: layer.maxSize },
+        ])[0],
       sizes,
       layer.maxSize,
       travel,
@@ -498,21 +625,109 @@ export function scatterPlacements(
   }));
 }
 
+/** The smallest share of their size that still items shrink to. */
+const STILL_SCALE_FLOOR = 0.4;
+/** Bisection trials between the floor and full size when still items shrink. */
+const STILL_FIT_STEPS = 3;
+
 /**
- * Place every scatter layer of a Scene together, in order: each layer's
- * still items stay clear of the still items of the enabled layers before it.
- * A disabled layer places nothing and is not avoided.
+ * Place every scatter layer of a Scene in a `width` × `height` view. Sizes,
+ * rotations, opacities, motion and positions all come from each layer's
+ * seed, so the same Scene and view always give the same picture. Items
+ * count as circles of their size. A disabled layer places nothing.
+ *
+ * Still items never overlap each other, in a layer or across layers:
+ * - each rests wholly inside its region (and the view), spread by seeded
+ *   best-candidate placement so gaps to neighbours and to the region's
+ *   edges come out even, and clear of the still items of the layers before
+ *   it;
+ * - when they cannot all fit at full size (a small view), every still item
+ *   of the Scene shrinks by one common factor, found by bisection, down to
+ *   a floor of 0.4; only a region too crowded even at the floor keeps the
+ *   least overlap it can.
+ *
+ * Drifting items cross the whole view on tracks that start and end
+ * off-screen, so nothing appears or vanishes mid-view. They run in equal
+ * lanes across the motion, as many as the largest item fits, with each
+ * lane's items evenly spaced along the track and neighbouring lanes
+ * staggered, so the layer stays evenly filled at every moment. Layers
+ * moving the same way whose spans meet interleave separate lanes, so they
+ * never collide while the span has room for a lane of each. Items of a
+ * drifting layer can overlap only when they cannot fit (too many or too
+ * large for the span and track). A drifting
+ * item may pass over another layer's still items, and layers moving in
+ * different directions may cross.
+ *
+ * `keepFaceClear` keeps still items' centres out of the column behind the
+ * head, and up and down drifters' lanes outside that column's width.
  */
 export function sceneScatterPlacements(
   layers: readonly ResolvedSceneBackgroundScatterLayer[],
   width: number,
   height: number,
 ): ScatterPlacement[][] {
-  const still: ScatterPlacement[] = [];
-  return layers.map((layer) => {
-    if (!layer.enabled) return [];
-    const placements = scatterPlacements(layer, width, height, still);
-    still.push(...placements.filter((placement) => !placement.drift));
-    return placements;
-  });
+  if (width <= 0 || height <= 0) return layers.map(() => []);
+  const lanes = driftLanes(layers, width, height);
+  const isStill = (layer: ResolvedSceneBackgroundScatterLayer) =>
+    layer.enabled && !drifts(layer);
+  /**
+   * The still layers at `stillScale`, each clear of the ones before it. A
+   * trial (`stopOnOverlap`) gives up at the first overlap and returns null.
+   */
+  const placeStill = (stillScale: number, stopOnOverlap: boolean) => {
+    const placed: Disc[] = [];
+    const byLayer: ScatterPlacement[][] = [];
+    for (const layer of layers) {
+      const items = isStill(layer)
+        ? placeLayer(layer, width, height, {
+            obstacles: placed,
+            stillScale,
+            stopOnOverlap,
+          })
+        : [];
+      if (!items) return null;
+      placed.push(
+        ...items.map((item) => ({
+          x: item.x + item.size / 2,
+          y: item.y + item.size / 2,
+          size: item.size,
+        })),
+      );
+      byLayer.push(items);
+    }
+    return byLayer;
+  };
+  // Full size when it fits; else the largest common scale that fits,
+  // found by bisection, or the floor's least-overlap placement.
+  let still = placeStill(1, true);
+  if (!still) {
+    let low = STILL_SCALE_FLOOR;
+    let high = 1;
+    for (let step = 0; step < STILL_FIT_STEPS; step += 1) {
+      const middle = (low + high) / 2;
+      const attempt = placeStill(middle, true);
+      if (attempt) {
+        still = attempt;
+        low = middle;
+      } else high = middle;
+    }
+    still ??= placeStill(STILL_SCALE_FLOOR, false)!;
+  }
+  const stillByLayer = still;
+  return layers.map((layer, index) =>
+    !layer.enabled
+      ? []
+      : isStill(layer)
+        ? stillByLayer[index]
+        : placeLayer(layer, width, height, { lanes: lanes[index] })!,
+  );
+}
+
+/** One scatter layer placed alone (see `sceneScatterPlacements`). */
+export function scatterPlacements(
+  layer: ResolvedSceneBackgroundScatterLayer,
+  width: number,
+  height: number,
+): ScatterPlacement[] {
+  return sceneScatterPlacements([layer], width, height)[0];
 }

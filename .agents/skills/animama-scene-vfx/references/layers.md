@@ -74,16 +74,18 @@ from its `items` (1–8), with seeded per-item ranges:
 | `pulse` | `none`, `twinkle`, `pop` or `flicker` |
 
 Placement is even and depends on the seed and the view size. Still items
-sit wholly inside the region without overlapping (when they fit), spread
-evenly, and clear of earlier layers' still items. Drifters run in equal
-lanes, as many as `maxSize` fits, evenly spaced along the track, so they
-never bunch or touch; same-direction layers do not interleave, so give two
-drifting layers different directions or regions if they must not cross.
-`keepFaceClear` keeps still items' centres out of the column behind the head,
-and items drifting straight up or down out of that column's width. A crowded
-region (too many or too large items) still overlaps: lower `count` or
-`maxSize` instead. Petals, drops, confetti, anger marks,
-bubbles. Art: `scene-sticker` budget.
+never overlap: they sit wholly inside the region, spread evenly and clear of
+earlier layers' still items, and in small views every still item of the
+Scene shrinks by one factor (down to 0.4) until they fit; only a region too
+crowded at that floor overlaps, so keep still `count` and `maxSize` modest.
+Drifters run in equal lanes, as many as `maxSize` fits, evenly spaced along
+the track; a drifting layer overlaps itself only when its items cannot fit.
+Layers moving the same way share the span in separate interleaved lanes, so
+they never collide while the span has room for a lane of each. A drifter may
+pass over another layer's still items, and layers moving in different
+directions may cross. `keepFaceClear` keeps still items' centres out of the
+column behind the head, and items drifting straight up or down out of that
+column's width. Petals, drops, confetti, anger marks, bubbles. Art: `scene-sticker` budget.
 
 ## 8. Entry flash (optional)
 

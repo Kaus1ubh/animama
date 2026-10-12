@@ -410,25 +410,31 @@ written before them are unchanged and keep `animama/scene-effect/1`:
    range (`alternateSpin`) and a `pulse` (`twinkle`, `pop` or `flicker`).
    `sceneScatterPlacements` places a Scene's layers together; items count as
    circles of their size:
-   - Still items rest wholly inside the region and the view, spread by
-     seeded best-candidate placement: they do not overlap whenever they fit,
-     gaps to neighbours and to the region's edges come out even, and a
-     crowded region keeps the least overlap. They also stay clear of the
-     still items of the enabled layers listed before them. `keepFaceClear`
-     keeps their centres out of the column behind the head (the middle 30%
-     of the width, top 60% of the height).
+   - Still items never overlap each other, within a layer or across layers.
+     Each rests wholly inside its region and the view, spread by seeded
+     best-candidate placement so gaps to neighbours and to the region's
+     edges come out even. When they cannot all fit at full size (small
+     views such as picture-in-picture), every still item of the Scene
+     shrinks by one common factor, found by bisection, down to 0.4; only a
+     region still too crowded at that floor keeps the least overlap it can.
+     `keepFaceClear` keeps their centres out of the column behind the head
+     (the middle 30% of the width, top 60% of the height).
    - Drifting items cross the whole view on off-screen tracks, so nothing
      appears or vanishes mid-view. They run in equal lanes across the motion
      (the region for left and right motion, the view width for up and down,
      minus the face column's width with `keepFaceClear`), as many as the
      largest item fits, and each lane's items are evenly spaced along the
-     track with neighbouring lanes staggered. The layer stays evenly filled
-     at every moment and its items never touch. Layers drifting the same way
-     do not interleave their lanes, and crossing layers may overlap.
+     track with neighbouring lanes staggered, so the layer stays evenly
+     filled. Its items do not touch unless the layer is too crowded for its
+     span and track (too many or too large items).
+   - Layers moving the same way whose spans meet share that span: each gets
+     its own lanes, interleaved and in proportion to `count × maxSize`, so
+     they never collide, even at different speeds, while the span holds a
+     lane as wide as each layer's largest item (for left and right motion,
+     overlapping regions merge). A drifting item may pass over
+     another layer's still items, and layers moving in different directions
+     may cross.
 
-   Placement is computed at runtime, not stored: a Local Scene saved before
-   this placement shows its items in new places with the same seed and
-   fields.
 8. `SceneVFXFlashLayer`: one fade from `color` over `durationMs` when the Scene
    starts.
 
