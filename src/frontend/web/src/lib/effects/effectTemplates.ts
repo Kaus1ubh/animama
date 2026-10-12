@@ -255,6 +255,7 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     time: 1.8,
   }),
   included("sigh_puff", "Sigh Puff", "around-head", { time: 0.4 }),
+  included("sigh_puff_droop", "Sigh Puff Droop", "around-head", { time: 0.5 }),
   included("sly_glint", "Sly Glint", "around-head", {
     clip: "scheming-hands",
     time: 2,

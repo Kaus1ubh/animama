@@ -199,6 +199,9 @@ backend to `src/backend/animama/`, content to `content/included/`.
   `question_mark` for `emote_question`, `main`'s `sigh_puff`, and
   `heh_lettering` for `heh`; P8 keeps `single_tear` (silent, as `main` now
   allows) and the redrawn `eye_vv`. The table above shows the result.
+- 2026-10-12, owner: P8's droop-style sigh is kept as an alternate, Included
+  as `sigh_puff_droop` ("Sigh Puff Droop", silent); disappointment-1 keeps
+  `main`'s `sigh_puff`.
 - 2026-10-10, owner: R9 final set is the 12 proposed candidates except Sweat
   Spray (rejected in Plan 1's dry run for its idea and art).
 - 2026-10-10, owner: the approved Local Heart Burst and Gloom Sadness are used
