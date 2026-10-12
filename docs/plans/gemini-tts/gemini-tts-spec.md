@@ -155,7 +155,7 @@ This document; the owning issue once it is published.
 
 ## ExecPlan
 
-Not yet written.
+[gemini-tts-execplan.md](gemini-tts-execplan.md).
 
 ## Delivery links
 
