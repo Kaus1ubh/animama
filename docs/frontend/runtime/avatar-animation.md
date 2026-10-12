@@ -881,7 +881,7 @@ Activation:
 - During deactivation, the controller stops the layer from starting new gesture
   groups; current offsets fade through the generic layer activation weight.
 - While `avatarState="talking"`, gesture groups require a speech timing context
-  from Pocket TTS or ElevenLabs audio playback. Browser TTS does not currently
+  from Pocket TTS, ElevenLabs or Gemini audio playback. Browser TTS does not currently
   provide this audio-clock timing context, so policy activation alone is not
   enough to start talking-hands groups.
 - If talking hands are enabled after speech audio has already started, the

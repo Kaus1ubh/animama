@@ -150,9 +150,17 @@ Local setup and host/key administration schemas remain in the server composition
     "configured": false,
     "backend": null,
     "credential_state": null
+  },
+  "gemini_tts": {
+    "models": ["gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts"],
+    "default_model": "gemini-3.8-flash-lite-tts",
+    "voices": ["Zephyr", "Puck", "Charon", "Kore"],
+    "default_voice": "Kore"
   }
 }
 ```
+
+The `voices` list is shortened here; the response lists all 30 prebuilt voices.
 
 The models live in `animama.app.contracts.runtime_capabilities`, outside the
 local server package, so any composition can return the same contract; the local
@@ -197,6 +205,12 @@ reports the flag and no versions.
 the [web search routes](#web-search); `configured`, `backend` and
 `credential_state` describe the saved backend there and stay false/null
 elsewhere. While `credential_state` is `missing`, searches return a tool error.
+`gemini_tts` is non-null only where the composition offers Gemini voice, which
+only the local composition does. Its
+`{models, default_model, voices, default_voice}` lists the Gemini TTS model
+ids, Google's prebuilt voices and the defaults (`gemini-3.8-flash-lite-tts`,
+`Kore`). React offers Gemini only while it is present; see
+[voice and speech](../integrations/voice-and-speech.md#gemini-tts).
 
 ## Web Search
 
@@ -785,6 +799,14 @@ intermediary transport. `dispatch_options.tts.model_id` may request
 configured default. Realtime selected models are returned in
 `tts.session.model_id`. `eleven_v3` does not start realtime bootstrap and does
 not emit `tts.session` or `tts.session.error`.
+With `dispatch_options.tts.provider="gemini"`, `model_id` may be
+`gemini-3.8-flash-lite-tts` (the default) or `gemini-3.8-flash-tts`. A Gemini
+`model_id` with another provider, or an ElevenLabs one with Gemini, is
+rejected. Gemini never starts a realtime session: where the composition offers
+Gemini voice, the route pushes finalized audio as for `eleven_v3` (sentence or
+`finalized_chunking="paragraph"` batches), otherwise the run has no speech
+frames. `tts.audio`, `tts.done` and `tts.error` carry the speaking `provider`
+(`elevenlabs` or `gemini`) and its `model_id`.
 The route does not infer TTS setup from `main_structured_response`.
 Before model invocation, direct chat opens cached path `IDENTITY.md` in the
 active anima scope for prompt context and appends its markdown content to the
@@ -1395,5 +1417,5 @@ request or forward ElevenLabs timestamp/alignment metadata.
 ## Client-side speech
 
 Frontend and desktop speech flows use client-side Parakeet STT, MicVAD,
-smart-turn, Pocket TTS, and ElevenLabs TTS. The local API does not mount STT
-or LiveKit session routes.
+smart-turn, Pocket TTS, ElevenLabs TTS and Gemini TTS. The local API does not
+mount STT or LiveKit session routes.

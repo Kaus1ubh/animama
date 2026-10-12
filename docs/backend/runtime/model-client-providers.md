@@ -143,7 +143,8 @@ clients from them.
 Keys live in the process's runtime credential store
 (`app/model_clients/credential_store.py`, instance in
 `server/runtime_credentials.py`). Startup loads the allowed names below, plus
-`ELEVENLABS_API_KEY`, from the environment once; nothing reads keys from
+`ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY` and `GEMINI_API_KEY` for the built-in
+Anthropic connection and voices, from the environment once; nothing reads keys from
 `os.environ` afterwards. The embedded desktop backend then removes those names
 from its environment, and Electron main replaces the store while it runs.
 

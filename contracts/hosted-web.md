@@ -33,7 +33,9 @@ those through its own delivery port or routes.
 before any write or model call; a refusal is a `ProductRefusal` (reported as
 `detail.code` with its status) or the consumer's own exception. It then runs the
 turn with the consumer's model clients,
-web search, attachment embedder and speech (`chat_turn`). The guard's lease is
+web search, attachment embedder and speech (`chat_turn`); a consumer that does
+not offer Gemini voice returns `None` from `ChatTurnServices.gemini_speech`, so
+a Gemini request gets no speech frames. The guard's lease is
 checked while the model streams and before each step after the reply, and settled
 exactly once, after every turn task stopped, as `unstarted`, `completed`, `failed`
 or `interrupted`; a stop before the reply is saved ends the turn with an error
@@ -182,6 +184,7 @@ Permissions are separate from browser support and temporary errors:
 | Model connections/catalog administration and keys          | `model_configuration`, `provider_credentials`, `web_search.configuration` | False; catalog/role reads and selections remain retained.                                |
 | Host paths, scans, file logs and server model installation | `local_filesystem_administration`                                         | False; virtual memory paths, creator assets and browser model downloads remain retained. |
 | Electron/native controls                                   | `native_features`                                                         | False; browser fullscreen/PiP use browser feature detection.                             |
+| Gemini voice                                               | `gemini_tts`                                                              | Absent or null; the hosted adapter refuses a runtime that reports it.                    |
 
 Web search use follows the runtime fields `web_search.configured`, `backend` and
 `credential_state`, not `web_search.configuration`: a hosted operator who

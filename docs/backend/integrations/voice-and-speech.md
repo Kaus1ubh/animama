@@ -1,8 +1,8 @@
 # Voice And Speech
 
-The backend contains integrations for ElevenLabs TTS/voice operations. Current
-frontend and desktop speech flows primarily use client-side STT/VAD/turn
-detection plus `chat:sse` TTS/session events.
+The backend contains integrations for ElevenLabs TTS/voice operations and
+Gemini text-to-speech. Current frontend and desktop speech flows primarily use
+client-side STT/VAD/turn detection plus `chat:sse` TTS/session events.
 
 ## ElevenLabs
 
@@ -133,6 +133,64 @@ Avatar lip-sync continues to use gruut phonemes from SSE plus provider
 audio-start and actual-duration callbacks. Anima preserves the additive
 `tts_text` fields on `user.response` as provider handoff data, but ElevenLabs
 alignment is not consumed by the v3 runtime.
+
+## Gemini TTS
+
+Gemini text-to-speech is a cloud voice offered only by the local composition
+(self-hosted web and desktop). That composition supplies
+`ChatTurnServices.gemini_speech` (`LocalGeminiSpeech` in
+`server/gemini_tts_service.py`) and reports the
+`gemini_tts` runtime capability defined in `app/contracts/gemini.py`: the
+models `gemini-3.8-flash-lite-tts` (default) and `gemini-3.8-flash-tts`,
+Google's 30 prebuilt voices, and the default voice `Kore`. Where
+`gemini_speech` is `None`, as in a hosted composition, a Gemini request gets no
+speech frames. Browser playback, settings and Google's terms are in
+[Gemini TTS](../../frontend/runtime/gemini-tts.md).
+
+The key is `GEMINI_API_KEY`: loaded from the process environment at startup
+(Compose forwards it to `animama-server`) or delivered from the desktop vault,
+and read per request from the runtime credential store. It is not in
+`KNOWN_PROVIDER_CREDENTIAL_ENVS`, so no owner model connection can name it, and
+`GOOGLE_API_KEY` is never read. Build SDK clients only with
+`adapters/voice/gemini_client.py`. It passes the key explicitly, pins
+`https://generativelanguage.googleapis.com/` on `v1beta` (Interactions audio
+output exists only there), overrides the SDK's environment fallbacks for the
+key, base URL, Vertex mode, replays and default headers, and turns off the
+Interactions sub-client's own retries and header debug logging, so a failed
+request is not retried. The service imports `google-genai` on the first Gemini
+request and keeps one client per key.
+
+A chat request selects Gemini with `dispatch_options.tts`
+`{enabled: true, provider: "gemini", model_id, finalized_chunking}`; a
+`model_id` that belongs to another provider is rejected. Gemini always uses the
+finalized flow above (`FinalizedTtsStreamBootstrap` in
+`product_http/chat/tts.py`), with the same sentence or paragraph batching,
+paragraph pause and frame order. Each batch is one streamed Interactions
+request with `store: false`, `audio/l16` at 24 kHz and
+`speech_config: [{voice}]`, where the voice is the Anima's
+`speech.gemini.voice`, resolved once per run; a missing or unknown name speaks
+`Kore`. Gemini receives no continuity text or language code. Its stream is
+16-bit little-endian PCM (measured), which `server/finalized_speech.py`
+re-frames into the same `pcm_24000` `tts.audio` frames as Eleven v3: at least
+0.2 s each, except the last of each request. Frames carry `provider: "gemini"` and the Gemini `model_id`. At most
+three Gemini requests run at once per process.
+
+Every request in a reply carries the same speaking style as a
+`speech_metadata` annotation. `gemini_speaking_style` in
+`app/voice_emotional_tone.py` builds it with the Eleven v3 tag's tone and level
+rules: for example `Speak in a slightly happy tone.`, `Speak in a happy tone.`
+or `Speak in a very happy tone.`, and `Speak in a friendly tone.` for neutral,
+missing or unrecognized tones. Without a backend-visible emotional state the
+style has no intensity word.
+
+A Gemini failure emits one `tts.error` and no `tts.done`; the reply text and
+`run.completed` still arrive. The Gemini-specific codes are
+`gemini_tts_missing_credential` (no key), `gemini_tts_stream_setup_failed` (segment setup) and
+`gemini_tts_stream_failed` (a request error, an `error` event, or a stream that
+ends without completing). The `error` text asks for the key when it is missing
+and otherwise names at most the HTTP status, never request text or the key. The opt-in
+[live test](../../../tests/live/README.md) re-measures format, byte order and
+latency against the real API.
 
 ## Client-side speech recognition
 

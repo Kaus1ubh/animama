@@ -79,15 +79,22 @@ fill approval fields automatically from a passing scan.
 The approved core inventory in `release-policy.json` predates the removal of
 the `google-genai` and `litellm` runtime dependencies, so the next stage needs a
 fresh inventory review. Allowlist entries in `release-scan.gitleaks.toml` that
-only covered those packages can be dropped once that scan passes without them.
-It also predates two later inventory changes that the owner must re-review
-before the next desktop release:
+only covered `litellm` can be dropped once that scan passes without them; keep
+any that the returned `google-genai` package still needs. The inventory also predates three
+later changes that the owner must re-review before the next desktop release:
 
 - the Python license inventory gains the `anthropic` client SDK and its new
   dependencies (`httpx2`, `httpcore2`, `truststore` and `docstring-parser`;
   `idna` moves to 3.20). `httpx2` verifies TLS through the operating system's
   trust store (`truststore`) rather than certifi, so release acceptance should
   include an Anthropic request from the frozen runtime on each target;
+- the `google-genai` stack returns at new versions for
+  [Gemini voices](../runtime/gemini-tts.md): `google-genai` 2.29.0
+  (Apache-2.0), `google-auth` 2.61.0, `pyasn1` 0.6.4 and `pyasn1-modules`
+  0.4.2; `cachetools` and `rsa` are no longer present. Release
+  acceptance should include one Gemini voice request from the frozen runtime on
+  each target, confirming that the SDK's lazily imported modules were bundled
+  and that TLS succeeds;
 - the notice inventory changes because the `model-provider-logos` group in
   `runtime/license-sources.json` now covers ten logos, including the
   Anthropic mark from models.dev.

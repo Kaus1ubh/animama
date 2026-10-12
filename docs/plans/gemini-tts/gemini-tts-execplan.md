@@ -55,8 +55,11 @@ Ownership and boundaries:
 - [x] Phase 2: Voice settings, playback and lip-sync. Done 2026-10-11;
       Review #2 passed (repair round 1).
 - [x] Phase 3: Desktop key. Done 2026-10-11; Review #1 passed.
-- [ ] Phase 4: Documentation, release note and owner listening check.
-- [ ] Final integration review.
+- [ ] Phase 4: Documentation, release note and owner listening check. Docs
+      and release note done 2026-10-12, Review #1 passed; the owner listening
+      check is pending.
+- [x] Final integration review. Review #1 passed; repair round 1 passed
+      2026-10-12.
 
 ## Surprises & Discoveries
 
@@ -720,7 +723,7 @@ panel, the backend desktop-credentials route tests.
 
 Completion: checks pass; review leaves no blocker.
 
-Phase record: issue #460; starting source `65b29b0c`; commit —.
+Phase record: issue #460; starting source `65b29b0c`; commit `a2eba7c6`.
 
 Implementation (2026-10-11):
 
@@ -836,15 +839,122 @@ Checks: `docs-sync` review; the final checks below.
 Completion: docs reviewed; the owner check recorded; failures become fixes or
 follow-up issues, per the owner.
 
-Phase record: issue #461; starting source —; commit —.
+Phase record: issue #461; starting source `a2eba7c6`; final-review fix `7680a4e5`; docs commit recorded in the PR.
+
+Implementation (2026-10-12):
+
+- **Docs:**
+  - A new `docs/frontend/runtime/gemini-tts.md` covers availability and the
+    key, dispatch and playback, the speaking style, settings, error codes, and
+    terms, privacy and billing (D8, SynthID). It is indexed in
+    `docs/frontend/README.md`.
+  - `voice-and-speech.md` gains a "Gemini TTS" section: composition, key
+    isolation, the pinned client, framing, the style and errors.
+  - Gemini is added where provider lists, stored keys or finalized audio
+    were ElevenLabs-only:
+    - `voice.md`, `avatar-lipsync.md` (the finalized path is now
+      provider-neutral) and both `chat.md` files;
+    - `http-api.md`, `local-http-components.md` and
+      `model-client-providers.md`;
+    - `elevenlabs-tts.md` and `avatar-animation.md`;
+    - `emotional-voice-catalog.md`.
+  - `desktop-runtime.md`, `overview.md` and `model-settings.md` list the
+    Gemini key and drop the advice to re-enter Gemini keys on a model
+    connection (P3-R1-F1). `desktop-runtime.md` also documents
+    `restoredProviders` and its downgrade constraint (P3-R1-F4).
+  - `development.md` and `tests/live/README.md` describe the key and the
+    live test.
+  - `contracts/hosted-web.md` tells Cloud consumers to return `None` from
+    `gemini_speech` and that `gemini_tts` must be absent.
+- **Release note:** `redistribution-review.md` records the re-review of
+  `google-genai` 2.29.0, `google-auth`, `pyasn1` and `pyasn1-modules`, plus one
+  Gemini request per target from the frozen runtime. It also corrects the older
+  sentence that said `google-genai` had been removed.
+
+#### Owner listening checklist
+
+Run it on the live task stack `animama-gemini-tts`
+(`http://animama-gemini-tts.localhost:8860`, development mode, started with the
+owner-only secrets file, so `GEMINI_API_KEY` and the chat model's key are set).
+The stack already has App Settings → Voice set to Gemini with Flash-Lite TTS,
+and Annie's voice set to Puck. Each item names what it checks.
+
+1. **Voice and lip-sync.** Chat with Annie (Puck, Flash-Lite TTS) for a few
+   turns, then switch App Settings → Voice → Gemini model to Flash TTS and
+   continue.
+   - Check: replies are spoken in Puck; the mouth moves with the words and
+     stops when speech ends; Flash TTS sounds at least as good.
+2. **Another voice.** In Annie's Loadout → Voices, choose another voice (for
+   example Kore or Charon) and send a message.
+   - Check: the new voice is used.
+3. **Speaking style.** Ask for something happy, then something sad.
+   - Check: the delivery follows the reply's tone (the style is "Speak in a
+     [slightly|very] <tone> tone.").
+4. **Long reply and chunking (D22).** Ask for a three-paragraph story.
+   - Check: speech starts quickly and gaps between sentences are acceptable;
+     say whether paragraph chunking should replace sentence chunking.
+5. **Missing key.** The coordinator restarts the server without the key on
+   request (`docker compose -p animama-gemini-tts` with the key unset), or skip
+   this item; automated tests cover it.
+   - Check: the reply still appears and a "Text-to-speech unavailable" notice
+     shows.
+6. **Desktop key (optional).** In a desktop development build, add the Gemini
+   key in App Settings → API Keys without restarting, then speak a reply.
+   - Check: it speaks; automated vault, IPC and route tests cover the rest.
+
+Agent preflight (2026-10-11, stack at `a2eba7c6`): one spoken reply with
+Annie on Flash-Lite TTS streamed 22 `tts.audio` frames (245,760 bytes, about
+5.1 s of 24 kHz PCM), then `tts.done` and `run.completed`, with no voice error.
+This proves delivery only; what it sounds like is the owner's check.
+
+Results: pending the owner's check.
 
 #### Code Review #1 Findings
 
-Not started.
+Independent `sdlc-reviewer`, docs-sync review of the working tree on
+`a2eba7c6`, including the final review's error-text fix. **Result: pass, no
+blocking findings.**
+
+- **Verified against the code:**
+  - error texts, settings labels and the dispatch shape;
+  - model ids, voices, defaults and limits;
+  - the vault rules and the hosted guard;
+  - the `uv.lock` versions and package versions;
+  - the terms statements, checked against the research brief.
+- **Coverage:** every planned doc is updated, P3-R1-F1 and F4 are covered,
+  and all links and anchors resolve.
+
+- **P4-R1-F1 (should-fix):** `docs/frontend/desktop/installation.md` said "all
+  three" keys are in API Keys and did not mention Gemini.
+- **P4-R1-F2 (should-fix):** the release note dropped the fact that the
+  approved inventory predates the `google-genai` removal. "Regains" also hid
+  that the owner will see version changes, with `cachetools` and `rsa` gone.
+- **P4-R1-F3 (should-fix):** the local runtime-capabilities example in
+  `http-api.md` lacked `gemini_tts`.
+- **P4-R1-F4 (note):** the downgrade sentence was too broad, since earlier
+  releases ignore `restoredProviders`.
+- **P4-R1-F5 (note):** `hosted-web.md` should say "Absent or null".
+- **P4-R1-F6 (note):** `gemini-tts.md` lacked a restart cue for self-hosted
+  keys and implied the dispatch shape was complete.
+- **P4-R1-F7 (note):** "Codes are" omitted the shared `missing_tts_text`, and
+  each request's last frame can be shorter than 0.2 s.
+- **P4-R1-F8 (note):** the `docs/backend/README.md` index named only
+  ElevenLabs.
 
 #### Code Review #1 Revisions
 
-Not started.
+All fixed as suggested:
+
+- **F1:** Gemini is in Voice and API Keys, is not asked for in setup, and the
+  text now says "all four".
+- **F2:** the note now says the inventory predates both removals and the stack
+  returns at new versions, without `cachetools` and `rsa`. Verified against
+  `uv.lock`.
+- **F3:** the example gains `gemini_tts`, with the voices shortened and a note
+  saying so. The JSON still parses.
+- **F4–F8:** applied as described in the findings.
+- **Verification:** `git diff --check`. No further round: the revisions are
+  wording changes confirmed against the cited code.
 
 ## Final integration review
 
@@ -852,6 +962,65 @@ Run after Phase 4, before the PR leaves draft, with at most two repair rounds.
 It covers key isolation end to end, composition gating and hosted behaviour,
 ElevenLabs regressions, voice failure isolation, and the contract between
 backend frames and frontend playback. Reuse still-valid phase evidence.
+
+### Final Code Review #1 Findings
+
+Independent `sdlc-reviewer`, full initial review of the committed code at
+`a2eba7c6` against `f7eb367c`; Phase 4 docs were out of scope. **Result:
+pass, no blocking findings.** It verified all six scope items:
+
+- **Key isolation.** The key is sent in a header, never in the URL, and
+  connections naming it are refused by both the API and IPC.
+- **Gating.** Without the port the reply has no frames and still completes;
+  the hosted guard refuses the capability; the package versions follow the
+  rules, and the generated SDK is current.
+- **ElevenLabs.** Behaviour is unchanged, and the golden SSE tests pass.
+- **Failure isolation.**
+- **Frames.** Frames are an even number of bytes, carry the chat `run_id`,
+  and give lip-sync the `gemini` provider.
+
+Checks: 294 targeted backend tests, ruff and format, the import boundary,
+`openapi-ts:check`, 141 web tests in nine files, 30 product-ui lifecycle tests,
+type checks for product-ui, web and desktop, `web:lint`, and 80 desktop tests.
+
+- **FI-R1-F1 (should-fix):** with no key, the notice read "Gemini TTS setup
+  failed.", because the shared setup path blanks every refusal's text. The
+  helpful missing-key message only appeared if the key vanished between
+  preparing and streaming.
+- **FI-R1-F2 (note):** a setup error that is not a refusal forwarded
+  `str(exc)` to the browser for Gemini too (for example a database or gruut
+  error), against the status-only rule.
+- **FI-R1-F3 (note, docs):** `docs/frontend/desktop/troubleshooting.md` still
+  said to re-enter retired Gemini keys on a model connection.
+- **FI-R1-F4 (note):** the SDK imports some modules lazily, so the planned
+  frozen-runtime release request should also confirm the bundle imports.
+
+### Final Code Review #1 Revisions
+
+- **F1, F2 (fixed):**
+  - `_FinalizedProviderText` gains `refusal_messages`, which maps the Gemini
+    missing-credential code to "Gemini text-to-speech needs a Gemini API key."
+    The code and message now live in `app/contracts/gemini.py`, shared with the
+    service.
+  - It also gains `forwards_error_text`, false for Gemini, so other Gemini
+    setup and task errors show only the generic text. ElevenLabs is unchanged.
+  - Tests: the missing-key route test expects the new message; a new route
+    test shows that a setup error's detail never reaches the browser; the
+    product-ui fixture uses the new text.
+  - Verification: 154 tests across `test_anima_chat_sse.py`, `test_gemini_tts.py`,
+    the golden SSE tests and the ElevenLabs router (all pass); ruff and format;
+    product-ui lifecycle 30/30.
+- **F3 (fixed):** the troubleshooting page now sends retired Gemini keys to
+  App Settings → API Keys for voices.
+- **F4 (fixed):** the release note's frozen-runtime request now also confirms
+  that the SDK's lazily imported modules were bundled.
+
+Repair round 1 (targeted recheck by the same reviewer): **pass, no new
+findings.** All four revisions resolve their findings. Comparing both error
+paths line by line shows ElevenLabs text and codes unchanged. Checks: 154
+tests as above, 16 in `test_product_http_chat_turns.py` (ElevenLabs refusal
+codes), ruff and format, mypy on the three changed modules, and product-ui
+lifecycle 30/30. One of two repair rounds used.
 
 ## Validation and acceptance
 

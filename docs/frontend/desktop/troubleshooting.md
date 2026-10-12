@@ -116,8 +116,9 @@ failed. Connection key changes report their failures in App Settings → Models.
 | `credential_connection_invalid`, `credential_changes_invalid`      | Main refused a malformed key change (a variable outside `ANIMAMA_CONNECTION_<ID>_API_KEY`, more than eight changes, or one target twice). Nothing changed; reopen Settings and retry, and report repeated failures with the app version. |
 
 DeepSeek, Hugging Face and Gemini keys saved by earlier builds are dropped when
-the vault loads; they never make it `vault_unreadable`. Re-enter such a key on a
-model connection.
+the vault loads; they never make it `vault_unreadable`. Re-enter a DeepSeek or
+Hugging Face key on a model connection, and a Gemini key in App Settings → API
+Keys for [Gemini voices](../runtime/gemini-tts.md).
 
 [Local model servers](../../backend/operations/local-models.md) covers starting
 Ollama, LM Studio, llama.cpp or vLLM, setting their context windows and further

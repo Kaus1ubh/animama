@@ -15,7 +15,8 @@ synthesis and PocketTTS. The main runtime files are:
 - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
 - `src/frontend/web/src/stores/avatar-lipsync-bridge-store.ts`
 
-Provider selection is stored as `"browser" | "pocket_tts" | "elevenlabs"`.
+Provider selection is stored as `"browser" | "pocket_tts" | "elevenlabs" | "gemini"`
+([Gemini TTS](gemini-tts.md)).
 ElevenLabs model selection is stored as `tts_elevenlabs_model_id`. The Eleven
 v3 finalized-audio grouping preference is stored as
 `tts_elevenlabs_v3_finalized_chunking` with `"sentence"` as the default and

@@ -120,9 +120,10 @@ The model catalog separates complete `native_tool_support` from
 `apply_patch` are activated by server policy and remain invalid as explicit
 request options.
 When TTS is enabled, `dispatch_options.tts` can carry explicit provider intent.
-For ElevenLabs, `model_id="eleven_v3"` selects backend-pushed finalized audio.
-The optional `finalized_chunking` field accepts `"sentence"` or `"paragraph"`
-and applies only to Eleven v3; omitted or unsupported combinations behave as
+For ElevenLabs, `model_id="eleven_v3"` selects backend-pushed finalized audio;
+`provider="gemini"` always does, with a Gemini TTS `model_id`. The optional
+`finalized_chunking` field accepts `"sentence"` or `"paragraph"` and applies
+only to finalized audio; omitted or unsupported combinations behave as
 `"sentence"`.
 
 ## Shared Model-Client Layer
@@ -370,6 +371,14 @@ upstream PCM bytes into larger `tts.audio` frames before sending them over SSE
 so the frontend does not need to schedule many tiny audio buffers. The frontend
 `tts_text`, `tts_phonemized_text`, chat text, and avatar viseme inputs remain
 untagged, and no paragraph-specific fields are added to public SSE events.
+
+Gemini speech runs through the same finalized flow, batching, pause frames and
+ordering, using the composition's `ChatTurnServices.gemini_speech` port, which
+the turn reads only when the run asks for Gemini; where the port is `None` the
+run gets no speech frames. Where Eleven v3 tags only the first sentence request
+(or each paragraph), every Gemini request carries the same speaking style built
+from the tone and level. Gemini frames and error codes name `gemini`. See
+[voice and speech](../integrations/voice-and-speech.md#gemini-tts).
 
 `emotion.update` frames include the event ID, run ID, direct chat node ID, and
 full emotion state payload. They also include optional context metadata:

@@ -79,8 +79,9 @@ Keys depend on where the app runs:
 - **Desktop (embedded runtime):** each built-in card holds its key field,
   `DesktopCredentialsPanel` filtered to `["openai"]` or `["anthropic"]`
   (`builtinConnectionKey` in `model-configuration-state.ts`); Voice →
-  Text-to-Speech holds the ElevenLabs field the same way. All edit the same
-  vault state as App Settings → API Keys (OpenAI, Anthropic and ElevenLabs): saved status lives in the
+  Text-to-Speech holds the ElevenLabs field, and the Gemini field where Gemini
+  voice is offered, the same way. All edit the same vault state as App
+  Settings → API Keys (OpenAI, Anthropic, ElevenLabs and Gemini): saved status lives in the
   `desktopCredentials` query cache, so a save in any panel updates the others.
   Other connections take a write-only key field. The connection is saved first
   with a managed key; the key is then stored in the encrypted vault under
