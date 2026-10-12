@@ -1240,8 +1240,8 @@ determinism, and the memoisation.
   moving sticker may pass over another layer's still one (Decision Log, #297).
   Same-direction drifting layers now share the span with interleaved, disjoint
   lanes sized by each layer's `count × maxSize`; joy never overlaps in 200
-  frames at 420 × 560, 420 × 420, 720 × 640 or 1280 × 900 (min gaps 6.3–21.5
-  px). The record is corrected.
+  frames at 420 × 560, 420 × 420, 720 × 640 or 1280 × 900 (min gaps about
+  6–22 px, depending on the sampled frames). The record is corrected.
 - **F2 accepted:** a deterministic fit step scales every still item of a
   Scene by the largest factor (0.4–1, at most five trials) that places them
   without overlap. Minimum still gaps: fear 4.9/2.1/3.5/52.4 px at the four
@@ -1262,6 +1262,22 @@ determinism, and the memoisation.
   Heart Burst (anchor, transform, 7 small hearts); `effects check` passes.
 - **F10 noted:** no change; the fit step stays within about 25 ms for
   synthetic worst cases and runs only on viewport or layer changes.
+
+#### Code Review #2 Findings
+
+Round 2 (targeted recheck of `e4ba2480`): F1–F9 resolved, F10 noted; the gaps
+and fit scales reproduced; at every size from 315 × 420 up no still item
+overlaps or leaves its region (only the 256 × 320 render tile and a 120 × 90
+probe, below the 0.4 floor, still do); joy's layers never overlap at 28 sizes;
+the new lane and fit code is disjoint, bounded (five placements at most) and
+deterministic. Optional: **P8-R2-O1** overlapping left/right regions merge, so
+`layers.md` should say so; **P8-R2-O2** joy's gap range depends on the sample.
+Result: pass.
+
+#### Code Review #2 Revisions
+
+- **O1 accepted:** `layers.md` notes the shared span.
+- **O2 accepted:** the record gives the range as approximate.
 
 ## Final integration review
 

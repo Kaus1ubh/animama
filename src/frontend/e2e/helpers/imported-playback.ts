@@ -388,8 +388,8 @@ export async function proveLibraryParticleReplay(args: {
                       effect.runtimeId === expected.runtimeId &&
                       effect.active &&
                       effect.owner === "content-preview" &&
-                      effect.anchor === "head" &&
-                      effect.resolvedAnchor === "head",
+                      effect.anchor === "chest" &&
+                      effect.resolvedAnchor === "chest",
                   )
                   .map((effect) => effect.elapsedSec)
               : [];
@@ -428,14 +428,14 @@ export async function proveLibraryParticleReplay(args: {
             effect.runtimeId === target.runtimeId &&
             effect.active &&
             effect.owner === "content-preview" &&
-            effect.anchor === "head" &&
-            effect.resolvedAnchor === "head",
+            effect.anchor === "chest" &&
+            effect.resolvedAnchor === "chest",
         )
         .map((effect) => effect.elapsedSec),
     );
     expect(
       new Set(elapsed).size,
-      "two distinct clocks from the exact imported, head-anchored particle controller",
+      "two distinct clocks from the exact imported, chest-anchored particle controller",
     ).toBeGreaterThanOrEqual(2);
     expect(Math.max(...elapsed) - Math.min(...elapsed)).toBeGreaterThanOrEqual(
       0.04,

@@ -68,7 +68,7 @@ from its `items` (1–8), with seeded per-item ranges:
 | `minSize`, `maxSize` | 4–512 px |
 | `minRotationDeg`, `maxRotationDeg` | −360–360 |
 | `minOpacity`, `maxOpacity` | 0–1 |
-| `regionTop`, `regionBottom` | 0–1 of the view height that holds still items, and the lanes of left and right drifters |
+| `regionTop`, `regionBottom` | 0–1 of the view height that holds still items, and the lanes of left and right drifters (two left or right layers whose regions overlap share their combined span) |
 | `speedPxPerSec` with `direction` | 0–600; drifting items cross the view on off-screen tracks |
 | `minSpinDegPerSec`, `maxSpinDegPerSec` | 0–720; `alternateSpin` reverses every other item |
 | `pulse` | `none`, `twinkle`, `pop` or `flicker` |
