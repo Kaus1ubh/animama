@@ -1,9 +1,9 @@
 # Release Avatar canvas memory promptly
 
 Source agreement: [avatar-canvas-memory-spec.md](avatar-canvas-memory-spec.md),
-agreed on 2026-10-12. It expands issue
-[#472](https://github.com/raymond-van/animama/issues/472), which becomes
-authoritative once the spec is published there.
+agreed on 2026-10-12 and published to issue
+[#472](https://github.com/raymond-van/animama/issues/472) at 2026-10-12T21:36:42Z.
+The issue is authoritative; the spec file is its snapshot.
 
 Authorized scope:
 - Phase 1 is delivered.
@@ -133,7 +133,7 @@ Code Review #2 passed. CR2-N1 (missing `IS_REACT_ACT_ENVIRONMENT`) was accepted.
 
 ### Phase 2: Avatar disposal releases GPU and decoded resources (R2, R3)
 
-Issue: to be created. Starting revision: the plan commit on this branch.
+Issue: [#475](https://github.com/raymond-van/animama/issues/475). Starting revision: the plan commit on this branch.
 
 Steps:
 1. **Detach before dispose.** Write a failing `Avatar` unit test: with the model attached to a parent group, `unload()` must leave `vrm.scene.parent === null` before any geometry, material or texture is disposed. Use spies on the disposal path. Then call `this.vrm.scene.removeFromParent()` in `unload()` before `VRMUtils.deepDispose`. Keep `preloadVrm()` consistent.
@@ -154,7 +154,7 @@ Recovery: revert the phase commit. No data or contract changes.
 
 ### Phase 3: One live scroll tracker per admitted session (R4)
 
-Issue: to be created. Depends on nothing; it runs after Phase 2 to keep reviews focused.
+Issue: [#476](https://github.com/raymond-van/animama/issues/476). Depends on nothing; it runs after Phase 2 to keep reviews focused.
 
 Steps:
 1. Write a failing test for `AppRouter`: rendering while admission is loading builds no router, and a router replaced by a new admission, or unmounted, stops tracking scroll positions.
@@ -171,7 +171,7 @@ Recovery: revert the phase commit.
 
 ### Phase 4: Desktop and PiP window memory (R6)
 
-Issue: to be created. Runs after Phase 2, so its measurements include the shared disposal fix.
+Issue: [#477](https://github.com/raymond-van/animama/issues/477). Runs after Phase 2, so its measurements include the shared disposal fix.
 
 Steps:
 1. **Measurement harness:**
@@ -200,7 +200,7 @@ Recovery: revert the phase commits. No persisted window state changes, unless a 
 
 ### Phase 5: Chat keeps its renderer across Animas (R5)
 
-Issue: to be created. The owner confirmed R5 on 2026-10-12. Depends on Phase 2.
+Issue: [#478](https://github.com/raymond-van/animama/issues/478). The owner confirmed R5 on 2026-10-12. Depends on Phase 2.
 
 Steps:
 1. **Audit what must reset per Anima** under `MainShell` and the canvas actor:

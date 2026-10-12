@@ -1,6 +1,7 @@
 # Release Avatar canvas memory promptly
 
 Status: Agreed
+Snapshot: [issue #472](https://github.com/raymond-van/animama/issues/472), published and read back at 2026-10-12T21:36:42Z. The issue is authoritative.
 Owner decision: 2026-10-12, the owner asked to expand issue #472 to fix the memory
 leaks and churn found while investigating Library previews, and then to include
 investigating and fixing PiP and desktop window memory. On 2026-10-12 the owner
@@ -110,7 +111,7 @@ All browser measurements use a built task stack, an isolated Chrome and forced G
 
 ## Spec
 
-This document until it is published to issue #472, which then becomes authoritative.
+[Issue #472](https://github.com/raymond-van/animama/issues/472) is authoritative; this file is a snapshot.
 
 ## ExecPlan
 
