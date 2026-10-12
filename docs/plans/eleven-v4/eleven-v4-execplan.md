@@ -11,8 +11,7 @@ Source agreement: [spec](eleven-v4-spec.md), agreed by the owner on 2026-10-12
 Authorized scope: Phases 1–2 (owner, 2026-10-12).
 - Phase 1 delivers the v4 Turbo streamed path first, by the owner's priority
   (spec D10).
-- The PR split proposed in D10 awaits the owner's decision; until then the plan
-  keeps one PR.
+- One PR carries the whole plan (owner, 2026-10-12).
 
 Explicit gates:
 
@@ -149,7 +148,8 @@ Ownership and boundaries:
   authorized).
 - [ ] Phase 5: hosted contract, Cloud issue, docs and full validation (not yet
   authorized).
-- [ ] Linked: intent discovery for audio tags in `speech` (D12).
+- [x] Intent discovery for audio tags in `speech` (D12), 2026-10-12: linked
+  issue [#479](https://github.com/raymond-van/animama/issues/479).
 - [ ] Final integration review.
 - [ ] G2 owner gate.
 
@@ -237,12 +237,12 @@ From the spike, 2026-10-12 (details and numbers in the research brief):
     - no extension of `buildGruutVisemeKeyframes`.
   - **D9:** remove the gruut gate in this change (Phase 2).
   - **D12:** audio tags in `speech` go to intent discovery and a linked issue.
-- **2026-10-12 — agent proposal (spec D10): split delivery.** PR A carries
-  Phase 1 and can merge after its checks and v4 Turbo listening. PR B carries
-  Phases 2–5. Awaiting the owner.
-- **2026-10-12 — agent proposal (spec D11): no English lip-sync change before
-  #468.** A minimal option and its limits are listed in the spec for the owner
-  to opt into.
+- **2026-10-12 — owner:**
+  - D10: one PR for the whole plan (the realtime-first PR split was declined);
+  - D11: no English lip-sync change before #468;
+  - D12: intent discovery done, with the outcome in
+    [#479](https://github.com/raymond-van/animama/issues/479). Its sound effects
+    add a class to the Phase 3 evidence module.
 - **2026-10-12 — agent proposal: realtime flush policy.**
   - Flush once after the first speech segment, then let the server buffer.
   - Send `keep_alive` after 10 s without a message.
@@ -415,12 +415,6 @@ Checks:
 - from `src/frontend`: `pnpm openapi-ts`, `pnpm check`, `pnpm web:lint`,
   `pnpm web:test` and `pnpm desktop:test`.
 
-If D10's split is approved:
-
-- also run `pnpm build`, `pnpm e2e:test:fast` on a disposable built stack, and
-  the package-set compare against a `main` baseline;
-- open PR A for this phase.
-
 Live (G1), on the task stack and desktop dev against it:
 
 - 5 replies each on web and desktop: first audio after the first segment,
@@ -511,7 +505,7 @@ Changes:
      294–549 ms on Korean), skip gruut for text with no Latin letters. Record
      the measurement and the choice.
 7. **Contracts, client and docs:**
-   - A further `local-http` major (or the same 6.0.0 if PR A has not merged).
+   - Fold into the same `local-http` 6.0.0 bump (one PR).
    - Bump `runtime-contracts`; run `pnpm openapi-ts`.
    - Re-record `tts-finalized.sse`.
    - Update the finalized and language sections of the docs.
@@ -599,6 +593,8 @@ Changes:
    - Punctuation entries with times, marked as possible pauses.
    - Bracketed spans with the raw tag text and a class:
      - non-verbal sound → a non-speech interval;
+     - sound effect (allowed on ElevenLabs by #479) → a separate non-speech
+       interval, mouth at rest;
      - delivery or emotion → a zero-width marker at the span's start that applies
        to the following words;
      - pacing → a silent interval.
@@ -661,8 +657,7 @@ Changes:
 1. **Plan-source registry:** a small interface,
    `{id, label, build(inputs) → vowel keyframe plan | null}`.
    - Register "Estimated (today)", wrapping today's planner unchanged.
-   - #468 registers its planner later, as may the D11 option if the owner
-     chooses it.
+   - #468 registers its planner later.
 2. **Capture (debug only):**
    - While the panel is enabled, the ElevenLabs runtimes tee the latest run's PCM
      into a debug store, capped at 90 s and keeping only the last run.
@@ -774,9 +769,9 @@ Pending.
 
 ### Linked: audio tags in the chat model's `speech` (D12)
 
-Not part of these phases. Run intent discovery with the owner, then record the
-outcome as a linked issue or a spec addition before implementing. Phase 3's tag
-classification is the lip-sync-side input; #468 owns how lip-sync reacts.
+Not part of these phases. Intent discovery ran on 2026-10-12, and the outcome is
+[#479](https://github.com/raymond-van/animama/issues/479). It depends on Phases
+2–3. Its spec and plan placement are decided when `to-spec` completes it.
 
 ## Final integration review
 
@@ -807,7 +802,7 @@ Spec acceptance mapping:
 | Failures and allowance fallback | Phase 1 runtime and product-ui tests; existing fallback suites |
 | Hosted | Phase 1 server-socket compatibility tests; Phase 5 contract and Cloud issue |
 | Docs and contracts | Phases 1–2 contract bumps, `openapi-ts`; Phase 5 docs and package-set compare |
-| Checks | Phase 5 full run (and Phase 1 if PR A is split) |
+| Checks | Phase 5 full run |
 | Owner gate | G2 |
 
 Not run by agents: real IVC playback (spec D5), real hosted Cloud speech (G3),

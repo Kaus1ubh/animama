@@ -6,9 +6,11 @@ Owner decisions, 2026-10-12, in D1–D12 below:
 
 - D1–D4 are agreed, D5 is waived and D6 is approved.
 - D8 is confirmed in narrowed form, and D9 is pulled into this change.
-- The v4 Turbo streamed path is the priority (D10).
-- Audio tags in the chat model's `speech` are new scope. They go through intent
-  discovery and a linked issue (D12).
+- The v4 Turbo streamed path is the priority, delivered in one PR (D10).
+- There is no English lip-sync change before #468 (D11).
+- Audio tags in the chat model's `speech` are new scope. They are covered by
+  linked issue [#479](https://github.com/raymond-van/animama/issues/479) after
+  intent discovery (D12).
 
 Authoritative source: this draft, until `workspace-setup` publishes it to
 [issue #471](https://github.com/raymond-van/animama/issues/471).
@@ -65,14 +67,14 @@ Exclude:
 - Rendering lip-sync from the timing, and mouth shapes for vocal tags or for
   languages gruut cannot phonemize.
   [#468](https://github.com/raymond-van/animama/issues/468) owns these. Today's
-  gruut planner is not extended (D8), unless the owner opts into the minimal
-  English option (D11).
+  gruut planner is not extended (D8, D11).
 - Multi-speaker dialogue; each connection uses one voice.
 - Gemini TTS behaviour. It shares the finalized pipeline and must not regress.
 - Voice-cloning UI, beyond keeping clones working.
 - Animama Cloud code. A Cloud issue is prepared but not implemented.
-- Allowing the chat model to write audio tags in `speech`. That needs intent
-  discovery and a linked issue (D12); the prompt's ban stays until then.
+- Allowing the chat model to write audio tags in `speech`:
+  [#479](https://github.com/raymond-van/animama/issues/479) (D12). The prompt's
+  ban stays until then.
 
 ## Required behavior
 
@@ -154,6 +156,9 @@ Exclude:
   - **bracketed spans**, keeping the raw tag text and a classification:
     - a non-verbal sound (laughs, sighs, gasps, clears throat, crying, …) is a
       non-speech interval;
+    - a sound effect (applause, door creaks, …), which #479 allows on
+      ElevenLabs, is a separate non-speech interval. The avatar makes no
+      sound there, so the mouth rests.
     - delivery (whispers, shouts, softly, …) or emotion (excited, cheerfully,
       …) is a zero-width marker that applies to the following words;
     - pacing (`[pause]`, `[long pause]`) is a silent interval;
@@ -164,7 +169,7 @@ Exclude:
     it absorbs the laugh (#468 measurements). The module reports what the
     provider said; deciding word ends and tag placement is the planner's job.
 - Lip-sync rendering stays on today's estimated path in this change, for every
-  provider, unless the owner opts into D11.
+  provider (D11).
 - **Side-by-side view:**
   - a debug-only view, available where the Anima debug panel is enabled, shows
     a reply's audio timeline;
@@ -374,40 +379,28 @@ Exclude:
 - **D9 — Remove the gruut gate here (owner, 2026-10-12).** Finalized v4 and
   Gemini speak every language (R7). This reverses the earlier proposal to leave
   it to #468.
-- **D10 — Priority and delivery (owner, 2026-10-12; agent proposal on delivery).**
-  - The v4 Turbo streamed path is the priority. The ExecPlan reorders the work so
-    Phase 1 delivers it on its own: the realtime models, migration, token,
-    socket and settings, with `eleven_v3` untouched.
-  - Phase 2 then does the finalized v4 migration and D9.
-  - Proposed: open Phase 1 as its own PR, which can merge after its checks and
-    the owner's v4 Turbo listening check. The rest of the plan follows in a
-    second PR.
-  - Cost: `local-http` takes two major bumps instead of one.
-  - The owner decides whether to split.
-- **D11 — Minimal English lip-sync improvement before #468 (owner option;
-  proposed: not included).**
-  - The only visible change this plan could make without extending the gruut
-    planner is to warp today's English plan in time, so each word lands in its
-    timed window. It would be a post-process on the plan's output, English
-    only, and appear as a second curve in the side-by-side view.
-  - Limits:
-    - word ends overrun pauses, so the mouth stays open into them (about 21%
-      of silent gaps, per #468, against 61% today);
-    - a mid-sentence tag can be attributed to the previous word;
-    - Japanese, Korean and Chinese get no benefit;
-    - #468's planner replaces it.
-- **D12 — Audio tags in the chat model's `speech` (owner, 2026-10-12: new scope).**
-  - Run intent discovery, then record the outcome as a linked issue (or as
-    additions here) before any implementation.
-  - The open questions:
-    - one neutral vocabulary or provider-specific instructions;
-    - inline emotion tags;
-    - frequency and placement;
-    - validation;
-    - visible chat text;
-    - the per-provider switch;
-    - lip-sync input.
-  - Lip-sync reactions to tags stay with #468.
+- **D10 — Priority and delivery (owner, 2026-10-12).**
+  - The v4 Turbo streamed path is the priority. Phase 1 delivers it first, with
+    `eleven_v3` untouched; Phase 2 does the finalized migration and D9.
+  - One PR carries the whole plan. The owner declined a separate realtime PR.
+- **D11 — No English lip-sync change before #468 (owner, 2026-10-12).**
+  - The minimal option was a time warp of today's English plan into timed word
+    windows.
+  - It was declined. The mouth would stay open into pauses, mid-sentence tags
+    could land in the wrong place, Japanese, Korean and Chinese would get
+    nothing, and #468 replaces it.
+- **D12 — Audio tags in the chat model's `speech` (owner, 2026-10-12).**
+  - Intent discovery ran on 2026-10-12. The outcome is linked issue
+    [#479](https://github.com/raymond-van/animama/issues/479):
+    - a neutral vocabulary, plus ElevenLabs extras: inline emotion and delivery,
+      more non-verbal sounds and sound effects, but no accents;
+    - a sparing, capped frequency;
+    - tags hidden in chat but kept in history;
+    - unsupported tags dropped.
+  - It depends on this change's Phases 2–3. Its lip-sync reactions belong to
+    #468.
+  - This change's only part is the sound-effect class in the timing evidence
+    module (R4).
 
 ## Spec
 
