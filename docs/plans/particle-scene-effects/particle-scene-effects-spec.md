@@ -12,7 +12,7 @@ Plan 1, the R9 and R10 lists before Plan 2 starts (decided 2026-10-10).
 Authoritative source: [#297](https://github.com/raymond-van/animama/issues/297),
 published 2026-10-09 and updated with the before-Plan-2 decisions, the
 Plan 2 R9 additions and the owner's Plan 2 review (read back at
-2026-10-12T17:42:24Z). This file is a snapshot of that issue text; refresh it
+2026-10-12T17:54:16Z). This file is a snapshot of that issue text; refresh it
 from the issue before resuming and do not edit it as a competing source.
 Related: [#298](https://github.com/raymond-van/animama/issues/298) (Avatar
 Effects v2: unified effects creator, effect preview, shared effect-asset skill
@@ -613,7 +613,8 @@ Decisions (owner, before Plan 2):
   three revisions: every intensity-1 Reaction plays one fitting Avatar Effect
   without its accompanying sound (still no Particle or Scene Effect; it uses
   existing effects, including #462's Kira Star, Question Mark and Sigh Puff,
-  and one new effect, Single Tear; mouth effects stay out of Reactions because
+  and one new effect, Single Tear, plus the droop-style Sigh Puff Droop kept
+  as an alternate that no Reaction uses; mouth effects stay out of Reactions because
   they sit on the lip-synced mouth, so amusement-1 uses a redrawn, bolder Eye VV
   and amusement-2 adds #462's Heh Lettering);
   Scene stickers are spread evenly, still stickers never overlap another still

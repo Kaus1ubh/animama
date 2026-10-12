@@ -184,7 +184,7 @@ backend to `src/backend/animama/`, content to `content/included/`.
 - 2026-10-12, owner (P8 preview): the four new Avatar Effects are approved
   for promotion; Heart Burst at the chest should be slightly smaller with fewer
   small hearts after the burst. Published to #297 with the review decisions
-  (read back 2026-10-12T17:42:24Z).
+  (read back 2026-10-12T17:54:16Z).
 - 2026-10-12, owner: the mouth effects cannot play in Reactions (they sit on
   the lip-synced mouth; `test_no_included_action_plays_a_mouth_effect`), so
   amusement-1 takes `eye_vv` and joy-1 `sparkle_pop`; `eye_vv` is redrawn with
@@ -198,7 +198,7 @@ backend to `src/backend/animama/`, content to `content/included/`.
   same ID). P8 uses `main`'s instead: `kira_star_head` for `sparkle_pop`,
   `question_mark` for `emote_question`, `main`'s `sigh_puff`, and
   `heh_lettering` for `heh`; P8 keeps `single_tear` (silent, as `main` now
-  allows) and the redrawn `eye_vv`. The table above shows the result.
+  allows) and the redrawn `eye_vv`. The P8 table below shows the result.
 - 2026-10-12, owner: P8's droop-style sigh is kept as an alternate, Included
   as `sigh_puff_droop` ("Sigh Puff Droop", silent); disappointment-1 keeps
   `main`'s `sigh_puff`.
@@ -1194,9 +1194,10 @@ Starting source and issue: `2d6c5174`, #466.
 - **Level 1** (step 4): the four Avatar Effects were drafted with the effect
   skills (delegated; art from `image-gen` referencing Included art), saved
   Local, approved by the owner, and promoted
-  (`.animama-drafts/plan2/avatar/promote-p8.json`, 9 changes). Every Included
-  Avatar Effect carries one optional pack sound (ADR 0022, the comedy sound
-  pack guide and `test_every_included_avatar_effect_has_one_optional_licensed_sound`); all 29 are in use, so they share: Sparkle Pop
+  (`.animama-drafts/plan2/avatar/promote-p8.json`, 9 changes). Before the
+  merge of `main`, every Included Avatar Effect had to carry one optional pack
+  sound (ADR 0022, the comedy sound pack guide); `main` now allows silent ones
+  (`test_included_avatar_effect_sounds_are_optional_licensed_pack_sounds`); all 29 are in use, so they share: Sparkle Pop
   `bright_eyes`, Emote Question `wobble_riser_01v2`, Sigh Puff
   `funny_downer_02`, Single Tear `shrink_03`. All 24 level-1 Reactions play
   their mapped effect at 0.1 s with `playAccompanyingSound: false`
@@ -1223,11 +1224,22 @@ Starting source and issue: `2d6c5174`, #466.
   `sigh_puff` folder and thumbnail were taken; P8's `sparkle_pop`,
   `emote_question`, `heh` and its `sigh_puff` art were deleted with their
   templates, thumbnails and licence records; the template list and the count
-  pins (74 Avatar Effects and templates) combine both sides; the source-review
+  pins (74 Avatar Effects and templates, 75 with `sigh_puff_droop` below)
+  combine both sides; the source-review
   records were merged by path (main's 2851 plus the branch's, less the deleted
   files). Level 1 and amusement-2 were rewired to `kira_star_head`,
   `question_mark`, `sigh_puff` and `heh_lettering`; `single_tear` dropped its
   borrowed sound. No `main` Gesture uses a Particle or Scene Effect.
+- **Alternate sigh** (owner): P8's droop-style sigh was promoted again as
+  `sigh_puff_droop` ("Sigh Puff Droop", silent, `promote-p8-3.json`), with
+  its template, thumbnail and records; no Reaction uses it. Included Avatar
+  Effects and templates: 75.
+- **Final integration review #3** (last round, `9d8dacb1`): merge resolution,
+  `main`'s content against Plan 2's removals, level 1 and the records
+  verified; one Required records gap (FIR-R3-F1: `sigh_puff_droop` missing
+  from this record, #297 and the snapshot) and optional notes (the e2e scroll
+  loop's stale 73, the sound-rule wording, "above"), all fixed here. The
+  budget is spent, so these record fixes were not independently re-reviewed.
 
 #### Code Review #1 Findings
 
@@ -1269,7 +1281,7 @@ determinism, and the memoisation.
   1280 × 900. `layerGeometry.test.ts` has 37 tests (11 more) pinning these.
   Every Included Scene computes in 0.1–1.3 ms.
 - **F3 accepted:** #297 and the snapshot list five new effects, the mouth rule
-  and the overlap rule (read back 2026-10-12T17:42:24Z); plan line and step 4
+  and the overlap rule (read back 2026-10-12T17:54:16Z); plan line and step 4
   updated.
 - **F4 accepted:** `heh` and `sparkle_pop` use the wide framing; thumbnails
   regenerated and checked.
