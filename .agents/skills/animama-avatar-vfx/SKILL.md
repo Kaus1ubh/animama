@@ -121,6 +121,12 @@ promotion with `"mode": "replace"`.
   things on the chest or hands, stickers for comic text and props beside the
   head, the silhouette for a whole-body mood. Read the attachment table in
   [what](references/what.md).
+- An effect a Gesture plays is action-bound: it carries the motion's meaning,
+  sits on the acting hand, mouth, head or body (or comes out of the motion)
+  and lands on a beat. Emotion face paint (blush, tears, gloom, sweat drops,
+  anger veins, eye effects, face textures) stays with Reactions. Effects only
+  idle Gestures play are silent (`"sound": null` when promoted), and idle
+  Gestures set `playAccompanyingSound: false` on every effect event.
 - An effect owns its own motion (pulse, spin, drift, keyframes, flipbook);
   the Gesture or Reaction event owns when it plays and its fades. Keep the
   effect's motion short and loop-friendly.

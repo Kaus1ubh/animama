@@ -393,5 +393,19 @@
       "offset": [-0.035, 0.18, -0.015],
       "tolerance": 0.06
     }
+  ],
+  "events": [
+    {
+      "id": "question-mark",
+      "time": 0.5,
+      "kind": "avatar_vfx",
+      "effectId": "question_mark",
+      "duration": 1.7,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.3
+        }
+      }
+    }
   ]
 }

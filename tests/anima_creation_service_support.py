@@ -385,6 +385,11 @@ EXPECTED_STARTER_GESTURE_IDS = (
     "builtin:gesture:cheeky-finger-guns",
     "builtin:gesture:cat-monster-rawr",
     "builtin:gesture:single-hand-on-heart",
+    "builtin:gesture:explain-open-palms",
+    "builtin:gesture:goodbye-wave",
+    "builtin:gesture:tear-wipe",
+    "builtin:gesture:apology-bow",
+    "builtin:gesture:prayer-hands-thanks",
 )
 
 

@@ -18,7 +18,8 @@ import {
  * Untouched Included Gestures must play exactly as recorded in the baseline on
  * both Included Avatars, whatever changes in the sampler, hand presets or
  * schema. The baseline was generated from `main` at bfc0de4f and re-recorded
- * after the #314 Gesture revisions, additions and removals were promoted.
+ * after the #314 and #409 Gesture revisions, additions and removals were
+ * promoted.
  *
  * A clip changed on purpose is listed in REBASELINED, which skips its samples;
  * one deleted on purpose is listed in REMOVED. Clips missing from the baseline

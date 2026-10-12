@@ -10,6 +10,7 @@ import {
   INCLUDED_CONTENT_ROOT,
 } from "./effect-render-sources.mjs";
 import {
+  BODY_FRAMING_SCALE,
   THUMBNAIL_DIR,
   WIDE_FRAMING_SCALE,
   selectTemplates,
@@ -42,6 +43,10 @@ test("resolves a template's Included Gesture clip into its thumbnail job", async
   assert.equal(rest.clip, null);
   assert.equal(rest.time, undefined);
   assert.equal(rest.framingScale, 1);
+
+  const [body] = selectTemplates(["badum_burst"]);
+  assert.equal(body.thumbnail?.framing, "body");
+  assert.equal((await thumbnailJob(body)).framingScale, BODY_FRAMING_SCALE);
 
   await assert.rejects(
     thumbnailJob({ ...posed, thumbnail: { clip: "no-such-gesture" } }),

@@ -1,0 +1,33 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:ohohoho-noble-laugh",
+  "version": 1,
+  "semantic_key": "ohohoho_noble_laugh",
+  "name": "Ohohoho Noble Laugh",
+  "ai_description": "Use when gloating, showing off or playing the haughty rich-girl after a win or a compliment. Throws the head back with the back of the hand at the chin and the other hand on the hip, eyes closed, in a decaying 'Ohohoho!' laugh.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:laugh_marks",
+      "alias": "laugh_marks",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:laugh_sparkle",
+      "alias": "laugh_sparkle",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "ohohoho-noble-laugh.json",
+      "role": "sequence"
+    }
+  ]
+}

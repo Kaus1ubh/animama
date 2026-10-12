@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:who-me",
+  "version": 1,
+  "semantic_key": "who_me",
+  "name": "Who, Me?",
+  "ai_description": "Use when the user singles you out, credits or blames you, or asks you something you didn't expect to be asked: a surprised 'who, me?'. Points the right index finger at her own chest with a startled blink, raised eyebrows and a quizzical head tilt.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "who-me.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -679,5 +679,19 @@
         "blendOut": 0.16
       }
     }
+  ],
+  "events": [
+    {
+      "id": "kiss-heart",
+      "time": 1.12,
+      "kind": "avatar_vfx",
+      "effectId": "kiss_heart_head",
+      "duration": 0.98,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.22
+        }
+      }
+    }
   ]
 }

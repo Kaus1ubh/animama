@@ -963,5 +963,32 @@
         "dt": -0.12
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "finger-gun-spark-right",
+      "time": 0.6,
+      "kind": "avatar_vfx",
+      "effectId": "finger_gun_spark",
+      "duration": 0.5,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.18
+        }
+      }
+    },
+    {
+      "id": "finger-gun-spark-left",
+      "time": 0.63,
+      "kind": "avatar_vfx",
+      "effectId": "finger_gun_spark_left",
+      "duration": 0.5,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.18
+        }
+      },
+      "playAccompanyingSound": false
+    }
+  ]
 }

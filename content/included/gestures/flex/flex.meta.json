@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:flex",
+  "version": 1,
+  "semantic_key": "flex_strong",
+  "name": "Flex",
+  "ai_description": "Use when boasting about being strong or capable, promising to handle something (\"Leave it to me!\"), or proudly accepting praise for effort. Flexes the right biceps with a fist up, pats the muscle twice with the left hand and winks with a confident grin.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:shock_marks",
+      "alias": "shock_marks",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "flex.json",
+      "role": "sequence"
+    }
+  ]
+}

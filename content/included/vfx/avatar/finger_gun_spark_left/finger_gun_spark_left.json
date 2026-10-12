@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:finger_gun_spark_left",
+  "version": 1,
+  "name": "Finger Gun Spark Left",
+  "description": "A tiny cartoon \"bang\" spark flashes at the left index fingertip as a finger gun fires. The left twin of Finger Gun Spark.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:retro_laser_focus_02v1",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "leftHand",
+      "offset": {
+        "x": 0.142,
+        "y": 0.015,
+        "z": 0.031
+      },
+      "size": 0.06,
+      "facing": "camera",
+      "rotationDeg": 12
+    },
+    "art": {
+      "image": "finger_gun_spark.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.06,
+            "opacity": 1,
+            "scale": 1.3
+          },
+          {
+            "t": 0.13,
+            "scale": 0.9
+          },
+          {
+            "t": 0.2,
+            "scale": 1,
+            "offset": {
+              "x": 0,
+              "y": 0.004
+            }
+          },
+          {
+            "t": 0.4,
+            "scale": 1.05,
+            "offset": {
+              "x": 0,
+              "y": 0.006
+            }
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "finger_gun_spark.png",
+      "role": "image"
+    }
+  ]
+}

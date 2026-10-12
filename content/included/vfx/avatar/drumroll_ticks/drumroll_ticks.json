@@ -1,0 +1,71 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:drumroll_ticks",
+  "version": 1,
+  "name": "Drumroll Ticks",
+  "description": "Small curved impact ticks flash under the right index fingertip on every beat of an air drumroll drummed with the index fingers. Pair with Drumroll Ticks Left on the left hand.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:drum_tremolo_01",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "rightHand",
+      "offset": {
+        "x": -0.122,
+        "y": 0.006,
+        "z": 0.016
+      },
+      "size": 0.18,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "drumroll_ticks.png"
+    },
+    "motion": {
+      "keyframes": {
+        "loop": true,
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 1,
+            "scale": 0.8
+          },
+          {
+            "t": 0.044,
+            "scale": 1.12
+          },
+          {
+            "t": 0.099,
+            "scale": 1
+          },
+          {
+            "t": 0.198,
+            "opacity": 0,
+            "scale": 0.92
+          },
+          {
+            "t": 0.374,
+            "opacity": 0,
+            "scale": 0.8
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "drumroll_ticks.png",
+      "role": "image"
+    }
+  ]
+}

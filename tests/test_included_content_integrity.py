@@ -104,7 +104,7 @@ def test_core_gesture_identities_stay_distinct_from_the_mixamo_pack() -> None:
         json.loads(path.read_text(encoding="utf-8"))
         for path in sorted((ROOT / "content/included/gestures").glob("*/*.meta.json"))
     ]
-    assert len(metas) >= 43
+    assert len(metas) >= 107
     assert _pack_collisions(metas, pack) == []
     assert _pack_collisions([{"content_id": "builtin:gesture:goodbye-wave", "semantic_key": "wave"}], pack) == [
         ("goodbye-wave", "wave")
@@ -232,3 +232,21 @@ def test_stacked_avatar_effects_play_one_accompanying_sound_at_a_time() -> None:
             if event.get("kind") == "avatar_vfx" and event.get("playAccompanyingSound", True)
         )
         assert all(later - earlier >= 0.3 for earlier, later in pairwise(audible)), path.name
+
+
+def test_included_idle_gestures_play_no_accompanying_sound() -> None:
+    """Idle Gestures play while the Anima is quiet, so their effects stay silent."""
+
+    styles = sorted((ROOT / "content/included/idle-styles").glob("*/*.json"))
+    assert styles
+    for style_path in styles:
+        style = json.loads(style_path.read_text(encoding="utf-8"))
+        for edge in style["dependencies"]:
+            if edge["kind"] != "gesture":
+                continue
+            slug = edge["ref"].removeprefix("builtin:gesture:")
+            clip = json.loads((ROOT / f"content/included/gestures/{slug}/{slug}.json").read_text(encoding="utf-8"))
+            for event in clip.get("events", []):
+                assert event.get("kind") != "sfx", (style_path.name, slug, event.get("id"))
+                if event.get("kind") == "avatar_vfx":
+                    assert event.get("playAccompanyingSound") is False, (style_path.name, slug, event.get("id"))

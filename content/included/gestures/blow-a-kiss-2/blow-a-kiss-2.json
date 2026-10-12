@@ -1072,5 +1072,19 @@
       "point": "tip",
       "targetPoint": "tip"
     }
+  ],
+  "events": [
+    {
+      "id": "kiss-heart",
+      "time": 1.15,
+      "kind": "avatar_vfx",
+      "effectId": "kiss_heart_head",
+      "duration": 1.15,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.25
+        }
+      }
+    }
   ]
 }

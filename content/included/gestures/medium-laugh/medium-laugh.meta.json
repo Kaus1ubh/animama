@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "laugh_medium",
   "name": "Medium Laugh",
-  "ai_description": "A warm, open laugh: the head tips back, the shoulders bounce gently, one hand rests on the belly and the other hangs loosely at the side. Stronger than laugh_mild, lighter than laugh_hard. Use when something is clearly funny.",
+  "ai_description": "Use when something is clearly funny: stronger than a mild laugh, lighter than a hearty one. The head tips back in a warm laugh, shoulders bouncing, one hand on the belly.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

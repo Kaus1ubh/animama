@@ -1,0 +1,65 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:annoyed_scribble",
+  "version": 1,
+  "name": "Annoyed Scribble",
+  "description": "A small navy scribble cloud boils above the head beside the temple, the anime tangled-irritation mark for a simmering, annoyed glare.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": -0.135,
+        "y": 0.2,
+        "z": 0.03
+      },
+      "size": 0.09,
+      "facing": "camera",
+      "rotationDeg": 6
+    },
+    "art": {
+      "image": "annoyed_scribble-sheet.png",
+      "flipbook": {
+        "columns": 3,
+        "rows": 1,
+        "frames": 3,
+        "fps": 8,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.12,
+            "opacity": 1,
+            "scale": 1.15
+          },
+          {
+            "t": 0.22,
+            "scale": 1
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "annoyed_scribble-sheet.png",
+      "role": "image"
+    }
+  ]
+}

@@ -1,0 +1,155 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:tear_flick_head",
+  "version": 1,
+  "name": "Tear Flick",
+  "description": "One tiny glinting droplet is flicked off beside the right cheek, arcs outward and then drifts slowly down with a glint, for brushing away a tear and staying brave. Head-anchored, so it stays clear of the face after the hand moves on.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:digital_droplet",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": -0.09,
+        "y": 0.044,
+        "z": 0.157
+      },
+      "size": 0.06,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "tear_flick.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.4,
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "rotationDeg": -35
+          },
+          {
+            "t": 0.03,
+            "opacity": 1,
+            "scale": 1.2,
+            "offset": {
+              "x": -0.007,
+              "y": 0.004
+            },
+            "rotationDeg": -28
+          },
+          {
+            "t": 0.07,
+            "scale": 1,
+            "offset": {
+              "x": -0.018,
+              "y": 0.008
+            },
+            "rotationDeg": -18
+          },
+          {
+            "t": 0.11,
+            "offset": {
+              "x": -0.03,
+              "y": 0.007
+            },
+            "rotationDeg": -6
+          },
+          {
+            "t": 0.16,
+            "scale": 0.96,
+            "offset": {
+              "x": -0.043,
+              "y": 0
+            },
+            "rotationDeg": 6
+          },
+          {
+            "t": 0.2,
+            "scale": 0.93,
+            "offset": {
+              "x": -0.052,
+              "y": -0.009
+            },
+            "rotationDeg": 14
+          },
+          {
+            "t": 0.24,
+            "scale": 0.9,
+            "offset": {
+              "x": -0.06,
+              "y": -0.02
+            },
+            "rotationDeg": 20
+          },
+          {
+            "t": 0.4,
+            "scale": 0.97,
+            "offset": {
+              "x": -0.064,
+              "y": -0.027
+            },
+            "rotationDeg": 28
+          },
+          {
+            "t": 0.55,
+            "scale": 0.9,
+            "offset": {
+              "x": -0.067,
+              "y": -0.033
+            },
+            "rotationDeg": 32
+          },
+          {
+            "t": 0.9,
+            "scale": 0.95,
+            "offset": {
+              "x": -0.071,
+              "y": -0.045
+            },
+            "rotationDeg": 35
+          },
+          {
+            "t": 1.05,
+            "scale": 0.88,
+            "offset": {
+              "x": -0.073,
+              "y": -0.051
+            }
+          },
+          {
+            "t": 1.5,
+            "scale": 0.86,
+            "offset": {
+              "x": -0.077,
+              "y": -0.065
+            },
+            "rotationDeg": 38
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "tear_flick.png",
+      "role": "image"
+    }
+  ]
+}

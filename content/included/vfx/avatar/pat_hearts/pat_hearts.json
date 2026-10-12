@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:pat_hearts",
+  "version": 1,
+  "name": "Pat Hearts",
+  "description": "Three small red hearts pop one after another beside the head on the Avatar's left and float gently, a warm \"there, there\" for a head pat, comfort or gentle praise.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:dreamy_bell_02v2",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": 0.144,
+        "y": 0.142,
+        "z": 0.006
+      },
+      "size": 0.09,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "hearts_burst-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "rows": 2,
+        "frames": 7,
+        "fps": 12,
+        "loop": "once"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.08,
+            "opacity": 1
+          },
+          {
+            "t": 1.6,
+            "offset": {
+              "x": 0.003,
+              "y": 0.01
+            }
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "hearts_burst-sheet.png",
+      "role": "image"
+    }
+  ]
+}

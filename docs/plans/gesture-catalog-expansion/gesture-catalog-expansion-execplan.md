@@ -60,9 +60,12 @@ the git-ignored `.animama-drafts/gesture-catalog-expansion/` of this worktree.
       drafted and approved 2026-10-10 (Excited Triple Clap keeps only its R8
       contact cleanup). Sounds follow in Phase 5.
 - [x] Phase 5 (#416): `main` merged (`7dc04ecf`); G2b approved 2026-10-11;
-      pack v2 assembled and verified locally (published by the owner);
+      pack v2 assembled, published 2026-10-11 at the owner's request (101
+      objects) and fetched back with the read token (100 files verified);
       silent built-in effects allowed; review #2 passed.
-- [ ] Phase 6 (#417): promotion, registries, starters and final validation; G3 (R1–R9).
+- [ ] Phase 6 (#417): G3 approved 2026-10-11; promotion, registries, starters
+      and checks done (see Phase 6 record); full `pnpm e2e:test` and the final
+      integration review remain.
 - [ ] Final integration review.
 - [ ] PR; owner merge approval.
 
@@ -139,6 +142,18 @@ the git-ignored `.animama-drafts/gesture-catalog-expansion/` of this worktree.
     with Reactions.
   - **Art.** New manpu art is original work in the style of the owner's
     reference sheet (inspiration only; not traced).
+- 2026-10-11, owner (G3): approved the promotion package with every
+  recommendation: the five lettering effects are regenerated with Nunito
+  Black (SIL OFL 1.1, downloaded from google/fonts with the owner's approval)
+  instead of macOS Arial Rounded Bold; generated art keeps
+  `LicenseRef-Animama-agent-authored` and names OpenAI image generation in
+  its provenance; licence wording as drafted; the five starters, after a
+  rerun of the evaluation at effort none with the final descriptions and all
+  107 Gestures; `loop_count` 1 for Hand on Heart and Thinking Head Scratch;
+  descriptions of Gestures that gain effects unchanged; effect display names
+  without build suffixes; the three event trims; approval date 2026-10-11.
+- 2026-10-11, owner: asked the agent to publish pack v2; published with the
+  owner's write-token file and fetched back with the read token.
 - 2026-10-11, owner (G2b): approved the revised sound pairings (`SOUNDS.md`:
   21 new pack sounds, 3 reused v1 sounds, 11 silent effects), keeping the
   Included blush effects' existing chirps; proceed with the rest of the plan.
@@ -529,6 +544,34 @@ Setup:
 - **Starter proposal for G3:** the five candidates, with tighter "when"
   descriptions for those two Gestures.
 
+#### Evaluation rerun (2026-10-11, final descriptions)
+
+Before the starter write (G3 decision): effort none only, the final G3
+descriptions, a 107-Gesture loadout (all R1 and R1b Gestures and the 12
+idles), and `acceptable` lists extended for R1b and idles (49 selectors on 35
+items, recorded in `eval/extend_prompts_r1b.py`; no new prompts). The task
+stack first needed the merged schema column and a server image rebuild
+(no purge). 720 calls, no errors; about 3.79M input tokens (3.17M cached) and
+63k output, roughly $0.15 (harness "unpriced").
+
+| Loadout | Fit | Null |
+| --- | --- | --- |
+| Baseline, 20 (3.0 KB) | 65.6% (118/180) | 22.2% |
+| Candidate, 25 (5.1 KB) | 67.2% (121/180) | 20.6% |
+| All 107 (23.9 KB) | 82.8% (149/180) | 13.3% |
+
+- **Pass rule:** met, narrowly (+3 fits; beats +4, goodbyes +3, neutral −3,
+  emotions −1).
+- **Tightened texts:** Explain with Open Palms falls to 14/180 candidate picks
+  and none on neutral turns; Thinking Hand on Chin stays the most frequent
+  candidate pick (22/180).
+- **Idles in a full loadout:** BGM Bob is picked on both small-talk neutral
+  turns (6/6), which suggests idle descriptions should discourage ordinary
+  selection if idles are ever equipped as Gestures.
+- **R1b:** Virtual Hug, Fingers Crossed, Zip Lips, Flustered Fan and Chef's
+  Kiss are picked and fit; 12 of the 34 R1b Gestures and idles are used.
+- Tear Wipe is never picked; sadness goes to Hand on Heart.
+
 #### Code Review #1 Findings
 
 Reviewed 2026-10-10: the uncommitted harness tree on `44c16bff` (`scripts/evals/`,
@@ -787,6 +830,33 @@ Checks:
 - Measured web bundle growth of the Included clip JSON.
 
 Phase 6 is reviewed as part of the final integration review.
+
+#### Phase 6 record (2026-10-11)
+
+- **Promotion** (dry run before each write; results matched): `effects
+  promote` 109 changes (44 Avatar Effects, 33 with sounds and 11 silent, plus
+  the 10 existing Gestures' clips and dependencies); `animation promote` adds
+  130 files (64 Gestures); Excited Triple Clap replace 4 files; the 10
+  existing Gestures' descriptions and licence records 14 files; hand edits 35
+  writes (32 descriptions, 44 effect licence rules, Streamer Idle).
+- **Lettering:** regenerated with Nunito Black (OFL); credited in
+  `licenses/third-party/art-NOTICES.md`.
+- **Registries:** Gesture count pins 43 → 107, Avatar Effect pins 29 → 73;
+  Heart Hands and Hand on Heart leave `MOTION_CHECK_EXEMPT`; 11 clips
+  re-baselined and 64 added; Hand on Heart and Thinking Head Scratch play one
+  cycle; 44 picker templates and thumbnails (a new `body` framing for
+  low-placed art); seven thumbnail records corrected to say their art is
+  copied or composited from Included owner art.
+- **Starters:** 20 → 25 (Explain with Open Palms, Goodbye Wave, Tear Wipe,
+  Apology Bow, Prayer Hands Thanks), after the evaluation rerun.
+- **Tests added:** Streamer Idle resolves and all 12 members are
+  idle-eligible; idle Gestures play no accompanying sound (P5-R1-06).
+- **Bundle:** Included clip JSON in the entry chunk grows from about 278 KiB
+  to 920 KiB minified (31 → 105 KiB gzip).
+- **Checks:** `uv run pytest -q` and `make check-test` 3994 passed, 27
+  skipped; `pnpm check`, `pnpm web:lint`, `pnpm web:test` (vitest, node and
+  browser tests), `pnpm build`, desktop stage and audit (darwin arm64) pass;
+  Prettier, ruff and format checks clean.
 
 ## Final integration review
 

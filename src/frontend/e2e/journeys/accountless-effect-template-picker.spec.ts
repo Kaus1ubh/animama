@@ -174,7 +174,7 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
           picker.getByRole("heading", { name: group, exact: true }),
         ).toBeVisible();
       const images = picker.locator("img");
-      await expect(images).toHaveCount(29);
+      await expect(images).toHaveCount(73);
       await expect
         .poll(
           () =>

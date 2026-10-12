@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "thinking_chin_rest",
   "name": "Thinking Chin",
-  "ai_description": "A held thinking pose: the chin rests on a loose fist, its elbow cradled in the other hand, while the eyes drift. Use while pondering a question.",
+  "ai_description": "Use while pondering a question deeply or taking a moment to think. Rests the chin on a loose fist, its elbow cradled in the other hand, as the head drifts and the fingers tap.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

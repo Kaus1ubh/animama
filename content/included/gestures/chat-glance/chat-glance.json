@@ -1,0 +1,1372 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "chat-glance",
+  "name": "Chat Glance",
+  "duration": 8.8,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.66
+  },
+  "fadeOut": {
+    "duration": 0.77
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "glance",
+      "label": "Glance down",
+      "time": 0.825
+    },
+    {
+      "id": "read",
+      "label": "Read chat",
+      "time": 1.43
+    },
+    {
+      "id": "mmhm",
+      "label": "Mm-hm",
+      "time": 2.42
+    },
+    {
+      "id": "lookup",
+      "label": "Look up",
+      "time": 3.52
+    },
+    {
+      "id": "glance2",
+      "label": "Glance again",
+      "time": 4.95
+    },
+    {
+      "id": "back",
+      "label": "Back to camera",
+      "time": 6.435
+    },
+    {
+      "id": "smile",
+      "label": "Soft smile",
+      "time": 7.15
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 8.69
+    }
+  ],
+  "joints": {
+    "eyes": {
+      "yaw": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "glance",
+          "dt": -0.187
+        },
+        {
+          "v": 13,
+          "beat": "glance"
+        },
+        {
+          "v": 11,
+          "beat": "glance",
+          "dt": 0.297
+        },
+        {
+          "v": 8.5,
+          "beat": "read"
+        },
+        {
+          "v": 5.5,
+          "beat": "read",
+          "dt": 0.484
+        },
+        {
+          "v": 9,
+          "beat": "read",
+          "dt": 0.616
+        },
+        {
+          "v": 6,
+          "beat": "mmhm",
+          "dt": 0.286
+        },
+        {
+          "v": 8.5,
+          "beat": "mmhm",
+          "dt": 0.396
+        },
+        {
+          "v": 7,
+          "beat": "lookup",
+          "dt": -0.176
+        },
+        {
+          "v": -9,
+          "beat": "lookup"
+        },
+        {
+          "v": -4,
+          "beat": "lookup",
+          "dt": 0.275
+        },
+        {
+          "v": 0,
+          "beat": "lookup",
+          "dt": 0.638
+        },
+        {
+          "v": -0.8,
+          "beat": "lookup",
+          "dt": 0.935
+        },
+        {
+          "v": 0.3,
+          "beat": "glance2",
+          "dt": -0.187
+        },
+        {
+          "v": 11,
+          "beat": "glance2"
+        },
+        {
+          "v": 9,
+          "beat": "glance2",
+          "dt": 0.242
+        },
+        {
+          "v": 7,
+          "beat": "glance2",
+          "dt": 0.528
+        },
+        {
+          "v": 4.5,
+          "beat": "glance2",
+          "dt": 1.056
+        },
+        {
+          "v": 5.5,
+          "beat": "back",
+          "dt": -0.165
+        },
+        {
+          "v": -8,
+          "beat": "back"
+        },
+        {
+          "v": -3,
+          "beat": "back",
+          "dt": 0.275
+        },
+        {
+          "v": 0,
+          "beat": "smile",
+          "dt": -0.132
+        },
+        {
+          "v": 0.7,
+          "beat": "smile",
+          "dt": 0.495
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.385
+        }
+      ],
+      "pitch": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "glance",
+          "dt": -0.187
+        },
+        {
+          "v": -11,
+          "beat": "glance"
+        },
+        {
+          "v": -9.5,
+          "beat": "glance",
+          "dt": 0.297
+        },
+        {
+          "v": -7.5,
+          "beat": "read"
+        },
+        {
+          "v": -7.8,
+          "beat": "read",
+          "dt": 0.484
+        },
+        {
+          "v": -8.7,
+          "beat": "read",
+          "dt": 0.616
+        },
+        {
+          "v": -8.9,
+          "beat": "mmhm",
+          "dt": 0.286
+        },
+        {
+          "v": -8.2,
+          "beat": "mmhm",
+          "dt": 0.396
+        },
+        {
+          "v": -8.5,
+          "beat": "lookup",
+          "dt": -0.176
+        },
+        {
+          "v": 7.5,
+          "beat": "lookup"
+        },
+        {
+          "v": 3.5,
+          "beat": "lookup",
+          "dt": 0.275
+        },
+        {
+          "v": 0,
+          "beat": "lookup",
+          "dt": 0.638
+        },
+        {
+          "v": 0.5,
+          "beat": "lookup",
+          "dt": 0.935
+        },
+        {
+          "v": 0,
+          "beat": "glance2",
+          "dt": -0.187
+        },
+        {
+          "v": -10,
+          "beat": "glance2"
+        },
+        {
+          "v": -8.5,
+          "beat": "glance2",
+          "dt": 0.242
+        },
+        {
+          "v": -7,
+          "beat": "glance2",
+          "dt": 0.528
+        },
+        {
+          "v": -7.4,
+          "beat": "glance2",
+          "dt": 1.056
+        },
+        {
+          "v": -7.2,
+          "beat": "back",
+          "dt": -0.165
+        },
+        {
+          "v": 6,
+          "beat": "back"
+        },
+        {
+          "v": 2.5,
+          "beat": "back",
+          "dt": 0.275
+        },
+        {
+          "v": 0,
+          "beat": "smile",
+          "dt": -0.132
+        },
+        {
+          "v": 0.4,
+          "beat": "smile",
+          "dt": 0.495
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.385
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": -0.033
+        },
+        {
+          "v": 9.6,
+          "beat": "read",
+          "dt": -0.088
+        },
+        {
+          "v": 8.8,
+          "beat": "read",
+          "dt": 0.352
+        },
+        {
+          "v": 8.2,
+          "beat": "mmhm",
+          "dt": -0.22
+        },
+        {
+          "v": 12.5,
+          "beat": "mmhm"
+        },
+        {
+          "v": 8.8,
+          "beat": "mmhm",
+          "dt": 0.242
+        },
+        {
+          "v": 11,
+          "beat": "mmhm",
+          "dt": 0.484
+        },
+        {
+          "v": 9.2,
+          "beat": "mmhm",
+          "dt": 0.77
+        },
+        {
+          "v": 9,
+          "beat": "lookup",
+          "dt": 0.077
+        },
+        {
+          "v": 1.2,
+          "beat": "lookup",
+          "dt": 0.572
+        },
+        {
+          "v": 0.4,
+          "beat": "lookup",
+          "dt": 1.1
+        },
+        {
+          "v": 1,
+          "beat": "glance2",
+          "dt": 0.066
+        },
+        {
+          "v": 6.8,
+          "beat": "glance2",
+          "dt": 0.528
+        },
+        {
+          "v": 6,
+          "beat": "glance2",
+          "dt": 1.1
+        },
+        {
+          "v": 6.2,
+          "beat": "back",
+          "dt": 0.055
+        },
+        {
+          "v": -1.4,
+          "beat": "back",
+          "dt": 0.517
+        },
+        {
+          "v": 0.4,
+          "beat": "smile",
+          "dt": 0.308
+        },
+        {
+          "v": 0.9,
+          "beat": "smile",
+          "dt": 0.88
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": -0.033
+        },
+        {
+          "v": 10.6,
+          "beat": "read",
+          "dt": -0.055
+        },
+        {
+          "v": 9.8,
+          "beat": "read",
+          "dt": 0.385
+        },
+        {
+          "v": 9.3,
+          "beat": "mmhm",
+          "dt": 0.22
+        },
+        {
+          "v": 10,
+          "beat": "lookup",
+          "dt": -0.22
+        },
+        {
+          "v": 9.8,
+          "beat": "lookup",
+          "dt": 0.066
+        },
+        {
+          "v": 2.2,
+          "beat": "lookup",
+          "dt": 0.594
+        },
+        {
+          "v": 1.6,
+          "beat": "lookup",
+          "dt": 1.155
+        },
+        {
+          "v": 2,
+          "beat": "glance2",
+          "dt": 0.055
+        },
+        {
+          "v": 8.4,
+          "beat": "glance2",
+          "dt": 0.528
+        },
+        {
+          "v": 7.8,
+          "beat": "glance2",
+          "dt": 1.155
+        },
+        {
+          "v": 7.8,
+          "beat": "back",
+          "dt": 0.055
+        },
+        {
+          "v": -1.2,
+          "beat": "back",
+          "dt": 0.539
+        },
+        {
+          "v": 0.5,
+          "beat": "smile",
+          "dt": 0.352
+        },
+        {
+          "v": -0.3,
+          "beat": "smile",
+          "dt": 0.935
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance"
+        },
+        {
+          "v": 3,
+          "beat": "read",
+          "dt": 0.055
+        },
+        {
+          "v": 3.8,
+          "beat": "mmhm",
+          "dt": 0.11
+        },
+        {
+          "v": 3.2,
+          "beat": "lookup",
+          "dt": -0.11
+        },
+        {
+          "v": 0.8,
+          "beat": "lookup",
+          "dt": 0.66
+        },
+        {
+          "v": 0.2,
+          "beat": "lookup",
+          "dt": 1.21
+        },
+        {
+          "v": 2.6,
+          "beat": "glance2",
+          "dt": 0.55
+        },
+        {
+          "v": 3.4,
+          "beat": "glance2",
+          "dt": 1.155
+        },
+        {
+          "v": 2.6,
+          "beat": "back",
+          "dt": 0.11
+        },
+        {
+          "v": -3.4,
+          "beat": "smile",
+          "dt": 0.11
+        },
+        {
+          "v": -2.6,
+          "beat": "smile",
+          "dt": 0.88
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": 0.055
+        },
+        {
+          "v": 5.2,
+          "beat": "read",
+          "dt": 0.044
+        },
+        {
+          "v": 4.8,
+          "beat": "mmhm",
+          "dt": -0.154
+        },
+        {
+          "v": 6.6,
+          "beat": "mmhm",
+          "dt": 0.077
+        },
+        {
+          "v": 5,
+          "beat": "mmhm",
+          "dt": 0.308
+        },
+        {
+          "v": 5.9,
+          "beat": "mmhm",
+          "dt": 0.55
+        },
+        {
+          "v": 5.1,
+          "beat": "mmhm",
+          "dt": 0.836
+        },
+        {
+          "v": 5,
+          "beat": "lookup",
+          "dt": 0.132
+        },
+        {
+          "v": 0.8,
+          "beat": "lookup",
+          "dt": 0.66
+        },
+        {
+          "v": 0.4,
+          "beat": "lookup",
+          "dt": 1.21
+        },
+        {
+          "v": 0.6,
+          "beat": "glance2",
+          "dt": 0.132
+        },
+        {
+          "v": 3.8,
+          "beat": "glance2",
+          "dt": 0.605
+        },
+        {
+          "v": 3.5,
+          "beat": "back",
+          "dt": 0.11
+        },
+        {
+          "v": -0.6,
+          "beat": "back",
+          "dt": 0.605
+        },
+        {
+          "v": 0.3,
+          "beat": "smile",
+          "dt": 0.44
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": 0.055
+        },
+        {
+          "v": 6,
+          "beat": "read",
+          "dt": 0.066
+        },
+        {
+          "v": 5.5,
+          "beat": "mmhm",
+          "dt": 0.33
+        },
+        {
+          "v": 5.9,
+          "beat": "lookup",
+          "dt": 0.132
+        },
+        {
+          "v": 1.4,
+          "beat": "lookup",
+          "dt": 0.66
+        },
+        {
+          "v": 1,
+          "beat": "lookup",
+          "dt": 1.21
+        },
+        {
+          "v": 1.2,
+          "beat": "glance2",
+          "dt": 0.132
+        },
+        {
+          "v": 4.8,
+          "beat": "glance2",
+          "dt": 0.605
+        },
+        {
+          "v": 4.6,
+          "beat": "back",
+          "dt": 0.11
+        },
+        {
+          "v": -0.6,
+          "beat": "back",
+          "dt": 0.627
+        },
+        {
+          "v": 0.3,
+          "beat": "smile",
+          "dt": 0.44
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": 0.121
+        },
+        {
+          "v": 1.5,
+          "beat": "read",
+          "dt": 0.165
+        },
+        {
+          "v": 2,
+          "beat": "mmhm",
+          "dt": 0.132
+        },
+        {
+          "v": 1.7,
+          "beat": "lookup",
+          "dt": 0.176
+        },
+        {
+          "v": 0.3,
+          "beat": "lookup",
+          "dt": 0.77
+        },
+        {
+          "v": 0.4,
+          "beat": "glance2",
+          "dt": 0.176
+        },
+        {
+          "v": 1.2,
+          "beat": "glance2",
+          "dt": 0.682
+        },
+        {
+          "v": 1.1,
+          "beat": "back",
+          "dt": 0.165
+        },
+        {
+          "v": -0.8,
+          "beat": "smile",
+          "dt": 0.055
+        },
+        {
+          "v": -0.4,
+          "beat": "smile",
+          "dt": 0.77
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": 0.121
+        },
+        {
+          "v": 2.5,
+          "beat": "read",
+          "dt": 0.165
+        },
+        {
+          "v": 2.2,
+          "beat": "mmhm",
+          "dt": 0.44
+        },
+        {
+          "v": 2.5,
+          "beat": "lookup",
+          "dt": 0.176
+        },
+        {
+          "v": 0.8,
+          "beat": "lookup",
+          "dt": 0.77
+        },
+        {
+          "v": 0.7,
+          "beat": "glance2",
+          "dt": 0.176
+        },
+        {
+          "v": 2,
+          "beat": "glance2",
+          "dt": 0.682
+        },
+        {
+          "v": 1.9,
+          "beat": "back",
+          "dt": 0.165
+        },
+        {
+          "v": -0.2,
+          "beat": "smile",
+          "dt": 0.055
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": 0.165
+        },
+        {
+          "v": 1,
+          "beat": "read",
+          "dt": 0.275
+        },
+        {
+          "v": 1.1,
+          "beat": "lookup",
+          "dt": 0.22
+        },
+        {
+          "v": 0.2,
+          "beat": "lookup",
+          "dt": 0.88
+        },
+        {
+          "v": 0.2,
+          "beat": "glance2",
+          "dt": 0.22
+        },
+        {
+          "v": 0.6,
+          "beat": "glance2",
+          "dt": 0.77
+        },
+        {
+          "v": 0.6,
+          "beat": "back",
+          "dt": 0.22
+        },
+        {
+          "v": -0.5,
+          "beat": "smile",
+          "dt": 0.11
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": 0.165
+        },
+        {
+          "v": 1.2,
+          "beat": "read",
+          "dt": 0.275
+        },
+        {
+          "v": 1.3,
+          "beat": "lookup",
+          "dt": 0.22
+        },
+        {
+          "v": 0.3,
+          "beat": "lookup",
+          "dt": 0.88
+        },
+        {
+          "v": 0.3,
+          "beat": "glance2",
+          "dt": 0.22
+        },
+        {
+          "v": 1,
+          "beat": "glance2",
+          "dt": 0.77
+        },
+        {
+          "v": 1,
+          "beat": "back",
+          "dt": 0.22
+        },
+        {
+          "v": 0,
+          "beat": "smile",
+          "dt": 0.11
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "spine": {
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": 0.22
+        },
+        {
+          "v": 1,
+          "beat": "read",
+          "dt": 0.44
+        },
+        {
+          "v": 1.1,
+          "beat": "lookup",
+          "dt": 0.275
+        },
+        {
+          "v": 0.3,
+          "beat": "lookup",
+          "dt": 0.99
+        },
+        {
+          "v": 0.7,
+          "beat": "glance2",
+          "dt": 0.825
+        },
+        {
+          "v": 0.6,
+          "beat": "back",
+          "dt": 0.275
+        },
+        {
+          "v": -0.4,
+          "beat": "smile",
+          "dt": 0.33
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": 0.22
+        },
+        {
+          "v": -3.6,
+          "beat": "read",
+          "dt": 0.44
+        },
+        {
+          "v": -2.9,
+          "beat": "mmhm",
+          "dt": 0.176
+        },
+        {
+          "v": -3.4,
+          "beat": "lookup",
+          "dt": 0.33
+        },
+        {
+          "v": -2.6,
+          "beat": "lookup",
+          "dt": 0.99
+        },
+        {
+          "v": -3,
+          "beat": "back",
+          "dt": 0.275
+        },
+        {
+          "v": -1.6,
+          "beat": "smile",
+          "dt": 0.22
+        },
+        {
+          "v": -2.2,
+          "beat": "smile",
+          "dt": 0.88
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": 0.275
+        },
+        {
+          "v": -3.2,
+          "beat": "read",
+          "dt": 0.495
+        },
+        {
+          "v": -2.6,
+          "beat": "mmhm",
+          "dt": 0.22
+        },
+        {
+          "v": -3,
+          "beat": "lookup",
+          "dt": 0.385
+        },
+        {
+          "v": -2.3,
+          "beat": "lookup",
+          "dt": 1.045
+        },
+        {
+          "v": -2.7,
+          "beat": "back",
+          "dt": 0.33
+        },
+        {
+          "v": -1.3,
+          "beat": "smile",
+          "dt": 0.275
+        },
+        {
+          "v": -1.9,
+          "beat": "smile",
+          "dt": 0.935
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": 0.275
+        },
+        {
+          "v": 8.6,
+          "beat": "read",
+          "dt": 0.605
+        },
+        {
+          "v": 8,
+          "beat": "lookup",
+          "dt": 0.33
+        },
+        {
+          "v": 6.4,
+          "beat": "lookup",
+          "dt": 1.1
+        },
+        {
+          "v": 7.8,
+          "beat": "glance2",
+          "dt": 0.88
+        },
+        {
+          "v": 7.4,
+          "beat": "back",
+          "dt": 0.385
+        },
+        {
+          "v": 6,
+          "beat": "smile",
+          "dt": 0.44
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "glance",
+          "dt": 0.33
+        },
+        {
+          "v": 7.6,
+          "beat": "read",
+          "dt": 0.715
+        },
+        {
+          "v": 7.2,
+          "beat": "lookup",
+          "dt": 0.385
+        },
+        {
+          "v": 6,
+          "beat": "lookup",
+          "dt": 1.21
+        },
+        {
+          "v": 7,
+          "beat": "glance2",
+          "dt": 0.99
+        },
+        {
+          "v": 6.8,
+          "beat": "back",
+          "dt": 0.44
+        },
+        {
+          "v": 5.8,
+          "beat": "smile",
+          "dt": 0.495
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "glance",
+        "dt": 0.22
+      },
+      {
+        "v": 0.006,
+        "beat": "read",
+        "dt": 0.495
+      },
+      {
+        "v": 0.006,
+        "beat": "lookup",
+        "dt": 0.275
+      },
+      {
+        "v": 0.002,
+        "beat": "lookup",
+        "dt": 0.99
+      },
+      {
+        "v": 0.004,
+        "beat": "glance2",
+        "dt": 0.825
+      },
+      {
+        "v": 0.004,
+        "beat": "back",
+        "dt": 0.275
+      },
+      {
+        "v": -0.002,
+        "beat": "smile",
+        "dt": 0.33
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "expressions": {
+    "blink": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "read",
+        "dt": 0.253
+      },
+      {
+        "v": 1,
+        "beat": "read",
+        "dt": 0.33
+      },
+      {
+        "v": 1,
+        "beat": "read",
+        "dt": 0.363
+      },
+      {
+        "v": 0,
+        "beat": "read",
+        "dt": 0.495
+      },
+      {
+        "v": 0,
+        "beat": "lookup",
+        "dt": 0.583
+      },
+      {
+        "v": 1,
+        "beat": "lookup",
+        "dt": 0.66
+      },
+      {
+        "v": 1,
+        "beat": "lookup",
+        "dt": 0.693
+      },
+      {
+        "v": 0,
+        "beat": "lookup",
+        "dt": 0.825
+      },
+      {
+        "v": 0,
+        "beat": "smile",
+        "dt": -0.11
+      },
+      {
+        "v": 1,
+        "beat": "smile"
+      },
+      {
+        "v": 1,
+        "beat": "smile",
+        "dt": 0.066
+      },
+      {
+        "v": 0,
+        "beat": "smile",
+        "dt": 0.264
+      }
+    ],
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "mmhm",
+        "dt": -0.275
+      },
+      {
+        "v": 0.14,
+        "beat": "mmhm",
+        "dt": 0.11
+      },
+      {
+        "v": 0.1,
+        "beat": "mmhm",
+        "dt": 0.77
+      },
+      {
+        "v": 0.04,
+        "beat": "lookup",
+        "dt": 0.44
+      },
+      {
+        "v": 0.04,
+        "beat": "glance2",
+        "dt": 0.99
+      },
+      {
+        "v": 0.08,
+        "beat": "back",
+        "dt": 0.11
+      },
+      {
+        "v": 0.42,
+        "beat": "smile",
+        "dt": -0.055
+      },
+      {
+        "v": 0.37,
+        "beat": "smile",
+        "dt": 0.77
+      },
+      {
+        "v": 0,
+        "beat": "settle",
+        "dt": 0.022
+      }
+    ],
+    "relaxed": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "back",
+        "dt": 0.165
+      },
+      {
+        "v": 0.12,
+        "beat": "smile",
+        "dt": 0.055
+      },
+      {
+        "v": 0.1,
+        "beat": "smile",
+        "dt": 0.77
+      },
+      {
+        "v": 0,
+        "beat": "settle",
+        "dt": 0.022
+      }
+    ]
+  }
+}

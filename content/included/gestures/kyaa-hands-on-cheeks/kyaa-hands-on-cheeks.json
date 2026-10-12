@@ -1,0 +1,1508 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "kyaa-hands-on-cheeks",
+  "name": "Kyaa Hands on Cheeks",
+  "duration": 2.97,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.22
+  },
+  "fadeOut": {
+    "duration": 0.44
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "squeal",
+      "label": "Squeal",
+      "time": 0.726
+    },
+    {
+      "id": "wiggle",
+      "label": "Wiggle",
+      "time": 0.88
+    },
+    {
+      "id": "sigh",
+      "label": "Dreamy sigh",
+      "time": 1.98
+    },
+    {
+      "id": "release",
+      "label": "Release",
+      "time": 2.156
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 2.926
+    }
+  ],
+  "joints": {
+    "spine": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -1,
+          "beat": "squeal",
+          "dt": -0.352
+        },
+        {
+          "v": 2,
+          "beat": "squeal",
+          "dt": 0.044
+        },
+        {
+          "v": 1.5,
+          "beat": "sigh"
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "squeal",
+          "dt": 0.044
+        },
+        {
+          "v": 3.38,
+          "beat": "wiggle",
+          "dt": 0.044
+        },
+        {
+          "v": -2.97,
+          "beat": "wiggle",
+          "dt": 0.242
+        },
+        {
+          "v": 2.37,
+          "beat": "wiggle",
+          "dt": 0.44
+        },
+        {
+          "v": -1.69,
+          "beat": "wiggle",
+          "dt": 0.638
+        },
+        {
+          "v": 1.08,
+          "beat": "wiggle",
+          "dt": 0.825
+        },
+        {
+          "v": -0.51,
+          "beat": "wiggle",
+          "dt": 1.001
+        },
+        {
+          "v": 0,
+          "beat": "sigh",
+          "dt": 0.044
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "squeal",
+          "dt": -0.352
+        },
+        {
+          "v": -1,
+          "beat": "squeal",
+          "dt": 0.022
+        },
+        {
+          "v": -1,
+          "beat": "sigh"
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.22
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "squeal",
+          "dt": 0.033
+        },
+        {
+          "v": 4.42,
+          "beat": "wiggle",
+          "dt": 0.033
+        },
+        {
+          "v": -3.89,
+          "beat": "wiggle",
+          "dt": 0.231
+        },
+        {
+          "v": 3.09,
+          "beat": "wiggle",
+          "dt": 0.429
+        },
+        {
+          "v": -2.21,
+          "beat": "wiggle",
+          "dt": 0.627
+        },
+        {
+          "v": 1.41,
+          "beat": "wiggle",
+          "dt": 0.814
+        },
+        {
+          "v": -0.66,
+          "beat": "wiggle",
+          "dt": 0.99
+        },
+        {
+          "v": 0,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "squeal",
+          "dt": 0.033
+        },
+        {
+          "v": 3.9,
+          "beat": "wiggle",
+          "dt": 0.033
+        },
+        {
+          "v": -3.43,
+          "beat": "wiggle",
+          "dt": 0.231
+        },
+        {
+          "v": 2.73,
+          "beat": "wiggle",
+          "dt": 0.429
+        },
+        {
+          "v": -1.95,
+          "beat": "wiggle",
+          "dt": 0.627
+        },
+        {
+          "v": 1.25,
+          "beat": "wiggle",
+          "dt": 0.814
+        },
+        {
+          "v": -0.59,
+          "beat": "wiggle",
+          "dt": 0.99
+        },
+        {
+          "v": 0,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "squeal",
+          "dt": 0.011
+        },
+        {
+          "v": 3.12,
+          "beat": "wiggle",
+          "dt": 0.011
+        },
+        {
+          "v": -2.75,
+          "beat": "wiggle",
+          "dt": 0.209
+        },
+        {
+          "v": 2.18,
+          "beat": "wiggle",
+          "dt": 0.407
+        },
+        {
+          "v": -1.56,
+          "beat": "wiggle",
+          "dt": 0.605
+        },
+        {
+          "v": 1,
+          "beat": "wiggle",
+          "dt": 0.792
+        },
+        {
+          "v": -0.47,
+          "beat": "wiggle",
+          "dt": 0.968
+        },
+        {
+          "v": 0,
+          "beat": "sigh",
+          "dt": 0.011
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "squeal",
+          "dt": 0.011
+        },
+        {
+          "v": 3.25,
+          "beat": "wiggle",
+          "dt": 0.011
+        },
+        {
+          "v": -2.86,
+          "beat": "wiggle",
+          "dt": 0.209
+        },
+        {
+          "v": 2.27,
+          "beat": "wiggle",
+          "dt": 0.407
+        },
+        {
+          "v": -1.62,
+          "beat": "wiggle",
+          "dt": 0.605
+        },
+        {
+          "v": 1.04,
+          "beat": "wiggle",
+          "dt": 0.792
+        },
+        {
+          "v": -0.49,
+          "beat": "wiggle",
+          "dt": 0.968
+        },
+        {
+          "v": 0,
+          "beat": "sigh",
+          "dt": 0.011
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "squeal",
+          "dt": -0.396
+        },
+        {
+          "v": 7,
+          "beat": "squeal",
+          "dt": -0.022
+        },
+        {
+          "v": 7,
+          "beat": "sigh"
+        },
+        {
+          "v": 7,
+          "beat": "release",
+          "dt": 0.022
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.396
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "squeal",
+          "dt": -0.022
+        },
+        {
+          "v": 1.5,
+          "beat": "wiggle",
+          "dt": -0.022
+        },
+        {
+          "v": -1.32,
+          "beat": "wiggle",
+          "dt": 0.176
+        },
+        {
+          "v": 1.05,
+          "beat": "wiggle",
+          "dt": 0.374
+        },
+        {
+          "v": -0.75,
+          "beat": "wiggle",
+          "dt": 0.572
+        },
+        {
+          "v": 0.48,
+          "beat": "wiggle",
+          "dt": 0.759
+        },
+        {
+          "v": -0.22,
+          "beat": "wiggle",
+          "dt": 0.935
+        },
+        {
+          "v": 0.9,
+          "beat": "sigh",
+          "dt": -0.022
+        },
+        {
+          "v": 0.9,
+          "beat": "release",
+          "dt": 0.022
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.396
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "squeal",
+          "dt": -0.418
+        },
+        {
+          "v": -14,
+          "beat": "squeal",
+          "dt": -0.044
+        },
+        {
+          "v": -14,
+          "beat": "sigh"
+        },
+        {
+          "v": -14,
+          "beat": "release",
+          "dt": 0.022
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.418
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "squeal",
+          "dt": -0.044
+        },
+        {
+          "v": 4,
+          "beat": "wiggle",
+          "dt": -0.044
+        },
+        {
+          "v": -3.52,
+          "beat": "wiggle",
+          "dt": 0.154
+        },
+        {
+          "v": 2.8,
+          "beat": "wiggle",
+          "dt": 0.352
+        },
+        {
+          "v": -2,
+          "beat": "wiggle",
+          "dt": 0.55
+        },
+        {
+          "v": 1.28,
+          "beat": "wiggle",
+          "dt": 0.737
+        },
+        {
+          "v": -0.6,
+          "beat": "wiggle",
+          "dt": 0.913
+        },
+        {
+          "v": 2.4,
+          "beat": "sigh",
+          "dt": -0.044
+        },
+        {
+          "v": 2.4,
+          "beat": "release",
+          "dt": 0.022
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.418
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 16,
+          "beat": "squeal",
+          "dt": -0.044
+        },
+        {
+          "v": 13,
+          "beat": "squeal",
+          "dt": 0.088
+        },
+        {
+          "v": 11,
+          "beat": "sigh"
+        },
+        {
+          "v": 9,
+          "beat": "release",
+          "dt": 0.088
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.132
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -14,
+          "beat": "squeal"
+        },
+        {
+          "v": -14,
+          "beat": "sigh"
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.132
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 31.4,
+          "beat": "squeal",
+          "dt": -0.55
+        },
+        {
+          "v": 46.2,
+          "beat": "squeal",
+          "dt": -0.363
+        },
+        {
+          "v": 59.1,
+          "beat": "squeal",
+          "dt": -0.176
+        },
+        {
+          "v": 66,
+          "beat": "squeal"
+        },
+        {
+          "v": 66,
+          "beat": "sigh"
+        },
+        {
+          "v": 63.5,
+          "beat": "release",
+          "dt": 0.132
+        },
+        {
+          "v": 48.7,
+          "beat": "release",
+          "dt": 0.352
+        },
+        {
+          "v": 32.4,
+          "beat": "release",
+          "dt": 0.55
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 16.7,
+          "beat": "squeal",
+          "dt": -0.55
+        },
+        {
+          "v": 48.1,
+          "beat": "squeal",
+          "dt": -0.363
+        },
+        {
+          "v": 79.6,
+          "beat": "squeal",
+          "dt": -0.176
+        },
+        {
+          "v": 102,
+          "beat": "squeal"
+        },
+        {
+          "v": 102,
+          "beat": "sigh"
+        },
+        {
+          "v": 72.8,
+          "beat": "release",
+          "dt": 0.132
+        },
+        {
+          "v": 39.2,
+          "beat": "release",
+          "dt": 0.352
+        },
+        {
+          "v": 12.2,
+          "beat": "release",
+          "dt": 0.55
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 24.8,
+          "beat": "squeal",
+          "dt": -0.55
+        },
+        {
+          "v": 48,
+          "beat": "squeal",
+          "dt": -0.363
+        },
+        {
+          "v": 66,
+          "beat": "squeal",
+          "dt": -0.176
+        },
+        {
+          "v": 75,
+          "beat": "squeal"
+        },
+        {
+          "v": 75,
+          "beat": "sigh"
+        },
+        {
+          "v": 67.5,
+          "beat": "release",
+          "dt": 0.132
+        },
+        {
+          "v": 45,
+          "beat": "release",
+          "dt": 0.352
+        },
+        {
+          "v": 21,
+          "beat": "release",
+          "dt": 0.55
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 45.3,
+          "beat": "squeal",
+          "dt": -0.55
+        },
+        {
+          "v": 87.7,
+          "beat": "squeal",
+          "dt": -0.363
+        },
+        {
+          "v": 120.8,
+          "beat": "squeal",
+          "dt": -0.176
+        },
+        {
+          "v": 138,
+          "beat": "squeal",
+          "dt": 0.022
+        },
+        {
+          "v": 138,
+          "beat": "sigh"
+        },
+        {
+          "v": 124.8,
+          "beat": "release",
+          "dt": 0.132
+        },
+        {
+          "v": 87.7,
+          "beat": "release",
+          "dt": 0.352
+        },
+        {
+          "v": 45.3,
+          "beat": "release",
+          "dt": 0.55
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 31,
+          "beat": "squeal",
+          "dt": -0.264
+        },
+        {
+          "v": 62,
+          "beat": "squeal",
+          "dt": 0.022
+        },
+        {
+          "v": 62,
+          "beat": "sigh"
+        },
+        {
+          "v": 31,
+          "beat": "release",
+          "dt": 0.33
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 7,
+          "beat": "squeal",
+          "dt": 0.044
+        },
+        {
+          "v": 7,
+          "beat": "sigh"
+        },
+        {
+          "v": 12,
+          "beat": "release",
+          "dt": 0.396
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "squeal",
+          "dt": 0.044
+        },
+        {
+          "v": 20,
+          "beat": "sigh"
+        },
+        {
+          "v": 20,
+          "beat": "release",
+          "dt": 0.154
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.462
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 16,
+          "beat": "squeal",
+          "dt": -0.011
+        },
+        {
+          "v": 13,
+          "beat": "squeal",
+          "dt": 0.121
+        },
+        {
+          "v": 11,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": 9,
+          "beat": "release",
+          "dt": 0.121
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.132
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -14,
+          "beat": "squeal",
+          "dt": 0.033
+        },
+        {
+          "v": -14,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.132
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 31.4,
+          "beat": "squeal",
+          "dt": -0.517
+        },
+        {
+          "v": 46.2,
+          "beat": "squeal",
+          "dt": -0.33
+        },
+        {
+          "v": 59.1,
+          "beat": "squeal",
+          "dt": -0.143
+        },
+        {
+          "v": 66,
+          "beat": "squeal",
+          "dt": 0.033
+        },
+        {
+          "v": 66,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": 63.5,
+          "beat": "release",
+          "dt": 0.165
+        },
+        {
+          "v": 48.7,
+          "beat": "release",
+          "dt": 0.385
+        },
+        {
+          "v": 32.4,
+          "beat": "release",
+          "dt": 0.583
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 16.7,
+          "beat": "squeal",
+          "dt": -0.517
+        },
+        {
+          "v": 48.1,
+          "beat": "squeal",
+          "dt": -0.33
+        },
+        {
+          "v": 79.6,
+          "beat": "squeal",
+          "dt": -0.143
+        },
+        {
+          "v": 102,
+          "beat": "squeal",
+          "dt": 0.033
+        },
+        {
+          "v": 102,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": 72.8,
+          "beat": "release",
+          "dt": 0.165
+        },
+        {
+          "v": 39.2,
+          "beat": "release",
+          "dt": 0.385
+        },
+        {
+          "v": 12.2,
+          "beat": "release",
+          "dt": 0.583
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 24.8,
+          "beat": "squeal",
+          "dt": -0.517
+        },
+        {
+          "v": 48,
+          "beat": "squeal",
+          "dt": -0.33
+        },
+        {
+          "v": 66,
+          "beat": "squeal",
+          "dt": -0.143
+        },
+        {
+          "v": 75,
+          "beat": "squeal",
+          "dt": 0.033
+        },
+        {
+          "v": 75,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": 67.5,
+          "beat": "release",
+          "dt": 0.165
+        },
+        {
+          "v": 45,
+          "beat": "release",
+          "dt": 0.385
+        },
+        {
+          "v": 21,
+          "beat": "release",
+          "dt": 0.583
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 45.3,
+          "beat": "squeal",
+          "dt": -0.517
+        },
+        {
+          "v": 87.7,
+          "beat": "squeal",
+          "dt": -0.33
+        },
+        {
+          "v": 120.8,
+          "beat": "squeal",
+          "dt": -0.143
+        },
+        {
+          "v": 138,
+          "beat": "squeal",
+          "dt": 0.055
+        },
+        {
+          "v": 138,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": 124.8,
+          "beat": "release",
+          "dt": 0.165
+        },
+        {
+          "v": 87.7,
+          "beat": "release",
+          "dt": 0.385
+        },
+        {
+          "v": 45.3,
+          "beat": "release",
+          "dt": 0.583
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 31,
+          "beat": "squeal",
+          "dt": -0.231
+        },
+        {
+          "v": 62,
+          "beat": "squeal",
+          "dt": 0.055
+        },
+        {
+          "v": 62,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": 31,
+          "beat": "release",
+          "dt": 0.363
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 7,
+          "beat": "squeal",
+          "dt": 0.077
+        },
+        {
+          "v": 7,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": 12,
+          "beat": "release",
+          "dt": 0.429
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "squeal",
+          "dt": 0.077
+        },
+        {
+          "v": 20,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": 20,
+          "beat": "release",
+          "dt": 0.187
+        },
+        {
+          "v": 0,
+          "beat": "release",
+          "dt": 0.495
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "squeal",
+        "dt": 0.055
+      },
+      {
+        "v": -0.0117,
+        "beat": "wiggle",
+        "dt": 0.066
+      },
+      {
+        "v": 0.0103,
+        "beat": "wiggle",
+        "dt": 0.264
+      },
+      {
+        "v": -0.0082,
+        "beat": "wiggle",
+        "dt": 0.462
+      },
+      {
+        "v": 0.0059,
+        "beat": "wiggle",
+        "dt": 0.66
+      },
+      {
+        "v": -0.0037,
+        "beat": "wiggle",
+        "dt": 0.847
+      },
+      {
+        "v": 0.0018,
+        "beat": "wiggle",
+        "dt": 1.023
+      },
+      {
+        "v": 0,
+        "beat": "sigh",
+        "dt": 0.066
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": -0.006,
+        "beat": "squeal",
+        "dt": 0.066
+      },
+      {
+        "v": -0.003,
+        "beat": "sigh"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "palm-flat",
+        "spread": 8,
+        "fingers": {
+          "index": {
+            "curl": [6, 16, 12]
+          },
+          "middle": {
+            "curl": [6, 16, 12]
+          },
+          "ring": {
+            "curl": [6, 16, 12]
+          },
+          "little": {
+            "curl": [6, 16, 12]
+          }
+        },
+        "beat": "squeal",
+        "dt": -0.132
+      },
+      {
+        "preset": "palm-flat",
+        "spread": 8,
+        "fingers": {
+          "index": {
+            "curl": [6, 16, 12]
+          },
+          "middle": {
+            "curl": [6, 16, 12]
+          },
+          "ring": {
+            "curl": [6, 16, 12]
+          },
+          "little": {
+            "curl": [6, 16, 12]
+          }
+        },
+        "beat": "release",
+        "dt": 0.066
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle",
+        "dt": -0.165
+      }
+    ],
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "palm-flat",
+        "spread": 8,
+        "fingers": {
+          "index": {
+            "curl": [6, 16, 12]
+          },
+          "middle": {
+            "curl": [6, 16, 12]
+          },
+          "ring": {
+            "curl": [6, 16, 12]
+          },
+          "little": {
+            "curl": [6, 16, 12]
+          }
+        },
+        "beat": "squeal",
+        "dt": -0.099
+      },
+      {
+        "preset": "palm-flat",
+        "spread": 8,
+        "fingers": {
+          "index": {
+            "curl": [6, 16, 12]
+          },
+          "middle": {
+            "curl": [6, 16, 12]
+          },
+          "ring": {
+            "curl": [6, 16, 12]
+          },
+          "little": {
+            "curl": [6, 16, 12]
+          }
+        },
+        "beat": "release",
+        "dt": 0.099
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle",
+        "dt": -0.132
+      }
+    ]
+  },
+  "expressions": {
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.92,
+        "beat": "squeal",
+        "dt": -0.154
+      },
+      {
+        "v": 0.88,
+        "beat": "sigh"
+      },
+      {
+        "v": 0.77,
+        "beat": "release",
+        "dt": 0.165
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "aa": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.6,
+        "beat": "squeal",
+        "dt": -0.088
+      },
+      {
+        "v": 0.52,
+        "beat": "wiggle",
+        "dt": 0.44
+      },
+      {
+        "v": 0.42,
+        "beat": "wiggle",
+        "dt": 0.935
+      },
+      {
+        "v": 0.12,
+        "beat": "sigh"
+      },
+      {
+        "v": 0,
+        "beat": "release",
+        "dt": 0.275
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightHand",
+      "target": "head",
+      "beat": "squeal",
+      "from": -0.022,
+      "to": 1.43,
+      "offset": [-0.066, 0.012, 0.089],
+      "point": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.275,
+        "blendOut": 0.33
+      }
+    },
+    {
+      "bone": "leftHand",
+      "target": "head",
+      "beat": "squeal",
+      "from": 0.011,
+      "to": 1.463,
+      "offset": [0.066, 0.012, 0.089],
+      "point": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.275,
+        "blendOut": 0.33
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "blush",
+      "time": 0.66,
+      "kind": "avatar_vfx",
+      "effectId": "blush",
+      "duration": 1.95,
+      "envelope": {
+        "intensity": {
+          "fadeIn": 0.25,
+          "fadeOut": 0.4
+        }
+      },
+      "playAccompanyingSound": false
+    },
+    {
+      "id": "hearts-burst",
+      "time": 0.726,
+      "kind": "avatar_vfx",
+      "effectId": "hearts_burst_kyaa",
+      "duration": 1.9,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.3
+        }
+      }
+    }
+  ]
+}

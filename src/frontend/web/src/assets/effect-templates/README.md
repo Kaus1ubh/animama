@@ -20,20 +20,23 @@ with SwiftShader, Annie (`content/included/avatars/AvatarSample_A_1_New.vrm`)
 with the portrait capture's head framing and lighting, the effect applied from
 its Included descriptor and held for 1 s, at 320×320 px. A template marked
 `thumbnail: { framing: "wide" }` (art on the chest or beside the head) is
-framed 2.2 times wider; one with a `time` is captured at that moment instead
+framed 2.2 times wider, and `framing: "body"` (art at the belly, hips or a
+lowered hand) 4 times wider; one with a `time` is captured at that moment instead
 (looping art that has faded out at 1 s). A `clip` names an Included Gesture by
 folder stem that poses Annie, for art attached to a hand that hangs out of
-frame at rest: the clip is sampled at `time` with the effect applied at 0, as
-`effects:render --with-clip` does (for example `idea_bulb_fingertip` with
-`have-an-idea` at 3 s). Renders are deterministic, so unchanged inputs
+frame at rest, or that is placed for that pose: the clip is sampled at `time`
+with the effect applied at 0, as `effects:render --with-clip` does (for example
+`idea_bulb_fingertip` with `have-an-idea` at 3 s). Because `time` is also the
+effect's age, pick a moment where the pose shows the art and the effect is
+visible (a looping effect at the start of a cycle). Renders are deterministic, so unchanged inputs
 reproduce the same pixels. Review the images before committing them.
 
 ## Provenance and terms
 
 Each thumbnail is a direct Animama renderer capture of Annie, the unmodified
-pixiv VRoid Project preset, wearing an Included Avatar Effect with
-owner-authored art from `content/included/vfx/avatar/`, in some cases posed by
-an Included Gesture. No other artwork is used. Like Annie's
+pixiv VRoid Project preset, wearing an Included Avatar Effect with Animama's
+own owner- or agent-authored art from `content/included/vfx/avatar/`, in some
+cases posed by an Included Gesture. No other artwork is used. Like Annie's
 Library portrait, the images follow Annie's model terms
 (`LicenseRef-pixiv-VRoidPreset`, the
 [VRoidPreset A–Z conditions](https://vroid.pixiv.help/hc/en-us/articles/4402394424089-VRoidPreset-A-Z));

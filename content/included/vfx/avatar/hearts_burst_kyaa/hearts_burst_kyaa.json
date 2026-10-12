@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:hearts_burst_kyaa",
+  "version": 1,
+  "name": "Hearts Burst Kyaa",
+  "description": "Three red hearts pop one after another beside the head on the Avatar's left and bob with the wiggle, for a delighted, swooning squeal.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:dreamy_bell_02v2",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": 0.13,
+        "y": 0.15,
+        "z": 0.05
+      },
+      "size": 0.11,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "hearts_burst-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "rows": 2,
+        "frames": 7,
+        "fps": 12,
+        "loop": "once"
+      }
+    },
+    "motion": {
+      "pulse": {
+        "scaleMin": 0.96,
+        "scaleMax": 1.05,
+        "cyclesPerSecond": 2.5
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0
+          },
+          {
+            "t": 0.1,
+            "opacity": 1
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "hearts_burst-sheet.png",
+      "role": "image"
+    }
+  ]
+}

@@ -8,8 +8,10 @@ from typing import Any
 import pytest
 
 from animama.adapters.content_store import FilesystemContentStore
-from animama.app.services.content_kind_registry import definition_for_kind, descriptor_filename
+from animama.app.services.content_kind_registry import definition_for_kind, descriptor_filename, handler_for_kind
+from animama.app.services.idle_playback import derive_idle_playback
 from animama.domain.content_catalog import ContentKind, ContentSource, ContentStatus
+from animama.domain.content_documents import GestureDocumentV1
 from tests.anima_creation_service_support import (
     INCLUDED_POSE_IDS,
     copy_tracked_included,
@@ -202,6 +204,33 @@ def test_avatar_effects_require_authored_definitions_and_preserve_support_images
     assert all(entry.status is ContentStatus.VALID and entry.metadata.get("definition") for entry in effects)
     eye = next(entry for entry in effects if entry.logical_key == "builtin:avatar-effect:eye")
     assert any(file.role == "image" for file in eye.files)
+
+
+def test_streamer_idle_style_resolves_to_idle_eligible_included_gestures(included: Path) -> None:
+    """The Included Idle Style names only Included Gestures that idle playback admits."""
+
+    by_key = {entry.logical_key: entry for entry in _scan_included(included) if entry.logical_key}
+    style = by_key["builtin:idle-style:streamer-idle"]
+    assert style.kind is ContentKind.IDLE_STYLE
+    assert style.status is ContentStatus.VALID
+    assert len(style.dependencies) == 12
+
+    gesture_handler = handler_for_kind(ContentKind.GESTURE)
+    for ref in style.dependencies:
+        gesture = by_key[ref]
+        assert gesture.kind is ContentKind.GESTURE and gesture.status is ContentStatus.VALID, ref
+        assert gesture.source is ContentSource.INCLUDED, ref
+        descriptor = Path(gesture.descriptor_relative_path)
+        document = gesture_handler.parse_document(
+            json.loads((included / descriptor).read_text(encoding="utf-8")),
+            fallback_path=descriptor,
+            descriptor_backed=True,
+        ).document
+        assert isinstance(document, GestureDocumentV1), ref
+        [sequence] = [file for file in gesture.files if file.role == "sequence"]
+        with (included / sequence.relative_path).open("rb") as clip:
+            facts = derive_idle_playback(document, clip)
+        assert facts.eligible, (ref, facts.reason)
 
 
 def _raw_dependencies(path: Path) -> list[dict[str, Any]]:

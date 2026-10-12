@@ -21,7 +21,8 @@ import {
  *
  * Each template in `src/lib/effects/effectTemplates.ts` is rendered on Annie
  * with the `effects:render --thumbnail` renderer (portrait head framing, or
- * `WIDE_FRAMING_SCALE` times wider for a `wide` template; live expression;
+ * `WIDE_FRAMING_SCALE` or `BODY_FRAMING_SCALE` times wider for a `wide` or
+ * `body` template; live expression;
  * 1 s after applying unless the template names another time; posed by the
  * template's Included Gesture `clip`, sampled at that time, when it names
  * one) into `src/assets/effect-templates/<id>.webp`. A full run also removes
@@ -36,6 +37,12 @@ export const THUMBNAIL_SIZE = 320;
 export const THUMBNAIL_TIME = 1;
 /** Camera distance of a `wide` thumbnail, relative to the head framing. */
 export const WIDE_FRAMING_SCALE = 2.2;
+/**
+ * Camera distance of a `body` thumbnail (the largest the portrait capture
+ * allows), which shows Annie down to the hips.
+ */
+export const BODY_FRAMING_SCALE = 4;
+const FRAMING_SCALES = { wide: WIDE_FRAMING_SCALE, body: BODY_FRAMING_SCALE };
 
 /** The templates a run renders: all of them, or the named IDs. */
 export function selectTemplates(ids) {
@@ -67,7 +74,7 @@ export async function thumbnailJob(template) {
           .clip
       : null,
     outFile: path.join(THUMBNAIL_DIR, `${template.id}.webp`),
-    framingScale: framing === "wide" ? WIDE_FRAMING_SCALE : 1,
+    framingScale: framing ? FRAMING_SCALES[framing] : 1,
     time,
   };
 }

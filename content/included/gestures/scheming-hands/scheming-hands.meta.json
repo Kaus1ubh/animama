@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:scheming-hands",
+  "version": 1,
+  "semantic_key": "scheming_hands",
+  "name": "Scheming Hands",
+  "ai_description": "Use when teasing a sneaky plan, mischief or a playfully evil idea (\"hehehe, I have a plan\"). Hunches forward and slowly rubs the palms together with a sly, narrow-eyed grin.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:sly_glint",
+      "alias": "sly_glint",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "scheming-hands.json",
+      "role": "sequence"
+    }
+  ]
+}
