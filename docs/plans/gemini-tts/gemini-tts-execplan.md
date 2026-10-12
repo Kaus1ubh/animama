@@ -54,7 +54,7 @@ Ownership and boundaries:
       2026-10-11; Review #3 passed (repair round 2).
 - [x] Phase 2: Voice settings, playback and lip-sync. Done 2026-10-11;
       Review #2 passed (repair round 1).
-- [ ] Phase 3: Desktop key.
+- [x] Phase 3: Desktop key. Done 2026-10-11; Review #1 passed.
 - [ ] Phase 4: Documentation, release note and owner listening check.
 - [ ] Final integration review.
 
@@ -547,7 +547,8 @@ section at 1440×900, then a narrow width, on the task stack.
 Completion: checks pass; the visual check matches existing styling; review
 leaves no blocker.
 
-Phase record: issue #459; starting source `65c37cca`; commit —.
+Phase record: issue #459; starting source `65c37cca`; commits `bac0c1ac`, and
+`65b29b0c` for the package and contract versions (Review #1 F2).
 
 Implementation (2026-10-11):
 
@@ -719,15 +720,87 @@ panel, the backend desktop-credentials route tests.
 
 Completion: checks pass; review leaves no blocker.
 
-Phase record: issue #460; starting source —; commit —.
+Phase record: issue #460; starting source `65b29b0c`; commit —.
+
+Implementation (2026-10-11):
+
+- `shared/desktop-runtime.ts`: `credentialProviders` gains `gemini` (API Keys
+  lists it last).
+- `vault.ts`: `gemini` maps to `GEMINI_API_KEY`. Its entry is stored under a
+  new `restoredProviders` section that earlier releases never wrote; a legacy
+  `providers.gemini` entry stays retired and is dropped on load and at the
+  next save, and `restoredProviders` may name only Gemini. In memory the key
+  sits with the other providers, so status, delivery and removal are
+  unchanged. Earlier releases ignore the new section and keep it when they
+  save.
+- `DesktopCredentialsPanel` names Gemini, and its default copy mentions
+  Gemini voices; App Settings → Voice gains a "Gemini API key" row (desktop
+  only, shown where Gemini voice is offered) beside the ElevenLabs one.
+- Tests: a vault holding an earlier release's Gemini entry exposes no key, a
+  new key round-trips under `restoredProviders` without reviving the old one,
+  removal works, and a `restoredProviders` section naming another provider is
+  refused; the IPC rejection case now uses another retired name; status lists
+  and the panel order include Gemini; the backend parity test expects
+  `GEMINI_API_KEY`; a route test applies and removes the key without a
+  restart.
+- Checks: `pnpm desktop:check`; `pnpm desktop:test` 506 passed, 14 skipped;
+  web `tsc`, `web:lint`, `prettier:check` (web and desktop); 167 settings and
+  sidebar tests; `tests/test_desktop_credentials_route.py` 87 passed.
 
 #### Code Review #1 Findings
 
-Not started.
+Independent `sdlc-reviewer`, full initial review of the working tree on
+`65b29b0c`. **Result: pass, no blocking findings.** Using scratch builds of
+this vault and the baseline's, it verified that:
+
+- a legacy `providers.gemini` entry is never revived, even in a vault never
+  re-saved, and disappears at the next save;
+- a restored entry wins when both are present;
+- the baseline release and two older ones open a vault this release wrote and
+  keep `restoredProviders` when they save;
+- malformed sections are refused;
+- writes are all-or-nothing;
+- IPC accepts `gemini`, and status carries no values;
+- the backend applies the key without a restart.
+
+Checks: `desktop:check`, 136 desktop tests in the three touched files, the
+panel tests, web `tsc`, `web:lint`, Prettier, `test_desktop_credentials_route.py`
+(87), ruff.
+
+- **P3-R1-F1 (docs):** `desktop-runtime.md`, `docs/frontend/desktop/overview.md`
+  and `docs/frontend/features/model-settings.md` still list three stored
+  provider keys and say retired Gemini keys must be re-entered on a model
+  connection; Phase 4 named only the first.
+- **P3-R1-F2 (tests):** malformed `restoredProviders` shapes beyond a wrong
+  name were untested, and an IPC case for a `GEMINI_API_KEY` connection name
+  was missing. The downgrade guarantee is untested, since older code is not
+  in the test tree.
+- **P3-R1-F3:** `restoredProviders: null` is read as empty, like `connections`;
+  harmless.
+- **P3-R1-F4:** a later release that restores another provider would make
+  this release refuse its vault on downgrade, as for unknown names in
+  `providers`; worth a docs line.
+- **P3-R1-F5 (existing pattern):** the document worker receives and restarts
+  on every vault key, now including Gemini, as with ElevenLabs.
+- **Outside scope:** `save()` does not bound the vault size, so keys made of
+  JSON-escaped characters could exceed the 512 KiB load limit; the baseline
+  has the same gap.
 
 #### Code Review #1 Revisions
 
-Not started.
+- **F1 (planned):** Phase 4's doc list now includes the two frontend docs and
+  the `restoredProviders` notes.
+- **F2 (fixed):** the refusal test covers a wrong name, an array, a string, an
+  invalid value and an invalid date; the IPC list refuses a `GEMINI_API_KEY`
+  connection name. The downgrade guarantee stays verified by the review's
+  probe, not a test.
+- **F3, F5 (accepted):** consistent with existing handling.
+- **F4 (planned):** covered by the F1 docs line.
+- **Vault size (out of scope):** pre-existing; not changed here.
+
+Verification: the two desktop test files pass (80 passed, 3 skipped);
+`desktop:check` passes. No further round: the revisions are tests and plan
+text.
 
 ### Phase 4: Documentation, release note and owner listening check
 
@@ -738,7 +811,11 @@ Requirements: every acceptance criterion.
    beside `elevenlabs-tts.md` and indexed in `docs/frontend/README.md`,
    `docs/frontend/runtime/avatar-lipsync.md`, `docs/frontend/runtime/chat.md`,
    `docs/backend/architecture/http-api.md` (dispatch options),
-   `docs/backend/operations/desktop-runtime.md` and `development.md` (the key),
+   `docs/backend/operations/desktop-runtime.md` (the key, the env table and the
+   vault's `restoredProviders` section, including that it may name only
+   `gemini` and that a release restoring another provider must allow it here
+   first) and `development.md`, `docs/frontend/desktop/overview.md` and
+   `docs/frontend/features/model-settings.md` (stored provider keys),
    `docs/frontend/features/emotional-voice-catalog.md` (styles), and
    `tests/live/README.md`. Cover the terms note (D8) and the SynthID watermark.
 2. **Release note:** `docs/frontend/desktop/redistribution-review.md` records

@@ -1289,6 +1289,7 @@ export function ApplicationSettingsModal({
         "anthropic",
         "claude",
         "elevenlabs",
+        "gemini",
       ],
       hidden: !credentialsAvailable,
       render: () => (
@@ -1686,6 +1687,22 @@ export function ApplicationSettingsModal({
               </SelectContent>
             </Select>
           }
+        />
+      ),
+    },
+    {
+      id: "gemini-key",
+      section: "Voice",
+      group: "Text-to-Speech",
+      label: "Gemini API key",
+      keywords: ["tts", "gemini", "google", "api key", "voice"],
+      hidden: !credentialsAvailable || !geminiTtsOffered,
+      render: () => (
+        <DesktopCredentialsPanel
+          providers={["gemini"]}
+          showTitle={false}
+          description="Needed for Gemini voices. Encrypted on this computer and also in API Keys."
+          className={cn(FLAT_SETTINGS_PANEL_CLASS_NAME, "py-3")}
         />
       ),
     },

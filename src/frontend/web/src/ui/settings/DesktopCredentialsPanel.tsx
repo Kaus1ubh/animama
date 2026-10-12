@@ -32,6 +32,7 @@ const names: Record<CredentialProvider, string> = {
   openai: "OpenAI",
   anthropic: "Anthropic",
   elevenlabs: "ElevenLabs",
+  gemini: "Gemini",
 };
 
 const EMPTY_STATUSES: CredentialStatus[] = [];
@@ -257,12 +258,12 @@ export function DesktopCredentialsPanel({
           ) : null}
           {description === undefined ? (
             <p className="text-muted-foreground text-sm">
-              Add an OpenAI or Anthropic key for cloud chat or an ElevenLabs key
-              for voices. Keys for other model servers are entered on each
-              connection in App Settings → Models. Keys are encrypted with this
-              computer’s secure storage and never shown again. Changes apply as
-              soon as you save. You can change them later in App Settings → API
-              Keys.
+              Add an OpenAI or Anthropic key for cloud chat or an ElevenLabs or
+              Gemini key for voices. Keys for other model servers are entered on
+              each connection in App Settings → Models. Keys are encrypted with
+              this computer’s secure storage and never shown again. Changes
+              apply as soon as you save. You can change them later in App
+              Settings → API Keys.
             </p>
           ) : description !== null ? (
             <p className="text-muted-foreground text-xs">{description}</p>

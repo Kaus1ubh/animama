@@ -240,6 +240,7 @@ describe("private local state and vault", () => {
       expect.objectContaining({ provider: "openai", configured: true }),
       expect.objectContaining({ provider: "anthropic", configured: true }),
       expect.objectContaining({ provider: "elevenlabs", configured: false }),
+      expect.objectContaining({ provider: "gemini", configured: false }),
       expect.objectContaining({ connection, configured: true }),
     ]);
     expect(JSON.stringify(vault.list())).not.toContain("fixture-");
@@ -271,6 +272,74 @@ describe("private local state and vault", () => {
     expect(
       new CredentialVault(legacy, crypto, true).childEnvironment(),
     ).not.toHaveProperty("GEMINI_API_KEY");
+  });
+
+  it("stores a Gemini key apart from an earlier release's retired Gemini entry", () => {
+    const file = path.join(fixture(), "vault.bin");
+    const crypto = encryption();
+    const now = new Date().toISOString();
+    // A vault an earlier release wrote, still holding its retired Gemini entry.
+    atomicWrite(
+      file,
+      crypto.encryptString(
+        JSON.stringify({
+          version: 1,
+          postgresPassword: "a".repeat(64),
+          providers: { gemini: { value: "fixture-retired", updatedAt: now } },
+        }),
+      ),
+    );
+    const vault = new CredentialVault(file, crypto, true);
+    expect(vault.childEnvironment()).not.toHaveProperty("GEMINI_API_KEY");
+
+    vault.apply([{ provider: "gemini", value: "fixture-gemini" }]);
+    expect(vault.childEnvironment()).toEqual({
+      GEMINI_API_KEY: "fixture-gemini",
+    });
+    const onDisk = JSON.parse(crypto.decryptString(readFileSync(file)));
+    expect(onDisk.providers).toEqual({});
+    expect(onDisk.restoredProviders.gemini.value).toBe("fixture-gemini");
+    expect(JSON.stringify(onDisk)).not.toContain("fixture-retired");
+
+    const reopened = new CredentialVault(file, crypto, true);
+    expect(reopened.childEnvironment()).toEqual({
+      GEMINI_API_KEY: "fixture-gemini",
+    });
+    expect(reopened.list()).toContainEqual(
+      expect.objectContaining({ provider: "gemini", configured: true }),
+    );
+    reopened.apply([{ provider: "gemini" }]);
+    expect(
+      new CredentialVault(file, crypto, true).childEnvironment(),
+    ).not.toHaveProperty("GEMINI_API_KEY");
+  });
+
+  it("refuses a malformed restored-provider section", () => {
+    const crypto = encryption();
+    const now = new Date().toISOString();
+    for (const restoredProviders of [
+      { openai: { value: "fixture-openai", updatedAt: now } },
+      [{ value: "fixture-gemini", updatedAt: now }],
+      "fixture-gemini",
+      { gemini: { value: "fixture gemini", updatedAt: now } },
+      { gemini: { value: "fixture-gemini", updatedAt: "not a date" } },
+    ]) {
+      const file = path.join(fixture(), "vault.bin");
+      atomicWrite(
+        file,
+        crypto.encryptString(
+          JSON.stringify({
+            version: 1,
+            postgresPassword: "a".repeat(64),
+            providers: {},
+            restoredProviders,
+          }),
+        ),
+      );
+      expect(() => new CredentialVault(file, crypto, true)).toThrow(
+        "vault_unreadable",
+      );
+    }
   });
 
   it("bounds connection keys and rejects malformed stored names", () => {

@@ -6,6 +6,7 @@ export const credentialProviders = [
   "openai",
   "anthropic",
   "elevenlabs",
+  "gemini",
 ] as const;
 export type CredentialProvider = (typeof credentialProviders)[number];
 /**

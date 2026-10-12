@@ -328,7 +328,12 @@ describe("feature-local key fields", () => {
     expect(filtered).toContain('type="password"');
 
     const full = renderWith(client, <DesktopCredentialsPanel />);
-    expect(inputs(full)).toEqual(["OpenAI", "Anthropic", "ElevenLabs"]);
+    expect(inputs(full)).toEqual([
+      "OpenAI",
+      "Anthropic",
+      "ElevenLabs",
+      "Gemini",
+    ]);
     expect(full).toContain("Add an OpenAI or Anthropic key for cloud chat");
   });
 
