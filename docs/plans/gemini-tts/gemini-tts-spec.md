@@ -6,7 +6,9 @@ and kept Gemini text-to-speech as a voice provider, like ElevenLabs. The voice
 decisions below were agreed on 2026-10-10 as part of that spec and still stand;
 the owner confirmed this scope on 2026-10-11 (D15–D17).
 
-Authoritative source: this file until it is published as a parent issue.
+Authoritative source: parent issue
+[#457](https://github.com/raymond-van/animama/issues/457), published on
+2026-10-11 from this file at `f63e2071`. This file is that snapshot.
 Research: [gemini-tts-research.md](gemini-tts-research.md).
 
 ## Problem and intended users
@@ -159,5 +161,5 @@ This document; the owning issue once it is published.
 
 ## Delivery links
 
-None yet. Superseded: #428 (Gemini models and Gemini text-to-speech), closed
+Parent #457; phase issues #458, #459, #460 and #461. Superseded: #428 (Gemini models and Gemini text-to-speech), closed
 as not planned on 2026-10-11.

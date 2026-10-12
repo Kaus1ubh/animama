@@ -1,13 +1,14 @@
 # Gemini text-to-speech execution plan
 
-Status: Draft for owner review (2026-10-11). Not started.
+Status: Authorized by the owner's `/implement` on 2026-10-11. In progress.
 
 Source agreement: [spec](gemini-tts-spec.md), agreed by the owner on
 2026-10-11 (D3, D4, D7, D8, D12, D14 carried over; D15–D17 new). It becomes the
-parent issue when `workspace-setup` publishes it; the issue is then
-authoritative. Research: [gemini-tts-research.md](gemini-tts-research.md).
+parent issue [#457](https://github.com/raymond-van/animama/issues/457), published on 2026-10-11 from
+the snapshot at `f63e2071`; the issue is authoritative. Research:
+[gemini-tts-research.md](gemini-tts-research.md).
 
-Authorized scope: phases 1–4 once the owner invokes `/implement`. Explicit
+Authorized scope: phases 1–4, by the owner's `/implement` on 2026-10-11. Explicit
 gates:
 
 - **Live measurement** (Phase 1): authorized by D16, under US$0.10.
@@ -230,8 +231,9 @@ Backend paths are under `src/backend/animama/`, tests under `tests/`.
 
 ## Setup and execution rules
 
-1. `workspace-setup` publishes the parent issue from the spec and one issue per
-   phase as sub-issues, each blocked by the previous phase, and pushes the plan.
+1. Workspace setup is done (2026-10-11): parent #457, with phase issues #458,
+   #459, #460 and #461 (phases 1–4) as sub-issues, each blocked by the previous
+   phase. The branch was pushed at `f63e2071`.
 2. Offline work needs no stack. Phase 2's visual check and Phase 4's listening
    check use a named task stack, after checking `docker ps` for port conflicts:
 
@@ -313,7 +315,7 @@ config commands, `pnpm check`.
 Completion: tests pass; D22 and the byte order are recorded; review leaves no
 blocker.
 
-Phase record: issue —; starting source `fd4fea0f`; commit —.
+Phase record: issue #458; starting source `fd4fea0f`; commit —.
 
 #### Code Review #1 Findings
 
@@ -360,7 +362,7 @@ section at 1440×900, then a narrow width, on the task stack.
 Completion: checks pass; the visual check matches existing styling; review
 leaves no blocker.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #459; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -390,7 +392,7 @@ panel, the backend desktop-credentials route tests.
 
 Completion: checks pass; review leaves no blocker.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #460; starting source —; commit —.
 
 #### Code Review #1 Findings
 
@@ -430,7 +432,7 @@ Checks: `docs-sync` review; the final checks below.
 Completion: docs reviewed; the owner check recorded; failures become fixes or
 follow-up issues, per the owner.
 
-Phase record: issue —; starting source —; commit —.
+Phase record: issue #461; starting source —; commit —.
 
 #### Code Review #1 Findings
 
