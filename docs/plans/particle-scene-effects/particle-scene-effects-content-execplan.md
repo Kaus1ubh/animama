@@ -772,6 +772,17 @@ F5 rounded caring-2 numbers; F6 the ticked box before G4.
   add names and the deletes.
 - **F3, F5 accepted:** fixed. **F4, F6:** noted; the fresh dry run matched.
 
+#### Code Review #2 Findings
+
+Round 2 (targeted recheck): **pass**; F1, F3 and F5 resolved, F2 recorded for
+P6. Optional: the excitement-3 full-span cell mixed frame and GPU values, and
+concern C1 still read as open.
+
+#### Code Review #2 Revisions
+
+Both accepted: the row reads 1.00 / 0.53 with CPU and p95 filled in, and C1 says
+the proposal plays both. The review passed at round 2.
+
 ### P6 — Promotion and removal (R13, R14). Gate G3. #449
 
 1. Write one `promote.json`: add or replace each approved Particle and Scene
