@@ -230,6 +230,9 @@ async def test_connections_record_credential_references_but_never_values(
         ({"base_url": "http://models.example:99999/v1"}, "invalid_base_url"),
         ({"preset": "openai"}, "invalid_preset"),
         ({"credential": {"mode": "env", "env": "ANIMAMA_DATABASE_URL"}}, "invalid_credential"),
+        # Only the Gemini voice reads the Gemini key; Google's SDK name is never accepted.
+        ({"credential": {"mode": "env", "env": "GEMINI_API_KEY"}}, "invalid_credential"),
+        ({"credential": {"mode": "env", "env": "GOOGLE_API_KEY"}}, "invalid_credential"),
         ({"timeout_seconds": 0.1}, "invalid_timeout"),
     ],
 )

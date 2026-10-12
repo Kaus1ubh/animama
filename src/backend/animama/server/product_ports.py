@@ -61,6 +61,7 @@ from animama.server.embedding_refresh import (
     wake_embedding_refresh,
 )
 from animama.server.embeddings import role_embedder
+from animama.server.gemini_tts_service import LocalGeminiSpeech
 from animama.server.installation_personalization import (
     FirstRunIncompleteError,
     InstallationPersonalizationService,
@@ -147,6 +148,11 @@ class LocalChatTurnServices:
     @property
     def speech(self) -> LocalSpeech:
         return LocalSpeech(runtime_settings_for(self._app))
+
+    @property
+    def gemini_speech(self) -> LocalGeminiSpeech:
+        # The key and the concurrency limit stay process-wide in gemini_tts_service.
+        return LocalGeminiSpeech()
 
 
 def local_file_response(file: VerifiedContentFile, *, if_none_match: str | None, revalidate: bool) -> Response:

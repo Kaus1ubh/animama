@@ -50,7 +50,8 @@ Ownership and boundaries:
 
 ## Progress
 
-- [ ] Phase 1: Live measurement and the backend Gemini voice.
+- [x] Phase 1: Live measurement and the backend Gemini voice. Done
+      2026-10-11; Review #3 passed (repair round 2).
 - [ ] Phase 2: Voice settings, playback and lip-sync.
 - [ ] Phase 3: Desktop key.
 - [ ] Phase 4: Documentation, release note and owner listening check.
@@ -130,6 +131,16 @@ Planning, 2026-10-11, code at `db30d213` unless stated:
   (`adapters/repositories/sqlalchemy/anima_package_source_repo.py:74-81`), and
   portable import forces `pocket_tts`.
 
+- **Main moved the chat routes** (merged at `fd4fea0f`): the chat SSE and TTS
+  modules now live in `product_http/chat/` behind composition ports. Every
+  finalized speech call goes through `ProductSpeech`
+  (`product_http/ports.py`), which the local composition implements in
+  `server/elevenlabs_service.py` (`LocalSpeech`) and a hosted composition
+  implements with its own metering. Golden SSE frames in
+  `tests/fixtures/chat_sse_golden/` pin the ElevenLabs frames.
+- **Byte order** (Phase 1 live run): Gemini's streamed `audio/l16` is
+  little-endian, so no conversion is needed.
+
 ## Decision Log
 
 Spec decisions D3, D4, D7, D8, D12, D14 and D15–D17 are in the
@@ -150,24 +161,31 @@ Spec decisions D3, D4, D7, D8, D12, D14 and D15–D17 are in the
   ordering stay shared. The frame format stays `pcm_24000` little-endian; the
   Gemini service converts byte order if Phase 1 finds big-endian. The SSE
   formatters take the provider and model instead of hard-coding them.
-- **D21 (planning): speaking style.** A tone-to-style mapper beside the
+- **D21 (planning): speaking style.** `gemini_speaking_style` beside the
   ElevenLabs tag builder takes the same tone and level and returns one style
-  sentence (for example, "Speak slightly cheerfully."), with a friendly default
-  for neutral or unknown tones. Every request in a reply carries the same style,
-  as Google recommends for streamed agents.
-- **D22 (planning): chunking.** Sentence mode if Phase 1 measures Flash-Lite
-  TTS's time to first audio at or under 1.5 s for one sentence; otherwise
-  paragraph mode. The owner may revise it at the listening check.
-- **D23 (planning): prebuilt voices.** One backend constant lists Google's
-  prebuilt voice names (30 per the docs; Phase 1 confirms the list against
-  the current docs page). It is exposed through the generated client as an
-  enum, so the frontend picker and backend validation share it. The default
+  sentence, "Speak in a [slightly |very ]<tone> tone.", with "Speak in a
+  friendly tone." for neutral or unknown tones. Every request in a reply
+  carries the same style, as Google recommends for streamed agents.
+- **D22 (planning; resolved in Phase 1): chunking.** Sentence mode if Phase 1
+  measures Flash-Lite TTS's time to first audio at or under 1.5 s for one
+  sentence; otherwise paragraph mode. Measured 0.66–1.37 s, so Gemini uses
+  sentence mode by default, and an explicit `finalized_chunking: paragraph`
+  request is honoured. The owner may revise it at the listening check.
+- **D23 (planning; confirmed in Phase 1): prebuilt voices.** One backend
+  `Literal` (`app/contracts/gemini.py`) lists Google's 30 prebuilt voices,
+  confirmed against the speech generation docs (updated 2026-10-01). The
+  `gemini_tts` runtime capability carries the voices and models, so the
+  frontend picker and backend validation share the generated enum. The default
   voice is `Kore`; an unknown stored name falls back to it.
-- **D24 (planning): composition gating.** A new `app.state` flag, set only by
-  the local composition, enables provider voices that need a key on the
-  backend. Without it the backend drops a `gemini` dispatch the way it drops
-  unknown providers, and the frontend shows Gemini only when
-  `provider_credentials` is true. Hosted behaviour is unchanged.
+- **D24 (planning; revised in Phase 1 for the composition ports): gating.**
+  `ChatTurnServices.gemini_speech` is the Gemini finalized-speech port, read
+  only when a turn asks for Gemini; the local composition supplies
+  `LocalGeminiSpeech`. Where a composition supplies `None`, a Gemini request
+  produces no speech frames. The `gemini_tts` runtime capability is likewise
+  reported only by the local composition, and the frontend offers Gemini only
+  when it is present. This replaces the planned `app.state` flag. Hosted
+  behaviour is unchanged; a hosted composition adopting this release adds a
+  `gemini_speech` property that returns `None`.
 - **D25 (planning): settings placement.** The Gemini TTS model is an
   installation voice preference beside the ElevenLabs model in App Settings;
   the voice is chosen per Anima in its voice section. Setup's voice step and
@@ -175,9 +193,10 @@ Spec decisions D3, D4, D7, D8, D12, D14 and D15–D17 are in the
 - **D26 (planning): vault re-admission.** The desktop vault stores keys saved
   by this release under a marker that earlier releases never wrote; an
   unmarked `gemini` entry is still dropped, even in a vault never re-saved.
-- **D27 (planning): package export.** A `gemini` voice exports as
-  `pocket_tts`, the provider portable import already forces, so packages carry
-  no provider their readers do not know.
+- **D27 (planning; revised in Phase 1): package export.** No change needed:
+  export already includes a voice binding only when the effective provider is
+  `pocket_tts`, so a Gemini-voiced Anima exports like an ElevenLabs one, with
+  no voice binding and no provider name. A test case pins it.
 - **D28 (planning): no ADR.** Gemini extends the existing backend-brokered
   voice pattern (ElevenLabs finalized audio) without a new boundary, so current
   docs record it instead of an ADR.
@@ -292,9 +311,11 @@ composition allows it.
    ElevenLabs size; convert byte order if needed; cap requests in flight like
    ElevenLabs; map failures to the D18 codes without logging text or keys.
 6. **Style (D21)** beside `elevenlabs_v3_text_with_emotional_prefix`.
-7. **Composition (D24).** Set the new flag in the local composition; drop a
-   `gemini` dispatch without it.
-8. **Content (D27).** Package export maps `gemini` to `pocket_tts`.
+7. **Composition (D24, as revised).** The local composition supplies
+   `ChatTurnServices.gemini_speech` and the `gemini_tts` capability; without
+   the port a Gemini request produces no speech.
+8. **Content (D27, as revised).** Package export needs no change; a test pins
+   that a Gemini voice exports no voice binding.
 9. Regenerate the client offline and fix type fallout for `pnpm check`.
 
 Tests: options and contract validation; the seam keeps every ElevenLabs
@@ -317,13 +338,175 @@ blocker.
 
 Phase record: issue #458; starting source `fd4fea0f`; commit —.
 
+Results (2026-10-11, working tree on `077b8c8f`):
+
+- **Live measurement** (D16), `tests/live/test_gemini_tts_contract.py`, 8
+  requests on both models, one and three sentences, with and without a style:
+  all completed, `audio/l16@24000`. Little-endian (neighbouring-sample score
+  about 590–1,420) against big-endian (about 14,900–18,400). Time to first
+  audio: Flash-Lite 0.66–1.37 s, Flash 0.81–1.02 s; chunks of 1,920 or 3,840
+  bytes. The style was accepted on both. Spend under US$0.01. Command:
+  `ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.env" pytest -q -s tests/live/test_gemini_tts_contract.py`.
+- **Service live check:** two sentences through
+  `server/gemini_tts_service.py` with voice `Puck` and style "Speak in a very
+  happy tone.": first frame 1.22 s and 0.71 s, 8 frames each, then `done`.
+- **Implementation:**
+  - `app/contracts/gemini.py`: model ids, the 30 voices, defaults and the
+    `GeminiTtsCapability`; `RuntimeCapabilities.gemini_tts`, set by the local
+    composition.
+  - `GEMINI_API_KEY` is a process and deliverable credential, not an
+    owner-connection name; compose passes it to `animama-server`.
+  - Dispatch and chat options accept `gemini` and its two models.
+  - `product_http/ports.py`: `FinalizedSpeechPort` (prepare and stream), which
+    `ProductSpeech` now extends, and `ChatTurnServices.gemini_speech`.
+  - `product_http/chat/tts.py`: the finalized bootstrap takes a provider;
+    Gemini resolves the Anima's voice from `speech.gemini.voice`, styles every
+    request, never sends continuity text, and names itself in frames and
+    error codes. ElevenLabs strings and codes are unchanged.
+  - `product_http/chat/sse_events.py`: the `tts.*` formatters take a
+    provider, defaulting to ElevenLabs.
+  - `server/finalized_speech.py`: gruut text preparation and PCM framing,
+    shared by `elevenlabs_service.py` and the new `gemini_tts_service.py`
+    (`LocalGeminiSpeech`, one client per key, three requests in flight,
+    `store: false`, status-only error text).
+  - `app/voice_emotional_tone.py`: `gemini_speaking_style`.
+  - The generated client is regenerated offline.
+- **Tests:** `tests/test_gemini_tts.py` (key sets, contracts, options,
+  capability, style, prepare, stream framing, failures, safe errors, client per
+  key); four route tests in `tests/test_anima_chat_sse.py` (voice and style
+  per sentence, missing key with the reply kept, provider failure with the
+  reply kept, no port → no speech); export
+  and owner-connection refusal cases. Three ElevenLabs tests now patch the moved
+  helpers.
+
 #### Code Review #1 Findings
 
-Not started.
+Independent `sdlc-reviewer`, full initial review of the working tree on
+`077b8c8f` plus the committed client groundwork (`db30d213`). **Result: pass,
+no blocking findings.** Checks run by the reviewer: ruff, format check, the
+import-boundary script (0 forbidden edges), mypy on the changed files, 481
+focused backend tests, `uv lock --check`, both compose configs,
+`openapi-ts --check` and `tsc --noEmit` for the frontend packages.
+
+- **P1-R1-F1:** the "no key in logs" test read only `getMessage()`, while the
+  logger adapter writes keyword arguments as record extras.
+- **P1-R1-F2:** the test environment scrub lacked `GEMINI_API_KEY` and
+  `GOOGLE_API_KEY` (plan step 2).
+- **P1-R1-F3:** an ElevenLabs request with a Gemini model id now validated and
+  failed later as a `tts.session.error`.
+- **P1-R1-F4 (optional):** "Speak in a amused tone." for vowel-initial tones.
+- **P1-R1-F5:** the stream's missing-key branch used the stream-failed code.
+- **P1-R1-F6:** a client construction error escaped the status-only error text.
+- **P1-R1-F7:** `ChatTurnServices.gemini_speech` is a required protocol
+  member; a composition lacking it fails a crafted Gemini request.
+- **P1-R1-F8 (optional):** simplifications: the no-port branch, the failure
+  label special case, a duplicated text-basis constant, the key digest, and an
+  unclosed client after key rotation.
+- **P1-R1-F9 (optional):** `google.genai` loaded at app startup (about
+  0.2 s) for every installation.
+- **P1-R1-F10 (optional):** the SDK stream is closed by garbage collection when
+  the consumer stops early, as on ElevenLabs.
+- **P1-R1-F11:** no Gemini route test for a provider failure, nor a
+  Gemini-specific cancellation test.
+- **P1-R1-F12:** plan steps 7–8 and a test count were out of date.
 
 #### Code Review #1 Revisions
 
-Not started.
+- **F1 (fixed):** the test checks every record's full `__dict__`.
+- **F2 (fixed):** `tests/conftest.py` scrubs both names, keeping
+  `GEMINI_API_KEY` only for live runs.
+- **F3 (fixed):** `PyAnimaTtsRunOptions` rejects a model id that does not match
+  the provider, and `_normalize_tts_options` keeps a model id only for its own
+  provider; tests cover both directions.
+- **F4 (fixed):** "an" before vowel-initial descriptions; test cases added.
+- **F5 (fixed):** that branch now sends `gemini_tts_missing_credential`.
+- **F6 (fixed):** any other client setup error yields the safe text and code;
+  a test covers it.
+- **F7 (accepted, recorded):** D24 already requires adopters to add the
+  property; the PR's Cloud follow-up names it. No consumer implements these
+  protocols today.
+- **F8 (fixed):** a `gemini_finalized_tts_model_id` helper and an early return
+  for the no-port case; a `failure_label` field; `finalized_speech.py` imports
+  the shared text-basis constant; the cache compares the key directly. A key
+  change first also closed the previous client (`aio.aclose()`); Review #2
+  found that this cuts off speech in progress, so it was removed (P1-R2-F1).
+- **F9 (fixed):** the SDK is imported on the first Gemini request; a check
+  shows `google.genai` is not loaded after importing the app.
+- **F10 (accepted):** the SDK's own `finally` closes the response and the
+  semaphore is released one loop iteration later, the same pattern as
+  ElevenLabs.
+- **F11 (partly fixed):** a route test now covers a provider failure (one
+  `tts.error`, no `tts.done`, `run.completed` sent). Cancellation is shared code
+  already covered by the ElevenLabs early-close tests.
+- **F12 (fixed):** steps 7–8 and the test count are corrected.
+
+Verification: ruff and format pass; `make mypy` passes (826 files); the
+import-boundary script reports 0 forbidden edges; 208 focused tests pass
+(`test_gemini_tts`, `test_gemini_sdk_isolation`, `test_anima_chat_sse`,
+`test_elevenlabs_realtime_router`, `test_chat_sse_golden`,
+`test_product_http_chat_turns`, `test_main_structured_response`).
+
+Repair budget: one of two rounds used.
+
+#### Code Review #2 Findings
+
+Independent `sdlc-reviewer`, targeted recheck (repair round 1) of the same
+tree. **Result: pass, no blocking findings.** It verified F1–F6, F8, F9, F11
+and F12, found no request shape that the new dispatch validator rejects (the
+frontend's only TTS builder and Cloud's hosted speech tests send `elevenlabs`
+with ElevenLabs ids, or `browser` with none), and confirmed that importing the
+app leaves `google.genai` unloaded. Checks: ruff, format check, the boundary
+script (0 forbidden edges), mypy on the changed files, 355 focused tests.
+
+- **P1-R2-F1 (low):** closing the previous client on a key change (the F8
+  revision) breaks a stream still using it: a scratch script showed
+  `httpx.ReadError` mid-stream and "client has been closed" for a queued
+  request, so the rest of that reply would be silent. The SDK's
+  `AsyncClient.__del__` already closes a dropped client.
+- **P1-R2-F2 (doc):** the Results bullet still said three route tests.
+- **P1-R2-F3 (optional):** the F1 test would pass with no captured records.
+
+#### Code Review #2 Revisions
+
+- **F1 (fixed):** `_client` no longer closes the dropped client (and is
+  synchronous again); its docstring says why; the test asserts only that a
+  changed key builds a new client.
+- **F2 (fixed):** four route tests, listed.
+- **F3 (fixed):** the test asserts that records were captured.
+
+Verification: ruff, format and mypy pass on the changed files; 31 Gemini tests
+pass.
+
+Repair budget: two of two rounds used. Review #3 is the final targeted
+recheck.
+
+#### Code Review #3 Findings
+
+Final targeted recheck (repair round 2): **pass, no findings.** It verified
+the three Review #2 revisions:
+
+- `_client` is synchronous with one caller and synchronous test doubles;
+- a speaking reply keeps its own client reference;
+- a dropped `genai.Client` is closed by the SDK once collected, shown by a
+  scratch script: the HTTP client went from open to closed after the drop.
+
+It also confirmed the Review #1 and #2 records match the code. Checks: ruff,
+format check, mypy on the changed files, 132 focused tests.
+
+#### Code Review #3 Revisions
+
+None needed.
+
+Final validation of the Phase 1 tree:
+
+- `make check-test`: audit, format, lint and mypy pass; 3,983 passed, 29
+  skipped and 1 failed. The failure was the Review #2 `caplog.records` guard:
+  earlier in the full run, Alembic's `fileConfig` disables loggers that
+  already exist, so nothing was captured. Every test file sorting before it
+  reproduced the failure. The test now re-enables the service logger and
+  captures at it; that same run then passes (1,868 passed, 3 skipped).
+- `uv lock --check`, `bash -n reset.sh`, both compose configs and
+  `pnpm openapi-ts:check` pass.
 
 ### Phase 2: Voice settings, playback and lip-sync
 

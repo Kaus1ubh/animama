@@ -1769,6 +1769,30 @@ export type FaceSurfaceAttachment = {
 };
 
 /**
+ * GeminiTtsCapability
+ *
+ * Gemini voice options a composition offers; absent where Gemini voice is not offered.
+ */
+export type GeminiTtsCapability = {
+    /**
+     * Default Model
+     */
+    default_model: 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts';
+    /**
+     * Default Voice
+     */
+    default_voice: 'Zephyr' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Leda' | 'Orus' | 'Aoede' | 'Callirrhoe' | 'Autonoe' | 'Enceladus' | 'Iapetus' | 'Umbriel' | 'Algieba' | 'Despina' | 'Erinome' | 'Algenib' | 'Rasalgethi' | 'Laomedeia' | 'Achernar' | 'Alnilam' | 'Schedar' | 'Gacrux' | 'Pulcherrima' | 'Achird' | 'Zubenelgenubi' | 'Vindemiatrix' | 'Sadachbia' | 'Sadaltager' | 'Sulafat';
+    /**
+     * Models
+     */
+    models: Array<'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts'>;
+    /**
+     * Voices
+     */
+    voices: Array<'Zephyr' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Leda' | 'Orus' | 'Aoede' | 'Callirrhoe' | 'Autonoe' | 'Enceladus' | 'Iapetus' | 'Umbriel' | 'Algieba' | 'Despina' | 'Erinome' | 'Algenib' | 'Rasalgethi' | 'Laomedeia' | 'Achernar' | 'Alnilam' | 'Schedar' | 'Gacrux' | 'Pulcherrima' | 'Achird' | 'Zubenelgenubi' | 'Vindemiatrix' | 'Sadachbia' | 'Sadaltager' | 'Sulafat'>;
+};
+
+/**
  * GestureSelection
  */
 export type GestureSelection = {
@@ -3136,11 +3160,11 @@ export type PyAnimaTtsRunOptions = {
     /**
      * Model Id
      */
-    model_id?: 'eleven_multilingual_v2' | 'eleven_flash_v2_5' | 'eleven_v3' | null;
+    model_id?: 'eleven_multilingual_v2' | 'eleven_flash_v2_5' | 'eleven_v3' | 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts' | null;
     /**
      * Provider
      */
-    provider?: 'browser' | 'pocket_tts' | 'elevenlabs' | null;
+    provider?: 'browser' | 'pocket_tts' | 'elevenlabs' | 'gemini' | null;
     /**
      * Transport
      */
@@ -9842,6 +9866,7 @@ export type RuntimeCapabilities = {
      */
     chat_file_uploads: boolean;
     companion_safety: CompanionSafetyCapability;
+    gemini_tts?: GeminiTtsCapability | null;
     /**
      * Local Filesystem Administration
      */

@@ -112,3 +112,44 @@ async def test_text_to_speech_latency_format_and_style() -> None:
                 assert result["chunks"] > 0
                 measurements.append({"model": model, "input": label, "style": bool(style), **result})
     print(f"[gemini-tts] {json.dumps(measurements, sort_keys=True)}")
+
+
+async def test_voice_service_streams_a_styled_two_sentence_reply() -> None:
+    """The production service: one request per sentence, re-framed PCM, then done."""
+
+    from animama.server.finalized_speech import FINALIZED_TTS_PCM_FRAME_BYTES
+    from animama.server.gemini_tts_service import prepare_gemini_finalized_speech, stream_gemini_finalized_speech
+
+    measurements = []
+    for text in ("Good morning! ", "I hope you slept well."):
+        started = time.perf_counter()
+        prepared = await prepare_gemini_finalized_speech(
+            voice_id="Puck",
+            run_id="live-service",
+            text=text,
+            model_id="gemini-3.8-flash-lite-tts",
+            text_basis="visible_text",
+            emotional_tone="joy",
+            emotional_state={"joy": 16},
+            apply_emotional_prefix=True,
+        )
+        first_frame: float | None = None
+        frames: list[int] = []
+        last_type = None
+        async for payload in stream_gemini_finalized_speech(prepared):
+            last_type = payload["type"]
+            if payload["type"] == "audio":
+                if first_frame is None:
+                    first_frame = time.perf_counter() - started
+                frames.append(len(base64.b64decode(payload["audio_base64"])))
+        assert last_type == "done"
+        assert frames and all(size >= FINALIZED_TTS_PCM_FRAME_BYTES for size in frames[:-1])
+        measurements.append(
+            {
+                "style": prepared.style,
+                "first_frame_seconds": round(first_frame or 0.0, 2),
+                "frames": len(frames),
+                "audio_seconds": round(sum(frames) / 2 / SAMPLE_RATE, 2),
+            }
+        )
+    print(f"[gemini-tts-service] {json.dumps(measurements, sort_keys=True)}")

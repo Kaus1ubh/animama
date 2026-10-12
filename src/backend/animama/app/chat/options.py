@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from typing import Any, Literal, cast
 
 from animama.app.contracts.elevenlabs import SUPPORTED_ELEVENLABS_CHAT_TTS_MODEL_IDS
+from animama.app.contracts.gemini import SUPPORTED_GEMINI_TTS_MODEL_IDS
 
 DirectChatFinalizedTtsChunking = Literal["sentence", "paragraph"]
 DEFAULT_FINALIZED_TTS_CHUNKING: DirectChatFinalizedTtsChunking = "sentence"
@@ -188,7 +189,7 @@ def _normalize_tts_options(value: object) -> DirectChatTtsOptions | None:
         normalized["enabled"] = enabled
 
     provider = value.get("provider")
-    if provider in {"browser", "pocket_tts", "elevenlabs"}:
+    if provider in {"browser", "pocket_tts", "elevenlabs", "gemini"}:
         normalized["provider"] = provider
 
     transport = value.get("transport")
@@ -200,7 +201,11 @@ def _normalize_tts_options(value: object) -> DirectChatTtsOptions | None:
         normalized["language_code"] = language_code
 
     model_id = _pick_str(value.get("model_id"))
-    if model_id in SUPPORTED_ELEVENLABS_CHAT_TTS_MODEL_IDS:
+    # A model id is kept only for its own provider.
+    provider_models = (
+        SUPPORTED_GEMINI_TTS_MODEL_IDS if provider == "gemini" else SUPPORTED_ELEVENLABS_CHAT_TTS_MODEL_IDS
+    )
+    if model_id in provider_models:
         normalized["model_id"] = model_id
 
     finalized_chunking = _pick_str(value.get("finalized_chunking"))

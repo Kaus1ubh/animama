@@ -180,7 +180,7 @@ VoiceResolver = Callable[[], Awaitable[PyElevenLabsVoice]]
 
 
 class FinalizedSpeech(Protocol):
-    """One reply segment prepared for finalized (eleven_v3) speech."""
+    """One reply segment prepared for finalized speech (ElevenLabs ``eleven_v3`` or Gemini)."""
 
     @property
     def voice_id(self) -> str: ...
@@ -192,7 +192,39 @@ class FinalizedSpeech(Protocol):
     def output_format(self) -> str: ...
 
 
-class ProductSpeech(Protocol):
+class FinalizedSpeechPort(Protocol):
+    """Finalized speech for a chat reply: each segment prepared, then streamed as PCM payloads.
+
+    ``ProductSpeech`` offers it for ElevenLabs; a composition may also offer it
+    for Gemini through ``ChatTurnServices.gemini_speech``.
+    """
+
+    async def prepare_finalized(
+        self,
+        principal: RequestPrincipal,
+        *,
+        voice: VoiceResolver | None,
+        voice_id: str | None,
+        anima_id: str,
+        run_id: str,
+        text: str,
+        model_id: str | None,
+        language_code: str | None,
+        text_basis: str,
+        emotional_tone: str | None,
+        emotional_state: dict[str, int] | None,
+        previous_text: str | None,
+        apply_emotional_prefix: bool,
+    ) -> FinalizedSpeech:
+        """Prepare one reply segment; ``voice_id`` reuses the voice an earlier segment resolved."""
+        ...
+
+    def stream_finalized(self, prepared: FinalizedSpeech) -> AsyncIterator[dict[str, Any]]:
+        """Stream the segment's audio as ``audio`` payloads, then ``done`` or ``error``."""
+        ...
+
+
+class ProductSpeech(FinalizedSpeechPort, Protocol):
     """Paid speech operations a composition offers its owners (ElevenLabs).
 
     The composition holds the provider credentials, retries, concurrency and any
@@ -241,30 +273,6 @@ class ProductSpeech(Protocol):
         model_id: str | None,
     ) -> PyElevenLabsRealtimeTtsSessionResponse:
         """Describe a realtime speech session for one chat reply."""
-        ...
-
-    async def prepare_finalized(
-        self,
-        principal: RequestPrincipal,
-        *,
-        voice: VoiceResolver | None,
-        voice_id: str | None,
-        anima_id: str,
-        run_id: str,
-        text: str,
-        model_id: str | None,
-        language_code: str | None,
-        text_basis: str,
-        emotional_tone: str | None,
-        emotional_state: dict[str, int] | None,
-        previous_text: str | None,
-        apply_emotional_prefix: bool,
-    ) -> FinalizedSpeech:
-        """Prepare one reply segment; ``voice_id`` reuses the voice an earlier segment resolved."""
-        ...
-
-    def stream_finalized(self, prepared: FinalizedSpeech) -> AsyncIterator[dict[str, Any]]:
-        """Stream the segment's audio as ``audio`` payloads, then ``done`` or ``error``."""
         ...
 
 
@@ -351,6 +359,15 @@ class ChatTurnServices(Protocol):
     @property
     def speech(self) -> ProductSpeech:
         """The reply's speech operations."""
+        ...
+
+    @property
+    def gemini_speech(self) -> FinalizedSpeechPort | None:
+        """Gemini speech for the reply, or ``None`` where the composition does not offer it.
+
+        Read only when a turn asks for Gemini voice. The turn resolves the Anima's
+        prebuilt voice itself and passes it as ``voice_id`` with no resolver.
+        """
         ...
 
 

@@ -70,6 +70,7 @@ services:
       ANIMAMA_CONTENT_ROOT: /var/lib/animama/content
       ANIMAMA_DATA_ROOT: /var/lib/animama/data
       ELEVENLABS_API_KEY: ${ELEVENLABS_API_KEY}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
       ANIMAMA_ELEVENLABS_REALTIME_TTS_USE_BACKEND_INTERMEDIARY: ${ANIMAMA_ELEVENLABS_REALTIME_TTS_USE_BACKEND_INTERMEDIARY:-}
       ANIMAMA_DATABASE_URL: "postgresql+asyncpg://${POSTGRES_USER:-animama}:${POSTGRES_PASSWORD:-a}@postgres:5432/${POSTGRES_DB:-animama}"
       # Shared database bootstrap uses the same private database as the API.

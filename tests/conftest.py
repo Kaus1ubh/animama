@@ -37,9 +37,11 @@ _PROVIDER_ENVIRONMENT = (
     "ELEVENLABS_API_KEY",
     "ANTHROPIC_API_KEY",
     "ANTHROPIC_BASE_URL",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
 )
 for _name in _PROVIDER_ENVIRONMENT:
-    if not (_live_tests_enabled and _name in {"OPENAI_API_KEY", "ANTHROPIC_API_KEY"}):
+    if not (_live_tests_enabled and _name in {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"}):
         _test_environment.delenv(_name, raising=False)
 if not _live_tests_enabled:
     _test_environment.setenv("OPENAI_API_KEY", "test-key")

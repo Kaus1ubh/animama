@@ -64,6 +64,7 @@ from animama.product_http.ports import (
     ChatTurnPolicy,
     ChatTurnStop,
     FinalizedSpeech,
+    FinalizedSpeechPort,
     ProductContent,
     ProductPolicy,
     ProductPorts,
@@ -273,10 +274,11 @@ class RecordingChatGuard:
 
 @dataclass
 class FakeChatTurnServices:
-    """A turn's collaborators on the doubles: their model clients and speech; no search or embeddings."""
+    """A turn's collaborators on the doubles: their model clients and speech; no search, embeddings or Gemini."""
 
     model_clients: ModelClientRegistry | None
     speech: FakeSpeech
+    gemini_speech: FinalizedSpeechPort | None = None
 
     async def web_search_tool(self, session: AsyncSession) -> WebSearchToolService | None:
         return None

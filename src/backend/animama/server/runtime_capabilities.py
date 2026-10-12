@@ -14,6 +14,7 @@ from fastapi import FastAPI, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from animama.adapters.repositories.sqlalchemy.web_search_settings_repo import SQLAlchemyWebSearchSettingsRepository
+from animama.app.contracts.gemini import gemini_tts_capability
 from animama.app.contracts.runtime_capabilities import (
     CompanionSafetyCapability,
     RuntimeCapabilities,
@@ -74,6 +75,7 @@ async def local_runtime_capabilities(app: FastAPI, session: AsyncSession) -> Run
         model_configuration=composition_model_policy(app).owner_models_enabled,
         provider_credentials=True,
         web_search=web_search,
+        gemini_tts=gemini_tts_capability(),
         companion_safety=CompanionSafetyCapability(
             enabled=safety.enabled,
             ai_notice_enabled=safety.effective_ai_notice_enabled,

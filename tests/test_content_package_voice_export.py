@@ -108,7 +108,13 @@ async def test_active_clone_exports_encoded_catalog_without_original_or_provider
 
 @pytest.mark.parametrize(
     "owner_provider,anima_provider,expected",
-    [(None, "elevenlabs", False), ("pocket_tts", None, True), (None, None, False), ("pocket_tts", "elevenlabs", False)],
+    [
+        (None, "elevenlabs", False),
+        ("pocket_tts", None, True),
+        (None, None, False),
+        ("pocket_tts", "elevenlabs", False),
+        ("pocket_tts", "gemini", False),
+    ],
 )
 async def test_export_follows_effective_provider_but_not_speech_enable(
     async_session, tmp_path, owner_provider, anima_provider, expected

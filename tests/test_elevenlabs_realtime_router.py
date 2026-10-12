@@ -166,7 +166,7 @@ async def test_internal_finalized_tts_stream_uses_prepared_text(
         "animama.server.elevenlabs_service.ensure_elevenlabs_voice_accessible",
         _fake_ensure_voice_accessible,
     )
-    monkeypatch.setattr("animama.server.elevenlabs_service.build_gruut_sse_text", _unexpected_gruut)
+    monkeypatch.setattr("animama.server.finalized_speech.build_gruut_sse_text", _unexpected_gruut)
 
     prepared = await prepare_finalized_tts_stream_from_text(
         voice=_primary_voice,
@@ -295,7 +295,7 @@ async def test_internal_finalized_tts_stream_uses_resolved_voice_id_without_vali
         "animama.server.elevenlabs_service.ensure_elevenlabs_voice_accessible",
         _unexpected_ensure_voice_accessible,
     )
-    monkeypatch.setattr("animama.server.elevenlabs_service.build_gruut_sse_text", _unexpected_gruut)
+    monkeypatch.setattr("animama.server.finalized_speech.build_gruut_sse_text", _unexpected_gruut)
 
     prepared = await prepare_finalized_tts_stream_from_text(
         anima_id="anima-1",
@@ -388,7 +388,7 @@ async def test_finalized_tts_stream_coalesces_pcm_audio_frames(
         lambda: asyncio.Semaphore(1),
     )
     monkeypatch.setattr(
-        "animama.server.elevenlabs_service.ELEVENLABS_FINALIZED_TTS_PCM_FRAME_BYTES",
+        "animama.server.finalized_speech.FINALIZED_TTS_PCM_FRAME_BYTES",
         4,
     )
 
