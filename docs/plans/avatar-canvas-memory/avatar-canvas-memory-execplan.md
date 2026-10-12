@@ -61,10 +61,10 @@ this plan without machine paths.
 ## Progress
 
 - [x] Phase 1: Library Dock reuse (R1). Delivered in `7172794f`. Review passed after two repair rounds; the evidence is below.
-- [ ] Phase 2: Avatar disposal releases GPU and decoded resources (R2, R3). Approved.
-- [ ] Phase 3: One live scroll tracker per admitted session (R4). Approved.
-- [ ] Phase 4: Desktop and PiP window memory, measured and repaired (R6). Approved.
-- [ ] Phase 5: Chat keeps its renderer across Animas (R5). Approved.
+- [x] Phase 2: Avatar disposal releases GPU and decoded resources (R2, R3). `afacb9fe`; review passed.
+- [x] Phase 3: One live scroll tracker per admitted session (R4). `fa3caa9f`; review passed after one repair round.
+- [x] Phase 4: Desktop and PiP window memory (R6). F7.1 was fixed by Phase 2; the F7.2 PiP owner-listener leak is fixed here. Review passed after two repair rounds. Packaged, Windows, long-session and Quick Chat design checks remain owner gates.
+- [ ] Phase 5: Chat keeps its renderer across Animas (R5). Deferred by the owner on 2026-10-12; #478 stays open as the follow-up.
 - [ ] Final integration review, fast browser journeys and PR update.
 
 ## Surprises & Discoveries
@@ -78,6 +78,7 @@ this plan without machine paths.
 
 - 2026-10-12, owner: expand #472 from the Library Dock fix to the measured canvas leaks and churn, then add PiP and desktop windows.
 - 2026-10-12, owner: approve the spec and this plan as written, and include Phase 5 (R5).
+- 2026-10-12, owner: defer Phase 5 after the Phase 2 measurements. The per-switch model load is inherent, and the old renderer and model are now released promptly. Keeping the renderer would mainly save one WebGL context and scene rebuild per switch, but it would need an explicit reset for the canvas mode, fullscreen, both PiP kinds, transforms, camera and safety state.
 - 2026-10-12, agent: treat this as substantial and risky work, because it touches the shared Avatar runtime, router lifetime and chat remount semantics. Hence this ExecPlan.
 - 2026-10-12, agent: fix R2 centrally in `Avatar.unload()` by detaching before disposing, rather than reordering every caller's cleanup.
 - 2026-10-12, agent: for R4, build routers only for ready admissions, and stop scroll tracking on a retired router, instead of keeping one router for the whole page.
@@ -294,9 +295,116 @@ Gates:
 
 Recovery: revert the phase commits. No persisted window state changes, unless a finding needs them; that would be an owner decision.
 
+Results (2026-10-12):
+- **Harness:**
+  - Process: the unpackaged desktop app ran from `src/frontend/desktop` as `ANIMAMA_DESKTOP_WEB_URL=<stack> ANIMAMA_DESKTOP_DEV_USER_DATA=<disposable profile> electron --inspect=9229 --trace-warnings . --remote-debugging-port=<port> --disable-renderer-backgrounding --disable-backgrounding-occluded-windows`.
+  - Builds: the baseline main build first, then the Phase 2/3 task build.
+  - Main-window instrumentation: WebGL contexts, canvases, ImageBitmaps and `requestAnimationFrame` calls.
+  - Main-process counters, read through the inspector:
+    - live `BrowserWindow`s and `webContents`;
+    - `destroyed` listeners on the main window's `webContents`;
+    - heap after GC.
+  - Process footprints were read with `footprint`.
+- **F7.2, fixed:**
+  - **Defect:** every native PiP open added a `destroyed` listener to the main window's `webContents`. Nothing removed it, and it captured the closed PiP window. The development logs showed `MaxListenersExceededWarning: 11 destroyed listeners added to [WebContents]` at the 7th open on both builds.
+  - **Fix:** `PipWindowManager` now watches each owner once, from the start of every `open()`, keyed by an id captured up front. When the listener fires, it closes whichever PiP window is current, and only if that owner still owns PiP.
+  - **Test:** `desktop/tests/pip-window-manager.test.ts`. 12 cycles leave one listener (12 before the fix); destroying the owner still closes an open PiP; a destroyed former owner does not close the current owner's PiP.
+- **Native PiP, task build plus the fix, 20 cycles and then 40 more:**
+
+  | | Result |
+  | --- | --- |
+  | Main window `destroyed` listeners | 5 throughout (4 from other subsystems plus 1 PiP binding); no `MaxListenersExceeded` warning |
+  | Live windows and `webContents` after close | 2 |
+  | Main-process heap after GC | 7.3 → 7.7 MB (20 cycles) → 7.9 MB (60 cycles), tapering. The unfixed baseline rose about as much, so the leaked closures were below heap resolution. The cause of this residue is not established; it stays under the long-session gate |
+  | GPU after GC | 663 → 675 → 683 MB |
+  | Main renderer | one canvas, one model's textures |
+  | Main-window animation frames while PiP is open | 0 per 2 s, against 120 when shown |
+
+  - PiP is a separate renderer process that exits on close.
+  - The main window unmounts its scene while PiP is shown and rebuilds it on close, so the model is never held twice.
+  - **F7.1:** the baseline main build kept one previous main canvas and its model (52 bitmaps, about 177 MB) after GC. Phase 2 fixed it.
+  - An earlier 6-cycle instrumented task-build run, before the fix, showed the same canvas and texture results.
+- **Switching Anima with PiP open, 10 times, opening PiP before each switch:**
+  - PiP was open before and closed after the switch in 10 of 10 cycles. This is existing behavior: the chat shell remounts per Anima, and `useDesktopPiP` closes PiP on unmount.
+  - Windows and listeners stayed flat, the main-process heap after GC went 7.9 → 8.0 MB, and the main window kept one canvas and one model.
+  - **Phase 5 constraint:** without the remount, PiP must still close on a switch.
+- **PiP resized 20 times (`setSizeScale`), then idle for 10 minutes:**
+  - After GC: main renderer 489 → 486 MB, PiP renderer 277 → 239 MB, main-process heap 7.9 → 7.9 MB, GPU 450 → 430 MB.
+  - Snapshot traffic only creates collectable garbage; the main-process heap swings between 9 and 15 MB before GC.
+  - The main-process footprint rose 132 → 141 MB and was flat (141) for the last 4 minutes, while its heap stayed flat. The source of that native growth is not established; it stays under the long-session owner gate.
+  - Moving PiP was not exercised.
+- **Quick Chat, 20 open/close cycles:**
+  - After GC: renderer 107 → 107 MB, listeners 172 → 172, DOM nodes 165 → 165, main-process heap 7.4 → 7.4 MB, GPU 663 → 679 MB.
+  - By existing design, Quick Chat keeps one prepared, hidden renderer, and a 50 ms cursor poll, for the whole session; closing it only hides it. This is bounded. Releasing it would change open latency, so it is recorded as accepted existing design for the owner to confirm rather than changed here.
+- **Browser Document PiP, 20 and then 10 cycles, task build:**
+  - One WebGL context and one model's textures throughout.
+  - After GC, listeners and DOM nodes return to baseline, and documents rise by one (bounded).
+  - Cycles were closed through `documentPictureInPicture.window.close()`; the in-app toggle close path was not exercised.
+  - No baseline-build comparison or GPU record exists for Document PiP.
+- **Pre-existing, unchanged:**
+  - Snapshots are published even while PiP is closed. The main process clones each one and then drops it, so this is collectable churn.
+  - The first snapshot after a switch can log a harmless "anima mismatch" error (8 times in 10 switches).
+- **Owner gates:**
+  - the packaged macOS app;
+  - Windows;
+  - a long real-session PiP check with speech, which should cover the unexplained native footprint rise;
+  - confirming that Quick Chat's prepared hidden renderer is acceptable under R6.
+
+#### Code Review #1 Findings
+
+Independent `sdlc-reviewer` review of the measurement record against `fa3caa9f`. Blocking:
+- **P4-CR1-1:** a main-process `destroyed` listener leaked per PiP open. The source and the logged `MaxListenersExceededWarning` show it.
+- **P4-CR1-2:** the task-build PiP run was 6 cycles, not 20.
+- **P4-CR1-3:** only 1 of the 10 "switches with PiP open" actually had PiP open.
+- **P4-CR1-4:** Quick Chat's prepared hidden renderer does not meet R6 as written.
+- **P4-CR1-5:** the unexplained footprint growth and the GPU numbers were missing from the record.
+
+Optional:
+- **N1:** add direct main-process counters.
+- **N2:** snapshots are published while PiP is closed.
+- **N3:** a harmless "anima mismatch" error.
+- **N4:** Quick Chat's owner binding captures a window.
+- **N5:** gaps in Document PiP coverage.
+- **N6:** measure animation frames while PiP is open.
+- **N7:** Phase 4 was marked complete before review.
+- **N8:** record how to reproduce the runs.
+
+#### Code Review #1 Revisions
+
+- **Accepted and fixed:**
+  - CR1-1: the code fix and test above, plus a re-measurement over 60 cycles with direct counters.
+  - CR1-2 and CR1-3: re-run as described above.
+  - CR1-4: recorded as accepted existing design and an owner gate.
+  - CR1-5: GPU numbers recorded; the native rise is labelled unexplained and placed under the long-session gate.
+  - N1 and N6: added to the harness.
+  - N7: Progress corrected.
+  - N8: the launch shape is recorded.
+- **Recorded as pre-existing or limits, not changed:** N2, N3 and N5.
+- **Not applicable:** N4. The fix reads the current PiP window when the listener fires.
+
+Code Review #2 (repair round 1 of 2) confirmed the CR1 revisions and the record, and found:
+- **P4-CR2-1, blocking:** reading `.id` on a destroyed `webContents` might throw.
+- **N1:** the owner that takes over through the reuse path is not watched.
+- **N2:** no test pins the ownership guard.
+- **N3:** heap-growth wording.
+- **N4:** "logs" should be "can log".
+
+#### Code Review #2 Revisions
+
+- **P4-CR2-1, rejected with evidence:** in the running Electron 39.8.9 main process, a `destroyed` handler read `webContents.id` successfully (`id=73`). The id is captured up front anyway, which costs nothing.
+- **N1, accepted:** the watch now starts at the beginning of every `open()`.
+- **N2, accepted:** the takeover test fails without the change.
+- **N3 and N4, accepted:** wording above.
+- **Checks:**
+  - desktop Vitest 509 passed;
+  - `pnpm desktop:check` exit 0;
+  - rebuilt app, 10 PiP cycles: listeners 4 → 5 and flat, windows 2, heap after GC 7.3 → 7.6 MB, no `MaxListenersExceeded`.
+
+Code Review #3 (final targeted recheck) passed. Mutation runs confirmed the takeover test catches both a missing reuse-path watch and a missing ownership guard. Two repair rounds were used.
+
 ### Phase 5: Chat keeps its renderer across Animas (R5)
 
-Issue: [#478](https://github.com/raymond-van/animama/issues/478). The owner confirmed R5 on 2026-10-12. Depends on Phase 2.
+Issue: [#478](https://github.com/raymond-van/animama/issues/478). **Deferred by the owner on 2026-10-12** (see the Decision Log). The steps below are kept for the follow-up. One extra constraint comes from Phase 4: without the remount, an Anima switch must still close native PiP, as it does today.
 
 Steps:
 1. **Audit what must reset per Anima** under `MainShell` and the canvas actor:
