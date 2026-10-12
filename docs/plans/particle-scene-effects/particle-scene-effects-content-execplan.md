@@ -143,7 +143,8 @@ backend to `src/backend/animama/`, content to `content/included/`.
 - [x] P7 — Documentation and acceptance (2026-10-12): `main` merged, full
       checks and e2e (40) pass; chat check by departure (2 Reactions in chat, 16 by
       render, pending the owner's review); review passed at round 1.
-- [ ] Final integration review and PR.
+- [x] Final integration review (2026-10-12): passed at round 2; PR opened
+      for the owner's review (gates G2–G4 and merge pending).
 
 ## Surprises & Discoveries
 
@@ -1128,6 +1129,13 @@ tested. Findings:
   items are named ("ask whoever exported it… then export again");
   `errors.test.ts` covers both forms (26 passed).
 - **F4 accepted:** Outcomes now states what waits on the owner.
+
+#### Final Integration Review #2 Findings
+
+Round 2 (targeted recheck of `51e0d65c`): F1–F4 resolved (the plan, #297 and
+the snapshot agree; the import message and its test; Outcomes); the commit
+touches only the five expected files; no regression. One repair round unused.
+Result: pass.
 
 ## Validation and acceptance
 

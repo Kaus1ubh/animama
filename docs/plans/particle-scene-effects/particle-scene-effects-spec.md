@@ -11,8 +11,9 @@ fixed by the named plan or gate: the R2 capability list and R6 budget values by
 Plan 1, the R9 and R10 lists before Plan 2 starts (decided 2026-10-10).
 Authoritative source: [#297](https://github.com/raymond-van/animama/issues/297),
 published 2026-10-09 and updated with the before-Plan-2 decisions and the
-Plan 2 R9 additions (read back at 2026-10-12T08:03:57Z). This file is a snapshot of that issue text; refresh
-it from the issue before resuming and do not edit it as a competing source.
+Plan 2 R9 additions (read back at 2026-10-12T08:03:57Z). This file is a
+snapshot of that issue text; refresh it from the issue before resuming and do
+not edit it as a competing source.
 Related: [#298](https://github.com/raymond-van/animama/issues/298) (Avatar
 Effects v2: unified effects creator, effect preview, shared effect-asset skill
 and the Avatar Effect pipeline this work mirrors).
