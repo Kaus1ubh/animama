@@ -35,7 +35,7 @@ the git-ignored `.animama-drafts/gesture-catalog-expansion/` of this worktree.
 | Skills | `.agents/skills/animama-animation/`, `animama-avatar-vfx/`, `animama-effect-assets/` (art through the global `image-gen` skill) |
 | Content and records | `content/included/gestures/<slug>/`, `content/included/vfx/avatar/<id>/`, `content/included/licenses/inventory.json`, `licenses/source-review.json`, `assets/effect-templates/<id>.webp` |
 | Registries | `assets/vrm/animations/manifest.json` (backend copy via `uv run --no-sync python src/backend/packaging/shared_catalogs.py --write`), `src/backend/animama/resources/starter-loadout.v1.json`, `tests/anima_creation_service_support.py` (`EXPECTED_STARTER_GESTURE_IDS`), count pins in `includedGestures.test.ts`, `catalog.content.test.ts`, `tests/test_included_content_catalog.py` |
-| Chat selection | `src/backend/animama/app/chat/direct_executor.py` and `direct_turn/response_format.py` (`render_available_gestures`, `with_gesture_guidance`), `app/main_structured_response.py` (gesture enum), `app/chat/memory_context.py` (gesture instruction) |
+| Chat selection | `src/backend/animama/app/chat/direct_executor.py` and `direct_turn/response_format.py` (`render_available_gestures`, `gesture_response_guidance`), `app/main_structured_response.py` (gesture enum), `app/chat/memory_context.py` (gesture instruction) |
 | Mixamo pack identities | `src/backend/animama/resources/mixamo-motion-manifest.json` (public paths of the 30 pack Gestures) |
 | Sound pack (after #399) | `src/backend/animama/resources/wow-comedy-sfx-manifest.json`; `effects promote` `"sound": "<key>"`; #405's integrity test |
 | Precedent | [hand-animation-gestures spec](../hand-animation-gestures/hand-animation-gestures-spec.md) and [ExecPlan](../hand-animation-gestures/hand-animation-gestures-execplan.md); the #314 working package (brief, consistency notes and promotion package) is kept privately by the maintainer and copied as needed into this task's drafts folder |
@@ -59,8 +59,9 @@ the git-ignored `.animama-drafts/gesture-catalog-expansion/` of this worktree.
 - [x] Phase 4 (#415): effect list approved; effects on ten existing Gestures
       drafted and approved 2026-10-10 (Excited Triple Clap keeps only its R8
       contact cleanup). Sounds follow in Phase 5.
-- [ ] Phase 5 (#416): sounds for new effects and listening review; G2b (R5).
-      #399 merged 2026-10-10 (PR #427).
+- [x] Phase 5 (#416): `main` merged (`7dc04ecf`); G2b approved 2026-10-11;
+      pack v2 assembled and verified locally (published by the owner);
+      silent built-in effects allowed; review #2 passed.
 - [ ] Phase 6 (#417): promotion, registries, starters and final validation; G3 (R1–R9).
 - [ ] Final integration review.
 - [ ] PR; owner merge approval.
@@ -138,6 +139,17 @@ the git-ignored `.animama-drafts/gesture-catalog-expansion/` of this worktree.
     with Reactions.
   - **Art.** New manpu art is original work in the style of the owner's
     reference sheet (inspiration only; not traced).
+- 2026-10-11, owner (G2b): approved the revised sound pairings (`SOUNDS.md`:
+  21 new pack sounds, 3 reused v1 sounds, 11 silent effects), keeping the
+  Included blush effects' existing chirps; proceed with the rest of the plan.
+- 2026-10-11, owner (G2b round 1): idle effects get no sound; the pack is
+  extended (a new version of `wow-comedy-sfx`) rather than replaced; every
+  hearts-burst effect uses `dreamy_bell_02v2`; no sound for the Ohohoho, Cat
+  Monster Rawr, Smug Heh and Flex effects or the chirpy picks (Please
+  Hands); Finger Gun Spark takes its alternative. Because some built-in
+  effects are now silent, the integrity test and `effects promote` allow at
+  most one sound (`"sound": null` on promote), and the sound-pack guide,
+  the Avatar Effect skill and ADR 0022 say so.
 - 2026-10-10, owner (R1b G2a): notes on Hand to Ear, Who Me? and Phew Brow
   Wipe motion and a Pon! idea bulb; asked for more effects on the R1b set,
   then removed them again from Presenting, Chef's Kiss and Pinky Promise. With
@@ -651,6 +663,51 @@ If #399 has not merged, work pauses here (owner decision, 2026-10-10). Phases
    Notes are resolved as in G2a, until the owner approves each item by name.
 
 Commits in this phase: the merge commit and plan evidence (`docs(content)[p5]`).
+
+#### Phase 5 record
+
+- **Merge.** `origin/main` at `1ef26b35` (with #399 / PR #427) merged as
+  `7dc04ecf`. Conflicts: `gesture_response_guidance` (main) now builds on
+  `render_available_gestures`; the eval harness accepts `native_compaction`;
+  both sides' integrity tests kept. Full backend suite: 3928 passed, 27
+  skipped; Phase 1 vitest: 38 passed.
+- **Sounds.** `SOUNDS.md` approved at G2b (2026-10-11). Pack v2 (v1's 29 plus
+  21 new sounds) is assembled in the worktree's ignored `build-inputs/`;
+  `verify` passes on 100 files and `scan --git` finds no pack bytes. The v2
+  manifest is committed with the Phase 6 promotion, since the integrity test
+  requires every shipped sound to be referenced. The owner publishes v2.
+- **Silent effects.** `effects promote` accepts `"sound": null`; the
+  integrity test allows at most one sound edge.
+
+#### Code Review #1 Findings
+
+2026-10-11, `sdlc-reviewer` on `7dc04ecf` (merge resolutions) and the
+working tree (silent effects).
+- **P5-R1-01 (required).** The new `effects.test.mjs` test failed
+  `pnpm prettier:check`.
+- **P5-R1-02 (required).** `docs/frontend/runtime/sound.md` still said every
+  built-in effect names a sound.
+- **P5-R1-03 to 07 (optional).** A stale helper name in this plan's file map;
+  the pack guide not mentioning that a silent effect can need a new pack
+  version; a redundant local import in a main test; no test for "idles play
+  no sound"; a long line in the skill.
+- The merge resolutions were verified byte-identical in prompt output.
+
+#### Code Review #1 Revisions
+
+- **01, 02:** fixed (Prettier format; the sound doc says "at most one").
+- **03, 04, 07:** fixed.
+- **05:** rejected; the import is main's code, outside this change.
+- **06:** deferred to Phase 6, which promotes the idle Gestures and can pin
+  that their events play no accompanying sound.
+- Evidence: `pnpm prettier:check` clean; `node --test
+  scripts/effects.test.mjs` 28 passed.
+
+#### Code Review #2 Findings
+
+Targeted recheck 2026-10-11: **pass.** P5-R1-01 to 04 and 07 verified;
+Prettier, eslint and the effects node tests clean. One repair round of two
+used.
 
 ### Phase 6 — Promotion, registries, starters and final validation (R1–R9; gate G3)
 

@@ -160,8 +160,12 @@ Non-goals:
     name and loop kind, unless the owner approves a change at G3.
 - **R5 — Sound through effects only.** No Gesture gets its own `sfx` events.
   - **Reused effects** keep the optional pack sound that #405 assigns them.
-  - **New effects** each get exactly one optional `sound_effect` edge to a
-    sound from the `wow-comedy-sfx` pack, following #399's conventions.
+  - **New effects** get at most one optional `sound_effect` edge to a sound
+    from the `wow-comedy-sfx` pack, following #399's conventions. Revised by
+    the owner at G2b (2026-10-11): effects used only by idles, and the gags
+    the owner preferred quiet, stay silent, so a built-in effect may have no
+    sound. New sounds extend the existing pack as a new version.
+  - **Idles** play no accompanying sound.
   - **Stacking.** Where a Gesture applies more than one effect at the same
     moment, only one accompanying sound plays. The others set
     `playAccompanyingSound: false`.

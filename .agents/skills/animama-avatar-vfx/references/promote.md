@@ -40,12 +40,13 @@ pnpm -s effects promote promote.json
 `name` and `description` may override the source's for an add;
 `description` for a replace.
 
-The source effect must have no sound. Every built-in effect plays one licensed
-sound from the private comedy pack, as an optional dependency
+The source effect must have no sound. A built-in effect plays at most one
+licensed sound from the private comedy pack, as an optional dependency
 ([ADR 0022](../../../../docs/adr/0022-optional-licensed-effect-sounds.md)): an
 add names it with `"sound": "<key>"`, a key in the tracked pack manifest
-(`src/backend/animama/resources/wow-comedy-sfx-manifest.json`), and a replace
-keeps the effect's current sound unless it names another. A sound not yet in
+(`src/backend/animama/resources/wow-comedy-sfx-manifest.json`), or sets
+`"sound": null` for an effect the owner wants silent; a replace keeps the
+effect's current sound unless it names another or `null`. A sound not yet in
 the pack needs a new pack version first
 ([comedy sound pack](../../../../docs/backend/operations/comedy-sound-pack.md)).
 Where several effects start together in a Reaction, keep one sound and set

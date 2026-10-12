@@ -184,8 +184,12 @@ def test_every_reaction_emotion_has_a_variant_with_an_avatar_effect() -> None:
     assert [emotion for emotion, has_effect in emotions.items() if not has_effect] == []
 
 
-def test_every_included_avatar_effect_has_one_optional_licensed_sound() -> None:
-    """Each built-in Avatar Effect plays one sound from the private comedy pack."""
+def test_included_avatar_effect_sounds_are_optional_licensed_pack_sounds() -> None:
+    """A built-in Avatar Effect plays at most one sound, from the private comedy pack.
+
+    Most effects have one; some are silent by owner choice (idle-only effects,
+    and gags the owner preferred quiet, #409).
+    """
 
     manifest = json.loads(
         (ROOT / "src/backend/animama/resources/wow-comedy-sfx-manifest.json").read_text(encoding="utf-8")
@@ -196,7 +200,12 @@ def test_every_included_avatar_effect_has_one_optional_licensed_sound() -> None:
     referenced: set[str] = set()
     for path in effects:
         document = json.loads(path.read_text(encoding="utf-8"))
-        [edge] = document["dependencies"]
+        edges = document["dependencies"]
+        assert len(edges) <= 1, path.name
+        if not edges:
+            assert "soundAlias" not in document["definition"], path.name
+            continue
+        [edge] = edges
         assert edge["content_type"] == "sound_effect" and edge["optional"] is True, path.name
         assert document["definition"]["soundAlias"] == edge["alias"], path.name
         key = edge["ref"].removeprefix("builtin:sound-effect:")

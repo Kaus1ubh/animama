@@ -92,9 +92,10 @@ its record sourced (`source ../../../.animama-stack.env`).
    summary, the render sheets, preview notes and what was not reviewed.
 9. **Promote to Included** (never by default): only when the owner
    explicitly approves each item, on a task branch with a PR. Promote the
-   saved Local item the owner reviewed. Every built-in effect plays one
-   licensed sound from the private comedy pack: propose one and have the
-   owner approve it with the art. See [promote](references/promote.md).
+   saved Local item the owner reviewed. A built-in effect plays one licensed
+   sound from the private comedy pack unless the owner wants it silent:
+   propose one and have the owner approve it, or no sound, with the art.
+   See [promote](references/promote.md).
 
 **Several effects at once:** follow [batch](references/batch.md): briefs
 confirmed together, art and folders in parallel, one review preview, one
