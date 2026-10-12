@@ -1,6 +1,6 @@
 # Comedy sound pack
 
-Desktop and hosted builds give each built-in Avatar Effect a sound from WOW
+Desktop and hosted builds give built-in Avatar Effects their sounds from WOW
 Sound's Anime Comedy Sound Effects Pack, licensed by the owner under the Media
 tier (formerly Rare). The sounds are a second **non-portable** private Included
 source, `wow-comedy-sfx`, handled like the
@@ -11,8 +11,9 @@ self-host images or the public package set. See
 
 ## How effects use the sounds
 
-Each built-in effect descriptor under `content/included/vfx/avatar/` declares
-one optional sound edge and names it in `definition.soundAlias`:
+A built-in effect descriptor under `content/included/vfx/avatar/` declares at
+most one optional sound edge and names it in `definition.soundAlias`; an effect
+the owner chose to keep quiet (for example one used only by idles) has none:
 
 ```json
 "dependencies": [
@@ -86,7 +87,9 @@ new tracked manifest.
 2. Point the effect's optional edge at the new key.
 3. Print a manifest with a new version, then run `scan --git`, `verify`,
    `publish --confirm` and commit the manifest with the descriptor change.
-   Only sounds that built-in effects use belong in the pack.
+   Only sounds that built-in effects use belong in the pack, so making an
+   effect silent (`"sound": null` on promote) can also need a new pack
+   version without its sound.
 
 ## Desktop staging and release
 

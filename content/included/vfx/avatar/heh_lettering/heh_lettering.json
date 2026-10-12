@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:heh_lettering",
+  "version": 1,
+  "name": "Heh Lettering",
+  "description": "Teal manga lettering \"HEH~\" with a tiny sparkle puffs out beside the nose on the Avatar's right, bumps on the nod and drifts up, for a smug, pleased-with-yourself heh.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": -0.144,
+        "y": 0.063,
+        "z": 0.156
+      },
+      "size": 0.0629,
+      "facing": "camera",
+      "rotationDeg": -6
+    },
+    "art": {
+      "image": "heh_lettering.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3
+          },
+          {
+            "t": 0.12,
+            "opacity": 1,
+            "scale": 1.15
+          },
+          {
+            "t": 0.2,
+            "scale": 1
+          },
+          {
+            "t": 0.32,
+            "scale": 1
+          },
+          {
+            "t": 0.38,
+            "scale": 1.1
+          },
+          {
+            "t": 0.47,
+            "scale": 1
+          },
+          {
+            "t": 0.5,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.68,
+            "offset": {
+              "x": -0.004,
+              "y": 0.015
+            }
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "heh_lettering.png",
+      "role": "image"
+    }
+  ]
+}

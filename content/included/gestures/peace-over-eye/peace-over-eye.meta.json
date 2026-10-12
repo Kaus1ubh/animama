@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:peace-over-eye",
+  "version": 1,
+  "semantic_key": "peace_over_eye",
+  "name": "Peace Over Eye",
+  "ai_description": "Use when being playful, cute or showing off, such as after a compliment, a win or a cheerful sign-off. Snaps a sideways idol peace sign over the right eye with a wink, a hip pop and a bright smile.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:kira_star_head",
+      "alias": "kira_star_head",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "peace-over-eye.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -544,6 +544,46 @@ const validate = (definition) => {
     throw new Error("not /2");
 };
 
+test("a silent built-in effect is added or made silent with sound null", async () => {
+  const root = await fixtureRepo();
+  const repo = workingTreeRepo(root);
+  const changes = await planEffectPromotion(
+    [
+      {
+        mode: "add",
+        stem: "quiet",
+        name: "Quiet",
+        sound: null,
+        effect: await source("quiet", "quiet.png"),
+      },
+      {
+        mode: "replace",
+        stem: "eye",
+        sound: null,
+        effect: await source("eye", "eye_new.png"),
+      },
+    ],
+    { repo, validate },
+  );
+  await applyEffectPromotion(root, changes);
+  const read = async (relative) =>
+    JSON.parse(await readFile(path.join(root, relative), "utf8"));
+  for (const stem of ["quiet", "eye"]) {
+    const effect = await read(
+      `content/included/vfx/avatar/${stem}/${stem}.json`,
+    );
+    assert.deepEqual(effect.dependencies, []);
+    assert.equal(effect.definition.soundAlias, undefined);
+  }
+  assert.equal(
+    parseEffectPromoteItems(
+      [{ source: "x", stem: "quiet", mode: "add", sound: null }],
+      "items.json",
+    )[0].sound,
+    null,
+  );
+});
+
 test("promotion adds, replaces and deletes Included effects with records", async () => {
   const root = await fixtureRepo();
   const repo = workingTreeRepo(root);

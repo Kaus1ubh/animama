@@ -21,8 +21,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:heh",
-      "alias": "heh",
+      "ref": "builtin:avatar-effect:heh_lettering",
+      "alias": "heh_lettering",
       "content_type": "avatar_effect",
       "config": {}
     }

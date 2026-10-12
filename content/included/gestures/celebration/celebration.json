@@ -28,7 +28,7 @@
     {
       "id": "raise",
       "label": "Raise",
-      "time": 0.35
+      "time": 0.45
     },
     {
       "id": "pump-1",
@@ -549,5 +549,32 @@
         "dt": 0.25
       }
     ]
-  }
+  },
+  "events": [
+    {
+      "id": "cheer-sparkles-right",
+      "time": 0.46,
+      "kind": "avatar_vfx",
+      "effectId": "cheer_sparkles_head",
+      "duration": 1.5,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.22
+        }
+      }
+    },
+    {
+      "id": "cheer-sparkles-left",
+      "time": 0.48,
+      "kind": "avatar_vfx",
+      "effectId": "cheer_sparkles_head_left",
+      "duration": 1.48,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.22
+        }
+      },
+      "playAccompanyingSound": false
+    }
+  ]
 }

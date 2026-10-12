@@ -174,9 +174,7 @@ export function prepareAnimaPoseClipV2(
 
   const legSolver = clip.plantFeet && vrm ? plantedLegSolver(vrm) : null;
   const contactSolver =
-    vrm && options.solveContacts !== false
-      ? armContactSolver(clip, vrm, beatTimes)
-      : null;
+    vrm && options.solveContacts !== false ? armContactSolver(clip, vrm) : null;
   const clipTime = (timeSec: number) => {
     const t = Number.isFinite(timeSec) ? Math.max(0, timeSec) : 0;
     return loopDuration
@@ -264,20 +262,60 @@ function plantedLegSolver(vrm: VRM): PlantedLegSolver | null {
 
 const ARM_BONES = ["UpperArm", "LowerArm", "Hand"] as const;
 
+/** A solved contact's window and ramps, with its index in `clip.contacts`. */
+export type SolvedContactWindow = ContactSolveWindow & {
+  index: number;
+  side: Side;
+};
+
+/**
+ * The windows of a clip's contacts that declare `solve`, in seconds of clip
+ * time. Each runs from its beat's time plus `from` to plus `to`, with the
+ * default blends where `solve` names none; ramps of consecutive windows on
+ * one side are shortened to meet midway (`fitContactSolveRamps`), as
+ * playback solves them.
+ */
+export function solvedContactWindows(
+  clip: AnimaPoseClipV2,
+): SolvedContactWindow[] {
+  const beatTimes = new Map(clip.beats.map((beat) => [beat.id, beat.time]));
+  const blend = ANIMA_POSE_CLIP_V2_CONTACT_SOLVE.defaultBlendSeconds;
+  const windows = (clip.contacts ?? []).flatMap(
+    (contact, index): SolvedContactWindow[] => {
+      if (!contact.solve) return [];
+      const beat = beatTimes.get(contact.beat)!;
+      return [
+        {
+          index,
+          side: contact.bone.startsWith("left") ? "left" : "right",
+          start: beat + contact.from,
+          end: beat + contact.to,
+          blendIn: contact.solve.blendIn ?? blend,
+          blendOut: contact.solve.blendOut ?? blend,
+        },
+      ];
+    },
+  );
+  const loop = clip.loop === true;
+  return (["left", "right"] as const).flatMap((side) =>
+    fitContactSolveRamps(
+      windows.filter((window) => window.side === side),
+      clip.duration,
+      loop,
+    ),
+  );
+}
+
 /**
  * Solves a clip's contacts that declare `solve` on one Avatar: at a clip time
  * it writes the upper and lower arm of each side with an active contact into
- * `humanoid`. Null when the clip has no solved contact or the rig lacks the
- * bones a solve needs (it then plays its authored arms rather than failing).
- *
- * Each window runs from its beat's time plus `from` to plus `to`, with the
- * default blends where `solve` names none; ramps of consecutive windows on
- * one side are shortened to meet midway (`fitContactSolveRamps`).
+ * `humanoid`, over the windows from `solvedContactWindows`. Null when the clip
+ * has no solved contact or the rig lacks the bones a solve needs (it then
+ * plays its authored arms rather than failing).
  */
 function armContactSolver(
   clip: AnimaPoseClipV2,
   vrm: VRM,
-  beatTimes: ReadonlyMap<string, number>,
 ):
   | ((
       humanoid: VRMPose,
@@ -285,8 +323,7 @@ function armContactSolver(
       set: (bone: VRMHumanBoneName, rotation: Quaternion) => void,
     ) => void)
   | null {
-  const solved = (clip.contacts ?? []).filter((contact) => contact.solve);
-  if (solved.length === 0) return null;
+  if (!(clip.contacts ?? []).some((contact) => contact.solve)) return null;
   const has = (bone: VRMHumanBoneName) =>
     Boolean(vrm.humanoid.getNormalizedBoneNode(bone));
   if (!has("hips") || !has("head") || !has("leftFoot")) return null;
@@ -299,39 +336,23 @@ function armContactSolver(
   const scale = avatarScale(skeleton);
   const pose = new SkeletonPose(skeleton);
 
-  const blend = ANIMA_POSE_CLIP_V2_CONTACT_SOLVE.defaultBlendSeconds;
-  type Window = ContactSolveWindow & { side: Side; contact: ArmContactSolve };
-  const windows: Window[] = [];
-  for (const contact of solved) {
-    const side: Side = contact.bone.startsWith("left") ? "left" : "right";
-    if (!solvers[side]) continue;
-    const beat = beatTimes.get(contact.beat)!;
-    windows.push({
-      side,
-      start: beat + contact.from,
-      end: beat + contact.to,
-      blendIn: contact.solve!.blendIn ?? blend,
-      blendOut: contact.solve!.blendOut ?? blend,
-      // Reused every frame: only `weight` changes.
-      contact: {
+  const fitted = solvedContactWindows(clip)
+    .filter((window) => solvers[window.side])
+    .map((window) => {
+      const contact = clip.contacts![window.index];
+      const solve: ArmContactSolve = {
         bone: contact.bone as VRMHumanBoneName,
         point: contact.point,
         target: contact.target as VRMHumanBoneName,
         targetPoint: contact.targetPoint,
         offset: contact.offset,
         weight: 0,
-      },
+      };
+      // Reused every frame: only `weight` changes.
+      return { ...window, contact: solve };
     });
-  }
-  const loop = clip.loop === true;
-  const fitted = (["left", "right"] as const).flatMap((side) =>
-    fitContactSolveRamps(
-      windows.filter((span) => span.side === side),
-      clip.duration,
-      loop,
-    ),
-  );
   if (fitted.length === 0) return null;
+  const loop = clip.loop === true;
   const active: ArmContactSolve[] = [];
 
   return (humanoid, t, set) => {

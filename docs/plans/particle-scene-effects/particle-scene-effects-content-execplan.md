@@ -184,7 +184,7 @@ backend to `src/backend/animama/`, content to `content/included/`.
 - 2026-10-12, owner (P8 preview): the four new Avatar Effects are approved
   for promotion; Heart Burst at the chest should be slightly smaller with fewer
   small hearts after the burst. Published to #297 with the review decisions
-  (read back 2026-10-12T17:18:03Z).
+  (read back 2026-10-12T17:42:24Z).
 - 2026-10-12, owner: the mouth effects cannot play in Reactions (they sit on
   the lip-synced mouth; `test_no_included_action_plays_a_mouth_effect`), so
   amusement-1 takes `eye_vv` and joy-1 `sparkle_pop`; `eye_vv` is redrawn with
@@ -193,6 +193,12 @@ backend to `src/backend/animama/`, content to `content/included/`.
 - 2026-10-12, owner (P8 review): still stickers never overlap another still
   sticker; layers moving the same way never collide; a moving sticker may pass
   over another layer's still sticker.
+- 2026-10-12, owner (merging `main` after #462): #462 added 44 Avatar
+  Effects, four of them near-duplicates of P8's (and one, `sigh_puff`, the
+  same ID). P8 uses `main`'s instead: `kira_star_head` for `sparkle_pop`,
+  `question_mark` for `emote_question`, `main`'s `sigh_puff`, and
+  `heh_lettering` for `heh`; P8 keeps `single_tear` (silent, as `main` now
+  allows) and the redrawn `eye_vv`. The table above shows the result.
 - 2026-10-10, owner: R9 final set is the 12 proposed candidates except Sweat
   Spray (rejected in Plan 1's dry run for its idea and art).
 - 2026-10-10, owner: the approved Local Heart Burst and Gloom Sadness are used
@@ -1143,10 +1149,10 @@ Authorized by the owner's review (Decision Log, 2026-10-12).
 | Family | Level-1 Avatar Effect |
 | --- | --- |
 | Affection | admiration `star3`, caring `heart_throb`, love `blush`, embarrassment `blush_band` (kept) |
-| Esteem | respect `sparkle_pop`, confidence `sparkle_pop`, gratitude `heart_throb` |
-| Delight | amusement `eye_vv` (redrawn), excitement `star3`, joy `sparkle_pop` |
-| Drive | desire `blush`, curiosity `emote_question`, optimism `sparkle_pop` |
-| Alarm | fear `eye_0`, nervousness `sweat_drop`, confusion `emote_question` |
+| Esteem | respect `kira_star_head`, confidence `kira_star_head`, gratitude `heart_throb` |
+| Delight | amusement `eye_vv` (redrawn), excitement `star3`, joy `kira_star_head` |
+| Drive | desire `blush`, curiosity `question_mark`, optimism `kira_star_head` |
+| Alarm | fear `eye_0`, nervousness `sweat_drop`, confusion `question_mark` |
 | Rejection | anger `angry`, annoyance `huff_puff`, disapproval `eye` |
 | Revulsion | disgust `eye`, remorse `sweat_drop` |
 | Gloom | disappointment `sigh_puff`, grief `single_tear`, sadness `single_tear` |
@@ -1210,6 +1216,16 @@ Starting source and issue: `2d6c5174`, #466.
 - **Docs:** `scene-vfx.md` and the Scene skill's `layers.md` describe the
   placement (Local Scenes' stickers move); `avatar-animation.md` level 1.
 
+- **Merge of `main`** (after #462): seven files conflicted. `main`'s
+  `sigh_puff` folder and thumbnail were taken; P8's `sparkle_pop`,
+  `emote_question`, `heh` and its `sigh_puff` art were deleted with their
+  templates, thumbnails and licence records; the template list and the count
+  pins (74 Avatar Effects and templates) combine both sides; the source-review
+  records were merged by path (main's 2851 plus the branch's, less the deleted
+  files). Level 1 and amusement-2 were rewired to `kira_star_head`,
+  `question_mark`, `sigh_puff` and `heh_lettering`; `single_tear` dropped its
+  borrowed sound. No `main` Gesture uses a Particle or Scene Effect.
+
 #### Code Review #1 Findings
 
 Round 1 (`sdlc-reviewer`, `8026d66f` against `2d6c5174`): blocked. Verified:
@@ -1250,7 +1266,7 @@ determinism, and the memoisation.
   1280 × 900. `layerGeometry.test.ts` has 37 tests (11 more) pinning these.
   Every Included Scene computes in 0.1–1.3 ms.
 - **F3 accepted:** #297 and the snapshot list five new effects, the mouth rule
-  and the overlap rule (read back 2026-10-12T17:18:03Z); plan line and step 4
+  and the overlap rule (read back 2026-10-12T17:42:24Z); plan line and step 4
   updated.
 - **F4 accepted:** `heh` and `sparkle_pop` use the wide framing; thumbnails
   regenerated and checked.

@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:sorry_lettering",
+  "version": 1,
+  "name": "Sorry Lettering",
+  "description": "Blue manga lettering \"SORRY!\" pops up above the head on the Avatar's left and rides down with a quick apologetic bow, for a sorry, my-bad moment.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:shrink_04",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": 0.15,
+        "y": 0.205,
+        "z": 0
+      },
+      "size": 0.0556,
+      "facing": "camera",
+      "rotationDeg": 6
+    },
+    "art": {
+      "image": "sorry_lettering.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3
+          },
+          {
+            "t": 0.12,
+            "opacity": 1,
+            "scale": 1.15
+          },
+          {
+            "t": 0.2,
+            "scale": 1
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "sorry_lettering.png",
+      "role": "image"
+    }
+  ]
+}

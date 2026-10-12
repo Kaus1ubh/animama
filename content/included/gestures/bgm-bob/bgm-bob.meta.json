@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:bgm-bob",
+  "version": 1,
+  "semantic_key": "bgm_bob",
+  "name": "BGM Bob",
+  "ai_description": "Use while idling quietly with background music playing or a relaxed, content mood. Bobs the head gently to the beat with a little shoulder sway and half-closed, contented eyes.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:music_notes",
+      "alias": "music_notes",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "bgm-bob.json",
+      "role": "sequence"
+    }
+  ]
+}

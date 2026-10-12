@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:laugh_sparkle",
+  "version": 1,
+  "name": "Laugh Sparkle",
+  "description": "A small white-and-gold \"kira\" star twinkles above the head on the Avatar's right through a laugh, the ojou-sama sparkle for a haughty \"ohohoho\" or a smug show-off.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": -0.14,
+        "y": 0.17,
+        "z": 0.03
+      },
+      "size": 0.055,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "kira_star.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.2,
+            "rotationDeg": -45
+          },
+          {
+            "t": 0.1,
+            "opacity": 1,
+            "scale": 1.25,
+            "rotationDeg": 8
+          },
+          {
+            "t": 0.2,
+            "scale": 0.92,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.28,
+            "scale": 1
+          },
+          {
+            "t": 0.413,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.483,
+            "scale": 1.22,
+            "rotationDeg": 15
+          },
+          {
+            "t": 0.593,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.798,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.868,
+            "scale": 1.16,
+            "rotationDeg": 15
+          },
+          {
+            "t": 0.978,
+            "scale": 1,
+            "rotationDeg": 0
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "kira_star.png",
+      "role": "image"
+    }
+  ]
+}

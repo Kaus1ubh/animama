@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:high-five",
+  "version": 1,
+  "semantic_key": "high_five",
+  "name": "High Five",
+  "ai_description": "Use when celebrating a shared win with the user, cheering them on after good news, or saying 'nice one, high five!'. Raises the right palm beside the head and slaps it forward toward the viewer once with a bright grin and a little bounce.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:high_five_burst",
+      "alias": "high_five_burst",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "high-five.json",
+      "role": "sequence"
+    }
+  ]
+}

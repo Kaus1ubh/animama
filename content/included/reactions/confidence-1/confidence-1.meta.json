@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:sparkle_pop",
-      "alias": "sparkle_pop",
+      "ref": "builtin:avatar-effect:kira_star_head",
+      "alias": "kira_star_head",
       "content_type": "avatar_effect",
       "config": {}
     }

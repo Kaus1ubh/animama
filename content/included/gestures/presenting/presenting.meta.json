@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:presenting",
+  "version": 1,
+  "semantic_key": "presenting",
+  "name": "Presenting",
+  "ai_description": "Use when showing, introducing or pointing the user to something (\"check this out\", \"here it is\", \"ta-da, look at this\"). Sweeps the right hand out to the side palm-up, glances at it, then smiles back at the viewer.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "presenting.json",
+      "role": "sequence"
+    }
+  ]
+}

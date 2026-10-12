@@ -1,0 +1,102 @@
+[
+  {
+    "selector": "arms-crossed",
+    "name": "Arms Crossed",
+    "description": "Cross both arms to express skepticism, disagreement, or a firm stance."
+  },
+  {
+    "selector": "cat-monster-rawr",
+    "name": "Cat Monster Rawr",
+    "description": "A playful pretend-monster \"Rawr!\": cat claws held up beside the face, then a few kitten-like alternating claw swipes. Use for mock roaring, teasing or silly intimidation."
+  },
+  {
+    "selector": "cheeky-finger-guns",
+    "name": "Cheeky Finger Guns",
+    "description": "Point playful finger guns to punctuate a joke, cheeky compliment, or confident agreement."
+  },
+  {
+    "selector": "double-peace-pop",
+    "name": "Double Peace Pop",
+    "description": "Pop both hands into peace signs to celebrate, greet enthusiastically, or pose playfully."
+  },
+  {
+    "selector": "double-thumbs-down",
+    "name": "Double Thumbs Down",
+    "description": "Give two thumbs down to express strong disapproval, rejection, or playful disappointment."
+  },
+  {
+    "selector": "double-thumbs-up",
+    "name": "Double Thumbs Up",
+    "description": "Give two thumbs up to express enthusiastic approval, encouragement, or celebration of success."
+  },
+  {
+    "selector": "finger-heart-pose",
+    "name": "Finger Heart Pose",
+    "description": "Raises a Korean finger heart beside the cheek with a wink and a smile while a little heart pops up above the crossed fingers. Use to express affection, appreciation, or a sweet thank-you."
+  },
+  {
+    "selector": "hands-on-hips",
+    "name": "Hands on Hips",
+    "description": "Place both hands on the hips to express confidence, determination, or playful impatience."
+  },
+  {
+    "selector": "heart-hands-build",
+    "name": "Heart Hands",
+    "description": "Bring both hands together into a heart to express warm affection, gratitude, or support."
+  },
+  {
+    "selector": "left-ok-sign",
+    "name": "Left OK Sign",
+    "description": "Make an OK sign with the left hand to confirm that something is correct, ready, or going well."
+  },
+  {
+    "selector": "left-peace-sign",
+    "name": "Left Peace Sign",
+    "description": "Raise a left-hand peace sign for a friendly greeting, reassurance, or a casual celebratory pose."
+  },
+  {
+    "selector": "right-face-palm",
+    "name": "Right Face Palm",
+    "description": "Cover the face with the right hand to react to an obvious mistake, awkward moment, or exasperating situation."
+  },
+  {
+    "selector": "right-finger-point",
+    "name": "Right Finger Point",
+    "description": "Point with the right index finger to emphasize a key point, offer a reminder, or playfully call something out."
+  },
+  {
+    "selector": "right-thumbs-down",
+    "name": "Right Thumbs Down",
+    "description": "Give a right-handed thumbs down to express disapproval, disagreement, or disappointment."
+  },
+  {
+    "selector": "right-thumbs-up",
+    "name": "Right Thumbs Up",
+    "description": "Give a right-handed thumbs up to express approval, agreement, encouragement, or reassurance."
+  },
+  {
+    "selector": "shy-finger-poke-loop",
+    "name": "Shy Finger Poke Loop",
+    "description": "Repeatedly tap the index fingers together to sustain a bashful, nervous, or hesitant mood while speaking."
+  },
+  {
+    "selector": "single-hand-on-heart",
+    "name": "Hand on Heart",
+    "description": "Place one hand over the heart to convey sincerity, heartfelt gratitude, empathy, or a personal promise."
+  },
+  {
+    "selector": "soldier-salute",
+    "name": "Salute",
+    "description": "Give a salute to acknowledge a request, show respect, or playfully signal readiness to help."
+  },
+  {
+    "selector": "thinking-hand-on-chin-hold",
+    "name": "Thinking Hand on Chin",
+    "description": "A light, held thinking pose: thumb under the jaw and index finger along the cheek while the eyes wander and the finger taps once. Use while considering a question or weighing options."
+  },
+  {
+    "selector": "thinking-head-scratch",
+    "name": "Thinking Head Scratch",
+    "description": "Scratch the head to express puzzlement, uncertainty, or an attempt to work something out."
+  }
+]

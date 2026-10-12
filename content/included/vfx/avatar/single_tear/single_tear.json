@@ -5,14 +5,7 @@
   "version": 1,
   "name": "Single Tear",
   "description": "One small anime teardrop wells at the outer corner of one eye and slides a little way down the cheek, for quiet sadness or grief.",
-  "dependencies": [
-    {
-      "ref": "builtin:sound-effect:shrink_03",
-      "content_type": "sound_effect",
-      "alias": "on-apply",
-      "optional": true
-    }
-  ],
+  "dependencies": [],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "undereye",
@@ -76,8 +69,7 @@
           }
         ]
       }
-    },
-    "soundAlias": "on-apply"
+    }
   },
   "files": [
     {

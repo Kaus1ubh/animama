@@ -82,6 +82,26 @@
     {
       "content_id": "builtin:gesture:single-hand-on-heart",
       "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:explain-open-palms",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:goodbye-wave",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:tear-wipe",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:apology-bow",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:prayer-hands-thanks",
+      "version": 1
     }
   ],
   "reactions": [

@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:mind_blown_burst",
+  "version": 1,
+  "name": "Mind Blown Burst",
+  "description": "A white-and-yellow cartoon poof with a jagged starburst, burst lines and star flecks blasts out above the head and drifts up, the anime head-explosion gag for mind-blowing reveals and \"too amazing to process\" moments.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:retro_explosion_02_subtle",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": 0,
+        "y": 0.28,
+        "z": 0.02
+      },
+      "size": 0.14,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "mind_blown_burst.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.2,
+            "offset": {
+              "x": 0,
+              "y": -0.02
+            }
+          },
+          {
+            "t": 0.08,
+            "opacity": 1,
+            "scale": 1.12,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.13,
+            "scale": 1
+          },
+          {
+            "t": 0.68,
+            "scale": 1.08,
+            "offset": {
+              "x": 0,
+              "y": 0.025
+            }
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "mind_blown_burst.png",
+      "role": "image"
+    }
+  ]
+}

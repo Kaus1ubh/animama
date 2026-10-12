@@ -98,7 +98,7 @@ after(async () => {
 
 test("lists every Included effect descriptor and skips asset folders", async () => {
   const effects = await listIncludedEffects();
-  assert.equal(effects.length, 34);
+  assert.equal(effects.length, 74);
   assert.ok(!effects.some((effect) => effect.stem === "face"));
   for (const effect of effects) {
     assert.ok(effect.imagePath.startsWith(INCLUDED_EFFECT_ROOT));

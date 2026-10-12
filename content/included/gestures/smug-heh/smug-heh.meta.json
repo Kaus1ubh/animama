@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:smug-heh",
+  "version": 1,
+  "semantic_key": "smug_heh",
+  "name": "Smug Heh",
+  "ai_description": "Use when being cocky or quietly pleased with yourself, such as after a clever answer, a win or a compliment you think you deserve. Lifts the chin with half-lidded eyes, puts a fist on the hip and brushes the index finger under the nose, then gives a short smug 'heh' nod.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:heh_lettering",
+      "alias": "heh_lettering",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "smug-heh.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:paw_prints",
+  "version": 1,
+  "name": "Paw Prints",
+  "description": "Two small pink cat paw prints pop up beside the right paw, stepping up and outward, and bounce on each knead, for a playful, kittenish \"nya~\".",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:bouncy_bubble_01v2",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": -0.188,
+        "y": -0.019,
+        "z": 0.141
+      },
+      "size": 0.08,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "paw_prints_mirrored.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "rotationDeg": 0,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.1,
+            "opacity": 1,
+            "scale": 1.18
+          },
+          {
+            "t": 0.18,
+            "scale": 1
+          },
+          {
+            "t": 0.326,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.396,
+            "scale": 1.12,
+            "rotationDeg": 6
+          },
+          {
+            "t": 0.506,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.656,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.726,
+            "scale": 1.1,
+            "rotationDeg": 6
+          },
+          {
+            "t": 0.836,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.986,
+            "scale": 1,
+            "rotationDeg": 0
+          },
+          {
+            "t": 1.056,
+            "scale": 1.12,
+            "rotationDeg": 6
+          },
+          {
+            "t": 1.166,
+            "scale": 1,
+            "rotationDeg": 0
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "paw_prints_mirrored.png",
+      "role": "image"
+    }
+  ]
+}

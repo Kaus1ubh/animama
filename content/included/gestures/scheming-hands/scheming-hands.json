@@ -1,0 +1,1459 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "scheming-hands",
+  "name": "Scheming Hands",
+  "duration": 3.08,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.242
+  },
+  "fadeOut": {
+    "duration": 0.44
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "hunch",
+      "label": "Hunch",
+      "time": 0.165
+    },
+    {
+      "id": "press",
+      "label": "Hands meet",
+      "time": 0.605
+    },
+    {
+      "id": "rub1",
+      "label": "Rub 1",
+      "time": 0.902
+    },
+    {
+      "id": "rub2",
+      "label": "Rub 2",
+      "time": 1.518
+    },
+    {
+      "id": "rub3",
+      "label": "Rub 3",
+      "time": 2.112
+    },
+    {
+      "id": "release",
+      "label": "Release",
+      "time": 2.464
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 3.036
+    }
+  ],
+  "joints": {
+    "spine": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1,
+          "beat": "hunch",
+          "dt": 0.088
+        },
+        {
+          "v": 3,
+          "beat": "press",
+          "dt": 0.066
+        },
+        {
+          "v": 4,
+          "beat": "rub1"
+        },
+        {
+          "v": 3,
+          "beat": "rub1",
+          "dt": 0.308
+        },
+        {
+          "v": 3.8,
+          "beat": "rub2"
+        },
+        {
+          "v": 3,
+          "beat": "rub2",
+          "dt": 0.308
+        },
+        {
+          "v": 3.6,
+          "beat": "rub3"
+        },
+        {
+          "v": 3,
+          "beat": "rub3",
+          "dt": 0.176
+        },
+        {
+          "v": 2,
+          "beat": "release",
+          "dt": 0.088
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.5,
+          "beat": "hunch",
+          "dt": 0.066
+        },
+        {
+          "v": 4,
+          "beat": "press",
+          "dt": 0.044
+        },
+        {
+          "v": 5.5,
+          "beat": "rub1",
+          "dt": 0.022
+        },
+        {
+          "v": 4,
+          "beat": "rub1",
+          "dt": 0.33
+        },
+        {
+          "v": 5.2,
+          "beat": "rub2",
+          "dt": 0.022
+        },
+        {
+          "v": 4,
+          "beat": "rub2",
+          "dt": 0.33
+        },
+        {
+          "v": 4.9,
+          "beat": "rub3",
+          "dt": 0.022
+        },
+        {
+          "v": 4,
+          "beat": "rub3",
+          "dt": 0.198
+        },
+        {
+          "v": 2.5,
+          "beat": "release",
+          "dt": 0.066
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "press",
+          "dt": 0.066
+        },
+        {
+          "v": -2.5,
+          "beat": "rub3",
+          "dt": 0.11
+        },
+        {
+          "v": -1,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.5,
+          "beat": "hunch",
+          "dt": 0.044
+        },
+        {
+          "v": 4,
+          "beat": "press",
+          "dt": 0.022
+        },
+        {
+          "v": 5.2,
+          "beat": "rub1",
+          "dt": 0.044
+        },
+        {
+          "v": 4,
+          "beat": "rub1",
+          "dt": 0.352
+        },
+        {
+          "v": 5,
+          "beat": "rub2",
+          "dt": 0.044
+        },
+        {
+          "v": 4,
+          "beat": "rub2",
+          "dt": 0.352
+        },
+        {
+          "v": 4.7,
+          "beat": "rub3",
+          "dt": 0.044
+        },
+        {
+          "v": 4,
+          "beat": "rub3",
+          "dt": 0.22
+        },
+        {
+          "v": 2,
+          "beat": "release",
+          "dt": 0.044
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "hunch",
+          "dt": 0.022
+        },
+        {
+          "v": 3,
+          "beat": "press"
+        },
+        {
+          "v": 3.5,
+          "beat": "rub3",
+          "dt": 0.11
+        },
+        {
+          "v": 4,
+          "beat": "release",
+          "dt": 0.066
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2.5,
+          "beat": "press",
+          "dt": 0.022
+        },
+        {
+          "v": -3,
+          "beat": "rub3",
+          "dt": 0.11
+        },
+        {
+          "v": -1,
+          "beat": "release",
+          "dt": 0.132
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "hunch"
+        },
+        {
+          "v": 1.5,
+          "beat": "press",
+          "dt": -0.044
+        },
+        {
+          "v": 4,
+          "beat": "rub1",
+          "dt": 0.066
+        },
+        {
+          "v": 1.5,
+          "beat": "rub1",
+          "dt": 0.374
+        },
+        {
+          "v": 3.5,
+          "beat": "rub2",
+          "dt": 0.066
+        },
+        {
+          "v": 1.5,
+          "beat": "rub2",
+          "dt": 0.374
+        },
+        {
+          "v": 3,
+          "beat": "rub3",
+          "dt": 0.066
+        },
+        {
+          "v": 1.5,
+          "beat": "rub3",
+          "dt": 0.242
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": 0.044
+        },
+        {
+          "v": 0.4,
+          "beat": "settle",
+          "dt": -0.22
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -5,
+          "beat": "press",
+          "dt": -0.066
+        },
+        {
+          "v": -6,
+          "beat": "rub2"
+        },
+        {
+          "v": -6.5,
+          "beat": "rub3",
+          "dt": 0.11
+        },
+        {
+          "v": -3,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -4,
+          "beat": "press",
+          "dt": -0.066
+        },
+        {
+          "v": -5,
+          "beat": "rub3",
+          "dt": 0.11
+        },
+        {
+          "v": -2,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "eyes": {
+      "pitch": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 9,
+          "beat": "press",
+          "dt": -0.11
+        },
+        {
+          "v": 9.5,
+          "beat": "rub3",
+          "dt": 0.154
+        },
+        {
+          "v": 4,
+          "beat": "release",
+          "dt": 0.022
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.11
+        }
+      ],
+      "yaw": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "press",
+          "dt": -0.11
+        },
+        {
+          "v": 3.5,
+          "beat": "rub3",
+          "dt": 0.154
+        },
+        {
+          "v": 1,
+          "beat": "release",
+          "dt": 0.022
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.11
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "hunch",
+          "dt": 0.055
+        },
+        {
+          "v": 6.5,
+          "beat": "press",
+          "dt": 0.022
+        },
+        {
+          "v": 8.5,
+          "beat": "rub1",
+          "dt": 0.055
+        },
+        {
+          "v": 6.5,
+          "beat": "rub1",
+          "dt": 0.363
+        },
+        {
+          "v": 8,
+          "beat": "rub2",
+          "dt": 0.055
+        },
+        {
+          "v": 6.5,
+          "beat": "rub2",
+          "dt": 0.363
+        },
+        {
+          "v": 7.5,
+          "beat": "rub3",
+          "dt": 0.055
+        },
+        {
+          "v": 5,
+          "beat": "release",
+          "dt": 0.055
+        },
+        {
+          "v": 0.5,
+          "beat": "settle",
+          "dt": -0.11
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "hunch",
+          "dt": 0.055
+        },
+        {
+          "v": 9,
+          "beat": "press",
+          "dt": 0.022
+        },
+        {
+          "v": 9.5,
+          "beat": "rub3",
+          "dt": 0.11
+        },
+        {
+          "v": 5,
+          "beat": "release",
+          "dt": 0.11
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 21,
+          "beat": "press",
+          "dt": -0.242
+        },
+        {
+          "v": 24,
+          "beat": "press"
+        },
+        {
+          "v": 24,
+          "beat": "release"
+        },
+        {
+          "v": 22.5,
+          "beat": "release",
+          "dt": 0.176
+        },
+        {
+          "v": 18.5,
+          "beat": "release",
+          "dt": 0.396
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 46,
+          "beat": "press",
+          "dt": -0.242
+        },
+        {
+          "v": 57,
+          "beat": "press"
+        },
+        {
+          "v": 57,
+          "beat": "release"
+        },
+        {
+          "v": 52,
+          "beat": "release",
+          "dt": 0.176
+        },
+        {
+          "v": 30,
+          "beat": "release",
+          "dt": 0.396
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "press",
+          "dt": -0.242
+        },
+        {
+          "v": 34,
+          "beat": "press"
+        },
+        {
+          "v": 34,
+          "beat": "release"
+        },
+        {
+          "v": 32,
+          "beat": "release",
+          "dt": 0.176
+        },
+        {
+          "v": 16,
+          "beat": "release",
+          "dt": 0.396
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 74,
+          "beat": "press",
+          "dt": -0.22
+        },
+        {
+          "v": 110,
+          "beat": "press",
+          "dt": 0.022
+        },
+        {
+          "v": 113.5,
+          "beat": "rub1",
+          "dt": 0.044
+        },
+        {
+          "v": 110,
+          "beat": "rub1",
+          "dt": 0.352
+        },
+        {
+          "v": 113,
+          "beat": "rub2",
+          "dt": 0.044
+        },
+        {
+          "v": 110,
+          "beat": "rub2",
+          "dt": 0.352
+        },
+        {
+          "v": 112,
+          "beat": "rub3",
+          "dt": 0.044
+        },
+        {
+          "v": 110,
+          "beat": "release"
+        },
+        {
+          "v": 90,
+          "beat": "release",
+          "dt": 0.176
+        },
+        {
+          "v": 46,
+          "beat": "release",
+          "dt": 0.396
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 10,
+          "beat": "press",
+          "dt": -0.198
+        },
+        {
+          "v": 15,
+          "beat": "press",
+          "dt": 0.022
+        },
+        {
+          "v": 4.6,
+          "beat": "rub1",
+          "dt": 0.022
+        },
+        {
+          "v": 24.8,
+          "beat": "rub1",
+          "dt": 0.33
+        },
+        {
+          "v": 5.8,
+          "beat": "rub2",
+          "dt": 0.022
+        },
+        {
+          "v": 23.2,
+          "beat": "rub2",
+          "dt": 0.33
+        },
+        {
+          "v": 7.8,
+          "beat": "rub3",
+          "dt": 0.022
+        },
+        {
+          "v": 20.6,
+          "beat": "rub3",
+          "dt": 0.242
+        },
+        {
+          "v": 14,
+          "beat": "release",
+          "dt": 0.198
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -10,
+          "beat": "press",
+          "dt": -0.176
+        },
+        {
+          "v": -20,
+          "beat": "press",
+          "dt": 0.044
+        },
+        {
+          "v": -20,
+          "beat": "release"
+        },
+        {
+          "v": -10,
+          "beat": "release",
+          "dt": 0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "press",
+          "dt": -0.176
+        },
+        {
+          "v": 7,
+          "beat": "press",
+          "dt": 0.044
+        },
+        {
+          "v": -6,
+          "beat": "rub1",
+          "dt": 0.044
+        },
+        {
+          "v": 19.25,
+          "beat": "rub1",
+          "dt": 0.352
+        },
+        {
+          "v": -4.5,
+          "beat": "rub2",
+          "dt": 0.044
+        },
+        {
+          "v": 17.25,
+          "beat": "rub2",
+          "dt": 0.352
+        },
+        {
+          "v": -2,
+          "beat": "rub3",
+          "dt": 0.044
+        },
+        {
+          "v": 14,
+          "beat": "rub3",
+          "dt": 0.264
+        },
+        {
+          "v": 3,
+          "beat": "release",
+          "dt": 0.22
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "hunch",
+          "dt": 0.088
+        },
+        {
+          "v": 6.5,
+          "beat": "press",
+          "dt": 0.055
+        },
+        {
+          "v": 8.5,
+          "beat": "rub1",
+          "dt": 0.088
+        },
+        {
+          "v": 6.5,
+          "beat": "rub1",
+          "dt": 0.396
+        },
+        {
+          "v": 8,
+          "beat": "rub2",
+          "dt": 0.088
+        },
+        {
+          "v": 6.5,
+          "beat": "rub2",
+          "dt": 0.396
+        },
+        {
+          "v": 7.5,
+          "beat": "rub3",
+          "dt": 0.088
+        },
+        {
+          "v": 5,
+          "beat": "release",
+          "dt": 0.088
+        },
+        {
+          "v": 0.5,
+          "beat": "settle",
+          "dt": -0.077
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": 0.033
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "hunch",
+          "dt": 0.088
+        },
+        {
+          "v": 9,
+          "beat": "press",
+          "dt": 0.055
+        },
+        {
+          "v": 9.5,
+          "beat": "rub3",
+          "dt": 0.143
+        },
+        {
+          "v": 5,
+          "beat": "release",
+          "dt": 0.143
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": 0.033
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 21,
+          "beat": "press",
+          "dt": -0.209
+        },
+        {
+          "v": 24,
+          "beat": "press",
+          "dt": 0.033
+        },
+        {
+          "v": 24,
+          "beat": "release",
+          "dt": 0.033
+        },
+        {
+          "v": 22.5,
+          "beat": "release",
+          "dt": 0.209
+        },
+        {
+          "v": 18.5,
+          "beat": "release",
+          "dt": 0.429
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": 0.033
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 46,
+          "beat": "press",
+          "dt": -0.209
+        },
+        {
+          "v": 57,
+          "beat": "press",
+          "dt": 0.033
+        },
+        {
+          "v": 57,
+          "beat": "release",
+          "dt": 0.033
+        },
+        {
+          "v": 52,
+          "beat": "release",
+          "dt": 0.209
+        },
+        {
+          "v": 30,
+          "beat": "release",
+          "dt": 0.429
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": 0.033
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "press",
+          "dt": -0.209
+        },
+        {
+          "v": 34,
+          "beat": "press",
+          "dt": 0.033
+        },
+        {
+          "v": 34,
+          "beat": "release",
+          "dt": 0.033
+        },
+        {
+          "v": 32,
+          "beat": "release",
+          "dt": 0.209
+        },
+        {
+          "v": 16,
+          "beat": "release",
+          "dt": 0.429
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": 0.033
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 74,
+          "beat": "press",
+          "dt": -0.187
+        },
+        {
+          "v": 110,
+          "beat": "press",
+          "dt": 0.055
+        },
+        {
+          "v": 113.5,
+          "beat": "rub1",
+          "dt": 0.077
+        },
+        {
+          "v": 110,
+          "beat": "rub1",
+          "dt": 0.385
+        },
+        {
+          "v": 113,
+          "beat": "rub2",
+          "dt": 0.077
+        },
+        {
+          "v": 110,
+          "beat": "rub2",
+          "dt": 0.385
+        },
+        {
+          "v": 112,
+          "beat": "rub3",
+          "dt": 0.077
+        },
+        {
+          "v": 110,
+          "beat": "release",
+          "dt": 0.033
+        },
+        {
+          "v": 90,
+          "beat": "release",
+          "dt": 0.209
+        },
+        {
+          "v": 46,
+          "beat": "release",
+          "dt": 0.429
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": 0.033
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 10,
+          "beat": "press",
+          "dt": -0.165
+        },
+        {
+          "v": 15,
+          "beat": "press",
+          "dt": 0.055
+        },
+        {
+          "v": 25.4,
+          "beat": "rub1",
+          "dt": 0.055
+        },
+        {
+          "v": 5.2,
+          "beat": "rub1",
+          "dt": 0.363
+        },
+        {
+          "v": 24.2,
+          "beat": "rub2",
+          "dt": 0.055
+        },
+        {
+          "v": 6.8,
+          "beat": "rub2",
+          "dt": 0.363
+        },
+        {
+          "v": 22.2,
+          "beat": "rub3",
+          "dt": 0.055
+        },
+        {
+          "v": 9.4,
+          "beat": "rub3",
+          "dt": 0.275
+        },
+        {
+          "v": 14,
+          "beat": "release",
+          "dt": 0.231
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": 0.033
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -10,
+          "beat": "press",
+          "dt": -0.143
+        },
+        {
+          "v": -20,
+          "beat": "press",
+          "dt": 0.077
+        },
+        {
+          "v": -20,
+          "beat": "release",
+          "dt": 0.033
+        },
+        {
+          "v": -10,
+          "beat": "release",
+          "dt": 0.253
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": 0.033
+        }
+      ],
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "press",
+          "dt": -0.143
+        },
+        {
+          "v": 7,
+          "beat": "press",
+          "dt": 0.077
+        },
+        {
+          "v": 20,
+          "beat": "rub1",
+          "dt": 0.077
+        },
+        {
+          "v": -5.25,
+          "beat": "rub1",
+          "dt": 0.385
+        },
+        {
+          "v": 18.5,
+          "beat": "rub2",
+          "dt": 0.077
+        },
+        {
+          "v": -3.25,
+          "beat": "rub2",
+          "dt": 0.385
+        },
+        {
+          "v": 16,
+          "beat": "rub3",
+          "dt": 0.077
+        },
+        {
+          "v": 0,
+          "beat": "rub3",
+          "dt": 0.297
+        },
+        {
+          "v": 3,
+          "beat": "release",
+          "dt": 0.253
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": 0.033
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "z": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.008,
+        "beat": "press",
+        "dt": 0.088
+      },
+      {
+        "v": 0.01,
+        "beat": "rub3",
+        "dt": 0.11
+      },
+      {
+        "v": 0.004,
+        "beat": "release",
+        "dt": 0.11
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "hands": {
+    "left": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 6,
+        "beat": "press",
+        "dt": -0.11
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 6,
+        "beat": "release",
+        "dt": 0.022
+      },
+      {
+        "preset": "relaxed",
+        "beat": "release",
+        "dt": 0.374
+      }
+    ],
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 6,
+        "beat": "press",
+        "dt": -0.077
+      },
+      {
+        "preset": "palm-flat",
+        "curl": 6,
+        "beat": "release",
+        "dt": 0.055
+      },
+      {
+        "preset": "relaxed",
+        "beat": "release",
+        "dt": 0.407
+      }
+    ]
+  },
+  "expressions": {
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.2,
+        "beat": "hunch",
+        "dt": 0.055
+      },
+      {
+        "v": 0.36,
+        "beat": "press",
+        "dt": -0.055
+      },
+      {
+        "v": 0.4,
+        "beat": "rub2"
+      },
+      {
+        "v": 0.38,
+        "beat": "rub3",
+        "dt": 0.165
+      },
+      {
+        "v": 0.35,
+        "beat": "release",
+        "dt": 0.11
+      },
+      {
+        "v": 0,
+        "beat": "settle",
+        "dt": -0.055
+      }
+    ],
+    "angry": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.15,
+        "beat": "hunch",
+        "dt": 0.055
+      },
+      {
+        "v": 0.32,
+        "beat": "press",
+        "dt": -0.055
+      },
+      {
+        "v": 0.36,
+        "beat": "rub2"
+      },
+      {
+        "v": 0.38,
+        "beat": "rub3",
+        "dt": 0.165
+      },
+      {
+        "v": 0.15,
+        "beat": "release",
+        "dt": 0.11
+      },
+      {
+        "v": 0,
+        "beat": "settle",
+        "dt": -0.088
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightHand",
+      "target": "leftHand",
+      "beat": "press",
+      "from": -0.022,
+      "to": 1.859,
+      "offset": [0, 0, 0],
+      "point": "palm",
+      "targetPoint": "palm",
+      "facing": true,
+      "solve": {
+        "blendIn": 0.22,
+        "blendOut": 0.242
+      }
+    }
+  ],
+  "events": [
+    {
+      "id": "sly-glint",
+      "time": 1.5,
+      "kind": "avatar_vfx",
+      "effectId": "sly_glint",
+      "duration": 1.25,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.3
+        }
+      }
+    }
+  ]
+}

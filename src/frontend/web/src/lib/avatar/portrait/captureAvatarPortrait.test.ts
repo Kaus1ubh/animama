@@ -133,27 +133,52 @@ describe("captureAvatarPortrait", () => {
     expect(fixture.renderer.render).toHaveBeenCalledOnce();
   });
 
+  const captureCamera = async (framing?: {
+    framingScale?: number;
+    framingDrop?: number;
+  }) => {
+    const fixture = createFixture();
+    await captureAvatarPortrait({
+      avatar: fixture.avatar,
+      renderer: fixture.renderer as unknown as THREE.WebGLRenderer,
+      camera: new THREE.PerspectiveCamera(50, 2, 0.1, 100),
+      scene: fixture.scene,
+      size: 64,
+      ...framing,
+      dependencies: {
+        createRenderTarget: () => fixture.renderTarget as never,
+        encodePixels: async () => new Blob([], { type: "image/webp" }),
+      },
+    });
+    return fixture.renderer.render.mock.calls[0][1] as THREE.PerspectiveCamera;
+  };
+
   it("widens the head framing by a scale, keeping its target", async () => {
-    const cameraDistance = async (framingScale?: number) => {
-      const fixture = createFixture();
-      await captureAvatarPortrait({
-        avatar: fixture.avatar,
-        renderer: fixture.renderer as unknown as THREE.WebGLRenderer,
-        camera: new THREE.PerspectiveCamera(50, 2, 0.1, 100),
-        scene: fixture.scene,
-        size: 64,
-        framingScale,
-        dependencies: {
-          createRenderTarget: () => fixture.renderTarget as never,
-          encodePixels: async () => new Blob([], { type: "image/webp" }),
-        },
-      });
-      const camera = fixture.renderer.render.mock
-        .calls[0][1] as THREE.PerspectiveCamera;
-      return camera.position.distanceTo(new THREE.Vector3(0, 1.6, 0));
-    };
+    const cameraDistance = async (framingScale?: number) =>
+      (await captureCamera({ framingScale })).position.distanceTo(
+        new THREE.Vector3(0, 1.6, 0),
+      );
     const head = await cameraDistance();
     expect(await cameraDistance(2)).toBeCloseTo(head * 2, 5);
+  });
+
+  it("lowers the view by a share of its height for a framing drop", async () => {
+    const head = await captureCamera({ framingScale: 3 });
+    const body = await captureCamera({ framingScale: 3, framingDrop: 0.25 });
+    // The default front camera looks along -Z, so the head sits on the axis.
+    const viewHeight = 2 * head.position.z * Math.tan((35 * Math.PI) / 360);
+
+    expect(body.position.z).toBeCloseTo(head.position.z, 5);
+    expect(body.position.y).toBeCloseTo(head.position.y - viewHeight / 4, 5);
+    const headInView = new THREE.Vector3(0, head.position.y, 0).project(body);
+    // Normalized device Y runs -1..1, so a quarter of the view is 0.5.
+    expect(headInView.y).toBeCloseTo(0.5, 5);
+  });
+
+  it("rejects a framing drop outside 0 to 0.5", async () => {
+    await expect(captureCamera({ framingDrop: 0.6 })).rejects.toMatchObject({
+      code: "invalid_size",
+    } satisfies Partial<AvatarPortraitCaptureError>);
   });
 
   it("restores and disposes resources after a render error", async () => {

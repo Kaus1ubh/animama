@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:shh",
+  "version": 1,
+  "semantic_key": "shh_finger",
+  "name": "Shh",
+  "ai_description": "Use when keeping a secret, hinting at a surprise, or asking for quiet. Raises the right index finger to the lips with a slight lean in and knowingly narrowed eyes.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "shh.json",
+      "role": "sequence"
+    }
+  ]
+}

@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:emote_question",
-      "alias": "emote_question",
+      "ref": "builtin:avatar-effect:question_mark",
+      "alias": "question_mark",
       "content_type": "avatar_effect",
       "config": {}
     }

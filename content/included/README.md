@@ -11,6 +11,14 @@ Action-owned Pose Clips are colocated; the retired `pose-clips/` folder is not
 used. Idle-only VRMAs
 belong inside their Idle Style.
 
+The library ships 107 Gestures, 72 Reactions and 73 Avatar Effects; frontend
+and backend tests pin these counts, so update them with any promotion. Its one
+Idle Style, Streamer Idle (`idle-styles/streamer-idle/`), contains no motion: it
+pools twelve Included idle Gestures by emotion and intensity. New companions
+still start with Idle empty and can choose it. Idle plays while the Anima is
+quiet, so every Avatar Effect event in a Gesture that an Included Idle Style
+uses sets `playAccompanyingSound: false`.
+
 `licenses/inventory.json` supplies the current provenance and redistribution
 review state. Rules are ordered, with the first matching rule applied to each
 file. The fallback project-owner assumption is historical development metadata,
@@ -50,9 +58,10 @@ with its own tracked licence inventory under `scripts/<pack>/`. This library
 holds no non-portable content. See
 [ADR 0018](../../docs/adr/0018-non-portable-included-content.md).
 
-Each built-in Avatar Effect names a licensed sound from the comedy sound pack
-through an optional dependency. Builds without that pack, including this source
-tree, drop the edge when scanning and play the effect silently
+A built-in Avatar Effect names at most one licensed sound from the comedy sound
+pack through an optional dependency; some have none by design. Builds without
+that pack, including this source tree, drop the edge when scanning and play the
+effect silently
 ([ADR 0022](../../docs/adr/0022-optional-licensed-effect-sounds.md)). Never put
 licensed or vendor preview sounds under `sfx/` here: the folder is ignored by
 Git and Docker, and the preview files are restricted by hash.

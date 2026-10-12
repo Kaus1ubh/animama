@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:downcast-sigh",
+  "version": 1,
+  "semantic_key": "downcast_sigh",
+  "name": "Downcast Sigh",
+  "ai_description": "Use while idle and feeling sad, disappointed, grieving or remorseful. The head hangs and the shoulders sink, a slow sigh and a small sniff, a brief glance up at the viewer, then the body sinks again.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:gloomy_cloud",
+      "alias": "gloomy_cloud",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "downcast-sigh.json",
+      "role": "sequence"
+    }
+  ]
+}

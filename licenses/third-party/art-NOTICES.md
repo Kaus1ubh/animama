@@ -30,6 +30,19 @@ source link and the change notice for `spark-pop-6x5.png`.
 This conservative treatment satisfies the attribution requirements rather than
 assuming the conflicting declaration away.
 
+## Nunito lettering
+
+The lettering images of five Included Avatar Effects (`bleh_lettering_head`,
+`heh_lettering`, `rawr_lettering_chest`, `sorry_lettering` and `zzz` in
+`content/included/vfx/avatar/`) were rendered from glyphs of the Nunito font
+(Black weight, version 3.602), which an agent-written script outlined, fattened
+and shaded. Nunito is Copyright 2014 The Nunito Project Authors
+([googlefonts/nunito](https://github.com/googlefonts/nunito)) and licensed under
+the [SIL Open Font License 1.1](https://openfontlicense.org/open-font-license-official-text/).
+The OFL places no condition on images made with the font; this credit is
+voluntary. The font file is not distributed with Animama; adding it would
+require shipping the OFL text with it.
+
 ## VRoid models and portraits: owner-confirmed permissions
 
 On 2026-09-15 Raymond confirmed that Annie (`AvatarSample_A_1_New.vrm`) is the
@@ -56,8 +69,9 @@ terms. Do not edit its embedded permission flags.
 
 The Avatar FX template thumbnails in
 `src/frontend/web/src/assets/effect-templates/` are also direct Animama renderer
-captures of Annie, each wearing an Included Avatar Effect with owner-authored art
-and no other artwork. Like Annie's portrait, they follow Annie's model terms and retain
+captures of Annie, each wearing an Included Avatar Effect with Animama's own
+owner- or agent-authored art and no other artwork, in some cases posed by an
+Included Gesture. Like Annie's portrait, they follow Annie's model terms and retain
 pixiv VRoid Project credit. Their provenance and regeneration command are in
 that folder's README.
 

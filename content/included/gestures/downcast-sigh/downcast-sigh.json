@@ -1,0 +1,1868 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "downcast-sigh",
+  "name": "Downcast Sigh",
+  "duration": 9.24,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.66
+  },
+  "fadeOut": {
+    "duration": 0.77
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "sink",
+      "label": "Sink",
+      "time": 0.88
+    },
+    {
+      "id": "inhale",
+      "label": "Inhale",
+      "time": 2.585
+    },
+    {
+      "id": "sigh",
+      "label": "Sigh out",
+      "time": 3.355
+    },
+    {
+      "id": "sniff",
+      "label": "Sniff",
+      "time": 4.95
+    },
+    {
+      "id": "glance",
+      "label": "Glance up",
+      "time": 5.995
+    },
+    {
+      "id": "sinkagain",
+      "label": "Sink again",
+      "time": 7.26
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 9.13
+    }
+  ],
+  "joints": {
+    "eyes": {
+      "pitch": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "sink",
+          "dt": -0.198
+        },
+        {
+          "v": -10,
+          "beat": "sink"
+        },
+        {
+          "v": -9.5,
+          "beat": "sink",
+          "dt": 0.275
+        },
+        {
+          "v": -7.5,
+          "beat": "sink",
+          "dt": 0.88
+        },
+        {
+          "v": -8.3,
+          "beat": "sink",
+          "dt": 1.375
+        },
+        {
+          "v": -7.8,
+          "beat": "inhale",
+          "dt": -0.055
+        },
+        {
+          "v": -5.6,
+          "beat": "inhale",
+          "dt": 0.55
+        },
+        {
+          "v": -6,
+          "beat": "sigh",
+          "dt": 0.11
+        },
+        {
+          "v": -9,
+          "beat": "sigh",
+          "dt": 0.715
+        },
+        {
+          "v": -8.3,
+          "beat": "sigh",
+          "dt": 1.265
+        },
+        {
+          "v": -8.6,
+          "beat": "sniff",
+          "dt": -0.044
+        },
+        {
+          "v": -7,
+          "beat": "sniff",
+          "dt": 0.066
+        },
+        {
+          "v": -8.2,
+          "beat": "sniff",
+          "dt": 0.495
+        },
+        {
+          "v": -8.5,
+          "beat": "glance",
+          "dt": -0.187
+        },
+        {
+          "v": 11,
+          "beat": "glance",
+          "dt": -0.022
+        },
+        {
+          "v": 11.5,
+          "beat": "glance",
+          "dt": 0.33
+        },
+        {
+          "v": 10,
+          "beat": "glance",
+          "dt": 0.66
+        },
+        {
+          "v": 9.3,
+          "beat": "glance",
+          "dt": 1.045
+        },
+        {
+          "v": 9.4,
+          "beat": "sinkagain",
+          "dt": -0.143
+        },
+        {
+          "v": -9,
+          "beat": "sinkagain",
+          "dt": 0.022
+        },
+        {
+          "v": -9.4,
+          "beat": "sinkagain",
+          "dt": 0.385
+        },
+        {
+          "v": -7.6,
+          "beat": "sinkagain",
+          "dt": 0.825
+        },
+        {
+          "v": -7.9,
+          "beat": "sinkagain",
+          "dt": 1.21
+        },
+        {
+          "v": -3,
+          "beat": "settle",
+          "dt": -0.33
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ],
+      "yaw": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 0,
+          "beat": "sink",
+          "dt": -0.198
+        },
+        {
+          "v": -3.5,
+          "beat": "sink"
+        },
+        {
+          "v": -3,
+          "beat": "sink",
+          "dt": 0.33
+        },
+        {
+          "v": -2,
+          "beat": "sink",
+          "dt": 0.88
+        },
+        {
+          "v": -1,
+          "beat": "sink",
+          "dt": 1.32
+        },
+        {
+          "v": -2.3,
+          "beat": "inhale",
+          "dt": 0.22
+        },
+        {
+          "v": -1.4,
+          "beat": "sigh",
+          "dt": 0.165
+        },
+        {
+          "v": -2.7,
+          "beat": "sigh",
+          "dt": 0.825
+        },
+        {
+          "v": -1.3,
+          "beat": "sigh",
+          "dt": 1.32
+        },
+        {
+          "v": -1.9,
+          "beat": "sniff",
+          "dt": 0.11
+        },
+        {
+          "v": -0.7,
+          "beat": "sniff",
+          "dt": 0.55
+        },
+        {
+          "v": -1.2,
+          "beat": "glance",
+          "dt": -0.187
+        },
+        {
+          "v": 1.3,
+          "beat": "glance",
+          "dt": -0.022
+        },
+        {
+          "v": 1,
+          "beat": "glance",
+          "dt": 0.33
+        },
+        {
+          "v": 0.2,
+          "beat": "glance",
+          "dt": 0.66
+        },
+        {
+          "v": 0.9,
+          "beat": "glance",
+          "dt": 1.045
+        },
+        {
+          "v": 0.9,
+          "beat": "sinkagain",
+          "dt": -0.143
+        },
+        {
+          "v": -3.2,
+          "beat": "sinkagain",
+          "dt": 0.022
+        },
+        {
+          "v": -2.3,
+          "beat": "sinkagain",
+          "dt": 0.44
+        },
+        {
+          "v": -1.5,
+          "beat": "sinkagain",
+          "dt": 0.99
+        },
+        {
+          "v": -2,
+          "beat": "sinkagain",
+          "dt": 1.32
+        },
+        {
+          "v": 0,
+          "beat": "settle"
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": -0.022
+        },
+        {
+          "v": 9.6,
+          "beat": "sink",
+          "dt": 0.715
+        },
+        {
+          "v": 9,
+          "beat": "sink",
+          "dt": 0.99
+        },
+        {
+          "v": 9.7,
+          "beat": "sink",
+          "dt": 1.43
+        },
+        {
+          "v": 9.3,
+          "beat": "inhale",
+          "dt": 0.077
+        },
+        {
+          "v": 6.2,
+          "beat": "inhale",
+          "dt": 0.66
+        },
+        {
+          "v": 6.6,
+          "beat": "sigh",
+          "dt": 0.143
+        },
+        {
+          "v": 11.8,
+          "beat": "sigh",
+          "dt": 0.957
+        },
+        {
+          "v": 11,
+          "beat": "sigh",
+          "dt": 1.265
+        },
+        {
+          "v": 11.3,
+          "beat": "sniff",
+          "dt": -0.066
+        },
+        {
+          "v": 9.7,
+          "beat": "sniff",
+          "dt": 0.055
+        },
+        {
+          "v": 11,
+          "beat": "sniff",
+          "dt": 0.253
+        },
+        {
+          "v": 10.3,
+          "beat": "sniff",
+          "dt": 0.385
+        },
+        {
+          "v": 11,
+          "beat": "sniff",
+          "dt": 0.638
+        },
+        {
+          "v": 11.2,
+          "beat": "glance"
+        },
+        {
+          "v": 2.4,
+          "beat": "glance",
+          "dt": 0.55
+        },
+        {
+          "v": 3,
+          "beat": "glance",
+          "dt": 0.77
+        },
+        {
+          "v": 3.6,
+          "beat": "glance",
+          "dt": 1.155
+        },
+        {
+          "v": 3.8,
+          "beat": "sinkagain",
+          "dt": 0.022
+        },
+        {
+          "v": 10.4,
+          "beat": "sinkagain",
+          "dt": 0.66
+        },
+        {
+          "v": 9.8,
+          "beat": "sinkagain",
+          "dt": 0.99
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.055
+        },
+        {
+          "v": -3.2,
+          "beat": "sink",
+          "dt": 0.88
+        },
+        {
+          "v": -2.6,
+          "beat": "inhale"
+        },
+        {
+          "v": -1.9,
+          "beat": "inhale",
+          "dt": 0.66
+        },
+        {
+          "v": -3.9,
+          "beat": "sigh",
+          "dt": 0.957
+        },
+        {
+          "v": -3.4,
+          "beat": "sniff",
+          "dt": -0.11
+        },
+        {
+          "v": -3.7,
+          "beat": "sniff",
+          "dt": 0.66
+        },
+        {
+          "v": -3.5,
+          "beat": "glance",
+          "dt": 0.055
+        },
+        {
+          "v": -2,
+          "beat": "glance",
+          "dt": 0.605
+        },
+        {
+          "v": -2.7,
+          "beat": "glance",
+          "dt": 1.1
+        },
+        {
+          "v": -3.5,
+          "beat": "sinkagain",
+          "dt": 0.66
+        },
+        {
+          "v": -3.1,
+          "beat": "sinkagain",
+          "dt": 1.21
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink"
+        },
+        {
+          "v": -2.6,
+          "beat": "sink",
+          "dt": 0.825
+        },
+        {
+          "v": -2,
+          "beat": "sink",
+          "dt": 1.43
+        },
+        {
+          "v": -3.1,
+          "beat": "sigh",
+          "dt": 0.957
+        },
+        {
+          "v": -2.3,
+          "beat": "sniff",
+          "dt": 0.44
+        },
+        {
+          "v": -2.6,
+          "beat": "glance"
+        },
+        {
+          "v": -0.4,
+          "beat": "glance",
+          "dt": 0.583
+        },
+        {
+          "v": -0.9,
+          "beat": "glance",
+          "dt": 1.1
+        },
+        {
+          "v": -2.8,
+          "beat": "sinkagain",
+          "dt": 0.66
+        },
+        {
+          "v": -2.3,
+          "beat": "sinkagain",
+          "dt": 1.21
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.033
+        },
+        {
+          "v": 6.4,
+          "beat": "sink",
+          "dt": 0.77
+        },
+        {
+          "v": 6,
+          "beat": "sink",
+          "dt": 1.045
+        },
+        {
+          "v": 6.3,
+          "beat": "inhale",
+          "dt": 0.055
+        },
+        {
+          "v": 4.4,
+          "beat": "inhale",
+          "dt": 0.627
+        },
+        {
+          "v": 4.6,
+          "beat": "sigh",
+          "dt": 0.11
+        },
+        {
+          "v": 7.8,
+          "beat": "sigh",
+          "dt": 0.913
+        },
+        {
+          "v": 7.3,
+          "beat": "sigh",
+          "dt": 1.243
+        },
+        {
+          "v": 7.5,
+          "beat": "sniff",
+          "dt": -0.077
+        },
+        {
+          "v": 6.6,
+          "beat": "sniff",
+          "dt": 0.044
+        },
+        {
+          "v": 7.3,
+          "beat": "sniff",
+          "dt": 0.242
+        },
+        {
+          "v": 6.9,
+          "beat": "sniff",
+          "dt": 0.374
+        },
+        {
+          "v": 7.4,
+          "beat": "sniff",
+          "dt": 0.638
+        },
+        {
+          "v": 7.4,
+          "beat": "glance",
+          "dt": 0.055
+        },
+        {
+          "v": 3,
+          "beat": "glance",
+          "dt": 0.605
+        },
+        {
+          "v": 3.4,
+          "beat": "glance",
+          "dt": 1.155
+        },
+        {
+          "v": 3.5,
+          "beat": "sinkagain",
+          "dt": 0.066
+        },
+        {
+          "v": 6.6,
+          "beat": "sinkagain",
+          "dt": 0.715
+        },
+        {
+          "v": 6.3,
+          "beat": "sinkagain",
+          "dt": 1.1
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.055
+        },
+        {
+          "v": -1.4,
+          "beat": "sink",
+          "dt": 0.88
+        },
+        {
+          "v": -1.7,
+          "beat": "sigh",
+          "dt": 0.99
+        },
+        {
+          "v": -1.4,
+          "beat": "glance",
+          "dt": 0.055
+        },
+        {
+          "v": -0.2,
+          "beat": "glance",
+          "dt": 0.627
+        },
+        {
+          "v": -1.5,
+          "beat": "sinkagain",
+          "dt": 0.715
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "upperChest": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.088
+        },
+        {
+          "v": 2.6,
+          "beat": "sink",
+          "dt": 0.88
+        },
+        {
+          "v": 2.8,
+          "beat": "inhale",
+          "dt": -0.055
+        },
+        {
+          "v": -1.4,
+          "beat": "inhale",
+          "dt": 0.583
+        },
+        {
+          "v": -1.1,
+          "beat": "sigh",
+          "dt": 0.055
+        },
+        {
+          "v": 4,
+          "beat": "sigh",
+          "dt": 0.825
+        },
+        {
+          "v": 3.6,
+          "beat": "sigh",
+          "dt": 1.265
+        },
+        {
+          "v": 3.7,
+          "beat": "sniff",
+          "dt": -0.132
+        },
+        {
+          "v": 2.6,
+          "beat": "sniff",
+          "dt": -0.011
+        },
+        {
+          "v": 3.6,
+          "beat": "sniff",
+          "dt": 0.176
+        },
+        {
+          "v": 3,
+          "beat": "sniff",
+          "dt": 0.319
+        },
+        {
+          "v": 3.7,
+          "beat": "sniff",
+          "dt": 0.55
+        },
+        {
+          "v": 3.6,
+          "beat": "glance",
+          "dt": 0.11
+        },
+        {
+          "v": 2.4,
+          "beat": "glance",
+          "dt": 0.715
+        },
+        {
+          "v": 2.6,
+          "beat": "glance",
+          "dt": 1.155
+        },
+        {
+          "v": 3.2,
+          "beat": "sinkagain",
+          "dt": 0.77
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "chest": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.132
+        },
+        {
+          "v": 2.6,
+          "beat": "sink",
+          "dt": 0.935
+        },
+        {
+          "v": 2.7,
+          "beat": "inhale",
+          "dt": -0.077
+        },
+        {
+          "v": -0.6,
+          "beat": "inhale",
+          "dt": 0.55
+        },
+        {
+          "v": -0.3,
+          "beat": "sigh",
+          "dt": 0.033
+        },
+        {
+          "v": 4.3,
+          "beat": "sigh",
+          "dt": 0.803
+        },
+        {
+          "v": 3.9,
+          "beat": "sigh",
+          "dt": 1.265
+        },
+        {
+          "v": 3.9,
+          "beat": "sniff",
+          "dt": -0.143
+        },
+        {
+          "v": 3,
+          "beat": "sniff",
+          "dt": -0.033
+        },
+        {
+          "v": 3.9,
+          "beat": "sniff",
+          "dt": 0.154
+        },
+        {
+          "v": 3.5,
+          "beat": "sniff",
+          "dt": 0.297
+        },
+        {
+          "v": 3.9,
+          "beat": "sniff",
+          "dt": 0.528
+        },
+        {
+          "v": 3.8,
+          "beat": "glance",
+          "dt": 0.165
+        },
+        {
+          "v": 2.9,
+          "beat": "glance",
+          "dt": 0.77
+        },
+        {
+          "v": 3.4,
+          "beat": "sinkagain",
+          "dt": 0.825
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "spine": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.176
+        },
+        {
+          "v": 1.5,
+          "beat": "sink",
+          "dt": 0.99
+        },
+        {
+          "v": 1.6,
+          "beat": "inhale",
+          "dt": -0.055
+        },
+        {
+          "v": 0.6,
+          "beat": "inhale",
+          "dt": 0.66
+        },
+        {
+          "v": 2.3,
+          "beat": "sigh",
+          "dt": 0.88
+        },
+        {
+          "v": 2.2,
+          "beat": "sniff",
+          "dt": 0.55
+        },
+        {
+          "v": 2.2,
+          "beat": "glance",
+          "dt": 0.22
+        },
+        {
+          "v": 1.7,
+          "beat": "glance",
+          "dt": 0.825
+        },
+        {
+          "v": 2,
+          "beat": "sinkagain",
+          "dt": 0.88
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.22
+        },
+        {
+          "v": 0.8,
+          "beat": "sink",
+          "dt": 1.155
+        },
+        {
+          "v": 1,
+          "beat": "sigh",
+          "dt": 1.155
+        },
+        {
+          "v": 0.5,
+          "beat": "glance",
+          "dt": 0.825
+        },
+        {
+          "v": 0.8,
+          "beat": "sinkagain",
+          "dt": 0.88
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.11
+        },
+        {
+          "v": -6.4,
+          "beat": "sink",
+          "dt": 0.88
+        },
+        {
+          "v": -6.1,
+          "beat": "sink",
+          "dt": 1.32
+        },
+        {
+          "v": -6.3,
+          "beat": "inhale",
+          "dt": -0.055
+        },
+        {
+          "v": -1.2,
+          "beat": "inhale",
+          "dt": 0.605
+        },
+        {
+          "v": -1.6,
+          "beat": "sigh",
+          "dt": 0.077
+        },
+        {
+          "v": -8.2,
+          "beat": "sigh",
+          "dt": 0.847
+        },
+        {
+          "v": -7.7,
+          "beat": "sigh",
+          "dt": 1.21
+        },
+        {
+          "v": -7.8,
+          "beat": "sniff",
+          "dt": -0.11
+        },
+        {
+          "v": -5.1,
+          "beat": "sniff",
+          "dt": 0.011
+        },
+        {
+          "v": -7.4,
+          "beat": "sniff",
+          "dt": 0.198
+        },
+        {
+          "v": -6.3,
+          "beat": "sniff",
+          "dt": 0.341
+        },
+        {
+          "v": -7.6,
+          "beat": "sniff",
+          "dt": 0.572
+        },
+        {
+          "v": -7.6,
+          "beat": "glance",
+          "dt": 0.11
+        },
+        {
+          "v": -5.8,
+          "beat": "glance",
+          "dt": 0.66
+        },
+        {
+          "v": -6.1,
+          "beat": "glance",
+          "dt": 1.155
+        },
+        {
+          "v": -7.1,
+          "beat": "sinkagain",
+          "dt": 0.77
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.11
+        },
+        {
+          "v": 3.7,
+          "beat": "sink",
+          "dt": 0.88
+        },
+        {
+          "v": 3.7,
+          "beat": "inhale",
+          "dt": -0.055
+        },
+        {
+          "v": 1,
+          "beat": "inhale",
+          "dt": 0.605
+        },
+        {
+          "v": 5,
+          "beat": "sigh",
+          "dt": 0.88
+        },
+        {
+          "v": 4.6,
+          "beat": "sigh",
+          "dt": 1.265
+        },
+        {
+          "v": 3.4,
+          "beat": "glance",
+          "dt": 0.66
+        },
+        {
+          "v": 4.3,
+          "beat": "sinkagain",
+          "dt": 0.77
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.165
+        },
+        {
+          "v": -6.1,
+          "beat": "sink",
+          "dt": 0.935
+        },
+        {
+          "v": -5.8,
+          "beat": "sink",
+          "dt": 1.375
+        },
+        {
+          "v": -6,
+          "beat": "inhale",
+          "dt": -0.033
+        },
+        {
+          "v": -1.3,
+          "beat": "inhale",
+          "dt": 0.638
+        },
+        {
+          "v": -1.7,
+          "beat": "sigh",
+          "dt": 0.11
+        },
+        {
+          "v": -7.9,
+          "beat": "sigh",
+          "dt": 0.891
+        },
+        {
+          "v": -7.4,
+          "beat": "sigh",
+          "dt": 1.265
+        },
+        {
+          "v": -7.5,
+          "beat": "sniff",
+          "dt": -0.088
+        },
+        {
+          "v": -4.9,
+          "beat": "sniff",
+          "dt": 0.033
+        },
+        {
+          "v": -7,
+          "beat": "sniff",
+          "dt": 0.22
+        },
+        {
+          "v": -6.1,
+          "beat": "sniff",
+          "dt": 0.363
+        },
+        {
+          "v": -7.2,
+          "beat": "sniff",
+          "dt": 0.594
+        },
+        {
+          "v": -7.2,
+          "beat": "glance",
+          "dt": 0.143
+        },
+        {
+          "v": -5.5,
+          "beat": "glance",
+          "dt": 0.693
+        },
+        {
+          "v": -5.8,
+          "beat": "glance",
+          "dt": 1.155
+        },
+        {
+          "v": -6.7,
+          "beat": "sinkagain",
+          "dt": 0.814
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.165
+        },
+        {
+          "v": 3.4,
+          "beat": "sink",
+          "dt": 0.935
+        },
+        {
+          "v": 3.4,
+          "beat": "inhale",
+          "dt": -0.033
+        },
+        {
+          "v": 0.8,
+          "beat": "inhale",
+          "dt": 0.638
+        },
+        {
+          "v": 4.6,
+          "beat": "sigh",
+          "dt": 0.913
+        },
+        {
+          "v": 4.3,
+          "beat": "sigh",
+          "dt": 1.287
+        },
+        {
+          "v": 3.1,
+          "beat": "glance",
+          "dt": 0.693
+        },
+        {
+          "v": 4,
+          "beat": "sinkagain",
+          "dt": 0.814
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.22
+        },
+        {
+          "v": 19,
+          "beat": "sink",
+          "dt": 1.045
+        },
+        {
+          "v": 19.9,
+          "beat": "inhale",
+          "dt": 0.693
+        },
+        {
+          "v": 19.6,
+          "beat": "sigh",
+          "dt": 1.045
+        },
+        {
+          "v": 18.8,
+          "beat": "glance",
+          "dt": 0.715
+        },
+        {
+          "v": 19.2,
+          "beat": "sinkagain",
+          "dt": 0.88
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.22
+        },
+        {
+          "v": -8,
+          "beat": "sink",
+          "dt": 1.045
+        },
+        {
+          "v": -7.5,
+          "beat": "sigh",
+          "dt": 1.045
+        },
+        {
+          "v": -8.5,
+          "beat": "glance",
+          "dt": 0.715
+        },
+        {
+          "v": -7.8,
+          "beat": "sinkagain",
+          "dt": 0.88
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.275
+        },
+        {
+          "v": 21.6,
+          "beat": "sink",
+          "dt": 1.1
+        },
+        {
+          "v": 22.5,
+          "beat": "inhale",
+          "dt": 0.715
+        },
+        {
+          "v": 22.2,
+          "beat": "sigh",
+          "dt": 1.1
+        },
+        {
+          "v": 21.4,
+          "beat": "glance",
+          "dt": 0.77
+        },
+        {
+          "v": 21.8,
+          "beat": "sinkagain",
+          "dt": 0.935
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.275
+        },
+        {
+          "v": -7.8,
+          "beat": "sink",
+          "dt": 1.1
+        },
+        {
+          "v": -7.2,
+          "beat": "sigh",
+          "dt": 1.1
+        },
+        {
+          "v": -8.2,
+          "beat": "glance",
+          "dt": 0.77
+        },
+        {
+          "v": -7.6,
+          "beat": "sinkagain",
+          "dt": 0.935
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.275
+        },
+        {
+          "v": 8.2,
+          "beat": "sink",
+          "dt": 1.155
+        },
+        {
+          "v": 9.4,
+          "beat": "inhale",
+          "dt": 0.737
+        },
+        {
+          "v": 6.4,
+          "beat": "sigh",
+          "dt": 1.155
+        },
+        {
+          "v": 8,
+          "beat": "glance",
+          "dt": 0.825
+        },
+        {
+          "v": 7,
+          "beat": "sinkagain",
+          "dt": 0.99
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.33
+        },
+        {
+          "v": 7.6,
+          "beat": "sink",
+          "dt": 1.21
+        },
+        {
+          "v": 8.8,
+          "beat": "sigh",
+          "dt": 0.011
+        },
+        {
+          "v": 6,
+          "beat": "sigh",
+          "dt": 1.21
+        },
+        {
+          "v": 7.4,
+          "beat": "glance",
+          "dt": 0.88
+        },
+        {
+          "v": 6.6,
+          "beat": "sinkagain",
+          "dt": 1.045
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.33
+        },
+        {
+          "v": 10,
+          "beat": "sink",
+          "dt": 1.265
+        },
+        {
+          "v": 11,
+          "beat": "sigh",
+          "dt": 1.265
+        },
+        {
+          "v": 8,
+          "beat": "glance",
+          "dt": 0.88
+        },
+        {
+          "v": 9.5,
+          "beat": "sinkagain",
+          "dt": 1.045
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": "base",
+          "beat": "sink",
+          "dt": 0.385
+        },
+        {
+          "v": 9.6,
+          "beat": "sink",
+          "dt": 1.32
+        },
+        {
+          "v": 10.6,
+          "beat": "sigh",
+          "dt": 1.32
+        },
+        {
+          "v": 7.8,
+          "beat": "glance",
+          "dt": 0.935
+        },
+        {
+          "v": 9.2,
+          "beat": "sinkagain",
+          "dt": 1.1
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "sink",
+        "dt": 0.22
+      },
+      {
+        "v": -0.005,
+        "beat": "sink",
+        "dt": 1.155
+      },
+      {
+        "v": -0.006,
+        "beat": "sigh",
+        "dt": 1.155
+      },
+      {
+        "v": -0.003,
+        "beat": "glance",
+        "dt": 0.825
+      },
+      {
+        "v": -0.005,
+        "beat": "sinkagain",
+        "dt": 0.88
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "y": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "sink",
+        "dt": 0.165
+      },
+      {
+        "v": -0.004,
+        "beat": "sink",
+        "dt": 0.99
+      },
+      {
+        "v": 0,
+        "beat": "inhale",
+        "dt": 0.66
+      },
+      {
+        "v": -0.008,
+        "beat": "sigh",
+        "dt": 0.99
+      },
+      {
+        "v": -0.007,
+        "beat": "sniff",
+        "dt": 0.55
+      },
+      {
+        "v": -0.004,
+        "beat": "glance",
+        "dt": 0.715
+      },
+      {
+        "v": -0.006,
+        "beat": "sinkagain",
+        "dt": 0.88
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "expressions": {
+    "blink": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "sink",
+        "dt": 0.935
+      },
+      {
+        "v": 1,
+        "beat": "sink",
+        "dt": 1.012
+      },
+      {
+        "v": 1,
+        "beat": "sink",
+        "dt": 1.045
+      },
+      {
+        "v": 0,
+        "beat": "sink",
+        "dt": 1.177
+      },
+      {
+        "v": 0,
+        "beat": "sigh",
+        "dt": 0.341
+      },
+      {
+        "v": 1,
+        "beat": "sigh",
+        "dt": 0.495
+      },
+      {
+        "v": 1,
+        "beat": "sigh",
+        "dt": 0.671
+      },
+      {
+        "v": 0,
+        "beat": "sigh",
+        "dt": 0.957
+      },
+      {
+        "v": 0,
+        "beat": "sniff",
+        "dt": -0.044
+      },
+      {
+        "v": 0.35,
+        "beat": "sniff",
+        "dt": 0.022
+      },
+      {
+        "v": 0.35,
+        "beat": "sniff",
+        "dt": 0.066
+      },
+      {
+        "v": 0,
+        "beat": "sniff",
+        "dt": 0.22
+      },
+      {
+        "v": 0,
+        "beat": "glance",
+        "dt": 0.726
+      },
+      {
+        "v": 1,
+        "beat": "glance",
+        "dt": 0.803
+      },
+      {
+        "v": 1,
+        "beat": "glance",
+        "dt": 0.836
+      },
+      {
+        "v": 0,
+        "beat": "glance",
+        "dt": 0.968
+      },
+      {
+        "v": 0,
+        "beat": "sinkagain",
+        "dt": 0.913
+      },
+      {
+        "v": 1,
+        "beat": "sinkagain",
+        "dt": 1.045
+      },
+      {
+        "v": 1,
+        "beat": "sinkagain",
+        "dt": 1.155
+      },
+      {
+        "v": 0,
+        "beat": "sinkagain",
+        "dt": 1.397
+      }
+    ],
+    "sad": [
+      {
+        "v": 0.38,
+        "beat": "start"
+      },
+      {
+        "v": 0.4,
+        "beat": "sink",
+        "dt": -0.11
+      },
+      {
+        "v": 0.5,
+        "beat": "sink",
+        "dt": 0.88
+      },
+      {
+        "v": 0.47,
+        "beat": "inhale",
+        "dt": 0.055
+      },
+      {
+        "v": 0.55,
+        "beat": "sigh",
+        "dt": 0.385
+      },
+      {
+        "v": 0.5,
+        "beat": "sigh",
+        "dt": 1.265
+      },
+      {
+        "v": 0.58,
+        "beat": "sniff"
+      },
+      {
+        "v": 0.52,
+        "beat": "sniff",
+        "dt": 0.55
+      },
+      {
+        "v": 0.56,
+        "beat": "glance",
+        "dt": 0.165
+      },
+      {
+        "v": 0.52,
+        "beat": "glance",
+        "dt": 1.045
+      },
+      {
+        "v": 0.5,
+        "beat": "sinkagain",
+        "dt": 0.66
+      },
+      {
+        "v": 0.4,
+        "beat": "settle"
+      }
+    ],
+    "aa": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "sigh",
+        "dt": 0.077
+      },
+      {
+        "v": 0.12,
+        "beat": "sigh",
+        "dt": 0.44
+      },
+      {
+        "v": 0.06,
+        "beat": "sigh",
+        "dt": 0.88
+      },
+      {
+        "v": 0,
+        "beat": "sniff",
+        "dt": -0.22
+      }
+    ]
+  },
+  "events": [
+    {
+      "id": "gloomy-cloud",
+      "time": 3.25,
+      "kind": "avatar_vfx",
+      "effectId": "gloomy_cloud",
+      "duration": 1.9,
+      "envelope": {
+        "intensity": {
+          "fadeOut": 0.4
+        }
+      },
+      "playAccompanyingSound": false
+    }
+  ]
+}

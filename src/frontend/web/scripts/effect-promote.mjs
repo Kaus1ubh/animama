@@ -48,10 +48,11 @@ import {
  * sounds or other dependencies, validated as the creator's Save validates
  * them, and their art re-checked against its budget; Scene art must be PNG.
  *
- * Every built-in Avatar Effect plays one licensed sound from the private
- * comedy sound pack as an optional dependency (ADR 0022). An add names it
- * with `"sound": "<key>"`, a sound in the tracked pack manifest; a replace
- * keeps the effect's current sound unless it names another.
+ * A built-in Avatar Effect plays at most one licensed sound from the private
+ * comedy sound pack, as an optional dependency (ADR 0022). An add names it
+ * with `"sound": "<key>"`, a sound in the tracked pack manifest, or chooses a
+ * silent effect with `"sound": null`; a replace keeps the effect's current
+ * sound unless it names another or `null` (which removes it).
  *
  * Licence records (D1): Avatar Effect files fall under the existing
  * `vfx/avatar/**\/*` rule and Scene PNGs under `vfx/scene/**\/*.png`. Each
@@ -211,11 +212,11 @@ export function parseEffectPromoteItems(value, itemsFile) {
       item.sound !== undefined &&
       (kind !== "avatar_effect" ||
         item.mode === "delete" ||
-        typeof item.sound !== "string" ||
-        !SOUND_KEY.test(item.sound))
+        (item.sound !== null &&
+          (typeof item.sound !== "string" || !SOUND_KEY.test(item.sound))))
     )
       throw new EffectPromoteError(
-        `${where}: "sound" names a comedy pack sound key (like "funny_sweat_02") for an Avatar Effect add or replace.`,
+        `${where}: "sound" names a comedy pack sound key (like "funny_sweat_02"), or null for no sound, on an Avatar Effect add or replace.`,
       );
     return {
       kind,
@@ -329,17 +330,19 @@ export async function planEffectPromotion(
   };
   /**
    * The licensed sound edge an Avatar Effect add or replace writes: the one the
-   * item names, else (for a replace) the effect's current one.
+   * item names, none for `"sound": null`, else (for a replace) the effect's
+   * current one.
    */
   const licensedSound = (item, original) => {
     const kept = (original?.dependencies ?? []).find(
       (edge) => edge.content_type === "sound_effect" && edge.optional === true,
     );
-    if (item.mode === "add" && !item.sound)
+    if (item.sound === null) return null;
+    if (item.mode === "add" && item.sound === undefined)
       throw new EffectPromoteError(
-        `${item.stem}: every built-in Avatar Effect plays a licensed sound; name one with "sound".`,
+        `${item.stem}: choose the effect's licensed sound: name one with "sound", or set "sound": null for a silent effect.`,
       );
-    if (!item.sound) return kept ?? null;
+    if (item.sound === undefined) return kept ?? null;
     if (!packSounds().has(item.sound))
       throw new EffectPromoteError(
         `${item.stem}: "${item.sound}" is not a sound in the tracked comedy pack manifest.`,

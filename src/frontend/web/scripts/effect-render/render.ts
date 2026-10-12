@@ -83,6 +83,8 @@ type ThumbnailRequest = {
   size: number;
   /** Camera distance relative to the head framing (default 1). */
   framingScale?: number;
+  /** Camera target drop as a share of the view height (default 0). */
+  framingDrop?: number;
 };
 
 type AvatarDiagnostics = {
@@ -561,6 +563,7 @@ async function renderThumbnail(
       size: request.size,
       expression: "live",
       framingScale: request.framingScale ?? 1,
+      framingDrop: request.framingDrop ?? 0,
     });
     return {
       dataUrl: await blobToDataUrl(blob),

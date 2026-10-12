@@ -114,7 +114,15 @@ names: a hand or finger bone covers the hand, a `LowerArm` bone the forearm,
 `head` the head and neck, torso bones the torso. Declare a second contact if
 the forearm also rests on the body. Finger collisions are allowed only between
 the parts a contact names: two digits, or a digit and its palm, of one hand, or
-any parts of the two hands when a contact joins them.
+any parts of the two hands when a contact joins them. A contact allows these
+over its window and, when solved, over its blend ramps, while the solver moves
+the hand onto and off the target.
+
+While a contact joins the two hands, each hand is measured only against the
+part of the other forearm more than a palm length from its wrist: pressed
+palms (a clap, prayer hands) put the wrists inside the capsules' radii, and a
+hand pressed into the forearm itself still fails. Declare only the solved
+palm-to-palm contact; no check-only contacts are needed.
 
 ## Live preview and review notes
 
