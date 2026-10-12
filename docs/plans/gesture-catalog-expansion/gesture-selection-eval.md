@@ -14,6 +14,7 @@ plan so the reported fit rates can be reproduced:
 | `gesture-selection-eval-loadout-candidate.json` | The same 20 with the final G3 descriptions, plus Explain with Open Palms, Goodbye Wave, Tear Wipe, Apology Bow and Prayer Hands Thanks (25). |
 | `gesture-selection-eval-loadout-all.json` | All 43 earlier Included Gestures with the final G3 descriptions, plus all 64 new Gestures, including the 12 idles and the 22 R1b Gestures (107). |
 | `gesture-selection-eval-prompts.json` | 60 single-turn items and two scripted chats of 30 user turns each, with each item's acceptable Gestures (the expected fits). |
+| `gesture-selection-eval-loadout-95.json` | The 95 non-idle Included Gestures (all 107 minus the 12 dependencies of the Streamer Idle style) with their shipped AI descriptions, sorted by selector. The loadout of the 2026-10-12 model comparison. |
 
 The generators below (`build_inputs.py`, `extend_prompts_r1b.py`) read the
 git-ignored drafts and promotion package, so they stay in the ignored
@@ -54,6 +55,26 @@ Warnings report a package name or `current` text that differs from the
 Included metadata. The baseline reads the Included metadata, so once the
 descriptions are promoted, regenerating it no longer reproduces today's text:
 pass `--keep-baseline` and use the existing file (sha256 `f94e7d58…`).
+
+The 95-Gesture loadout is derived from the shipped Included metadata, not the
+promotion package. Regenerate it from the repository root (sha256 `dc132bd7…`
+as of 2026-10-12):
+
+```bash
+uv run python - > docs/plans/gesture-catalog-expansion/gesture-selection-eval-loadout-95.json <<'PY'
+import json, pathlib
+root = pathlib.Path("content/included")
+style = json.loads((root / "idle-styles/streamer-idle/streamer-idle.json").read_text())
+idle = {dependency["ref"] for dependency in style["dependencies"]}
+metas = [json.loads(path.read_text()) for path in root.glob("gestures/*/*.meta.json")]
+loadout = [
+    {"selector": meta["semantic_key"], "name": meta["name"], "description": meta["ai_description"]}
+    for meta in metas
+    if meta["content_id"] not in idle
+]
+print(json.dumps(sorted(loadout, key=lambda gesture: gesture["selector"]), indent=2, ensure_ascii=False))
+PY
+```
 
 ## Prompt set
 

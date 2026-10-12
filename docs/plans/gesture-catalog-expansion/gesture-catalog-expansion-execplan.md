@@ -581,6 +581,79 @@ stack first needed the merged schema column and a server image rebuild
   Kiss are picked and fit; 12 of the 34 R1b Gestures and idles are used.
 - Tear Wipe is never picked; sadness goes to Hand on Heart.
 
+#### Model comparison (2026-10-12, owner request)
+
+The owner asked to compare Claude Haiku 5.5
+(`AnthropicMessagesHTTPAgent:claude-haiku-5-5`) and `gpt-6-luna` at reasoning
+effort none, low and medium, with latency, time to first token, reasoning and
+output tokens, cost, and the suitability of Gesture, emotional tone and
+intensity, and speech. Setup: the 95 non-idle Included Gestures
+(`gesture-selection-eval-loadout-95.json`, the starter set planned in
+raymond-van/animama#465), the tracked prompt set, 3 repeats per single-turn
+item and 1 per scripted chat, 240 calls per configuration, run one after
+another on task stack `gce`. All 1,440 calls succeeded with no structured
+repairs. Estimated cost $0.34 from published rates (Haiku 5.5 and Luna both
+$0.10 input, $0.01 cached, $0.50 output per 1M tokens; Haiku cache writes
+$0.125; Luna cache writes billed at the input rate as an assumption).
+
+The harness gained per-turn latency, time to first token (the first call's
+first visible text), time to first speech (chat's first complete sentence),
+per-call timings, per-turn token and cost statistics and a `--price` option.
+
+| Config | Fit | Null | Latency med / p90 | First token med / p90 | First speech med | Output tok/turn mean | Reasoning tok/turn med / p90 | Est. cost |
+| --- | --- | --- | --- | --- | --- | --- | --- | --- |
+| Haiku none | 50.0% | 0% | 1.82 / 2.22 s | 1.07 / 1.35 s | 1.31 s | 133 | none reported | $0.061 |
+| Haiku low | 56.1% | 0% | 1.91 / 2.62 s | 1.14 / 2.03 s | 1.38 s | 161 | 0 / 176 | $0.066 |
+| Haiku medium | 59.4% | 0% | 2.09 / 3.34 s | 1.26 / 2.61 s | 1.51 s | 218 | 0 / 268 | $0.070 |
+| Luna none | 87.8% | 13.3% | 1.99 / 2.76 s | 1.09 / 1.57 s | 1.49 s | 85 | none reported | $0.045 |
+| Luna low | 87.2% | 13.3% | 1.69 / 2.63 s | 1.04 / 1.55 s | 1.27 s | 86 | none reported | $0.045 |
+| Luna medium | 85.6% | 13.3% | 2.08 / 3.87 s | 1.45 / 2.68 s | 1.66 s | 118 | 22 / 87 | $0.049 |
+
+Single-turn figures; scripted turns are similar (see each run's
+`summary.md`). Haiku uses about 1.7 times more input tokens for the same
+prompt (about 12.7k against 7.5k per single turn).
+
+**Blind judging.** Four Claude sub-agents scored all 1,440 replies 1–5 against
+a fixed rubric (Gesture, tone, intensity, speech, coherence), with replies
+shuffled across configurations and no model identity shown. The judges share
+a model family with Haiku, so any family bias would favour Haiku.
+
+| Config | Gesture | Tone | Intensity | Speech | Coherent | Any score ≤ 2 |
+| --- | --- | --- | --- | --- | --- | --- |
+| Haiku none | 3.59 | 4.58 | 4.75 | 4.65 | 85% | 27% |
+| Haiku low | 3.79 | 4.61 | 4.82 | 4.70 | 90% | 18% |
+| Haiku medium | 3.92 | 4.59 | 4.85 | 4.70 | 92% | 15% |
+| Luna none | 4.59 | 4.77 | 4.96 | 4.73 | 98% | 2% |
+| Luna low | 4.60 | 4.80 | 4.94 | 4.73 | 100% | 1% |
+| Luna medium | 4.65 | 4.70 | 4.93 | 4.67 | 99% | 2% |
+
+- Haiku never chooses no Gesture; on small talk its Gesture scores 2.6–3.1
+  against Luna's 4.9–5.0, and it misreads some emotional tones (sorrowful on
+  frustration, regretful on disgust).
+- Speech is close: Haiku is slightly better on conversation beats, Luna on
+  emotional moments.
+- More reasoning helps little: Haiku medium still trails Luna none, and Luna
+  medium trades slightly better Gestures for worse tone and speech and a 3.9 s
+  p90 latency. Luna low used no reasoning tokens in this run.
+- Recommendation: keep `gpt-6-luna` at effort none as the chat default.
+
+Inputs are tracked beside this plan; raw replies, judge batches, scores and
+summaries stay in the git-ignored drafts folder
+(`eval-runs/models-*`, `eval-runs/judge/`).
+
+#### Harness follow-up review (2026-10-12)
+
+`sdlc-reviewer` on the latency, token and cost change. Round 1: two required
+documentation findings (the first-output definition for repaired and failed
+turns; the 95-Gesture loadout missing from the eval inputs) and four optional
+ones (failed calls hiding a turn's billed usage, no aggregated time to first
+token, table headers, `--price` validation and tests). All six were fixed and
+the six run summaries re-rendered from their recorded turns with no new calls.
+Round 2 (targeted recheck): **pass**; three optional notes left as they are
+(a call that fails mid-stream is counted in neither usage nor unreported
+calls, only in failed turns; a reused loop variable name; a test patching an
+attribute). One repair round of two used.
+
 #### Code Review #1 Findings
 
 Reviewed 2026-10-10: the uncommitted harness tree on `44c16bff` (`scripts/evals/`,

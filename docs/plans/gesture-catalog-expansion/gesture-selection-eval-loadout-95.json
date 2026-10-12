@@ -1,0 +1,477 @@
+[
+  {
+    "selector": "air_quotes",
+    "name": "Air Quotes",
+    "description": "Use when saying something sarcastically, doubting a claim, or calling something 'so-called'. Raises both hands beside the head and hooks two fingers twice in air quotes with a wry, half-lidded skeptical look."
+  },
+  {
+    "selector": "apology_bow",
+    "name": "Apology Bow",
+    "description": "Use when apologising sincerely or admitting a mistake (\"I'm so sorry!\"). Presses the palms together at the chest and bows quickly and deeply with eyes squeezed shut and a sorry face."
+  },
+  {
+    "selector": "arms-crossed",
+    "name": "Arms Crossed",
+    "description": "Use while skeptical, unconvinced or holding a firm stance; steady rather than sulky. Holds both arms crossed with a slight head tilt and a faintly stern look."
+  },
+  {
+    "selector": "attentive_lean_in",
+    "name": "Attentive Lean In",
+    "description": "Use while listening closely or showing keen interest in what the user is saying. Leans forward with small nods and gentle head tilts."
+  },
+  {
+    "selector": "beckon_come_here",
+    "name": "Beckon",
+    "description": "Use when inviting the user to come closer, lean in or follow along, as in \"come here, let me show you.\" Holds the right hand palm-up at chest height and curls the fingers in twice, with a small head tilt and an inviting smile."
+  },
+  {
+    "selector": "big_circle_maru",
+    "name": "Big Circle",
+    "description": "Use when the user gets something right, guesses correctly or you approve of an idea, like a variety-show \"Correct!\". Raises both arms overhead into a big round circle with the fingertips touching, with a bright smile and a little bounce."
+  },
+  {
+    "selector": "big_x_batsu",
+    "name": "Big X",
+    "description": "Use when firmly rejecting something, saying no or calling an answer wrong. Crosses both forearms in a big X in front of the chest with the eyes shut and a small head shake."
+  },
+  {
+    "selector": "blow_kiss",
+    "name": "Blow a Kiss",
+    "description": "Use for an affectionate goodbye or thank-you. Kisses the right fingertips and sends the kiss forward with a wink and a smile."
+  },
+  {
+    "selector": "blow_kiss_both",
+    "name": "Blow a Kiss 2",
+    "description": "Use for a big, affectionate goodbye, thanks or love to the user; grander than a one-hand kiss. Kisses both hands' fingertips, then opens the arms forward, palms up, with a wink."
+  },
+  {
+    "selector": "cat-monster-rawr",
+    "name": "Cat Monster Rawr",
+    "description": "Use when playfully pretending to be a monster: a mock roar, teasing or silly intimidation, not cute. Crouches with claws up by the face, roars wide-mouthed, then swipes the claws."
+  },
+  {
+    "selector": "cat_paws_nya",
+    "name": "Cat Paws Nya",
+    "description": "Use when being playful, cutesy or teasing in a cat-like way, such as saying \"nya~\", acting like a kitten or begging cutely. Curls both hands into cat paws beside the face, kneads the air with a head tilt and gives a winking \"nya\" smile."
+  },
+  {
+    "selector": "celebration",
+    "name": "Celebration",
+    "description": "Use when celebrating your own win, a success or great news with full energy. Throws both fists up high, pumps them twice and bounces with a huge grin."
+  },
+  {
+    "selector": "cheeky-finger-guns",
+    "name": "Cheeky Finger Guns",
+    "description": "Use to punctuate a joke, a cheeky compliment or confident agreement. Aims finger guns with both hands, fires them and winks."
+  },
+  {
+    "selector": "chefs_kiss",
+    "name": "Chef's Kiss",
+    "description": "Use when praising something as perfect, delicious or exactly right. Kisses the bunched fingertips, then springs the hand open beside the face with blissfully closed eyes."
+  },
+  {
+    "selector": "count_on_fingers",
+    "name": "Count on Fingers",
+    "description": "Use when listing several points, reasons, steps or options in order. Raises the right hand at chest height, palm out, and counts one, two, three on the fingers with a small nod per count."
+  },
+  {
+    "selector": "cover_face_peek",
+    "name": "Cover Face and Peek",
+    "description": "Use when flustered or embarrassed, for example by a compliment, teasing or an awkward moment. Hides the face behind both hands, peeks out through spread fingers with one eye, then lowers the hands with a shy smile."
+  },
+  {
+    "selector": "cower_hands_up",
+    "name": "Cower",
+    "description": "Use when frightened, startled or intimidated, or when playfully pretending to be scared of something. Shrinks down with the shoulders hunched and both palms up in front of the face, trembles, peeks out nervously, then recovers with a relieved sigh."
+  },
+  {
+    "selector": "deflated_sigh",
+    "name": "Deflated Sigh",
+    "description": "Use when disappointed, tired or resigned to something. Breathes in, then lets out a long sigh as the shoulders and chest slump."
+  },
+  {
+    "selector": "double-peace-pop",
+    "name": "Double Peace Pop",
+    "description": "Use to celebrate, greet with excitement or pose playfully, with more energy than a one-hand peace sign. Pops up peace signs with both hands, sways and winks with a big smile."
+  },
+  {
+    "selector": "double-thumbs-down",
+    "name": "Double Thumbs Down",
+    "description": "Use for strong or playfully exaggerated disapproval or rejection; stronger than one thumb. Drops both thumbs down, pushes them twice like a \"boo\" and pouts."
+  },
+  {
+    "selector": "double-thumbs-up",
+    "name": "Double Thumbs Up",
+    "description": "Use for enthusiastic approval, encouragement or celebrating someone's success; stronger than one thumb. Pops both thumbs up, pumps them twice and winks."
+  },
+  {
+    "selector": "drumroll",
+    "name": "Drumroll",
+    "description": "Use to build suspense before announcing a result, surprise or reveal (\"and the winner is…\"). Plays a fast air drumroll in front of the belly, drumming with both index fingers like drumsticks, then flings both arms open, palms up, with a beaming \"ta-da!\" smile."
+  },
+  {
+    "selector": "emphasise_point",
+    "name": "Emphasise a Point",
+    "description": "Use when stressing that something matters or landing a key point (\"this is important\"). Makes two firm, short downward beats with a loosely pinched right hand at chest height, nodding with each beat, with a focused look."
+  },
+  {
+    "selector": "enthusiastic_yes",
+    "name": "Enthusiastic Yes",
+    "description": "Use when agreeing excitedly or giving an emphatic yes, not to cheer someone on. A big eager nod with a small right fist pump and an open smile."
+  },
+  {
+    "selector": "ew_recoil",
+    "name": "Ew Recoil",
+    "description": "Use when something is gross, creepy or off-putting, or to react with 'ew, no thanks'. Recoils and turns the head away with both palms up in front of the chest, a little shudder and a scrunched, disgusted side-eye."
+  },
+  {
+    "selector": "excited_clap",
+    "name": "Excited Triple Clap",
+    "description": "Use to applaud someone, cheer their good news or celebrate with them. Claps three quick times with a big smile."
+  },
+  {
+    "selector": "explain_open_palms",
+    "name": "Explain with Open Palms",
+    "description": "Use only when the reply walks through an explanation, steps or reasons (\"let me explain\", \"here's why\"); not for short answers, greetings or small talk. Raises both open palms in front and offers them outward in two small beats, with an attentive, slight smile."
+  },
+  {
+    "selector": "fighting_fist_pump",
+    "name": "Fighting! Fist Pump",
+    "description": "Use when cheering someone on or encouraging them before a challenge (\"You can do it!\", \"Fighting!\", \"Ganbatte!\"), or when psyching yourself up. Raises both fists in front of the chest and pumps them down once with a determined, bright smile and a small bounce."
+  },
+  {
+    "selector": "finger-heart-pose",
+    "name": "Finger Heart Pose",
+    "description": "Use for a sweet thank-you, appreciation or cute affection. Raises a finger heart beside the cheek with a wink while a little heart pops up above the fingers."
+  },
+  {
+    "selector": "fingers_crossed",
+    "name": "Fingers Crossed",
+    "description": "Use when hoping for something to go well, wishing someone luck or waiting on an outcome. Raises both hands beside the face with the fingers crossed, squeezes the eyes shut with a small hopeful smile, and gives two little wishing pumps."
+  },
+  {
+    "selector": "fist_bump",
+    "name": "Fist Bump",
+    "description": "Use when celebrating teamwork, agreeing on a plan or cheering the user on as a buddy (\"we got this!\"). Pushes a fist toward the viewer for a fist bump with a grin, then bursts the hand open."
+  },
+  {
+    "selector": "flex_strong",
+    "name": "Flex",
+    "description": "Use when boasting about being strong or capable, promising to handle something (\"Leave it to me!\"), or proudly accepting praise for effort. Flexes the right biceps with a fist up, pats the muscle twice with the left hand and winks with a confident grin."
+  },
+  {
+    "selector": "flustered_fan",
+    "name": "Flustered Fan",
+    "description": "Use when flustered, embarrassed or overheated by a compliment, a teasing remark or something too cute. Turns the face away and fans one cheek with a hand, eyes darting, with a bashful smile."
+  },
+  {
+    "selector": "goodbye_wave",
+    "name": "Goodbye Wave",
+    "description": "Use when saying goodbye or ending a chat warmly. Raises the right arm high and waves broadly, then lays the hand on the heart with a small nod and a smile."
+  },
+  {
+    "selector": "grr_fists",
+    "name": "Grr Fists",
+    "description": "Use when cutely angry, frustrated or indignant (\"grr, that's so annoying!\"). Clenches both fists at the chest and pumps them down with hunched shoulders and a shaking, dying-out tremble, with an angry, gritted-teeth face."
+  },
+  {
+    "selector": "hand_to_ear",
+    "name": "Hand to Ear",
+    "description": "Use when you didn't catch what the user said, want them to repeat something, or are playfully asking them to speak up. Cups a hand behind the right ear and leans in with the head turned, brows raised."
+  },
+  {
+    "selector": "hands-on-hips",
+    "name": "Hands on Hips",
+    "description": "Use while feeling confident, determined or playfully impatient. Stands with both hands on the hips, shifting weight side to side with a smile."
+  },
+  {
+    "selector": "have_idea",
+    "name": "Have an Idea",
+    "description": "Use when an idea or answer suddenly comes to mind. Rests the chin on a fist in thought, then springs the index finger up with a bright aha face as a light bulb pops on."
+  },
+  {
+    "selector": "head_pat",
+    "name": "Head Pat",
+    "description": "Use when comforting, reassuring or gently praising the user, as in 'there, there' or 'you did well'. Reaches the right hand forward, palm down, and softly pats an imagined head in front of the viewer two or three times, leaning in with a tender smile."
+  },
+  {
+    "selector": "head_shake_no",
+    "name": "Gentle Head Shake",
+    "description": "Use to decline gently, disagree kindly or say a soft no. Shakes the head side to side twice with a slightly rueful face."
+  },
+  {
+    "selector": "heart-hands-build",
+    "name": "Heart Hands",
+    "description": "Use to send warm affection, gratitude or support. Brings both hands together into a heart shape with a big beaming smile."
+  },
+  {
+    "selector": "high_five",
+    "name": "High Five",
+    "description": "Use when celebrating a shared win with the user, cheering them on after good news, or saying 'nice one, high five!'. Raises the right palm beside the head and slaps it forward toward the viewer once with a bright grin and a little bounce."
+  },
+  {
+    "selector": "kyaa_cheeks",
+    "name": "Kyaa Hands on Cheeks",
+    "description": "Use when squealing with delight over something adorable, exciting or swoon-worthy. Presses both palms to the cheeks with the shoulders up and wiggles side to side, eyes squeezed shut and mouth open."
+  },
+  {
+    "selector": "laugh_hard",
+    "name": "Hearty Laugh",
+    "description": "Use when something is very funny: stronger than a medium laugh, short of hysterical. Laughs hard, leaning back with the shoulders bouncing."
+  },
+  {
+    "selector": "laugh_hysterical",
+    "name": "Hysterical Laughter",
+    "description": "Use for something truly hilarious; the strongest laugh. Doubles over holding the stomach, slaps the thigh, wipes away a tear and recovers."
+  },
+  {
+    "selector": "laugh_medium",
+    "name": "Medium Laugh",
+    "description": "Use when something is clearly funny: stronger than a mild laugh, lighter than a hearty one. The head tips back in a warm laugh, shoulders bouncing, one hand on the belly."
+  },
+  {
+    "selector": "laugh_mild",
+    "name": "Mild Laugh",
+    "description": "Use for a mildly amusing moment, a gentle joke or a polite laugh; the lightest laugh. A light chuckle with a small shoulder shake and a hand near the mouth."
+  },
+  {
+    "selector": "left-ok-sign",
+    "name": "Left OK Sign",
+    "description": "Use while confirming that something is correct, ready or going well. Holds up a left-hand OK sign with a smile and a tilted head."
+  },
+  {
+    "selector": "left-peace-sign",
+    "name": "Left Peace Sign",
+    "description": "Use while greeting casually, reassuring or posing in a relaxed, cheerful way. Pops up a left-hand peace sign and holds it with a wink."
+  },
+  {
+    "selector": "meme-dab",
+    "name": "Meme Dab",
+    "description": "Use while being goofy: a silly victory, a meme reference or a deliberately dorky celebration. Holds a dab, face tucked into one bent elbow and the other arm thrown straight out."
+  },
+  {
+    "selector": "mind_blown",
+    "name": "Mind Blown",
+    "description": "Use when something is astonishing, mind-boggling or too amazing to process, like a huge reveal or a brilliant idea from the user. Touches the fingertips of both flat hands to the temples, then bursts the hands outward with spread fingers and leans back, wide-eyed and open-mouthed."
+  },
+  {
+    "selector": "nervous_head_scratch",
+    "name": "Nervous Head Scratch",
+    "description": "Use when sheepishly admitting a small mistake, being caught out, or laughing off a compliment with an awkward 'ehehe'. Scratches the back of the head with a small bow, hunched shoulders and a closed-eye, embarrassed grin."
+  },
+  {
+    "selector": "nod_yes",
+    "name": "Gentle Double Nod",
+    "description": "Use to agree calmly, confirm or show you are listening. Two gentle nods with a soft smile."
+  },
+  {
+    "selector": "ohohoho_noble_laugh",
+    "name": "Ohohoho Noble Laugh",
+    "description": "Use when gloating, showing off or playing the haughty rich-girl after a win or a compliment. Throws the head back with the back of the hand at the chin and the other hand on the hip, eyes closed, in a decaying 'Ohohoho!' laugh."
+  },
+  {
+    "selector": "on_one_hand",
+    "name": "On One Hand, On the Other",
+    "description": "Use when comparing two options, weighing pros and cons or saying \"on the other hand\". Presents one open palm to each side in turn, tilting the head toward each with a thoughtful look."
+  },
+  {
+    "selector": "peace_over_eye",
+    "name": "Peace Over Eye",
+    "description": "Use when being playful, cute or showing off, such as after a compliment, a win or a cheerful sign-off. Snaps a sideways idol peace sign over the right eye with a wink, a hip pop and a bright smile."
+  },
+  {
+    "selector": "phew_brow_wipe",
+    "name": "Phew Brow Wipe",
+    "description": "Use when relieved that something turned out fine, after a close call, a scare or finishing something tough. Wipes the back of the wrist across the brow, flicks it off and lets out a big 'phew' with a relieved closed-eye smile."
+  },
+  {
+    "selector": "pinky_promise",
+    "name": "Pinky Promise",
+    "description": "Use when making a sincere promise or agreeing to keep a secret or commitment with the user. Holds out a fist with the little finger raised, crooks it as if hooking pinkies, and nods with an earnest smile."
+  },
+  {
+    "selector": "please_hands",
+    "name": "Please Hands",
+    "description": "Use when begging, pleading or eagerly asking for something (\"pretty please!\"). Presses the palms together under the chin, leans in and bobs twice with big, hopeful puppy eyes."
+  },
+  {
+    "selector": "polite_bow",
+    "name": "Polite Bow",
+    "description": "Use for a formal greeting, a respectful thank-you or a calm, courteous apology. Bows from the hips with the arms at the sides and a soft, composed smile."
+  },
+  {
+    "selector": "pon_realization",
+    "name": "Pon!",
+    "description": "Use when something suddenly clicks or makes sense — 'Oh! I get it!' or 'that's it!'. Pounds a fist down onto the open palm once with raised eyebrows and a bright, surprised look."
+  },
+  {
+    "selector": "pout_huff",
+    "name": "Pout Huff",
+    "description": "Use when sulking or playfully annoyed, a \"hmph!\". Crosses the arms and huffs as a puff of air pops out, then turns the head away with a pout."
+  },
+  {
+    "selector": "prayer_hands_thanks",
+    "name": "Prayer Hands Thanks",
+    "description": "Use when thanking the user warmly or showing happy gratitude for help, a gift or kind words. Presses the palms together at the chest and gives a small double nod with a closed-eye smile."
+  },
+  {
+    "selector": "presenting",
+    "name": "Presenting",
+    "description": "Use when showing, introducing or pointing the user to something (\"check this out\", \"here it is\", \"ta-da, look at this\"). Sweeps the right hand out to the side palm-up, glances at it, then smiles back at the viewer."
+  },
+  {
+    "selector": "right-face-palm",
+    "name": "Right Face Palm",
+    "description": "Use when reacting to an obvious mistake, an awkward moment or something exasperating, not for shyness. Covers the face with the right hand, eyes shut, with a small head shake."
+  },
+  {
+    "selector": "right-finger-point",
+    "name": "Right Finger Point",
+    "description": "Use to point at the user: a playful call-out, a \"you!\" or a pointed reminder. Jabs the right index finger forward three times with a smile."
+  },
+  {
+    "selector": "right-thumbs-down",
+    "name": "Right Thumbs Down",
+    "description": "Use while disapproving, disagreeing or showing disappointment. Holds a right thumbs down with a small \"boo\" push and a pout."
+  },
+  {
+    "selector": "right-thumbs-up",
+    "name": "Right Thumbs Up",
+    "description": "Use while approving, agreeing, encouraging or reassuring. Holds up a right thumbs up with a small pump and a smile."
+  },
+  {
+    "selector": "scheming_hands",
+    "name": "Scheming Hands",
+    "description": "Use when teasing a sneaky plan, mischief or a playfully evil idea (\"hehehe, I have a plan\"). Hunches forward and slowly rubs the palms together with a sly, narrow-eyed grin."
+  },
+  {
+    "selector": "shh_finger",
+    "name": "Shh",
+    "description": "Use when keeping a secret, hinting at a surprise, or asking for quiet. Raises the right index finger to the lips with a slight lean in and knowingly narrowed eyes."
+  },
+  {
+    "selector": "shrug",
+    "name": "Palms Up Shrug",
+    "description": "Use for \"who knows\", when you are unsure, or for a playful \"oh well\", not to rate something as so-so. Raises the shoulders with both palms turned up and a tilted head."
+  },
+  {
+    "selector": "shy-finger-poke-loop",
+    "name": "Shy Finger Poke Loop",
+    "description": "Use while feeling bashful, nervous or hesitant, such as making a shy request or confession. Bows the head and keeps tapping the index fingers together."
+  },
+  {
+    "selector": "shy_giggle",
+    "name": "Shy Giggle",
+    "description": "Use when flattered, embarrassed or teased into a giggle. Hides the mouth behind one hand, the other palm on the cheek, and giggles bashfully."
+  },
+  {
+    "selector": "shy_wave",
+    "name": "Small Wave",
+    "description": "Use for a timid hello or a quiet, shy goodbye. Gives a small wave near the shoulder, palm toward the viewer, with a tilted head."
+  },
+  {
+    "selector": "single-hand-on-heart",
+    "name": "Hand on Heart",
+    "description": "Use while speaking sincerely: heartfelt gratitude, empathy or a personal promise. Holds the right hand over the heart with a calm, gentle face."
+  },
+  {
+    "selector": "smug_heh",
+    "name": "Smug Heh",
+    "description": "Use when being cocky or quietly pleased with yourself, such as after a clever answer, a win or a compliment you think you deserve. Lifts the chin with half-lidded eyes, puts a fist on the hip and brushes the index finger under the nose, then gives a short smug 'heh' nod."
+  },
+  {
+    "selector": "so_so_wobble",
+    "name": "So-So Wobble",
+    "description": "Use when something is only so-so, mediocre or uncertain: 'meh, it's okay I guess'. Holds the right hand palm-down at chest height and rocks it side to side with a head tilt and a pursed, unsure mouth."
+  },
+  {
+    "selector": "soldier-salute",
+    "name": "Salute",
+    "description": "Use when acknowledging a request, accepting a task or playfully reporting ready to help. Snaps a right-hand salute to the brow with a nod and a wink."
+  },
+  {
+    "selector": "soul_leaves_body",
+    "name": "Soul Leaves Body",
+    "description": "Use when overwhelmed to the point of 'I'm dead', from something too cute, too funny or too exhausting. Goes limp with the head thrown back, eyes shut and mouth open as the soul drifts out, then shakes back to life."
+  },
+  {
+    "selector": "stretch_break",
+    "name": "Stretch Break",
+    "description": "Use when taking a break, after sitting a long time, finishing a long task or feeling stiff or sleepy on stream. Laces the fingers and pushes both arms overhead, leans side to side with closed eyes, then exhales and lets the arms float down."
+  },
+  {
+    "selector": "surprise_gasp",
+    "name": "Surprise Gasp",
+    "description": "Use for a sudden shock, startling news or an \"oh no!\" moment; startled, not delighted. Gasps and leans back with both hands to the cheeks and wide eyes."
+  },
+  {
+    "selector": "tear_wipe",
+    "name": "Tear Wipe",
+    "description": "Use when feeling sad, hurt or moved to tears but trying to stay brave, such as after bad news, a goodbye or a touching moment. Lowers the head, wipes under the right eye twice with a curled knuckle and a sniffle, then looks up with a small brave smile."
+  },
+  {
+    "selector": "tehepero",
+    "name": "Tehepero",
+    "description": "Use when owning up to a small, harmless mistake in a cute, playful way ('oops, my bad!'). Knocks the head lightly with a loose fist, tilts into it and winks with a cheeky grin."
+  },
+  {
+    "selector": "thinking-hand-on-chin-hold",
+    "name": "Thinking Hand on Chin",
+    "description": "Use while openly pausing to think before answering (\"hmm, let me think…\"); not for ordinary answers or explanations, and lighter than a deep ponder. Thumb under the jaw and index along the cheek, glancing up as the finger taps."
+  },
+  {
+    "selector": "thinking-head-scratch",
+    "name": "Thinking Head Scratch",
+    "description": "Use while puzzled or trying to work something out; thinking, not sheepish. Keeps a hand on the head, scratching now and then, with a tilted head and an upward glance."
+  },
+  {
+    "selector": "thinking_chin_rest",
+    "name": "Thinking Chin",
+    "description": "Use while pondering a question deeply or taking a moment to think. Rests the chin on a loose fist, its elbow cradled in the other hand, as the head drifts and the fingers tap."
+  },
+  {
+    "selector": "this_big",
+    "name": "This Big!",
+    "description": "Use when describing something big, a lot of something, or exaggerating a size (\"it was this big!\"). Frames the hands in front of the chest, then spreads them wide with palms facing as if measuring, eyebrows raised."
+  },
+  {
+    "selector": "tiny_bit",
+    "name": "Just a Tiny Bit",
+    "description": "Use when saying something is only a little, a tiny amount or almost nothing (\"just a teeny bit\"). Holds up a small finger-and-thumb pinch beside the right eye and squints past it with a playful head tilt."
+  },
+  {
+    "selector": "tongue_out_bleh",
+    "name": "Tongue-out Bleh",
+    "description": "Use when teasing the user playfully, after a harmless prank, or for a cheeky 'nope, not telling!'. Pulls down the right lower eyelid with a fingertip in an akanbe, leaning in with a wink and an open-mouthed 'bleh'."
+  },
+  {
+    "selector": "typing_away",
+    "name": "Typing Away",
+    "description": "Use when saying you'll look something up, search for it or check a fact. Types briefly on an imagined keyboard at belly height with the eyes down on a screen, then glances up to the viewer."
+  },
+  {
+    "selector": "virtual_hug",
+    "name": "Virtual Hug",
+    "description": "Use when the user needs comfort or a hug, is sad, lonely or stressed, or shares something heartwarming you want to celebrate together. Opens both arms wide toward them, then wraps them in a warm hug with closed eyes, a gentle squeeze and a little sway."
+  },
+  {
+    "selector": "wait_stop_palm",
+    "name": "Wait Palm",
+    "description": "Use when asking someone to hold on, pause or wait a moment before continuing, or to politely stop an idea. Raises the right palm toward the viewer at chest height with a small push and a slight lean back, holds briefly, then lowers it."
+  },
+  {
+    "selector": "wave_hello",
+    "name": "Wave Hello",
+    "description": "Use when greeting someone or saying hi, such as at the start of a chat. Raises the right arm high and waves with a big smile."
+  },
+  {
+    "selector": "who_me",
+    "name": "Who, Me?",
+    "description": "Use when the user singles you out, credits or blames you, or asks you something you didn't expect to be asked: a surprised 'who, me?'. Points the right index finger at the chest with a startled blink, raised eyebrows and a quizzical head tilt."
+  },
+  {
+    "selector": "zip_lips",
+    "name": "Zip Lips",
+    "description": "Use when promising to keep a secret or saying you'll stay quiet about something. Pinches an imaginary zipper across the lips, turns it like a key and tosses it over the shoulder with a knowing smile."
+  }
+]

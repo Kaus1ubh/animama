@@ -5,10 +5,12 @@ Every test uses a fake model client: the harness must never reach a provider her
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import re
 from collections.abc import AsyncIterator, Callable
+from dataclasses import replace
 from decimal import Decimal
 from pathlib import Path
 from typing import Any
@@ -40,7 +42,7 @@ from animama.app.model_clients import (
 )
 from animama.domain import ModelProvider, ModelProviderCapabilities
 from animama.domain.model_provider import ModelProviderPricing
-from animama.domain.usage import Usage
+from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
 from scripts.evals import gesture_selection as harness
 
 WAVE = RuntimeGestureDescriptor(selector="wave", name="Wave", description="Greet or say goodbye.")
@@ -62,15 +64,41 @@ def _reply(*, gesture: str | None, speech: str = "Sure thing.", tone: str = "neu
     )
 
 
+class _FakeClock:
+    """A monotonic clock that only moves when a fake model client says time passed."""
+
+    def __init__(self) -> None:
+        self.now = 0.0
+
+    def __call__(self) -> float:
+        return self.now
+
+
 class _ReplyClient:
     """Fake model client answering each request from a callback and recording every request.
 
     With ``stream_text`` it streams the reply as one text delta before the final, as real clients do.
+    With ``clock``, ``timing`` gives each request's seconds before its first text delta and seconds
+    from then to its final, and the client advances the clock by them, suspending before the
+    final the way a real client awaits the network. ``usage`` gives each request's reported usage.
     """
 
-    def __init__(self, reply: Callable[[ModelClientRequest], str | Exception], *, stream_text: bool = False) -> None:
+    def __init__(
+        self,
+        reply: Callable[[ModelClientRequest], str | Exception],
+        *,
+        stream_text: bool = False,
+        clock: _FakeClock | None = None,
+        timing: Callable[[ModelClientRequest], tuple[float, float]] = lambda _request: (0.0, 0.0),
+        usage: Callable[[ModelClientRequest], Usage] = lambda _request: Usage(
+            requests=1, input_tokens=1000, output_tokens=100, total_tokens=1100
+        ),
+    ) -> None:
         self.reply = reply
         self.stream_text = stream_text
+        self.clock = clock
+        self.timing = timing
+        self.usage = usage
         self.requests: list[ModelClientRequest] = []
 
     async def stream(self, request: ModelClientRequest) -> AsyncIterator[ModelClientDelta]:
@@ -78,14 +106,21 @@ class _ReplyClient:
         outcome = self.reply(request)
         if isinstance(outcome, Exception):
             raise outcome
+        to_first_text, to_final = self.timing(request)
+        if self.clock is not None:
+            self.clock.now += to_first_text
         if self.stream_text:
             yield ModelClientDelta(kind="text_delta", text=outcome)
+        if self.clock is not None:
+            # Wait for the network as a real client does, so chat can hand on what already streamed.
+            await asyncio.sleep(0)
+            self.clock.now += to_final
         yield ModelClientDelta(
             kind="final",
             final=ModelClientFinal(
                 text=outcome,
-                usage=Usage(requests=1, input_tokens=1000, output_tokens=100, total_tokens=1100),
-                usage_reported=True,
+                usage=self.usage(request),
+                usage_reported=getattr(self, "usage_reported", True),
             ),
         )
         yield ModelClientDelta(kind="done")
@@ -438,6 +473,362 @@ async def test_scripted_chat_carries_its_visible_history_turn_by_turn() -> None:
     }
 
 
+async def test_each_turn_records_its_latency_and_first_speech_time() -> None:
+    provider = _provider()
+    clock = _FakeClock()
+    client = _ReplyClient(
+        lambda _request: _reply(gesture="wave", speech="Hello there."),
+        stream_text=True,
+        clock=clock,
+        timing=lambda _request: (0.25, 0.5),
+    )
+
+    results = await harness.run_evaluation(
+        _plan(items=(_item("a", "Hi!", "wave"),)),
+        model_provider=provider,
+        registry=_registry(client, provider),
+        max_calls=1,
+        clock=clock,
+    )
+
+    [turn] = results["turns"]
+    # Sent at 0.0; speech streamed at 0.25; the final reply arrived at 0.75.
+    assert turn["latency_seconds"] == pytest.approx(0.75)
+    assert turn["first_output_seconds"] == pytest.approx(0.25)
+    assert turn["call_latencies"] == [{"seconds": pytest.approx(0.75), "first_text_seconds": pytest.approx(0.25)}]
+
+
+async def test_a_repaired_turn_times_every_call_and_its_latency_covers_them_all() -> None:
+    provider = _provider()
+    clock = _FakeClock()
+    # The first reply is not JSON and streams no speech, so chat requests a structured repair, which streams.
+    replies = iter(["not json at all", _reply(gesture="wave", speech="Fixed.")])
+    timings = iter([(0.5, 1.0), (0.25, 0.25)])
+    client = _ReplyClient(
+        lambda _request: next(replies), stream_text=True, clock=clock, timing=lambda _request: next(timings)
+    )
+
+    results = await harness.run_evaluation(
+        _plan(items=(_item("a", "Hi!", "wave"),)),
+        model_provider=provider,
+        registry=_registry(client, provider),
+        max_calls=2,
+        clock=clock,
+    )
+
+    [turn] = results["turns"]
+    assert turn["structured_recovery"] == "repaired"
+    assert turn["latency_seconds"] == pytest.approx(2.0)
+    assert turn["call_latencies"] == [
+        {"seconds": pytest.approx(1.5), "first_text_seconds": pytest.approx(0.5)},
+        {"seconds": pytest.approx(0.5), "first_text_seconds": pytest.approx(0.25)},
+    ]
+    # Speech comes from the repair's first streamed sentence: the first call's 1.5 s plus 0.25 s.
+    assert turn["first_output_seconds"] == pytest.approx(1.75)
+
+
+async def test_a_turn_whose_reply_arrives_only_in_its_final_has_first_output_at_the_end() -> None:
+    provider = _provider()
+    clock = _FakeClock()
+    client = _ReplyClient(lambda _request: _reply(gesture="wave"), clock=clock, timing=lambda _request: (0.5, 1.0))
+
+    results = await harness.run_evaluation(
+        _plan(items=(_item("a", "Hi!", "wave"),)),
+        model_provider=provider,
+        registry=_registry(client, provider),
+        max_calls=1,
+        clock=clock,
+    )
+
+    [turn] = results["turns"]
+    assert turn["first_output_seconds"] == pytest.approx(1.5)
+    assert turn["call_latencies"] == [{"seconds": pytest.approx(1.5), "first_text_seconds": None}]
+    # No text streamed, so the provider's time to first token is unknown for this turn.
+    first_token = results["loadouts"][0]["latency"]["single_turn"]["first_token_seconds"]
+    assert first_token == {"turns": 0, "median": None, "p90": None, "mean": None}
+    summary = harness.render_summary(results)
+    assert "| starters | Single-turn | 1 | 1.50 | 1.50 | 1.50 | n/a (n=0) | n/a | n/a | 1.50 | 1.50 | 1.50 |" in summary
+
+
+async def test_a_failed_turn_has_a_latency_but_no_first_output() -> None:
+    provider = _provider()
+    clock = _FakeClock()
+
+    def reply(_request: ModelClientRequest) -> str | Exception:
+        clock.now += 3.0
+        return ModelClientProviderError("provider failed", code="provider_failed")
+
+    client = _ReplyClient(reply, clock=clock)
+
+    results = await harness.run_evaluation(
+        _plan(items=(_item("a", "Hi!", "wave"),)),
+        model_provider=provider,
+        registry=_registry(client, provider),
+        max_calls=1,
+        clock=clock,
+    )
+
+    [turn] = results["turns"]
+    assert turn["error"] == "provider_failed"
+    assert turn["latency_seconds"] == pytest.approx(3.0)
+    assert turn["first_output_seconds"] is None
+    # Failed turns stay out of the latency statistics.
+    assert results["loadouts"][0]["latency"]["single_turn"]["turns"] == 0
+
+
+async def test_latency_statistics_cover_single_turn_items_and_scripted_turns_separately() -> None:
+    provider = _provider()
+    clock = _FakeClock()
+    # Seconds to first speech and from then to the final reply, by user message.
+    timings = {
+        "One": (1.0, 1.0),
+        "Two": (1.0, 2.0),
+        "Three": (2.0, 2.0),
+        "Four": (1.0, 9.0),
+        "Hi!": (0.5, 0.5),
+        "Bye!": (0.5, 1.5),
+    }
+    client = _ReplyClient(
+        lambda _request: _reply(gesture="wave"),
+        stream_text=True,
+        clock=clock,
+        timing=lambda request: timings[_user_text(request)],
+    )
+    items = tuple(_item(message.lower(), message, "wave") for message in ("One", "Two", "Three", "Four"))
+    chat = harness.ScriptedChat(id="c", turns=("Hi!", "Bye!"))
+
+    results = await harness.run_evaluation(
+        _plan(items=items, chats=(chat,)),
+        model_provider=provider,
+        registry=_registry(client, provider),
+        max_calls=6,
+        clock=clock,
+    )
+
+    latency = results["loadouts"][0]["latency"]
+    # Single-turn latencies 2, 3, 4 and 10 s; first text and speech at 1, 1, 2 and 1 s. p90 is the nearest rank.
+    single_first = {"turns": 4, "median": pytest.approx(1.0), "p90": pytest.approx(2.0), "mean": pytest.approx(1.25)}
+    assert latency["single_turn"] == {
+        "turns": 4,
+        "latency_seconds": {"median": pytest.approx(3.5), "p90": pytest.approx(10.0), "mean": pytest.approx(4.75)},
+        "first_token_seconds": single_first,
+        "first_output_seconds": single_first,
+    }
+    scripted_first = {"turns": 2, "median": pytest.approx(0.5), "p90": pytest.approx(0.5), "mean": pytest.approx(0.5)}
+    assert latency["scripted"] == {
+        "turns": 2,
+        "latency_seconds": {"median": pytest.approx(1.5), "p90": pytest.approx(2.0), "mean": pytest.approx(1.5)},
+        "first_token_seconds": scripted_first,
+        "first_output_seconds": scripted_first,
+    }
+    summary = harness.render_summary(results)
+    assert "## Latency" in summary
+    assert "| Loadout | Kind | Turns | Median s |" in summary
+    assert "| starters | Single-turn | 4 | 3.50 | 10.00 | 4.75 | 1.00 | 2.00 | 1.25 | 1.00 | 2.00 | 1.25 |" in summary
+    assert "| starters | Scripted | 2 | 1.50 | 2.00 | 1.50 | 0.50 | 0.50 | 0.50 | 0.50 | 0.50 | 0.50 |" in summary
+
+
+def _usage(*, input_tokens: int, cached: int, cache_write: int, output: int, reasoning: int) -> Usage:
+    return Usage(
+        requests=1,
+        input_tokens=input_tokens,
+        output_tokens=output,
+        total_tokens=input_tokens + output,
+        input_tokens_details=UsageInputDetails(cached_tokens=cached, cache_write_tokens=cache_write),
+        output_tokens_details=UsageOutputDetails(reasoning_tokens=reasoning),
+    )
+
+
+async def test_token_and_cost_statistics_per_turn_cover_single_turn_items_and_scripted_turns_separately() -> None:
+    provider = _provider()
+    # Input, cached, cache-write, output and reasoning tokens by user message.
+    usages = {
+        "One": _usage(input_tokens=1000, cached=0, cache_write=1000, output=100, reasoning=0),
+        "Two": _usage(input_tokens=1000, cached=1000, cache_write=0, output=200, reasoning=0),
+        "Three": _usage(input_tokens=1000, cached=1000, cache_write=0, output=300, reasoning=0),
+        "Four": _usage(input_tokens=1000, cached=500, cache_write=0, output=1000, reasoning=0),
+        "Hi!": _usage(input_tokens=2000, cached=1000, cache_write=0, output=50, reasoning=20),
+        "Bye!": _usage(input_tokens=3000, cached=2000, cache_write=0, output=70, reasoning=40),
+    }
+    client = _ReplyClient(lambda _request: _reply(gesture="wave"), usage=lambda request: usages[_user_text(request)])
+    items = tuple(_item(message.lower(), message, "wave") for message in ("One", "Two", "Three", "Four"))
+    prices = harness.parse_token_prices("input=1,cached_input=0.1,cache_write=1.25,output=4")
+
+    results = await harness.run_evaluation(
+        _plan(items=items, chats=(harness.ScriptedChat(id="c", turns=("Hi!", "Bye!")),)),
+        model_provider=provider,
+        registry=_registry(client, provider),
+        max_calls=6,
+        token_prices=prices,
+    )
+
+    turns = {turn["conversation_id"] + str(turn["turn"]): turn for turn in results["turns"]}
+    # USD per 1M tokens: 1000 cache-write x 1.25 + 100 output x 4 = 0.00165.
+    assert turns["one1"]["estimated_cost_usd"] == pytest.approx(0.00165)
+    # 500 uncached x 1 + 500 cached x 0.1 + 1000 output x 4 = 0.00455.
+    assert turns["four1"]["estimated_cost_usd"] == pytest.approx(0.00455)
+    tokens = results["loadouts"][0]["tokens"]
+    single, scripted = tokens["single_turn"], tokens["scripted"]
+    assert single["turns"] == 4 and single["unreported_turns"] == 0
+    assert single["output_tokens"] == {"total": 1600, "median": 250, "p90": 1000, "mean": 400}
+    assert single["cached_input_tokens"] == {"total": 2500, "median": 750, "p90": 1000, "mean": 625}
+    assert single["reasoning_tokens"]["total"] == 0
+    # Single-turn costs 0.00165, 0.0009, 0.0013 and 0.00455 USD.
+    assert single["estimated_cost_usd"]["total"] == pytest.approx(0.0084)
+    assert single["estimated_cost_usd"]["median"] == pytest.approx(0.001475)
+    assert single["estimated_cost_usd"]["p90"] == pytest.approx(0.00455)
+    assert scripted["turns"] == 2
+    assert scripted["reasoning_tokens"] == {"total": 60, "median": 30, "p90": 40, "mean": 30}
+    assert scripted["input_tokens"]["total"] == 5000
+    # Run total: the same rates over all calls' usage.
+    assert results["price_estimate"]["total_usd"] == pytest.approx(0.0084 + 0.0013 + 0.00148)
+    assert results["price_estimate"]["rates_per_million_usd"] == {
+        "input": "1",
+        "cached_input": "0.1",
+        "cache_write": "1.25",
+        "output": "4",
+    }
+
+    summary = harness.render_summary(results)
+    assert "## Tokens and cost per turn" in summary
+    assert "| Loadout | Kind | Turns | Measure |" in summary
+    assert "| starters | Single-turn | 4 | Output tokens | 1,600 | 250 | 1,000 | 400 |" in summary
+    # Nothing in the single-turn group reported reasoning: say so rather than print zeros.
+    assert "| starters | Single-turn | 4 | Reasoning tokens | none reported | | | |" in summary
+    assert "| starters | Scripted | 2 | Reasoning tokens | 60 | 30 | 40 | 30 |" in summary
+    assert (
+        "| starters | Single-turn | 4 | Estimated cost (USD) | 0.008400 | 0.001475 | 0.004550 | 0.002100 |" in summary
+    )
+    assert "estimated from the --price rates" in summary
+
+
+def test_token_prices_parse_every_rate_and_reject_incomplete_or_unknown_ones() -> None:
+    prices = harness.parse_token_prices("input=0.10, cached_input=0.01,cache_write=0.125,output=0.50")
+
+    assert (prices.input, prices.cached_input, prices.cache_write, prices.output) == (
+        Decimal("0.10"),
+        Decimal("0.01"),
+        Decimal("0.125"),
+        Decimal("0.50"),
+    )
+    with pytest.raises(harness.EvalInputError, match="cache_write"):
+        harness.parse_token_prices("input=0.10,cached_input=0.01,output=0.50")
+    with pytest.raises(harness.EvalInputError, match="unknown"):
+        harness.parse_token_prices("input=0.10,cached_input=0.01,cache_write=0.1,output=0.50,extra=1")
+    with pytest.raises(harness.EvalInputError, match="output"):
+        harness.parse_token_prices("input=0.10,cached_input=0.01,cache_write=0.1,output=-1")
+    with pytest.raises(harness.EvalInputError, match="duplicate rate 'input'"):
+        harness.parse_token_prices("input=0.10,cached_input=0.01,cache_write=0.1,output=0.5,input=0.2")
+    for bad in ("nan", "NaN", "Infinity", "-inf", "abc", ""):
+        with pytest.raises(harness.EvalInputError, match="output"):
+            harness.parse_token_prices(f"input=0.10,cached_input=0.01,cache_write=0.1,output={bad}")
+
+
+async def test_a_failed_call_inside_a_successful_turn_does_not_hide_the_turns_billed_usage() -> None:
+    # A row with a context window: an oversized prompt gets one retry with less history.
+    provider = replace(_provider(), context_window_tokens=1_000_000)
+    calls: list[str] = []
+
+    def reply(request: ModelClientRequest) -> str | Exception:
+        calls.append(_user_text(request))
+        if calls == ["Hi!", "Again?"]:
+            return ModelClientProviderError(
+                "The prompt is too long",
+                code="provider_failed",
+                raw_metadata={"provider_error_code": "context_length_exceeded"},
+            )
+        return _reply(gesture="wave")
+
+    client = _ReplyClient(reply)
+    prices = harness.parse_token_prices("input=1,cached_input=0.1,cache_write=1.25,output=4")
+
+    results = await harness.run_evaluation(
+        _plan(chats=(harness.ScriptedChat(id="c", turns=("Hi!", "Again?")),)),
+        model_provider=provider,
+        registry=_registry(client, provider),
+        max_calls=3,
+        token_prices=prices,
+    )
+
+    second = results["turns"][1]
+    assert (second["error"], second["calls"]) == (None, 2)
+    # The failed call reported nothing and billed nothing; the retry's usage is the turn's.
+    assert second["usage"]["unreported_calls"] == 0
+    assert second["usage"]["input_tokens"] == 1000
+    assert second["estimated_cost_usd"] == pytest.approx(0.0014)
+    scripted = results["loadouts"][0]["tokens"]["scripted"]
+    assert (scripted["turns"], scripted["unreported_turns"]) == (2, 0)
+    assert results["usage"]["unreported_calls"] == 0
+
+
+async def test_summary_says_why_token_statistics_are_missing_when_no_turn_reported_usage() -> None:
+    provider = _provider()
+    client = _ReplyClient(lambda _request: _reply(gesture="wave"))
+    client.usage_reported = False  # type: ignore[attr-defined]
+
+    results = await harness.run_evaluation(
+        _plan(items=(_item("a", "Hi!", "wave"),)),
+        model_provider=provider,
+        registry=_registry(client, provider),
+        max_calls=1,
+    )
+
+    summary = harness.render_summary(results)
+    assert "## Tokens and cost per turn" in summary
+    assert "Omitted: no successful turn reported usage (1 turn(s) without usage)." in summary
+
+
+def test_summary_renders_results_written_before_latency_was_recorded() -> None:
+    provider = _provider()
+    results = {
+        "model": {"model_provider_id": provider.id, "reasoning_effort": None},
+        "prompt_set": {"items": 1, "scripted_chats": 0, "scripted_turns": 0},
+        "repeats": 1,
+        "scripted_repeats": 1,
+        "calls": {"made": 1, "estimated": 1, "max": 1},
+        "usage": dict.fromkeys(
+            (
+                "input_tokens",
+                "cached_input_tokens",
+                "cache_write_tokens",
+                "output_tokens",
+                "reasoning_tokens",
+                "total_tokens",
+                "unreported_calls",
+            ),
+            0,
+        ),
+        "cost": {"priced": False, "unpriced_reason": "no pricing"},
+        "aborted": None,
+        "loadouts": [
+            {
+                "name": "starters",
+                "gesture_count": 2,
+                "gesture_list_bytes": 10,
+                "instruction_bytes": 20,
+                "coverable_items": 1,
+                "single_turn": {
+                    "runs": 1,
+                    "scored": 1,
+                    "errors": 0,
+                    "fits": 1,
+                    "fit_rate": 1.0,
+                    "nulls": 0,
+                    "null_rate": 0.0,
+                    "by_tag": {},
+                },
+                "scripted": [],
+            }
+        ],
+    }
+
+    summary = harness.render_summary(results)
+
+    assert "| starters | 2 |" in summary
+    assert "## Latency" not in summary
+    assert "## Tokens and cost per turn" not in summary
+
+
 def test_inputs_load_and_reject_malformed_files(tmp_path: Path) -> None:
     loadout_path = tmp_path / "starters.json"
     loadout_path.write_text(json.dumps([{"selector": "wave", "name": "Wave", "description": "Greet."}]))
@@ -533,6 +924,39 @@ def test_dry_run_prints_the_plan_without_resolving_a_model(
     assert not output_dir.exists()
 
 
+def test_main_rejects_a_bad_price_before_reading_the_catalog(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    loadout_path, prompts_path = _write_inputs(tmp_path)
+
+    async def no_catalog(_model_provider_id: str) -> ModelProvider:
+        raise AssertionError("a bad --price must not read the model catalog")
+
+    monkeypatch.setattr(harness, "load_model_provider", no_catalog)
+    output_dir = tmp_path / "out"
+
+    exit_code = harness.main(
+        [
+            "--loadout",
+            str(loadout_path),
+            "--prompts",
+            str(prompts_path),
+            "--model-provider-id",
+            "OpenAIHTTPAgent:gpt-eval",
+            "--max-calls",
+            "10",
+            "--price",
+            "input=0.1,cached_input=0.01,output=0.5",
+            "--output-dir",
+            str(output_dir),
+        ]
+    )
+
+    assert exit_code == 2
+    assert "--price: missing cache_write" in capsys.readouterr().err
+    assert not output_dir.exists()
+
+
 def test_main_refuses_an_over_budget_plan_before_reading_the_catalog(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
@@ -602,6 +1026,8 @@ def test_real_run_writes_results_and_a_summary_without_raw_replies(
             provider.id,
             "--max-calls",
             "4",
+            "--price",
+            "input=1,cached_input=0.1,cache_write=1.25,output=4",
             "--output-dir",
             str(output_dir),
         ]
@@ -613,6 +1039,8 @@ def test_real_run_writes_results_and_a_summary_without_raw_replies(
     assert results["model"]["model_provider_id"] == provider.id
     assert results["inputs"]["prompt_set"] == {"path": str(prompts_path), "sha256": loaded_prompts_sha256}
     assert [loadout["name"] for loadout in results["loadouts"]] == ["starters"]
+    # Four calls of 1000 uncached input tokens at $1 and 100 output tokens at $4 per 1M.
+    assert results["price_estimate"]["total_usd"] == pytest.approx(0.0056)
     summary = (output_dir / "summary.md").read_text()
     assert "| starters | 2 |" in summary
     assert "50.0% (1/2)" in summary

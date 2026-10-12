@@ -48,10 +48,10 @@ context-window retries also count against it. A plan whose estimate exceeds
 the cap does not start, and no call beyond the cap is sent.
 
 To estimate cost before a paid run, multiply the planned calls by the input
-tokens per call and the model's catalog input price, then add calls x output
-tokens (a short reply of about 100-200 tokens, plus any reasoning) x the output
-price. Single-turn calls stay near the first-turn estimate; scripted turns grow
-with their history. A free smoke run (``ANIMAMA_LLM_SKIP=1``, below) checks the
+tokens per call and the model's input price, then add calls x output tokens (a
+short reply of about 100-200 tokens, plus any reasoning) x the output price.
+Single-turn calls stay near the first-turn estimate; scripted turns grow with
+their history. A free smoke run (``ANIMAMA_LLM_SKIP=1``, below) checks the
 wiring and records instruction bytes and estimated tokens, but the mock model
 reports no usage.
 
@@ -78,9 +78,44 @@ client, add ``-e ANIMAMA_LLM_SKIP=1`` after ``exec``.
 Outputs go to ``--output-dir`` (default: a new directory under the system temp
 directory, inside the container for container runs), also when a run stops at
 the cap, fails or is interrupted: ``results.json`` with each turn's Gesture,
-emotional tone, spoken reply and usage, and ``summary.md`` with fit and null
-rates, Gesture-list bytes, repetition in scripted chats, tokens and estimated
-cost, but no prompts or replies.
+emotional tone, spoken reply, usage and timing, and ``summary.md`` with fit and
+null rates, Gesture-list bytes, repetition in scripted chats, tokens, estimated
+cost, latency and per-turn token statistics, but no prompts or replies.
+
+Cost: ``cost`` uses the catalog row's standard rates, and is unpriced when the
+row has no rate or the provider reports prompt-cache writes (the catalog
+records no cache-write rate). ``--price input=…,cached_input=…,cache_write=…,output=…``
+(USD per 1M tokens, all four required) adds ``price_estimate`` for the run and
+``estimated_cost_usd`` per turn. Uncached input is input minus cached input
+minus cache writes; reasoning tokens are part of output and bill at the output
+rate. Both are estimates from published rates; billing is authoritative.
+
+Each loadout's ``tokens`` summary gives, for successful single-turn items and
+scripted turns separately, the total, median, nearest-rank p90 and mean per
+turn of input, cached input, cache-write, output and reasoning tokens, and of
+the estimated cost when priced. A turn sums all of its calls. Usage cannot
+tell a provider that reports no reasoning tokens from one that used none, so
+the summary shows "none reported" for a zero reasoning total.
+
+Timing uses a monotonic clock. Each turn records ``latency_seconds``, from
+sending the turn until chat's reply stream ends, covering every call of the
+turn (a structured repair or context retry included); ``first_output_seconds``,
+until chat's first spoken reply text; and ``call_latencies``, each model call's
+``seconds`` and ``first_text_seconds`` until its first streamed text delta
+(``null`` when it streamed none). Chat streams speech sentence by sentence from
+a structured reply, so first output is the first complete sentence. A reply
+that arrives only in its final speaks at the end of its call. When the first
+reply streams no speech and needs a structured repair, the repair also
+streams, so first output is the first call's duration plus the repair's first
+sentence. ``first_output_seconds`` is ``null`` only when no speech reached
+chat's stream; a failed turn can still have one when speech streamed before
+the error. Each loadout's ``latency`` summary gives the median, nearest-rank
+p90 and mean over successful single-turn items and scripted turns separately
+of the turn latency, the first token (the first call's ``first_text_seconds``,
+the provider's time to its first streamed text, over the turns whose first
+call streamed any) and the first speech. Turns run one at a time, so latencies
+do not overlap, but they include network and provider queueing, so compare
+configurations measured in the same session and conditions.
 """
 
 from __future__ import annotations
@@ -89,12 +124,16 @@ import argparse
 import asyncio
 import hashlib
 import json
+import math
+import statistics
 import sys
 import tempfile
+import time
 from collections.abc import AsyncIterator, Callable, Iterable, Mapping, Sequence
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
+from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, cast
 
@@ -140,7 +179,7 @@ from animama.app.services import AnimaChatProfileService, ChatManager
 from animama.app.util.model_pricing import estimate_model_token_cost
 from animama.domain import ModelProvider, ModelProviderCapabilities
 from animama.domain.chat import Chat, ChatContext, ChatMessage, MessageRole
-from animama.domain.events import EventType
+from animama.domain.events import Event, EventType, UserResponsePayload
 from animama.domain.model_connection import MODEL_KIND_CHAT
 from animama.domain.usage import Usage, UsageInputDetails, UsageOutputDetails
 
@@ -154,6 +193,7 @@ __all__ = [
     "PromptItem",
     "PromptSet",
     "ScriptedChat",
+    "TokenPrices",
     "build_registry",
     "check_budget",
     "distinct_gestures",
@@ -163,6 +203,7 @@ __all__ = [
     "load_prompt_set",
     "longest_run",
     "main",
+    "parse_token_prices",
     "render_plan",
     "render_summary",
     "replayed_reply",
@@ -205,6 +246,8 @@ _ESTIMATE_MODEL_PROVIDER = ModelProvider(
 
 TurnProgress = Callable[[Mapping[str, Any]], None]
 ResultsSink = Callable[[dict[str, Any]], None]
+Clock = Callable[[], float]
+"""A monotonic clock in seconds; runs use ``time.monotonic`` and tests inject a fake."""
 
 
 class EvalInputError(ValueError):
@@ -277,6 +320,63 @@ class EvalPlan:
     @property
     def estimated_calls(self) -> int:
         return self.calls_per_loadout * len(self.loadouts)
+
+
+@dataclass(frozen=True, slots=True)
+class TokenPrices:
+    """Published USD rates per 1M tokens, used to estimate each turn's cost.
+
+    Uncached input is ``input_tokens - cached_input_tokens - cache_write_tokens``,
+    as chat's usage model and catalog estimator define it. Reasoning tokens are
+    part of ``output_tokens`` and bill at the output rate.
+    """
+
+    input: Decimal
+    cached_input: Decimal
+    cache_write: Decimal
+    output: Decimal
+
+    def cost(self, usage: Mapping[str, int]) -> Decimal:
+        uncached = max(usage["input_tokens"] - usage["cached_input_tokens"] - usage["cache_write_tokens"], 0)
+        return (
+            uncached * self.input
+            + usage["cached_input_tokens"] * self.cached_input
+            + usage["cache_write_tokens"] * self.cache_write
+            + usage["output_tokens"] * self.output
+        ) / _ONE_MILLION
+
+    def as_json(self) -> dict[str, str]:
+        return {name: str(getattr(self, name)) for name in _PRICE_NAMES}
+
+
+_ONE_MILLION = Decimal(1_000_000)
+_PRICE_NAMES = ("input", "cached_input", "cache_write", "output")
+
+
+def parse_token_prices(text: str) -> TokenPrices:
+    """Parse ``input=…,cached_input=…,cache_write=…,output=…`` (USD per 1M tokens); every rate is required."""
+
+    rates: dict[str, Decimal] = {}
+    for part in text.split(","):
+        name, separator, value = part.partition("=")
+        name = name.strip()
+        if not separator or name not in _PRICE_NAMES:
+            raise EvalInputError(
+                f"--price: unknown or malformed rate {part.strip()!r}; expected {', '.join(_PRICE_NAMES)}"
+            )
+        try:
+            rate = Decimal(value.strip())
+        except InvalidOperation as exc:
+            raise EvalInputError(f"--price: {name} must be a number") from exc
+        if not rate.is_finite() or rate < 0:
+            raise EvalInputError(f"--price: {name} must be a non-negative number")
+        if name in rates:
+            raise EvalInputError(f"--price: duplicate rate {name!r}")
+        rates[name] = rate
+    missing = [name for name in _PRICE_NAMES if name not in rates]
+    if missing:
+        raise EvalInputError(f"--price: missing {', '.join(missing)}")
+    return TokenPrices(**rates)
 
 
 # --- Inputs -----------------------------------------------------------------
@@ -491,6 +591,12 @@ def render_plan(
 
 @dataclass(slots=True)
 class _CallRecord:
+    started: float
+    """Clock reading when the call was dispatched."""
+    finished: float | None = None
+    """Clock reading when the call's stream ended or failed."""
+    first_text: float | None = None
+    """Clock reading at the call's first streamed text delta, or ``None`` when it streamed none."""
     usage: Usage | None = None
     """Provider-reported usage, or ``None`` when the call failed or the server reported none."""
     final_text: str | None = None
@@ -506,9 +612,10 @@ class _BudgetedModelClient:
     reaches the provider; the runner then discards that turn and stops.
     """
 
-    def __init__(self, client: ModelClient, *, max_calls: int) -> None:
+    def __init__(self, client: ModelClient, *, max_calls: int, clock: Clock) -> None:
         self._client = client
         self._max_calls = max_calls
+        self._clock = clock
         self.calls: list[_CallRecord] = []
         self.refused = False
 
@@ -522,16 +629,24 @@ class _BudgetedModelClient:
         if len(self.calls) >= self._max_calls:
             self.refused = True
             raise ModelClientError("The evaluation call budget is spent", code=_BUDGET_ERROR_CODE)
-        record = _CallRecord()
+        record = _CallRecord(started=self._clock())
         self.calls.append(record)
-        async for delta in self._client.stream(request):
-            if delta.kind == "text_delta" and delta.text:
-                record.text_deltas.append(delta.text)
-            elif delta.kind == "final" and delta.final is not None:
-                record.final_text = delta.final.text
-                if delta.final.usage_reported:
-                    record.usage = delta.final.usage
-            yield delta
+        try:
+            async for delta in self._client.stream(request):
+                if delta.kind == "text_delta" and delta.text:
+                    if record.first_text is None:
+                        record.first_text = self._clock()
+                    record.text_deltas.append(delta.text)
+                elif delta.kind == "final" and delta.final is not None:
+                    record.final_text = delta.final.text
+                    if delta.final.usage_reported:
+                        record.usage = delta.final.usage
+                    # The final reply has arrived; a trailing ``done`` delta adds nothing to wait for.
+                    record.finished = self._clock()
+                yield delta
+        finally:
+            if record.finished is None:
+                record.finished = self._clock()
 
     async def aclose(self) -> None:
         """The composition closes the wrapped registry client."""
@@ -672,11 +787,19 @@ def _turn_request(
 # --- Running ----------------------------------------------------------------
 
 
-def _usage_json(usages: Iterable[Usage | None]) -> dict[str, int]:
+def _usage_json(calls: Iterable[_CallRecord]) -> dict[str, int]:
+    """Sum the calls' reported usage; ``unreported_calls`` counts completed calls that reported none.
+
+    A call that failed before its final (for example an oversized prompt that
+    chat then retries) reported nothing and is not counted as unreported.
+    """
+
     totals = dict.fromkeys((*_USAGE_KEYS, "unreported_calls"), 0)
-    for usage in usages:
+    for call in calls:
+        usage = call.usage
         if usage is None:
-            totals["unreported_calls"] += 1
+            if call.final_text is not None:
+                totals["unreported_calls"] += 1
             continue
         totals["input_tokens"] += usage.input_tokens
         totals["cached_input_tokens"] += usage.input_tokens_details.cached_tokens
@@ -829,6 +952,8 @@ class _Run:
     model_provider: ModelProvider
     options: DirectChatOptions
     progress: TurnProgress | None
+    clock: Clock
+    token_prices: TokenPrices | None = None
     turns: list[dict[str, Any]] = field(default_factory=list)
     instruction_bytes: dict[str, int] = field(default_factory=dict)
     first_turn_tokens: dict[str, int] = field(default_factory=dict)
@@ -856,12 +981,20 @@ class _Run:
             options=self.options,
         )
         first_call = len(self.budget.calls)
+        # Latency runs from sending the turn, as chat:sse receives it, until chat's stream ends.
+        sent = self.clock()
         prepared = await self.executor.prepare_turn(request)
         if loadout.name not in self.instruction_bytes:
             # Measured once per loadout, on a first turn without history.
             self.instruction_bytes[loadout.name] = instruction_bytes(prepared.model_request.prompt)
             self.first_turn_tokens[loadout.name] = estimate_prompt_tokens(prepared.model_request.prompt)
-        events = [event async for event in self.executor.stream_prepared_turn(prepared)]
+        events: list[Event] = []
+        first_output: float | None = None
+        async for event in self.executor.stream_prepared_turn(prepared):
+            if first_output is None and _is_speech(event):
+                first_output = self.clock()
+            events.append(event)
+        finished = self.clock()
         if self.budget.refused:
             # A turn missing a refused call (its first call or its repair) is not scored.
             return False
@@ -889,6 +1022,7 @@ class _Run:
                 # Chat persists nothing for an incognito turn, so the runner keeps the history it would replay.
                 self.chats.append(chat_id, _history_rows(request, replay_text))
         replayed_gesture = (reply.gesture or None) if reply is not None else None
+        usage = _usage_json(calls)
         record: dict[str, Any] = {
             "loadout": loadout.name,
             "repeat": repeat,
@@ -907,12 +1041,46 @@ class _Run:
             "structured_recovery": recovery,
             "error": error,
             "calls": len(calls),
-            "usage": _usage_json(call.usage for call in calls),
+            "usage": usage,
+            "estimated_cost_usd": (
+                float(self.token_prices.cost(usage))
+                if self.token_prices is not None and not usage["unreported_calls"]
+                else None
+            ),
+            "latency_seconds": _seconds(finished - sent),
+            "first_output_seconds": _seconds(first_output - sent) if first_output is not None else None,
+            "call_latencies": [_call_latency(call) for call in calls],
         }
         self.turns.append(record)
         if self.progress is not None:
             self.progress(record)
         return True
+
+
+def _is_speech(event: Event) -> bool:
+    """Whether the event carries spoken reply text, the first output a listener hears."""
+
+    payload = event.payload
+    return (
+        event.type is EventType.USER_RESPONSE
+        and isinstance(payload, UserResponsePayload)
+        and payload.response_part == MAIN_STRUCTURED_RESPONSE_PART_SPEECH
+        and bool(payload.value)
+    )
+
+
+def _seconds(value: float) -> float:
+    return round(value, 4)
+
+
+def _call_latency(call: _CallRecord) -> dict[str, float | None]:
+    """One model call's duration and its time to the first streamed text delta (``None`` when none streamed)."""
+
+    finished = call.finished if call.finished is not None else call.started
+    return {
+        "seconds": _seconds(finished - call.started),
+        "first_text_seconds": _seconds(call.first_text - call.started) if call.first_text is not None else None,
+    }
 
 
 def check_budget(plan: EvalPlan, max_calls: int) -> None:
@@ -933,6 +1101,8 @@ async def run_evaluation(
     reasoning_effort: str | None = None,
     progress: TurnProgress | None = None,
     on_finish: ResultsSink | None = None,
+    clock: Clock = time.monotonic,
+    token_prices: TokenPrices | None = None,
 ) -> dict[str, Any]:
     """Run the plan through chat's turn executor and return the result document.
 
@@ -941,13 +1111,16 @@ async def run_evaluation(
     the run then stops and the result records ``aborted: "max_calls"``.
     ``on_finish`` receives the result document even when the run fails
     (``aborted: "error: <type>"``) or is cancelled (``aborted: "interrupted"``).
+    ``clock`` times turns and model calls; turns run one after another, so
+    their latencies do not overlap. ``token_prices`` adds a cost estimate per
+    turn and for the run from published rates.
     """
 
     check_budget(plan, max_calls)
     client = registry.get(model_provider.provider_type)
     if client is None:
         raise ModelClientNotFoundError(f"No model client registered for provider type {model_provider.provider_type!r}")
-    budget = _BudgetedModelClient(client, max_calls=max_calls)
+    budget = _BudgetedModelClient(client, max_calls=max_calls, clock=clock)
     chats = _EvalChats()
     run = _Run(
         executor=_build_executor(model_provider, budget, chats),
@@ -956,6 +1129,8 @@ async def run_evaluation(
         model_provider=model_provider,
         options=_turn_options(reasoning_effort),
         progress=progress,
+        clock=clock,
+        token_prices=token_prices,
     )
     started_at = datetime.now(UTC)
     # Anything that is not an ordinary exception (cancellation, Ctrl-C) leaves this value.
@@ -992,7 +1167,7 @@ def _results_document(
     aborted: str | None,
     started_at: datetime,
 ) -> dict[str, Any]:
-    usage = _usage_json(call.usage for call in run.budget.calls)
+    usage = _usage_json(run.budget.calls)
     return {
         "schema": RESULT_SCHEMA,
         "started_at": started_at.isoformat(),
@@ -1018,6 +1193,15 @@ def _results_document(
         "aborted": aborted,
         "usage": usage,
         "cost": _cost_json(model_provider, usage),
+        "price_estimate": (
+            {
+                "rates_per_million_usd": run.token_prices.as_json(),
+                "total_usd": float(run.token_prices.cost(usage)),
+                "unreported_calls": usage["unreported_calls"],
+            }
+            if run.token_prices is not None
+            else None
+        ),
         "loadouts": [_loadout_summary(loadout, plan, run) for loadout in plan.loadouts],
         "turns": run.turns,
     }
@@ -1059,6 +1243,59 @@ def _rate(count: int, total: int) -> float | None:
     return count / total if total else None
 
 
+def _p90(values: Sequence[float]) -> float:
+    """Nearest-rank 90th percentile: the smallest value at or above 90% of the sorted values."""
+
+    ordered = sorted(values)
+    return ordered[math.ceil(0.9 * len(ordered)) - 1]
+
+
+def _distribution(values: Sequence[float], digits: int = 4) -> dict[str, float | None]:
+    if not values:
+        return {"median": None, "p90": None, "mean": None}
+    return {
+        "median": round(statistics.median(values), digits),
+        "p90": round(_p90(values), digits),
+        "mean": round(statistics.fmean(values), digits),
+    }
+
+
+_TOKEN_STAT_KEYS = ("input_tokens", "cached_input_tokens", "cache_write_tokens", "output_tokens", "reasoning_tokens")
+
+
+def _token_summary(turns: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Per-turn token and estimated-cost statistics over successful turns whose every call reported usage.
+
+    A turn's tokens sum all of its calls, a structured repair included.
+    """
+
+    reported = [turn for turn in turns if not turn["usage"]["unreported_calls"]]
+    summary: dict[str, Any] = {"turns": len(reported), "unreported_turns": len(turns) - len(reported)}
+    for key in _TOKEN_STAT_KEYS:
+        values = [turn["usage"][key] for turn in reported]
+        summary[key] = {"total": sum(values), **_distribution(values, digits=1)}
+    costs = [turn["estimated_cost_usd"] for turn in reported if turn.get("estimated_cost_usd") is not None]
+    summary["estimated_cost_usd"] = {"total": round(sum(costs), 8), **_distribution(costs, digits=8)} if costs else None
+    return summary
+
+
+def _latency_summary(turns: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """Latency, first-token and first-speech statistics, in seconds, over successful turns."""
+
+    first_tokens = [
+        turn["call_latencies"][0]["first_text_seconds"]
+        for turn in turns
+        if turn["call_latencies"] and turn["call_latencies"][0]["first_text_seconds"] is not None
+    ]
+    first_outputs = [turn["first_output_seconds"] for turn in turns if turn["first_output_seconds"] is not None]
+    return {
+        "turns": len(turns),
+        "latency_seconds": _distribution([turn["latency_seconds"] for turn in turns]),
+        "first_token_seconds": {"turns": len(first_tokens), **_distribution(first_tokens)},
+        "first_output_seconds": {"turns": len(first_outputs), **_distribution(first_outputs)},
+    }
+
+
 def _loadout_summary(loadout: Loadout, plan: EvalPlan, run: _Run) -> dict[str, Any]:
     items = {item.id: item for item in plan.prompt_set.items}
     turns = [turn for turn in run.turns if turn["loadout"] == loadout.name]
@@ -1071,6 +1308,7 @@ def _loadout_summary(loadout: Loadout, plan: EvalPlan, run: _Run) -> dict[str, A
         tagged = [turn for turn in scored if tag in items[turn["conversation_id"]].tags]
         tag_fits = sum(1 for turn in tagged if turn["fit"])
         by_tag[tag] = {"scored": len(tagged), "fits": tag_fits, "fit_rate": _rate(tag_fits, len(tagged))}
+    scripted_scored = [turn for turn in turns if turn["kind"] == "scripted" and turn["error"] is None]
     scripted: list[dict[str, Any]] = []
     for chat in plan.prompt_set.scripted_chats:
         for repeat in range(1, plan.scripted_repeats + 1):
@@ -1116,6 +1354,8 @@ def _loadout_summary(loadout: Loadout, plan: EvalPlan, run: _Run) -> dict[str, A
             "by_tag": by_tag,
         },
         "scripted": scripted,
+        "latency": {"single_turn": _latency_summary(scored), "scripted": _latency_summary(scripted_scored)},
+        "tokens": {"single_turn": _token_summary(scored), "scripted": _token_summary(scripted_scored)},
         "calls": sum(turn["calls"] for turn in turns),
         "usage": _sum_usage_json(turn["usage"] for turn in turns),
     }
@@ -1182,6 +1422,19 @@ def render_summary(results: Mapping[str, Any]) -> str:
             else f"unpriced ({cost['unpriced_reason']})"
         ),
     ]
+    price_estimate = results.get("price_estimate")
+    if price_estimate:
+        rates = price_estimate["rates_per_million_usd"]
+        lines.append(
+            f"- Estimated cost from the --price rates: {price_estimate['total_usd']:.6f} USD (USD per 1M tokens: "
+            f"input {rates['input']}, cached input {rates['cached_input']}, cache write {rates['cache_write']}, "
+            f"output {rates['output']}; an estimate from published rates, billing is authoritative)"
+            + (
+                f"; {price_estimate['unreported_calls']} call(s) reported no usage"
+                if price_estimate["unreported_calls"]
+                else ""
+            )
+        )
     if results["aborted"] == "max_calls":
         lines.append("- **Stopped early:** the call budget was spent, so later turns are missing.")
     elif results["aborted"]:
@@ -1225,7 +1478,124 @@ def render_summary(results: Mapping[str, Any]) -> str:
                 f"| {name} | {row['chat']} | {row['repeat']} | {row['turns']} | {row['distinct_gestures']} | "
                 f"{longest} | {row['nulls']} | {row['errors']} |"
             )
+    lines += _latency_lines(results["loadouts"])
+    lines += _token_lines(results["loadouts"])
     return "\n".join(lines) + "\n"
+
+
+_TOKEN_ROW_LABELS = {
+    "input_tokens": "Input tokens",
+    "cached_input_tokens": "Cached input tokens",
+    "cache_write_tokens": "Cache-write tokens",
+    "output_tokens": "Output tokens",
+    "reasoning_tokens": "Reasoning tokens",
+}
+
+
+def _token_lines(loadouts: Sequence[Mapping[str, Any]]) -> list[str]:
+    """Render per-turn token and cost statistics; older results have none."""
+
+    rows: list[str] = []
+    unreported = 0
+    for loadout in loadouts:
+        tokens = loadout.get("tokens")
+        if tokens is None:
+            continue
+        for label, key in (("Single-turn", "single_turn"), ("Scripted", "scripted")):
+            part = tokens[key]
+            unreported += part["unreported_turns"]
+            if not part["turns"]:
+                continue
+            prefix = f"| {loadout['name']} | {label} | {part['turns']} |"
+            for stat_key, row_label in _TOKEN_ROW_LABELS.items():
+                stats = part[stat_key]
+                if stat_key == "reasoning_tokens" and not stats["total"]:
+                    rows.append(f"{prefix} {row_label} | none reported | | | |")
+                    continue
+                cells = [_format_count(stats[name]) for name in ("total", "median", "p90", "mean")]
+                rows.append(f"{prefix} {row_label} | " + " | ".join(cells) + " |")
+            cost = part["estimated_cost_usd"]
+            if cost is not None:
+                cells = [f"{cost[name]:.6f}" for name in ("total", "median", "p90", "mean")]
+                rows.append(f"{prefix} Estimated cost (USD) | " + " | ".join(cells) + " |")
+    if not rows:
+        if not unreported:
+            return []
+        return [
+            "",
+            "## Tokens and cost per turn",
+            "",
+            f"Omitted: no successful turn reported usage ({unreported} turn(s) without usage).",
+        ]
+    return [
+        "",
+        "## Tokens and cost per turn",
+        "",
+        "| Loadout | Kind | Turns | Measure | Total | Median | p90 | Mean |",
+        "|---|---|---:|---|---:|---:|---:|---:|",
+        *rows,
+        "",
+        "Per successful turn whose calls all reported usage; a turn sums all of its calls, a structured repair "
+        'included. Cached input and cache writes are part of input; reasoning is part of output. "None '
+        'reported" means the provider reported no reasoning tokens for the group: none were used, or the '
+        "provider does not report them. Costs are estimated from the --price rates; billing is authoritative.",
+    ]
+
+
+def _format_count(value: float | None) -> str:
+    if value is None:
+        return "n/a"
+    return f"{value:,.0f}" if float(value).is_integer() else f"{value:,.1f}"
+
+
+def _latency_lines(loadouts: Sequence[Mapping[str, Any]]) -> list[str]:
+    """Render the latency table; results written before latency was recorded have none."""
+
+    rows: list[str] = []
+    for loadout in loadouts:
+        latency = loadout.get("latency")
+        if latency is None:
+            continue
+        for label, key in (("Single-turn", "single_turn"), ("Scripted", "scripted")):
+            part = latency[key]
+            if not part["turns"]:
+                continue
+            cells = _stat_cells(part["latency_seconds"], part["turns"], part["turns"])
+            # Results written before first-token timing was recorded have no first-token block.
+            for key in ("first_token_seconds", "first_output_seconds"):
+                stats = part.get(key)
+                cells += _stat_cells(stats, stats["turns"], part["turns"]) if stats else ["n/a"] * 3
+            rows.append(f"| {loadout['name']} | {label} | {part['turns']} | " + " | ".join(cells) + " |")
+    if not rows:
+        return []
+    return [
+        "",
+        "## Latency",
+        "",
+        "| Loadout | Kind | Turns | Median s | p90 s | Mean s | First token median s | First token p90 s | "
+        "First token mean s | First speech median s | First speech p90 s | First speech mean s |",
+        "|---|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|",
+        *rows,
+        "",
+        "Wall-clock seconds from sending a turn until chat's reply stream ends, over successful turns; a turn "
+        "with a structured repair or context retry includes every call. First token is the provider's time to "
+        "the first streamed text of the turn's first call; first speech is the time to chat's first spoken "
+        "sentence. Each covers the turns where it was observed; (n=…) gives that count when it is smaller than "
+        "Turns. p90 is the nearest-rank 90th percentile.",
+    ]
+
+
+def _stat_cells(stats: Mapping[str, Any], count: int, turns: int) -> list[str]:
+    """Format median, p90 and mean seconds, noting the count on the median when fewer turns were observed."""
+
+    cells = [_format_seconds(stats[name]) for name in ("median", "p90", "mean")]
+    if count < turns:
+        cells[0] += f" (n={count})"
+    return cells
+
+
+def _format_seconds(value: float | None) -> str:
+    return "n/a" if value is None else f"{value:.2f}"
 
 
 def write_outputs(results: Mapping[str, Any], output_dir: Path) -> tuple[Path, Path]:
@@ -1296,6 +1666,7 @@ async def _run(
     max_calls: int,
     reasoning_effort: str | None,
     on_finish: ResultsSink | None = None,
+    token_prices: TokenPrices | None = None,
 ) -> dict[str, Any]:
     model_provider = await load_model_provider(model_provider_id)
     registry = build_registry()
@@ -1308,6 +1679,7 @@ async def _run(
             reasoning_effort=reasoning_effort,
             progress=_print_progress,
             on_finish=on_finish,
+            token_prices=token_prices,
         )
     finally:
         await registry.aclose()
@@ -1320,6 +1692,7 @@ def _print_progress(turn: Mapping[str, Any]) -> None:
         outcome = turn["gesture"] or "no gesture"
         if turn["fit"] is not None:
             outcome += " (fit)" if turn["fit"] else " (miss)"
+    outcome += f" in {turn['latency_seconds']:.2f}s"
     print(
         f"[{turn['loadout']} r{turn['repeat']}] {turn['conversation_id']} #{turn['turn']}: {outcome}",
         file=sys.stderr,
@@ -1348,6 +1721,10 @@ def _parse_args(argv: Sequence[str] | None) -> argparse.Namespace:
     parser.add_argument("--scripted-repeats", type=_positive_int, default=1, help="runs of each scripted chat")
     parser.add_argument("--max-calls", type=_positive_int, help="hard limit on model calls, repairs included")
     parser.add_argument("--reasoning-effort", help="reasoning effort, as a chat setting would request it")
+    parser.add_argument(
+        "--price",
+        help="published USD rates per 1M tokens for cost estimates: input=…,cached_input=…,cache_write=…,output=…",
+    )
     parser.add_argument("--output-dir", type=Path, help="directory for results.json and summary.md")
     parser.add_argument("--dry-run", action="store_true", help="print the plan and estimates without calling a model")
     parser.add_argument("--list-models", action="store_true", help="print the active chat model rows and exit")
@@ -1371,6 +1748,7 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(
             render_plan(plan, max_calls=args.max_calls, first_turn_tokens=asyncio.run(estimate_first_turn_tokens(plan)))
         )
+        token_prices = parse_token_prices(args.price) if args.price is not None else None
         if args.dry_run:
             return 0
         if args.model_provider_id is None or args.max_calls is None:
@@ -1405,6 +1783,7 @@ def main(argv: Sequence[str] | None = None) -> int:
                 max_calls=args.max_calls,
                 reasoning_effort=args.reasoning_effort,
                 on_finish=finish,
+                token_prices=token_prices,
             )
         )
     except (EvalInputError, CallBudgetExceeded, DirectChatTurnSetupError, ModelClientNotFoundError) as exc:
