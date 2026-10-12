@@ -18,8 +18,9 @@ Annie avatar. The creator capture previews an unsaved background document with
 the same Included avatar. These are rendered browser evidence, not native
 packaged-app or audio acceptance.
 
-Artwork remains subject to its existing terms: the Included VRoid models and
-Twemoji artwork are documented in [art notices](../../../../licenses/third-party/art-NOTICES.md).
-Twemoji is by Twitter and contributors under CC-BY-4.0. These screenshots
-composite that artwork with the application UI; source model and emoji bytes
-were not modified.
+Artwork remains subject to its existing terms: the Included VRoid models are
+documented in [art notices](../../../../licenses/third-party/art-NOTICES.md).
+The Admiration background in these captures shows Twemoji artwork, by Twitter
+and contributors under [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/).
+These screenshots composite that artwork with the application UI; source model
+and emoji bytes were not modified.

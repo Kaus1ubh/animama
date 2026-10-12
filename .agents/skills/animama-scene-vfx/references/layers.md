@@ -86,6 +86,7 @@ starts: shock, a gacha flash. Use it sparingly.
 ## Items
 
 Marquee and scatter items are `{ "id", "kind": "image", "label", "image":
-"<file name>" }` (a listed image) or `{ "id", "kind": "emoji", "label",
-"emoji": "<glyph>", "provider": "twemoji" }` (an emoji the app ships). Ids are
-unique within a layer; labels are what the creator shows.
+"<file name>" }`, each naming a listed image of the folder. Ids are unique
+within a layer; labels are what the creator shows. Animama no longer provides
+Twemoji: an `emoji` item is refused by `effects check` and Save (an old Local
+Scene that has one plays without it until it is replaced).

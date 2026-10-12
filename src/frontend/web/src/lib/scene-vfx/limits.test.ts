@@ -42,4 +42,22 @@ describe("sceneDefinitionLimitIssues", () => {
       ).toContain(field);
     },
   );
+
+  it("refuses each legacy Twemoji item by field, as Save does", () => {
+    const definition = structuredClone(allLayers) as {
+      marquee: { items: unknown[] };
+      scatters: Array<{ items: unknown[] }>;
+    };
+    const emoji = { id: "old", kind: "emoji", label: "Sparkles", emoji: "*" };
+    definition.marquee.items = [emoji];
+    definition.scatters[1].items = [emoji];
+    const issues = sceneDefinitionLimitIssues(definition);
+    expect(issues.map((issue) => issue.field)).toEqual([
+      "marquee.items.0",
+      "scatters.1.items.0",
+    ]);
+    expect(issues[0].message).toBe(
+      "Sparkles is an emoji, which Animama no longer provides. Replace it with a sticker or image, or remove it.",
+    );
+  });
 });

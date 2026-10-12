@@ -453,15 +453,15 @@
     {
       "glob": "vfx/scene/**/emoji-*.svg",
       "creator": "Twitter Twemoji contributors",
-      "provenance": "All 31 scene copies match the checked-in Twemoji 14.0.2 mirrors under resources/scene-vfx/twemoji byte for byte. Twemoji graphics are CC BY 4.0: https://github.com/jdecked/twemoji/tree/v14.0.2/assets/svg . Include the Twemoji graphics attribution and license notice.",
+      "provenance": "Unchanged Twemoji 14.0.2 graphics copied into the emotion backgrounds' marquees (per-file mapping in licenses/third-party/art-twemoji.json); they leave with those backgrounds. Twemoji graphics are CC BY 4.0: https://github.com/jdecked/twemoji/tree/v14.0.2/assets/svg . Include the Twemoji graphics attribution and license notice.",
       "license_id": "CC-BY-4.0-Twemoji-graphics",
       "redistribution_review": "pending"
     },
     {
-      "glob": "resources/scene-vfx/twemoji/**",
-      "creator": "Twitter Twemoji contributors",
-      "provenance": "Checked-in authoring mirrors from Twemoji 14.0.2 assets/svg, as recorded by the adjacent README. Twemoji graphics are CC BY 4.0: https://github.com/jdecked/twemoji/tree/v14.0.2/assets/svg . Include the Twemoji graphics attribution and license notice.",
-      "license_id": "CC-BY-4.0-Twemoji-graphics",
+      "glob": "resources/scene-vfx/stickers/**",
+      "creator": "Animama project owner",
+      "provenance": "The owner confirms they created the Scene creator's built-in sticker art and its manifest.",
+      "license_id": "LicenseRef-Animama-owner-authored",
       "redistribution_review": "pending"
     },
     {

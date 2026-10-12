@@ -129,7 +129,8 @@ backend to `src/backend/animama/`, content to `content/included/`.
       owner approved; platform review passed at round 3.
 - [x] P3 — Scene backgrounds and sticker art: 24 presets saved, 44 stickers
       (2026-10-12); G2 pending the owner's morning review.
-- [ ] P4 — Animama sticker set and Twemoji removal (R11).
+- [x] P4 — Animama sticker set and Twemoji removal (2026-10-12); review
+      passed at round 2.
 - [x] P5 — Reaction ladder: 43 project files, benchmarks within budget
       (2026-10-12); G4 pending the owner's review.
 - [ ] P6 — Promotion and removal (R13, R14). Gate G3.
@@ -685,9 +686,85 @@ ruff check`; a browser check of the creator with a Twemoji-era Local Scene.
 
 #### P4 record
 
+Starting source and issue: `46c4e231` (its tree already lacked the Twemoji mirror,
+see the P3 record), #444.
+
+- **Sticker set:** `content/included/resources/scene-vfx/stickers/` holds 42 PNGs
+  and `stickers.json` (`animama/scene-stickers/1`: id, label, family, file),
+  the P3 set without the two tiles (`bokeh-tile`, `star-field-tile`; tile art
+  belongs to the Tile layer, not to marquee or scatter items). Families follow
+  the plan's order; `generic` shows as "Extras". `lib/scene-vfx/stickers.ts`
+  bundles the PNGs with `import.meta.glob` as hashed build assets. This departs
+  from the plan's Vite-alias proposal: the alias pattern (like the Twemoji mirror
+  and the Particle built-in textures) never reaches the embedded desktop build
+  (`copyBuildAliases: false`, and the desktop audit forbids `effects/resources`),
+  while bundled assets work in development, built mode and desktop alike. To add
+  a sticker: copy the PNG, add its entry to `stickers.json`, add an owner-form
+  `licenses/source-review.json` record (the `resources/scene-vfx/stickers/**`
+  rule covers it); `stickers.test.ts` fails on an unlisted or missing file.
+- **Creator:** the Twemoji select, **Add emoji** and the "Twemoji" label are
+  gone; a sticker picker with thumbnails grouped by family adds the chosen PNG
+  as the effect's own image through the **Add private image** path, labelled
+  with the sticker's name, so Save, recovery and packages carry it. Bytes the
+  Scene already carries are reused (stickers and private images alike).
+- **Emoji items:** a Local Scene with an `emoji` item scans valid with a
+  `scene_emoji_item_removed` diagnostic per item (an Included Scene with one is
+  invalid) and is listed in Content Health; the creator marks each "Missing
+  emoji" and asks to replace or remove it, blocking Save (named field); chat,
+  previews and renders skip it; Save refuses it with `saved_content_invalid`
+  (field `scatters.0.items.1` style); package export and import refuse it, and
+  any `animama/twemoji/…` capability, with `scene_emoji_item_removed`.
+- **Twemoji removed:** `BUILTIN_EMOJI` and the Twemoji capabilities, the
+  resolver and provider types (only what recognises legacy items stays), the
+  bundled catalog's line items and `marquee.itemIds` (old presets play with
+  empty marquees until P6 deletes them), the debug editor's emoji selects, the
+  `twemoji` dependency, the mirror's inventory rule and 28 records and its
+  source-review records. The 26 `emoji-*.svg` copies in the old emotion
+  backgrounds keep their rule, records, NOTICES credit and desktop attribution
+  until P6 removes them.
+- **Browser check (2026-10-12, task stack rebuilt from this tree):** a Local
+  Scene fixture with one Twemoji-era item (`twemoji-era-check`, a copy of
+  Rejection Disapproval with an emoji scatter item) scanned valid with the
+  diagnostic "Scene item scatters.0.items.1 (Sparkles) is an emoji, which
+  Animama no longer provides; it plays without it…"; in the creator its scatter
+  inspector showed "Missing emoji" with "Animama no longer provides emoji items.
+  Replace each with a sticker or image, or remove it, before saving."; after an
+  edit Save stayed disabled with "Unsaved" and "Content needs attention"; the
+  sticker picker was present and no Twemoji text remained; `effects:render`
+  played it without errors. The fixture stays on the task stack for review.
+
+Checks: backend full `uv run pytest -q` 3652 passed, 10 skipped, then the
+content tests after the review fixes (`-k "content or scene or package or
+catalog"` 1,031 passed); `uv run ruff check` and `make check` pass; from
+`src/frontend` `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm
+build` and `pnpm desktop:check` pass; `pnpm web:test` 3,868 passed, 1 skipped;
+the Scene browser tests pass. No API contract changed.
+
 #### Code Review #1 Findings
 
+Round 1 (`sdlc-reviewer`): the mirror removal is completed and consistent; the
+bundling departure is correct for all three builds; sticker records use the
+owner form, so promoted copies count as owner art. Required: **P4-R1-F1** the
+sticker flow, the carried-bytes reuse and the image label had no tests (and the
+tile reuse left a replaced tile's bytes behind); **P4-R1-F2** no P4 record or
+browser check. Optional: F3 dead `marquee.itemIds`; F4 emoji-only scatter
+layers dropped, shifting later indices; F5 Save's error code; F6 no
+archive-level import test; F7 leftover indirection; F8 copy.
+
 #### Code Review #1 Revisions
+
+- **F1 accepted:** the logic moved to `sceneEffectCreatorBehavior.ts` with tests
+  (sticker → labelled image item with bytes; reuse; identical private file
+  takes its own label — a bug, fixed; tile reuse drops replaced bytes — fixed;
+  failed fetch and non-image refused) and a `label` document test.
+- **F2 accepted:** this record and the browser check.
+- **F3, F4, F6, F7, F8 accepted:** fixed with tests.
+- **F5 declined:** Save keeps `saved_content_invalid` with the item as `field`;
+  the creator blocks Save first and the docs describe it.
+
+#### Code Review #2 Findings
+
+Round 2 (targeted recheck): **pass** for the code; F2 open until this record.
 
 ### P5 — Reaction ladder (R12) and performance. Gate G4. #448
 

@@ -12,6 +12,7 @@ import type {
   SceneFocusLinesAnimation,
   SceneFocusLinesRenderPlacement,
   SceneFocusLinesTarget,
+  SceneLegacyEmojiItem,
   SceneVFXKind,
 } from "@/lib/scene-vfx/types";
 
@@ -38,13 +39,12 @@ export type SceneEffectEditorSound = {
   source: PyExactContentSource;
 };
 
-export type SceneEffectEditorEmojiItem = {
-  id: string;
-  kind: "emoji";
-  label: string;
-  emoji: string;
-  provider: "twemoji";
-};
+/**
+ * A Twemoji item from a Scene saved before the sticker set. Animama no longer
+ * provides Twemoji, so the creator shows it as missing and refuses Save until
+ * it is replaced with a sticker or image, or removed.
+ */
+export type SceneEffectEditorLegacyEmojiItem = SceneLegacyEmojiItem;
 
 export type SceneEffectEditorImageItem = {
   id: string;
@@ -54,8 +54,8 @@ export type SceneEffectEditorImageItem = {
 };
 
 export type SceneEffectEditorMarqueeItem =
-  | SceneEffectEditorEmojiItem
-  | SceneEffectEditorImageItem;
+  | SceneEffectEditorImageItem
+  | SceneEffectEditorLegacyEmojiItem;
 
 export type SceneEffectEditorMarquee = {
   enabled: boolean;
@@ -75,7 +75,7 @@ export type SceneEffectEditorTile = Omit<SceneBackgroundTileLayer, "src"> & {
   image: SceneEffectEditorImage | null;
 };
 
-/** Scattered items are emoji or private images, as marquee items are. */
+/** Scattered items are the effect's own images, as marquee items are. */
 export type SceneEffectEditorScatter = Omit<
   SceneBackgroundScatterLayer,
   "items"

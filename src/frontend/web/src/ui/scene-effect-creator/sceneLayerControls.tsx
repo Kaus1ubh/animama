@@ -1,4 +1,5 @@
 import {
+  AlertTriangleIcon,
   ArrowDownIcon,
   ArrowUpIcon,
   FileImageIcon,
@@ -9,9 +10,6 @@ import {
   ShuffleIcon,
   Trash2Icon,
 } from "lucide-react";
-import { useState } from "react";
-
-import { SCENE_BACKGROUND_EMOJI_LINE_ITEMS } from "@/lib/scene-vfx/assets";
 import {
   defaultSceneLinesScreen,
   defaultSceneRaysScreen,
@@ -21,6 +19,10 @@ import {
   type SceneEffectEditorScatter,
 } from "@/lib/scene-vfx/editor";
 import { SCENE_EFFECT_LIMITS } from "@/lib/scene-vfx/limits";
+import {
+  sceneStickerFamilies,
+  type SceneSticker,
+} from "@/lib/scene-vfx/stickers";
 import {
   SCENE_BACKGROUND_DIRECTIONS,
   SCENE_BACKGROUND_GRADIENT_TYPES,
@@ -244,6 +246,8 @@ export type SceneImageControls = {
   /** Whether a Save refused the image files. */
   filesInvalid: boolean;
   onChooseImage: (file: File) => void;
+  /** Add a built-in sticker as the effect's own image. */
+  onChooseSticker: (sticker: SceneSticker) => void;
 };
 
 function SceneItemRow({
@@ -261,12 +265,19 @@ function SceneItemRow({
   onMove: (offset: -1 | 1) => void;
   onRemove: () => void;
 }) {
+  // A Twemoji item from before the sticker set: shown as missing.
+  const missing = item.kind === "emoji";
   return (
-    <div className="border-border/70 bg-background/55 flex items-center gap-2 rounded-lg border p-2">
+    <div
+      className={cn(
+        "border-border/70 bg-background/55 flex items-center gap-2 rounded-lg border p-2",
+        missing && "border-destructive bg-destructive/5",
+      )}
+    >
       <GripVerticalIcon className="text-muted-foreground size-4" />
       <div className="bg-muted flex size-8 items-center justify-center overflow-hidden rounded-md">
-        {item.kind === "emoji" ? (
-          <span>{item.emoji}</span>
+        {missing ? (
+          <AlertTriangleIcon className="text-destructive size-4" />
         ) : imageUrl ? (
           <img src={imageUrl} alt="" className="size-full object-contain" />
         ) : (
@@ -276,7 +287,7 @@ function SceneItemRow({
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{item.label}</div>
         <div className="text-muted-foreground text-2xs truncate">
-          {item.kind === "image" ? item.image.logicalName : "Twemoji"}
+          {item.kind === "image" ? item.image.logicalName : "Missing emoji"}
         </div>
       </div>
       <Button
@@ -312,7 +323,11 @@ function SceneItemRow({
   );
 }
 
-/** The items of a marquee or scatter layer: emoji and private images. */
+/**
+ * The items of a marquee or scatter layer: Animama stickers and private
+ * images, each the effect's own image. A legacy emoji item is shown as
+ * missing until it is replaced or removed.
+ */
 export function SceneItemsEditor({
   items,
   maxItems,
@@ -324,10 +339,8 @@ export function SceneItemsEditor({
   images: SceneImageControls;
   onItemsChange: (items: SceneEffectEditorMarqueeItem[]) => void;
 }) {
-  const [emojiId, setEmojiId] = useState(
-    SCENE_BACKGROUND_EMOJI_LINE_ITEMS[0]?.id ?? "",
-  );
   const full = items.length >= maxItems;
+  const missing = items.some((item) => item.kind === "emoji");
   return (
     <div className="space-y-3">
       <Label>Items</Label>
@@ -355,46 +368,19 @@ export function SceneItemsEditor({
         </div>
       ) : (
         <p className="text-muted-foreground text-sm">
-          Add an emoji or private image.
+          Add a sticker or private image.
         </p>
       )}
-      <div className="grid grid-cols-[1fr_auto] gap-2">
-        <Select value={emojiId} onValueChange={setEmojiId}>
-          <SelectTrigger size="sm" className="w-full text-xs">
-            <SelectValue placeholder="Choose emoji" />
-          </SelectTrigger>
-          <SelectContent>
-            {SCENE_BACKGROUND_EMOJI_LINE_ITEMS.map((item) => (
-              <SelectItem key={item.id} value={item.id}>
-                {item.emoji} {item.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        <Button
-          type="button"
-          variant="outline"
-          disabled={full}
-          onClick={() => {
-            const selected = SCENE_BACKGROUND_EMOJI_LINE_ITEMS.find(
-              (item) => item.id === emojiId,
-            );
-            if (!selected) return;
-            onItemsChange([
-              ...items,
-              {
-                id: `${selected.id}-${crypto.randomUUID().slice(0, 6)}`,
-                kind: "emoji",
-                label: selected.label,
-                emoji: selected.emoji,
-                provider: "twemoji",
-              },
-            ]);
-          }}
-        >
-          Add emoji
-        </Button>
-      </div>
+      {missing ? (
+        <p role="alert" className="text-destructive text-xs">
+          Animama no longer provides emoji items. Replace each with a sticker or
+          image, or remove it, before saving.
+        </p>
+      ) : null}
+      <StickerPicker
+        disabled={full || images.imageBusy}
+        onChoose={images.onChooseSticker}
+      />
       {full ? null : (
         <ImageInput
           label="Add private image"
@@ -406,6 +392,48 @@ export function SceneItemsEditor({
       {images.imageError ? (
         <p className="text-destructive text-xs">{images.imageError}</p>
       ) : null}
+    </div>
+  );
+}
+
+/** Animama's built-in stickers, grouped by family, as thumbnail buttons. */
+function StickerPicker({
+  disabled,
+  onChoose,
+}: {
+  disabled: boolean;
+  onChoose: (sticker: SceneSticker) => void;
+}) {
+  return (
+    <div className="space-y-2">
+      <Label>Add a sticker</Label>
+      {sceneStickerFamilies().map(({ family, stickers }) => (
+        <section key={family} className="space-y-1">
+          <div className="text-muted-foreground text-2xs font-semibold uppercase">
+            {family}
+          </div>
+          <div className="grid grid-cols-6 gap-1.5">
+            {stickers.map((sticker) => (
+              <button
+                key={sticker.id}
+                type="button"
+                disabled={disabled}
+                aria-label={`Add ${sticker.label} sticker`}
+                title={sticker.label}
+                className="border-border/70 bg-background/55 hover:bg-accent/50 flex aspect-square items-center justify-center rounded-md border p-1 transition disabled:pointer-events-none disabled:opacity-50"
+                onClick={() => onChoose(sticker)}
+              >
+                <img
+                  src={sticker.url}
+                  alt=""
+                  loading="lazy"
+                  className="size-full object-contain"
+                />
+              </button>
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   );
 }

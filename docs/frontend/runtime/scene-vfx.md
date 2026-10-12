@@ -26,9 +26,10 @@ Catalog source:
 
 - `src/frontend/web/src/assets/effects/scene-vfx/catalog.json`
 
-The JSON catalog owns reusable marquee line items, background-layer presets, and
-focus-line presets. `catalog.ts` validates that JSON and exposes runtime-ready
-entries to the TypeScript helpers.
+The JSON catalog owns the bundled background-layer and focus-line presets.
+`catalog.ts` validates that JSON and exposes runtime-ready entries to the
+TypeScript helpers. It has no line items, so each preset's marquee starts
+empty; the creator adds stickers or private images to it.
 
 On a live Anima route, the mounted `AnimaRuntimeCatalog` resolves exact built-in
 App sources and private `animama/scene-effect/1` definitions. Private
@@ -76,6 +77,7 @@ settings-owned media URL.
 - `src/frontend/web/src/ui/scene-effect-creator/SceneEffectCreatorPage.tsx`
 - `src/frontend/web/src/ui/scene-effect-creator/useSceneEffectSave.ts`
 - `src/frontend/web/src/lib/scene-vfx/editor/`
+- `src/frontend/web/src/lib/scene-vfx/stickers.ts`
 - `src/frontend/web/src/lib/content/catalogApi.ts`
 
 The creator uses the neutral Effect creator primitives in
@@ -152,9 +154,39 @@ menu's **Effects** item, the Create page's Scene FX card or `/effects/new`).
 
 Background Layers combines Solid, Gradient, Pattern, Tile, Screen, Marquee,
 up to three Scatter layers and an Entry flash; Scene Setup lists them front
-to back, Entry flash first, and each has an inspector. Marquee and scatter items can be reordered and
-use allowlisted Twemoji or private PNG/JPEG/WebP/SVG sources; a tile uses one
-private image. A chosen image is checked before it is decoded against the
+to back, Entry flash first, and each has an inspector. Marquee and scatter
+items can be reordered; each is one of the effect's own images, either an
+Animama sticker or a private PNG/JPEG/WebP/SVG. A tile uses one private image.
+
+The sticker picker lists Animama's built-in stickers by family, with
+thumbnails. Choosing one fetches its PNG and adds it through the same path as
+**Add private image**, labelled with the sticker's name, so Save, browser
+recovery and Portable packages carry its bytes like any other image; the same
+bytes added twice are carried once. The set is
+`content/included/resources/scene-vfx/stickers/`: owner-authored PNGs listed
+in `stickers.json` (`animama/scene-stickers/1`; each item has an `id`, a
+`label`, a `family` and its `file`). `lib/scene-vfx/stickers.ts` bundles the
+manifest and the PNGs as build assets, so the picker works in development, a
+built app and the packaged desktop app; an unlisted PNG or a listed file that
+is missing fails the web tests (`lib/scene-vfx/stickers.test.ts`). To add a sticker, copy its PNG into the
+folder, add its item to `stickers.json` in the order the picker shows it,
+and add an owner-form `licenses/source-review.json` record for the file
+(the folder's licence rule, `resources/scene-vfx/stickers/**`, already
+covers it).
+
+Animama no longer provides Twemoji. A Local Scene Effect saved with an
+`emoji` marquee or scatter item opens with each such item marked missing and a
+prompt to replace it with a sticker or image, or remove it; Save is refused
+until it is (the check names the item, such as `marquee.items.0`). There is no
+automatic conversion. Chat, previews and review renders draw the Scene without
+the item and request nothing for it. The Local scan keeps the Scene valid
+with a `scene_emoji_item_removed` diagnostic per item, so Content Health lists
+it; backend Save refuses an emoji item (`saved_content_invalid`, with the item
+as `field`), and Portable export and package import refuse it with
+`scene_emoji_item_removed`, as they do a package that declares a retired
+`animama/twemoji/…` capability.
+
+A chosen image is checked before it is decoded against the
 Scene image limits (`lib/effects/effectArtLimits.ts`: 8 MiB and 4096 px per
 image, 16 images and 32 MiB per effect), and is saved under a name whose
 extension matches its bytes (`petal.png`, not `petal.webp`).
@@ -299,7 +331,7 @@ Default resolution happens in the store:
 - `dismissOnInput` defaults to `true` for `background_layers`
 - `dismissOnInput` defaults to `false` for `focus_lines`
 - `durationMs: null` means sticky and does not auto-expire
-- emoji marquee items are resolved to local mirrored Twemoji SVG paths before rendering
+- legacy `emoji` marquee and scatter items are skipped (Animama no longer provides Twemoji)
 - marquee `itemRotationMode` defaults to `"upright"` if missing
 - marquee `itemRotationOffsetDeg` defaults to `0` if missing
 
@@ -423,23 +455,13 @@ Files:
 - `src/frontend/web/src/styles/scene-vfx.css`
 - `src/frontend/web/src/assets/effects/scene-vfx/catalog.json`
 - `src/frontend/web/src/lib/scene-vfx/assets.ts`
-- `src/frontend/web/src/lib/scene-vfx/emoji.ts`
 
 This is the animated layer in the background-VFX system.
 
-The scene VFX catalog's marquee line-item registry supports three item kinds:
-
-- `png`
-- `svg`
-- `emoji`
-
-`png` and `svg` items resolve directly to root-relative public asset paths.
-`emoji` items resolve through the authoring-only mirrored Twemoji resource at
-`/effects/resources/scene-vfx/twemoji`. The resource lives outside typed
-product roots, so catalog Rescan does not register each SVG as an Avatar Effect.
-The resolver is pinned to the frontend's installed
-Twemoji `14.0.2` codepoint conversion behavior, so newly mirrored emoji should
-be fetched from the matching upstream Twemoji version.
+A runtime marquee or scatter item is `png` or `svg` and names its URL. A
+stored definition names each item's image by logical name
+(`{ kind: "image", image }`), which `sceneEntryFromDefinition` maps to the
+image's URL; a legacy `emoji` item is skipped.
 
 Custom `svg` line items are project-owned public assets under
 `/effects/scene-vfx/svg/`. The catalog validator rejects SVG `src` values

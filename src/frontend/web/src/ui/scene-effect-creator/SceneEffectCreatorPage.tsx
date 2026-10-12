@@ -31,12 +31,11 @@ import type {
 } from "@/lib/content/catalogTypes";
 import { Avatar } from "@/lib/avatar";
 import { fetchContentPreviewFile } from "@/lib/content/contentPreview";
-import { preflightContentFile, sha256File } from "@/lib/content/contentUploads";
+import { sha256File } from "@/lib/content/contentUploads";
 import { findLogicalResourceFile } from "@/lib/content/typedLogicalResources";
 import {
   applySceneEffectTemplate,
   buildSceneEffectEditorExport,
-  canonicalSceneEffectImageName,
   createDefaultSceneEffectDocument,
   createSceneEffectDocumentFromDefinition,
   parseSceneEffectEditorExport,
@@ -44,13 +43,9 @@ import {
   sceneEffectEditorReducer,
   sceneEffectTemplateLabel,
   sceneEffectImageMetadata,
-  addSceneEffectImage,
   defaultSceneScatter,
-  inspectSceneEffectImage,
-  replaceSceneEffectImage,
   sceneEffectRecoveryStore,
   sceneEffectRuntimeEntry,
-  uniqueSceneEffectImageName,
   validateSceneEffectDocument,
   type SceneEffectEditorDocument,
   type SceneEffectEditorBackground,
@@ -64,6 +59,7 @@ import {
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { SCENE_EFFECT_LIMITS } from "@/lib/scene-vfx/limits";
 import { buildSceneVFXRuntimeEntry } from "@/lib/scene-vfx/runtime-state";
+import type { SceneSticker } from "@/lib/scene-vfx/stickers";
 import {
   SCENE_BACKGROUND_DIRECTIONS,
   SCENE_BACKGROUND_ITEM_ROTATION_MODES,
@@ -120,6 +116,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Textarea } from "@/ui/components/textarea";
 import {
+  addSceneEffectImageFile,
+  addSceneEffectSticker,
   createSceneEffectHistorySnapshot,
   createSceneEffectObjectUrlLease,
   equalSceneEffectHistorySnapshots,
@@ -549,84 +547,51 @@ export function SceneEffectCreatorPage({
   );
 
   /**
-   * Check a chosen image before decoding it, then add it to `target` (or give
-   * an image whose bytes are missing after reopening its new bytes). The
-   * saved name follows the format the bytes are, so name and bytes agree.
+   * Add an image to `target` (see `addSceneEffectImageFile`), holding the
+   * image-busy state so no other image or Save starts meanwhile, and showing
+   * why an image was refused.
    */
-  const choosePrivateImage = useCallback(
-    async (source: File, target: SceneEffectImageTarget) => {
+  const addImage = useCallback(
+    async (
+      add: () => Promise<SceneEffectHistorySnapshot>,
+      fallback: string,
+    ) => {
       setImageError(null);
-      // Busy from the first check, so no other image or Save starts meanwhile.
       setImageBusy(true);
       try {
-        const inspection = await inspectSceneEffectImage(source);
-        if (!inspection.ok) {
-          setImageError(inspection.message);
-          return;
-        }
-        const preflight = await preflightContentFile("image", source);
-        if (preflight.error) throw new Error(preflight.error);
-        const sha256 = await sha256File(source);
-        const { document, imageResources } = getSnapshot();
-        const used = sceneEffectImageMetadata(document);
-        const baseLogicalName = canonicalSceneEffectImageName(
-          source.name,
-          inspection.contentType,
+        const next = await add();
+        dispatch(
+          { type: "replace", document: next.document },
+          next.imageResources,
         );
-        const missing = used.some(
-          (image) =>
-            image.logicalName === baseLogicalName &&
-            !imageResources.some(
-              (resource) => resource.logicalName === baseLogicalName,
-            ),
-        );
-        const logicalName = missing
-          ? baseLogicalName
-          : uniqueSceneEffectImageName(
-              baseLogicalName,
-              used.map((image) => image.logicalName),
-            );
-        const file = new File([source], logicalName, {
-          type: inspection.contentType,
-          lastModified: source.lastModified,
-        });
-        const image: SceneEffectEditorImage = {
-          logicalName,
-          originalName: source.name,
-          contentType: inspection.contentType,
-          sizeBytes: source.size,
-          sha256,
-        };
-        const current = getSnapshot();
-        const nextDocument = missing
-          ? replaceSceneEffectImage(current.document, image)
-          : addSceneEffectImage(current.document, image, target);
-        // Keep only bytes the document still shows (a replaced tile's go).
-        const referenced = new Set(
-          sceneEffectImageMetadata(nextDocument).map(
-            (shown) => shown.logicalName,
-          ),
-        );
-        dispatch({ type: "replace", document: nextDocument }, [
-          ...current.imageResources.filter(
-            (resource) =>
-              resource.logicalName !== logicalName &&
-              referenced.has(resource.logicalName),
-          ),
-          { logicalName, file, sha256 },
-        ]);
         restartPreview();
       } catch (error) {
-        setImageError(
-          error instanceof Error
-            ? error.message
-            : "The image could not be read.",
-        );
+        setImageError(error instanceof Error ? error.message : fallback);
       } finally {
         setImageBusy(false);
       }
     },
-    [dispatch, getSnapshot, restartPreview],
+    [dispatch, restartPreview],
+  );
+
+  /** Add a chosen private image file to `target`. */
+  const choosePrivateImage = useCallback(
+    (source: File, target: SceneEffectImageTarget) =>
+      addImage(
+        () => addSceneEffectImageFile(getSnapshot, source, target),
+        "The image could not be read.",
+      ),
+    [addImage, getSnapshot],
+  );
+
+  /** Add a built-in sticker to `target` as the effect's own image. */
+  const chooseSticker = useCallback(
+    (sticker: SceneSticker, target: SceneEffectImageTarget) =>
+      addImage(
+        () => addSceneEffectSticker(getSnapshot, sticker, target),
+        "The sticker could not be loaded.",
+      ),
+    [addImage, getSnapshot],
   );
 
   const importDocument = useCallback(() => {
@@ -943,6 +908,7 @@ export function SceneEffectCreatorPage({
           }}
           onItemsChange={onItemsChange}
           onChooseImage={choosePrivateImage}
+          onChooseSticker={chooseSticker}
           onBackground={(patch) =>
             replaceDocument(
               sceneEffectEditorReducer(document, {
@@ -1460,6 +1426,7 @@ function SceneInspectorPanel({
   onDispatch,
   onItemsChange,
   onChooseImage,
+  onChooseSticker,
   onBackground,
   onSelectedLayer,
   onClearSaveErrorField,
@@ -1478,6 +1445,10 @@ function SceneInspectorPanel({
     items: SceneEffectEditorMarqueeItem[],
   ) => void;
   onChooseImage: (file: File, target: SceneEffectImageTarget) => void;
+  onChooseSticker: (
+    sticker: SceneSticker,
+    target: SceneEffectImageTarget,
+  ) => void;
   onBackground: (patch: Partial<SceneEffectEditorBackground>) => void;
   onSelectedLayer: (layer: BackgroundLayer) => void;
   onClearSaveErrorField: (field: string) => void;
@@ -1491,6 +1462,10 @@ function SceneInspectorPanel({
     onChooseImage: (file) => {
       onClearSaveErrorField("files");
       void onChooseImage(file, target);
+    },
+    onChooseSticker: (sticker) => {
+      onClearSaveErrorField("files");
+      void onChooseSticker(sticker, target);
     },
   });
   const background = document.background;

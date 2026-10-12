@@ -1,0 +1,258 @@
+{
+  "schema": "animama/scene-stickers/1",
+  "description": "Animama's built-in Scene stickers, offered by the Scene Effect creator's sticker picker in this order, grouped by family. Choosing one copies its PNG into the effect as its own image. Each item's file is a PNG in this folder.",
+  "items": [
+    {
+      "id": "apricot-blossom",
+      "label": "Apricot blossom",
+      "family": "Affection",
+      "file": "apricot-blossom.png"
+    },
+    {
+      "id": "blush-hatch",
+      "label": "Blush marks",
+      "family": "Affection",
+      "file": "blush-hatch.png"
+    },
+    {
+      "id": "leaf",
+      "label": "Leaf",
+      "family": "Affection",
+      "file": "leaf.png"
+    },
+    {
+      "id": "lilac-star-flower",
+      "label": "Lilac star flower",
+      "family": "Affection",
+      "file": "lilac-star-flower.png"
+    },
+    {
+      "id": "rose-heart-petal",
+      "label": "Rose petal",
+      "family": "Affection",
+      "file": "rose-heart-petal.png"
+    },
+    {
+      "id": "sparkle-white",
+      "label": "Sparkle",
+      "family": "Affection",
+      "file": "sparkle-white.png"
+    },
+    {
+      "id": "flower-bud",
+      "label": "Flower bud",
+      "family": "Esteem",
+      "file": "flower-bud.png"
+    },
+    {
+      "id": "glint-gold",
+      "label": "Gold glint",
+      "family": "Esteem",
+      "file": "glint-gold.png"
+    },
+    {
+      "id": "glint-silver",
+      "label": "Silver glint",
+      "family": "Esteem",
+      "file": "glint-silver.png"
+    },
+    {
+      "id": "heart-peach",
+      "label": "Warm heart",
+      "family": "Esteem",
+      "file": "heart-peach.png"
+    },
+    {
+      "id": "burst-zigzag",
+      "label": "Zig-zag burst",
+      "family": "Delight",
+      "file": "burst-zigzag.png"
+    },
+    {
+      "id": "confetti-chip-teal",
+      "label": "Teal confetti chip",
+      "family": "Delight",
+      "file": "confetti-chip-teal.png"
+    },
+    {
+      "id": "confetti-chip-violet",
+      "label": "Violet confetti chip",
+      "family": "Delight",
+      "file": "confetti-chip-violet.png"
+    },
+    {
+      "id": "confetti-curl-pink",
+      "label": "Pink confetti curl",
+      "family": "Delight",
+      "file": "confetti-curl-pink.png"
+    },
+    {
+      "id": "giggle-squiggle",
+      "label": "Giggle squiggle",
+      "family": "Delight",
+      "file": "giggle-squiggle.png"
+    },
+    {
+      "id": "music-note",
+      "label": "Music note",
+      "family": "Delight",
+      "file": "music-note.png"
+    },
+    {
+      "id": "pop-star-yellow",
+      "label": "Pop star",
+      "family": "Delight",
+      "file": "pop-star-yellow.png"
+    },
+    {
+      "id": "comet-streak",
+      "label": "Comet",
+      "family": "Drive",
+      "file": "comet-streak.png"
+    },
+    {
+      "id": "heart-star-pink",
+      "label": "Heart star",
+      "family": "Drive",
+      "file": "heart-star-pink.png"
+    },
+    {
+      "id": "twinkle-star-gold",
+      "label": "Gold twinkle star",
+      "family": "Drive",
+      "file": "twinkle-star-gold.png"
+    },
+    {
+      "id": "twinkle-star-mint",
+      "label": "Mint twinkle star",
+      "family": "Drive",
+      "file": "twinkle-star-mint.png"
+    },
+    {
+      "id": "dizzy-spiral",
+      "label": "Dizzy spiral",
+      "family": "Alarm",
+      "file": "dizzy-spiral.png"
+    },
+    {
+      "id": "lightning-bolt",
+      "label": "Lightning",
+      "family": "Alarm",
+      "file": "lightning-bolt.png"
+    },
+    {
+      "id": "sweat-drop",
+      "label": "Sweat drop",
+      "family": "Alarm",
+      "file": "sweat-drop.png"
+    },
+    {
+      "id": "anger-mark",
+      "label": "Anger mark",
+      "family": "Rejection",
+      "file": "anger-mark.png"
+    },
+    {
+      "id": "cross-mark",
+      "label": "Cross mark",
+      "family": "Rejection",
+      "file": "cross-mark.png"
+    },
+    {
+      "id": "steam-puff",
+      "label": "Steam puff",
+      "family": "Rejection",
+      "file": "steam-puff.png"
+    },
+    {
+      "id": "bubble-clear",
+      "label": "Clear bubble",
+      "family": "Revulsion",
+      "file": "bubble-clear.png"
+    },
+    {
+      "id": "bubble-green",
+      "label": "Green bubble",
+      "family": "Revulsion",
+      "file": "bubble-green.png"
+    },
+    {
+      "id": "spiral-dusk",
+      "label": "Dusk spiral",
+      "family": "Revulsion",
+      "file": "spiral-dusk.png"
+    },
+    {
+      "id": "spiral-green",
+      "label": "Green spiral",
+      "family": "Revulsion",
+      "file": "spiral-green.png"
+    },
+    {
+      "id": "drizzle-streak",
+      "label": "Drizzle",
+      "family": "Gloom",
+      "file": "drizzle-streak.png"
+    },
+    {
+      "id": "raindrop",
+      "label": "Raindrop",
+      "family": "Gloom",
+      "file": "raindrop.png"
+    },
+    {
+      "id": "teardrop",
+      "label": "Teardrop",
+      "family": "Gloom",
+      "file": "teardrop.png"
+    },
+    {
+      "id": "cloud-puff",
+      "label": "Cloud puff",
+      "family": "Extras",
+      "file": "cloud-puff.png"
+    },
+    {
+      "id": "exclamation-mark",
+      "label": "Exclamation mark",
+      "family": "Extras",
+      "file": "exclamation-mark.png"
+    },
+    {
+      "id": "flame",
+      "label": "Flame",
+      "family": "Extras",
+      "file": "flame.png"
+    },
+    {
+      "id": "heart-red",
+      "label": "Red heart",
+      "family": "Extras",
+      "file": "heart-red.png"
+    },
+    {
+      "id": "light-bulb",
+      "label": "Light bulb",
+      "family": "Extras",
+      "file": "light-bulb.png"
+    },
+    {
+      "id": "question-mark",
+      "label": "Question mark",
+      "family": "Extras",
+      "file": "question-mark.png"
+    },
+    {
+      "id": "sakura-blossom",
+      "label": "Sakura blossom",
+      "family": "Extras",
+      "file": "sakura-blossom.png"
+    },
+    {
+      "id": "zzz-sleep",
+      "label": "Sleep Zzz",
+      "family": "Extras",
+      "file": "zzz-sleep.png"
+    }
+  ]
+}

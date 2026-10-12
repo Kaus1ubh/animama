@@ -223,17 +223,26 @@ export type SceneEffectImageTarget =
   | { kind: "scatter"; index: number }
   | { kind: "tile" };
 
-/** Add a chosen image to `target`, switching that layer on. */
+/** The label an image item takes by default: its file name without extension. */
+export function sceneEffectImageItemLabel(filename: string): string {
+  return filename.replace(/\.[^.]+$/, "");
+}
+
+/**
+ * Add a chosen image to `target`, switching that layer on. The new item is
+ * labelled `label` (a sticker's label), by default the file's name.
+ */
 export function addSceneEffectImage(
   document: SceneEffectEditorDocument,
   image: SceneEffectEditorImage,
   target: SceneEffectImageTarget,
+  label?: string,
 ): SceneEffectEditorDocument {
   const background = document.background;
   const item: SceneEffectEditorMarqueeItem = {
     id: `private-${crypto.randomUUID().slice(0, 8)}`,
     kind: "image",
-    label: image.originalName.replace(/\.[^.]+$/, ""),
+    label: label ?? sceneEffectImageItemLabel(image.originalName),
     image,
   };
   if (target.kind === "tile")
@@ -448,8 +457,8 @@ export function validateSceneEffectDocument(
       "Reselect the Sound Effect so exact catalog content can be saved.",
     );
 
-  // Ranges and counts, as the backend checks them at Save (the duration is
-  // reported above in the creator's own terms).
+  // Ranges, counts and legacy Twemoji items, as the backend checks them at
+  // Save (the duration is reported above in the creator's own terms).
   for (const limit of sceneDefinitionLimitIssues(
     sceneEffectDefinition(document),
   ))
@@ -763,32 +772,30 @@ function hydrateMarqueeItem(
   }
   if (item.kind !== "emoji")
     throw new Error(`Marquee item ${index + 1} is unsupported.`);
+  // A Twemoji item, kept so the creator can show it as missing.
   return {
     id: String(item.id),
     kind: "emoji",
     label: String(item.label),
     emoji: String(item.emoji),
-    provider: "twemoji",
   };
 }
 
 function definitionItem(
   item: SceneEffectEditorMarqueeItem,
 ): Record<string, unknown> {
-  return item.kind === "image"
-    ? {
-        id: item.id,
-        kind: "image",
-        label: item.label,
-        image: item.image.logicalName,
-      }
-    : {
-        id: item.id,
-        kind: "emoji",
-        label: item.label,
-        emoji: item.emoji,
-        provider: "twemoji",
-      };
+  if (item.kind === "image")
+    return {
+      id: item.id,
+      kind: "image",
+      label: item.label,
+      image: item.image.logicalName,
+    };
+  // A legacy Twemoji item stays in the definition (the runtime skips it) and
+  // blocks Save until it is replaced; any other kind is a forged document.
+  if (item.kind === "emoji")
+    return { id: item.id, kind: "emoji", label: item.label, emoji: item.emoji };
+  throw new Error("The Scene item kind is unsupported.");
 }
 
 function issue(

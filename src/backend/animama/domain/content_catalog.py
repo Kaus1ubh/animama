@@ -65,6 +65,15 @@ class ContentKind(str, Enum):
 # and plays without it: its catalog row carries this diagnostic per removed
 # effect, and the edge is reported as a missing dependency, not a member.
 MISSING_EFFECT_DEPENDENCY = "missing_effect_dependency"
+# Animama no longer provides Twemoji. A Local Scene Effect saved with an
+# ``emoji`` marquee or scatter item stays valid and plays without the item; its
+# scan reports this diagnostic per item until its creator replaces or removes
+# it. Save, package import and Portable export refuse the item by this code.
+SCENE_EMOJI_ITEM_REMOVED = "scene_emoji_item_removed"
+# Scan diagnostics that leave Local content valid: it plays without the
+# removed part and is listed in Content Health. Included content is held to
+# the full contract, so the same diagnostic makes an Included entry invalid.
+LOCAL_TOLERATED_DIAGNOSTICS = frozenset({SCENE_EMOJI_ITEM_REMOVED})
 REMOVABLE_EFFECT_KINDS = frozenset({ContentKind.AVATAR_EFFECT, ContentKind.PARTICLE_EFFECT, ContentKind.SCENE_EFFECT})
 ACTION_KINDS = frozenset({ContentKind.GESTURE, ContentKind.REACTION})
 

@@ -134,6 +134,17 @@ saved before the removal outlive it. An invalid or ambiguous target, a Local
 ref, a sound, an Included Action or any other kind still invalidates the
 Action.
 
+Animama no longer provides Twemoji, so a Scene Effect `emoji` marquee or
+scatter item is refused everywhere except in Local content saved before the
+removal: the Local scan keeps such a Scene valid with one
+`scene_emoji_item_removed` diagnostic per item (`LOCAL_TOLERATED_DIAGNOSTICS`)
+and checks the rest of its definition as it plays, without those items. The
+same diagnostic invalidates an Included Scene. Save refuses an emoji item
+(`saved_content_invalid` with the item, such as `marquee.items.0`, as
+`field`); Portable export and package import refuse it with
+`scene_emoji_item_removed`, as they do a package declaring a retired
+`animama/twemoji/…` capability.
+
 `ORMContentMutationReceipt` stores successful Save, Delete, and Import results
 in the same database transaction as their catalog, owner, and provenance
 changes. An existing operation result is immutable: identical requests replay

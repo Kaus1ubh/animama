@@ -124,7 +124,7 @@ def test_authoring_resources_are_not_registered_as_typed_products(included: Path
 
     assert not any(locator.startswith("resources/") for locator in locators)
     assert not any(locator.startswith("vfx/avatar/misc/") for locator in locators)
-    assert (ROOT / "content/included/resources/scene-vfx/twemoji/2728.svg").is_file()
+    assert (ROOT / "content/included/resources/scene-vfx/stickers/stickers.json").is_file()
     assert not (ROOT / "content/included/vfx/avatar/misc").exists()
 
 

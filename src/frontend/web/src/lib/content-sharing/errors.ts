@@ -11,10 +11,12 @@ export class SharingError extends Error {
     status: number | null = null,
     items: readonly string[] = [],
   ) {
+    // A message that introduces item names ends with a colon; without names
+    // it ends the sentence instead.
     super(
       items.length
         ? `${sharingMessage(code)} ${items.join(", ")}.`
-        : sharingMessage(code),
+        : sharingMessage(code).replace(/:$/, "."),
     );
     this.code = code;
     this.status = status;
@@ -27,6 +29,8 @@ const messages: Record<string, string> = {
     "Some content comes with Animama for use only where it is installed, so it can't be exported or imported:",
   package_dependency_missing:
     "Some content uses an Included effect that was removed. Open it in its creator, map or remove those effect events, then export:",
+  scene_emoji_item_removed:
+    "Some Scene Effects use emoji, which Animama no longer provides. Open each in its creator, replace each emoji with a sticker or image or remove it, then export again:",
   package_transport_unavailable:
     "Animama could not be reached. Check the local app and retry.",
   package_invalid:

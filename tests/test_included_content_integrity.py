@@ -25,7 +25,12 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     assert by_glob["gestures/**/*.json"]["license_id"] == "LicenseRef-Animama-owner-authored"
     # Mixamo motion ships only as the separate non-portable pack (see below).
     assert not any(rule["license_id"] == "LicenseRef-Adobe-Mixamo-embedded-product" for rule in rules)
+    # The 26 Twemoji copies in the emotion backgrounds leave with those backgrounds.
     assert by_glob["vfx/scene/**/emoji-*.svg"]["license_id"] == "CC-BY-4.0-Twemoji-graphics"
+    # The Scene creator's built-in sticker set is owner-authored; Twemoji's mirror is gone.
+    assert by_glob["resources/scene-vfx/stickers/**"]["license_id"] == "LicenseRef-Animama-owner-authored"
+    assert not any(rule["glob"].startswith("resources/scene-vfx/twemoji") for rule in rules)
+    assert not any("resources/scene-vfx/twemoji" in rule["provenance"] for rule in rules)
     assert by_glob["vfx/particle/quark/**"]["license_id"] == "LicenseRef-Animama-generated-and-CC0-particle-VFX"
 
 

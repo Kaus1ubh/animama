@@ -78,12 +78,44 @@ describe("Scene definition projection", () => {
     });
     expect(entry.flash).toMatchObject({ enabled: true, durationMs: 260 });
     expect([...referencedImages].sort()).toEqual(["bokeh.png", "petal.png"]);
-    // Emoji scatter items resolve to their image, as marquee items do.
+    // Scatter items are the effect's own images, as marquee items are.
     const runtime = buildSceneVFXRuntimeEntry(entry);
     expect(
       runtime.entry.kind === "background_layers" &&
         runtime.entry.scatters?.[1].items[0],
-    ).toMatchObject({ kind: "emoji", src: expect.stringContaining("2728") });
+    ).toMatchObject({ kind: "png", src: "blob:bokeh.png" });
+  });
+
+  it("plays a Scene saved with Twemoji items without them, requesting nothing", () => {
+    // Animama no longer provides Twemoji; a Local Scene saved with an emoji
+    // item plays without it (its creator asks for a replacement).
+    const legacy = structuredClone(allLayers) as {
+      marquee: { items: unknown[] };
+      scatters: Array<{ items: unknown[] }>;
+    };
+    const emoji = {
+      id: "old",
+      kind: "emoji",
+      label: "Sparkles",
+      emoji: "\u2728",
+    };
+    legacy.marquee.items = [emoji, ...definition.marquee.items];
+    legacy.scatters[1].items = [{ ...emoji, provider: "twemoji" }];
+    const requested: string[] = [];
+    const { entry } = sceneEntryFromDefinition(
+      legacy,
+      { id: "old", label: "Old" },
+      (name) => {
+        requested.push(name);
+        return `blob:${name}`;
+      },
+    );
+    expect(requested.sort()).toEqual(["bokeh.png", "petal.png", "star.png"]);
+    const runtime = buildSceneVFXRuntimeEntry(entry).entry;
+    expect(runtime.kind).toBe("background_layers");
+    if (runtime.kind !== "background_layers") return;
+    expect(runtime.marquee.items.map((item) => item.kind)).toEqual(["png"]);
+    expect(runtime.scatters?.[1].items).toEqual([]);
   });
 
   it("refuses a tile whose image has no URL", () => {

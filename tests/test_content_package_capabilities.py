@@ -12,7 +12,6 @@ import pytest
 
 from animama.app.services.content_kind_registry import CONTENT_KIND_REGISTRY
 from animama.app.services.content_package_capabilities import (
-    BUILTIN_EMOJI,
     BUILTIN_POSES,
     derive_capabilities,
     derive_document_capabilities,
@@ -380,10 +379,8 @@ def test_svg_cannot_smuggle_executable_or_external_resources(payload: bytes) -> 
         derive_file_capabilities(document.kind, document, "effect.svg", io.BytesIO(payload))
 
 
-def test_builtin_capabilities_match_shared_inventory_and_shipped_resources() -> None:
+def test_builtin_capabilities_match_shared_inventory() -> None:
     assert BUILTIN_POSES == frozenset(FIXTURES["builtinPoses"])
-    emoji_root = Path(__file__).parents[1] / "content/included/resources/scene-vfx/twemoji"
-    assert BUILTIN_EMOJI == frozenset(path.stem for path in emoji_root.glob("*.svg"))
 
 
 @pytest.mark.parametrize("version", ["2.0", "1.1", None])

@@ -2,18 +2,12 @@ import { existsSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
+import rawCatalog from "@/assets/effects/scene-vfx/catalog.json";
+
 import {
-  SCENE_BACKGROUND_LINE_ITEMS,
-  SCENE_BACKGROUND_SVG_LINE_ITEMS,
-  resolveSceneBackgroundLineItem,
-} from "./assets";
-import {
-  getSceneBackgroundEmojiLineItems,
   getSceneBackgroundLayerPresetById,
   getSceneBackgroundLayerPresetIds,
-  getSceneBackgroundLineItemById,
-  getSceneBackgroundPngLineItems,
-  getSceneBackgroundSvgLineItems,
+  parseSceneVFXEntry,
 } from "./catalog";
 
 const includedRoot = fileURLToPath(
@@ -42,31 +36,6 @@ const BACKGROUND_EMOTIONS = [
   "sadness",
 ] as const;
 
-const FETCHED_TWEMOJI_CODEPOINTS = [
-  "1f929",
-  "1f917",
-  "1f3c5",
-  "1f451",
-  "1f64f",
-  "1f602",
-  "1f389",
-  "1f3af",
-  "1f914",
-  "1f305",
-  "26a0",
-  "1f4a6",
-  "1f4ab",
-  "1f4a2",
-  "1f44e",
-  "1f922",
-  "1f633",
-  "1f97a",
-  "1f61e",
-  "1f622",
-  "1f327",
-  "2753",
-] as const;
-
 describe("scene VFX catalog", () => {
   it("exposes the retained emotion background presets", () => {
     const presetIds = getSceneBackgroundLayerPresetIds();
@@ -79,44 +48,41 @@ describe("scene VFX catalog", () => {
       expect(preset).not.toBeNull();
       expect(preset?.id).toBe(presetId);
       expect(preset?.kind).toBe("background_layers");
-      expect(preset?.marquee.items.length).toBeGreaterThan(0);
     }
   });
 
-  it("keeps emoji line items resolvable without bundled custom artwork", () => {
-    const emojiItems = getSceneBackgroundEmojiLineItems();
-    const sparkles = getSceneBackgroundLineItemById("emoji-sparkles");
+  it("ships presets without line items, so each marquee starts empty", () => {
+    // The bundled catalog has no line items: its presets name none, and the
+    // creator adds stickers or private images to a preset's marquee.
+    expect(rawCatalog).not.toHaveProperty("backgroundLineItems");
+    for (const preset of rawCatalog.backgroundLayerPresets) {
+      expect(preset.entry.marquee).not.toHaveProperty("itemIds");
+      expect(
+        getSceneBackgroundLayerPresetById(preset.presetId)?.marquee.items,
+      ).toEqual([]);
+    }
+  });
 
-    expect(getSceneBackgroundPngLineItems()).toEqual([]);
-    expect(getSceneBackgroundSvgLineItems()).toEqual([]);
-    expect(emojiItems.some((item) => item.id === "emoji-sparkles")).toBe(true);
-    expect(resolveSceneBackgroundLineItem(sparkles!)).toEqual({
-      id: "emoji-sparkles",
-      kind: "emoji",
-      emoji: "\u2728",
-      label: "Sparkles \u2728",
-      provider: "twemoji",
-      src: "/effects/resources/scene-vfx/twemoji/2728.svg",
+  it("skips a legacy emoji item in a runtime entry and refuses unknown kinds", () => {
+    const preset = getSceneBackgroundLayerPresetById("scene-vfx-emotion-joy")!;
+    const png = { id: "star", kind: "png", label: "Star", src: "blob:star" };
+    const legacy = { id: "old", kind: "emoji", label: "Old", emoji: "\u2728" };
+    const entry = parseSceneVFXEntry({
+      ...preset,
+      marquee: { ...preset.marquee, items: [legacy, png] },
     });
+    expect(entry.kind === "background_layers" && entry.marquee.items).toEqual([
+      png,
+    ]);
+    expect(() =>
+      parseSceneVFXEntry({
+        ...preset,
+        marquee: { ...preset.marquee, items: [{ ...png, kind: "gif" }] },
+      }),
+    ).toThrow();
   });
 
-  it("still resolves user-supplied PNG and SVG line items directly", () => {
-    for (const kind of ["png", "svg"] as const) {
-      const item = {
-        id: `preview-${kind}`,
-        kind,
-        src: `/effects/scene-vfx/${kind}/preview.${kind}`,
-        label: `Preview ${kind}`,
-      };
-      expect(resolveSceneBackgroundLineItem(item)).toEqual(item);
-    }
-  });
-
-  it("does not export retired custom artwork or scene presets", () => {
-    expect(SCENE_BACKGROUND_SVG_LINE_ITEMS).toEqual([]);
-    expect(
-      SCENE_BACKGROUND_LINE_ITEMS.every((item) => item.kind === "emoji"),
-    ).toBe(true);
+  it("does not export retired scene presets", () => {
     const retiredIds = [
       "chaos-chibi",
       ...["annoyance", "caring", "confusion", "desire", "remorse"].map(
@@ -129,13 +95,9 @@ describe("scene VFX catalog", () => {
     }
   });
 
-  it("has mirrored Twemoji assets for fetched emotion emoji", () => {
-    for (const codepoint of FETCHED_TWEMOJI_CODEPOINTS) {
-      expect(
-        existsSync(
-          `${includedRoot}/resources/scene-vfx/twemoji/${codepoint}.svg`,
-        ),
-      ).toBe(true);
-    }
+  it("ships no Twemoji mirror", () => {
+    expect(existsSync(`${includedRoot}/resources/scene-vfx/twemoji`)).toBe(
+      false,
+    );
   });
 });

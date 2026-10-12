@@ -2,7 +2,6 @@ import {
   getSceneFocusLinesVFXPresetById,
   getSceneVFXPresetById,
 } from "@/lib/scene-vfx/presets";
-import type { SceneBackgroundLineItem } from "@/lib/scene-vfx/types";
 import type {
   SceneBackgroundLinesScreen,
   SceneBackgroundRaysScreen,
@@ -10,7 +9,6 @@ import type {
 import type {
   SceneEffectEditorBackground,
   SceneEffectEditorDocument,
-  SceneEffectEditorMarqueeItem,
   SceneEffectEditorFocus,
   SceneEffectEditorScatter,
   SceneEffectTemplateId,
@@ -225,10 +223,9 @@ function defaultBackground(
     ...defaultSceneOptionalLayers(),
     solid: { ...entry.solid },
     pattern: { ...entry.pattern },
-    marquee: {
-      ...entry.marquee,
-      items: entry.marquee.items.flatMap(toPortableItem),
-    },
+    // A bundled preset's items are not the draft's own images (its Twemoji
+    // items were removed), so a template starts with none.
+    marquee: { ...entry.marquee, items: [] },
   };
 }
 
@@ -253,19 +250,4 @@ function defaultFocus(
     animation: { ...entry.animation },
     seed: entry.seed ?? null,
   };
-}
-
-function toPortableItem(
-  item: SceneBackgroundLineItem,
-): SceneEffectEditorMarqueeItem[] {
-  if (item.kind !== "emoji") return [];
-  return [
-    {
-      id: item.id,
-      kind: "emoji",
-      label: item.label,
-      emoji: item.emoji,
-      provider: "twemoji",
-    },
-  ];
 }

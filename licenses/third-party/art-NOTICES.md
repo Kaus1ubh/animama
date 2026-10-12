@@ -7,8 +7,8 @@ Final source and binary publication approvals remain separate.
 
 ## Twemoji
 
-Copyright Twitter, Inc. and other contributors. The 28 authoring SVGs and their
-26 retained scene copies are unchanged Twemoji v14.0.2 graphics, licensed under
+Copyright Twitter, Inc. and other contributors. The 26 SVGs in the emotion
+backgrounds' marquees are unchanged Twemoji v14.0.2 graphics, licensed under
 [CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The full text is
 [art-CC-BY-4.0.txt](art-CC-BY-4.0.txt). Source and per-file mappings:
 [Twitter Twemoji v14.0.2](https://github.com/twitter/twemoji/tree/v14.0.2) and
