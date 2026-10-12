@@ -1,0 +1,32 @@
+id: safety-ai-notice-run-reply
+event: safety.ai_notice
+data: {"type": "safety.ai_notice", "run_id": "run-reply", "kind": "start", "anima_name": "Mika"}
+
+id: user-response-stream-speech-0-run-reply
+event: user.response
+data: {"event_id": "user-response-stream-speech-0-run-reply", "run_id": "run-reply", "node_id": "direct-chat:model-client", "text": "Good morning!", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false, "tokenized_text": "Good morning!", "phonemized_text": [["\u0261", "\u02c8\u028a", "d"], ["m", "\u02c8\u0254", "\u0279", "n", "\u026a", "\u014b"]]}
+
+id: user-response-stream-speech-1-run-reply
+event: user.response
+data: {"event_id": "user-response-stream-speech-1-run-reply", "run_id": "run-reply", "node_id": "direct-chat:model-client", "text": " Shall we have tea?", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 1, "part_final": true, "tokenized_text": "Shall we have tea?", "phonemized_text": [["\u0283", "\u02c8\u00e6", "l"], ["w", "\u02c8i"], ["h", "\u02c8\u00e6", "v"], ["t", "\u02c8i"]]}
+
+id: avatar-gesture-run-reply
+event: avatar.gesture.requested
+data: {"event_id": "avatar-gesture-run-reply", "run_id": "run-reply", "node_id": "direct-chat:model-client", "gesture": "wave", "runtime_revision": "tr1-golden"}
+
+id: emotion-update-run-reply-direct-chat:model-client
+event: emotion.update
+data: {"event_id": "emotion-update-run-reply-direct-chat:model-client", "run_id": "run-reply", "node_id": "direct-chat:model-client", "emotions": [{"emotion": "admiration", "value": 0}, {"emotion": "caring", "value": 6}, {"emotion": "love", "value": 0}, {"emotion": "respect", "value": 0}, {"emotion": "confidence", "value": 0}, {"emotion": "gratitude", "value": 0}, {"emotion": "amusement", "value": 0}, {"emotion": "excitement", "value": 0}, {"emotion": "joy", "value": 13}, {"emotion": "desire", "value": 0}, {"emotion": "curiosity", "value": 8}, {"emotion": "optimism", "value": 0}, {"emotion": "fear", "value": 0}, {"emotion": "nervousness", "value": 0}, {"emotion": "confusion", "value": 0}, {"emotion": "anger", "value": 0}, {"emotion": "annoyance", "value": 0}, {"emotion": "disapproval", "value": 0}, {"emotion": "disgust", "value": 0}, {"emotion": "embarrassment", "value": 0}, {"emotion": "remorse", "value": 0}, {"emotion": "disappointment", "value": 0}, {"emotion": "grief", "value": 0}, {"emotion": "sadness", "value": 2}], "emotional_tone": "joy", "emotional_intensity": 1, "promoted_emotion": "joy", "demoted_emotion": "disappointment"}
+
+id: memory-updated-run-reply
+event: memory.updated
+data: {"type": "memory.updated", "run_id": "run-reply", "message_id": "<id>", "memory_cue": {"episode": {"text": "The owner starts the day with tea."}, "memories": null}}
+
+id: chat-title-updated-run-reply
+event: chat.title.updated
+data: {"type": "chat.title.updated", "run_id": "run-reply", "chat_id": "chat-reply-<name-0>", "title": "Morning Tea"}
+
+id: run-completed-run-reply
+event: run.completed
+data: {"run_id": "run-reply", "chat_id": "chat-reply-<name-0>"}
+

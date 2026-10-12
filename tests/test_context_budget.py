@@ -31,7 +31,24 @@ def test_budget_reserves_the_recorded_maximum_output() -> None:
     assert budget is not None
     assert budget.available_tokens == 30_000
     assert budget.pre_send_trigger_tokens == 27_000
-    assert budget.post_response_trigger_tokens == 22_500
+    # 70% of the 32,000 window (22,400) is below 75% of the 30,000 left after the reply (22,500).
+    assert budget.post_response_trigger_tokens == 22_400
+
+
+def test_post_response_trigger_is_seventy_percent_of_the_window() -> None:
+    budget = context_budget_for_model(_row(128_000))
+
+    assert budget is not None
+    assert budget.post_response_trigger_tokens == int(128_000 * 0.7)
+
+
+def test_post_response_trigger_keeps_room_before_the_pre_send_trigger_when_the_reply_reserve_is_large() -> None:
+    # A large reply reserve leaves less room; 75% of it stays below the pre-send trigger.
+    budget = context_budget_for_model(_row(200_000, max_output=128_000))
+
+    assert budget is not None
+    assert budget.post_response_trigger_tokens == int(72_000 * 0.75)
+    assert budget.post_response_trigger_tokens < budget.pre_send_trigger_tokens
 
 
 def test_budget_reserves_a_quarter_of_small_windows_up_to_4096() -> None:

@@ -11,14 +11,40 @@ Product routes every composition serves live in `animama.product_http` ([ADR
 0021](../docs/adr/0021-shared-product-http-routes.md)). A consumer mounts
 `animama.product_http.routes.ROUTERS` from the published wheel, installs its own
 `ProductPorts` (owner sessions under its commit authority, repositories, content
-services and byte delivery) and sets its request-principal resolver as
-`app.state.request_principal_resolver`; without either, shared routes answer 503.
-Its content port decides package admission: a composition that withholds Anima
-creation builds `ContentPackageService(allow_anima_import=False)`. The route
-inventory marks each route shared, local-only or withheld by a capability; shared
-routes of later stages remain consumer-owned until they move. Shared byte routes
-answer GET only: a consumer that serves HEAD or Range for them adds those through
-its own delivery port or routes.
+services and byte delivery, upload storage, speech, the model catalog policy, role
+defaults and embedding refresh status, the Memory Manager service, and the chat
+policy, chat-turn guard and turn collaborators) and sets its request-principal
+resolver as `app.state.request_principal_resolver`; without either, shared routes
+answer 503. Its content port decides package admission: a
+composition that withholds Anima creation builds
+`ContentPackageService(allow_anima_import=False)`. A composition that serves only
+its own catalog sets `ModelCatalogPolicy(validate_role_preferences=True)`, so
+settings writes refuse a role preference its catalog cannot serve
+(`422 model_role_unavailable`). Its speech port refuses an operation it does not
+offer, and its Memory Manager port may wrap each operation with its own admission;
+either refuses with `ProductRefusal`, which the route reports as `detail.code`
+with the refusal's status. The route
+inventory marks each route shared, local-only or withheld by a capability. Shared
+byte routes answer GET only: a consumer that serves HEAD or Range for them adds
+those through its own delivery port or routes.
+
+`POST /v1/animas/{anima_id}/chat:sse` asks the consumer's guard to admit each turn
+(`admit_chat_turn`) after the Anima ownership and runtime-revision checks and
+before any write or model call; a refusal is a `ProductRefusal` (reported as
+`detail.code` with its status) or the consumer's own exception. It then runs the
+turn with the consumer's model clients,
+web search, attachment embedder and speech (`chat_turn`). The guard's lease is
+checked while the model streams and before each step after the reply, and settled
+exactly once, after every turn task stopped, as `unstarted`, `completed`, `failed`
+or `interrupted`; a stop before the reply is saved ends the turn with an error
+frame carrying its code and message ([chat-turn
+guard](../docs/backend/runtime/chat.md#chat-turn-guard)). The chat policy's
+`public_error_text` replaces the text and details of `error` frames; speech error
+frames carry the speech port's own messages, so it raises only browser-safe ones,
+and a speech decline (`ProductRefusal`, such as `speech_allowance_exhausted`)
+keeps its code in `tts.session.error` or `tts.error`.
+Frames carry gruut phoneme payloads only where the wheel's `server` extra is
+installed.
 
 ## Admission and browser lifetime
 
@@ -138,11 +164,11 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **3.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **4.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.3.1 and
-`product-ui` is version 0.7.0. Consumers explicitly admit
+surface, not another wire schema. `runtime-contracts` is version 0.4.0 and
+`product-ui` is version 0.8.0. Consumers explicitly admit
 the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:

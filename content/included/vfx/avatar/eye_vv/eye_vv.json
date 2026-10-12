@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Eye VV",
   "description": "Squeezed-shut \"> <\" eyes for flustered, giggly, or bashful delight.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:cute_chirpy_03",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "eyes",
@@ -26,7 +33,8 @@
       "hideParts": [
         "eye_highlight"
       ]
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

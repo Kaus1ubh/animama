@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Eye Confused Swirl",
   "description": "Swirling eye hover for confusion, dizziness, or anxious uncertainty.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:wobble_riser_01v2",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "eyes",
@@ -32,7 +39,8 @@
       "hideParts": [
         "eye_highlight"
       ]
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

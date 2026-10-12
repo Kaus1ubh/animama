@@ -129,7 +129,27 @@ def test_authoring_resources_are_not_registered_as_typed_products(included: Path
 
 
 def test_every_included_sound_dependency_resolves_to_a_shipped_sound(included: Path) -> None:
-    """Effects and Actions cannot depend on an omitted private sound pack."""
+    """Required sound edges resolve here; optional ones name a sound in the private pack.
+
+    The scan drops optional edges whose sound isn't mounted, so they are checked
+    against the tracked pack manifest in the raw descriptors instead.
+    """
+
+    manifest = json.loads(
+        (ROOT / "src/backend/animama/resources/wow-comedy-sfx-manifest.json").read_text(encoding="utf-8")
+    )
+    pack_keys = {
+        "builtin:sound-effect:" + Path(item["path"]).stem for item in manifest["files"] if item["path"].endswith(".ogg")
+    }
+    optional = sorted(
+        {
+            edge["ref"]
+            for path in included.rglob("*.json")
+            for edge in _raw_dependencies(path)
+            if edge.get("optional") is True
+        }
+    )
+    assert set(optional) <= pack_keys, sorted(set(optional) - pack_keys)
 
     entries = _scan_included(included)
     sound_keys = {
@@ -182,3 +202,12 @@ def test_avatar_effects_require_authored_definitions_and_preserve_support_images
     assert all(entry.status is ContentStatus.VALID and entry.metadata.get("definition") for entry in effects)
     eye = next(entry for entry in effects if entry.logical_key == "builtin:avatar-effect:eye")
     assert any(file.role == "image" for file in eye.files)
+
+
+def _raw_dependencies(path: Path) -> list[dict[str, Any]]:
+    try:
+        value = json.loads(path.read_text(encoding="utf-8"))
+    except (UnicodeDecodeError, json.JSONDecodeError):
+        return []
+    dependencies = value.get("dependencies") if isinstance(value, dict) else None
+    return [edge for edge in dependencies or [] if isinstance(edge, dict)]

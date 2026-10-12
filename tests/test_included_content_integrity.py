@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 from tests.anima_creation_service_support import copy_tracked_included
 
@@ -44,23 +47,38 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     assert len(particle_rules) == len(list((ROOT / "content/included/vfx/particle/quark").iterdir()))
 
 
-def test_mixamo_motion_pack_inventory_is_public_safe_and_non_portable() -> None:
-    inventory = json.loads((ROOT / "scripts/mixamo-motion/inventory.json").read_text(encoding="utf-8"))
-    manifest = json.loads(
-        (ROOT / "src/backend/animama/resources/mixamo-motion-manifest.json").read_text(encoding="utf-8")
-    )
+@pytest.mark.parametrize(
+    ("pack_id", "license_id"),
+    [
+        ("mixamo-motion", "LicenseRef-Adobe-Mixamo-embedded-product"),
+        ("wow-comedy-sfx", "LicenseRef-WOW-Sound-Media-embedded-product"),
+    ],
+)
+def test_private_pack_inventories_are_public_safe_and_non_portable(pack_id: str, license_id: str) -> None:
+    inventory = json.loads((ROOT / f"scripts/{pack_id}/inventory.json").read_text(encoding="utf-8"))
+    manifest = json.loads((ROOT / f"src/backend/animama/resources/{pack_id}-manifest.json").read_text(encoding="utf-8"))
 
     assert inventory["schema_version"] == 1
     [rule] = inventory["rules"]
     # One rule matching every locator and file, so runtime and staging agree.
     assert rule["glob"] == "**"
     assert rule["distribution"] == "non-portable"
-    assert rule["license_id"] == "LicenseRef-Adobe-Mixamo-embedded-product"
+    assert rule["license_id"] == license_id
     assert rule["redistribution_review"] == "pending"
     text = json.dumps(inventory)
     assert "@" not in text and "/Users/" not in text and "X-Amz" not in text
-    assert manifest["pack_id"] == "mixamo-motion"
+    assert manifest["pack_id"] == pack_id
     assert all(set(item) == {"path", "size_bytes", "sha256"} for item in manifest["files"])
+
+
+def test_the_preview_deny_list_holds_hashes_only() -> None:
+    deny = json.loads(
+        (ROOT / "src/backend/animama/resources/wow-comedy-sfx-preview-deny.json").read_text(encoding="utf-8")
+    )
+
+    assert deny["schema_version"] == 1
+    assert deny["files"]
+    assert all(set(item) == {"size_bytes", "sha256"} for item in deny["files"])
 
 
 def test_typed_media_moved_but_browser_engine_assets_remained_public(tmp_path: Path) -> None:
@@ -124,3 +142,44 @@ def test_every_reaction_emotion_has_a_variant_with_an_avatar_effect() -> None:
         emotions[emotion] = emotions.get(emotion, False) or has_effect
     assert len(emotions) == 24
     assert [emotion for emotion, has_effect in emotions.items() if not has_effect] == []
+
+
+def test_every_included_avatar_effect_has_one_optional_licensed_sound() -> None:
+    """Each built-in Avatar Effect plays one sound from the private comedy pack."""
+
+    manifest = json.loads(
+        (ROOT / "src/backend/animama/resources/wow-comedy-sfx-manifest.json").read_text(encoding="utf-8")
+    )
+    shipped = {item["path"] for item in manifest["files"]}
+    effects = sorted((ROOT / "content/included/vfx/avatar").glob("*/*.json"))
+    assert effects
+    referenced: set[str] = set()
+    for path in effects:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        [edge] = document["dependencies"]
+        assert edge["content_type"] == "sound_effect" and edge["optional"] is True, path.name
+        assert document["definition"]["soundAlias"] == edge["alias"], path.name
+        key = edge["ref"].removeprefix("builtin:sound-effect:")
+        assert {f"sfx/wow-comedy/{key}.ogg", f"sfx/wow-comedy/{key}.meta.json"} <= shipped, path.name
+        referenced.add(key)
+    # Only sounds that built-in effects use are shipped (owner decision Q3).
+    expected = {f"sfx/wow-comedy/{key}{suffix}" for key in referenced for suffix in (".ogg", ".meta.json")}
+    assert shipped == expected
+
+
+def test_stacked_avatar_effects_play_one_accompanying_sound_at_a_time() -> None:
+    """Effects applied together would otherwise play their sounds over each other."""
+
+    for path in sorted((ROOT / "content/included").glob("*/*/*.json")):
+        if path.parts[-3] not in {"reactions", "gestures"}:
+            continue
+        document = json.loads(path.read_text(encoding="utf-8"))
+        events = document.get("events") if isinstance(document, dict) else None
+        if not isinstance(events, list):
+            continue
+        audible = sorted(
+            float(event.get("time", 0))
+            for event in events
+            if event.get("kind") == "avatar_vfx" and event.get("playAccompanyingSound", True)
+        )
+        assert all(later - earlier >= 0.3 for earlier, later in pairwise(audible)), path.name

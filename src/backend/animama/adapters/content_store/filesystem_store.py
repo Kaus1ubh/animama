@@ -37,6 +37,7 @@ from animama.app.services.content_kind_registry import (
     is_descriptor_path,
     media_type_for,
     parse_json_object,
+    resolve_optional_dependencies,
     validate_descriptor,
     validate_metadata_sidecar,
     validate_standalone_file,
@@ -600,13 +601,21 @@ class FilesystemContentStore(ContentStore):
         )
 
     def scan(self, source: ContentSource) -> list[ScannedContentEntry]:
-        """Authoritatively scan registered roots while isolating entry failures."""
+        """Authoritatively scan registered roots while isolating entry failures.
 
+        Optional edges resolve against everything Included this store mounts,
+        so a missing private pack leaves its effects valid and silent.
+        """
+
+        entries = self._scan_entries(source)
+        return resolve_optional_dependencies(entries) if source is ContentSource.INCLUDED else entries
+
+    def _scan_entries(self, source: ContentSource) -> list[ScannedContentEntry]:
         if source is ContentSource.INCLUDED and self._included_sources:
             result: list[ScannedContentEntry] = []
             identities: dict[str, str] = {}
             for mount_id, store in self._included_stores.items():
-                for entry in store.scan(source):
+                for entry in store._scan_entries(source):
                     for identity in (entry.relative_locator, entry.logical_key):
                         if identity is None:
                             continue

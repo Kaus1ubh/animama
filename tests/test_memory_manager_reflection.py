@@ -17,11 +17,9 @@ from animama.adapters.memory_manager import (
     MemoryManagerVirtualWorkspace,
     OpenAIAgentsMemoryManagerRuntime,
 )
-from animama.adapters.memory_manager.openai_agents_runtime import (
-    _approval_required_patch_editor,
-    _max_turns_for_run,
-)
+from animama.adapters.memory_manager.openai_agents_runtime import _approval_required_patch_editor
 from animama.adapters.memory_manager.reflection import ReflectionTurnReader, reflection_task_or_none
+from animama.adapters.memory_manager.runtime_support import max_turns_for_run
 from animama.adapters.repositories.sqlalchemy.anima_memory_reflection_repo import (
     SQLAlchemyAnimaMemoryReflectionRepository,
 )
@@ -61,9 +59,11 @@ from animama.orm import (
     ORMMemoryManagerRun,
     ORMUserSettings,
 )
-from animama.product_http.routes import animas as anima_router, memory as memory_entries_router
-from animama.server.model_roles import ModelRoleSettings
-from animama.server.routers import memory_manager as memory_manager_router
+from animama.product_http.routes import (
+    animas as anima_router,
+    memory as memory_entries_router,
+    memory_manager as memory_manager_router,
+)
 from animama.server.schemas.memory_entry import PyMemoryEntryCreateRequest, PyMemoryEntryPatchRequest
 from animama.server.schemas.memory_manager import (
     PyMemoryManagerApprovalDecisionRequest,
@@ -72,12 +72,12 @@ from animama.server.schemas.memory_manager import (
     PyMemoryManagerRunCreateRequest,
     PyMemoryManagerRunResponse,
 )
-from tests.product_http_support import TEST_POLICY
+from tests.product_http_support import TEST_POLICY, local_ports
 
 _START = datetime(2026, 9, 1, 12, 0)
 
 
-_LOCAL_ROLES = ModelRoleSettings(owner_roles_enabled=True)
+_LOCAL_PORTS = local_ports()
 
 
 def _user(user_id: str) -> RequestPrincipal:
@@ -213,7 +213,7 @@ async def _reflect(
         PyMemoryManagerReflectionRunCreateRequest(anima_id=anima_id, auto_approve_diffs=auto_approve_diffs),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
 
@@ -223,7 +223,7 @@ async def _decide(async_session, *, user_id: str, approval_id: str, decision: Li
         PyMemoryManagerApprovalDecisionRequest(decision=decision),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
 
@@ -324,7 +324,7 @@ async def test_reflection_reads_only_this_animas_uncovered_update_enabled_turns(
     )["ok"] is False
 
     current = await memory_manager_router.get_current_memory_manager_run(
-        session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert current is not None and current.run.reflection == started.run.reflection
 
@@ -373,7 +373,7 @@ async def test_applying_a_reflection_covers_its_turns_for_the_next_reflection(as
     assert "Third talk (1 turn reflected)" in (second.approvals[0].preview.new_content or "")
     # The earlier run is superseded, not reopened.
     earlier = await memory_manager_router.get_memory_manager_run(
-        first.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        first.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert earlier.run.status == "completed"
 
@@ -411,7 +411,7 @@ async def test_reflect_with_nothing_uncovered_creates_no_run(async_session, clea
     )
     await async_session.commit()
     active = await memory_manager_router.create_memory_manager_run(
-        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
 
     with pytest.raises(HTTPException) as error:
@@ -420,7 +420,7 @@ async def test_reflect_with_nothing_uncovered_creates_no_run(async_session, clea
     assert error.value.status_code == 409
     assert error.value.detail == "There are no new turns with Annie to reflect on"
     current = await memory_manager_router.get_current_memory_manager_run(
-        session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert current is not None and current.run.id == active.run.id and current.run.status == "active"
     runs = (
@@ -450,7 +450,7 @@ async def test_reflect_rejects_missing_foreign_or_unrepaired_animas_and_pending_
         PyMemoryManagerRunCreateRequest(message="Update people/beth.md with a note."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert pending.approvals[0].status == "pending"
     with pytest.raises(HTTPException) as conflict:
@@ -498,7 +498,7 @@ async def test_reflection_reads_the_oldest_400_turns_and_leaves_the_rest(async_s
     assert last_page["turns"][-1]["user"] == "Turn 400"
     assert (await reader.read_page(9))["turns"] == []
     run = await _run_domain(async_session, user_id=user_id, run_id=first.run.id)
-    assert _max_turns_for_run(run) == 16
+    assert max_turns_for_run(run) == 16
 
     await _decide(async_session, user_id=user_id, approval_id=first.approvals[0].id, decision="approve")
     rest = await _reflect(async_session, user_id=user_id, anima_id=anima_id)
@@ -525,10 +525,10 @@ async def test_rejected_superseded_or_conflicting_reflections_change_nothing(asy
 
     # Abandoning: a new conversation supersedes the Reflection without covering its turns.
     await memory_manager_router.create_memory_manager_run(
-        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        PyMemoryManagerRunCreateRequest(), session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     superseded = await memory_manager_router.get_memory_manager_run(
-        rejected_run.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        rejected_run.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert superseded.run.status == "completed"
     assert superseded.run.metadata["completion_reason"] == "superseded_by_new_run"
@@ -547,7 +547,7 @@ async def test_rejected_superseded_or_conflicting_reflections_change_nothing(asy
         await _decide(async_session, user_id=user_id, approval_id=conflicting.approvals[0].id, decision="approve")
     assert stale.value.status_code == 409
     after_conflict = await memory_manager_router.get_memory_manager_run(
-        conflicting.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        conflicting.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert after_conflict.approvals[0].status == "pending"
     assert (await _memories(async_session, user_id=user_id, entry_id=memories_id)).content == (
@@ -579,7 +579,7 @@ async def test_undo_restores_memories_and_the_previous_coverage(async_session, c
     assert moved.covered_through > first_coverage.covered_through
 
     undone = await memory_manager_router.undo_memory_manager_approval(
-        second_approval.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        second_approval.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert undone.deleted is False
     assert (await _memories(async_session, user_id=user_id, entry_id=memories_id)).content == after_first.content
@@ -598,7 +598,7 @@ async def test_undo_restores_memories_and_the_previous_coverage(async_session, c
     solo = await _reflect(async_session, user_id=solo_user, anima_id=solo_anima, auto_approve_diffs=True)
     assert solo.approvals[0].status == "approved"
     await memory_manager_router.undo_memory_manager_approval(
-        solo.approvals[0].id, session=async_session, user=_user(solo_user), roles=_LOCAL_ROLES
+        solo.approvals[0].id, session=async_session, user=_user(solo_user), ports=_LOCAL_PORTS
     )
     assert await _coverage(async_session, user_id=solo_user, anima_id=solo_anima) is None
     assert (await _memories(async_session, user_id=solo_user, entry_id=solo_memories)).content == template.content
@@ -695,7 +695,7 @@ async def test_reflection_can_change_only_its_own_animas_memories(async_session,
         PyMemoryManagerMessageCreateRequest(content=f"Update animas/{other_id}/MEMORIES.md"),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert follow_up.approvals[-1].status == "rejected"
     assert "could not prepare" in follow_up.messages[-1].content
@@ -792,7 +792,7 @@ async def test_general_run_edits_memories_without_moving_coverage(async_session,
         ),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     assert run.run.kind == "general" and run.run.reflection is None
@@ -899,7 +899,7 @@ async def test_live_runtime_offers_turn_reading_and_own_memories_only_in_reflect
     assert isinstance(general_agent.instructions, str)
     assert "# Reflection mode" not in general_agent.instructions
     assert f"animas/{other_id}/MEMORIES.md" in general_agent.instructions
-    assert _max_turns_for_run(general_run) == 8
+    assert max_turns_for_run(general_run) == 8
 
 
 @pytest.mark.asyncio
@@ -993,7 +993,7 @@ async def test_reflection_approval_conflicts_when_coverage_moved_after_it_starte
         "Reflection coverage for Annie changed after this Reflection started; reject the proposal and reflect again"
     )
     snapshot = await memory_manager_router.get_memory_manager_run(
-        started.run.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        started.run.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
     assert snapshot.approvals[0].status == "pending"
     after = await _memories(async_session, user_id=user_id, entry_id=memories_id)
@@ -1020,13 +1020,13 @@ async def test_undo_keeps_coverage_while_another_change_from_the_run_stands(asyn
         PyMemoryManagerMessageCreateRequest(content=f"Update animas/{anima_id}/MEMORIES.md with our picnic song."),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     second = await _decide(async_session, user_id=user_id, approval_id=follow_up.approvals[-1].id, decision="approve")
     assert second.status == "approved" and second.can_undo is True
 
     undone = await memory_manager_router.undo_memory_manager_approval(
-        second.id, session=async_session, user=_user(user_id), roles=_LOCAL_ROLES
+        second.id, session=async_session, user=_user(user_id), ports=_LOCAL_PORTS
     )
 
     assert undone.deleted is False

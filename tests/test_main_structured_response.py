@@ -18,8 +18,8 @@ from animama.app.main_structured_response import (
     validate_main_structured_gesture,
 )
 from animama.app.voice_emotional_tone import ELEVENLABS_EMOTIONAL_TONE_VALUES
-from animama.server.chat_options import merge_chat_request_options
-from animama.server.routers.chat.tts import elevenlabs_finalized_tts_chunking
+from animama.product_http.chat.options import merge_chat_request_options
+from animama.product_http.chat.tts import elevenlabs_finalized_tts_chunking
 
 TEST_RUNTIME_GESTURE_IDS = ("wave", "thoughtful_pose")
 

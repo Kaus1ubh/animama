@@ -9,12 +9,16 @@ from animama.utils.type_helpers import coerce_provider_type
 
 MODEL_CLIENT_OPENAI_CHAT_COMPLETIONS = "openai_chat_completions"
 MODEL_CLIENT_OPENAI_RESPONSES = "openai_responses"
+MODEL_CLIENT_ANTHROPIC_MESSAGES = "anthropic_messages"
 
 CHAT_API_STANDARD_CHAT_COMPLETIONS = "chat_completions"
 CHAT_API_STANDARD_RESPONSES = "responses"
+CHAT_API_STANDARD_ANTHROPIC_MESSAGES = "anthropic_messages"
 
 OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE = "OpenAIHTTPAgent"
 OPENAI_RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent"
+ANTHROPIC_MESSAGES_PROVIDER_TYPE = "AnthropicMessagesHTTPAgent"
+"""Anthropic's Messages API, served only by the built-in ``anthropic`` connection."""
 
 
 @dataclass(frozen=True, slots=True)
@@ -39,6 +43,11 @@ def chat_api_standard_for_provider_type(provider_type: str) -> ChatApiStandardPr
             model_client=MODEL_CLIENT_OPENAI_RESPONSES,
             api_standard=CHAT_API_STANDARD_RESPONSES,
         )
+    if normalized == ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+        return ChatApiStandardProfile(
+            model_client=MODEL_CLIENT_ANTHROPIC_MESSAGES,
+            api_standard=CHAT_API_STANDARD_ANTHROPIC_MESSAGES,
+        )
     return None
 
 
@@ -49,10 +58,15 @@ def chat_api_standard_for_provider(model_provider: ModelProvider) -> ChatApiStan
 
 
 __all__ = [
+    "ANTHROPIC_MESSAGES_PROVIDER_TYPE",
+    "CHAT_API_STANDARD_ANTHROPIC_MESSAGES",
     "CHAT_API_STANDARD_CHAT_COMPLETIONS",
     "CHAT_API_STANDARD_RESPONSES",
+    "MODEL_CLIENT_ANTHROPIC_MESSAGES",
     "MODEL_CLIENT_OPENAI_CHAT_COMPLETIONS",
     "MODEL_CLIENT_OPENAI_RESPONSES",
+    "OPENAI_CHAT_COMPLETIONS_PROVIDER_TYPE",
+    "OPENAI_RESPONSES_PROVIDER_TYPE",
     "ChatApiStandardProfile",
     "chat_api_standard_for_provider",
     "chat_api_standard_for_provider_type",

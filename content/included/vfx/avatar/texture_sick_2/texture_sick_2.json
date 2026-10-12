@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Texture Sick 2",
   "description": "Uneasy face overlay variant for lingering disgust or stressed discomfort.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:wobble_riser_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "full_face",
@@ -16,7 +23,8 @@
     },
     "art": {
       "image": "texture_sick_2.png"
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

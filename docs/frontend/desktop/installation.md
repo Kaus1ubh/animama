@@ -42,12 +42,13 @@ require Docker, Python, Node.js, PostgreSQL, Homebrew or a source checkout.
 4. Setup has three steps. **Welcome** asks what Animama should call you and
    for the 18+ confirmation; a nonblank name is private personalization, not a
    username or credential.
-5. **AI** chooses the model your Animas chat with: **Cloud** (OpenAI with your
-   key, or another provider) or **Local** (a running Ollama, LM Studio,
-   llama.cpp or vLLM server, or a custom one), each with a tab per provider.
-   A local server's tab looks for it when opened. The model you set up last
-   (saving the OpenAI key, or adding a model) becomes the default Chat model,
-   and the starter Animas switch to it. **Skip for now** keeps the default.
+5. **AI** chooses the model your Animas chat with: **Cloud** (OpenAI or
+   Anthropic with your key, or another provider) or **Local** (a running
+   Ollama, LM Studio, llama.cpp or vLLM server, or a custom one), each with a
+   tab per provider. A local server's tab looks for it when opened. The model
+   you set up last (saving the OpenAI key, saving the Anthropic key for Claude
+   Haiku 5.5, or adding a model) becomes the default Chat model, and the
+   starter Animas switch to it. **Skip for now** keeps the default.
 6. **Voice** offers Parakeet speech recognition downloads (CPU, and GPU
    acceleration) and the Text-to-Speech provider: built-in PocketTTS, on by
    default, or ElevenLabs with its key. Nothing downloads unless you choose it,
@@ -60,19 +61,19 @@ existing Animas or restore a deliberately deleted starter.
 
 ## Provider keys and speech
 
-Setup asks for the OpenAI key in its AI step and the ElevenLabs key in its
-Voice step. After setup, the OpenAI key is on the OpenAI card in App Settings →
-Models, the ElevenLabs key is in App Settings → Voice, and both are also in App
-Settings → API Keys; each place edits the same saved key. Other model servers,
-such as DeepSeek, OpenRouter or a local Ollama, LM Studio or llama.cpp server,
-are added in App Settings → Models (Cloud or Local), with their key (if any) on
-the connection. Text chat through an external model requires that provider to be
-configured and reachable and can incur its charges. There is no bundled offline
-chat model; a local server on this computer keeps chat fully local. The app
-reaches local servers at `127.0.0.1` on their usual port; start the server and
-load a model before testing it. See
-[Local model servers](../../backend/operations/local-models.md) for server setup
-and context windows.
+Setup asks for the OpenAI or Anthropic key in its AI step and the ElevenLabs
+key in its Voice step. After setup, the OpenAI and Anthropic keys are on their
+cards in App Settings → Models, the ElevenLabs key is in App Settings → Voice,
+and all three are also in App Settings → API Keys; each place edits the same
+saved key. Other model servers, such as DeepSeek, OpenRouter or a local Ollama,
+LM Studio or llama.cpp server, are added in App Settings → Models (Cloud or
+Local), with their key (if any) on the connection. Text chat through an
+external model requires that provider to be configured and reachable and can
+incur its charges. There is no bundled offline chat model; a local server on
+this computer keeps chat fully local. The app reaches local servers at
+`127.0.0.1` on their usual port; start the server and load a model before
+testing it. See [Local model servers](../../backend/operations/local-models.md)
+for server setup and context windows.
 
 Keys are encrypted with the operating system's secure storage (the macOS
 login keychain, or Windows data protection for your Windows account) and are

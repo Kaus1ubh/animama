@@ -40,6 +40,7 @@ from animama.logging import get_logger
 from ..memory_cue import AnimaMemoriesTurn
 from ..memory_tools import DirectChatMemoryToolService, MemoryToolExecutionContext
 from .constants import (
+    ANTHROPIC_MESSAGES_PROVIDER,
     CONTEXT_LIMIT_FINAL_INSTRUCTION,
     MAX_MEMORY_TOOL_ROUNDS,
     MEMORY_TOOL_LIMIT_FINAL_INSTRUCTION,
@@ -50,6 +51,8 @@ from .constants import (
     STRUCTURED_REPLY_REPAIR_ROUND_INDEX,
 )
 from .message_builders import (
+    anthropic_tool_result_item,
+    anthropic_tool_use_item,
     assistant_tool_call_prompt_message,
     internal_tool_call_message,
     internal_tool_result_message,
@@ -59,15 +62,17 @@ from .message_builders import (
 )
 from .provider_state import (
     compiled_context_history,
+    continuation_after_tool_round,
     final_with_previous_response_retry_metadata,
     model_request_without_continuation,
-    openai_responses_continuation_from_final,
     should_retry_without_previous_response_id,
 )
-from .response_format import main_structured_response_guidance
+from .response_format import gesture_response_guidance, main_structured_response_guidance
 from .types import DirectChatTurnRequest, DirectChatTurnStreamError, PreparedDirectChatTurn
 
-_USAGE_REQUIRED_PROVIDER_TYPES = frozenset({OPENAI_CHAT_COMPLETIONS_PROVIDER, OPENAI_RESPONSES_PROVIDER})
+_USAGE_REQUIRED_PROVIDER_TYPES = frozenset(
+    {OPENAI_CHAT_COMPLETIONS_PROVIDER, OPENAI_RESPONSES_PROVIDER, ANTHROPIC_MESSAGES_PROVIDER}
+)
 _log = get_logger("app.chat.direct_turn.model_stream")
 # Observers are app-layer callbacks, not provider APIs. They let the direct
 # executor react to model-round boundaries and provider-neutral text deltas
@@ -645,6 +650,11 @@ class DirectTurnModelStreamCollector:
                     # but not exposed as public chat:sse frames.
                     event_delta_count += 1
                     stream_events.record(delta.stream_event)
+                elif delta.kind == "run_status" and delta.run_status is not None:
+                    # Provider-side work (a hosted web search or a compaction)
+                    # is shown while the reply is pending, like the app search tool.
+                    if self._on_run_status is not None:
+                        await self._on_run_status(delta.run_status.status, delta.run_status.phase)
                 elif delta.kind == "final" and delta.final is not None:
                     # This is the only successful end-of-stream signal accepted
                     # by direct chat. The adapter decides what provider signal is
@@ -872,9 +882,9 @@ class DirectTurnModelStreamCollector:
             memory_tool_specs=prepared.memory_tool_specs,
             visible_history=compiled_context_history(chat_context),
             response_format=response_format,
-            response_format_guidance=main_structured_response_guidance(
-                model_request.model_provider,
-                prepared.output_type,
+            response_format_guidance=gesture_response_guidance(
+                main_structured_response_guidance(model_request.model_provider, prepared.output_type),
+                prepared.request.runtime_gesture_descriptors,
             ),
             memory_tools_active=(
                 bool(prepared.memory_tool_specs) or model_request.provider_options.memory_apply_patch_enabled
@@ -919,20 +929,32 @@ def _final_with_usage(
     user's message; later rounds only add tool exchanges.
     """
 
-    return ModelClientFinal(
-        text=final.text,
+    return replace(
+        final,
         usage=usage,
         raw_provider_metadata={
             **dict(final.raw_provider_metadata),
             "tool_loop_usage_aggregated": True,
             # Summed usage is billed; only the last request's prompt and reply
             # remain in the next turn's context.
-            CONTEXT_TOKENS_METADATA_KEY: context_tokens_from_usage(final.usage),
+            CONTEXT_TOKENS_METADATA_KEY: _context_tokens(final),
         },
-        structured_payload=final.structured_payload,
-        tool_calls=final.tool_calls,
         input_moderation=input_moderation,
+        continuation=None,
     )
+
+
+def _context_tokens(final: ModelClientFinal) -> int:
+    """Return the final request's footprint in the next turn's context.
+
+    An adapter may record it itself: an Anthropic request that compacted bills
+    the compaction step too, but only its last iteration remains in context.
+    """
+
+    recorded = final.raw_provider_metadata.get(CONTEXT_TOKENS_METADATA_KEY)
+    if isinstance(recorded, int) and not isinstance(recorded, bool):
+        return max(0, recorded)
+    return context_tokens_from_usage(final.usage)
 
 
 def _prompt_tool_names(prompt: DirectChatPrompt) -> set[str]:
@@ -973,6 +995,14 @@ def _tool_exchange_prompt_items(
             *(model_client_tool_call_prompt_item(tool_call) for tool_call in tool_calls),
             *(model_client_tool_result_prompt_item(tool_result) for tool_result in tool_results),
         ]
+    if model_request.model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER:
+        return [
+            *(anthropic_tool_use_item(tool_call) for tool_call in tool_calls),
+            *(
+                anthropic_tool_result_item(tool_call, tool_result.output)
+                for tool_call, tool_result in zip(tool_calls, tool_results, strict=True)
+            ),
+        ]
     call_message = assistant_tool_call_prompt_message(tool_calls)
     result_messages = [
         tool_result_prompt_message(tool_call, tool_result.output)
@@ -991,14 +1021,20 @@ def _internal_tool_exchange_messages(
     """Build hidden audit rows that can reconstruct a future explicit replay."""
 
     messages: list[ChatMessage] = []
-    if model_request.model_provider.provider_type == OPENAI_RESPONSES_PROVIDER:
+    provider_type = model_request.model_provider.provider_type
+    if provider_type in {OPENAI_RESPONSES_PROVIDER, ANTHROPIC_MESSAGES_PROVIDER}:
+        # One hidden row per call, holding the provider-shaped item replayed later.
         for tool_call in tool_calls:
             messages.append(
                 internal_tool_call_message(
                     request=prepared.request,
                     model_provider=model_request.model_provider,
                     tool_calls=(tool_call,),
-                    raw_provider_message=model_client_tool_call_prompt_item(tool_call),
+                    raw_provider_message=(
+                        model_client_tool_call_prompt_item(tool_call)
+                        if provider_type == OPENAI_RESPONSES_PROVIDER
+                        else anthropic_tool_use_item(tool_call)
+                    ),
                 )
             )
     else:
@@ -1014,11 +1050,12 @@ def _internal_tool_exchange_messages(
         if tool_call.name == WEB_SEARCH_TOOL_NAME:
             # Search snippets are used within the turn only; history keeps the query, titles and URLs.
             tool_result = replace(tool_result, output=persisted_web_search_output(tool_result.output))
-        raw_result = (
-            model_client_tool_result_prompt_item(tool_result)
-            if model_request.model_provider.provider_type == OPENAI_RESPONSES_PROVIDER
-            else tool_result_prompt_message(tool_call, tool_result.output)
-        )
+        if provider_type == OPENAI_RESPONSES_PROVIDER:
+            raw_result = model_client_tool_result_prompt_item(tool_result)
+        elif provider_type == ANTHROPIC_MESSAGES_PROVIDER:
+            raw_result = anthropic_tool_result_item(tool_call, tool_result.output)
+        else:
+            raw_result = tool_result_prompt_message(tool_call, tool_result.output)
         messages.append(
             internal_tool_result_message(
                 request=prepared.request,
@@ -1091,7 +1128,7 @@ def _model_request_with_appended_messages(
         prompt=copy_direct_chat_prompt(prompt, messages=(*prompt_messages(prompt), *messages)),
         # Moderation is requested only on round 0, whose input is the user's message.
         provider_options=replace(model_request.provider_options, moderation_model=None),
-        continuation=openai_responses_continuation_from_final(model_request, previous_final),
+        continuation=continuation_after_tool_round(model_request, previous_final),
     )
 
 
@@ -1122,12 +1159,20 @@ def _model_request_without_tools(
     """Build a request for the final answer with tools removed.
 
     Used for the structured round of a split turn and for the forced final after
-    the tool round limit. A ``final_instruction`` is followed by the Companion
-    Guardrails so they remain the final instruction text (ADR 0008). Moderation
-    is only requested on round 0.
+    the tool round limit. A ``final_instruction`` is a developer message after
+    everything else, followed by the Companion Guardrails so they remain the
+    final instruction text (ADR 0008). Responses sends it as a developer item
+    after the tool outputs; rows without a developer role fold it into the
+    end of the system message; Anthropic sends it as text in the user turn.
+    Moderation is only requested on round 0.
+
+    Anthropic keeps the turn's tools and sets ``tool_choice`` to ``none``: a
+    changed tool list would invalidate the turn's signed thinking blocks and
+    the whole prompt cache.
     """
 
     prompt = model_request.prompt
+    keep_tools = model_request.model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER and bool(prompt.tools)
     messages = prompt_messages(prompt)
     if final_instruction is not None:
         messages = [
@@ -1141,8 +1186,8 @@ def _model_request_without_tools(
             prompt,
             messages=messages,
             response_format=response_format,
-            tools=(),
-            tool_choice=None,
+            tools=prompt.tools if keep_tools else (),
+            tool_choice="none" if keep_tools else None,
             parallel_tool_calls=None,
         ),
         provider_options=replace(
@@ -1217,13 +1262,15 @@ def _structured_repair_request(
 
     It repeats the request that produced the invalid reply, without tools, and
     adds a repair instruction followed by the guardrail. Chat Completions rows
-    with a developer role see the invalid reply as the previous assistant
-    message. Rows that fold developer messages into the system message would
-    end on that assistant message, which local servers continue as a prefill,
-    so they get the instruction alone. Responses keeps the round's own
-    continuation and also gets the instruction alone, because its input after
-    a cursor is the trailing user message or tool outputs. Near a context
-    window the invalid reply is also left out when it would not fit.
+    with a developer role and Anthropic rows (which keep their tools with
+    ``tool_choice`` none) see the invalid reply as the previous assistant
+    message; Anthropic reads the instruction in the user turn after it. Rows
+    that fold developer messages into the system message would end on that
+    assistant message, which local servers continue as a prefill, so they get
+    the instruction alone. Responses keeps the round's own
+    continuation and also gets the instruction alone, as a developer item
+    after the round's new input (the user message or tool outputs). Near a
+    context window the invalid reply is also left out when it would not fit.
     """
 
     model_provider = final_request.model_provider

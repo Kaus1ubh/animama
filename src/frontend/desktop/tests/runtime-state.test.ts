@@ -228,14 +228,17 @@ describe("private local state and vault", () => {
     const connection = "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY";
     vault.apply([
       { provider: "openai", value: "fixture-openai" },
+      { provider: "anthropic", value: "fixture-anthropic" },
       { connection, value: "fixture-connection" },
     ]);
     expect(vault.childEnvironment()).toEqual({
       OPENAI_API_KEY: "fixture-openai",
+      ANTHROPIC_API_KEY: "fixture-anthropic",
       [connection]: "fixture-connection",
     });
     expect(vault.list()).toEqual([
       expect.objectContaining({ provider: "openai", configured: true }),
+      expect.objectContaining({ provider: "anthropic", configured: true }),
       expect.objectContaining({ provider: "elevenlabs", configured: false }),
       expect.objectContaining({ connection, configured: true }),
     ]);

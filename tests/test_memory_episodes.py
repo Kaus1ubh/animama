@@ -26,7 +26,8 @@ from animama.domain.memory_episode import (
     episode_path_for_date,
 )
 from animama.orm import Base, ORMMemoryEntry, ORMMemoryEntryVersion, ORMMemoryEpisodeItem, ORMUserSettings
-from animama.server.routers.chat.session_services import SessionBackedMemoryEpisodeRecorder
+from animama.product_http.chat.session_services import SessionBackedMemoryEpisodeRecorder
+from tests.product_http_support import local_turn_sessions
 
 
 @pytest_asyncio.fixture
@@ -326,7 +327,7 @@ async def test_session_backed_memory_episode_recorder_writes_row_and_daily_file(
     )
     await async_session.commit()
 
-    recorder = SessionBackedMemoryEpisodeRecorder(async_session_factory)
+    recorder = SessionBackedMemoryEpisodeRecorder(local_turn_sessions(async_session_factory, user_id))
     item = await recorder.record_episode_item(
         user_id=user_id,
         source_anima_id="anima-1",

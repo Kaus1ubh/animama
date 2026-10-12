@@ -4,9 +4,10 @@ An Included licence inventory rule may carry ``"distribution": "non-portable"``.
 Matching entries play normally but never enter a portable package, a Local copy
 or an import. The scanner records the effective value in each entry's
 ``provenance["distribution"]`` after merging descriptor metadata, so a
-descriptor can neither claim nor remove the restriction. Bytes that match the
-tracked Mixamo-motion manifest are restricted wherever they are stored, which
-also covers Local copies and re-uploads in builds that do not mount the pack.
+descriptor can neither claim nor remove the restriction. Bytes that match a
+tracked private-pack manifest or the vendor preview deny list are restricted
+wherever they are stored, which also covers Local copies and re-uploads in
+builds that do not mount the pack.
 """
 
 from __future__ import annotations
@@ -27,18 +28,35 @@ DISTRIBUTION_NON_PORTABLE = "non-portable"
 INVENTORY_DISTRIBUTIONS = frozenset({DISTRIBUTION_EXCLUDED, DISTRIBUTION_NON_PORTABLE})
 
 MIXAMO_MOTION_PACK_ID = "mixamo-motion"
-MIXAMO_MOTION_MANIFEST = "mixamo-motion-manifest.json"
+WOW_COMEDY_SFX_PACK_ID = "wow-comedy-sfx"
+# Private Included packs: separate, privately built sources bundled only into
+# desktop and hosted builds.
+PRIVATE_PACK_IDS = (MIXAMO_MOTION_PACK_ID, WOW_COMEDY_SFX_PACK_ID)
+
+# Tracked, public-safe hash resources and the pack each must declare: every
+# private pack's manifest, plus the hashes of the vendor's watermarked preview
+# files, which may never ship anywhere.
+RESTRICTED_RESOURCES: tuple[tuple[str, str | None], ...] = (
+    *((f"{pack_id}-manifest.json", pack_id) for pack_id in PRIVATE_PACK_IDS),
+    ("wow-comedy-sfx-preview-deny.json", None),
+)
 
 Portability = Literal["portable", "non-portable"]
 
 _SHA256 = re.compile(r"[0-9a-f]{64}")
 
 
-def parse_restricted_manifest(value: Any) -> frozenset[str]:
-    """Return the SHA-256 set from a tracked manifest, rejecting malformed data."""
+def parse_restricted_manifest(value: Any, *, pack_id: str | None = None) -> frozenset[str]:
+    """Return the SHA-256 set from a tracked manifest, rejecting malformed data.
+
+    ``pack_id``, when given, must equal the manifest's own, so a pack's hashes
+    can never be supplied under another pack's name.
+    """
 
     if not isinstance(value, dict) or value.get("schema_version") != 1 or not isinstance(value.get("files"), list):
         raise ValueError("Invalid non-portable manifest")
+    if pack_id is not None and value.get("pack_id") != pack_id:
+        raise ValueError("Non-portable manifest names another pack")
     hashes: set[str] = set()
     for item in value["files"]:
         digest = item.get("sha256") if isinstance(item, dict) else None
@@ -50,10 +68,14 @@ def parse_restricted_manifest(value: Any) -> frozenset[str]:
 
 @cache
 def restricted_sha256() -> frozenset[str]:
-    """Hashes of every file in the tracked Mixamo-motion manifest (public-safe)."""
+    """Hashes of every file in the tracked restricted resources (public-safe)."""
 
-    raw = files("animama.resources").joinpath(MIXAMO_MOTION_MANIFEST).read_text(encoding="utf-8")
-    return parse_restricted_manifest(json.loads(raw))
+    resources = files("animama.resources")
+    hashes: set[str] = set()
+    for name, pack_id in RESTRICTED_RESOURCES:
+        raw = resources.joinpath(name).read_text(encoding="utf-8")
+        hashes |= parse_restricted_manifest(json.loads(raw), pack_id=pack_id)
+    return frozenset(hashes)
 
 
 def resolve_rule_distribution(values: Iterable[Any]) -> str | None:

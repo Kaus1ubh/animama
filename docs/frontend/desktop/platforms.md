@@ -79,7 +79,9 @@ The stage requires every required starter dependency to be tracked. Starter
 content does not depend on Mixamo animations. Optional Local motions are
 excluded from staging and cannot satisfy the distribution-input gate. The
 non-portable [Mixamo-motion pack](../../backend/operations/mixamo-motion-pack.md)
-is staged as `runtime/content/mixamo-motion` only from its verified build input.
+and [comedy sound pack](../../backend/operations/comedy-sound-pack.md) are staged
+as `runtime/content/<pack>` only from their verified build inputs; starter
+effects name their sounds optionally and stay valid without the sound pack.
 Do not copy private assets into a stage to bypass a missing dependency.
 
 The unsigned development bundle is written to

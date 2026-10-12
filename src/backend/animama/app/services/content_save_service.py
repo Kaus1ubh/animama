@@ -134,6 +134,13 @@ class ContentSaveService:
             if item.owner_user_id != user_id:
                 raise ContentConflictError("content_creator_claim_conflict")
         if item.status is not ContentStatus.VALID:
+            codes = {diagnostic.code for diagnostic in item.diagnostics}
+            # Name policy refusals the editors can explain (effect creators
+            # highlight their sound control); the save rolls back.
+            if "non_portable_dependency" in codes:
+                raise ContentConflictError("content_non_portable_dependency")
+            if "dependency_optional_not_allowed" in codes:
+                raise ContentConflictError("content_optional_dependency")
             raise ContentConflictError("saved_content_invalid", field=invalid_field)
         if item.missing_dependencies:
             # Only an Action saved before an Included effect was removed may

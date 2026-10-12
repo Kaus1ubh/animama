@@ -15,7 +15,11 @@ const UNKNOWN_SAVE_MESSAGE =
 
 const CONTENT_SAVE_MESSAGES: Record<string, string> = {
   content_non_portable:
-    "These files match motion included with this app for use here only, so they can't be saved as your own content.",
+    "These files match content included with this app for use here only, so they can't be saved as your own content.",
+  content_non_portable_dependency:
+    "Licensed built-in sounds play only with built-in effects. Choose one of your own sounds. Your draft is preserved.",
+  content_optional_dependency:
+    "Only built-in effects can have an optional sound. Choose a sound or none. Your draft is preserved.",
   catalog_revision_conflict:
     "This item changed since you opened it. Reload the latest version before saving. Your draft is preserved.",
   content_path_exists:
@@ -55,6 +59,8 @@ const CONTENT_SAVE_MESSAGES: Record<string, string> = {
 };
 
 const CONTENT_SAVE_FIELDS: Record<string, string> = {
+  content_non_portable_dependency: "sound",
+  content_optional_dependency: "sound",
   content_path_exists: "name",
   invalid_entry_name: "name",
   content_file_empty: "files",

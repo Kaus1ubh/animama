@@ -9,14 +9,14 @@ shared model clients, streams direct chat events, and persists side effects.
 
 - `product_http/`: product HTTP shared by every composition (ADR 0021): the route
   inventory, the request-principal dependency, the `ProductPorts` each composition
-  installs (owner sessions, repositories, content services and byte delivery), and
-  the shared routers of stages 2 and 3. Later stages are still served from
-  `server/routers/`.
+  installs (owner sessions, repositories, content services, byte delivery, upload
+  storage, speech, the model catalog, the Memory Manager service, and the chat
+  policy, chat-turn guard and turn collaborators), the shared routers of every
+  stage, and the direct chat SSE turn under `product_http/chat/`.
 - `server/`: delivery and local-composition layer. Contains the separately named
   local FastAPI app factory, its `LocalProductPorts`, installation
-  bootstrap, routers, direct chat SSE orchestration, Content Catalog delivery,
-  owner event SSE helpers, local upload helpers, persistence
-  sinks/subscribers, and telemetry.
+  bootstrap, local routers, Content Catalog delivery, owner event SSE helpers,
+  local upload helpers, persistence sinks/subscribers, and telemetry.
 - `domain/`: pure dataclasses and enums for animas, content catalog entries,
   chats, model providers, settings, and runtime events.
 - `app/ports/`: protocols for repositories, unit-of-work boundaries, and model
@@ -37,9 +37,11 @@ shared model clients, streams direct chat events, and persists side effects.
   estimates.
 - `adapters/`: concrete implementations. The containment-safe content
   filesystem store, SQLAlchemy repositories, ORM/domain mappers, and direct
-  model-client adapters live here. OpenAI Chat Completions and Responses
-  adapters are split into request, stream-event, final/usage, and client
-  lifecycle modules.
+  model-client adapters live here. OpenAI Chat Completions, OpenAI Responses
+  and Anthropic Messages adapters are split into request, stream-event,
+  final/usage, and client lifecycle modules. The Memory Manager runtimes
+  (OpenAI Agents SDK and the Anthropic memory-tool loop) live under
+  `adapters/memory_manager/`.
 - `orm/`: shared SQLAlchemy 2.0 async models, without installation registration.
 - `local/`: installation principal, repository, and model; local HTTP admission,
   lifecycle and assets; local database engine/session ownership. Alembic and local app
@@ -100,13 +102,15 @@ Normal product chat resolves its model through the Anima chat profile:
   state, and pricing metadata. Built-in rows are seeded from the release
   catalog; the owner can add rows and hide built-in ones.
 - `model_connections` stores the model server each row belongs to: the
-  built-in OpenAI connection or an owner-configured OpenAI-compatible Chat
-  Completions endpoint, with its base URL, credential variable name,
-  compatibility options and timeout. Requests for a row go only to its
-  connection with only that connection's key.
+  built-in OpenAI connection, the built-in Anthropic connection (Anthropic's
+  Messages API) or an owner-configured OpenAI-compatible Chat Completions
+  endpoint, with its base URL, credential variable name, compatibility
+  options and timeout. Requests for a row go only to its connection with only
+  that connection's key.
 - `ModelCatalogPolicy` is a composition input that decides which rows a
-  composition exposes. Shared services default to built-in rows only; the
-  local composition enables owner models and App Settings roles.
+  composition exposes. Shared services default to the OpenAI connection's
+  built-in rows only; the local composition enables owner models, the
+  Anthropic built-ins and App Settings roles.
 - Model roles assign rows to installation-wide jobs: chat (the default for new
   Animas), utility (titles and compaction), the Memory Manager and embeddings.
   `ModelRoleResolver` reads them from user preferences when the policy
@@ -116,7 +120,7 @@ Normal product chat resolves its model through the Anima chat profile:
   anima identity context, assembles one OpenAI-compatible `DirectChatPrompt`,
   calls the shared direct model client, parses the main structured response,
   emits domain events, and persists the turn through `ChatManager`.
-- `server/routers/chat/turn_setup.py` builds request-local direct-turn
+- `product_http/chat/turn_setup.py` builds request-local direct-turn
   dependencies before the SSE stream starts; `sse_runtime.py` owns bridge,
   drain, and frame mechanics; `session_services.py` owns short-lived database
   session adapters for final persistence and memory tool execution.
@@ -227,11 +231,13 @@ checkout-resolved modules.
 ## Runtime Ownership
 
 Normal chat is request-local and stateless from the FastAPI process's
-perspective. `server/routers/chat/chat_sse.py` resolves the selected catalog
-model provider, prepares a direct model-client turn through
-`server/routers/chat/turn_setup.py`, fans current-run events through
-`server/routers/chat/sse_runtime.py` and `server/sse_events.py`, and closes
-request-local resources when the stream completes or closes. The route owns the
+perspective. The shared `product_http/chat/stream.py` resolves the selected
+catalog model provider, prepares a direct model-client turn through
+`product_http/chat/turn_setup.py`, fans current-run events through
+`product_http/chat/sse_runtime.py` and `product_http/chat/sse_events.py`, and
+closes request-local resources when the stream completes or closes; the
+composition's [chat-turn guard](../runtime/chat.md#chat-turn-guard) holds the
+whole turn. The route owns the
 single public `run.completed` SSE frame after success-side effects such as TTS,
 title generation, and compaction. Shared model clients live on the app and close
 on shutdown. Each request carries its owner, Anima, Chat and run context; the

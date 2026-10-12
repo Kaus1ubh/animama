@@ -44,9 +44,14 @@ import {
  * item of the item's kind, read from the sourced stack's
  * `ANIMAMA_LOCAL_CONTENT_HOST_PATH`) or an effect folder relative to the items
  * file. `name` and `description` may override the source's for an add;
- * `description` for a replace. Effects are promoted without sounds or other
- * dependencies, validated as the creator's Save validates them, and their art
- * re-checked against its budget; Scene art must be PNG.
+ * `description` for a replace. Effects are promoted without the source's
+ * sounds or other dependencies, validated as the creator's Save validates
+ * them, and their art re-checked against its budget; Scene art must be PNG.
+ *
+ * Every built-in Avatar Effect plays one licensed sound from the private
+ * comedy sound pack as an optional dependency (ADR 0022). An add names it
+ * with `"sound": "<key>"`, a sound in the tracked pack manifest; a replace
+ * keeps the effect's current sound unless it names another.
  *
  * Licence records (D1): Avatar Effect files fall under the existing
  * `vfx/avatar/**\/*` rule and Scene PNGs under `vfx/scene/**\/*.png`. Each
@@ -134,7 +139,18 @@ const KEPT_CLIP_FIELDS = ["id", "role", "playback", "loop"];
 export const EFFECT_PROMOTE_PATHS = {
   inventory: "content/included/licenses/inventory.json",
   sourceReview: "licenses/source-review.json",
+  soundManifest: "src/backend/animama/resources/wow-comedy-sfx-manifest.json",
 };
+
+/** A sound key in the comedy pack, from its vendor file name. */
+const SOUND_KEY = /^[a-z0-9]+(?:_[a-z0-9]+)*$/;
+/** The optional edge and alias a built-in effect uses for its licensed sound. */
+const soundEdge = (key) => ({
+  ref: `builtin:sound-effect:${key}`,
+  content_type: "sound_effect",
+  alias: "on-apply",
+  optional: true,
+});
 
 /** Parse and validate `items.json` (sources stay unresolved specs). */
 export function parseEffectPromoteItems(value, itemsFile) {
@@ -191,6 +207,16 @@ export function parseEffectPromoteItems(value, itemsFile) {
       throw new EffectPromoteError(
         `${where}: a ${kind} replace keeps the Included description.`,
       );
+    if (
+      item.sound !== undefined &&
+      (kind !== "avatar_effect" ||
+        item.mode === "delete" ||
+        typeof item.sound !== "string" ||
+        !SOUND_KEY.test(item.sound))
+    )
+      throw new EffectPromoteError(
+        `${where}: "sound" names a comedy pack sound key (like "funny_sweat_02") for an Avatar Effect add or replace.`,
+      );
     return {
       kind,
       mode: item.mode,
@@ -198,6 +224,7 @@ export function parseEffectPromoteItems(value, itemsFile) {
       source: item.source?.trim(),
       name: item.name?.trim(),
       description: item.description?.trim(),
+      sound: item.sound,
     };
   });
 }
@@ -288,6 +315,36 @@ export async function planEffectPromotion(
       : repo.read(relative);
     if (text === null) throw new EffectPromoteError(`${relative} is missing.`);
     return JSON.parse(text);
+  };
+  let soundKeys = null;
+  /** Sound keys in the tracked comedy pack manifest (read when first needed). */
+  const packSounds = () => {
+    soundKeys ??= new Set(
+      (readJson(EFFECT_PROMOTE_PATHS.soundManifest).files ?? [])
+        .map((file) => file.path)
+        .filter((file) => file.endsWith(".ogg"))
+        .map((file) => path.posix.basename(file, ".ogg")),
+    );
+    return soundKeys;
+  };
+  /**
+   * The licensed sound edge an Avatar Effect add or replace writes: the one the
+   * item names, else (for a replace) the effect's current one.
+   */
+  const licensedSound = (item, original) => {
+    const kept = (original?.dependencies ?? []).find(
+      (edge) => edge.content_type === "sound_effect" && edge.optional === true,
+    );
+    if (item.mode === "add" && !item.sound)
+      throw new EffectPromoteError(
+        `${item.stem}: every built-in Avatar Effect plays a licensed sound; name one with "sound".`,
+      );
+    if (!item.sound) return kept ?? null;
+    if (!packSounds().has(item.sound))
+      throw new EffectPromoteError(
+        `${item.stem}: "${item.sound}" is not a sound in the tracked comedy pack manifest.`,
+      );
+    return soundEdge(item.sound);
   };
   const kindOf = (item) => item.kind ?? "avatar_effect";
   const effectItems = items.filter((item) => EFFECT_KINDS[kindOf(item)]);
@@ -460,7 +517,14 @@ export async function planEffectPromotion(
     } catch (error) {
       fail(error.message);
     }
-    const planned = EFFECT_PLANNERS[kind](item, { original, contentId, fail });
+    const sound =
+      kind === "avatar_effect" ? licensedSound(item, original) : null;
+    const planned = EFFECT_PLANNERS[kind](item, {
+      original,
+      contentId,
+      fail,
+      sound,
+    });
     for (const { file, issues } of await sourceAssets(effect)) {
       const fails = issues.filter((issue) => issue.level === "FAIL");
       if (fails.length)
@@ -604,7 +668,7 @@ export async function planEffectPromotion(
  * unsafe as Included paths.
  */
 const EFFECT_PLANNERS = {
-  avatar_effect(item, { original, contentId, fail }) {
+  avatar_effect(item, { original, contentId, fail, sound }) {
     const { effect } = item;
     const images = [
       { name: effect.definition.art?.image, file: effect.imagePath },
@@ -627,13 +691,17 @@ const EFFECT_PLANNERS = {
     if (images.some((image) => image.name === `${item.stem}.json`))
       fail("an image cannot be named like the descriptor.");
     const files = images.map((image) => ({ path: image.name, role: "image" }));
+    const dependencies = sound ? [sound] : [];
+    const definition = sound
+      ? { ...effect.definition, soundAlias: sound.alias }
+      : effect.definition;
     return {
       descriptor: original
         ? {
             ...original,
             description: item.description ?? original.description,
-            dependencies: [],
-            definition: effect.definition,
+            dependencies,
+            definition,
             files,
           }
         : {
@@ -643,8 +711,8 @@ const EFFECT_PLANNERS = {
             version: 1,
             name: item.name ?? effect.name,
             description: item.description ?? effect.description,
-            dependencies: [],
-            definition: effect.definition,
+            dependencies,
+            definition,
             files,
           },
       files: images,

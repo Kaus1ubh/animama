@@ -22,6 +22,7 @@ from animama.adapters.repositories.sqlalchemy.feature_pack_removal_repo import i
 from animama.app.ports.content_catalog import ContentCatalog
 from animama.app.services.content_access_policy import ContentAccessPolicy
 from animama.app.services.content_kind_registry import handler_for_kind
+from animama.app.services.content_portability import DISTRIBUTION_KEY, DISTRIBUTION_NON_PORTABLE
 from animama.domain.content_catalog import (
     ACTION_KINDS,
     CONTENT_SOURCE_LOCK_ORDER,
@@ -349,6 +350,15 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                 if row.source_mount_id and row.source_mount_id.split("@", 1)[0] not in active_sources
             ]
             if withdrawn:
+                # Included edges are rebuilt from this scan below, so they never
+                # hold a pack in place: a built-in effect whose optional sound
+                # left loses the edge, and a required one becomes unresolved.
+                # Local items, bindings and leases still block withdrawal.
+                await self._session.execute(
+                    delete(ORMContentCatalogDependency).where(
+                        ORMContentCatalogDependency.item_id.in_([row.id for row in existing])
+                    )
+                )
                 await self._withdraw_included_sources(withdrawn, now=now)
                 withdrawn_ids = {row.id for row in withdrawn}
                 existing = [row for row in existing if row.id not in withdrawn_ids]
@@ -571,6 +581,17 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                     descriptor_backed=entry.descriptor_relative_path is not None,
                 )
                 declared_kinds = {item.ref: item.kind for item in parsed.dependencies}
+                if entry.source is ContentSource.LOCAL and any(item.optional for item in parsed.dependencies):
+                    # Optional edges exist only for Included effects whose sound a
+                    # build may not ship; Local content always names real files.
+                    row.status = ContentStatus.INVALID.value
+                    row.diagnostics = [
+                        *list(row.diagnostics or []),
+                        {
+                            "code": "dependency_optional_not_allowed",
+                            "message": "Only built-in effects can declare an optional sound",
+                        },
+                    ]
             except (ContentDocumentError, TypeError):
                 # Scanner diagnostics remain authoritative. This guard keeps
                 # reconciliation fault-isolated if a stale adapter supplies an
@@ -616,6 +637,23 @@ class SQLAlchemyContentCatalog(ContentCatalog):
                             {
                                 "code": "dependency_kind_mismatch",
                                 "message": (f"Dependency declares {declared_kind.value} but resolves to {target.kind}"),
+                                "relative_path": declared_ref,
+                            },
+                        ]
+                    elif (
+                        entry.source is ContentSource.LOCAL
+                        and target is not None
+                        and target.kind == ContentKind.SOUND_EFFECT.value
+                        and (target.provenance or {}).get(DISTRIBUTION_KEY) == DISTRIBUTION_NON_PORTABLE
+                    ):
+                        # Licensed built-in sounds play only through built-in
+                        # content; they are never part of the owner's own work.
+                        row.status = ContentStatus.INVALID.value
+                        row.diagnostics = [
+                            *list(row.diagnostics or []),
+                            {
+                                "code": "non_portable_dependency",
+                                "message": "Licensed built-in sounds cannot be used in your own content",
                                 "relative_path": declared_ref,
                             },
                         ]
@@ -887,7 +925,8 @@ class SQLAlchemyContentCatalog(ContentCatalog):
 
         The source advisory lock is held by the caller. Refuse every live binding,
         external dependency, preview or runtime lease before cascading deletion.
-        Desktop removal preflight exposes the same blockers before changing mounts.
+        Desktop removal preflight exposes the same blockers before changing mounts
+        (it also counts Included edges, which reconciliation rebuilds instead).
         """
 
         ids = [row.id for row in rows]

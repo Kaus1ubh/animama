@@ -71,7 +71,8 @@ content/included/**/.DS_Store
 content/included/**/*.review.json
 content/included/**/*.review/
 
-# Do not ship the current third-party SFX or raw particle source packs.
+# Third-party sounds ship only as a private pack; never track loose copies or
+# raw particle source packs here.
 /content/included/sfx/
 /content/included/vfx/particle/brackeys_vfx_bundle/
 /content/included/vfx/particle/kenney_particle-pack/
@@ -80,8 +81,9 @@ content/included/**/*.review/
 # Isolated CI checkout used only for provider compatibility.
 .compatibility-base/
 
-# Private build inputs, such as the non-portable Mixamo-motion pack, are fetched
-# from an owner-only store and never tracked or sent to a Docker build context.
+# Private build inputs, such as the non-portable Mixamo-motion and comedy sound
+# packs, are fetched from an owner-only store and never tracked or sent to a
+# Docker build context.
 /build-inputs/
 
 # Mixamo-derived animations are private, user-supplied inputs.

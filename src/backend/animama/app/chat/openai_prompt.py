@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import unicodedata
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
@@ -20,6 +21,8 @@ from animama.app.model_clients.prompt import (
     scoped_prompt_cache_key,
 )
 from animama.app.model_clients.types import (
+    ANTHROPIC_TOOL_RESULT_ITEM_TYPE,
+    ANTHROPIC_TOOL_USE_ITEM_TYPE,
     MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
     MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
 )
@@ -27,6 +30,13 @@ from animama.app.safety.prompts import COMPANION_GUARDRAILS
 from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.user_file_processing import UserFileOutlineItem
 
+from .anthropic_instructions import (
+    ANTHROPIC_ANIMA_MEMORIES_GUIDANCE,
+    ANTHROPIC_CORE_COMPANION_INSTRUCTION_TEMPLATE,
+    ANTHROPIC_TURN_CONTEXT_DESCRIPTION,
+    INSTRUCTION_STYLE_ANTHROPIC,
+    INSTRUCTION_STYLE_DEFAULT,
+)
 from .direct_turn.types import DirectChatAttachmentContext
 from .memory_context import (
     ANIMA_MEMORIES_GUIDANCE,
@@ -38,6 +48,15 @@ from .memory_context import (
 )
 
 DirectChatPromptHistoryItem = ChatMessage | Mapping[str, Any]
+# History items replayed exactly as persisted (provider-shaped tool exchanges).
+_EXCHANGE_ITEM_TYPES = frozenset(
+    {
+        MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
+        MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
+        ANTHROPIC_TOOL_USE_ITEM_TYPE,
+        ANTHROPIC_TOOL_RESULT_ITEM_TYPE,
+    }
+)
 _OPENAI_RESPONSES_HISTORY_METADATA_KEY = "openai_responses_history"
 _OPENAI_RESPONSES_ASSISTANT_PHASES_KEY = "assistant_phases_by_message_index"
 _OPENAI_RESPONSES_ASSISTANT_PHASES = frozenset({"commentary", "final_answer"})
@@ -49,10 +68,45 @@ _MAX_ATTACHMENT_OUTLINE_ITEMS = 200
 _MAX_ATTACHMENT_OUTLINE_TITLE_CHARS = 200
 _MAX_ATTACHMENT_OUTLINE_TITLE_CHARS_TOTAL = 16_000
 _MAX_ATTACHMENT_OUTLINE_LEVEL = 6
+# Rows without a developer role carry the turn context in this block at the
+# start of the user's message; the system message describes it.
+_TURN_CONTEXT_TAG = "turn_context"
+TURN_CONTEXT_DESCRIPTION = (
+    "# Turn Context\n\n"
+    "The application begins the user's latest message with a <turn_context> block. The application writes it, "
+    "not the user. It carries request context and the Companion Guardrails; follow it."
+)
 
 
 class DirectChatPromptAssembler:
-    """Build direct-chat prompts in one OpenAI-compatible message list."""
+    """Build direct-chat prompts in one OpenAI-compatible message list.
+
+    The layout keeps every cacheable prefix stable from turn to turn (see
+    ``docs/backend/runtime/prompt-caching.md``):
+
+    - The system message holds only the stable instructions: core
+      instructions, identity, ``MEMORIES.md``, memory and response guidance
+      (with the Gesture list), then the Companion Guardrails last.
+    - History follows exactly as stored.
+    - The turn context (memory map, then attachments) and the guardrails
+      come immediately before the user's new message, so the guardrails are
+      the last instruction text the model reads before the user's words
+      (ADR 0008).
+
+    With a developer role, an app compaction summary stays a developer message
+    directly after the system message, and the turn context is a developer
+    message before the user message. Without one, the summary is folded into
+    the system message before its closing guardrails, and the turn context is
+    a ``<turn_context>`` block at the start of the user message, which the
+    system message describes. Forged block tags in user text and in the
+    block's contents are escaped.
+
+    ``instruction_style`` selects provider-phrased variants of the
+    non-guardrail sections with the same directives: ``anthropic`` delimits
+    the identity and ``MEMORIES.md`` with XML tags and describes the
+    mid-conversation system message that carries the turn context on that
+    path. The Companion Guardrails are identical for every style.
+    """
 
     def assemble(
         self,
@@ -76,45 +130,58 @@ class DirectChatPromptAssembler:
         prompt_cache_key: str | None = None,
         reasoning_effort: str | None = None,
         stream_options: ChatCompletionStreamOptionsParam | None = None,
+        instruction_style: str = INSTRUCTION_STYLE_DEFAULT,
     ) -> DirectChatPrompt:
+        guardrails = COMPANION_GUARDRAILS.strip()
         memory_map_text = memory_map.strip() if isinstance(memory_map, str) and memory_map.strip() else None
-        attached_files_text = _render_attached_user_file_map(attached_files)
-        # Request context and the Companion Guardrails form the trailing
-        # instructions. The guardrail is always last so no identity, memory or earlier
-        # instruction can override it.
-        trailing_instruction_text = "\n\n".join(
+        turn_context = tuple(
             section
-            for section in (memory_map_text, attached_files_text, COMPANION_GUARDRAILS.strip())
+            for section in (memory_map_text, _render_attached_user_file_map(attached_files))
             if section is not None
         )
-        messages: list[ChatCompletionMessageParam] = [
-            _text_message(
-                "system",
-                _direct_chat_system_instruction(
-                    anima_identity,
-                    anima_name=anima_name,
-                    anima_memories=anima_memories,
-                    anima_memories_writable=anima_memories_writable,
-                    response_format_guidance=response_format_guidance,
-                    native_memory_patch_enabled=native_memory_patch_enabled,
-                ),
-            )
-        ]
+        history: list[ChatCompletionMessageParam] = []
+        folded_developer_text: list[str] = []
         assistant_phases_by_message_index: dict[str, str] = {}
         for item in visible_history or ():
             message = _history_message(item)
-            if message is not None:
-                if _message_role(message) == "assistant":
-                    phase = _history_assistant_phase(item)
-                    if phase is not None:
-                        assistant_phases_by_message_index[str(len(messages))] = phase
-                messages.append(message)
-        messages.append(_text_message("developer", trailing_instruction_text))
-        if not supports_developer_role:
-            messages, assistant_phases_by_message_index = _fold_developer_messages_into_system(
-                messages, assistant_phases_by_message_index
-            )
-        messages.append(_text_message("user", user_message))
+            if message is None:
+                continue
+            role = _message_role(message)
+            if not supports_developer_role:
+                if role == "developer":
+                    # The compaction summary joins the system message, before its closing guardrails.
+                    content = message.get("content")
+                    if isinstance(content, str) and content.strip():
+                        folded_developer_text.append(content.strip())
+                    continue
+                if role == "user":
+                    message = _with_escaped_turn_context_tags(message)
+            if role == "assistant":
+                phase = _history_assistant_phase(item)
+                if phase is not None:
+                    # The system message is index 0.
+                    assistant_phases_by_message_index[str(len(history) + 1)] = phase
+            history.append(message)
+
+        stable_sections = _stable_instruction_sections(
+            anima_identity,
+            anima_name=anima_name,
+            anima_memories=anima_memories,
+            anima_memories_writable=anima_memories_writable,
+            response_format_guidance=response_format_guidance,
+            native_memory_patch_enabled=native_memory_patch_enabled,
+            instruction_style=instruction_style,
+        )
+        if supports_developer_role:
+            system_text = "\n\n".join((*stable_sections, guardrails))
+            turn_messages = [
+                _text_message("developer", "\n\n".join((*turn_context, guardrails))),
+                _text_message("user", user_message),
+            ]
+        else:
+            system_text = "\n\n".join((*stable_sections, TURN_CONTEXT_DESCRIPTION, *folded_developer_text, guardrails))
+            turn_messages = [_text_message("user", _user_message_with_turn_context(turn_context, user_message))]
+        messages = [_text_message("system", system_text), *history, *turn_messages]
         return DirectChatPrompt(
             messages=tuple(messages),
             response_format=response_format,
@@ -130,7 +197,43 @@ class DirectChatPromptAssembler:
         )
 
 
-def _direct_chat_system_instruction(
+_ANIMA_IDENTITY_TAG = "anima_identity"
+_ANIMA_MEMORIES_TAG = "anima_memories"
+
+
+def _escape_tags(text: str, tag: str) -> str:
+    """Escape ``<tag`` and ``</tag`` (any case) so owner text cannot close its delimiter early."""
+
+    return re.sub(rf"<(?=\s*/?\s*{re.escape(tag)})", "&lt;", text, flags=re.IGNORECASE)
+
+
+def _escape_turn_context_tags(text: str) -> str:
+    """Escape every ``<turn_context`` and ``</turn_context`` (any case) so text cannot open or close the block."""
+
+    return _escape_tags(text, _TURN_CONTEXT_TAG)
+
+
+def _user_message_with_turn_context(turn_context: tuple[str, ...], user_message: str) -> str:
+    """Prefix the user's words with the turn context and the guardrails in a tagged block."""
+
+    guardrails = COMPANION_GUARDRAILS.strip()
+    block = "\n\n".join((*(_escape_turn_context_tags(section) for section in turn_context), guardrails))
+    return f"<{_TURN_CONTEXT_TAG}>\n{block}\n</{_TURN_CONTEXT_TAG}>\n\n{_escape_turn_context_tags(user_message)}"
+
+
+def _with_escaped_turn_context_tags(message: ChatCompletionMessageParam) -> ChatCompletionMessageParam:
+    """Return a replayed user message whose text cannot forge a turn-context block."""
+
+    content = message.get("content")
+    if not isinstance(content, str):
+        return message
+    escaped = _escape_turn_context_tags(content)
+    if escaped == content:
+        return message
+    return cast(ChatCompletionMessageParam, {**message, "content": escaped})
+
+
+def _stable_instruction_sections(
     anima_identity: str,
     *,
     anima_name: str | None = None,
@@ -138,7 +241,12 @@ def _direct_chat_system_instruction(
     anima_memories_writable: bool = False,
     response_format_guidance: str | None = None,
     native_memory_patch_enabled: bool = False,
-) -> str:
+    instruction_style: str = INSTRUCTION_STYLE_DEFAULT,
+) -> list[str]:
+    """Return the system sections that change only per Anima, in order, before the guardrails."""
+
+    anthropic = instruction_style == INSTRUCTION_STYLE_ANTHROPIC
+
     guidance = response_format_guidance.strip() if isinstance(response_format_guidance, str) else ""
     memory_guidance = MEMORY_SYSTEM_GUIDANCE.strip()
     # The alias is advertised only when this turn can edit MEMORIES.md; its
@@ -147,51 +255,34 @@ def _direct_chat_system_instruction(
         memory_guidance = f"{memory_guidance}\n\n{ANIMA_MEMORIES_WRITE_GUIDANCE.strip()}"
     if native_memory_patch_enabled:
         memory_guidance = f"{memory_guidance}\n\n{NATIVE_MEMORY_PATCH_GUIDANCE.strip()}"
+    if anthropic:
+        # Owner-written content is delimited with XML tags on Anthropic rows.
+        core = render_core_companion_instruction(anima_name, template=ANTHROPIC_CORE_COMPANION_INSTRUCTION_TEMPLATE)
+        identity = f"<anima_identity>\n{_escape_tags(anima_identity.strip(), _ANIMA_IDENTITY_TAG)}\n</anima_identity>"
+    else:
+        core = render_core_companion_instruction(anima_name)
+        identity = anima_identity.strip()
     sections = [
-        "# Core Instructions\n\n" + render_core_companion_instruction(anima_name).strip(),
-        "# Anima Identity\n\n" + anima_identity.strip(),
+        "# Core Instructions\n\n" + core.strip(),
+        "# Anima Identity\n\n" + identity,
     ]
     # The Anima's relationship memory follows its identity; it is omitted when
     # memory influence is off or the file has nothing to say.
     if isinstance(anima_memories, str) and anima_memories.strip():
-        sections.append(f"# Anima Memories\n\n{ANIMA_MEMORIES_GUIDANCE}\n\n{anima_memories.strip()}")
+        if anthropic:
+            tagged = f"<anima_memories>\n{_escape_tags(anima_memories.strip(), _ANIMA_MEMORIES_TAG)}\n</anima_memories>"
+            memories = f"{ANTHROPIC_ANIMA_MEMORIES_GUIDANCE}\n\n{tagged}"
+        else:
+            memories = f"{ANIMA_MEMORIES_GUIDANCE}\n\n{anima_memories.strip()}"
+        sections.append(f"# Anima Memories\n\n{memories}")
     sections += [
         "# Memory Guidance\n\n" + memory_guidance,
         "# Response Guidance\n\n" + (guidance or MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()),
     ]
-    return "\n\n".join(sections)
-
-
-def _fold_developer_messages_into_system(
-    messages: list[ChatCompletionMessageParam],
-    assistant_phases_by_message_index: Mapping[str, str],
-) -> tuple[list[ChatCompletionMessageParam], dict[str, str]]:
-    """Append developer text, in order, to the leading system message.
-
-    Keeps the trailing Companion Guardrails last for providers without a developer role,
-    and re-indexes recorded assistant phases for the shortened message list.
-    """
-
-    developer_parts: list[str] = []
-    remaining: list[ChatCompletionMessageParam] = []
-    new_index_by_old: dict[str, str] = {}
-    for index, message in enumerate(messages):
-        if _message_role(message) == "developer":
-            content = message.get("content")
-            if isinstance(content, str) and content.strip():
-                developer_parts.append(content.strip())
-            continue
-        new_index_by_old[str(index)] = str(len(remaining))
-        remaining.append(message)
-    system_content = remaining[0].get("content")
-    system_text = system_content if isinstance(system_content, str) else ""
-    remaining[0] = _text_message("system", "\n\n".join((system_text, *developer_parts)))
-    phases = {
-        new_index_by_old[index]: phase
-        for index, phase in assistant_phases_by_message_index.items()
-        if index in new_index_by_old
-    }
-    return remaining, phases
+    if anthropic:
+        # The turn context arrives in a mid-conversation system message after the user's words.
+        sections.append(ANTHROPIC_TURN_CONTEXT_DESCRIPTION)
+    return sections
 
 
 @dataclass(frozen=True, slots=True)
@@ -476,7 +567,7 @@ def _history_message(item: DirectChatPromptHistoryItem) -> ChatCompletionMessage
 def _raw_provider_history_message(value: object) -> ChatCompletionMessageParam | None:
     if not isinstance(value, Mapping):
         return None
-    if value.get("type") in {MODEL_CLIENT_TOOL_CALL_ITEM_TYPE, MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE}:
+    if value.get("type") in _EXCHANGE_ITEM_TYPES:
         copied_exchange = _copy_jsonish(value)
         return cast(ChatCompletionMessageParam, copied_exchange) if isinstance(copied_exchange, dict) else None
     role = _role_value(value.get("role"))
@@ -572,6 +663,7 @@ def _copy_jsonish(value: Any) -> Any:
 
 
 __all__ = [
+    "TURN_CONTEXT_DESCRIPTION",
     "DirectChatPrompt",
     "DirectChatPromptAssembler",
     "direct_model_prompt",

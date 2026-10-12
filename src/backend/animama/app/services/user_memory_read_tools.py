@@ -183,7 +183,12 @@ class UserMemoryReadToolService:
     async def render_memory_map(self, *, user_id: str) -> str:
         """Render the same navigation projection used by ``list_files``."""
 
-        return render_memory_file_references(await self._list_file_references(user_id=user_id))
+        return render_memory_file_references(await self.file_references(user_id=user_id))
+
+    async def file_references(self, *, user_id: str) -> tuple[UserMemoryFileReference, ...]:
+        """Return the navigable file references behind ``list_files`` and the memory map."""
+
+        return await self._list_file_references(user_id=user_id)
 
     async def read_files(
         self,

@@ -22,7 +22,7 @@ from animama.adapters.model_clients.openai_chat_completions.connection_sdk impor
 from animama.adapters.model_clients.openai_chat_completions.request import tools_without_function_strict
 from animama.adapters.model_clients.openai_chat_completions.support import resolve_openai_base_url
 from animama.adapters.openai_agents import OpenAIAgentsRunner, OpenAIAgentsRunOutput
-from animama.app.chat.api_standard import OPENAI_RESPONSES_PROVIDER_TYPE
+from animama.app.chat.api_standard import ANTHROPIC_MESSAGES_PROVIDER_TYPE, OPENAI_RESPONSES_PROVIDER_TYPE
 from animama.app.chat.memory_tools import (
     MEMORY_TOOL_LIST_FILES,
     MEMORY_TOOL_READ_FILES,
@@ -39,7 +39,6 @@ from animama.app.ports.anima_port import AnimaRepository
 from animama.app.ports.chat_message_port import ChatMessageRepository
 from animama.app.ports.memory_episode_port import MemoryEpisodeRepository
 from animama.app.ports.memory_manager_runtime import (
-    MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
     MEMORY_MANAGER_RUNTIME_OUTCOME_COMPLETED,
     MEMORY_MANAGER_RUNTIME_OUTCOME_WAITING_APPROVAL,
     MemoryManagerPinnedModelUnavailableError,
@@ -71,17 +70,16 @@ from .episode_processing import load_episode_processing_batch, render_episode_pr
 from .reflection import (
     MEMORY_TOOL_READ_REFLECTION_TURNS,
     ReflectionTurnReader,
-    reflection_page_count,
     reflection_task_or_none,
     render_reflection_instructions,
 )
+from .runtime_support import blocked_result, max_turns_for_run, rejection_message
 from .workspace import MemoryManagerPatchRejected, MemoryManagerVirtualWorkspace
 
 if TYPE_CHECKING:
     from agents import Agent, RunConfig
     from agents.editor import ApplyPatchEditor
 
-_MAX_MANAGER_TURNS = 8
 _MAX_INVALID_PATCH_RESUMES = 2
 _TRACE_WORKFLOW_NAME = "Animama memory manager"
 _PATCH_TOOL_NAME = "apply_patch"
@@ -175,7 +173,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         self._log = get_logger("adapters.memory_manager.openai_agents")
 
     def _turn_limit(self, run: MemoryManagerRun) -> int:
-        ordinary = _max_turns_for_run(run)
+        ordinary = max_turns_for_run(run)
         return min(ordinary, self._max_model_turns) if self._max_model_turns is not None else ordinary
 
     @property
@@ -258,7 +256,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             raise MemoryManagerRuntimeConfigurationError("The Memory Manager model request failed.") from exc
         except Exception as exc:
             if _is_max_turns_exceeded(exc):
-                return _blocked_result(
+                return blocked_result(
                     "The Memory Manager reached its turn limit before completing the review.",
                     runtime=self.name,
                 )
@@ -279,7 +277,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         """Best-effort resume of the SDK state after an approval decision."""
 
         if not run.serialized_agent_state:
-            return _blocked_result(
+            return blocked_result(
                 "The Memory Manager approval state is missing and cannot be resumed.",
                 runtime=self.name,
                 serialized_agent_state=None,
@@ -302,10 +300,12 @@ class OpenAIAgentsMemoryManagerRuntime:
                 agent=agent,
                 serialized_state=run.serialized_agent_state,
                 context=_context_for_run(run),
+                # Each approval resume gets the run's full turn budget (D24).
+                turn_budget=self._turn_limit(run),
             )
             interruption = _find_interruption_for_approval(state.get_interruptions(), approval)
             if interruption is None:
-                return _blocked_result(
+                return blocked_result(
                     "The Memory Manager approval interruption is missing and cannot be resumed.",
                     runtime=self.name,
                     serialized_agent_state=run.serialized_agent_state,
@@ -315,12 +315,9 @@ class OpenAIAgentsMemoryManagerRuntime:
             if decision == "approve":
                 state.approve(interruption)
             else:
-                rejection_message = f"The user rejected the proposed change to `{approval.target_path}`."
-                if feedback:
-                    rejection_message = f"{rejection_message} User feedback: {feedback}"
                 state.reject(
                     interruption,
-                    rejection_message=rejection_message,
+                    rejection_message=rejection_message(approval.target_path, feedback),
                 )
             output = await self._runner.resume_state(
                 agent=agent,
@@ -341,7 +338,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             raise MemoryManagerRuntimeConfigurationError("The Memory Manager model request failed.") from exc
         except Exception as exc:
             if _is_max_turns_exceeded(exc):
-                return _blocked_result(
+                return blocked_result(
                     "The Memory Manager reached its turn limit before completing the review.",
                     runtime=self.name,
                 )
@@ -381,6 +378,11 @@ class OpenAIAgentsMemoryManagerRuntime:
         if self._model_provider is None:
             raise MemoryManagerRuntimeConfigurationError(
                 "No model with tool calling is available for the Memory Manager. Choose one in App Settings."
+            )
+        if self._model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+            # Anthropic rows run on their own runtime; this client would send their key to an OpenAI endpoint.
+            raise MemoryManagerRuntimeConfigurationError(
+                "Anthropic models run on the Anthropic Memory Manager runtime."
             )
         try:
             connection = connection_for_model_provider(self._model_provider)
@@ -602,7 +604,7 @@ class OpenAIAgentsMemoryManagerRuntime:
         if not interruptions:
             final_output = output.final_output.strip() if output.final_output is not None else ""
             if not final_output:
-                return _blocked_result(
+                return blocked_result(
                     "The Memory Manager ended without a final response.",
                     runtime=self.name,
                     openai_previous_response_id=latest_response_id,
@@ -621,7 +623,7 @@ class OpenAIAgentsMemoryManagerRuntime:
 
         state = output.state
         if state is None:
-            return _blocked_result(
+            return blocked_result(
                 "I could not prepare a memory preview: the SDK did not return resumable state.",
                 runtime=self.name,
                 serialized_agent_state=None,
@@ -676,7 +678,7 @@ class OpenAIAgentsMemoryManagerRuntime:
             "I could not prepare a memory preview: "
             f"{invalid_messages[0] if invalid_messages else 'the patch request was invalid'}."
         )
-        return _blocked_result(
+        return blocked_result(
             message,
             runtime=self.name,
             serialized_agent_state=None,
@@ -798,16 +800,6 @@ def _context_for_run(run: MemoryManagerRun) -> dict[str, Any]:
     }
 
 
-def _max_turns_for_run(run: MemoryManagerRun) -> int:
-    """Give a Reflection one extra model turn per page of chat turns it must read."""
-
-    try:
-        task = reflection_task_or_none(run)
-    except ValueError:
-        return _MAX_MANAGER_TURNS
-    return _MAX_MANAGER_TURNS + (reflection_page_count(task) if task is not None else 0)
-
-
 _ANIMA_FILES_INSTRUCTIONS = (
     "Entries under animas/<anima_id>/ belong to one Anima; the map's anima field names it. Entries are in Anima "
     "creation order; when names repeat, the workspace labels the second and later ones Name (2), Name (3), and so "
@@ -847,6 +839,8 @@ def _instructions(*, memory_map: str, access: ManagerFileAccess | None = None) -
         "You are Animama's user memory manager. Help the user maintain durable markdown memory files.\n"
         "You work only in the virtual user memory workspace. Do not ask for or assume shell access.\n"
         "Use memory_list_files, memory_read_files, and search_memory_files to inspect memory.\n"
+        "When a new fact replaces an older one, also correct or remove the outdated statement wherever it appears "
+        "(search_memory_files finds it), so the files never contradict each other.\n"
         "Descriptions in the memory map are a concise birds-eye index of each file without reading it. "
         "Give new files useful descriptions. Whenever content changes, review the description too. Preserve the "
         "description verbatim when it remains accurate, and update it when the file's scope or durable contents "
@@ -862,36 +856,12 @@ def _instructions(*, memory_map: str, access: ManagerFileAccess | None = None) -
         "Never copy the synthetic header into "
         "the Markdown body or user-facing text.\n"
         "Similarly, for update_file operations, "
-        "keep the descriptions up to date through the reserved description header."
+        "keep the descriptions up to date through the reserved description header. "
         "When proposing a memory edit, use apply_patch with exactly one create_file or update_file operation. "
         "Never request delete_file. Only use relative POSIX paths ending in .md.\n"
         "The user must approve apply_patch changes before they become durable.\n"
         f"{anima_guidance}"
         f"\n{memory_map}"
-    )
-
-
-def _blocked_result(
-    message: str,
-    *,
-    runtime: str,
-    serialized_agent_state: str | None = None,
-    openai_previous_response_id: str | None = None,
-    usage_metadata: dict[str, Any] | None = None,
-    metadata: dict[str, Any] | None = None,
-    summary: str | None = None,
-) -> MemoryManagerRuntimeResult:
-    """Return a typed incomplete result that can never finalize episodes."""
-
-    return MemoryManagerRuntimeResult(
-        assistant_message=message,
-        serialized_agent_state=serialized_agent_state,
-        openai_previous_response_id=openai_previous_response_id,
-        usage_metadata=usage_metadata,
-        metadata={"runtime": runtime, **dict(metadata or {})},
-        summary=summary,
-        error=message,
-        outcome=MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
     )
 
 

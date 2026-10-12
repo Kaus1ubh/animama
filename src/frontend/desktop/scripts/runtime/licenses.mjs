@@ -23,7 +23,7 @@ import {
   sha256,
   writeJson,
 } from "./common.mjs";
-import { STAGED_RELATIVE } from "./mixamo-motion.mjs";
+import { PRIVATE_PACKS } from "./private-packs.mjs";
 import { PROCESS_GUARD } from "./process-guard.mjs";
 import { VC_RUNTIME_DLL } from "./windows-platform.mjs";
 
@@ -210,25 +210,30 @@ export function writeLicenses(target, contentInventory) {
       source: file.license.provenance,
       review: file.license.redistribution_review,
     });
-  // The non-portable Mixamo-motion pack carries its own licence inventory.
-  const packInventory = path.join(
-    target.runtime,
-    STAGED_RELATIVE,
-    "licenses/inventory.json",
-  );
-  const packRules = existsSync(packInventory)
-    ? JSON.parse(readFileSync(packInventory, "utf8")).rules
-    : [];
-  // A separate map, so core content files never reference the pack licence.
+  // Each staged private pack carries its own licence inventory. A separate
+  // map, so core content files never reference a pack licence.
+  const packRules = new Map();
   const packRecords = new Map();
-  for (const rule of packRules)
-    packRecords.set(rule.license_id, {
-      id: rule.license_id,
-      name: rule.creator,
-      license: rule.license_id,
-      source: rule.provenance,
-      review: rule.redistribution_review,
-    });
+  for (const pack of PRIVATE_PACKS) {
+    const packInventory = path.join(
+      target.runtime,
+      pack.stagedRelative,
+      "licenses/inventory.json",
+    );
+    if (!existsSync(packInventory)) continue;
+    const rules = JSON.parse(readFileSync(packInventory, "utf8")).rules;
+    packRules.set(pack.stagedRelative, rules);
+    for (const rule of rules)
+      packRecords.set(rule.license_id, {
+        id: rule.license_id,
+        name: rule.creator,
+        license: rule.license_id,
+        source: rule.provenance,
+        review: rule.redistribution_review,
+      });
+  }
+  const stagedPack = (name) =>
+    PRIVATE_PACKS.find((pack) => name.startsWith(`${pack.stagedRelative}/`));
   records.push(...contentRecords.values(), ...packRecords.values());
   records.sort((a, b) => a.id.localeCompare(b.id));
   const assignments = filesIn(target.runtime)
@@ -246,8 +251,10 @@ export function writeLicenses(target, contentInventory) {
         refs = ["animama", "python-runtime-dependencies"];
       else if (name.startsWith("postgres/"))
         refs = ["postgresql", ...(name.includes("vector") ? ["pgvector"] : [])];
-      else if (name.startsWith(`${STAGED_RELATIVE}/`))
-        refs = packRules.map((rule) => rule.license_id);
+      else if (stagedPack(name))
+        refs = (packRules.get(stagedPack(name).stagedRelative) ?? []).map(
+          (rule) => rule.license_id,
+        );
       else if (name.startsWith("content/")) refs = [...contentRecords.keys()];
       else if (staticGroup) refs = [staticGroup.id];
       else if (name.startsWith("web/"))

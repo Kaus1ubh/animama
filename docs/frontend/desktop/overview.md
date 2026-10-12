@@ -160,10 +160,11 @@ window and accept zero arguments; recovery can open only the fixed backup folder
 
 ## Provider Settings And Local State
 
-Embedded setup and Settings → API Keys show optional OpenAI and ElevenLabs key
-controls. Keys for other model servers belong to their model connection
-(Settings → Models): main stores each under the connection's managed variable
-`ANIMAMA_CONNECTION_<ID>_API_KEY`, at most 32 of them. Keys are never read back
+Embedded setup and Settings → API Keys show optional OpenAI, Anthropic and
+ElevenLabs key controls; main delivers the Anthropic key as
+`ANTHROPIC_API_KEY`. Keys for other model servers belong to their model
+connection (Settings → Models): main stores each under the connection's
+managed variable `ANIMAMA_CONNECTION_<ID>_API_KEY`, at most 32 of them. Keys are never read back
 or saved to browser storage. A save applies one change or a batch
 (`credentials.apply`, validated as at most eight changes and one per provider
 or connection). Main encrypts the vault through Electron `safeStorage`, then

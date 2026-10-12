@@ -22,8 +22,9 @@ restarting services or reloading windows; see
 | Document processing (deferred)       | `document-processing`       | Not offered in the first release. Originals can still be uploaded and stored; new extraction/indexing requests remain unavailable. |
 
 The non-portable [Mixamo-motion pack](../../backend/operations/mixamo-motion-pack.md)
-is not a feature pack: feature packs are public downloads, so it is bundled in
-the audited runtime instead and never offered in Settings.
+and [comedy sound pack](../../backend/operations/comedy-sound-pack.md) are not
+feature packs: feature packs are public downloads, so they are bundled in the
+audited runtime instead and never offered in Settings.
 
 Both packs are deferred from the initial catalog and hidden in Settings on a
 fresh installation. If old pack files remain, recovery/removal controls stay

@@ -28,6 +28,9 @@ rendering, and client-side speech recognition.
 - [Model clients and providers](runtime/model-client-providers.md): shared direct
   model clients, catalog provider rows, prompt-only maintenance calls, and chat
   persistence.
+- [Prompt caching and turn instruction layout](runtime/prompt-caching.md):
+  provider cache rules, how often each prompt part changes, and the live
+  cache-measurement harness.
 - [Adding AI model support](runtime/adding-ai-models.md): end-to-end model
   integration map and contributor workflow for adding catalog rows, compatible
   vendors, provider clients, public capabilities, seed data, frontend exposure,

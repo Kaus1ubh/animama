@@ -5,10 +5,14 @@ for the normal avatar companion turn. It executes one direct model-client turn,
 derives emotion updates from the primary response's structured metadata, and
 persists the turn.
 
-Implementation entrypoints are `server/routers/chat/chat_sse.py` for stream
-lifecycle, `turn_setup.py` for admission and preparation, `sse_runtime.py` for
+The route is shared by every composition ([ADR 0021](../../adr/0021-shared-product-http-routes.md)).
+Implementation entrypoints under `product_http/chat/` are `stream.py` for the
+stream lifecycle and the [chat-turn guard](#chat-turn-guard), `turn_setup.py`
+for the owner checks and preparation, `sse_runtime.py` and `sse_events.py` for
 frames, `session_services.py` for short-lived persistence, and
-`app/chat/direct_executor.py` for model/tool execution.
+`app/chat/direct_executor.py` for model/tool execution. The composition supplies
+the sessions, repositories, model clients, speech and policy through its ports;
+the local ones are in `server/product_ports.py`.
 
 ## Request Contract
 
@@ -58,9 +62,11 @@ supports streaming, and supports the requested reasoning effort and any
 requested hosted native tool before the provider is invoked. Structured output
 is not required (rows without a schema or JSON-mode transport are asked for
 JSON by prompt), and `web_search` on a row without hosted search is the application
-tool, offered or left out at turn time. Owner-added rows also need a
-context window, and `OpenAIResponsesHTTPAgent` rows are valid only on the
-built-in OpenAI connection. When it is omitted, the route
+tool, offered or left out at turn time (Anthropic rows never get it). Owner-added
+rows also need a context window. `OpenAIResponsesHTTPAgent` rows are valid only
+on the built-in OpenAI connection, and `AnthropicMessagesHTTPAgent` rows only
+on the built-in Anthropic connection, which serves no other rows. When it is
+omitted, the route
 requires an explicit `anima_chat_profiles` row for the anima. Missing
 profiles fail setup before any upstream model call. Unsupported, inactive, or
 unregistered provider IDs are rejected before model invocation. Accepted turns
@@ -73,8 +79,9 @@ provider's `api_standard` on the chat row before memory context, history
 replay, Responses cursor use, or upstream model invocation.
 Subsequent requests may switch models only within the same `api_standard`, on
 any connection. Requests that would switch between OpenAI Chat Completions
-(`chat_completions`) and OpenAI Responses (`responses`) fail setup with
-`409` and detail code `chat_api_standard_mismatch`. Rows whose provider type
+(`chat_completions`), OpenAI Responses (`responses`) and Anthropic Messages
+(`anthropic_messages`) fail setup with `409` and detail code
+`chat_api_standard_mismatch`. Rows whose provider type
 has no direct-chat standard fail setup with `chat_api_standard_unsupported`.
 `dispatch_options` reuses `PyAnimaDispatchOptions`, so the direct path
 receives the same request-level controls used by chat settings: memory
@@ -92,14 +99,17 @@ influence enabled it also opens the Anima's `MEMORIES.md` and places it as
 unreadable file is omitted without failing the turn. When
 `disable_memory_influence` is true, direct chat still keeps anima identity
 active; `MEMORIES.md` and the memory file list are omitted.
-That message, placed just before the user message, holds the memory file list,
+The turn context, placed just before the user message, holds the memory file list,
 the attached-file list and, always last, the
-[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md).
+[Companion Guardrails](../../adr/0008-non-overridable-companion-guardrail.md),
+which also end the stable system instructions.
 Provider rows that expose `supports_developer_role: false`, such as rows on
 connections with the `fold_developer_role` option (the default for non-OpenAI
-presets), receive every `developer` message folded in order into the
-end of the system instruction, so the guardrail remains the final instruction
-text.
+presets), receive the same text in a `<turn_context>` block at the start of
+the user message instead, so the guardrail remains the final instruction text
+before the user's words. Anthropic rows receive it as a mid-conversation
+`system` message after the user message, because Anthropic accepts one only
+after a user turn. See the [turn layout](prompt-caching.md#turn-layout).
 Memory tools also depend on the selected row. A row without tool calling runs
 the turn without memory tools or attached-file search instead of failing
 setup, and a row whose owner turned off memory writes (`allow_memory_writes`)
@@ -139,10 +149,11 @@ catalog, including owner-added rows and model connections, is described in
 ## Step-By-Step Flow
 
 1. The local HTTP boundary admits the request and resolves the installation
-   principal. Setup validates Anima/chat ownership, the issued runtime snapshot,
-   model capabilities, and chat API-standard compatibility before opening SSE.
-   It also resolves [companion safety](#companion-safety), which never blocks
-   the turn.
+   principal. Setup validates Anima ownership and the issued runtime snapshot,
+   then the composition [admits the turn](#chat-turn-guard), then setup
+   validates chat ownership, model capabilities, and chat API-standard
+   compatibility before opening SSE. It also resolves
+   [companion safety](#companion-safety), which never blocks the turn.
 2. The executor loads required `IDENTITY.md`, optional `MEMORIES.md`, current
    memory/attachment navigation, and local history when the provider needs
    replay. It assembles
@@ -170,6 +181,42 @@ catalog, including owner-added rows and model connections, is described in
 See [memory](../features/memory.md), [user files](../features/user-files.md), and
 [model clients](model-client-providers.md) for tool, prompt, and replay contracts.
 
+## Chat-turn guard
+
+A composition guards each whole turn through its ports. The local composition
+admits every turn and its lease does nothing; a hosted one can reserve and
+settle usage and recheck a session lease.
+
+- **Admission.** `admit_chat_turn` runs after the Anima ownership and runtime
+  revision checks and before anything is written or a model is called. A refusal
+  (`ProductRefusal`, reported as `detail.code`, or the composition's own
+  exception) ends the request with no chat created.
+- **Checks.** The lease's `check` runs before each event the stream drains
+  while the model runs (at least every 50 ms while the client keeps reading;
+  a client that stops reading holds the stream at its next frame) and before
+  each step and frame of
+  a successful reply's completion (speech, title, compaction). A stop before
+  the reply is saved cancels the model and ends the stream with `event: error`
+  (`{"run_id", "error": <stop message>, "code": <stop code>}`) and one
+  `run.completed`. A stop after the reply is saved skips the remaining
+  optional work, cancelling title and speech tasks still running, and ends with
+  the normal `run.completed`.
+- **Settlement.** `settle` runs exactly once, after every turn task has stopped,
+  with `unstarted` (setup, or the composition's own commit of the setup
+  session, failed after admission, or nothing was dispatched),
+  `completed` (the reply was saved, or an incognito turn finished), `failed`
+  (an error before the reply was saved) or `interrupted` (a stop or disconnect
+  before the reply was saved). A refused turn has no lease to settle. A reply save that has
+  begun finishes, within the five-second cleanup bound, even if the turn is
+  stopped or the client leaves.
+
+The composition's chat policy also sets title and compaction settings and,
+optionally, `public_error_text`, which replaces the text and details of
+`event: error` frames and turns their codes outside a short lowercase pattern
+into `turn_failed`. Speech error frames carry the speech port's own messages;
+a speech port that declines a reply's speech raises `ProductRefusal`, and the
+frame (`tts.session.error` or `tts.error`) carries its code.
+
 ## What It Deliberately Does Not Do
 
 Direct chat runs one companion turn. Memory tools operate on user-scope files
@@ -178,7 +225,7 @@ edit Anima identity, move/delete files, or change arbitrary metadata. Workflow o
 
 ## Companion Safety
 
-`server/routers/chat/safety.py` and `app/safety/` own per-turn safety. The
+`product_http/chat/safety.py` and `app/safety/` own per-turn safety. The
 user-facing contract is the [safety and crisis protocol](../../safety/crisis-protocol.md).
 
 - **Companion Guardrails.** `COMPANION_GUARDRAILS` is always the final
@@ -212,8 +259,8 @@ user-facing contract is the [safety and crisis protocol](../../safety/crisis-pro
 Crisis turns stream, persist and update memory like any other turn. Safety
 code never logs message text or detection results (crisis frames are excluded
 from SSE frame logging) and stores no detection results. Opt-in model-client
-prompt previews (`ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS`, on by default in Compose)
-can still include the user message.
+prompt previews (`ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS`, off by default) can still
+include the user message when enabled.
 
 ## SSE Events
 
@@ -348,11 +395,14 @@ precedes every provider-derived frame of the turn. Clients render it as app UI,
 never as assistant text.
 
 `run.status` frames include `type="run.status"`, `run_id`, `status`
-(`summarizing_context` while earlier conversation is compacted before sending,
-`searching_web` while an application web search runs) and `phase`
-(`started`, then `finished`). Summarizing always precedes reply text; a search
-may follow text that streamed in an earlier tool round. Clients show a status
-only while the reply is pending and ignore unknown statuses.
+(`summarizing_context` while earlier conversation is compacted before sending
+or by Anthropic's server, `searching_web` while an application or
+Anthropic-hosted web search runs) and `phase` (`started`, then `finished`).
+Every `started` is followed by `finished`, including when the turn fails.
+Summarizing precedes the reply text of its request; a search, or an Anthropic
+compaction in a later tool round, may follow text that streamed in an earlier
+round. Clients show a status only while the reply is pending and ignore
+unknown statuses.
 
 `safety.crisis_support` frames include `type="safety.crisis_support"`,
 `run_id`, `source` (`local` or `moderation`), and `resources`, the resolved
@@ -386,14 +436,16 @@ Chat persistence is owned by `DirectChatTurnExecutor` through `ChatManager`.
 The executor fetches visible chat history by chat ID during setup, then records
 the user/assistant turn through a separate short-lived recorder session unless
 the request is incognito. The route supplies that recorder through
-`server/routers/chat/session_services.py`, so the setup session can close before
+`product_http/chat/session_services.py`, so the setup session can close before
 upstream model streaming begins. Assistant message usage is persisted on the message
 row and added eagerly to the parent `chats.cum_*` usage counters in the same
 unit of work. The parent chat's `active_context_tokens` is replaced with the
 latest turn's footprint in the next turn's context: its last request's total
 tokens minus output reasoning tokens. A turn with tool rounds or a split
 structured round sums every request in the message usage, so it records that
-footprint as `context_tokens` in the provider metadata. When a stream reports
+footprint as `context_tokens` in the provider metadata. An Anthropic request
+that compacted also bills the compaction step, so its `context_tokens` is
+the last iteration's footprint only. When a stream reports
 no usage, the Chat Completions adapter substitutes a character-based estimate
 marked `usage_estimated`, so the value still advances and post-response
 compaction can trigger. The same non-incognito update stores the last durable
@@ -429,27 +481,36 @@ Settings assignment `models.utility_model_provider_id`, else
 hidden title prompt defaults to a low reasoning effort (sent only when the
 utility model supports it) and a 20 second timeout through
 `ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT` and
-`ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`. Incognito turns skip title
-generation.
+`ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`; the local composition reads these
+and the `ANIMAMA_CHAT_COMPACTION_*` settings from the app's runtime settings. On an Anthropic utility model,
+title and compaction prompts use effort `low` unless set and are never
+server-compacted ([prompt-only maintenance calls](model-client-providers.md#prompt-only-maintenance-calls)).
+Incognito turns skip title generation.
 
 After a successful non-incognito response and before the normal
 `run.completed` frame, the route runs a hidden compaction check. OpenAI
-Responses turns skip it and rely on provider-side compaction; models without
-provider-side compaction also compact before sending when a prompt nears their
-window (see the
+Responses and Anthropic Messages turns skip it and rely on provider-side
+compaction; models without provider-side compaction also compact before sending
+when a prompt nears their window (see the
 [context window budget](model-client-providers.md#context-window-budget)). If
 `chats.active_context_tokens` is at or above
-`ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 6000, lowered to 75% of the
-model's available window),
+the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90000), 70%
+of the model's context window and 75% of the window left after the reply
+reserve,
 `ChatCompactionService` calls a separate backend-owned direct model prompt and
 stores the resulting summary in `chat_compactions`. Compaction summaries are not
 streamed as `user.response` events and are not inserted into `chat_messages`.
 Compaction model usage stays on the `chat_compactions` row rather than the
 chat's `cum_*` counters. Active compaction summaries record `start_turn` and
 `end_turn`; the next prompt uses the summary as a `developer` continuity
-message ahead of the exact visible messages with `turn > end_turn` when the
-selected provider serializes local context. If an OpenAI Responses turn
-continues from a chat-row `openai_previous_response_id`, the request sends only
+message directly after the system message and ahead of the exact visible
+messages with `turn > end_turn` when the selected provider serializes local
+context. Rows without a developer role get it at the end of the system
+message, before the closing guardrails. Anthropic chats ignore these
+summaries: their history starts at the newest stored compaction block (see
+[Anthropic Messages](model-client-providers.md#anthropic-messages)). If an
+OpenAI Responses turn continues from a
+chat-row `openai_previous_response_id`, the request sends only the turn context,
 the new user input and the cursor, so the active summary is not physically
 included in that provider payload.
 
@@ -482,14 +543,14 @@ that already committed remain.
 Setup-time validation failures such as missing animas, foreign chats,
 inactive model rows or connections, non-chat rows, owner rows without a context
 window, unsupported capabilities, missing direct clients, or a
-missing app-scoped registry return normal HTTP errors before `StreamingResponse`
-is opened.
+missing app-scoped registry (`503`, checked after the owner and runtime checks)
+return normal HTTP errors before `StreamingResponse` is opened.
 
 If the client closes the SSE stream early, the generator cancels the active
 executor task without emitting `run.completed`. The setup database session has
 already been closed before model streaming begins, and any auxiliary
-title/TTS/final-persistence work is cancelled or cleaned up by its own
-short-lived session owner. Shared registry clients remain app-scoped and are
+title/TTS work is cancelled; a reply save that has begun finishes in its own
+short-lived session. Shared registry clients remain app-scoped and are
 not closed by request cancellation. This matches the expectation that
 cancellation is not a completed chat turn.
 
@@ -497,8 +558,9 @@ Post-response compaction failures are logged but do not emit `event: error` and
 do not alter the already-completed assistant response. Pre-response hard-ceiling
 protection is not part of the current compaction path.
 
-Request-local cleanup runs in `finally` and is guarded so each task/session is
-settled at most once.
+Request-local cleanup runs in `finally`, shielded from the disconnect's
+cancellation and bounded to five seconds, and waits until each task has stopped;
+only then does the response settle the turn's lease.
 
 ## Runtime scope
 
@@ -509,9 +571,9 @@ contract and ownership review.
 ## Transport verification
 
 Run `uv run pytest -q tests/test_anima_chat_sse_transport.py` from the repository
-root. It serves the real Anima router, local admission/principal resolution,
-direct executor, structured parser and SSE bridge through Uvicorn on an owned
-ephemeral loopback socket. A controlled provider double holds the final bytes
+root. It serves the shared chat router over the local ports, local
+admission/principal resolution, direct executor, structured parser and SSE
+bridge through Uvicorn on an owned ephemeral loopback socket. A controlled provider double holds the final bytes
 until the client observes an incremental frame. Separate cases verify terminal
 errors, disconnect cleanup and a successful next request on the same registry.
 

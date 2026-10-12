@@ -21,7 +21,7 @@ from animama.app.model_catalog import (
     serialize_model_provider_catalog,
     structured_output_transport,
 )
-from animama.app.services.model_provider_catalog_service import ModelProviderCatalogService
+from animama.app.services.model_provider_catalog_service import ModelCatalogPolicy, ModelProviderCatalogService
 from animama.app.services.model_role_resolver import ROLE_EMBEDDINGS, ROLE_PREFERENCE_PATHS
 from animama.domain import ModelProvider, ModelProviderCapabilities, ModelProviderPricing
 from animama.orm import ORMAnimaChatProfile, ORMChatMessage, ORMModelProvider
@@ -71,6 +71,7 @@ SEED_COLUMNS = (
     "source",
     "model_kind",
     "hidden",
+    "early_compaction",
     "service_tiers_supported",
     "active",
     "deprecated_at",
@@ -212,10 +213,11 @@ def _render_seed_sql() -> str:
     provider_rows = serialize_model_provider_catalog()
     builtin_ids = ", ".join(_sql_quote(str(row["id"])) for row in provider_rows)
     return (
-        "-- Seed the built-in model connection and its provider/model catalog rows after\n"
+        "-- Seed the built-in model connections and their provider/model catalog rows after\n"
         "-- Alembic creates the tables. Only built-in rows are inserted, updated or retired;\n"
-        "-- owner-added connections and models, and the owner's hidden flags, are never changed.\n"
-        "-- A newly inserted built-in Chat Completions chat row starts hidden.\n"
+        "-- owner-added connections and models, and the owner's hidden and Compact early\n"
+        "-- flags, are never changed. A newly inserted built-in Chat Completions chat row\n"
+        "-- starts hidden.\n"
         "-- Generated from animama.app.model_catalog serializers by tests/test_model_provider_catalog.py.\n"
         + _render_upsert(
             "model_connections",
@@ -230,8 +232,9 @@ def _render_seed_sql() -> str:
             provider_rows,
             where="source = 'builtin'",
             # A built-in row's ownership never changes after insertion, and its
-            # hidden flag is a fresh-install default the owner may change.
-            insert_only=frozenset({"connection_id", "source", "hidden"}),
+            # hidden and Compact early flags are fresh-install defaults the
+            # owner may change.
+            insert_only=frozenset({"connection_id", "source", "hidden", "early_compaction"}),
         )
         + "\n-- Retire built-in rows that the current release no longer ships.\n"
         + "UPDATE model_providers SET\n"
@@ -290,13 +293,24 @@ def test_model_provider_catalog_has_one_row_per_registry_provider_model_pair() -
     assert all(row["id"] == f"{row['provider_type']}:{row['model']}" for row in rows)
 
 
-def test_built_in_chat_rows_are_gpt_6_luna_on_both_apis_plus_embeddings() -> None:
+def test_built_in_chat_rows_are_gpt_6_luna_on_both_apis_haiku_and_embeddings() -> None:
     assert set(_rows_by_id()) == {
         "OpenAIHTTPAgent:gpt-6-luna",
         "OpenAIResponsesHTTPAgent:gpt-6-luna",
         "OpenAIHTTPAgent:text-embedding-3-small",
         "OpenAIHTTPAgent:text-embedding-3-large",
+        "AnthropicMessagesHTTPAgent:claude-haiku-5-5",
     }
+
+
+def test_each_built_in_row_belongs_to_its_api_family_connection() -> None:
+    for row in serialize_model_provider_catalog():
+        expected = "anthropic" if row["provider_type"] == "AnthropicMessagesHTTPAgent" else "openai"
+        assert row["connection_id"] == expected, row["id"]
+    for row in serialize_model_catalog():
+        expected = "anthropic" if row["model_provider"] == "AnthropicMessagesHTTPAgent" else "openai"
+        assert row["connection_id"] == expected, row["id"]
+        assert row["connection_name"] == ("Anthropic" if expected == "anthropic" else "OpenAI")
 
 
 @pytest.mark.parametrize("provider_type", ["OpenAIHTTPAgent", "OpenAIResponsesHTTPAgent"])
@@ -406,6 +420,7 @@ EXPECTED_SEED_HIDDEN = {
     "OpenAIResponsesHTTPAgent:gpt-6-luna": False,
     "OpenAIHTTPAgent:text-embedding-3-small": False,
     "OpenAIHTTPAgent:text-embedding-3-large": False,
+    "AnthropicMessagesHTTPAgent:claude-haiku-5-5": False,
 }
 
 
@@ -589,9 +604,10 @@ async def test_synced_db_rows_retain_pricing_and_explicit_unpriced_values(async_
 
     for row in await repo.list_active():
         assert row.source == "builtin"
-        assert row.connection_id == "openai"
         assert row.connection is not None
-        assert row.connection.is_builtin_openai
+        assert row.connection.id == row.connection_id
+        assert row.connection.is_builtin
+        assert row.connection.is_builtin_anthropic == (row.provider_type == "AnthropicMessagesHTTPAgent")
 
 
 @pytest.mark.asyncio
@@ -600,7 +616,8 @@ async def test_public_db_catalog_matches_public_registry_shape_without_pricing(a
     await _sync_registry_catalog(async_session)
     service = ModelProviderCatalogService(model_providers=SQLAlchemyModelProviderRepository(async_session))
 
-    db_rows = await service.list_public_catalog()
+    # The local policy exposes every built-in row; the default hides Anthropic rows.
+    db_rows = await service.list_public_catalog(ModelCatalogPolicy.local())
 
     assert db_rows == serialize_model_catalog()
     for row in db_rows:
@@ -690,6 +707,8 @@ def test_model_provider_orm_metadata_is_registered() -> None:
     assert "created_at" in table.c
     assert "updated_at" in table.c
     assert isinstance(table.c.structured_output_transport.type, String)
+    assert not table.c.early_compaction.nullable
+    assert str(getattr(table.c.early_compaction.server_default, "arg", None)) == "true"
     assert table.c.structured_output_transport.nullable
     assert not table.c.connection_id.nullable
     assert {fk.column.table.name for fk in table.c.connection_id.foreign_keys} == {"model_connections"}

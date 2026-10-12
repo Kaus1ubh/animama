@@ -9,8 +9,10 @@ admission state. Browser identity and Authorization headers select no owner.
 Tests use explicit fixture bootstrap and dependency overrides.
 
 Shared product routes (ADR 0021) live in `product_http/routes/`. They take owner
-sessions, repositories, policy, content services and byte delivery from the
-`ProductPorts` the composition installs, never from `get_async_session`, so tests
+sessions, repositories, policy, content services, byte delivery, upload storage,
+speech, the model catalog, the Memory Manager service, and the chat policy,
+chat-turn guard and turn collaborators from the `ProductPorts` the composition
+installs, never from `get_async_session`, so tests
 replace the ports (see `tests/product_http_support.py`) or call handlers with an
 explicit repository bundle. Each composition delivers verified files, runtime JSON
 and package archives under its own caching policy; the paragraphs below describe
@@ -35,13 +37,18 @@ Local setup and host/key administration schemas remain in the server composition
   included in public OpenAPI or mounted in self-host composition.
 - `product_http/routes/animas.py` (shared): Anima list, reads, edits,
   chat-profile and emotional-state updates, and deletion.
-- `server/routers/anima.py`: direct chat SSE and voice catalog uploads (stages 4
-  and 5 of the shared-route plan).
-- `server/routers/model_provider.py`: active provider/model catalog for
-  frontend model selection.
-- `server/routers/model_configuration.py`: owner model connections, models,
-  capability probe and model roles. Only `create_local_app` mounts it, outside
-  the shared `/v1` aggregate, because it sends requests to owner-supplied URLs.
+- `product_http/routes/voice_catalogs.py` (shared): Pocket voice-catalog
+  uploads: staging, the bounded byte upload into the composition's private
+  storage, finalize into a Local `voices/` file, and abort.
+- `product_http/routes/chat_turns.py` (shared): direct chat SSE, under the
+  composition's [chat-turn guard](../runtime/chat.md#chat-turn-guard).
+- `product_http/routes/model_catalog.py` (shared): the provider/model catalog
+  for model selection, under the composition's catalog policy, and the
+  model-role report.
+- `server/routers/model_configuration.py`: owner model connections, models and
+  the capability probe (Anthropic's Models API on the built-in Anthropic
+  connection). Only `create_local_app` mounts it, outside the shared `/v1`
+  aggregate, because it sends requests to owner-supplied URLs.
 - `server/routers/web_search.py`: owner application web search settings and
   Test. Only `create_local_app` mounts it, because a SearXNG URL is
   owner-supplied and Test sends a query to the configured backend.
@@ -73,13 +80,17 @@ Local setup and host/key administration schemas remain in the server composition
 - `product_http/routes/memory.py` (shared): scoped markdown memory entry tree
   listing, path lookup, create, patch, move/rename, and soft-delete routes, and
   the episodic-memory listing.
-- `server/routers/memory_manager.py`: Reflection and manual memory-manager
-  run/message/approval routes.
+- `product_http/routes/memory_manager.py` (shared): Reflection and manual
+  Memory Manager run/message/approval routes; the composition's ports build the
+  owner's service and choose its model runtime (`server/memory_manager.py`
+  locally).
 - `product_http/routes/safety.py` (shared): owner-visible crisis-resource regions
   from the composition's crisis-resource table.
 - `server/routers/archive.py`: archive metadata/passages and embedding search.
-- `server/routers/elevenlabs.py`: ElevenLabs clone, text-to-speech, sound
-  effects, audio isolation, and realtime TTS session helpers.
+- `product_http/routes/elevenlabs.py` (shared): ElevenLabs voice cloning,
+  text-to-speech and sound effects through the composition's speech port.
+- `server/routers/elevenlabs.py`: ElevenLabs audio isolation, which has no web
+  caller and stays local.
 
 ## Health
 
@@ -148,7 +159,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 3.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 4.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -162,7 +173,8 @@ Anima creation. The local composition always reports both `true`; React hides
 the corresponding entry points only when a value is `false`.
 `model_configuration` is true when the composition's
 catalog policy enables owner models, which only the local composition does; the
-[model configuration routes](#model-configuration) exist only then. The
+local-only [model configuration routes](#model-configuration) exist only then.
+The shared `GET /v1/model-roles` report is served by every composition. The
 self-host composition returns a null document `pack_id`; the Electron
 supervisor supplies pack-dependent settings. An enabled worker is `starting`
 until its expected instance has a heartbeat, `ready` for twenty seconds after
@@ -223,7 +235,10 @@ and at most 32 `{kind, id, label}` blockers. Kinds cover Anima/loadout reference
 runtime and preview leases, content operations, and live document jobs. It never
 returns filesystem roots. Electron repeats preflight after draining renderers
 and stopping the worker, before switching pack pointers. Catalog withdrawal
-reuses the same reference checks at restart; readiness fails closed on conflict.
+reuses the same reference checks at restart, except that Included items' own
+edges into the pack are rebuilt from the new scan rather than blocking (an
+optional sound drops; a required dependency becomes invalid); readiness fails
+closed on conflict.
 
 ## Model Assets
 
@@ -731,8 +746,9 @@ final validation, and the revision carried by `avatar.gesture.requested`.
 `model_provider_id` must match an active
 `model_providers.id` row of kind `chat`, on an active connection, that supports
 the requested direct-chat turn features. Owner rows also need a context window,
-and Responses rows run only on the built-in OpenAI connection; setup rejects
-other rows with `400` before any upstream call. When omitted, the backend
+Responses rows run only on the built-in OpenAI connection, and Anthropic
+Messages rows only on the built-in Anthropic connection; setup rejects other
+rows with `400` before any upstream call. When omitted, the backend
 requires the anima's explicit `anima_chat_profiles` default model provider.
 Missing profiles fail setup before any upstream model call.
 
@@ -755,8 +771,9 @@ structured detail:
 ```
 
 Every `OpenAIHTTPAgent` row uses the `chat_completions` standard whatever its
-connection, so a Chat Completions chat can switch between connections; only a
-switch to or from a Responses row needs a new chat.
+connection, so a Chat Completions chat can switch between connections; a
+switch to or from a Responses (`responses`) or Anthropic
+(`anthropic_messages`) row needs a new chat.
 When `dispatch_options.tts.enabled=true` and
 `dispatch_options.tts.provider="elevenlabs"`, the route resolves the
 ElevenLabs realtime session concurrently with the primary model turn and emits a
@@ -781,11 +798,14 @@ it starts with a `# List of memory files` section. The list includes only
 user-scope file entries (`anima_id IS NULL`), uses cached paths such as
 `PROFILE.md`, and omits anima-scoped files and tree formatting. Any attached-file
 list follows, and the Companion Guardrails always end the
-message. `disable_memory_influence` suppresses the list and `MEMORIES.md` while keeping
-required anima identity active. Rows that do not support OpenAI's `developer`
-message role, including every row on a connection with the
-`fold_developer_role` compatibility option, receive all developer text folded
-in order into the end of the system instruction instead.
+message, as they end the system instructions. `disable_memory_influence`
+suppresses the list and `MEMORIES.md` while keeping required anima identity
+active. Rows that do not support OpenAI's `developer` message role, including
+every row on a connection with the `fold_developer_role` compatibility option,
+receive the same text in a `<turn_context>` block at the start of the user
+message instead. Anthropic rows receive it as a mid-conversation `system`
+message after the user message; see the
+[turn layout](../runtime/prompt-caching.md#turn-layout).
 
 ## Installation Events
 
@@ -803,19 +823,25 @@ Durable state remains in the database.
 
 ## Model Providers
 
-The model provider router supports:
+The shared model catalog router (`product_http/routes/model_catalog.py`) supports:
 
 - `GET /v1/model-providers`: public model catalog for frontend selection
+- `GET /v1/model-roles`: the model-role report described
+  [below](#model-role-report)
 
 The route returns active serialized `model_providers` rows whose connection is
 active and which the composition's `ModelCatalogPolicy` allows: built-in rows
-(optionally limited to an allowlist) and, only when the policy enables owner
-models, owner rows. Secret values, connection base URLs and credential
+and, only when the policy enables owner models, owner rows. The default policy
+exposes only the OpenAI connection's built-in rows, or exactly the rows of an
+allowlist, so a hosted composition lists no Anthropic rows unless it names
+them; the local composition exposes every built-in connection's rows. Secret
+values, connection base URLs and credential
 references, pricing metadata, and backend-only capability fields are not
 returned by the public catalog. Anima chat-profile writes and request-level
 `chat:sse` model overrides must name an active catalog row. Public catalog rows
 also include `model_client` and `api_standard` so clients can distinguish OpenAI
-Chat Completions rows from OpenAI Responses rows before sending a chat turn.
+Chat Completions, OpenAI Responses and Anthropic Messages rows before sending
+a chat turn.
 
 Each row also carries:
 
@@ -829,13 +855,26 @@ Each row also carries:
   returned, so an Anima that uses one keeps working; selectors omit them
   otherwise;
 - `context_window_tokens`: the served window, or null. Owner chat rows cannot
-  chat until it is set.
+  chat until it is set;
+- `default_reasoning_effort`: the effort the chat picker preselects, or null
+  to use the first of `supported_reasoning_efforts`. Anthropic Messages rows
+  report `medium` when they offer it; other rows report null.
 
 `model_label` is never empty; it falls back to the model ID. Rows sort by
 `provider_label`, then `model_label`. A database failure returns
 `503 {"detail": {"code": "model_catalog_unavailable"}}` instead of a partial or
 static catalog. The [model catalog](../model-catalog.md) describes built-in rows
 and capabilities.
+
+### Model role report
+
+`GET /v1/model-roles` (shared) reports, for each role (`chat`, `utility`,
+`memory_manager`, `embeddings`), the effective row, its label and connection
+name, its `source` (`owner`, `default`, `inherited` or `off`), the owner's
+requested row and `assignment_available` (false when that request fell back).
+`embeddings_refresh` reports `state` (`off`, `current`, `re_embedding` or
+`retrying`), the `pending` row count and the last failure's `error_category`,
+as the composition's embedding refresh status reports them.
 
 ## Model Configuration
 
@@ -868,7 +907,9 @@ carry a key value.
   `structured_outputs` or `response_format`). An upstream failure returns
   `502 openrouter_models_unavailable`.
 - `GET /v1/model-connections`: active connections, including the built-in
-  `openai` connection, each with its active models.
+  `openai` and `anthropic` connections, each with its active models. A model's
+  `early_compaction` is its **Compact early** setting, or null when the model
+  has no long-context price step.
 - `POST /v1/model-connections` (`201`): create a connection from `name`,
   `preset`, `base_url`, a `credential` (below), and optional `compatibility`
   and `timeout_seconds` (1–1800; the preset's default when omitted). Base URLs
@@ -877,13 +918,14 @@ carry a key value.
   code such as `invalid_base_url`, `invalid_preset`, `invalid_timeout` or
   `invalid_credential`.
 - `PATCH /v1/model-connections/{connection_id}`: change the given fields;
-  omitted fields, including the credential, keep their values. The built-in
-  connection returns `400 connection_read_only`.
+  omitted fields, including the credential, keep their values. Built-in
+  connections return `400 connection_read_only`.
 - `DELETE /v1/model-connections/{connection_id}?confirm=`: retire the
-  connection and all its models. The built-in connection returns
+  connection and all its models. Built-in connections return
   `400 connection_read_only`.
 - `GET /v1/model-connections/{connection_id}/available-models`: the server's
-  model IDs from its `/models` endpoint.
+  model IDs from its `/models` endpoint; on the Anthropic connection, the IDs
+  Anthropic's Models API offers the key's organization.
 - `POST /v1/model-connections/{connection_id}/probe`: send small requests to
   `model` and return suggested capabilities. A chat probe reports each step
   (streamed text, a strict `json_schema` reply or else JSON mode, a tool call,
@@ -891,8 +933,18 @@ carry a key value.
   a failed streaming step ends the probe. It also reports the loaded
   context window when llama.cpp (`/props`), Ollama (`/api/ps`) or LM Studio
   reports one. An `embedding` probe reports the vector dimensions. A Responses
-  probe checks that the model exists and is refused off the built-in
-  connection (`400 invalid_provider_type`). Values the probe could not
+  probe checks that the model exists and is refused off the built-in OpenAI
+  connection (`400 invalid_provider_type`). Without `provider_type` the probe
+  uses Anthropic Messages on the built-in Anthropic connection and Chat
+  Completions elsewhere. On the built-in Anthropic connection the probe sends
+  no message: it reads Anthropic's Models API (`models.retrieve`) and reports one
+  `available` step plus the context window, `max_output_tokens`,
+  `supported_reasoning_efforts` (`none` first when the model accepts disabled
+  thinking), the structured-output transport and `native_tool_support`
+  (`web_search`); a failure is a failed `available` step with a category and a
+  fixed detail. There, an `embedding` probe returns `400 invalid_model_kind`
+  and any other provider type `400 invalid_provider_type`, as does an
+  Anthropic probe elsewhere. Values the probe could not
   determine are null. Saving the model stores a summary in `probe_result`: the
   findings and each step's name, result and category; step details and notes,
   which can quote server error text, are dropped.
@@ -900,31 +952,33 @@ carry a key value.
   with `model`, optional `label`, `kind`, `context_window_tokens`,
   `allow_memory_writes` (default true), `probe_result` and `capabilities`, or a
   built-in chat `template_id` whose capabilities are copied. `provider_type`
-  may choose `OpenAIResponsesHTTPAgent` only on the built-in connection; other
-  connections use Chat Completions. Re-adding a removed model on the same
+  may choose `OpenAIResponsesHTTPAgent` only on the built-in OpenAI connection.
+  Models on the built-in Anthropic connection are always
+  `AnthropicMessagesHTTPAgent` chat rows copied from an Anthropic template or
+  described by the probe; they reject JSON mode and efforts outside `none`,
+  `low`, `medium`, `high`, `xhigh` and `max` (`400 invalid_capabilities`), and
+  Anthropic templates and that provider type are refused elsewhere
+  (`invalid_template`, `invalid_provider_type`). Other connections use Chat
+  Completions. Re-adding a removed model on the same
   connection reactivates its row; adding one that is already active on it
   returns `409 model_already_added`.
 - `PATCH /v1/model-providers/{model_provider_id}`: edit an owner row's label,
   capabilities, context window (`clear_context_window` unsets it), memory
-  writes, probe result or `hidden`. Built-in rows accept only `hidden`; other
-  fields return `400 model_read_only`.
+  writes, probe result, `hidden` or `early_compaction`. Built-in rows accept
+  only `hidden` and `early_compaction`; other fields return
+  `400 model_read_only`. `early_compaction` is accepted only on a model with a
+  long-context price step (`400 early_compaction_unavailable` otherwise).
 - `DELETE /v1/model-providers/{model_provider_id}?confirm=`: retire an owner
   row. Built-in rows can only be hidden (`400 model_read_only`).
-- `GET /v1/model-roles`: for each role (`chat`, `utility`, `memory_manager`,
-  `embeddings`), the effective row, its label and connection name, its
-  `source` (`owner`, `default`, `inherited` or `off`), the owner's requested
-  row and `assignment_available` (false when that request fell back).
-  `embeddings_refresh` reports `state` (`off`, `current`, `re_embedding` or
-  `retrying`), the `pending` row count and the last failure's
-  `error_category`.
 
 A connection's `credential` takes one of three modes:
 
 - `{"mode": "none"}`: no key and no `Authorization` header;
 - `{"mode": "env", "env": "NAME"}`: read the key from a variable named
-  `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN` or
+  `OPENAI_API_KEY`, `DEEPSEEK_API_KEY`, `HF_TOKEN`, `OPENROUTER_API_KEY` or
   `ANIMAMA_CONNECTION_<NAME>_API_KEY`, so a reference cannot read other
-  secrets;
+  secrets. `ANTHROPIC_API_KEY` is refused (`invalid_credential`): only the
+  built-in Anthropic connection reads it;
 - `{"mode": "managed"}`: read the key from `ANIMAMA_CONNECTION_<ID>_API_KEY`,
   derived from the connection ID, which the desktop vault sets.
 
@@ -1090,12 +1144,13 @@ automatically) marks the run's turns covered in the same transaction; Undo of
 that approval uncovers them again. Rejection, a superseded run, failure or a
 `409` version conflict leave the file and coverage unchanged.
 
-Manager messages normally run a live OpenAI Agents SDK workflow on the Memory
-Manager role's model, with an approval-gated Apply Patch tool (hosted on
-Responses rows, a function tool on Chat Completions rows) over a constrained
-virtual memory workspace; `ANIMAMA_LLM_SKIP=1` switches this to the
+Manager messages normally run a live workflow on the Memory Manager role's
+model over a constrained virtual memory workspace: the OpenAI Agents SDK with an
+approval-gated Apply Patch tool (hosted on Responses rows, a function tool on
+Chat Completions rows), or, on Anthropic rows, Anthropic's memory tool whose
+edits become the same approvals. `ANIMAMA_LLM_SKIP=1` switches this to the
 deterministic local test runtime. See
-[Memory Manager and episodic memory](../features/memory-manager-and-episodic-memory.md#live-openai-agents-runtime).
+[Memory Manager and episodic memory](../features/memory-manager-and-episodic-memory.md#runtime-implementations).
 Approval decisions are real commits for valid create/update patches: approved
 patches write through `MemoryEntryService` and atomically store the target entry
 ID and resulting `applied_version`; public previews carry separate nullable
@@ -1105,8 +1160,8 @@ memory, and stale version/path conflicts return `409 Conflict` while leaving
 the approval pending. Reject requests may include normalized
 `feedback` of at most 2,000 characters; nonblank feedback is invalid with
 `decision = "approve"`. Persisted feedback is returned on the approval and is
-included in the Agents SDK rejection message so the same processing run can
-propose a corrected patch. Manager create and append bodies accept
+included in the rejection message the model receives so the same processing run
+can propose a corrected patch. Manager create and append bodies accept
 `auto_approve_diffs` (default false). When enabled, the backend follows only the
 durable approval chain attributed to that submitted message, committing and
 resuming sequentially up to eight times; the frontend does not orchestrate
@@ -1210,8 +1265,11 @@ User `preferences` also hold model choices as catalog row IDs:
 - `models.memory_manager_model_provider_id`: the Memory Manager;
 - `models.embedding_model_provider_id`: upload and archive embeddings.
 
-`PATCH /v1/users/me/settings` replaces the whole `preferences` object without
-validating these IDs. Role resolution checks the row when it is used and falls
+`PATCH /v1/users/me/settings` replaces the whole `preferences` object. The local
+composition stores these IDs without validating them; a composition whose
+catalog policy sets `validate_role_preferences` refuses an ID naming a row that
+cannot do its role with `422 {"detail":{"code":"model_role_unavailable"}}`.
+Role resolution checks the row when it is used and falls
 back to the role's default when the row is removed, of the wrong kind or lacks
 a needed capability: the operator default (`ANIMAMA_DEFAULT_MODEL_PROVIDER_ID`
 for chat, `ANIMAMA_DEFAULT_{UTILITY,MEMORY_MANAGER,EMBEDDING}_MODEL_PROVIDER_ID`

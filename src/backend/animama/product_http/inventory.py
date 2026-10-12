@@ -6,15 +6,17 @@ Each route has one disposition:
   ``stage`` (2 owner-scoped, 3 content, 4 paid utilities, 5 chat streaming). Every
   composition mounts it.
 - ``local``: owned by the local composition (installation bootstrap and runtime
-  context, model custody, owner events, archive, health, telemetry and the web
-  asset catch-all). A consumer serves its own equivalent or nothing.
+  context, model custody, owner events, archive, ElevenLabs audio isolation,
+  health, telemetry and the web asset catch-all). A consumer serves its own
+  equivalent or nothing.
 - ``hosted-excluded``: withheld by a false permission in
   ``contracts/runtime-capabilities/hosted.json``, named by ``capability``.
 
 ``access`` names the port a handler needs: ``read`` or ``write`` sessions (the
-composition keeps commit authority), a ``stream`` response, or ``bytes`` delivered
-under the composition's caching policy. Until a family moves into this package the
-value is provisional; a test binds it to the session a moved handler depends on.
+composition keeps commit authority), a ``stream`` response prepared on a write
+session that ends before the body runs, ``bytes`` delivered under the composition's
+caching policy, or the ``speech`` port without a session. A test binds it to the
+session each shared handler depends on; for local routes it only describes them.
 
 Entries follow the local app's route order, one per method, which matters:
 ``/v1/animas/creation-options`` must match before ``/v1/animas/{anima_id}``, and
@@ -29,11 +31,11 @@ from dataclasses import dataclass
 from typing import Literal
 
 Disposition = Literal["shared", "local", "hosted-excluded"]
-Access = Literal["read", "write", "stream", "bytes"]
+Access = Literal["read", "write", "stream", "bytes", "speech"]
 Stage = Literal[2, 3, 4, 5]
-# Stages whose shared routes this package serves today; later stages' shared routes
-# are still served by the local composition until they move.
-SERVED_STAGES: frozenset[Stage] = frozenset({2, 3})
+# Stages whose shared routes this package serves: every stage, since chat streaming
+# (stage 5) moved. Tests keep the routers and the local composition in step with it.
+SERVED_STAGES: frozenset[Stage] = frozenset({2, 3, 4, 5})
 
 
 @dataclass(frozen=True)
@@ -129,8 +131,9 @@ ROUTES: tuple[RouteSpec, ...] = (
         "stream_anima_runtime_file",
         "bytes",
     ),
-    # Model catalog
+    # Model catalog and model roles (adding models is host administration)
     _shared(4, "GET", "/v1/model-providers", "list_model_providers", "read"),
+    _shared(4, "GET", "/v1/model-roles", "get_model_roles", "read"),
     # Model custody (installation is host administration)
     _local("GET", "/v1/model-assets", "list_model_assets", "read"),
     _local("GET", "/v1/model-assets/{asset_id}", "get_model_asset", "read"),
@@ -248,10 +251,11 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(2, "DELETE", "/v1/chats/{chat_id}", "delete_chat", "write"),
     _shared(2, "GET", "/v1/chats/{chat_id}/messages", "list_chat_messages", "read"),
     # ElevenLabs speech and voices
-    _shared(4, "POST", "/v1/elevenlabs/voices/clone", "clone_voice_endpoint", "write"),
-    _shared(4, "POST", "/v1/elevenlabs/text-to-speech", "text_to_speech_endpoint", "write"),
-    _shared(4, "POST", "/v1/elevenlabs/sound-effects", "sound_effects_endpoint", "write"),
-    _shared(4, "POST", "/v1/elevenlabs/audio-isolation", "audio_isolation_endpoint", "write"),
+    _shared(4, "POST", "/v1/elevenlabs/voices/clone", "clone_voice_endpoint", "speech"),
+    _shared(4, "POST", "/v1/elevenlabs/text-to-speech", "text_to_speech_endpoint", "speech"),
+    _shared(4, "POST", "/v1/elevenlabs/sound-effects", "sound_effects_endpoint", "speech"),
+    # Audio isolation has no web caller and stays local (owner, 2026-10-10).
+    _local("POST", "/v1/elevenlabs/audio-isolation", "audio_isolation_endpoint", "write"),
     # Owner events
     _local("GET", "/v1/events:sse", "get_owner_events_sse", "stream"),
     # Anima archive (no web caller; stays local)
@@ -308,7 +312,7 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(4, "POST", "/v1/memory/manager/runs/{run_id}/messages", "append_memory_manager_message", "write"),
     _shared(4, "POST", "/v1/memory/manager/approvals/{approval_id}:decide", "decide_memory_manager_approval", "write"),
     _shared(4, "POST", "/v1/memory/manager/approvals/{approval_id}:undo", "undo_memory_manager_approval", "write"),
-    # Model connections and models (model roles are a catalog read)
+    # Model connections and models
     _excluded("model_configuration", "GET", "/v1/model-connection-presets", "list_model_connection_presets", "read"),
     _excluded(
         "model_configuration",
@@ -341,7 +345,6 @@ ROUTES: tuple[RouteSpec, ...] = (
     ),
     _excluded("model_configuration", "PATCH", "/v1/model-providers/{model_provider_id}", "update_model", "write"),
     _excluded("model_configuration", "DELETE", "/v1/model-providers/{model_provider_id}", "remove_model", "write"),
-    _shared(4, "GET", "/v1/model-roles", "get_model_roles", "read"),
     # Web search settings
     _excluded("web_search.configuration", "GET", "/v1/web-search/settings", "get_web_search_settings", "read"),
     _excluded("web_search.configuration", "PUT", "/v1/web-search/settings", "update_web_search_settings", "write"),
