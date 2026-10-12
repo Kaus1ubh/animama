@@ -2,28 +2,54 @@
 
 import { useMemo, type CSSProperties } from "react";
 
-import { scatterPlacements } from "@/lib/scene-vfx/layerGeometry";
+import {
+  sceneScatterPlacements,
+  type ScatterPlacement,
+} from "@/lib/scene-vfx/layerGeometry";
+import { SCENE_EFFECT_LIMITS } from "@/lib/scene-vfx/limits";
 import type { ResolvedSceneBackgroundScatterLayer } from "@/lib/scene-vfx/types";
 import { useCanvasViewport } from "@/ui/main/canvas/CanvasViewportContext";
 
 /**
- * C4 and C5: items scattered over the view with per-item size, rotation and
- * opacity, each drifting (`scene-vfx-drift`), spinning (`scene-vfx-spin`) and
- * pulsing (`scene-vfx-twinkle`, `-pop`, `-flicker`) on nested elements so
- * the transforms combine.
+ * C4 and C5: a Scene's scatter layers, placed together so each layer's still
+ * items stay clear of the others' (`sceneScatterPlacements`), drawn back to
+ * front in definition order.
  */
-export function SceneVFXScatterLayer({
-  layer,
+export function SceneVFXScatterLayers({
+  layers,
 }: {
-  layer: ResolvedSceneBackgroundScatterLayer;
+  layers: readonly ResolvedSceneBackgroundScatterLayer[] | undefined;
 }) {
   const viewport = useCanvasViewport();
   const placements = useMemo(
-    () => scatterPlacements(layer, viewport.width, viewport.height),
-    [layer, viewport.width, viewport.height],
+    () =>
+      viewport.hasSize && layers
+        ? sceneScatterPlacements(
+            // Validated content has at most this many; the cap guards the rest.
+            layers.slice(0, SCENE_EFFECT_LIMITS.scatter.layers),
+            viewport.width,
+            viewport.height,
+          )
+        : [],
+    [layers, viewport.hasSize, viewport.width, viewport.height],
   );
-  if (!layer.enabled || !viewport.hasSize || placements.length === 0)
-    return null;
+  return placements.map((layerPlacements, index) => (
+    <SceneVFXScatterLayer key={index} placements={layerPlacements} />
+  ));
+}
+
+/**
+ * One scatter layer's items with per-item size, rotation and opacity, each
+ * drifting (`scene-vfx-drift`), spinning (`scene-vfx-spin`) and pulsing
+ * (`scene-vfx-twinkle`, `-pop`, `-flicker`) on nested elements so the
+ * transforms combine.
+ */
+function SceneVFXScatterLayer({
+  placements,
+}: {
+  placements: ScatterPlacement[];
+}) {
+  if (placements.length === 0) return null;
   return (
     <div
       aria-hidden="true"

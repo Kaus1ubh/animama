@@ -209,7 +209,7 @@ for (const journey of JOURNEYS) {
               return proveParticlePlayback({
                 evidence: animamaEvidence,
                 evidenceName: journey.key,
-                expectedAnchor: "head",
+                expectedAnchor: "chest",
                 expectedOwner: "content-preview",
                 expectedTarget: journey.target,
                 surface,

@@ -180,6 +180,15 @@ backend to `src/backend/animama/`, content to `content/included/`.
     its chest `heart_throb`, which the burst now covers.
   This changes R12's intensity-1 rule from "expression only" to "expression
   and an Avatar Effect, with no Particle or Scene Effect".
+- 2026-10-12, owner (P8 preview): the four new Avatar Effects are approved
+  for promotion; Heart Burst at the chest should be slightly smaller with fewer
+  small hearts after the burst. Published to #297 with the review decisions
+  (read back 2026-10-12T16:41:12Z).
+- 2026-10-12, owner: the mouth effects cannot play in Reactions (they sit on
+  the lip-synced mouth; `test_no_included_action_plays_a_mouth_effect`), so
+  amusement-1 takes `eye_vv` and joy-1 `sparkle_pop`; `eye_vv` is redrawn with
+  bolder strokes and replaced under its ID everywhere; amusement-2 adds a new
+  "heh" Avatar Effect beside its `eye_vv`.
 - 2026-10-10, owner: R9 final set is the 12 proposed candidates except Sweat
   Spray (rejected in Plan 1's dry run for its idea and art).
 - 2026-10-10, owner: the approved Local Heart Burst and Gloom Sadness are used
@@ -1130,7 +1139,7 @@ Authorized by the owner's review (Decision Log, 2026-10-12).
 | --- | --- |
 | Affection | admiration `star3`, caring `heart_throb`, love `blush`, embarrassment `blush_band` (kept) |
 | Esteem | respect `sparkle_pop`, confidence `sparkle_pop`, gratitude `heart_throb` |
-| Delight | amusement `mouth_w`, excitement `star3`, joy `mouth_hover_w` |
+| Delight | amusement `eye_vv` (redrawn), excitement `star3`, joy `sparkle_pop` |
 | Drive | desire `blush`, curiosity `emote_question`, optimism `sparkle_pop` |
 | Alarm | fear `eye_0`, nervousness `sweat_drop`, confusion `emote_question` |
 | Rejection | anger `angry`, annoyance `huff_puff`, disapproval `eye` |
@@ -1138,6 +1147,60 @@ Authorized by the owner's review (Decision Log, 2026-10-12).
 | Gloom | disappointment `sigh_puff`, grief `single_tear`, sadness `single_tear` |
 
 #### P8 record
+
+Starting source and issue: `2d6c5174`, #466.
+
+- **Placement** (step 1, delegated, integrated here): `scatterPlacements`
+  takes optional obstacles and `sceneScatterPlacements` places a Scene's
+  layers in order, each layer's still items clear of the earlier layers'.
+  - Still items use seeded best-candidate placement (96 candidates, largest
+    first, edge-to-edge gaps, the area's and face column's edges counted), now
+    wholly inside the region and view; a crowded region gets the least overlap.
+  - Drifting items take equal lanes (n or n-1 items each), evenly spaced
+    phases with golden-ratio stagger between lanes and bounded jitter, so no
+    two overlap and the view stays evenly filled.
+  - Not done: same-direction layers do not interleave lanes, and drifting items
+    can pass over other layers' still items (embarrassment's steam over its
+    blush marks); the owner's Decision Log entry allows crossing motion.
+  - `SceneVFXBackgroundLayersEffect` renders the layers through one memoised
+    placement; the creator preview uses the same path. `layerGeometry.test.ts`
+    has 11 new tests over 6 seeds (overlap, region, grid coverage, lanes,
+    sampled-time spacing, face column, determinism, disabled layers).
+- **Backgrounds** (step 2): the still scatter layers of 15 backgrounds (16
+  layers) now use the region 0.04–0.5. Chat-size renders
+  (`.animama-drafts/plan2/p8/scene-wide-p8.jpg`) show them evenly spread in
+  the upper half; the 256 × 320 render tiles are too small for the larger
+  stickers and still crowd them.
+- **Heart Burst** (step 3): anchor `chest`, offset y 0.06, depth 0.2 (0.12 sat
+  inside Y_0's jacket, 0.3 drifted aside in three-quarter view), scale 0.8 and
+  7 small hearts instead of 14 (owner); caring-3 drops `heart_throb` and its
+  dependency.
+- **Level 1** (step 4): the four Avatar Effects were drafted with the effect
+  skills (delegated; art from `image-gen` referencing Included art), saved
+  Local, approved by the owner, and promoted
+  (`.animama-drafts/plan2/avatar/promote-p8.json`, 9 changes). ADR 0022 needs
+  each to carry a pack sound; all 29 are in use, so they share: Sparkle Pop
+  `bright_eyes`, Emote Question `wobble_riser_01v2`, Sigh Puff
+  `funny_downer_02`, Single Tear `shrink_03`. All 24 level-1 Reactions play
+  their mapped effect at 0.1 s with `playAccompanyingSound: false`
+  (embarrassment-1's `blush_band` now silent too). The four join the Avatar FX
+  templates (Included names; "?" is not allowed in a name) with
+  `effects:thumbnails` thumbnails and source-review records.
+- **Mouth rule and `eye_vv`:** the full gate showed amusement-1 and joy-1's
+  mouth effects break `test_no_included_action_plays_a_mouth_effect`; with the
+  owner, amusement-1 takes `eye_vv` and joy-1 `sparkle_pop`. `eye_vv` was
+  redrawn bold (about a quarter of the mark's height per arm) and moved 1.2 cm
+  inward per eye, approved and replaced under its ID and art filename
+  (`promote-p8-2.json`; the promote's new filename was renamed back so its
+  pinned tests and licence record keep their path). The new `heh` (manga
+  "heh" lettering beside the head, pack sound `bouncy_bubble_02`) joins
+  amusement-2 at 0.12 s without its sound, since a Reaction plays one
+  accompanying sound at a time. Both have templates and thumbnails; the
+  Included Avatar Effects number 34 (two script pins updated).
+- **Tests:** `reactionClips.test.ts` pins the level-1 mapping;
+  `particleVfx.test.ts` and the Library journey pin Heart Burst's chest anchor.
+- **Docs:** `scene-vfx.md` and the Scene skill's `layers.md` describe the
+  placement (Local Scenes' stickers move); `avatar-animation.md` level 1.
 
 #### Code Review #1 Findings
 

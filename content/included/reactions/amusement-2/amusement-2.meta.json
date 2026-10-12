@@ -19,6 +19,12 @@
       "alias": "eye_vv",
       "content_type": "avatar_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:heh",
+      "alias": "heh",
+      "content_type": "avatar_effect",
+      "config": {}
     }
   ],
   "files": [

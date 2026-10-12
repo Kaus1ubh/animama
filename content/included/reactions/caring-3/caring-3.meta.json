@@ -25,12 +25,6 @@
       "alias": "heart-burst",
       "content_type": "particle_effect",
       "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:heart_throb",
-      "alias": "heart_throb",
-      "content_type": "avatar_effect",
-      "config": {}
     }
   ],
   "files": [

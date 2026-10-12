@@ -10,10 +10,10 @@ asked for this draft and, on review the same day, resolved its open questions
 fixed by the named plan or gate: the R2 capability list and R6 budget values by
 Plan 1, the R9 and R10 lists before Plan 2 starts (decided 2026-10-10).
 Authoritative source: [#297](https://github.com/raymond-van/animama/issues/297),
-published 2026-10-09 and updated with the before-Plan-2 decisions and the
-Plan 2 R9 additions (read back at 2026-10-12T08:03:57Z). This file is a
-snapshot of that issue text; refresh it from the issue before resuming and do
-not edit it as a competing source.
+published 2026-10-09 and updated with the before-Plan-2 decisions, the
+Plan 2 R9 additions and the owner's Plan 2 review (read back at
+2026-10-12T16:41:12Z). This file is a snapshot of that issue text; refresh it
+from the issue before resuming and do not edit it as a competing source.
 Related: [#298](https://github.com/raymond-van/animama/issues/298) (Avatar
 Effects v2: unified effects creator, effect preview, shared effect-asset skill
 and the Avatar Effect pipeline this work mirrors).
@@ -608,6 +608,14 @@ Decisions (owner, before Plan 2):
   both tiers share an effect, the background is the step up (no intensity-3
   variants), and fear, nervousness and disapproval have no Particle Effect.
   The approved table is in the Plan 2 ExecPlan.
+
+- **Owner review of Plan 2 (2026-10-12).** G2, G3 and G4 are approved with
+  three revisions: every intensity-1 Reaction plays one fitting Avatar Effect
+  without its accompanying sound (still no Particle or Scene Effect; four new
+  Avatar Effects: Sparkle Pop, Emote Question, Sigh Puff, Single Tear); Scene
+  stickers are spread evenly without overlapping, with still stickers in the
+  upper half of the emotion backgrounds; Heart Burst plays smaller at the
+  chest with fewer small hearts, and caring-3 drops its chest Heart Throb.
 
 Open: none.
 

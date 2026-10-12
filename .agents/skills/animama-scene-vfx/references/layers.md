@@ -68,14 +68,21 @@ from its `items` (1–8), with seeded per-item ranges:
 | `minSize`, `maxSize` | 4–512 px |
 | `minRotationDeg`, `maxRotationDeg` | −360–360 |
 | `minOpacity`, `maxOpacity` | 0–1 |
-| `regionTop`, `regionBottom` | 0–1 of the view height where items start |
+| `regionTop`, `regionBottom` | 0–1 of the view height that holds still items, and the lanes of left and right drifters |
 | `speedPxPerSec` with `direction` | 0–600; drifting items cross the view on off-screen tracks |
 | `minSpinDegPerSec`, `maxSpinDegPerSec` | 0–720; `alternateSpin` reverses every other item |
 | `pulse` | `none`, `twinkle`, `pop` or `flicker` |
 
-`keepFaceClear` keeps still items out of the column behind the head, and
-items drifting straight up or down out of that column's width. Placement
-depends on the seed and the view size. Petals, drops, confetti, anger marks,
+Placement is even and depends on the seed and the view size. Still items
+sit wholly inside the region without overlapping (when they fit), spread
+evenly, and clear of earlier layers' still items. Drifters run in equal
+lanes, as many as `maxSize` fits, evenly spaced along the track, so they
+never bunch or touch; same-direction layers do not interleave, so give two
+drifting layers different directions or regions if they must not cross.
+`keepFaceClear` keeps still items' centres out of the column behind the head,
+and items drifting straight up or down out of that column's width. A crowded
+region (too many or too large items) still overlaps: lower `count` or
+`maxSize` instead. Petals, drops, confetti, anger marks,
 bubbles. Art: `scene-sticker` budget.
 
 ## 8. Entry flash (optional)

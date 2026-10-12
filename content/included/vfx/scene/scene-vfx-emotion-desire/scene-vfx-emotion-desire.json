@@ -125,7 +125,7 @@
         "maxRotationDeg": 0,
         "minOpacity": 0.7,
         "maxOpacity": 1,
-        "regionTop": 0,
+        "regionTop": 0.04,
         "regionBottom": 0.5,
         "keepFaceClear": true,
         "direction": "static",

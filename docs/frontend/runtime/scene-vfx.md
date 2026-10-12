@@ -404,13 +404,31 @@ written before them are unchanged and keep `animama/scene-effect/1`:
    `throbPerSec`) or `lines` hanging from the top edge (count, length and
    width ranges, `swaySeconds`), drawn as SVG from a `seed`.
 6. `SceneVFXMarqueeLayer`
-7. `SceneVFXScatterLayer`, once per `scatters` entry: `count` items picked from
-   `items`, with seeded per-item size, rotation and opacity ranges, a start
-   region, `keepFaceClear` (still items, and items drifting straight up or
-   down, avoid the column behind the head), drift in a marquee direction, a
-   spin range (`alternateSpin`) and a `pulse` (`twinkle`, `pop` or
-   `flicker`). Drifting items cross the whole view on
-   off-screen tracks, so nothing appears or vanishes mid-view.
+7. `SceneVFXScatterLayers`, one layer per `scatters` entry: `count` items
+   picked from `items`, with seeded per-item size, rotation and opacity
+   ranges, a region, `keepFaceClear`, drift in a marquee direction, a spin
+   range (`alternateSpin`) and a `pulse` (`twinkle`, `pop` or `flicker`).
+   `sceneScatterPlacements` places a Scene's layers together; items count as
+   circles of their size:
+   - Still items rest wholly inside the region and the view, spread by
+     seeded best-candidate placement: they do not overlap whenever they fit,
+     gaps to neighbours and to the region's edges come out even, and a
+     crowded region keeps the least overlap. They also stay clear of the
+     still items of the enabled layers listed before them. `keepFaceClear`
+     keeps their centres out of the column behind the head (the middle 30%
+     of the width, top 60% of the height).
+   - Drifting items cross the whole view on off-screen tracks, so nothing
+     appears or vanishes mid-view. They run in equal lanes across the motion
+     (the region for left and right motion, the view width for up and down,
+     minus the face column's width with `keepFaceClear`), as many as the
+     largest item fits, and each lane's items are evenly spaced along the
+     track with neighbouring lanes staggered. The layer stays evenly filled
+     at every moment and its items never touch. Layers drifting the same way
+     do not interleave their lanes, and crossing layers may overlap.
+
+   Placement is computed at runtime, not stored: a Local Scene saved before
+   this placement shows its items in new places with the same seed and
+   fields.
 8. `SceneVFXFlashLayer`: one fade from `color` over `durationMs` when the Scene
    starts.
 

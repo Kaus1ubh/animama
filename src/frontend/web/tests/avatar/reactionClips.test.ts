@@ -39,6 +39,38 @@ const INCLUDED_SCENE_EFFECT_ALIASES = readIncludedEffectAliases(
 );
 
 /**
+ * Each level-1 Reaction's one Avatar Effect alias (R12, owner revision
+ * 2026-10-12): level 1 plays it without its accompanying sound and has no
+ * Particle or Scene Effect.
+ */
+const expectedLevelOneAvatarEffects: Record<string, string> = {
+  admiration: "star3",
+  caring: "heart_throb",
+  love: "blush",
+  embarrassment: "blush_band",
+  respect: "sparkle_pop",
+  confidence: "sparkle_pop",
+  gratitude: "heart_throb",
+  amusement: "eye_vv",
+  excitement: "star3",
+  joy: "sparkle_pop",
+  desire: "blush",
+  curiosity: "emote_question",
+  optimism: "sparkle_pop",
+  fear: "eye_0",
+  nervousness: "sweat_drop",
+  confusion: "emote_question",
+  anger: "angry",
+  annoyance: "huff_puff",
+  disapproval: "eye_=",
+  disgust: "eye_=",
+  remorse: "sweat_drop",
+  disappointment: "sigh_puff",
+  grief: "single_tear",
+  sadness: "single_tear",
+};
+
+/**
  * The Reaction ladder's Particle Effects (R12): each Reaction's
  * `[effect, duration]` events in clip order. Intensity 2 plays them at 0.12 s
  * and intensity 3 at 0.1 s; a Reaction not listed plays none.
@@ -555,6 +587,22 @@ describe("reaction clip catalog", () => {
     expect(INCLUDED_SCENE_EFFECT_ALIASES).toEqual(
       TRACKED_EMOTIONS.map((emotion) => `scene-vfx-emotion-${emotion}`).sort(),
     );
+  });
+
+  it("plays one silent Avatar Effect at intensity 1", () => {
+    for (const emotion of TRACKED_EMOTIONS) {
+      const clipId = `${emotion}-1`;
+      const clip = getAvatarReactionClip(clipId);
+
+      expect(clip.events, `${clipId} events`).toEqual([
+        expect.objectContaining({
+          time: 0.1,
+          kind: "avatar_vfx",
+          effectId: expectedLevelOneAvatarEffects[emotion],
+          playAccompanyingSound: false,
+        }),
+      ]);
+    }
   });
 
   it("does not resolve neutral, blank, unknown, group, or zero-intensity inputs", () => {

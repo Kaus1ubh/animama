@@ -439,7 +439,7 @@ describe("particle VFX catalog", () => {
       label: "Heart Burst",
       description: expect.stringContaining("heart"),
       assetPath: "/effects/vfx/quark/heart-burst/particle.json",
-      defaultAnchor: "head",
+      defaultAnchor: "chest",
       defaultDurationSec: 2.5,
       defaultFollowAnchor: true,
       defaultTransform: expect.any(Object),
