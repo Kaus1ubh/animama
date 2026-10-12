@@ -8,7 +8,6 @@ from __future__ import annotations
 
 import base64
 import logging
-from collections.abc import AsyncIterator
 from types import SimpleNamespace
 from typing import Any
 
@@ -40,6 +39,12 @@ from animama.server.gemini_tts_service import (
     stream_gemini_finalized_speech,
 )
 from animama.server.runtime_credentials import runtime_credentials
+from tests.gemini_support import (
+    FakeInteractions as _FakeInteractions,
+    audio_event as _audio,
+    completed_event as _completed,
+    install_client as _install_client,
+)
 from tests.local_http_client import local_client
 from tests.product_http_support import install_local_ports
 
@@ -49,47 +54,6 @@ KEY = "gemini-key-for-tests"
 @pytest.fixture
 def gemini_key(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(runtime_credentials, "current", lambda: {GEMINI_CREDENTIAL_ENV: KEY})
-
-
-class _FakeInteractions:
-    """Records each create call and replays scripted events, or raises ``error``."""
-
-    def __init__(self, events: list[Any] | None = None, error: BaseException | None = None) -> None:
-        self.calls: list[dict[str, Any]] = []
-        self._events = events or []
-        self._error = error
-
-    async def create(self, **params: Any) -> AsyncIterator[Any]:
-        self.calls.append(params)
-        if self._error is not None:
-            raise self._error
-
-        async def _stream() -> AsyncIterator[Any]:
-            for event in self._events:
-                yield event
-
-        return _stream()
-
-
-def _install_client(monkeypatch: pytest.MonkeyPatch, interactions: _FakeInteractions) -> list[str]:
-    keys: list[str] = []
-
-    def _client(api_key: str) -> Any:
-        keys.append(api_key)
-        return SimpleNamespace(aio=SimpleNamespace(interactions=interactions))
-
-    monkeypatch.setattr(gemini_tts_service, "_client", _client)
-    return keys
-
-
-def _audio(raw: bytes) -> Any:
-    return SimpleNamespace(
-        event_type="step.delta", delta=SimpleNamespace(type="audio", data=base64.b64encode(raw).decode())
-    )
-
-
-def _completed(status: str = "completed") -> Any:
-    return SimpleNamespace(event_type="interaction.completed", interaction=SimpleNamespace(status=status))
 
 
 def _prepared(**overrides: Any) -> GeminiFinalizedSpeech:
@@ -326,14 +290,29 @@ async def test_stream_reports_failed_or_unfinished_audio(
     assert all(payload["type"] != "done" for payload in payloads)
 
 
+QUOTA_TEXT = (
+    "Gemini's rate limit or daily quota was reached (HTTP 429). Try again later, or raise your Gemini API tier."
+)
+
+
+@pytest.mark.parametrize(
+    ("status_code", "error"),
+    [(500, "Gemini text-to-speech failed (HTTP 500)."), (429, QUOTA_TEXT)],
+)
 @pytest.mark.asyncio
 async def test_stream_error_names_only_the_status_and_never_the_text_or_key(
-    gemini_key: None, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+    gemini_key: None,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
+    status_code: int,
+    error: str,
 ) -> None:
-    class _RateLimited(Exception):
-        status_code = 429
+    class _ProviderError(Exception):
+        pass
 
-    _install_client(monkeypatch, _FakeInteractions(error=_RateLimited(f"quota for {KEY}: Hello there.")))
+    failure = _ProviderError(f"quota for {KEY}: Hello there.")
+    failure.status_code = status_code  # type: ignore[attr-defined]
+    _install_client(monkeypatch, _FakeInteractions(error=failure))
     # Capture at the service logger itself: an earlier logging configuration in the
     # same process (Alembic's fileConfig) can disable loggers that already exist.
     service_logger = gemini_tts_service._log.logger
@@ -351,7 +330,7 @@ async def test_stream_error_names_only_the_status_and_never_the_text_or_key(
             "run_id": "run-1",
             "model_id": "gemini-3.8-flash-lite-tts",
             "output_format": "pcm_24000",
-            "error": "Gemini text-to-speech failed (HTTP 429).",
+            "error": error,
             "code": "gemini_tts_stream_failed",
         }
     ]

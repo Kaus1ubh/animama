@@ -13144,6 +13144,55 @@ export type ProcessUserFileV1FilesFileIdProcessPostResponses = {
 
 export type ProcessUserFileV1FilesFileIdProcessPostResponse = ProcessUserFileV1FilesFileIdProcessPostResponses[keyof ProcessUserFileV1FilesFileIdProcessPostResponses];
 
+export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * If-None-Match
+         */
+        'If-None-Match'?: string | null;
+    };
+    path: {
+        /**
+         * Voice
+         */
+        voice: 'Zephyr' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Leda' | 'Orus' | 'Aoede' | 'Callirrhoe' | 'Autonoe' | 'Enceladus' | 'Iapetus' | 'Umbriel' | 'Algieba' | 'Despina' | 'Erinome' | 'Algenib' | 'Rasalgethi' | 'Laomedeia' | 'Achernar' | 'Alnilam' | 'Schedar' | 'Gacrux' | 'Pulcherrima' | 'Achird' | 'Zubenelgenubi' | 'Vindemiatrix' | 'Sadachbia' | 'Sadaltager' | 'Sulafat';
+    };
+    query?: {
+        /**
+         * Model Id
+         */
+        model_id?: 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts';
+    };
+    url: '/v1/gemini/voices/{voice}/sample';
+};
+
+export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * Gemini could not speak the sample; `detail.message` names at most the HTTP status.
+     */
+    502: unknown;
+    /**
+     * No Gemini API key (`gemini_tts_missing_credential`), or the data root is unavailable.
+     */
+    503: unknown;
+};
+
+export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetError = GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetErrors[keyof GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetErrors];
+
+export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponses = {
+    /**
+     * The voice's sample as a 24 kHz mono WAV.
+     */
+    200: Blob | File;
+};
+
+export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponse = GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponses[keyof GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponses];
+
 export type ListGesturesData = {
     body?: never;
     path?: never;

@@ -12,6 +12,14 @@ import {
   resolvePocketVoicePreference,
 } from "@/lib/speech/pocket/voice-preferences";
 import { voiceCloneSampleSource } from "@/lib/speech/pocket/voice-clones";
+import {
+  geminiVoiceSampleSource,
+  type GeminiVoice,
+} from "@/lib/speech/gemini-voices";
+import {
+  DEFAULT_GEMINI_TTS_MODEL_ID,
+  toGeminiTtsModelId,
+} from "@/lib/settings/preferences";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useVoiceClones } from "@/query/hooks/useVoiceClones";
@@ -19,6 +27,7 @@ import { useVoiceSelection } from "@/query/mutations/useVoiceSelection";
 import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
 import { toTtsProvider } from "@/lib/speech/tts-provider";
 import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
+import { GeminiVoicePicker } from "@/ui/animas/GeminiVoicePicker";
 import {
   PocketVoicePicker,
   pocketVoiceNotProvided,
@@ -127,6 +136,10 @@ export function AnimaVoicesEditor() {
     ? (geminiTts.voices.find((voice) => voice === savedGeminiVoice) ??
       geminiTts.default_voice)
     : null;
+  // Samples use the model replies are spoken with.
+  const geminiModelId =
+    toGeminiTtsModelId(effectivePreferences.speech?.tts_gemini_model_id) ??
+    DEFAULT_GEMINI_TTS_MODEL_ID;
   const loadout = useAnimaLoadout(animaId);
   const library = useVoiceClones({
     enabled: configuredProvider === "pocket_tts",
@@ -146,6 +159,22 @@ export function AnimaVoicesEditor() {
   const selectedVoice = selectedCloneId
     ? `clone:${selectedCloneId}`
     : pocketVoice;
+
+  const saveGeminiVoice = async (voice: GeminiVoice) => {
+    if (disabled || pending.current) throw new Error("Voice settings busy");
+    pending.current = true;
+    setSaving(true);
+    try {
+      await updateAnimaPreferences({ speech: { gemini: { voice } } });
+      toast.success("Gemini voice saved.");
+    } catch (error) {
+      toast.error("Failed to save Gemini voice. Try again.");
+      throw error;
+    } finally {
+      pending.current = false;
+      setSaving(false);
+    }
+  };
 
   const saveProvider = async (provider: string) => {
     if (
@@ -383,47 +412,16 @@ export function AnimaVoicesEditor() {
       {configuredProvider === "gemini" && geminiTts ? (
         <section className="space-y-3" aria-label="Gemini voice">
           <ProviderHeading name="Gemini" active={activeProvider === "gemini"} />
-          <div className="flex items-center justify-between gap-4">
-            <label
-              htmlFor="anima-gemini-voice"
-              className="text-muted-foreground text-xs"
-            >
-              Voice
-            </label>
-            <Select
-              value={selectedGeminiVoice ?? undefined}
-              onValueChange={(voice) => {
-                if (disabled || pending.current) return;
-                pending.current = true;
-                setSaving(true);
-                void updateAnimaPreferences({ speech: { gemini: { voice } } })
-                  .then(() => toast.success("Gemini voice saved."))
-                  .catch(() =>
-                    toast.error("Failed to save Gemini voice. Try again."),
-                  )
-                  .finally(() => {
-                    pending.current = false;
-                    setSaving(false);
-                  });
-              }}
-              disabled={disabled}
-            >
-              <SelectTrigger
-                id="anima-gemini-voice"
-                aria-label="Gemini voice"
-                className="w-48 min-w-0"
-              >
-                <SelectValue>{selectedGeminiVoice}</SelectValue>
-              </SelectTrigger>
-              <SelectContent>
-                {geminiTts.voices.map((voice) => (
-                  <SelectItem key={voice} value={voice}>
-                    {voice}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
+          <GeminiVoicePicker
+            value={selectedGeminiVoice ?? geminiTts.default_voice}
+            voices={geminiTts.voices}
+            modelId={geminiModelId}
+            disabled={disabled}
+            sampleSource={(voice) =>
+              geminiVoiceSampleSource(apiClient, geminiModelId, voice)
+            }
+            onSelect={saveGeminiVoice}
+          />
         </section>
       ) : null}
     </div>

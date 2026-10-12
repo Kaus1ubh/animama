@@ -1,36 +1,41 @@
-import type { ReactNode } from "react";
 import { renderToStaticMarkup } from "@/test/runtime-markup";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AnimaVoicesEditor } from "./VoiceLoadoutSection";
 
+type PickerProps = {
+  value: string;
+  voices: readonly string[];
+  modelId: string;
+  sampleSource: (voice: string) => { id: string };
+  onSelect: (voice: string) => Promise<void>;
+};
+
 const fixtures = vi.hoisted(() => ({
   update: vi.fn(async () => undefined),
-  // Each rendered Select's change handler, in render order.
-  selects: [] as Array<(value: string) => void>,
+  picker: null as PickerProps | null,
+  speech: {} as Record<string, unknown>,
+  loadSample: vi.fn(),
 }));
 
-// A plain Select stand-in that exposes each change handler to the test.
-vi.mock("@/ui/components/select", () => ({
-  Select: ({
-    onValueChange,
-    children,
-  }: {
-    onValueChange: (value: string) => void;
-    children: ReactNode;
-  }) => {
-    fixtures.selects.push(onValueChange);
-    return <div>{children}</div>;
+// The picker's own behaviour is covered by its tests; this checks what the
+// loadout gives it.
+vi.mock("@/ui/animas/GeminiVoicePicker", () => ({
+  GeminiVoicePicker: (props: PickerProps) => {
+    fixtures.picker = props;
+    return null;
   },
-  SelectTrigger: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  SelectValue: ({ children }: { children?: ReactNode }) => (
-    <span>{children}</span>
-  ),
-  SelectContent: ({ children }: { children: ReactNode }) => (
-    <div>{children}</div>
-  ),
-  SelectItem: ({ children }: { children: ReactNode }) => <div>{children}</div>,
+}));
+vi.mock("@/lib/speech/gemini-voices", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("@/lib/speech/gemini-voices")>()),
+  geminiVoiceSampleSource: (
+    _client: unknown,
+    modelId: string,
+    voice: string,
+  ) => ({
+    id: voice,
+    name: voice,
+    loadSample: () => fixtures.loadSample(voice, modelId),
+  }),
 }));
 vi.mock("@/query/hooks/useAnimaLoadout", () => ({
   useAnimaLoadout: () => ({
@@ -60,7 +65,7 @@ vi.mock("@/ui/settings/SettingsProvider", () => ({
   useSettings: () => ({
     animaId: "anima-1",
     effectivePreferences: {
-      speech: { tts_enabled: true, tts_provider: "gemini" },
+      speech: { tts_enabled: true, tts_provider: "gemini", ...fixtures.speech },
     },
     animaPreferences: { speech: { gemini: { voice: "NotAVoice" } } },
     updateAnimaPreferences: fixtures.update,
@@ -83,30 +88,52 @@ vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
+function renderPicker(): PickerProps {
+  renderToStaticMarkup(<AnimaVoicesEditor />);
+  if (!fixtures.picker)
+    throw new Error("the Gemini voice picker was not shown");
+  return fixtures.picker;
+}
+
 describe("Gemini voice choice", () => {
   beforeEach(() => {
     fixtures.update.mockClear();
-    fixtures.selects.length = 0;
+    fixtures.loadSample.mockClear();
+    fixtures.picker = null;
+    fixtures.speech = {};
   });
 
   it("shows the voice the backend will speak when the saved name is unknown", () => {
-    expect(renderToStaticMarkup(<AnimaVoicesEditor />)).toContain(
-      "<span>Kore</span>",
+    const picker = renderPicker();
+    expect(picker.value).toBe("Kore");
+    expect(picker.voices).toEqual(["Kore", "Puck"]);
+  });
+
+  it("plays samples with the model replies are spoken with", () => {
+    expect(renderPicker().modelId).toBe("gemini-3.8-flash-lite-tts");
+
+    fixtures.speech = { tts_gemini_model_id: "gemini-3.8-flash-tts" };
+    const picker = renderPicker();
+    expect(picker.modelId).toBe("gemini-3.8-flash-tts");
+    const sample = picker.sampleSource("Puck") as unknown as {
+      loadSample: () => unknown;
+    };
+    sample.loadSample();
+    expect(fixtures.loadSample).toHaveBeenCalledWith(
+      "Puck",
+      "gemini-3.8-flash-tts",
     );
   });
 
   it("saves the chosen prebuilt voice where the backend reads it", async () => {
-    renderToStaticMarkup(<AnimaVoicesEditor />);
-    // The provider select renders first, then the Gemini voice select.
-    const chooseVoice = fixtures.selects[1];
-    expect(chooseVoice).toBeTypeOf("function");
+    await renderPicker().onSelect("Puck");
+    expect(fixtures.update).toHaveBeenCalledWith({
+      speech: { gemini: { voice: "Puck" } },
+    });
+  });
 
-    chooseVoice?.("Puck");
-
-    await vi.waitFor(() =>
-      expect(fixtures.update).toHaveBeenCalledWith({
-        speech: { gemini: { voice: "Puck" } },
-      }),
-    );
+  it("reports a failed save so the list stays open", async () => {
+    fixtures.update.mockRejectedValueOnce(new Error("offline"));
+    await expect(renderPicker().onSelect("Puck")).rejects.toThrow("offline");
   });
 });

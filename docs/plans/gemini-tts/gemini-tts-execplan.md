@@ -59,7 +59,9 @@ Ownership and boundaries:
       and release note done 2026-10-12, Review #1 passed; the owner listening
       check is pending.
 - [x] Final integration review. Review #1 passed; repair round 1 passed
-      2026-10-12.
+      2026-10-12; repair round 2 rechecked Phase 5's integration and passed.
+- [x] Phase 5: Voice samples and the Gemini voice picker (D29). Done
+      2026-10-12; Review #2 passed (repair round 1).
 
 ## Surprises & Discoveries
 
@@ -204,6 +206,17 @@ Spec decisions D3, D4, D7, D8, D12, D14 and D15–D17 are in the
 - **D28 (planning): no ADR.** Gemini extends the existing backend-brokered
   voice pattern (ElevenLabs finalized audio) without a new boundary, so current
   docs record it instead of an ADR.
+- **D29 (owner, 2026-10-12): voice samples and picker (Phase 5).**
+  - Google publishes no sample audio for the prebuilt voices, so clicking play
+    generates a brief sample through the backend with the owner's key. It is
+    cached per installation, so each model and voice is billed once.
+  - The Gemini voice choice becomes a picker like Pocket TTS's: search,
+    All/Female/Male tabs, Google's one-word description, and a play button per
+    voice.
+    - Genders come from Google Cloud's Gemini-TTS voice list.
+    - Descriptions come from the Gemini API speech-generation docs.
+  - Delivered in this PR: the new route is a structural API change, and
+    `local-http` 5.0.0 has not shipped yet, so no further major is needed.
 
 ## Implementation orientation
 
@@ -956,6 +969,174 @@ All fixed as suggested:
 - **Verification:** `git diff --check`. No further round: the revisions are
   wording changes confirmed against the cited code.
 
+### Phase 5: Voice samples and the Gemini voice picker
+
+Requirements: D29; R1's key rules apply to sample requests.
+
+1. **Backend:**
+   - **Route.** `GET /v1/gemini/voices/{voice}/sample?model_id=` is a local
+     route (`server/routers/gemini.py`, inventory `_local`), because Gemini voice
+     is local only. No shared port or hosted contract change is needed. It is
+     delivered with `local_file_response` (`audio/wav`, ETag, 304). Errors carry
+     `detail.code` and a browser-safe `detail.message`:
+     - 422 for an unknown voice or model;
+     - 503 `gemini_tts_missing_credential`, with the key message;
+     - 502 `gemini_tts_sample_failed`, naming at most the HTTP status.
+   - **Local implementation.** `server/gemini_voice_samples.py` speaks
+     "Hi there! This is how I sound when we talk." in the friendly default
+     style through `stream_gemini_finalized_speech`. It shares the client, the
+     key check, the three-request limit and the redacted errors.
+     - Audio is capped at 10 s and wrapped as a 24 kHz mono 16-bit WAV.
+     - Files go under `<data root>/internal/derivatives/gemini-voice-samples/<model>/<voice>.<digest>.wav`.
+       The digest covers a version, the text and the style. Writes are
+       atomic, and stale digests are removed.
+     - One in-flight generation per file, shielded from cancellation, so two
+       clicks never bill twice and a stopped click still caches.
+     - A cached sample plays without a key.
+2. **Frontend:**
+   - A `GeminiVoicePicker` replaces the Select in Loadout → Voices. It reuses
+     the Pocket picker's popover layout, search box and gender tabs,
+     `createVoiceSamplePlayer`, and `VoiceSampleButton` (moved into its own
+     file).
+   - Each row shows the name, Google's description and play/select buttons.
+     The sample uses the saved `tts_gemini_model_id`, falling back to the
+     default.
+   - Errors from the server's `detail.message` are shown as is. A note says
+     the first play of each voice uses the Gemini key.
+   - Voice metadata (gender, description) is a frontend catalog keyed by
+     name, like Pocket's. A voice the catalog lacks still lists under All.
+3. **Contract:** regenerate the client offline. No further version bumps:
+   `local-http` 5.0.0 and `runtime-contracts` 0.5.0 are unreleased in this PR.
+4. **Docs:** `gemini-tts.md`, `voice-and-speech.md`, `http-api.md` and
+   `local-content-storage.md` (derivatives).
+
+Checks: new `tests/test_gemini_voice_samples.py` covering:
+- a miss generates and caches; a repeat makes no call; an ETag returns 304;
+- concurrent requests make one call; a cancelled request still caches;
+- missing key 503; upstream 429 gives a status-only 502 that caches nothing;
+- no `.tmp` files are left after failures;
+- unknown voice or model 422; a corrupt file is regenerated;
+- a changed sample line replaces the old file.
+
+Frontend tests: the sample loader's error mapping, and the picker's rows,
+gender tabs, search, play and select. `VoiceLoadoutSection.gemini.test.tsx` is
+updated. The inventory test is updated. Then the final checks.
+
+Completion: checks pass, review leaves no blocker, and one live sample plays
+on the task stack. The owner listening check (Phase 4) also covers the
+picker.
+
+Phase record: issue #469; starting source `f3a9e6b5`; commit —.
+
+Implementation (2026-10-12):
+
+- **Backend:**
+  - `server/gemini_voice_samples.py` (`LocalGeminiVoiceSamples`) and the
+    local route `server/routers/gemini.py`, listed in the inventory as
+    `_local`.
+  - Planning had proposed a shared `ProductPorts` member. It was dropped
+    because Gemini voice is local only, so hosted adopters need no change.
+  - `stream_gemini_finalized_speech` is now typed as an async generator, so
+    callers can close it early.
+  - The Gemini SDK fakes moved to `tests/gemini_support.py`.
+- **Frontend:**
+  - `lib/speech/gemini-voices.ts` holds the voice details, the filter and the
+    sample loader. `VoiceSampleError` lets a loader's message reach the player.
+  - `VoiceSampleButton` moved to its own file. The new `GeminiVoicePicker`
+    replaces the Select in Loadout → Voices.
+  - The client was regenerated offline.
+- **Checks:**
+  - 15 new backend tests; 330 route, admission, inventory and Gemini tests;
+    ruff, format and mypy.
+  - Web: 173 tests in `src/ui/animas` and `src/lib/speech`; `pnpm check`,
+    `web:lint`, `prettier:check` and `openapi-ts:check`.
+- **Live (task stack):** a Puck sample on Flash-Lite TTS was made in 2.8 s (a
+  3.1 s WAV). A repeat was served from the cache in 3 ms, and the ETag returned
+  304.
+- **Owner report (2026-10-12):** chats on the task stack failed with
+  `gemini_tts_stream_failed` (HTTP 429). Google's reply confirmed the key's
+  Free tier allows 10 requests a day per model. Five voice samples and the
+  day's chats had used Flash-Lite TTS's allowance, so this is a quota, not a
+  defect.
+
+#### Code Review #1 Findings
+
+Independent `sdlc-reviewer`, full initial review of the working tree on
+`f3a9e6b5`. **Result: fail, one blocker.** It agreed with the local-route
+design and judged the duplication between the two pickers acceptable.
+
+- **P5-R1-F1 (blocker):** `make mypy` failed on four errors in the new test
+  file: one `no-any-return`, and three `comparison-overlap` errors where an
+  `HTTPException.detail` is compared with a dict. The record's "mypy" covered
+  only the source files.
+- **P5-R1-F2 (should-fix):** the store dependency was synchronous, so FastAPI
+  ran it in the threadpool. Two first plays right after a start could each
+  build a store, and so bill twice; a probe with a widened window confirmed
+  it.
+- **P5-R1-F3 (should-fix):** the cache-write failure path was untested.
+- **P5-R1-F4 (note):** no empty-state row, unlike the Pocket list.
+- **P5-R1-F5 (note):** the voice catalog's keys were not checked against the
+  contract's voices.
+- **P5-R1-F6 (note):** local admission rejects cross-site GETs. A browser
+  without Fetch Metadata would be admitted, but the cache bounds the cost to
+  60 samples.
+- **P5-R1-F7 (note, docs):**
+  - `http-api.md` said every error carries `detail.message`, but
+    `content_unavailable` does not;
+  - the inventory docstring omitted Gemini samples.
+- **P5-R1-F8 (note, existing):** when the sample cap is hit, the SDK's inner
+  stream is closed only by garbage collection. The semaphore is released.
+  The chat path behaves the same.
+
+#### Code Review #1 Revisions
+
+- **F1 (fixed):** the frames are read as `bytes`, and each detail is compared
+  as `object`. The full `make mypy` target now passes (830 files).
+- **F2 (fixed):** the dependency is `async`, so it runs on the event loop and
+  every play shares one store. A route test sends two concurrent first plays
+  and sees one Gemini call.
+- **F3 (fixed):** a test makes `replace` fail. The sample still plays, no
+  file or `.tmp` is left, and the next play speaks again.
+- **F4 (fixed):** the list shows "No voices match these filters.", with a test.
+- **F5 (fixed):** the catalog `satisfies Record<GeminiVoice, …>`, so a missing
+  or extra voice fails type checking.
+- **F7 (fixed):** both doc points are corrected.
+- **F6, F8 (accepted):** no change.
+- **Owner report (fixed):**
+  - A 429 now reads "Gemini's rate limit or daily quota was reached (HTTP 429).
+    Try again later, or raise your Gemini API tier.", in chat and in samples.
+    The service test covers both 429 and 500; the docs explain the Free-tier
+    allowance.
+  - The shared finalized runtime no longer labels Gemini failures as
+    ElevenLabs: its log name is `FinalizedTTSRuntime`, its reason is
+    `finalized_error`, and its fallback text is neutral.
+- **Verification:**
+  - backend: 59 tests in the Gemini sample, TTS and inventory files, plus 50
+    Gemini chat SSE tests; ruff and format; full `make mypy`;
+  - web: 235 tests in `src/ui/animas`, `src/lib/speech` and `src/hooks`;
+    `pnpm check`, `web:lint` and `prettier:check`.
+
+Repair round 1 (targeted recheck by the same reviewer): **pass.** All
+revisions resolve their findings:
+- the full `make mypy` target passes;
+- the race probe now makes one call;
+- the 429 text is a fixed string, never built from the exception;
+- no consumer used the old runtime names, including in animama-cloud.
+
+Note P5-R2-F1 (a quota number in the docs will go stale) was fixed by linking
+Google's rate-limits page. One of two repair rounds was used.
+
+Visual check (2026-10-12, task stack, Annie on Gemini with the voice Leda;
+answers FI-R3-F1):
+- **At 1440×900:** the picker shows search, the All/Female/Male tabs,
+  "30 voices", a description and a play button on each row, the check on
+  Leda, and the footer note. The Female tab lists the 14 female voices, and a
+  search with no matches shows "No voices match these filters.".
+- **At 390×844:** the popover fills the width, the list scrolls, and the page
+  does not overflow horizontally.
+- The owner had already played Zephyr, Kore, Leda and Callirrhoe from the
+  picker. Samples served 200 the first time and 304 after that.
+
 ## Final integration review
 
 Run after Phase 4, before the PR leaves draft, with at most two repair rounds.
@@ -1022,6 +1203,26 @@ tests as above, 16 in `test_product_http_chat_turns.py` (ElevenLabs refusal
 codes), ruff and format, mypy on the three changed modules, and product-ui
 lifecycle 30/30. One of two repair rounds used.
 
+### Final Code Review repair round 2 (Phase 5 integration)
+
+The same reviewer ran a targeted cross-phase recheck of the Phase 5 working
+tree on `f3a9e6b5`. **Result: pass.**
+- Samples share the client, key and semaphore with chat, and the cap releases
+  its slot.
+- The 429 text and the runtime rename change no ElevenLabs behaviour.
+- The local route stays out of hosted, and no further version bumps are
+  needed.
+- Key isolation holds for responses, logs and cache files.
+
+Its findings:
+- **FI-R3-F1:** the picker lacked a visual check. Fixed by the Phase 5
+  visual check above.
+- **FI-R3-F2 (note):** samples and chat share Google's per-model quota. This
+  is documented, and the 429 text explains it.
+
+Checks: 212 backend and 172 web tests, ruff, mypy, the import boundary and
+`openapi-ts:check`. Both repair rounds are now used.
+
 ## Validation and acceptance
 
 | Spec criterion | Evidence | Phase |
@@ -1029,7 +1230,7 @@ lifecycle 30/30. One of two repair rounds used.
 | No key → visible voice error, reply still shown; desktop key without restart, not persisted or sent to the browser | backend and desktop tests; owner check | 1, 3, 4 |
 | Owner connection naming `GEMINI_API_KEY` refused; `GOOGLE_API_KEY` never read | credential and SDK isolation tests | 1 |
 | Speaks in the chosen prebuilt voice with lip-sync; tone changes the style; failure leaves the reply with a voice error | backend and frontend tests; live check; owner listening check | 1, 2, 4 |
-| Settings show Gemini, its model and the voice picker | UI tests; visual check | 2 |
+| Settings show Gemini, its model and the voice picker | UI tests; visual check (Phase 5 for the picker) | 2, 5 |
 | Hosted composition unchanged | composition and provider-option tests | 1, 2 |
 | Voice docs updated | review | 4 |
 

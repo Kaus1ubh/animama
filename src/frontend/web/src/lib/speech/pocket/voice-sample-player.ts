@@ -5,6 +5,9 @@ export type VoiceSampleSource = { id: string; name: string } & (
   | { sampleUnavailable: string }
 );
 
+/** A sample failure whose message is safe and useful to show as is. */
+export class VoiceSampleError extends Error {}
+
 export type VoiceSampleState = {
   voiceId: string | null;
   status: "idle" | "loading" | "playing" | "error";
@@ -61,13 +64,15 @@ export function createVoiceSamplePlayer(
     const request = new AbortController();
     controller = request;
     onChange({ voiceId: voice.id, status: "loading", error: null });
-    const fail = () => {
+    const fail = (message?: string) => {
       if (controller !== request) return;
       release();
       onChange({
         voiceId: voice.id,
         status: "error",
-        error: `${voice.name}'s sample could not play. Check your connection and try again.`,
+        error:
+          message ??
+          `${voice.name}'s sample could not play. Check your connection and try again.`,
       });
     };
     try {
@@ -92,12 +97,12 @@ export function createVoiceSamplePlayer(
       nextAudio.onended = () => {
         if (controller === request) stop();
       };
-      nextAudio.onerror = fail;
+      nextAudio.onerror = () => fail();
       await nextAudio.play();
       if (controller === request)
         onChange({ voiceId: voice.id, status: "playing", error: null });
-    } catch {
-      fail();
+    } catch (error) {
+      fail(error instanceof VoiceSampleError ? error.message : undefined);
     }
   }
 

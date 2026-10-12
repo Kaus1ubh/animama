@@ -27,6 +27,7 @@ from . import (
     content,
     elevenlabs,
     events,
+    gemini,
     logs,
     model_assets,
     runtime_context,
@@ -56,6 +57,7 @@ router.include_router(typed_content.router)
 router.include_router(chats.router)
 router.include_router(shared_elevenlabs.router)
 router.include_router(elevenlabs.router)
+router.include_router(gemini.router)
 router.include_router(events.router)
 router.include_router(archive.router)
 router.include_router(settings.router)

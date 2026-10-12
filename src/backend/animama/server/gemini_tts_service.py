@@ -13,7 +13,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import uuid
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from dataclasses import dataclass
 from typing import Any
 
@@ -149,12 +149,17 @@ def _error_payload(
 
 def _safe_error_text(exc: BaseException) -> str:
     status_code = getattr(exc, "status_code", None)
+    if status_code == 429:
+        # Free-tier keys allow only a few requests a minute and a day per model.
+        return (
+            "Gemini's rate limit or daily quota was reached (HTTP 429). Try again later, or raise your Gemini API tier."
+        )
     if isinstance(status_code, int):
         return f"Gemini text-to-speech failed (HTTP {status_code})."
     return "Gemini text-to-speech failed."
 
 
-async def stream_gemini_finalized_speech(prepared: GeminiFinalizedSpeech) -> AsyncIterator[dict[str, Any]]:
+async def stream_gemini_finalized_speech(prepared: GeminiFinalizedSpeech) -> AsyncGenerator[dict[str, Any], None]:
     """Stream one segment as ``audio`` payloads, then ``done``, or one ``error``."""
 
     try:

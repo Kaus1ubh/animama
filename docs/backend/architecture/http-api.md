@@ -91,6 +91,8 @@ Local setup and host/key administration schemas remain in the server composition
   text-to-speech and sound effects through the composition's speech port.
 - `server/routers/elevenlabs.py`: ElevenLabs audio isolation, which has no web
   caller and stays local.
+- `server/routers/gemini.py`: Gemini voice samples for the voice picker; local
+  only, like Gemini voice itself.
 
 ## Health
 
@@ -1413,6 +1415,24 @@ normalization off, then emits ordered `tts.audio` frames and one final
 `tts.done` over `chat:sse`. Segment failures emit `tts.error` and stop v3 audio
 synthesis without blocking the final chat completion frame. Anima does not
 request or forward ElevenLabs timestamp/alignment metadata.
+
+## Gemini voice samples
+
+`GET /v1/gemini/voices/{voice}/sample?model_id=` returns a brief `audio/wav`
+sample of one prebuilt voice for the voice picker. `model_id` defaults to
+`gemini-3.8-flash-lite-tts`; an unknown voice or model is a 422 before any
+request. The first play of each model and voice uses the Gemini key. Later
+plays return the kept file with an ETag (`private, no-cache`, 304 when
+unchanged), even without a key. Errors carry `detail.code`; the Gemini errors
+also carry a browser-safe `detail.message`:
+
+- 503 `gemini_tts_missing_credential`, asking for a Gemini API key;
+- 502 `gemini_tts_sample_failed`, naming at most the HTTP status (a 429 says
+  the rate limit or daily quota was reached);
+- 503 `content_unavailable` (code only), when the data root is not ready.
+
+The route is local only; [voice and speech](../integrations/voice-and-speech.md#gemini-voice-samples)
+covers the cache.
 
 ## Client-side speech
 

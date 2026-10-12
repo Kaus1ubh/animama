@@ -8229,6 +8229,58 @@ export const zProcessUserFileV1FilesFileIdProcessPostData = z.object({
  */
 export const zProcessUserFileV1FilesFileIdProcessPostResponse = zPyUserFileProcessResponse;
 
+export const zGetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        voice: z.enum([
+            'Zephyr',
+            'Puck',
+            'Charon',
+            'Kore',
+            'Fenrir',
+            'Leda',
+            'Orus',
+            'Aoede',
+            'Callirrhoe',
+            'Autonoe',
+            'Enceladus',
+            'Iapetus',
+            'Umbriel',
+            'Algieba',
+            'Despina',
+            'Erinome',
+            'Algenib',
+            'Rasalgethi',
+            'Laomedeia',
+            'Achernar',
+            'Alnilam',
+            'Schedar',
+            'Gacrux',
+            'Pulcherrima',
+            'Achird',
+            'Zubenelgenubi',
+            'Vindemiatrix',
+            'Sadachbia',
+            'Sadaltager',
+            'Sulafat'
+        ])
+    }),
+    query: z.optional(z.object({
+        model_id: z.optional(z.enum(['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']))
+    })),
+    headers: z.optional(z.object({
+        'If-None-Match': z.optional(z.union([
+            z.string(),
+            z.null()
+        ]))
+    }))
+});
+
+/**
+ * The voice's sample as a 24 kHz mono WAV.
+ */
+export const zGetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponse = z.string();
+
 export const zListGesturesData = z.object({
     body: z.optional(z.never()),
     path: z.optional(z.never()),

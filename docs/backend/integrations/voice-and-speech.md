@@ -188,9 +188,30 @@ A Gemini failure emits one `tts.error` and no `tts.done`; the reply text and
 `gemini_tts_missing_credential` (no key), `gemini_tts_stream_setup_failed` (segment setup) and
 `gemini_tts_stream_failed` (a request error, an `error` event, or a stream that
 ends without completing). The `error` text asks for the key when it is missing
-and otherwise names at most the HTTP status, never request text or the key. The opt-in
+and otherwise names at most the HTTP status (a 429 says the rate limit or daily
+quota was reached), never request text or the key. The opt-in
 [live test](../../../tests/live/README.md) re-measures format, byte order and
 latency against the real API.
+
+### Gemini voice samples
+
+Google publishes no sample audio for its prebuilt voices, so the voice picker
+asks the local route `GET /v1/gemini/voices/{voice}/sample`
+([HTTP API](../architecture/http-api.md#gemini-voice-samples)).
+
+- **Generation.** On the first play, `server/gemini_voice_samples.py` speaks
+  "Hi there! This is how I sound when we talk." in the friendly default style
+  through `stream_gemini_finalized_speech`. It therefore shares the key check,
+  the client, the three-request limit and the status-only errors. The audio is
+  cut at 10 s.
+- **Storage.** Each sample is stored as a 24 kHz mono WAV at
+  `<data root>/internal/derivatives/gemini-voice-samples/<model>/<voice>.<digest>.wav`.
+  The digest covers `SAMPLE_VERSION`, the line and the style. Changing any of
+  them, or bumping the version after Google changes a voice, replaces the old
+  files on their next play.
+- **Writes and concurrency.** Writes are atomic, and a damaged file is spoken
+  again. Plays of the same file share one request, which a stopped play does
+  not cancel, so a sample is billed once.
 
 ## Client-side speech recognition
 

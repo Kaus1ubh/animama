@@ -77,9 +77,21 @@ Gemini returns no timing data. `useChatSession` and the lip-sync bridge accept
   server pushes finalized audio. The saved preference is kept for other
   providers.
 - Loadout → Voices offers Gemini as the Anima's TTS provider where it is
-  offered. With Gemini chosen, a Voice select of the prebuilt voices saves
-  `speech.gemini.voice`. An unknown saved name shows, and speaks, the default
-  `Kore`.
+  offered. With Gemini chosen, `GeminiVoicePicker` lists the prebuilt voices in
+  the PocketTTS picker's layout:
+  - search, and All/Female/Male tabs;
+  - Google's one-word description under each name;
+  - a play button on every voice and beside the selection.
+
+  Choosing a voice saves `speech.gemini.voice`. An unknown saved name shows,
+  and speaks, the default `Kore`. Genders and descriptions come from
+  `GEMINI_VOICE_DETAILS` in `lib/speech/gemini-voices.ts`; a voice it lacks
+  lists only under All.
+- A sample plays the backend's
+  [kept sample](../../backend/integrations/voice-and-speech.md#gemini-voice-samples)
+  for the selected Gemini model. The first play of each voice uses the Gemini
+  key, and the picker says so. A failure shows the server's message, for
+  example the missing-key text.
 - Setup and Anima creation offer neither Gemini nor its key.
 - Exporting a Gemini-voiced Anima, like an ElevenLabs-voiced one, includes no
   voice binding or provider name.
@@ -97,6 +109,12 @@ hosted ElevenLabs `speech_allowance_exhausted` decline.
 | `gemini_tts_missing_credential`  | No `GEMINI_API_KEY`; the notice reads "Gemini text-to-speech needs a Gemini API key." |
 | `gemini_tts_stream_setup_failed` | Preparing a speech segment failed; the notice gives no detail.                        |
 | `gemini_tts_stream_failed`       | The request or stream failed, or ended early; the text names at most the HTTP status. |
+
+A 429 from Google reads "Gemini's rate limit or daily quota was reached (HTTP
+429). Try again later, or raise your Gemini API tier." Free-tier keys have
+small per-minute and daily limits for each model; see Google's
+[rate limits](https://ai.google.dev/gemini-api/docs/rate-limits). Each spoken
+sentence is one request, and so is each new voice sample.
 
 A browser without Web Audio shows "Gemini TTS needs the Web Audio API, which
 this browser lacks." instead of speaking.

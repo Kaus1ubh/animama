@@ -416,7 +416,7 @@ staging/imports/             hostile package validation staging
 staging/exports/             generated export staging
 internal/operations/         safe-Save operation receipts
 internal/runtime/            short-lived runtime state
-internal/derivatives/        generated previews and portraits
+internal/derivatives/        generated previews, portraits and Gemini voice samples
 internal/reconciliation/     scanner bookkeeping
 ```
 
