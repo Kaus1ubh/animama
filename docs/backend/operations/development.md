@@ -545,8 +545,9 @@ and a temporary private data root; Included-content checks still read the
 checkout's `content` library. Live provider tests require explicit exported
 `ANIMAMA_RUN_LIVE_TESTS=1` and `ANIMAMA_LIVE_OPENAI_API_KEY` or `OPENAI_API_KEY`;
 `make test-live` explicitly loads `.env` for that opt-in command. The paid
-Anthropic and prompt-cache tests also need `ANTHROPIC_API_KEY` and skip without
-it; pass the owner-only credentials file with
+Anthropic and prompt-cache tests also need `ANTHROPIC_API_KEY`, and the Gemini
+voice test `GEMINI_API_KEY`; each skips without its key. Pass the owner-only
+credentials file with
 `uv run --env-file "$HOME/.config/animama/dev-secrets.env"` rather than sourcing
 it (see [live tests](../../../tests/live/README.md)). Database fixtures
 own their async loop scope. A missing Docker daemon is a fixture failure, not a
@@ -1103,9 +1104,10 @@ outputs and, when running separately, private application data.
 Keep reusable development credentials in an owner-only file outside every
 checkout, for example `$HOME/.config/animama/dev-secrets.env`, including
 `OPENAI_API_KEY` and `ANTHROPIC_API_KEY` when the stack uses those built-in
-connections. Create or edit that
-file with a restrictive umask (`umask 077`) and ensure only its owner can read or
-write it (`chmod 600`); use a private parent directory. Obtain actual values
+connections, and `ELEVENLABS_API_KEY` or `GEMINI_API_KEY` for those voices.
+Create or edit that file with a restrictive umask (`umask 077`) and ensure only
+its owner can read or write it (`chmod 600`); use a private parent directory.
+Obtain actual values
 through the owner's existing credential mechanism. Do not invent keys, copy a
 main checkout's `.env`, or put credentials in a branch, task receipt or command
 line. Do not overwrite an existing credential file as a setup step.
@@ -1592,6 +1594,11 @@ Content storage:
 Voice:
 
 - ElevenLabs API key/settings
+- `GEMINI_API_KEY` (key for Gemini voices, sent only to Google's Gemini API;
+  no model connection can name it, and `GOOGLE_API_KEY` is never read. Compose
+  forwards it to `animama-server`, empty when unset; keep it in the owner-only
+  credentials file selected through `COMPOSE_ENV_FILES`, never in a worktree
+  `.env`. See [voice and speech](../integrations/voice-and-speech.md#gemini-tts))
 - `ANIMAMA_ENABLE_VOICE`
 - realtime TTS intermediary settings
 

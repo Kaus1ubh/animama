@@ -10,6 +10,10 @@ Current runtime behavior:
 - the voice-selection adapter accepts an explicit Anima catalog URL
 - ElevenLabs realtime TTS does not read Pocket catalogs
 - PocketTTS does not read ElevenLabs voice ids
+- Gemini TTS does not read Pocket catalogs; it conveys the reply's emotional
+  tone and the Anima's emotional level as a
+  [speaking style](../runtime/gemini-tts.md#speaking-style), such as "Speak in
+  a very happy tone."
 
 Current files:
 

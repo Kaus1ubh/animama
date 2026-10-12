@@ -17,6 +17,7 @@ import {
   canFallBackToPocketTts,
   isBrowserSpeechSynthesisSupported,
   isElevenLabsTtsSupported,
+  isGeminiTtsSupported,
   isPocketTtsSupported,
   resolvePreferredTtsProvider,
   shouldPreparePocketTts,
@@ -133,6 +134,8 @@ type UseTtsPlaybackOptions = {
   getPocketVoiceSelectionContext?: (
     runId: string,
   ) => PocketAnimaVoiceSelectionContext | null;
+  /** Whether the composition offers Gemini voice (`gemini_tts` capability). */
+  geminiTtsOffered?: boolean;
   getSpeechVoiceSelectionContext?: (runId: string) => {
     animaId: string | null;
     emotionLabel?: string | null;
@@ -189,6 +192,17 @@ function readPocketAudioDurationSec(event: PocketTtsCoreEvent): number | null {
   return null;
 }
 
+/** Runs whose audio the server pushes as PCM: ElevenLabs v3, or any Gemini run. */
+function isFinalizedServerProvider(
+  provider: TtsProvider | null,
+  modelId: unknown,
+): boolean {
+  return (
+    provider === "gemini" ||
+    (provider === "elevenlabs" && isElevenLabsFinalizedTtsModelId(modelId))
+  );
+}
+
 export function useTtsPlayback(
   options: UseTtsPlaybackOptions = {},
 ): UseTtsPlaybackResult {
@@ -199,6 +213,7 @@ export function useTtsPlayback(
     onAudioEnded,
     onChunksQueued,
     getPocketVoiceSelectionContext,
+    geminiTtsOffered = false,
     getSpeechVoiceSelectionContext,
   } = options;
   const logger = useMemo(() => createLogger("TTSPlayback"), []);
@@ -273,6 +288,8 @@ export function useTtsPlayback(
       emitAudioEnded(runId, "elevenlabs", runSeqRef.current, reason);
     },
   });
+  // Which provider's pushed audio the shared finalized runtime is playing.
+  const finalizedProviderRef = useRef<"elevenlabs" | "gemini">("elevenlabs");
   const {
     prepareRun: prepareElevenLabsFinalizedRun,
     acceptAudioChunk: acceptElevenLabsFinalizedAudioChunk,
@@ -290,7 +307,7 @@ export function useTtsPlayback(
       });
     },
     onAudioStarted: ({ runId, audioContext, audioStartSec }) => {
-      emitAudioStarted(runId, "elevenlabs", runSeqRef.current, {
+      emitAudioStarted(runId, finalizedProviderRef.current, runSeqRef.current, {
         audioStartSec,
         audioContext,
       });
@@ -299,33 +316,34 @@ export function useTtsPlayback(
       if (!Number.isFinite(audioDurationSec) || audioDurationSec <= 0) return;
       onAudioDurationResolved?.({
         runId,
-        provider: "elevenlabs",
+        provider: finalizedProviderRef.current,
         audioDurationSec,
         generationId: null,
       });
-      logger.info("Playback", "ElevenLabs finalized audio duration resolved", {
+      logger.info("Playback", "Finalized audio duration resolved", {
         runId,
-        provider: "elevenlabs",
+        provider: finalizedProviderRef.current,
         audioDurationSec,
       });
     },
     onPlaybackEndedSignal: ({ runId }) => {
       onPlaybackEndedSignal?.({
         runId,
-        provider: "elevenlabs",
+        provider: finalizedProviderRef.current,
         generationId: null,
       });
-      logger.info(
-        "Playback",
-        "ElevenLabs finalized playback ended signal received",
-        {
-          runId,
-          provider: "elevenlabs",
-        },
-      );
+      logger.info("Playback", "Finalized playback ended signal received", {
+        runId,
+        provider: finalizedProviderRef.current,
+      });
     },
     onAudioEnded: ({ runId, reason }) => {
-      emitAudioEnded(runId, "elevenlabs", runSeqRef.current, reason);
+      emitAudioEnded(
+        runId,
+        finalizedProviderRef.current,
+        runSeqRef.current,
+        reason,
+      );
     },
   });
 
@@ -371,13 +389,6 @@ export function useTtsPlayback(
   const resolveSpeechRuntimeContext = useCallback(
     (runId: string) => getSpeechVoiceSelectionContext?.(runId) ?? null,
     [getSpeechVoiceSelectionContext],
-  );
-  const isFinalizedElevenLabsRun = useCallback(
-    (runId: string): boolean => {
-      const speechContext = resolveSpeechRuntimeContext(runId);
-      return isElevenLabsFinalizedTtsModelId(speechContext?.modelId);
-    },
-    [resolveSpeechRuntimeContext],
   );
 
   const clearIdleFlushTimer = useCallback(() => {
@@ -557,12 +568,17 @@ export function useTtsPlayback(
         // starts mid-sentence, so keep browser TTS serialized after dispatch.
         return false;
       }
-      if (provider === "elevenlabs" && isFinalizedElevenLabsRun(runId)) {
+      if (
+        isFinalizedServerProvider(
+          provider,
+          resolveSpeechRuntimeContext(runId)?.modelId,
+        )
+      ) {
         return false;
       }
       return shouldStreamTtsChunks;
     },
-    [isFinalizedElevenLabsRun, shouldStreamTtsChunks],
+    [resolveSpeechRuntimeContext, shouldStreamTtsChunks],
   );
 
   const resolveActiveProvider = useCallback(
@@ -578,6 +594,7 @@ export function useTtsPlayback(
       const provider = resolvePreferredTtsProvider({
         savedProvider,
         platform,
+        offers: { gemini: geminiTtsOffered },
       }).provider;
       if (!provider) return null;
 
@@ -602,6 +619,15 @@ export function useTtsPlayback(
         return null;
       }
 
+      if (provider === "gemini" && !isGeminiTtsSupported()) {
+        warnOnceForRun(
+          runId,
+          "gemini_unsupported",
+          "Gemini TTS needs the Web Audio API, which this browser lacks.",
+        );
+        return null;
+      }
+
       if (provider === "elevenlabs" && !isElevenLabsTtsSupported()) {
         warnOnceForRun(
           runId,
@@ -616,6 +642,7 @@ export function useTtsPlayback(
     [
       effectivePreferences.speech?.tts_enabled,
       effectivePreferences.speech?.tts_provider,
+      geminiTtsOffered,
       platform,
       warnOnceForRun,
     ],
@@ -1263,18 +1290,20 @@ export function useTtsPlayback(
       runIdRef.current = runId;
       warnedKeysRef.current.clear();
       const provider = resolveActiveProvider(runId);
-      if (provider === "elevenlabs") {
+      if (provider === "elevenlabs" || provider === "gemini") {
         const speechContext = resolveSpeechRuntimeContext(runId);
         if (!speechContext?.animaId) {
           warnOnceForRun(
             runId,
-            "elevenlabs_missing_persona",
-            "ElevenLabs TTS requires a anima context for this response.",
+            `${provider}_missing_persona`,
+            `${provider === "gemini" ? "Gemini" : "ElevenLabs"} TTS requires an Anima context for this response.`,
           );
-        } else if (isElevenLabsFinalizedTtsModelId(speechContext.modelId)) {
+        } else if (isFinalizedServerProvider(provider, speechContext.modelId)) {
+          finalizedProviderRef.current = provider;
           prepareElevenLabsFinalizedRun(runId);
-          logger.info("Run", "Waiting for finalized ElevenLabs speech text", {
+          logger.info("Run", "Waiting for finalized server speech text", {
             runId,
+            provider,
             modelId: speechContext.modelId,
           });
         } else {
@@ -1401,22 +1430,19 @@ export function useTtsPlayback(
       } else {
         const speechContext = resolveSpeechRuntimeContext(runId);
         if (speechContext?.animaId) {
-          if (isElevenLabsFinalizedTtsModelId(speechContext.modelId)) {
+          if (isFinalizedServerProvider(provider, speechContext.modelId)) {
             delete finalizedTextBasisByRunRef.current[runId];
-            logger.info(
-              "Run",
-              "Waiting for pushed ElevenLabs finalized audio",
-              {
-                runId,
-                modelId: speechContext.modelId,
-              },
-            );
+            logger.info("Run", "Waiting for pushed finalized audio", {
+              runId,
+              provider,
+              modelId: speechContext.modelId,
+            });
           } else {
             enqueueElevenLabsChunks(runId, chunks);
             completeElevenLabsRuntime(runId, speechContext);
           }
         } else {
-          emitAudioEnded(runId, "elevenlabs", runSeq, "error");
+          emitAudioEnded(runId, provider, runSeq, "error");
         }
       }
 
@@ -1491,9 +1517,8 @@ export function useTtsPlayback(
     (runId: string, payload: FinalizedTtsAudioPayload) => {
       if (!runId) return;
       const provider = resolveActiveProvider(runId);
-      if (provider !== "elevenlabs") return;
       const speechContext = resolveSpeechRuntimeContext(runId);
-      if (!isElevenLabsFinalizedTtsModelId(speechContext?.modelId)) return;
+      if (!isFinalizedServerProvider(provider, speechContext?.modelId)) return;
       acceptElevenLabsFinalizedAudioChunk(runId, payload);
     },
     [
@@ -1507,9 +1532,8 @@ export function useTtsPlayback(
     (runId: string) => {
       if (!runId) return;
       const provider = resolveActiveProvider(runId);
-      if (provider !== "elevenlabs") return;
       const speechContext = resolveSpeechRuntimeContext(runId);
-      if (!isElevenLabsFinalizedTtsModelId(speechContext?.modelId)) return;
+      if (!isFinalizedServerProvider(provider, speechContext?.modelId)) return;
       finishElevenLabsFinalizedPushedStream(runId);
     },
     [
@@ -1523,9 +1547,8 @@ export function useTtsPlayback(
     (runId: string, error: FinalizedTtsErrorPayload | string) => {
       if (!runId) return;
       const provider = resolveActiveProvider(runId);
-      if (provider !== "elevenlabs") return;
       const speechContext = resolveSpeechRuntimeContext(runId);
-      if (!isElevenLabsFinalizedTtsModelId(speechContext?.modelId)) return;
+      if (!isFinalizedServerProvider(provider, speechContext?.modelId)) return;
       failElevenLabsFinalizedPushedStream(runId, error);
     },
     [

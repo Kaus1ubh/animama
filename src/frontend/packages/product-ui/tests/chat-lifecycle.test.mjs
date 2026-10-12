@@ -590,6 +590,8 @@ async function streamSpeechTurn(page, runId, frames) {
     fallbacks: window.fixture.speechFallbacks(),
     tokens: window.fixture.ttsTokens(),
     completions: window.fixture.ttsCompletions(),
+    finalizedAudio: window.fixture.finalizedAudio(),
+    finalizedCompletions: window.fixture.finalizedCompletions(),
   }));
 }
 
@@ -649,6 +651,99 @@ test("a voice allowance exhausted after the reply text speaks the reply with Poc
   assert.deepEqual(speech.tokens, [{ runId, token: "Hi there." }]);
   // The speech part already completed the run; the switch does not repeat it.
   assert.deepEqual(speech.completions, [runId]);
+});
+
+test("Gemini audio the server pushes reaches the finalized playback adapter", async (t) => {
+  const { page, runId } = await speechTurn(t, {
+    provider: "gemini",
+    model: "gemini-3.8-flash-lite-tts",
+  });
+  const speech = await streamSpeechTurn(page, runId, [
+    {
+      text: "Hi there.",
+      response_part: "speech",
+      is_delta: true,
+      part_index: 0,
+    },
+    {
+      type: "tts.audio",
+      provider: "gemini",
+      model_id: "gemini-3.8-flash-lite-tts",
+      output_format: "pcm_24000",
+      audio_base64: "AAA=",
+    },
+    {
+      type: "tts.done",
+      provider: "gemini",
+      model_id: "gemini-3.8-flash-lite-tts",
+      output_format: "pcm_24000",
+    },
+    { chat_id: "chat-fixture" },
+  ]);
+  assert.deepEqual(speech.finalizedAudio, [{ runId, provider: "gemini" }]);
+  assert.deepEqual(speech.finalizedCompletions, [runId]);
+  assert.deepEqual(speech.failures, []);
+  assert.deepEqual(speech.sessions, []);
+});
+
+test("a Gemini speech error ends the run's speech without Pocket TTS", async (t) => {
+  const { page, runId } = await speechTurn(t, {
+    provider: "gemini",
+    model: "gemini-3.8-flash-lite-tts",
+  });
+  const speech = await streamSpeechTurn(page, runId, [
+    {
+      text: "Hi there.",
+      response_part: "speech",
+      is_delta: true,
+      part_index: 0,
+    },
+    {
+      type: "tts.error",
+      provider: "gemini",
+      model_id: "gemini-3.8-flash-lite-tts",
+      output_format: "pcm_24000",
+      code: "gemini_tts_missing_credential",
+      error: "Gemini text-to-speech needs a Gemini API key.",
+    },
+    { chat_id: "chat-fixture" },
+  ]);
+  assert.deepEqual(speech.fallbacks, []);
+  assert.deepEqual(
+    speech.failures.map(({ runId, error }) => [runId, error.code]),
+    [[runId, "gemini_tts_missing_credential"]],
+  );
+  assert.deepEqual(speech.finalizedAudio, []);
+});
+
+test("a Gemini speech decline never moves the reply to Pocket TTS and keeps its text", async (t) => {
+  const { page, runId } = await speechTurn(t, {
+    provider: "gemini",
+    model: "gemini-3.8-flash-lite-tts",
+  });
+  const speech = await streamSpeechTurn(page, runId, [
+    {
+      text: "Hi there.",
+      response_part: "speech",
+      is_delta: true,
+      part_index: 0,
+    },
+    {
+      type: "tts.error",
+      ...allowanceExhausted,
+      provider: "gemini",
+      model_id: "gemini-3.8-flash-lite-tts",
+      output_format: "pcm_24000",
+    },
+    { chat_id: "chat-fixture" },
+  ]);
+  // The allowance fallback belongs to ElevenLabs; a Gemini error only ends speech.
+  assert.deepEqual(speech.fallbacks, []);
+  assert.deepEqual(
+    speech.failures.map(({ runId, error }) => [runId, error.code]),
+    [[runId, allowanceExhausted.code]],
+  );
+  assert.match(await page.textContent("main"), /Hi there\./);
 });
 
 test("other speech errors end the run's speech without Pocket TTS", async (t) => {

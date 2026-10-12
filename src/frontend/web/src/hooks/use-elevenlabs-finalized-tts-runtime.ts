@@ -150,7 +150,7 @@ export function useElevenLabsFinalizedTtsRuntime(
 ) {
   const optionsRef = useRef(options);
   optionsRef.current = options;
-  const loggerRef = useRef(createLogger("ElevenLabsFinalizedTTSRuntime"));
+  const loggerRef = useRef(createLogger("FinalizedTTSRuntime"));
   const activeRuntimeRef = useRef<ActiveFinalizedRuntime | null>(null);
   const volumeRef = useRef(clampAudioBufferGain(1));
 
@@ -503,8 +503,8 @@ export function useElevenLabsFinalizedTtsRuntime(
           ? payload
           : typeof payload.error === "string" && payload.error.trim()
             ? payload.error.trim()
-            : "ElevenLabs finalized TTS failed for this response.";
-      handleRuntimeFailure(runtime, "elevenlabs_finalized_error", message);
+            : "Text-to-speech failed for this response.";
+      handleRuntimeFailure(runtime, "finalized_error", message);
     },
     [ensureRuntime, handleRuntimeFailure],
   );

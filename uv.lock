@@ -213,6 +213,7 @@ dependencies = [
     { name = "debugpy" },
     { name = "elevenlabs" },
     { name = "fastapi", extra = ["standard"] },
+    { name = "google-genai" },
     { name = "jinja2" },
     { name = "llama-index-core" },
     { name = "openai" },
@@ -307,6 +308,7 @@ requires-dist = [
     { name = "docling", marker = "extra == 'file-worker'", specifier = "==2.100.0" },
     { name = "elevenlabs", specifier = ">=2.39.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.121" },
+    { name = "google-genai", specifier = ">=2.25,<3" },
     { name = "graphviz", marker = "extra == 'viz'", specifier = ">=0.17" },
     { name = "gruut", marker = "extra == 'server'", specifier = ">=2.4.0" },
     { name = "jinja2", specifier = ">=3.1" },
@@ -1566,6 +1568,45 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/64/b5/b90ca3c67596e8c72439f320c6f3b59f22c8045d2ebbf30036740c71fc7d/geventhttpclient-2.3.7-cp314-cp314t-musllinux_1_2_x86_64.whl", hash = "sha256:6fa0dae49bc6226510be2c714e78b10efa8c0e852628a1c0b345e463c81405ff", size = 115005, upload-time = "2025-12-07T19:48:40.597Z" },
     { url = "https://files.pythonhosted.org/packages/e3/00/171ed8cfbfd8e6db2509acfa1610d880a2d44d4dc0488dff3c4001f0ced2/geventhttpclient-2.3.7-cp314-cp314t-win32.whl", hash = "sha256:77a9ce7c4aaa5f6b0c2256ee8ee9c3bf3a1bc59a97422f0071869670704ec7f8", size = 49372, upload-time = "2025-12-07T19:48:41.474Z" },
     { url = "https://files.pythonhosted.org/packages/50/d2/6c99ec3d9e369ddc27adc758a82b6485d28ac797669be3571afa74757cae/geventhttpclient-2.3.7-cp314-cp314t-win_amd64.whl", hash = "sha256:607b7a1c4d03a94ec1a2f4e7891039fde84fcd816f2d921a28c11759427f068f", size = 49914, upload-time = "2025-12-07T19:48:42.276Z" },
+]
+
+[[package]]
+name = "google-auth"
+version = "2.61.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "pyasn1-modules" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/c7/0b/9788e913f2202da49068c27ce821eebcf96319240a89d7bb11f206d6471f/google_auth-2.61.0.tar.gz", hash = "sha256:37f0815967322e8c32b12bf422531e8b637cafdaae0acbb9141117cfe6a96f23", size = 398379, upload-time = "2026-10-07T20:13:14.827Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/1e/68/c2ff6043d93fda69e5c12a834d0be3b3fa6c762e89732160532566be621b/google_auth-2.61.0-py3-none-any.whl", hash = "sha256:ca60266a37475ae68b63bac007272f46094b3d571abe92aded329b6cfb568025", size = 268021, upload-time = "2026-10-07T20:13:13.2Z" },
+]
+
+[package.optional-dependencies]
+requests = [
+    { name = "requests" },
+]
+
+[[package]]
+name = "google-genai"
+version = "2.29.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "anyio" },
+    { name = "distro" },
+    { name = "google-auth", extra = ["requests"] },
+    { name = "httpx" },
+    { name = "pydantic" },
+    { name = "requests" },
+    { name = "sniffio" },
+    { name = "tenacity" },
+    { name = "typing-extensions" },
+    { name = "websockets" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/21/2b/977616ef350e51d3d263eb43be23a91be793544cd937b51c0fac313be233/google_genai-2.29.0.tar.gz", hash = "sha256:124d3eef9ff6b9e4ea548f95ff5b7721683e7990c0a936b006d9e2ab61ea897d", size = 706902, upload-time = "2026-10-07T22:22:57.153Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/b8/27/a3dede4a1deb21f7fde6a171daa039bf0ea149a5e7826a785e8f109a6e13/google_genai-2.29.0-py3-none-any.whl", hash = "sha256:7adda55cb6746fb46d38ad3202c3372840b96eede964b5fb3df1469cd4998570", size = 1167603, upload-time = "2026-10-07T22:22:55.215Z" },
 ]
 
 [[package]]
@@ -3548,6 +3589,27 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/d1/a1/c647e01ab162e6bfa52380e23e486215e9d28ffd31e9cf3cb1e9ca59008b/psycopg_binary-3.2.12-cp314-cp314-musllinux_1_2_ppc64le.whl", hash = "sha256:7130effd0517881f3a852eff98729d51034128f0737f64f0d1c7ea8343d77bd7", size = 3541756, upload-time = "2025-10-26T00:35:08.622Z" },
     { url = "https://files.pythonhosted.org/packages/6b/d0/795bdaa8c946a7b7126bf7ca8d4371eaaa613093e3ec341a0e50f52cbee2/psycopg_binary-3.2.12-cp314-cp314-musllinux_1_2_x86_64.whl", hash = "sha256:89b3c5201ca616d69ca0c3c0003ca18f7170a679c445c7e386ebfb4f29aa738e", size = 3587950, upload-time = "2025-10-26T00:35:41.183Z" },
     { url = "https://files.pythonhosted.org/packages/53/cf/10c3e95827a3ca8af332dfc471befec86e15a14dc83cee893c49a4910dad/psycopg_binary-3.2.12-cp314-cp314-win_amd64.whl", hash = "sha256:48a8e29f3e38fcf8d393b8fe460d83e39c107ad7e5e61cd3858a7569e0554a39", size = 3005787, upload-time = "2025-10-26T00:36:06.783Z" },
+]
+
+[[package]]
+name = "pyasn1"
+version = "0.6.4"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/a4/9a/23310166d960def5897e91fe20e5b724601b02a22e84ba1f94232c0b7f67/pyasn1-0.6.4.tar.gz", hash = "sha256:9c447d8431c947fe4c8febc4ed9e760bc29011a5b01e5c74b67025bd9fb8ce81", size = 151262, upload-time = "2026-07-09T01:12:33.988Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/9a/3b/6163796d69c3977d1e4287bea4a6979161cbbdd170ebb430511e8e1999ce/pyasn1-0.6.4-py3-none-any.whl", hash = "sha256:deda9277cfd454080ec40b207fb6df82206a3a2688735233cdcd8d3d565f088b", size = 84410, upload-time = "2026-07-09T01:12:32.92Z" },
+]
+
+[[package]]
+name = "pyasn1-modules"
+version = "0.4.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "pyasn1" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/e9/e6/78ebbb10a8c8e4b61a59249394a4a594c1a7af95593dc933a349c8d00964/pyasn1_modules-0.4.2.tar.gz", hash = "sha256:677091de870a80aae844b1ca6134f54652fa2c8c5a52aa396440ac3106e941e6", size = 307892, upload-time = "2025-03-28T02:41:22.17Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/47/8d/d529b5d697919ba8c11ad626e835d4039be708a35b0d22de83a269a6682c/pyasn1_modules-0.4.2-py3-none-any.whl", hash = "sha256:29253a9207ce32b64c3ac6600edc75368f98473906e8fd1043bd6b5b1de2c14a", size = 181259, upload-time = "2025-03-28T02:41:19.028Z" },
 ]
 
 [[package]]

@@ -106,6 +106,22 @@ or scratch file may be proposed. It needs `ANTHROPIC_API_KEY`
 and Docker for the test database, and costs under US$0.01 (about 10,000 input
 tokens).
 
+`test_gemini_tts_contract.py` records what the Gemini voice relies on, through
+the pinned SDK client:
+
+- on both 3.8 TTS models, one- and three-sentence inputs with and without a
+  speaking style: time to first audio, chunk sizes, format, sample rate, byte
+  order and whether the style is accepted;
+- one two-sentence reply through `server/gemini_tts_service.py`, which must
+  stream re-framed PCM and end with `done`.
+
+It needs only `GEMINI_API_KEY` and costs under US$0.01. Run it with `-s` to
+see the measurements; no key or audio is printed or saved:
+
+```bash
+ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.env" pytest -q -s tests/live/test_gemini_tts_contract.py
+```
+
 ## Manual OpenAI Stream Metadata Smoke
 
 Use this checklist only when validating a real OpenAI-backed local or staging

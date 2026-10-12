@@ -44,6 +44,8 @@ Runtime guides:
   see the [safety and crisis protocol](../safety/crisis-protocol.md))
 - `runtime/voice.md`
 - `runtime/elevenlabs-tts.md` (ElevenLabs realtime and v3 finalized TTS)
+- `runtime/gemini-tts.md` (Gemini cloud voice: availability, key, settings,
+  errors and Google's terms)
 - `runtime/sound.md`
 - `runtime/avatar-animation.md`
 - `runtime/mixamo-acquisition.md`: private manual-download checklist and deferred conversion.

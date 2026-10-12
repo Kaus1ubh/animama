@@ -50,8 +50,8 @@ rendering, and client-side speech recognition.
 - [Custom animas and typed content](features/custom-animas-and-content.md):
   catalog-backed Anima loadouts, reviewed changes, and chat runtime revision
   fencing.
-- [Voice and speech](integrations/voice-and-speech.md): ElevenLabs TTS, voice
-  storage, and the client-side speech-processing boundary.
+- [Voice and speech](integrations/voice-and-speech.md): ElevenLabs and Gemini
+  TTS, voice storage, and the client-side speech-processing boundary.
 - [Shared model setup](operations/model-assets.md): verified Parakeet acquisition,
   worktree reuse, persistent self-host storage and explicit recovery.
 - [Local model servers](operations/local-models.md): Ollama, LM Studio,

@@ -1,3 +1,4 @@
+import type { GeminiTtsCapability } from "@animama/runtime-contracts/api-types";
 import type { MicSensitivity } from "@/lib/voice/microphone-preferences";
 import type { AppearanceOverrides } from "@/lib/theme/appearance-overrides";
 import {
@@ -37,7 +38,11 @@ export type SttProviderPreference =
   | "browser_external"
   | "browser_local";
 
-export type TtsProviderPreference = "browser" | "pocket_tts" | "elevenlabs";
+export type TtsProviderPreference =
+  | "browser"
+  | "pocket_tts"
+  | "elevenlabs"
+  | "gemini";
 
 export type ElevenLabsRealtimeTtsModelId =
   | "eleven_flash_v2_5"
@@ -47,6 +52,8 @@ export type ElevenLabsTtsModelId =
   | ElevenLabsRealtimeTtsModelId
   | ElevenLabsFinalizedTtsModelId;
 export type ElevenLabsV3FinalizedChunking = "sentence" | "paragraph";
+/** The backend's Gemini speech models; removing or renaming one there is a type error here. */
+export type GeminiTtsModelId = GeminiTtsCapability["models"][number];
 
 export const DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID =
   "eleven_flash_v2_5" satisfies ElevenLabsRealtimeTtsModelId;
@@ -54,6 +61,26 @@ export const DEFAULT_ELEVENLABS_TTS_MODEL_ID =
   DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID satisfies ElevenLabsTtsModelId;
 export const DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING =
   "paragraph" satisfies ElevenLabsV3FinalizedChunking;
+export const DEFAULT_GEMINI_TTS_MODEL_ID =
+  "gemini-3.8-flash-lite-tts" satisfies GeminiTtsModelId;
+
+/** Labels for the Gemini speech models the backend accepts. */
+export const GEMINI_TTS_MODEL_OPTIONS: Array<{
+  id: GeminiTtsModelId;
+  label: string;
+  description: string;
+}> = [
+  {
+    id: "gemini-3.8-flash-lite-tts",
+    label: "Flash-Lite TTS",
+    description: "Lower-latency, lower-cost Gemini speech.",
+  },
+  {
+    id: "gemini-3.8-flash-tts",
+    label: "Flash TTS",
+    description: "Gemini's flagship speech model, at a higher cost.",
+  },
+];
 
 export const ELEVENLABS_TTS_MODEL_OPTIONS: Array<{
   id: ElevenLabsTtsModelId;
@@ -119,6 +146,7 @@ export type SpeechPreferences = {
   tts_stream_chunks?: boolean;
   tts_elevenlabs_model_id?: ElevenLabsTtsModelId;
   tts_elevenlabs_v3_finalized_chunking?: ElevenLabsV3FinalizedChunking;
+  tts_gemini_model_id?: GeminiTtsModelId;
   desktop_shortcuts?: Partial<Record<DesktopShortcutAction, DesktopShortcut>>;
   tts_pocket_voice?: string;
   tts_pocket_anima_voice?: string;
@@ -375,6 +403,13 @@ export function isElevenLabsRealtimeTtsModelId(
   value: unknown,
 ): value is ElevenLabsRealtimeTtsModelId {
   return toElevenLabsRealtimeTtsModelId(value) !== null;
+}
+
+export function toGeminiTtsModelId(value: unknown): GeminiTtsModelId | null {
+  return value === "gemini-3.8-flash-lite-tts" ||
+    value === "gemini-3.8-flash-tts"
+    ? value
+    : null;
 }
 
 export function isElevenLabsFinalizedTtsModelId(

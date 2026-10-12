@@ -239,7 +239,7 @@ def format_tts_session_error_event(*, run_id: str, exc: BaseException) -> str:
     return format_sse("tts.session.error", data, event_id=f"tts-session-error-{run_id}")
 
 
-def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object]) -> str | None:
+def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object], provider: str = "elevenlabs") -> str | None:
     audio_base64 = payload.get("audio_base64")
     if not isinstance(audio_base64, str) or not audio_base64:
         return None
@@ -248,7 +248,7 @@ def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object]) -> str
     data: dict[str, object] = {
         "type": "tts.audio",
         "run_id": run_id,
-        "provider": "elevenlabs",
+        "provider": provider,
         "model_id": model_id if isinstance(model_id, str) else "eleven_v3",
         "output_format": output_format if isinstance(output_format, str) else "pcm_24000",
         "audio_base64": audio_base64,
@@ -256,13 +256,13 @@ def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object]) -> str
     return format_sse("tts.audio", data)
 
 
-def format_tts_done_event(*, run_id: str, payload: Mapping[str, object]) -> str:
+def format_tts_done_event(*, run_id: str, payload: Mapping[str, object], provider: str = "elevenlabs") -> str:
     model_id = payload.get("model_id")
     output_format = payload.get("output_format")
     data: dict[str, object] = {
         "type": "tts.done",
         "run_id": run_id,
-        "provider": "elevenlabs",
+        "provider": provider,
         "model_id": model_id if isinstance(model_id, str) else "eleven_v3",
         "output_format": output_format if isinstance(output_format, str) else "pcm_24000",
     }
@@ -276,11 +276,12 @@ def format_tts_error_event(
     code: str = "elevenlabs_stream_failed",
     model_id: str = "eleven_v3",
     output_format: str = "pcm_24000",
+    provider: str = "elevenlabs",
 ) -> str:
     data: dict[str, object] = {
         "type": "tts.error",
         "run_id": run_id,
-        "provider": "elevenlabs",
+        "provider": provider,
         "model_id": model_id,
         "output_format": output_format,
         "error": error,

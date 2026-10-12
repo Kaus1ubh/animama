@@ -1055,6 +1055,80 @@ export const zFaceSurfaceAttachment = z.object({
 });
 
 /**
+ * GeminiTtsCapability
+ *
+ * Gemini voice options a composition offers; absent where Gemini voice is not offered.
+ */
+export const zGeminiTtsCapability = z.object({
+    default_model: z.enum(['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']),
+    default_voice: z.enum([
+        'Zephyr',
+        'Puck',
+        'Charon',
+        'Kore',
+        'Fenrir',
+        'Leda',
+        'Orus',
+        'Aoede',
+        'Callirrhoe',
+        'Autonoe',
+        'Enceladus',
+        'Iapetus',
+        'Umbriel',
+        'Algieba',
+        'Despina',
+        'Erinome',
+        'Algenib',
+        'Rasalgethi',
+        'Laomedeia',
+        'Achernar',
+        'Alnilam',
+        'Schedar',
+        'Gacrux',
+        'Pulcherrima',
+        'Achird',
+        'Zubenelgenubi',
+        'Vindemiatrix',
+        'Sadachbia',
+        'Sadaltager',
+        'Sulafat'
+    ]),
+    models: z.array(z.enum(['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts'])),
+    voices: z.array(z.enum([
+        'Zephyr',
+        'Puck',
+        'Charon',
+        'Kore',
+        'Fenrir',
+        'Leda',
+        'Orus',
+        'Aoede',
+        'Callirrhoe',
+        'Autonoe',
+        'Enceladus',
+        'Iapetus',
+        'Umbriel',
+        'Algieba',
+        'Despina',
+        'Erinome',
+        'Algenib',
+        'Rasalgethi',
+        'Laomedeia',
+        'Achernar',
+        'Alnilam',
+        'Schedar',
+        'Gacrux',
+        'Pulcherrima',
+        'Achird',
+        'Zubenelgenubi',
+        'Vindemiatrix',
+        'Sadachbia',
+        'Sadaltager',
+        'Sulafat'
+    ]))
+});
+
+/**
  * ImagePresentation
  */
 export const zImagePresentation = z.object({
@@ -1724,13 +1798,15 @@ export const zPyAnimaTtsRunOptions = z.object({
             'eleven_flash_v2_5',
             'eleven_v3'
         ]),
+        z.enum(['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']),
         z.null()
     ])),
     provider: z.optional(z.union([
         z.enum([
             'browser',
             'pocket_tts',
-            'elevenlabs'
+            'elevenlabs',
+            'gemini'
         ]),
         z.null()
     ])),
@@ -6809,6 +6885,10 @@ export const zRuntimeCapabilities = z.object({
     chat: z.boolean(),
     chat_file_uploads: z.boolean(),
     companion_safety: zCompanionSafetyCapability,
+    gemini_tts: z.optional(z.union([
+        zGeminiTtsCapability,
+        z.null()
+    ])),
     local_filesystem_administration: z.boolean(),
     model_configuration: z.optional(z.boolean()).default(false),
     model_role_selection: z.boolean(),
@@ -8148,6 +8228,58 @@ export const zProcessUserFileV1FilesFileIdProcessPostData = z.object({
  * Successful Response
  */
 export const zProcessUserFileV1FilesFileIdProcessPostResponse = zPyUserFileProcessResponse;
+
+export const zGetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        voice: z.enum([
+            'Zephyr',
+            'Puck',
+            'Charon',
+            'Kore',
+            'Fenrir',
+            'Leda',
+            'Orus',
+            'Aoede',
+            'Callirrhoe',
+            'Autonoe',
+            'Enceladus',
+            'Iapetus',
+            'Umbriel',
+            'Algieba',
+            'Despina',
+            'Erinome',
+            'Algenib',
+            'Rasalgethi',
+            'Laomedeia',
+            'Achernar',
+            'Alnilam',
+            'Schedar',
+            'Gacrux',
+            'Pulcherrima',
+            'Achird',
+            'Zubenelgenubi',
+            'Vindemiatrix',
+            'Sadachbia',
+            'Sadaltager',
+            'Sulafat'
+        ])
+    }),
+    query: z.optional(z.object({
+        model_id: z.optional(z.enum(['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']))
+    })),
+    headers: z.optional(z.object({
+        'If-None-Match': z.optional(z.union([
+            z.string(),
+            z.null()
+        ]))
+    }))
+});
+
+/**
+ * The voice's sample as a 24 kHz mono WAV.
+ */
+export const zGetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponse = z.string();
 
 export const zListGesturesData = z.object({
     body: z.optional(z.never()),

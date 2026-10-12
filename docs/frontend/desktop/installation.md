@@ -63,9 +63,10 @@ existing Animas or restore a deliberately deleted starter.
 
 Setup asks for the OpenAI or Anthropic key in its AI step and the ElevenLabs
 key in its Voice step. After setup, the OpenAI and Anthropic keys are on their
-cards in App Settings → Models, the ElevenLabs key is in App Settings → Voice,
-and all three are also in App Settings → API Keys; each place edits the same
-saved key. Other model servers, such as DeepSeek, OpenRouter or a local Ollama,
+cards in App Settings → Models, and the ElevenLabs key is in App Settings →
+Voice. The Gemini key for [Gemini voices](../runtime/gemini-tts.md), which setup
+does not ask for, is in App Settings → Voice when Gemini is chosen. All four are
+also in App Settings → API Keys; each place edits the same saved key. Other model servers, such as DeepSeek, OpenRouter or a local Ollama,
 LM Studio or llama.cpp server, are added in App Settings → Models (Cloud or
 Local), with their key (if any) on the connection. Text chat through an
 external model requires that provider to be configured and reachable and can

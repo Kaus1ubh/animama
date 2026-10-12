@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   createVoiceSamplePlayer,
   IDLE_VOICE_SAMPLE,
+  VoiceSampleError,
 } from "./voice-sample-player";
 
 const voice = {
@@ -174,6 +175,25 @@ describe("voice source samples", () => {
     );
     instances[0].onended?.();
     expect(changed).toHaveBeenLastCalledWith(IDLE_VOICE_SAMPLE);
+  });
+
+  it("shows a loader's explained failure as is", async () => {
+    const changed = vi.fn();
+    const player = createVoiceSamplePlayer(changed);
+    await player.play({
+      id: "Kore",
+      name: "Kore",
+      loadSample: async () => {
+        throw new VoiceSampleError(
+          "Gemini text-to-speech needs a Gemini API key.",
+        );
+      },
+    });
+    expect(changed).toHaveBeenLastCalledWith({
+      voiceId: "Kore",
+      status: "error",
+      error: "Gemini text-to-speech needs a Gemini API key.",
+    });
   });
 
   it("releases rejected and undecodable audio", async () => {

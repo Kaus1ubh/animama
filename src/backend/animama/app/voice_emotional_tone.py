@@ -187,6 +187,31 @@ def elevenlabs_v3_text_with_emotional_prefix(
     )
 
 
+def gemini_speaking_style(
+    *,
+    emotional_tone: Any,
+    emotional_state: Mapping[str, Any] | None,
+) -> str:
+    """One style sentence for Gemini speech, from the same tone and level as the ElevenLabs tag.
+
+    Neutral or unknown tones speak in the friendly default; without an emotional
+    state the tone carries no intensity word.
+    """
+
+    tone = normalize_elevenlabs_emotional_tone(emotional_tone)
+    if tone is None or tone.is_neutral:
+        description = DEFAULT_ELEVENLABS_V3_TONE_KEY
+    elif emotional_state is None:
+        description = tone.tone_key
+    else:
+        level = emotion_value_level(normalize_emotional_state(emotional_state).get(tone.canonical_emotion))
+        description = (
+            f"slightly {tone.tone_key}" if level <= 0 else tone.tone_key if level == 1 else f"very {tone.tone_key}"
+        )
+    article = "an" if description[0] in "aeiou" else "a"
+    return f"Speak in {article} {description} tone."
+
+
 # Continuity text an earlier finalized speech segment hands to the next one.
 FINALIZED_TTS_PREVIOUS_TEXT_LIMIT = 500
 
@@ -201,6 +226,7 @@ def bounded_finalized_tts_previous_text(*texts: str | None) -> str | None:
 
 
 __all__ = [
+    "gemini_speaking_style",
     "CANONICAL_EMOTION_TO_ELEVENLABS_TONE",
     "FINALIZED_TTS_PREVIOUS_TEXT_LIMIT",
     "DEFAULT_ELEVENLABS_V3_PREFIX",

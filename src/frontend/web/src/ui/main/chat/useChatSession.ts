@@ -21,16 +21,26 @@ import {
 } from "@/lib/speech/tts-provider";
 import {
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
+  DEFAULT_GEMINI_TTS_MODEL_ID,
   isElevenLabsFinalizedTtsModelId,
   toElevenLabsTtsModelId,
+  toGeminiTtsModelId,
 } from "@/lib/settings/preferences";
 import { buildElevenLabsChatTtsDispatchOptions } from "@/lib/chat/elevenlabs-chat-tts-dispatch";
+import { buildGeminiChatTtsDispatchOptions } from "@/lib/chat/gemini-chat-tts-dispatch";
 import type { PocketAnimaVoiceSelectionContext } from "@/lib/speech/pocket/anima-voice-selection";
 export {
   chatSessionCanChat,
   type ChatMessage,
   type PendingModelSwitch,
 } from "@animama/product-ui/chat";
+
+/** Providers whose audio drives viseme lip-sync from gruut phonemes. */
+const VISEME_SYNC_PROVIDERS = new Set(["pocket_tts", "elevenlabs", "gemini"]);
+
+function syncsVisemes(provider: string | null): boolean {
+  return provider !== null && VISEME_SYNC_PROVIDERS.has(provider);
+}
 
 type UseChatSessionArgs = Omit<
   UseProductChatSessionArgs,
@@ -112,7 +122,7 @@ export function useChatSession(args: UseChatSessionArgs) {
         generationId: generationId ?? null,
       });
       markAvatarSpeechStarted(runId);
-      if (provider !== "pocket_tts" && provider !== "elevenlabs") {
+      if (!syncsVisemes(provider)) {
         logger.info(
           "TTS",
           "Skipped viseme sync audio-start hook for provider",
@@ -178,7 +188,7 @@ export function useChatSession(args: UseChatSessionArgs) {
         provider,
         generationId: generationId ?? null,
       });
-      if (provider !== "pocket_tts" && provider !== "elevenlabs") {
+      if (!syncsVisemes(provider)) {
         logger.info(
           "TTS",
           "Skipped viseme hard-stop for playback-ended signal provider",
@@ -219,7 +229,7 @@ export function useChatSession(args: UseChatSessionArgs) {
         audioDurationSec,
         generationId: generationId ?? null,
       });
-      if (provider !== "pocket_tts" && provider !== "elevenlabs") {
+      if (!syncsVisemes(provider)) {
         logger.info("TTS", "Skipped viseme duration hook for provider", {
           runId,
           provider,
@@ -263,6 +273,27 @@ export function useChatSession(args: UseChatSessionArgs) {
       mountedRuntimeContent.pocketVoice,
     ],
   );
+  const ttsEnabled = effectivePreferences.speech?.tts_enabled === true;
+  // Gemini speaks only where the composition offers it.
+  const geminiTtsOffered = runtimeCapabilities.data?.gemini_tts != null;
+  const ttsProvider = ttsEnabled
+    ? resolvePreferredTtsProvider({
+        savedProvider: toTtsProvider(effectivePreferences.speech?.tts_provider),
+        platform,
+        offers: { gemini: geminiTtsOffered },
+      }).provider
+    : null;
+  const elevenLabsModelId =
+    ttsProvider === "elevenlabs"
+      ? (toElevenLabsTtsModelId(
+          effectivePreferences.speech?.tts_elevenlabs_model_id,
+        ) ?? DEFAULT_ELEVENLABS_TTS_MODEL_ID)
+      : null;
+  const geminiModelId =
+    ttsProvider === "gemini"
+      ? (toGeminiTtsModelId(effectivePreferences.speech?.tts_gemini_model_id) ??
+        DEFAULT_GEMINI_TTS_MODEL_ID)
+      : null;
   const {
     startRun: startTtsRun,
     appendToken: appendTtsToken,
@@ -282,6 +313,7 @@ export function useChatSession(args: UseChatSessionArgs) {
     onAudioEnded: handleTtsAudioEnded,
     onChunksQueued: handleTtsChunksQueued,
     getPocketVoiceSelectionContext,
+    geminiTtsOffered,
     getSpeechVoiceSelectionContext: (runId) => {
       const context = getPocketVoiceSelectionContext(runId);
       if (!context) return null;
@@ -291,9 +323,11 @@ export function useChatSession(args: UseChatSessionArgs) {
         emotionIntensity: context.emotionIntensity,
         languageCode: null,
         modelId:
+          geminiModelId ??
           toElevenLabsTtsModelId(
             effectivePreferences.speech?.tts_elevenlabs_model_id,
-          ) ?? DEFAULT_ELEVENLABS_TTS_MODEL_ID,
+          ) ??
+          DEFAULT_ELEVENLABS_TTS_MODEL_ID,
         animaVoiceCatalogUrl: context.animaVoiceCatalogUrl,
       };
     },
@@ -325,26 +359,14 @@ export function useChatSession(args: UseChatSessionArgs) {
     cancelTts,
     isTtsAudioActive,
   };
-  const ttsEnabled = effectivePreferences.speech?.tts_enabled === true;
-  const ttsProvider = ttsEnabled
-    ? resolvePreferredTtsProvider({
-        savedProvider: toTtsProvider(effectivePreferences.speech?.tts_provider),
-        platform,
-      }).provider
-    : null;
-  const elevenLabsModelId =
-    ttsProvider === "elevenlabs"
-      ? (toElevenLabsTtsModelId(
-          effectivePreferences.speech?.tts_elevenlabs_model_id,
-        ) ?? DEFAULT_ELEVENLABS_TTS_MODEL_ID)
-      : null;
   const speech: ChatSpeechPolicy = {
     enabled: ttsEnabled,
     provider: ttsProvider,
     elevenLabsModelId,
-    finalizedElevenLabs:
-      ttsProvider === "elevenlabs" &&
-      isElevenLabsFinalizedTtsModelId(elevenLabsModelId),
+    finalizedServerAudio:
+      ttsProvider === "gemini" ||
+      (ttsProvider === "elevenlabs" &&
+        isElevenLabsFinalizedTtsModelId(elevenLabsModelId)),
     dispatchOptions:
       ttsEnabled && ttsProvider === "elevenlabs"
         ? {
@@ -355,7 +377,13 @@ export function useChatSession(args: UseChatSessionArgs) {
                   ?.tts_elevenlabs_v3_finalized_chunking,
             }),
           }
-        : undefined,
+        : ttsEnabled && ttsProvider === "gemini"
+          ? {
+              tts: buildGeminiChatTtsDispatchOptions({
+                modelId: geminiModelId ?? DEFAULT_GEMINI_TTS_MODEL_ID,
+              }),
+            }
+          : undefined,
   };
   return useProductChatSession({
     ...args,

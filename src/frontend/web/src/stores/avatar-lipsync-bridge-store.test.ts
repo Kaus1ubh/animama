@@ -161,4 +161,30 @@ describe("avatar lip-sync bridge store", () => {
       }),
     );
   });
+
+  it("plans visemes for Gemini speech and skips unknown providers", async () => {
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.queueVisemeInputsForRun({
+      runId: "run-gemini",
+      phonemizedText: [["h", "AI"]],
+      tokenizedText: "Hi!",
+      provider: "gemini",
+    });
+    await vi.waitFor(() => {
+      expect(buildVisemeAssetsFromRaw).toHaveBeenCalledWith(
+        expect.objectContaining({ runId: "run-gemini" }),
+      );
+    });
+
+    store.queueVisemeInputsForRun({
+      runId: "run-other",
+      phonemizedText: [["h", "AI"]],
+      tokenizedText: "Hi!",
+      provider: "other" as "gemini",
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(buildVisemeAssetsFromRaw).not.toHaveBeenCalledWith(
+      expect.objectContaining({ runId: "run-other" }),
+    );
+  });
 });

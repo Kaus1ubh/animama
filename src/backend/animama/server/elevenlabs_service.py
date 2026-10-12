@@ -21,7 +21,6 @@ from elevenlabs.types.voice_settings import VoiceSettings
 from fastapi import HTTPException, status
 from starlette.concurrency import run_in_threadpool
 
-from animama.app.gruut_text import build_gruut_sse_text
 from animama.app.model_clients.credential_store import ELEVENLABS_CREDENTIAL_ENV, CredentialSnapshot
 from animama.app.voice_emotional_tone import (
     bounded_finalized_tts_previous_text,
@@ -31,6 +30,7 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.logging_config import get_logger
 from animama.product_http.ports import VoiceResolver
 from animama.server.config import Settings, settings
+from animama.server.finalized_speech import finalized_tts_text, pop_pcm_audio_frame
 from animama.server.runtime_credentials import runtime_credentials
 from animama.server.schemas.elevenlabs import (
     SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS,
@@ -51,7 +51,6 @@ ELEVENLABS_REALTIME_TTS_SYNC_ALIGNMENT = False
 ELEVENLABS_REALTIME_TTS_WEBSOCKET_BASE_URL = "wss://api.elevenlabs.io"
 ELEVENLABS_FINALIZED_TTS_OUTPUT_FORMAT = "pcm_24000"
 ELEVENLABS_FINALIZED_TTS_APPLY_TEXT_NORMALIZATION = "off"
-ELEVENLABS_FINALIZED_TTS_PCM_FRAME_BYTES = 9600
 ELEVENLABS_VOICE_ACCESS_POSITIVE_TTL_SECONDS = 30 * 60
 ELEVENLABS_VOICE_ACCESS_NEGATIVE_TTL_SECONDS = 60
 ELEVENLABS_APP_LABEL = "anima"
@@ -542,17 +541,6 @@ def _audio_chunk_event_payload(
     }
 
 
-def _pop_pcm_audio_frame(audio_buffer: bytearray, *, force: bool = False) -> bytes | None:
-    if not force and len(audio_buffer) < ELEVENLABS_FINALIZED_TTS_PCM_FRAME_BYTES:
-        return None
-    flushable_length = len(audio_buffer) - (len(audio_buffer) % 2)
-    if flushable_length <= 0:
-        return None
-    frame = bytes(audio_buffer[:flushable_length])
-    del audio_buffer[:flushable_length]
-    return frame
-
-
 def _encode_audio_response(
     *,
     audio_bytes: bytes,
@@ -907,16 +895,7 @@ async def prepare_finalized_tts_stream_from_text(
             )
         selected_voice_id = (await voice()).voice_id
         await ensure_elevenlabs_voice_accessible(voice_id=selected_voice_id)
-    if text_basis == "gruut_text_with_ws":
-        tts_text = text
-    else:
-        gruut_payload = build_gruut_sse_text(
-            text,
-            lang="en_US",
-            tokenized_text_source="text_with_ws",
-        )
-        gruut_text = gruut_payload.get("tokenized_text") if gruut_payload else None
-        tts_text = gruut_text.strip() if isinstance(gruut_text, str) and gruut_text.strip() else text
+    tts_text = finalized_tts_text(text, text_basis=text_basis)
     provider_text = tts_text
     if selected_model_id == "eleven_v3" and apply_emotional_prefix:
         prefix_result = elevenlabs_v3_text_with_emotional_prefix(
@@ -981,14 +960,14 @@ async def stream_finalized_tts_chunks(
                 if not audio_bytes:
                     continue
                 audio_buffer.extend(audio_bytes)
-                audio_frame = _pop_pcm_audio_frame(audio_buffer)
+                audio_frame = pop_pcm_audio_frame(audio_buffer)
                 if audio_frame is None:
                     continue
                 yield _audio_chunk_event_payload(
                     prepared=prepared,
                     audio_bytes=audio_frame,
                 )
-            audio_frame = _pop_pcm_audio_frame(audio_buffer, force=True)
+            audio_frame = pop_pcm_audio_frame(audio_buffer, force=True)
             if audio_frame is not None:
                 yield _audio_chunk_event_payload(
                     prepared=prepared,

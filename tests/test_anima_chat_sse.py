@@ -69,11 +69,12 @@ from animama.product_http.chat.stream import hold_chat_turn
 from animama.product_http.ports import install_product_ports
 from animama.product_http.routes import chat_turns, chats as chats_router
 from animama.product_http.routes.chat_turns import router
-from animama.server import elevenlabs_service
+from animama.server import elevenlabs_service, gemini_tts_service
 from animama.server.config import Settings, settings as app_settings
 from animama.server.deps import get_current_principal
-from animama.server.product_ports import LocalProductPorts
+from animama.server.product_ports import LocalChatTurnServices, LocalProductPorts
 from animama.server.routers import router as api_router
+from animama.server.runtime_credentials import runtime_credentials
 from animama.server.schemas.chat import PyAnimaChatRequest
 from animama.server.schemas.elevenlabs import PyElevenLabsRealtimeTtsSessionResponse
 
@@ -4880,3 +4881,189 @@ async def test_chat_sse_incognito_turn_neither_edits_memories_nor_emits_memory_u
     assert stored is not None
     await async_session.refresh(stored)
     assert (stored.version, stored.content) == (1, memories_body)
+
+
+def _gemini_tts_route_mocks(monkeypatch, *, speech: str = "First sentence. Second sentence.") -> None:
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "main_structured_response": True,
+            "disable_emotion_updates": True,
+            "tts": {"enabled": True, "provider": "gemini", "model_id": "gemini-3.8-flash-tts"},
+        },
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(text=_direct_structured_response(speech=speech, emotional_tone="joy")),
+    )
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        del lang, kwargs
+        return {"tokenized_text": " ".join(final_text.split()), "phonemized_text": [["S"], ["DH"]]}
+
+    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", _fake_gruut)
+
+    async def _unexpected_elevenlabs(**_kwargs):
+        raise AssertionError("a Gemini reply must not call ElevenLabs")
+
+    monkeypatch.setattr(elevenlabs_service, "prepare_finalized_tts_stream_from_text", _unexpected_elevenlabs)
+
+
+def _gemini_tts_request() -> PyAnimaChatRequest:
+    return _chat_request(
+        message="hello",
+        run_id="run-1",
+        chat_id="chat-1",
+        dispatch_options={
+            "main_structured_response": True,
+            "tts": {"enabled": True, "provider": "gemini", "model_id": "gemini-3.8-flash-tts"},
+        },
+    )
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_gemini_tts_streams_each_sentence_with_the_anima_voice_and_style(monkeypatch) -> None:
+    _gemini_tts_route_mocks(monkeypatch)
+
+    async def _gemini_settings(self, *, user_id: str, anima_id: str) -> object:
+        return SimpleNamespace(preferences={"speech": {"tts_provider": "gemini", "gemini": {"voice": "Puck"}}})
+
+    monkeypatch.setattr(_FakeAnimaSettings, "get", _gemini_settings)
+    prepared_calls: list[dict[str, Any]] = []
+
+    async def _fake_prepare(**kwargs):
+        prepared_calls.append(kwargs)
+        return SimpleNamespace(
+            model_id=kwargs["model_id"],
+            output_format="pcm_24000",
+            text=kwargs["text"],
+            voice_id=kwargs["voice_id"],
+        )
+
+    async def _fake_stream(prepared):
+        audio_base64 = "FIRST" if prepared.text == "First sentence." else "SECOND"
+        yield {
+            "type": "audio",
+            "run_id": "run-1",
+            "model_id": prepared.model_id,
+            "output_format": "pcm_24000",
+            "audio_base64": audio_base64,
+        }
+        yield {"type": "done", "run_id": "run-1", "model_id": prepared.model_id, "output_format": "pcm_24000"}
+
+    monkeypatch.setattr(gemini_tts_service, "prepare_gemini_finalized_speech", _fake_prepare)
+    monkeypatch.setattr(gemini_tts_service, "stream_gemini_finalized_speech", _fake_stream)
+
+    response = await chat_anima_direct_sse(
+        "anima-1", _gemini_tts_request(), request=_test_request(), user=RequestPrincipal(id="user-1")
+    )
+    chunks = await _collect_chunks(response)
+
+    audio = _event_data_all(chunks, "tts.audio")
+    assert [event["audio_base64"] for event in audio] == ["FIRST", "SECOND"]
+    assert {event["provider"] for event in audio} == {"gemini"}
+    assert {event["model_id"] for event in audio} == {"gemini-3.8-flash-tts"}
+    done = _event_data_all(chunks, "tts.done")
+    assert [(event["provider"], event["model_id"]) for event in done] == [("gemini", "gemini-3.8-flash-tts")]
+    assert [call["text"] for call in prepared_calls] == ["First sentence.", "Second sentence."]
+    assert [call["voice_id"] for call in prepared_calls] == ["Puck", "Puck"]
+    # Every Gemini request carries the same style, and no ElevenLabs continuity text.
+    assert [call["apply_emotional_prefix"] for call in prepared_calls] == [True, True]
+    assert [call["emotional_tone"] for call in prepared_calls] == ["joy", "joy"]
+    done_index = next(index for index, chunk in enumerate(chunks) if "event: tts.done" in chunk)
+    completed_index = next(index for index, chunk in enumerate(chunks) if "event: run.completed" in chunk)
+    assert done_index < completed_index
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_gemini_tts_without_a_key_shows_a_voice_error_and_keeps_the_reply(monkeypatch) -> None:
+    _gemini_tts_route_mocks(monkeypatch, speech="Only sentence.")
+    monkeypatch.setattr(runtime_credentials, "current", lambda: {})
+
+    response = await chat_anima_direct_sse(
+        "anima-1", _gemini_tts_request(), request=_test_request(), user=RequestPrincipal(id="user-1")
+    )
+    chunks = await _collect_chunks(response)
+
+    errors = _event_data_all(chunks, "tts.error")
+    assert [(event["provider"], event["code"]) for event in errors] == [("gemini", "gemini_tts_missing_credential")]
+    # The notice tells the owner what to add.
+    assert errors[0]["error"] == "Gemini text-to-speech needs a Gemini API key."
+    assert _event_count(chunks, "tts.audio") == 0
+    assert _event_count(chunks, "tts.done") == 0
+    assert any('"speech": "Only sentence."' in chunk or "Only sentence." in chunk for chunk in chunks)
+    assert _event_count(chunks, "run.completed") == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_gemini_tts_setup_failure_reaches_the_browser_without_its_detail(monkeypatch) -> None:
+    _gemini_tts_route_mocks(monkeypatch, speech="Only sentence.")
+
+    async def _failing_settings(self, *, user_id: str, anima_id: str) -> object:
+        raise RuntimeError("internal detail")
+
+    monkeypatch.setattr(_FakeAnimaSettings, "get", _failing_settings)
+
+    response = await chat_anima_direct_sse(
+        "anima-1", _gemini_tts_request(), request=_test_request(), user=RequestPrincipal(id="user-1")
+    )
+    chunks = await _collect_chunks(response)
+
+    errors = _event_data_all(chunks, "tts.error")
+    assert [(event["provider"], event["code"], event["error"]) for event in errors] == [
+        ("gemini", "gemini_tts_stream_setup_failed", "Gemini TTS setup failed.")
+    ]
+    assert not any("internal detail" in chunk for chunk in chunks)
+    assert _event_count(chunks, "run.completed") == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_gemini_tts_is_dropped_where_the_composition_does_not_offer_it(monkeypatch) -> None:
+    _gemini_tts_route_mocks(monkeypatch, speech="Only sentence.")
+    monkeypatch.setattr(LocalChatTurnServices, "gemini_speech", property(lambda _self: None))
+
+    async def _unexpected_gemini(**_kwargs):
+        raise AssertionError("a composition without Gemini speech must not prepare it")
+
+    monkeypatch.setattr(gemini_tts_service, "prepare_gemini_finalized_speech", _unexpected_gemini)
+
+    response = await chat_anima_direct_sse(
+        "anima-1", _gemini_tts_request(), request=_test_request(), user=RequestPrincipal(id="user-1")
+    )
+    chunks = await _collect_chunks(response)
+
+    assert not any(chunk.startswith("event: tts.") or "\nevent: tts." in chunk for chunk in chunks)
+    assert _event_count(chunks, "run.completed") == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_gemini_tts_provider_failure_ends_speech_but_not_the_reply(monkeypatch) -> None:
+    _gemini_tts_route_mocks(monkeypatch, speech="Only sentence.")
+
+    async def _fake_prepare(**kwargs):
+        return SimpleNamespace(
+            model_id=kwargs["model_id"], output_format="pcm_24000", text=kwargs["text"], voice_id=kwargs["voice_id"]
+        )
+
+    async def _failing_stream(prepared):
+        yield {
+            "type": "error",
+            "run_id": "run-1",
+            "model_id": prepared.model_id,
+            "output_format": "pcm_24000",
+            "error": "Gemini text-to-speech failed (HTTP 503).",
+            "code": "gemini_tts_stream_failed",
+        }
+
+    monkeypatch.setattr(gemini_tts_service, "prepare_gemini_finalized_speech", _fake_prepare)
+    monkeypatch.setattr(gemini_tts_service, "stream_gemini_finalized_speech", _failing_stream)
+
+    response = await chat_anima_direct_sse(
+        "anima-1", _gemini_tts_request(), request=_test_request(), user=RequestPrincipal(id="user-1")
+    )
+    chunks = await _collect_chunks(response)
+
+    errors = _event_data_all(chunks, "tts.error")
+    assert [(event["provider"], event["code"], event["error"]) for event in errors] == [
+        ("gemini", "gemini_tts_stream_failed", "Gemini text-to-speech failed (HTTP 503).")
+    ]
+    assert _event_count(chunks, "tts.done") == 0
+    assert _event_count(chunks, "run.completed") == 1

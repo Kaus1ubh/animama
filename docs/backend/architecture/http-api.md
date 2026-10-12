@@ -91,6 +91,8 @@ Local setup and host/key administration schemas remain in the server composition
   text-to-speech and sound effects through the composition's speech port.
 - `server/routers/elevenlabs.py`: ElevenLabs audio isolation, which has no web
   caller and stays local.
+- `server/routers/gemini.py`: Gemini voice samples for the voice picker; local
+  only, like Gemini voice itself.
 
 ## Health
 
@@ -150,16 +152,24 @@ Local setup and host/key administration schemas remain in the server composition
     "configured": false,
     "backend": null,
     "credential_state": null
+  },
+  "gemini_tts": {
+    "models": ["gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts"],
+    "default_model": "gemini-3.8-flash-lite-tts",
+    "voices": ["Zephyr", "Puck", "Charon", "Kore"],
+    "default_voice": "Kore"
   }
 }
 ```
+
+The `voices` list is shortened here; the response lists all 30 prebuilt voices.
 
 The models live in `animama.app.contracts.runtime_capabilities`, outside the
 local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 4.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 5.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -197,6 +207,12 @@ reports the flag and no versions.
 the [web search routes](#web-search); `configured`, `backend` and
 `credential_state` describe the saved backend there and stay false/null
 elsewhere. While `credential_state` is `missing`, searches return a tool error.
+`gemini_tts` is non-null only where the composition offers Gemini voice, which
+only the local composition does. Its
+`{models, default_model, voices, default_voice}` lists the Gemini TTS model
+ids, Google's prebuilt voices and the defaults (`gemini-3.8-flash-lite-tts`,
+`Kore`). React offers Gemini only while it is present; see
+[voice and speech](../integrations/voice-and-speech.md#gemini-tts).
 
 ## Web Search
 
@@ -785,6 +801,14 @@ intermediary transport. `dispatch_options.tts.model_id` may request
 configured default. Realtime selected models are returned in
 `tts.session.model_id`. `eleven_v3` does not start realtime bootstrap and does
 not emit `tts.session` or `tts.session.error`.
+With `dispatch_options.tts.provider="gemini"`, `model_id` may be
+`gemini-3.8-flash-lite-tts` (the default) or `gemini-3.8-flash-tts`. A Gemini
+`model_id` with another provider, or an ElevenLabs one with Gemini, is
+rejected. Gemini never starts a realtime session: where the composition offers
+Gemini voice, the route pushes finalized audio as for `eleven_v3` (sentence or
+`finalized_chunking="paragraph"` batches), otherwise the run has no speech
+frames. `tts.audio`, `tts.done` and `tts.error` carry the speaking `provider`
+(`elevenlabs` or `gemini`) and its `model_id`.
 The route does not infer TTS setup from `main_structured_response`.
 Before model invocation, direct chat opens cached path `IDENTITY.md` in the
 active anima scope for prompt context and appends its markdown content to the
@@ -1392,8 +1416,26 @@ normalization off, then emits ordered `tts.audio` frames and one final
 synthesis without blocking the final chat completion frame. Anima does not
 request or forward ElevenLabs timestamp/alignment metadata.
 
+## Gemini voice samples
+
+`GET /v1/gemini/voices/{voice}/sample?model_id=` returns a brief `audio/wav`
+sample of one prebuilt voice for the voice picker. `model_id` defaults to
+`gemini-3.8-flash-lite-tts`; an unknown voice or model is a 422 before any
+request. The first play of each model and voice uses the Gemini key. Later
+plays return the kept file with an ETag (`private, no-cache`, 304 when
+unchanged), even without a key. Errors carry `detail.code`; the Gemini errors
+also carry a browser-safe `detail.message`:
+
+- 503 `gemini_tts_missing_credential`, asking for a Gemini API key;
+- 502 `gemini_tts_sample_failed`, naming at most the HTTP status (a 429 says
+  the rate limit or daily quota was reached);
+- 503 `content_unavailable` (code only), when the data root is not ready.
+
+The route is local only; [voice and speech](../integrations/voice-and-speech.md#gemini-voice-samples)
+covers the cache.
+
 ## Client-side speech
 
 Frontend and desktop speech flows use client-side Parakeet STT, MicVAD,
-smart-turn, Pocket TTS, and ElevenLabs TTS. The local API does not mount STT
-or LiveKit session routes.
+smart-turn, Pocket TTS, ElevenLabs TTS and Gemini TTS. The local API does not
+mount STT or LiveKit session routes.

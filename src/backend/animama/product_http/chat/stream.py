@@ -60,6 +60,7 @@ from .title import (
 from .tts import (
     FinalizedTtsStreamBootstrap as _FinalizedTtsStreamBootstrap,
     TtsSessionBootstrap as _TtsSessionBootstrap,
+    gemini_finalized_tts_requested as _gemini_finalized_tts_requested,
     tts_speech_payload_enabled as _tts_speech_payload_enabled,
 )
 from .turn_setup import prepare_direct_chat_turn, resolve_turn_target
@@ -248,6 +249,7 @@ async def stream_direct_chat_sse(
             sessions=sessions,
             anima_id=anima_id,
             run_id=run_id,
+            gemini_speech=services.gemini_speech if _gemini_finalized_tts_requested(turn.chat_options) else None,
         )
         completed_emitted = False
 

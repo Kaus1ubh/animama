@@ -7,7 +7,7 @@ Each route has one disposition:
   composition mounts it.
 - ``local``: owned by the local composition (installation bootstrap and runtime
   context, model custody, owner events, archive, ElevenLabs audio isolation,
-  health, telemetry and the web asset catch-all). A consumer serves its own
+  Gemini voice samples, health, telemetry and the web asset catch-all). A consumer serves its own
   equivalent or nothing.
 - ``hosted-excluded``: withheld by a false permission in
   ``contracts/runtime-capabilities/hosted.json``, named by ``capability``.
@@ -256,6 +256,8 @@ ROUTES: tuple[RouteSpec, ...] = (
     _shared(4, "POST", "/v1/elevenlabs/sound-effects", "sound_effects_endpoint", "speech"),
     # Audio isolation has no web caller and stays local (owner, 2026-10-10).
     _local("POST", "/v1/elevenlabs/audio-isolation", "audio_isolation_endpoint", "write"),
+    # Gemini voice is offered only by the local composition.
+    _local("GET", "/v1/gemini/voices/{voice}/sample", "get_gemini_voice_sample", "speech"),
     # Owner events
     _local("GET", "/v1/events:sse", "get_owner_events_sse", "stream"),
     # Anima archive (no web caller; stays local)

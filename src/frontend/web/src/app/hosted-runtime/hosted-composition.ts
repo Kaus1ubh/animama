@@ -425,6 +425,7 @@ export function createHostedComposition(
       capabilities.chat_file_uploads ||
       capabilities.user_file_processing.enabled ||
       capabilities.provider_credentials ||
+      capabilities.gemini_tts ||
       capabilities.model_configuration ||
       capabilities.local_filesystem_administration ||
       capabilities.native_features ||

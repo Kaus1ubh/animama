@@ -4,8 +4,6 @@ import {
   ChevronDown,
   Download,
   LoaderCircle,
-  Play,
-  Square,
   Trash2,
 } from "lucide-react";
 
@@ -18,7 +16,6 @@ import type { PocketVoiceAvailability } from "@/lib/speech/pocket/voice-preferen
 import {
   createVoiceSamplePlayer,
   IDLE_VOICE_SAMPLE,
-  type VoiceSampleState,
   type VoiceSampleSource,
 } from "@/lib/speech/pocket/voice-sample-player";
 import { cn } from "@/lib/utils";
@@ -32,6 +29,10 @@ import {
 import { Checkbox } from "@/ui/components/checkbox";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { OPERATOR_MANAGED_MODELS_NOTE } from "@/ui/settings/operator-managed-models";
+import {
+  VoiceSampleButton,
+  type VoiceSamplePlayback,
+} from "./VoiceSampleButton";
 
 type VoiceFilter = {
   gender: "any" | PocketVoiceGender;
@@ -89,11 +90,6 @@ export function pocketVoiceNotProvided(
     availability.status !== "unknown"
   );
 }
-
-type VoiceSamplePlayback = {
-  sample: VoiceSampleState;
-  player: ReturnType<typeof createVoiceSamplePlayer>;
-};
 
 /** A compact selected voice opens a keyboard-accessible list with independent actions. */
 export function PocketVoicePicker(props: PocketVoicePickerProps) {
@@ -528,49 +524,5 @@ export function PocketVoiceList({
         </p>
       ) : null}
     </Tabs>
-  );
-}
-
-/** Keep play/stop feedback identical beside the selection and in each list row. */
-function VoiceSampleButton({
-  voice,
-  sample,
-  player,
-  compact = false,
-}: VoiceSamplePlayback & {
-  voice: VoiceSampleSource | undefined;
-  compact?: boolean;
-}) {
-  const active =
-    sample.voiceId === voice?.id &&
-    (sample.status === "playing" || sample.status === "loading");
-  const unavailable =
-    voice && "sampleUnavailable" in voice ? voice.sampleUnavailable : null;
-  const label = unavailable
-    ? `${voice!.name}: ${unavailable}`
-    : voice
-      ? `${active ? "Stop" : "Play"} ${voice.name} sample`
-      : "No sample available for this voice";
-  return (
-    <Button
-      type="button"
-      variant={compact ? "ghost" : "outline"}
-      size={compact ? "icon-sm" : "icon"}
-      disabled={!voice || Boolean(unavailable)}
-      className="shrink-0"
-      aria-label={label}
-      title={label}
-      onClick={() => voice && !unavailable && void player.play(voice)}
-    >
-      {active ? (
-        sample.status === "loading" ? (
-          <LoaderCircle className="animate-spin motion-reduce:animate-none" />
-        ) : (
-          <Square />
-        )
-      ) : (
-        <Play />
-      )}
-    </Button>
   );
 }

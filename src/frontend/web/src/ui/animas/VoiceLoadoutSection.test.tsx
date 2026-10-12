@@ -24,6 +24,12 @@ const fixtures = vi.hoisted(() => ({
   availability: (() => null) as (id: string) => PocketVoiceAvailability | null,
   operatorManaged: false,
   install: vi.fn(),
+  geminiTts: null as null | {
+    models: string[];
+    default_model: string;
+    voices: string[];
+    default_voice: string;
+  },
 }));
 vi.mock("@/query/hooks/useAnimaLoadout", () => ({
   useAnimaLoadout: () => ({
@@ -59,7 +65,10 @@ vi.mock("@/query/mutations/useModelAssetActions", () => ({
 // A local runtime; operator-provided voices come from the downloads fixture.
 vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
   useRuntimeCapabilities: () => ({
-    data: { local_filesystem_administration: true },
+    data: {
+      local_filesystem_administration: true,
+      gemini_tts: fixtures.geminiTts,
+    },
   }),
 }));
 vi.mock("@/ui/settings/SettingsProvider", () => ({
@@ -102,6 +111,8 @@ describe("Anima voice configuration", () => {
     fixtures.availability = () => null;
     fixtures.operatorManaged = false;
     fixtures.install.mockReset();
+    fixtures.geminiTts = null;
+    delete (fixtures.speech as Record<string, unknown>).gemini;
   });
   it.each([
     ["pocket_tts", false],
@@ -255,6 +266,28 @@ describe("Anima voice configuration", () => {
       expect(fixtures.update).not.toHaveBeenCalled();
     },
   );
+
+  it("offers Gemini voices only where the runtime offers Gemini", () => {
+    fixtures.speech.tts_provider = "gemini";
+    fixtures.speech.tts_enabled = true;
+    expect(renderToStaticMarkup(<AnimaVoicesEditor />)).not.toContain(
+      'aria-label="Gemini voice"',
+    );
+
+    fixtures.geminiTts = {
+      models: ["gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts"],
+      default_model: "gemini-3.8-flash-lite-tts",
+      voices: ["Kore", "Puck"],
+      default_voice: "Kore",
+    };
+    (fixtures.speech as Record<string, unknown>).gemini = { voice: "Puck" };
+    const html = renderToStaticMarkup(<AnimaVoicesEditor />);
+    expect(html).toContain('aria-label="Gemini voice"');
+    expect(html).toContain("Puck");
+    expect(html).toContain("Gemini (app)");
+    expect(html).not.toContain('aria-label="PocketTTS voice');
+    expect(fixtures.update).not.toHaveBeenCalled();
+  });
 
   it("displays an explicit provider without marking it as inherited", () => {
     fixtures.animaProvider = "elevenlabs";

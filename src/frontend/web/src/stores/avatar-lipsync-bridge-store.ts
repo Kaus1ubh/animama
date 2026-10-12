@@ -77,7 +77,7 @@ type AvatarLipSyncBridgeState = {
     runId: string;
     phonemizedText: string[][] | null;
     tokenizedText: string | null;
-    provider?: "pocket_tts" | "elevenlabs";
+    provider?: "pocket_tts" | "elevenlabs" | "gemini";
   }) => void;
   queueTtsChunksForRun: (args: {
     runId: string;
@@ -513,7 +513,8 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
         if (
           provider &&
           provider !== "pocket_tts" &&
-          provider !== "elevenlabs"
+          provider !== "elevenlabs" &&
+          provider !== "gemini"
         ) {
           logger.info(
             "Queue",

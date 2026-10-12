@@ -1241,6 +1241,7 @@ describe("runtime supervision", () => {
       openai: true,
       anthropic: false,
       elevenlabs: true,
+      gemini: false,
       ANIMAMA_CONNECTION_C_NEW_API_KEY: true,
     });
     expect(JSON.stringify(statuses)).not.toContain("fixture-");
