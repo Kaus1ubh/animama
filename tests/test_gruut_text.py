@@ -27,14 +27,17 @@ def gruut_records() -> Iterator[list[logging.LogRecord]]:
     # propagation configured by the host composition.
     logger = gruut_text._log.logger
     handler = _RecordList()
-    previous_level = logger.level
+    previous_level, previous_disabled = logger.level, logger.disabled
     logger.addHandler(handler)
     logger.setLevel(logging.DEBUG)
+    # Alembic's fileConfig in the migration tests disables loggers that already exist.
+    logger.disabled = False
     try:
         yield handler.records
     finally:
         logger.removeHandler(handler)
         logger.setLevel(previous_level)
+        logger.disabled = previous_disabled
 
 
 def _logged_content(record: logging.LogRecord) -> str:
