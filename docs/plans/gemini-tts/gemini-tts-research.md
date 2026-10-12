@@ -170,6 +170,9 @@ Trimmed on 2026-10-11 to the parts that matter for text-to-speech, after the own
 
 ## Appendix: Animama voice architecture (read-only map, 2026-10-10, source `199e96ec`)
 
+Since `f7eb367c` (2026-10-11), `server/routers/chat/*` and `server/sse_events.py`
+live in `product_http/chat/` (`chat_sse.py` became `stream.py`).
+
 There is no generic cloud TTS or STT abstraction in the live chat path. ElevenLabs is wired
 through the backend and the frontend, and all STT runs in the browser.
 

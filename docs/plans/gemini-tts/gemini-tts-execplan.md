@@ -15,10 +15,12 @@ gates:
 
 Exact-candidate merge approval stays separate.
 
-Starting source: `db30d213` on branch `feat/gemini-tts`, checkout
+Starting source: `fd4fea0f` on branch `feat/gemini-tts`, checkout
 `worktrees/animama/gemini-model-provider` (the folder keeps its earlier name).
-The branch was recreated from `origin/main` (`515851fb`) with two commits: the
-spec and research (`27cc0200`) and the isolated SDK client (`db30d213`).
+The branch was recreated from `origin/main` (`515851fb`) with the spec and
+research (`27cc0200`), the isolated SDK client (`db30d213`) and this plan
+(`c4bbf579`), then merged `origin/main` (`f7eb367c`), which moved the chat SSE
+and TTS modules from `server/` to `product_http/chat/`.
 
 ## Purpose and context
 
@@ -63,24 +65,24 @@ Planning, 2026-10-11, code at `db30d213` unless stated:
   `tests/test_gemini_sdk_isolation.py` (6 tests) proves it, and
   `tests/live/test_gemini_tts_contract.py` measures latency, format, byte order
   and style. That test has not run.
-- **The finalized flow is the seam.** `server/routers/chat/tts.py`
-  (`FinalizedTtsStreamBootstrap`, `_stream_batch` at :515-593) already has
+- **The finalized flow is the seam.** `product_http/chat/tts.py`
+  (`FinalizedTtsStreamBootstrap`, `_stream_batch`) already has
   provider-neutral batching (`FinalizedTtsSegmentBatcher`, sentence or
   paragraph mode), silence insertion, queueing, cancellation and ordering.
   Only `_stream_batch`'s calls into `server/elevenlabs_service.py`
   (`prepare_finalized_tts_stream_from_text`, `stream_finalized_tts_chunks`) are
   ElevenLabs-specific. The flow starts once the reply's `emotional_tone` and a
-  gruut segment are known (`tts.py:307-314`), and `run.completed` waits for
+  gruut segment are known (`start_if_ready`), and `run.completed` waits for
   audio (`app/chat/completion.py:32-46`).
 - **Hard-coded provider names.**
-  - `server/sse_events.py` writes `"provider": "elevenlabs"` and ElevenLabs
-    defaults in the `tts.audio`, `tts.done` and `tts.error` frames
-    (:228-275).
+  - `product_http/chat/sse_events.py` writes `"provider": "elevenlabs"` and
+    ElevenLabs defaults in the `tts.audio`, `tts.done` and `tts.error` frames.
+    `tests/fixtures/chat_sse_golden/tts-finalized.sse` pins today's frames.
   - `app/contracts/dispatch.py:13-21` accepts `browser`, `pocket_tts` and
     `elevenlabs`, with an ElevenLabs-typed `model_id`;
     `app/chat/options.py:181-211` silently drops unknown providers and models.
-  - `server/routers/chat/tts.py:43-74` selects the finalized flow only for
-    ElevenLabs `eleven_v3`.
+  - `product_http/chat/tts.py` (`elevenlabs_tts_options`) selects the
+    finalized flow only for ElevenLabs `eleven_v3`.
   - Frontend: `TTS_PROVIDERS` (`lib/speech/tts-provider.ts:11-23`), the
     dispatch builder (`ui/main/chat/useChatSession.ts:328-360`,
     `lib/chat/elevenlabs-chat-tts-dispatch.ts`), the finalized gates in
@@ -189,10 +191,11 @@ Backend paths are under `src/backend/animama/`, tests under `tests/`.
   `server/runtime_credentials.py`; `server/routers/desktop_control.py:152-175`;
   `docker-compose.yml:72` (the ElevenLabs passthrough); `tests/conftest.py`
   (environment scrub).
-- **Finalized flow:** `server/routers/chat/tts.py:43-74,210-608`;
-  `server/routers/chat/chat_sse.py:151-436`; `server/elevenlabs_service.py:802-852,995-1144`
+- **Finalized flow:** `product_http/chat/tts.py`; `product_http/chat/stream.py`
+  (formerly `server/routers/chat/chat_sse.py`); `server/elevenlabs_service.py:802-852,995-1144`
   (voice resolution, frame coalescing at 9,600 bytes, in-flight semaphore);
-  `server/sse_events.py:228-338`; `app/chat/completion.py:32-46`.
+  `product_http/chat/sse_events.py`; `app/chat/completion.py:32-46`;
+  golden frames in `tests/fixtures/chat_sse_golden/`.
 - **Contracts:** `app/contracts/dispatch.py:13-21`; `app/contracts/elevenlabs.py:75-99`;
   `app/chat/options.py:30-73,181-211`.
 - **Style:** `app/voice_emotional_tone.py`; `app/main_structured_response.py:55-59,712-720`.
@@ -214,7 +217,8 @@ Backend paths are under `src/backend/animama/`, tests under `tests/`.
     `web/src/stores/avatar-lipsync-bridge-store.ts`;
   - desktop: `shared/desktop-runtime.ts:5-10`, `desktop/src/main-process/runtime/vault.ts:63-69,180-184`,
     `web/src/ui/settings/DesktopCredentialsPanel.tsx:31-35,259-266`.
-- **Tests to mirror:** `tests/test_anima_chat_sse.py:1003-1068,1803-2329`;
+- **Tests to mirror:** `tests/test_anima_chat_sse.py` (finalized TTS cases)
+  and the golden SSE tests;
   `tests/test_elevenlabs_realtime_router.py:51-399`;
   `web/src/hooks/use-tts-playback.test.tsx:201-535`;
   `web/tests/speech/elevenlabsTtsRuntime.test.ts`;
@@ -309,7 +313,7 @@ config commands, `pnpm check`.
 Completion: tests pass; D22 and the byte order are recorded; review leaves no
 blocker.
 
-Phase record: issue —; starting source `db30d213`; commit —.
+Phase record: issue —; starting source `fd4fea0f`; commit —.
 
 #### Code Review #1 Findings
 
