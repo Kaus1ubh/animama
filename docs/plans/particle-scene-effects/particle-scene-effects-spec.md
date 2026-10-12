@@ -10,8 +10,8 @@ asked for this draft and, on review the same day, resolved its open questions
 fixed by the named plan or gate: the R2 capability list and R6 budget values by
 Plan 1, the R9 and R10 lists before Plan 2 starts (decided 2026-10-10).
 Authoritative source: [#297](https://github.com/raymond-van/animama/issues/297),
-published 2026-10-09 and updated with the before-Plan-2 decisions (read back
-at 2026-10-10T23:42:21Z). This file is a snapshot of that issue text; refresh
+published 2026-10-09 and updated with the before-Plan-2 decisions and the
+Plan 2 R9 additions (read back at 2026-10-12T08:03:57Z). This file is a snapshot of that issue text; refresh
 it from the issue before resuming and do not edit it as a competing source.
 Related: [#298](https://github.com/raymond-van/animama/issues/298) (Avatar
 Effects v2: unified effects creator, effect preview, shared effect-asset skill
@@ -298,6 +298,19 @@ Heart burst (#2) is the effect approved in Plan 1's dry run.
 | 12 | Rain cloud | Cloud with drizzle and splashes over the head | sadness, grief, disappointment |
 | 13 | Gloom wisps | Pale will-o'-wisps drift slowly around the Avatar | grief, remorse, disappointment |
 
+**Additions (owner, 2026-10-11 and 2026-10-12, Plan 2 gate G2):** three
+fireworks effects, designed with creative freedom, and Sparkle Hearts, from an
+owner reference image, join the set, so it has 16 effects with `hearts-v1`.
+Their emotions are the Plan 2 ladder's proposals, pending the owner's G4
+review.
+
+| # | Effect | Mechanic and layers | Emotions |
+| --- | --- | --- | --- |
+| 14 | Fireworks show | Three shells burst one after another behind the Avatar, then glitter twinkles down | excitement |
+| 15 | Heart fireworks | Two heart-shaped fireworks bloom beside the head, then sparkle and drift down | desire |
+| 16 | Golden willow | A golden willow firework opens behind the head and its branches droop and fall | optimism |
+| 17 | Sparkle hearts | Heart outlines drawn in tiny twinkling glitter float around the face | caring |
+
 #### R10 — Scene background library
 
 - About 8 background designs, one per emotion family. Each family has its own
@@ -579,6 +592,13 @@ Decisions (owner, before Plan 2):
   dry-run effects Heart burst and Gloom Sadness (the Gloom family's sadness
   preset) are used as approved. Quality bar: the level of Heart burst; simpler
   effects are fine and sparkles or rings are not required in each.
+- **R9 additions and runtime limits (2026-10-11 and 2026-10-12, Plan 2
+  gate G2).** The four effects above join the set (16 in all). The Particle
+  emitter limit rises from 8 to 16 and the particle art budgets to 1024 px /
+  512 KiB (texture) and 2048 px / 2 MiB (sheet), so layered effects and closed
+  auras fit; each new effect's visible span is 20% longer; the particle
+  estimate counts particles alive at once. The owner approved all 14 new or
+  retuned effects on 2026-10-12.
 - **R12 (2026-10-10).** The `shy-finger-poke` rewiring is dropped (the Gesture
   was deleted by #406); this supersedes that part of the 2026-10-09 decisions.
 

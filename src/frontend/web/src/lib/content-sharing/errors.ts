@@ -16,7 +16,7 @@ export class SharingError extends Error {
     super(
       items.length
         ? `${sharingMessage(code)} ${items.join(", ")}.`
-        : sharingMessage(code).replace(/:$/, "."),
+        : (unnamedMessages[code] ?? sharingMessage(code).replace(/:$/, ".")),
     );
     this.code = code;
     this.status = status;
@@ -73,6 +73,16 @@ const messages: Record<string, string> = {
     "This package contains a clip in an unsupported format, such as the retired animaPoseClip/1.0. Only animaPoseClip/2.0 clips can be imported or exported.",
   package_anima_import_unavailable:
     "Anima creation is not ready on this installation. Check the default model settings, then refresh the review.",
+};
+
+/**
+ * Messages for a refusal that names no items, where the named form's advice
+ * does not apply. Package import refuses an emoji item without names: the
+ * importer does not have those Scene Effects to open.
+ */
+const unnamedMessages: Record<string, string> = {
+  scene_emoji_item_removed:
+    "This package has Scene Effects that use emoji, which Animama no longer provides, so it can't be imported. Ask whoever exported it to replace each emoji with a sticker or image, then export again.",
 };
 
 export function sharingMessage(code: string): string {

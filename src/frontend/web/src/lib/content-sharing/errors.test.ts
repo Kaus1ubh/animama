@@ -17,9 +17,11 @@ describe("package sharing errors", () => {
       new SharingError("scene_emoji_item_removed", 409, ["Old sparkles"])
         .message,
     ).toMatch(/no longer provides.*sticker or image.*: Old sparkles\.$/);
-    // An import has no item names; the message still reads as a sentence.
-    expect(new SharingError("scene_emoji_item_removed", 409).message).toMatch(
-      /export again\.$/,
-    );
+    // An import has no item names and asks the exporter to fix the package.
+    const importMessage = new SharingError("scene_emoji_item_removed", 409)
+      .message;
+    expect(importMessage).toMatch(/can't be imported/);
+    expect(importMessage).toMatch(/Ask whoever exported it.*export again\.$/);
+    expect(importMessage).not.toMatch(/Open each/);
   });
 });

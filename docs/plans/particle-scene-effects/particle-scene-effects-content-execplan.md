@@ -21,8 +21,8 @@ dependencies. Plan 1:
 Plan 2 replaces the Included Particle and Scene content with a launch library
 built with Plan 1's pipeline, and rewires the Reactions to use it:
 
-- **R9:** 12 Particle Effects (the final list below), at the Heart Burst
-  quality level.
+- **R9:** 16 Particle Effects (the final list below: the 12 of 2026-10-10
+  and four added at P2's G2), at the Heart Burst quality level.
 - **R10:** eight Scene background families (the G1 designs from Plan 1), with
   a preset per emotion, 24 in all, each with its own art and colour.
 - **R11:** an Animama sticker set, made from the R10 art, replaces Twemoji in
@@ -51,7 +51,8 @@ Commands run from the repository root unless stated. Frontend scripts run from
 
 ### Final lists (owner, 2026-10-10)
 
-Particle Effects (R9), 12 of the 13 proposed; Sweat Spray is dropped.
+Particle Effects (R9), 12 of the 13 proposed (Sweat Spray is dropped), plus
+four added at P2's G2 (2026-10-11 and 2026-10-12, Decision Log).
 
 | # | Effect | Stem | Mechanic and layers | Emotions (proposal) | State |
 | --- | --- | --- | --- | --- | --- |
@@ -67,6 +68,10 @@ Particle Effects (R9), 12 of the 13 proposed; Sweat Spray is dropped.
 | 10 | Stink miasma | `stink-miasma` | Green wisps and bubbles drifting up | disgust | New |
 | 11 | Rain cloud | `rain-cloud` | Cloud with drizzle and splashes over the head | sadness, grief, disappointment | New, replaces the Included `rain-cloud` under its ID |
 | 12 | Gloom wisps | `gloom-wisps` | Pale will-o'-wisps drift slowly around the Avatar | grief, remorse, disappointment | New |
+| 13 | Fireworks show | `fireworks-show` | Three shells burst in turn behind the Avatar, then glitter twinkles down | excitement | New (P2 addition) |
+| 14 | Heart fireworks | `heart-fireworks` | Two heart-shaped fireworks bloom beside the head, then sparkle down | desire | New (P2 addition) |
+| 15 | Golden willow | `golden-willow` | A golden willow firework opens behind the head; its branches droop and fall | optimism | New (P2 addition) |
+| 16 | Sparkle hearts | `sparkle-hearts` | Glitter heart outlines float around the face among glints and haze | caring | New (P2 addition, owner reference) |
 
 Quality bar (owner, 2026-10-10): the level of Heart Burst — glossy, layered
 art with a coherent style — not its specific ingredients; an effect may be
@@ -136,7 +141,8 @@ backend to `src/backend/animama/`, content to `content/included/`.
 - [x] P6 — Promotion and removal (2026-10-12); G3 waived for the night,
       pending the owner's review; review passed at round 2 (`42d896a0`).
 - [x] P7 — Documentation and acceptance (2026-10-12): `main` merged, full
-      checks and e2e (40) pass, chat check done.
+      checks and e2e (40) pass; chat check by departure (2 Reactions in chat, 16 by
+      render, pending the owner's review); review passed at round 1.
 - [ ] Final integration review and PR.
 
 ## Surprises & Discoveries
@@ -185,7 +191,8 @@ backend to `src/backend/animama/`, content to `content/included/`.
 - 2026-10-12, owner (P2, G2): halo rays returns to its gold look (the white
   version was too bright); gloom wisps returns to its first-review speeds; the
   library gains three fireworks Particle Effects, designed with creative
-  freedom and varied (R9 grows to 15; their Reaction tiers are decided with
+  freedom and varied (R9 grows to 16 with Sparkle Hearts, made from the owner's reference image;
+  their Reaction tiers are decided with
   the ladder in P5).
 - 2026-10-11, owner (P2), the platform changes and their reasons:
   - **Emitter limit 16** (was 8; also the auto-fit `emitter_names` cap):
@@ -387,7 +394,7 @@ backgrounds at 0 s):
 | Gloom | sadness | rain-cloud | rain-cloud + bg (Gloom Sadness) | — |
 
 Every emotion has a background at intensity 3 and every one of the 12
-Particle Effects is used. Benchmark first: joy-3, grief-3, anger-3, and the
+Particle Effects then listed is used (P5 uses all 16). Benchmark first: joy-3, grief-3, anger-3, and the
 Delight presets (joy and excitement are the busiest backgrounds).
 
 #### Code Review #1 Findings
@@ -1027,7 +1034,7 @@ Starting source and issue: `42d896a0`, #445.
 - **Docs** (step 1): the runtime guides, Reaction description, redistribution
   review and skills were brought up to date in P6; P7 also corrects
   `animama-particle-vfx`'s `integration.md` (the catalog is read from the
-  Included descriptors). A search of `docs/` and `.agents/` for the removed
+  Included descriptors). A search of `docs/` (outside `docs/plans/`, whose records are history) and `.agents/` for the removed
   stems and Twemoji finds only the legacy emoji-item handling, the
   `hearts-v1`/`rain-cloud` brief examples (both kept) and the evidence page
   exception. `local-content-runtime.md` and the attribution docs need no
@@ -1056,7 +1063,7 @@ was repeated. Two real chat turns with Annie (`gpt-6-luna`) played a Delight
 intensity-3 Reaction (the Delight background with confetti, after Love's Doki
 Doki) and a Gloom intensity-2 Reaction (Rain Cloud above the head). The debug
 panel's Reaction player cannot show these clips outside a reply: a Reaction
-lasts only while the Avatar talks, so it ends at once. One Reaction per family
+lasts only while the Avatar talks, so it ends at once. Departure: one Reaction per family
 at intensities 2 and 3 (love, gratitude, joy, desire, confusion, anger,
 disgust, sadness) was therefore rendered with `effects:render --with-clip
 library:reaction/<id>` on both Included Avatars at 0.4, 1.2 and 2.4 s; all 16
@@ -1066,7 +1073,20 @@ screenshots `chat-delight.jpg`, `chat-gloom.jpg`).
 
 #### Code Review #1 Findings
 
+Round 1 (`sdlc-reviewer`, `cc07955a`): pass. The merge keeps every flag
+main added (14 Reactions compared across base, main, P6 and the merge; the 4
+unconflicted taken from main) and loses no P6 event; the notices differ from
+main only by the Twemoji block; no line main added names a removed effect or
+Twemoji; the record's figures and artifacts match. Optional: **P7-R1-F1** the
+Progress line hid that step 3 was done mostly by render; **P7-R1-F2** the docs
+search claim should exclude `docs/plans/`, where
+`hand-animation-gestures-spec.md` D6 still names removed stems as history.
+
 #### Code Review #1 Revisions
+
+- **F1 accepted:** Progress and the record label the chat check a departure.
+- **F2 accepted:** the search claim now excludes `docs/plans/`; the historical
+  records stay unchanged.
 
 ## Final integration review
 
@@ -1074,6 +1094,40 @@ screenshots `chat-delight.jpg`, `chat-gloom.jpg`).
 acceptance criteria, reusing still-valid phase evidence, with one full review
 and at most two repair rounds. Agent readiness does not replace the gates or
 merge approval.
+
+#### Final Integration Review #1 Findings
+
+Round 1 (`sdlc-reviewer`, `cc07955a` against `f71809f8`, branch-only diff
+`origin/main...cc07955a`): blocked on records only; no code or content defect.
+R9–R14 were verified against the tree: 16 Particle Effects (`hearts-v1`
+unchanged), 24 backgrounds and the two unchanged focus presets, 42 stickers
+with Twemoji gone except the legacy handling and the evidence page, the
+72-Reaction ladder (all 16 effects used; every non-Particle/Scene event equals
+main's except the planned annoyance-3 removal), no dangling stem, complete
+licence and source-review records, and the P2 platform changes documented and
+tested. Findings:
+
+- **FIR-R1-F1 (Required):** the Purpose, Final lists and P1 record said 12
+  Particle Effects, the Decision Log said 15, and #297 and the spec snapshot
+  never received the 2026-10-11/12 R9 decisions.
+- **FIR-R1-F2 (Optional):** `scene-vfx.md` still said Included SVG artwork can
+  be saved into a Local Scene; no Included Scene SVG remains.
+- **FIR-R1-F3 (Optional):** the import refusal for emoji items (no item
+  names) told the importer to open Scene Effects it does not have.
+- **FIR-R1-F4 (Optional):** Progress ticks P3, P5 and P6 with their owner
+  gates pending, and Outcomes read "Not started".
+
+#### Final Integration Review #1 Revisions
+
+- **F1 accepted:** Purpose, Final lists (four rows added), Decision Log (16,
+  Sparkle Hearts from the owner's reference) and the P1 sentence corrected;
+  the R9 additions and runtime-limit decisions published to #297 and read back
+  (2026-10-12T08:03:57Z), and the spec snapshot refreshed.
+- **F2 accepted:** the sentence is removed.
+- **F3 accepted:** `SharingError` uses an import-specific message when no
+  items are named ("ask whoever exported it… then export again");
+  `errors.test.ts` covers both forms (26 passed).
+- **F4 accepted:** Outcomes now states what waits on the owner.
 
 ## Validation and acceptance
 
@@ -1111,4 +1165,19 @@ stays so, the PR states that no hosted checks ran.
 
 ## Outcomes & Retrospective
 
-Not started.
+Agent delivery is complete (2026-10-12): the launch library is Included, the
+Reactions follow the ladder, the sticker set replaces Twemoji, and the local
+checks and full e2e pass on the merged candidate. Acceptance still waits on the
+owner, who authorized the overnight run without waiting at the gates:
+
+- **G2:** the Scene backgrounds and sticker art (the Particle Effects were
+  approved);
+- **G3:** the promotion and removal list, already applied on the branch;
+- **G4:** the Reaction ladder, including the four agent proposals and the
+  Scene creator's family templates;
+- the chat check, done mostly by render (P7 departure), and merge approval.
+
+Lessons: commit with explicit paths when agents share a Git index; rebuild a
+built stack and repeat first-run setup after source or baseline changes; a
+Reaction cannot be inspected from the debug panel outside a reply, so
+`effects:render --with-clip` is the dependable per-Reaction check.
