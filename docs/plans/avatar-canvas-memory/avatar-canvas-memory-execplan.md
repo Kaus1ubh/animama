@@ -1,14 +1,13 @@
 # Release Avatar canvas memory promptly
 
 Source agreement: [avatar-canvas-memory-spec.md](avatar-canvas-memory-spec.md),
-the 2026-10-12 draft that expands issue
-[#472](https://github.com/raymond-van/animama/issues/472). The draft awaits owner
-review. Once approved, it is published to #472, which becomes authoritative.
+agreed on 2026-10-12. It expands issue
+[#472](https://github.com/raymond-van/animama/issues/472), which becomes
+authoritative once the spec is published there.
 
 Authorized scope:
 - Phase 1 is delivered.
-- Phases 2–4 are proposed and start after the owner approves this plan.
-- Phase 5 (R5) also needs the owner to confirm the open question in the spec.
+- Phases 2–5 were approved by the owner on 2026-10-12, Phase 5 included.
 - Merge approval remains separate.
 
 ## Purpose and context
@@ -62,10 +61,10 @@ this plan without machine paths.
 ## Progress
 
 - [x] Phase 1: Library Dock reuse (R1). Delivered in `7172794f`. Review passed after two repair rounds; the evidence is below.
-- [ ] Phase 2: Avatar disposal releases GPU and decoded resources (R2, R3). Awaits plan approval.
-- [ ] Phase 3: One live scroll tracker per admitted session (R4). Awaits plan approval.
-- [ ] Phase 4: Desktop and PiP window memory, measured and repaired (R6). Awaits plan approval.
-- [ ] Phase 5: Chat keeps its renderer across Animas (R5). Awaits plan approval and the owner's R5 decision.
+- [ ] Phase 2: Avatar disposal releases GPU and decoded resources (R2, R3). Approved.
+- [ ] Phase 3: One live scroll tracker per admitted session (R4). Approved.
+- [ ] Phase 4: Desktop and PiP window memory, measured and repaired (R6). Approved.
+- [ ] Phase 5: Chat keeps its renderer across Animas (R5). Approved.
 - [ ] Final integration review, fast browser journeys and PR update.
 
 ## Surprises & Discoveries
@@ -78,10 +77,11 @@ this plan without machine paths.
 ## Decision Log
 
 - 2026-10-12, owner: expand #472 from the Library Dock fix to the measured canvas leaks and churn, then add PiP and desktop windows.
-- 2026-10-12, agent (proposed): treat this as substantial and risky work, because it touches the shared Avatar runtime, router lifetime and chat remount semantics. Hence this ExecPlan.
-- 2026-10-12, agent (proposed): fix R2 centrally in `Avatar.unload()` by detaching before disposing, rather than reordering every caller's cleanup.
-- 2026-10-12, agent (proposed): for R4, build routers only for ready admissions, and stop scroll tracking on a retired router, instead of keeping one router for the whole page.
-- 2026-10-12, agent (proposed): order the phases 2 → 3 → 4 → 5. R5 depends on R2, because reusing the chat renderer without detach-before-dispose would recreate F2 in the main scene. R6 measurements are more meaningful after R2 and R3.
+- 2026-10-12, owner: approve the spec and this plan as written, and include Phase 5 (R5).
+- 2026-10-12, agent: treat this as substantial and risky work, because it touches the shared Avatar runtime, router lifetime and chat remount semantics. Hence this ExecPlan.
+- 2026-10-12, agent: fix R2 centrally in `Avatar.unload()` by detaching before disposing, rather than reordering every caller's cleanup.
+- 2026-10-12, agent: for R4, build routers only for ready admissions, and stop scroll tracking on a retired router, instead of keeping one router for the whole page.
+- 2026-10-12, agent: order the phases 2 → 3 → 4 → 5. R5 depends on R2, because reusing the chat renderer without detach-before-dispose would recreate F2 in the main scene. R6 measurements are more meaningful after R2 and R3.
 
 ## Phased implementation
 
@@ -133,7 +133,7 @@ Code Review #2 passed. CR2-N1 (missing `IS_REACT_ACT_ENVIRONMENT`) was accepted.
 
 ### Phase 2: Avatar disposal releases GPU and decoded resources (R2, R3)
 
-Issue: to be created after approval. Starting revision: the plan commit on this branch.
+Issue: to be created. Starting revision: the plan commit on this branch.
 
 Steps:
 1. **Detach before dispose.** Write a failing `Avatar` unit test: with the model attached to a parent group, `unload()` must leave `vrm.scene.parent === null` before any geometry, material or texture is disposed. Use spies on the disposal path. Then call `this.vrm.scene.removeFromParent()` in `unload()` before `VRMUtils.deepDispose`. Keep `preloadVrm()` consistent.
@@ -154,7 +154,7 @@ Recovery: revert the phase commit. No data or contract changes.
 
 ### Phase 3: One live scroll tracker per admitted session (R4)
 
-Issue: to be created after approval. Depends on nothing; it runs after Phase 2 to keep reviews focused.
+Issue: to be created. Depends on nothing; it runs after Phase 2 to keep reviews focused.
 
 Steps:
 1. Write a failing test for `AppRouter`: rendering while admission is loading builds no router, and a router replaced by a new admission, or unmounted, stops tracking scroll positions.
@@ -171,7 +171,7 @@ Recovery: revert the phase commit.
 
 ### Phase 4: Desktop and PiP window memory (R6)
 
-Issue: to be created after approval. Runs after Phase 2, so its measurements include the shared disposal fix.
+Issue: to be created. Runs after Phase 2, so its measurements include the shared disposal fix.
 
 Steps:
 1. **Measurement harness:**
@@ -200,7 +200,7 @@ Recovery: revert the phase commits. No persisted window state changes, unless a 
 
 ### Phase 5: Chat keeps its renderer across Animas (R5)
 
-Issue: to be created after approval. Gate: the owner confirms R5. Depends on Phase 2.
+Issue: to be created. The owner confirmed R5 on 2026-10-12. Depends on Phase 2.
 
 Steps:
 1. **Audit what must reset per Anima** under `MainShell` and the canvas actor:

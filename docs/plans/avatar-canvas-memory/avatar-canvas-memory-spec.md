@@ -1,10 +1,10 @@
 # Release Avatar canvas memory promptly
 
-Status: Proposal
+Status: Agreed
 Owner decision: 2026-10-12, the owner asked to expand issue #472 to fix the memory
 leaks and churn found while investigating Library previews, and then to include
-investigating and fixing PiP and desktop window memory. This draft awaits owner
-review.
+investigating and fixing PiP and desktop window memory. On 2026-10-12 the owner
+approved this spec and the ExecPlan as written, including R5.
 
 ## Problem and intended users
 
@@ -104,7 +104,7 @@ All browser measurements use a built task stack, an isolated Chrome and forced G
 
 ## Open questions and decisions
 
-- **R5 needs owner confirmation.** It is the riskiest item, because chat state is currently reset by remounting. The alternative is to defer R5 and rely on R3 to shrink each switch's churn.
+- **R5 included (owner, 2026-10-12).** It is the riskiest item, because chat state is currently reset by remounting. The owner chose to include it rather than rely on R3 alone.
 - **R6 behavior changes.** Any R6 fix that would change visible behavior, rather than only release memory, goes back to the owner. An example is unloading the main window's Avatar while PiP is open.
 - **R4 implementation choice (agent, 2026-10-12):** keep one router per admitted session for hosted isolation, rather than one router for the page lifetime.
 
