@@ -10,6 +10,10 @@ GeminiTtsModelId = Literal["gemini-3.8-flash-lite-tts", "gemini-3.8-flash-tts"]
 SUPPORTED_GEMINI_TTS_MODEL_IDS: tuple[GeminiTtsModelId, ...] = get_args(GeminiTtsModelId)
 DEFAULT_GEMINI_TTS_MODEL_ID: GeminiTtsModelId = "gemini-3.8-flash-lite-tts"
 
+GEMINI_TTS_MISSING_CREDENTIAL_CODE = "gemini_tts_missing_credential"
+GEMINI_TTS_MISSING_CREDENTIAL_MESSAGE = "Gemini text-to-speech needs a Gemini API key."
+"""The voice error the browser shows when ``GEMINI_API_KEY`` is not set."""
+
 GeminiPrebuiltVoice = Literal[
     "Zephyr",
     "Puck",
@@ -78,6 +82,8 @@ __all__ = [
     "DEFAULT_GEMINI_TTS_MODEL_ID",
     "DEFAULT_GEMINI_VOICE",
     "GEMINI_PREBUILT_VOICES",
+    "GEMINI_TTS_MISSING_CREDENTIAL_CODE",
+    "GEMINI_TTS_MISSING_CREDENTIAL_MESSAGE",
     "SUPPORTED_GEMINI_TTS_MODEL_IDS",
     "GeminiPrebuiltVoice",
     "GeminiTtsCapability",

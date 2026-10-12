@@ -21,6 +21,8 @@ from fastapi import status
 
 from animama.app.contracts.gemini import (
     DEFAULT_GEMINI_TTS_MODEL_ID,
+    GEMINI_TTS_MISSING_CREDENTIAL_CODE,
+    GEMINI_TTS_MISSING_CREDENTIAL_MESSAGE,
     SUPPORTED_GEMINI_TTS_MODEL_IDS,
     gemini_voice_or_default,
 )
@@ -34,7 +36,6 @@ from animama.server.runtime_credentials import runtime_credentials
 
 _log = get_logger("server.gemini_tts_service")
 
-GEMINI_TTS_MISSING_CREDENTIAL_CODE = "gemini_tts_missing_credential"
 GEMINI_TTS_STREAM_FAILED_CODE = "gemini_tts_stream_failed"
 GEMINI_TTS_SAMPLE_RATE = 24000
 GEMINI_TTS_REQUEST_TIMEOUT_MS = 60_000
@@ -159,9 +160,7 @@ async def stream_gemini_finalized_speech(prepared: GeminiFinalizedSpeech) -> Asy
     try:
         client = _client(_require_api_key())
     except ProductRefusal:
-        yield _error_payload(
-            prepared, "Gemini text-to-speech needs a Gemini API key.", code=GEMINI_TTS_MISSING_CREDENTIAL_CODE
-        )
+        yield _error_payload(prepared, GEMINI_TTS_MISSING_CREDENTIAL_MESSAGE, code=GEMINI_TTS_MISSING_CREDENTIAL_CODE)
         return
     except Exception as exc:
         _log.warning("Gemini TTS client setup failed", run_id=prepared.run_id, exc_type=type(exc).__name__)

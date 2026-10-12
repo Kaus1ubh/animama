@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -33,6 +33,8 @@ from animama.app.contracts.elevenlabs import (
 )
 from animama.app.contracts.gemini import (
     DEFAULT_GEMINI_TTS_MODEL_ID,
+    GEMINI_TTS_MISSING_CREDENTIAL_CODE,
+    GEMINI_TTS_MISSING_CREDENTIAL_MESSAGE,
     SUPPORTED_GEMINI_TTS_MODEL_IDS,
     gemini_voice_or_default,
 )
@@ -70,12 +72,19 @@ FinalizedTtsProvider = Literal["elevenlabs", "gemini"]
 
 @dataclass(frozen=True, slots=True)
 class _FinalizedProviderText:
-    """What a finalized speech provider's frames and errors say about it."""
+    """What a finalized speech provider's frames and errors say about it.
+
+    ``refusal_messages`` gives the browser text for refusal codes the owner can
+    act on; other refusals show the generic failure. ``forwards_error_text``
+    lets other exceptions' own text reach the browser.
+    """
 
     label: str
     failure_label: str
     setup_failed_code: str
     stream_failed_code: str
+    refusal_messages: Mapping[str, str] = field(default_factory=dict)
+    forwards_error_text: bool = True
 
 
 _FINALIZED_PROVIDER_TEXT: dict[str, _FinalizedProviderText] = {
@@ -90,6 +99,9 @@ _FINALIZED_PROVIDER_TEXT: dict[str, _FinalizedProviderText] = {
         failure_label="Gemini TTS",
         setup_failed_code="gemini_tts_stream_setup_failed",
         stream_failed_code="gemini_tts_stream_failed",
+        refusal_messages={GEMINI_TTS_MISSING_CREDENTIAL_CODE: GEMINI_TTS_MISSING_CREDENTIAL_MESSAGE},
+        # Gemini errors name at most an HTTP status, never request text.
+        forwards_error_text=False,
     ),
 }
 
@@ -613,12 +625,11 @@ class FinalizedTtsStreamBootstrap:
                 run_id=self.run_id,
                 error=str(exc),
             )
-            refused = isinstance(exc, ProductRefusal)
             await self.queue.put(
                 format_tts_error_event(
                     run_id=self.run_id,
                     model_id=self.model_id or "eleven_v3",
-                    error=("" if refused else str(exc)) or self._failure_text("failed"),
+                    error=self._error_text(exc, "failed"),
                     # A composition that declines a streamed segment names why.
                     code=exc.code if isinstance(exc, ProductRefusal) else self._text.stream_failed_code,
                     provider=self.provider,
@@ -700,12 +711,11 @@ class FinalizedTtsStreamBootstrap:
                 part_index=batch.part_index,
                 error=str(exc),
             )
-            refused = isinstance(exc, ProductRefusal)
             await self.queue.put(
                 format_tts_error_event(
                     run_id=self.run_id,
                     model_id=self.model_id or "eleven_v3",
-                    error=("" if refused else str(exc)) or self._failure_text("setup failed"),
+                    error=self._error_text(exc, "setup failed"),
                     # A composition that declines this reply's speech names why.
                     code=exc.code if isinstance(exc, ProductRefusal) else self._text.setup_failed_code,
                     provider=self.provider,
@@ -761,6 +771,13 @@ class FinalizedTtsStreamBootstrap:
 
     def _failure_text(self, what: str) -> str:
         return f"{self._text.failure_label} {what}."
+
+    def _error_text(self, exc: Exception, what: str) -> str:
+        """The browser-facing text for a failed reply's speech."""
+
+        if isinstance(exc, ProductRefusal):
+            return self._text.refusal_messages.get(exc.code) or self._failure_text(what)
+        return (str(exc) if self._text.forwards_error_text else "") or self._failure_text(what)
 
     async def _gemini_voice(self) -> str:
         async with self.sessions.read() as session:

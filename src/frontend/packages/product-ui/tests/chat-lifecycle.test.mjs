@@ -704,7 +704,7 @@ test("a Gemini speech error ends the run's speech without Pocket TTS", async (t)
       model_id: "gemini-3.8-flash-lite-tts",
       output_format: "pcm_24000",
       code: "gemini_tts_missing_credential",
-      error: "Gemini TTS setup failed.",
+      error: "Gemini text-to-speech needs a Gemini API key.",
     },
     { chat_id: "chat-fixture" },
   ]);

@@ -4985,10 +4985,33 @@ async def test_chat_sse_gemini_tts_without_a_key_shows_a_voice_error_and_keeps_t
 
     errors = _event_data_all(chunks, "tts.error")
     assert [(event["provider"], event["code"]) for event in errors] == [("gemini", "gemini_tts_missing_credential")]
-    assert errors[0]["error"] == "Gemini TTS setup failed."
+    # The notice tells the owner what to add.
+    assert errors[0]["error"] == "Gemini text-to-speech needs a Gemini API key."
     assert _event_count(chunks, "tts.audio") == 0
     assert _event_count(chunks, "tts.done") == 0
     assert any('"speech": "Only sentence."' in chunk or "Only sentence." in chunk for chunk in chunks)
+    assert _event_count(chunks, "run.completed") == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_gemini_tts_setup_failure_reaches_the_browser_without_its_detail(monkeypatch) -> None:
+    _gemini_tts_route_mocks(monkeypatch, speech="Only sentence.")
+
+    async def _failing_settings(self, *, user_id: str, anima_id: str) -> object:
+        raise RuntimeError("internal detail")
+
+    monkeypatch.setattr(_FakeAnimaSettings, "get", _failing_settings)
+
+    response = await chat_anima_direct_sse(
+        "anima-1", _gemini_tts_request(), request=_test_request(), user=RequestPrincipal(id="user-1")
+    )
+    chunks = await _collect_chunks(response)
+
+    errors = _event_data_all(chunks, "tts.error")
+    assert [(event["provider"], event["code"], event["error"]) for event in errors] == [
+        ("gemini", "gemini_tts_stream_setup_failed", "Gemini TTS setup failed.")
+    ]
+    assert not any("internal detail" in chunk for chunk in chunks)
     assert _event_count(chunks, "run.completed") == 1
 
 
