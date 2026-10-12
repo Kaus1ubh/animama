@@ -1,11 +1,8 @@
-import {
-  AVATAR_PARTICLE_VFX_CATALOG,
-  createDefaultParticleVFXTransform,
-} from "../catalog";
+import { getParticleVFXCatalogEntryById } from "../catalog";
 import { cloneParticleVFXShapeAutoFit } from "../autoFit";
 import {
   cloneParticleVFXTransform,
-  getParticleVFXCatalogEntryById,
+  createDefaultParticleVFXTransform,
 } from "../runtime";
 import {
   DEFAULT_IMPORTED_CATALOG_DRAFT,
@@ -137,12 +134,16 @@ export function createParticleVFXEditorDraftFromBlank(
   });
 }
 
+/**
+ * A draft of an Included Particle Effect's manifest with its catalog defaults;
+ * an unknown ID keeps the imported-effect defaults instead of borrowing
+ * another effect's.
+ */
 export function createParticleVFXEditorDraftFromCatalog(
   effectId: string,
   quarksJson: unknown,
 ): ParticleVFXEditorDraft {
-  const catalogEntry =
-    getParticleVFXCatalogEntryById(effectId) ?? AVATAR_PARTICLE_VFX_CATALOG[0];
+  const catalogEntry = getParticleVFXCatalogEntryById(effectId);
   return createParticleVFXEditorDraft({
     source: "catalog",
     sourceEffectId: catalogEntry?.id ?? null,

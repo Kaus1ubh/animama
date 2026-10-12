@@ -22,8 +22,10 @@ Runtime code lives under:
 - `src/frontend/web/src/lib/avatar/poses/animaPoseClip/`
 - `src/frontend/web/src/lib/avatar/Avatar.ts`
 
-The code-defined catalog supplies authoring defaults. Live playback resolves only
-the verified entries in the mounted `AnimaRuntimeCatalog`.
+`AVATAR_PARTICLE_VFX_CATALOG` is read at build time from the Included
+descriptors (`quark/<stem>/<stem>.json`) and backs the debug panel and authoring
+defaults; there is no hand-written copy. Live playback resolves only the
+verified entries in the mounted `AnimaRuntimeCatalog`.
 
 ## Bundled media
 
@@ -33,7 +35,8 @@ its manifest and referenced textures as registered catalog files. Raw
 downloaded texture packs are authoring source material only; mounted runtime
 entries do not fetch them through public paths.
 
-Regenerate the curated textures and authored quarks JSON with:
+The creator's curated built-in textures live in
+`content/included/vfx/particle/particle-vfx/textures/`. Regenerate them with:
 
 ```bash
 node scripts/generate-particle-vfx-assets.mjs \
@@ -45,10 +48,10 @@ node scripts/generate-particle-vfx-assets.mjs \
 Run from `src/frontend`. The source roots must contain the original pack
 layouts. The generator requires a new staging directory outside
 `content/included` and refuses an existing destination. It writes PNG textures,
-quarks JSON and a texture manifest for review; it does not install or update
-Included content. Review the generated paths and provenance before copying
-outputs into typed entries. Final typed entries use safe manifest-relative
-texture paths.
+the texture manifest and the folder README for review; it does not install or
+update Included content. Review the generated paths and provenance before
+copying outputs. Particle Effects are authored in the creator and carry their
+own texture copies under safe manifest-relative paths.
 
 Use PNG with transparent alpha for billboards, prefer square 256x256 or
 512x512 textures for static sprites (up to 1024x1024 for detailed hero art), disable particle material depth writes,
@@ -57,8 +60,6 @@ Curated flipbook atlases are tracked in the same texture directory. The
 generator normalizes Brackeys TGA flipbooks and predrawn PNG atlases into PNG
 runtime assets, then records `uTileCount`, `vTileCount`, frame counts,
 `blendTiles`, and recommended `FrameOverLife` ranges in the editor manifest.
-It also normalizes Kenney fire, flame, ember, smoke, and light sprites used by
-the layered `flame-loop` catalog effect.
 
 ### Effect textures
 
@@ -196,7 +197,7 @@ the `animama-particle-vfx` skill wraps them into the authoring pipeline.
   "id": "bang-1",
   "time": 0.25,
   "kind": "particle_vfx",
-  "effectId": "hearts",
+  "effectId": "heart-burst",
   "anchor": "head",
   "duration": 2,
   "followAnchor": true,
@@ -296,8 +297,8 @@ and scale.
 `AnimationDebugModal` keeps the manual runtime Particle VFX surface and also
 shows particle runtime state from clip/reaction diagnostics: active count,
 loaded count, latest warning or error, lifetime mode, and active applied ids.
-The `flame-loop` effect defaults to manual lifetime in this debug surface so it
-can stay active as a chest-centered flame aura until cleared.
+It lists every Included Particle Effect; manual lifetime is available for an
+effect whose budget allows looping.
 
 The runtime evicts failed JSON load promises so transient asset fetch errors can
 be retried, and controller disposal clears active systems, cached prefab

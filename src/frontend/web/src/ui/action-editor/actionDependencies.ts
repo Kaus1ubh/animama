@@ -2,26 +2,24 @@ import type {
   PyContentDependency,
   PyExactContentSource,
 } from "@/lib/content/catalogTypes";
-import {
-  getSceneBackgroundLayerPresetIds,
-  getSceneFocusLinePresetIds,
-} from "@/lib/scene-vfx/catalog";
+import { getSceneFocusLinePresetIds } from "@/lib/scene-vfx/catalog";
 import type { SceneVFXKind } from "@/lib/scene-vfx/types";
 import { referencedAliases, type ActionDocument } from "./actionDocument";
 
 export type ActionComponentType = PyContentDependency["content_type"];
 
-const BUILTIN_BACKGROUND_SCENE_IDS = new Set<string>(
-  getSceneBackgroundLayerPresetIds(),
-);
 const BUILTIN_FOCUS_SCENE_IDS = new Set<string>(getSceneFocusLinePresetIds());
 
+/**
+ * The lane a built-in Scene Effect plays in: Included content IDs name it
+ * (`builtin:scene-effect:focus:<id>`), and the bundled focus presets cover IDs
+ * without that segment; everything else is a background.
+ */
 function sceneKindForSource(source: PyExactContentSource): SceneVFXKind {
   if (source.type !== "builtin") return "background_layers";
   const contentId = source.content_id ?? "";
   const presetId = contentId.split(":").at(-1) ?? contentId;
   if (BUILTIN_FOCUS_SCENE_IDS.has(presetId)) return "focus_lines";
-  if (BUILTIN_BACKGROUND_SCENE_IDS.has(presetId)) return "background_layers";
   return contentId.includes(":focus:") ? "focus_lines" : "background_layers";
 }
 

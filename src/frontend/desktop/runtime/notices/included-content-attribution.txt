@@ -10,12 +10,6 @@ Source and terms:
 https://helpx.adobe.com/creative-cloud/faq/mixamo-faq.html
 https://wwwimages2.adobe.com/content/dam/cc/en/legal/servicetou/Mixamo-Addl-Terms-en_US-20210623.pdf
 
-Twemoji graphics 14.0.2
-Copyright 2020 Twitter, Inc and other contributors.
-Graphics licensed under Creative Commons Attribution 4.0 International.
-Source: https://github.com/jdecked/twemoji/tree/v14.0.2/assets/svg
-License: https://creativecommons.org/licenses/by/4.0/
-
 Kenney Particle Pack 1.1
 By Kenney Vleugels, with filter-template contributors named in the packaged
 License.txt. Dedicated under Creative Commons Zero 1.0.

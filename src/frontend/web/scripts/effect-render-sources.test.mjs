@@ -258,16 +258,17 @@ test("resolves Avatar and Particle Effect dependencies by content id", async () 
   assert.equal(local.name, "Sparkle Burst");
   // Included particles nest one folder deeper.
   const particle = await resolveParticleRef(
-    "builtin:particle-effect:question-marks",
+    "builtin:particle-effect:question-orbit",
   );
   const folder = path.join(
     INCLUDED_CONTENT_ROOT,
-    "vfx/particle/quark/question-marks",
+    "vfx/particle/quark/question-orbit",
   );
   assert.equal(particle.folder, folder);
   assert.equal(particle.manifestPath, path.join(folder, "particle.json"));
   assert.deepEqual(particle.texturePaths, [
-    path.join(folder, "textures/question.png"),
+    path.join(folder, "textures/orbit-dot.png"),
+    path.join(folder, "textures/glossy-question.png"),
   ]);
   assert.equal(particle.defaults.anchor, "head");
   await assert.rejects(
@@ -350,21 +351,21 @@ test("names an effect kind in library specs; none means an Avatar Effect", () =>
 });
 
 test("resolves Particle and Scene Effect sources by library spec and folder", async () => {
-  const hearts = await resolveAnyEffectSource(
+  const stream = await resolveAnyEffectSource(
     "library:particle-effect/hearts-v1",
   );
   const folder = path.join(
     INCLUDED_CONTENT_ROOT,
     "vfx/particle/quark/hearts-v1",
   );
-  assert.equal(hearts.kind, "particle");
-  assert.equal(hearts.stem, "hearts-v1");
-  assert.equal(hearts.contentId, "builtin:particle-effect:hearts-v1");
-  assert.equal(hearts.manifestPath, path.join(folder, "particle.json"));
-  assert.deepEqual(hearts.texturePaths, [
+  assert.equal(stream.kind, "particle");
+  assert.equal(stream.stem, "hearts-v1");
+  assert.equal(stream.contentId, "builtin:particle-effect:hearts-v1");
+  assert.equal(stream.manifestPath, path.join(folder, "particle.json"));
+  assert.deepEqual(stream.texturePaths, [
     path.join(folder, "textures/heart.png"),
   ]);
-  assert.equal(hearts.defaults.anchor, "head");
+  assert.equal(stream.defaults.anchor, "head");
   const byFolder = await resolveAnyEffectSource(folder);
   assert.equal(byFolder.kind, "particle");
   assert.deepEqual(effectSourceFiles(byFolder), [
@@ -382,13 +383,17 @@ test("resolves Particle and Scene Effect sources by library spec and folder", as
   );
   assert.equal(joy.kind, "scene");
   assert.equal(joy.definition.kind, "background_layers");
-  assert.deepEqual(joy.imagePaths, {
-    "emoji-sparkles-2728.svg": path.join(
-      sceneFolder,
-      "emoji-sparkles-2728.svg",
+  assert.deepEqual(
+    joy.imagePaths,
+    Object.fromEntries(
+      [
+        "pop-star-yellow.png",
+        "confetti-curl-pink.png",
+        "confetti-chip-teal.png",
+        "confetti-chip-violet.png",
+      ].map((name) => [name, path.join(sceneFolder, name)]),
     ),
-    "emoji-star-2b50.svg": path.join(sceneFolder, "emoji-star-2b50.svg"),
-  });
+  );
   assert.match(await effectSourceVersion(joy), /^[0-9a-f]{12}$/);
 
   const avatar = await resolveAnyEffectSource("library:star3");
@@ -438,7 +443,10 @@ test("resolves a Reaction clip and every kind of effect it depends on", async ()
   );
   assert.deepEqual(
     media.particleEffects.map(({ alias, particle }) => [alias, particle.stem]),
-    [["sparkles", "sparkles"]],
+    [
+      ["confetti", "confetti"],
+      ["star-burst", "star-burst"],
+    ],
   );
   assert.deepEqual(
     media.sceneEffects.map(({ alias, scene }) => [alias, scene.stem]),

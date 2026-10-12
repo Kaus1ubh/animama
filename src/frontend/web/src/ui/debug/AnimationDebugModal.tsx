@@ -1523,15 +1523,6 @@ const defaultSelectedParticleVFXEffectId =
   particleVFXCatalogOptions[0]?.id ?? "";
 type ParticleVFXDebugLifetimeMode = "duration" | "manual";
 
-function getDefaultParticleVFXLifetimeMode(
-  effectId: string,
-): ParticleVFXDebugLifetimeMode {
-  const entry = getParticleVFXCatalogEntryById(effectId);
-  return entry?.id === "flame-loop" && entry.performanceBudget.loopingAllowed
-    ? "manual"
-    : "duration";
-}
-
 function getDebugParticleVFXAppliedId(effectId: string): string {
   return `debug:particle-vfx:${effectId}`;
 }
@@ -1797,9 +1788,7 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
     defaultParticleVFXEntry?.defaultDurationSec ?? 2,
   );
   const [particleVFXLifetimeMode, setParticleVFXLifetimeMode] =
-    useState<ParticleVFXDebugLifetimeMode>(() =>
-      getDefaultParticleVFXLifetimeMode(defaultSelectedParticleVFXEffectId),
-    );
+    useState<ParticleVFXDebugLifetimeMode>("duration");
   const [particleVFXSnapshot, setParticleVFXSnapshot] =
     useState<ParticleVFXControllerSnapshot | null>(null);
 
@@ -2452,7 +2441,7 @@ export function AnimationDebugModal({ animaLabel }: { animaLabel?: string }) {
     setParticleVFXOffset(cloneParticleVFXAxisTriple(transform.offset));
     setParticleVFXDepthOffset(transform.depthOffset);
     setParticleVFXDurationSec(entry.defaultDurationSec);
-    setParticleVFXLifetimeMode(getDefaultParticleVFXLifetimeMode(effectId));
+    setParticleVFXLifetimeMode("duration");
   };
 
   const handleParticleVFXOffsetChange = (

@@ -68,7 +68,7 @@ def test_representative_included_entries_are_human_locatable(included: Path) -> 
     assert "avatars/AvatarSample_A_1_New.vrm" in by_locator
     assert "gestures/have-an-idea" in by_locator
     assert "reactions/admiration-2" in by_locator
-    assert "vfx/particle/quark/hearts" in by_locator
+    assert "vfx/particle/quark/heart-burst" in by_locator
     assert by_locator["gestures/have-an-idea"].logical_key == "builtin:gesture:have-an-idea"
     assert by_locator["reactions/admiration-2"].dependencies
 

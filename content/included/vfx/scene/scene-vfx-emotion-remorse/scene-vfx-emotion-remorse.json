@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-remorse",
+  "version": 1,
+  "name": "Emotion Remorse",
+  "description": "A dusky mauve background with large faint spirals turning slowly beside the Avatar and clear bubbles rising, for remorseful, guilty moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "coverUiOverlays": false,
+    "dismissOnInput": false,
+    "solid": {
+      "enabled": false,
+      "color": "#000000"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 160,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
+        {
+          "color": "#8d7fa3",
+          "position": 0
+        },
+        {
+          "color": "#6a5d80",
+          "position": 0.5
+        },
+        {
+          "color": "#4a3f5c",
+          "position": 1
+        }
+      ]
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "spiral",
+            "kind": "image",
+            "label": "Dusk spiral",
+            "image": "spiral-dusk.png"
+          }
+        ],
+        "count": 4,
+        "seed": 89,
+        "minSize": 110,
+        "maxSize": 170,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 360,
+        "minOpacity": 0.35,
+        "maxOpacity": 0.6,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 8,
+        "maxSpinDegPerSec": 18,
+        "alternateSpin": false,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "bubble",
+            "kind": "image",
+            "label": "Bubble",
+            "image": "bubble-clear.png"
+          }
+        ],
+        "count": 8,
+        "seed": 58,
+        "minSize": 10,
+        "maxSize": 24,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.4,
+        "maxOpacity": 0.7,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 14,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
+    }
+  },
+  "files": [
+    {
+      "path": "spiral-dusk.png",
+      "role": "image"
+    },
+    {
+      "path": "bubble-clear.png",
+      "role": "image"
+    }
+  ]
+}

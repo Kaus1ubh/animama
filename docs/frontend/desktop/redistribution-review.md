@@ -11,8 +11,7 @@ human review; stored receipts apply only to their exact inputs.
   identify retained ONNX, Basis, SentencePiece, Pocket, VAD, Smart Turn, Parakeet,
   Transformers.js and fft.js inputs, license texts and local modifications.
 - [Artwork notices](../../../licenses/third-party/art-NOTICES.md) identify
-  retained textures, the Twemoji images of the emotion backgrounds, particle
-  derivatives, models and portraits.
+  retained textures, particle derivatives, models and portraits.
 - `content/included/licenses/inventory.json` records Included-content provenance
   and distribution rules. Required excluded or untracked inputs fail staging.
 - [Source review inventory](../../../licenses/README.md) describes the broader

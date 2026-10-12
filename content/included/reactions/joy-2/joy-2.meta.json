@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:stars",
-      "alias": "stars",
+      "ref": "builtin:particle-effect:confetti",
+      "alias": "confetti",
       "content_type": "particle_effect",
       "config": {}
     },

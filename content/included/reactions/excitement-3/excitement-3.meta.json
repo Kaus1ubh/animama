@@ -21,8 +21,14 @@
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:sparkles",
-      "alias": "sparkles",
+      "ref": "builtin:particle-effect:star-burst",
+      "alias": "star-burst",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:fireworks-show",
+      "alias": "fireworks-show",
       "content_type": "particle_effect",
       "config": {}
     },

@@ -4,49 +4,153 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-gratitude",
   "version": 1,
   "name": "Emotion Gratitude",
-  "description": "Scene background effect preset",
+  "description": "A soft peach back-light with gently breathing rays behind the Avatar and small warm hearts and buds rising among gold glints, for grateful moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#e3f7df"
+      "enabled": false,
+      "color": "#ffd59e"
     },
     "pattern": {
-      "enabled": true,
-      "pattern": "heart",
+      "enabled": false,
+      "pattern": "none",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.34
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "stops": [
         {
-          "id": "emoji-folded-hands",
-          "kind": "image",
-          "label": "Folded Hands 🙏",
-          "image": "emoji-folded-hands-1f64f.svg"
+          "color": "#fffaf0",
+          "position": 0
+        },
+        {
+          "color": "#ffeccc",
+          "position": 0.35
+        },
+        {
+          "color": "#ffd59e",
+          "position": 1
         }
       ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "rays",
+      "color": "#fffdf5",
+      "opacity": 0.32,
+      "count": 16,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0.3,
+      "seed": 9
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "heart",
+            "kind": "image",
+            "label": "Warm heart",
+            "image": "heart-peach.png"
+          },
+          {
+            "id": "bud",
+            "kind": "image",
+            "label": "Flower bud",
+            "image": "flower-bud.png"
+          }
+        ],
+        "count": 12,
+        "seed": 36,
+        "minSize": 18,
+        "maxSize": 36,
+        "minRotationDeg": -15,
+        "maxRotationDeg": 15,
+        "minOpacity": 0.85,
+        "maxOpacity": 1,
+        "regionTop": 0.45,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 16,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "glint",
+            "kind": "image",
+            "label": "Gold glint",
+            "image": "glint-gold.png"
+          }
+        ],
+        "count": 5,
+        "seed": 38,
+        "minSize": 12,
+        "maxSize": 22,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.8,
+        "maxOpacity": 1,
+        "regionTop": 0.1,
+        "regionBottom": 0.7,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-folded-hands-1f64f.svg",
+      "path": "heart-peach.png",
+      "role": "image"
+    },
+    {
+      "path": "flower-bud.png",
+      "role": "image"
+    },
+    {
+      "path": "glint-gold.png",
       "role": "image"
     }
   ]

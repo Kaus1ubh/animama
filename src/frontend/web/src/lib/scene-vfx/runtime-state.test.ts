@@ -1,9 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  getSceneBackgroundLayerPresetById,
-  getSceneFocusLinePresetById,
-} from "./catalog";
+import { getSceneFocusLinePresetById } from "./catalog";
+import { createTestSceneBackground } from "./sceneVFXTestFixtures";
 import {
   buildSceneVFXRuntimeEntry,
   buildSceneVFXRuntimeState,
@@ -12,8 +10,7 @@ import {
 
 describe("Scene VFX runtime state", () => {
   it("normalizes and stamps a local background entry without mutating it", () => {
-    const source = getSceneBackgroundLayerPresetById("shoujo-hearts");
-    if (!source) throw new Error("Missing scene VFX test fixture");
+    const source = createTestSceneBackground();
     const original = structuredClone(source);
     const runtime = buildSceneVFXRuntimeEntry(source, 1_000);
     expect(source).toEqual(original);

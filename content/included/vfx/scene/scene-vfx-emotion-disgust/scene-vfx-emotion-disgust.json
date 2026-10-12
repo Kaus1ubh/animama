@@ -4,49 +4,143 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-disgust",
   "version": 1,
   "name": "Emotion Disgust",
-  "description": "Scene background effect preset",
+  "description": "A sickly lime-green background with big spirals churning beside the Avatar and green bubbles rising, for disgusted, queasy moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#c9e7b7"
+      "enabled": false,
+      "color": "#000000"
     },
     "pattern": {
-      "enabled": true,
-      "pattern": "polkadot",
+      "enabled": false,
+      "pattern": "none",
       "color": "#ffffff",
-      "size": 20,
-      "spacing": 18,
+      "size": 10,
+      "spacing": 20,
       "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 160,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
         {
-          "id": "emoji-nauseated-face",
-          "kind": "image",
-          "label": "Nauseated Face 🤢",
-          "image": "emoji-nauseated-face-1f922.svg"
+          "color": "#d9f28a",
+          "position": 0
+        },
+        {
+          "color": "#a8cf5a",
+          "position": 0.52
+        },
+        {
+          "color": "#7fae3a",
+          "position": 1
         }
       ]
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "spiral",
+            "kind": "image",
+            "label": "Green spiral",
+            "image": "spiral-green.png"
+          }
+        ],
+        "count": 5,
+        "seed": 21,
+        "minSize": 90,
+        "maxSize": 150,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 360,
+        "minOpacity": 0.55,
+        "maxOpacity": 0.85,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 25,
+        "maxSpinDegPerSec": 50,
+        "alternateSpin": true,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "bubble",
+            "kind": "image",
+            "label": "Green bubble",
+            "image": "bubble-green.png"
+          }
+        ],
+        "count": 12,
+        "seed": 48,
+        "minSize": 12,
+        "maxSize": 30,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.6,
+        "maxOpacity": 0.9,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 30,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-nauseated-face-1f922.svg",
+      "path": "spiral-green.png",
+      "role": "image"
+    },
+    {
+      "path": "bubble-green.png",
       "role": "image"
     }
   ]

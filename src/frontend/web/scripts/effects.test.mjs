@@ -1314,7 +1314,6 @@ async function effectKindsRepo() {
         rules: [
           { glob: "vfx/avatar/**/*", ...ownerRule },
           { glob: "vfx/particle/quark/**", license_id: "CC0-generated" },
-          { glob: "vfx/scene/**/emoji-*.svg", license_id: "Twemoji" },
           { glob: "vfx/scene/**/*.png", ...ownerRule },
           { glob: "**/*", license_id: "legacy" },
         ],
@@ -1432,7 +1431,6 @@ test("promotion adds Particle and Scene Effects under owner-authored rules", asy
       "vfx/avatar/**/*",
       "vfx/particle/quark/glow/**",
       "vfx/particle/quark/**",
-      "vfx/scene/**/emoji-*.svg",
       "vfx/scene/**/*.png",
       "**/*",
     ],

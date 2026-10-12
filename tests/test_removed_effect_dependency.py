@@ -74,7 +74,7 @@ def _reaction_files(dependencies: list[dict[str, Any]]) -> tuple[dict[str, Any],
 
     events = [
         {"id": "avatar", "time": 0.1, "kind": "avatar_vfx", "effectId": "angry"},
-        {"id": "particle", "time": 0.1, "kind": "particle_vfx", "effectId": "hearts"},
+        {"id": "particle", "time": 0.1, "kind": "particle_vfx", "effectId": "stream"},
         {
             "id": "scene",
             "time": 0.1,
@@ -113,7 +113,7 @@ def _write_reaction(paths: Any, dependencies: list[dict[str, Any]], *, root: Pat
 
 EFFECTS = [
     {"ref": AVATAR, "alias": "angry", "content_type": "avatar_effect"},
-    {"ref": PARTICLE, "alias": "hearts", "content_type": "particle_effect"},
+    {"ref": PARTICLE, "alias": "stream", "content_type": "particle_effect"},
     {"ref": SCENE, "alias": "joy", "content_type": "scene_effect"},
 ]
 
@@ -173,7 +173,7 @@ async def test_local_reaction_plays_without_removed_included_effects(async_sessi
     projected = project_typed_runtime_catalog(loadout_revision=1, descriptor=descriptor, visible=visible)
     [action] = projected["reactions"]
     assert action["reference_map"] == {"angry": "angry"}
-    assert action["missing_references"] == {"hearts": PARTICLE, "joy": SCENE}
+    assert action["missing_references"] == {"stream": PARTICLE, "joy": SCENE}
 
     # Portable export refuses it until the events are repaired.
     with pytest.raises(ContentConflictError) as refused:
@@ -193,7 +193,7 @@ async def test_local_reaction_plays_without_removed_included_effects(async_sessi
     [
         # Only Included effects may be removed under a Local Action.
         {"ref": "builtin:sound-effect:gone", "alias": "gone", "content_type": "sound_effect"},
-        {"ref": "local:particle-effect:gone", "alias": "hearts", "content_type": "particle_effect"},
+        {"ref": "local:particle-effect:gone", "alias": "stream", "content_type": "particle_effect"},
     ],
 )
 async def test_other_unresolved_dependencies_still_invalidate(
@@ -249,7 +249,7 @@ async def test_a_save_naming_a_missing_effect_is_refused(async_session, tmp_path
     meta, clip = _reaction_files(
         [
             EFFECTS[0],
-            {"ref": "builtin:particle-effect:hearts-v1-typo", "alias": "hearts", "content_type": "particle_effect"},
+            {"ref": "builtin:particle-effect:hearts-v1-typo", "alias": "stream", "content_type": "particle_effect"},
         ]
     )
     with pytest.raises(ContentConflictError) as refused:

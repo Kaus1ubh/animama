@@ -23,6 +23,7 @@ import {
   uniqueSceneEffectImageName,
   validateSceneEffectDocument,
 } from ".";
+import { SCENE_EFFECT_TEMPLATE_OPTIONS } from "./defaults";
 
 const image = {
   logicalName: "sparkle.webp",
@@ -300,35 +301,119 @@ describe("Scene Effect editor document", () => {
   });
 });
 
-it("hydrates the registered Included Comic Pop definition with runtime defaults", () => {
-  const descriptor = JSON.parse(
+const includedScene = (presetId: string) =>
+  JSON.parse(
     readFileSync(
       new URL(
-        "../../../../../../../content/included/vfx/scene/comic-pop/comic-pop.json",
+        `../../../../../../../content/included/vfx/scene/${presetId}/${presetId}.json`,
         import.meta.url,
       ),
       "utf8",
     ),
-  );
+  ) as {
+    name: string;
+    description: string;
+    definition: Record<string, unknown> & {
+      gradient: unknown;
+      screen: unknown;
+    };
+  };
+
+it("hydrates a registered Included background with its image", () => {
+  const descriptor = includedScene("scene-vfx-emotion-sadness");
+  const drop = {
+    logicalName: "drop.png",
+    originalName: "drop.png",
+    contentType: "image/png",
+    sizeBytes: 1024,
+    sha256: "0".repeat(64),
+  };
   const document = createSceneEffectDocumentFromDefinition({
     name: descriptor.name,
     description: descriptor.description,
     definition: descriptor.definition,
-    images: new Map(),
+    images: new Map([[drop.logicalName, drop]]),
     sound: null,
   });
   expect(document).toMatchObject({
-    name: "Comic Pop",
-    durationMs: 5000,
-    dismissOnInput: true,
+    name: "Emotion Sadness",
+    durationMs: null,
+    dismissOnInput: false,
     background: {
-      solid: { color: "#ffe869" },
-      pattern: { pattern: "star", color: "#ff547d" },
+      gradient: descriptor.definition.gradient,
+      screen: descriptor.definition.screen,
+      scatters: [
+        { items: [{ kind: "image", label: "Raindrop", image: drop }] },
+      ],
     },
   });
-  expect(validateSceneEffectDocument(document, [])).toEqual([]);
-  expect(sceneEffectRuntimeEntry(document, new Map())).toMatchObject({
-    durationMs: 5000,
+  const resources = [
+    {
+      logicalName: drop.logicalName,
+      file: new File(["x"], drop.logicalName, { type: drop.contentType }),
+      sha256: drop.sha256,
+    },
+  ];
+  expect(validateSceneEffectDocument(document, resources)).toEqual([]);
+});
+
+describe("Scene creator templates", () => {
+  it("offers a background per family and the two focus presets", () => {
+    expect(
+      SCENE_EFFECT_TEMPLATE_OPTIONS.map(({ id, label, kind }) => [
+        id,
+        label,
+        kind,
+      ]),
+    ).toEqual([
+      ["shoujo-bloom", "Shoujo Bloom", "background_layers"],
+      ["radiance", "Radiance", "background_layers"],
+      ["festive-pop", "Festive Pop", "background_layers"],
+      ["anticipation", "Anticipation", "background_layers"],
+      ["shock", "Shock", "background_layers"],
+      ["rage", "Rage", "background_layers"],
+      ["queasy", "Queasy", "background_layers"],
+      ["gloom", "Gloom", "background_layers"],
+      ["dark", "Dark Focus", "focus_lines"],
+      ["light-streak", "Light Streak", "focus_lines"],
+    ]);
+  });
+
+  it("starts a background from its family's Included background, without that effect's images", () => {
+    for (const { id } of SCENE_EFFECT_TEMPLATE_OPTIONS.filter(
+      (option) => option.kind === "background_layers",
+    )) {
+      const document = applySceneEffectTemplate(
+        createDefaultSceneEffectDocument(),
+        id,
+      );
+      expect(document.kind, id).toBe("background_layers");
+      expect(document.background.gradient.enabled, id).toBe(true);
+      expect(document.background.tile).toMatchObject({
+        enabled: false,
+        image: null,
+      });
+      expect(document.background.scatters, id).toEqual([]);
+      expect(document.background.marquee.items, id).toEqual([]);
+      expect(validateSceneEffectDocument(document, []), id).toEqual([]);
+    }
+    const sadness = includedScene("scene-vfx-emotion-sadness").definition;
+    const gloom = applySceneEffectTemplate(
+      createDefaultSceneEffectDocument(),
+      "gloom",
+    );
+    expect(gloom.background.gradient).toEqual(sadness.gradient);
+    expect(gloom.background.screen).toEqual(sadness.screen);
+  });
+
+  it("gives a focus template the default background", () => {
+    const focus = applySceneEffectTemplate(
+      createDefaultSceneEffectDocument(),
+      "light-streak",
+    );
+    expect(focus.background).toEqual(
+      createDefaultSceneEffectDocument().background,
+    );
   });
 });
 
@@ -408,7 +493,7 @@ describe("optional background layers (C1–C6)", () => {
     // Restored recovery is compared with the pre-reload export text, so
     // normalizing must not reorder the layers.
     const document = createSceneEffectDocumentFromDefinition({
-      name: "Kawaii Sparkles",
+      name: "Default background",
       description: "",
       definition: sceneEffectDefinition(createDefaultSceneEffectDocument()),
       images: new Map(),

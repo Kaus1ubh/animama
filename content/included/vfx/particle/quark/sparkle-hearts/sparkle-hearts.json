@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:sparkle-hearts",
+  "version": 1,
+  "name": "Sparkle Hearts",
+  "description": "Heart outlines drawn in tiny twinkling pink glitter float around the face among star glints and a soft pink haze, for dreamy, smitten and adoring moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "sparkle-hearts",
+    "slots": {
+      "particle_vfx": {
+        "label": "Sparkle Hearts",
+        "description": "Heart outlines drawn in tiny twinkling pink glitter float around the face among star glints and a soft pink haze, for dreamy, smitten and adoring moments.",
+        "anchor": "head",
+        "duration_seconds": 4.2,
+        "max_duration_seconds": 4.5,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.04,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 252
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/soft-haze.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/pink-bokeh.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/glitter-bead.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/star-glint.png",
+      "role": "texture"
+    }
+  ]
+}

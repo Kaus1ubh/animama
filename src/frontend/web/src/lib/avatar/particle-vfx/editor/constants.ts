@@ -1,4 +1,4 @@
-import { createDefaultParticleVFXTransform } from "../catalog";
+import { createDefaultParticleVFXTransform } from "../runtime";
 import type {
   ParticleVFXEditorBlending,
   ParticleVFXEditorCatalogDraft,

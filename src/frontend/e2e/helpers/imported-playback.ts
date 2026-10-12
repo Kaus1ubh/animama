@@ -198,7 +198,7 @@ export async function createPlaybackFixtures(args: {
           kind: "particle_vfx",
           effectId: "particle_effect",
           time: 0.4,
-          // Honor Included Hearts' 1.8s default within its 2.2s catalog budget.
+          // Within Included Heart Burst's 2.5 s default and 3 s catalog budget.
           duration: 1.8,
           anchor: "chest",
         },
@@ -458,8 +458,8 @@ export async function proveParticleCreatorPlayback(args: {
   name: string;
 }) {
   const { page, surface, target, evidence, name } = args;
-  // With both overlays hidden, this canvas contains only the imported Hearts
-  // particles and a static neutral grid. Model animation cannot satisfy proof.
+  // With both overlays hidden, this canvas contains only the imported Heart
+  // Burst particles and a static neutral grid. Model animation cannot satisfy proof.
   await page
     .getByRole("switch", { name: "Show Avatar", exact: true })
     .uncheck();

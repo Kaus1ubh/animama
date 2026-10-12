@@ -28,7 +28,7 @@ pnpm -s effects promote promote.json
 ```json
 [
   { "kind": "particle_effect", "source": "library:local/Twinkle Shimmer", "stem": "twinkle-shimmer", "mode": "add" },
-  { "kind": "particle_effect", "source": "library:local/Stars v2", "stem": "stars", "mode": "replace" },
+  { "kind": "particle_effect", "source": "library:local/Rain Cloud v2", "stem": "rain-cloud", "mode": "replace" },
   { "kind": "particle_effect", "stem": "old-effect", "mode": "delete" }
 ]
 ```

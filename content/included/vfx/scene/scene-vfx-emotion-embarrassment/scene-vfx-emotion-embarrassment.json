@@ -4,49 +4,191 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-embarrassment",
   "version": 1,
   "name": "Emotion Embarrassment",
-  "description": "Scene background effect preset",
+  "description": "A hot pink bloom behind the Avatar with steam puffs rising and blush marks popping beside the head, for flustered, embarrassed moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#ffd3d6"
+      "enabled": false,
+      "color": "#f04f7a"
     },
     "pattern": {
-      "enabled": true,
-      "pattern": "heart",
+      "enabled": false,
+      "pattern": "none",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.32
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.34,
+      "stops": [
         {
-          "id": "emoji-flushed-face",
-          "kind": "image",
-          "label": "Flushed Face 😳",
-          "image": "emoji-flushed-face-1f633.svg"
+          "color": "#ffe9ee",
+          "position": 0
+        },
+        {
+          "color": "#ffb3c6",
+          "position": 0.3
+        },
+        {
+          "color": "#ff6f91",
+          "position": 0.75
+        },
+        {
+          "color": "#f04f7a",
+          "position": 1
         }
       ]
+    },
+    "tile": {
+      "enabled": true,
+      "size": 180,
+      "opacity": 0.25,
+      "direction": "up",
+      "speedPxPerSec": 30,
+      "image": "bokeh-tile.png"
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "steam",
+            "kind": "image",
+            "label": "Steam puff",
+            "image": "steam-puff.png"
+          }
+        ],
+        "count": 8,
+        "seed": 6,
+        "minSize": 40,
+        "maxSize": 72,
+        "minRotationDeg": -20,
+        "maxRotationDeg": 20,
+        "minOpacity": 0.7,
+        "maxOpacity": 0.95,
+        "regionTop": 0.5,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 45,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": true,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "blush",
+            "kind": "image",
+            "label": "Blush marks",
+            "image": "blush-hatch.png"
+          }
+        ],
+        "count": 6,
+        "seed": 57,
+        "minSize": 48,
+        "maxSize": 80,
+        "minRotationDeg": -15,
+        "maxRotationDeg": 15,
+        "minOpacity": 0.85,
+        "maxOpacity": 1,
+        "regionTop": 0.15,
+        "regionBottom": 0.75,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "pop"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "sparkle",
+            "kind": "image",
+            "label": "Sparkle",
+            "image": "sparkle-white.png"
+          }
+        ],
+        "count": 6,
+        "seed": 31,
+        "minSize": 12,
+        "maxSize": 22,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.8,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 0.6,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-flushed-face-1f633.svg",
+      "path": "steam-puff.png",
+      "role": "image"
+    },
+    {
+      "path": "blush-hatch.png",
+      "role": "image"
+    },
+    {
+      "path": "sparkle-white.png",
+      "role": "image"
+    },
+    {
+      "path": "bokeh-tile.png",
       "role": "image"
     }
   ]

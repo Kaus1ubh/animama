@@ -471,7 +471,7 @@ test("plays a Library Reaction with its Avatar and Particle Effects", async () =
     );
     assert.deepEqual(
       media.particleEffects.map(({ alias }) => alias),
-      ["question-marks"],
+      ["question-orbit"],
     );
     await waitForActiveEffect(page, "Eye Confused Swirl");
     await page.waitForFunction(

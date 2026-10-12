@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import type { Avatar } from "@/lib/avatar";
 import type { ParticleVFXCatalogEntry } from "@/lib/avatar/particle-vfx/types";
 import { TEST_HOVER_VFX_ENTRY } from "@/lib/avatar/vfx/avatarVFXTestFixtures";
-import { getSceneBackgroundLayerPresetById } from "@/lib/scene-vfx/catalog";
+import { createTestSceneBackground } from "@/lib/scene-vfx/sceneVFXTestFixtures";
 import {
   CONTENT_PREVIEW_AVATAR_VFX_APPLIED_ID,
   CONTENT_PREVIEW_PARTICLE_APPLIED_ID,
@@ -186,8 +186,7 @@ describe("Asset preview effect playback", () => {
 
   it("publishes a scene effect only to preview-local state", async () => {
     const harness = avatarHarness();
-    const effect = getSceneBackgroundLayerPresetById("shoujo-hearts");
-    if (!effect) throw new Error("Missing scene VFX test fixture");
+    const effect = createTestSceneBackground();
     const onSceneVFXChange = vi.fn();
     await playContentPreviewEffect({
       avatar: harness.avatar,
@@ -214,8 +213,7 @@ describe("Asset preview effect playback", () => {
   });
 
   it("bridges clip-owned Scene VFX and SFX into the preview surface", async () => {
-    const effect = getSceneBackgroundLayerPresetById("kawaii-sparkles");
-    if (!effect) throw new Error("Missing scene VFX test fixture");
+    const effect = createTestSceneBackground();
     const onSceneVFXChange = vi.fn();
     const playSfx = vi.fn();
     const bridge = createContentPreviewClipEventBridge({
@@ -236,7 +234,7 @@ describe("Asset preview effect playback", () => {
       time: 0.2,
       kind: "scene_vfx" as const,
       sceneKind: "background_layers" as const,
-      presetId: "kawaii_sparkles",
+      presetId: "joy_background",
     };
 
     await bridge.sink.applySceneVFX?.(event, context);
@@ -280,8 +278,7 @@ describe("Asset preview effect playback", () => {
 
   it("plays a Scene apply Sound once and drops a stale async result", async () => {
     const harness = avatarHarness();
-    const fixture = getSceneBackgroundLayerPresetById("shoujo-hearts");
-    if (!fixture) throw new Error("Missing scene VFX test fixture");
+    const fixture = createTestSceneBackground();
     const effect = { ...fixture, sound: { onApply: "opaque-cue" } };
     const onSceneVFXChange = vi.fn();
     const playApplySound = vi.fn();
@@ -368,8 +365,7 @@ describe("clip accompanying audio", () => {
   it.each([undefined, true, false])(
     "keeps visuals and independent SFX with accompanying=%s",
     async (playAccompanyingSound) => {
-      const preset = getSceneBackgroundLayerPresetById("kawaii-sparkles");
-      if (!preset) throw new Error("Missing scene fixture");
+      const preset = createTestSceneBackground();
       const onSceneVFXChange = vi.fn();
       const playSfx = vi.fn();
       const bridge = createContentPreviewClipEventBridge({

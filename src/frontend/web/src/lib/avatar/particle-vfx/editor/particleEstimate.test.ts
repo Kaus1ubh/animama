@@ -9,12 +9,12 @@ import { estimateParticleVFXParticles } from "./particleEstimate";
 import type { JsonObject } from "./types";
 import { validateParticleVFXEditorDraft } from "./validation";
 
-const flameLoop = (file: string) =>
+const rageAura = (file: string) =>
   JSON.parse(
     readFileSync(
       fileURLToPath(
         new URL(
-          `../../../../../../../../content/included/vfx/particle/quark/flame-loop/${file}`,
+          `../../../../../../../../content/included/vfx/particle/quark/rage-aura/${file}`,
           import.meta.url,
         ),
       ),
@@ -217,23 +217,23 @@ describe("estimateParticleVFXParticles", () => {
 });
 
 describe("the creator and Save use the same estimate", () => {
-  // The Included flame-loop's five looping streams peak at 44 particles
-  // (4 + 14 + 12 + 9 + 5); a 32-particle budget is too small for them.
+  // The Included Rage Aura's five layers peak at 50 particles
+  // (1 + 1 + 1 + 35 + 12); a 32-particle budget is too small for them.
   const draft = createParticleVFXEditorDraftFromImport(
-    flameLoop("particle.json"),
+    rageAura("particle.json"),
     parseParticleVFXRuntimeConfig(
-      flameLoop("flame-loop.json").runtime_defaults.slots.particle_vfx,
+      rageAura("rage-aura.json").runtime_defaults.slots.particle_vfx,
     ),
   );
   draft.catalog.performanceBudget.maxParticles = 32;
 
   it("warns in the editor with the number Save refuses", () => {
-    expect(estimateParticleVFXParticles(draft.quarksJson)).toBe(44);
+    expect(estimateParticleVFXParticles(draft.quarksJson)).toBe(50);
     expect(validateParticleVFXEditorDraft(draft)).toContainEqual(
       expect.objectContaining({
         severity: "warning",
         code: "particle-budget-exceeded",
-        message: "Estimated 44 particles exceeds the catalog budget of 32.",
+        message: "Estimated 50 particles exceeds the catalog budget of 32.",
       }),
     );
     const readiness = validateParticleVFXContentReadiness(draft, {
@@ -251,7 +251,7 @@ describe("the creator and Save use the same estimate", () => {
     ).toEqual([
       expect.objectContaining({
         severity: "error",
-        message: "Estimated 44 particles exceeds the catalog budget of 32.",
+        message: "Estimated 50 particles exceeds the catalog budget of 32.",
       }),
     ]);
     expect(readiness.ready).toBe(false);

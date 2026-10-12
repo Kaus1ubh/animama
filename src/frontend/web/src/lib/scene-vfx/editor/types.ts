@@ -166,9 +166,20 @@ export type SceneEffectEditorExport = {
   document: SceneEffectEditorDocument;
 };
 
+/** A background template, one per Scene background family. */
+export type SceneEffectBackgroundTemplateId =
+  | "shoujo-bloom"
+  | "radiance"
+  | "festive-pop"
+  | "anticipation"
+  | "shock"
+  | "rage"
+  | "queasy"
+  | "gloom";
+
+/** A focus-line template: the bundled focus presets. */
+export type SceneEffectFocusTemplateId = "dark" | "light-streak";
+
 export type SceneEffectTemplateId =
-  | "kawaii-sparkles"
-  | "shoujo-hearts"
-  | "comic-pop"
-  | "dark"
-  | "light-streak";
+  | SceneEffectBackgroundTemplateId
+  | SceneEffectFocusTemplateId;

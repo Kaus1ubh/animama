@@ -4,59 +4,155 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-admiration",
   "version": 1,
   "name": "Emotion Admiration",
-  "description": "Scene background effect preset",
+  "description": "A lilac bloom behind the Avatar with star-shaped flowers drifting down and a field of twinkling sparkles, for admiring, starry-eyed moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#ffe2f1"
+      "enabled": false,
+      "color": "#d9b8ff"
     },
     "pattern": {
-      "enabled": true,
-      "pattern": "star",
+      "enabled": false,
+      "pattern": "none",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.36
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.32,
+      "stops": [
         {
-          "id": "emoji-star-struck",
-          "kind": "image",
-          "label": "Star-Struck 🤩",
-          "image": "emoji-star-struck-1f929.svg"
+          "color": "#fbf4ff",
+          "position": 0
         },
         {
-          "id": "emoji-sparkles",
-          "kind": "image",
-          "label": "Sparkles ✨",
-          "image": "emoji-sparkles-2728.svg"
+          "color": "#ecdcff",
+          "position": 0.4
+        },
+        {
+          "color": "#d9b8ff",
+          "position": 1
         }
       ]
+    },
+    "tile": {
+      "enabled": true,
+      "size": 180,
+      "opacity": 0.35,
+      "direction": "up",
+      "speedPxPerSec": 9,
+      "image": "bokeh-tile.png"
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "flower",
+            "kind": "image",
+            "label": "Lilac star flower",
+            "image": "lilac-star-flower.png"
+          }
+        ],
+        "count": 12,
+        "seed": 88,
+        "minSize": 26,
+        "maxSize": 48,
+        "minRotationDeg": -180,
+        "maxRotationDeg": 180,
+        "minOpacity": 0.8,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "diagonal-down-left",
+        "speedPxPerSec": 32,
+        "minSpinDegPerSec": 20,
+        "maxSpinDegPerSec": 45,
+        "alternateSpin": true,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "sparkle",
+            "kind": "image",
+            "label": "Sparkle",
+            "image": "sparkle-white.png"
+          }
+        ],
+        "count": 18,
+        "seed": 14,
+        "minSize": 14,
+        "maxSize": 34,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 45,
+        "minOpacity": 0.8,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 0.9,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-star-struck-1f929.svg",
+      "path": "lilac-star-flower.png",
       "role": "image"
     },
     {
-      "path": "emoji-sparkles-2728.svg",
+      "path": "sparkle-white.png",
+      "role": "image"
+    },
+    {
+      "path": "bokeh-tile.png",
       "role": "image"
     }
   ]

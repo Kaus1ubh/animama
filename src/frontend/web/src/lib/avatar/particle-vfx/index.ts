@@ -10,12 +10,12 @@ export {
 } from "./autoFit";
 export {
   AVATAR_PARTICLE_VFX_CATALOG,
-  createDefaultParticleVFXTransform,
+  getParticleVFXCatalogEntryById,
+  getParticleVFXCatalogIds,
 } from "./catalog";
 export {
   cloneParticleVFXTransform,
-  getParticleVFXCatalogEntryById,
-  getParticleVFXCatalogIds,
+  createDefaultParticleVFXTransform,
   getParticleVFXCombinedOffset,
   isParticleVFXAnchor,
   mergeParticleVFXTransform,

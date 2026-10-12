@@ -133,7 +133,8 @@ backend to `src/backend/animama/`, content to `content/included/`.
       passed at round 2.
 - [x] P5 — Reaction ladder: 43 project files, benchmarks within budget
       (2026-10-12); G4 pending the owner's review.
-- [ ] P6 — Promotion and removal (R13, R14). Gate G3.
+- [x] P6 — Promotion and removal (2026-10-12); G3 waived for the night,
+      pending the owner's review; review passed at round 1 after the record.
 - [ ] P7 — Documentation and acceptance.
 - [ ] Final integration review and PR.
 
@@ -902,9 +903,89 @@ for `twemoji` finds only history in `docs/plans/`).
 
 #### P6 record
 
+Starting source and issue: `57434e12`, #449. G3: waived for the night by the
+owner (2026-10-12); the dry-run list is kept for the morning review, and
+nothing merges without approval.
+
+- **Promotion:** `.animama-drafts/plan2/reactions/promote-p6.json` (102 items),
+  dry run then run (`p6-dry-run.txt`, `p6-promote.txt`): 340 changes — 14
+  Particle adds and the `rain-cloud` replace; 19 Scene replaces under
+  `scene-vfx-emotion-<e>` (IDs and versions kept, the briefs' descriptions) and
+  5 adds named `Emotion Caring`, `Emotion Desire`, `Emotion Confusion`,
+  `Emotion Annoyance`, `Emotion Remorse`; 43 Reaction replacements with their
+  dependencies re-pointed to the Included IDs; deletes of 17 Particle Effects
+  (`confusion-orbit-marks`, `exclamation`, `exclamation-v1`, `flame-loop`,
+  `hearts`, `hearts-v2`, `magic-sparkle-burst`, `question-marks`,
+  `question-v1`, `sad-rain-puff`, `sleep-bubbles`, `soft-heart-pop`,
+  `sparkles`, `star-v2`, `stars`, `surprise-shock-pop`, `zzz`) and 3 Scene
+  Effects (`comic-pop`, `shoujo-hearts`, `kawaii-sparkles`), with the 26
+  Twemoji copies. Included now: 16 Particle Effects and 26 Scene Effects (24
+  backgrounds, the unchanged focus presets `dark` and `light-streak`).
+- **Bundled duplicates:** the Particle catalog is built from the Included
+  descriptors at build time (`import.meta.glob`, as the pose catalog does), so
+  it lists exactly the 16; its users without catalog access are the animation
+  debug modal, `createParticleVFXEditorDraftFromCatalog` and
+  `AnimaRuntimeMediaCatalog`'s legacy `public_url` path. The Scene bundle keeps
+  only `dark` and `light-streak`, pinned equal to their Included definitions,
+  for the creator's focus templates and default focus, the debug VRM editor's
+  focus drafts, `actionDependencies.ts` kind detection and
+  `AnimaRuntimeMediaCatalog.resolveAppSceneVFX`. The draft fallback to `hearts`,
+  the debug `flame-loop` shortcut and the legacy generator's effect definitions
+  are gone (it now writes only the 38 curated creator textures, which stay).
+- **Scene creator templates (agent proposal for the owner's review):** one
+  background template per family (Shoujo Bloom, Radiance, Festive Pop,
+  Anticipation, Shock, Rage, Queasy, Gloom), built from the Included definition
+  without its images, plus the focus templates.
+- **Tests:** the Reaction pins resolve Included dependencies and pin the final
+  ladder (24 of 24 intensity-3 backgrounds); Particle, Scene, creator, script,
+  e2e and backend tests and the hosted-app boundary consumer point at remaining
+  Included content or neutral fixtures (`sceneVFXTestFixtures.ts`). The
+  `effects:render` determinism test uses sadness-3: a Reaction starting two
+  Particle Effects in one frame (joy-3, grief-3, excitement-3) can differ by
+  5–170 pixels between runs (the root cause, probably the shared seeded random
+  consumed in load order, is not established; documented in `avatar-vfx.md`).
+- **Licences:** a per-stem owner rule for each new Particle Effect; the legacy
+  `vfx/particle/quark/**` rule narrowed to `hearts-v1`; the Twemoji copy rule,
+  `art-twemoji.json`, its NOTICES entry and desktop attribution removed; the
+  21 deleted quark-copy records dropped from `art-particles.json`; every new
+  Included file has an owner-form source-review record.
+- **Remaining search hits** for removed stems and `twemoji`, all deliberate:
+  the legacy emoji-item handling (backend, frontend, tests, skills, docs);
+  the curated creator textures `star-v2.png`, `zzz.png`, `exclamation.png`;
+  synthetic IDs in unit-test mocks that never read the Included tree; and
+  `docs/frontend/testing/evidence/local-app-polish.md`, whose tracked
+  screenshots still show Twemoji art and so keep its attribution.
+
+Checks: with a temporary Git index (the real index untouched) the Included
+integrity, catalog and starter-closure tests pass (29) and the full `uv run
+pytest -q` passes (3657, 10 skipped); `scripts/public-release/test_prepare_source.py`
+12 pass; `uv run ruff check` and `make check` pass; from `src/frontend` `pnpm
+check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm build` and `pnpm
+desktop:check` pass; `pnpm web:test` 3870 passed, 1 skipped, and all 111
+browser script tests pass; `e2e:check:source` and `e2e:test:unit` (19) pass.
+An embedded-desktop build contains the new effects and none of the removed
+ones. The e2e journeys run in P7.
+
 #### Code Review #1 Findings
 
+Round 1 (`sdlc-reviewer`): Reactions resolve to Included content of their type
+(all 72 checked), IDs, versions, names and files are right, licences are
+complete, the bundled catalog ships no removed effect in an embedded-desktop
+build, and a Local Reaction naming the deleted `hearts` and `kawaii-sparkles`
+scans valid with them as missing dependencies. Required: **P6-R1-F1** the P6
+record was empty. Optional: F2 the now-empty background-preset machinery (and
+the hand-kept focus copies) could go; F3 the determinism test's comment no
+longer held; F4 the Twemoji evidence page; F5 a pre-existing unmatched
+`vfx/scene/**/svg-*.svg` rule; F6 an unrecorded test helper (existing practice).
+
 #### Code Review #1 Revisions
+
+- **F1 accepted:** this record.
+- **F3 accepted:** the test comment states the one-Particle-Effect guarantee.
+- **F2 deferred:** a follow-up (reading the focus descriptors directly and
+  removing the empty background-preset API) — not needed for R13.
+- **F4 recorded:** the evidence page stays as the deliberate exception.
+- **F5, F6:** noted, unchanged.
 
 ### P7 — Documentation and acceptance. #445
 

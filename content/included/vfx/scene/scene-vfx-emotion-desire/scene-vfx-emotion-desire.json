@@ -1,0 +1,159 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-desire",
+  "version": 1,
+  "name": "Emotion Desire",
+  "description": "A violet dusk sky fading to a pink horizon behind the Avatar, with a drifting star field and pink heart-stars rising slowly, for longing, wishful moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "coverUiOverlays": false,
+    "dismissOnInput": false,
+    "solid": {
+      "enabled": false,
+      "color": "#000000"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
+        {
+          "color": "#3b2a6b",
+          "position": 0
+        },
+        {
+          "color": "#8a3f86",
+          "position": 0.55
+        },
+        {
+          "color": "#ff8fb1",
+          "position": 1
+        }
+      ]
+    },
+    "tile": {
+      "enabled": true,
+      "size": 140,
+      "opacity": 0.7,
+      "direction": "up",
+      "speedPxPerSec": 4,
+      "image": "star-field-tile.png"
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "heart-star",
+            "kind": "image",
+            "label": "Heart star",
+            "image": "heart-star-pink.png"
+          }
+        ],
+        "count": 10,
+        "seed": 44,
+        "minSize": 24,
+        "maxSize": 50,
+        "minRotationDeg": -15,
+        "maxRotationDeg": 15,
+        "minOpacity": 0.85,
+        "maxOpacity": 1,
+        "regionTop": 0.35,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 10,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "star",
+            "kind": "image",
+            "label": "Twinkle star",
+            "image": "twinkle-star-gold.png"
+          }
+        ],
+        "count": 8,
+        "seed": 45,
+        "minSize": 10,
+        "maxSize": 20,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.7,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 0.5,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
+    }
+  },
+  "files": [
+    {
+      "path": "heart-star-pink.png",
+      "role": "image"
+    },
+    {
+      "path": "twinkle-star-gold.png",
+      "role": "image"
+    },
+    {
+      "path": "star-field-tile.png",
+      "role": "image"
+    }
+  ]
+}

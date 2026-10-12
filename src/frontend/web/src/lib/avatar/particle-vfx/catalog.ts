@@ -1,374 +1,77 @@
-import type {
-  ParticleVFXAnchor,
-  ParticleVFXCatalogEntry,
-  ParticleVFXPerformanceBudget,
-  ParticleVFXPreloadTier,
-  ParticleVFXShapeAutoFit,
-  ParticleVFXTransform,
-  ParticleVFXTransformInput,
-} from "./types";
+import { parseParticleVFXRuntimeConfig } from "./runtimeConfig";
+import type { ParticleVFXCatalogEntry } from "./types";
 
-export function createDefaultParticleVFXTransform(): ParticleVFXTransform {
+/**
+ * Animama's Included Particle Effects, read at build time from their
+ * descriptors (`content/included/vfx/particle/quark/<stem>/<stem>.json`), as
+ * the Included Gestures and Reactions are. The backend serves the same
+ * content at runtime; this synchronous list backs the animation debug panel,
+ * the creator's draft-from-catalog helper and legacy `public_url` runtime
+ * entries, so there is no hand-written copy to fall out of date. Each effect's
+ * manifest and textures load on demand from `/effects/vfx/quark/<stem>/`.
+ */
+const rawDescriptors = import.meta.glob(
+  [
+    "../../../../../../../content/included/vfx/particle/quark/*/*.json",
+    "!../../../../../../../content/included/vfx/particle/quark/*/particle.json",
+  ],
+  { eager: true, import: "default" },
+) as Record<string, unknown>;
+
+function record(value: unknown): Record<string, unknown> | null {
+  return value && typeof value === "object" && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function text(value: unknown): string | null {
+  return typeof value === "string" ? value : null;
+}
+
+/** One descriptor as a catalog entry; a malformed Included descriptor throws. */
+function includedParticleVFXEntry(
+  modulePath: string,
+  raw: unknown,
+): ParticleVFXCatalogEntry {
+  const [stem, file] = modulePath.split("/").slice(-2);
+  const descriptor = record(raw);
+  const runtimeDefaults = record(descriptor?.runtime_defaults);
+  const slot = record(record(runtimeDefaults?.slots)?.particle_vfx);
+  if (
+    !stem ||
+    file !== `${stem}.json` ||
+    descriptor?.content_type !== "particle_effect" ||
+    runtimeDefaults?.runtime_id !== stem ||
+    !slot
+  ) {
+    throw new Error(
+      `Included Particle Effect ${modulePath} is not a particle_effect descriptor with runtime ID "${stem}".`,
+    );
+  }
   return {
-    offset: { x: 0, y: 0, z: 0 },
-    depthOffset: 0,
-    rotation: { x: 0, y: 0, z: 0 },
-    scale: { x: 1, y: 1, z: 1 },
+    id: stem,
+    label: text(slot.label) ?? text(descriptor.name) ?? stem,
+    description: text(slot.description) ?? text(descriptor.description) ?? "",
+    assetPath: `/effects/vfx/quark/${stem}/particle.json`,
+    ...parseParticleVFXRuntimeConfig(slot),
   };
 }
 
-function transform(override: ParticleVFXTransformInput): ParticleVFXTransform {
-  const next = createDefaultParticleVFXTransform();
-  next.offset = { ...next.offset, ...override.offset };
-  next.depthOffset = override.depthOffset ?? next.depthOffset;
-  next.rotation = { ...next.rotation, ...override.rotation };
-  next.scale = { ...next.scale, ...override.scale };
-  return next;
+export const AVATAR_PARTICLE_VFX_CATALOG: readonly ParticleVFXCatalogEntry[] =
+  Object.entries(rawDescriptors)
+    .map(([modulePath, raw]) => includedParticleVFXEntry(modulePath, raw))
+    .sort((left, right) => left.id.localeCompare(right.id));
+
+const PARTICLE_VFX_CATALOG_BY_ID = new Map<string, ParticleVFXCatalogEntry>(
+  AVATAR_PARTICLE_VFX_CATALOG.map((entry) => [entry.id, entry]),
+);
+
+export function getParticleVFXCatalogEntryById(
+  effectId: string,
+): ParticleVFXCatalogEntry | null {
+  return PARTICLE_VFX_CATALOG_BY_ID.get(effectId) ?? null;
 }
 
-function budget(
-  maxDurationSec: number,
-  maxParticles: number,
-  options: Partial<Pick<ParticleVFXPerformanceBudget, "canCoexist">> = {},
-): ParticleVFXPerformanceBudget {
-  return {
-    maxDurationSec,
-    maxParticles,
-    loopingAllowed: false,
-    canCoexist: options.canCoexist ?? true,
-  };
+export function getParticleVFXCatalogIds(): string[] {
+  return AVATAR_PARTICLE_VFX_CATALOG.map((entry) => entry.id);
 }
-
-function entry(args: {
-  id: string;
-  label: string;
-  description: string;
-  assetPath: string;
-  defaultAnchor: ParticleVFXAnchor;
-  defaultDurationSec: number;
-  defaultTransform: ParticleVFXTransform;
-  preloadTier?: ParticleVFXPreloadTier;
-  performanceBudget: ParticleVFXPerformanceBudget;
-  shapeAutoFit?: ParticleVFXShapeAutoFit;
-}): ParticleVFXCatalogEntry {
-  return {
-    preloadTier: "tierA",
-    defaultFollowAnchor: true,
-    ...args,
-  };
-}
-
-export const AVATAR_PARTICLE_VFX_CATALOG = [
-  entry({
-    id: "hearts",
-    label: "Hearts",
-    description: "Soft hearts that float upward for affection or admiration.",
-    assetPath: "/effects/vfx/quark/hearts/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 1.8,
-    defaultTransform: transform({
-      offset: { y: 0.32 },
-      depthOffset: 0.12,
-      scale: { x: 1, y: 1, z: 1 },
-    }),
-    performanceBudget: budget(2.2, 8),
-  }),
-  entry({
-    id: "stars",
-    label: "Stars",
-    description: "A quick yellow star burst for delight or success.",
-    assetPath: "/effects/vfx/quark/stars/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 1.4,
-    defaultTransform: transform({
-      offset: { y: 0.26 },
-      depthOffset: 0.1,
-    }),
-    performanceBudget: budget(1.8, 10),
-  }),
-  entry({
-    id: "sparkles",
-    label: "Sparkles",
-    description: "Small cyan-white sparkle pings for positive emphasis.",
-    assetPath: "/effects/vfx/quark/sparkles/particle.json",
-    defaultAnchor: "chest",
-    defaultDurationSec: 1.6,
-    defaultTransform: transform({
-      offset: { y: 0.18 },
-      depthOffset: 0.14,
-    }),
-    performanceBudget: budget(2, 15),
-  }),
-  entry({
-    id: "question-marks",
-    label: "Question Marks",
-    description: "Floating question marks for confusion or curiosity.",
-    assetPath: "/effects/vfx/quark/question-marks/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 2,
-    defaultTransform: transform({
-      offset: { x: 0.08, y: 0.34 },
-      depthOffset: 0.12,
-    }),
-    performanceBudget: budget(2.4, 6),
-  }),
-  entry({
-    id: "exclamation",
-    label: "Exclamation",
-    description: "A sharp exclamation pop for surprise or realization.",
-    assetPath: "/effects/vfx/quark/exclamation/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 1.2,
-    defaultTransform: transform({
-      offset: { y: 0.36 },
-      depthOffset: 0.14,
-    }),
-    performanceBudget: budget(1.6, 5),
-  }),
-  entry({
-    id: "zzz",
-    label: "Zzz",
-    description: "Sleepy drifting Zs for tired or bored moments.",
-    assetPath: "/effects/vfx/quark/zzz/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 2.5,
-    defaultTransform: transform({
-      offset: { x: 0.08, y: 0.32 },
-      depthOffset: 0.1,
-    }),
-    performanceBudget: budget(2.8, 5),
-  }),
-  entry({
-    id: "rain-cloud",
-    label: "Rain Cloud",
-    description: "A small cloud and light rain for sadness or disappointment.",
-    assetPath: "/effects/vfx/quark/rain-cloud/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 2.4,
-    defaultTransform: transform({
-      offset: { y: 0.42 },
-      depthOffset: 0.08,
-    }),
-    performanceBudget: budget(2.8, 16, { canCoexist: false }),
-  }),
-  entry({
-    id: "hearts-v1",
-    label: "hearts-v1",
-    description: "hearts",
-    assetPath: "/effects/vfx/quark/hearts-v1/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 15,
-    defaultTransform: transform({
-      offset: { x: 0, y: 0.1, z: -0.15 },
-      depthOffset: 0,
-      rotation: { x: 1, y: 0.1, z: 0 },
-      scale: { x: 1, y: 1, z: 1 },
-    }),
-    preloadTier: "tierA",
-    performanceBudget: {
-      maxDurationSec: 30,
-      maxParticles: 64,
-      loopingAllowed: true,
-      canCoexist: true,
-    },
-  }),
-  entry({
-    id: "exclamation-v1",
-    label: "Exclamation-v1",
-    description: "Exclamation",
-    assetPath: "/effects/vfx/quark/exclamation-v1/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 15,
-    defaultTransform: transform({
-      offset: { x: 0, y: 0, z: 0 },
-      depthOffset: 0,
-      rotation: { x: 0, y: 0, z: 0 },
-      scale: { x: 1, y: 1, z: 1 },
-    }),
-    preloadTier: "none",
-    performanceBudget: {
-      maxDurationSec: 30,
-      maxParticles: 64,
-      loopingAllowed: true,
-      canCoexist: true,
-    },
-  }),
-  entry({
-    id: "question-v1",
-    label: "Question-v1",
-    description: "Question-v1",
-    assetPath: "/effects/vfx/quark/question-v1/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 15,
-    defaultTransform: transform({
-      offset: { x: 0, y: 0, z: 0 },
-      depthOffset: 0,
-      rotation: { x: 0, y: 0, z: 0 },
-      scale: { x: 1, y: 1, z: 1 },
-    }),
-    preloadTier: "none",
-    performanceBudget: {
-      maxDurationSec: 30,
-      maxParticles: 64,
-      loopingAllowed: true,
-      canCoexist: true,
-    },
-  }),
-  entry({
-    id: "hearts-v2",
-    label: "hearts-v2",
-    description: "hearts-v2",
-    assetPath: "/effects/vfx/quark/hearts-v2/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 1.2,
-    defaultTransform: transform({
-      offset: { x: 0, y: 0, z: 0 },
-      depthOffset: 0,
-      rotation: { x: 0, y: 0, z: 0 },
-      scale: { x: 1, y: 1, z: 1 },
-    }),
-    preloadTier: "none",
-    performanceBudget: {
-      maxDurationSec: 15,
-      maxParticles: 64,
-      loopingAllowed: true,
-      canCoexist: true,
-    },
-  }),
-  entry({
-    id: "star-v2",
-    label: "star-v2",
-    description: "star-v2",
-    assetPath: "/effects/vfx/quark/star-v2/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 1.2,
-    defaultTransform: transform({
-      offset: { x: 0, y: 0, z: 0 },
-      depthOffset: 0,
-      rotation: { x: 0, y: 0, z: 0 },
-      scale: { x: 1, y: 1, z: 1 },
-    }),
-    preloadTier: "none",
-    performanceBudget: {
-      maxDurationSec: 15,
-      maxParticles: 64,
-      loopingAllowed: true,
-      canCoexist: true,
-    },
-  }),
-  entry({
-    id: "flame-loop",
-    label: "Flame Loop",
-    description:
-      "A layered chest-centered flame aura for persistent manual debug playback.",
-    assetPath: "/effects/vfx/quark/flame-loop/particle.json",
-    defaultAnchor: "chest",
-    defaultDurationSec: 8,
-    defaultTransform: transform({
-      offset: { y: 0.06 },
-      depthOffset: 0.08,
-      rotation: { x: 0, y: 0, z: 0 },
-      scale: { x: 0.88, y: 0.88, z: 0.88 },
-    }),
-    preloadTier: "none",
-    performanceBudget: {
-      maxDurationSec: 30,
-      maxParticles: 64,
-      loopingAllowed: true,
-      canCoexist: false,
-    },
-  }),
-  entry({
-    id: "magic-sparkle-burst",
-    label: "Magic Sparkle Burst",
-    description:
-      "A layered magical pop with a flipbook burst, ring, flares, and streaking sparks.",
-    assetPath: "/effects/vfx/quark/magic-sparkle-burst/particle.json",
-    defaultAnchor: "chest",
-    defaultDurationSec: 1.8,
-    defaultTransform: transform({
-      offset: { y: 0.22 },
-      depthOffset: 0.14,
-      scale: { x: 1, y: 1, z: 1 },
-    }),
-    preloadTier: "none",
-    performanceBudget: budget(2.4, 52),
-  }),
-  entry({
-    id: "soft-heart-pop",
-    label: "Soft Heart Pop",
-    description:
-      "A warm affection pop with hearts, a gentle glow, and small sparkle dots.",
-    assetPath: "/effects/vfx/quark/soft-heart-pop/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 1.9,
-    defaultTransform: transform({
-      offset: { y: 0.34 },
-      depthOffset: 0.12,
-      scale: { x: 0.95, y: 0.95, z: 0.95 },
-    }),
-    preloadTier: "none",
-    performanceBudget: budget(2.4, 36),
-  }),
-  entry({
-    id: "surprise-shock-pop",
-    label: "Surprise Shock Pop",
-    description:
-      "A sharp surprise accent with a shock ring, exclamation mark, and radial streaks.",
-    assetPath: "/effects/vfx/quark/surprise-shock-pop/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 1.25,
-    defaultTransform: transform({
-      offset: { y: 0.34 },
-      depthOffset: 0.16,
-      scale: { x: 1.05, y: 1.05, z: 1.05 },
-    }),
-    preloadTier: "none",
-    performanceBudget: budget(1.8, 40, { canCoexist: false }),
-  }),
-  entry({
-    id: "confusion-orbit-marks",
-    label: "Confusion Orbit Marks",
-    description:
-      "Orbiting question marks and dots for confused or curious reactions.",
-    assetPath: "/effects/vfx/quark/confusion-orbit-marks/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 2.3,
-    defaultTransform: transform({
-      offset: { x: 0.08, y: 0.35 },
-      depthOffset: 0.13,
-    }),
-    preloadTier: "none",
-    performanceBudget: budget(2.8, 32, { canCoexist: false }),
-  }),
-  entry({
-    id: "sleep-bubbles",
-    label: "Sleep Bubbles",
-    description: "Soft drifting sleep bubbles with sleepy Zs and tiny glints.",
-    assetPath: "/effects/vfx/quark/sleep-bubbles/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 2.8,
-    defaultTransform: transform({
-      offset: { x: 0.1, y: 0.32 },
-      depthOffset: 0.12,
-      scale: { x: 0.95, y: 0.95, z: 0.95 },
-    }),
-    preloadTier: "none",
-    performanceBudget: budget(3.2, 28, { canCoexist: false }),
-  }),
-  entry({
-    id: "sad-rain-puff",
-    label: "Sad Rain Puff",
-    description:
-      "A small rain cloud with falling drops and muted smoke puffs for sad moments.",
-    assetPath: "/effects/vfx/quark/sad-rain-puff/particle.json",
-    defaultAnchor: "head",
-    defaultDurationSec: 2.5,
-    defaultTransform: transform({
-      offset: { y: 0.42 },
-      depthOffset: 0.08,
-    }),
-    preloadTier: "none",
-    performanceBudget: budget(3, 42, { canCoexist: false }),
-  }),
-] as const satisfies readonly ParticleVFXCatalogEntry[];

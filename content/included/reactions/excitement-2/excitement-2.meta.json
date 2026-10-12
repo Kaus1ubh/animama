@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:stars",
-      "alias": "stars",
+      "ref": "builtin:particle-effect:star-burst",
+      "alias": "star-burst",
       "content_type": "particle_effect",
       "config": {}
     },

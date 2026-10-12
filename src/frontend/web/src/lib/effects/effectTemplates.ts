@@ -160,9 +160,14 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
 
 /** The Scene creator's starting templates, in its own order. */
 export const SCENE_EFFECT_TEMPLATE_IDS: readonly SceneEffectTemplateId[] = [
-  "kawaii-sparkles",
-  "shoujo-hearts",
-  "comic-pop",
+  "shoujo-bloom",
+  "radiance",
+  "festive-pop",
+  "anticipation",
+  "shock",
+  "rage",
+  "queasy",
+  "gloom",
   "dark",
   "light-streak",
 ];

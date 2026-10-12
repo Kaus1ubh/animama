@@ -197,11 +197,11 @@ describe("actionDependencies", () => {
     const background = addActionComponentEvent(
       createActionDocument("reaction"),
       {
-        name: "Comic Pop",
+        name: "Emotion Joy",
         contentType: "scene_effect",
         source: {
           type: "builtin",
-          content_id: "builtin:scene-effect:comic-pop",
+          content_id: "builtin:scene-effect:background:scene-vfx-emotion-joy",
           version: 1,
         },
       },

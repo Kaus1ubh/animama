@@ -172,7 +172,7 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "animama-effect-check-kinds-"));
   try {
     const sources = [
-      await copyIncluded(dir, "vfx/particle/quark/hearts-v1", "hearts"),
+      await copyIncluded(dir, "vfx/particle/quark/hearts-v1", "stream"),
       // Declares fewer particles than its emitters produce.
       await copyIncluded(
         dir,
@@ -224,7 +224,7 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
     const effects = await Promise.all(
       sources.map((source) => resolveAnyEffectSource(source)),
     );
-    const [hearts, crowded, clear, joy, unlisted, joyExtra] =
+    const [stream, crowded, clear, joy, unlisted, joyExtra] =
       await checkEffects({
         effects,
         times: [0.5, 1],
@@ -234,14 +234,14 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
     const fails = (result) =>
       result.lines.filter((line) => line.level === "FAIL");
 
-    assert.deepEqual(fails(hearts), [], JSON.stringify(hearts.lines));
+    assert.deepEqual(fails(stream), [], JSON.stringify(stream.lines));
     assert.ok(
-      hearts.lines.some((line) =>
+      stream.lines.some((line) =>
         /^particles: Save's estimate is up to \d+ at once \(declared budget 64/.test(
           line.message,
         ),
       ),
-      JSON.stringify(hearts.lines),
+      JSON.stringify(stream.lines),
     );
     assert.ok(
       fails(crowded).some((line) =>

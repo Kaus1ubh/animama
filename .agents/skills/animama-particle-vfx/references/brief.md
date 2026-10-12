@@ -53,12 +53,12 @@ or a stack of them (one emitter each, up to 16):
 
 | Mechanic | Emitter settings | Included example |
 | --- | --- | --- |
-| One long-lived particle | a single burst of 1, long `startLife`, motion from Size/Color/Rotation Over Life | the exclamation-mark emitter of `surprise-shock-pop` |
-| Burst | `emissionOverTime` 0, one burst at time 0 with `count` N, short cycle, not looping | `sparkles`, `surprise-shock-pop` |
+| One long-lived particle | a single burst of 1, long `startLife`, motion from Size/Color/Rotation Over Life | the `heart-hero` emitter of `heart-burst` |
+| Burst | `emissionOverTime` 0, one burst at time 0 with `count` N, short cycle, not looping | the `burst-shards` emitter of `star-burst` |
 | Stream | steady `emissionOverTime`, looping emitter, a cone or sphere shape | `hearts-v1` |
-| Orbit | OrbitOverLife (and Noise for wobble) around the anchor | `confusion-orbit-marks` |
+| Orbit | OrbitOverLife (and Noise for wobble) around the anchor | `question-orbit` |
 | Rain | particles born above the head falling under ForceOverLife, often below a puff emitter | `rain-cloud` |
-| Layered pops | several short emitters (ring, symbol, flares, streaks) with staggered bursts | `magic-sparkle-burst` |
+| Layered pops | several short emitters (ring, symbol, flares, streaks) with staggered bursts | `heart-burst`, `star-burst` |
 
 ## Good briefs
 

@@ -196,9 +196,14 @@ CSS styles, animation, embedded images and external references are rejected on
 Save. Included SVG artwork can be saved unchanged into a Local Scene Effect.
 Focus Lines exposes render placement, procedural geometry, Avatar-face or
 normalized manual-box targeting, flicker animation and style controls.
-Selecting a built-in template updates the editable draft. The picker offers
-the same templates; `/scene-effects/new?template=<id>` starts a new, unsaved
-draft from one, named after it.
+Selecting a built-in template updates the editable draft. The background
+templates, one per Scene family (Shoujo Bloom, Radiance, Festive Pop,
+Anticipation, Shock, Rage, Queasy and Gloom), take their family's Included
+emotion background's solid, pattern, gradient, rays or lines and flash, read
+at build time; they start without that effect's images. The focus templates
+are the bundled `dark` and `light-streak` presets. The picker offers the same
+templates; `/scene-effects/new?template=<id>` starts a new, unsaved draft from
+one, named after it.
 
 The portable `animama/scene-effect-editor/1` JSON contains logical image names
 and exact Sound sources only. It never contains Blob URLs, download URLs, or
@@ -490,21 +495,12 @@ Catalog source: `src/frontend/web/src/assets/effects/scene-vfx/catalog.json`
 
 Runtime wrapper: `src/frontend/web/src/lib/scene-vfx/presets.ts`
 
-Current preset ids:
-
-- `none`
-- `shoujo-hearts`
-- `comic-pop`
-- `kawaii-sparkles`
-- `scene-vfx-emotion-<emotion>` for the emotion backgrounds listed in the catalog
-
-`none` clears the live background effect. The other presets are full `background_layers` snapshots.
-
-The emotion presets are intended for reaction clips and use stable ids such as
-`scene-vfx-emotion-joy`, `scene-vfx-emotion-fear`, and
-`scene-vfx-emotion-gratitude`. Reaction clip scene VFX events should reference
-the canonical emotion id directly through `scene_vfx.presetId` unless a clip
-deliberately needs a generic fallback preset.
+The bundled catalog holds no background presets, only `none` (which clears the
+live background effect) and the focus presets below. Backgrounds are Included
+Scene Effects: one per emotion, `content/included/vfx/scene/scene-vfx-emotion-<emotion>/`,
+which reach the runtime through the mounted catalog. Each intensity-3 Reaction
+plays its emotion's background through a `scene_vfx` event whose `presetId` is
+the dependency alias `scene-vfx-emotion-<emotion>`.
 
 ## 9) Effect kind: `focus_lines`
 
@@ -644,7 +640,7 @@ The modal keeps independent draft state per scene-VFX kind:
 When the modal opens for a target:
 
 - if a live `background_layers` effect exists, the background draft is seeded from it
-- otherwise the background draft is seeded from `kawaii-sparkles`
+- otherwise the background draft is seeded from the empty `none` entry
 - if a live `focus_lines` effect exists, the focus-lines draft is seeded from it
 - otherwise the focus-lines draft is seeded from `createDefaultSceneFocusLinesVFXEntry()`
 

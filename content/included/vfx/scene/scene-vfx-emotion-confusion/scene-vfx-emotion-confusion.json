@@ -1,0 +1,115 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-confusion",
+  "version": 1,
+  "name": "Emotion Confusion",
+  "description": "A violet frame with faint wavering lines and big dizzy spirals spinning beside the Avatar, for confused, bewildered moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "coverUiOverlays": false,
+    "dismissOnInput": false,
+    "solid": {
+      "enabled": false,
+      "color": "#000000"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
+        {
+          "color": "#3b1f5c",
+          "position": 0
+        },
+        {
+          "color": "#5e3a8f",
+          "position": 0.5
+        },
+        {
+          "color": "#8a5cc4",
+          "position": 1
+        }
+      ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "lines",
+      "color": "#d9c7ff",
+      "opacity": 0.25,
+      "count": 24,
+      "minLength": 0.4,
+      "maxLength": 1,
+      "minWidthPx": 0.8,
+      "maxWidthPx": 1.8,
+      "swaySeconds": 6,
+      "seed": 23
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "spiral",
+            "kind": "image",
+            "label": "Dizzy spiral",
+            "image": "dizzy-spiral.png"
+          }
+        ],
+        "count": 5,
+        "seed": 12,
+        "minSize": 90,
+        "maxSize": 140,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 360,
+        "minOpacity": 0.7,
+        "maxOpacity": 0.9,
+        "regionTop": 0.1,
+        "regionBottom": 0.9,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 40,
+        "maxSpinDegPerSec": 80,
+        "alternateSpin": true,
+        "pulse": "none"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
+    }
+  },
+  "files": [
+    {
+      "path": "dizzy-spiral.png",
+      "role": "image"
+    }
+  ]
+}

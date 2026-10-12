@@ -4,49 +4,111 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-fear",
   "version": 1,
   "name": "Emotion Fear",
-  "description": "Scene background effect preset",
+  "description": "A white flash drops into a midnight-blue frame with harsh vertical shock lines and lightning flickering beside the Avatar, for frightened moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#d9dcff"
+      "enabled": false,
+      "color": "#000000"
     },
     "pattern": {
       "enabled": false,
       "pattern": "none",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.32
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
         {
-          "id": "emoji-warning",
-          "kind": "image",
-          "label": "Warning ⚠",
-          "image": "emoji-warning-26a0.svg"
+          "color": "#0d1430",
+          "position": 0
+        },
+        {
+          "color": "#1c2a58",
+          "position": 0.6
+        },
+        {
+          "color": "#2c3f7a",
+          "position": 1
         }
       ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "lines",
+      "color": "#ffffff",
+      "opacity": 0.32,
+      "count": 46,
+      "minLength": 1,
+      "maxLength": 1,
+      "minWidthPx": 0.8,
+      "maxWidthPx": 2.2,
+      "swaySeconds": 0,
+      "seed": 3
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "bolt",
+            "kind": "image",
+            "label": "Lightning",
+            "image": "lightning-bolt.png"
+          }
+        ],
+        "count": 4,
+        "seed": 177,
+        "minSize": 120,
+        "maxSize": 170,
+        "minRotationDeg": -18,
+        "maxRotationDeg": 18,
+        "minOpacity": 0.9,
+        "maxOpacity": 1,
+        "regionTop": 0.15,
+        "regionBottom": 0.85,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "flicker"
+      }
+    ],
+    "flash": {
+      "enabled": true,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-warning-26a0.svg",
+      "path": "lightning-bolt.png",
       "role": "image"
     }
   ]

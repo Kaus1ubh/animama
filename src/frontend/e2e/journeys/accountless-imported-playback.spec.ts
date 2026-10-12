@@ -29,10 +29,10 @@ import {
 } from "../helpers/imported-playback";
 import {
   proveAvatarVFXPlayback,
+  proveEmotionJoySceneDom,
   proveParticlePlayback,
   provePoseClipPlayback,
   proveScenePlayback,
-  proveKawaiiSparklesDom,
   proveVrmaPlayback,
 } from "../helpers/playback-assertions";
 import {
@@ -255,7 +255,7 @@ async function proveItem(args: {
     if (item.kind === "scene_effect") {
       // The creator uses its preview revision as the runtime start timestamp,
       // so epoch-based `active` is not its lifetime signal. Playing plus the
-      // exact rendered entry, Blob-backed cells and moving marquee prove it.
+      // exact rendered entry, Blob-backed items and their drift prove it.
       const effect = samples
         .flatMap((sample) => sample.effects.scene)
         .find(
@@ -268,7 +268,7 @@ async function proveItem(args: {
       );
       await expect(root).toHaveCount(1);
       await expect(root).toBeVisible();
-      await proveKawaiiSparklesDom(root);
+      await proveEmotionJoySceneDom(root);
     }
     return samples;
   }
@@ -641,9 +641,9 @@ test("imported playback covers every supported content kind in Library and appli
   const loadoutBefore = await creatorContent.snapshotAnimaLoadout(annieId);
   const sourceNames: Partial<Record<PlaybackKind, string>> = {
     pose: "Shy Finger Poke 1",
-    particle_effect: "Hearts",
+    particle_effect: "Heart Burst",
     avatar_effect: "Eye Confused Swirl",
-    scene_effect: "Kawaii Sparkles",
+    scene_effect: "Emotion Joy",
   };
   const sources: PlaybackItem[] = [];
   const avatarCatalogResponse = await page.request.get("/v1/avatar-catalog");
@@ -798,7 +798,7 @@ test("imported playback covers every supported content kind in Library and appli
       const target = expectedTarget(item, preview);
       let samples: PlaybackObservation[];
       if (item.kind === "particle_effect") {
-        // Hearts lasts only 1.8s. Arm observation before Replay after the
+        // Heart Burst lasts only 2.5 s. Arm observation before Replay after the
         // imported resource and model are ready, rather than missing its start.
         await surface
           .getByRole("button", { name: "Stop", exact: true })

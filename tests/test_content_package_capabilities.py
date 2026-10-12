@@ -296,7 +296,7 @@ def test_clip_timeline_and_lifetime_use_renderer_grammar(tmp_path: Path) -> None
             "id": "particle-vfx",
             "time": 0.3,
             "kind": "particle_vfx",
-            "effectId": "sparkles",
+            "effectId": "twinkle-shimmer",
             "anchor": "head",
             "followAnchor": True,
             "transform": {

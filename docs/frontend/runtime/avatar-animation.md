@@ -502,10 +502,11 @@ Selection is canonical-only: exact tracked emotion tones
 resolve to matching clips, while `neutral`, blank, unknown values, and group
 names such as `alarm` produce no clip. The clips are
 playback-scoped to same-run `talking`, so a single peak expression or VFX event
-can hold without looping or replaying SFX. Level 1 clips are expression-only.
-Selected level 2 and 3 clips add avatar VFX and one particle VFX event; level 3
-clips can also add the `scene-vfx-emotion-<emotion>` background preset plus
-stronger avatar VFX. The `presentation.disable_vfx` preference suppresses
+can hold without looping or replaying SFX. Level 1 clips are expression-only
+(embarrassment-1 adds a blush). Level 2 clips add avatar VFX and, where one
+fits, a Particle Effect; every level 3 clip plays its emotion's Included
+`scene-vfx-emotion-<emotion>` background, with a bigger Particle Effect (one or
+two) where one fits. The `presentation.disable_vfx` preference suppresses
 clip-owned avatar, scene, and particle VFX from pose/reaction playback while
 leaving SFX and manual/debug VFX controls unchanged.
 

@@ -86,7 +86,7 @@ describe("creator clip event playback", () => {
           time: 0,
           kind: "scene_vfx",
           sceneKind: "background_layers",
-          presetId: "comic-pop",
+          presetId: "scene-vfx-emotion-joy",
         },
       ],
     });

@@ -601,7 +601,8 @@ sourcing the stack record, unless `--local-content` is given.
 `pnpm -s effects:render` renders effects on both Included Avatars in headless
 Chromium (SwiftShader) with the chat canvas settings (ACES Filmic, sRGB, the
 default scene lights), stepping fixed 60 Hz frames with automatic animation
-off, so renders are deterministic:
+off, so renders are deterministic (a Reaction that starts two Particle Effects
+in one frame can still differ by a few pixels between runs):
 
 ```bash
 pnpm -s effects:render ./my-effect --out /tmp/my-effect.png

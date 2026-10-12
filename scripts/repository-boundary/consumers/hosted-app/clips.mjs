@@ -47,10 +47,10 @@ const effectOnly = {
     expressions: {},
     events: [
         {
-            id: "hearts",
+            id: "heart-burst",
             time: 0.4,
             kind: "particle_vfx",
-            effectId: "hearts",
+            effectId: "heart-burst",
             duration: 0.2,
         },
     ],
@@ -69,11 +69,11 @@ const project = (sequence) => ({
     dependencies: sequence.events
         ? [
               {
-                  alias: "hearts",
+                  alias: "heart-burst",
                   content_type: "particle_effect",
                   source: {
                       type: "builtin",
-                      content_id: "builtin:particle-effect:hearts",
+                      content_id: "builtin:particle-effect:heart-burst",
                       version: 1,
                   },
               },

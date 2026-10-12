@@ -40,7 +40,7 @@ export function createClipApi(reply, applicationDirectory) {
             readFileSync(path.join(seedRoot, "manifest.json")),
         );
         const entry = seed.inventory.entries.find(
-            (entry) => entry.logical_key === "builtin:particle-effect:hearts",
+            (entry) => entry.logical_key === "builtin:particle-effect:heart-burst",
         );
         if (!entry)
             throw new Error(
@@ -48,7 +48,7 @@ export function createClipApi(reply, applicationDirectory) {
             );
         const descriptor = JSON.parse(
             readFileSync(
-                path.join(seedRoot, "included", entry.locator, "hearts.json"),
+                path.join(seedRoot, "included", entry.locator, "heart-burst.json"),
             ),
         );
         const files = descriptor.files.map((file, ordinal) => {
@@ -76,14 +76,14 @@ export function createClipApi(reply, applicationDirectory) {
                 sha256: sha(bytes),
                 media_type:
                     file.role === "texture" ? "image/png" : "application/json",
-                url: `/v1/content/previews/clip-included-hearts/revisions/${entry.revision_sha256}/files/${fileRef}`,
+                url: `/v1/content/previews/clip-included-heart-burst/revisions/${entry.revision_sha256}/files/${fileRef}`,
             };
             admission.state.files.set(fileRef, { ...registered, bytes });
             return registered;
         });
-        admission.state.items.set("included-hearts", {
+        admission.state.items.set("included-heart-burst", {
             kind: "particle_effect",
-            item_id: "included-hearts",
+            item_id: "included-heart-burst",
             logical_key: entry.logical_key,
             name: descriptor.name,
             display_name: descriptor.name,

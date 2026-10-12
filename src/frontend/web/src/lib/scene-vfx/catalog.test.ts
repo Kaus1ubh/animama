@@ -1,70 +1,68 @@
-import { existsSync } from "node:fs";
+import { readdirSync, readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { describe, expect, it } from "vitest";
 
 import rawCatalog from "@/assets/effects/scene-vfx/catalog.json";
 
+import { TRACKED_EMOTIONS } from "@/lib/emotion";
+
 import {
-  getSceneBackgroundLayerPresetById,
   getSceneBackgroundLayerPresetIds,
+  getSceneFocusLinePresetById,
+  getSceneFocusLinePresetIds,
   parseSceneVFXEntry,
 } from "./catalog";
+import { createTestSceneBackground } from "./sceneVFXTestFixtures";
 
 const includedRoot = fileURLToPath(
   new URL("../../../../../../content/included", import.meta.url),
 );
 
-const BACKGROUND_EMOTIONS = [
-  "admiration",
-  "love",
-  "respect",
-  "confidence",
-  "gratitude",
-  "amusement",
-  "excitement",
-  "joy",
-  "curiosity",
-  "optimism",
-  "fear",
-  "nervousness",
-  "anger",
-  "disapproval",
-  "disgust",
-  "embarrassment",
-  "disappointment",
-  "grief",
-  "sadness",
-] as const;
-
 describe("scene VFX catalog", () => {
-  it("exposes the retained emotion background presets", () => {
-    const presetIds = getSceneBackgroundLayerPresetIds();
-
-    for (const emotion of BACKGROUND_EMOTIONS) {
-      const presetId = `scene-vfx-emotion-${emotion}`;
-      const preset = getSceneBackgroundLayerPresetById(presetId);
-
-      expect(presetIds).toContain(presetId);
-      expect(preset).not.toBeNull();
-      expect(preset?.id).toBe(presetId);
-      expect(preset?.kind).toBe("background_layers");
+  it("bundles only the focus presets, unchanged from their Included copies", () => {
+    expect(getSceneBackgroundLayerPresetIds()).toEqual([]);
+    expect(rawCatalog.backgroundLayerPresets).toEqual([]);
+    expect(getSceneFocusLinePresetIds()).toEqual(["dark", "light-streak"]);
+    for (const presetId of getSceneFocusLinePresetIds()) {
+      const included = JSON.parse(
+        readFileSync(
+          `${includedRoot}/vfx/scene/${presetId}/${presetId}.json`,
+          "utf8",
+        ),
+      ) as { definition: Record<string, unknown> };
+      // The bundled entry adds its id, label and enabled flag; the stored
+      // definition adds its schema.
+      const definition = { ...included.definition };
+      delete definition.schema;
+      expect(getSceneFocusLinePresetById(presetId)).toMatchObject(definition);
     }
   });
 
-  it("ships presets without line items, so each marquee starts empty", () => {
-    // The bundled catalog has no line items: its presets name none, and the
-    // creator adds stickers or private images to a preset's marquee.
-    expect(rawCatalog).not.toHaveProperty("backgroundLineItems");
-    for (const preset of rawCatalog.backgroundLayerPresets) {
-      expect(preset.entry.marquee).not.toHaveProperty("itemIds");
-      expect(
-        getSceneBackgroundLayerPresetById(preset.presetId)?.marquee.items,
-      ).toEqual([]);
+  it("has an Included background for every emotion, the five new ones included", () => {
+    for (const emotion of TRACKED_EMOTIONS) {
+      const presetId = `scene-vfx-emotion-${emotion}`;
+      const descriptor = JSON.parse(
+        readFileSync(
+          `${includedRoot}/vfx/scene/${presetId}/${presetId}.json`,
+          "utf8",
+        ),
+      ) as { content_id: string; definition: { kind: string } };
+      expect(descriptor.content_id).toBe(
+        `builtin:scene-effect:background:${presetId}`,
+      );
+      expect(descriptor.definition.kind).toBe("background_layers");
     }
+    // The Included Scene Effects are these backgrounds and the focus presets.
+    expect(readdirSync(`${includedRoot}/vfx/scene`).sort()).toEqual(
+      [
+        ...getSceneFocusLinePresetIds(),
+        ...TRACKED_EMOTIONS.map((emotion) => `scene-vfx-emotion-${emotion}`),
+      ].sort(),
+    );
   });
 
   it("skips a legacy emoji item in a runtime entry and refuses unknown kinds", () => {
-    const preset = getSceneBackgroundLayerPresetById("scene-vfx-emotion-joy")!;
+    const preset = createTestSceneBackground();
     const png = { id: "star", kind: "png", label: "Star", src: "blob:star" };
     const legacy = { id: "old", kind: "emoji", label: "Old", emoji: "\u2728" };
     const entry = parseSceneVFXEntry({
@@ -80,24 +78,5 @@ describe("scene VFX catalog", () => {
         marquee: { ...preset.marquee, items: [{ ...png, kind: "gif" }] },
       }),
     ).toThrow();
-  });
-
-  it("does not export retired scene presets", () => {
-    const retiredIds = [
-      "chaos-chibi",
-      ...["annoyance", "caring", "confusion", "desire", "remorse"].map(
-        (emotion) => `scene-vfx-emotion-${emotion}`,
-      ),
-    ];
-    for (const presetId of retiredIds) {
-      expect(getSceneBackgroundLayerPresetById(presetId)).toBeNull();
-      expect(getSceneBackgroundLayerPresetIds()).not.toContain(presetId);
-    }
-  });
-
-  it("ships no Twemoji mirror", () => {
-    expect(existsSync(`${includedRoot}/resources/scene-vfx/twemoji`)).toBe(
-      false,
-    );
   });
 });

@@ -4,59 +4,111 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-anger",
   "version": 1,
   "name": "Emotion Anger",
-  "description": "Scene background effect preset",
+  "description": "A red-hot vignette with a throbbing spiky burst behind the Avatar and anger marks popping around it, for furious moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#ffb3a8"
+      "enabled": false,
+      "color": "#000000"
     },
     "pattern": {
-      "enabled": true,
-      "pattern": "star",
+      "enabled": false,
+      "pattern": "none",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.34
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
-      "itemSize": 80,
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.42,
+      "stops": [
         {
-          "id": "emoji-anger-symbol",
-          "kind": "image",
-          "label": "Anger Symbol 💢",
-          "image": "emoji-anger-symbol-1f4a2.svg"
+          "color": "#ff7a45",
+          "position": 0
         },
         {
-          "id": "emoji-collision",
-          "kind": "image",
-          "label": "Collision 💥",
-          "image": "emoji-collision-1f4a5.svg"
+          "color": "#ff4a2e",
+          "position": 0.34
+        },
+        {
+          "color": "#5c0a0a",
+          "position": 1
         }
       ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "rays",
+      "color": "#ffcf5c",
+      "opacity": 0.45,
+      "count": 26,
+      "centerX": 0.5,
+      "centerY": 0.42,
+      "spiky": true,
+      "turnSeconds": 0,
+      "throbPerSec": 1.1,
+      "seed": 11
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "mark",
+            "kind": "image",
+            "label": "Anger mark",
+            "image": "anger-mark.png"
+          }
+        ],
+        "count": 6,
+        "seed": 44,
+        "minSize": 44,
+        "maxSize": 78,
+        "minRotationDeg": -30,
+        "maxRotationDeg": 30,
+        "minOpacity": 0.95,
+        "maxOpacity": 1,
+        "regionTop": 0.08,
+        "regionBottom": 0.7,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "pop"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-anger-symbol-1f4a2.svg",
-      "role": "image"
-    },
-    {
-      "path": "emoji-collision-1f4a5.svg",
+      "path": "anger-mark.png",
       "role": "image"
     }
   ]

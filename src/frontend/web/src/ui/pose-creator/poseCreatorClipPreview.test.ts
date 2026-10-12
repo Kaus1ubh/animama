@@ -33,7 +33,7 @@ describe("Reaction preview posture", () => {
       id: "scene",
       kind: "scene_vfx",
       sceneKind: "background_layers",
-      presetId: "comic-pop",
+      presetId: "scene-vfx-emotion-joy",
       time: 0,
     },
   ] satisfies AnimaPoseClipEvent[])(

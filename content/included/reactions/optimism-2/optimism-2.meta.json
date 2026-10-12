@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:sparkles",
-      "alias": "sparkles",
+      "ref": "builtin:particle-effect:twinkle-shimmer",
+      "alias": "twinkle-shimmer",
       "content_type": "particle_effect",
       "config": {}
     },
