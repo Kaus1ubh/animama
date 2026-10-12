@@ -1,14 +1,15 @@
 # Eleven v4 and v4 Turbo execution plan
 
-Status: Draft for owner review (agent, 2026-10-12). No phase is authorized yet.
+Status: Draft, revised after owner review (2026-10-12). No phase is authorized yet.
 
 Source agreement: [spec draft](eleven-v4-spec.md) of 2026-10-12, based on
 [issue #471](https://github.com/raymond-van/animama/issues/471) and the owner's
 task instruction of 2026-10-12 (decisions D1–D3 in the spec). Research:
 [eleven-v4-research.md](eleven-v4-research.md).
 
-Authorized scope: none yet. Implementation starts after the owner accepts the
-spec (including D1, D3, D5 and D6) and this plan.
+Authorized scope: none yet. On 2026-10-12 the owner agreed D1–D4, waived D5 and
+approved D6 (US$1). Implementation starts on the owner's go-ahead for the revised
+spec (D8, D9) and this plan.
 
 Explicit gates:
 
@@ -18,7 +19,7 @@ Explicit gates:
   - The owner listens to v4 Turbo and v4 with the voices in use.
   - The owner reviews provider-timed versus estimated lip-sync side by side on
     the same reply.
-  - The owner confirms or waives Instant Voice Clone compatibility (spec D5).
+  - Instant Voice Clone verification was waived on 2026-10-12 (spec D5).
 - **G3 — Hosted (Cloud).** Cloud must adopt the v4 model ids before or together
   with hosted adoption of this release (spec D7). It is tracked by a Cloud issue,
   not by this PR.
@@ -122,7 +123,11 @@ Ownership and boundaries:
   [research brief](eleven-v4-research.md).
 - [x] Spec drafted (2026-10-12): [eleven-v4-spec.md](eleven-v4-spec.md).
 - [x] ExecPlan drafted (2026-10-12).
-- [ ] Owner review of the spec and plan; decisions D1, D3, D5 and D6.
+- [x] Owner review, 2026-10-12: D1–D4 agreed, D5 waived, D6 approved.
+- [x] Follow-up probes, 2026-10-12, about US$0.02 of the D6 budget: v4 accepts
+  request stitching, and 8 dialogue sessions generated at once
+  ([research §7](eleven-v4-research.md#7-follow-up-probes-2026-10-12-after-owner-review)).
+- [ ] Owner go-ahead on the revised spec (D8, D9) and this plan.
 - [ ] Phase 1: v4 model set, migration and finalized v4.
 - [ ] Phase 2: realtime v4 Turbo over the dialogue socket.
 - [ ] Phase 3: provider-timed lip-sync.
@@ -161,9 +166,19 @@ From the spike, 2026-10-12 (details and numbers in the research brief):
 - **SDK gap.** The installed `elevenlabs` SDK 2.39.0 has no Text to Dialogue
   socket client, and its dialogue `stream_with_timestamps` has no `previous_text`
   parameter. The latest release is 2.71.0.
-- **Lip-sync planning inputs.** `docs/plans/lipsync-upgrade/` (#468) had no
-  findings yet. There is no debug tooling that shows two lip-sync plans; the
+- **#468 brief (2026-10-12).** Its recommended direction is a new browser
+  planner that aligns per-language text to the audio, with tags as named
+  non-speech events and ElevenLabs timing as one evidence source. Phase 3 is
+  shaped so #468 reuses the timing transport and evidence module (spec D8). The
+  brief also records that gruut gates finalized TTS for non-English sentences
+  (spec D9).
+- **No comparison tooling.** No debug tooling shows two lip-sync plans; the
   bridge keeps one plan per run.
+- **Follow-up probes.**
+  - v4 accepts `previous_request_ids` on Text to Dialogue HTTP, and every
+    response carries a `request-id` header.
+  - 8 v4 Turbo sockets generated at once with no refusal, at 408–436 ms first
+    audio.
 
 ## Decision Log
 
@@ -174,15 +189,26 @@ From the spike, 2026-10-12 (details and numbers in the research brief):
     fallback, and show the two side by side.
   - Tag mouth shapes and other providers stay in #468.
   - Proposed defaults: v4 Turbo realtime, v4 finalized as the optional mode.
-- **2026-10-12 — agent proposal (spec D1):**
-  - Remove the old models rather than keep them as Legacy.
-  - The spike shows no voice-type, latency or price reason to keep them.
-  - Keeping them doubles the realtime protocols in the browser and in Cloud.
-  - Contingency: restore `eleven_v3` as Legacy if G2 rejects v4 for a voice in
-    use.
-- **2026-10-12 — agent proposal (spec D4):** the finalized path uses Text to
-  Dialogue HTTP `stream/with-timestamps`, the documented home of v4. The plain
-  Text to Speech HTTP acceptance is recorded as a fallback.
+- **2026-10-12 — owner, after review:**
+  - D1: remove the old models.
+  - D3: v4 Turbo is the realtime default, and v4 the finalized option.
+  - D4: optimise the integration for v4 alone. That means:
+    - Text to Dialogue WebSocket and `ttd_websocket` tokens;
+    - Text to Dialogue HTTP for finalized and utility synthesis;
+    - stitching;
+    - hosted concurrency handling, in the Cloud issue.
+  - D5: IVC verification is waived.
+  - D6: US$1 is approved for live checks.
+- **2026-10-12 — agent proposal: continuity.** Finalized requests send
+  `previous_request_ids` with up to the last three request ids of the run. The
+  ids come from each response's `request-id` header. They fall back to a
+  100-character `previous_text` when no id is known, for example after a failed
+  request. Whether stitching sounds better than `previous_text` is judged at G2.
+- **2026-10-12 — agent proposal (spec D8): #468 alignment.**
+  - Phase 3 builds the timing transport and a provider-neutral evidence module
+    (timed words, plus named tag intervals) for #468 to reuse.
+  - It changes today's planner only through word windows.
+  - Tag intervals rest the mouth closed until #468 adds shapes.
 - **2026-10-12 — agent proposal: realtime flush policy.**
   - Flush once after the first speech segment, then let the server buffer.
   - Send `keep_alive` after 10 s without a message.
@@ -278,10 +304,17 @@ Changes:
    - Finalized:
      - the request goes to Text to Dialogue `stream/with-timestamps` with
        `inputs=[{text, voice_id}]`, `model_id`, `language_code`,
-       `apply_text_normalization="off"`, `output_format=pcm_24000`, and
+       `apply_text_normalization="off"` and `output_format=pcm_24000`;
+     - continuity comes from `previous_request_ids` (the run's last ≤3 request
+       ids, read from each response's `request-id` header), or else
        `previous_text` (≤100 characters);
-     - send `previous_text` through the SDK's `request_options` additional body
-       parameters, or upgrade the SDK (decide by inspection; record the choice);
+     - the installed SDK's dialogue stream has no `previous_text` or
+       `previous_request_ids` parameters and does not expose the response
+       header. Prefer a direct streamed request through the shared `httpx`
+       client, whose NDJSON parsing is needed anyway. Upgrade the SDK only if it
+       covers all three; record the choice.
+     - Return the `request-id` to `FinalizedTtsStreamBootstrap`, which keeps the
+       run's last three ids.
      - parse each NDJSON chunk's `audio_base64` and `alignment`, and keep today's
        PCM framing (`pop_pcm_audio_frame`);
      - retain the alignment, converted to ms, on the yielded `audio` events as an
@@ -289,6 +322,8 @@ Changes:
      - remove the v3 `previous_text` omission.
    - The utility route uses Text to Dialogue `convert`, mapping
      `similarity_boost` to `similarity`.
+   - Every ElevenLabs speech path now uses a Text to Dialogue API. Nothing calls
+     `text_to_speech.*` for speech.
 5. **Tone and continuity** (`voice_emotional_tone.py`):
    - Rename `elevenlabs_v3_text_with_emotional_prefix` to a model-neutral name.
    - Apply it for `eleven_v4`.
@@ -326,9 +361,11 @@ Tests (TDD where behavior changes):
   - legacy ids map in `PyAnimaTtsRunOptions` and still yield a reply;
   - the session descriptor carries v4 Turbo, a `ttd_websocket` token and
     `sync_alignment`;
-  - finalized v4 sends the tone tag, sends `previous_text` (≤100 characters) from
-    the second request on, and frames PCM as before across sentence and
-    paragraph modes;
+  - finalized v4 sends the tone tag, frames PCM as before across sentence and
+    paragraph modes, and from the second request on stitches to the previous
+    request ids;
+  - after a failed or id-less request it falls back to `previous_text`
+    (≤100 characters);
   - a failed batch emits `tts.error` without `tts.done`;
   - Gemini tests unchanged;
   - utility route default and settings mapping;
@@ -353,6 +390,8 @@ Live (G1):
 - On the task stack, one finalized v4 reply (two sentences, then paragraph mode)
   plays with emotional delivery.
 - Record its first-audio time and characters.
+- Save one stitched and one `previous_text` rendering of the same two sentences
+  for G2.
 
 Completion:
 
@@ -482,10 +521,13 @@ Changes:
        `is_final_audio_for_turn`;
      - absolute payloads (`tts.audio`, server socket) are appended as they are.
    - It hands the timeline to the bridge for the run.
-4. **Word matching:**
+4. **Evidence module and word matching** (provider-neutral, reused by #468):
    - Group timeline characters into spoken words (Unicode letters, digits and
      apostrophes).
-   - Record bracketed `[...]` spans as non-speech intervals.
+   - Record each bracketed `[...]` span as a named non-speech interval, for
+     example `{kind: "tag", name: "laughs", startSec, endSec}`.
+   - Pauses need no special case: they are the time between words, which
+     ElevenLabs reports on punctuation and spaces.
    - Match the words in order with the run's phonemized words (from the
      `tokenizedText` and `phonemizedText` already queued), tolerating a skipped
      word.
@@ -495,8 +537,10 @@ Changes:
    - Add an optional `wordWindows` input (one window or `null` per phonemized
      word).
    - With windows, lay each word's phonemes out within its window by today's
-     relative phoneme durations, close the mouth in gaps and non-speech
-     intervals, and skip the global `timelineScale`.
+     relative phoneme durations, close the mouth in gaps and tag intervals, and
+     skip the global `timelineScale`.
+   - Tag intervals rest the mouth closed. Laugh, sigh and gasp shapes and
+     expressions are #468's.
    - Words without a window are interpolated between neighbours.
    - Without windows, output is identical to today. Assert this by keeping the
      existing behaviour tests and adding a golden comparison.
@@ -516,7 +560,8 @@ Tests:
   - word-window placement from recorded spike timing (stored as small fixtures:
     text, chars, times; no audio);
   - pauses close the mouth;
-  - tag spans are non-speech;
+  - the emotional prefix and action tags (`[laughs]`, `[sighs]` from the spike)
+    become named intervals, are never mouthed, and keep the mouth closed;
   - the 80% mismatch rule falls back;
   - output without windows is unchanged.
 - **Timing module:**
@@ -645,7 +690,15 @@ Changes:
      run-relative times;
    - the end marker;
    - pricing keys;
-   - rollout ordering (G3).
+   - rollout ordering (G3);
+   - dialogue-pool concurrency, if Cloud moves realtime to a server-side
+     dialogue socket:
+     - open a session only when the reply's speech starts, and close it at the
+       end or on cancel;
+     - cap and queue sessions per operator;
+     - map a pool or concurrency refusal to a speech refusal that keeps the text;
+     - measure the operator plan's limit before launch. The owner's plan showed
+       no limit at 8 generating or 16 idle sessions.
 
    File it in the Cloud repository only with the owner's go-ahead, since filing
    is outward-facing; otherwise hand it over.

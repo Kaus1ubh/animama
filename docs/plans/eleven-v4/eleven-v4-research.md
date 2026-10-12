@@ -39,7 +39,8 @@ print it or any token.
 | Audio tags in timing | Tags appear as their literal characters. A leading delivery tag takes about 60–70 ms; an action tag spans the sound: `[laughs]` 0.28–0.32 s, `[sighs]` 0.44–0.68 s. |
 | Voices | Premade and shared-library ("professional") voices, including Animama's default voice, speak on v3, v4 and v4 Turbo. **Instant Voice Clones could not be tested**: the owner's plan rejects IVC on every model (`ivc_not_permitted`). |
 | Voice settings | v4 accepted `stability` + `similarity` on the dialogue socket and dialogue HTTP, and the full v2 setting set (`style`, `speed`, `use_speaker_boost`) on TTS HTTP without an error (**inferred**: the extra fields are ignored, per **docs-v4**). |
-| Dialogue-session concurrency | 16 idle dialogue sessions were held open at once with no refusal. Idle sessions close after 20 s without a message (`input_timeout_exceeded`, 1008). |
+| Dialogue-session concurrency | 16 idle dialogue sessions were held open at once with no refusal, and 8 generated at once without slowing (§7). Idle sessions close after 20 s without a message (`input_timeout_exceeded`, 1008). |
+| Request stitching | v4 accepts `previous_request_ids` on Text to Dialogue HTTP (§7). |
 
 ## 1. Realtime: `eleven_v4_turbo` over the Text to Dialogue WebSocket
 
@@ -215,7 +216,21 @@ The shared-library voices still worked.
   pool for its whole life, so sockets must close promptly after the reply or on
   cancel.
 
-## 7. Implications for Animama
+## 7. Follow-up probes (2026-10-12, after owner review)
+
+Charged to the implementation budget: about 430 characters, roughly US$0.02.
+
+- **Request stitching on v4.** Two consecutive Text to Dialogue HTTP streams
+  (`eleven_v4`, default voice) both returned 200 and a `request-id` header. The
+  second sent `previous_request_ids: [<first id>]`. First byte was 845 ms, then
+  526 ms. v4 therefore accepts stitching; the audible effect was not judged.
+- **Concurrent generation.** 8 v4 Turbo dialogue sockets each spoke a 41-character
+  line at the same moment. All 8 completed, with first audio at 408–436 ms from
+  connect, no refusal and no queueing visible. The owner's plan has not shown a
+  dialogue-pool limit at 8 generating or 16 idle sessions. Hosted operator limits
+  remain unmeasured.
+
+## 8. Implications for Animama
 
 1. **Realtime:**
    - Mint `ttd_websocket` tokens.
