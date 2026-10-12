@@ -215,6 +215,56 @@ Steps:
 
 Recovery: revert the phase commit.
 
+Results (2026-10-12):
+- **Changes:**
+  - New `app/admitted-router.ts` hook `useAdmittedRouter` builds a router only for a ready admission, still one per session QueryClient.
+  - Its effect cleanup turns off `isScrollRestoring` on a replaced or unmounted router.
+  - The effect restores the creation-time value when StrictMode replays it.
+  - `AppRouter` uses the hook.
+- **Tests:** a unit test covers no router while loading, one router per session, retirement on replacement, admission end and unmount, and StrictMode. The router change itself has no failing-first test, because `AppRouter` imports the whole route tree; the hook carries the behavior.
+- **Local checks:**
+  - `vitest run src/app/` (14 files, 139 tests), `tsc -b`, eslint and prettier pass.
+  - `pnpm web:test` exit 0 before the review revisions: Vitest 474 files, 4209 passed; browser scripts, including the hosted-composition, hosted-workflows and retained-screens scripts that mount `AppRouter`, 0 failures.
+- **Built task stack**, 20 Anima selections through the `/animas/<id>` carousel:
+
+  | | Before (investigation) | After |
+  | --- | --- | --- |
+  | Router `pagehide`, `popstate` and document capture-scroll listeners | 2 each | 1 each |
+  | Live canvases after GC | 1 → 11 | 1 |
+  | DOM nodes after GC | +1063 | back to baseline (10665) |
+  | Renderer after GC | — | 999 → 1012 MB |
+
+  - Back navigation restores the Library scroll container to 1500 px.
+- **After the review revisions:**
+  - A rebuilt task stack still shows 1 router listener of each kind.
+  - 20 carousel selections leave canvases and DOM nodes at baseline after GC.
+  - Back navigation still restores 1500 px.
+- **Pre-existing, unchanged:** reloading the Library restores its scroll container to 13625.5 px rather than the 2200 px it was scrolled to. The main build does exactly the same, so this change did not cause it.
+- **Residual (bounded):** a retired router keeps the elements it tracked since its last navigation, because router-core never removes its listener closure. That is at most one page per readmission.
+
+#### Code Review #1 Findings
+
+Independent `sdlc-reviewer` review against `afacb9fe`. Blocking:
+- **P3-CR1-1:** under development StrictMode, React runs the memo twice and discards one result. The discarded router was already tracking and never retired, so the leak persisted in development builds. A happy-dom probe with real `createRouter` confirmed it.
+
+Optional:
+- **N1:** a retired router keeps the entries it already tracked.
+- **N2:** a router was built behind the app-file-error screen.
+- **N3:** no contract test runs against the real router-core.
+- **N4:** the full `web:test` result was missing from this record.
+- **N5:** the file name should be kebab-case, and `router.tsx` had duplicate imports.
+
+#### Code Review #1 Revisions
+
+- **P3-CR1-1, fixed:**
+  - The memo now builds each router with tracking off. Only the mounted router turns it back on, through the effect or `<ScrollRestoration />` during render.
+  - The StrictMode test now asserts that every non-mounted router is silent. It fails without the fix.
+- **N2, N4 and N5:** fixed.
+- **N1:** recorded above as bounded residue.
+- **N3:** deferred. It needs a browser export condition in Vitest; the built-stack check covers the behavior.
+
+Code Review #2 (repair round 1 of 2) passed. A real-router probe under StrictMode now shows `[true, false]` routers, and no scroll is recorded after retirement. After the revisions, `pnpm web:test` exits 0: Vitest 474 files, 4209 passed; browser scripts 0 failures. One repair round remains unused.
+
 ### Phase 4: Desktop and PiP window memory (R6)
 
 Issue: [#477](https://github.com/raymond-van/animama/issues/477). Runs after Phase 2, so its measurements include the shared disposal fix.
