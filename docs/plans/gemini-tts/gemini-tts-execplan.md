@@ -1026,7 +1026,7 @@ Completion: checks pass, review leaves no blocker, and one live sample plays
 on the task stack. The owner listening check (Phase 4) also covers the
 picker.
 
-Phase record: issue #469; starting source `f3a9e6b5`; commit —.
+Phase record: issue #469; starting source `f3a9e6b5`; commit `d676c07e`.
 
 Implementation (2026-10-12):
 
@@ -1222,6 +1222,20 @@ Its findings:
 
 Checks: 212 backend and 172 web tests, ruff, mypy, the import boundary and
 `openapi-ts:check`. Both repair rounds are now used.
+
+Final local checks on `d676c07e` (2026-10-12):
+- `make check-test`: 4,004 passed, 29 skipped. The run covered the same code;
+  only the docs and the plan changed afterwards.
+- `pnpm check`, `web:lint`, `prettier:check` and `build`: pass.
+- `desktop:test`: 506 passed, 14 skipped.
+- `web:test`: vitest 3,917 passed, 1 skipped; browser scripts 216/216.
+- `pnpm e2e:test:fast` on a disposable built stack: 38 passed (5.6 min); the
+  stack was torn down.
+- Package-set build of `d676c07e` compared with `f7eb367c`: "Compatibility
+  policy passed".
+- Hosted CI: run 38256804300 passed on `f3a9e6b5` (Phases 1–4). The workflow
+  was disabled again before the later push, so the later commits have only
+  this local evidence.
 
 ## Validation and acceptance
 
