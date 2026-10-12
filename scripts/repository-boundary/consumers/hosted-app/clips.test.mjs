@@ -33,10 +33,10 @@ const v2 = {
 };
 const events = [
     {
-        id: "hearts",
+        id: "heart-burst",
         time: 0.4,
         kind: "particle_vfx",
-        effectId: "hearts",
+        effectId: "heart-burst",
         duration: 0.2,
     },
 ];

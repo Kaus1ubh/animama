@@ -4,49 +4,155 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-love",
   "version": 1,
   "name": "Emotion Love",
-  "description": "Scene background effect preset",
+  "description": "A soft pink bloom glows behind the Avatar while heart-shaped rose petals tumble down through drifting bokeh and sparkles twinkle, for smitten, loving moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#ffd2e5"
+      "enabled": false,
+      "color": "#ff9cc4"
     },
     "pattern": {
-      "enabled": true,
-      "pattern": "heart",
+      "enabled": false,
+      "pattern": "none",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.38
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.32,
+      "stops": [
         {
-          "id": "emoji-sparkling-heart",
-          "kind": "image",
-          "label": "Sparkling Heart 💖",
-          "image": "emoji-sparkling-heart-1f496.svg"
+          "color": "#fff1f6",
+          "position": 0
+        },
+        {
+          "color": "#ffd2e4",
+          "position": 0.38
+        },
+        {
+          "color": "#ff9cc4",
+          "position": 1
         }
       ]
+    },
+    "tile": {
+      "enabled": true,
+      "size": 180,
+      "opacity": 0.38,
+      "direction": "up",
+      "speedPxPerSec": 9,
+      "image": "bokeh-tile.png"
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "petal",
+            "kind": "image",
+            "label": "Rose petal",
+            "image": "rose-heart-petal.png"
+          }
+        ],
+        "count": 18,
+        "seed": 120,
+        "minSize": 30,
+        "maxSize": 58,
+        "minRotationDeg": -180,
+        "maxRotationDeg": 180,
+        "minOpacity": 0.75,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "diagonal-down-left",
+        "speedPxPerSec": 38,
+        "minSpinDegPerSec": 15,
+        "maxSpinDegPerSec": 40,
+        "alternateSpin": true,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "sparkle",
+            "kind": "image",
+            "label": "Sparkle",
+            "image": "sparkle-white.png"
+          }
+        ],
+        "count": 9,
+        "seed": 7,
+        "minSize": 12,
+        "maxSize": 26,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.8,
+        "maxOpacity": 1,
+        "regionTop": 0.04,
+        "regionBottom": 0.5,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-sparkling-heart-1f496.svg",
+      "path": "rose-heart-petal.png",
+      "role": "image"
+    },
+    {
+      "path": "sparkle-white.png",
+      "role": "image"
+    },
+    {
+      "path": "bokeh-tile.png",
       "role": "image"
     }
   ]

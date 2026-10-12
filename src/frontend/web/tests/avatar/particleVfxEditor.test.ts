@@ -36,7 +36,7 @@ const INCLUDED_PARTICLE_VFX_ROOT = new URL(
   import.meta.url,
 );
 
-function readQuarksJson(effectId = "hearts"): Record<string, unknown> {
+function readQuarksJson(effectId = "heart-burst"): Record<string, unknown> {
   return JSON.parse(
     readFileSync(
       new URL(`quark/${effectId}/particle.json`, INCLUDED_PARTICLE_VFX_ROOT),
@@ -588,30 +588,43 @@ describe("particle VFX editor helpers", () => {
 
   it("creates editable emitter drafts from catalog quarks JSON", () => {
     const draft = createParticleVFXEditorDraftFromCatalog(
-      "hearts",
+      "heart-burst",
       readQuarksJson(),
     );
 
-    expect(draft.catalog.id).toBe("hearts");
-    expect(draft.emitters).toHaveLength(1);
+    expect(draft.catalog.id).toBe("heart-burst");
+    expect(draft.emitters).toHaveLength(6);
     expect(draft.emitters[0]).toMatchObject({
-      name: "hearts",
-      durationSec: 0.35,
+      name: "heart-halo",
+      durationSec: 0.05,
       looping: false,
       worldSpace: false,
-      burstCount: { min: 8, max: 8 },
-      startLife: { min: 1.15, max: 1.55 },
-      startSpeed: { min: 0.05, max: 0.12 },
-      startSize: { min: 0.15, max: 0.24 },
+      burstCount: { min: 1, max: 1 },
+      startLife: { min: 1.7, max: 1.7 },
+      startSpeed: { min: 0, max: 0 },
+      startSize: { min: 0.32, max: 0.32 },
     });
+  });
+
+  it("keeps the imported defaults for an ID outside the Included catalog", () => {
+    const draft = createParticleVFXEditorDraftFromCatalog(
+      "removed-effect",
+      readQuarksJson(),
+    );
+
+    expect(draft.sourceEffectId).toBeNull();
+    expect(draft.catalog.id).not.toBe("confetti");
+    expect(draft.emitters).toHaveLength(6);
   });
 
   it("patches safe emitter-level quarks fields", () => {
     const draft = createParticleVFXEditorDraftFromCatalog(
-      "hearts",
+      "heart-burst",
       readQuarksJson(),
     );
-    const emitter = draft.emitters[0];
+    // The small hearts carry a force behaviour to patch.
+    const emitter = draft.emitters[3];
+    expect(emitter.name).toBe("small-hearts");
     const patched = applyParticleVFXEmitterPatch(draft, emitter.path, {
       durationSec: 0.5,
       looping: true,
@@ -626,7 +639,7 @@ describe("particle VFX editor helpers", () => {
       },
     });
 
-    expect(patched.emitters[0]).toMatchObject({
+    expect(patched.emitters[3]).toMatchObject({
       durationSec: 0.5,
       looping: true,
       worldSpace: true,
@@ -994,14 +1007,14 @@ describe("particle VFX editor helpers", () => {
 
   it("validates remote textures, looping, world-space, and particle budgets", () => {
     const draft = createParticleVFXEditorDraftFromCatalog(
-      "hearts",
+      "heart-burst",
       readQuarksJson(),
     );
     const json = structuredClone(draft.quarksJson);
     const images = json.images as Array<Record<string, unknown>>;
     images[0].url = "https://example.com/heart.png";
     const withRemoteTexture = createParticleVFXEditorDraftFromCatalog(
-      "hearts",
+      "heart-burst",
       json,
     );
     const patched = applyParticleVFXEmitterPatch(
@@ -1031,7 +1044,7 @@ describe("particle VFX editor helpers", () => {
 
   it("accepts root-relative textures and reports embedded or unsupported texture URLs", () => {
     const baseDraft = createParticleVFXEditorDraftFromCatalog(
-      "hearts",
+      "heart-burst",
       readQuarksJson(),
     );
     const rootRelativeJson = structuredClone(baseDraft.quarksJson);
@@ -1039,7 +1052,7 @@ describe("particle VFX editor helpers", () => {
       "/effects/vfx/particle-vfx/textures/heart.png";
     expect(
       validateParticleVFXEditorDraft(
-        createParticleVFXEditorDraftFromCatalog("hearts", rootRelativeJson),
+        createParticleVFXEditorDraftFromCatalog("heart-burst", rootRelativeJson),
       ),
     ).not.toEqual(
       expect.arrayContaining([
@@ -1053,7 +1066,7 @@ describe("particle VFX editor helpers", () => {
       "data:image/png;base64,AAAA";
     expect(
       validateParticleVFXEditorDraft(
-        createParticleVFXEditorDraftFromCatalog("hearts", embeddedJson),
+        createParticleVFXEditorDraftFromCatalog("heart-burst", embeddedJson),
       ),
     ).toEqual(
       expect.arrayContaining([
@@ -1066,7 +1079,7 @@ describe("particle VFX editor helpers", () => {
       "ftp://example.com/heart.png";
     expect(
       validateParticleVFXEditorDraft(
-        createParticleVFXEditorDraftFromCatalog("hearts", unsupportedJson),
+        createParticleVFXEditorDraftFromCatalog("heart-burst", unsupportedJson),
       ),
     ).toEqual(
       expect.arrayContaining([
@@ -1077,20 +1090,22 @@ describe("particle VFX editor helpers", () => {
 
   it("resolves relative texture paths for in-memory preview JSON", () => {
     const draft = createParticleVFXEditorDraftFromCatalog(
-      "hearts",
+      "heart-burst",
       readQuarksJson(),
     );
 
     expect(
       resolveParticleVFXPublicAssetPath(
-        "/effects/vfx/quark/hearts.json",
+        "/effects/vfx/quark/example.json",
         "../particle-vfx/textures/heart.png",
       ),
     ).toBe("/effects/vfx/particle-vfx/textures/heart.png");
 
     const previewJson = resolveParticleVFXEditorPreviewJson(draft);
     const images = previewJson.images as Array<Record<string, unknown>>;
-    expect(images[0].url).toBe("/effects/vfx/particle-vfx/textures/heart.png");
+    expect(images[0].url).toBe(
+      "/effects/vfx/quark/heart-burst/textures/glossy-heart.png",
+    );
   });
 
   it("resolves avatar-backed creator preview placement from anchor plus offset and depth", () => {
@@ -1177,7 +1192,7 @@ describe("particle VFX editor helpers", () => {
 
   it("builds migration snippets for catalog and clip events", () => {
     const draft = updateParticleVFXEditorCatalogDraft(
-      createParticleVFXEditorDraftFromCatalog("hearts", readQuarksJson()),
+      createParticleVFXEditorDraftFromCatalog("heart-burst", readQuarksJson()),
       {
         id: "hearts-variant",
         label: "Hearts Variant",

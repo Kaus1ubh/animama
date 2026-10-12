@@ -68,15 +68,24 @@ from its `items` (1–8), with seeded per-item ranges:
 | `minSize`, `maxSize` | 4–512 px |
 | `minRotationDeg`, `maxRotationDeg` | −360–360 |
 | `minOpacity`, `maxOpacity` | 0–1 |
-| `regionTop`, `regionBottom` | 0–1 of the view height where items start |
+| `regionTop`, `regionBottom` | 0–1 of the view height that holds still items, and the lanes of left and right drifters (two left or right layers whose regions overlap share their combined span) |
 | `speedPxPerSec` with `direction` | 0–600; drifting items cross the view on off-screen tracks |
 | `minSpinDegPerSec`, `maxSpinDegPerSec` | 0–720; `alternateSpin` reverses every other item |
 | `pulse` | `none`, `twinkle`, `pop` or `flicker` |
 
-`keepFaceClear` keeps still items out of the column behind the head, and
-items drifting straight up or down out of that column's width. Placement
-depends on the seed and the view size. Petals, drops, confetti, anger marks,
-bubbles. Art: `scene-sticker` budget.
+Placement is even and depends on the seed and the view size. Still items
+never overlap: they sit wholly inside the region, spread evenly and clear of
+earlier layers' still items, and in small views every still item of the
+Scene shrinks by one factor (down to 0.4) until they fit; only a region too
+crowded at that floor overlaps, so keep still `count` and `maxSize` modest.
+Drifters run in equal lanes, as many as `maxSize` fits, evenly spaced along
+the track; a drifting layer overlaps itself only when its items cannot fit.
+Layers moving the same way share the span in separate interleaved lanes, so
+they never collide while the span has room for a lane of each. A drifter may
+pass over another layer's still items, and layers moving in different
+directions may cross. `keepFaceClear` keeps still items' centres out of the
+column behind the head, and items drifting straight up or down out of that
+column's width. Petals, drops, confetti, anger marks, bubbles. Art: `scene-sticker` budget.
 
 ## 8. Entry flash (optional)
 
@@ -86,6 +95,7 @@ starts: shock, a gacha flash. Use it sparingly.
 ## Items
 
 Marquee and scatter items are `{ "id", "kind": "image", "label", "image":
-"<file name>" }` (a listed image) or `{ "id", "kind": "emoji", "label",
-"emoji": "<glyph>", "provider": "twemoji" }` (an emoji the app ships). Ids are
-unique within a layer; labels are what the creator shows.
+"<file name>" }`, each naming a listed image of the folder. Ids are unique
+within a layer; labels are what the creator shows. Animama no longer provides
+Twemoji: an `emoji` item is refused by `effects check` and Save (an old Local
+Scene that has one plays without it until it is replaced).

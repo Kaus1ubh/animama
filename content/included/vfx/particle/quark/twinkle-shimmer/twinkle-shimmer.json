@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:twinkle-shimmer",
+  "version": 1,
+  "name": "Twinkle Shimmer",
+  "description": "A few glossy gold glints twinkle in and out around the head among tiny golden sparkles, for admiring, respectful, grateful and hopeful moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "twinkle-shimmer",
+    "slots": {
+      "particle_vfx": {
+        "label": "Twinkle Shimmer",
+        "description": "A few glossy gold glints twinkle in and out around the head among tiny golden sparkles, for admiring, respectful, grateful and hopeful moments.",
+        "anchor": "head",
+        "duration_seconds": 3.4,
+        "max_duration_seconds": 4.2,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.1,
+            "z": 0
+          },
+          "depth_offset": 0.1,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 16
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/shimmer-glow.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/shimmer-glint.png",
+      "role": "texture"
+    }
+  ]
+}

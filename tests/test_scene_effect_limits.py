@@ -50,10 +50,8 @@ def test_the_limits_match_the_parity_fixture() -> None:
 
 
 def test_a_definition_with_every_optional_layer_is_accepted() -> None:
-    capabilities = _capabilities(copy.deepcopy(ALL_LAYERS))
-    assert "animama/scene-effect/1" in capabilities
-    # The scattered emoji is an app resource, declared like a marquee emoji.
-    assert "animama/twemoji/14.0.2/2728" in capabilities
+    # Scene items are the effect's own images; no app resource is declared.
+    assert _capabilities(copy.deepcopy(ALL_LAYERS)) == ("animama/scene-effect/1",)
 
 
 @pytest.mark.parametrize("case", CASES, ids=[case["field"] for case in CASES])
@@ -115,6 +113,7 @@ def _save(tmp_path: Path, images: dict[str, bytes], *, definition: dict[str, Any
     names = list(images)
     definition["tile"]["image"] = names[0]
     definition["scatters"][0]["items"][0]["image"] = names[-1]
+    definition["scatters"][1]["items"][0]["image"] = names[0]
     store = _store(tmp_path)
     store.save_descriptor_entry(
         kind=_document("scene_effect").kind,

@@ -207,7 +207,7 @@ export async function builtInTextureCollisions(effect, builtInReferences) {
 /**
  * Report lines on a Particle Effect as the creator's Save would judge it:
  * the content readiness errors (limits, and image references that must name
- * a listed texture) and Save's conservative estimate of live particles
+ * a listed texture) and Save's conservative estimate of particles alive at once
  * against the declared budget and the runtime limit.
  */
 export async function particleSourceLines(effect, server) {

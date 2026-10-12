@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:star-burst",
+  "version": 1,
+  "name": "Star Burst",
+  "description": "A gacha-pull flash bursts above the head with a ring of light and glossy gold star shards, then glitter drifts down, for big joy and excitement.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "star-burst",
+    "slots": {
+      "particle_vfx": {
+        "label": "Star Burst",
+        "description": "A gacha-pull flash bursts above the head with a ring of light and glossy gold star shards, then glitter drifts down, for big joy and excitement.",
+        "anchor": "head",
+        "duration_seconds": 1.8,
+        "max_duration_seconds": 2.4,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.25,
+            "z": 0
+          },
+          "depth_offset": 0.14,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 38
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/burst-glow.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/burst-ring.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/glitter-glint.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/star-shard.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/burst-flash.png",
+      "role": "texture"
+    }
+  ]
+}

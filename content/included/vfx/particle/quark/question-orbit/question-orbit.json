@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:question-orbit",
+  "version": 1,
+  "name": "Question Orbit",
+  "description": "Three glossy candy question marks pop in and circle the head on a tilted orbit with a twinkling dot trail, for curious and confused moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "question-orbit",
+    "slots": {
+      "particle_vfx": {
+        "label": "Question Orbit",
+        "description": "Three glossy candy question marks pop in and circle the head on a tilted orbit with a twinkling dot trail, for curious and confused moments.",
+        "anchor": "head",
+        "duration_seconds": 3.2,
+        "max_duration_seconds": 3.6,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.23,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0.28,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 26
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/orbit-dot.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/glossy-question.png",
+      "role": "texture"
+    }
+  ]
+}

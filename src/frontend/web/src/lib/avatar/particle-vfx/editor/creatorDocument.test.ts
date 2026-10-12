@@ -13,12 +13,12 @@ import {
 } from "./creatorDocument";
 import { createParticleVFXEditorDraftFromImport } from "./draft";
 
-const flameLoop = (file: string) =>
+const rageAura = (file: string) =>
   JSON.parse(
     readFileSync(
       fileURLToPath(
         new URL(
-          `../../../../../../../../content/included/vfx/particle/quark/flame-loop/${file}`,
+          `../../../../../../../../content/included/vfx/particle/quark/rage-aura/${file}`,
           import.meta.url,
         ),
       ),
@@ -26,13 +26,13 @@ const flameLoop = (file: string) =>
     ),
   );
 
-const slot = flameLoop("flame-loop.json").runtime_defaults.slots.particle_vfx;
+const slot = rageAura("rage-aura.json").runtime_defaults.slots.particle_vfx;
 const draft = createParticleVFXEditorDraftFromImport(
-  flameLoop("particle.json"),
+  rageAura("particle.json"),
   {
     ...parseParticleVFXRuntimeConfig(slot),
-    label: "Flame loop",
-    description: "A looping flame",
+    label: "Rage aura",
+    description: "A layered flame aura",
   },
 );
 
@@ -42,7 +42,7 @@ describe("Particle creator documents", () => {
       JSON.stringify(buildParticleVFXCreatorDocument(draft)),
     );
     expect(document.schema).toBe(PARTICLE_VFX_CREATOR_DOCUMENT_SCHEMA);
-    expect(document.name).toBe("Flame loop");
+    expect(document.name).toBe("Rage aura");
     const read = readParticleVFXCreatorDocument(document);
     if (!read || "severity" in read) throw new Error("not read");
     expect(read.quarksJson).toEqual(draft.quarksJson);
@@ -56,8 +56,8 @@ describe("Particle creator documents", () => {
   it("store settings in the form Save writes and playback reads", () => {
     const stored = particleVFXRuntimeSlotConfig(draft.catalog);
     expect(stored).toMatchObject({
-      label: "Flame loop",
-      description: "A looping flame",
+      label: "Rage aura",
+      description: "A layered flame aura",
       anchor: slot.anchor,
       max_particles: slot.max_particles,
     });
@@ -73,7 +73,7 @@ describe("Particle creator documents", () => {
   });
 
   it("leave plain Quarks JSON to the Quarks import", () => {
-    expect(readParticleVFXCreatorDocument(flameLoop("particle.json"))).toBe(
+    expect(readParticleVFXCreatorDocument(rageAura("particle.json"))).toBe(
       null,
     );
   });

@@ -15,6 +15,15 @@ import {
   PopoverTrigger,
 } from "@/ui/components/popover";
 
+/**
+ * Diagnostics of valid items that play without a removed part: an Action
+ * without a removed Included effect, a Scene Effect without a Twemoji item.
+ */
+const PLAYS_WITHOUT_DIAGNOSTICS = new Set([
+  "missing_effect_dependency",
+  "scene_emoji_item_removed",
+]);
+
 /** Stay quiet during normal scans; expose recoverable catalog problems on demand. */
 export function ContentHealth({
   className,
@@ -27,13 +36,13 @@ export function ContentHealth({
   const rescan = useRescanContent();
   const { data: capabilities } = useRuntimeCapabilities();
   const canScan = capabilities?.local_filesystem_administration === true;
-  // Invalid items, and valid Actions that play without a removed Included
-  // effect until their events are repaired.
+  // Invalid items, and valid items that play without a removed part until
+  // their creator repairs them.
   const affected = (catalog.data?.items ?? []).filter(
     (item) =>
       item.status !== "valid" ||
-      item.diagnostics.some(
-        (diagnostic) => diagnostic.code === "missing_effect_dependency",
+      item.diagnostics.some((diagnostic) =>
+        PLAYS_WITHOUT_DIAGNOSTICS.has(diagnostic.code),
       ),
   );
   const needsAttention =

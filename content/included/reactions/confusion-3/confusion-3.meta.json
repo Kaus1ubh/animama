@@ -15,6 +15,12 @@
   },
   "dependencies": [
     {
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-confusion",
+      "alias": "scene-vfx-emotion-confusion",
+      "content_type": "scene_effect",
+      "config": {}
+    },
+    {
       "ref": "builtin:avatar-effect:emote",
       "alias": "emote_!",
       "content_type": "avatar_effect",
@@ -27,8 +33,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:question-marks",
-      "alias": "question-marks",
+      "ref": "builtin:particle-effect:question-orbit",
+      "alias": "question-orbit",
       "content_type": "particle_effect",
       "config": {}
     }

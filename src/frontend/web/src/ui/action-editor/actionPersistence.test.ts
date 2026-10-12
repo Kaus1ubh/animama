@@ -65,20 +65,20 @@ describe("actionDocumentForPersistence", () => {
     const document = createActionDocument("reaction");
     document.dependencies = [
       {
-        alias: "comic_pop",
+        alias: "joy_background",
         content_type: "scene_effect",
         source: {
           type: "builtin",
-          content_id: "builtin:scene-effect:comic-pop",
+          content_id: "builtin:scene-effect:background:scene-vfx-emotion-joy",
           version: 1,
         },
       },
       {
-        alias: "old_hearts",
+        alias: "old_rain",
         content_type: "particle_effect",
         source: {
           type: "builtin",
-          content_id: "builtin:particle-effect:hearts",
+          content_id: "builtin:particle-effect:rain-cloud",
           version: 1,
         },
       },
@@ -87,11 +87,11 @@ describe("actionDocumentForPersistence", () => {
       ...document.sequence,
       events: [
         {
-          id: "comic-pop",
+          id: "joy-background",
           time: 0.55,
           kind: "scene_vfx",
           sceneKind: "background_layers",
-          presetId: "comic_pop",
+          presetId: "joy_background",
         },
       ],
     };
@@ -103,21 +103,21 @@ describe("actionDocumentForPersistence", () => {
     draft.name = "New Reaction";
     draft.events = [
       {
-        id: "comic-pop",
+        id: "joy-background",
         time: 0.7,
         kind: "scene_vfx",
         sceneKind: "background_layers",
-        presetId: "comic_pop",
+        presetId: "joy_background",
       },
     ];
 
     const persisted = actionDocumentForPersistence(document, draft);
 
     expect(persisted.sequence.events).toEqual([
-      expect.objectContaining({ id: "comic-pop", time: 0.7 }),
+      expect.objectContaining({ id: "joy-background", time: 0.7 }),
     ]);
     expect(persisted.dependencies.map((value) => value.alias)).toEqual([
-      "comic_pop",
+      "joy_background",
     ]);
     expect(persisted.sequence.id).toBe("react-happy-angry");
     expect(persisted.sequence.name).toBe("React Happy → Angry");

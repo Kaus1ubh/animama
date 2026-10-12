@@ -1,0 +1,80 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:single_tear",
+  "version": 1,
+  "name": "Single Tear",
+  "description": "One small anime teardrop wells at the outer corner of one eye and slides a little way down the cheek, for quiet sadness or grief.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "undereye",
+    "attachment": {
+      "kind": "face_surface",
+      "area": "undereye",
+      "layout": "single",
+      "offset": {
+        "x": -0.02,
+        "y": -0.016
+      },
+      "part": "face_skin",
+      "pivot": "top-center",
+      "scale": {
+        "x": 1.5,
+        "y": 1.5
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "single_tear.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "opacity": 0,
+            "scale": 0.2,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 1.1,
+            "t": 0.35
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "scale": 1,
+            "t": 0.5
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "t": 0.8
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 0.03
+            },
+            "t": 2
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "single_tear.png",
+      "role": "image"
+    }
+  ]
+}

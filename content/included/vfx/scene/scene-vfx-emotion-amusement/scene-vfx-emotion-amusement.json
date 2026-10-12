@@ -4,49 +4,117 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-amusement",
   "version": 1,
   "name": "Emotion Amusement",
-  "description": "Scene background effect preset",
+  "description": "A fresh mint-to-lime pop background with halftone dots behind the Avatar and music notes and giggle squiggles bobbing past, for amused, giggly moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#fff0a8"
+      "enabled": false,
+      "color": "#000000"
     },
     "pattern": {
       "enabled": true,
       "pattern": "polkadot",
       "color": "#ffffff",
-      "size": 20,
-      "spacing": 18,
-      "opacity": 0.32
+      "size": 8,
+      "spacing": 24,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 135,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
         {
-          "id": "emoji-face-tears-joy",
-          "kind": "image",
-          "label": "Face with Tears of Joy 😂",
-          "image": "emoji-face-tears-joy-1f602.svg"
+          "color": "#7fe0d0",
+          "position": 0
+        },
+        {
+          "color": "#c8f56b",
+          "position": 1
         }
       ]
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "note",
+            "kind": "image",
+            "label": "Music note",
+            "image": "music-note.png"
+          },
+          {
+            "id": "squiggle",
+            "kind": "image",
+            "label": "Giggle squiggle",
+            "image": "giggle-squiggle.png"
+          }
+        ],
+        "count": 34,
+        "seed": 29,
+        "minSize": 34,
+        "maxSize": 64,
+        "minRotationDeg": -20,
+        "maxRotationDeg": 20,
+        "minOpacity": 0.95,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "diagonal-up-right",
+        "speedPxPerSec": 40,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "pop"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-face-tears-joy-1f602.svg",
+      "path": "music-note.png",
+      "role": "image"
+    },
+    {
+      "path": "giggle-squiggle.png",
       "role": "image"
     }
   ]

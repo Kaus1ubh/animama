@@ -10,6 +10,8 @@
  * inclusive.
  */
 
+import { isSceneLegacyEmojiItem } from "./types";
+
 type Range = readonly [number, number];
 
 export const SCENE_EFFECT_LIMITS = {
@@ -141,6 +143,19 @@ export function sceneDefinitionLimitIssues(
         message: `${field}: the minimum cannot exceed the maximum.`,
       });
   };
+  // Animama no longer provides Twemoji: Save refuses each emoji item, which
+  // a Scene saved before the sticker set plays without.
+  const legacyItems = (items: unknown, field: string) => {
+    if (!Array.isArray(items)) return;
+    items.forEach((item, index) => {
+      if (!isSceneLegacyEmojiItem(item)) return;
+      const label = record(item)?.label;
+      issues.push({
+        field: `${field}.${index}`,
+        message: `${typeof label === "string" && label.trim() ? label : "This item"} is an emoji, which Animama no longer provides. Replace it with a sticker or image, or remove it.`,
+      });
+    });
+  };
   const count = (items: unknown, [minimum, maximum]: Range, field: string) => {
     const length = Array.isArray(items) ? items.length : 0;
     if (length < minimum || length > maximum)
@@ -207,6 +222,7 @@ export function sceneDefinitionLimitIssues(
   if (marquee) {
     const M = L.marquee;
     count(marquee.items, [0, M.items], "marquee.items");
+    legacyItems(marquee.items, "marquee.items");
     check(marquee, "itemSize", M.itemSize, "marquee.itemSize");
     check(marquee, "gap", M.gap, "marquee.gap");
     check(marquee, "rowGap", M.rowGap, "marquee.rowGap");
@@ -288,6 +304,7 @@ export function sceneDefinitionLimitIssues(
       if (!layer) return;
       const field = (name: string) => `scatters.${index}.${name}`;
       count(layer.items, S.items, field("items"));
+      legacyItems(layer.items, field("items"));
       check(layer, "count", S.count, field("count"), true);
       total += Number(layer.count) || 0;
       check(layer, "seed", L.seed, field("seed"), true);

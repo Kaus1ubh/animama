@@ -9,8 +9,8 @@ reason about lifecycle and resource ownership. UI controls are in
 A Particle Effect is a typed `particle_effect` catalog item with runtime defaults,
 a Quarks manifest, and registered texture files. Included assets live under
 `content/included/vfx/particle`; Local items are saved through the typed content
-API. The code-defined `AVATAR_PARTICLE_VFX_CATALOG` supplies authoring defaults,
-not an unrestricted runtime fallback.
+API. `AVATAR_PARTICLE_VFX_CATALOG`, read at build time from the Included
+descriptors, supplies authoring defaults, not an unrestricted runtime fallback.
 
 The normal path is:
 

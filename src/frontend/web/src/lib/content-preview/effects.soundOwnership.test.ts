@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { PoseController } from "@/lib/avatar/poses/PoseController";
 import type { AnimaPoseClipV2 } from "@/lib/avatar/poses/animaPoseClip";
 import type { ResolvedRuntimeAudio } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
-import { getSceneBackgroundLayerPresetById } from "@/lib/scene-vfx/catalog";
+import { createTestSceneBackground } from "@/lib/scene-vfx/sceneVFXTestFixtures";
 import {
   ContentPreviewApplySoundPlayer,
   createContentPreviewClipEventBridge,
@@ -57,8 +57,7 @@ function fixture(
     },
     expressionManager: null,
   } as unknown as VRM);
-  const scene = getSceneBackgroundLayerPresetById("kawaii-sparkles");
-  if (!scene) throw new Error("Missing scene VFX fixture");
+  const scene = createTestSceneBackground();
   const catalog = {
     resolveAudio,
     loadSceneVFX: async () => ({ ...scene, sound: { onApply: "tap" } }),

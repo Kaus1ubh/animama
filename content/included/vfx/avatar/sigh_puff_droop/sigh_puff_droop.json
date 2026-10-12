@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:sigh_puff_droop",
+  "version": 1,
+  "name": "Sigh Puff Droop",
+  "description": "The deflated anime sigh: a small pale grey-blue breath puff leaves the side of the mouth and droops downward as it fades, for a quiet letdown or mild disappointment.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "mouth",
+      "offset": {
+        "x": 0.034,
+        "y": 0,
+        "z": 0.04
+      },
+      "rotationDeg": {
+        "x": 0,
+        "y": -30,
+        "z": 0
+      },
+      "scale": {
+        "x": 1.05,
+        "y": 1.05
+      }
+    },
+    "art": {
+      "image": "sigh_puff.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "offset": {
+              "x": -0.01,
+              "y": 0.006
+            },
+            "opacity": 0,
+            "scale": 0.3,
+            "t": 0
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "opacity": 1,
+            "scale": 1.08,
+            "t": 0.14
+          },
+          {
+            "scale": 0.96,
+            "t": 0.24
+          },
+          {
+            "scale": 1,
+            "t": 0.32
+          },
+          {
+            "offset": {
+              "x": 0.004,
+              "y": -0.012
+            },
+            "opacity": 0.9,
+            "scale": 1.02,
+            "t": 0.9
+          },
+          {
+            "offset": {
+              "x": 0.006,
+              "y": -0.026
+            },
+            "opacity": 0,
+            "scale": 1.06,
+            "t": 1.6
+          }
+        ]
+      }
+    },
+    "faceOptions": {
+      "faceCleanup": false
+    }
+  },
+  "files": [
+    {
+      "path": "sigh_puff.png",
+      "role": "image"
+    }
+  ]
+}

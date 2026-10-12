@@ -34,9 +34,9 @@ const media = (overrides: Partial<PreviewMedia> = {}): PreviewMedia => ({
   avatarEffects: [{ alias: "swirl", effect: swirl }],
   particleEffects: [
     {
-      alias: "question-marks",
-      name: "Question Marks",
-      description: "Floating question marks.",
+      alias: "question-orbit",
+      name: "Question Orbit",
+      description: "Orbiting question marks.",
       manifestUrl: "/__preview/media/def/particle.json",
       config: { anchor: "head", duration_seconds: 2, max_particles: 6 },
     },
@@ -109,11 +109,11 @@ describe("PreviewMediaProvider", () => {
 
   it("builds a Particle Effect from its manifest URL and runtime config", async () => {
     const particle = await new PreviewMediaProvider(media()).resolveParticleVFX(
-      "question-marks",
+      "question-orbit",
     );
     expect(particle).toMatchObject({
-      id: "question-marks",
-      label: "Question Marks",
+      id: "question-orbit",
+      label: "Question Orbit",
       assetPath: "/__preview/media/def/particle.json",
       defaultAnchor: "head",
       defaultDurationSec: 2,
@@ -188,7 +188,7 @@ describe("PreviewMediaProvider", () => {
       notices: [],
     });
     expect(await provider.loadAvatarVFX("swirl")).toBeNull();
-    expect(await provider.resolveParticleVFX("question-marks")).toBeNull();
+    expect(await provider.resolveParticleVFX("question-orbit")).toBeNull();
     expect(
       provider.resolveSceneVFX("background_layers", "joy-background"),
     ).toBeNull();
@@ -200,13 +200,13 @@ describe("previewMediaNotices", () => {
     const events: AnimaPoseClipV2["events"] = [
       { id: "a", time: 0.1, kind: "avatar_vfx", effectId: "swirl" },
       { id: "b", time: 0.1, kind: "avatar_vfx", effectId: "missing" },
-      { id: "c", time: 0.2, kind: "particle_vfx", effectId: "question-marks" },
+      { id: "c", time: 0.2, kind: "particle_vfx", effectId: "question-orbit" },
       {
         id: "d",
         time: 0.5,
         kind: "scene_vfx",
         sceneKind: "background_layers",
-        presetId: "kawaii-sparkles",
+        presetId: "scene-vfx-emotion-joy",
       },
       {
         id: "d2",
@@ -225,7 +225,7 @@ describe("previewMediaNotices", () => {
     ).toEqual([
       "glow (local:x) does not play: gone",
       "Avatar Effect “missing” has no resolved dependency, so it does not play.",
-      "Scene Effect “kawaii-sparkles” has no resolved dependency, so it does not play.",
+      "Scene Effect “scene-vfx-emotion-joy” has no resolved dependency, so it does not play.",
       "Sounds are not played in the preview.",
     ]);
     expect(previewMediaNotices(clip(events.slice(0, 1)), null)).toEqual([

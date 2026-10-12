@@ -100,9 +100,9 @@ function fakeRepo() {
     }),
     "content/included/vfx/avatar/idea_bulb_fingertip/idea_bulb_fingertip.json":
       JSON.stringify({ content_type: "avatar_effect", content_id: bulbRef }),
-    "content/included/vfx/scene/sparkles/sparkles.json": JSON.stringify({
+    "content/included/vfx/scene/glitter/glitter.json": JSON.stringify({
       content_type: "scene_effect",
-      content_id: "builtin:scene-effect:background:sparkles",
+      content_id: "builtin:scene-effect:background:glitter",
     }),
   };
   return {
@@ -384,7 +384,7 @@ test("adds a Gesture with the Included dependencies its events play", async () =
         dependencies: [
           {
             ...bulbDependency,
-            ref: "builtin:scene-effect:background:sparkles",
+            ref: "builtin:scene-effect:background:glitter",
             content_type: "scene_effect",
           },
         ],

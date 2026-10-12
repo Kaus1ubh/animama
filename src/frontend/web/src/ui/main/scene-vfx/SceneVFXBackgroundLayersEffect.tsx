@@ -6,13 +6,12 @@ import type {
   ResolvedSceneBackgroundLayersVFXEntry,
   SceneVFXRuntimeEntry,
 } from "@/lib/scene-vfx/types";
-import { SCENE_EFFECT_LIMITS } from "@/lib/scene-vfx/limits";
 import { cn } from "@/lib/utils";
 import { SceneVFXFlashLayer } from "./SceneVFXFlashLayer";
 import { SceneVFXGradientLayer } from "./SceneVFXGradientLayer";
 import { SceneVFXMarqueeLayer } from "./SceneVFXMarqueeLayer";
 import { SceneVFXPatternLayer } from "./SceneVFXPatternLayer";
-import { SceneVFXScatterLayer } from "./SceneVFXScatterLayer";
+import { SceneVFXScatterLayers } from "./SceneVFXScatterLayer";
 import { SceneVFXScreenLayer } from "./SceneVFXScreenLayer";
 import { SceneVFXSolidLayer } from "./SceneVFXSolidLayer";
 import { SceneVFXTileLayer } from "./SceneVFXTileLayer";
@@ -48,12 +47,7 @@ export function SceneVFXBackgroundLayersEffect({
       <SceneVFXTileLayer layer={entry.tile} />
       <SceneVFXScreenLayer layer={entry.screen} />
       <SceneVFXMarqueeLayer layer={entry.marquee} />
-      {/* Validated content has at most this many; the cap guards the rest. */}
-      {entry.scatters
-        ?.slice(0, SCENE_EFFECT_LIMITS.scatter.layers)
-        .map((layer, index) => (
-          <SceneVFXScatterLayer key={index} layer={layer} />
-        ))}
+      <SceneVFXScatterLayers layers={entry.scatters} />
       {/* A new start remounts the flash, so its one-shot fade plays again. */}
       <SceneVFXFlashLayer
         key={`${runtimeEntry.runtimeId ?? entry.id}:${runtimeEntry.startedAtMs}`}

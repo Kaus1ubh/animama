@@ -55,6 +55,7 @@ export type { ParticleVFXTextureResult } from "./textureFiles";
 export { validateParticleVFXEditorDraft } from "./validation";
 export {
   collectParticleVFXContentReferences,
+  PARTICLE_VFX_MAX_EMITTERS,
   validateParticleVFXContentReadiness,
 } from "./contentReadiness";
 export { estimateParticleVFXParticles } from "./particleEstimate";

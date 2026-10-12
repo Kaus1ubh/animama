@@ -27,14 +27,19 @@ changes the live chat scene or equips anything.
 ## Items and images
 
 Marquee and scatter inspectors list their items with move up/down and remove
-buttons, **Add emoji** (app Twemoji) and **Add private image**; the Tile
+buttons, a sticker picker (Animama's built-in stickers by family, with
+thumbnails; a chosen sticker's PNG is added as the Scene's own image, labelled
+with the sticker's name) and **Add private image**; the Tile
 inspector has **Choose tile image** / **Replace tile image**. A chosen image
 is checked before it is decoded (8 MiB, 4096 px, 16 images and 32 MiB per
 Scene; PNG, JPEG, WebP or restricted static SVG) and saved under a name made
 from its file name (letters, digits, `.`, `_`, `-`) with the extension of its
 bytes. When that name matches an image the document shows but has no bytes
 for (after an import or a recovery without images), the file fills every use
-of it, whichever image input was used; otherwise it is added as a new item.
+of it, whichever image input was used; otherwise it is added as a new item
+(bytes the Scene already carries, such as a sticker added twice, are reused).
+An old Scene's `emoji` item (Twemoji, no longer provided) shows as *Missing
+emoji* with a prompt to replace or remove it, and blocks Save until it is.
 The creator is busy (inputs and Import disabled) until each image is placed.
 
 ## Import and export

@@ -4,49 +4,111 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-nervousness",
   "version": 1,
   "name": "Emotion Nervousness",
-  "description": "Scene background effect preset",
+  "description": "A pale grey-blue frame with thin jittery lines and anime sweat drops falling beside the Avatar after a soft flash, for nervous moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#e6f3ff"
+      "enabled": false,
+      "color": "#000000"
     },
     "pattern": {
-      "enabled": true,
-      "pattern": "polkadot",
+      "enabled": false,
+      "pattern": "none",
       "color": "#ffffff",
-      "size": 20,
-      "spacing": 18,
+      "size": 10,
+      "spacing": 20,
       "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
         {
-          "id": "emoji-sweat-droplets",
-          "kind": "image",
-          "label": "Sweat Droplets 💦",
-          "image": "emoji-sweat-droplets-1f4a6.svg"
+          "color": "#b8c7d6",
+          "position": 0
+        },
+        {
+          "color": "#93a5b9",
+          "position": 0.5
+        },
+        {
+          "color": "#6f8299",
+          "position": 1
         }
       ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "lines",
+      "color": "#3e4f66",
+      "opacity": 0.35,
+      "count": 30,
+      "minLength": 0.55,
+      "maxLength": 1,
+      "minWidthPx": 0.5,
+      "maxWidthPx": 1.4,
+      "swaySeconds": 1.5,
+      "seed": 19
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "sweat",
+            "kind": "image",
+            "label": "Sweat drop",
+            "image": "sweat-drop.png"
+          }
+        ],
+        "count": 10,
+        "seed": 54,
+        "minSize": 36,
+        "maxSize": 60,
+        "minRotationDeg": -20,
+        "maxRotationDeg": 20,
+        "minOpacity": 0.85,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 0.6,
+        "keepFaceClear": true,
+        "direction": "down",
+        "speedPxPerSec": 70,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      }
+    ],
+    "flash": {
+      "enabled": true,
+      "color": "#eef4fa",
+      "durationMs": 120
     }
   },
   "files": [
     {
-      "path": "emoji-sweat-droplets-1f4a6.svg",
+      "path": "sweat-drop.png",
       "role": "image"
     }
   ]

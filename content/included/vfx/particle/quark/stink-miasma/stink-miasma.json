@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:stink-miasma",
+  "version": 1,
+  "name": "Stink Miasma",
+  "description": "A murky olive stink aura hangs all around the upper body, its whole outline curling up in wavy fumes, with glossy swamp bubbles wobbling up and popping, the anime stink cloud for an ew-gross moment.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "stink-miasma",
+    "slots": {
+      "particle_vfx": {
+        "label": "Stink Miasma",
+        "description": "A murky olive stink aura hangs all around the upper body, its whole outline curling up in wavy fumes, with glossy swamp bubbles wobbling up and popping, the anime stink cloud for an ew-gross moment.",
+        "anchor": "chest",
+        "duration_seconds": 4,
+        "max_duration_seconds": 4.6,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.05,
+            "z": -0.15
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 37
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/stink-aura.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/soft-wisp-sheet.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/gross-bubble.png",
+      "role": "texture"
+    }
+  ]
+}

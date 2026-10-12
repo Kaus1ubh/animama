@@ -7,12 +7,14 @@ Only data is admitted; resource references must name registered package files.
 
 from __future__ import annotations
 
+import copy
 import json
 import math
 import re
 import struct
 import xml.etree.ElementTree as ET
 from collections.abc import Iterable, Mapping
+from dataclasses import replace
 from pathlib import Path, PurePosixPath
 from typing import Any, BinaryIO
 
@@ -27,7 +29,7 @@ from animama.app.contracts.avatar_effect import (
 from animama.app.contracts.content_package import NON_PORTABLE_REFERENCES_CAPABILITY
 from animama.app.contracts.scene_effect_limits import SCENE_EFFECT_LIMITS
 from animama.app.services.effect_art_validation import emitter_grid_issue
-from animama.domain.content_catalog import ContentDiagnostic, ContentKind
+from animama.domain.content_catalog import SCENE_EMOJI_ITEM_REMOVED, ContentDiagnostic, ContentKind
 from animama.domain.content_documents import (
     AvatarEffectDocumentV1,
     ContentDocumentError,
@@ -68,10 +70,6 @@ BUILTIN_POSES = frozenset(
     "right-thumbs-up shy-finger-poke-1 shy-finger-poke-2 single-hand-on-heart soldier-salute "
     "soldier-salute-2 thinking-hand-on-chin thinking-head-scratch-1 thinking-head-scratch-2".split()
 )
-BUILTIN_EMOJI = frozenset(
-    "1f305 1f327 1f338 1f380 1f389 1f3af 1f3c5 1f44e 1f451 1f496 1f4a2 1f4a5 1f4a6 1f4ab "
-    "1f602 1f61e 1f622 1f633 1f64f 1f914 1f917 1f922 1f929 1f97a 26a0 2728 2753 2b50".split()
-)
 SUPPORTED_CAPABILITIES = frozenset(
     {
         "animaPose/1.0",
@@ -86,8 +84,9 @@ SUPPORTED_CAPABILITIES = frozenset(
         NON_PORTABLE_REFERENCES_CAPABILITY,
     }
     | {f"animama/builtin-pose/1/{name}" for name in BUILTIN_POSES}
-    | {f"animama/twemoji/14.0.2/{name}" for name in BUILTIN_EMOJI}
 )
+# Packages from before the sticker set declared each Twemoji glyph they used.
+_RETIRED_TWEMOJI_CAPABILITY = "animama/twemoji/"
 _PARTICLE_TYPES = frozenset(
     "ConstantValue IntervalValue PiecewiseBezier ConstantColor ColorRange RandomColor RandomColorBetweenGradient "
     "Gradient CLinearFunction AxisAngle Euler RandomQuat ColorOverLife ForceOverLife FrameOverLife "
@@ -242,6 +241,12 @@ def validate_declared_capabilities(capabilities: Iterable[str]) -> None:
             raise ContentDocumentError(AVATAR_EFFECT_CONVERSION_REQUIRED, PACKAGE_CONVERSION_HINT)
         if capability == RETIRED_ANIMA_POSE_CLIP_SCHEMA:
             raise ContentDocumentError(CLIP_FORMAT_UNSUPPORTED, unsupported_clip_format_message(capability))
+        if isinstance(capability, str) and capability.startswith(_RETIRED_TWEMOJI_CAPABILITY):
+            raise ContentDocumentError(
+                SCENE_EMOJI_ITEM_REMOVED,
+                "This package uses Twemoji emoji in a Scene Effect, which Animama no longer provides. "
+                "Replace or remove each emoji item in its creator, then export the package again",
+            )
         if not isinstance(capability, str) or capability not in SUPPORTED_CAPABILITIES:
             raise ContentDocumentError("package_capability_unsupported", "Package requires an unavailable capability")
         if capability in seen:
@@ -323,26 +328,100 @@ _SCENE_DIRECTIONS = frozenset(
 )
 
 
-def _scene_items(
-    items: Any, document: TypedContentDocument, extra: set[str], field: str, *, path: str | None = None
-) -> list[Any]:
-    """Validate marquee or scatter items: registered images or app emoji."""
+def _scene_items(items: Any, document: TypedContentDocument, field: str, *, path: str | None = None) -> list[Any]:
+    """Validate marquee or scatter items: each names a registered image.
+
+    An ``emoji`` item (Twemoji, no longer provided) is refused by name.
+    """
     values = _array(items, field, path=path)
     for index, raw in enumerate(values):
         item_path = _child(path, index)
         item = _object(raw, f"{field} item", path=item_path)
-        _fields(item, "id kind label image emoji provider", f"{field} item", path=item_path)
+        if item.get("kind") == "emoji":
+            # Named as a scan and Save name it (``marquee.items.0``).
+            name = _dotted(item_path)
+            raise ContentDocumentError(SCENE_EMOJI_ITEM_REMOVED, _emoji_item_message(item, name), field=name)
+        _fields(item, "id kind label image", f"{field} item", path=item_path)
         _string(item.get("id"), f"{field} item id")
         _string(item.get("label"), f"{field} item label")
-        if _enum(item.get("kind"), {"image", "emoji"}, f"{field} item") == "image":
-            _resource(item.get("image"), document, {"image", "texture"}, path=_child(item_path, "image"))
-        else:
-            _enum(item.get("provider", "twemoji"), {"twemoji"}, "emoji provider")
-            glyph = _string(item.get("emoji"), "emoji")
-            codepoint = "-".join(f"{ord(char):x}" for char in glyph)
-            _require(codepoint in BUILTIN_EMOJI, "Emoji resource is unavailable in this app")
-            extra.add(f"animama/twemoji/14.0.2/{codepoint}")
+        _enum(item.get("kind"), {"image"}, f"{field} item")
+        _resource(item.get("image"), document, {"image", "texture"}, path=_child(item_path, "image"))
     return values
+
+
+def _dotted(path: str | None) -> str | None:
+    """A JSON path in the dotted form the creator uses: ``scatters[0]`` -> ``scatters.0``."""
+    return None if path is None else re.sub(r"\[(\d+)\]", r".\1", path)
+
+
+def _emoji_item_message(item: dict[str, Any], field: str | None, *, scanned: bool = False) -> str:
+    """Name an emoji item; a scan adds that the Scene still plays without it."""
+    label = item.get("label")
+    name = f" ({label})" if isinstance(label, str) and label.strip() else ""
+    if scanned:
+        return (
+            f"Scene item {field}{name} is an emoji, which Animama no longer provides; it plays without it. "
+            "Open the Scene Effect to replace it with a sticker or image, or remove it"
+        )
+    return (
+        f"Scene item {field}{name} is an emoji, which Animama no longer provides; "
+        "replace it with a sticker or image, or remove it"
+    )
+
+
+def scene_emoji_items(definition: Any) -> tuple[tuple[str, dict[str, Any]], ...]:
+    """Each ``emoji`` marquee or scatter item, named by field (``marquee.items.0``).
+
+    Reads defensively: a malformed definition has its own diagnostic.
+    """
+    if not isinstance(definition, dict):
+        return ()
+    lists: list[tuple[str, Any]] = []
+    marquee = definition.get("marquee")
+    if isinstance(marquee, dict):
+        lists.append(("marquee.items", marquee.get("items")))
+    scatters = definition.get("scatters")
+    if isinstance(scatters, list):
+        lists.extend(
+            (f"scatters.{index}.items", layer.get("items"))
+            for index, layer in enumerate(scatters)
+            if isinstance(layer, dict)
+        )
+    return tuple(
+        (f"{field}.{index}", item)
+        for field, items in lists
+        if isinstance(items, list)
+        for index, item in enumerate(items)
+        if isinstance(item, dict) and item.get("kind") == "emoji"
+    )
+
+
+def _without_emoji_items(definition: dict[str, Any]) -> tuple[dict[str, Any], frozenset[int]]:
+    """The definition as it plays, its emoji items skipped, and the scatter layers they filled.
+
+    A scatter layer of only emoji items stays, empty, so every layer keeps the
+    index the creator and Save name it by; its item count is not checked.
+    """
+    playable = copy.deepcopy(definition)
+
+    def playable_items(items: Any) -> Any:
+        if not isinstance(items, list):
+            return items
+        return [item for item in items if not (isinstance(item, dict) and item.get("kind") == "emoji")]
+
+    marquee = playable.get("marquee")
+    if isinstance(marquee, dict):
+        marquee["items"] = playable_items(marquee.get("items"))
+    emptied: set[int] = set()
+    scatters = playable.get("scatters")
+    if isinstance(scatters, list):
+        for index, layer in enumerate(scatters):
+            if isinstance(layer, dict):
+                items = playable_items(layer.get("items"))
+                if items == [] and layer.get("items"):
+                    emptied.add(index)
+                layer["items"] = items
+    return playable, frozenset(emptied)
 
 
 _SCENE_COLOR = re.compile(r"^#[0-9a-fA-F]{6}$")
@@ -384,11 +463,15 @@ def _scene_ordered(owner: dict[str, Any], low: str, high: str, field: str) -> No
     _require(owner[low] <= owner[high], f"{field}: the minimum cannot exceed the maximum", field)
 
 
-def _scene_background_layers(definition: dict[str, Any], document: TypedContentDocument, extra: set[str]) -> None:
+def _scene_background_layers(
+    definition: dict[str, Any], document: TypedContentDocument, *, emoji_emptied_scatters: frozenset[int]
+) -> None:
     """The optional background layers (C1-C6), with the shared limits.
 
     The creator checks the same ranges (``lib/scene-vfx/limits.ts``); both
-    read ``SCENE_EFFECT_LIMITS``, kept equal by a parity fixture.
+    read ``SCENE_EFFECT_LIMITS``, kept equal by a parity fixture. A scatter
+    layer in ``emoji_emptied_scatters`` lost all its (emoji) items, which are
+    reported on their own, so its item count is not checked.
     """
     limits = SCENE_EFFECT_LIMITS
     seed = limits["seed"]
@@ -480,8 +563,9 @@ def _scene_background_layers(definition: dict[str, Any], document: TypedContentD
                 path=path,
             )
             _scene_flags(layer, "enabled keepFaceClear alternateSpin", field)
-            items = _scene_items(layer.get("items"), document, extra, "scatter", path=f"{path}.items")
-            _scene_count(items, sc["items"], f"{field}.items")
+            items = _scene_items(layer.get("items"), document, "scatter", path=f"{path}.items")
+            if index not in emoji_emptied_scatters:
+                _scene_count(items, sc["items"], f"{field}.items")
             _scene_range(layer, "count", sc["count"], f"{field}.count", integer=True)
             total += int(layer["count"])
             _scene_range(layer, "seed", seed, f"{field}.seed", integer=True)
@@ -509,7 +593,9 @@ def _scene_background_layers(definition: dict[str, Any], document: TypedContentD
         _scene_range(flash, "durationMs", limits["flash"]["durationMs"], "flash.duration", integer=True)
 
 
-def _scene_effect(definition: dict[str, Any], document: TypedContentDocument) -> set[str]:
+def _scene_effect(
+    definition: dict[str, Any], document: TypedContentDocument, *, emoji_emptied_scatters: frozenset[int]
+) -> None:
     _fields(
         definition,
         "schema kind durationMs coverUiOverlays dismissOnInput soundAlias solid pattern marquee "
@@ -523,7 +609,6 @@ def _scene_effect(definition: dict[str, Any], document: TypedContentDocument) ->
     limits = SCENE_EFFECT_LIMITS
     if definition.get("durationMs") is not None:
         _scene_range(definition, "durationMs", limits["durationMs"], "durationMs", integer=True)
-    extra: set[str] = set()
     if kind == "focus_lines":
         f = limits["focus"]
         _enum(definition.get("renderPlacement"), {"behind_avatar", "front_of_avatar"}, "focus placement")
@@ -553,7 +638,7 @@ def _scene_effect(definition: dict[str, Any], document: TypedContentDocument) ->
         for key in ("minVisibleMs", "maxVisibleMs", "minHiddenMs", "maxHiddenMs"):
             _scene_range(animation, key, f["animationMs"], f"focus.animation.{key}")
         _scene_range(animation, "opacityJitter", f["opacityJitter"], "focus.animation.opacityJitter")
-        return extra
+        return
     solid = _object(definition.get("solid"), "solid")
     _fields(solid, "enabled color", "solid")
     _require(type(solid.get("enabled")) is bool, "Solid enabled must be boolean")
@@ -582,10 +667,9 @@ def _scene_effect(definition: dict[str, Any], document: TypedContentDocument) ->
     _scene_range(marquee, "opacity", m["opacity"], "marquee.opacity")
     _enum(marquee.get("direction"), _SCENE_DIRECTIONS, "marquee direction")
     _enum(marquee.get("itemRotationMode"), {"upright", "follow-track"}, "marquee rotation")
-    items = _scene_items(marquee.get("items"), document, extra, "marquee", path="marquee.items")
+    items = _scene_items(marquee.get("items"), document, "marquee", path="marquee.items")
     _scene_count(items, (0, m["items"]), "marquee.items")
-    _scene_background_layers(definition, document, extra)
-    return extra
+    _scene_background_layers(definition, document, emoji_emptied_scatters=emoji_emptied_scatters)
 
 
 SCENE_DEFINITION_INVALID = "scene_definition_invalid"
@@ -596,16 +680,37 @@ def validate_scene_effect_definition(document: SceneEffectDocumentV1) -> tuple[C
 
     A definition outside the shared limits, or one the runtime cannot draw, is
     reported against the field it names, so Save refuses it and a Local folder
-    shows why it is unavailable.
+    shows why it is unavailable. Each emoji item is reported on its own
+    (``SCENE_EMOJI_ITEM_REMOVED``, which a Local scan tolerates) and the rest
+    of the definition is checked as it plays, without those items.
     """
     if document.definition is None:
         return ()
+    emoji_items = scene_emoji_items(document.definition)
+    diagnostics = [
+        ContentDiagnostic(SCENE_EMOJI_ITEM_REMOVED, _emoji_item_message(item, path, scanned=True))
+        for path, item in emoji_items
+    ]
+    playable, emptied = _without_emoji_items(document.definition) if emoji_items else (document.definition, frozenset())
     try:
-        derive_document_capabilities(document)
+        _scene_effect_capabilities(replace(document, definition=playable), emoji_emptied_scatters=emptied)
     except ContentDocumentError as exc:
         # The diagnostic's path is a file; the message names the JSON field.
-        return (ContentDiagnostic(SCENE_DEFINITION_INVALID, str(exc)),)
-    return ()
+        diagnostics.append(ContentDiagnostic(SCENE_DEFINITION_INVALID, str(exc)))
+    return tuple(diagnostics)
+
+
+def _scene_effect_capabilities(
+    document: SceneEffectDocumentV1, *, emoji_emptied_scatters: frozenset[int] = frozenset()
+) -> tuple[str, ...]:
+    """Validate a Scene Effect definition; see ``_scene_background_layers`` for the emptied layers."""
+    definition = _object(document.definition, "Effect definition")
+    _safe_data(definition)
+    schema = "animama/scene-effect/1"
+    _require(definition.get("schema") == schema, "Unsupported effect definition schema")
+    _sound(definition, document)
+    _scene_effect(definition, document, emoji_emptied_scatters=emoji_emptied_scatters)
+    return (schema,)
 
 
 def derive_document_capabilities(document: TypedContentDocument) -> tuple[str, ...]:
@@ -624,12 +729,7 @@ def derive_document_capabilities(document: TypedContentDocument) -> tuple[str, .
     if isinstance(document, AvatarEffectDocumentV1):
         return (validate_avatar_effect_document(document),)
     if isinstance(document, SceneEffectDocumentV1):
-        definition = _object(document.definition, "Effect definition")
-        _safe_data(definition)
-        schema = "animama/scene-effect/1"
-        _require(definition.get("schema") == schema, "Unsupported effect definition schema")
-        _sound(definition, document)
-        return tuple(sorted({schema} | _scene_effect(definition, document)))
+        return _scene_effect_capabilities(document)
     if isinstance(document, ParticleEffectDocumentV1):
         _require(document.definition is None, "Particle Effects require a registered Quarks manifest")
         _require(
@@ -697,7 +797,7 @@ def _clip_event_dependencies(
 ) -> None:
     """Require exactly one typed edge for every Action FX/audio selector.
 
-    Pose/Twemoji capabilities describe checked app primitives. FX/audio names
+    Pose capabilities describe checked app primitives. FX/audio names
     have no such fallback: their content must be in the reviewed package graph.
     Count aliases across every kind before checking the expected kind, because
     runtime alias maps cannot disambiguate a same-name edge of another type.

@@ -22,8 +22,10 @@ Runtime code lives under:
 - `src/frontend/web/src/lib/avatar/poses/animaPoseClip/`
 - `src/frontend/web/src/lib/avatar/Avatar.ts`
 
-The code-defined catalog supplies authoring defaults. Live playback resolves only
-the verified entries in the mounted `AnimaRuntimeCatalog`.
+`AVATAR_PARTICLE_VFX_CATALOG` is read at build time from the Included
+descriptors (`quark/<stem>/<stem>.json`) and backs the debug panel and authoring
+defaults; there is no hand-written copy. Live playback resolves only the
+verified entries in the mounted `AnimaRuntimeCatalog`.
 
 ## Bundled media
 
@@ -33,7 +35,8 @@ its manifest and referenced textures as registered catalog files. Raw
 downloaded texture packs are authoring source material only; mounted runtime
 entries do not fetch them through public paths.
 
-Regenerate the curated textures and authored quarks JSON with:
+The creator's curated built-in textures live in
+`content/included/vfx/particle/particle-vfx/textures/`. Regenerate them with:
 
 ```bash
 node scripts/generate-particle-vfx-assets.mjs \
@@ -45,20 +48,18 @@ node scripts/generate-particle-vfx-assets.mjs \
 Run from `src/frontend`. The source roots must contain the original pack
 layouts. The generator requires a new staging directory outside
 `content/included` and refuses an existing destination. It writes PNG textures,
-quarks JSON and a texture manifest for review; it does not install or update
-Included content. Review the generated paths and provenance before copying
-outputs into typed entries. Final typed entries use safe manifest-relative
-texture paths.
+the texture manifest and the folder README for review; it does not install or
+update Included content. Review the generated paths and provenance before
+copying outputs. Particle Effects are authored in the creator and carry their
+own texture copies under safe manifest-relative paths.
 
 Use PNG with transparent alpha for billboards, prefer square 256x256 or
-512x512 textures for static sprites, disable particle material depth writes,
+512x512 textures for static sprites (up to 1024x1024 for detailed hero art), disable particle material depth writes,
 and keep local-space emitters for effects that should follow avatar anchors.
 Curated flipbook atlases are tracked in the same texture directory. The
 generator normalizes Brackeys TGA flipbooks and predrawn PNG atlases into PNG
 runtime assets, then records `uTileCount`, `vTileCount`, frame counts,
 `blendTiles`, and recommended `FrameOverLife` ranges in the editor manifest.
-It also normalizes Kenney fire, flame, ember, smoke, and light sprites used by
-the layered `flame-loop` catalog effect.
 
 ### Effect textures
 
@@ -76,6 +77,23 @@ package import):
 | Each texture | 4 MiB, 2048 px per side, 2048² px |
 | Per effect | 16 textures, 32 MiB |
 | Sprite sheet grid | at most 16 tiles each way (U and V tile counts) |
+
+three.quarks' billboard shader tone-maps (ACES Filmic in chat) but has no
+sRGB output step, so a texture with an empty `colorSpace` (every Included
+effect) shows pure white near RGB 194. A manifest may set a texture's
+`colorSpace` to `"srgb"`; the loader, creator preview, review renders and Save
+keep it, but it only darkens mid-tones and does not restore white.
+
+A manifest material may set the three.js field `toneMapped: false` to skip
+tone mapping for the emitters that use it. Their stored texture values then
+reach the canvas unchanged (white 255, grey 128 stays 128) with the texture's
+`colorSpace` left empty; an `"srgb"` texture would render darker. Animama's
+batch renderer (`lib/avatar/particle-vfx/batchedRenderer.ts`) keeps such
+emitters out of tone-mapped batches; chat, the creator preview and the review
+renders all use it, and Save, export and the backend keep the field.
+Materials without it render exactly as before. Switching an effect retunes
+its colours: tone mapping compresses highlights and shifts saturated hues,
+so art and `startColor` tuned under it look brighter and harsher without it.
 
 Save also packages each built-in creator texture an emitter uses (the
 curated files below, referenced as `textures/<file>`) as a file of the saved
@@ -119,7 +137,21 @@ browser recovery, as in the other effect creators; the stable editor route
 carries only the catalog item ID.
 
 The editor preserves the existing curated texture manifest, particle-budget
-validation, import/export tools, and Three.quarks preview lifecycle. Save uses
+validation, import/export tools, and Three.quarks preview lifecycle.
+Its estimate (`editor/particleEstimate.ts`) is a conservative bound on the
+particles alive at once, which the declared `max_particles` must cover: each
+emitter contributes its maximum `emissionOverTime` × the upper bound of
+`startLife` (capped by its `duration` plus one 0.1 s frame unless it loops)
+plus one for the runtime's rounding up, a trail's life extended by the frames
+its trail takes to drain (`startLength` × 0.1 s), each burst's count (rounded up) for every
+assumed wave (`cycle`, `interval` apart; three.quarks 0.17.1 fires each burst
+once per loop, so this only over-counts) and, for a looping emitter, every
+repeat whose particles are still alive; emitter peaks are summed. A 30 s loop
+at 20/s with 2 s lives counts 41, not the 600 it emits. Save refuses an
+estimate above the declared budget or 512, and `effects check` prints it. A
+Local effect saved before this estimate (it counted every particle emitted)
+can now read lower, or, for a loop whose lives outlast the other emitters,
+higher, so re-Saving it may ask for a larger budget; it still loads and plays. Save uses
 `PUT /v1/particle-effects/{entry_name}` and atomically replaces the ordinary
 Local entry. It never equips the effect to an Anima; Gesture and Reaction
 creators reference it as a dependency.
@@ -165,7 +197,7 @@ the `animama-particle-vfx` skill wraps them into the authoring pipeline.
   "id": "bang-1",
   "time": 0.25,
   "kind": "particle_vfx",
-  "effectId": "hearts",
+  "effectId": "heart-burst",
   "anchor": "head",
   "duration": 2,
   "followAnchor": true,
@@ -265,8 +297,8 @@ and scale.
 `AnimationDebugModal` keeps the manual runtime Particle VFX surface and also
 shows particle runtime state from clip/reaction diagnostics: active count,
 loaded count, latest warning or error, lifetime mode, and active applied ids.
-The `flame-loop` effect defaults to manual lifetime in this debug surface so it
-can stay active as a chest-centered flame aura until cleared.
+It lists every Included Particle Effect; manual lifetime is available for an
+effect whose budget allows looping.
 
 The runtime evicts failed JSON load promises so transient asset fetch errors can
 be retried, and controller disposal clears active systems, cached prefab

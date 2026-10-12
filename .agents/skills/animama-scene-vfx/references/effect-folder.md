@@ -91,6 +91,7 @@ values show the shape, not a tuned design.
   and restricted static SVG for private Scenes.
 - Limits: 8 MiB and 4096 px per image, 16 images and 32 MiB per Scene; the
   art budgets (`scene-sticker`, `scene-tile`) are tighter and are the target.
-- An app emoji item (`{ "id", "kind": "emoji", "label", "emoji": "✨",
-  "provider": "twemoji" }`) needs no file; only emoji the app ships are
-  accepted.
+- To use a built-in sticker, copy its PNG from
+  `content/included/resources/scene-vfx/stickers/` into the folder and list
+  it like any image (the creator's sticker picker does the same). `emoji`
+  items are no longer accepted.

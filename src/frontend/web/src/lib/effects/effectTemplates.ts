@@ -128,6 +128,7 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   included("blush_band", "Blush Band", "cheeks"),
   included("blush_deep", "Blush Deep", "cheeks"),
   included("streaming_tears", "Streaming Tears", "cheeks"),
+  included("single_tear", "Single Tear", "cheeks", { time: 1.2 }),
   included("texture_sick_1", "Texture Sick 1", "whole-face"),
   included("texture_sick_2", "Texture Sick 2", "whole-face"),
   included("texture_black_1", "Texture Black 1", "whole-face"),
@@ -254,6 +255,7 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     time: 1.8,
   }),
   included("sigh_puff", "Sigh Puff", "around-head", { time: 0.4 }),
+  included("sigh_puff_droop", "Sigh Puff Droop", "around-head", { time: 0.5 }),
   included("sly_glint", "Sly Glint", "around-head", {
     clip: "scheming-hands",
     time: 2,
@@ -376,9 +378,14 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
 
 /** The Scene creator's starting templates, in its own order. */
 export const SCENE_EFFECT_TEMPLATE_IDS: readonly SceneEffectTemplateId[] = [
-  "kawaii-sparkles",
-  "shoujo-hearts",
-  "comic-pop",
+  "shoujo-bloom",
+  "radiance",
+  "festive-pop",
+  "anticipation",
+  "shock",
+  "rage",
+  "queasy",
+  "gloom",
   "dark",
   "light-streak",
 ];

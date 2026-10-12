@@ -4,49 +4,111 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-respect",
   "version": 1,
   "name": "Emotion Respect",
-  "description": "Scene background effect preset",
+  "description": "A cool silver back-light with broad, slowly turning rays behind the Avatar and a few silver glints rising, for respectful moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#dce8ff"
+      "enabled": false,
+      "color": "#bcd2f5"
     },
     "pattern": {
-      "enabled": true,
-      "pattern": "star",
+      "enabled": false,
+      "pattern": "none",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.34
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "stops": [
         {
-          "id": "emoji-medal",
-          "kind": "image",
-          "label": "Medal 🏅",
-          "image": "emoji-medal-1f3c5.svg"
+          "color": "#ffffff",
+          "position": 0
+        },
+        {
+          "color": "#e8f0fc",
+          "position": 0.3
+        },
+        {
+          "color": "#bcd2f5",
+          "position": 1
         }
       ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.35,
+      "count": 12,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 90,
+      "throbPerSec": 0,
+      "seed": 5
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "glint",
+            "kind": "image",
+            "label": "Silver glint",
+            "image": "glint-silver.png"
+          }
+        ],
+        "count": 10,
+        "seed": 61,
+        "minSize": 14,
+        "maxSize": 30,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.8,
+        "maxOpacity": 1,
+        "regionTop": 0.5,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 12,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-medal-1f3c5.svg",
+      "path": "glint-silver.png",
       "role": "image"
     }
   ]

@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:hearts",
-      "alias": "hearts",
+      "ref": "builtin:particle-effect:heart-burst",
+      "alias": "heart-burst",
       "content_type": "particle_effect",
       "config": {}
     },

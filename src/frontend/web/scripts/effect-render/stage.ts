@@ -1,6 +1,10 @@
 import * as THREE from "three";
 
-import { DEFAULT_SCENE_LIGHTS } from "@/ui/main/canvas/sceneCameraPresets";
+import type { Avatar } from "@/lib/avatar";
+import {
+  DEFAULT_SCENE_LIGHTS,
+  buildSceneCameraPreset,
+} from "@/ui/main/canvas/sceneCameraPresets";
 
 /*
  * Stage and effect parsing shared by the review renderer (`render.ts`), the
@@ -17,6 +21,25 @@ export {
 export function applyChatColorPipeline(renderer: THREE.WebGLRenderer): void {
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.outputColorSpace = THREE.SRGBColorSpace;
+}
+
+/** Where a camera stands, the point it looks at and its vertical field of view. */
+export type Framing = {
+  position: THREE.Vector3;
+  target: THREE.Vector3;
+  fov: number;
+};
+
+/** The chat's Portrait camera preset for `avatar` in its current pose. */
+export function chatPortraitFraming(avatar: Avatar): Framing {
+  const { position, orbitTarget, fov } = buildSceneCameraPreset("portrait", {
+    avatar,
+  }).settings;
+  return {
+    position: new THREE.Vector3(position.x, position.y, position.z),
+    target: new THREE.Vector3(orbitTarget.x, orbitTarget.y, orbitTarget.z),
+    fov,
+  };
 }
 
 /** Add the chat canvas's default scene lights to `scene`. */

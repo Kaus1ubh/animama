@@ -20,6 +20,11 @@
       "kind": "face_landmark",
       "landmark": "eyes",
       "mirror": true,
+      "offset": {
+        "x": 0.012,
+        "y": 0,
+        "z": 0
+      },
       "scale": {
         "x": 0.6,
         "y": 0.6

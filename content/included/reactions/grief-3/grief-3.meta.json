@@ -21,6 +21,12 @@
       "config": {}
     },
     {
+      "ref": "builtin:particle-effect:gloom-wisps",
+      "alias": "gloom-wisps",
+      "content_type": "particle_effect",
+      "config": {}
+    },
+    {
       "ref": "builtin:scene-effect:background:scene-vfx-emotion-grief",
       "alias": "scene-vfx-emotion-grief",
       "content_type": "scene_effect",

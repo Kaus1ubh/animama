@@ -60,10 +60,9 @@ its record sourced (`source ../../../.animama-stack.env`).
 4. **Check:** `pnpm -s effects check <folder>`. It checks every texture
    against its budget (a texture an emitter tiles is held to
    `particle-sheet`), applies Save's readiness rules (emitters, references,
-   limits, own textures named like built-in ones), prints Save's particle
-   estimate (a conservative estimate, not a measured count; it can undercount
-   a looping emitter whose particles outlive the longest cycle) against the
-   declared
+   limits, own textures named like built-in ones), prints Save's estimate of
+   particles alive at once (a conservative upper bound from rates, bursts and
+   the longest `startLife`, not a measured count) against the declared
    `max_particles` and the 512 limit, and renders both Included Avatars with
    and without the effect to prove it is visible. Fix every FAIL; read every
    WARN; an accepted art WARN (such as `interior_translucency` on a glow)
@@ -86,7 +85,8 @@ its record sourced (`source ../../../.animama-stack.env`).
    the live preview for the owner: `pnpm -s animation:preview <folder>` (it
    opens the system browser unless `--no-open`, uses port 5173 or `--port`,
    and repeats 0.5 s after the effect's playback duration; `--duration <s>`
-   holds it longer). Keep the preview running until the owner has reviewed it
+   holds it longer; its **Portrait** camera frames the Avatar as chat does).
+   Keep the preview running until the owner has reviewed it
    (run it in the background and give them its URL), and stop it afterwards.
    The owner approves it here before it is saved. Notes go to
    `<stem>.review.json` beside the effect folder; apply each and resolve it
@@ -162,7 +162,7 @@ promotion with `"mode": "replace"`.
   budgets to silence a check without understanding the fields.
 - Prefer the effect's own textures; reuse a built-in creator texture only on
   purpose (it is third-party art and keeps its own licence record).
-- An emitter per layer, at most eight; prefer fewer, larger, readable sprites
+- An emitter per layer, at most 16; prefer fewer, larger, readable sprites
   to many tiny ones at chat size.
 - The creator edits only part of three.quarks. A field in upstream docs is
   not proof the creator or runtime supports it; read the limitations in

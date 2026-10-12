@@ -26,24 +26,119 @@ import {
 import type { ParticleVFXCatalogEntry } from "@/lib/avatar/particle-vfx";
 import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 
-const PHASE_5_PARTICLE_VFX_IDS = [
-  "magic-sparkle-burst",
-  "soft-heart-pop",
-  "surprise-shock-pop",
-  "confusion-orbit-marks",
-  "sleep-bubbles",
-  "sad-rain-puff",
+/**
+ * The Included Particle Effects (their `content/included/vfx/particle/quark/`
+ * folder stems), which the catalog reads from their descriptors.
+ */
+const INCLUDED_PARTICLE_VFX_IDS = [
+  "confetti",
+  "fireworks-show",
+  "fume-puffs",
+  "gloom-wisps",
+  "golden-willow",
+  "halo-rays",
+  "heart-burst",
+  "heart-fireworks",
+  "hearts-v1",
+  "question-orbit",
+  "rage-aura",
+  "rain-cloud",
+  "sparkle-hearts",
+  "star-burst",
+  "stink-miasma",
+  "twinkle-shimmer",
 ] as const;
+
+function fixtureEntry(
+  entry: Omit<ParticleVFXCatalogEntry, "defaultFollowAnchor" | "assetPath">,
+): ParticleVFXCatalogEntry {
+  return {
+    ...entry,
+    defaultFollowAnchor: true,
+    assetPath: `/effects/vfx/quark/${entry.id}/particle.json`,
+  };
+}
+
+/**
+ * Controller fixtures, independent of the Included library: a short head
+ * burst and a second tier-A effect, and a looping chest effect that allows
+ * manual lifetime.
+ */
+const TEST_PARTICLE_VFX_CATALOG: ParticleVFXCatalogEntry[] = [
+  fixtureEntry({
+    id: "heart-fixture",
+    label: "Heart fixture",
+    description: "A short head burst.",
+    defaultAnchor: "head",
+    defaultDurationSec: 1.8,
+    defaultTransform: normalizeParticleVFXTransform({
+      offset: { y: 0.32 },
+      depthOffset: 0.12,
+    }),
+    preloadTier: "tierA",
+    performanceBudget: {
+      maxDurationSec: 2.2,
+      maxParticles: 8,
+      loopingAllowed: false,
+      canCoexist: true,
+    },
+  }),
+  fixtureEntry({
+    id: "star-fixture",
+    label: "Star fixture",
+    description: "A second tier-A head burst.",
+    defaultAnchor: "head",
+    defaultDurationSec: 1.4,
+    defaultTransform: normalizeParticleVFXTransform({
+      offset: { y: 0.26 },
+      depthOffset: 0.1,
+    }),
+    preloadTier: "tierA",
+    performanceBudget: {
+      maxDurationSec: 1.8,
+      maxParticles: 10,
+      loopingAllowed: false,
+      canCoexist: true,
+    },
+  }),
+  fixtureEntry({
+    id: "loop-fixture",
+    label: "Loop fixture",
+    description: "A looping chest aura that allows manual lifetime.",
+    defaultAnchor: "chest",
+    defaultDurationSec: 8,
+    defaultTransform: normalizeParticleVFXTransform({
+      offset: { y: 0.06 },
+      depthOffset: 0.08,
+      scale: { x: 0.88, y: 0.88, z: 0.88 },
+    }),
+    preloadTier: "none",
+    performanceBudget: {
+      maxDurationSec: 30,
+      maxParticles: 64,
+      loopingAllowed: true,
+      canCoexist: false,
+    },
+  }),
+];
+
+function testParticleEntry(effectId: string): ParticleVFXCatalogEntry {
+  const entry = TEST_PARTICLE_VFX_CATALOG.find(
+    (candidate) => candidate.id === effectId,
+  );
+  if (!entry) throw new Error(`Missing particle fixture ${effectId}.`);
+  return entry;
+}
 
 const TEST_PARTICLE_MEDIA_PROVIDER = {
   ...EMPTY_RUNTIME_MEDIA_PROVIDER,
-  listParticleVFX: () => AVATAR_PARTICLE_VFX_CATALOG,
+  listParticleVFX: () => TEST_PARTICLE_VFX_CATALOG,
   getParticlePreloadIds: (tier: "tierA" | "tierB" | "none") =>
-    AVATAR_PARTICLE_VFX_CATALOG.filter(
-      (entry) => entry.preloadTier === tier,
-    ).map((entry) => entry.id),
+    TEST_PARTICLE_VFX_CATALOG.filter((entry) => entry.preloadTier === tier).map(
+      (entry) => entry.id,
+    ),
   resolveParticleVFX: async (runtimeId: string) =>
-    AVATAR_PARTICLE_VFX_CATALOG.find((entry) => entry.id === runtimeId) ?? null,
+    TEST_PARTICLE_VFX_CATALOG.find((entry) => entry.id === runtimeId) ?? null,
 };
 
 type CatalogQuarksJson = {
@@ -76,6 +171,7 @@ type MockParticleSystem = {
   emitter: MockParticleEmitter | null;
   _renderer: { deleteSystem: (system: MockParticleSystem) => void } | null;
   clone: () => MockParticleSystem;
+  getRendererSettings: () => { material: { toneMapped?: boolean } };
   dispose: ReturnType<typeof vi.fn>;
   play: ReturnType<typeof vi.fn>;
   stop: ReturnType<typeof vi.fn>;
@@ -88,6 +184,7 @@ type MockLoadQueueItem =
 type MockBatch = Object3D & {
   dispose: ReturnType<typeof vi.fn>;
   material: MeshBasicMaterial;
+  settings: { material: MeshBasicMaterial };
 };
 
 type MockBatchRenderer = Object3D & {
@@ -127,6 +224,7 @@ vi.mock("three.quarks", async () => {
         const batch = new THREE.Object3D() as MockBatch;
         batch.dispose = vi.fn();
         batch.material = new THREE.MeshBasicMaterial();
+        batch.settings = { material: batch.material };
         this.batches.push(batch);
         this.add(batch);
       }
@@ -256,6 +354,8 @@ function createMockParticleSystem(
       quarksMockState.createdSystems.push(cloned);
       return cloned;
     },
+    // Tone-mapped like every Included effect, so batching stays stock.
+    getRendererSettings: () => ({ material: { toneMapped: true } }),
     dispose: vi.fn(() => {
       system._renderer?.deleteSystem(system);
       system.emitter?.parent?.remove(system.emitter);
@@ -326,53 +426,72 @@ function collectCatalogQuarksImageUrls(json: CatalogQuarksJson): Set<string> {
   return new Set((json.images ?? []).map((image) => image.url ?? ""));
 }
 
-function collectCatalogQuarksBehaviorTypes(
-  json: CatalogQuarksJson,
-): Set<string> {
-  return new Set(
-    (json.object?.children ?? []).flatMap((emitter) =>
-      (emitter.ps?.behaviors ?? []).map((behavior) => behavior.type ?? ""),
-    ),
-  );
-}
-
 beforeEach(() => {
   resetQuarksMockState();
 });
 
 describe("particle VFX catalog", () => {
-  it("has the expected catalog ids and resolves hearts", () => {
+  it("lists every Included Particle Effect, read from its descriptor", () => {
     const ids = AVATAR_PARTICLE_VFX_CATALOG.map((entry) => entry.id);
-    expect(new Set(ids).size).toBe(ids.length);
-    expect(ids).toEqual([
-      "hearts",
-      "stars",
-      "sparkles",
-      "question-marks",
-      "exclamation",
-      "zzz",
-      "rain-cloud",
-      "hearts-v1",
-      "exclamation-v1",
-      "question-v1",
-      "hearts-v2",
-      "star-v2",
-      "flame-loop",
-      ...PHASE_5_PARTICLE_VFX_IDS,
-    ]);
-    expect(getParticleVFXCatalogEntryById("hearts")).toMatchObject({
-      id: "hearts",
-      defaultAnchor: "head",
-    });
-    expect(getParticleVFXCatalogEntryById("flame-loop")).toMatchObject({
-      id: "flame-loop",
+    expect(ids).toEqual(INCLUDED_PARTICLE_VFX_IDS);
+    expect(getParticleVFXCatalogEntryById("heart-burst")).toEqual({
+      id: "heart-burst",
+      label: "Heart Burst",
+      description: expect.stringContaining("heart"),
+      assetPath: "/effects/vfx/quark/heart-burst/particle.json",
       defaultAnchor: "chest",
+      defaultDurationSec: 2.5,
+      defaultFollowAnchor: true,
+      defaultTransform: expect.any(Object),
       preloadTier: "none",
       performanceBudget: {
-        loopingAllowed: true,
-        canCoexist: false,
+        maxDurationSec: 3,
+        maxParticles: 38,
+        loopingAllowed: false,
+        canCoexist: true,
       },
     });
+    expect(getParticleVFXCatalogEntryById("hearts-v1")).toMatchObject({
+      defaultAnchor: "head",
+      defaultDurationSec: 15,
+      defaultTransform: {
+        offset: { x: 0, y: 0.1, z: -0.15 },
+        rotation: { x: 1, y: 0.1, z: 0 },
+      },
+      preloadTier: "tierA",
+      performanceBudget: { maxDurationSec: 30, loopingAllowed: true },
+    });
+    expect(getParticleVFXCatalogEntryById("missing-effect")).toBeNull();
+  });
+
+  it("keeps each descriptor's stored runtime defaults", () => {
+    for (const id of INCLUDED_PARTICLE_VFX_IDS) {
+      const descriptor = JSON.parse(
+        readFileSync(
+          new URL(`quark/${id}/${id}.json`, INCLUDED_PARTICLE_VFX_ROOT),
+          "utf8",
+        ),
+      ) as {
+        runtime_defaults: {
+          runtime_id: string;
+          slots: { particle_vfx: Record<string, unknown> };
+        };
+      };
+      const slot = descriptor.runtime_defaults.slots.particle_vfx;
+      expect(descriptor.runtime_defaults.runtime_id).toBe(id);
+      expect(getParticleVFXCatalogEntryById(id), id).toMatchObject({
+        label: slot.label,
+        description: slot.description,
+        defaultAnchor: slot.anchor,
+        defaultDurationSec: slot.duration_seconds,
+        performanceBudget: {
+          maxDurationSec: slot.max_duration_seconds,
+          maxParticles: slot.max_particles,
+          loopingAllowed: slot.looping_allowed,
+          canCoexist: slot.can_coexist,
+        },
+      });
+    }
   });
 
   it("uses root-relative public asset paths", () => {
@@ -393,103 +512,25 @@ describe("particle VFX catalog", () => {
   });
 
   it("declares preload tiers and conservative performance budgets", () => {
-    const loopingAllowedIds = new Set([
-      "hearts-v1",
-      "exclamation-v1",
-      "question-v1",
-      "hearts-v2",
-      "star-v2",
-      "flame-loop",
-    ]);
-
     for (const entry of AVATAR_PARTICLE_VFX_CATALOG) {
       expect(["tierA", "none"]).toContain(entry.preloadTier);
       expect(entry.performanceBudget.maxDurationSec).toBeGreaterThanOrEqual(
         entry.defaultDurationSec,
       );
       expect(entry.performanceBudget.maxParticles).toBeGreaterThan(0);
-      expect(entry.performanceBudget.loopingAllowed).toBe(
-        loopingAllowedIds.has(entry.id),
-      );
       expect(typeof entry.performanceBudget.canCoexist).toBe("boolean");
     }
-
-    expect(getParticleVFXCatalogEntryById("exclamation-v1")?.preloadTier).toBe(
-      "none",
-    );
-    expect(getParticleVFXCatalogEntryById("hearts")?.preloadTier).toBe("tierA");
-  });
-
-  it("declares conservative metadata for Phase 5 catalog effects", () => {
-    const expected = {
-      "magic-sparkle-burst": {
-        defaultAnchor: "chest",
-        defaultDurationSec: 1.8,
-        maxDurationSec: 2.4,
-        maxParticles: 52,
-        canCoexist: true,
-      },
-      "soft-heart-pop": {
-        defaultAnchor: "head",
-        defaultDurationSec: 1.9,
-        maxDurationSec: 2.4,
-        maxParticles: 36,
-        canCoexist: true,
-      },
-      "surprise-shock-pop": {
-        defaultAnchor: "head",
-        defaultDurationSec: 1.25,
-        maxDurationSec: 1.8,
-        maxParticles: 40,
-        canCoexist: false,
-      },
-      "confusion-orbit-marks": {
-        defaultAnchor: "head",
-        defaultDurationSec: 2.3,
-        maxDurationSec: 2.8,
-        maxParticles: 32,
-        canCoexist: false,
-      },
-      "sleep-bubbles": {
-        defaultAnchor: "head",
-        defaultDurationSec: 2.8,
-        maxDurationSec: 3.2,
-        maxParticles: 28,
-        canCoexist: false,
-      },
-      "sad-rain-puff": {
-        defaultAnchor: "head",
-        defaultDurationSec: 2.5,
-        maxDurationSec: 3,
-        maxParticles: 42,
-        canCoexist: false,
-      },
-    } satisfies Record<
-      (typeof PHASE_5_PARTICLE_VFX_IDS)[number],
-      {
-        defaultAnchor: string;
-        defaultDurationSec: number;
-        maxDurationSec: number;
-        maxParticles: number;
-        canCoexist: boolean;
-      }
-    >;
-
-    for (const id of PHASE_5_PARTICLE_VFX_IDS) {
-      const entry = getParticleVFXCatalogEntryById(id);
-      expect(entry).toMatchObject({
-        id,
-        defaultAnchor: expected[id].defaultAnchor,
-        defaultDurationSec: expected[id].defaultDurationSec,
-        preloadTier: "none",
-        performanceBudget: {
-          maxDurationSec: expected[id].maxDurationSec,
-          maxParticles: expected[id].maxParticles,
-          loopingAllowed: false,
-          canCoexist: expected[id].canCoexist,
-        },
-      });
-    }
+    // Only the steady Heart stream loops and preloads eagerly.
+    expect(
+      AVATAR_PARTICLE_VFX_CATALOG.filter(
+        (entry) => entry.performanceBudget.loopingAllowed,
+      ).map((entry) => entry.id),
+    ).toEqual(["hearts-v1"]);
+    expect(
+      AVATAR_PARTICLE_VFX_CATALOG.filter(
+        (entry) => entry.preloadTier === "tierA",
+      ).map((entry) => entry.id),
+    ).toEqual(["hearts-v1"]);
   });
 
   it("uses runtime-safe relative texture urls in catalog quarks JSON", () => {
@@ -517,152 +558,24 @@ describe("particle VFX catalog", () => {
     }
   });
 
-  it("generates Phase 5 effects as layered authored emitters", () => {
-    for (const id of PHASE_5_PARTICLE_VFX_IDS) {
+  it("authors layered Included effects within the emitter limit", () => {
+    for (const id of INCLUDED_PARTICLE_VFX_IDS) {
       const json = readCatalogQuarksJson(id);
-      const emitters = json.object?.children ?? [];
-      expect(emitters.length, id).toBeGreaterThanOrEqual(2);
-      expect(
-        emitters.every((emitter) => emitter.ps?.looping === false),
-        id,
-      ).toBe(true);
-      expect(
-        collectCatalogQuarksImageUrls(json).size,
-        id,
-      ).toBeGreaterThanOrEqual(3);
+      const emitters = (json.object?.children ?? []).filter(
+        (child) => child.ps,
+      );
+      expect(emitters.length, id).toBeGreaterThanOrEqual(1);
+      expect(emitters.length, id).toBeLessThanOrEqual(16);
     }
-
-    const magic = readCatalogQuarksJson("magic-sparkle-burst");
-    expect(collectCatalogQuarksImageUrls(magic)).toEqual(
-      new Set([
-        "textures/brackeys-flare.png",
-        "textures/magic-ring.png",
-        "textures/spark-pop-6x5.png",
-        "textures/spark-streak.png",
-        "textures/sparkle.png",
-      ]),
-    );
-    expect(collectCatalogQuarksBehaviorTypes(magic)).toContain("FrameOverLife");
     expect(
-      magic.object?.children?.some(
-        (emitter) =>
-          emitter.ps?.uTileCount === 6 && emitter.ps?.vTileCount === 5,
-      ),
-    ).toBe(true);
-    expect(
-      magic.object?.children?.some((emitter) => emitter.ps?.renderMode === 1),
-    ).toBe(true);
-
-    expect(
-      collectCatalogQuarksImageUrls(readCatalogQuarksJson("soft-heart-pop")),
+      collectCatalogQuarksImageUrls(readCatalogQuarksJson("heart-burst")),
     ).toEqual(
       new Set([
-        "textures/glow-soft.png",
-        "textures/heart-v2.png",
-        "textures/heart.png",
-        "textures/spark-dot.png",
+        "textures/glint-star.png",
+        "textures/glossy-heart.png",
+        "textures/heart-glow.png",
+        "textures/heart-ring.png",
       ]),
-    );
-
-    expect(
-      collectCatalogQuarksImageUrls(
-        readCatalogQuarksJson("surprise-shock-pop"),
-      ),
-    ).toEqual(
-      new Set([
-        "textures/brackeys-flare.png",
-        "textures/exclamation.png",
-        "textures/shock-ring.png",
-        "textures/spark-streak.png",
-      ]),
-    );
-
-    const confusion = readCatalogQuarksJson("confusion-orbit-marks");
-    expect(collectCatalogQuarksImageUrls(confusion)).toEqual(
-      new Set([
-        "textures/glow-soft.png",
-        "textures/question.png",
-        "textures/spark-dot.png",
-      ]),
-    );
-    expect(collectCatalogQuarksBehaviorTypes(confusion)).toContain(
-      "OrbitOverLife",
-    );
-
-    expect(
-      collectCatalogQuarksImageUrls(readCatalogQuarksJson("sleep-bubbles")),
-    ).toEqual(
-      new Set([
-        "textures/soft-dot.png",
-        "textures/spark-dot.png",
-        "textures/zzz.png",
-      ]),
-    );
-
-    expect(
-      collectCatalogQuarksImageUrls(readCatalogQuarksJson("sad-rain-puff")),
-    ).toEqual(
-      new Set([
-        "textures/cloud.png",
-        "textures/dust-soft.png",
-        "textures/raindrop.png",
-        "textures/smoke-puff.png",
-      ]),
-    );
-  });
-
-  it("generates the persistent flame as layered looping emitters", () => {
-    const flame = getParticleVFXCatalogEntryById("flame-loop");
-    expect(flame).toBeTruthy();
-    const jsonPath = includedParticleVfxFile(flame?.assetPath ?? "");
-    const json = JSON.parse(readFileSync(jsonPath, "utf8")) as {
-      images?: Array<{ url?: string }>;
-      materials?: Array<{ uuid?: string; blending?: number }>;
-      object?: {
-        children?: Array<{
-          name?: string;
-          ps?: {
-            looping?: boolean;
-            prewarm?: boolean;
-            renderMode?: number;
-            rendererEmitterSettings?: Record<string, unknown>;
-          };
-        }>;
-      };
-    };
-    const imageUrls = new Set((json.images ?? []).map((image) => image.url));
-    expect(imageUrls).toEqual(
-      new Set([
-        "textures/kenney-ember-spark.png",
-        "textures/kenney-fire-glow.png",
-        "textures/kenney-flame-core.png",
-        "textures/kenney-flame-tongue.png",
-        "textures/kenney-smoke-wisp.png",
-      ]),
-    );
-    const emitters = json.object?.children ?? [];
-    expect(emitters.map((emitter) => emitter.name)).toEqual([
-      "flame-base-glow",
-      "flame-inner-core",
-      "flame-outer-tongues",
-      "flame-embers",
-      "flame-smoke-wisps",
-    ]);
-    expect(emitters.every((emitter) => emitter.ps?.looping === true)).toBe(
-      true,
-    );
-    expect(emitters.every((emitter) => emitter.ps?.prewarm === true)).toBe(
-      true,
-    );
-    expect(emitters.some((emitter) => emitter.ps?.renderMode === 1)).toBe(true);
-    expect(
-      emitters.some(
-        (emitter) =>
-          typeof emitter.ps?.rendererEmitterSettings?.speedFactor === "number",
-      ),
-    ).toBe(true);
-    expect(json.materials?.some((material) => material.blending === 1)).toBe(
-      true,
     );
   });
 });
@@ -765,9 +678,7 @@ describe("ParticleVFXController", () => {
     avatar.scene?.add(avatarMesh);
     avatar.scene?.updateMatrixWorld(true);
 
-    const effect = getParticleVFXCatalogEntryById(
-      "hearts",
-    ) as ParticleVFXCatalogEntry;
+    const effect = testParticleEntry("heart-fixture");
     const previousShapeAutoFit = effect.shapeAutoFit;
     effect.shapeAutoFit = {
       kind: "avatarBoundsRectangle",
@@ -802,8 +713,8 @@ describe("ParticleVFXController", () => {
     try {
       await expect(
         controller.playEffect({
-          effectId: "hearts",
-          appliedId: "auto-fit-hearts",
+          effectId: "heart-fixture",
+          appliedId: "auto-fit-burst",
         }),
       ).resolves.toBe(true);
 
@@ -818,7 +729,7 @@ describe("ParticleVFXController", () => {
       ).toBeCloseTo(1.9);
       const root = avatar.scene?.getObjectByName(PARTICLE_VFX_ROOT_OBJECT_NAME);
       const object = root?.children.find((child) =>
-        child.name.startsWith("ParticleVFX:hearts:auto-fit-hearts"),
+        child.name.startsWith("ParticleVFX:heart-fixture:auto-fit-burst"),
       );
       expect(object?.position.x).toBeCloseTo(0);
       expect(object?.position.y).toBeCloseTo(1.82);
@@ -867,7 +778,7 @@ describe("ParticleVFXController", () => {
     );
     await expect(
       controller.playEffect({
-        effectId: "hearts",
+        effectId: "heart-fixture",
         appliedId: "gesture-event",
         ownerId: "gesture",
         anchor: "head",
@@ -905,9 +816,7 @@ describe("ParticleVFXController", () => {
       new Mesh(new BoxGeometry(0.5, 1.8, 0.2), new MeshBasicMaterial()),
     );
 
-    const effect = getParticleVFXCatalogEntryById(
-      "hearts",
-    ) as ParticleVFXCatalogEntry;
+    const effect = testParticleEntry("heart-fixture");
     const previousShapeAutoFit = effect.shapeAutoFit;
     effect.shapeAutoFit = {
       kind: "avatarBoundsRectangle",
@@ -928,14 +837,14 @@ describe("ParticleVFXController", () => {
     try {
       await expect(
         controller.playEffect({
-          effectId: "hearts",
-          appliedId: "fallback-hearts",
+          effectId: "heart-fixture",
+          appliedId: "fallback-burst",
         }),
       ).resolves.toBe(true);
 
       const root = avatar.scene?.getObjectByName(PARTICLE_VFX_ROOT_OBJECT_NAME);
       const object = root?.children.find((child) =>
-        child.name.startsWith("ParticleVFX:hearts:fallback-hearts"),
+        child.name.startsWith("ParticleVFX:heart-fixture:fallback-burst"),
       );
       expect(object?.position.y).toBeCloseTo(1.82);
       expect(controller.getSnapshot().activeInstances[0]?.followAnchor).toBe(
@@ -961,13 +870,13 @@ describe("ParticleVFXController", () => {
       object: createMockQuarksPrefab(),
     });
 
-    await expect(controller.preloadEffect("hearts")).resolves.toBe(true);
+    await expect(controller.preloadEffect("heart-fixture")).resolves.toBe(true);
 
     const snapshot = controller.getSnapshot();
     expect(snapshot.activeCount).toBe(0);
-    expect(snapshot.loadedEffectIds).toContain("hearts");
+    expect(snapshot.loadedEffectIds).toContain("heart-fixture");
     expect(quarksMockState.loadAssetPaths).toEqual([
-      "/effects/vfx/quark/hearts/particle.json",
+      "/effects/vfx/quark/heart-fixture/particle.json",
     ]);
     controller.dispose();
   });
@@ -983,7 +892,7 @@ describe("ParticleVFXController", () => {
       error: new Error("temporary preload error"),
     });
 
-    await expect(controller.preloadEffect("stars")).resolves.toBe(false);
+    await expect(controller.preloadEffect("star-fixture")).resolves.toBe(false);
     expect(quarksMockState.loadAttempts).toBe(1);
 
     quarksMockState.loadQueue.push({
@@ -991,9 +900,9 @@ describe("ParticleVFXController", () => {
       object: createMockQuarksPrefab(),
     });
 
-    await expect(controller.preloadEffect("stars")).resolves.toBe(true);
+    await expect(controller.preloadEffect("star-fixture")).resolves.toBe(true);
     expect(quarksMockState.loadAttempts).toBe(2);
-    expect(controller.getSnapshot().loadedEffectIds).toContain("stars");
+    expect(controller.getSnapshot().loadedEffectIds).toContain("star-fixture");
     controller.dispose();
   });
 
@@ -1003,7 +912,7 @@ describe("ParticleVFXController", () => {
       avatar,
       TEST_PARTICLE_MEDIA_PROVIDER,
     );
-    const tierAEntries = AVATAR_PARTICLE_VFX_CATALOG.filter(
+    const tierAEntries = TEST_PARTICLE_VFX_CATALOG.filter(
       (entry) => entry.preloadTier === "tierA",
     );
     for (let index = 0; index < tierAEntries.length; index += 1) {
@@ -1025,7 +934,7 @@ describe("ParticleVFXController", () => {
       tierAEntries.map((entry) => entry.id).sort(),
     );
     expect(quarksMockState.loadAssetPaths).not.toContain(
-      "/effects/vfx/quark/exclamation-v1/particle.json",
+      "/effects/vfx/quark/loop-fixture/particle.json",
     );
     controller.dispose();
   });
@@ -1048,7 +957,7 @@ describe("ParticleVFXController", () => {
 
     const requests = Array.from({ length: 5 }, (_, index) =>
       controller.playEffect({
-        effectId: "hearts",
+        effectId: "heart-fixture",
         appliedId: `pending-${index}`,
       }),
     );
@@ -1071,10 +980,7 @@ describe("ParticleVFXController", () => {
 
   it("counts slow pending effects against the total particle budget", async () => {
     const avatar = createMockAvatar({ head: new Vector3(0, 1.5, 0) }) as Avatar;
-    const baseEffect = AVATAR_PARTICLE_VFX_CATALOG.find(
-      (entry) => entry.id === "hearts",
-    );
-    if (!baseEffect) throw new Error("Missing hearts particle fixture.");
+    const baseEffect = testParticleEntry("heart-fixture");
     const provider = {
       ...EMPTY_RUNTIME_MEDIA_PROVIDER,
       resolveParticleVFX: async () => ({
@@ -1097,16 +1003,16 @@ describe("ParticleVFXController", () => {
     )._loadPrefab = vi.fn(() => pendingPrefab);
 
     const first = controller.playEffect({
-      effectId: "hearts",
+      effectId: "heart-fixture",
       appliedId: "budget-1",
     });
     const second = controller.playEffect({
-      effectId: "hearts",
+      effectId: "heart-fixture",
       appliedId: "budget-2",
     });
     await expect(
       controller.playEffect({
-        effectId: "hearts",
+        effectId: "heart-fixture",
         appliedId: "budget-3",
       }),
     ).resolves.toBe(false);
@@ -1133,8 +1039,8 @@ describe("ParticleVFXController", () => {
     quarksMockState.playThrows = true;
 
     const didApply = await controller.playEffect({
-      effectId: "hearts",
-      appliedId: "failed-hearts",
+      effectId: "heart-fixture",
+      appliedId: "failed-burst",
     });
 
     expect(didApply).toBe(false);
@@ -1162,8 +1068,8 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "hearts",
-        appliedId: "retry-hearts",
+        effectId: "heart-fixture",
+        appliedId: "retry-burst",
       }),
     ).resolves.toBe(false);
     expect(quarksMockState.loadAttempts).toBe(1);
@@ -1175,8 +1081,8 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "hearts",
-        appliedId: "retry-hearts",
+        effectId: "heart-fixture",
+        appliedId: "retry-burst",
       }),
     ).resolves.toBe(true);
     expect(quarksMockState.loadAttempts).toBe(2);
@@ -1197,14 +1103,14 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "hearts",
-        appliedId: "world-space-hearts",
+        effectId: "heart-fixture",
+        appliedId: "world-space-burst",
       }),
     ).resolves.toBe(true);
 
     const snapshot = controller.getSnapshot();
     expect(snapshot.activeInstances[0]).toMatchObject({
-      appliedId: "world-space-hearts",
+      appliedId: "world-space-burst",
       followAnchor: false,
       usesWorldSpace: true,
     });
@@ -1225,8 +1131,8 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "hearts",
-        appliedId: "disposable-hearts",
+        effectId: "heart-fixture",
+        appliedId: "disposable-burst",
       }),
     ).resolves.toBe(true);
     const batch = quarksMockState.lastBatchRenderer?.batches[0];
@@ -1245,7 +1151,7 @@ describe("ParticleVFXController", () => {
       avatar,
       TEST_PARTICLE_MEDIA_PROVIDER,
     );
-    const hearts = getParticleVFXCatalogEntryById("hearts");
+    const burst = testParticleEntry("heart-fixture");
     quarksMockState.loadQueue.push({
       kind: "resolve",
       object: createMockQuarksPrefab(),
@@ -1253,15 +1159,15 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "hearts",
-        appliedId: "long-hearts",
+        effectId: "heart-fixture",
+        appliedId: "long-burst",
         durationSec: 99,
       }),
     ).resolves.toBe(true);
 
     const snapshot = controller.getSnapshot();
     expect(snapshot.activeInstances[0]?.durationSec).toBe(
-      hearts?.performanceBudget.maxDurationSec,
+      burst.performanceBudget.maxDurationSec,
     );
     expect(snapshot.warnings.join("\n")).toContain("duration was capped");
     controller.dispose();
@@ -1282,8 +1188,8 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "flame-loop",
-        appliedId: "manual-flame",
+        effectId: "loop-fixture",
+        appliedId: "manual-loop",
         lifetime: { kind: "manual" },
       }),
     ).resolves.toBe(true);
@@ -1294,14 +1200,14 @@ describe("ParticleVFXController", () => {
     let snapshot = controller.getSnapshot();
     expect(snapshot.activeCount).toBe(1);
     expect(snapshot.activeInstances[0]).toMatchObject({
-      appliedId: "manual-flame",
-      effectId: "flame-loop",
+      appliedId: "manual-loop",
+      effectId: "loop-fixture",
       lifetime: { kind: "manual" },
       durationSec: null,
     });
     expect(quarksMockState.lastBatchRenderer?.update).toHaveBeenCalledTimes(2);
 
-    expect(controller.clearEffect("manual-flame")).toBe(true);
+    expect(controller.clearEffect("manual-loop")).toBe(true);
     snapshot = controller.getSnapshot();
     expect(snapshot.activeCount).toBe(0);
     expect(quarksMockState.lastBatchRenderer?.systems.size).toBe(0);
@@ -1324,8 +1230,8 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "flame-loop",
-        appliedId: "manual-flame-clear-all",
+        effectId: "loop-fixture",
+        appliedId: "manual-loop-clear-all",
         lifetime: { kind: "manual" },
       }),
     ).resolves.toBe(true);
@@ -1336,8 +1242,8 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "flame-loop",
-        appliedId: "manual-flame-dispose",
+        effectId: "loop-fixture",
+        appliedId: "manual-loop-dispose",
         lifetime: { kind: "manual" },
       }),
     ).resolves.toBe(true);
@@ -1358,8 +1264,8 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "hearts",
-        appliedId: "manual-hearts",
+        effectId: "heart-fixture",
+        appliedId: "manual-burst",
         lifetime: { kind: "manual" },
       }),
     ).resolves.toBe(false);
@@ -1385,8 +1291,8 @@ describe("ParticleVFXController", () => {
 
     await expect(
       controller.playEffect({
-        effectId: "hearts",
-        appliedId: "short-hearts",
+        effectId: "heart-fixture",
+        appliedId: "short-burst",
         lifetime: { kind: "duration", durationSec: 0.2 },
       }),
     ).resolves.toBe(true);

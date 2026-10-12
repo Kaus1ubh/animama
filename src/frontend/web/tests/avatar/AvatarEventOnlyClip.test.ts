@@ -17,7 +17,7 @@ const eventClip = parseAnimaPoseClip({
       id: "scene",
       kind: "scene_vfx",
       sceneKind: "background_layers",
-      presetId: "comic-pop",
+      presetId: "scene-vfx-emotion-joy",
       time: 0,
     },
   ],

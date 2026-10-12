@@ -8,12 +8,6 @@ import {
   type SceneBackgroundItemRotationMode,
   type SceneBackgroundPatternKind,
 } from "@/lib/scene-vfx/types";
-import {
-  SCENE_BACKGROUND_EMOJI_LINE_ITEMS,
-  SCENE_BACKGROUND_PNG_LINE_ITEMS,
-  SCENE_BACKGROUND_SVG_LINE_ITEMS,
-  getSceneBackgroundLineItemById,
-} from "@/lib/scene-vfx/assets";
 import { SCENE_VFX_PRESET_IDS } from "@/lib/scene-vfx/presets";
 import { Button } from "@/ui/components/button";
 import { Switch } from "@/ui/components/switch";
@@ -23,7 +17,6 @@ import {
   Panel,
   SelectControl,
 } from "../controls";
-import { upsertSceneBackgroundLineItemAtIndex } from "./helpers";
 import type { SceneBackgroundDraftController } from "./use-scene-vfx-drafts";
 
 export function SceneBackgroundPanel({
@@ -48,9 +41,6 @@ export function SceneBackgroundPanel({
   if (!draft) {
     return null;
   }
-
-  const firstLineItemId = draft.marquee.items[0]?.id ?? "";
-  const secondLineItemId = draft.marquee.items[1]?.id ?? "";
 
   return (
     <Panel
@@ -357,98 +347,6 @@ export function SceneBackgroundPanel({
                 aria-label="Toggle marquee layer"
               />
               <span>Marquee enabled</span>
-            </label>
-            <label className="space-y-1">
-              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
-                Item 1
-              </span>
-              <SelectControl
-                value={firstLineItemId}
-                onChange={(value) =>
-                  updateDraft((current) => ({
-                    ...current,
-                    marquee: {
-                      ...current.marquee,
-                      items: upsertSceneBackgroundLineItemAtIndex(
-                        current.marquee.items,
-                        0,
-                        value.length > 0
-                          ? getSceneBackgroundLineItemById(value)
-                          : null,
-                      ),
-                    },
-                  }))
-                }
-              >
-                <option value="">none</option>
-                <optgroup label="PNG">
-                  {SCENE_BACKGROUND_PNG_LINE_ITEMS.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="SVG">
-                  {SCENE_BACKGROUND_SVG_LINE_ITEMS.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Emoji">
-                  {SCENE_BACKGROUND_EMOJI_LINE_ITEMS.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
-                </optgroup>
-              </SelectControl>
-            </label>
-            <label className="space-y-1">
-              <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">
-                Item 2
-              </span>
-              <SelectControl
-                value={secondLineItemId}
-                onChange={(value) =>
-                  updateDraft((current) => ({
-                    ...current,
-                    marquee: {
-                      ...current.marquee,
-                      items: upsertSceneBackgroundLineItemAtIndex(
-                        current.marquee.items,
-                        1,
-                        value.length > 0
-                          ? getSceneBackgroundLineItemById(value)
-                          : null,
-                      ),
-                    },
-                  }))
-                }
-              >
-                <option value="">none</option>
-                <optgroup label="PNG">
-                  {SCENE_BACKGROUND_PNG_LINE_ITEMS.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="SVG">
-                  {SCENE_BACKGROUND_SVG_LINE_ITEMS.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
-                </optgroup>
-                <optgroup label="Emoji">
-                  {SCENE_BACKGROUND_EMOJI_LINE_ITEMS.map((item) => (
-                    <option key={item.id} value={item.id}>
-                      {item.label}
-                    </option>
-                  ))}
-                </optgroup>
-              </SelectControl>
             </label>
             <label className="space-y-1">
               <span className="text-muted-foreground text-2xs font-medium tracking-wide uppercase">

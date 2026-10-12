@@ -27,7 +27,8 @@ const cases = [
   {
     creator: "Scene VFX",
     section: "scene",
-    contentName: "Kawaii Sparkles",
+    // Included backgrounds are held (no duration); the focus preset is timed.
+    contentName: "Focus Lines Dark",
     nameLabel: "Scene FX name",
     jsonTitle: "Portable Scene Effect JSON",
   },

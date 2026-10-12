@@ -28,8 +28,23 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     assert by_glob["gestures/**/*.json"]["license_id"] == "LicenseRef-Animama-owner-authored"
     # Mixamo motion ships only as the separate non-portable pack (see below).
     assert not any(rule["license_id"] == "LicenseRef-Adobe-Mixamo-embedded-product" for rule in rules)
-    assert by_glob["vfx/scene/**/emoji-*.svg"]["license_id"] == "CC-BY-4.0-Twemoji-graphics"
-    assert by_glob["vfx/particle/quark/**"]["license_id"] == "LicenseRef-Animama-generated-and-CC0-particle-VFX"
+    # The Scene creator's built-in sticker set and the Scene PNG art are owner-authored;
+    # no third-party emoji art remains.
+    assert by_glob["resources/scene-vfx/stickers/**"]["license_id"] == "LicenseRef-Animama-owner-authored"
+    assert by_glob["vfx/scene/**/*.png"]["license_id"] == "LicenseRef-Animama-owner-authored"
+    assert not any("emoji" in rule["glob"] or "twemoji" in rule["provenance"].lower() for rule in rules)
+    # Each library Particle Effect has its own owner-authored rule; the generated-art
+    # rule covers only the one legacy effect kept, the Heart stream.
+    particle_rules = [rule for rule in rules if rule["glob"].startswith("vfx/particle/quark/")]
+    for stem in sorted(path.name for path in (ROOT / "content/included/vfx/particle/quark").iterdir()):
+        rule = by_glob[f"vfx/particle/quark/{stem}/**"]
+        expected = (
+            "LicenseRef-Animama-generated-and-CC0-particle-VFX"
+            if stem == "hearts-v1"
+            else "LicenseRef-Animama-owner-authored"
+        )
+        assert rule["license_id"] == expected, stem
+    assert len(particle_rules) == len(list((ROOT / "content/included/vfx/particle/quark").iterdir()))
 
 
 @pytest.mark.parametrize(

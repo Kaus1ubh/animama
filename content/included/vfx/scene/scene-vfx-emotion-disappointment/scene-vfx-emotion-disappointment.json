@@ -4,49 +4,111 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-disappointment",
   "version": 1,
   "name": "Emotion Disappointment",
-  "description": "Scene background effect preset",
+  "description": "A flat grey-lavender sky with short gloom lines at the top and a light drizzle falling beside the Avatar, for disappointed moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#d7dbe6"
+      "enabled": false,
+      "color": "#000000"
     },
     "pattern": {
       "enabled": false,
       "pattern": "none",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.32
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
         {
-          "id": "emoji-disappointed-face",
-          "kind": "image",
-          "label": "Disappointed Face 😞",
-          "image": "emoji-disappointed-face-1f61e.svg"
+          "color": "#8e8aa3",
+          "position": 0
+        },
+        {
+          "color": "#b4b0c6",
+          "position": 0.5
+        },
+        {
+          "color": "#d6d3e2",
+          "position": 1
         }
       ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "lines",
+      "color": "#4a4660",
+      "opacity": 0.4,
+      "count": 24,
+      "minLength": 0.06,
+      "maxLength": 0.25,
+      "minWidthPx": 1,
+      "maxWidthPx": 2.5,
+      "swaySeconds": 8,
+      "seed": 17
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "drizzle",
+            "kind": "image",
+            "label": "Drizzle",
+            "image": "drizzle-streak.png"
+          }
+        ],
+        "count": 24,
+        "seed": 89,
+        "minSize": 16,
+        "maxSize": 30,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.7,
+        "maxOpacity": 0.95,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "down",
+        "speedPxPerSec": 200,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-disappointed-face-1f61e.svg",
+      "path": "drizzle-streak.png",
       "role": "image"
     }
   ]
