@@ -69,10 +69,10 @@ the git-ignored `.animama-drafts/gesture-catalog-expansion/` of this worktree.
       pack v2 assembled, published 2026-10-11 at the owner's request (101
       objects) and fetched back with the read token (100 files verified);
       silent built-in effects allowed; review #2 passed.
-- [ ] Phase 6 (#417): G3 approved 2026-10-11; promotion, registries, starters
-      and checks done (see Phase 6 record); full `pnpm e2e:test` and the final
-      integration review remain.
-- [ ] Final integration review.
+- [x] Phase 6 (#417): G3 approved 2026-10-11; promotion, registries, starters,
+      checks, journeys and the no-pack check done (see the Phase 6 record and
+      final candidate evidence).
+- [x] Final integration review: review #2 passed 2026-10-12.
 - [ ] PR; owner merge approval.
 
 ## Surprises & Discoveries
@@ -916,6 +916,27 @@ the review, merge the latest `main` into the branch and record conflicts.
   the catalog (the tracked eval loadouts keep the evaluated text).
 - **07:** accepted: the two legacy metas keep their owner-authored rule; only
   their short AI description text changed, approved at G3.
+
+#### Code Review #2 Findings
+
+Targeted recheck 2026-10-12 on `55c86fb5`: **pass.** FIR-R1-01 to 06
+verified, 07 accepted; no regressions. One repair round of two used.
+
+#### Final candidate evidence (2026-10-12, `55c86fb5` plus the journey fix)
+
+- **Gate:** `uv run pytest -q` and `make check-test` 4032 passed, 27 skipped;
+  `pnpm check`, `pnpm web:lint`, `pnpm build`, `pnpm web:test` (vitest, node
+  and browser tests), desktop stage and audit (darwin arm64), Prettier, ruff
+  and format checks pass.
+- **Journeys:** full `pnpm e2e:test` on the built named stack `gce-e2e`
+  (`ANIMAMA_LLM_SKIP=1`, production build, base port 8700): 39 passed, 1
+  failed. The effect-template picker journey timed out because thumbnails
+  load lazily and 73 cards no longer fit on screen; the journey now scrolls
+  each card into view, and its serial rerun passed.
+- **No pack:** the same stack has no sound pack mounted. All 326 Included
+  catalog items are valid (107 Gestures, 73 Avatar Effects, the Streamer Idle
+  style), no effect keeps a sound edge, no item has diagnostics, and
+  bootstrap is ready.
 
 ## Validation and acceptance
 
