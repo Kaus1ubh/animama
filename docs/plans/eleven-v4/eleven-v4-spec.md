@@ -1,16 +1,14 @@
-# Eleven v4 and v4 Turbo voices with provider-timed lip-sync
+# Eleven v4 and v4 Turbo voices, with provider timing for lip-sync
 
-Status: Proposal, revised after owner review (2026-10-12).
+Status: Agreed (owner, 2026-10-12). Phases 1–2 of the ExecPlan are authorized.
 
-Owner decisions, 2026-10-12:
+Owner decisions, 2026-10-12, in D1–D12 below:
 
-- D1–D3 are agreed.
-- The Instant Voice Clone check is waived (D5).
-- US$1 is approved for live checks (D6).
-- The integration is optimised for the v4 models alone (D4).
-
-The revisions for v4-only integration and tag handling (R2, R4, R5, D8) await
-the owner's go-ahead.
+- D1–D4 are agreed, D5 is waived and D6 is approved.
+- D8 is confirmed in narrowed form, and D9 is pulled into this change.
+- The v4 Turbo streamed path is the priority (D10).
+- Audio tags in the chat model's `speech` are new scope. They go through intent
+  discovery and a linked issue (D12).
 
 Authoritative source: this draft, until `workspace-setup` publishes it to
 [issue #471](https://github.com/raymond-van/animama/issues/471).
@@ -34,7 +32,12 @@ The avatar's lip-sync estimates phoneme durations from gruut and stretches the
 whole plan to the clip length. Pauses, laughs and leading silence therefore pull
 the mouth away from the voice: in the spike the estimated word starts were up to
 0.6 s off on a sentence with a comma pause, and 0.9 s off after a laugh. v4 can
-return per-character timing of the audio actually spoken.
+return per-character timing of the audio actually spoken. #468 is building a new
+lip-sync planner that will use that timing as evidence.
+
+The same gruut step decides which sentences reach the finalized providers. A
+Japanese, Korean or Chinese sentence yields no phonemes, so finalized ElevenLabs
+and Gemini never speak it, although v4 speaks 94 languages.
 
 This change serves the local installation owner, on desktop and self-hosted web,
 who chats with an Anima that speaks with an ElevenLabs voice. Hosted Animama Cloud
@@ -49,23 +52,27 @@ Include:
   the emotional tone tag and PCM frames over `chat:sse`.
 - Removal of `eleven_flash_v2_5`, `eleven_multilingual_v2` and `eleven_v3`, with
   automatic migration of saved preferences (D1).
-- Lip-sync timed from ElevenLabs character timing when it is available, with
-  today's estimated path as the fallback, plus a side-by-side review aid (D2).
+- Finalized speech for every language, without the gruut gate (D9).
+- ElevenLabs character timing carried to the browser, a provider-neutral timing
+  evidence module, and a side-by-side view whose plans can come from any source.
+  These are the parts #468's planner reuses (D8).
 - The hosted contract for the `transport: "server"` socket, and a prepared Cloud
   issue.
 - Docs, contract versions and the regenerated client.
 
 Exclude:
 
-- Mouth shapes for vocal tags (laughs, sighs) and lip-sync for non-ElevenLabs
-  providers or languages gruut cannot phonemize. [#468](https://github.com/raymond-van/animama/issues/468)
-  owns these. Tag spans are only kept out of word timing here.
+- Rendering lip-sync from the timing, and mouth shapes for vocal tags or for
+  languages gruut cannot phonemize.
+  [#468](https://github.com/raymond-van/animama/issues/468) owns these. Today's
+  gruut planner is not extended (D8), unless the owner opts into the minimal
+  English option (D11).
 - Multi-speaker dialogue; each connection uses one voice.
 - Gemini TTS behaviour. It shares the finalized pipeline and must not regress.
 - Voice-cloning UI, beyond keeping clones working.
 - Animama Cloud code. A Cloud issue is prepared but not implemented.
-- Allowing the model to write audio tags in `speech`. The prompt's ban on tags
-  stays; #468 decides when to lift it.
+- Allowing the chat model to write audio tags in `speech`. That needs intent
+  discovery and a linked issue (D12); the prompt's ban stays until then.
 
 ## Required behavior
 
@@ -105,7 +112,8 @@ Exclude:
 - Requests stay at or under 2,000 characters.
 - A failed batch ends that reply's speech with the existing error frame. The text
   is intact.
-- Gemini finalized speech behaves exactly as before.
+- Gemini finalized speech behaves as before, except that it now speaks every
+  language (R7).
 
 ### R3 — Model choice, defaults and migration
 
@@ -127,38 +135,47 @@ Exclude:
   setting, the utility synthesis route and docs. Only the one-way migration map
   keeps them.
 
-### R4 — Lip-sync from provider timing
+### R4 — Provider timing evidence and the side-by-side view (D8)
 
-- For ElevenLabs v4 and v4 Turbo replies, the backend and browser request
-  character timing.
-- When timing is received, each spoken word's mouth movement is placed within
-  that word's timing in the audio:
-  - leading silence is respected;
-  - pauses close the mouth: commas, ellipses, sentence breaks, and breaths that
-    ElevenLabs inserts. ElevenLabs reports each pause as time on the
-    punctuation and spaces between words.
-  - a bracketed audio tag, such as the emotional prefix `[cheerfully]` or an
-    action tag like `[laughs]` or `[sighs]`, is never mouthed as a word. Its
-    reported span (a laugh about 0.3 s, a sigh 0.4–0.7 s in the spike) becomes a
-    named non-speech interval, during which the mouth rests closed in this
-    change.
-- Laugh, sigh and gasp mouth shapes and expressions are #468's: it will consume
-  the same named intervals. The model's `speech` stays tag-free until #468 lifts
-  the prompt ban, so today only the emotional prefix produces a tag interval.
-- Today's estimated path remains in use when:
-  - the provider is not ElevenLabs (Pocket TTS, Gemini, browser speech);
-  - timing is missing or incomplete;
-  - the timed words cannot be matched to the reply's phonemized words;
-  - the language yields no phonemes.
-  Falling back never stops speech or lip-sync.
-- Timing is consumed with the audio it describes, so speech never waits for it.
-- **Side-by-side review:** for an ElevenLabs reply with timing, the owner can
-  compare the provider-timed and estimated lip-sync on the same reply, in a
-  debug-only view available where the Anima debug panel is enabled:
-  - both mouth curves are shown against the reply's audio timeline;
-  - the reply can be replayed on the avatar with either plan.
-
-  The view is not part of the normal product UI.
+- ElevenLabs v4 and v4 Turbo replies always request character timing. It reaches
+  the browser for every reply, on every path:
+  - **realtime socket:** alignment frames carry times relative to each frame. The
+    browser keeps a cursor per turn and resynchronises it at
+    `is_final_audio_for_turn`.
+  - **finalized `tts.audio`:** an `alignment` field carries absolute times from
+    the run's first audio sample. The backend applies batch and paragraph-silence
+    offsets.
+  - **hosted server socket:** the same absolute `alignment` field is accepted.
+- A provider-neutral timing evidence module turns timing into:
+  - **spoken words** with start and end times. Japanese, Korean and Chinese
+    characters keep one window each; they are not merged into words.
+  - **punctuation** with its times, as a possible pause. ElevenLabs often
+    reports no gap at a pause, because the previous word's end overruns it.
+  - **bracketed spans**, keeping the raw tag text and a classification:
+    - a non-verbal sound (laughs, sighs, gasps, clears throat, crying, …) is a
+      non-speech interval;
+    - delivery (whispers, shouts, softly, …) or emotion (excited, cheerfully,
+      …) is a zero-width marker that applies to the following words;
+    - pacing (`[pause]`, `[long pause]`) is a silent interval;
+    - a tag is free-form and may combine terms, such as `[whispering, playful]`.
+      An unknown tag counts as a delivery or emotion marker, never as a word.
+  - Provider spans are hints, not truth. Word ends before a pause overrun by
+    0.1–0.35 s, and a mid-sentence `[laughs]` can get 48 ms while the word before
+    it absorbs the laugh (#468 measurements). The module reports what the
+    provider said; deciding word ends and tag placement is the planner's job.
+- Lip-sync rendering stays on today's estimated path in this change, for every
+  provider, unless the owner opts into D11.
+- **Side-by-side view:**
+  - a debug-only view, available where the Anima debug panel is enabled, shows
+    a reply's audio timeline;
+  - it overlays the timing evidence (words or characters, punctuation, tag
+    intervals and markers) and one mouth curve per lip-sync plan;
+  - it can replay the reply on the avatar with any listed plan;
+  - it is agnostic about where a plan came from, so #468 can add its planner
+    as another curve;
+  - it is not part of the normal product UI.
+- Timing never delays speech. Missing or partial timing changes nothing the
+  owner hears or sees outside the debug view.
 
 ### R5 — Hosted server transport
 
@@ -167,7 +184,7 @@ Exclude:
 - The browser keeps sending the frame shape the hosted socket already validates,
   so a Cloud that has not yet adopted v4 is not broken by this release.
 - The browser accepts both the existing and the new end-of-stream markers from
-  the server socket. When no timing arrives, lip-sync falls back as in R4.
+  the server socket. Timing frames are optional there.
 - The `speech_allowance_exhausted` → Pocket TTS fallback is unchanged. It applies
   to `tts.session.error` for realtime v4 Turbo and to `tts.error` for finalized
   v4.
@@ -189,6 +206,20 @@ Exclude:
 - v4 accepts only Stability and Similarity. The utility synthesis route's voice
   settings drop Style, Speed and Speaker Boost. The route speaks with a v4 model
   over Text to Dialogue HTTP.
+
+### R7 — Every language reaches the provider (D9)
+
+- A finalized speech sentence reaches the selected provider whatever its
+  language. This covers ElevenLabs v4 and Gemini, for Japanese, Korean,
+  Chinese, Spanish and English.
+- gruut no longer gates TTS segments. Its phonemes stay an optional English
+  lip-sync input.
+- The `gruut_text_with_ws` text basis is revisited:
+  - English keeps today's prepared text unless that blocks the change;
+  - other languages send the visible speech text.
+- The realtime path already speaks those languages, by falling back to the
+  visible speech text. This is verified end to end.
+- Lip-sync for those languages still does not move the mouth until #468.
 
 ## Constraints
 
@@ -225,8 +256,8 @@ Exclude:
 - **Cost:** v4 Turbo and v4 cost the same per character as the models they
   replace (issue #471). Requesting timing adds no charge. Live verification
   during implementation needs an owner-approved paid budget.
-- **Performance:** the timing-based plan runs off the main thread, as today's
-  planner does. It must not add to time to first audio.
+- **Performance:** timing collection must not add to time to first audio.
+  Removing the gruut gate must not slow English segments.
 
 ## Acceptance criteria
 
@@ -241,27 +272,38 @@ Exclude:
   paragraph mode) with the emotional tone tag and PCM frames. From the second
   request on, it stitches to the previous requests (with a `previous_text`
   fallback). Evidence: backend tests, the golden SSE fixture and one live check.
+- [ ] **Every language:** Japanese, Korean, Chinese and Spanish sentences
+  produce finalized segments for v4 and Gemini, and are spoken live. The realtime
+  path speaks them end to end. Evidence: backend tests per language and provider,
+  and live checks.
 - [ ] **Migration:** saved `eleven_flash_v2_5`, `eleven_multilingual_v2` and
   `eleven_v3` preferences show and use the mapped v4 model with no owner action,
   and an old id in a chat request still yields a text reply. The old ids appear
   nowhere else in settings, contracts or docs. Evidence: frontend and backend
   tests, and a repository search.
-- [ ] **Provider-timed lip-sync:** on ElevenLabs replies with timing, the mouth
-  follows the spoken words and pauses with less drift than the estimated path.
-  Without timing, and for Gemini and Pocket, lip-sync works as today. Evidence:
-  - planner tests on recorded timing: word-window placement, pauses closing the
-    mouth, the emotional prefix and action tags as named non-speech intervals
-    that are never mouthed, and fallback on mismatch;
-  - live checks;
-  - the owner's side-by-side review (owner gate).
+- [ ] **Timing evidence:** every v4 reply's timing reaches the browser on the
+  realtime socket, in `tts.audio` and on the server socket, in the right time
+  base. Evidence: tests for per-frame cursors and turn resync, batch and
+  paragraph offsets, and the server field.
+- [ ] **Timing module:** on recorded fixtures (text, characters and times; no
+  audio) it yields:
+  - Latin words with windows, and CJK characters kept per character;
+  - punctuation with times;
+  - classified tag intervals and markers, including combined and unknown tags,
+    never as words.
+
+  Evidence: unit tests.
+- [ ] **Side-by-side view:** for a v4 reply it shows the audio timeline, the
+  evidence and today's estimated curve, and replays the reply on the avatar.
+  Adding another plan source needs no change to the view. Evidence: tests, and
+  the owner's review (owner gate).
 - [ ] **Failures:** speech failures (token refused, socket error, provider error,
   timeout) leave the text reply intact with the existing notice. The hosted
   `speech_allowance_exhausted` → Pocket fallback still works. Evidence: existing
   and updated frontend and product-ui tests.
 - [ ] **Hosted:**
   - `contracts/hosted-web.md` describes the v4 server transport and timing frames;
-  - browser tests show that a server socket without timing still plays and
-    lip-syncs (estimated);
+  - browser tests show that a server socket without timing still plays;
   - a Cloud issue is filed or ready to file.
 - [ ] **Docs and contracts:**
   - the docs listed in the issue are updated;
@@ -273,7 +315,7 @@ Exclude:
   `pnpm e2e:test:fast` on a disposable built stack.
 - [ ] **Owner gate** (before merge):
   - the owner listens to v4 Turbo and v4 with the voices in use;
-  - the owner reviews the lip-sync side by side on the same reply.
+  - the owner reviews the side-by-side view on a v4 reply.
 
   Instant Voice Clone verification is waived (D5).
 
@@ -289,11 +331,10 @@ Exclude:
     - list prices are equal.
   - Contingency: if the owner's listening gate rejects v4 for a voice in use,
     the owner can choose a Legacy entry before merge, as a bounded change.
-- **D2 — Provider timing for lip-sync (owner, 2026-10-12).**
-  - Use the timing where feasible, and keep the estimated path as the fallback
-    and for other providers.
-  - Show the two side by side.
-  - Leave tag mouth shapes and other providers to #468.
+- **D2 — Provider timing for lip-sync (owner, 2026-10-12; narrowed by D8).**
+  - Use the timing, keeping the estimated path for other providers.
+  - Show the plans side by side.
+  - Tag mouth shapes and other providers stay with #468.
 - **D3 — Defaults (agreed by the owner, 2026-10-12).** v4 Turbo on the realtime
   path is the default; v4 on the finalized path is the optional higher-quality
   mode.
@@ -319,25 +360,54 @@ Exclude:
     adopting this release. Otherwise a migrated hosted preference gets no speech;
     its text is intact.
   - The Cloud issue records this ordering.
-- **D8 — Alignment with #468 (agent proposal, for confirmation).** The #468
-  brief (2026-10-12) recommends a new browser lip-sync planner that aligns
-  per-language text to the audio. It would treat vocal tags as non-speech events
-  and use ElevenLabs timing as one evidence source. To avoid throwaway work, this
-  change delivers the parts #468 reuses:
-  - timing transport from the socket and SSE to the bridge;
-  - a provider-neutral timing evidence module: spoken words with times, and
-    named tag intervals;
-  - the side-by-side review aid.
-
-  It adapts today's planner only minimally, through word windows, which #468's
-  planner later replaces. The spike also answers #468's open question: tags do
-  appear in ElevenLabs alignment, with spans that cover the sound.
-- **D9 — Languages beyond English (open question).**
-  - #468 found that the backend gruut step gates finalized TTS: a Japanese,
-    Korean or Chinese sentence gets no TTS segment and is never spoken.
-  - v4's 94 languages only help once that gate is removed.
-  - Proposed: leave that change to #468 (its migration step 1), unless the owner
-    wants it pulled into this work.
+- **D8 — Share with #468, narrowly (owner, 2026-10-12).**
+  - Build only what #468's planner reuses: the timing plumbing, the timing
+    evidence module with recorded fixtures, and a source-agnostic side-by-side
+    view (R4).
+  - Do not extend `buildGruutVisemeKeyframes` with word windows.
+  - Basis: #468 scored v4 timing on 14 clips against forced alignment:
+    - timing rendered directly holds the mouth open in 21% (English) and 13%
+      (tag lines) of silent gaps;
+    - it falls back to the estimate for Japanese, Korean and Chinese;
+    - timing used as evidence in #468's planner reaches 66% vowel match and 5%
+      / 4% open in silence, and places 6 of 7 tags.
+- **D9 — Remove the gruut gate here (owner, 2026-10-12).** Finalized v4 and
+  Gemini speak every language (R7). This reverses the earlier proposal to leave
+  it to #468.
+- **D10 — Priority and delivery (owner, 2026-10-12; agent proposal on delivery).**
+  - The v4 Turbo streamed path is the priority. The ExecPlan reorders the work so
+    Phase 1 delivers it on its own: the realtime models, migration, token,
+    socket and settings, with `eleven_v3` untouched.
+  - Phase 2 then does the finalized v4 migration and D9.
+  - Proposed: open Phase 1 as its own PR, which can merge after its checks and
+    the owner's v4 Turbo listening check. The rest of the plan follows in a
+    second PR.
+  - Cost: `local-http` takes two major bumps instead of one.
+  - The owner decides whether to split.
+- **D11 — Minimal English lip-sync improvement before #468 (owner option;
+  proposed: not included).**
+  - The only visible change this plan could make without extending the gruut
+    planner is to warp today's English plan in time, so each word lands in its
+    timed window. It would be a post-process on the plan's output, English
+    only, and appear as a second curve in the side-by-side view.
+  - Limits:
+    - word ends overrun pauses, so the mouth stays open into them (about 21%
+      of silent gaps, per #468, against 61% today);
+    - a mid-sentence tag can be attributed to the previous word;
+    - Japanese, Korean and Chinese get no benefit;
+    - #468's planner replaces it.
+- **D12 — Audio tags in the chat model's `speech` (owner, 2026-10-12: new scope).**
+  - Run intent discovery, then record the outcome as a linked issue (or as
+    additions here) before any implementation.
+  - The open questions:
+    - one neutral vocabulary or provider-specific instructions;
+    - inline emotion tags;
+    - frequency and placement;
+    - validation;
+    - visible chat text;
+    - the per-provider switch;
+    - lip-sync input.
+  - Lip-sync reactions to tags stay with #468.
 
 ## Spec
 
@@ -346,7 +416,8 @@ This document, before publication. After `workspace-setup` publishes it:
 
 ## ExecPlan
 
-[eleven-v4-execplan.md](eleven-v4-execplan.md), drafted for review.
+[eleven-v4-execplan.md](eleven-v4-execplan.md). Phases 1–2 authorized on
+2026-10-12.
 
 ## Delivery links
 

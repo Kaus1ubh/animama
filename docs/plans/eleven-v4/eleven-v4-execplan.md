@@ -1,24 +1,27 @@
 # Eleven v4 and v4 Turbo execution plan
 
-Status: Draft, revised after owner review (2026-10-12). No phase is authorized yet.
+Status: Phases 1–2 authorized by the owner on 2026-10-12. Phases 3–5 are agreed in
+scope but not yet authorized.
 
-Source agreement: [spec draft](eleven-v4-spec.md) of 2026-10-12, based on
-[issue #471](https://github.com/raymond-van/animama/issues/471) and the owner's
-task instruction of 2026-10-12 (decisions D1–D3 in the spec). Research:
+Source agreement: [spec](eleven-v4-spec.md), agreed by the owner on 2026-10-12
+(decisions D1–D12), for
+[issue #471](https://github.com/raymond-van/animama/issues/471). Research:
 [eleven-v4-research.md](eleven-v4-research.md).
 
-Authorized scope: none yet. On 2026-10-12 the owner agreed D1–D4, waived D5 and
-approved D6 (US$1). Implementation starts on the owner's go-ahead for the revised
-spec (D8, D9) and this plan.
+Authorized scope: Phases 1–2 (owner, 2026-10-12).
+- Phase 1 delivers the v4 Turbo streamed path first, by the owner's priority
+  (spec D10).
+- The PR split proposed in D10 awaits the owner's decision; until then the plan
+  keeps one PR.
 
 Explicit gates:
 
 - **G1 — Paid live checks.** Live ElevenLabs checks during implementation stay
-  within the owner-approved budget (spec D6; proposed US$1).
+  within the owner-approved budget (spec D6: US$1, of which about US$0.02 is
+  spent).
 - **G2 — Owner gate before merge.**
   - The owner listens to v4 Turbo and v4 with the voices in use.
-  - The owner reviews provider-timed versus estimated lip-sync side by side on
-    the same reply.
+  - The owner reviews the side-by-side view on a v4 reply.
   - Instant Voice Clone verification was waived on 2026-10-12 (spec D5).
 - **G3 — Hosted (Cloud).** Cloud must adopt the v4 model ids before or together
   with hosted adoption of this release (spec D7). It is tracked by a Cloud issue,
@@ -27,9 +30,10 @@ Explicit gates:
 ## Purpose and context
 
 Replace ElevenLabs `eleven_flash_v2_5` and `eleven_multilingual_v2` (realtime)
-and `eleven_v3` (finalized) with `eleven_v4_turbo` and `eleven_v4`. Time the
-avatar's lip-sync from ElevenLabs character timing when it is available. The
-spike established the protocol facts this plan depends on:
+and `eleven_v3` (finalized) with `eleven_v4_turbo` and `eleven_v4`, and let
+finalized speech reach providers in every language. Carry ElevenLabs character
+timing to the browser as evidence for #468's lip-sync planner, and add a
+side-by-side view. The spike established the protocol facts this plan depends on:
 
 - The Text to Speech socket rejects v4.
 - The Text to Dialogue socket needs a `ttd_websocket` single-use token and works
@@ -115,7 +119,10 @@ Ownership and boundaries:
   (`app/speech.py`, `server/speech_turn.py`), so the exported name is kept and
   the Cloud issue describes the rest.
 - Gemini shares `tts.audio`, the finalized runtime and the bridge. Its frames gain
-  no timing, and it keeps the estimated path.
+  no timing, and it keeps the estimated path. It gains every-language segments
+  (D9).
+- Today's gruut planner is not extended (spec D8). #468 owns lip-sync rendering
+  from timing.
 
 ## Progress
 
@@ -127,12 +134,22 @@ Ownership and boundaries:
 - [x] Follow-up probes, 2026-10-12, about US$0.02 of the D6 budget: v4 accepts
   request stitching, and 8 dialogue sessions generated at once
   ([research §7](eleven-v4-research.md#7-follow-up-probes-2026-10-12-after-owner-review)).
-- [ ] Owner go-ahead on the revised spec (D8, D9) and this plan.
-- [ ] Phase 1: v4 model set, migration and finalized v4.
-- [ ] Phase 2: realtime v4 Turbo over the dialogue socket.
-- [ ] Phase 3: provider-timed lip-sync.
-- [ ] Phase 4: side-by-side lip-sync review.
-- [ ] Phase 5: hosted contract, Cloud issue, docs and full validation.
+- [x] Owner decisions, 2026-10-12:
+  - realtime first;
+  - D8 narrowed;
+  - D9 pulled in;
+  - audio tags as new scope behind intent discovery.
+
+  Phases 1–2 authorized.
+- [ ] Phase 1: realtime v4 Turbo over the dialogue socket.
+- [ ] Phase 2: finalized v4, model cleanup and every language.
+- [ ] Phase 3: timing plumbing and the timing evidence module (not yet
+  authorized).
+- [ ] Phase 4: side-by-side view with pluggable plan sources (not yet
+  authorized).
+- [ ] Phase 5: hosted contract, Cloud issue, docs and full validation (not yet
+  authorized).
+- [ ] Linked: intent discovery for audio tags in `speech` (D12).
 - [ ] Final integration review.
 - [ ] G2 owner gate.
 
@@ -162,16 +179,20 @@ From the spike, 2026-10-12 (details and numbers in the research brief):
 - **Settings default mismatch.** The frontend default grouping is
   `DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING = "paragraph"`, while the backend and
   docs say `"sentence"`. This is pre-existing. Phase 1 keeps the behavior and
-  corrects the docs, unless the owner prefers the other default.
+  corrects the docs, unless the owner prefers the other default (now Phase 2).
 - **SDK gap.** The installed `elevenlabs` SDK 2.39.0 has no Text to Dialogue
   socket client, and its dialogue `stream_with_timestamps` has no `previous_text`
   parameter. The latest release is 2.71.0.
-- **#468 brief (2026-10-12).** Its recommended direction is a new browser
-  planner that aligns per-language text to the audio, with tags as named
-  non-speech events and ElevenLabs timing as one evidence source. Phase 3 is
-  shaped so #468 reuses the timing transport and evidence module (spec D8). The
-  brief also records that gruut gates finalized TTS for non-English sentences
-  (spec D9).
+- **#468 brief** (`docs/lipsync-investigation` at `ccda1f26`, PR #473):
+  - It scored v4 timing on 14 clips against forced alignment.
+  - Timing rendered directly holds the mouth open in 21% (English) and 13% (tag
+    lines) of silent gaps, because word ends overrun pauses by 0.1–0.35 s.
+  - A mid-sentence `[laughs]` got 48 ms, with the laugh credited to the word
+    before it.
+  - Timing as evidence in #468's planner reached 66% vowel match, 5% / 4% open in
+    silence, and 6 of 7 tags.
+  - Hence spec D8: Phase 3 builds evidence, not rendering. The brief also found
+    the gruut gate on finalized TTS (spec D9).
 - **No comparison tooling.** No debug tooling shows two lip-sync plans; the
   bridge keeps one plan per run.
 - **Follow-up probes.**
@@ -204,11 +225,24 @@ From the spike, 2026-10-12 (details and numbers in the research brief):
   ids come from each response's `request-id` header. They fall back to a
   100-character `previous_text` when no id is known, for example after a failed
   request. Whether stitching sounds better than `previous_text` is judged at G2.
-- **2026-10-12 — agent proposal (spec D8): #468 alignment.**
-  - Phase 3 builds the timing transport and a provider-neutral evidence module
-    (timed words, plus named tag intervals) for #468 to reuse.
-  - It changes today's planner only through word windows.
-  - Tag intervals rest the mouth closed until #468 adds shapes.
+- **2026-10-12 — owner: priority, D8, D9, D12.**
+  - **Priority:** the v4 Turbo streamed path comes first, so Phases 1–2 are
+    reordered realtime-first.
+  - **D8 narrowed:**
+    - timing plumbing;
+    - an evidence module with per-character CJK windows, punctuation as
+      possible pauses, and classified tags (non-verbal, delivery or emotion,
+      pacing; unknown tags count as markers);
+    - a side-by-side view agnostic about where a plan came from;
+    - no extension of `buildGruutVisemeKeyframes`.
+  - **D9:** remove the gruut gate in this change (Phase 2).
+  - **D12:** audio tags in `speech` go to intent discovery and a linked issue.
+- **2026-10-12 — agent proposal (spec D10): split delivery.** PR A carries
+  Phase 1 and can merge after its checks and v4 Turbo listening. PR B carries
+  Phases 2–5. Awaiting the owner.
+- **2026-10-12 — agent proposal (spec D11): no English lip-sync change before
+  #468.** A minimal option and its limits are listed in the spec for the owner
+  to opt into.
 - **2026-10-12 — agent proposal: realtime flush policy.**
   - Flush once after the first speech segment, then let the server buffer.
   - Send `keep_alive` after 10 s without a message.
@@ -261,227 +295,147 @@ From the spike, 2026-10-12 (details and numbers in the research brief):
 
 ## Phased implementation
 
-### Phase 1: v4 model set, migration and finalized v4
+Phases follow the owner's priority (D10). Phase 1 delivers the v4 Turbo streamed
+path on its own and leaves `eleven_v3` untouched. Phase 2 migrates the finalized
+path and removes the gruut gate (D9). Phases 3–5 are agreed in scope but not yet
+authorized.
 
-Requirements: R2, R3, R6 (backend and settings). Starting source: `95a2db39`.
+### Phase 1: realtime v4 Turbo over the dialogue socket
+
+Requirements: R1, R3 (realtime models), R5 (browser frame compatibility).
+Starting source: `0b28c30a` on `feat/eleven-v4` (base `95a2db39`).
 
 Outcome:
 
-- The backend speaks finalized replies with `eleven_v4` over Text to Dialogue
-  HTTP with timestamps, sending `previous_text` and the tone tag.
-- The realtime session descriptor names `eleven_v4_turbo` with a `ttd_websocket`
-  token and `sync_alignment: true`.
-- Settings offer only v4 Turbo and v4, and saved old ids migrate.
-- Timing is parsed in the backend stream but not yet emitted (Phase 3).
+- Realtime replies speak with `eleven_v4_turbo`, browser-direct, over the Text to
+  Dialogue socket on local web and desktop.
+- The latency target is met, and the connection survives long pauses.
+- Saved Flash v2.5 and Multilingual v2 preferences become v4 Turbo.
+- `eleven_v3` (finalized) is untouched until Phase 2.
+- The server transport keeps working against an unchanged Cloud.
+- Timing is requested (`sync_alignment=true`) but not yet consumed (Phase 3).
 
 Changes:
 
-1. **Contracts** (`app/contracts/elevenlabs.py`):
-   - Realtime `Literal["eleven_v4_turbo"]`, finalized `Literal["eleven_v4"]`,
-     chat union of both, and the `SUPPORTED_*` tuples. The names are kept.
-   - Add `LEGACY_ELEVENLABS_TTS_MODEL_REPLACEMENTS` and a small helper.
-   - `PyElevenLabsVoiceSettings` keeps `stability` and `similarity_boost`; drop
-     `style`, `use_speaker_boost` and `speed`.
-   - `PyElevenLabsTextToSpeechRequest.model_id` becomes the v4 union, default
-     `eleven_v4`.
-   - Delete the unused `PyElevenLabsRealtimeTtsSessionRequest` and
-     `PyElevenLabsFinalizedTtsStreamRequest` and their re-exports, after
-     confirming they have no users.
+1. **Backend models** (`app/contracts/elevenlabs.py`):
+   - Realtime `Literal["eleven_v4_turbo"]`; the chat union becomes
+     `eleven_v4_turbo | eleven_v3`. The `SUPPORTED_*` names that Cloud imports are
+     kept.
+   - Add `LEGACY_ELEVENLABS_TTS_MODEL_REPLACEMENTS` with
+     `eleven_flash_v2_5` and `eleven_multilingual_v2` → `eleven_v4_turbo`.
+     Phase 2 adds `eleven_v3` → `eleven_v4`.
 2. **Dispatch** (`dispatch.py`, `options.py`): a `mode="before"` validator on
-   `model_id` maps legacy ids. The provider/model validator is unchanged.
+   `PyAnimaTtsRunOptions.model_id` maps legacy ids, so a stale tab's request
+   still gets its reply. The provider/model validator is unchanged.
 3. **Config:**
-   - Remove `elevenlabs_realtime_tts_default_model_id` and its environment
-     variable; there is one realtime model.
-   - `resolve_realtime_tts_model_id` reduces to the v4 Turbo constant, with
-     legacy mapping for explicit values.
-   - Document the removal in `voice-and-speech.md`.
-4. **Service** (`elevenlabs_service.py`):
-   - Mint `ttd_websocket` tokens. Use the SDK if `SingleUseTokenType` permits it
-     after an upgrade; otherwise use a typed `cast` or a direct
-     `POST /v1/single-use-token/ttd_websocket` with the shared client. Never log
-     the token.
+   - Remove `elevenlabs_realtime_tts_default_model_id` and the
+     `ANIMAMA_ELEVENLABS_REALTIME_TTS_DEFAULT_MODEL_ID` variable; there is one
+     realtime model.
+   - `resolve_realtime_tts_model_id` returns v4 Turbo and maps legacy explicit
+     values.
+4. **Token and session** (`elevenlabs_service.py`):
+   - Mint `ttd_websocket` single-use tokens. The SDK's `SingleUseTokenType` lacks
+     it, so call `POST /v1/single-use-token/ttd_websocket` through the SDK with a
+     typed cast, or directly with the shared `httpx` client. Never log the token.
    - The session sets `sync_alignment=True`.
-   - Finalized:
-     - the request goes to Text to Dialogue `stream/with-timestamps` with
-       `inputs=[{text, voice_id}]`, `model_id`, `language_code`,
-       `apply_text_normalization="off"` and `output_format=pcm_24000`;
-     - continuity comes from `previous_request_ids` (the run's last ≤3 request
-       ids, read from each response's `request-id` header), or else
-       `previous_text` (≤100 characters);
-     - the installed SDK's dialogue stream has no `previous_text` or
-       `previous_request_ids` parameters and does not expose the response
-       header. Prefer a direct streamed request through the shared `httpx`
-       client, whose NDJSON parsing is needed anyway. Upgrade the SDK only if it
-       covers all three; record the choice.
-     - Return the `request-id` to `FinalizedTtsStreamBootstrap`, which keeps the
-       run's last three ids.
-     - parse each NDJSON chunk's `audio_base64` and `alignment`, and keep today's
-       PCM framing (`pop_pcm_audio_frame`);
-     - retain the alignment, converted to ms, on the yielded `audio` events as an
-       internal field;
-     - remove the v3 `previous_text` omission.
-   - The utility route uses Text to Dialogue `convert`, mapping
-     `similarity_boost` to `similarity`.
-   - Every ElevenLabs speech path now uses a Text to Dialogue API. Nothing calls
-     `text_to_speech.*` for speech.
-5. **Tone and continuity** (`voice_emotional_tone.py`):
-   - Rename `elevenlabs_v3_text_with_emotional_prefix` to a model-neutral name.
-   - Apply it for `eleven_v4`.
-   - Bound ElevenLabs `previous_text` to 100 characters; Gemini's bound is
-     unchanged.
-6. **Chat speech** (`tts.py`, `sse_events.py`):
-   - Replace the `"eleven_v3"` literals with the finalized model set.
-   - `_uses_previous_text` becomes true for ElevenLabs.
-   - The session is skipped for finalized models, as today.
-7. **Frontend settings** (`preferences.ts`, `ApplicationSettingsModal.tsx`,
+   - Rename `mint_tts_websocket_single_use_token` accordingly.
+5. **Browser runtime** (`use-elevenlabs-tts-runtime.ts`):
+   - **Direct URL:** `wss://api.elevenlabs.io/v1/text-to-dialogue/stream-input`
+     with `model_id`, `output_format`, `sync_alignment`, `single_use_token` and
+     an optional `language_code`. URL redaction is kept in logs.
+   - **Direct protocol:**
+     - On open, send `{"voices": [voice_id]}`.
+     - Send each chunk as `{"inputs": [{"text": chunk + " ", "voice_id"}]}`.
+     - Send `{"flush": true}` once, after the run's first chunk.
+     - Send `{"keep_alive": true}` after 10 s without a sent message, until the
+       run ends.
+     - End with `{"close_socket": true}`.
+     - End on `is_final`, and also accept `isFinal`.
+     - Treat `{message, error, code}` messages and abnormal closes as failures,
+       with the existing notice and the text intact.
+   - **Server transport:**
+     - Keep `{"text": chunk}` frames and the `{"text": ""}` end, the shape
+       Cloud validates.
+     - Accept `is_final` or `isFinal`.
+     - Ignore an `alignment` field until Phase 3.
+   - **Teardown:** cancel, supersede and stop close the socket at once,
+     releasing the dialogue session. Late frames for an old run are ignored, as
+     today.
+6. **Settings** (`preferences.ts`, `ApplicationSettingsModal.tsx`,
    `elevenlabs-chat-tts-dispatch.ts`, `useChatSession.ts`):
-   - Two options:
-     - "Eleven v4 Turbo": realtime, fastest, default;
-     - "Eleven v4": finalized, highest quality, speaks each sentence once
-       written.
+   - The options are "Eleven v4 Turbo" (realtime, fastest, default) and the
+     existing "Eleven v3" (finalized) until Phase 2.
    - `DEFAULT_ELEVENLABS_TTS_MODEL_ID = "eleven_v4_turbo"`.
-   - Normalizers map legacy ids, so stored old values read as their
-     replacements.
-   - The settings modal writes the replacement when it loads a migrated value.
-     Old ids are never sent to the backend.
-   - `isElevenLabsFinalizedTtsModelId` is true for `eleven_v4`.
-   - Relabel the grouping row and the "Unavailable with Eleven v3" text for v4,
-     keeping the stored key `tts_elevenlabs_v3_finalized_chunking`.
-   - Keep the frontend's current grouping default (`"paragraph"`) and correct
-     the docs that say `"sentence"`, unless the owner chooses otherwise at review.
-8. **Contracts and client:**
-   - `contracts/versions.json` `local-http` 6.0.0, mirrored in `hosted-web.md`
-     and `http-api.md`.
-   - Bump `runtime-contracts` and run `pnpm openapi-ts` offline.
-   - Re-record the golden SSE fixtures with `CHAT_SSE_GOLDEN_RECORD=1`.
+   - Normalizers map the legacy realtime ids. The settings modal writes the
+     replacement when it loads a migrated value, so old ids are never sent.
+7. **Contracts and client:**
+   - `local-http` 6.0.0 in `contracts/versions.json`, mirrored in
+     `hosted-web.md` and `http-api.md`.
+   - Bump `runtime-contracts`, and bump `product-ui` if its types change.
+   - Run `pnpm openapi-ts` offline.
+   - Re-record `tts-realtime.sse` with `CHAT_SSE_GOLDEN_RECORD=1`.
+8. **Docs:**
+   - The realtime sections of `docs/frontend/runtime/elevenlabs-tts.md` and
+     `docs/backend/integrations/voice-and-speech.md`: models, the dialogue
+     socket, the token type, flush, keep-alive, migration and the removed
+     variable.
+   - The realtime-descriptor model id in `contracts/hosted-web.md`.
 
 Tests (TDD where behavior changes):
 
 - **Backend:**
-  - legacy ids map in `PyAnimaTtsRunOptions` and still yield a reply;
+  - legacy realtime ids map in `PyAnimaTtsRunOptions` and still yield a reply;
   - the session descriptor carries v4 Turbo, a `ttd_websocket` token and
-    `sync_alignment`;
-  - finalized v4 sends the tone tag, frames PCM as before across sentence and
-    paragraph modes, and from the second request on stitches to the previous
-    request ids;
-  - after a failed or id-less request it falls back to `previous_text`
-    (≤100 characters);
-  - a failed batch emits `tts.error` without `tts.done`;
-  - Gemini tests unchanged;
-  - utility route default and settings mapping;
-  - golden fixtures.
-- **Frontend:**
-  - `preferences.test.ts` migrates all three old ids and the default;
-  - the dispatch test builds v4 finalized and v4 Turbo options;
-  - `use-tts-playback.test.tsx` and `chat-lifecycle.test.mjs` fixtures move to
-    the v4 ids.
-
-Checks:
-
-- `uv run pytest -q` (focused, then full);
-- `uv run ruff check`;
-- `make check-test`;
-- `uv run --no-sync python scripts/repository-boundary/check-python-imports.py`;
-- from `src/frontend`: `pnpm openapi-ts`, `pnpm check`, `pnpm web:lint` and
-  `pnpm web:test`.
-
-Live (G1):
-
-- On the task stack, one finalized v4 reply (two sentences, then paragraph mode)
-  plays with emotional delivery.
-- Record its first-audio time and characters.
-- Save one stitched and one `previous_text` rendering of the same two sentences
-  for G2.
-
-Completion:
-
-- Checks pass.
-- `git grep -E "eleven_v3|eleven_flash_v2_5|eleven_multilingual_v2"` finds only
-  the migration map, its tests, and history in `docs/plans/`.
-- Review passes.
-- Commit `feat(voice)[p1]: speak finalized replies with Eleven v4 and migrate model settings`.
-
-Note: realtime speech fails live until Phase 2. The browser still opens the TTS
-socket, which rejects v4 Turbo; the text is intact. Phases 1 and 2 ship in the
-same PR.
-
-#### Code Review #1 Findings
-
-Pending.
-
-#### Code Review #1 Revisions
-
-Pending.
-
-### Phase 2: realtime v4 Turbo over the dialogue socket
-
-Requirements: R1, R5 (browser frame compatibility). Depends on Phase 1.
-
-Outcome: realtime replies speak with v4 Turbo browser-direct on local web and
-desktop, with the latency target met and robust connection handling. The server
-transport keeps working against a Cloud that has not yet changed.
-
-Changes (`use-elevenlabs-tts-runtime.ts`, `use-tts-playback.ts`):
-
-1. **Direct URL:** `wss://api.elevenlabs.io/v1/text-to-dialogue/stream-input`
-   with `model_id`, `output_format`, `sync_alignment`, `single_use_token` and an
-   optional `language_code`. URL redaction is kept in logs.
-2. **Direct protocol:**
-   - On open, send `{"voices": [voice_id]}`.
-   - Send each queued chunk as `{"inputs": [{"text": chunk + " ", "voice_id"}]}`,
-     keeping the separating space that trimming drops today.
-   - Send `{"flush": true}` once, after the first chunk of the run.
-   - Send `{"keep_alive": true}` when 10 s pass without a sent message, until the
-     run ends.
-   - End of stream sends `{"close_socket": true}`.
-   - Treat `is_final` (and the legacy `isFinal`) as the end.
-   - Parse error messages (`{message, error, code}`) as failures. The existing
-     notice and text fallback apply.
-3. **Server transport:**
-   - Keep sending `{"text": chunk}` frames and `{"text": ""}` at the end, the
-     shape Cloud validates.
-   - Accept `is_final` or `isFinal`.
-   - An optional `alignment` field is ignored until Phase 3.
-4. **Teardown:** cancel, supersede and stop close the socket at once, releasing
-   the dialogue session. Late frames for an old run are ignored, as today.
-5. **Types:** the session's `sync_alignment` true is accepted. The server
-   transport's `sync_alignment: false` remains valid.
-
-Tests:
-
-- **Runtime unit tests** (`use-elevenlabs-tts-runtime.test.ts`,
-  `tests/speech/elevenlabsTtsRuntime.test.ts`), using a fake `WebSocket`:
-  - URL and query;
-  - the first message, input frames with trailing spaces and the single flush;
-  - `keep_alive` after 10 s idle (fake timers);
-  - `close_socket` at completion;
+    `sync_alignment: true`;
+  - the minted token type;
+  - the realtime golden fixture;
+  - `eleven_v3` finalized tests unchanged.
+- **Runtime** (`use-elevenlabs-tts-runtime.test.ts`,
+  `tests/speech/elevenlabsTtsRuntime.test.ts`), with a fake `WebSocket` and fake
+  timers:
+  - URL and query, and the first message;
+  - input frames with trailing spaces, and the single flush;
+  - `keep_alive` after 10 s idle, and `close_socket` at completion;
   - the `is_final` end;
   - an error message ending the run with the notice;
-  - server-transport frames unchanged;
+  - server-transport frames unchanged, ending on either marker;
   - cancel closing the socket.
-- `use-tts-playback.test.tsx` Pocket-fallback cases still pass.
-- `hosted-workflows.browser.test.mjs` server socket cases still pass.
+- **Preferences and dispatch:** `preferences.test.ts` migrates both realtime
+  ids and the default; the dispatch test covers v4 Turbo.
+- **Regressions:**
+  - `use-tts-playback.test.tsx` Pocket-fallback cases;
+  - `chat-lifecycle.test.mjs`;
+  - `hosted-workflows.browser.test.mjs` server-socket cases.
 
 Checks:
 
-- `pnpm check`, `pnpm web:lint`, `pnpm web:test` and `pnpm desktop:test`;
-- product-ui tests (`pnpm --filter @animama/product-ui test`, or the
-  repository's equivalent).
+- `uv run pytest -q` (focused, then full), `uv run ruff check` and
+  `make check-test`;
+- `uv run --no-sync python scripts/repository-boundary/check-python-imports.py`;
+- from `src/frontend`: `pnpm openapi-ts`, `pnpm check`, `pnpm web:lint`,
+  `pnpm web:test` and `pnpm desktop:test`.
 
-Live (G1):
+If D10's split is approved:
 
-- On local web (task stack) and desktop dev against the task stack, measure
-  first audio after the first segment over 5 replies each.
-- Record the median against the spike's Flash baseline.
-- Verify the reply speaks after a long pause, using a scripted check against the
-  runtime with a 25 s gap or a debug delay.
-- Check that cancelling mid-reply stops audio and closes the socket.
+- also run `pnpm build`, `pnpm e2e:test:fast` on a disposable built stack, and
+  the package-set compare against a `main` baseline;
+- open PR A for this phase.
+
+Live (G1), on the task stack and desktop dev against it:
+
+- 5 replies each on web and desktop: first audio after the first segment,
+  median recorded against the spike's Flash baseline (862 ms);
+- a reply after a pause longer than 20 s, using a debug delay or a scripted
+  runtime check;
+- cancelling mid-reply stops audio and closes the socket;
+- Japanese, Korean and Chinese replies are spoken (streamed path, D9
+  verification).
 
 Completion:
 
-- Median first audio is at most 300 ms on both.
+- Median first audio is at most 300 ms on both surfaces.
 - Checks and review pass.
-- Commit `feat(voice)[p2]: stream realtime replies with Eleven v4 Turbo`.
+- Commit `feat(voice)[p1]: stream realtime replies with Eleven v4 Turbo`.
 
 #### Code Review #1 Findings
 
@@ -491,102 +445,200 @@ Pending.
 
 Pending.
 
-### Phase 3: provider-timed lip-sync
+### Phase 2: finalized v4, model cleanup and every language
 
-Requirements: R4, plus R5 for timing frames. Depends on Phases 1–2.
+Requirements: R2, R3 (finalized and cleanup), R6, R7. Depends on Phase 1.
 
 Outcome:
 
-- ElevenLabs replies with timing drive mouth movement from word windows.
-- Everything else uses the estimated planner unchanged.
+- Finalized replies speak with `eleven_v4` over Text to Dialogue HTTP with
+  timestamps, with stitching and the tone tag.
+- `eleven_v3` is gone and migrates to `eleven_v4`.
+- The utility route speaks v4.
+- Finalized v4 and Gemini speak Japanese, Korean, Chinese and Spanish sentences.
+- Timing is parsed in the backend but not yet emitted (Phase 3).
+
+Changes:
+
+1. **Models and migration:**
+   - The finalized literal becomes `Literal["eleven_v4"]`, and the chat union
+     `eleven_v4_turbo | eleven_v4`.
+   - Add `eleven_v3` → `eleven_v4` to the legacy map.
+   - Frontend: the "Eleven v4" option (finalized, highest quality, speaks each
+     sentence once written) replaces "Eleven v3", and
+     `isElevenLabsFinalizedTtsModelId` is true for `eleven_v4`.
+   - Relabel the grouping row and the "Unavailable with Eleven v3" text. Keep the
+     stored key `tts_elevenlabs_v3_finalized_chunking` and the current
+     `"paragraph"` default; correct the docs that say `"sentence"`.
+2. **Finalized provider call** (`elevenlabs_service.py`):
+   - Use Text to Dialogue `stream/with-timestamps` with `inputs=[{text, voice_id}]`,
+     `model_id`, `language_code`, `apply_text_normalization="off"` and
+     `pcm_24000`.
+   - Continuity: `previous_request_ids` (the run's last ≤3 ids, from each
+     response's `request-id` header), else `previous_text` (≤100 characters).
+   - The installed SDK's dialogue stream lacks both parameters and the header,
+     so prefer a direct streamed request through the shared `httpx` client.
+     Record the choice.
+   - Parse the NDJSON `audio_base64` and `alignment`, and keep the PCM framing
+     (`pop_pcm_audio_frame`).
+   - Keep the alignment in ms on the yielded internal `audio` events.
+   - Remove the v3 `previous_text` omission.
+   - `FinalizedTtsStreamBootstrap` keeps the run's last three request ids.
+3. **Tone:** rename `elevenlabs_v3_text_with_emotional_prefix` to a model-neutral
+   name and apply it for `eleven_v4`. Bound the ElevenLabs `previous_text` to
+   100 characters; Gemini's bound is unchanged.
+4. **Chat speech** (`tts.py`, `sse_events.py`):
+   - Replace the `"eleven_v3"` literals with the finalized model set.
+   - `_uses_previous_text` is true for ElevenLabs.
+5. **Utility route:**
+   - Text to Dialogue `convert` with v4 by default.
+   - `PyElevenLabsVoiceSettings` keeps `stability` and `similarity_boost`
+     (mapped to `similarity`); drop `style`, `use_speaker_boost` and `speed`.
+   - Delete the unused `PyElevenLabsRealtimeTtsSessionRequest` and
+     `PyElevenLabsFinalizedTtsStreamRequest` after confirming they have no users.
+   - Nothing calls `text_to_speech.*` for speech any more.
+6. **Remove the gruut gate (D9):**
+   - `_attach_tts_speech_payload` prepares a segment from the speech text
+     whatever gruut returns.
+   - When gruut yields English phonemes, the segment keeps `tts_text`,
+     `tts_phonemized_text` and the `gruut_text_with_ws` basis, so English
+     lip-sync is unchanged.
+   - Otherwise the segment speaks the visible text (`visible_text` basis) with
+     no phonemes.
+   - Revisit `server/finalized_speech.py` and the frontend selector so both
+     bases work.
+   - If gruut's cost on non-English text matters (the #468 brief measured
+     294–549 ms on Korean), skip gruut for text with no Latin letters. Record
+     the measurement and the choice.
+7. **Contracts, client and docs:**
+   - A further `local-http` major (or the same 6.0.0 if PR A has not merged).
+   - Bump `runtime-contracts`; run `pnpm openapi-ts`.
+   - Re-record `tts-finalized.sse`.
+   - Update the finalized and language sections of the docs.
+
+Tests:
+
+- **Backend:**
+  - finalized v4 sends the tone tag and frames PCM in sentence and paragraph
+    modes;
+  - it stitches request ids from the second request on, and falls back to
+    `previous_text` after a failed or id-less request;
+  - a failed batch emits `tts.error` without `tts.done`;
+  - legacy `eleven_v3` maps;
+  - utility-route default and settings mapping;
+  - ja, ko, zh and es sentences produce segments and are spoken, for both v4
+    and Gemini (fake providers);
+  - English segments keep their gruut payload;
+  - golden fixtures.
+- **Frontend:**
+  - `preferences.test.ts` migrates `eleven_v3`;
+  - the dispatch test covers v4 finalized;
+  - `chat-lifecycle.test.mjs` and `use-tts-playback.test.tsx` fixtures move to
+    `eleven_v4`;
+  - the TTS payload selector handles both text bases.
+
+Checks: as in Phase 1, plus `pnpm build`.
+
+Live (G1):
+
+- One finalized v4 reply (two sentences, then paragraph mode), with first-audio
+  time and characters.
+- One stitched and one `previous_text` rendering of the same two sentences, for
+  G2.
+- One Japanese and one Korean finalized v4 reply, and one Gemini Japanese reply.
+
+Completion:
+
+- Checks and review pass.
+- `git grep -E "eleven_v3|eleven_flash_v2_5|eleven_multilingual_v2"` finds only
+  the migration map, its tests and history in `docs/plans/`.
+- Commit `feat(voice)[p2]: speak finalized replies with Eleven v4 in every language`.
+
+#### Code Review #1 Findings
+
+Pending.
+
+#### Code Review #1 Revisions
+
+Pending.
+
+### Phase 3: timing plumbing and the timing evidence module
+
+Requirements: R4 (timing and module), R5 (timing frames). Depends on Phases 1–2.
+Not yet authorized.
+
+Outcome:
+
+- Every v4 reply's character timing reaches the browser in one time base.
+- A provider-neutral module turns it into evidence that #468's planner and the
+  Phase 4 view consume.
+- Lip-sync rendering is unchanged (D8).
 
 Changes:
 
 1. **Backend `tts.audio`:**
-   - Add an optional `alignment` field: `{chars, char_start_times_ms, char_durations_ms}`,
-     with integer ms relative to the run's first audio sample.
-   - `FinalizedTtsStreamBootstrap` adds each batch's offset: the samples
-     already emitted in the run, including inserted paragraph silence.
-   - Gemini frames carry no `alignment`.
+   - An optional `alignment` field: `{chars, char_start_times_ms, char_durations_ms}`,
+     integer ms relative to the run's first audio sample.
+   - `FinalizedTtsStreamBootstrap` adds each batch's offset: the samples already
+     emitted in the run, including inserted paragraph silence.
+   - Gemini frames carry none.
    - Update the golden fixture.
-2. **Product-ui:**
-   - The SSE type for `tts.audio` gains the optional `alignment`.
-   - Session types are unchanged.
-   - Bump the `product-ui` version and mirror it in `hosted-web.md`.
-3. **Browser timing collection:**
-   - A small module (`src/frontend/web/src/lib/speech/provider-speech-timing.ts`)
-     builds a run timeline of `{char, startSec, endSec}`:
-     - direct socket frames are accumulated with a cursor per turn that advances
-       by each frame's length and resynchronises to played samples at
-       `is_final_audio_for_turn`;
-     - absolute payloads (`tts.audio`, server socket) are appended as they are.
-   - It hands the timeline to the bridge for the run.
-4. **Evidence module and word matching** (provider-neutral, reused by #468):
-   - Group timeline characters into spoken words (Unicode letters, digits and
-     apostrophes).
-   - Record each bracketed `[...]` span as a named non-speech interval, for
-     example `{kind: "tag", name: "laughs", startSec, endSec}`.
-   - Pauses need no special case: they are the time between words, which
-     ElevenLabs reports on punctuation and spaces.
-   - Match the words in order with the run's phonemized words (from the
-     `tokenizedText` and `phonemizedText` already queued), tolerating a skipped
-     word.
-   - If fewer than 80% of words match, or nothing matches, use no timing for that
-     run, which is the estimated fallback.
-5. **Planner** (`buildGruutVisemeKeyframes`):
-   - Add an optional `wordWindows` input (one window or `null` per phonemized
-     word).
-   - With windows, lay each word's phonemes out within its window by today's
-     relative phoneme durations, close the mouth in gaps and tag intervals, and
-     skip the global `timelineScale`.
-   - Tag intervals rest the mouth closed. Laugh, sigh and gasp shapes and
-     expressions are #468's.
-   - Words without a window are interpolated between neighbours.
-   - Without windows, output is identical to today. Assert this by keeping the
-     existing behaviour tests and adding a golden comparison.
-6. **Bridge and worker:**
-   - Pass windows through the worker protocol.
-   - The realtime path rebuilds the in-flight plan as new timed words arrive, at
-     most every 250 ms, using the existing `actual_inflight` mechanism.
-   - The finalized path rebuilds when timing grows and at `tts.done`.
-   - Record which plan source drives the run (`provider_timing` or `estimated`)
-     in the bridge state, for Phase 4 and logs.
-7. **Server socket:** accept the same absolute `alignment` field on server
-   transport audio frames.
+2. **Product-ui:** the SSE type gains the optional field; bump `product-ui`.
+3. **Browser collection** (`src/frontend/web/src/lib/speech/provider-speech-timing.ts`):
+   - **Realtime socket:** per-frame relative times, with a cursor per turn that
+     advances by each frame's length and resynchronises to the played samples
+     at `is_final_audio_for_turn`. It tolerates `alignment: null`.
+   - **Absolute payloads** (`tts.audio`, the server socket) are appended as they
+     are.
+   - The result is a run timeline of `{char, startSec, endSec}`, kept by run id
+     in a small store. It is cleared with the run, and late frames are ignored.
+4. **Evidence module** (`src/frontend/web/src/lib/speech/speech-timing-evidence.ts`),
+   a pure function from a timeline to evidence:
+   - Spoken words: runs of Latin, Cyrillic and similar letters, digits and
+     apostrophes. Han, kana and Hangul characters each keep their own window.
+   - Punctuation entries with times, marked as possible pauses.
+   - Bracketed spans with the raw tag text and a class:
+     - non-verbal sound → a non-speech interval;
+     - delivery or emotion → a zero-width marker at the span's start that applies
+       to the following words;
+     - pacing → a silent interval.
+   - Classification uses a small keyword table. It handles combined tags
+     (`[whispering, playful]`); unknown tags become delivery or emotion markers,
+     never words.
+   - The emotional prefix tag classifies as emotion.
+   - It reports provider times unchanged. Overrun word ends and short tag spans
+     are documented as hints for the planner.
+5. **Fixtures:**
+   - Recorded from the spike (text, characters and times; no audio) under
+     `src/frontend/web/src/lib/speech/__fixtures__/`.
+   - English with pauses, tags (`[laughs]`, `[sighs]`), numbers and the tone
+     prefix; a v4 Turbo socket run with per-frame times and turns.
+   - New small captures for ja, ko, zh and es, and for `[gasps]`, `[whispers]`,
+     `[pause]` and a combined tag, within G1.
+6. **Server socket:** accept the absolute `alignment` field on server transport
+   audio frames.
 
 Tests:
 
-- **Planner:**
-  - word-window placement from recorded spike timing (stored as small fixtures:
-    text, chars, times; no audio);
-  - pauses close the mouth;
-  - the emotional prefix and action tags (`[laughs]`, `[sighs]` from the spike)
-    become named intervals, are never mouthed, and keep the mouth closed;
-  - the 80% mismatch rule falls back;
-  - output without windows is unchanged.
-- **Timing module:**
-  - per-frame relative accumulation;
-  - resync at turn end;
+- **Collection:**
+  - cursor accumulation and turn resync;
+  - `alignment: null` frames;
   - absolute append;
-  - `alignment: null` frames.
-- **Bridge:** the source flag, in-flight rebuild throttling, and fallback on
-  mismatch.
-- **Backend:** `tts.audio` alignment offsets across batches and paragraph
-  silence; Gemini frames have no alignment.
+  - late or old-run frames ignored.
+- **Evidence:** on fixtures, Latin words, per-character CJK windows,
+  punctuation, each tag class, combined and unknown tags, and the tone prefix.
+- **Backend:** `tts.audio` offsets across batches and paragraph silence; Gemini
+  frames without alignment.
 
-Checks: as in Phases 1 and 2, plus `make check-test`.
+Checks: as in Phase 2.
 
-Live (G1):
-
-- One realtime and one finalized reply, each containing a comma pause.
-- Visual check that the mouth closes in the pause and starts with the voice.
-- Record the source flag.
-- A Gemini reply still lip-syncs (estimated).
+Live (G1): one realtime and one finalized v4 reply. Inspect the collected timeline
+in development tools against the audio.
 
 Completion:
 
 - Checks and review pass.
-- Commit `feat(avatar)[p3]: time lip-sync from ElevenLabs character timing`.
+- Commit `feat(avatar)[p3]: collect ElevenLabs timing as lip-sync evidence`.
 
 #### Code Review #1 Findings
 
@@ -596,56 +648,55 @@ Pending.
 
 Pending.
 
-### Phase 4: side-by-side lip-sync review
+### Phase 4: side-by-side view with pluggable plan sources
 
-Requirements: R4 (side-by-side). Depends on Phase 3.
+Requirements: R4 (side-by-side view). Depends on Phase 3. Not yet authorized.
 
-Outcome: where the Anima debug panel is enabled, the owner can compare both
-plans on the same ElevenLabs reply: see both curves and replay either on the
-avatar.
+Outcome: where the Anima debug panel is enabled, the owner can inspect a v4
+reply's audio, its timing evidence and every registered lip-sync plan, and
+replay the reply on the avatar with any of them.
 
 Changes:
 
-1. **Capture (debug only).** While the debug panel is enabled, the realtime and
-   finalized ElevenLabs runtimes tee the latest run's PCM into a debug store,
-   capped at 90 s, keeping only the last run. The bridge keeps that run's inputs
-   and both plans: provider-timed and estimated, built from the same phonemes.
-   Nothing is captured when the panel is disabled.
-2. **Panel section** "Lip-sync", added to `DEBUG_SECTION_KEYS` and the config:
-   - a canvas timeline of the audio envelope, the provider word windows and tag
-     spans, and both plans' mouth openness (maximum of the A/E/I/O/U weights);
+1. **Plan-source registry:** a small interface,
+   `{id, label, build(inputs) → vowel keyframe plan | null}`.
+   - Register "Estimated (today)", wrapping today's planner unchanged.
+   - #468 registers its planner later, as may the D11 option if the owner
+     chooses it.
+2. **Capture (debug only):**
+   - While the panel is enabled, the ElevenLabs runtimes tee the latest run's PCM
+     into a debug store, capped at 90 s and keeping only the last run.
+   - The store also keeps that run's evidence and planner inputs.
+   - Nothing is captured when the panel is disabled.
+3. **Panel section "Lip-sync":**
+   - a canvas timeline: audio envelope; evidence overlay (words or characters,
+     punctuation, tag intervals and markers); one mouth-openness curve per plan
+     source;
    - a playhead;
-   - buttons "Replay with provider timing" and "Replay with estimated timing".
-     Each plays the stored PCM through its own `AudioContext` and applies that
-     plan to the avatar through the bridge's existing segment path, under a
-     synthetic run id;
-   - stop, and the drift summary (mean and max word-start difference).
-3. **Responsiveness:** the panel works at desktop sizes and does not break
-   narrow layouts.
+   - "Replay with <plan>" for each source, playing the stored PCM through its own
+     `AudioContext` and applying that plan through the bridge's segment path
+     under a synthetic run id;
+   - stop.
+4. **Layout:** desktop sizes first, then narrow layouts without breakage.
 
 Tests:
 
-- **Debug store:** capture only while enabled, the cap, and last-run
-  replacement.
-- **Replay:** it builds the chosen plan and applies it through the segment API
-  (mocked controller).
-- **Summary:** drift values for recorded fixtures.
+- **Registry:** adding a source needs no view change; a test source appears as a
+  curve.
+- **Debug store:** capture only while enabled, the cap, and last-run replacement.
+- **Replay:** it applies the chosen plan through the segment API (mocked
+  controller).
 
-Checks:
+Checks: `pnpm check`, `pnpm web:lint`, `pnpm web:test` and `pnpm build`, plus a
+browser check at desktop and narrow sizes.
 
-- `pnpm check`, `pnpm web:lint`, `pnpm web:test` and `pnpm build`;
-- a browser check at desktop size and at a narrow size of the panel.
-
-Live (G1):
-
-- Capture one realtime v4 Turbo reply and one finalized v4 reply.
-- Replay both plans on the avatar.
-- Save a screenshot of the timeline for the PR.
+Live (G1): capture a realtime and a finalized v4 reply, replay them, and save a
+timeline screenshot for the PR.
 
 Completion:
 
 - Checks and review pass.
-- Commit `feat(avatar)[p4]: compare provider-timed and estimated lip-sync in the debug panel`.
+- Commit `feat(avatar)[p4]: compare lip-sync plans against ElevenLabs timing in the debug panel`.
 
 #### Code Review #1 Findings
 
@@ -657,76 +708,61 @@ Pending.
 
 ### Phase 5: hosted contract, Cloud issue, docs and full validation
 
-Requirements: R5, docs and contract acceptance. Depends on Phases 1–4.
+Requirements: R5, docs and contract acceptance. Depends on Phases 1–4. Not yet
+authorized.
 
 Changes:
 
 1. **`contracts/hosted-web.md`:**
-   - Realtime descriptor model ids (`eleven_v4_turbo`).
-   - Server socket frames:
+   - server socket frames:
      - browser `{text}` frames are unchanged;
-     - server audio frames are `{audio, alignment?}`, with the alignment time
-       base relative to the run's first audio sample;
-     - the end marker is `{is_final: true}`, with `isFinal` accepted.
-   - `tts.audio` `alignment`.
-   - Allowance refusals: `tts.error` for finalized `eleven_v4`.
-   - Versions.
-2. **Docs:**
-   - `docs/frontend/runtime/elevenlabs-tts.md`: models, dialogue socket, token,
-     flush, keep-alive, migration, server transport.
-   - `docs/frontend/runtime/voice.md`.
-   - `docs/frontend/runtime/avatar-lipsync.md`: provider timing, fallback rules,
-     the debug comparison.
-   - `docs/backend/integrations/voice-and-speech.md`: models, the removed
-     environment variable, Text to Dialogue, the token type, `previous_text`.
-   - `docs/backend/architecture/http-api.md`: the utility route schema and
-     versions.
-   - `docs/backend/runtime/chat.md`: `tts.audio` alignment.
-   - `src/backend/animama/server/reference.md`, if it lists the models.
+     - server audio frames are `{audio, alignment?}`, with times relative to the
+       run's first audio sample;
+     - the end marker is `{is_final: true}`, with `isFinal` accepted;
+   - `tts.audio` `alignment`;
+   - allowance refusals: `tts.error` for finalized `eleven_v4`;
+   - versions.
+2. **Docs:** finish what the phases have not covered:
+   - `docs/frontend/runtime/elevenlabs-tts.md`, `voice.md` and
+     `avatar-lipsync.md` (timing evidence, the debug view, and the unchanged
+     planner);
+   - `docs/backend/integrations/voice-and-speech.md`;
+   - `docs/backend/architecture/http-api.md`;
+   - `docs/backend/runtime/chat.md`;
+   - `src/backend/animama/server/reference.md`, if it lists models.
 3. **Cloud issue.** Prepare `docs/plans/eleven-v4/cloud-issue-draft.md` with:
-   - the model ids (`MODELS`, the `eleven_v3` branches in `speech_turn.py`);
-   - the HTTP model change, since TTS HTTP accepts v4;
+   - the model ids (`MODELS`, and the `eleven_v3` branches in `speech_turn.py`);
+   - the HTTP model change (TTS HTTP accepts v4);
    - optional timing via `stream/with-timestamps`, forwarded as `alignment` with
      run-relative times;
    - the end marker;
    - pricing keys;
    - rollout ordering (G3);
-   - dialogue-pool concurrency, if Cloud moves realtime to a server-side
-     dialogue socket:
-     - open a session only when the reply's speech starts, and close it at the
-       end or on cancel;
-     - cap and queue sessions per operator;
-     - map a pool or concurrency refusal to a speech refusal that keeps the text;
-     - measure the operator plan's limit before launch. The owner's plan showed
-       no limit at 8 generating or 16 idle sessions.
+   - dialogue-pool concurrency, if Cloud moves realtime to a server-side socket:
+     - open a session only while a reply speaks, and close it at the end or on
+       cancel;
+     - cap and queue per operator;
+     - treat refusals as speech refusals that keep the text;
+     - measure the operator plan's limit before launch (the owner's plan showed
+       none at 8 generating or 16 idle sessions).
 
-   File it in the Cloud repository only with the owner's go-ahead, since filing
-   is outward-facing; otherwise hand it over.
+   File it in the Cloud repository only with the owner's go-ahead; otherwise
+   hand it over.
 4. **Full validation:**
    - `make check-test`;
    - `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm build` and
      `pnpm desktop:test`;
    - `pnpm e2e:test:fast` on a disposable built stack;
-   - the package-set build and compare against a `main` baseline:
-
-     ```bash
-     uv run --no-sync python scripts/package-sets/build.py build --source . --commit <head> --output <new dir>
-     uv run --no-sync python scripts/package-sets/build.py compare <main baseline> <new dir>
-     ```
-
-5. **Owner gate pack (G2):**
-   - a short checklist in this plan: the voices in use, the IVC check (D5), and
-     the side-by-side steps;
-   - listening samples from the spike under the ignored `evidence/` folder;
-   - fresh v4 samples of the owner's voices on request.
+   - the package-set build and compare against a `main` baseline.
+5. **Owner gate pack (G2):** a checklist covering the voices in use, v4 Turbo
+   and v4 listening (stitched and `previous_text`), and the side-by-side steps.
 
 Completion:
 
 - All checks pass and docs are current.
 - The Cloud issue is ready.
 - Review passes.
-- Commit `docs(voice)[p5]: document Eleven v4 speech, timing and the hosted contract`.
-  Contract edits made earlier ride their phases.
+- Commit `docs(voice)[p5]: document Eleven v4 speech, timing evidence and the hosted contract`.
 
 #### Code Review #1 Findings
 
@@ -735,6 +771,12 @@ Pending.
 #### Code Review #1 Revisions
 
 Pending.
+
+### Linked: audio tags in the chat model's `speech` (D12)
+
+Not part of these phases. Run intent discovery with the owner, then record the
+outcome as a linked issue or a spec addition before implementing. Phase 3's tag
+classification is the lip-sync-side input; #468 owns how lip-sync reacts.
 
 ## Final integration review
 
@@ -755,15 +797,17 @@ Spec acceptance mapping:
 
 | Criterion | Evidence |
 | --- | --- |
-| Realtime on local web and desktop, latency | Phase 2 live numbers (median of 5 per surface) and runtime tests |
-| Connection handling | Phase 2 tests (keep-alive, cancel) and the live pause check |
-| Finalized v4 | Phase 1 backend tests, golden fixture and live reply |
-| Migration | Phase 1 tests and the repository search |
-| Provider-timed lip-sync | Phase 3 tests, live check, Phase 4 side-by-side (G2) |
-| Failures and allowance fallback | Phase 2 and 3 runtime/product-ui tests; existing fallback suites |
-| Hosted | Phase 5 contract, server-socket browser tests, Cloud issue |
-| Docs and contracts | Phase 5 docs, versions, `openapi-ts`, package-set compare |
-| Checks | Phase 5 full run |
+| Realtime on local web and desktop, latency | Phase 1 live numbers (median of 5 per surface) and runtime tests |
+| Connection handling | Phase 1 tests (keep-alive, cancel) and the live pause check |
+| Finalized v4 | Phase 2 backend tests, golden fixture and live reply |
+| Every language | Phase 2 per-language tests and live replies; Phase 1 streamed check |
+| Migration | Phase 1 (realtime ids) and Phase 2 (`eleven_v3`) tests, and the repository search |
+| Timing evidence and module | Phase 3 tests on recorded fixtures |
+| Side-by-side view | Phase 4 tests, screenshot, G2 |
+| Failures and allowance fallback | Phase 1 runtime and product-ui tests; existing fallback suites |
+| Hosted | Phase 1 server-socket compatibility tests; Phase 5 contract and Cloud issue |
+| Docs and contracts | Phases 1–2 contract bumps, `openapi-ts`; Phase 5 docs and package-set compare |
+| Checks | Phase 5 full run (and Phase 1 if PR A is split) |
 | Owner gate | G2 |
 
 Not run by agents: real IVC playback (spec D5), real hosted Cloud speech (G3),
@@ -776,8 +820,8 @@ and packaged desktop release builds.
   `eleven_v4` stored. An older build normalises unknown ids to its default, so
   it still speaks with Flash; that is acceptable and needs no data repair.
 - **Code:** no database or schema changes. Phase commits can be reverted
-  independently in reverse order. Phases 1 and 2 must revert together to keep
-  realtime speech working.
+  independently in reverse order. Phase 1 stands alone. Reverting it alone
+  restores Flash and the Text to Speech socket.
 - **Live checks:** re-running them costs characters (G1). The spike scripts are
   rerunnable and print no secrets.
 - **Stacks:** `./reset.sh --name ev4 ...` is idempotent. Tear down with
