@@ -125,7 +125,8 @@ backend to `src/backend/animama/`, content to `content/included/`.
       issues #443–#449 created. The task stack starts with P2.
 - [x] P1 — Briefs, concept board and Reaction ladder draft. G1 approved
       (2026-10-10); review passed at round 2.
-- [ ] P2 — Particle library. Gate G2 per batch.
+- [x] P2 — Particle library: 14 effects saved as Local content (2026-10-12);
+      owner approved; platform review passed at round 3.
 - [ ] P3 — Scene backgrounds and the sticker art. Gate G2 per family.
 - [ ] P4 — Animama sticker set and Twemoji removal (R11).
 - [ ] P5 — Reaction ladder (R12) and performance. Gate G4.
@@ -169,6 +170,18 @@ backend to `src/backend/animama/`, content to `content/included/`.
   confetti rains across the screen; rage aura reads as one continuous aura;
   stink miasma becomes an aura; fume puffs become two long-lived ear jets;
   gloom wisps gets a fourth wisp. Star burst and rain cloud had no notes.
+- 2026-10-12, owner: approved all 14 P2 Particle Effects (the 10 retuned, the
+  three fireworks and Sparkle Hearts) and authorized P2–P7, the final review
+  and the PR without waiting at the gates; the owner reviews the results in
+  the morning. G2–G4 approvals are therefore recorded as pending owner review,
+  with review material prepared for each; nothing merges without the owner's
+  separate approval. Ladder slots for the four effects added after G1 are an
+  agent proposal for that review (P5).
+- 2026-10-12, owner (P2, G2): halo rays returns to its gold look (the white
+  version was too bright); gloom wisps returns to its first-review speeds; the
+  library gains three fireworks Particle Effects, designed with creative
+  freedom and varied (R9 grows to 15; their Reaction tiers are decided with
+  the ladder in P5).
 - 2026-10-11, owner (P2), the platform changes and their reasons:
   - **Emitter limit 16** (was 8; also the auto-fit `emitter_names` cap):
     layered effects such as four-wisp Gloom wisps and closed auras need more
@@ -469,6 +482,40 @@ at 1/144–0.1 s steps: no Included effect's peak exceeds it); opt-in
 195 in a browser pixel test; stock batching while nothing opts out);
 `cloneParticleVFXPrefab` keeping OrbitOverLife axes and `prewarm`; a Portrait
 camera preset sharing `chatPortraitFraming` with `effects:render`.
+
+Final library (2026-10-12): the owner approved all 14 effects — the 10 from
+the briefs plus Fireworks Show, Heart Fireworks, Golden Willow and Sparkle
+Hearts (from an owner reference image: heart outlines traced by small sparkle
+particles, built from cone-rim lobes and rectangle sides so Save accepts it).
+Every material is `toneMapped: false`, colours matched to the tone-mapped look
+(halo rays back to gold); visible spans 1.26–1.5× the first-review versions,
+measured frame by frame against a bare-Avatar baseline; budgets equal the
+peak-alive estimate. All 14 were saved with `pnpm -s effects save` (read back,
+compared with their sources and reopened) on the rebuilt task stack after its
+first-run setup; with the imported Heart Burst and Gloom Sadness the stack holds
+16 valid Local effects.
+
+| Effect | Emitters | Budget | Duration (s) |
+| --- | --- | --- | --- |
+| twinkle-shimmer | 3 | 16 | 3.4 |
+| halo-rays | 5 | 17 | 4.05 |
+| star-burst | 5 | 38 | 1.8 |
+| confetti | 3 | 110 | 3.45 |
+| question-orbit | 8 | 26 | 3.2 |
+| fume-puffs | 5 | 5 | 3.5 |
+| rage-aura | 5 | 50 | 4.0 |
+| stink-miasma | 5 | 37 | 4.0 |
+| rain-cloud | 6 | 22 | 3.75 |
+| gloom-wisps | 10 | 18 | 4.5 |
+| fireworks-show | 12 | 250 | 3.8 |
+| heart-fireworks | 10 | 104 | 3.6 |
+| golden-willow | 7 | 130 | 4.2 |
+| sparkle-hearts | 15 | 252 | 4.2 |
+
+Known limits for G2 review: Golden Willow's trail length is in frames (half as
+long at 120 Hz); Sparkle Hearts is faint on the busy current love background
+and its hearts float with the head; fireworks are rendered on neutral grey
+only; Rage aura is benchmarked in P5.
 
 Checks: vitest on `src/lib/avatar/particle-vfx`, `particleVFXContentPackage`,
 `tests/avatar` and `src/ui/particle-vfx-creator` (359 pass); `node --test`
