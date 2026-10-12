@@ -259,8 +259,8 @@ user-facing contract is the [safety and crisis protocol](../../safety/crisis-pro
 Crisis turns stream, persist and update memory like any other turn. Safety
 code never logs message text or detection results (crisis frames are excluded
 from SSE frame logging) and stores no detection results. Opt-in model-client
-prompt previews (`ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS`, on by default in Compose)
-can still include the user message.
+prompt previews (`ANIMAMA_MODEL_CLIENT_LOG_PREVIEWS`, off by default) can still
+include the user message when enabled.
 
 ## SSE Events
 

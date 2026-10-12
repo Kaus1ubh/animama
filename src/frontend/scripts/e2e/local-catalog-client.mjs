@@ -238,6 +238,30 @@ export async function createLocalCatalogClient({
       return { status: response.status() };
     },
 
+    /** Discard one package stage; the caller interprets its status and stable code. */
+    async discardPackageStage(kind, stageId) {
+      if (
+        (kind !== "import" && kind !== "export") ||
+        typeof stageId !== "string" ||
+        !/^[0-9a-f]{32}$/.test(stageId)
+      ) {
+        throw new Error(
+          "Package stage release requires one exact package stage kind and ID.",
+        );
+      }
+      const response = await apiContext.delete(
+        `/v1/content/package-${kind}s/${stageId}`,
+        { failOnStatusCode: false },
+      );
+      if (response.ok()) return { status: response.status(), code: null };
+      const body = await response.json().catch(() => null);
+      const code = body?.detail?.code;
+      return {
+        status: response.status(),
+        code: typeof code === "string" ? code : null,
+      };
+    },
+
     async close() {
       await apiContext.dispose();
     },

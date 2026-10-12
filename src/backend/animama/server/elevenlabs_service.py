@@ -63,7 +63,6 @@ RETRY_AFTER_RE = re.compile(r"retry after\s+(?P<seconds>\d+(?:\.\d+)?)\s*seconds
 _log = get_logger("server.elevenlabs")
 _SDK_OMIT = cast(Any, ...)
 _STREAM_END = object()
-_TTS_TEXT_PREVIEW_LIMIT = 160
 # The SDK default when it builds its own HTTP client.
 _ELEVENLABS_TIMEOUT_SECONDS = 240.0
 
@@ -87,13 +86,6 @@ class _ElevenLabsVoiceAccessCacheEntry:
 
 
 _ELEVENLABS_VOICE_ACCESS_CACHE: dict[tuple[str, int], _ElevenLabsVoiceAccessCacheEntry] = {}
-
-
-def _tts_text_preview(text: str, *, limit: int = _TTS_TEXT_PREVIEW_LIMIT) -> str:
-    preview = " ".join(text.split())
-    if len(preview) <= limit:
-        return preview
-    return preview[: limit - 1].rstrip() + "..."
 
 
 def _voice_access_cache_key(voice_id: str) -> tuple[str, int]:
@@ -942,7 +934,7 @@ async def prepare_finalized_tts_stream_from_text(
             intensity_level=prefix_result.intensity_level,
             prefix=prefix_result.prefix,
             prefix_applied=prefix_result.applied,
-            text_preview=_tts_text_preview(provider_text),
+            provider_text_len=len(provider_text),
         )
     return ElevenLabsFinalizedTtsStream(
         run_id=run_id or f"tts-{uuid.uuid4().hex}",

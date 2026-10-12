@@ -32,7 +32,11 @@ def build_gruut_sse_text(
     lang: str = "en_US",
     tokenized_text_source: Literal["input", "text_with_ws"] = "input",
 ) -> dict[str, str | list[list[str]]] | None:
-    """Tokenize and phonemize text with gruut for SSE and TTS text payloads."""
+    """Tokenize and phonemize text with gruut for SSE and TTS text payloads.
+
+    The text is an assistant reply, so log calls carry only sizes, counts and
+    timings, never the text, tokens or phonemes.
+    """
 
     final_text = text.strip()
     if not final_text:
@@ -48,7 +52,7 @@ def build_gruut_sse_text(
         return None
     _log.info(
         "gruut start",
-        text=text,
+        input_len=len(final_text),
         tokenized_text_source=tokenized_text_source,
     )
 
@@ -56,14 +60,15 @@ def build_gruut_sse_text(
         sentences = list(_gruut.sentences(final_text, lang=lang))
         _log.info(
             "gruut sentences done",
-            sent=sentences,
+            sentence_count=len(sentences),
+            word_count=sum(len(getattr(sent, "words", None) or []) for sent in sentences),
             tokenized_text_source=tokenized_text_source,
         )
     except Exception as exc:
         _log.warning(
             "gruut processing failed",
             lang=lang,
-            error=str(exc),
+            error_type=type(exc).__name__,
             duration_ms=round((perf_counter() - started_at) * 1000, 3),
         )
         return None

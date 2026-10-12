@@ -146,3 +146,44 @@ test("catalog failures report status without exposing response bodies", async ()
   );
   await client.close();
 });
+
+test("releases one exact package stage and reports only its stable code", async () => {
+  const calls = [];
+  const client = await createLocalCatalogClient({
+    apiUrl: "http://localhost:8620",
+    requestFactory: async () => ({
+      delete: async (url, options) => {
+        calls.push([url, options.failOnStatusCode]);
+        return url.includes("imports")
+          ? response(204)
+          : response(409, {
+              detail: { code: "package_stage_active" },
+              secret: "must-not-leak",
+            });
+      },
+      dispose: async () => undefined,
+    }),
+  });
+  const stageId = "a".repeat(32);
+  assert.deepEqual(await client.discardPackageStage("import", stageId), {
+    status: 204,
+    code: null,
+  });
+  assert.deepEqual(await client.discardPackageStage("export", stageId), {
+    status: 409,
+    code: "package_stage_active",
+  });
+  await assert.rejects(
+    client.discardPackageStage("import", "../guessed"),
+    /exact package stage/,
+  );
+  await assert.rejects(
+    client.discardPackageStage("upload", stageId),
+    /exact package stage/,
+  );
+  assert.deepEqual(calls, [
+    [`/v1/content/package-imports/${stageId}`, false],
+    [`/v1/content/package-exports/${stageId}`, false],
+  ]);
+  await client.close();
+});

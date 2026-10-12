@@ -175,6 +175,15 @@ Anima/private Avatar; saved-definition checks protect later Anima edits. Pending
 outcomes or changed items retain the ledger and block deletion. Names never grant
 cleanup authority.
 
+The backend admits two open package stages per owner. A committed import or an
+undownloaded export review counts until the sharing dialog releases it or it
+expires after 30 minutes. After each journey, a fixture discards the stages the
+browser opened and left open, attaching `package-stages-released-after-journey`
+evidence. A stage that stays held, or a stage reply it cannot read, fails that
+journey. Helpers that open stages through `page.request`, such as the Pose round
+trip, must release their own. Stages from an interrupted run still count until
+they expire, so a following run can fail with `package_stage_limit`.
+
 Creator coverage uses the editor JSON import UI. The Pose round trip uses the
 reviewed package API with `.zip` files and the `/3` manifest; the separate sharing
 journey below uses the real Library package dialogs. Chat cancellation
