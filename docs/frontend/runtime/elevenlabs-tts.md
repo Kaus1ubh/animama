@@ -45,8 +45,8 @@ boundary or real speech delivery.
 
 The `tts.session` event includes the selected voice, model, output format,
 transport, and `sync_alignment`. Local sessions set `sync_alignment: true`, so
-ElevenLabs returns character timing with the audio; the browser does not use it
-yet.
+ElevenLabs returns character timing with the audio. The runtime places it on the
+run clock (see [Provider character timing](#provider-character-timing)).
 
 The direct socket protocol (`use-elevenlabs-tts-runtime.ts`):
 
@@ -133,6 +133,36 @@ streaming, `useChatSession` accumulates the `tts_phonemized_text` from every
 speech segment that is sent to TTS, so the final run-level duration correction
 uses the same text basis as the spoken audio. Lip-sync timing comes from those
 phonemes and playback callbacks, not ElevenLabs alignment metadata.
+
+### Provider character timing
+
+The runtime also reports the provider's character timing through
+`onSpeechTiming`. `useChatSession` appends it to the lip-sync bridge's
+`providerSpeechTimingByRun`, which is cleared with the run. It is evidence for
+lip-sync planners; the current planner does not read it.
+
+`lib/speech/provider-speech-timing.ts` puts every character on the run clock:
+seconds from the run's first audio sample. Add the run's `audioStartSec` to map a
+character onto the playback clock. That holds while playback has not starved: the
+player plays silence when its buffer runs dry, and its clock keeps running, so
+every later character is early by the gap (as for
+`audioContext.currentTime - audioStartSec` elsewhere).
+
+- **Dialogue socket.** Each frame's `alignment` (`chars`,
+  `char_start_times_ms`, `char_durations_ms`) restarts at 0. Within a prosody
+  turn the frames tile the turn's audio, but some audio frames carry
+  `alignment: null`. A cursor advances by each frame's length and restarts at the
+  audio received when the provider sends `is_final_audio_for_turn`, because a
+  turn's timing can overrun its audio (80 ms in captured Japanese, Korean and
+  Chinese turns).
+- **Server socket.** A hosted consumer may add `alignment` (`characters`,
+  `character_start_times_seconds`, `character_end_times_seconds`) to its audio
+  frames, already timed from the run's first audio sample; it is appended as it
+  is.
+
+Malformed timing is ignored, and frames that arrive after the run stops are
+dropped with its socket. The captured text is the text as sent, including audio
+tags and the space restored after each chunk.
 
 ## Settings
 

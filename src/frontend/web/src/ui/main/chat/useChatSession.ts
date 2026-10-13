@@ -94,6 +94,9 @@ export function useChatSession(args: UseChatSessionArgs) {
   const queueAvatarTtsChunksForRun = useAvatarLipSyncBridgeStore(
     (state) => state.queueTtsChunksForRun,
   );
+  const appendProviderSpeechTiming = useAvatarLipSyncBridgeStore(
+    (state) => state.appendProviderSpeechTiming,
+  );
   const clearAvatarVisemeBridgeRun = useAvatarLipSyncBridgeStore(
     (state) => state.clearRun,
   );
@@ -311,6 +314,7 @@ export function useChatSession(args: UseChatSessionArgs) {
     onPlaybackEndedSignal: handleTtsPlaybackEndedSignal,
     onAudioEnded: handleTtsAudioEnded,
     onChunksQueued: handleTtsChunksQueued,
+    onSpeechTiming: appendProviderSpeechTiming,
     getPocketVoiceSelectionContext,
     geminiTtsOffered,
     getSpeechVoiceSelectionContext: (runId) => {

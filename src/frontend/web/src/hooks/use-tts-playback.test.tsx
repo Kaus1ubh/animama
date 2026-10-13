@@ -63,6 +63,11 @@ const fixture = vi.hoisted(() => {
         audioStartSec?: number | null;
         audioContext?: AudioContext | null;
       }) => void;
+      onSpeechTiming?: (event: {
+        runId: string;
+        provider: "elevenlabs";
+        chars: Array<{ char: string; startSec: number; endSec: number }>;
+      }) => void;
     },
     // The callbacks the finalized runtime reports pushed audio through.
     finalizedOptions: null as null | {
@@ -546,6 +551,35 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     expect(fixture.pocket.setVolume.mock.calls).toEqual(
       fixture.pocket.setVolume.mock.calls.map(() => [0]),
     );
+  });
+});
+
+describe("ElevenLabs character timing", () => {
+  afterEach(() => {
+    act(() => root?.unmount());
+    root = null;
+  });
+
+  it("forwards the realtime runtime's timing for lip-sync", () => {
+    fixture.speech = { tts_provider: "elevenlabs" };
+    const onSpeechTiming = vi.fn();
+    function Harness() {
+      useTtsPlayback({ onSpeechTiming });
+      return null;
+    }
+    act(() => {
+      root = createRoot(document.createElement("div"));
+      root.render(<Harness />);
+    });
+
+    const event = {
+      runId: "run-1",
+      provider: "elevenlabs" as const,
+      chars: [{ char: "H", startSec: 0, endSec: 0.08 }],
+    };
+    act(() => fixture.realtimeOptions?.onSpeechTiming?.(event));
+
+    expect(onSpeechTiming).toHaveBeenCalledWith(event);
   });
 });
 

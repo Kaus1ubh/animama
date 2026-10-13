@@ -18,7 +18,7 @@ plus the folded issues #498 and #499.
 Explicit gates:
 
 - **G1 — Paid live checks.** Live ElevenLabs checks during implementation stay
-  within the owner-approved budget (spec D6: US$1, of which about US$0.17 is
+  within the owner-approved budget (spec D6: US$1, of which about US$0.19 is
   spent).
 - **G2 — Owner gate before merge.**
   - The owner listens to v4 Turbo with the voices in use.
@@ -154,7 +154,9 @@ Ownership and boundaries:
 - [x] Folded follow-ups: #498 (Japanese and Chinese sentence splitting) and #499
   (provider-neutral names for the Gemini finalized path). Checks and live checks
   pass, and Code Review #1–#3 passed.
-- [ ] Phase 3 (#500): timing plumbing and the timing evidence module.
+- [x] Phase 3 (#500): timing plumbing and the timing evidence module. Checks
+  pass, live English and Japanese timelines were collected, and Code Review #1–#2
+  passed (`9a4e9be3`).
 - [ ] Phase 4 (#501): side-by-side view with pluggable plan sources.
 - [ ] Phase 5 (#502): hosted contract, Cloud issue, docs and full validation.
 - [x] Intent discovery for audio tags in `speech` (D12), 2026-10-12: linked
@@ -266,6 +268,15 @@ From the spike, 2026-10-12 (details and numbers in the research brief):
   - `tts.audio` and the hosted server socket carry times relative to the run's
     first audio sample; producers apply the offsets, since they know the sample
     counts.
+- **2026-10-13 — agent proposal (Phase 3 review P3-F3): timing shape on the
+  hosted server socket (supersedes the field names above).**
+  - Server-socket `alignment` uses the shape ElevenLabs' `stream/with-timestamps`
+    returns: `characters`, `character_start_times_seconds` and
+    `character_end_times_seconds`.
+  - The time base is unchanged: the run's first audio sample.
+  - Reason: Cloud forwards that output with an offset instead of reshaping it.
+  - `tts.audio` carries no timing since finalized v4 was removed (D13). Only the
+    direct dialogue socket uses `chars` and relative milliseconds.
 - **2026-10-12 — agent proposal: old ids in requests.**
   - A `mode="before"` validator maps legacy ids to their replacements in
     `PyAnimaTtsRunOptions`.
@@ -1709,13 +1720,167 @@ Completion:
 - Checks and review pass.
 - Commit `feat(avatar)[p3]: collect ElevenLabs timing as lip-sync evidence`.
 
+#### Phase 3 implementation notes
+
+Starting revision: `79a39300`.
+
+- **Collection** (`lib/speech/provider-speech-timing.ts`):
+  - `createSpeechTimingCollector` keeps one run's clock. It counts audio
+    samples, places each dialogue frame after the turn's previous frames, and
+    restarts the turn at the received audio on `is_final_audio_for_turn`.
+  - It appends server-socket `alignment` (`characters`,
+    `character_start_times_seconds`, `character_end_times_seconds`) as it is.
+  - It ignores malformed frames without moving the cursor.
+- **Runtime.** `use-elevenlabs-tts-runtime.ts` creates a collector per run and
+  reports new characters through `onSpeechTiming`. Frames after the run stops
+  are dropped with its socket.
+- **Wiring.** `useTtsPlayback` forwards `onSpeechTiming`, and `useChatSession`
+  appends it to the lip-sync bridge's `providerSpeechTimingByRun`.
+  - The timing lives in the bridge store, not a separate store, so every
+    existing run and session clear (`clearRun`, `clearAll` and
+    private-session reset) also removes it.
+  - The estimated planner does not read it (D8).
+- **Evidence** (`lib/speech/speech-timing-evidence.ts`):
+  - `buildSpeechTimingEvidence` returns words (`word` or per-`character`),
+    punctuation runs and tags, each with its timeline indexes.
+  - `classifyAudioTag` uses small keyword tables, and a combined tag takes its
+    strongest class.
+  - While a run is being collected, an unclosed tag at the end of the timeline
+    is pending; with `complete`, or without a short closing tag, a bracket is
+    punctuation.
+- **Fixtures.** The fixtures live in `lib/speech/fixtures/`, following the
+  repository's `fixtures/` convention rather than `__fixtures__/`:
+  - the spike's English socket run with tags and turns;
+  - new app-like captures for ja, ko, zh and es, and one for `[gasps]`,
+    `[whispers]`, `[pause]` and `[whispering, playful]` (242 characters, about
+    US$0.01);
+  - three run-relative HTTP timing lines as the server-socket shape.
+
+  They hold text, characters, times and sample counts, but no audio. The
+  converter and capture scripts are kept in the ignored evidence folder.
+- **Contract.** `contracts/hosted-web.md` already documents the optional
+  server-socket `alignment` here, because this phase implements it. Phase 5
+  keeps the rest of the contract work.
+
+#### Phase 3 results
+
+Discoveries from the captures:
+
+- A turn's timing can overrun its audio by 80 ms (ja, ko and zh; the HTTP
+  lines by 80 ms too). A turn's last characters can therefore start after the
+  next turn's first; tests bound the overlap at 0.1 s.
+- Tag spans are short: `[whispers]` covers 80 ms, and `[pause]` 60 ms, while
+  the pause falls on the punctuation and space before it.
+
+Checks (2026-10-13):
+
+- Vitest: timing collector 14, evidence 25, bridge store 6 (3 new), socket
+  runtime 13 (3 new) and playback 15 (1 new) pass after the review repair.
+- `pnpm check`, `pnpm web:lint`, `pnpm web:test` (Vitest and the 114 Node
+  journey tests) and `pnpm prettier:check` pass.
+- After the review repair, on the phase's own snapshot (Phase 4 files set
+  aside):
+  - `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm prettier:check` and
+    `pnpm build` pass;
+  - `pnpm desktop:test`: 506 passed, 14 skipped.
+- Not run for this frontend-only phase: the backend checks and `pnpm openapi-ts`
+  (no backend or schema change).
+
+G1 spend: the captures sent 242 characters and the two live replies 161, about
+US$0.02 together at v4 Turbo's rate; about US$0.19 of US$1 is spent.
+
+Live on `animama-ev4` (realtime v4 Turbo):
+
+- **English.** Two sentences, 102 characters, in order. The last character ends
+  at 5.68 s, exactly the played audio's length. The evidence lists 20 words and
+  three punctuation pauses (`,` 1.04–1.16 s; `.` 3.44–3.60 s; the final `.`
+  5.52–5.68 s).
+- **Japanese.** Three sentences, 59 characters, with 54 kana and kanji windows
+  and three `。`. The timing ends at 6.40 s against 6.32 s of audio, the 80 ms
+  overrun, with one 40 ms overlap at a turn boundary.
+
 #### Code Review #1 Findings
 
-Pending.
+An independent reviewer (`sdlc-reviewer`) reviewed the uncommitted tree on
+`79a39300`. Result: **blocked**, on four required findings.
+
+The reviewer noted that Phase 4 files appeared mid-review. They were excluded,
+and the Phase 3 commit is staged path by path and checked on its own snapshot.
+
+- **P3-F1 (required).** `crying` was classified as delivery, but spec R4 lists
+  crying as a non-verbal sound.
+- **P3-F2 (required).** In a finished reply, an unclosed `[` within 64
+  characters of the end dropped every later word. The builder could not tell a
+  finished timeline from one still being collected.
+- **P3-F3 (required).** The Decision Log still named the dialogue socket's
+  fields for the server socket, contradicting the contract Phase 3 documents.
+- **P3-F4 (required).** The results omitted the checks not run, the live checks'
+  spend and the running G1 total.
+- **P3-F5 (optional).** Adding `audioStartSec` maps timing onto playback only
+  until playback starves; that was not stated.
+- **P3-F6 (optional).** `[whispers]` was the wrong example of a short tag span,
+  since it is a delivery marker.
+- **P3-F7 (optional).** The evidence is in timeline order, not strictly time
+  order.
+- **P3-F8 (optional).** Two backend docs still say the timing is unused.
+- **P3-F9 (optional).** The lip-sync guide's callback list omitted
+  `onSpeechTiming` and `onChunksQueued`.
+- **P3-F10 (optional).** A plan line counted three pauses but listed two.
+- **P3-F11 (optional).** Each timing append scheduled a desktop PiP snapshot,
+  although the PiP mirror never copies timing.
+
+Verified with no defect:
+
+- the cursor and resync;
+- `alignment: null` frames;
+- the fence on late frames;
+- clearing on session replacement;
+- no added latency to first audio;
+- fixtures without audio or identifiers.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P3-F1: accepted.** `cry`, `cries` and `crying` are non-verbal, and the test
+  now expects that.
+- **P3-F2: accepted.** `buildSpeechTimingEvidence(timeline, { complete: true })`
+  reads an unclosed bracket as punctuation; without it, the tail waits as
+  before. A test covers both. The Phase 4 view passes `complete` for finished
+  runs.
+- **P3-F3: accepted.** A dated Decision Log entry supersedes the field names.
+- **P3-F4: accepted.** The results record the checks not run (with reasons) and
+  the spend, and the G1 total is now about US$0.19. `pnpm build` and
+  `pnpm desktop:test` pass on the phase's own snapshot.
+- **P3-F5: accepted.** One sentence each in `elevenlabs-tts.md`, the module and
+  the store type.
+- **P3-F6 and P3-F7: accepted.** The example is now `[pause]`, and the wording
+  says timeline order.
+- **P3-F8: deferred to Phase 5**, which already lists both docs.
+- **P3-F9: accepted.** The callback list names both.
+- **P3-F10: accepted.**
+- **P3-F11: accepted.** `isProviderTimingOnlyChange` lets the PiP sync skip
+  timing-only updates, with a store test.
+
+Repair budget: round 1 of 2 used.
+
+#### Code Review #2 Findings
+
+Targeted recheck of commit `9a4e9be3`. Result: **pass**.
+
+- All required repairs are resolved, and P3-F8 is deferred to Phase 5.
+- The reviewer extracted the commit and ran tsc, ESLint, Prettier and the five
+  Phase 3 suites on it (73 tests).
+- **P3R2-F1 to P3R2-F3 (optional, plan record):**
+  - the new Decision Log entry named no actor;
+  - no repair-budget line was recorded;
+  - two lines described the pre-repair state.
+
+#### Code Review #2 Revisions
+
+- **P3R2-F1 to P3R2-F3: accepted.** The entry is labelled an agent proposal, the
+  budget line is added, and the notes and counts are current. The Phase 4
+  review checks that the view passes `complete`.
+
+Phase 3 review: **passed** (one full review and one repair round).
 
 ### Phase 4: side-by-side view with pluggable plan sources
 

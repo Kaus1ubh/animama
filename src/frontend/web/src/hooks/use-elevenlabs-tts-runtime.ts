@@ -5,6 +5,11 @@ import { useCallback, useEffect, useRef } from "react";
 import { createLogger } from "@/lib/logger";
 import { PCMPlayerWorklet } from "@/lib/speech/audio/PCMPlayerWorklet.js";
 import { mapNormalizedVolumeToPocketGain } from "@/lib/speech/pocket/audio/volume.js";
+import {
+  createSpeechTimingCollector,
+  type SpeechTimingCollector,
+  type TimedChar,
+} from "@/lib/speech/provider-speech-timing";
 import { redactUrlForLogging } from "@/lib/utils";
 import { publicResourceUrl } from "@/lib/resource-urls";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
@@ -71,6 +76,15 @@ type UseElevenLabsTtsRuntimeOptions = {
     reason: AudioEndedReason;
   }) => void;
   onWarning?: (runId: string, reason: string, message: string) => void;
+  /**
+   * Characters the provider timed for the run, on the run clock (seconds from
+   * its first audio sample), as each frame arrives.
+   */
+  onSpeechTiming?: (event: {
+    runId: string;
+    provider: "elevenlabs";
+    chars: TimedChar[];
+  }) => void;
 };
 
 type ActiveRuntime = {
@@ -89,6 +103,8 @@ type ActiveRuntime = {
   audioContext: AudioContext | null;
   player: PCMPlayerWorklet | null;
   totalSamples: number;
+  /** Places the provider's character timing on the run clock. */
+  timing: SpeechTimingCollector;
   sentTextChars: number;
   durationResolved: boolean;
   closed: boolean;
@@ -142,6 +158,7 @@ function createInitialRuntime(
     audioContext: null,
     player: null,
     totalSamples: 0,
+    timing: createSpeechTimingCollector(ELEVENLABS_SAMPLE_RATE),
     sentTextChars: 0,
     durationResolved: false,
     closed: false,
@@ -534,6 +551,7 @@ export function useElevenLabsTtsRuntime(
       const hadAudio = runtime.sawAudio;
       runtime.sawAudio = runtime.sawAudio || pcm.length > 0;
       runtime.totalSamples += pcm.length;
+      runtime.timing.acceptAudio(pcm.length);
       if (!hadAudio && pcm.length > 0) {
         loggerRef.current.info(
           "Audio",
@@ -546,6 +564,32 @@ export function useElevenLabsTtsRuntime(
         );
       }
       player.playAudio(pcm);
+    },
+    [],
+  );
+
+  /**
+   * Collect a frame's character timing. The dialogue socket times each frame
+   * from 0 within a prosody turn; a server socket sends run-relative times.
+   */
+  const acceptTiming = useCallback(
+    (runtime: ActiveRuntime, payload: Record<string, unknown>) => {
+      if (activeRuntimeRef.current !== runtime) return;
+      let chars: TimedChar[] = [];
+      if (runtime.protocol === "dialogue") {
+        if (payload.alignment)
+          chars = runtime.timing.acceptDialogueAlignment(payload.alignment);
+        // A flush ends a prosody turn; the next turn's frames restart at 0.
+        if (payload.is_final_audio_for_turn === true) runtime.timing.endTurn();
+      } else if (payload.alignment) {
+        chars = runtime.timing.acceptRunAlignment(payload.alignment);
+      }
+      if (chars.length === 0) return;
+      optionsRef.current.onSpeechTiming?.({
+        runId: runtime.runId,
+        provider: "elevenlabs",
+        chars,
+      });
     },
     [],
   );
@@ -808,6 +852,8 @@ export function useElevenLabsTtsRuntime(
           }
         }
 
+        acceptTiming(runtime, payload);
+
         if (payload.type === "ready") {
           runtime.ready = true;
           flushQueuedFrames(runtime);
@@ -837,6 +883,7 @@ export function useElevenLabsTtsRuntime(
       };
     },
     [
+      acceptTiming,
       closeRuntime,
       emitPlaybackEnded,
       flushQueuedFrames,

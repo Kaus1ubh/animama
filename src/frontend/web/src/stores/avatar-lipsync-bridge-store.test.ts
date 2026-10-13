@@ -1,7 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { buildVisemeAssetsFromRaw } from "@/lib/avatar/viseme-worker-client";
-import { useAvatarLipSyncBridgeStore } from "./avatar-lipsync-bridge-store";
+import {
+  isProviderTimingOnlyChange,
+  useAvatarLipSyncBridgeStore,
+} from "./avatar-lipsync-bridge-store";
 
 vi.mock("@/lib/avatar/viseme-worker-client", () => ({
   buildVisemeAssetsFromRaw: vi.fn(
@@ -186,5 +189,90 @@ describe("avatar lip-sync bridge store", () => {
     expect(buildVisemeAssetsFromRaw).not.toHaveBeenCalledWith(
       expect.objectContaining({ runId: "run-other" }),
     );
+  });
+});
+
+describe("provider speech timing", () => {
+  beforeEach(() => {
+    useAvatarLipSyncBridgeStore.getState().clearAll();
+  });
+
+  it("keeps each run's characters in arrival order until the run is cleared", () => {
+    const store = useAvatarLipSyncBridgeStore.getState();
+
+    store.appendProviderSpeechTiming({
+      runId: "run-1",
+      provider: "elevenlabs",
+      chars: [{ char: "H", startSec: 0, endSec: 0.08 }],
+    });
+    store.appendProviderSpeechTiming({
+      runId: "run-2",
+      provider: "elevenlabs",
+      chars: [{ char: "Y", startSec: 0, endSec: 0.1 }],
+    });
+    store.appendProviderSpeechTiming({
+      runId: "run-1",
+      provider: "elevenlabs",
+      chars: [{ char: "i", startSec: 0.08, endSec: 0.2 }],
+    });
+
+    expect(
+      useAvatarLipSyncBridgeStore.getState().providerSpeechTimingByRun["run-1"],
+    ).toEqual({
+      provider: "elevenlabs",
+      chars: [
+        { char: "H", startSec: 0, endSec: 0.08 },
+        { char: "i", startSec: 0.08, endSec: 0.2 },
+      ],
+    });
+
+    store.clearRun("run-1");
+    expect(
+      Object.keys(
+        useAvatarLipSyncBridgeStore.getState().providerSpeechTimingByRun,
+      ),
+    ).toEqual(["run-2"]);
+
+    store.clearAll();
+    expect(
+      useAvatarLipSyncBridgeStore.getState().providerSpeechTimingByRun,
+    ).toEqual({});
+  });
+
+  it("tells a timing-only update apart from one a mirror must copy", () => {
+    const changes: boolean[] = [];
+    const unsubscribe = useAvatarLipSyncBridgeStore.subscribe(
+      (state, previous) =>
+        changes.push(isProviderTimingOnlyChange(state, previous)),
+    );
+    const store = useAvatarLipSyncBridgeStore.getState();
+
+    store.appendProviderSpeechTiming({
+      runId: "run-1",
+      provider: "elevenlabs",
+      chars: [{ char: "H", startSec: 0, endSec: 0.08 }],
+    });
+    store.markSpeechAudioDurationResolved({
+      runId: "run-1",
+      audioDurationSec: 1,
+      generationId: null,
+    });
+    unsubscribe();
+
+    expect(changes[0]).toBe(true);
+    expect(changes.slice(1)).not.toContain(true);
+  });
+
+  it("ignores an empty append", () => {
+    const store = useAvatarLipSyncBridgeStore.getState();
+    const before = useAvatarLipSyncBridgeStore.getState();
+
+    store.appendProviderSpeechTiming({
+      runId: "run-1",
+      provider: "elevenlabs",
+      chars: [],
+    });
+
+    expect(useAvatarLipSyncBridgeStore.getState()).toBe(before);
   });
 });

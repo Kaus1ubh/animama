@@ -19,6 +19,7 @@ import type {
 } from "@/lib/avatar/vowelVisemeSegment";
 import { createLogger } from "@/lib/logger";
 import type { SpeechGestureTimeline } from "@/lib/speech/gruut-viseme-keyframes";
+import type { TimedChar } from "@/lib/speech/provider-speech-timing";
 import type { TtsChunkRecord } from "@/lib/speech/tts-chunker";
 
 type SpeechAudioStart = {
@@ -56,6 +57,17 @@ type ClearOptions = {
   clearAvatarLipSync?: boolean;
 };
 
+/**
+ * A run's provider character timing on the run clock (seconds from its first
+ * audio sample; add the run's `audioStartSec` for the playback clock, which
+ * holds until playback starves). It is lip-sync evidence for planners: today's
+ * estimated plan does not read it.
+ */
+export type ProviderSpeechTiming = {
+  provider: "elevenlabs";
+  chars: TimedChar[];
+};
+
 type AvatarLipSyncBridgeState = {
   avatar: Avatar | null;
   avatarAnimaId: string | null;
@@ -66,6 +78,7 @@ type AvatarLipSyncBridgeState = {
   segmentsByRun: Record<string, StoredSegment>;
   speechAudioStartsByRun: Record<string, SpeechAudioStart>;
   speechAudioDurationsByRun: Record<string, SpeechAudioDuration>;
+  providerSpeechTimingByRun: Record<string, ProviderSpeechTiming>;
   startedRuns: Record<string, true>;
   buildSeqByRun: Record<string, number>;
   registerAvatarInstance: (args: {
@@ -93,6 +106,12 @@ type AvatarLipSyncBridgeState = {
     runId: string;
     audioDurationSec: number;
     generationId?: string | null;
+  }) => void;
+  /** Append characters the speech runtime timed for a run, in arrival order. */
+  appendProviderSpeechTiming: (args: {
+    runId: string;
+    provider: ProviderSpeechTiming["provider"];
+    chars: readonly TimedChar[];
   }) => void;
   getSpeechTimingContext: (
     preferredRunId?: string | null,
@@ -212,6 +231,22 @@ function applySegmentToAvatarPlayback(args: {
     avatar.registerLipSyncFrame(frame);
   }
   avatar.onSegmentAudioStarted(segment.segmentId, audioStart.audioStartSec);
+}
+
+/**
+ * Whether an update changed only the provider timing, which mirrors of this
+ * store (the desktop PiP window) do not copy.
+ */
+export function isProviderTimingOnlyChange(
+  state: AvatarLipSyncBridgeState,
+  previous: AvatarLipSyncBridgeState,
+): boolean {
+  if (state.providerSpeechTimingByRun === previous.providerSpeechTimingByRun)
+    return false;
+  return (Object.keys(state) as Array<keyof AvatarLipSyncBridgeState>).every(
+    (key) =>
+      key === "providerSpeechTimingByRun" || state[key] === previous[key],
+  );
 }
 
 export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
@@ -477,6 +512,7 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
       segmentsByRun: {},
       speechAudioStartsByRun: {},
       speechAudioDurationsByRun: {},
+      providerSpeechTimingByRun: {},
       startedRuns: {},
       buildSeqByRun: {},
 
@@ -733,6 +769,21 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
         });
       },
 
+      appendProviderSpeechTiming: ({ runId, provider, chars }) => {
+        if (!runId || chars.length === 0) return;
+        set((state) => ({
+          providerSpeechTimingByRun: {
+            ...state.providerSpeechTimingByRun,
+            [runId]: {
+              provider,
+              chars: (
+                state.providerSpeechTimingByRun[runId]?.chars ?? []
+              ).concat(chars),
+            },
+          },
+        }));
+      },
+
       getSpeechTimingContext: (preferredRunId) => {
         const state = get();
         const startsByRun = state.speechAudioStartsByRun;
@@ -919,6 +970,7 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
             segmentsByRun: {},
             speechAudioStartsByRun: {},
             speechAudioDurationsByRun: {},
+            providerSpeechTimingByRun: {},
             startedRuns: {},
             buildSeqByRun: {},
           });
@@ -942,6 +994,7 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
           const nextSegments = { ...current.segmentsByRun };
           const nextStarts = { ...current.speechAudioStartsByRun };
           const nextDurations = { ...current.speechAudioDurationsByRun };
+          const nextTiming = { ...current.providerSpeechTimingByRun };
           const nextStarted = { ...current.startedRuns };
           const nextBuildSeq = { ...current.buildSeqByRun };
           delete nextPlans[runId];
@@ -951,6 +1004,7 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
           delete nextSegments[runId];
           delete nextStarts[runId];
           delete nextDurations[runId];
+          delete nextTiming[runId];
           delete nextStarted[runId];
           delete nextBuildSeq[runId];
           return {
@@ -961,6 +1015,7 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
             segmentsByRun: nextSegments,
             speechAudioStartsByRun: nextStarts,
             speechAudioDurationsByRun: nextDurations,
+            providerSpeechTimingByRun: nextTiming,
             startedRuns: nextStarted,
             buildSeqByRun: nextBuildSeq,
           };
@@ -986,6 +1041,7 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
           segmentsByRun: {},
           speechAudioStartsByRun: {},
           speechAudioDurationsByRun: {},
+          providerSpeechTimingByRun: {},
           startedRuns: {},
           buildSeqByRun: {},
         });

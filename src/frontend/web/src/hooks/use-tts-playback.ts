@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { createLogger } from "@/lib/logger";
+import type { TimedChar } from "@/lib/speech/provider-speech-timing";
 import {
   countTtsChunkWords,
   createTtsChunkRecords,
@@ -132,6 +133,12 @@ type UseTtsPlaybackOptions = {
     provider: TtsProvider;
     chunks: TtsChunkRecord[];
   }) => void;
+  /** Characters ElevenLabs timed for a realtime run, on the run clock (lip-sync evidence). */
+  onSpeechTiming?: (event: {
+    runId: string;
+    provider: "elevenlabs";
+    chars: TimedChar[];
+  }) => void;
   getPocketVoiceSelectionContext?: (
     runId: string,
   ) => PocketAnimaVoiceSelectionContext | null;
@@ -207,6 +214,7 @@ export function useTtsPlayback(
     onPlaybackEndedSignal,
     onAudioEnded,
     onChunksQueued,
+    onSpeechTiming,
     getPocketVoiceSelectionContext,
     geminiTtsOffered = false,
     getSpeechVoiceSelectionContext,
@@ -282,6 +290,7 @@ export function useTtsPlayback(
     onAudioEnded: ({ runId, reason }) => {
       emitAudioEnded(runId, "elevenlabs", runSeqRef.current, reason);
     },
+    onSpeechTiming,
   });
   // The provider of the run whose pushed audio is playing (set when it is prepared).
   const finalizedProviderRef = useRef<TtsProvider>("gemini");

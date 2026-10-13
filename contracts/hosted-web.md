@@ -267,7 +267,15 @@ On a server socket the browser sends `{"text": " "}` when it opens, one
 `{"text": "<chunk>"}` per reply chunk and `{"text": ""}` at the end. It sends no
 other frames. It plays base64 `pcm_24000` from `{"audio": ...}` frames and
 ends the stream on `{"isFinal": true}` or `{"is_final": true}`. The realtime model
-is `eleven_v4_turbo`. A multi-user hosted app keeps this server transport: a
+is `eleven_v4_turbo`.
+
+An audio frame may also carry the spoken text's character timing as
+`alignment`: `{"characters": [...], "character_start_times_seconds": [...],
+"character_end_times_seconds": [...]}`, timed in seconds from the run's first
+audio sample. This is the shape ElevenLabs' `stream/with-timestamps` returns,
+offset to the run when it spans several requests. The browser keeps it as
+lip-sync evidence and ignores malformed timing. A frame without it plays as
+before. A multi-user hosted app keeps this server transport: a
 direct `ttd_websocket` token binds no text, voice or model, so a browser holding
 one could speak anything on the operator's account, beyond any reservation.
 

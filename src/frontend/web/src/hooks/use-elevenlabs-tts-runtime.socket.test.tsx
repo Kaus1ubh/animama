@@ -3,6 +3,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import socketJa from "@/lib/speech/fixtures/v4-turbo-socket-ja.json";
+import type { TimedChar } from "@/lib/speech/provider-speech-timing";
 import {
   useElevenLabsTtsRuntime,
   type ElevenLabsSessionResponse,
@@ -128,7 +130,20 @@ const events = {
   warnings: [] as Array<{ runId: string; reason: string; message: string }>,
   ended: [] as Array<{ runId: string; reason: string }>,
   durations: [] as number[],
+  timing: [] as Array<{ runId: string; provider: string; chars: TimedChar[] }>,
 };
+
+/** Base64 PCM of `samples` silent 16-bit samples. */
+function silentPcmBase64(samples: number): string {
+  const bytes = samples * 2;
+  return "AAAA".repeat(Math.floor(bytes / 3)) + ["", "AA==", "AAA="][bytes % 3];
+}
+
+function timedText(): string {
+  return events.timing
+    .flatMap((event) => event.chars.map((entry) => entry.char))
+    .join("");
+}
 
 function Harness() {
   latest.current = useElevenLabsTtsRuntime({
@@ -137,6 +152,7 @@ function Harness() {
     onAudioEnded: ({ runId, reason }) => events.ended.push({ runId, reason }),
     onAudioDurationResolved: ({ audioDurationSec }) =>
       events.durations.push(audioDurationSec),
+    onSpeechTiming: (event) => events.timing.push(event),
   });
   return null;
 }
@@ -173,6 +189,7 @@ beforeEach(async () => {
   events.warnings.length = 0;
   events.ended.length = 0;
   events.durations.length = 0;
+  events.timing.length = 0;
   vi.stubGlobal("WebSocket", FakeWebSocket);
   vi.stubGlobal("AudioContext", FakeAudioContext);
   container = document.createElement("div");
@@ -320,6 +337,56 @@ describe("ElevenLabs v4 Turbo dialogue socket", () => {
     ]);
   });
 
+  it("times the reply's characters on one clock across prosody turns", async () => {
+    const socket = await openRun(directSession);
+    act(() => runtime().appendText(RUN_ID, "おはようございます。", CONTEXT));
+
+    for (const message of socketJa.messages) {
+      act(() =>
+        socket.receive({
+          ...("samples" in message && message.samples
+            ? { audio: silentPcmBase64(message.samples) }
+            : {}),
+          ...("alignment" in message ? { alignment: message.alignment } : {}),
+          ...("is_final_audio_for_turn" in message
+            ? { is_final_audio_for_turn: true }
+            : {}),
+          ...("is_final" in message ? { is_final: true } : {}),
+        }),
+      );
+    }
+
+    expect(timedText()).toBe(socketJa.text);
+    expect(events.timing.every((event) => event.runId === RUN_ID)).toBe(true);
+    expect(
+      events.timing.every((event) => event.provider === "elevenlabs"),
+    ).toBe(true);
+    // The second turn starts at the first turn's 1.12 s of audio.
+    const second = events.timing
+      .flatMap((event) => event.chars)
+      .find((entry) => entry.char === "今");
+    expect(second?.startSec).toBeCloseTo(1.12, 6);
+  });
+
+  it("drops timing that arrives after the run is cancelled", async () => {
+    const socket = await openRun(directSession);
+    act(() => runtime().appendText(RUN_ID, "Hello there.", CONTEXT));
+
+    act(() => runtime().stop());
+    act(() =>
+      socket.receive({
+        audio: "AQACAA==",
+        alignment: {
+          chars: ["H"],
+          char_start_times_ms: [0],
+          char_durations_ms: [40],
+        },
+      }),
+    );
+
+    expect(events.timing).toEqual([]);
+  });
+
   it("closes the dialogue socket at once when the reply is cancelled", async () => {
     const socket = await openRun(directSession);
     act(() => runtime().appendText(RUN_ID, "Hello there.", CONTEXT));
@@ -374,5 +441,45 @@ describe("hosted server speech socket", () => {
 
     expect(fixture.players.at(-1)?.streamEnded).toBe(1);
     expect(events.warnings).toEqual([]);
+  });
+
+  it("appends the server socket's run-relative timing as it is", async () => {
+    fixture.providerCredentials = false;
+    await act(async () => root?.render(<Harness />));
+    const socket = await openRun(serverSession);
+    act(() => runtime().appendText(RUN_ID, "Hi there.", CONTEXT));
+
+    act(() =>
+      socket.receive({
+        audio: "AQACAA==",
+        alignment: {
+          characters: ["H", "i"],
+          character_start_times_seconds: [0.05, 0.12],
+          character_end_times_seconds: [0.12, 0.2],
+        },
+      }),
+    );
+    // A dialogue-shaped frame is not the server socket's timing.
+    act(() =>
+      socket.receive({
+        audio: "AQACAA==",
+        alignment: {
+          chars: [" "],
+          char_start_times_ms: [0],
+          char_durations_ms: [40],
+        },
+      }),
+    );
+
+    expect(events.timing).toEqual([
+      {
+        runId: RUN_ID,
+        provider: "elevenlabs",
+        chars: [
+          { char: "H", startSec: 0.05, endSec: 0.12 },
+          { char: "i", startSec: 0.12, endSec: 0.2 },
+        ],
+      },
+    ]);
   });
 });
