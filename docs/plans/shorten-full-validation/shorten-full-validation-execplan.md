@@ -92,7 +92,7 @@ and this plan does not edit it.
 - [x] Phase 3: concurrent browser groups and the run summary. Review passed with no repair round (#484).
 - [x] Phase 4: baseline set reuse. Review passed after one repair round (#485).
 - [x] Phase 5: the reused receipt names the PR set. Review passed after one repair round (#486).
-- [ ] Phase 6: two pytest-xdist workers for the hosted backend suite (#494). Implemented; review pending.
+- [x] Phase 6: two pytest-xdist workers for the hosted backend suite (#494). Review passed.
 - [ ] Phase 7: documentation and final integration review (not started).
 - [ ] Hosted runs H1–H3 (each needs separate owner approval).
 
@@ -621,6 +621,39 @@ This phase runs only if the owner chooses a Q1 option after Phase 1.
 
 **Evidence:** the complete suite passes three times locally in the two-CPU
 container, and the timing is recorded.
+
+#### Phase 6 results
+
+- `pytest-xdist` (3.8.0, with execnet 2.1.2) is in the `dev` group. The hosted
+  `backend-tests` step runs `pytest -n 2`, while `make check-test` and the
+  local receipt still run one process.
+- Evidence: four clean runs with `-n 2` on two CPUs (219, 260, 219 and 203 s,
+  each with 4117 passed). `uv lock --check` and the dependency guard pass.
+
+#### Code Review #1 Findings
+
+The reviewed source was `c1cdae0d` plus the dependency and workflow changes.
+Checks: unittest 125 OK, `uv lock --check`, the dependency guard and the YAML
+parse. No blocking findings. Parallel safety was verified:
+
+- Each worker gets its own Postgres container and data root.
+- No fixed ports or paths, and no order dependence.
+- Only the controller writes the JUnit XML.
+
+Optional findings:
+
+- **P6-F1:** the local evidence ran Postgres as sibling containers outside the
+  2-CPU limit, so the transport tests with 1–3 s deadlines could see more
+  contention on the hosted runner.
+- **P6-F2:** the position of the new entry in the dependency list.
+
+#### Code Review #1 Revisions
+
+- **P6-F1, noted as an H1 watch item:** if the hosted run times out in
+  `tests/test_local_http_transport.py` or `tests/test_anima_chat_sse_transport.py`,
+  check contention first.
+- **P6-F2, rejected:** the list is unsorted, so the position is cosmetic.
+- Phase 6 review passed with no repair round needed.
 
 ### Phase 7: Documentation and final integration review
 

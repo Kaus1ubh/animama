@@ -238,7 +238,8 @@ jobs:
         env:
           PYTEST_ADDOPTS: --junitxml=${{ runner.temp }}/backend-pytest.xml
         run: |
-          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" backend-tests -- uv run --no-sync pytest
+          # Two workers halve the suite on the two-CPU runner (see the shorten-full-validation ExecPlan).
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" backend-tests -- uv run --no-sync pytest -n 2
       - name: Run every nonempty CI and release tooling suite
         id: tooling-tests
         if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
