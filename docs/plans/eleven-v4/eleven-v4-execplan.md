@@ -163,16 +163,16 @@ Ownership and boundaries:
 - [x] Phase 5 (#502): hosted contract, Cloud issue, docs and full validation.
   Code Review #1 found three Cloud-draft corrections. They were fixed and
   verified by the final integration review.
-  - The native full validation passed, apart from the Docker-backed backend
-    tests and `e2e:test:fast`, which wait for Docker.
+  - The native full validation passed. The Docker-backed backend tests and
+    `e2e:test:fast` passed after OrbStack recovered.
 - [x] Intent discovery for audio tags in `speech` (D12), 2026-10-12: linked
   issue [#479](https://github.com/raymond-van/animama/issues/479).
 - [x] Phases 1–2 scope review (2026-10-13): passed after a one-line doc fix.
   Every language was then spoken live on the current paths.
 - [x] Final integration review (2026-10-13): #1–#3 passed, with no blocking
   finding and two repair rounds.
-- [ ] Before merge: the Docker-backed backend tests and `pnpm e2e:test:fast`,
-  once Docker works again.
+- [x] Docker-backed checks (2026-10-13, `47105607`): `make check-test` 4,159
+  passed, 0 failed; `pnpm e2e:test:fast` 38 of 38.
 - [ ] G2 owner gate.
 
 ## Surprises & Discoveries
@@ -2224,9 +2224,6 @@ Validated revision: `7b50f27c`, the merged branch. Baseline: `00442ec9`
 
 Not run:
 
-- **Waiting for Docker:** the 995 Docker-backed backend tests and
-  `pnpm e2e:test:fast` on a disposable built stack. Both need a working Docker
-  and run before merge once OrbStack recovers.
 - **Outside this phase's list:** `build.py validate` (installed consumers in
   Chromium) and a receipt-bound local profile. Both are part of the
   containerised full profile.
@@ -2235,6 +2232,14 @@ Not run:
   - real hosted speech (G3);
   - Instant Voice Clones (D5);
   - packaged desktop builds.
+
+Docker-backed checks at the final head `47105607`, after OrbStack was restarted
+(clean tree, same toolchain):
+
+| Check | Result |
+| --- | --- |
+| `make check-test` | Audit, Ruff format, Ruff and mypy pass. pytest: 4,159 passed, 29 skipped, 0 failed (6 min 13 s). The 995 earlier Docker errors now pass. |
+| `pnpm e2e:test:fast` | Disposable built stack `animama-ev4-e2e` (`ANIMAMA_LLM_SKIP=1`, production build, no provider keys): 38 of 38 passed in 6.0 min. The stack was taken down afterwards. |
 
 G1 spend:
 
@@ -2588,8 +2593,7 @@ Delivered in raymond-van/animama#497:
 Still open:
 
 - the G2 owner gate;
-- the G3 Cloud rollout;
-- the Docker-backed checks, which wait for Docker.
+- the G3 Cloud rollout.
 
 Lessons:
 
