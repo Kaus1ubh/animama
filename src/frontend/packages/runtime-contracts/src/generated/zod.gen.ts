@@ -1793,7 +1793,7 @@ export const zPyAnimaTtsRunOptions = z.object({
         z.null()
     ])),
     model_id: z.optional(z.union([
-        z.enum(['eleven_v4_turbo', 'eleven_v4']),
+        z.literal('eleven_v4_turbo'),
         z.enum(['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']),
         z.null()
     ])),
@@ -2716,7 +2716,7 @@ export const zPyElevenLabsVoiceSettings = z.object({
  * PyElevenLabsTextToSpeechRequest
  */
 export const zPyElevenLabsTextToSpeechRequest = z.object({
-    model_id: z.optional(z.enum(['eleven_v4_turbo', 'eleven_v4'])),
+    model_id: z.optional(z.literal('eleven_v4_turbo')).default('eleven_v4_turbo'),
     output_format: z.optional(z.union([
         z.string(),
         z.null()

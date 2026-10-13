@@ -1,13 +1,11 @@
-"""Text and audio framing shared by the finalized speech providers (ElevenLabs and Gemini).
+"""Text and audio framing for finalized speech (Gemini).
 
-Both speak an English segment's gruut-normalized text, so lip-sync phonemes match
-the words heard, and other languages as written. Both push 24 kHz 16-bit
+It speaks an English segment's gruut-normalized text, so lip-sync phonemes match
+the words heard, and other languages as written. It pushes 24 kHz 16-bit
 little-endian PCM to the browser in frames of at least 0.2 s.
 """
 
 from __future__ import annotations
-
-from dataclasses import dataclass
 
 from animama.app.gruut_text import build_gruut_sse_text, gruut_prepares_text
 from animama.product_http.chat.sse_events import TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS
@@ -17,29 +15,14 @@ FINALIZED_TTS_PCM_FRAME_BYTES = 9600
 FINALIZED_TTS_OUTPUT_FORMAT = "pcm_24000"
 
 
-@dataclass(frozen=True, slots=True)
-class FinalizedTtsText:
-    """The text a finalized provider speaks.
-
-    ``gruut_prepared`` is true when gruut already verbalized its numbers and
-    symbols (English); text sent as written leaves that to the provider.
-    """
-
-    text: str
-    gruut_prepared: bool
-
-
-def finalized_tts_text(text: str, *, text_basis: str) -> FinalizedTtsText:
+def finalized_tts_text(text: str, *, text_basis: str) -> str:
     """The text to speak: prepared gruut text as is; English normalized through gruut; other text as written."""
 
-    if text_basis == TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS:
-        return FinalizedTtsText(text=text, gruut_prepared=True)
-    if gruut_prepares_text(text):
-        gruut_payload = build_gruut_sse_text(text, lang="en_US", tokenized_text_source="text_with_ws")
-        gruut_text = gruut_payload.get("tokenized_text") if gruut_payload else None
-        if isinstance(gruut_text, str) and gruut_text.strip():
-            return FinalizedTtsText(text=gruut_text.strip(), gruut_prepared=True)
-    return FinalizedTtsText(text=text, gruut_prepared=False)
+    if text_basis == TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS or not gruut_prepares_text(text):
+        return text
+    gruut_payload = build_gruut_sse_text(text, lang="en_US", tokenized_text_source="text_with_ws")
+    gruut_text = gruut_payload.get("tokenized_text") if gruut_payload else None
+    return gruut_text.strip() if isinstance(gruut_text, str) and gruut_text.strip() else text
 
 
 def pop_pcm_audio_frame(audio_buffer: bytearray, *, force: bool = False) -> bytes | None:
@@ -58,7 +41,6 @@ def pop_pcm_audio_frame(audio_buffer: bytearray, *, force: bool = False) -> byte
 __all__ = [
     "FINALIZED_TTS_OUTPUT_FORMAT",
     "FINALIZED_TTS_PCM_FRAME_BYTES",
-    "FinalizedTtsText",
     "finalized_tts_text",
     "pop_pcm_audio_frame",
 ]

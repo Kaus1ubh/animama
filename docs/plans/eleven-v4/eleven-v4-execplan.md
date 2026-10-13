@@ -4,7 +4,7 @@ Status: Phases 1–2 authorized by the owner on 2026-10-12. Phases 3–5 are agr
 scope but not yet authorized.
 
 Source agreement: [spec](eleven-v4-spec.md), agreed by the owner on 2026-10-12
-(decisions D1–D12), for
+(decisions D1–D13; D13 removed finalized Eleven v4 after Phase 2), for
 [issue #471](https://github.com/raymond-van/animama/issues/471). Research:
 [eleven-v4-research.md](eleven-v4-research.md).
 
@@ -16,11 +16,11 @@ Authorized scope: Phases 1–2 (owner, 2026-10-12).
 Explicit gates:
 
 - **G1 — Paid live checks.** Live ElevenLabs checks during implementation stay
-  within the owner-approved budget (spec D6: US$1, of which about US$0.02 is
+  within the owner-approved budget (spec D6: US$1, of which about US$0.16 is
   spent).
 - **G2 — Owner gate before merge.**
-  - The owner listens to v4 Turbo and v4 with the voices in use.
-  - The owner reviews the side-by-side view on a v4 reply.
+  - The owner listens to v4 Turbo with the voices in use.
+  - The owner reviews the side-by-side view on a v4 Turbo reply.
   - Instant Voice Clone verification was waived on 2026-10-12 (spec D5).
 - **G3 — Hosted (Cloud).** Cloud must adopt the v4 model ids before or together
   with hosted adoption of this release (spec D7). It is tracked by a Cloud issue,
@@ -29,8 +29,9 @@ Explicit gates:
 ## Purpose and context
 
 Replace ElevenLabs `eleven_flash_v2_5` and `eleven_multilingual_v2` (realtime)
-and `eleven_v3` (finalized) with `eleven_v4_turbo` and `eleven_v4`, and let
-finalized speech reach providers in every language. Carry ElevenLabs character
+and `eleven_v3` (finalized) with `eleven_v4_turbo`, spoken in realtime (D13
+removed the finalized `eleven_v4` after Phase 2), and let speech reach providers
+in every language. Carry ElevenLabs character
 timing to the browser as evidence for #468's lip-sync planner, and add a
 side-by-side view. The spike established the protocol facts this plan depends on:
 
@@ -49,15 +50,13 @@ Orientation (paths relative to the repository root):
   - `src/backend/animama/app/contracts/elevenlabs.py` (model literals, schemas);
   - `src/backend/animama/app/contracts/dispatch.py` (`PyAnimaTtsRunOptions`);
   - `src/backend/animama/app/chat/options.py`;
-  - `src/backend/animama/server/config.py`
-    (`elevenlabs_realtime_tts_default_model_id`);
   - `src/backend/animama/server/elevenlabs_service.py` (token, session,
-    finalized stream, utility route);
-  - `src/backend/animama/app/voice_emotional_tone.py` (tone prefix,
-    `previous_text` bound).
+    utility route);
+  - `src/backend/animama/app/voice_emotional_tone.py` (tone vocabulary,
+    Gemini's speaking style).
 - **Backend chat speech:**
-  - `src/backend/animama/product_http/chat/tts.py` (session bootstrap, finalized
-    batcher and bootstrap, model checks);
+  - `src/backend/animama/product_http/chat/tts.py` (realtime session bootstrap;
+    the Gemini-only finalized batcher and bootstrap);
   - `src/backend/animama/product_http/chat/sse_events.py` (`tts.session`,
     `tts.audio`, `tts.done`, `tts.error`);
   - `src/backend/animama/product_http/ports.py` (`ProductSpeech`,
@@ -68,8 +67,7 @@ Orientation (paths relative to the repository root):
   - `src/frontend/web/src/hooks/use-tts-playback.ts` (orchestration, chunker
     feed, Pocket fallback);
   - `src/frontend/web/src/lib/speech/tts-chunker.ts`.
-- **Browser finalized:** `src/frontend/web/src/hooks/use-elevenlabs-finalized-tts-runtime.ts`
-  (shared with Gemini).
+- **Browser finalized (Gemini only):** `src/frontend/web/src/hooks/use-elevenlabs-finalized-tts-runtime.ts`.
 - **Shared chat client (product-ui):**
   - `src/frontend/packages/product-ui/src/query/mutations/useChatSse.ts` (SSE
     types);
@@ -77,8 +75,8 @@ Orientation (paths relative to the repository root):
     (session validation, viseme inputs, allowance fallback);
   - `src/frontend/packages/product-ui/src/chat/session-bindings.ts`.
 - **Settings:**
-  - `src/frontend/web/src/lib/settings/preferences.ts` (model options,
-    normalizers, `isElevenLabsFinalizedTtsModelId`);
+  - `src/frontend/web/src/lib/settings/preferences.ts` (the one ElevenLabs
+    model and the retired-id normalizer);
   - `src/frontend/web/src/ui/sidebar/ApplicationSettingsModal.tsx` (Voice rows);
   - `src/frontend/web/src/lib/chat/elevenlabs-chat-tts-dispatch.ts`;
   - `src/frontend/web/src/ui/main/chat/useChatSession.ts`.
@@ -117,9 +115,9 @@ Ownership and boundaries:
   `SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS` and hard-codes `eleven_v3`
   (`app/speech.py`, `server/speech_turn.py`), so the exported name is kept and
   the Cloud issue describes the rest.
-- Gemini shares `tts.audio`, the finalized runtime and the bridge. Its frames gain
-  no timing, and it keeps the estimated path. It gains every-language segments
-  (D9).
+- Gemini is the only user of `tts.audio` and the finalized runtime, and shares
+  the lip-sync bridge. Its frames gain no timing, and it keeps the estimated
+  path. It gains every-language segments (D9).
 - Today's gruut planner is not extended (spec D8). #468 owns lip-sync rendering
   from timing.
 
@@ -146,9 +144,10 @@ Ownership and boundaries:
   pass, Code Review #1–#3 passed, and the live web and desktop checks show a
   median first audio of 155 ms. Pending G2 (owner listening).
 - [x] Phase 2 (#481): finalized v4, model cleanup and every language. All checks
-  pass, and Code Review #1–#3 passed. Live finalized v4 replies spoke English,
-  Japanese and Korean, Gemini spoke Japanese, and stitched and `previous_text`
-  samples were recorded. Pending G2 (owner listening).
+  pass, and Code Review #1–#3 passed (`c6b87dd2`).
+- [x] Phase 2 amendment (owner, 2026-10-12): finalized v4 removed; ElevenLabs
+  speaks only with Eleven v4 Turbo. Checks pass, and Amendment Code Review #1–#2
+  passed. Pending G2 (owner listening to v4 Turbo).
 - [ ] Phase 3: timing plumbing and the timing evidence module (not yet
   authorized).
 - [ ] Phase 4: side-by-side view with pluggable plan sources (not yet
@@ -266,6 +265,24 @@ From the spike, 2026-10-12 (details and numbers in the research brief):
   - A `mode="before"` validator maps legacy ids to their replacements in
     `PyAnimaTtsRunOptions`.
   - The OpenAPI enum lists only the v4 ids, and a stale tab still gets its reply.
+- **2026-10-12 — owner, after Phase 2 passed review: remove finalized Eleven v4;
+  ElevenLabs speaks only with Eleven v4 Turbo.**
+  - Context: direct `ttd_websocket` tokens are unsuitable for the multi-user
+    hosted app, because the browser chooses the text, voice and model on the
+    operator's account. Hosted therefore keeps Cloud's server socket, which can
+    speak `eleven_v4_turbo` server-side, so hosted gains nothing from a
+    finalized model.
+  - Effect:
+    - D1–D3's optional finalized mode is withdrawn;
+    - `eleven_v3` now maps to `eleven_v4_turbo`;
+    - the ElevenLabs model and grouping settings go;
+    - ElevenLabs no longer implements finalized speech (Gemini remains the
+      finalized provider);
+    - the utility route speaks `eleven_v4_turbo`.
+  - D9 and R7 stand for Gemini and realtime. Phase 3 loses the backend
+    `tts.audio` timing for ElevenLabs.
+  - The Phase 2 work stays in history as reviewed. The removal is a Phase 2
+    amendment with its own bounded review.
 
 ## Setup and execution rules
 
@@ -1136,6 +1153,245 @@ scope review:
   providers".
 
 Phase 2 review: **passed**, using one full review and two repair rounds.
+Committed as `c6b87dd2`, before the amendment below.
+
+#### Phase 2 amendment: Eleven v4 Turbo only (owner, 2026-10-12)
+
+After Phase 2 passed review, the owner removed finalized Eleven v4. ElevenLabs
+now speaks only with Eleven v4 Turbo, in realtime (see the Decision Log). Hosted
+keeps Cloud's server socket, which can speak `eleven_v4_turbo` server-side, so a
+finalized model adds nothing there.
+
+Removed:
+
+- the finalized ElevenLabs path:
+  - `ElevenLabsFinalizedTtsStream`, `prepare_finalized_tts_stream_from_text`,
+    `stream_finalized_tts_chunks` and the request splitter;
+  - the stitching (`previous_request_ids`, `previous_text`);
+  - the `apply_text_normalization` flag;
+  - the tone-tag prefix and `LocalSpeech`'s finalized methods;
+- the `eleven_v4` id, the model selector and the audio grouping setting.
+
+Kept from Phase 2:
+
+- D9 for Gemini and realtime: every language is spoken;
+- the gruut letters rule, and symbol-only segments that stay unspoken (Gemini);
+- the utility route on Text to Dialogue `convert`, now `eleven_v4_turbo`, with
+  `text` bounded at 2,000;
+- the retired-id map, now with `eleven_v3` → `eleven_v4_turbo`;
+- product-ui 0.9.1 and the regenerated client.
+
+Changes:
+
+- **Backend:**
+  - `app/contracts/elevenlabs.py` keeps only the realtime model names;
+  - `PyAnimaTtsRunOptions.model_id` is `eleven_v4_turbo` or a Gemini id;
+  - `FinalizedTtsStreamBootstrap` is Gemini-only;
+  - `ProductSpeech` no longer extends `FinalizedSpeechPort`;
+  - `FinalizedSpeechPort.prepare_finalized` takes only what Gemini uses;
+  - the SSE frame formatters require the provider;
+  - `voice_emotional_tone.py` drops the ElevenLabs prefix and continuity
+    helpers.
+- **Frontend:**
+  - `preferences.ts` keeps one ElevenLabs model;
+  - App Settings → Voice drops the model and grouping rows, and the
+    ElevenLabs provider description names Eleven v4 Turbo;
+  - the dispatch builder sends no grouping;
+  - `useTtsPlayback` and `useChatSession` treat only Gemini as server-pushed
+    audio;
+  - product-ui's comment and tests follow.
+- **Client** regenerated: the enums now carry `eleven_v4_turbo` only.
+- **Backend tests**, converted in a delegated pass and verified:
+  - Shared finalized behaviour now runs on Gemini: paragraph batching and
+    pauses, segment failure, audio before `run.completed`, early-close
+    cancellation, the neutral tone, `tts_text` frames and English typography.
+  - ElevenLabs-finalized-only tests are deleted: stitching, "no session for
+    v4" and "accepts v4".
+  - New tests: `eleven_v4` is refused with a 422; `eleven_v3` speaks in
+    realtime with `eleven_v4_turbo`; the utility text is bounded at 2,000;
+    Gemini's `finalized_tts_text` follows the gruut rule.
+  - The product-http refusal tests use a narrowed `FakeGeminiSpeech`.
+  - The golden `tts-finalized.sse` was re-recorded for Gemini; only the
+    `provider` and `model_id` fields changed.
+  - The delegated run: targeted suites 254 passed; the whole suite (without
+    `tests/live`) 4,147 passed and 9 skipped; ruff, ruff format and mypy clean.
+    Throwaway runtime patches confirmed that the new assertions catch their
+    regressions.
+- **Docs and contract:** `voice-and-speech.md` (a generic Finalized TTS
+  section, now Gemini), `http-api.md`, `docs/backend/runtime/chat.md`,
+  `elevenlabs-tts.md`, `gemini-tts.md` (finalized playback moved there),
+  `voice.md`, `avatar-lipsync.md`, `docs/frontend/runtime/chat.md` and
+  `contracts/hosted-web.md` (realtime-only declines; why hosted keeps the server
+  transport).
+
+Evidence so far:
+
+- Live, Text to Dialogue `convert` with `eleven_v4_turbo`, with and without
+  voice settings, returned audio: 43,511 bytes of mp3, about 25 characters
+  (`evidence/probe_utility_turbo.py`).
+- Live on `animama-ev4`, after restarting its `web` service for the rebuilt
+  packages:
+  - **ElevenLabs:** with the stored preference still `eleven_v4`, a reply got a
+    `tts.session` for `eleven_v4_turbo` (direct, `sync_alignment: true`) and
+    spoke 2.2 s over the dialogue socket (final, close 1000), with no
+    finalized frames.
+  - **Settings:** App Settings → Voice shows neither the model nor the grouping
+    row, and ElevenLabs is described as "Realtime ElevenLabs speech with Eleven
+    v4 Turbo."
+  - **Gemini:** a Japanese reply came as 13 `tts.audio` frames from
+    `gemini-3.8-flash-lite-tts` and `tts.done`, with no errors.
+- **Frontend gate:**
+  - `openapi-ts:check`, `packages:build`, `pnpm check`, `web:lint`,
+    `prettier:check` and `build` pass;
+  - `packages:test`: product-ui 30 of 30, including the realtime
+    allowance-after-text case;
+  - `web:test`: Vitest 470 files (4,200 passed, 1 skipped), plus node and
+    browser suites 220 of 220;
+  - `desktop:test`: 506 passed and 14 skipped.
+- **Spend (G1):** about 120 characters (the realtime reply and two short
+  `convert` calls), under US$0.01. The total spent from the US$1 budget is about
+  US$0.16.
+- The Phase 2 finalized v4 live results and the stitching samples remain as
+  history. G2 no longer needs the stitching comparison.
+- **Backend:** `make check-test` passed: pytest 4,147 passed and 29 skipped
+  (6 min 29 s), with format (832 files), lint, mypy and the typed-content audit
+  clean.
+
+##### Amendment Code Review #1 Findings
+
+Reviewer: independent `sdlc-reviewer`. Reviewed source: the uncommitted tree on
+`c6b87dd2`, snapshot `c587f36dd96e2810`; the only later change was the plan's
+own results edit.
+
+The reviewer's checks:
+
+- ruff, ruff format and mypy (21 files) clean;
+- import boundary clean;
+- pytest 255 passed;
+- `openapi-ts:check` current;
+- Vitest (36 tests) and product-ui 30 of 30;
+- eslint clean;
+- the #471 body matching the spec snapshot;
+- `git grep` sweeps;
+- a counting probe on the finalized error frames.
+
+Result: three blocking findings, each small.
+
+- **P2A-R1-F1 (blocking).** The finalized "no prepared speech" path
+  (`missing_tts_text`) lost its only test with the deleted v4 test. A probe
+  found 0 such frames across the suites, so mislabelling or dropping the frame
+  would pass.
+- **P2A-R1-F2 (blocking).** Two docs still described finalized ElevenLabs:
+  - `voice.md` said the "finalized stream route returns 409";
+  - `docs/frontend/README.md` called `elevenlabs-tts.md` "realtime and
+    finalized".
+- **P2A-R1-F3 (blocking).** The plan's current guidance contradicted D13:
+  - G2 still listed v4 listening;
+  - the acceptance mapping kept "Finalized v4";
+  - the Legacy restoration step and the purpose and orientation text were
+    stale.
+- **Optional:**
+  - product-ui's `tts.error` allowance fallback is unreachable for ElevenLabs,
+    and its JSDoc still named `tts.error`;
+  - a vestigial `finalizedProviderRef` default;
+  - Gemini's `style: str | None` and a few small simplifications (ports,
+    inactive marking, a one-value dispatch parameter);
+  - a Prettier drift in `chat-consumer.jsx` and an overlong line in
+    `docs/frontend/runtime/chat.md`;
+  - a duplicated realtime-model test;
+  - naming debt: the finalized runtime and product-ui callbacks named for
+    ElevenLabs now serve Gemini;
+  - the amendment's spend record;
+  - spec R4 and R6 still named "both models".
+- **Verified with no finding:**
+  - every ElevenLabs request starts a realtime session; `eleven_v3` maps;
+    `eleven_v4` is refused;
+  - Gemini behaviour is unchanged apart from always being styled;
+  - the allowance fallback works before and after the text;
+  - the port narrowing breaks no Cloud usage;
+  - versions and the client are current;
+  - no stray old ids remain.
+
+##### Amendment Code Review #1 Revisions
+
+- **F1, accepted.** New `test_chat_sse_finalized_speech_without_speakable_text_reports_missing_tts_text`:
+  Gemini speech of only "😊" ends with exactly one `tts.error`
+  (`gemini`, `missing_tts_text`), with no prepare call, no `tts.audio` or
+  `tts.done`, and one `run.completed`; the emoji stays visible. It fails when
+  the code is mutated.
+- **F2, accepted.** `voice.md` now describes the realtime `tts.session.error`
+  carrying `status_code` 409 or 503, and the README entry says "ElevenLabs
+  realtime TTS with Eleven v4 Turbo".
+- **F3, accepted.** The plan now has:
+  - D1–D13 in the source line;
+  - G1 spend of about US$0.15;
+  - G2 as "listens to v4 Turbo" and "a v4 Turbo reply";
+  - updated purpose and orientation (no finalized stream, tone prefix,
+    `previous_text` bound or finalized model helper);
+  - a "One ElevenLabs model (D13)" acceptance row with updated Every language
+    and Migration rows;
+  - the recovery text pointing at `c6b87dd2` for any finalized restoration.
+- **Optional, taken:**
+  - the `speech-allowance.ts` JSDoc now says the code arrives on
+    `tts.session.error`;
+  - `chat-consumer.jsx` is Prettier-formatted and `docs/frontend/runtime/chat.md`
+    is rewrapped;
+  - the duplicated router test is removed, and the removed `eleven_v4` joins
+    the service test's unknown-id cases;
+  - the amendment's spend is recorded;
+  - spec R4 and R6 now say v4 Turbo, in the snapshot and in #471 (updated
+    03:31 UTC).
+- **Optional, deferred:**
+  - the unreachable product-ui `tts.error` allowance path and the
+    ElevenLabs-named finalized runtime and callbacks. Renaming the product-ui
+    callbacks changes its public API, so both belong in one follow-up, which is
+    proposed to the owner. The path is harmless meanwhile.
+  - Gemini's optional style, `finalizedProviderRef`, and the small port and
+    bootstrap simplifications: harmless and outside the removal's scope.
+- **Checks after the revisions:**
+  - pytest on the chat SSE, router, service, Gemini, chat-turn and golden
+    suites: 202 passed, with `UserWarning` as an error;
+  - `ruff check`, `ruff format --check` (844 files) and mypy (832 files) clean;
+  - `packages:build`, `packages:test` (30 of 30), `pnpm check` and
+    `pnpm prettier:check` pass.
+
+Repair budget: round 1 of 2 used.
+
+##### Amendment Code Review #2 Findings
+
+Targeted recheck by the same reviewer of snapshot `ba5f1ec16f89eea8`, unchanged
+before and after. Result: **pass**.
+
+- **F1:** the new test exercises the real `isalnum` guard. A counting probe
+  records its one `missing_tts_text` frame, and both a mislabelled provider
+  and a dropped frame fail it.
+- **F2:** the `409` and `503` statuses in `voice.md` match the code.
+- **F3:** the plan's guidance agrees with D13.
+- The optional repairs caused no regressions: service tests cover the removed
+  router duplicates, product-ui passes 30 of 30, and the rebuilt `dist` carries
+  the JSDoc.
+
+The reviewer's checks:
+
+- ruff, ruff format and mypy (21 files);
+- pytest 235 passed with `UserWarning` as an error and the probe;
+- the mutation runs;
+- Prettier on product-ui;
+- product-ui lifecycle 30 of 30;
+- Vitest (31 tests);
+- the #471 body against the snapshot;
+- `git grep` sweeps.
+
+Optional notes, all taken:
+
+- G1 is aligned with the running total (about US$0.16);
+- two orientation lines no longer name the removed `config.py` setting or say
+  Gemini "shares" `tts.audio`;
+- a stray blank line in the results is removed;
+- the allowance JSDoc now also notes that a finalized provider's decline
+  arrives on `tts.error`.
+
+Amendment review: **passed**, using one full review and one repair round.
 
 ### Phase 3: timing plumbing and the timing evidence module
 
@@ -1144,30 +1400,23 @@ Not yet authorized.
 
 Outcome:
 
-- Every v4 reply's character timing reaches the browser in one time base.
+- Every v4 Turbo reply's character timing (direct socket, or the hosted server
+  socket) reaches the browser in one time base. After the 2026-10-12 removal of
+  finalized v4, no backend `tts.audio` carries ElevenLabs timing.
 - A provider-neutral module turns it into evidence that #468's planner and the
   Phase 4 view consume.
 - Lip-sync rendering is unchanged (D8).
 
 Changes:
 
-1. **Backend `tts.audio`:**
-   - Parse each NDJSON chunk's `alignment` (seconds) in
-     `stream_finalized_tts_chunks`, moved here from Phase 2. A segment spoken as
-     several requests (over 2,000 characters) offsets each request's timing by
-     the audio already streamed for that segment.
-   - An optional `alignment` field: `{chars, char_start_times_ms, char_durations_ms}`,
-     integer ms relative to the run's first audio sample.
-   - `FinalizedTtsStreamBootstrap` adds each batch's offset: the samples already
-     emitted in the run, including inserted paragraph silence.
-   - Gemini frames carry none.
-   - Update the golden fixture.
-2. **Product-ui:** the SSE type gains the optional field; bump `product-ui`.
+1. **Backend `tts.audio`:** withdrawn with finalized v4 (owner, 2026-10-12).
+   Gemini frames carry no timing.
+2. **Product-ui:** no SSE type change is needed.
 3. **Browser collection** (`src/frontend/web/src/lib/speech/provider-speech-timing.ts`):
    - **Realtime socket:** per-frame relative times, with a cursor per turn that
      advances by each frame's length and resynchronises to the played samples
      at `is_final_audio_for_turn`. It tolerates `alignment: null`.
-   - **Absolute payloads** (`tts.audio`, the server socket) are appended as they
+   - **Absolute payloads** (the hosted server socket) are appended as they
      are.
    - The result is a run timeline of `{char, startSec, endSec}`, kept by run id
      in a small store. It is cleared with the run, and late frames are ignored.
@@ -1186,14 +1435,13 @@ Changes:
    - Classification uses a small keyword table. It handles combined tags
      (`[whispering, playful]`); unknown tags become delivery or emotion markers,
      never words.
-   - The emotional prefix tag classifies as emotion.
    - It reports provider times unchanged. Overrun word ends and short tag spans
      are documented as hints for the planner.
 5. **Fixtures:**
    - Recorded from the spike (text, characters and times; no audio) under
      `src/frontend/web/src/lib/speech/__fixtures__/`.
-   - English with pauses, tags (`[laughs]`, `[sighs]`), numbers and the tone
-     prefix; a v4 Turbo socket run with per-frame times and turns.
+   - English with pauses, tags (`[laughs]`, `[sighs]`) and numbers; a v4 Turbo
+     socket run with per-frame times and turns.
    - New small captures for ja, ko, zh and es, and for `[gasps]`, `[whispers]`,
      `[pause]` and a combined tag, within G1.
 6. **Server socket:** accept the absolute `alignment` field on server transport
@@ -1207,14 +1455,12 @@ Tests:
   - absolute append;
   - late or old-run frames ignored.
 - **Evidence:** on fixtures, Latin words, per-character CJK windows,
-  punctuation, each tag class, combined and unknown tags, and the tone prefix.
-- **Backend:** `tts.audio` offsets across batches and paragraph silence; Gemini
-  frames without alignment.
+  punctuation, each tag class, and combined and unknown tags.
 
 Checks: as in Phase 2.
 
-Live (G1): one realtime and one finalized v4 reply. Inspect the collected timeline
-in development tools against the audio.
+Live (G1): two realtime v4 Turbo replies, one English and one Japanese. Inspect
+the collected timeline in development tools against the audio.
 
 Completion:
 
@@ -1270,7 +1516,7 @@ Tests:
 Checks: `pnpm check`, `pnpm web:lint`, `pnpm web:test` and `pnpm build`, plus a
 browser check at desktop and narrow sizes.
 
-Live (G1): capture a realtime and a finalized v4 reply, replay them, and save a
+Live (G1): capture two realtime v4 Turbo replies, replay them, and save a
 timeline screenshot for the PR.
 
 Completion:
@@ -1299,8 +1545,8 @@ Changes:
      - server audio frames are `{audio, alignment?}`, with times relative to the
        run's first audio sample;
      - the end marker is `{is_final: true}`, with `isFinal` accepted;
-   - `tts.audio` `alignment`;
-   - allowance refusals: `tts.error` for finalized `eleven_v4`;
+   - allowance refusals for ElevenLabs come only as `tts.session.error`, and
+     hosted keeps the server transport (done with the finalized v4 removal);
    - versions.
 2. **Docs:** finish what the phases have not covered:
    - `docs/frontend/runtime/elevenlabs-tts.md`, `voice.md` and
@@ -1311,10 +1557,15 @@ Changes:
    - `docs/backend/runtime/chat.md`;
    - `src/backend/animama/server/reference.md`, if it lists models.
 3. **Cloud issue.** Prepare `docs/plans/eleven-v4/cloud-issue-draft.md` with:
-   - the model ids (`MODELS`, and the `eleven_v3` branches in `speech_turn.py`);
-   - the HTTP model change (TTS HTTP accepts v4);
-   - optional timing via `stream/with-timestamps`, forwarded as `alignment` with
-     run-relative times;
+   - the model ids: `eleven_v4_turbo` only. Retire the finalized `eleven_v3`
+     path (`MODELS` and the `eleven_v3` branches in `speech_turn.py`), map
+     `eleven_v3` requests to `eleven_v4_turbo`, and drop the finalized methods
+     from Cloud's `ProductSpeech`, which no longer extends `FinalizedSpeechPort`;
+   - the server socket's model change (TTS HTTP accepts v4 Turbo, undocumented;
+     Text to Dialogue is the documented API);
+   - optional timing via `stream/with-timestamps`, forwarded on the server
+     socket as `alignment` with run-relative times;
+   - never issuing direct `ttd_websocket` tokens to multi-user browsers;
    - the end marker;
    - pricing keys;
    - rollout ordering (G3);
@@ -1335,7 +1586,7 @@ Changes:
    - `pnpm e2e:test:fast` on a disposable built stack;
    - the package-set build and compare against a `main` baseline.
 5. **Owner gate pack (G2):** a checklist covering the voices in use, v4 Turbo
-   and v4 listening (stitched and `previous_text`), and the side-by-side steps.
+   listening, and the side-by-side steps.
 
 Completion:
 
@@ -1379,9 +1630,9 @@ Spec acceptance mapping:
 | --- | --- |
 | Realtime on local web and desktop, latency | Phase 1 live numbers (median of 5 per surface) and runtime tests |
 | Connection handling | Phase 1 tests (keep-alive, cancel) and the live pause check |
-| Finalized v4 | Phase 2 backend tests, golden fixture and live reply |
-| Every language | Phase 2 per-language tests and live replies; Phase 1 streamed check |
-| Migration | Phase 1 (realtime ids) and Phase 2 (`eleven_v3`) tests, and the repository search |
+| One ElevenLabs model (D13) | Phase 2 amendment tests (`eleven_v4` refused, `eleven_v3` realtime), the settings check and the repository search |
+| Every language | Phase 2 per-language tests (Gemini) and live replies; Phase 1 streamed check |
+| Migration | Phase 1 (realtime ids) and the Phase 2 amendment (`eleven_v3` → `eleven_v4_turbo`) tests, and the repository search |
 | Timing evidence and module | Phase 3 tests on recorded fixtures |
 | Side-by-side view | Phase 4 tests, screenshot, G2 |
 | Failures and allowance fallback | Phase 1 runtime and product-ui tests; existing fallback suites |
@@ -1396,9 +1647,9 @@ and packaged desktop release builds.
 ## Idempotence and recovery
 
 - **Preferences:** migration is a pure normalisation; a migrated value written
-  back is idempotent. Reverting the release leaves `eleven_v4_turbo` or
-  `eleven_v4` stored. An older build normalises unknown ids to its default, so
-  it still speaks with Flash; that is acceptable and needs no data repair.
+  back is idempotent. Reverting the release leaves `eleven_v4_turbo` stored. An
+  older build normalises unknown ids to its default, so it still speaks with
+  Flash; that is acceptable and needs no data repair.
 - **Code:** no database or schema changes. Phase commits can be reverted
   independently in reverse order. Phase 1 stands alone. Reverting it alone
   restores Flash and the Text to Speech socket.
@@ -1407,9 +1658,10 @@ and packaged desktop release builds.
 - **Stacks:** `./reset.sh --name ev4 ...` is idempotent. Tear down with
   `docker compose -p animama-ev4 down` after the last use; keep the volumes
   unless the owner asks for a purge.
-- **Legacy restoration (contingency for D1):** add `eleven_v3` back to the
-  finalized literal and options with a "Legacy" label and its `previous_text`
-  omission. This is a bounded follow-up, decided at G2.
+- **Restoring a finalized ElevenLabs model (contingency for D1 and D13):** the
+  finalized ElevenLabs path was removed in the Phase 2 amendment. Restoring
+  `eleven_v4` or a Legacy `eleven_v3` would mean reviving the reviewed Phase 2
+  implementation from `c6b87dd2`. That is a bounded follow-up, decided at G2.
 
 ## Outcomes & Retrospective
 

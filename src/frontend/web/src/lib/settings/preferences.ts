@@ -44,12 +44,8 @@ export type TtsProviderPreference =
   | "elevenlabs"
   | "gemini";
 
-export type ElevenLabsRealtimeTtsModelId = "eleven_v4_turbo";
-export type ElevenLabsFinalizedTtsModelId = "eleven_v4";
-export type ElevenLabsTtsModelId =
-  | ElevenLabsRealtimeTtsModelId
-  | ElevenLabsFinalizedTtsModelId;
-export type ElevenLabsFinalizedChunking = "sentence" | "paragraph";
+/** ElevenLabs speaks every reply with Eleven v4 Turbo, streamed while the reply is written. */
+export type ElevenLabsTtsModelId = "eleven_v4_turbo";
 /** The backend's Gemini speech models; removing or renaming one there is a type error here. */
 export type GeminiTtsModelId = GeminiTtsCapability["models"][number];
 
@@ -66,10 +62,8 @@ const RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS: Readonly<
 > = {
   eleven_flash_v2_5: "eleven_v4_turbo",
   eleven_multilingual_v2: "eleven_v4_turbo",
-  eleven_v3: "eleven_v4",
+  eleven_v3: "eleven_v4_turbo",
 };
-export const DEFAULT_ELEVENLABS_FINALIZED_CHUNKING =
-  "paragraph" satisfies ElevenLabsFinalizedChunking;
 export const DEFAULT_GEMINI_TTS_MODEL_ID =
   "gemini-3.8-flash-lite-tts" satisfies GeminiTtsModelId;
 
@@ -91,44 +85,6 @@ export const GEMINI_TTS_MODEL_OPTIONS: Array<{
   },
 ];
 
-export const ELEVENLABS_TTS_MODEL_OPTIONS: Array<{
-  id: ElevenLabsTtsModelId;
-  label: string;
-  description: string;
-  capability: "realtime" | "finalized";
-}> = [
-  {
-    id: "eleven_v4_turbo",
-    label: "Eleven v4 Turbo",
-    description: "Realtime speech that starts while the reply is written.",
-    capability: "realtime",
-  },
-  {
-    id: "eleven_v4",
-    label: "Eleven v4",
-    description:
-      "Highest-quality speech, spoken in finished sentences or paragraphs.",
-    capability: "finalized",
-  },
-];
-
-export const ELEVENLABS_FINALIZED_CHUNKING_OPTIONS: Array<{
-  id: ElevenLabsFinalizedChunking;
-  label: string;
-  description: string;
-}> = [
-  {
-    id: "sentence",
-    label: "Sentence",
-    description: "Fastest start with one finalized request per sentence.",
-  },
-  {
-    id: "paragraph",
-    label: "Paragraph",
-    description: "Smoother long-form audio with paragraph-sized requests.",
-  },
-];
-
 export type SpeechPreferences = {
   stt_provider?: SttProviderPreference;
   /** Experimental: run local Parakeet on WebGPU when available (default off). */
@@ -137,8 +93,6 @@ export type SpeechPreferences = {
   tts_provider?: TtsProviderPreference;
   tts_stream_chunks?: boolean;
   tts_elevenlabs_model_id?: ElevenLabsTtsModelId;
-  /** Audio grouping for the finalized ElevenLabs model; the key keeps its original v3-era name. */
-  tts_elevenlabs_v3_finalized_chunking?: ElevenLabsFinalizedChunking;
   tts_gemini_model_id?: GeminiTtsModelId;
   desktop_shortcuts?: Partial<Record<DesktopShortcutAction, DesktopShortcut>>;
   tts_pocket_voice?: string;
@@ -201,7 +155,6 @@ export const DEFAULT_ANIMAMA_PREFERENCES: SettingsPreferences = {
     tts_enabled: true,
     tts_provider: "pocket_tts",
     tts_elevenlabs_model_id: DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-    tts_elevenlabs_v3_finalized_chunking: DEFAULT_ELEVENLABS_FINALIZED_CHUNKING,
     tts_stream_chunks: true,
     desktop_shortcuts: DEFAULT_DESKTOP_SHORTCUTS,
   },
@@ -379,15 +332,7 @@ export function toElevenLabsTtsModelId(
 ): ElevenLabsTtsModelId | null {
   if (typeof value !== "string") return null;
   const current = RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS[value] ?? value;
-  return ELEVENLABS_TTS_MODEL_OPTIONS.some((option) => option.id === current)
-    ? (current as ElevenLabsTtsModelId)
-    : null;
-}
-
-export function isElevenLabsRealtimeTtsModelId(
-  value: unknown,
-): value is ElevenLabsRealtimeTtsModelId {
-  return value === "eleven_v4_turbo";
+  return current === DEFAULT_ELEVENLABS_TTS_MODEL_ID ? current : null;
 }
 
 export function toGeminiTtsModelId(value: unknown): GeminiTtsModelId | null {
@@ -395,27 +340,6 @@ export function toGeminiTtsModelId(value: unknown): GeminiTtsModelId | null {
     value === "gemini-3.8-flash-tts"
     ? value
     : null;
-}
-
-export function isElevenLabsFinalizedTtsModelId(
-  value: unknown,
-): value is ElevenLabsFinalizedTtsModelId {
-  return value === "eleven_v4";
-}
-
-export function toElevenLabsFinalizedChunking(
-  value: unknown,
-): ElevenLabsFinalizedChunking | null {
-  return value === "sentence" || value === "paragraph" ? value : null;
-}
-
-export function resolveElevenLabsFinalizedChunking(
-  value: unknown,
-): ElevenLabsFinalizedChunking {
-  return (
-    toElevenLabsFinalizedChunking(value) ??
-    DEFAULT_ELEVENLABS_FINALIZED_CHUNKING
-  );
 }
 
 /**

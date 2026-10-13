@@ -6,7 +6,7 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from animama.app.contracts.elevenlabs import ElevenLabsChatTtsModelId, replace_retired_elevenlabs_tts_model_id
+from animama.app.contracts.elevenlabs import ElevenLabsRealtimeTtsModelId, replace_retired_elevenlabs_tts_model_id
 from animama.app.contracts.gemini import SUPPORTED_GEMINI_TTS_MODEL_IDS, GeminiTtsModelId
 from animama.domain.events import EventType
 
@@ -18,7 +18,7 @@ class PyAnimaTtsRunOptions(BaseModel):
     provider: Literal["browser", "pocket_tts", "elevenlabs", "gemini"] | None = None
     transport: Literal["auto", "direct"] | None = None
     language_code: str | None = Field(default=None, min_length=2, max_length=8)
-    model_id: ElevenLabsChatTtsModelId | GeminiTtsModelId | None = None
+    model_id: ElevenLabsRealtimeTtsModelId | GeminiTtsModelId | None = None
     finalized_chunking: Literal["sentence", "paragraph"] | None = None
 
     @field_validator("model_id", mode="before")

@@ -3160,7 +3160,7 @@ export type PyAnimaTtsRunOptions = {
     /**
      * Model Id
      */
-    model_id?: 'eleven_v4_turbo' | 'eleven_v4' | 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts' | null;
+    model_id?: 'eleven_v4_turbo' | 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts' | null;
     /**
      * Provider
      */
@@ -4962,7 +4962,7 @@ export type PyElevenLabsTextToSpeechRequest = {
     /**
      * Model Id
      */
-    model_id?: 'eleven_v4_turbo' | 'eleven_v4';
+    model_id?: 'eleven_v4_turbo';
     /**
      * Output Format
      */

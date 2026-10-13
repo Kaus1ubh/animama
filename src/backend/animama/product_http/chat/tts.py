@@ -1,22 +1,21 @@
-"""Speech for a chat reply: an ElevenLabs realtime session, or finalized audio pushed in the stream.
+"""Speech for a chat reply: an ElevenLabs realtime session, or Gemini audio pushed in the stream.
 
-Finalized audio comes from ElevenLabs ``eleven_v4`` through the composition's
-speech port, or from Gemini through its optional Gemini speech port. The
-composition's ports make every provider call. This module decides when speech
-starts, batches the reply's prepared speech segments and resolves the Anima's
-voice from the owner's settings (an Anima the caller does not own, including an
-unowned one, is not found).
+ElevenLabs speaks with Eleven v4 Turbo through a realtime session the browser
+opens. Gemini's finalized audio comes through the composition's optional Gemini
+speech port. The composition's ports make every provider call. This module
+decides when speech starts, batches the reply's prepared speech segments for
+Gemini and resolves the Anima's voice from the owner's settings (an Anima the
+caller does not own, including an unowned one, is not found).
 """
 
 from __future__ import annotations
 
 import asyncio
 import base64
-from collections import deque
-from collections.abc import AsyncIterator, Mapping
+from collections.abc import AsyncIterator
 from contextlib import suppress
 from dataclasses import dataclass, field
-from typing import Any, Literal
+from typing import Any
 
 from fastapi import HTTPException, status
 
@@ -27,9 +26,6 @@ from animama.app.chat.options import (
     DirectChatTtsOptions,
 )
 from animama.app.contracts.elevenlabs import (
-    DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
-    ELEVENLABS_FINALIZED_TTS_MAX_PREVIOUS_REQUEST_IDS,
-    SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS,
     PyElevenLabsAnimaVoiceProfileInput,
     PyElevenLabsRealtimeTtsSessionResponse,
     PyElevenLabsVoice,
@@ -41,7 +37,6 @@ from animama.app.contracts.gemini import (
     SUPPORTED_GEMINI_TTS_MODEL_IDS,
     gemini_voice_or_default,
 )
-from animama.app.voice_emotional_tone import bounded_finalized_tts_previous_text
 from animama.logging import get_logger
 from animama.product_http.ports import (
     FinalizedSpeechPort,
@@ -69,43 +64,13 @@ FINALIZED_TTS_PARAGRAPH_MAX_VISIBLE_CHARS = 600
 FINALIZED_TTS_PARAGRAPH_LEADING_PAUSE_SEC = 0.4
 FINALIZED_TTS_PCM_SAMPLE_RATE = 24000
 
-FinalizedTtsProvider = Literal["elevenlabs", "gemini"]
-
-
-@dataclass(frozen=True, slots=True)
-class _FinalizedProviderText:
-    """What a finalized speech provider's frames and errors say about it.
-
-    ``refusal_messages`` gives the browser text for refusal codes the owner can
-    act on; other refusals show the generic failure. ``forwards_error_text``
-    lets other exceptions' own text reach the browser.
-    """
-
-    label: str
-    failure_label: str
-    setup_failed_code: str
-    stream_failed_code: str
-    refusal_messages: Mapping[str, str] = field(default_factory=dict)
-    forwards_error_text: bool = True
-
-
-_FINALIZED_PROVIDER_TEXT: dict[str, _FinalizedProviderText] = {
-    "elevenlabs": _FinalizedProviderText(
-        label="ElevenLabs TTS",
-        failure_label="ElevenLabs finalized TTS",
-        setup_failed_code="elevenlabs_stream_setup_failed",
-        stream_failed_code="elevenlabs_stream_failed",
-    ),
-    "gemini": _FinalizedProviderText(
-        label="Gemini TTS",
-        failure_label="Gemini TTS",
-        setup_failed_code="gemini_tts_stream_setup_failed",
-        stream_failed_code="gemini_tts_stream_failed",
-        refusal_messages={GEMINI_TTS_MISSING_CREDENTIAL_CODE: GEMINI_TTS_MISSING_CREDENTIAL_MESSAGE},
-        # Gemini errors name at most an HTTP status, never request text.
-        forwards_error_text=False,
-    ),
-}
+# Gemini is the only finalized provider; its errors name at most an HTTP status,
+# never request text, so the browser sees these messages instead.
+_FINALIZED_PROVIDER = "gemini"
+_FINALIZED_LABEL = "Gemini TTS"
+_FINALIZED_SETUP_FAILED_CODE = "gemini_tts_stream_setup_failed"
+_FINALIZED_STREAM_FAILED_CODE = "gemini_tts_stream_failed"
+_FINALIZED_REFUSAL_MESSAGES = {GEMINI_TTS_MISSING_CREDENTIAL_CODE: GEMINI_TTS_MISSING_CREDENTIAL_MESSAGE}
 
 
 def resolve_realtime_voice_from_preferences(preferences: dict[str, Any] | None) -> PyElevenLabsVoice:
@@ -201,25 +166,6 @@ def tts_speech_payload_enabled(chat_options: DirectChatOptions) -> bool:
     return chat_options.tts is not None and chat_options.tts.enabled is True
 
 
-def elevenlabs_finalized_tts_model_id(chat_options: DirectChatOptions) -> str | None:
-    tts_options = elevenlabs_tts_options(chat_options)
-    if tts_options is None:
-        return None
-    model_id = tts_options.model_id
-    return model_id if model_id in SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS else None
-
-
-def elevenlabs_finalized_tts_chunking(chat_options: DirectChatOptions) -> DirectChatFinalizedTtsChunking:
-    tts_options = elevenlabs_tts_options(chat_options)
-    if (
-        tts_options is not None
-        and tts_options.model_id in SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS
-        and tts_options.finalized_chunking == "paragraph"
-    ):
-        return "paragraph"
-    return DEFAULT_FINALIZED_TTS_CHUNKING
-
-
 async def resolve_realtime_tts_session_for_stream(
     *,
     speech: ProductSpeech,
@@ -258,9 +204,6 @@ class TtsSessionBootstrap:
         if tts_options is None:
             return cls(run_id=run_id, anima_id=anima_id)
         model_id = tts_options.model_id
-        if model_id in SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS:
-            return cls(run_id=run_id, anima_id=anima_id)
-
         task = asyncio.create_task(
             resolve_realtime_tts_session_for_stream(
                 speech=speech,
@@ -397,23 +340,21 @@ class FinalizedTtsSegmentBatcher:
 
 @dataclass(slots=True)
 class FinalizedTtsStreamBootstrap:
-    """Starts and drains backend-pushed finalized TTS (ElevenLabs or Gemini) for one run."""
+    """Starts and drains Gemini audio pushed in the reply's stream for one run.
 
-    chat_options: DirectChatOptions
-    speech: FinalizedSpeechPort
+    ElevenLabs speaks in realtime instead (``TtsSessionBootstrap``), so any other
+    run keeps an inactive bootstrap: no model and no speech port.
+    """
+
+    speech: FinalizedSpeechPort | None
     sessions: TurnSessions
     anima_id: str
     run_id: str
     model_id: str | None
     finalized_chunking: DirectChatFinalizedTtsChunking = DEFAULT_FINALIZED_TTS_CHUNKING
-    provider: FinalizedTtsProvider = "elevenlabs"
     task: asyncio.Task[None] | None = None
     completed: bool = False
     resolved_voice_id: str | None = None
-    # The reply's latest ElevenLabs request ids, which the next segment continues from.
-    request_ids: deque[str] = field(
-        default_factory=lambda: deque(maxlen=ELEVENLABS_FINALIZED_TTS_MAX_PREVIOUS_REQUEST_IDS)
-    )
     queue: asyncio.Queue[str | None] = field(default_factory=asyncio.Queue)
 
     @classmethod
@@ -421,47 +362,28 @@ class FinalizedTtsStreamBootstrap:
         cls,
         *,
         chat_options: DirectChatOptions,
-        speech: ProductSpeech,
         sessions: TurnSessions,
         anima_id: str,
         run_id: str,
         gemini_speech: FinalizedSpeechPort | None = None,
     ) -> FinalizedTtsStreamBootstrap:
-        if gemini_finalized_tts_requested(chat_options):
-            if gemini_speech is None:
-                # The composition does not offer Gemini voice: the reply has no speech.
-                return cls(
-                    chat_options=chat_options,
-                    speech=speech,
-                    sessions=sessions,
-                    anima_id=anima_id,
-                    run_id=run_id,
-                    model_id=None,
-                    provider="gemini",
-                )
-            tts_options = chat_options.tts
+        tts_options = chat_options.tts
+        if tts_options is None or not gemini_finalized_tts_requested(chat_options) or gemini_speech is None:
+            # No Gemini voice for this reply, or a composition that does not offer it.
             return cls(
-                chat_options=chat_options,
-                speech=gemini_speech,
+                speech=None,
                 sessions=sessions,
                 anima_id=anima_id,
                 run_id=run_id,
-                model_id=gemini_finalized_tts_model_id(chat_options),
-                finalized_chunking=(
-                    tts_options.finalized_chunking
-                    if tts_options is not None and tts_options.finalized_chunking is not None
-                    else DEFAULT_FINALIZED_TTS_CHUNKING
-                ),
-                provider="gemini",
+                model_id=None,
             )
         return cls(
-            chat_options=chat_options,
-            speech=speech,
+            speech=gemini_speech,
             sessions=sessions,
             anima_id=anima_id,
             run_id=run_id,
-            model_id=elevenlabs_finalized_tts_model_id(chat_options),
-            finalized_chunking=elevenlabs_finalized_tts_chunking(chat_options),
+            model_id=gemini_finalized_tts_model_id(chat_options),
+            finalized_chunking=tts_options.finalized_chunking or DEFAULT_FINALIZED_TTS_CHUNKING,
         )
 
     def start_if_ready(self, state: SseTextState) -> None:
@@ -485,7 +407,7 @@ class FinalizedTtsStreamBootstrap:
                     model_id=self.model_id,
                     error=self._missing_text_error(),
                     code="missing_tts_text",
-                    provider=self.provider,
+                    provider=_FINALIZED_PROVIDER,
                 )
                 return
             self._start(state)
@@ -548,7 +470,6 @@ class FinalizedTtsStreamBootstrap:
     ) -> None:
         try:
             next_segment_index = 0
-            previous_text: str | None = None
             streamed_any = False
             batcher = FinalizedTtsSegmentBatcher(self.finalized_chunking)
             while True:
@@ -566,33 +487,29 @@ class FinalizedTtsStreamBootstrap:
                                 batch,
                                 emotional_tone=emotional_tone,
                                 emotional_state=emotional_state,
-                                previous_text=previous_text if self._uses_previous_text else None,
-                                apply_emotional_prefix=self._applies_style(streamed_any),
                             )
                             if not ok:
                                 return
                             streamed_any = True
-                            if self._uses_previous_text:
-                                previous_text = self._append_previous_text(previous_text, batch.text)
                         if streamed_any:
                             await self.queue.put(
                                 format_tts_done_event(
                                     run_id=self.run_id,
                                     payload={
-                                        "model_id": self.model_id or DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
+                                        "model_id": self._model_id,
                                         "output_format": "pcm_24000",
                                     },
-                                    provider=self.provider,
+                                    provider=_FINALIZED_PROVIDER,
                                 )
                             )
                         else:
                             await self.queue.put(
                                 format_tts_error_event(
                                     run_id=self.run_id,
-                                    model_id=self.model_id or DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
+                                    model_id=self._model_id,
                                     error=self._missing_text_error(),
                                     code="missing_tts_text",
-                                    provider=self.provider,
+                                    provider=_FINALIZED_PROVIDER,
                                 )
                             )
                         return
@@ -611,14 +528,10 @@ class FinalizedTtsStreamBootstrap:
                         batch,
                         emotional_tone=emotional_tone,
                         emotional_state=emotional_state,
-                        previous_text=previous_text if self._uses_previous_text else None,
-                        apply_emotional_prefix=self._applies_style(streamed_any),
                     )
                     if not ok:
                         return
                     streamed_any = True
-                    if self._uses_previous_text:
-                        previous_text = self._append_previous_text(previous_text, batch.text)
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -631,11 +544,11 @@ class FinalizedTtsStreamBootstrap:
             await self.queue.put(
                 format_tts_error_event(
                     run_id=self.run_id,
-                    model_id=self.model_id or DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
+                    model_id=self._model_id,
                     error=self._error_text(exc, "failed"),
                     # A composition that declines a streamed segment names why.
-                    code=exc.code if isinstance(exc, ProductRefusal) else self._text.stream_failed_code,
-                    provider=self.provider,
+                    code=exc.code if isinstance(exc, ProductRefusal) else _FINALIZED_STREAM_FAILED_CODE,
+                    provider=_FINALIZED_PROVIDER,
                 )
             )
         finally:
@@ -661,14 +574,14 @@ class FinalizedTtsStreamBootstrap:
         frame = format_tts_audio_event(
             run_id=self.run_id,
             payload={
-                "model_id": self.model_id or DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
+                "model_id": self._model_id,
                 "output_format": "pcm_24000",
                 "audio_base64": _finalized_tts_silence_audio_base64(
                     duration_sec=FINALIZED_TTS_PARAGRAPH_LEADING_PAUSE_SEC,
                     sample_rate=FINALIZED_TTS_PCM_SAMPLE_RATE,
                 ),
             },
-            provider=self.provider,
+            provider=_FINALIZED_PROVIDER,
         )
         if frame is not None:
             await self.queue.put(frame)
@@ -679,32 +592,25 @@ class FinalizedTtsStreamBootstrap:
         *,
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
-        previous_text: str | None,
-        apply_emotional_prefix: bool,
     ) -> bool:
+        speech = self.speech
+        if speech is None:  # An inactive bootstrap never starts a batch.
+            return False
         try:
-            if self.provider == "gemini" and self.resolved_voice_id is None:
-                self.resolved_voice_id = await self._gemini_voice()
             # Later segments reuse the voice the first one resolved.
-            prepared = await self.speech.prepare_finalized(
+            if self.resolved_voice_id is None:
+                self.resolved_voice_id = await self._gemini_voice()
+            prepared = await speech.prepare_finalized(
                 self.sessions.principal,
-                voice=anima_voice_resolver(self.sessions, self.anima_id) if self.resolved_voice_id is None else None,
                 voice_id=self.resolved_voice_id,
                 anima_id=self.anima_id,
                 run_id=self.run_id,
                 text=batch.text,
                 model_id=self.model_id,
-                language_code=self._language_code(),
                 text_basis=batch.text_basis,
                 emotional_tone=emotional_tone,
                 emotional_state=emotional_state,
-                previous_text=previous_text,
-                previous_request_ids=tuple(self.request_ids),
-                apply_emotional_prefix=apply_emotional_prefix,
             )
-            prepared_voice_id = getattr(prepared, "voice_id", None)
-            if isinstance(prepared_voice_id, str) and prepared_voice_id.strip():
-                self.resolved_voice_id = prepared_voice_id.strip()
         except asyncio.CancelledError:
             raise
         except Exception as exc:
@@ -718,25 +624,22 @@ class FinalizedTtsStreamBootstrap:
             await self.queue.put(
                 format_tts_error_event(
                     run_id=self.run_id,
-                    model_id=self.model_id or DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
+                    model_id=self._model_id,
                     error=self._error_text(exc, "setup failed"),
                     # A composition that declines this reply's speech names why.
-                    code=exc.code if isinstance(exc, ProductRefusal) else self._text.setup_failed_code,
-                    provider=self.provider,
+                    code=exc.code if isinstance(exc, ProductRefusal) else _FINALIZED_SETUP_FAILED_CODE,
+                    provider=_FINALIZED_PROVIDER,
                 )
             )
             return False
 
-        async for payload in self.speech.stream_finalized(prepared):
+        async for payload in speech.stream_finalized(prepared):
             payload_type = payload.get("type")
             if payload_type == "audio":
-                frame = format_tts_audio_event(run_id=self.run_id, payload=payload, provider=self.provider)
+                frame = format_tts_audio_event(run_id=self.run_id, payload=payload, provider=_FINALIZED_PROVIDER)
                 if frame is not None:
                     await self.queue.put(frame)
             elif payload_type == "done":
-                request_ids = payload.get("request_ids")
-                if isinstance(request_ids, list):
-                    self.request_ids.extend(rid for rid in request_ids if isinstance(rid, str) and rid)
                 return True
             elif payload_type == "error":
                 error = payload.get("error")
@@ -747,54 +650,37 @@ class FinalizedTtsStreamBootstrap:
                         model_id=prepared.model_id,
                         output_format=prepared.output_format,
                         error=(error if isinstance(error, str) and error else self._failure_text("failed")),
-                        code=code if isinstance(code, str) and code else self._text.stream_failed_code,
-                        provider=self.provider,
+                        code=code if isinstance(code, str) and code else _FINALIZED_STREAM_FAILED_CODE,
+                        provider=_FINALIZED_PROVIDER,
                     )
                 )
                 return False
         return True
 
-    def _language_code(self) -> str | None:
-        tts_options = elevenlabs_tts_options(self.chat_options)
-        return tts_options.language_code if tts_options is not None else None
-
     @property
-    def _text(self) -> _FinalizedProviderText:
-        return _FINALIZED_PROVIDER_TEXT[self.provider]
+    def _model_id(self) -> str:
+        return self.model_id or DEFAULT_GEMINI_TTS_MODEL_ID
 
-    @property
-    def _uses_previous_text(self) -> bool:
-        """ElevenLabs continues each segment from the text before it."""
+    @staticmethod
+    def _missing_text_error() -> str:
+        return f"{_FINALIZED_LABEL} did not receive prepared speech text for this response."
 
-        return self.provider == "elevenlabs"
-
-    def _applies_style(self, streamed_any: bool) -> bool:
-        """Gemini styles every request alike; ElevenLabs tags each paragraph, or only the first sentence."""
-
-        return self.provider == "gemini" or self.finalized_chunking == "paragraph" or not streamed_any
-
-    def _missing_text_error(self) -> str:
-        return f"{self._text.label} did not receive prepared speech text for this response."
-
-    def _failure_text(self, what: str) -> str:
-        return f"{self._text.failure_label} {what}."
+    @staticmethod
+    def _failure_text(what: str) -> str:
+        return f"{_FINALIZED_LABEL} {what}."
 
     def _error_text(self, exc: Exception, what: str) -> str:
-        """The browser-facing text for a failed reply's speech."""
+        """The browser-facing text for a failed reply's speech; a provider's own error text is never shown."""
 
         if isinstance(exc, ProductRefusal):
-            return self._text.refusal_messages.get(exc.code) or self._failure_text(what)
-        return (str(exc) if self._text.forwards_error_text else "") or self._failure_text(what)
+            return _FINALIZED_REFUSAL_MESSAGES.get(exc.code) or self._failure_text(what)
+        return self._failure_text(what)
 
     async def _gemini_voice(self) -> str:
         async with self.sessions.read() as session:
             return await anima_gemini_voice(
                 self.sessions.repositories(session), user_id=self.sessions.principal.id, anima_id=self.anima_id
             )
-
-    @staticmethod
-    def _append_previous_text(previous_text: str | None, text: str) -> str | None:
-        return bounded_finalized_tts_previous_text(previous_text, text)
 
     def _mark_completed(self) -> None:
         self.completed = True
@@ -815,8 +701,6 @@ __all__ = [
     "TtsSessionBootstrap",
     "anima_elevenlabs_voice",
     "anima_gemini_voice",
-    "elevenlabs_finalized_tts_chunking",
-    "elevenlabs_finalized_tts_model_id",
     "elevenlabs_tts_options",
     "gemini_finalized_tts_requested",
     "resolve_realtime_voice_from_preferences",

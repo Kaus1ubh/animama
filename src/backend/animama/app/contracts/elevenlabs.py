@@ -11,30 +11,13 @@ class _ElevenLabsSchema(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+# ElevenLabs speaks every reply with Eleven v4 Turbo, streamed while the reply is
+# written; it offers no finalized model.
 ElevenLabsRealtimeTtsModelId = Literal["eleven_v4_turbo"]
-
-ElevenLabsFinalizedTtsModelId = Literal["eleven_v4"]
-
-ElevenLabsChatTtsModelId = Literal[
-    "eleven_v4_turbo",
-    "eleven_v4",
-]
 
 SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS: tuple[ElevenLabsRealtimeTtsModelId, ...] = ("eleven_v4_turbo",)
 
 DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID: ElevenLabsRealtimeTtsModelId = "eleven_v4_turbo"
-
-SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS: tuple[ElevenLabsFinalizedTtsModelId, ...] = ("eleven_v4",)
-
-DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID: ElevenLabsFinalizedTtsModelId = "eleven_v4"
-
-SUPPORTED_ELEVENLABS_CHAT_TTS_MODEL_IDS: tuple[ElevenLabsChatTtsModelId, ...] = (
-    "eleven_v4_turbo",
-    "eleven_v4",
-)
-
-# How many earlier requests a finalized segment may continue from (ElevenLabs' limit).
-ELEVENLABS_FINALIZED_TTS_MAX_PREVIOUS_REQUEST_IDS = 3
 
 # Text to Dialogue's documented limit across one request's inputs; longer requests
 # can end early while streaming or be refused.
@@ -42,10 +25,10 @@ ELEVENLABS_DIALOGUE_MAX_REQUEST_CHARS = 2_000
 
 # Retired model ids and the model that now speaks for them. Saved preferences
 # and requests from a tab opened before an upgrade still carry these ids.
-RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS: dict[str, ElevenLabsChatTtsModelId] = {
+RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS: dict[str, ElevenLabsRealtimeTtsModelId] = {
     "eleven_flash_v2_5": "eleven_v4_turbo",
     "eleven_multilingual_v2": "eleven_v4_turbo",
-    "eleven_v3": "eleven_v4",
+    "eleven_v3": "eleven_v4_turbo",
 }
 
 
@@ -83,7 +66,7 @@ class PyElevenLabsAnimaVoiceProfileInput(_ElevenLabsSchema):
 class PyElevenLabsTextToSpeechRequest(_ElevenLabsSchema):
     voice_id: str = Field(..., min_length=1)
     text: str = Field(..., min_length=1, max_length=ELEVENLABS_DIALOGUE_MAX_REQUEST_CHARS)
-    model_id: ElevenLabsChatTtsModelId = "eleven_v4"
+    model_id: ElevenLabsRealtimeTtsModelId = "eleven_v4_turbo"
     output_format: str | None = Field(default="mp3_44100_128")
     voice_settings: PyElevenLabsVoiceSettings | None = None
 

@@ -1,8 +1,10 @@
 # Eleven v4 and v4 Turbo voices, with provider timing for lip-sync
 
 Status: Agreed (owner, 2026-10-12). Phases 1–2 of the ExecPlan are authorized.
+Amended the same day by D13: finalized Eleven v4 is removed, and ElevenLabs
+speaks only with Eleven v4 Turbo.
 
-Owner decisions, 2026-10-12, in D1–D12 below:
+Owner decisions, 2026-10-12, in D1–D13 below:
 
 - D1–D4 are agreed, D5 is waived and D6 is approved.
 - D8 is confirmed in narrowed form, and D9 is pulled into this change.
@@ -11,11 +13,14 @@ Owner decisions, 2026-10-12, in D1–D12 below:
 - Audio tags in the chat model's `speech` are new scope. They are covered by
   linked issue [#479](https://github.com/raymond-van/animama/issues/479) after
   intent discovery (D12).
+- After Phase 2 passed review, finalized Eleven v4 was removed (D13).
 
 Authoritative source: parent issue
 [#471](https://github.com/raymond-van/animama/issues/471), published on
-2026-10-12 (updated 23:23 UTC) from this file at `5e0c6797`. This file is that
-snapshot. Refresh it from the issue before resuming.
+2026-10-12 (updated 23:23 UTC) from this file at `5e0c6797`, and amended with D13
+on 2026-10-13 at 02:45 UTC (R4 and R6 wording at 03:31 UTC). This file is that
+snapshot. Refresh it from the
+issue before resuming.
 Research: [eleven-v4-research.md](eleven-v4-research.md) (spike of 2026-10-12).
 
 ## Problem and intended users
@@ -52,11 +57,12 @@ users benefit once Cloud adopts the updated contract.
 Include:
 
 - `eleven_v4_turbo` on the realtime path, over the Text to Dialogue WebSocket.
-- `eleven_v4` on the finalized path, keeping sentence and paragraph batching,
-  the emotional tone tag and PCM frames over `chat:sse`.
+- ~~`eleven_v4` on the finalized path~~: withdrawn by D13. ElevenLabs speaks
+  only with `eleven_v4_turbo`.
 - Removal of `eleven_flash_v2_5`, `eleven_multilingual_v2` and `eleven_v3`, with
   automatic migration of saved preferences (D1).
-- Finalized speech for every language, without the gruut gate (D9).
+- Speech in every language, without the gruut gate (D9): Gemini's finalized
+  speech and realtime v4 Turbo.
 - ElevenLabs character timing carried to the browser, a provider-neutral timing
   evidence module, and a side-by-side view whose plans can come from any source.
   These are the parts #468's planner reuses (D8).
@@ -100,38 +106,29 @@ Exclude:
   existing "Text-to-speech unavailable" notice. The text reply is intact, and the
   next reply tries again.
 
-### R2 — Finalized speech with v4
+### R2 — Finalized speech (Gemini only, D13)
 
-- When the owner's model is v4, each finished sentence (or paragraph, in the
-  paragraph grouping mode) is spoken by the backend and pushed over `chat:sse` as
-  PCM, as Eleven v3 is today.
-- Speech uses ElevenLabs' Text to Dialogue HTTP streaming with timestamps, the
-  documented API for v4.
-- The reply's emotional tone still leads each request as an audio tag.
-- Each request after the first continues the delivery of the reply's earlier
-  requests, which v3 could not do:
-  - it stitches to up to three previous request ids;
-  - when no id is available, it falls back to up to 100 characters of preceding
-    text.
-- Requests stay at or under 2,000 characters.
-- A failed batch ends that reply's speech with the existing error frame. The text
-  is intact.
+Amended by D13: ElevenLabs has no finalized model.
+
+- A reply whose saved or requested ElevenLabs model is `eleven_v3` speaks in
+  realtime with `eleven_v4_turbo` (R1).
 - Gemini finalized speech behaves as before, except that it now speaks every
-  language (R7).
+  language (R7). A failed batch ends that reply's speech with the existing error
+  frame; the text is intact.
+- The utility synthesis route speaks `eleven_v4_turbo` through Text to Dialogue,
+  with requests of at most 2,000 characters.
 
 ### R3 — Model choice, defaults and migration
 
-- App Settings → Voice offers two ElevenLabs models: Eleven v4 Turbo (realtime)
-  and Eleven v4 (finalized). Each shows a one-line description of its trade-off.
-  The finalized grouping option stays available for v4, and its saved value is
-  kept.
-- **Defaults (D3, agreed):** v4 Turbo for new settings and for the server
-  default; v4 as the optional higher-quality mode.
+- App Settings → Voice offers no ElevenLabs model choice (D13): ElevenLabs
+  speaks with Eleven v4 Turbo, and the provider's description says so. The
+  finalized grouping setting is removed.
+- **Defaults (D3, superseded by D13):** v4 Turbo is the only ElevenLabs model,
+  for new settings and the server.
 - Saved preferences migrate without owner action:
-  - `eleven_flash_v2_5` and `eleven_multilingual_v2` become `eleven_v4_turbo`;
-  - `eleven_v3` becomes `eleven_v4`;
-  - the settings show the new model, and the old ids are never sent to the
-    backend again.
+  - `eleven_flash_v2_5`, `eleven_multilingual_v2` and `eleven_v3` become
+    `eleven_v4_turbo`;
+  - the old ids are never sent to the backend again.
 - A chat request that still carries an old id, for example from a browser tab
   open across an upgrade, is answered with the mapped replacement rather than
   rejected. Its text reply is never lost to an old id.
@@ -141,14 +138,12 @@ Exclude:
 
 ### R4 — Provider timing evidence and the side-by-side view (D8)
 
-- ElevenLabs v4 and v4 Turbo replies always request character timing. It reaches
+- ElevenLabs v4 Turbo replies always request character timing. It reaches
   the browser for every reply, on every path:
   - **realtime socket:** alignment frames carry times relative to each frame. The
     browser keeps a cursor per turn and resynchronises it at
     `is_final_audio_for_turn`.
-  - **finalized `tts.audio`:** an `alignment` field carries absolute times from
-    the run's first audio sample. The backend applies batch and paragraph-silence
-    offsets.
+  - ~~finalized `tts.audio`~~: withdrawn with finalized v4 (D13).
   - **hosted server socket:** the same absolute `alignment` field is accepted.
 - A provider-neutral timing evidence module turns timing into:
   - **spoken words** with start and end times. Japanese, Korean and Chinese
@@ -193,8 +188,9 @@ Exclude:
 - The browser accepts both the existing and the new end-of-stream markers from
   the server socket. Timing frames are optional there.
 - The `speech_allowance_exhausted` → Pocket TTS fallback is unchanged. It applies
-  to `tts.session.error` for realtime v4 Turbo and to `tts.error` for finalized
-  v4.
+  to `tts.session.error` for realtime v4 Turbo, before or after the reply text.
+- A multi-user hosted app keeps the server transport: a direct `ttd_websocket`
+  token binds no text, voice or model on the operator's account (D13).
 - A Cloud issue in the Cloud repository describes the required Cloud changes.
   This task does not change Cloud code. The issue covers:
   - the v4 model ids;
@@ -207,18 +203,18 @@ Exclude:
 ### R6 — Voice compatibility and settings
 
 - Existing premade and shared-library voices, including Animama's default voice,
-  speak on both models.
-- Instant Voice Clones made through Animama are expected to keep working on both
-  models. The owner waived live verification (D5).
+  speak on v4 Turbo.
+- Instant Voice Clones made through Animama are expected to keep working on v4
+  Turbo. The owner waived live verification (D5).
 - v4 accepts only Stability and Similarity. The utility synthesis route's voice
-  settings drop Style, Speed and Speaker Boost. The route speaks with a v4 model
+  settings drop Style, Speed and Speaker Boost. The route speaks with v4 Turbo
   over Text to Dialogue HTTP.
 
 ### R7 — Every language reaches the provider (D9)
 
-- A finalized speech sentence reaches the selected provider whatever its
-  language. This covers ElevenLabs v4 and Gemini, for Japanese, Korean,
-  Chinese, Spanish and English.
+- A speech sentence reaches the selected provider whatever its language: Gemini
+  (finalized) and ElevenLabs v4 Turbo (realtime), for Japanese, Korean, Chinese,
+  Spanish and English.
 - gruut no longer gates TTS segments. Its phonemes stay an optional English
   lip-sync input.
 - The `gruut_text_with_ws` text basis is revisited:
@@ -239,8 +235,8 @@ Exclude:
   every ElevenLabs speech path uses the v4 APIs and their features:
   - realtime: the Text to Dialogue WebSocket with `ttd_websocket` tokens and
     timing always on;
-  - finalized and utility: Text to Dialogue HTTP;
-  - v4 continuity: request stitching.
+  - utility: Text to Dialogue HTTP (finalized speech and stitching were
+    withdrawn by D13).
 
   No code path keeps a branch for an older model, except the one-way migration
   map.
@@ -275,23 +271,22 @@ Exclude:
 - [ ] **Realtime connection handling:** a reply that pauses for more than 20 s
   keeps speaking afterwards. Cancelling a reply closes its socket. Evidence:
   automated tests, plus one live check.
-- [ ] **Finalized v4:** a finalized v4 reply speaks sentence by sentence (and in
-  paragraph mode) with the emotional tone tag and PCM frames. From the second
-  request on, it stitches to the previous requests (with a `previous_text`
-  fallback). Evidence: backend tests, the golden SSE fixture and one live check.
+- [ ] **One ElevenLabs model (D13):** ElevenLabs speaks only with
+  `eleven_v4_turbo`; `eleven_v3` settings and requests speak in realtime, and no
+  finalized ElevenLabs path remains. Evidence: backend and frontend tests, and a
+  repository search.
 - [ ] **Every language:** Japanese, Korean, Chinese and Spanish sentences
-  produce finalized segments for v4 and Gemini, and are spoken live. The realtime
+  produce finalized segments for Gemini, and are spoken live. The realtime
   path speaks them end to end. Evidence: backend tests per language and provider,
   and live checks.
 - [ ] **Migration:** saved `eleven_flash_v2_5`, `eleven_multilingual_v2` and
-  `eleven_v3` preferences show and use the mapped v4 model with no owner action,
+  `eleven_v3` preferences use `eleven_v4_turbo` with no owner action,
   and an old id in a chat request still yields a text reply. The old ids appear
   nowhere else in settings, contracts or docs. Evidence: frontend and backend
   tests, and a repository search.
-- [ ] **Timing evidence:** every v4 reply's timing reaches the browser on the
-  realtime socket, in `tts.audio` and on the server socket, in the right time
-  base. Evidence: tests for per-frame cursors and turn resync, batch and
-  paragraph offsets, and the server field.
+- [ ] **Timing evidence:** every v4 Turbo reply's timing reaches the browser on
+  the realtime socket and on the server socket, in the right time base.
+  Evidence: tests for per-frame cursors and turn resync, and the server field.
 - [ ] **Timing module:** on recorded fixtures (text, characters and times; no
   audio) it yields:
   - Latin words with windows, and CJK characters kept per character;
@@ -321,7 +316,7 @@ Exclude:
   `pnpm web:test`, `pnpm build` and `pnpm desktop:test`; and
   `pnpm e2e:test:fast` on a disposable built stack.
 - [ ] **Owner gate** (before merge):
-  - the owner listens to v4 Turbo and v4 with the voices in use;
+  - the owner listens to v4 Turbo with the voices in use;
   - the owner reviews the side-by-side view on a v4 reply.
 
   Instant Voice Clone verification is waived (D5).
@@ -344,12 +339,12 @@ Exclude:
   - Tag mouth shapes and other providers stay with #468.
 - **D3 — Defaults (agreed by the owner, 2026-10-12).** v4 Turbo on the realtime
   path is the default; v4 on the finalized path is the optional higher-quality
-  mode.
+  mode. **Superseded by D13:** v4 Turbo is the only ElevenLabs model.
 - **D4 — v4-only integration (owner, 2026-10-12).**
   - Optimise for the v4 models alone:
     - realtime: Text to Dialogue WebSocket and `ttd_websocket` tokens;
-    - finalized and utility synthesis: Text to Dialogue HTTP;
-    - continuity: request stitching;
+    - utility synthesis: Text to Dialogue HTTP (finalized synthesis and
+      stitching withdrawn by D13);
     - hosted: dialogue-pool concurrency handling, in the Cloud issue.
   - The spike found that the plain Text to Speech HTTP API also accepts v4,
     which ElevenLabs does not document. Animama does not depend on that; Cloud's
@@ -363,8 +358,8 @@ Exclude:
     US$0.33 came from its separate US$1 budget.
 - **D7 — Hosted rollout (dependency).**
   - Hosted web shares this frontend.
-  - Cloud must accept `eleven_v4_turbo` and `eleven_v4` before, or together with,
-    adopting this release. Otherwise a migrated hosted preference gets no speech;
+  - Cloud must accept `eleven_v4_turbo` (and map `eleven_v3` to it) before, or
+    together with, adopting this release. Otherwise a migrated hosted preference gets no speech;
     its text is intact.
   - The Cloud issue records this ordering.
 - **D8 — Share with #468, narrowly (owner, 2026-10-12).**
@@ -378,8 +373,8 @@ Exclude:
     - it falls back to the estimate for Japanese, Korean and Chinese;
     - timing used as evidence in #468's planner reaches 66% vowel match and 5%
       / 4% open in silence, and places 6 of 7 tags.
-- **D9 — Remove the gruut gate here (owner, 2026-10-12).** Finalized v4 and
-  Gemini speak every language (R7). This reverses the earlier proposal to leave
+- **D9 — Remove the gruut gate here (owner, 2026-10-12).** Gemini and realtime
+  v4 Turbo speak every language (R7; finalized v4 was withdrawn by D13). This reverses the earlier proposal to leave
   it to #468.
 - **D10 — Priority and delivery (owner, 2026-10-12).**
   - The v4 Turbo streamed path is the priority. Phase 1 delivers it first, with
@@ -403,6 +398,19 @@ Exclude:
     #468.
   - This change's only part is the sound-effect class in the timing evidence
     module (R4).
+- **D13 — Eleven v4 Turbo only (owner, 2026-10-12, after Phase 2 passed review).**
+  - Finalized Eleven v4 is removed. ElevenLabs speaks only with Eleven v4 Turbo,
+    in realtime, and `eleven_v3` maps to `eleven_v4_turbo`.
+  - Reason: a multi-user hosted app must not hand out direct `ttd_websocket`
+    tokens, which bind no text, voice or model on the operator's account. Hosted
+    therefore keeps Cloud's server socket, which can speak `eleven_v4_turbo`
+    server-side, so a finalized model adds nothing there.
+  - Consequences:
+    - R2's ElevenLabs part and the finalized acceptance criterion are withdrawn;
+    - R3 has one ElevenLabs model;
+    - R4's timing comes from the realtime and server sockets only;
+    - ElevenLabs speech no longer carries the reply's tone tag, so audio tags in
+      speech are left to #479.
 
 ## Spec
 
@@ -418,8 +426,8 @@ this file on 2026-10-12.
 
 - Phase 1: [#480](https://github.com/raymond-van/animama/issues/480) (realtime
   v4 Turbo).
-- Phase 2: [#481](https://github.com/raymond-van/animama/issues/481) (finalized
-  v4, model cleanup and every language).
+- Phase 2: [#481](https://github.com/raymond-van/animama/issues/481) (model
+  cleanup and every language; finalized v4 was built, then withdrawn by D13).
 - Phases 3–5: issues follow when they are authorized.
 - Linked: [#479](https://github.com/raymond-van/animama/issues/479) (audio tags).
 - Branch: `feat/eleven-v4`, delivered in one PR.

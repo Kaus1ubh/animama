@@ -11,10 +11,8 @@ from typing import Any
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 
-from animama.app.contracts.elevenlabs import (
-    DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
-    PyElevenLabsRealtimeTtsSessionResponse,
-)
+from animama.app.contracts.elevenlabs import PyElevenLabsRealtimeTtsSessionResponse
+from animama.app.contracts.gemini import DEFAULT_GEMINI_TTS_MODEL_ID
 from animama.app.gruut_text import gruut_prepares_text
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
@@ -245,7 +243,7 @@ def format_tts_session_error_event(*, run_id: str, exc: BaseException) -> str:
     return format_sse("tts.session.error", data, event_id=f"tts-session-error-{run_id}")
 
 
-def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object], provider: str = "elevenlabs") -> str | None:
+def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object], provider: str) -> str | None:
     audio_base64 = payload.get("audio_base64")
     if not isinstance(audio_base64, str) or not audio_base64:
         return None
@@ -255,21 +253,21 @@ def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object], provid
         "type": "tts.audio",
         "run_id": run_id,
         "provider": provider,
-        "model_id": model_id if isinstance(model_id, str) else DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
+        "model_id": model_id if isinstance(model_id, str) else DEFAULT_GEMINI_TTS_MODEL_ID,
         "output_format": output_format if isinstance(output_format, str) else "pcm_24000",
         "audio_base64": audio_base64,
     }
     return format_sse("tts.audio", data)
 
 
-def format_tts_done_event(*, run_id: str, payload: Mapping[str, object], provider: str = "elevenlabs") -> str:
+def format_tts_done_event(*, run_id: str, payload: Mapping[str, object], provider: str) -> str:
     model_id = payload.get("model_id")
     output_format = payload.get("output_format")
     data: dict[str, object] = {
         "type": "tts.done",
         "run_id": run_id,
         "provider": provider,
-        "model_id": model_id if isinstance(model_id, str) else DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
+        "model_id": model_id if isinstance(model_id, str) else DEFAULT_GEMINI_TTS_MODEL_ID,
         "output_format": output_format if isinstance(output_format, str) else "pcm_24000",
     }
     return format_sse("tts.done", data, event_id=f"tts-done-{run_id}")
@@ -279,10 +277,10 @@ def format_tts_error_event(
     *,
     run_id: str,
     error: str,
-    code: str = "elevenlabs_stream_failed",
-    model_id: str = DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
+    code: str,
+    model_id: str,
     output_format: str = "pcm_24000",
-    provider: str = "elevenlabs",
+    provider: str,
 ) -> str:
     data: dict[str, object] = {
         "type": "tts.error",

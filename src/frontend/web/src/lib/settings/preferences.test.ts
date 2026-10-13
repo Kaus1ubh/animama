@@ -3,18 +3,14 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ANIMAMA_PREFERENCES,
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-  DEFAULT_ELEVENLABS_FINALIZED_CHUNKING,
-  ELEVENLABS_TTS_MODEL_OPTIONS,
   isParakeetWebgpuPreferred,
   mergePreferences,
   modelRolePatch,
   modelRolePreferencePath,
   readModelRoleId,
   normalizeThemeSetting,
-  resolveElevenLabsFinalizedChunking,
   resolvePreferences,
   toElevenLabsTtsModelId,
-  toElevenLabsFinalizedChunking,
   toGeminiTtsModelId,
 } from "./preferences";
 
@@ -56,48 +52,26 @@ describe("Anima TTS provider", () => {
 });
 
 describe("ElevenLabs model preference", () => {
-  it("defaults to Eleven v4 Turbo and offers it beside the finalized model", () => {
+  it("speaks with Eleven v4 Turbo", () => {
     expect(DEFAULT_ELEVENLABS_TTS_MODEL_ID).toBe("eleven_v4_turbo");
-    expect(ELEVENLABS_TTS_MODEL_OPTIONS.map((option) => option.id)).toEqual([
+    expect(DEFAULT_ANIMAMA_PREFERENCES.speech?.tts_elevenlabs_model_id).toBe(
       "eleven_v4_turbo",
-      "eleven_v4",
-    ]);
+    );
   });
 
   it.each([
     ["eleven_flash_v2_5", "eleven_v4_turbo"],
     ["eleven_multilingual_v2", "eleven_v4_turbo"],
-    ["eleven_v3", "eleven_v4"],
+    ["eleven_v3", "eleven_v4_turbo"],
   ])("reads the retired model %s as %s", (saved, replacement) => {
     expect(toElevenLabsTtsModelId(saved)).toBe(replacement);
   });
 
-  it("keeps current models and rejects unknown ones", () => {
+  it("keeps the current model and rejects unknown ones", () => {
     expect(toElevenLabsTtsModelId("eleven_v4_turbo")).toBe("eleven_v4_turbo");
-    expect(toElevenLabsTtsModelId("eleven_v4")).toBe("eleven_v4");
+    expect(toElevenLabsTtsModelId("eleven_v4")).toBeNull();
     expect(toElevenLabsTtsModelId("eleven_turbo_v2")).toBeNull();
     expect(toElevenLabsTtsModelId(undefined)).toBeNull();
-  });
-});
-
-describe("ElevenLabs finalized chunking preferences", () => {
-  it("defaults and coerces saved audio grouping values", () => {
-    expect(DEFAULT_ELEVENLABS_FINALIZED_CHUNKING).toBe("paragraph");
-    expect(resolveElevenLabsFinalizedChunking(undefined)).toBe("paragraph");
-    expect(resolveElevenLabsFinalizedChunking("paragraph")).toBe("paragraph");
-    expect(toElevenLabsFinalizedChunking("chapter")).toBeNull();
-  });
-
-  it("persists and restores the saved grouping value through preference merge", () => {
-    const merged = mergePreferences(DEFAULT_ANIMAMA_PREFERENCES, {
-      speech: {
-        tts_elevenlabs_v3_finalized_chunking: "paragraph",
-      },
-    });
-
-    expect(merged.speech?.tts_elevenlabs_v3_finalized_chunking).toBe(
-      "paragraph",
-    );
   });
 });
 

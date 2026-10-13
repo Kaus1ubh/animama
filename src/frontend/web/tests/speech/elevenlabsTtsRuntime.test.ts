@@ -5,11 +5,6 @@ import {
   decodeElevenLabsBase64Pcm,
 } from "@/hooks/use-elevenlabs-finalized-tts-runtime";
 import { buildDirectElevenLabsRealtimeWsUrl } from "@/hooks/use-elevenlabs-tts-runtime";
-import {
-  isElevenLabsFinalizedTtsModelId,
-  isElevenLabsRealtimeTtsModelId,
-  toElevenLabsTtsModelId,
-} from "@/lib/settings/preferences";
 
 describe("ElevenLabs realtime TTS runtime", () => {
   it("builds Text to Dialogue websocket URLs from the provided session", () => {
@@ -33,16 +28,6 @@ describe("ElevenLabs realtime TTS runtime", () => {
     expect(url).toContain("sync_alignment=false");
     expect(url).toContain("language_code=en");
     expect(url).toContain("single_use_token=single+use+token");
-  });
-});
-
-describe("ElevenLabs TTS model helpers", () => {
-  it("classifies v4 as finalized and v4 Turbo as realtime", () => {
-    expect(toElevenLabsTtsModelId("eleven_v4")).toBe("eleven_v4");
-    expect(isElevenLabsFinalizedTtsModelId("eleven_v4")).toBe(true);
-    expect(isElevenLabsRealtimeTtsModelId("eleven_v4")).toBe(false);
-    expect(isElevenLabsFinalizedTtsModelId("eleven_v4_turbo")).toBe(false);
-    expect(isElevenLabsRealtimeTtsModelId("eleven_v4_turbo")).toBe(true);
   });
 });
 

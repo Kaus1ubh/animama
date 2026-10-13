@@ -141,7 +141,7 @@ export type ChatSpeechPolicy = {
   enabled: boolean;
   provider: "browser" | "pocket_tts" | "elevenlabs" | "gemini" | null;
   elevenLabsModelId: string | null;
-  /** The server pushes the reply's audio as `tts.audio` frames (Eleven v4 or Gemini). */
+  /** The server pushes the reply's audio as `tts.audio` frames (Gemini). */
   finalizedServerAudio: boolean;
   dispatchOptions?: PyAnimaDispatchOptions;
 };

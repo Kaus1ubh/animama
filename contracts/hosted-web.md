@@ -267,7 +267,9 @@ On a server socket the browser sends `{"text": " "}` when it opens, one
 `{"text": "<chunk>"}` per reply chunk and `{"text": ""}` at the end. It sends no
 other frames. It plays base64 `pcm_24000` from `{"audio": ...}` frames and
 ends the stream on `{"isFinal": true}` or `{"is_final": true}`. The realtime model
-is `eleven_v4_turbo`.
+is `eleven_v4_turbo`. A multi-user hosted app keeps this server transport: a
+direct `ttd_websocket` token binds no text, voice or model, so a browser holding
+one could speak anything on the operator's account, beyond any reservation.
 
 The existing local session remains `transport: "direct"` (or an omitted legacy
 transport) with its backend-issued short-lived token. Its socket is ElevenLabs'
@@ -275,10 +277,12 @@ Text to Dialogue socket, opened with a single-use `ttd_websocket` token. Direct
 playback additionally requires `provider_credentials: true`. Both paths fence late session/audio work,
 close audio resources on failure or teardown, and preserve text fallback.
 
-A speech error frame with `code: "speech_allowance_exhausted"` (`tts.session.error`
-for realtime sessions, `tts.error` for finalized `eleven_v4` audio, each with
-`run_id`, `provider: "elevenlabs"` and a human `error`) means the owner's voice
-allowance cannot cover that reply, and no provider audio plays for it. A
+A speech error frame with `code: "speech_allowance_exhausted"`
+(`tts.session.error`, with `run_id`, `provider: "elevenlabs"` and a human
+`error`) means the owner's voice allowance cannot cover that reply, and no
+provider audio plays for it. ElevenLabs speech is always realtime: there is no
+finalized ElevenLabs model, and a retired `eleven_v3` request is spoken with
+`eleven_v4_turbo`. A
 decline known before the turn precedes all reply text and no `tts.session` is
 sent for the run; one found while reserving the reply's speech may follow the
 reply text. Either must precede `run.completed`. Where Pocket TTS runs, the

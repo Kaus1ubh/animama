@@ -182,11 +182,11 @@ async def test_synthesize_text_returns_base64_audio(fake_client: _FakeElevenLabs
 
     assert base64.b64decode(response.audio_base64) == b"hello world"
     assert response.media_type == "audio/mpeg"
-    # The utility route speaks with Eleven v4 through Text to Dialogue.
+    # The utility route speaks with Eleven v4 Turbo through Text to Dialogue.
     assert fake_client.text_to_dialogue.calls == [
         {
             "inputs": [{"text": "hello world", "voice_id": "voice-owned"}],
-            "model_id": "eleven_v4",
+            "model_id": "eleven_v4_turbo",
             "output_format": "mp3_44100_128",
             "settings": None,
         }
@@ -215,9 +215,18 @@ def test_text_to_speech_request_refuses_settings_eleven_v4_ignores() -> None:
         PyElevenLabsVoiceSettings.model_validate({"stability": 0.4, "style": 0.3})
 
 
-def test_text_to_speech_request_maps_retired_models() -> None:
-    request = PyElevenLabsTextToSpeechRequest(voice_id="voice-owned", text="hi", model_id="eleven_multilingual_v2")
+@pytest.mark.parametrize("retired_model_id", ["eleven_flash_v2_5", "eleven_multilingual_v2", "eleven_v3"])
+def test_text_to_speech_request_maps_retired_models(retired_model_id: str) -> None:
+    request = PyElevenLabsTextToSpeechRequest(voice_id="voice-owned", text="hi", model_id=retired_model_id)
     assert request.model_id == "eleven_v4_turbo"
+
+
+def test_text_to_speech_request_refuses_text_over_the_dialogue_limit() -> None:
+    """Text to Dialogue takes at most 2,000 characters a request, so longer utility text is refused."""
+
+    assert len(PyElevenLabsTextToSpeechRequest(voice_id="voice-owned", text="a" * 2_000).text) == 2_000
+    with pytest.raises(ValidationError):
+        PyElevenLabsTextToSpeechRequest(voice_id="voice-owned", text="a" * 2_001)
 
 
 @pytest.mark.asyncio
@@ -419,14 +428,17 @@ def test_realtime_tts_model_defaults_to_eleven_v4_turbo() -> None:
     assert resolve_realtime_tts_model_id("eleven_v4_turbo") == "eleven_v4_turbo"
 
 
-@pytest.mark.parametrize("legacy_model_id", ["eleven_flash_v2_5", "eleven_multilingual_v2"])
+@pytest.mark.parametrize("legacy_model_id", ["eleven_flash_v2_5", "eleven_multilingual_v2", "eleven_v3"])
 def test_realtime_tts_model_maps_retired_models_to_eleven_v4_turbo(legacy_model_id: str) -> None:
     assert resolve_realtime_tts_model_id(legacy_model_id) == "eleven_v4_turbo"
 
 
-def test_realtime_tts_model_rejects_unknown_models() -> None:
+@pytest.mark.parametrize("model_id", ["eleven_turbo_v2", "eleven_v4"])
+def test_realtime_tts_model_rejects_unknown_models(model_id: str) -> None:
+    """Unknown ids are refused, including the removed finalized ``eleven_v4``."""
+
     with pytest.raises(HTTPException) as exc_info:
-        resolve_realtime_tts_model_id("eleven_turbo_v2")
+        resolve_realtime_tts_model_id(model_id)
 
     assert exc_info.value.status_code == 422
 

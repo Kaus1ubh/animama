@@ -113,16 +113,16 @@ When provided, it recomputes the full viseme timeline from raw phoneme/text inpu
 
 This means actual-duration correction is not a simple frame stretch at the end of the pipeline; the planner is rerun from phoneme timing inputs.
 
-### Finalized server audio path (Eleven v4 and Gemini)
+### Finalized server audio path (Gemini)
 
-Eleven v4 and Gemini use finalized-text `chat:sse` audio events instead of
-a realtime websocket. When main-structured SSE speech includes `tts_text` with
+Gemini uses finalized-text `chat:sse` audio events instead of a realtime
+websocket. When main-structured SSE speech includes `tts_text` with
 `tts_text_basis: "gruut_text_with_ws"`, the backend sends that prepared text to
 the provider and the frontend uses the matching `tts_phonemized_text` for
 avatar planning.
 
-ElevenLabs returns character timing on this path and the realtime socket, but
-Anima does not consume it yet. The planner still estimates phoneme timing from gruut and can
+ElevenLabs returns character timing on the realtime socket, but Anima does not
+consume it yet. The planner still estimates phoneme timing from gruut and can
 recompute the whole segment against the actual played audio duration when that
 duration is known.
 
@@ -280,8 +280,8 @@ The bridge logs this as:
 - `Queue / Overprovisioning provisional viseme duration`
 
 This is a UX safeguard and does not replace the actual-duration recompute path.
-For streamed structured TTS, especially backend-pushed Eleven v4 or Gemini
-audio, later speech segments can arrive after audible playback has already
+For streamed structured TTS, especially backend-pushed Gemini audio, later
+speech segments can arrive after audible playback has already
 started. When that happens, the bridge rebuilds and immediately replaces the
 in-flight provisional
 segment using the same audio start anchor, so the avatar does not finish the

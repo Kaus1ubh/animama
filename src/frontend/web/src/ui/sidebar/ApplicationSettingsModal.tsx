@@ -32,22 +32,14 @@ import { WebSearchSettings } from "@/ui/settings/web-search/WebSearchSettings";
 
 import {
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-  DEFAULT_ELEVENLABS_FINALIZED_CHUNKING,
   DEFAULT_GEMINI_TTS_MODEL_ID,
   GEMINI_TTS_MODEL_OPTIONS,
   DEFAULT_ANIMAMA_PREFERENCES,
-  ELEVENLABS_TTS_MODEL_OPTIONS,
-  ELEVENLABS_FINALIZED_CHUNKING_OPTIONS,
-  isElevenLabsFinalizedTtsModelId,
   isParakeetWebgpuPreferred,
   mergePreferences,
-  resolveElevenLabsFinalizedChunking,
-  toElevenLabsTtsModelId,
   toGeminiTtsModelId,
-  toElevenLabsFinalizedChunking,
   type ElevenLabsTtsModelId,
   type GeminiTtsModelId,
-  type ElevenLabsFinalizedChunking,
   type ModelRole,
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
@@ -406,16 +398,8 @@ export function ApplicationSettingsModal({
   const [ttsStreamChunks, setTtsStreamChunks] = useState(true);
   const [selectedTtsProvider, setSelectedTtsProvider] =
     useState<TtsProvider | null>(null);
-  const [selectedElevenLabsModelId, setSelectedElevenLabsModelId] =
-    useState<ElevenLabsTtsModelId>(DEFAULT_ELEVENLABS_TTS_MODEL_ID);
   const [selectedGeminiModelId, setSelectedGeminiModelId] =
     useState<GeminiTtsModelId>(DEFAULT_GEMINI_TTS_MODEL_ID);
-  const [
-    selectedElevenLabsFinalizedChunking,
-    setSelectedElevenLabsFinalizedChunking,
-  ] = useState<ElevenLabsFinalizedChunking>(
-    DEFAULT_ELEVENLABS_FINALIZED_CHUNKING,
-  );
   const [desktopShortcuts, setDesktopShortcuts] = useState<DesktopShortcutMap>(
     DEFAULT_DESKTOP_SHORTCUTS,
   );
@@ -448,14 +432,9 @@ export function ApplicationSettingsModal({
   const initializedForOpenRef = useRef(false);
   const savedSttProviderRef = useRef<SttProvider | null>(null);
   const savedTtsProviderRef = useRef<TtsProvider | null>(null);
-  const savedElevenLabsModelIdRef = useRef<ElevenLabsTtsModelId>(
-    DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-  );
   const savedGeminiModelIdRef = useRef<GeminiTtsModelId>(
     DEFAULT_GEMINI_TTS_MODEL_ID,
   );
-  const savedElevenLabsFinalizedChunkingRef =
-    useRef<ElevenLabsFinalizedChunking>(DEFAULT_ELEVENLABS_FINALIZED_CHUNKING);
   const savedTtsEnabledRef = useRef(false);
   const savedTtsStreamChunksRef = useRef(true);
   const savedDesktopShortcutsRef = useRef<DesktopShortcutMap>(
@@ -476,16 +455,9 @@ export function ApplicationSettingsModal({
   const savedTtsProvider = toTtsProvider(
     resolvedUserPreferences?.speech?.tts_provider,
   );
-  const savedElevenLabsModelId =
-    toElevenLabsTtsModelId(
-      resolvedUserPreferences?.speech?.tts_elevenlabs_model_id,
-    ) ?? DEFAULT_ELEVENLABS_TTS_MODEL_ID;
   const savedGeminiModelId =
     toGeminiTtsModelId(resolvedUserPreferences?.speech?.tts_gemini_model_id) ??
     DEFAULT_GEMINI_TTS_MODEL_ID;
-  const savedElevenLabsFinalizedChunking = resolveElevenLabsFinalizedChunking(
-    resolvedUserPreferences?.speech?.tts_elevenlabs_v3_finalized_chunking,
-  );
   const savedTtsEnabled = resolvedUserPreferences?.speech?.tts_enabled === true;
   const savedTtsStreamChunks =
     resolvedUserPreferences?.speech?.tts_stream_chunks !== false;
@@ -508,17 +480,8 @@ export function ApplicationSettingsModal({
   }, [savedTtsProvider]);
 
   useEffect(() => {
-    savedElevenLabsModelIdRef.current = savedElevenLabsModelId;
-  }, [savedElevenLabsModelId]);
-
-  useEffect(() => {
     savedGeminiModelIdRef.current = savedGeminiModelId;
   }, [savedGeminiModelId]);
-
-  useEffect(() => {
-    savedElevenLabsFinalizedChunkingRef.current =
-      savedElevenLabsFinalizedChunking;
-  }, [savedElevenLabsFinalizedChunking]);
 
   useEffect(() => {
     savedTtsEnabledRef.current = savedTtsEnabled;
@@ -564,9 +527,7 @@ export function ApplicationSettingsModal({
     setIsSaving(false);
     setSelectedSttProvider(savedSttProvider);
     setSelectedTtsProvider(savedTtsProvider);
-    setSelectedElevenLabsModelId(savedElevenLabsModelId);
     setSelectedGeminiModelId(savedGeminiModelId);
-    setSelectedElevenLabsFinalizedChunking(savedElevenLabsFinalizedChunking);
     setTtsEnabled(savedTtsEnabled);
     setTtsStreamChunks(savedTtsStreamChunks);
     setDesktopShortcuts(savedDesktopShortcuts);
@@ -581,9 +542,7 @@ export function ApplicationSettingsModal({
     savedAvatarTransformControlsEnabled,
     open,
     savedSttProvider,
-    savedElevenLabsModelId,
     savedGeminiModelId,
-    savedElevenLabsFinalizedChunking,
     savedTtsEnabled,
     savedTtsProvider,
     savedTtsStreamChunks,
@@ -598,10 +557,7 @@ export function ApplicationSettingsModal({
     let cancelled = false;
     const initialSavedSttProvider = savedSttProviderRef.current;
     const initialSavedTtsProvider = savedTtsProviderRef.current;
-    const initialSavedElevenLabsModelId = savedElevenLabsModelIdRef.current;
     const initialSavedGeminiModelId = savedGeminiModelIdRef.current;
-    const initialSavedElevenLabsFinalizedChunking =
-      savedElevenLabsFinalizedChunkingRef.current;
     const initialSavedTtsEnabled = savedTtsEnabledRef.current;
     const initialSavedTtsStreamChunks = savedTtsStreamChunksRef.current;
     const initialSavedDesktopShortcuts = savedDesktopShortcutsRef.current;
@@ -626,11 +582,7 @@ export function ApplicationSettingsModal({
         if (cancelled) return;
         setSelectedSttProvider(resolved.provider);
         setSelectedTtsProvider(resolvedTts.provider);
-        setSelectedElevenLabsModelId(initialSavedElevenLabsModelId);
         setSelectedGeminiModelId(initialSavedGeminiModelId);
-        setSelectedElevenLabsFinalizedChunking(
-          initialSavedElevenLabsFinalizedChunking,
-        );
         setTtsEnabled(initialSavedTtsEnabled);
         setTtsStreamChunks(initialSavedTtsStreamChunks);
         setDesktopShortcuts(initialSavedDesktopShortcuts);
@@ -731,25 +683,12 @@ export function ApplicationSettingsModal({
   const currentTtsOption = ttsProviderOptions.find(
     (option) => option.id === selectedTtsProvider,
   );
-  const currentElevenLabsModelOption = ELEVENLABS_TTS_MODEL_OPTIONS.find(
-    (option) => option.id === selectedElevenLabsModelId,
-  );
   const currentGeminiModelOption = GEMINI_TTS_MODEL_OPTIONS.find(
     (option) => option.id === selectedGeminiModelId,
   );
-  const currentElevenLabsFinalizedChunkingOption =
-    ELEVENLABS_FINALIZED_CHUNKING_OPTIONS.find(
-      (option) => option.id === selectedElevenLabsFinalizedChunking,
-    );
-  const selectedElevenLabsModelIsFinalized =
-    selectedTtsProvider === "elevenlabs" &&
-    isElevenLabsFinalizedTtsModelId(selectedElevenLabsModelId);
-  // The server pushes Eleven v4 and Gemini audio whole, so streaming text chunks does not apply.
-  const streamChunksUnavailableReason = selectedElevenLabsModelIsFinalized
-    ? "Unavailable with Eleven v4."
-    : selectedTtsProvider === "gemini"
-      ? "Unavailable with Gemini."
-      : null;
+  // The server pushes Gemini audio whole, so streaming text chunks does not apply.
+  const streamChunksUnavailableReason =
+    selectedTtsProvider === "gemini" ? "Unavailable with Gemini." : null;
 
   const firstAvailableTtsProvider = useMemo(() => {
     return ttsProviderOptions.find((option) => !option.disabled)?.id ?? null;
@@ -836,7 +775,7 @@ export function ApplicationSettingsModal({
         speechPatch.tts_provider = nextProvider;
       }
       if (nextProvider === "elevenlabs") {
-        speechPatch.tts_elevenlabs_model_id = selectedElevenLabsModelId;
+        speechPatch.tts_elevenlabs_model_id = DEFAULT_ELEVENLABS_TTS_MODEL_ID;
       }
       if (nextProvider === "gemini") {
         speechPatch.tts_gemini_model_id = selectedGeminiModelId;
@@ -857,7 +796,6 @@ export function ApplicationSettingsModal({
       isInitializing,
       isSaving,
       selectedTtsProvider,
-      selectedElevenLabsModelId,
       selectedGeminiModelId,
       ttsEnabled,
       ttsProviderOptions,
@@ -890,7 +828,7 @@ export function ApplicationSettingsModal({
           tts_enabled: true,
           tts_provider: nextProvider,
           ...(nextProvider === "elevenlabs"
-            ? { tts_elevenlabs_model_id: selectedElevenLabsModelId }
+            ? { tts_elevenlabs_model_id: DEFAULT_ELEVENLABS_TTS_MODEL_ID }
             : {}),
           ...(nextProvider === "gemini"
             ? { tts_gemini_model_id: selectedGeminiModelId }
@@ -908,7 +846,6 @@ export function ApplicationSettingsModal({
       isInitializing,
       isSaving,
       selectedTtsProvider,
-      selectedElevenLabsModelId,
       selectedGeminiModelId,
       ttsEnabled,
       ttsProviderOptions,
@@ -949,42 +886,6 @@ export function ApplicationSettingsModal({
     ],
   );
 
-  const handleElevenLabsModelChange = useCallback(
-    (value: string) => {
-      const nextModel = toElevenLabsTtsModelId(value);
-      if (
-        !nextModel ||
-        isSaving ||
-        isInitializing ||
-        !ttsEnabled ||
-        selectedTtsProvider !== "elevenlabs"
-      ) {
-        return;
-      }
-
-      const previous = selectedElevenLabsModelId;
-      setSelectedElevenLabsModelId(nextModel);
-      setIsSaving(true);
-
-      void updateUserPreferences({
-        speech: { tts_elevenlabs_model_id: nextModel },
-      })
-        .catch(() => {
-          setSelectedElevenLabsModelId(previous);
-          toast.error("Failed to update ElevenLabs model.");
-        })
-        .finally(() => setIsSaving(false));
-    },
-    [
-      isInitializing,
-      isSaving,
-      selectedElevenLabsModelId,
-      selectedTtsProvider,
-      ttsEnabled,
-      updateUserPreferences,
-    ],
-  );
-
   const handleGeminiModelChange = useCallback(
     (value: string) => {
       const nextModel = toGeminiTtsModelId(value);
@@ -1016,42 +917,6 @@ export function ApplicationSettingsModal({
       isSaving,
       selectedGeminiModelId,
       selectedTtsProvider,
-      ttsEnabled,
-      updateUserPreferences,
-    ],
-  );
-
-  const handleElevenLabsFinalizedChunkingChange = useCallback(
-    (value: string) => {
-      const nextChunking = toElevenLabsFinalizedChunking(value);
-      if (
-        !nextChunking ||
-        isSaving ||
-        isInitializing ||
-        !ttsEnabled ||
-        !selectedElevenLabsModelIsFinalized
-      ) {
-        return;
-      }
-
-      const previous = selectedElevenLabsFinalizedChunking;
-      setSelectedElevenLabsFinalizedChunking(nextChunking);
-      setIsSaving(true);
-
-      void updateUserPreferences({
-        speech: { tts_elevenlabs_v3_finalized_chunking: nextChunking },
-      })
-        .catch(() => {
-          setSelectedElevenLabsFinalizedChunking(previous);
-          toast.error("Failed to update Eleven v4 audio grouping.");
-        })
-        .finally(() => setIsSaving(false));
-    },
-    [
-      isInitializing,
-      isSaving,
-      selectedElevenLabsModelIsFinalized,
-      selectedElevenLabsFinalizedChunking,
       ttsEnabled,
       updateUserPreferences,
     ],
@@ -1609,79 +1474,6 @@ export function ApplicationSettingsModal({
           showTitle={false}
           description="Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys."
           className={cn(FLAT_SETTINGS_PANEL_CLASS_NAME, "py-3")}
-        />
-      ),
-    },
-    {
-      id: "elevenlabs-model",
-      section: "Voice",
-      group: "Text-to-Speech",
-      label: "ElevenLabs model",
-      keywords: ["tts", "eleven v4", "turbo"],
-      hidden: !ttsEnabled || selectedTtsProvider !== "elevenlabs",
-      render: () => (
-        <SettingsRow
-          label="ElevenLabs model"
-          description={currentElevenLabsModelOption?.description}
-          control={
-            <Select
-              value={selectedElevenLabsModelId}
-              onValueChange={handleElevenLabsModelChange}
-              disabled={isBusy}
-            >
-              <SelectTrigger
-                className={SELECT_TRIGGER_CLASS_NAME}
-                aria-label="ElevenLabs model"
-              >
-                <SelectValue placeholder="Select model" />
-              </SelectTrigger>
-              <SelectContent>
-                {ELEVENLABS_TTS_MODEL_OPTIONS.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          }
-        />
-      ),
-    },
-    {
-      id: "elevenlabs-audio-grouping",
-      section: "Voice",
-      group: "Text-to-Speech",
-      label: "Audio grouping",
-      keywords: ["tts", "elevenlabs", "eleven v4", "chunking", "sentence"],
-      hidden: !ttsEnabled || !selectedElevenLabsModelIsFinalized,
-      render: () => (
-        <SettingsRow
-          label="Audio grouping"
-          description={
-            currentElevenLabsFinalizedChunkingOption?.description ??
-            "Sentence grouping starts fastest."
-          }
-          control={
-            <Select
-              value={selectedElevenLabsFinalizedChunking}
-              onValueChange={handleElevenLabsFinalizedChunkingChange}
-              disabled={isBusy}
-            >
-              <SelectTrigger
-                className={SELECT_TRIGGER_CLASS_NAME}
-                aria-label="Eleven v4 audio grouping"
-              >
-                <SelectValue placeholder="Select grouping" />
-              </SelectTrigger>
-              <SelectContent>
-                {ELEVENLABS_FINALIZED_CHUNKING_OPTIONS.map((option) => (
-                  <SelectItem key={option.id} value={option.id}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          }
         />
       ),
     },
