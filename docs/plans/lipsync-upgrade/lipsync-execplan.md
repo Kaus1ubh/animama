@@ -94,8 +94,9 @@ prototypes.
 - [x] Phase 3 (#515): English pronunciation source (R11, D5). Review passed after
   two repair rounds and one owner-approved extra round (P3-F14, P3-F15). The
   agreement measure awaits owner confirmation (Decision Log).
-- [ ] Phase 4 (#516): aligner, renderer and beats, scored offline (R1, R3, R4, R6,
-  R7).
+- [x] Phase 4 (#516): aligner, renderer and beats, scored offline (R1, R3, R4, R6,
+  R7). Review passed after two repair rounds; untimed drift is a known limit for
+  G1.
 - [ ] Phase 5 (#517): in the app, including the debug comparison (R1, R3, R6–R9).
   Gate G1.
 - [ ] Phase 6 (#518): optional phone model (R5). Gates G2 and G4.
@@ -1149,7 +1150,8 @@ Results (2026-10-13, starting source `11b28086`; revised after Code Review #1):
   - Evaluation sources `aligned` and opt-in `aligned-full`, which re-aligns
     everything. Sources now start per clip, so a planner keeps state across
     steps. The report adds "vowel open", the share of reference vowel frames
-    with the mouth open, which falls when a plan drifts.
+    with the mouth open, and word drift (below), which shows a plan running
+    ahead of or behind the speech.
 - **Scores** (tuning clips; held-out in brackets), from `pnpm lipsync:eval`:
 
   | Set, arrival | Vowel open | Vowel match ja/ko/zh | Open in silence, English / tags | Tags placed |
@@ -1185,15 +1187,27 @@ Results (2026-10-13, starting source `11b28086`; revised after Code Review #1):
     laughs drift ahead of the speech.** Loudness and voicing cannot tell a voiced
     sigh or laugh from words, so a progressive plan can spend words on it, and
     the kept units keep the error:
-    - Gemini tag lines: `g-ko-sigh` 1.33 s live, `h-g-en-tags` 1.09 s,
-      `g-zh-laugh` 0.88 s, `g-en-laugh` 0.69 s (whole planning skips some of these
-      sighs too);
+    - Gemini tag lines: `g-ko-sigh` 1.33 s live, `h-g-en-tags` 1.09 s at 2.9×
+      (1.04 s live), `g-zh-laugh` 0.88 s, `g-en-laugh` 0.69 s (whole planning
+      skips some of these sighs too);
     - ElevenLabs without timing (hosted, until animama-cloud#87): 0.35 s mean
-      live, up to 1.57 s (`e-en-long`);
+      live, up to 1.57 s (`e-en-long`; 1.58 s at 2.9×);
     - joined parts without timing: Gemini English (25 s) 0.39 s, Pocket English
       (28 s) 0.09 s, Gemini Japanese (17 s) 1.05 s, untimed ElevenLabs (17 s)
-      0.26 s; a 56 s Gemini part with tags 2.4 s, and a 91 s part mixing eight
-      voices 7.1 s, by which point it has run out of text.
+      0.26 s;
+    - long parts, planned as one part (mean drift live, and the earliest word):
+      - 58 s, `g-en-long`, `g-en-pause`, `g-en-whisper`, `g-en-sigh`, twice:
+        2.49 s, a word 9.8 s early;
+      - 91 s, `s-en`, `g-en-long`, `s-en-sad`, `p-en`, `p-en-long`, `h-p-en`,
+        `e-en`, `e-en-long`, `s-en`, `g-en-long`: 7.11 s, 17.4 s early, by which
+        point it has run out of text;
+      - 34 s, `g-en-laugh`, `g-en-sigh`, `g-en-pause`, `g-en-whisper`,
+        `g-en-long`: 7.09 s, 12.7 s early;
+      - 28 s, `g-ko-sigh`, `g-zh-laugh`, `g-ja-laugh`, `g-en-gasp`,
+        `g-en-laugh`: 8.21 s, 14.0 s early.
+
+      Phase 5 plans Gemini replies part by part, which bounds this (Phase 5
+      Results).
 
     ElevenLabs with timing, and Pocket, stay close. The phone model (Phase 6)
     adds phone density, which separates sighs and laughs from words. Re-anchoring
@@ -1222,7 +1236,9 @@ Results (2026-10-13, starting source `11b28086`; revised after Code Review #1):
     sighs that are voiced look like speech to loudness and voicing alone; the
     phone model (Phase 6) adds phone density for them.
   - **Unperformed tags** (`<laugh>` inserted into the 34 scored lines without
-    tags, no timing; events of 0.2 s or more):
+    tags, no timing; events of 0.2 s or more). Mid-line, the tag goes after the
+    first `. ! ? , 。 ！ ？ ， 、` that has more text after it, with a space
+    either side:
 
     | Where | Whole | 2.9× | Live |
     | --- | --: | --: | --: |
@@ -1264,6 +1280,8 @@ Results (2026-10-13, starting source `11b28086`; revised after Code Review #1):
   - held-out clips no more than 10 points worse;
   - progressive vowel opening within 5 points of whole, per set and on four
     joined parts;
+  - word drift: at most 0.35 s per set, 1.5 s for any clip (held-out
+    included), and 1.2 s for a joined part;
   - beats against gruut's stress.
 - **Checks:** see Code Review #1 Revisions.
 
@@ -1387,8 +1405,9 @@ Optional:
     end-of-text cost was tried and rejected, measured.
   - The docs now say word drift, not vowel opening, shows a plan running ahead.
 - **P4-F13 accepted:** a tag is pinned only once placed for 0.4 s, which brings
-  progressive plans down to the whole-plan rate. Results record the measured
-  rates, and the Phase 5 note no longer claims the overlay ramp hides them.
+  progressive plans at 2.9× down to the whole-plan rate; live stays higher
+  (Results). Results record the measured rates, and the Phase 5 note no longer
+  claims the overlay ramp hides them.
 - **P4-F14 accepted:** tags count as text; only symbol or punctuation parts are
   `no_text`. Tested.
 - **P4-F15 accepted:** the joined parts use tuning clips only, and Results record
@@ -1401,6 +1420,32 @@ Optional:
   `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`: passed; `pnpm web:test`:
   497 vitest files, 4,567 passed and 1 skipped, and every browser journey passed;
   `pnpm desktop:test`: 27 files, 509 passed and 14 skipped.
+- Committed as `f150c894`.
+
+#### Code Review #3 Findings
+
+Final targeted review of `f150c894` against `83b78028`: **pass**, no required
+findings. P4-F12–F18 are verified: every recorded figure reproduces, the new
+drift bounds fail on `d502423f` and pass on `83b78028`, and D2 still passes.
+Optional:
+
+- P4-F19: one Results sentence still said vowel opening falls with drift, and
+  the Tests list left out the word-drift bounds.
+- P4-F20: the long parts' clips were not recorded, mean drift hides how early
+  single words go, `h-g-en-tags` 1.09 s was the 2.9× figure, not live.
+- P4-F21: the mid-line insertion rule was not recorded; the P4-F13 revision
+  overstated live.
+- P4-F22: the tag-only test passed even if the laugh was lost.
+
+#### Code Review #3 Revisions
+
+- **P4-F19, P4-F21 accepted:** Results and the P4-F13 revision corrected; the
+  insertion rule recorded.
+- **P4-F20 accepted:** the long parts' clips and earliest words are recorded,
+  measured again. Two more Gemini tag parts showed drift of 7–8 s. Phase 5
+  responds by planning Gemini replies part by part (Phase 5 Results).
+- **P4-F22 accepted:** the test now requires no fallback and a laugh event.
+- Committed with the record as a Phase 4 follow-up.
 
 ### Phase 5: In the app
 

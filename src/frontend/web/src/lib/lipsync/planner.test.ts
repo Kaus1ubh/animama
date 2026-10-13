@@ -67,7 +67,10 @@ describe("createLipSyncPlanner", () => {
       timing: null,
       complete: true,
     });
-    expect(plan.fallback).not.toBe("no_text");
+    expect(plan.fallback).toBeNull();
+    expect(plan.track.events.some((event) => event.kind === "laugh")).toBe(
+      true,
+    );
   });
 
   it("reports and falls back when the text cannot fit the audio", () => {
