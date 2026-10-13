@@ -383,22 +383,22 @@ class SuiteSelectionTests(unittest.TestCase):
             "src/frontend/web/scripts/effect-check.mjs": {"browser-tooling"},
             "src/frontend/web/scripts/animation-preview/review.mjs": {"browser-tooling"},
             "src/frontend/web/scripts/effect-render.browser.test.mjs": {"browser-tooling"},
-            "src/frontend/web/scripts/effect-render/stage.ts": {"browser-tooling", "promotion"},
+            "src/frontend/web/scripts/effect-render/stage.ts": set(ALL_SUITES),
             # Hosted-screen fixtures and tests.
             "src/frontend/web/scripts/hosted-workflows.browser.test.mjs": {"browser-hosted"},
             "src/frontend/web/tests/fixtures/hosted-composition/main.tsx": {"browser-hosted"},
             "src/frontend/web/tests/fixtures/retained-screens/main.tsx": {"browser-hosted"},
             # Shared browser setup, also copied into the whole-application consumer.
             "src/frontend/web/scripts/fixtures/hosted-workflows-http.mjs": set(ALL_SUITES),
-            # Packaged backend, contracts and model inputs.
-            "src/backend/animama/app/services/chat.py": {"promotion"},
-            "alembic/versions/0001_baseline.sql": {"promotion"},
-            "README.md": {"promotion"},
-            "licenses/pocket-tts.txt": {"promotion"},
-            "src/frontend/desktop/runtime/notices/onnxruntime.txt": {"promotion"},
-            "src/frontend/desktop/scripts/runtime/licenses.mjs": {"promotion"},
-            "scripts/package-sets/build.py": {"promotion"},
-            "scripts/repository-boundary/consumers/hosted-app/verify.mjs": {"promotion"},
+            # Every packaging input selects every suite, so its PR run is promotion-complete.
+            "src/backend/animama/app/services/chat.py": set(ALL_SUITES),
+            "alembic/versions/0001_baseline.sql": set(ALL_SUITES),
+            "README.md": set(ALL_SUITES),
+            "licenses/pocket-tts.txt": set(ALL_SUITES),
+            "src/frontend/desktop/runtime/notices/onnxruntime.txt": set(ALL_SUITES),
+            "src/frontend/desktop/scripts/runtime/licenses.mjs": set(ALL_SUITES),
+            "scripts/package-sets/build.py": set(ALL_SUITES),
+            "scripts/repository-boundary/consumers/hosted-app/verify.mjs": set(ALL_SUITES),
             # Read by the shared Vite configuration as well as the hosted build.
             "src/frontend/desktop/package.json": set(ALL_SUITES),
             "models/browser-speech/manifest.json": set(ALL_SUITES),
@@ -439,8 +439,8 @@ class SuiteSelectionTests(unittest.TestCase):
         for excluded in (None, "docs/a.md", [[]], ["../a"]):
             self.assertEqual(select_suites([modified("docs/a.md")], excluded_paths=excluded), set(ALL_SUITES))
         # Both sides of a rename count.
-        rename = {"status": "R100", "old_path": "src/backend/animama/x.py", "path": "tests/test_x.py"}
-        self.assertEqual(select_suites([rename]), {"promotion"})
+        rename = {"status": "R100", "old_path": "src/frontend/web/scripts/effect-x.mjs", "path": "tests/test_x.py"}
+        self.assertEqual(select_suites([rename]), {"browser-tooling"})
         self.assertEqual(
             select_suites([modified("tests/test_chat.py"), modified("src/frontend/web/scripts/effect-check.mjs")]),
             {"browser-tooling"},
@@ -459,9 +459,13 @@ class SuiteSelectionTests(unittest.TestCase):
 
         tooling = choose_plan("pull_request", event(), [modified("src/frontend/web/scripts/effect-check.mjs")])
         self.assertEqual((tooling["mode"], skipped(tooling)), ("selective", ["browser-hosted", "promotion"]))
+        hosted = choose_plan(
+            "pull_request", event(), [modified("src/frontend/web/tests/fixtures/retained-screens/a.tsx")]
+        )
+        self.assertEqual((hosted["mode"], skipped(hosted)), ("selective", ["browser-tooling", "promotion"]))
+        # A packaging change runs everything, so the PR run can serve promotion.
         backend = choose_plan("pull_request", event(), [modified("src/backend/animama/app/services/chat.py")])
-        self.assertEqual((backend["mode"], skipped(backend)), ("selective", ["browser-hosted", "browser-tooling"]))
-        self.assertIn("package-consumers", backend["required"])
+        self.assertEqual((backend["mode"], backend["skipped"]), ("full", []))
 
     def test_promotion_candidates_and_everything_inputs_keep_full(self):
         full = sorted(BASE | PROFILES["full"])

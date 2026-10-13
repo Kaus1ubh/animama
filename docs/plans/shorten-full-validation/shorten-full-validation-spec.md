@@ -10,7 +10,7 @@ implementation and left the remaining open choices to the agent's judgement.
 Those choices are recorded under
 [Open questions and decisions](#open-questions-and-decisions).
 Authoritative source: https://github.com/raymond-van/animama/issues/442.
-This snapshot was captured at publication, 2026-10-12T23:34:52Z. Refresh it
+This snapshot was refreshed at 2026-10-13T00:43:47Z, after the selection decision made during Phase 3. Refresh it
 from the issue before resuming.
 Baseline revision: `95a2db39` (`main`, 2026-10-12).
 
@@ -109,16 +109,16 @@ Non-goals:
   every check that runs today, with the same receipts, artifacts and gate
   strictness. Its duration is recorded.
 - **R2. Whole-application and package selection.** A full PR run that is not a
-  promotion candidate runs the promotion suites and the hosted-screen browser
-  files only when a packaging input changed. Otherwise it skips them, and its
-  selection receipt and job summary name each skipped suite and why. Such a run
-  is not promotion-complete.
-- **R3. Tooling selection.** A full PR run that is not a promotion candidate
-  runs the tooling-preview browser files only when that tooling, its renderer
-  sources or the Included content it renders changed. These files are
-  animation-preview, animation-render, effect-check, effect-render and
-  effect-thumbnails. The exact path prefixes live in the selector, and unknown
-  paths select the files.
+  promotion candidate skips the promotion suites unless a packaging input
+  changed. Any packaging input change selects every suite, so that run is
+  promotion-complete. A run that skips anything records the skipped suites and
+  why in its selection receipt and job summary, and is not promotion-complete.
+- **R3. Browser group selection.** Without a packaging change, the hosted-screen
+  files (hosted-composition, hosted-workflows, retained-screens) run only when
+  their fixtures or tests changed. The tooling-preview files (animation-preview,
+  animation-render, effect-check, effect-render, effect-thumbnails) run only
+  when that tooling, its `.mjs` sources or its tests changed. The exact path
+  tables live in the selector, and unknown paths select every suite.
 - **R4. Cheap checks always run.** Every full run keeps the structural checks:
   lint, types, SDK freshness, repository imports and dependencies, LFS,
   Compose, CI and tooling suites, harness and package unit tests, Vitest, the
@@ -318,6 +318,13 @@ repository. Until it lands, promotion continues to require a full `main` run.
 - **Selective mode, decided 2026-10-12 (delegated).** A full PR run that skips
   any suite records the new `selective` mode. `full` keeps meaning every check,
   so a run is promotion-complete exactly when its mode is `full`.
+- **Packaging selects everything, decided 2026-10-12 (delegated, during
+  Phase 3).** An earlier draft ran only the promotion suite for a backend-only
+  change and skipped the browser groups. That run would be `selective`, so
+  promotion would need a second full `main` run, defeating the third goal. Any
+  packaging input now selects every suite. A backend-only PR therefore runs
+  about 7 more minutes of browser files, but its merge needs no full `main`
+  run.
 - **H2 timing, decided 2026-10-12 (delegated).** The 20-minute criterion is
   proved before merge, on a throwaway PR stacked on this branch and closed
   unmerged.

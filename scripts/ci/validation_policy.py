@@ -197,10 +197,12 @@ def classify(changes: object, excluded_paths: Iterable[str] = ()) -> str:
 ALL_SUITES = frozenset(SUITES)
 TOOLING = frozenset({"browser-tooling"})
 HOSTED = frozenset({"browser-hosted"})
-PROMOTION = frozenset({"promotion"})
 NONE: frozenset[str] = frozenset()
+# Any packaging input selects every suite, so a PR that changes what the set
+# contains is promotion-complete (mode `full`) and can serve reuse after merge.
+# Only unpackaged paths, tooling-only and hosted-fixture-only changes narrow it.
 # Changes that alter how checks run, which dependencies resolve or what the
-# browser harness loads select every suite.
+# browser harness loads also select every suite.
 EVERYTHING_PREFIXES = (
     ".github/",
     "scripts/ci/",
@@ -217,7 +219,7 @@ EVERYTHING_FILES = {
     "src/frontend/web/vite.config.ts",
 }
 # Not packaged and not loaded by a selectable browser group. The always-run
-# checks still cover them; anything not listed here or below is a packaging input.
+# checks still cover them; anything not listed here is a packaging input.
 UNPACKAGED_PREFIXES = (
     "tests/",
     ".agents/",
@@ -257,21 +259,8 @@ UNPACKAGED_FILES = {
     "scripts/generate_synthetic_docs.py",
     "scripts/seed_synthetic_context.py",
 }
-# Packaged inputs that the shared Vite configuration (used by the browser
-# groups) never reads. Model manifests, model scripts and the desktop version
-# are read by `web/vite.config.ts`, so they select every suite.
-PROMOTION_PREFIXES = (
-    "src/backend/",
-    "alembic/",
-    "licenses/",
-    "scripts/package-sets/",
-    "scripts/repository-boundary/",
-    # Copied into the hosted application by src/frontend/scripts/hosted-build-resources.mjs.
-    "src/frontend/desktop/runtime/notices/",
-    "src/frontend/desktop/scripts/runtime/",
-)
 # README.md is the backend wheel's package description (pyproject `readme`).
-PROMOTION_FILES = {"alembic.ini", "README.md"}
+PACKAGED_FILES = {"README.md"}
 HOSTED_FIXTURES = (
     "src/frontend/web/tests/fixtures/hosted-composition/",
     "src/frontend/web/tests/fixtures/retained-screens/",
@@ -290,11 +279,9 @@ def _web_script_suites(name: str) -> frozenset[str]:
         # Shared browser setup; the whole-application consumer also copies
         # fixtures/hosted-workflows-http.mjs.
         return ALL_SUITES
-    tooling = name.startswith(("animation", "effect"))
-    if tooling and name.endswith((".ts", ".tsx")):
-        # tsconfig.scripts.json is part of `tsc -b` in the hosted build.
-        return TOOLING | PROMOTION
-    if tooling and name.endswith(".mjs"):
+    # TypeScript scripts are packaging inputs: tsconfig.scripts.json is part of
+    # the hosted build's `tsc -b`.
+    if name.startswith(("animation", "effect")) and name.endswith(".mjs"):
         return TOOLING
     return ALL_SUITES
 
@@ -307,8 +294,8 @@ def _path_suites(path: str) -> frozenset[str]:
         return HOSTED
     if path.startswith(WEB_SCRIPTS):
         return _web_script_suites(path.removeprefix(WEB_SCRIPTS))
-    if path in PROMOTION_FILES or path.startswith(PROMOTION_PREFIXES):
-        return PROMOTION
+    if path in PACKAGED_FILES:
+        return ALL_SUITES
     if path in UNPACKAGED_FILES or path.startswith(UNPACKAGED_PREFIXES):
         return NONE
     # docs/safety is bundled into the web app.
@@ -316,7 +303,8 @@ def _path_suites(path: str) -> frozenset[str]:
         return NONE
     if len(p.parts) == 1 and p.suffix == ".md" or path in {"src/frontend/AGENTS.md", "src/frontend/electron-guide.md"}:
         return NONE
-    # The web app, packages, Included content, contracts and unknown paths.
+    # The backend, web app, packages, Included content, contracts, models,
+    # packaging scripts and unknown paths.
     return ALL_SUITES
 
 

@@ -144,6 +144,10 @@ and this plan does not edit it.
   - The `selective` mode is adopted as proposed below.
   - H2 runs before merge, on a throwaway stacked PR.
   - Q1 is decided after Phase 1.
+- 2026-10-12, agent (delegated), during Phase 3: any packaging input selects
+  every suite. Before this, a backend-only PR recorded `selective` and could not
+  serve reuse, which forced a second full `main` run. The spec's R2 and R3 and
+  issue #442 were updated to match.
 - 2026-10-12, agent proposal (adopted): represent a PR run with skipped suites
   as a new
   `selective` mode, and keep `full` meaning "everything".

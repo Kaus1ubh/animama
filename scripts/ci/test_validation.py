@@ -95,7 +95,7 @@ class GitSelectionTests(unittest.TestCase):
         self.base = self.commit("inputs")
         for path, mode, promotion, groups, retention in (
             ("tests/test_example.py", "selective", "false", "core", "3"),
-            ("src/backend/animama/example.py", "selective", "true", "core", "3"),
+            ("src/backend/animama/example.py", "full", "true", "core,hosted,tooling", "14"),
             ("uv.lock", "full", "true", "core,hosted,tooling", "14"),
         ):
             with self.subTest(path=path):
