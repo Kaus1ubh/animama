@@ -200,6 +200,7 @@ class FakeSpeech:
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
         previous_text: str | None,
+        previous_request_ids: tuple[str, ...],
         apply_emotional_prefix: bool,
     ) -> FakeFinalizedSpeech:
         if self.refusal is not None:
@@ -208,7 +209,7 @@ class FakeSpeech:
             assert voice is not None, "the first segment resolves the Anima's voice"
             voice_id = (await voice()).voice_id
         self.calls.append(("prepare_finalized", principal.id, text))
-        return FakeFinalizedSpeech(voice_id=voice_id, model_id=model_id or "eleven_v3")
+        return FakeFinalizedSpeech(voice_id=voice_id, model_id=model_id or "eleven_v4")
 
     async def stream_finalized(self, prepared: FinalizedSpeech) -> AsyncIterator[dict[str, Any]]:
         if self.stream_refusal is not None:

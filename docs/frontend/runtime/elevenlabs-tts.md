@@ -2,7 +2,7 @@
 
 This document describes the browser-side ElevenLabs TTS runtimes in
 `src/frontend/web`: admitted realtime websocket speech for Eleven v4 Turbo and
-finalized-text `chat:sse` audio push for Eleven v3.
+finalized-text `chat:sse` audio push for Eleven v4.
 
 ## Runtime Model
 
@@ -17,10 +17,12 @@ synthesis and PocketTTS. The main runtime files are:
 
 Provider selection is stored as `"browser" | "pocket_tts" | "elevenlabs" | "gemini"`
 ([Gemini TTS](gemini-tts.md)).
-ElevenLabs model selection is stored as `tts_elevenlabs_model_id`. The Eleven
-v3 finalized-audio grouping preference is stored as
-`tts_elevenlabs_v3_finalized_chunking` with `"sentence"` as the default and
-`"paragraph"` as the opt-in smoother long-form mode.
+ElevenLabs model selection is stored as `tts_elevenlabs_model_id`. Saved
+retired ids read as their replacement: Flash v2.5 and Multilingual v2 as
+`eleven_v4_turbo`, and `eleven_v3` as `eleven_v4`. The finalized-audio grouping
+preference keeps its original key, `tts_elevenlabs_v3_finalized_chunking`.
+`"paragraph"` is the settings default and `"sentence"` the faster-starting
+choice; the backend uses `"sentence"` when a request names no grouping.
 
 ## Realtime Model
 
@@ -82,15 +84,16 @@ voice was recently valid.
 
 If session setup fails, `chat:sse` emits `tts.session.error` and continues
 streaming assistant text. The frontend marks TTS skipped for that run, except
-that a hosted `speech_allowance_exhausted` decline (on this frame or a v3
-`tts.error`) moves the run to [Pocket TTS](voice.md#elevenlabs-tts) where it is
-supported.
+that a hosted `speech_allowance_exhausted` decline (on this frame or a
+finalized `tts.error`) moves the run to [Pocket TTS](voice.md#elevenlabs-tts)
+where it is supported.
 
-## Eleven v3 Finalized Streaming
+## Eleven v4 Finalized Streaming
 
-`eleven_v3` is not a realtime websocket model. For v3, `chat:sse` does not emit
-`tts.session`. The backend uses the prepared main-structured speech text and
-pushes finalized audio over the same chat SSE stream.
+`eleven_v4` is the finalized model. For it, `chat:sse` does not emit
+`tts.session`. The backend speaks each finished sentence or paragraph through
+ElevenLabs' Text to Dialogue HTTP streaming with timestamps, and pushes the
+audio over the same chat SSE stream.
 
 For main-structured TTS speech, `user.response` can include additive TTS
 fields:
@@ -99,50 +102,69 @@ fields:
 - `tts_phonemized_text`
 - `tts_text_basis: "gruut_text_with_ws"`
 
-All ElevenLabs chat models prefer `tts_text` over visible speech text when
-`tts_text_basis` is `gruut_text_with_ws`. Realtime models send that text to the
-admitted websocket; Eleven v3 sends that text from the backend to ElevenLabs.
+gruut prepares speech whose letters are all ASCII, which is treated as English,
+whatever its punctuation, symbols or emoji: `tts_text` is its normalized text,
+with numbers spelled out, and `tts_phonemized_text` is its phonemes. Speech with
+other letters carries no TTS fields and is spoken as written, in any language.
+This includes Japanese, Korean, Chinese and accented Spanish, and English with an
+accented loanword. All ElevenLabs chat
+models prefer `tts_text` over the visible speech text when `tts_text_basis` is
+`gruut_text_with_ws`. Realtime sends it to the admitted websocket; finalized v4
+sends it from the backend.
 
 For structured speech streaming, `useChatSession.ts` sends each speech delta
 into the existing TTS pipeline as it arrives. Realtime ElevenLabs speech keeps
 one browser websocket per chat run; ordered input frames provide continuity,
 and completion ends the stream as described under the realtime model.
 
-For Eleven v3 sentence grouping, the backend trusts each sentence `tts_text` as
-already prepared by gruut and sends one finalized request per sentence. For
-paragraph grouping, the backend keeps the same sentence-level `user.response`
-events, joins visible sentence text into paragraph batches, and re-prepares
-each paragraph through gruut before sending it to ElevenLabs. Paragraph batches
-flush when a new paragraph starts, at four sentence segments, at about 600
-visible characters, or when the speech stream closes. Before each paragraph
-batch after the first, the backend inserts a 400 ms silent PCM `tts.audio` frame
-so adjacent paragraph utterances have a natural gap. The ElevenLabs call uses
-`model_id="eleven_v3"`, `output_format="pcm_24000"`, and
-`apply_text_normalization="off"`. The backend omits `previous_text`,
-`next_text`, and request-id continuity fields because the live ElevenLabs v3 API
-rejects or does not support those continuity fields.
-For v3, the backend resolves and validates the selected voice at most once per
-chat run, then reuses the resolved `voice_id` for later sentence or paragraph
-batches so per-batch voice validation is not in the streamed audio path.
+**Grouping:**
+
+- **Sentence:** the backend sends one finalized request per sentence, using
+  its prepared text.
+- **Paragraph:** the backend keeps the same sentence-level `user.response`
+  events. It joins visible sentence text into paragraph batches and prepares
+  English paragraphs through gruut; other paragraphs are spoken as written.
+  - A batch flushes when a new paragraph starts, at four sentence segments, at
+    about 600 visible characters, or when the speech stream closes.
+  - Before each batch after the first, the backend inserts a 400 ms silent PCM
+    `tts.audio` frame, so adjacent paragraphs have a natural gap.
+
+**The request:**
+
+- It uses `model_id="eleven_v4"` and `output_format="pcm_24000"`.
+- `apply_text_normalization` is `"off"` for text gruut prepared and `"auto"`
+  for text sent as written, which ElevenLabs normalizes in its own language.
+- A request carries at most 2,000 characters, Text to Dialogue's documented
+  limit. A longer segment is spoken as consecutive requests that continue from
+  each other.
+- Each request after the first continues the reply's delivery:
+  - it sends `previous_request_ids`: up to the last three request ids of the
+    run, from each response's `request-id` header;
+  - with no id known, it sends `previous_text`: up to 100 characters of the
+    preceding text.
+
+The backend resolves and validates the selected voice at most once per chat
+run. Later sentence or paragraph batches reuse the resolved `voice_id`, so
+voice validation is not in the streamed audio path.
 
 Voice-structured responses also contain internal `emotional_tone` and
 `emotional_intensity` fields before `speech`. The backend filters those fields
 out of frontend `user.response` events. Normal `chat:sse` uses them to compute
 and persist the full-state `emotion.update`; the frontend still uses that
-event's `emotions` array as the avatar source of truth. For `eleven_v3` only,
-the backend may also map the tone to an allowlisted ElevenLabs audio tag and
-prefix only the text sent upstream to ElevenLabs. Sentence grouping prefixes
+event's `emotions` array as the avatar source of truth. For `eleven_v4`, the
+backend also maps the tone to an allowlisted ElevenLabs audio tag and prefixes
+only the text sent upstream to ElevenLabs. Sentence grouping prefixes
 only the first upstream request; paragraph grouping prefixes every paragraph
 batch. The visible `speech`, persisted messages, `tts_text`,
 `tts_phonemized_text`, avatar lip-sync inputs, realtime ElevenLabs websocket
 text, PocketTTS text, and browser TTS text remain untagged. Missing, blank, or
 unrecognized tone metadata is handled in the backend with a warning and does
 not create a frontend-visible error. Neutral, missing, blank, or unrecognized
-tone metadata uses the backend-only `[friendly]` Eleven v3 provider prefix and
-emits a no-op emotion update.
+tone metadata uses the backend-only `[friendly]` provider prefix and emits a
+no-op emotion update.
 
-The backend uses ElevenLabs' plain streaming TTS API, not the timestamp API.
-`chat:sse` audio events include:
+The timestamp stream's character timing is not forwarded yet. `chat:sse` audio
+events include:
 
 - `type: "tts.audio"`
 - `run_id`
@@ -158,16 +180,16 @@ Sentence and paragraph grouping use the same `tts.audio`, `tts.done`, and
 added to public SSE events. The paragraph pause is represented as ordinary
 silent PCM in a `tts.audio` event rather than as separate timing metadata.
 
-The frontend decodes each v3 `pcm_24000` SSE audio frame into `Int16Array`
+The frontend decodes each finalized `pcm_24000` SSE audio frame into `Int16Array`
 samples, converts those samples to normalized `Float32Array` audio, creates
 24 kHz `AudioBuffer` objects, and schedules them with `AudioBufferSourceNode`
 through a normal `GainNode`. The backend coalesces upstream PCM bytes before
 emitting `tts.audio` frames so the frontend schedules fewer, larger buffers.
-This finalized-v3 path bypasses the shared PCM worklet used by realtime
+This finalized path bypasses the shared PCM worklet used by realtime
 streaming models and lets the browser's Web Audio engine resample to the output
 device rate.
 
-When a finalized Eleven v3 run starts, the frontend prewarms the local
+When a finalized Eleven v4 run starts, the frontend prewarms the local
 `AudioContext` and gain node before the first `tts.audio` frame arrives. The
 audio frames still come from `chat:sse`; prewarming only reduces local playback
 startup work.
@@ -192,21 +214,21 @@ phonemes and playback callbacks, not ElevenLabs alignment metadata.
 ## Settings
 
 When ElevenLabs is selected, application speech settings expose a model selector.
-`Eleven v4 Turbo` persists `eleven_v4_turbo`; `Eleven v3` persists `eleven_v3`.
+`Eleven v4 Turbo` persists `eleven_v4_turbo`; `Eleven v4` persists `eleven_v4`.
 
-When `Eleven v3` is selected, the "Stream chunked TTS" switch is shown unchecked
-and disabled because v3 uses backend-pushed finalized audio instead of frontend
+When `Eleven v4` is selected, the "Stream chunked TTS" switch is shown unchecked
+and disabled, because v4 uses backend-pushed finalized audio instead of frontend
 text-token chunking. The saved `tts_stream_chunks` preference is not
 overwritten, so switching back to Eleven v4 Turbo restores the previous
 effective chunked behavior.
 
-When `Eleven v3` is selected, application speech settings also show an `Audio
+When `Eleven v4` is selected, application speech settings also show an `Audio
 grouping` control. `Sentence` persists
 `tts_elevenlabs_v3_finalized_chunking="sentence"` and starts audio as soon as
 each sentence batch is ready. `Paragraph` persists
 `tts_elevenlabs_v3_finalized_chunking="paragraph"` and waits for paragraph or
 safety batches to trade first-audio latency for smoother long-form delivery.
-Switching away from `Eleven v3` hides this control without changing the saved
+Switching away from `Eleven v4` hides this control without changing the saved
 grouping value.
 
 Anima voice selection is resolved from

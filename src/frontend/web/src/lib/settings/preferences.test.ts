@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   DEFAULT_ANIMAMA_PREFERENCES,
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-  DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
+  DEFAULT_ELEVENLABS_FINALIZED_CHUNKING,
   ELEVENLABS_TTS_MODEL_OPTIONS,
   isParakeetWebgpuPreferred,
   mergePreferences,
@@ -11,10 +11,10 @@ import {
   modelRolePreferencePath,
   readModelRoleId,
   normalizeThemeSetting,
-  resolveElevenLabsV3FinalizedChunking,
+  resolveElevenLabsFinalizedChunking,
   resolvePreferences,
   toElevenLabsTtsModelId,
-  toElevenLabsV3FinalizedChunking,
+  toElevenLabsFinalizedChunking,
   toGeminiTtsModelId,
 } from "./preferences";
 
@@ -60,31 +60,32 @@ describe("ElevenLabs model preference", () => {
     expect(DEFAULT_ELEVENLABS_TTS_MODEL_ID).toBe("eleven_v4_turbo");
     expect(ELEVENLABS_TTS_MODEL_OPTIONS.map((option) => option.id)).toEqual([
       "eleven_v4_turbo",
-      "eleven_v3",
+      "eleven_v4",
     ]);
   });
 
-  it.each(["eleven_flash_v2_5", "eleven_multilingual_v2"])(
-    "reads the retired realtime model %s as Eleven v4 Turbo",
-    (saved) => {
-      expect(toElevenLabsTtsModelId(saved)).toBe("eleven_v4_turbo");
-    },
-  );
+  it.each([
+    ["eleven_flash_v2_5", "eleven_v4_turbo"],
+    ["eleven_multilingual_v2", "eleven_v4_turbo"],
+    ["eleven_v3", "eleven_v4"],
+  ])("reads the retired model %s as %s", (saved, replacement) => {
+    expect(toElevenLabsTtsModelId(saved)).toBe(replacement);
+  });
 
   it("keeps current models and rejects unknown ones", () => {
     expect(toElevenLabsTtsModelId("eleven_v4_turbo")).toBe("eleven_v4_turbo");
-    expect(toElevenLabsTtsModelId("eleven_v3")).toBe("eleven_v3");
+    expect(toElevenLabsTtsModelId("eleven_v4")).toBe("eleven_v4");
     expect(toElevenLabsTtsModelId("eleven_turbo_v2")).toBeNull();
     expect(toElevenLabsTtsModelId(undefined)).toBeNull();
   });
 });
 
-describe("ElevenLabs v3 finalized chunking preferences", () => {
+describe("ElevenLabs finalized chunking preferences", () => {
   it("defaults and coerces saved audio grouping values", () => {
-    expect(DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING).toBe("paragraph");
-    expect(resolveElevenLabsV3FinalizedChunking(undefined)).toBe("paragraph");
-    expect(resolveElevenLabsV3FinalizedChunking("paragraph")).toBe("paragraph");
-    expect(toElevenLabsV3FinalizedChunking("chapter")).toBeNull();
+    expect(DEFAULT_ELEVENLABS_FINALIZED_CHUNKING).toBe("paragraph");
+    expect(resolveElevenLabsFinalizedChunking(undefined)).toBe("paragraph");
+    expect(resolveElevenLabsFinalizedChunking("paragraph")).toBe("paragraph");
+    expect(toElevenLabsFinalizedChunking("chapter")).toBeNull();
   });
 
   it("persists and restores the saved grouping value through preference merge", () => {
@@ -209,7 +210,7 @@ describe("Gemini TTS model preference", () => {
     expect(toGeminiTtsModelId("gemini-3.8-flash-tts")).toBe(
       "gemini-3.8-flash-tts",
     );
-    expect(toGeminiTtsModelId("eleven_v3")).toBeNull();
+    expect(toGeminiTtsModelId("eleven_v4")).toBeNull();
     expect(toGeminiTtsModelId(undefined)).toBeNull();
   });
 });

@@ -37,10 +37,11 @@ describe("ElevenLabs realtime TTS runtime", () => {
 });
 
 describe("ElevenLabs TTS model helpers", () => {
-  it("classifies v3 as finalized and v4 Turbo as realtime", () => {
-    expect(toElevenLabsTtsModelId("eleven_v3")).toBe("eleven_v3");
-    expect(isElevenLabsFinalizedTtsModelId("eleven_v3")).toBe(true);
-    expect(isElevenLabsRealtimeTtsModelId("eleven_v3")).toBe(false);
+  it("classifies v4 as finalized and v4 Turbo as realtime", () => {
+    expect(toElevenLabsTtsModelId("eleven_v4")).toBe("eleven_v4");
+    expect(isElevenLabsFinalizedTtsModelId("eleven_v4")).toBe(true);
+    expect(isElevenLabsRealtimeTtsModelId("eleven_v4")).toBe(false);
+    expect(isElevenLabsFinalizedTtsModelId("eleven_v4_turbo")).toBe(false);
     expect(isElevenLabsRealtimeTtsModelId("eleven_v4_turbo")).toBe(true);
   });
 });

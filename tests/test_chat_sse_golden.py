@@ -12,10 +12,12 @@ change, and review the diff.
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import os
 import re
-from collections.abc import AsyncIterator, Callable, MutableMapping
+from collections.abc import AsyncIterator, Callable, Iterator, MutableMapping
+from contextlib import contextmanager
 from dataclasses import dataclass
 from pathlib import Path
 from types import SimpleNamespace
@@ -61,12 +63,19 @@ class FakeElevenLabs:
     def __init__(self) -> None:
         self.voices = SimpleNamespace(get=lambda voice_id: SimpleNamespace(voice_id=voice_id, labels={}))
         self.tokens = SimpleNamespace(single_use=SimpleNamespace(create=lambda **_: SimpleNamespace(token="tts-token")))
-        self.text_to_speech = SimpleNamespace(stream=self._stream)
+        self.text_to_dialogue = SimpleNamespace(with_raw_response=SimpleNamespace(stream_with_timestamps=self._stream))
         self.spoken: list[str] = []
 
-    def _stream(self, voice_id: str, **kwargs: Any) -> Any:
-        self.spoken.append(kwargs["text"])
-        return iter([b"\x01\x00" * 4800, b"\x02\x00" * 100])
+    @contextmanager
+    def _stream(self, *, inputs: list[dict[str, str]], **_kwargs: Any) -> Iterator[Any]:
+        """One Text to Dialogue stream with timestamps: its chunks and the request id."""
+
+        self.spoken.append(inputs[0]["text"])
+        chunks = [
+            {"audio_base64": base64.b64encode(b"\x01\x00" * 4800).decode()},
+            {"audio_base64": base64.b64encode(b"\x02\x00" * 100).decode()},
+        ]
+        yield SimpleNamespace(data=iter(chunks), headers={"request-id": f"request-{len(self.spoken)}"})
 
 
 def normalize(stream: str, *names: str) -> str:
@@ -174,7 +183,7 @@ async def test_reply_with_emotion_gesture_memory_title_and_notice(world: ChatWor
 
 
 ELEVENLABS_REALTIME = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}}
-ELEVENLABS_FINALIZED = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"}}
+ELEVENLABS_FINALIZED = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"}}
 
 
 async def test_realtime_speech_sends_a_session_and_phoneme_payloads(world: ChatWorld) -> None:
@@ -185,7 +194,7 @@ async def test_realtime_speech_sends_a_session_and_phoneme_payloads(world: ChatW
 async def test_finalized_speech_streams_audio_with_the_stored_mood(world: ChatWorld) -> None:
     world.model.replies.append(structured("Hello there. The kettle is on.", tone="joy", intensity=3))
     assert_golden("tts-finalized", await world.turn("tts-finalized", dispatch_options=ELEVENLABS_FINALIZED), world)
-    # The provider spoke the prepared text, with the emotional prefix eleven_v3 takes.
+    # The provider spoke the prepared text, with the emotional prefix eleven_v4 takes.
     assert world.elevenlabs.spoken
 
 

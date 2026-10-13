@@ -170,7 +170,7 @@ in `local-http` version **6.0.0** with capability `schema_version: 2`. The gener
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
 surface, not another wire schema. `runtime-contracts` is version 0.6.0 and
-`product-ui` is version 0.9.0. Consumers explicitly admit
+`product-ui` is version 0.9.1. Consumers explicitly admit
 the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:
@@ -276,7 +276,7 @@ playback additionally requires `provider_credentials: true`. Both paths fence la
 close audio resources on failure or teardown, and preserve text fallback.
 
 A speech error frame with `code: "speech_allowance_exhausted"` (`tts.session.error`
-for realtime sessions, `tts.error` for finalized `eleven_v3` audio, each with
+for realtime sessions, `tts.error` for finalized `eleven_v4` audio, each with
 `run_id`, `provider: "elevenlabs"` and a human `error`) means the owner's voice
 allowance cannot cover that reply, and no provider audio plays for it. A
 decline known before the turn precedes all reply text and no `tts.session` is

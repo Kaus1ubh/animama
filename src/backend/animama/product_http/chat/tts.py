@@ -1,6 +1,6 @@
 """Speech for a chat reply: an ElevenLabs realtime session, or finalized audio pushed in the stream.
 
-Finalized audio comes from ElevenLabs ``eleven_v3`` through the composition's
+Finalized audio comes from ElevenLabs ``eleven_v4`` through the composition's
 speech port, or from Gemini through its optional Gemini speech port. The
 composition's ports make every provider call. This module decides when speech
 starts, batches the reply's prepared speech segments and resolves the Anima's
@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import base64
+from collections import deque
 from collections.abc import AsyncIterator, Mapping
 from contextlib import suppress
 from dataclasses import dataclass, field
@@ -26,6 +27,8 @@ from animama.app.chat.options import (
     DirectChatTtsOptions,
 )
 from animama.app.contracts.elevenlabs import (
+    DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
+    ELEVENLABS_FINALIZED_TTS_MAX_PREVIOUS_REQUEST_IDS,
     SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS,
     PyElevenLabsAnimaVoiceProfileInput,
     PyElevenLabsRealtimeTtsSessionResponse,
@@ -50,7 +53,7 @@ from animama.product_http.ports import (
 
 from .setup_helpers import TurnSessions
 from .sse_events import (
-    TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS,
+    TTS_TEXT_BASIS_VISIBLE_TEXT,
     SsePreparedTtsSpeechSegment,
     SseTextState,
     format_tts_audio_event,
@@ -61,7 +64,6 @@ from .sse_events import (
 )
 
 _log = get_logger("product_http.chat.tts")
-FINALIZED_TTS_BATCH_TEXT_BASIS_VISIBLE_TEXT = "visible_text"
 FINALIZED_TTS_PARAGRAPH_MAX_SEGMENTS = 4
 FINALIZED_TTS_PARAGRAPH_MAX_VISIBLE_CHARS = 600
 FINALIZED_TTS_PARAGRAPH_LEADING_PAUSE_SEC = 0.4
@@ -89,7 +91,7 @@ class _FinalizedProviderText:
 
 _FINALIZED_PROVIDER_TEXT: dict[str, _FinalizedProviderText] = {
     "elevenlabs": _FinalizedProviderText(
-        label="ElevenLabs v3 TTS",
+        label="ElevenLabs TTS",
         failure_label="ElevenLabs finalized TTS",
         setup_failed_code="elevenlabs_stream_setup_failed",
         stream_failed_code="elevenlabs_stream_failed",
@@ -211,7 +213,7 @@ def elevenlabs_finalized_tts_chunking(chat_options: DirectChatOptions) -> Direct
     tts_options = elevenlabs_tts_options(chat_options)
     if (
         tts_options is not None
-        and tts_options.model_id == "eleven_v3"
+        and tts_options.model_id in SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS
         and tts_options.finalized_chunking == "paragraph"
     ):
         return "paragraph"
@@ -385,7 +387,7 @@ class FinalizedTtsSegmentBatcher:
             FinalizedTtsSegmentBatch(
                 segments=segments,
                 text=text,
-                text_basis=FINALIZED_TTS_BATCH_TEXT_BASIS_VISIBLE_TEXT,
+                text_basis=TTS_TEXT_BASIS_VISIBLE_TEXT,
             )
         )
 
@@ -408,6 +410,10 @@ class FinalizedTtsStreamBootstrap:
     task: asyncio.Task[None] | None = None
     completed: bool = False
     resolved_voice_id: str | None = None
+    # The reply's latest ElevenLabs request ids, which the next segment continues from.
+    request_ids: deque[str] = field(
+        default_factory=lambda: deque(maxlen=ELEVENLABS_FINALIZED_TTS_MAX_PREVIOUS_REQUEST_IDS)
+    )
     queue: asyncio.Queue[str | None] = field(default_factory=asyncio.Queue)
 
     @classmethod
@@ -520,10 +526,7 @@ class FinalizedTtsStreamBootstrap:
 
     @staticmethod
     def _has_prepared_speech(state: SseTextState) -> bool:
-        return any(
-            segment.text_basis == TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS and segment.tts_text.strip()
-            for segment in state.tts_speech_segments
-        )
+        return any(segment.tts_text.strip() for segment in state.tts_speech_segments)
 
     def _start(self, state: SseTextState) -> None:
         emotional_state = dict(state.emotional_state) if state.emotional_state is not None else None
@@ -576,7 +579,7 @@ class FinalizedTtsStreamBootstrap:
                                 format_tts_done_event(
                                     run_id=self.run_id,
                                     payload={
-                                        "model_id": self.model_id or "eleven_v3",
+                                        "model_id": self.model_id or DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
                                         "output_format": "pcm_24000",
                                     },
                                     provider=self.provider,
@@ -586,7 +589,7 @@ class FinalizedTtsStreamBootstrap:
                             await self.queue.put(
                                 format_tts_error_event(
                                     run_id=self.run_id,
-                                    model_id=self.model_id or "eleven_v3",
+                                    model_id=self.model_id or DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
                                     error=self._missing_text_error(),
                                     code="missing_tts_text",
                                     provider=self.provider,
@@ -628,7 +631,7 @@ class FinalizedTtsStreamBootstrap:
             await self.queue.put(
                 format_tts_error_event(
                     run_id=self.run_id,
-                    model_id=self.model_id or "eleven_v3",
+                    model_id=self.model_id or DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
                     error=self._error_text(exc, "failed"),
                     # A composition that declines a streamed segment names why.
                     code=exc.code if isinstance(exc, ProductRefusal) else self._text.stream_failed_code,
@@ -658,7 +661,7 @@ class FinalizedTtsStreamBootstrap:
         frame = format_tts_audio_event(
             run_id=self.run_id,
             payload={
-                "model_id": self.model_id or "eleven_v3",
+                "model_id": self.model_id or DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
                 "output_format": "pcm_24000",
                 "audio_base64": _finalized_tts_silence_audio_base64(
                     duration_sec=FINALIZED_TTS_PARAGRAPH_LEADING_PAUSE_SEC,
@@ -696,6 +699,7 @@ class FinalizedTtsStreamBootstrap:
                 emotional_tone=emotional_tone,
                 emotional_state=emotional_state,
                 previous_text=previous_text,
+                previous_request_ids=tuple(self.request_ids),
                 apply_emotional_prefix=apply_emotional_prefix,
             )
             prepared_voice_id = getattr(prepared, "voice_id", None)
@@ -714,7 +718,7 @@ class FinalizedTtsStreamBootstrap:
             await self.queue.put(
                 format_tts_error_event(
                     run_id=self.run_id,
-                    model_id=self.model_id or "eleven_v3",
+                    model_id=self.model_id or DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
                     error=self._error_text(exc, "setup failed"),
                     # A composition that declines this reply's speech names why.
                     code=exc.code if isinstance(exc, ProductRefusal) else self._text.setup_failed_code,
@@ -730,6 +734,9 @@ class FinalizedTtsStreamBootstrap:
                 if frame is not None:
                     await self.queue.put(frame)
             elif payload_type == "done":
+                request_ids = payload.get("request_ids")
+                if isinstance(request_ids, list):
+                    self.request_ids.extend(rid for rid in request_ids if isinstance(rid, str) and rid)
                 return True
             elif payload_type == "error":
                 error = payload.get("error")
@@ -757,9 +764,9 @@ class FinalizedTtsStreamBootstrap:
 
     @property
     def _uses_previous_text(self) -> bool:
-        """ElevenLabs models other than ``eleven_v3`` continue from the previous segment's text."""
+        """ElevenLabs continues each segment from the text before it."""
 
-        return self.provider == "elevenlabs" and self.model_id != "eleven_v3"
+        return self.provider == "elevenlabs"
 
     def _applies_style(self, streamed_any: bool) -> bool:
         """Gemini styles every request alike; ElevenLabs tags each paragraph, or only the first sentence."""

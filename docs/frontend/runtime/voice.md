@@ -76,8 +76,8 @@ are logged and never stop dictation.
 | ------------ | ---------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `browser`    | `speechSynthesis`            | fallback/simple speech | queue of utterances                                                                                                                  |
 | `pocket_tts` | local worker/worklet runtime | primary voice UX       | detailed below; preferred for avatar sync                                                                                            |
-| `elevenlabs` | ElevenLabs WS or HTTP stream | streamed speech output | realtime Eleven v4 Turbo streams text chunks over the Text to Dialogue socket; v3 plays backend-pushed finalized audio grouped by sentence or paragraph |
-| `gemini`     | Gemini via `chat:sse`        | streamed speech output | offered only with the `gemini_tts` capability; plays backend-pushed sentence audio like Eleven v3                                    |
+| `elevenlabs` | ElevenLabs WS or HTTP stream | streamed speech output | realtime Eleven v4 Turbo streams text chunks over the Text to Dialogue socket; v4 plays backend-pushed finalized audio grouped by sentence or paragraph |
+| `gemini`     | Gemini via `chat:sse`        | streamed speech output | offered only with the `gemini_tts` capability; plays backend-pushed sentence audio like Eleven v4                                    |
 
 ## Core Concepts and IDs
 
@@ -878,7 +878,7 @@ Behavior:
 
 - browser TTS respects `tts_stream_chunks`
 - pocket TTS is forced non-streaming at token phase (`shouldStreamChunksForProvider` returns `false` for pocket), then emits final chunks on completion
-- ElevenLabs v3 and Gemini are forced non-streaming in the frontend token
+- Eleven v4 and Gemini are forced non-streaming in the frontend token
   pipeline because backend-pushed `tts.audio` frames carry the finalized audio
   for structured speech batches
 
@@ -896,7 +896,7 @@ Mechanics:
 Realtime Eleven v4 Turbo receives an SSE-provided single-use token and opens a
 direct Text to Dialogue WebSocket ([protocol](elevenlabs-tts.md#realtime-model)).
 Setup waits at most 1500 ms for the session event; failures stop audio for that
-run while chat continues. Eleven v3 receives finalized PCM
+run while chat continues. Eleven v4 receives finalized PCM
 through `tts.audio` on the chat stream instead.
 
 A hosted server can decline a run's ElevenLabs speech with
@@ -914,7 +914,7 @@ uses the phonemes matching spoken text and local audio timing.
 ### Gemini TTS
 
 Gemini audio always arrives as backend-pushed `tts.audio` frames, one Gemini
-request per sentence, and plays through the same finalized runtime as Eleven v3.
+request per sentence, and plays through the same finalized runtime as Eleven v4.
 A `tts.error` ends that reply's speech with the "Text-to-speech unavailable"
 notice; there is no Pocket fallback. See [Gemini TTS](gemini-tts.md) for
 availability, the key, settings, error codes and Google's terms.
@@ -1187,7 +1187,7 @@ verify the complete engine inventory and required small TTS runtime files.
 
 - TTS orchestrator: `src/frontend/web/src/hooks/use-tts-playback.ts`
 - ElevenLabs runtime hook: `src/frontend/web/src/hooks/use-elevenlabs-tts-runtime.ts`
-- Finalized server-audio runtime (Eleven v3 and Gemini): `src/frontend/web/src/hooks/use-elevenlabs-finalized-tts-runtime.ts`
+- Finalized server-audio runtime (Eleven v4 and Gemini): `src/frontend/web/src/hooks/use-elevenlabs-finalized-tts-runtime.ts`
 - Gemini dispatch options: `src/frontend/web/src/lib/chat/gemini-chat-tts-dispatch.ts`
 - Pocket runtime hook: `src/frontend/web/src/hooks/use-pocket-tts-runtime.ts`
 - TTS provider helpers: `src/frontend/web/src/lib/speech/tts-provider.ts`

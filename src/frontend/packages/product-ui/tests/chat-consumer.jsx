@@ -143,7 +143,7 @@ function SessionConsumer() {
           elevenLabsModelId:
             speechProvider === "elevenlabs" ? speechModel : null,
           finalizedServerAudio:
-            speechProvider === "gemini" || speechModel === "eleven_v3",
+            speechProvider === "gemini" || speechModel === "eleven_v4",
         }
       : undefined,
     effects: {

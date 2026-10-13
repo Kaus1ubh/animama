@@ -11,7 +11,11 @@ from typing import Any
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 
-from animama.app.contracts.elevenlabs import PyElevenLabsRealtimeTtsSessionResponse
+from animama.app.contracts.elevenlabs import (
+    DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
+    PyElevenLabsRealtimeTtsSessionResponse,
+)
+from animama.app.gruut_text import gruut_prepares_text
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
     MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE,
@@ -31,6 +35,8 @@ _PUBLIC_ERROR_CODE = re.compile(r"^[a-z0-9_.]{1,64}$")
 
 GruutSseTextBuilder = Callable[..., Mapping[str, object] | None]
 TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS = "gruut_text_with_ws"
+# The reply's own text, spoken as written; the provider normalizes it.
+TTS_TEXT_BASIS_VISIBLE_TEXT = "visible_text"
 
 
 def _is_main_structured_response_format(response_format: object) -> bool:
@@ -249,7 +255,7 @@ def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object], provid
         "type": "tts.audio",
         "run_id": run_id,
         "provider": provider,
-        "model_id": model_id if isinstance(model_id, str) else "eleven_v3",
+        "model_id": model_id if isinstance(model_id, str) else DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
         "output_format": output_format if isinstance(output_format, str) else "pcm_24000",
         "audio_base64": audio_base64,
     }
@@ -263,7 +269,7 @@ def format_tts_done_event(*, run_id: str, payload: Mapping[str, object], provide
         "type": "tts.done",
         "run_id": run_id,
         "provider": provider,
-        "model_id": model_id if isinstance(model_id, str) else "eleven_v3",
+        "model_id": model_id if isinstance(model_id, str) else DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
         "output_format": output_format if isinstance(output_format, str) else "pcm_24000",
     }
     return format_sse("tts.done", data, event_id=f"tts-done-{run_id}")
@@ -274,7 +280,7 @@ def format_tts_error_event(
     run_id: str,
     error: str,
     code: str = "elevenlabs_stream_failed",
-    model_id: str = "eleven_v3",
+    model_id: str = DEFAULT_ELEVENLABS_FINALIZED_TTS_MODEL_ID,
     output_format: str = "pcm_24000",
     provider: str = "elevenlabs",
 ) -> str:
@@ -304,7 +310,9 @@ def _attach_tts_speech_payload(
     if effective_part_final:
         state.tts_speech_segments_closed = True
 
-    if not value.strip():
+    # Nothing to speak: whitespace, punctuation or emoji alone, such as a closing 😊,
+    # stays visible text only.
+    if not any(character.isalnum() for character in value):
         return
 
     # A complete speech event after streamed speech is a visible correction.
@@ -313,28 +321,31 @@ def _attach_tts_speech_payload(
     if is_delta is False and state.tts_speech_segments:
         return
 
-    tts_payload = build_gruut_sse_text(
-        value,
-        lang="en_US",
-        tokenized_text_source="text_with_ws",
+    # Every sentence is spoken, whatever its language. gruut prepares English text
+    # (its phonemes also time lip-sync); other text, or any text when gruut is
+    # unavailable, is spoken as written.
+    tts_payload = (
+        build_gruut_sse_text(value, lang="en_US", tokenized_text_source="text_with_ws")
+        if gruut_prepares_text(value)
+        else None
     )
-    if tts_payload is None:
-        return
-
-    tts_text = tts_payload.get("tokenized_text")
-    tts_phonemized_text = tts_payload.get("phonemized_text")
-    if not isinstance(tts_text, str) or not tts_text.strip():
-        return
-    if not isinstance(tts_phonemized_text, list) or not tts_phonemized_text:
-        return
-
-    data.update(
-        {
-            "tts_text": tts_text,
-            "tts_phonemized_text": tts_phonemized_text,
-            "tts_text_basis": TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS,
-        }
-    )
+    gruut_text = tts_payload.get("tokenized_text") if tts_payload is not None else None
+    if isinstance(gruut_text, str) and gruut_text.strip():
+        gruut_phonemes = tts_payload.get("phonemized_text") if tts_payload is not None else None
+        tts_text = gruut_text
+        tts_phonemized_text = gruut_phonemes if isinstance(gruut_phonemes, list) else []
+        text_basis = TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS
+        data.update(
+            {
+                "tts_text": tts_text,
+                "tts_phonemized_text": tts_phonemized_text,
+                "tts_text_basis": text_basis,
+            }
+        )
+    else:
+        tts_text = value.strip()
+        tts_phonemized_text = []
+        text_basis = TTS_TEXT_BASIS_VISIBLE_TEXT
     paragraph_break_before = bool(state.tts_speech_segments) and _has_leading_blank_line_break(value)
     if paragraph_break_before:
         state.tts_speech_paragraph_index += 1
@@ -344,7 +355,7 @@ def _attach_tts_speech_payload(
             visible_text=value,
             tts_text=tts_text,
             tts_phonemized_text=tts_phonemized_text,
-            text_basis=TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS,
+            text_basis=text_basis,
             part_index=part_index if isinstance(part_index, int) else len(state.tts_speech_segments),
             part_final=effective_part_final,
             paragraph_index=state.tts_speech_paragraph_index,

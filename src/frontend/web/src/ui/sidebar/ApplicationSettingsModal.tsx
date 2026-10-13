@@ -32,22 +32,22 @@ import { WebSearchSettings } from "@/ui/settings/web-search/WebSearchSettings";
 
 import {
   DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-  DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
+  DEFAULT_ELEVENLABS_FINALIZED_CHUNKING,
   DEFAULT_GEMINI_TTS_MODEL_ID,
   GEMINI_TTS_MODEL_OPTIONS,
   DEFAULT_ANIMAMA_PREFERENCES,
   ELEVENLABS_TTS_MODEL_OPTIONS,
-  ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS,
+  ELEVENLABS_FINALIZED_CHUNKING_OPTIONS,
   isElevenLabsFinalizedTtsModelId,
   isParakeetWebgpuPreferred,
   mergePreferences,
-  resolveElevenLabsV3FinalizedChunking,
+  resolveElevenLabsFinalizedChunking,
   toElevenLabsTtsModelId,
   toGeminiTtsModelId,
-  toElevenLabsV3FinalizedChunking,
+  toElevenLabsFinalizedChunking,
   type ElevenLabsTtsModelId,
   type GeminiTtsModelId,
-  type ElevenLabsV3FinalizedChunking,
+  type ElevenLabsFinalizedChunking,
   type ModelRole,
   type SettingsPreferences,
 } from "@/lib/settings/preferences";
@@ -411,10 +411,10 @@ export function ApplicationSettingsModal({
   const [selectedGeminiModelId, setSelectedGeminiModelId] =
     useState<GeminiTtsModelId>(DEFAULT_GEMINI_TTS_MODEL_ID);
   const [
-    selectedElevenLabsV3FinalizedChunking,
-    setSelectedElevenLabsV3FinalizedChunking,
-  ] = useState<ElevenLabsV3FinalizedChunking>(
-    DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
+    selectedElevenLabsFinalizedChunking,
+    setSelectedElevenLabsFinalizedChunking,
+  ] = useState<ElevenLabsFinalizedChunking>(
+    DEFAULT_ELEVENLABS_FINALIZED_CHUNKING,
   );
   const [desktopShortcuts, setDesktopShortcuts] = useState<DesktopShortcutMap>(
     DEFAULT_DESKTOP_SHORTCUTS,
@@ -454,10 +454,8 @@ export function ApplicationSettingsModal({
   const savedGeminiModelIdRef = useRef<GeminiTtsModelId>(
     DEFAULT_GEMINI_TTS_MODEL_ID,
   );
-  const savedElevenLabsV3FinalizedChunkingRef =
-    useRef<ElevenLabsV3FinalizedChunking>(
-      DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
-    );
+  const savedElevenLabsFinalizedChunkingRef =
+    useRef<ElevenLabsFinalizedChunking>(DEFAULT_ELEVENLABS_FINALIZED_CHUNKING);
   const savedTtsEnabledRef = useRef(false);
   const savedTtsStreamChunksRef = useRef(true);
   const savedDesktopShortcutsRef = useRef<DesktopShortcutMap>(
@@ -485,10 +483,9 @@ export function ApplicationSettingsModal({
   const savedGeminiModelId =
     toGeminiTtsModelId(resolvedUserPreferences?.speech?.tts_gemini_model_id) ??
     DEFAULT_GEMINI_TTS_MODEL_ID;
-  const savedElevenLabsV3FinalizedChunking =
-    resolveElevenLabsV3FinalizedChunking(
-      resolvedUserPreferences?.speech?.tts_elevenlabs_v3_finalized_chunking,
-    );
+  const savedElevenLabsFinalizedChunking = resolveElevenLabsFinalizedChunking(
+    resolvedUserPreferences?.speech?.tts_elevenlabs_v3_finalized_chunking,
+  );
   const savedTtsEnabled = resolvedUserPreferences?.speech?.tts_enabled === true;
   const savedTtsStreamChunks =
     resolvedUserPreferences?.speech?.tts_stream_chunks !== false;
@@ -519,9 +516,9 @@ export function ApplicationSettingsModal({
   }, [savedGeminiModelId]);
 
   useEffect(() => {
-    savedElevenLabsV3FinalizedChunkingRef.current =
-      savedElevenLabsV3FinalizedChunking;
-  }, [savedElevenLabsV3FinalizedChunking]);
+    savedElevenLabsFinalizedChunkingRef.current =
+      savedElevenLabsFinalizedChunking;
+  }, [savedElevenLabsFinalizedChunking]);
 
   useEffect(() => {
     savedTtsEnabledRef.current = savedTtsEnabled;
@@ -569,9 +566,7 @@ export function ApplicationSettingsModal({
     setSelectedTtsProvider(savedTtsProvider);
     setSelectedElevenLabsModelId(savedElevenLabsModelId);
     setSelectedGeminiModelId(savedGeminiModelId);
-    setSelectedElevenLabsV3FinalizedChunking(
-      savedElevenLabsV3FinalizedChunking,
-    );
+    setSelectedElevenLabsFinalizedChunking(savedElevenLabsFinalizedChunking);
     setTtsEnabled(savedTtsEnabled);
     setTtsStreamChunks(savedTtsStreamChunks);
     setDesktopShortcuts(savedDesktopShortcuts);
@@ -588,7 +583,7 @@ export function ApplicationSettingsModal({
     savedSttProvider,
     savedElevenLabsModelId,
     savedGeminiModelId,
-    savedElevenLabsV3FinalizedChunking,
+    savedElevenLabsFinalizedChunking,
     savedTtsEnabled,
     savedTtsProvider,
     savedTtsStreamChunks,
@@ -605,8 +600,8 @@ export function ApplicationSettingsModal({
     const initialSavedTtsProvider = savedTtsProviderRef.current;
     const initialSavedElevenLabsModelId = savedElevenLabsModelIdRef.current;
     const initialSavedGeminiModelId = savedGeminiModelIdRef.current;
-    const initialSavedElevenLabsV3FinalizedChunking =
-      savedElevenLabsV3FinalizedChunkingRef.current;
+    const initialSavedElevenLabsFinalizedChunking =
+      savedElevenLabsFinalizedChunkingRef.current;
     const initialSavedTtsEnabled = savedTtsEnabledRef.current;
     const initialSavedTtsStreamChunks = savedTtsStreamChunksRef.current;
     const initialSavedDesktopShortcuts = savedDesktopShortcutsRef.current;
@@ -633,8 +628,8 @@ export function ApplicationSettingsModal({
         setSelectedTtsProvider(resolvedTts.provider);
         setSelectedElevenLabsModelId(initialSavedElevenLabsModelId);
         setSelectedGeminiModelId(initialSavedGeminiModelId);
-        setSelectedElevenLabsV3FinalizedChunking(
-          initialSavedElevenLabsV3FinalizedChunking,
+        setSelectedElevenLabsFinalizedChunking(
+          initialSavedElevenLabsFinalizedChunking,
         );
         setTtsEnabled(initialSavedTtsEnabled);
         setTtsStreamChunks(initialSavedTtsStreamChunks);
@@ -742,16 +737,16 @@ export function ApplicationSettingsModal({
   const currentGeminiModelOption = GEMINI_TTS_MODEL_OPTIONS.find(
     (option) => option.id === selectedGeminiModelId,
   );
-  const currentElevenLabsV3FinalizedChunkingOption =
-    ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS.find(
-      (option) => option.id === selectedElevenLabsV3FinalizedChunking,
+  const currentElevenLabsFinalizedChunkingOption =
+    ELEVENLABS_FINALIZED_CHUNKING_OPTIONS.find(
+      (option) => option.id === selectedElevenLabsFinalizedChunking,
     );
   const selectedElevenLabsModelIsFinalized =
     selectedTtsProvider === "elevenlabs" &&
     isElevenLabsFinalizedTtsModelId(selectedElevenLabsModelId);
-  // The server pushes ElevenLabs v3 and Gemini audio whole, so streaming text chunks does not apply.
+  // The server pushes Eleven v4 and Gemini audio whole, so streaming text chunks does not apply.
   const streamChunksUnavailableReason = selectedElevenLabsModelIsFinalized
-    ? "Unavailable with Eleven v3."
+    ? "Unavailable with Eleven v4."
     : selectedTtsProvider === "gemini"
       ? "Unavailable with Gemini."
       : null;
@@ -1026,9 +1021,9 @@ export function ApplicationSettingsModal({
     ],
   );
 
-  const handleElevenLabsV3FinalizedChunkingChange = useCallback(
+  const handleElevenLabsFinalizedChunkingChange = useCallback(
     (value: string) => {
-      const nextChunking = toElevenLabsV3FinalizedChunking(value);
+      const nextChunking = toElevenLabsFinalizedChunking(value);
       if (
         !nextChunking ||
         isSaving ||
@@ -1039,16 +1034,16 @@ export function ApplicationSettingsModal({
         return;
       }
 
-      const previous = selectedElevenLabsV3FinalizedChunking;
-      setSelectedElevenLabsV3FinalizedChunking(nextChunking);
+      const previous = selectedElevenLabsFinalizedChunking;
+      setSelectedElevenLabsFinalizedChunking(nextChunking);
       setIsSaving(true);
 
       void updateUserPreferences({
         speech: { tts_elevenlabs_v3_finalized_chunking: nextChunking },
       })
         .catch(() => {
-          setSelectedElevenLabsV3FinalizedChunking(previous);
-          toast.error("Failed to update Eleven v3 audio grouping.");
+          setSelectedElevenLabsFinalizedChunking(previous);
+          toast.error("Failed to update Eleven v4 audio grouping.");
         })
         .finally(() => setIsSaving(false));
     },
@@ -1056,7 +1051,7 @@ export function ApplicationSettingsModal({
       isInitializing,
       isSaving,
       selectedElevenLabsModelIsFinalized,
-      selectedElevenLabsV3FinalizedChunking,
+      selectedElevenLabsFinalizedChunking,
       ttsEnabled,
       updateUserPreferences,
     ],
@@ -1622,7 +1617,7 @@ export function ApplicationSettingsModal({
       section: "Voice",
       group: "Text-to-Speech",
       label: "ElevenLabs model",
-      keywords: ["tts", "eleven v3", "flash", "turbo"],
+      keywords: ["tts", "eleven v4", "turbo"],
       hidden: !ttsEnabled || selectedTtsProvider !== "elevenlabs",
       render: () => (
         <SettingsRow
@@ -1657,29 +1652,29 @@ export function ApplicationSettingsModal({
       section: "Voice",
       group: "Text-to-Speech",
       label: "Audio grouping",
-      keywords: ["tts", "elevenlabs", "eleven v3", "chunking", "sentence"],
+      keywords: ["tts", "elevenlabs", "eleven v4", "chunking", "sentence"],
       hidden: !ttsEnabled || !selectedElevenLabsModelIsFinalized,
       render: () => (
         <SettingsRow
           label="Audio grouping"
           description={
-            currentElevenLabsV3FinalizedChunkingOption?.description ??
+            currentElevenLabsFinalizedChunkingOption?.description ??
             "Sentence grouping starts fastest."
           }
           control={
             <Select
-              value={selectedElevenLabsV3FinalizedChunking}
-              onValueChange={handleElevenLabsV3FinalizedChunkingChange}
+              value={selectedElevenLabsFinalizedChunking}
+              onValueChange={handleElevenLabsFinalizedChunkingChange}
               disabled={isBusy}
             >
               <SelectTrigger
                 className={SELECT_TRIGGER_CLASS_NAME}
-                aria-label="Eleven v3 audio grouping"
+                aria-label="Eleven v4 audio grouping"
               >
                 <SelectValue placeholder="Select grouping" />
               </SelectTrigger>
               <SelectContent>
-                {ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS.map((option) => (
+                {ELEVENLABS_FINALIZED_CHUNKING_OPTIONS.map((option) => (
                   <SelectItem key={option.id} value={option.id}>
                     {option.label}
                   </SelectItem>

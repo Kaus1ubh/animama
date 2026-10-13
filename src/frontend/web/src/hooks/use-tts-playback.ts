@@ -192,7 +192,7 @@ function readPocketAudioDurationSec(event: PocketTtsCoreEvent): number | null {
   return null;
 }
 
-/** Runs whose audio the server pushes as PCM: ElevenLabs v3, or any Gemini run. */
+/** Runs whose audio the server pushes as PCM: Eleven v4, or any Gemini run. */
 function isFinalizedServerProvider(
   provider: TtsProvider | null,
   modelId: unknown,

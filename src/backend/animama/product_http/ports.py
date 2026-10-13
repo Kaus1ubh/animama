@@ -180,7 +180,7 @@ VoiceResolver = Callable[[], Awaitable[PyElevenLabsVoice]]
 
 
 class FinalizedSpeech(Protocol):
-    """One reply segment prepared for finalized speech (ElevenLabs ``eleven_v3`` or Gemini)."""
+    """One reply segment prepared for finalized speech (ElevenLabs ``eleven_v4`` or Gemini)."""
 
     @property
     def voice_id(self) -> str: ...
@@ -214,13 +214,22 @@ class FinalizedSpeechPort(Protocol):
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
         previous_text: str | None,
+        previous_request_ids: tuple[str, ...],
         apply_emotional_prefix: bool,
     ) -> FinalizedSpeech:
-        """Prepare one reply segment; ``voice_id`` reuses the voice an earlier segment resolved."""
+        """Prepare one reply segment; ``voice_id`` reuses the voice an earlier segment resolved.
+
+        ``previous_text`` and ``previous_request_ids`` (the ``request_ids`` of
+        earlier segments' ``done`` payloads) let a provider continue the reply's
+        delivery; a provider without continuity ignores them.
+        """
         ...
 
     def stream_finalized(self, prepared: FinalizedSpeech) -> AsyncIterator[dict[str, Any]]:
-        """Stream the segment's audio as ``audio`` payloads, then ``done`` or ``error``."""
+        """Stream the segment's audio as ``audio`` payloads, then ``done`` or ``error``.
+
+        ``done`` may carry the provider's ``request_ids``, in order, for later segments to continue from.
+        """
         ...
 
 

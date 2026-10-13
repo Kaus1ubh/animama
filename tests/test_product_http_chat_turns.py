@@ -452,7 +452,7 @@ async def test_a_speech_refusal_keeps_its_code_in_the_speech_frames(guarded: Gua
     )
     finalized = await guarded.turn(
         "declined-finalized",
-        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"}},
+        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"}},
     )
 
     sessions = [data for name, data in frames(realtime.text) if name == "tts.session.error"]
@@ -524,7 +524,7 @@ async def test_a_refusal_while_streaming_speech_keeps_its_code(guarded: GuardedC
 
     response = await guarded.turn(
         "declined-stream",
-        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"}},
+        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"}},
     )
 
     speech = [data for name, data in frames(response.text) if name == "tts.error"]

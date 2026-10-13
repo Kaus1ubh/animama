@@ -892,7 +892,11 @@ API's re-embedding adds its vectors once the connection works.
 
 `docker-compose.yml` supplies the built application and private PostgreSQL, with
 optional voice/profile services and local administration tools. The development
-override adds Vite/HMR and keeps FastAPI private. Core startup requires no
+override adds Vite/HMR and keeps FastAPI private. HMR covers the web app's own
+source only: the `web` service builds the workspace packages, including the
+generated API client, once at start. After changing a package or running
+`pnpm openapi-ts`, restart that stack's `web` service, for example
+`docker compose -p animama-abc restart web`. Core startup requires no
 collector, metrics database or object-storage service. Local logging and shared
 instrumentation remain available independently.
 

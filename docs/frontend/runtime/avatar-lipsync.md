@@ -44,9 +44,15 @@ Lip-sync is implemented as a layered pipeline:
 
 For main-structured TTS speech parts, the backend can also emit:
 
-- `tts_text` (gruut `text_with_ws` used as the exact v3 synthesis text)
+- `tts_text` (gruut `text_with_ws`, used as the exact synthesis text for English)
 - `tts_phonemized_text` (gruut phonemes for that same `tts_text`)
 - `tts_text_basis: "gruut_text_with_ws"`
+
+Speech with letters outside ASCII (other languages, or English with an accented
+loanword), or any speech when gruut is unavailable, carries no `tts_*` fields:
+the provider speaks the visible text, and lip-sync falls back to the visible
+text's `phonemized_text`. That is empty for Japanese, Korean and Chinese,
+so the mouth does not move for them yet.
 
 Non-TTS chat streams may still include `tokenized_text` and `phonemized_text`
 on structured `speech` events, but they do not emit `tts_*` speech fields and
@@ -63,7 +69,7 @@ viseme input. The worker builds or rebuilds the actual viseme plan:
 
 - `buildGruutVisemeKeyframes({ tokenizedText, phonemizedText })`
 
-For ElevenLabs (v3 and realtime) and Gemini speech, `useChatSession` prefers
+For ElevenLabs (v4 and v4 Turbo) and Gemini speech, `useChatSession` prefers
 `tts_text` and `tts_phonemized_text` so the TTS request and gruut phonemes share
 the same gruut `text_with_ws` basis. Empty final markers and complete
 corrections that were not re-sent to TTS do not append duplicate viseme input.
@@ -107,16 +113,16 @@ When provided, it recomputes the full viseme timeline from raw phoneme/text inpu
 
 This means actual-duration correction is not a simple frame stretch at the end of the pipeline; the planner is rerun from phoneme timing inputs.
 
-### Finalized server audio path (Eleven v3 and Gemini)
+### Finalized server audio path (Eleven v4 and Gemini)
 
-ElevenLabs v3 and Gemini use finalized-text `chat:sse` audio events instead of
+Eleven v4 and Gemini use finalized-text `chat:sse` audio events instead of
 a realtime websocket. When main-structured SSE speech includes `tts_text` with
 `tts_text_basis: "gruut_text_with_ws"`, the backend sends that prepared text to
 the provider and the frontend uses the matching `tts_phonemized_text` for
 avatar planning.
 
-Anima does not request or consume provider timestamp/alignment metadata for
-this path. The planner still estimates phoneme timing from gruut and can
+ElevenLabs returns character timing on this path and the realtime socket, but
+Anima does not consume it yet. The planner still estimates phoneme timing from gruut and can
 recompute the whole segment against the actual played audio duration when that
 duration is known.
 
@@ -274,7 +280,7 @@ The bridge logs this as:
 - `Queue / Overprovisioning provisional viseme duration`
 
 This is a UX safeguard and does not replace the actual-duration recompute path.
-For streamed structured TTS, especially backend-pushed Eleven v3 or Gemini
+For streamed structured TTS, especially backend-pushed Eleven v4 or Gemini
 audio, later speech segments can arrive after audible playback has already
 started. When that happens, the bridge rebuilds and immediately replaces the
 in-flight provisional

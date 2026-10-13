@@ -316,7 +316,7 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
   it("speaks a finalized reply declined after its text with the Anima's Pocket voice", () => {
     const assertActive = vi.fn();
     const { playback } = renderPlayback({
-      modelId: "eleven_v3",
+      modelId: "eleven_v4",
       mountedVoice: { catalogUrl: "blob:anima-voice", assertActive },
     });
     act(() => {
@@ -330,7 +330,7 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
       playback().completeRun("run-1");
     });
     expect(fixture.finalized.prepareRun).toHaveBeenCalledWith("run-1");
-    // Eleven v3 waits for pushed audio after the reply text completes.
+    // Eleven v4 waits for pushed audio after the reply text completes.
     expect(fixture.pocket.generateAndWait).not.toHaveBeenCalled();
     fixture.finalized.stop.mockClear();
 
@@ -426,7 +426,7 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
   });
 
   it("ignores finalized audio or completion that arrives after the switch", () => {
-    const { playback } = renderPlayback({ modelId: "eleven_v3" });
+    const { playback } = renderPlayback({ modelId: "eleven_v4" });
     act(() => {
       playback().startRun("run-1");
       playback().appendToken("run-1", "Hello there.", {
@@ -440,7 +440,7 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     act(() => {
       playback().acceptElevenLabsFinalizedAudio("run-1", {
         run_id: "run-1",
-        model_id: "eleven_v3",
+        model_id: "eleven_v4",
         output_format: "mp3_44100_128",
         audio_base64: "AAA=",
       });

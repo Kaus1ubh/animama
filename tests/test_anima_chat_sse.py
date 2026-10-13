@@ -1127,14 +1127,14 @@ def test_anima_chat_request_accepts_chat_id_alias() -> None:
     assert request.chat_id == "chat-1"
 
 
-def test_anima_chat_request_accepts_elevenlabs_v3_tts_model() -> None:
+def test_anima_chat_request_accepts_elevenlabs_v4_tts_model() -> None:
     request = _chat_request(
         message="hello",
         dispatch_options={
             "tts": {
                 "enabled": True,
                 "provider": "elevenlabs",
-                "model_id": "eleven_v3",
+                "model_id": "eleven_v4",
                 "finalized_chunking": "paragraph",
             }
         },
@@ -1142,22 +1142,29 @@ def test_anima_chat_request_accepts_elevenlabs_v3_tts_model() -> None:
 
     assert request.dispatch_options is not None
     assert request.dispatch_options.tts is not None
-    assert request.dispatch_options.tts.model_id == "eleven_v3"
+    assert request.dispatch_options.tts.model_id == "eleven_v4"
     assert request.dispatch_options.tts.finalized_chunking == "paragraph"
 
 
-@pytest.mark.parametrize("legacy_model_id", ["eleven_flash_v2_5", "eleven_multilingual_v2"])
-def test_anima_chat_request_maps_retired_realtime_models_to_eleven_v4_turbo(legacy_model_id: str) -> None:
+@pytest.mark.parametrize(
+    ("retired_model_id", "replacement"),
+    [
+        ("eleven_flash_v2_5", "eleven_v4_turbo"),
+        ("eleven_multilingual_v2", "eleven_v4_turbo"),
+        ("eleven_v3", "eleven_v4"),
+    ],
+)
+def test_anima_chat_request_maps_retired_models_to_their_replacement(retired_model_id: str, replacement: str) -> None:
     """A tab opened before the upgrade still sends a retired id; its reply must not be refused."""
 
     request = _chat_request(
         message="hello",
-        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": legacy_model_id}},
+        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": retired_model_id}},
     )
 
     assert request.dispatch_options is not None
     assert request.dispatch_options.tts is not None
-    assert request.dispatch_options.tts.model_id == "eleven_v4_turbo"
+    assert request.dispatch_options.tts.model_id == replacement
 
 
 def test_anima_chat_request_rejects_unknown_elevenlabs_tts_model() -> None:
@@ -1182,7 +1189,7 @@ def test_anima_chat_request_rejects_unknown_finalized_tts_chunking() -> None:
                 "tts": {
                     "enabled": True,
                     "provider": "elevenlabs",
-                    "model_id": "eleven_v3",
+                    "model_id": "eleven_v4",
                     "finalized_chunking": "chapter",
                 }
             },
@@ -1500,14 +1507,14 @@ async def test_chat_sse_does_not_resolve_tts_session_without_elevenlabs_intent(
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_does_not_resolve_tts_session_for_elevenlabs_v3(monkeypatch) -> None:
+async def test_chat_sse_does_not_resolve_tts_session_for_elevenlabs_v4(monkeypatch) -> None:
     _install_route_mocks(
         monkeypatch,
-        chat_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"}},
+        chat_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"}},
     )
 
     async def _unexpected_resolve_realtime_tts_session(**_kwargs):
-        raise AssertionError("v3 should use finalized-text TTS, not realtime session setup")
+        raise AssertionError("eleven_v4 should use finalized-text TTS, not realtime session setup")
 
     monkeypatch.setattr(elevenlabs_service, "resolve_realtime_tts_session", _unexpected_resolve_realtime_tts_session)
 
@@ -1759,7 +1766,7 @@ async def test_chat_sse_plain_text_fallback_is_spoken_with_neutral_tone(monkeypa
         monkeypatch,
         chat_options={
             "main_structured_response": True,
-            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"},
         },
         model_client=model_client,
     )
@@ -1767,17 +1774,17 @@ async def test_chat_sse_plain_text_fallback_is_spoken_with_neutral_tone(monkeypa
 
     async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
         prepared_calls.append(kwargs)
-        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000")
+        return SimpleNamespace(model_id="eleven_v4", output_format="pcm_24000")
 
     async def _fake_stream_finalized_tts_chunks(_prepared):
         yield {
             "type": "audio",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
             "audio_base64": "AQACAA==",
         }
-        yield {"type": "done", "run_id": "run-1", "model_id": "eleven_v3", "output_format": "pcm_24000"}
+        yield {"type": "done", "run_id": "run-1", "model_id": "eleven_v4", "output_format": "pcm_24000"}
 
     monkeypatch.setattr(
         "animama.product_http.routes.chat_turns._build_gruut_sse_text",
@@ -1796,7 +1803,7 @@ async def test_chat_sse_plain_text_fallback_is_spoken_with_neutral_tone(monkeypa
             chat_id="chat-1",
             dispatch_options={
                 "main_structured_response": True,
-                "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+                "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"},
             },
         ),
         request=_test_request(),
@@ -1823,7 +1830,7 @@ async def test_chat_sse_main_structured_tts_speech_includes_tts_text(
         chat_options={
             "main_structured_response": True,
             "disable_emotion_updates": True,
-            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"},
         },
         emotional_state={"joy": 16},
         model_client=_RouteModelClient(text=_direct_structured_response(speech="Speak this.", emotional_tone="joy")),
@@ -1837,20 +1844,20 @@ async def test_chat_sse_main_structured_tts_speech_includes_tts_text(
 
     async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
         prepared_calls.append(kwargs)
-        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000")
+        return SimpleNamespace(model_id="eleven_v4", output_format="pcm_24000")
 
     async def _fake_stream_finalized_tts_chunks(_prepared):
         yield {
             "type": "audio",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
             "audio_base64": "AQACAA==",
         }
         yield {
             "type": "done",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
         }
 
@@ -1874,7 +1881,7 @@ async def test_chat_sse_main_structured_tts_speech_includes_tts_text(
                 "tts": {
                     "enabled": True,
                     "provider": "elevenlabs",
-                    "model_id": "eleven_v3",
+                    "model_id": "eleven_v4",
                 },
             },
         ),
@@ -1906,7 +1913,7 @@ async def test_chat_sse_main_structured_tts_speech_includes_tts_text(
         "anima_id": "anima-1",
         "run_id": "run-1",
         "text": "Speak this.",
-        "model_id": "eleven_v3",
+        "model_id": "eleven_v4",
         "language_code": None,
         "text_basis": "gruut_text_with_ws",
         "emotional_tone": "joy",
@@ -1937,6 +1944,7 @@ async def test_chat_sse_main_structured_tts_speech_includes_tts_text(
             "sadness": 0,
         },
         "previous_text": None,
+        "previous_request_ids": (),
         "apply_emotional_prefix": True,
     }
     user_response_index = next(index for index, chunk in enumerate(chunks) if "event: user.response" in chunk)
@@ -1948,13 +1956,13 @@ async def test_chat_sse_main_structured_tts_speech_includes_tts_text(
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_elevenlabs_v3_segments_structured_speech_in_order(monkeypatch) -> None:
+async def test_chat_sse_elevenlabs_v4_segments_structured_speech_in_order(monkeypatch) -> None:
     _install_route_mocks(
         monkeypatch,
         chat_options={
             "main_structured_response": True,
             "disable_emotion_updates": True,
-            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"},
         },
         emotional_state={"joy": 16},
         model_client=_RouteModelClient(
@@ -1973,7 +1981,7 @@ async def test_chat_sse_elevenlabs_v3_segments_structured_speech_in_order(monkey
     async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
         prepared_calls.append(kwargs)
         return SimpleNamespace(
-            model_id="eleven_v3",
+            model_id="eleven_v4",
             output_format="pcm_24000",
             text=kwargs["text"],
             voice_id=kwargs.get("voice_id") or "voice-primary",
@@ -1984,14 +1992,14 @@ async def test_chat_sse_elevenlabs_v3_segments_structured_speech_in_order(monkey
         yield {
             "type": "audio",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
             "audio_base64": audio_base64,
         }
         yield {
             "type": "done",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
         }
 
@@ -2014,7 +2022,7 @@ async def test_chat_sse_elevenlabs_v3_segments_structured_speech_in_order(monkey
                 "tts": {
                     "enabled": True,
                     "provider": "elevenlabs",
-                    "model_id": "eleven_v3",
+                    "model_id": "eleven_v4",
                 },
             },
         ),
@@ -2042,7 +2050,9 @@ async def test_chat_sse_elevenlabs_v3_segments_structured_speech_in_order(monkey
     normalized_calls.append(second_call)
 
     assert [call["text"] for call in normalized_calls] == ["First sentence.", "Second sentence."]
-    assert [call["previous_text"] for call in normalized_calls] == [None, None]
+    # v4 continues each request from the text before it (no request id here).
+    assert [call["previous_text"] for call in normalized_calls] == [None, "First sentence."]
+    assert [call["previous_request_ids"] for call in normalized_calls] == [(), ()]
     assert [call["apply_emotional_prefix"] for call in normalized_calls] == [True, False]
 
     first_audio_index = next(index for index, chunk in enumerate(chunks) if '"audio_base64": "FIRST"' in chunk)
@@ -2053,7 +2063,255 @@ async def test_chat_sse_elevenlabs_v3_segments_structured_speech_in_order(monkey
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_elevenlabs_v3_paragraph_chunking_batches_sentence_segments(monkeypatch) -> None:
+async def test_chat_sse_elevenlabs_v4_stitches_each_request_to_the_three_before_it(monkeypatch) -> None:
+    speech = "First one here. Second one here. Third one here. Fourth one here. Fifth one here."
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={
+            "main_structured_response": True,
+            "disable_emotion_updates": True,
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"},
+        },
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(text=_direct_structured_response(speech=speech, emotional_tone="joy")),
+    )
+    prepared_calls: list[dict[str, Any]] = []
+
+    def _fake_gruut(final_text, lang="en_US", **kwargs):
+        del lang, kwargs
+        return {"tokenized_text": " ".join(final_text.split()), "phonemized_text": [["S"]]}
+
+    async def _fake_prepare(**kwargs):
+        prepared_calls.append(kwargs)
+        return SimpleNamespace(
+            model_id="eleven_v4", output_format="pcm_24000", text=kwargs["text"], voice_id="voice-primary"
+        )
+
+    async def _fake_stream(prepared):
+        number = len(prepared_calls)
+        frame = {"run_id": "run-1", "model_id": "eleven_v4", "output_format": "pcm_24000"}
+        yield {"type": "audio", "audio_base64": f"AUDIO{number}", **frame}
+        # The second segment was spoken as two requests, as one over the request limit is.
+        request_ids = ["req-2a", "req-2b"] if number == 2 else [f"req-{number}"]
+        yield {"type": "done", "request_ids": request_ids, **frame}
+
+    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", _fake_gruut)
+    monkeypatch.setattr(elevenlabs_service, "prepare_finalized_tts_stream_from_text", _fake_prepare)
+    monkeypatch.setattr(elevenlabs_service, "stream_finalized_tts_chunks", _fake_stream)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={
+                "main_structured_response": True,
+                "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"},
+            },
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert len(prepared_calls) == 5
+    assert [call["previous_request_ids"] for call in prepared_calls] == [
+        (),
+        ("req-1",),
+        ("req-1", "req-2a", "req-2b"),
+        ("req-2a", "req-2b", "req-3"),
+        ("req-2b", "req-3", "req-4"),
+    ]
+    assert _event_count(chunks, "tts.done") == 1
+    assert _event_count(chunks, "tts.error") == 0
+
+
+def _gruut_for_any_language(final_text, lang="en_US", **kwargs):
+    """gruut keeps the text of any script, but phonemizes only English-looking words.
+
+    Like gruut, it returns nothing for text without letters or digits.
+    """
+
+    del lang, kwargs
+    if not any(char.isalnum() for char in final_text):
+        return None
+    text = " ".join(final_text.split())
+    english_words = [word for word in text.split() if word.isascii() and any(char.isalpha() for char in word)]
+    return {"tokenized_text": text, "phonemized_text": [["a"] for _ in english_words]}
+
+
+def _gruut_unavailable(*_args, **_kwargs):
+    return None
+
+
+@pytest.mark.parametrize(
+    "speech",
+    [
+        "おはようございます。今日はどうですか？",
+        "안녕하세요. 오늘 어때요?",
+        "你好。今天怎么样？",
+        "¡Hola! ¿Cómo estás hoy?",
+    ],
+)
+@pytest.mark.parametrize("provider", ["elevenlabs", "gemini"])
+@pytest.mark.parametrize("gruut", [_gruut_for_any_language, _gruut_unavailable], ids=["gruut", "no-gruut"])
+@pytest.mark.asyncio
+async def test_chat_sse_finalized_speech_speaks_every_language(monkeypatch, speech, provider, gruut) -> None:
+    """No phoneme step decides what is spoken: every sentence reaches the finalized voice."""
+
+    model_id = "eleven_v4" if provider == "elevenlabs" else "gemini-3.8-flash-tts"
+    tts_options = {"enabled": True, "provider": provider, "model_id": model_id}
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"main_structured_response": True, "disable_emotion_updates": True, "tts": tts_options},
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(text=_direct_structured_response(speech=speech, emotional_tone="joy")),
+    )
+    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", gruut)
+    prepared_texts: list[str] = []
+
+    async def _fake_prepare(**kwargs):
+        prepared_texts.append(kwargs["text"])
+        return SimpleNamespace(model_id=model_id, output_format="pcm_24000", text=kwargs["text"], voice_id="voice-1")
+
+    async def _fake_stream(prepared):
+        frame = {"run_id": "run-1", "model_id": model_id, "output_format": "pcm_24000"}
+        yield {"type": "audio", "audio_base64": "AAAA", **frame}
+        yield {"type": "done", **frame}
+
+    if provider == "elevenlabs":
+        monkeypatch.setattr(elevenlabs_service, "prepare_finalized_tts_stream_from_text", _fake_prepare)
+        monkeypatch.setattr(elevenlabs_service, "stream_finalized_tts_chunks", _fake_stream)
+    else:
+        monkeypatch.setattr(gemini_tts_service, "prepare_gemini_finalized_speech", _fake_prepare)
+        monkeypatch.setattr(gemini_tts_service, "stream_gemini_finalized_speech", _fake_stream)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={"main_structured_response": True, "tts": tts_options},
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert _event_count(chunks, "tts.error") == 0
+    assert _event_count(chunks, "tts.done") == 1
+    assert _event_data_all(chunks, "tts.audio")
+    assert "".join(prepared_texts).replace(" ", "") == speech.replace(" ", "")
+
+
+@pytest.mark.parametrize("speech", ["That’s lovely — see you at 3:30!", "Well… let me think. 😊"])
+@pytest.mark.asyncio
+async def test_chat_sse_english_speech_keeps_gruut_text_whatever_its_punctuation(monkeypatch, speech) -> None:
+    """Typographic punctuation and emoji do not send English past gruut's preparation."""
+
+    tts_options = {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"}
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"main_structured_response": True, "disable_emotion_updates": True, "tts": tts_options},
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(text=_direct_structured_response(speech=speech, emotional_tone="joy")),
+    )
+    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", _gruut_for_any_language)
+    prepared_bases: list[str] = []
+
+    async def _fake_prepare(**kwargs):
+        prepared_bases.append(kwargs["text_basis"])
+        return SimpleNamespace(model_id="eleven_v4", output_format="pcm_24000", text=kwargs["text"], voice_id="voice-1")
+
+    async def _fake_stream(prepared):
+        frame = {"run_id": "run-1", "model_id": "eleven_v4", "output_format": "pcm_24000"}
+        yield {"type": "audio", "audio_base64": "AAAA", **frame}
+        yield {"type": "done", **frame}
+
+    monkeypatch.setattr(elevenlabs_service, "prepare_finalized_tts_stream_from_text", _fake_prepare)
+    monkeypatch.setattr(elevenlabs_service, "stream_finalized_tts_chunks", _fake_stream)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={"main_structured_response": True, "tts": tts_options},
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert prepared_bases
+    assert set(prepared_bases) == {"gruut_text_with_ws"}
+    assert any('"tts_text_basis": "gruut_text_with_ws"' in chunk for chunk in chunks)
+    assert _event_count(chunks, "tts.done") == 1
+
+
+@pytest.mark.parametrize("provider", ["elevenlabs", "gemini"])
+@pytest.mark.asyncio
+async def test_chat_sse_finalized_speech_shows_but_does_not_speak_a_closing_emoji(monkeypatch, provider) -> None:
+    """An emoji after the last sentence stays visible; only words reach the voice."""
+
+    model_id = "eleven_v4" if provider == "elevenlabs" else "gemini-3.8-flash-tts"
+    tts_options = {"enabled": True, "provider": provider, "model_id": model_id}
+    _install_route_mocks(
+        monkeypatch,
+        chat_options={"main_structured_response": True, "disable_emotion_updates": True, "tts": tts_options},
+        emotional_state={"joy": 16},
+        model_client=_RouteModelClient(
+            text=_direct_structured_response(speech="See you tomorrow! 😊👋", emotional_tone="joy")
+        ),
+    )
+    monkeypatch.setattr("animama.product_http.routes.chat_turns._build_gruut_sse_text", _gruut_for_any_language)
+    prepared_texts: list[str] = []
+
+    async def _fake_prepare(**kwargs):
+        prepared_texts.append(kwargs["text"])
+        return SimpleNamespace(model_id=model_id, output_format="pcm_24000", text=kwargs["text"], voice_id="voice-1")
+
+    async def _fake_stream(prepared):
+        frame = {"run_id": "run-1", "model_id": model_id, "output_format": "pcm_24000"}
+        yield {"type": "audio", "audio_base64": "AAAA", **frame}
+        yield {"type": "done", **frame}
+
+    if provider == "elevenlabs":
+        monkeypatch.setattr(elevenlabs_service, "prepare_finalized_tts_stream_from_text", _fake_prepare)
+        monkeypatch.setattr(elevenlabs_service, "stream_finalized_tts_chunks", _fake_stream)
+    else:
+        monkeypatch.setattr(gemini_tts_service, "prepare_gemini_finalized_speech", _fake_prepare)
+        monkeypatch.setattr(gemini_tts_service, "stream_gemini_finalized_speech", _fake_stream)
+
+    response = await chat_anima_direct_sse(
+        "anima-1",
+        _chat_request(
+            message="hello",
+            run_id="run-1",
+            chat_id="chat-1",
+            dispatch_options={"main_structured_response": True, "tts": tts_options},
+        ),
+        request=_test_request(),
+        user=RequestPrincipal(id="user-1"),
+    )
+    chunks = await _collect_chunks(response)
+
+    assert prepared_texts == ["See you tomorrow!"]
+    speech = "".join(
+        data.get("text") or ""
+        for data in _event_data_all(chunks, "user.response")
+        if data.get("response_part") == "speech"
+    )
+    assert "😊👋" in speech
+    assert _event_count(chunks, "tts.error") == 0
+    assert _event_count(chunks, "tts.done") == 1
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_elevenlabs_v4_paragraph_chunking_batches_sentence_segments(monkeypatch) -> None:
     _install_route_mocks(
         monkeypatch,
         chat_options={
@@ -2062,7 +2320,7 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_batches_sentence_segmen
             "tts": {
                 "enabled": True,
                 "provider": "elevenlabs",
-                "model_id": "eleven_v3",
+                "model_id": "eleven_v4",
                 "finalized_chunking": "paragraph",
             },
         },
@@ -2082,20 +2340,20 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_batches_sentence_segmen
 
     async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
         prepared_calls.append(kwargs)
-        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000", text=kwargs["text"])
+        return SimpleNamespace(model_id="eleven_v4", output_format="pcm_24000", text=kwargs["text"])
 
     async def _fake_stream_finalized_tts_chunks(prepared):
         yield {
             "type": "audio",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
             "audio_base64": "PARAGRAPH",
         }
         yield {
             "type": "done",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
         }
 
@@ -2118,7 +2376,7 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_batches_sentence_segmen
                 "tts": {
                     "enabled": True,
                     "provider": "elevenlabs",
-                    "model_id": "eleven_v3",
+                    "model_id": "eleven_v4",
                     "finalized_chunking": "paragraph",
                 },
             },
@@ -2139,7 +2397,7 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_batches_sentence_segmen
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_elevenlabs_v3_paragraph_chunking_splits_paragraph_breaks(monkeypatch) -> None:
+async def test_chat_sse_elevenlabs_v4_paragraph_chunking_splits_paragraph_breaks(monkeypatch) -> None:
     _install_route_mocks(
         monkeypatch,
         chat_options={
@@ -2148,7 +2406,7 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_splits_paragraph_breaks
             "tts": {
                 "enabled": True,
                 "provider": "elevenlabs",
-                "model_id": "eleven_v3",
+                "model_id": "eleven_v4",
                 "finalized_chunking": "paragraph",
             },
         },
@@ -2168,20 +2426,20 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_splits_paragraph_breaks
 
     async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
         prepared_calls.append(kwargs)
-        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000", text=kwargs["text"])
+        return SimpleNamespace(model_id="eleven_v4", output_format="pcm_24000", text=kwargs["text"])
 
     async def _fake_stream_finalized_tts_chunks(prepared):
         yield {
             "type": "audio",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
             "audio_base64": "FIRST" if prepared.text == "First paragraph." else "SECOND",
         }
         yield {
             "type": "done",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
         }
 
@@ -2204,7 +2462,7 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_splits_paragraph_breaks
                 "tts": {
                     "enabled": True,
                     "provider": "elevenlabs",
-                    "model_id": "eleven_v3",
+                    "model_id": "eleven_v4",
                     "finalized_chunking": "paragraph",
                 },
             },
@@ -2216,7 +2474,7 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_splits_paragraph_breaks
 
     assert [call["text"] for call in prepared_calls] == ["First paragraph.", "Second paragraph."]
     assert [call["text_basis"] for call in prepared_calls] == ["visible_text", "visible_text"]
-    assert [call["previous_text"] for call in prepared_calls] == [None, None]
+    assert [call["previous_text"] for call in prepared_calls] == [None, "First paragraph."]
     assert [call["apply_emotional_prefix"] for call in prepared_calls] == [True, True]
     audio_events = _event_data_all(chunks, "tts.audio")
     assert len(audio_events) == 3
@@ -2231,7 +2489,7 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_splits_paragraph_breaks
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_elevenlabs_v3_paragraph_chunking_flushes_after_four_sentences(monkeypatch) -> None:
+async def test_chat_sse_elevenlabs_v4_paragraph_chunking_flushes_after_four_sentences(monkeypatch) -> None:
     _install_route_mocks(
         monkeypatch,
         chat_options={
@@ -2240,7 +2498,7 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_flushes_after_four_sent
             "tts": {
                 "enabled": True,
                 "provider": "elevenlabs",
-                "model_id": "eleven_v3",
+                "model_id": "eleven_v4",
                 "finalized_chunking": "paragraph",
             },
         },
@@ -2260,20 +2518,20 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_flushes_after_four_sent
 
     async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
         prepared_calls.append(kwargs)
-        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000", text=kwargs["text"])
+        return SimpleNamespace(model_id="eleven_v4", output_format="pcm_24000", text=kwargs["text"])
 
     async def _fake_stream_finalized_tts_chunks(prepared):
         yield {
             "type": "audio",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
             "audio_base64": "BATCH1" if prepared.text.startswith("One.") else "BATCH2",
         }
         yield {
             "type": "done",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
         }
 
@@ -2296,7 +2554,7 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_flushes_after_four_sent
                 "tts": {
                     "enabled": True,
                     "provider": "elevenlabs",
-                    "model_id": "eleven_v3",
+                    "model_id": "eleven_v4",
                     "finalized_chunking": "paragraph",
                 },
             },
@@ -2308,20 +2566,20 @@ async def test_chat_sse_elevenlabs_v3_paragraph_chunking_flushes_after_four_sent
 
     assert [call["text"] for call in prepared_calls] == ["One. Two. Three. Four.", "Five."]
     assert [call["text_basis"] for call in prepared_calls] == ["visible_text", "visible_text"]
-    assert [call["previous_text"] for call in prepared_calls] == [None, None]
+    assert [call["previous_text"] for call in prepared_calls] == [None, "One. Two. Three. Four."]
     assert [call["apply_emotional_prefix"] for call in prepared_calls] == [True, True]
     assert [event["audio_base64"] for event in _event_data_all(chunks, "tts.audio")] == ["BATCH1", "BATCH2"]
     assert _event_count(chunks, "tts.done") == 1
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_elevenlabs_v3_segment_failure_emits_error_without_done(monkeypatch) -> None:
+async def test_chat_sse_elevenlabs_v4_segment_failure_emits_error_without_done(monkeypatch) -> None:
     _install_route_mocks(
         monkeypatch,
         chat_options={
             "main_structured_response": True,
             "disable_emotion_updates": True,
-            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"},
         },
         emotional_state={"joy": 16},
         model_client=_RouteModelClient(
@@ -2339,13 +2597,13 @@ async def test_chat_sse_elevenlabs_v3_segment_failure_emits_error_without_done(m
 
     async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
         prepared_calls.append(kwargs)
-        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000")
+        return SimpleNamespace(model_id="eleven_v4", output_format="pcm_24000")
 
     async def _fake_stream_finalized_tts_chunks(_prepared):
         yield {
             "type": "error",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
             "error": "stream failed",
             "code": "elevenlabs_stream_failed",
@@ -2370,7 +2628,7 @@ async def test_chat_sse_elevenlabs_v3_segment_failure_emits_error_without_done(m
                 "tts": {
                     "enabled": True,
                     "provider": "elevenlabs",
-                    "model_id": "eleven_v3",
+                    "model_id": "eleven_v4",
                 },
             },
         ),
@@ -2393,7 +2651,7 @@ async def test_chat_sse_early_stream_close_cancels_finalized_tts_work(monkeypatc
         chat_options={
             "main_structured_response": True,
             "disable_emotion_updates": True,
-            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"},
         },
         emotional_state={"joy": 16},
         model_client=_RouteModelClient(
@@ -2412,13 +2670,13 @@ async def test_chat_sse_early_stream_close_cancels_finalized_tts_work(monkeypatc
         return {"tokenized_text": " ".join(final_text.split()), "phonemized_text": [["S"], ["DH"]]}
 
     async def _fake_prepare_finalized_tts_stream_from_text(**kwargs):
-        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000", text=kwargs["text"])
+        return SimpleNamespace(model_id="eleven_v4", output_format="pcm_24000", text=kwargs["text"])
 
     async def _fake_stream_finalized_tts_chunks(_prepared):
         yield {
             "type": "audio",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
             "audio_base64": "FIRST",
         }
@@ -2431,7 +2689,7 @@ async def test_chat_sse_early_stream_close_cancels_finalized_tts_work(monkeypatc
         yield {
             "type": "done",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
         }
 
@@ -2454,7 +2712,7 @@ async def test_chat_sse_early_stream_close_cancels_finalized_tts_work(monkeypatc
                 "tts": {
                     "enabled": True,
                     "provider": "elevenlabs",
-                    "model_id": "eleven_v3",
+                    "model_id": "eleven_v4",
                 },
             },
         ),
@@ -2474,12 +2732,12 @@ async def test_chat_sse_early_stream_close_cancels_finalized_tts_work(monkeypatc
 
 
 @pytest.mark.asyncio
-async def test_chat_sse_elevenlabs_v3_audio_streams_before_run_completed(monkeypatch) -> None:
+async def test_chat_sse_elevenlabs_v4_audio_streams_before_run_completed(monkeypatch) -> None:
     _install_route_mocks(
         monkeypatch,
         chat_options={
             "main_structured_response": True,
-            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"},
+            "tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4"},
         },
         emotional_state={"joy": 16},
         model_client=_RouteModelClient(text=_direct_structured_response(speech="Speak this.", emotional_tone="joy")),
@@ -2489,20 +2747,20 @@ async def test_chat_sse_elevenlabs_v3_audio_streams_before_run_completed(monkeyp
         return {"tokenized_text": final_text, "phonemized_text": [["S"], ["DH"]]}
 
     async def _fake_prepare_finalized_tts_stream_from_text(**_kwargs):
-        return SimpleNamespace(model_id="eleven_v3", output_format="pcm_24000")
+        return SimpleNamespace(model_id="eleven_v4", output_format="pcm_24000")
 
     async def _fake_stream_finalized_tts_chunks(_prepared):
         yield {
             "type": "audio",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
             "audio_base64": "AQACAA==",
         }
         yield {
             "type": "done",
             "run_id": "run-1",
-            "model_id": "eleven_v3",
+            "model_id": "eleven_v4",
             "output_format": "pcm_24000",
         }
 
@@ -2525,7 +2783,7 @@ async def test_chat_sse_elevenlabs_v3_audio_streams_before_run_completed(monkeyp
                 "tts": {
                     "enabled": True,
                     "provider": "elevenlabs",
-                    "model_id": "eleven_v3",
+                    "model_id": "eleven_v4",
                 },
             },
         ),

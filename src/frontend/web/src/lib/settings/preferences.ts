@@ -45,11 +45,11 @@ export type TtsProviderPreference =
   | "gemini";
 
 export type ElevenLabsRealtimeTtsModelId = "eleven_v4_turbo";
-export type ElevenLabsFinalizedTtsModelId = "eleven_v3";
+export type ElevenLabsFinalizedTtsModelId = "eleven_v4";
 export type ElevenLabsTtsModelId =
   | ElevenLabsRealtimeTtsModelId
   | ElevenLabsFinalizedTtsModelId;
-export type ElevenLabsV3FinalizedChunking = "sentence" | "paragraph";
+export type ElevenLabsFinalizedChunking = "sentence" | "paragraph";
 /** The backend's Gemini speech models; removing or renaming one there is a type error here. */
 export type GeminiTtsModelId = GeminiTtsCapability["models"][number];
 
@@ -66,9 +66,10 @@ const RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS: Readonly<
 > = {
   eleven_flash_v2_5: "eleven_v4_turbo",
   eleven_multilingual_v2: "eleven_v4_turbo",
+  eleven_v3: "eleven_v4",
 };
-export const DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING =
-  "paragraph" satisfies ElevenLabsV3FinalizedChunking;
+export const DEFAULT_ELEVENLABS_FINALIZED_CHUNKING =
+  "paragraph" satisfies ElevenLabsFinalizedChunking;
 export const DEFAULT_GEMINI_TTS_MODEL_ID =
   "gemini-3.8-flash-lite-tts" satisfies GeminiTtsModelId;
 
@@ -103,15 +104,16 @@ export const ELEVENLABS_TTS_MODEL_OPTIONS: Array<{
     capability: "realtime",
   },
   {
-    id: "eleven_v3",
-    label: "Eleven v3",
-    description: "Expressive speech generated after the response is complete.",
+    id: "eleven_v4",
+    label: "Eleven v4",
+    description:
+      "Highest-quality speech, spoken in finished sentences or paragraphs.",
     capability: "finalized",
   },
 ];
 
-export const ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS: Array<{
-  id: ElevenLabsV3FinalizedChunking;
+export const ELEVENLABS_FINALIZED_CHUNKING_OPTIONS: Array<{
+  id: ElevenLabsFinalizedChunking;
   label: string;
   description: string;
 }> = [
@@ -135,7 +137,8 @@ export type SpeechPreferences = {
   tts_provider?: TtsProviderPreference;
   tts_stream_chunks?: boolean;
   tts_elevenlabs_model_id?: ElevenLabsTtsModelId;
-  tts_elevenlabs_v3_finalized_chunking?: ElevenLabsV3FinalizedChunking;
+  /** Audio grouping for the finalized ElevenLabs model; the key keeps its original v3-era name. */
+  tts_elevenlabs_v3_finalized_chunking?: ElevenLabsFinalizedChunking;
   tts_gemini_model_id?: GeminiTtsModelId;
   desktop_shortcuts?: Partial<Record<DesktopShortcutAction, DesktopShortcut>>;
   tts_pocket_voice?: string;
@@ -198,8 +201,7 @@ export const DEFAULT_ANIMAMA_PREFERENCES: SettingsPreferences = {
     tts_enabled: true,
     tts_provider: "pocket_tts",
     tts_elevenlabs_model_id: DEFAULT_ELEVENLABS_TTS_MODEL_ID,
-    tts_elevenlabs_v3_finalized_chunking:
-      DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
+    tts_elevenlabs_v3_finalized_chunking: DEFAULT_ELEVENLABS_FINALIZED_CHUNKING,
     tts_stream_chunks: true,
     desktop_shortcuts: DEFAULT_DESKTOP_SHORTCUTS,
   },
@@ -398,21 +400,21 @@ export function toGeminiTtsModelId(value: unknown): GeminiTtsModelId | null {
 export function isElevenLabsFinalizedTtsModelId(
   value: unknown,
 ): value is ElevenLabsFinalizedTtsModelId {
-  return value === "eleven_v3";
+  return value === "eleven_v4";
 }
 
-export function toElevenLabsV3FinalizedChunking(
+export function toElevenLabsFinalizedChunking(
   value: unknown,
-): ElevenLabsV3FinalizedChunking | null {
+): ElevenLabsFinalizedChunking | null {
   return value === "sentence" || value === "paragraph" ? value : null;
 }
 
-export function resolveElevenLabsV3FinalizedChunking(
+export function resolveElevenLabsFinalizedChunking(
   value: unknown,
-): ElevenLabsV3FinalizedChunking {
+): ElevenLabsFinalizedChunking {
   return (
-    toElevenLabsV3FinalizedChunking(value) ??
-    DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING
+    toElevenLabsFinalizedChunking(value) ??
+    DEFAULT_ELEVENLABS_FINALIZED_CHUNKING
   );
 }
 

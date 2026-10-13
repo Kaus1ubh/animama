@@ -1,7 +1,7 @@
 import type { PyAnimaTtsRunOptions } from "@/lib/content/catalogTypes";
 import {
   isElevenLabsFinalizedTtsModelId,
-  toElevenLabsV3FinalizedChunking,
+  toElevenLabsFinalizedChunking,
   type ElevenLabsTtsModelId,
 } from "@/lib/settings/preferences";
 
@@ -28,7 +28,7 @@ export function buildElevenLabsChatTtsDispatchOptions({
     ...(isFinalized
       ? {
           finalized_chunking:
-            toElevenLabsV3FinalizedChunking(finalizedChunkingPreference) ??
+            toElevenLabsFinalizedChunking(finalizedChunkingPreference) ??
             "sentence",
         }
       : {}),

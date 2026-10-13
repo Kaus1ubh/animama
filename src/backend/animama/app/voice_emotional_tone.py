@@ -42,8 +42,8 @@ CANONICAL_EMOTION_TO_ELEVENLABS_TONE: dict[str, str] = {
     "sadness": "sad",
 }
 
-DEFAULT_ELEVENLABS_V3_TONE_KEY = "friendly"
-DEFAULT_ELEVENLABS_V3_PREFIX = f"[{DEFAULT_ELEVENLABS_V3_TONE_KEY}]"
+DEFAULT_ELEVENLABS_TONE_KEY = "friendly"
+DEFAULT_ELEVENLABS_PREFIX = f"[{DEFAULT_ELEVENLABS_TONE_KEY}]"
 
 ELEVENLABS_TONE_TO_CANONICAL_EMOTION: dict[str, str] = {
     tone: emotion for emotion, tone in CANONICAL_EMOTION_TO_ELEVENLABS_TONE.items()
@@ -113,7 +113,7 @@ def validate_voice_emotional_tone(
     if token is None:
         if warn:
             _log.warning(
-                "Main structured emotional_tone missing or blank; ElevenLabs v3 will use the friendly default prefix",
+                "Main structured emotional_tone missing or blank; ElevenLabs will use the friendly default prefix",
                 context=context,
                 raw_type=type(value).__name__,
             )
@@ -121,7 +121,7 @@ def validate_voice_emotional_tone(
     if normalize_elevenlabs_emotional_tone(token) is None:
         if warn:
             _log.warning(
-                "Main structured emotional_tone is not allowlisted; ElevenLabs v3 will use the friendly default prefix",
+                "Main structured emotional_tone is not allowlisted; ElevenLabs will use the friendly default prefix",
                 context=context,
                 emotional_tone=token,
             )
@@ -129,7 +129,7 @@ def validate_voice_emotional_tone(
     return token
 
 
-def elevenlabs_v3_text_with_emotional_prefix(
+def elevenlabs_text_with_emotional_prefix(
     *,
     text: str,
     emotional_tone: Any,
@@ -149,11 +149,11 @@ def elevenlabs_v3_text_with_emotional_prefix(
 
     if tone is None or tone.is_neutral:
         return ElevenLabsTonePrefixResult(
-            text=f"{DEFAULT_ELEVENLABS_V3_PREFIX} {base_text}",
+            text=f"{DEFAULT_ELEVENLABS_PREFIX} {base_text}",
             canonical_emotion=tone.canonical_emotion if tone is not None else None,
-            tone_key=DEFAULT_ELEVENLABS_V3_TONE_KEY,
+            tone_key=DEFAULT_ELEVENLABS_TONE_KEY,
             intensity_level=None,
-            prefix=DEFAULT_ELEVENLABS_V3_PREFIX,
+            prefix=DEFAULT_ELEVENLABS_PREFIX,
             applied=True,
         )
 
@@ -200,7 +200,7 @@ def gemini_speaking_style(
 
     tone = normalize_elevenlabs_emotional_tone(emotional_tone)
     if tone is None or tone.is_neutral:
-        description = DEFAULT_ELEVENLABS_V3_TONE_KEY
+        description = DEFAULT_ELEVENLABS_TONE_KEY
     elif emotional_state is None:
         description = tone.tone_key
     else:
@@ -212,8 +212,9 @@ def gemini_speaking_style(
     return f"Speak in {article} {description} tone."
 
 
-# Continuity text an earlier finalized speech segment hands to the next one.
-FINALIZED_TTS_PREVIOUS_TEXT_LIMIT = 500
+# Continuity text an earlier finalized speech segment hands to the next one;
+# ElevenLabs accepts at most 100 characters of ``previous_text``.
+FINALIZED_TTS_PREVIOUS_TEXT_LIMIT = 100
 
 
 def bounded_finalized_tts_previous_text(*texts: str | None) -> str | None:
@@ -229,15 +230,15 @@ __all__ = [
     "gemini_speaking_style",
     "CANONICAL_EMOTION_TO_ELEVENLABS_TONE",
     "FINALIZED_TTS_PREVIOUS_TEXT_LIMIT",
-    "DEFAULT_ELEVENLABS_V3_PREFIX",
-    "DEFAULT_ELEVENLABS_V3_TONE_KEY",
+    "DEFAULT_ELEVENLABS_PREFIX",
+    "DEFAULT_ELEVENLABS_TONE_KEY",
     "ELEVENLABS_TONE_TO_CANONICAL_EMOTION",
     "ELEVENLABS_EMOTIONAL_TONE_VALUES",
     "VOICE_EMOTIONAL_TONE_VALUES",
     "ElevenLabsEmotionalTone",
     "ElevenLabsTonePrefixResult",
     "bounded_finalized_tts_previous_text",
-    "elevenlabs_v3_text_with_emotional_prefix",
+    "elevenlabs_text_with_emotional_prefix",
     "normalize_elevenlabs_emotional_tone",
     "validate_voice_emotional_tone",
 ]

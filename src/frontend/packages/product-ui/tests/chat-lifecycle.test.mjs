@@ -623,7 +623,7 @@ test("a voice allowance exhausted before the reply moves its speech to Pocket TT
 });
 
 test("a voice allowance exhausted after the reply text speaks the reply with Pocket TTS", async (t) => {
-  const { page, runId } = await speechTurn(t, { model: "eleven_v3" });
+  const { page, runId } = await speechTurn(t, { model: "eleven_v4" });
   const speech = await streamSpeechTurn(page, runId, [
     {
       text: "Hi there.",
@@ -640,7 +640,7 @@ test("a voice allowance exhausted after the reply text speaks the reply with Poc
     },
     {
       type: "tts.error",
-      model_id: "eleven_v3",
+      model_id: "eleven_v4",
       output_format: "pcm_24000",
       ...allowanceExhausted,
     },

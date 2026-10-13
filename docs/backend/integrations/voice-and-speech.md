@@ -36,12 +36,12 @@ is ElevenLabs:
 - `provider: "elevenlabs"`
 - `transport: "auto" | "direct"` as request intent
 - optional `language_code`
-- optional `model_id`: `eleven_v4_turbo` for realtime speech, or `eleven_v3`
-  for finalized-text speech. The retired `eleven_flash_v2_5` and
-  `eleven_multilingual_v2` ids are accepted and mapped to `eleven_v4_turbo`
-  (`RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS`).
+- optional `model_id`: `eleven_v4_turbo` for realtime speech, or `eleven_v4`
+  for finalized-text speech. The retired ids are accepted and mapped
+  (`RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS`): `eleven_flash_v2_5` and
+  `eleven_multilingual_v2` to `eleven_v4_turbo`, and `eleven_v3` to `eleven_v4`.
 - optional `finalized_chunking`: `"sentence"` or `"paragraph"` for
-  `eleven_v3` only
+  `eleven_v4` only
 
 Session setup starts concurrently with the primary direct model turn, so model
 invocation does not wait for direct-mode token minting. Runtime voice
@@ -63,12 +63,12 @@ with 422. Each open dialogue socket holds an ElevenLabs dialogue session from a
 pool separate from ordinary request concurrency, so the browser closes it as
 soon as the reply ends.
 
-When `model_id` is `eleven_v3`, `chat:sse` does not start realtime session
+When `model_id` is `eleven_v4`, `chat:sse` does not start realtime session
 setup and does not emit `tts.session` or `tts.session.error`. After the
 main-structured speech stream begins, the backend synthesizes prepared speech in
 order and pushes `tts.audio`, one final `tts.done`, or `tts.error` over the
 same chat SSE stream. The default `finalized_chunking="sentence"` keeps one
-upstream v3 request per prepared sentence. The opt-in
+upstream request per prepared sentence. The opt-in
 `finalized_chunking="paragraph"` mode keeps public sentence-level
 `user.response` events unchanged while batching backend audio by paragraph, with
 safety flushes at four sentence segments or about 600 visible characters. In
@@ -79,36 +79,77 @@ Ordinary non-TTS chat streams do not run gruut for ElevenLabs and do not emit
 `tts_text` fields. Gruut speech payloads are limited to main-structured
 `speech` parts used by active TTS runs.
 
+Every speech sentence is spoken, whatever its language
+(`_attach_tts_speech_payload` in `product_http/chat/sse_events.py`):
+
+- `gruut_prepares_text` (`app/gruut_text.py`) treats text whose letters are
+  all ASCII as English, the only language gruut's model verbalizes.
+  Typographic punctuation, symbols and emoji do not count; accented, CJK or
+  Hangul letters do, so an English sentence with an accented loanword is also
+  spoken as written.
+- English sentences carry gruut's `tts_text` and phonemes
+  (`tts_text_basis: "gruut_text_with_ws"`).
+- Other sentences, and any sentence when gruut is unavailable, are spoken as
+  written (`visible_text` basis) with no TTS fields and no phonemes. Their
+  lip-sync falls back to the visible-text estimate.
+- A segment with no letters or digits, such as an emoji after the last
+  sentence, stays visible text and is not spoken by the finalized providers.
+
 Realtime TTS uses a direct browser-to-provider connection after `tts.session`.
 
-## Finalized-Text v3 TTS
+## Finalized-Text v4 TTS
 
-For Eleven v3 chat speech, `chat:sse` verifies anima ownership, resolves the
-anima voice from `speech.elevenlabs.primary_voice`, validates that the
-configured voice is available to the backend ElevenLabs API key at most once
-per chat run using the runtime cache, and sends sentence or paragraph finalized
-text upstream. Later sentence or paragraph batches reuse the resolved `voice_id`
-and do not repeat database voice lookup or ElevenLabs `voices.get` validation.
-Sentence mode sends the
-gruut-prepared `tts_text` for each speech segment. Paragraph mode joins visible
-sentence text for each paragraph batch, re-prepares that batch with gruut, and
-then sends the resulting provider text upstream. The ElevenLabs call uses
-`model_id="eleven_v3"`, `output_format="pcm_24000"`, and
-`apply_text_normalization="off"`. Anima intentionally omits `previous_text` and
-`next_text` for v3 because the live ElevenLabs API rejects those fields for
-`eleven_v3`; it also does not send request-id continuity fields. Anima uses
-ElevenLabs' plain streaming TTS API and does not request timestamp/alignment
-metadata. Public sentence-level `user.response` payloads and `tts_text`
-metadata do not expose paragraph batching fields. `chat:sse` audio chunks
-include
-`type: "tts.audio"`, `run_id`, `model_id`, `output_format`, and `audio_base64`;
-the backend coalesces upstream PCM bytes before sending SSE frames to avoid
-many tiny browser playback buffers. In paragraph mode, a generated 400 ms
-silence frame is inserted before each later paragraph batch using the same
-`tts.audio` shape. The stream ends with one `type: "tts.done"` after the last
-segment. If segment setup or upstream streaming fails, Anima
-emits `type: "tts.error"` with `code: "elevenlabs_stream_failed"` or a
-setup-specific code, skips `tts.done`, and still completes the chat run.
+For Eleven v4 chat speech, `chat:sse` checks Anima ownership and resolves the
+Anima's voice from `speech.elevenlabs.primary_voice`. It validates that the
+voice is available to the backend ElevenLabs API key at most once per chat run,
+using the runtime cache. Later sentence or paragraph batches reuse the
+resolved `voice_id` and repeat neither the database lookup nor ElevenLabs
+`voices.get` validation.
+
+What is sent:
+
+- **Sentence mode** sends each segment's prepared text.
+- **Paragraph mode** joins the visible sentence text of each paragraph batch.
+  `server/finalized_speech.py` re-prepares English batches with gruut and
+  leaves other text as written.
+
+The call is ElevenLabs' Text to Dialogue HTTP stream with timestamps
+(`text_to_dialogue.with_raw_response.stream_with_timestamps` in
+`server/elevenlabs_service.py`):
+
+- `inputs=[{text, voice_id}]`, `model_id="eleven_v4"` and
+  `output_format="pcm_24000"`.
+- `apply_text_normalization` is `"off"` for text gruut prepared and `"auto"`
+  for text sent as written. The choice is made once, when the segment is
+  prepared.
+- Text to Dialogue documents a limit of 2,000 characters per request; longer
+  requests can end early. A longer segment is spoken as consecutive requests
+  (`dialogue_request_texts`), cut after a sentence end, a clause break or a
+  space, each continuing from the one before it.
+- From the second request on, the reply continues its delivery:
+  - `previous_request_ids` carries the run's last three request ids, read from
+    each response's `request-id` header and returned, in order, as the
+    segment's `done` `request_ids`;
+  - with no id known, `previous_text` carries at most 100 characters of the
+    preceding text.
+
+  The installed SDK does not name these fields, so they travel as additional
+  body parameters.
+
+Response handling:
+
+- The timestamp stream's character timing is requested but not yet forwarded.
+- Public sentence-level `user.response` payloads and `tts_text` metadata do not
+  expose paragraph batching fields.
+- `chat:sse` audio chunks include `type: "tts.audio"`, `run_id`, `model_id`,
+  `output_format` and `audio_base64`. The backend coalesces upstream PCM bytes
+  before sending SSE frames, to avoid many tiny browser playback buffers.
+- In paragraph mode, a generated 400 ms silence frame is inserted before each
+  later paragraph batch, using the same `tts.audio` shape.
+- The stream ends with one `type: "tts.done"` after the last segment.
+- If segment setup or upstream streaming fails, Anima emits `type: "tts.error"`
+  with `code: "elevenlabs_stream_failed"` or a setup-specific code. It then
+  skips `tts.done` and still completes the chat run.
 
 Voice-structured responses are prompted and schematized to include
 `emotional_tone`, `emotional_intensity`, `gesture`, then `speech`. The tone and intensity
@@ -116,8 +157,8 @@ fields are backend-internal metadata: they are not emitted as visible chat text
 and are not stored as assistant messages. Normal `chat:sse` uses them to compute
 and persist a full-state `emotion.update`; the frontend still treats the
 resulting `emotions` array, not raw tone metadata, as canonical avatar emotion
-state. For `eleven_v3`, the backend may also map the tone through the anima's
-current backend-visible emotional state and prefix the upstream provider text
+state. For `eleven_v4`, the backend also maps the tone through the anima's
+current backend-visible emotional state and prefixes the upstream provider text
 with an allowlisted bracketed tag such as `[friendly]`,
 `[slightly happy]`, `[happy]`, or `[very happy]`. Level 0 recognized tones use
 `slightly`, level 1 uses the base tone, and levels 2-3 use `very`. The
@@ -126,19 +167,18 @@ realtime ElevenLabs websocket text, PocketTTS text, and browser TTS text remain
 untagged. If the model sends `neutral`, omits `emotional_tone`, sends it blank,
 or returns a value outside the allowlist, the backend logs a warning for
 malformed metadata when applicable, emits a no-op emotion update with
-`emotional_intensity=0`, and uses the backend-only `[friendly]` Eleven v3
-provider prefix instead of failing the chat turn. For each Eleven v3 finalized
-request, the backend emits an info log named
-`ElevenLabs v3 provider text prepared` with the resolved prefix and a truncated
-preview of the exact provider text sent upstream. Sentence chunking applies the
+`emotional_intensity=0`, and uses the backend-only `[friendly]` provider prefix
+instead of failing the chat turn. For each finalized request, the backend emits
+an info log named `ElevenLabs finalized provider text prepared`, with the
+resolved prefix and the provider text length. Sentence chunking applies the
 prefix to only the first upstream request; paragraph chunking applies the
 prefix to every paragraph batch.
 
 The frontend finalized runtime decodes and plays PCM audio from SSE events.
 Avatar lip-sync continues to use gruut phonemes from SSE plus provider
 audio-start and actual-duration callbacks. Anima preserves the additive
-`tts_text` fields on `user.response` as provider handoff data, but ElevenLabs
-alignment is not consumed by the v3 runtime.
+`tts_text` fields on `user.response` as provider handoff data. ElevenLabs
+alignment is not consumed yet.
 
 ## Gemini TTS
 
@@ -177,13 +217,13 @@ request with `store: false`, `audio/l16` at 24 kHz and
 `speech.gemini.voice`, resolved once per run; a missing or unknown name speaks
 `Kore`. Gemini receives no continuity text or language code. Its stream is
 16-bit little-endian PCM (measured), which `server/finalized_speech.py`
-re-frames into the same `pcm_24000` `tts.audio` frames as Eleven v3: at least
+re-frames into the same `pcm_24000` `tts.audio` frames as Eleven v4: at least
 0.2 s each, except the last of each request. Frames carry `provider: "gemini"` and the Gemini `model_id`. At most
 three Gemini requests run at once per process.
 
 Every request in a reply carries the same speaking style as a
 `speech_metadata` annotation. `gemini_speaking_style` in
-`app/voice_emotional_tone.py` builds it with the Eleven v3 tag's tone and level
+`app/voice_emotional_tone.py` builds it with the ElevenLabs tag's tone and level
 rules: for example `Speak in a slightly happy tone.`, `Speak in a happy tone.`
 or `Speak in a very happy tone.`, and `Speak in a friendly tone.` for neutral,
 missing or unrecognized tones. Without a backend-visible emotional state the

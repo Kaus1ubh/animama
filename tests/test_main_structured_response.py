@@ -71,7 +71,7 @@ def test_merge_chat_request_options_preserves_request_tts_options() -> None:
                 "provider": "elevenlabs",
                 "transport": "auto",
                 "language_code": "en",
-                "model_id": "eleven_v3",
+                "model_id": "eleven_v4",
                 "finalized_chunking": "paragraph",
                 "ignored": "value",
             },
@@ -86,7 +86,7 @@ def test_merge_chat_request_options_preserves_request_tts_options() -> None:
         "provider": "elevenlabs",
         "transport": "auto",
         "language_code": "en",
-        "model_id": "eleven_v3",
+        "model_id": "eleven_v4",
         "finalized_chunking": "paragraph",
     }
 
@@ -97,7 +97,7 @@ def test_merge_chat_request_options_defaults_finalized_tts_chunking_at_use_site(
             "tts": {
                 "enabled": True,
                 "provider": "elevenlabs",
-                "model_id": "eleven_v3",
+                "model_id": "eleven_v4",
             },
         },
         user_prefs=None,
@@ -107,7 +107,7 @@ def test_merge_chat_request_options_defaults_finalized_tts_chunking_at_use_site(
     assert merged["tts"] == {
         "enabled": True,
         "provider": "elevenlabs",
-        "model_id": "eleven_v3",
+        "model_id": "eleven_v4",
     }
     assert elevenlabs_finalized_tts_chunking(merged) == "sentence"
 

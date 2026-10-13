@@ -9,7 +9,7 @@ The local SSE path re-exports the package implementation. The local
 `web/src/ui/main/chat/useChatSession.ts` is the playback/settings adapter: it
 connects `useTtsPlayback`, avatar and lip-sync stores, mounted-content readiness,
 and the speech policy to the shared session. Its `finalizedServerAudio` flag
-(Eleven v3 or Gemini) routes `tts.audio`, `tts.done` and `tts.error` frames to
+(Eleven v4 or Gemini) routes `tts.audio`, `tts.done` and `tts.error` frames to
 playback. Run lifecycle order and structured-response handling remain in the
 shared hook.
 

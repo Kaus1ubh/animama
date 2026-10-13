@@ -145,7 +145,10 @@ Ownership and boundaries:
 - [x] Phase 1 (#480): realtime v4 Turbo over the dialogue socket. All checks
   pass, Code Review #1–#3 passed, and the live web and desktop checks show a
   median first audio of 155 ms. Pending G2 (owner listening).
-- [ ] Phase 2 (#481): finalized v4, model cleanup and every language.
+- [x] Phase 2 (#481): finalized v4, model cleanup and every language. All checks
+  pass, and Code Review #1–#3 passed. Live finalized v4 replies spoke English,
+  Japanese and Korean, Gemini spoke Japanese, and stitched and `previous_text`
+  samples were recorded. Pending G2 (owner listening).
 - [ ] Phase 3: timing plumbing and the timing evidence module (not yet
   authorized).
 - [ ] Phase 4: side-by-side view with pluggable plan sources (not yet
@@ -708,7 +711,9 @@ Outcome:
 - `eleven_v3` is gone and migrates to `eleven_v4`.
 - The utility route speaks v4.
 - Finalized v4 and Gemini speak Japanese, Korean, Chinese and Spanish sentences.
-- Timing is parsed in the backend but not yet emitted (Phase 3).
+- Timing is parsed in the backend but not yet emitted (Phase 3). As built, the
+  stream requests timing but leaves parsing to Phase 3 (see the implementation
+  notes).
 
 Changes:
 
@@ -806,13 +811,331 @@ Completion:
   the migration map, its tests and history in `docs/plans/`.
 - Commit `feat(voice)[p2]: speak finalized replies with Eleven v4 in every language`.
 
+#### Phase 2 implementation notes
+
+- **SDK, not a direct request.** Step 2 preferred a direct `httpx` request
+  because the SDK's dialogue stream names neither continuity field nor exposes
+  the `request-id` header. `client.text_to_dialogue.with_raw_response.stream_with_timestamps`
+  exposes the headers, and `request_options={"additional_body_parameters": ...}`
+  sends `previous_request_ids` or `previous_text`. The SDK path keeps its error
+  types and the shared connection pool, so no parallel client was added.
+  The SDK builds typed error bodies (such as a 422) without validation;
+  `_api_error_body` dumps them as found.
+- **Alignment waits for its consumer.** The stream already requests timestamps,
+  but Phase 2 does not parse or keep `alignment` (step 2's "keep the alignment
+  in ms"). Nothing would read it before Phase 3, which adds the timing frames,
+  so the parsing lands there with its tests. Phase 3 needs no provider change.
+- **Normalization follows gruut's preparation.** `finalized_tts_text` reports
+  whether gruut prepared the text, and the prepared request carries
+  `apply_text_normalization`: `"off"` for text gruut prepared, `"auto"` for text
+  sent as written, so the provider verbalizes numbers in other languages.
+- **The gruut rule (step 6, D9).** gruut prepares text whose letters are all
+  ASCII (`gruut_prepares_text`); typographic punctuation, symbols and emoji do not
+  count. Every other sentence is spoken as written, with the `visible_text` basis
+  and no tts fields on its SSE frame. The spike measured gruut's cost per
+  sentence at 167 ms (Korean), 122 ms (Spanish), 24 ms (Japanese and Chinese) and
+  6 ms (English), and found that it verbalizes digits in English inside Spanish.
+  Two known limits remain until the reply carries its speech language:
+  - letters-only ASCII text in another language, such as unaccented Spanish,
+    still goes through gruut's English normalization, as before this change;
+  - an English sentence with an accented loanword ("café") is spoken as
+    written.
+- **Request limit.** Text to Dialogue documents 2,000 characters across a
+  request's inputs; longer streamed requests can end early. A longer segment is
+  spoken as consecutive requests (`dialogue_request_texts`), each stitched to
+  the one before, and the utility route's `text` is bounded at 2,000.
+- **Continuity.** A request with no earlier request ids sends `previous_text`
+  instead, bounded to its last 100 characters (the dialogue API's limit; Gemini
+  does not use it). Each response's `request-id` joins a per-run deque of three,
+  so a failed or id-less request leaves the earlier ids in place.
+- **Grouping.** The default stays `"paragraph"`; the docs now say so. The
+  `V3FinalizedChunking` identifiers became `FinalizedChunking`, but the stored
+  key `tts_elevenlabs_v3_finalized_chunking` is unchanged so saved preferences
+  keep working.
+- **Utility route.** Text to Dialogue `convert` with `eleven_v4` by default.
+  `PyElevenLabsVoiceSettings` keeps `stability` and `similarity_boost`, which is
+  sent as `similarity`. The unused session and stream request schemas are gone.
+- **Development stack.** The `web` service builds the workspace packages once
+  at start, into tmpfs. After `pnpm openapi-ts`, the request validator kept the
+  Phase 1 enum and refused `eleven_v4` until the task stack's `web` service was
+  restarted. The development docs now say so.
+
+#### Phase 2 results
+
+- **Backend:** `make check-test` passed on the Phase 2 source: pytest 4,148
+  passed and 29 skipped (5 min 52 s), with format, lint, mypy and the
+  typed-content audit clean. After the `_api_error_body` change, the ElevenLabs
+  service and router tests (48) passed with `UserWarning` as an error, and
+  ruff, ruff format and mypy on the file were clean.
+- **Golden fixture:** `tts-finalized.sse` re-recorded; only `model_id` changed.
+- **Live web check (G1)** on `animama-ev4` (Annie, OpenAI chat, App Settings
+  default provider; summaries in `evidence/phase2/web-live.json`). First audio
+  is measured from the first `user.response` frame to the first `tts.audio`
+  frame:
+
+  | Reply                                  | Grouping  | First audio | Audio  | Errors |
+  | -------------------------------------- | --------- | ----------- | ------ | ------ |
+  | English, 4 sentences, `eleven_v4`      | paragraph | 1,319 ms    | 18.0 s | none   |
+  | English, 4 sentences, `eleven_v4`      | sentence  | 606 ms      | 20.7 s | none   |
+  | Japanese, 3 sentences, `eleven_v4`     | sentence  | 695 ms      | 7.1 s  | none   |
+  | Korean, 2 sentences, `eleven_v4`       | sentence  | 744 ms      | 3.4 s  | none   |
+  | Japanese, 2 sentences, Gemini Flash-Lite | sentence | 1,551 ms   | 6.4 s  | none   |
+
+  The Japanese and Korean replies have no tts fields on their frames, so both
+  were spoken as written. The sentence segmenter splits only at ASCII `.!?`
+  followed by a space, so a Japanese or Chinese reply's speech is one segment
+  that arrives when the speech ends. The Japanese rows are therefore one request
+  each, and their first-audio figures are not comparable with the English ones
+  (Code Review #1, F4). App Settings → Voice shows "Eleven v4 Turbo" and
+  "Eleven v4", the grouping row, and "Unavailable with Eleven v4." for chunked
+  streaming.
+- **Stitching (G2 samples):** `evidence/phase2_stitching.py` speaks the same
+  four sentences through `prepare_finalized_tts_stream_from_text` and
+  `stream_finalized_tts_chunks`, once with request ids and once with
+  `previous_text` only. All 8 requests returned audio and a `request-id`. The
+  provider accepted 1, 2 and 3 previous ids. First audio per request was
+  366–646 ms. The two renderings are `evidence/phase2/stitched.wav` and
+  `evidence/phase2/previous_text.wav`, for the owner to compare by ear (G2).
+- **Spend (G1):** about 1,100 characters of v4, roughly US$0.05. Total spent
+  from the US$1 budget is about US$0.15.
+- **Limits:** audio was confirmed as received bytes and timing, not by ear;
+  listening is G2. The stitching effect has not been judged.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: independent `sdlc-reviewer`. Reviewed source: the uncommitted tree
+against `51f4bee1`, with diff snapshot `3cb814918864373a` unchanged before and
+after review.
+
+The reviewer's checks:
+
+- `ruff check`, `ruff format --check` (19 files) and mypy (11 files) clean;
+- import boundary clean (0 forbidden edges);
+- focused pytest 438 passed (ElevenLabs service and router, chat SSE, golden,
+  Gemini, chat turns, structured response, SSE events, gruut and related);
+- `pnpm openapi-ts:check` current;
+- Vitest on 6 changed web test files, 63 passed;
+- product-ui `chat-lifecycle` 30 of 30, including both allowance → Pocket TTS
+  cases;
+- prettier and eslint on the 9 changed web files clean;
+- probes with real gruut, the SDK's chunk decoding and convert body, the
+  segmenter, and the built declarations.
+
+Not run by the reviewer: the full gates, the package-set build and compare, and
+live calls.
+
+Result: two blocking findings.
+
+- **P2-R1-F1 (blocking).** The ASCII gate dropped gruut preparation for common
+  English sentences. A curly apostrophe, an em dash, an ellipsis or an emoji made
+  `text.isascii()` false, so such a sentence lost its `tts_*` fields and was
+  spoken as written. That breaks R7 ("English keeps today's prepared text"),
+  R2 (Gemini "as before") and step 6. With real gruut, `"That’s great! See you
+  at 3:30."` went to the provider with its digits and normalization `"auto"`.
+- **P2-R1-F2 (blocking).** The JSDoc on product-ui's exported
+  `ChatSpeechPolicy.finalizedServerAudio` changed, which changes its emitted
+  declarations, but product-ui stayed 0.9.0. The package-set compare requires a
+  version bump for any declaration change.
+- **P2-R1-F3 (optional).** `apply_text_normalization` followed whether the
+  provider text was ASCII, not whether gruut prepared it, and the rule was
+  computed in three places on three strings.
+- **P2-R1-F4 (optional, pre-existing).** The segmenter splits only at ASCII
+  `.!?` followed by whitespace. Japanese and Chinese speech is one segment, so
+  it is spoken only after the whole speech is written, as one request.
+- **P2-R1-F5 (optional, pre-existing).** The input-basis gruut call still runs
+  on every speech value, including Korean (167 ms a sentence).
+- **P2-R1-F6 (optional).** R2's 2,000-character request bound was neither
+  enforced nor tested. Sentence mode sends a segment of any length, and with F4
+  a whole Japanese reply is one request.
+- **Verified with no finding:** failure paths (`tts.error` without
+  `tts.done`), request-id bookkeeping, the SDK raw path and cancellation, the
+  `eleven_v3` migration, retired ids, Gemini, the security and ownership
+  constraints, contract versions and the development-docs claim.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **F1, accepted.** `gruut_prepares_text` now considers letters only: text
+  whose letters are all ASCII is English, whatever its punctuation, symbols or
+  emoji. Accented, CJK and Hangul letters still send the text as written, so D9
+  is unchanged. The remaining limit, an English sentence with an accented
+  loanword, is recorded in the notes and the docs.
+  - Tests: gruut rule cases for `’`, `—`, `…`, an emoji and digits, and for
+    Japanese, Korean, Chinese, accented Spanish and the loanword; a chat test
+    in which English speech with typography keeps the `gruut_text_with_ws`
+    basis on its frame and its request.
+  - Mutation check: with the old ASCII rule, 6 of the new cases fail.
+  - Live: the English reply "I’d make a cozy chicken-and-veggie stir-fry
+    tonight — ready around 7:30." kept the gruut basis and was spoken as
+    "…ready around seven thirty." with `eleven_v4`, with no errors.
+  - Docs aligned: `voice-and-speech.md`, `elevenlabs-tts.md`,
+    `avatar-lipsync.md` and `docs/backend/runtime/chat.md`.
+- **F2, accepted.** product-ui is 0.9.1 (a comment-only declaration change),
+  mirrored in `contracts/hosted-web.md`.
+- **F3, accepted.** `finalized_tts_text` returns the text and whether gruut
+  prepared it. `prepare_finalized_tts_stream_from_text` records
+  `apply_text_normalization` on the request, and the stream sends it, so the
+  rule is decided once. Tests cover gruut text (`"off"`), gruut returning
+  nothing (`"auto"`) and Japanese (`"auto"`, gruut not called).
+- **F4, deferred.** The segmenter predates Phase 2, also shapes visible text
+  streaming, and R7's acceptance is met. The limit is recorded in the results.
+  A follow-up to split CJK speech at `。！？` is proposed to the owner.
+- **F5, rejected for this phase.** That call feeds lip-sync's `phonemized_text`
+  for every language. What non-English lip-sync receives belongs to #468
+  (D11, R7), and Phase 2 already removed the second gruut call.
+- **F6, accepted.** ElevenLabs documents 2,000 characters across a Text to
+  Dialogue request's inputs; longer streamed requests can end early (API
+  reference and 2026-04-20 changelog).
+  - `stream_finalized_tts_chunks` now speaks a longer segment as consecutive
+    requests. `dialogue_request_texts` cuts after the last sentence end in the
+    second half of the window, else a clause break, else a space, else at the
+    limit. Each request is stitched to the one before; the tone tag stays on
+    the first, and `done` carries the last request id.
+  - The utility route's `text` is bounded at 2,000 (was 5,000, the v3 limit),
+    and the client was regenerated. No frontend code calls that route.
+  - Tests: splitter cases (short, sentence, CJK, clause, space, no break) and a
+    stream test in which a 3,000-character segment becomes two requests within
+    the limit, the second stitched to the first's id.
+
+Post-revision checks, on the revised source:
+
+- `make check-test`: pytest 4,171 passed and 29 skipped (7 min 6 s), with
+  `ruff format --check` (832 files), `ruff check`, mypy and the typed-content
+  audit clean. The Pydantic serializer warning from the refusal test is gone.
+- The ElevenLabs router and gruut tests (46) pass with `UserWarning` as an
+  error.
+- `pnpm openapi-ts:check` (current), `packages:build`, `packages:test`
+  (product-ui 30 of 30), `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`
+  and `pnpm build` pass.
+- Vitest on the speech, chat, settings and runtime tests: 22 files, 213 passed.
+- The full `pnpm web:test` (Vitest 470 files: 4,204 passed and 1 skipped; node
+  and browser suites 220 of 220) and `pnpm desktop:test` (506 passed and 14
+  skipped) passed on the source before these revisions. The revisions change
+  the backend, the generated client's utility-route bound, one product-ui
+  version and docs, which the checks above cover.
+
+Repair budget: round 1 of 2 used.
+
+#### Code Review #2 Findings
+
+Targeted recheck by the same reviewer of snapshot `26c1f2357de0fb91`, unchanged
+before and after. Result: **pass**, with no blocking findings.
+
+- **Verified fixes:**
+  - F1: with real gruut, typographic English keeps `gruut_text_with_ws` and
+    `"off"`;
+  - F2: product-ui 0.9.1 satisfies the compare rule, and nothing else pins the
+    version;
+  - F3: normalization is decided once;
+  - F6: each split request closes before the next opens; cancellation and
+    errors release the semaphore; the PCM buffer carries across requests; the
+    tone tag stays first.
+- **Dispositions:** the F4 deferral is sound; the splitter also bounds a long
+  one-segment Japanese reply, which a 2,420-character probe cut after `。`. The
+  F5 rejection is acceptable as a scope call. Its rationale needs a correction:
+  for Japanese, Korean and Chinese, the input-basis call yields no phoneme
+  words.
+
+The reviewer's checks:
+
+- ruff, ruff format and mypy on the changed files;
+- import boundary clean;
+- pytest 295 passed on the affected files;
+- the router, gruut and service tests, 70 passed with `UserWarning` as an
+  error;
+- `openapi-ts:check` current;
+- probes of the real segmenter, gruut and the splitter.
+
+Optional findings:
+
+- **P2-R2-F1.** An emoji after the last sentence became its own segment (`"
+  😊"`), which was spoken alone as `"😊"` with normalization `"auto"`. This
+  happens in every sentence-mode reply that ends with an emoji, Gemini
+  included. The provider's response is unverified and could be an error notice
+  after a fully spoken reply. The baseline's gate dropped such a segment. The
+  new chat test's fake gruut returned text for an emoji, which hid it.
+- **P2-R2-F2.** An ASCII `.` counted as a sentence end with no space after it,
+  so a long segment could be cut inside a number: a 2,007-character probe was
+  cut at `"cuesta 3."` / `"5 euros"`.
+- **P2-R2-F3.** `done` reported only the last request id of a split segment,
+  so the reply's three-id history skipped the earlier ones.
+
+#### Code Review #2 Revisions
+
+- **R2-F1, accepted.** `_attach_tts_speech_payload` speaks only segments with a
+  letter or digit. Whitespace, punctuation or emoji alone stays visible text
+  and is not spoken, as at the baseline. The chat test's fake gruut now returns
+  nothing for such text, as gruut does. A new test, for ElevenLabs and Gemini,
+  checks that `"See you tomorrow! 😊👋"` prepares only `"See you tomorrow!"`,
+  keeps the emoji visible, and ends with `tts.done` and no `tts.error`.
+- **R2-F2, accepted.** An ASCII `.!?` ends a sentence only before a space or
+  the end of the text; `。！？` end one anywhere. The scan reaches one character
+  past the limit so that the lookahead sees the real next character, and only
+  breaks that end within the limit count. A new test keeps "3.5" whole and cuts
+  at commas.
+- **R2-F3, accepted.** `done` carries `request_ids`, every request id of the
+  segment in order, and the bootstrap extends its three-id history with them.
+  This payload is new in this PR, and the port docstrings say so. The chat
+  stitching test now has a segment answered by two requests, and the stream
+  test expects both ids.
+- **F5 rationale, corrected.** For Japanese, Korean and Chinese the
+  input-basis call feeds lip-sync nothing. For accented Latin text it yields
+  English phonemes that do move the mouth, so skipping it would change
+  non-English lip-sync, which is #468's to decide. The rejection stands.
+- **Mutation check:** without each repair, its test fails: both closing-emoji
+  cases, the "3.5" case and the chat stitching test.
+- **Docs:** `voice-and-speech.md` covers unspoken symbol-only segments and
+  `request_ids`.
+
+Post-revision checks: `make check-test` passed: pytest 4,174 passed and 29
+skipped (5 min 26 s), with format (832 files), lint, mypy and the typed-content
+audit clean. The affected router, gruut and chat SSE tests (171) pass with
+`UserWarning` as an error. This round changed no frontend file.
+
+Repair budget: rounds 1 and 2 of 2 used.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of snapshot `dcfef25c2e1099b2`, unchanged before and
+after. Result: **pass**. All three round-2 repairs hold, with no regression.
+
+- **R2-F1**, probed with real gruut:
+  - a closing emoji still closes the speech stream and adds no segment;
+  - digits alone (`"42"`) are spoken as "forty two";
+  - corrections, the empty final marker and whitespace behave as before;
+  - speech that is only an emoji ends with `missing_tts_text`, as at the
+    baseline.
+- **R2-F2:** the window edge is handled, every cut makes progress, and the
+  probes kept "3.5" whole and a closing quote attached.
+- **R2-F3:** no consumer of the singular `request_id` remains, and the deque
+  semantics match the test.
+
+The reviewer's checks:
+
+- ruff, ruff format and mypy on the changed files;
+- import boundary clean;
+- pytest 281 passed;
+- 171 passed with `UserWarning` as an error;
+- `openapi-ts:check` current.
+
+Optional findings:
+
+- **P2-R3-F1.** ASCII commas and colons could still split a number in a
+  segment over 2,000 characters (`"1,"` / `"000"`, `"3:"` / `"30"`). This
+  predates round 2.
+- **P2-R3-F2.** "Is not spoken" holds for the finalized providers only;
+  realtime still receives the visible text, as at the baseline.
+
+Dispositions, applied after the final round and covered by the Phases 1–2
+scope review:
+
+- **R3-F1, accepted.** ASCII `,;:` count as breaks only before a space or the
+  end; CJK marks count anywhere. The number test adds `1,000` and `3:30`
+  cases; both fail without the fix. The router tests (37) pass with
+  `UserWarning` as an error, and ruff, ruff format and mypy are clean.
+- **R3-F2, accepted.** The docs now say "not spoken by the finalized
+  providers".
+
+Phase 2 review: **passed**, using one full review and two repair rounds.
 
 ### Phase 3: timing plumbing and the timing evidence module
 
@@ -829,6 +1152,10 @@ Outcome:
 Changes:
 
 1. **Backend `tts.audio`:**
+   - Parse each NDJSON chunk's `alignment` (seconds) in
+     `stream_finalized_tts_chunks`, moved here from Phase 2. A segment spoken as
+     several requests (over 2,000 characters) offsets each request's timing by
+     the audio already streamed for that segment.
    - An optional `alignment` field: `{chars, char_start_times_ms, char_durations_ms}`,
      integer ms relative to the run's first audio sample.
    - `FinalizedTtsStreamBootstrap` adds each batch's offset: the samples already

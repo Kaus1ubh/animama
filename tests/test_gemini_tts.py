@@ -95,7 +95,7 @@ def test_dispatch_accepts_gemini_and_its_models_only() -> None:
     with pytest.raises(ValidationError):
         PyAnimaTtsRunOptions(enabled=True, provider="elevenlabs", model_id="gemini-3.8-flash-tts")
     with pytest.raises(ValidationError):
-        PyAnimaTtsRunOptions(enabled=True, provider="gemini", model_id="eleven_v3")
+        PyAnimaTtsRunOptions(enabled=True, provider="gemini", model_id="eleven_v4")
 
 
 def test_chat_options_keep_gemini_and_drop_unknown_models() -> None:
@@ -180,7 +180,7 @@ async def test_prepare_falls_back_to_the_default_voice_and_model(gemini_key: Non
         voice_id="NotAVoice",
         run_id="run-1",
         text="Hello.",
-        model_id="eleven_v3",
+        model_id="eleven_v4",
         text_basis="gruut_text_with_ws",
         emotional_tone="joy",
         emotional_state={"joy": 16},

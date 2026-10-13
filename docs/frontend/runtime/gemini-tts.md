@@ -44,11 +44,11 @@ finalized_chunking: "sentence"}`. The backend speaks each prepared sentence as
 one Gemini request and pushes its audio as `tts.audio` frames (`pcm_24000`,
 `provider: "gemini"`), then one `tts.done`.
 
-`ChatSpeechPolicy.finalizedServerAudio` is true for Gemini as for Eleven v3, so
+`ChatSpeechPolicy.finalizedServerAudio` is true for Gemini as for Eleven v4, so
 the shared session routes `tts.audio`, `tts.done` and `tts.error` to playback.
 `useTtsPlayback` prepares the shared finalized runtime when the run starts
 instead of streaming text, then decodes and schedules the frames as described
-in [ElevenLabs TTS](elevenlabs-tts.md#eleven-v3-finalized-streaming). Its audio
+in [ElevenLabs TTS](elevenlabs-tts.md#eleven-v4-finalized-streaming). Its audio
 signals report the run's own provider.
 
 ## Speaking Style

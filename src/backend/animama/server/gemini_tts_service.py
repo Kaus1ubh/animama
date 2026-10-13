@@ -101,7 +101,7 @@ async def prepare_gemini_finalized_speech(
         run_id=run_id or f"tts-{uuid.uuid4().hex}",
         voice_id=gemini_voice_or_default(voice_id),
         model_id=model_id if model_id in SUPPORTED_GEMINI_TTS_MODEL_IDS else DEFAULT_GEMINI_TTS_MODEL_ID,
-        text=finalized_tts_text(text, text_basis=text_basis),
+        text=finalized_tts_text(text, text_basis=text_basis).text,
         style=(
             gemini_speaking_style(emotional_tone=emotional_tone, emotional_state=emotional_state)
             if apply_emotional_prefix
@@ -235,6 +235,7 @@ class LocalGeminiSpeech:
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
         previous_text: str | None,
+        previous_request_ids: tuple[str, ...],
         apply_emotional_prefix: bool,
     ) -> GeminiFinalizedSpeech:
         # The turn resolves the prebuilt voice itself; Gemini detects the language.

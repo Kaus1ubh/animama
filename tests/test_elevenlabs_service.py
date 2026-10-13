@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 from elevenlabs.core import ApiError
 from fastapi import HTTPException
+from pydantic import ValidationError
 
 from animama.product_http.chat.tts import resolve_realtime_voice_from_preferences
 from animama.server.elevenlabs_service import (
@@ -27,6 +28,7 @@ from animama.server.schemas.elevenlabs import (
     PyElevenLabsAnimaVoiceProfileInput,
     PyElevenLabsSoundEffectsRequest,
     PyElevenLabsTextToSpeechRequest,
+    PyElevenLabsVoiceSettings,
 )
 
 
@@ -75,13 +77,13 @@ class _FakeVoicesClient:
         return self.by_id[voice_id]
 
 
-class _FakeTextToSpeechClient:
+class _FakeTextToDialogueClient:
     def __init__(self) -> None:
         self.calls: list[dict[str, Any]] = []
         self.outcomes: list[object] = []
 
-    def convert(self, voice_id: str, **kwargs):
-        self.calls.append({"voice_id": voice_id, **kwargs})
+    def convert(self, **kwargs):
+        self.calls.append(kwargs)
         if self.outcomes:
             outcome = self.outcomes.pop(0)
             if isinstance(outcome, Exception):
@@ -111,7 +113,7 @@ class _FakeAudioIsolationClient:
 class _FakeElevenLabsClient:
     def __init__(self) -> None:
         self.voices = _FakeVoicesClient()
-        self.text_to_speech = _FakeTextToSpeechClient()
+        self.text_to_dialogue = _FakeTextToDialogueClient()
         self.text_to_sound_effects = _FakeTextToSoundEffectsClient()
         self.audio_isolation = _FakeAudioIsolationClient()
         self.tokens = SimpleNamespace(single_use=SimpleNamespace(create=self._create_single_use_token))
@@ -180,7 +182,42 @@ async def test_synthesize_text_returns_base64_audio(fake_client: _FakeElevenLabs
 
     assert base64.b64decode(response.audio_base64) == b"hello world"
     assert response.media_type == "audio/mpeg"
-    assert fake_client.text_to_speech.calls[0]["voice_id"] == "voice-owned"
+    # The utility route speaks with Eleven v4 through Text to Dialogue.
+    assert fake_client.text_to_dialogue.calls == [
+        {
+            "inputs": [{"text": "hello world", "voice_id": "voice-owned"}],
+            "model_id": "eleven_v4",
+            "output_format": "mp3_44100_128",
+            "settings": None,
+        }
+    ]
+
+
+@pytest.mark.asyncio
+async def test_synthesize_text_sends_the_settings_eleven_v4_supports(fake_client: _FakeElevenLabsClient) -> None:
+    await synthesize_text(
+        user_id="user-1",
+        request=PyElevenLabsTextToSpeechRequest(
+            voice_id="voice-owned",
+            text="hello",
+            model_id="eleven_v4_turbo",
+            voice_settings=PyElevenLabsVoiceSettings(stability=0.4, similarity_boost=0.8),
+        ),
+    )
+
+    [call] = fake_client.text_to_dialogue.calls
+    assert call["model_id"] == "eleven_v4_turbo"
+    assert call["settings"] == {"stability": 0.4, "similarity": 0.8}
+
+
+def test_text_to_speech_request_refuses_settings_eleven_v4_ignores() -> None:
+    with pytest.raises(ValidationError):
+        PyElevenLabsVoiceSettings.model_validate({"stability": 0.4, "style": 0.3})
+
+
+def test_text_to_speech_request_maps_retired_models() -> None:
+    request = PyElevenLabsTextToSpeechRequest(voice_id="voice-owned", text="hi", model_id="eleven_multilingual_v2")
+    assert request.model_id == "eleven_v4_turbo"
 
 
 @pytest.mark.asyncio
@@ -188,7 +225,7 @@ async def test_synthesize_text_retries_retryable_429(
     fake_client: _FakeElevenLabsClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake_client.text_to_speech.outcomes = [
+    fake_client.text_to_dialogue.outcomes = [
         ApiError(
             status_code=429,
             headers={"retry-after": "1"},
@@ -220,7 +257,7 @@ async def test_synthesize_text_retries_retryable_429(
     )
 
     assert base64.b64decode(response.audio_base64) == b"retry-success"
-    assert len(fake_client.text_to_speech.calls) == 2
+    assert len(fake_client.text_to_dialogue.calls) == 2
     assert sleep_calls == [1.0]
 
 
@@ -229,7 +266,7 @@ async def test_synthesize_text_exposes_retryable_concurrency_error(
     fake_client: _FakeElevenLabsClient,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    fake_client.text_to_speech.outcomes = [
+    fake_client.text_to_dialogue.outcomes = [
         ApiError(
             status_code=429,
             headers={
