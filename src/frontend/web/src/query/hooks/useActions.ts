@@ -22,6 +22,7 @@ import { typedCatalogViewItem } from "@/lib/content/catalogTypes";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
 import type { ContentOrigin } from "./useEffects";
+import { compareDisplayText } from "@animama/product-ui/i18n";
 
 type ActionListInput = {
   query?: string;
@@ -79,7 +80,7 @@ async function actionPage<T extends PyGesture | PyReaction>(
         matchesQuery(item.name, item.description ?? null, query),
     )
     .map((item) => typedCatalogViewItem(item) as T);
-  rows.sort((left, right) => left.name.localeCompare(right.name));
+  rows.sort((left, right) => compareDisplayText(left.name, right.name));
   return {
     items: rows as T[],
     next_cursor: null,

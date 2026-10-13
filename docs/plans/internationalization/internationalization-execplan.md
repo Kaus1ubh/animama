@@ -72,19 +72,14 @@ Boundaries:
 - [x] Phase 7: creators (R7); review #2 passed 2026-10-10.
 - [x] Phase 8: desktop shell (R8); review #3 passed 2026-10-10; G2 pending.
 - [x] Phase 9: completion, guards at full strength and pseudo-locale smoke (R7, R17); review #2 passed 2026-10-13.
-- [ ] Final integration review.
+- [x] Final integration review; review #2 passed 2026-10-13 after the record fix.
 - [ ] PR; owner gates G1–G3; owner merge approval.
 
 ## Handoff
 
-Paused by the owner during Phase 7 and resumed the same day (2026-10-10).
-Paused again on 2026-10-10 during Phase 9, after Code Review #1.
-- Phases 1–8 are committed (`a65ec81c` is Phase 8).
-- Phase 9 and the Phase 7 stylesheet fix are uncommitted in the worktree; see
-  Phase 9's Code Review #1 Revisions for the next steps.
-- The full journey suite passed 38 of 38 on this tree, and the pseudo smoke
-  passed 3 of 3.
-- The task stacks are stopped.
+The owner paused the work twice on 2026-10-10. It resumed on 2026-10-13: Phase
+9 was committed, `main` was merged (`c5804717`), and the final integration review
+ran. See "Integration with `main`" and "Final integration review" below.
 
 - Worktree `worktrees/animama/i18n-intent-discovery-42bc7e`, branch
   `feat/internationalization`, based on `5993bbee`. Each phase is committed
@@ -201,7 +196,9 @@ Paused again on 2026-10-10 during Phase 9, after Code Review #1.
   Also confirm that Start Dictation and Emoji & Symbols still appear under the
   localized Edit menu when the in-app locale differs from the macOS language,
   and that the microphone prompt follows the macOS language (see the Phase 8
-  decision).
+  decision). Check FI-04 too: with an OS language list such as [fr, ja], does
+  the desktop app's "System default" pick the same locale as the shell's first
+  launch?
 - **G3 — Pseudo-locale walkthrough (AC3).** The owner walks the converted screens
   under the pseudo-locale after the automated smoke passes.
 
@@ -1452,7 +1449,100 @@ the age confirmation flow.
 ## Final integration review
 
 Covers R1–R11 and R16–R18 with AC1–AC11 across phases, reusing valid phase
-evidence. Pending.
+evidence.
+
+### Final Integration Review Findings
+
+Reviewer: `sdlc-reviewer`, on `c5804717` (the merge with `main`) against
+`7a25aa34`. The merge itself introduced no defects. Verified:
+- main's new UI text and backend codes;
+- one locale contract across backend, SDK, web, desktop and product-ui;
+- versions and ADR references;
+- error and locale-switch invariants;
+- entry-file and stylesheet order;
+- dev-only pseudo-locale, `dir`, and the desktop bridge security.
+
+Findings:
+- **FI-01 (required, R4).** No user-visible sort used the UI Locale's
+  collation. Every sort called `localeCompare()` without a locale, so zh-Hans
+  names did not sort in pinyin order on an English system.
+- **FI-02 (required, record).** The follow-up issues did not exist yet, the
+  closing of #385 was unconfirmed, and two owner questions were open: prompt
+  suggestions send English, and the microphone deviation waits for G2.
+- **FI-03 (required, record).** The handoff, this section, Outcomes and the
+  post-merge browser runs were not recorded.
+- Optional:
+  - **FI-04:** the desktop "System default" reads `navigator.languages` while
+    the shell reads `app.getPreferredSystemLanguages()`; this needs checking
+    on macOS.
+  - **FI-05:** `i18n.md` gaps: the toast rule's real home, the "Adding a
+    locale" desktop and macOS steps, and `compare`.
+  - **FI-06:** `early_compaction_unavailable` falls back to the generic message
+    with the English as detail.
+  - **FI-07:** the Memory move dialog reset its choice on a locale switch.
+  - **FI-08:** main's particle texture names drop non-Latin stems.
+
+### Final Integration Review Revisions
+
+- **FI-01 accepted.**
+  - Product-ui `compareDisplayText` uses the active UI Locale's collation, with
+    the same options as `useFormatters().compare`, cached per locale.
+  - Library, Loadout, Pose creator events, Memory tree, sharing inventory,
+    Action, Effect and Pose pickers, and the Anima list now sort with it.
+    Identifier sorts keep `localeCompare`.
+  - `collation.test.ts` covers pinyin order and numeric, case-insensitive
+    order.
+- **FI-02 accepted.** Follow-up issues:
+  - #509: conversation language;
+  - #510: Included content display names;
+  - #511: crisis resources for Japan, Korea, Taiwan, Hong Kong and mainland
+    China;
+  - #512: the next locales;
+  - raymond-van/animama-cloud#98: R12–R15 and AC12, including the hosted
+    `user_settings.locale` column and the repin.
+
+  The PR closes #385 with AC12 tracked in the Cloud issue. Both open questions
+  go to the owner in the PR.
+- **FI-03 accepted.** The handoff, this section and Outcomes are updated, and
+  the post-merge browser runs are recorded under Validation.
+- **FI-04 accepted** as a G2 item.
+- **FI-05 accepted.** `i18n.md` documents `compare` and `compareDisplayText`,
+  says `pnpm web:lint` owns the toast rule, and adds the desktop catalog,
+  `CATALOGS` and macOS lproj steps to "Adding a locale".
+- **FI-07 accepted.** The dialog resets its choice only when it opens or the
+  source changes. A recomputed list keeps a choice that is still valid.
+- **FI-06 and FI-08 not changed.** FI-06 meets R10, is a race-only message and
+  is a recorded follow-up candidate. FI-08 is main's behavior: the names are
+  valid, numbered and do not collide.
+
+### Final Integration Review #2 Findings
+
+Targeted recheck.
+- The code revisions pass:
+  - FI-01: locale resolution, collator cache and options match `useFormatters`;
+    the replaced sites are display sorts; the remaining bare sorts are
+    identifiers or debug tools.
+  - FI-07: the effect order is right.
+  - FI-05: the docs match the code.
+  - FI-02 and FI-04: the issues exist and the G2 gate covers FI-04.
+- **FI2-01 (required, record).** The FI-03 revision claimed Outcomes and the
+  post-merge runs were recorded before they were.
+- Optional:
+  - lists sorted inside query functions (`usePoses`, `useActions`,
+    `useSharingInventory`) keep the previous order until their next refetch;
+  - emotion rows keep their fixed identifier order;
+  - the crisis-protocol translation test list was missing from "Adding a
+    locale".
+
+### Final Integration Review #2 Revisions
+
+- **FI2-01 accepted.** Outcomes and the post-merge browser evidence (under
+  Validation) are now recorded.
+- Optional accepted: "Adding a locale" names `crisisProtocolTranslations.test.ts`.
+- Optional not changed: query-sorted lists catch up on their next refetch,
+  which is a small cosmetic lag. Emotion rows keep a deliberate fixed order.
+
+Repair budget: one of two repair rounds used. Result: pass, after FI2-01.
 
 ## Validation and acceptance
 
@@ -1479,6 +1569,25 @@ pnpm e2e:test
 Hosted `Validation` stays disabled except an owner-approved run; record the
 actual hosted scope separately. Owner gates G1–G3 are listed in the PR.
 
+Post-merge browser evidence (`c5804717` plus the final review fixes,
+2026-10-13):
+- **Full `pnpm e2e:test`** on a built stack (`animama-i18n-e2e`, port 8600):
+  38 passed, 2 failed (35.1 minutes).
+  - `accountless-scene-layers` (main's new journey) expected main's "1 items".
+    The branch's plural reads "1 item", so the assertion now expects
+    "1 item ·".
+  - `accountless-imported-playback` particle Library preview reported "could
+    not play" after Stop. The branch changes only the wording on that path.
+- **Rerun** on a fresh built stack, both journeys only: 4 passed, including
+  setup (12.8 minutes). The particle failure did not recur, so it is recorded
+  as transient.
+- **Pseudo smoke** (`animama-i18n-pseudo`, port 8500, development build).
+  - The first run failed on its setup step: main moved age confirmation out of
+    the setup wizard (#508), so the step no longer checks the adult box.
+  - The rerun passed 3 of 3, covering setup, chat, App Settings, Library and
+    two creators.
+- The stacks are removed after each run.
+
 ## Idempotence and recovery
 
 - Development databases created before Phase 1 keep a non-null `en-US` locale;
@@ -1494,4 +1603,48 @@ actual hosted scope separately. Owner gates G1–G3 are listed in the PR.
 
 ## Outcomes & Retrospective
 
-Pending.
+Delivered (2026-10-13), in one branch on top of current `main`:
+- **Locales.** UI Locales `en`, `ja`, `ko`, `zh-Hans` and `zh-Hant` (Beta,
+  machine-translated). Resolution: saved setting, else system languages, else
+  English.
+- **Picker.** A Language picker in App Settings with live switching.
+- **Formatting and sorting** follow the locale.
+- **Product terms** are kept consistent through `i18n/terms.json`.
+- **Conversion.** Every owner screen is converted to catalogs: shell, chat,
+  safety, Animas, Library, memory, creation, Settings, voice, sound and
+  creators.
+- **Errors.** Backend failures are worded by code. English that carries no code
+  is primary in English and secondary detail elsewhere (`WordedError`,
+  `failureLine`).
+- **Names in any script** get distinct identifiers on both sides.
+- **Desktop shell.** The startup and recovery page, menu and window titles
+  follow the locale, and the macOS microphone prompt is localized.
+- **Guards.** Raw-string and toast lints cover the whole app; a catalog check
+  rejects stale keys and changed placeholders; the pseudo-locale smoke covers
+  the main surfaces.
+- **Records.** ADR 0024, GLOSSARY terms, `docs/frontend/architecture/i18n.md`.
+
+Remaining:
+- Owner gates G1 (beta visual pass), G2 (native macOS: menu, microphone prompt,
+  recovery page, FI-04) and G3 (pseudo-locale walkthrough).
+- Owner decisions: confirm the microphone deviation; whether prompt
+  suggestions should send their prompt in the UI Locale (today English).
+- Follow-ups #509–#512 and raymond-van/animama-cloud#98, which must make the
+  hosted `user_settings.locale` nullable before the Cloud repin.
+
+Retrospective:
+- **Parallel agents** on disjoint areas, each followed by a bounded review,
+  scaled the conversion well. The shared rules kept their output consistent:
+  term list, error semantics, literal keys.
+- **The term list** needed growing as agents met new product words. Seeding
+  more terms up front would have avoided several alignment passes.
+- **Problems tests could not see**, found only by running the real app:
+  - wording during module load blanked the app (browser check);
+  - side effects re-ran on a locale switch (review);
+  - stylesheet order changed in production builds (built-stack journeys).
+
+  Running the built-stack journeys earlier, rather than only at the end, would
+  have caught the stylesheet problem one phase sooner.
+- **Merging `main`** late cost a large conflict resolution: 48 files, plus new
+  UI text. For long multi-phase plans, syncing with `main` between phases would
+  keep merges small.

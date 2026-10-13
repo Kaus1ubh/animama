@@ -80,7 +80,6 @@ test("pseudo-locale first-run setup @pseudo-locale @read-only", async ({
 
   await test.step("AI", async () => {
     await page.locator("#local-display-name").fill("Pseudo Fixture");
-    await page.locator('input[name="adult-confirmed"]').check();
     await page.locator('form button[type="submit"]').click();
     await expect(heading).toHaveText(pseudoLocalize("Choose your AI"));
     await audit.check("Setup › AI");

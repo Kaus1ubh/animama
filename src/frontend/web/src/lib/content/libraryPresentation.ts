@@ -9,6 +9,7 @@ import type {
 import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
 import { isNonPortable, nonPortableReason } from "@/lib/content/portability";
 import { storedEmotionLabel } from "@/lib/emotion/presentation";
+import { compareDisplayText } from "@animama/product-ui/i18n";
 
 export type LibraryProductCard = {
   key: string;
@@ -77,7 +78,7 @@ export function filterAndSortLibraryGestures(
   const direction = filters.gestureSort === "name-asc" ? 1 : -1;
   return rows.sort(
     (left, right) =>
-      direction * left.name.localeCompare(right.name) ||
+      direction * compareDisplayText(left.name, right.name) ||
       direction * left.key.localeCompare(right.key),
   );
 }

@@ -49,12 +49,27 @@ export function MemoryMoveEntryDialog({
   );
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
 
+  // Opening the dialog, or a different source, starts from the first valid
+  // destination.
+  useEffect(() => {
+    if (open) setSelectedKey(null);
+  }, [open, source]);
+
+  // Recomputed destinations (new entries, or labels after a locale switch)
+  // keep a choice that is still valid.
   useEffect(() => {
     if (!open) return;
-    const firstValid = destinations.find(
-      (destination) => !destination.disabled,
-    );
-    setSelectedKey(firstValid ? destinationKey(firstValid) : null);
+    setSelectedKey((current) => {
+      const kept = destinations.find(
+        (destination) =>
+          destinationKey(destination) === current && !destination.disabled,
+      );
+      if (kept) return current;
+      const firstValid = destinations.find(
+        (destination) => !destination.disabled,
+      );
+      return firstValid ? destinationKey(firstValid) : null;
+    });
   }, [destinations, open]);
 
   const selected = destinations.find(

@@ -7,6 +7,7 @@ import type {
   PyExactContentSource,
   PyGesture,
 } from "@/lib/content/catalogTypes";
+import { compareDisplayText } from "@animama/product-ui/i18n";
 
 export type GestureLoadoutPresentation = {
   starter: PyGestureBinding[];
@@ -81,7 +82,7 @@ export function presentGestureCatalog(
       readyGestures.map((gesture) => [gesture.item_id, gesture]),
     ).values(),
   ]
-    .sort((left, right) => left.name.localeCompare(right.name))
+    .sort((left, right) => compareDisplayText(left.name, right.name))
     .map((gesture) => ({
       gesture,
       binding:
@@ -238,7 +239,8 @@ export function presentUnifiedGestureList({
     const direction = sort === "name-desc" ? -1 : 1;
     return (
       direction *
-      (left.name.localeCompare(right.name) || left.id.localeCompare(right.id))
+      (compareDisplayText(left.name, right.name) ||
+        left.id.localeCompare(right.id))
     );
   });
 

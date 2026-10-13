@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { useTranslation } from "react-i18next";
+import { getI18n, useTranslation } from "react-i18next";
 import {
   SOURCE_LOCALE,
   formattingLocale,
@@ -29,12 +29,15 @@ export interface LocaleFormatters {
 const MEGABYTE = 1024 ** 2;
 const GIGABYTE = 1024 ** 3;
 
+/** Collation for user-visible sorting: case- and accent-insensitive, numbers by value. */
+const COLLATOR_OPTIONS: Intl.CollatorOptions = {
+  sensitivity: "base",
+  numeric: true,
+};
+
 /** Build formatters for one `Intl` locale tag. */
 export function createFormatters(locale: string): LocaleFormatters {
-  const collator = new Intl.Collator(locale, {
-    sensitivity: "base",
-    numeric: true,
-  });
+  const collator = new Intl.Collator(locale, COLLATOR_OPTIONS);
   return {
     locale,
     date: (value, options = { dateStyle: "medium" }) =>
@@ -74,6 +77,26 @@ export function systemPreferredLanguages(): readonly string[] {
   return languages.filter(
     (value): value is string => typeof value === "string" && value.length > 0,
   );
+}
+
+const displayCollators = new Map<string, Intl.Collator>();
+
+/**
+ * Compare display text (names, labels) in the active UI Locale's collation,
+ * outside React; English without an i18n instance. Inside React, use
+ * `useFormatters().compare`.
+ */
+export function compareDisplayText(left: string, right: string): number {
+  const i18n = getI18n();
+  const language = i18n?.resolvedLanguage ?? i18n?.language;
+  const locale = language && isUiLocale(language) ? language : SOURCE_LOCALE;
+  const tag = formattingLocale(locale, systemPreferredLanguages());
+  let collator = displayCollators.get(tag);
+  if (!collator) {
+    collator = new Intl.Collator(tag, COLLATOR_OPTIONS);
+    displayCollators.set(tag, collator);
+  }
+  return collator.compare(left, right);
 }
 
 /** Formatters for a UI Locale tag (English for anything else), outside React. */
