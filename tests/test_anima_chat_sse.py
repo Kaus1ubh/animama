@@ -1146,6 +1146,20 @@ def test_anima_chat_request_accepts_elevenlabs_v3_tts_model() -> None:
     assert request.dispatch_options.tts.finalized_chunking == "paragraph"
 
 
+@pytest.mark.parametrize("legacy_model_id", ["eleven_flash_v2_5", "eleven_multilingual_v2"])
+def test_anima_chat_request_maps_retired_realtime_models_to_eleven_v4_turbo(legacy_model_id: str) -> None:
+    """A tab opened before the upgrade still sends a retired id; its reply must not be refused."""
+
+    request = _chat_request(
+        message="hello",
+        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": legacy_model_id}},
+    )
+
+    assert request.dispatch_options is not None
+    assert request.dispatch_options.tts is not None
+    assert request.dispatch_options.tts.model_id == "eleven_v4_turbo"
+
+
 def test_anima_chat_request_rejects_unknown_elevenlabs_tts_model() -> None:
     with pytest.raises(ValidationError):
         _chat_request(
@@ -1342,7 +1356,7 @@ async def test_chat_sse_emits_tts_session_for_elevenlabs_intent(monkeypatch) -> 
                 "provider": "elevenlabs",
                 "transport": "auto",
                 "language_code": "en",
-                "model_id": "eleven_flash_v2_5",
+                "model_id": "eleven_v4_turbo",
             }
         },
     )
@@ -1352,9 +1366,9 @@ async def test_chat_sse_emits_tts_session_for_elevenlabs_intent(monkeypatch) -> 
         calls.append(kwargs)
         return PyElevenLabsRealtimeTtsSessionResponse(
             voice_id="voice-primary",
-            model_id="eleven_flash_v2_5",
+            model_id="eleven_v4_turbo",
             output_format="pcm_24000",
-            sync_alignment=False,
+            sync_alignment=True,
             language_code="en",
             token="sutkn-chat",
             websocket_base_url="wss://api.elevenlabs.io",
@@ -1378,11 +1392,11 @@ async def test_chat_sse_emits_tts_session_for_elevenlabs_intent(monkeypatch) -> 
     assert '"type": "tts.session"' in chunks[tts_index]
     assert '"provider": "elevenlabs"' in chunks[tts_index]
     assert '"transport": "direct"' in chunks[tts_index]
-    assert '"model_id": "eleven_flash_v2_5"' in chunks[tts_index]
+    assert '"model_id": "eleven_v4_turbo"' in chunks[tts_index]
     assert '"token": "sutkn-chat"' in chunks[tts_index]
     call = dict(calls[0])
     voice = call.pop("voice")
-    assert call == {"language_code": "en", "model_id": "eleven_flash_v2_5"}
+    assert call == {"language_code": "en", "model_id": "eleven_v4_turbo"}
     # The speech port resolves the owner's Anima's voice in a session of its own.
     assert (await voice()).voice_id == "voice-primary"
     voice_session = request.app.state.session_factory.created_sessions[-1]
@@ -1408,9 +1422,9 @@ async def test_chat_sse_streams_user_response_while_tts_session_pending(monkeypa
         await release_tts_session.wait()
         return PyElevenLabsRealtimeTtsSessionResponse(
             voice_id="voice-primary",
-            model_id="eleven_multilingual_v2",
+            model_id="eleven_v4_turbo",
             output_format="pcm_24000",
-            sync_alignment=False,
+            sync_alignment=True,
             token="sutkn-chat",
             websocket_base_url="wss://api.elevenlabs.io",
         )

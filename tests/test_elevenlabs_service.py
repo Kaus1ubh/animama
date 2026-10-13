@@ -17,8 +17,9 @@ from animama.server.elevenlabs_service import (
     generate_sound_effect,
     get_owned_voice,
     isolate_audio,
-    mint_tts_websocket_single_use_token,
+    mint_dialogue_websocket_single_use_token,
     normalize_voice_profile,
+    resolve_realtime_tts_model_id,
     synthesize_text,
     validate_elevenlabs_voice_profile,
 )
@@ -354,23 +355,43 @@ def test_resolve_realtime_voice_from_preferences_rejects_missing_profile() -> No
 
 
 @pytest.mark.asyncio
-async def test_mint_tts_websocket_single_use_token(fake_client: _FakeElevenLabsClient) -> None:
-    token = await mint_tts_websocket_single_use_token()
+async def test_mint_dialogue_websocket_single_use_token(fake_client: _FakeElevenLabsClient) -> None:
+    """The Text to Dialogue socket refuses ``tts_websocket`` tokens; it needs ``ttd_websocket``."""
+
+    token = await mint_dialogue_websocket_single_use_token()
 
     assert token == "sutkn_123"
-    assert fake_client.single_use_token_calls == [{"token_type": "tts_websocket"}]
+    assert fake_client.single_use_token_calls == [{"token_type": "ttd_websocket"}]
 
 
 @pytest.mark.asyncio
-async def test_mint_tts_websocket_single_use_token_surfaces_api_error(
+async def test_mint_dialogue_websocket_single_use_token_surfaces_api_error(
     fake_client: _FakeElevenLabsClient,
 ) -> None:
     fake_client.single_use_token_outcomes = [ApiError(status_code=502, body={"detail": "upstream unavailable"})]
 
     with pytest.raises(HTTPException) as exc_info:
-        await mint_tts_websocket_single_use_token()
+        await mint_dialogue_websocket_single_use_token()
 
     assert exc_info.value.status_code == 502
+
+
+def test_realtime_tts_model_defaults_to_eleven_v4_turbo() -> None:
+    assert resolve_realtime_tts_model_id(None) == "eleven_v4_turbo"
+    assert resolve_realtime_tts_model_id(" ") == "eleven_v4_turbo"
+    assert resolve_realtime_tts_model_id("eleven_v4_turbo") == "eleven_v4_turbo"
+
+
+@pytest.mark.parametrize("legacy_model_id", ["eleven_flash_v2_5", "eleven_multilingual_v2"])
+def test_realtime_tts_model_maps_retired_models_to_eleven_v4_turbo(legacy_model_id: str) -> None:
+    assert resolve_realtime_tts_model_id(legacy_model_id) == "eleven_v4_turbo"
+
+
+def test_realtime_tts_model_rejects_unknown_models() -> None:
+    with pytest.raises(HTTPException) as exc_info:
+        resolve_realtime_tts_model_id("eleven_turbo_v2")
+
+    assert exc_info.value.status_code == 422
 
 
 @pytest.mark.asyncio

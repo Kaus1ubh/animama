@@ -12,6 +12,11 @@ import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 const ELEVENLABS_SAMPLE_RATE = 24000;
 const ELEVENLABS_DEFAULT_WS_BASE = "wss://api.elevenlabs.io";
 const ELEVENLABS_SESSION_WAIT_TIMEOUT_MS = 1500;
+/**
+ * The Text to Dialogue socket closes after 20 s without a client message; a
+ * reply can pause longer than that while the model writes other fields.
+ */
+const ELEVENLABS_DIALOGUE_KEEP_ALIVE_MS = 10_000;
 
 type RealtimeSpeechContext = {
   animaId: string | null;
@@ -72,8 +77,15 @@ type ActiveRuntime = {
   runId: string;
   context: RealtimeSpeechContext;
   socket: WebSocket | null;
+  /** The speech protocol of the open socket; `null` until a session opens one. */
+  protocol: RealtimeSpeechProtocol | null;
+  /** The voice registered on the open socket, which every dialogue input names. */
+  voiceId: string;
   ready: boolean;
-  queuedFrames: Array<{ type: "text"; text: string } | { type: "flush" }>;
+  queuedFrames: Array<{ type: "text"; text: string } | { type: "end" }>;
+  /** Whether the provider has been asked to start speaking without its 40-character buffer. */
+  flushedFirstChunk: boolean;
+  keepAliveTimer: number | null;
   audioContext: AudioContext | null;
   player: PCMPlayerWorklet | null;
   totalSamples: number;
@@ -121,8 +133,12 @@ function createInitialRuntime(
     runId,
     context,
     socket: null,
+    protocol: null,
+    voiceId: "",
     ready: false,
     queuedFrames: [],
+    flushedFirstChunk: false,
+    keepAliveTimer: null,
     audioContext: null,
     player: null,
     totalSamples: 0,
@@ -219,6 +235,55 @@ async function createAudioResources(): Promise<{
 }
 
 /**
+ * How the runtime talks to the socket it opened.
+ *
+ * - `dialogue`: ElevenLabs' Text to Dialogue socket, the only one that speaks
+ *   Eleven v4 Turbo. The first message registers the voice; text arrives as
+ *   `inputs`; `close_socket` ends the stream.
+ * - `server`: a hosted consumer's same-origin socket, which validates plain
+ *   `{text}` frames and speaks the reply itself.
+ */
+type RealtimeSpeechProtocol = "dialogue" | "server";
+
+function realtimeSpeechProtocol(
+  session: ElevenLabsSessionResponse,
+): RealtimeSpeechProtocol {
+  return session.transport === "server" ? "server" : "dialogue";
+}
+
+/** The first message each protocol expects once the socket opens. */
+function openingFrame(
+  protocol: RealtimeSpeechProtocol,
+  voiceId: string,
+): Record<string, unknown> {
+  return protocol === "dialogue" ? { voices: [voiceId] } : { text: " " };
+}
+
+/** Frames for one chunk of reply text. */
+function textFrames(
+  protocol: RealtimeSpeechProtocol,
+  voiceId: string,
+  text: string,
+  flushFirstChunk: boolean,
+): Array<Record<string, unknown>> {
+  if (protocol === "server") return [{ text }];
+  // Chunks arrive trimmed; the trailing space keeps words apart across inputs.
+  const frames: Array<Record<string, unknown>> = [
+    { inputs: [{ text: `${text} `, voice_id: voiceId }] },
+  ];
+  // The provider otherwise holds a short first sentence until it has about 40
+  // characters and 8 words. One flush starts speech; later chunks keep one
+  // prosody turn.
+  if (flushFirstChunk) frames.push({ flush: true });
+  return frames;
+}
+
+/** The frame that ends the reply's text. */
+function endFrame(protocol: RealtimeSpeechProtocol): Record<string, unknown> {
+  return protocol === "dialogue" ? { close_socket: true } : { text: "" };
+}
+
+/**
  * Resolve an admitted speech session. Server sockets use cookies and never inherit
  * provider tokens; the existing local direct path requires connection authority.
  * The historical export name remains compatible with local consumers.
@@ -269,7 +334,9 @@ export function buildDirectElevenLabsRealtimeWsUrl(
     query.set("language_code", session.language_code);
   }
   const wsBase = session.websocket_base_url || ELEVENLABS_DEFAULT_WS_BASE;
-  return `${wsBase}/v1/text-to-speech/${encodeURIComponent(session.voice_id)}/stream-input?${query.toString()}`;
+  // Eleven v4 Turbo speaks only on the Text to Dialogue socket; the voice is
+  // registered by the first message rather than the path.
+  return `${wsBase}/v1/text-to-dialogue/stream-input?${query.toString()}`;
 }
 
 export function useElevenLabsTtsRuntime(
@@ -295,6 +362,36 @@ export function useElevenLabsTtsRuntime(
     window.clearTimeout(runtime.sessionFallbackTimer);
     runtime.sessionFallbackTimer = null;
   }, []);
+
+  const clearKeepAlive = useCallback((runtime: ActiveRuntime) => {
+    if (runtime.keepAliveTimer === null) return;
+    window.clearTimeout(runtime.keepAliveTimer);
+    runtime.keepAliveTimer = null;
+  }, []);
+
+  /**
+   * Restart the dialogue socket's idle countdown after each message, until the
+   * reply's text has ended. Hosted server sockets accept only text frames.
+   */
+  const scheduleKeepAlive = useCallback(
+    (runtime: ActiveRuntime) => {
+      clearKeepAlive(runtime);
+      if (
+        runtime.protocol !== "dialogue" ||
+        runtime.closed ||
+        runtime.requestedStreamEnd
+      )
+        return;
+      runtime.keepAliveTimer = window.setTimeout(() => {
+        runtime.keepAliveTimer = null;
+        if (!runtime.socket || runtime.closed || runtime.requestedStreamEnd)
+          return;
+        runtime.socket.send(JSON.stringify({ keep_alive: true }));
+        scheduleKeepAlive(runtime);
+      }, ELEVENLABS_DIALOGUE_KEEP_ALIVE_MS);
+    },
+    [clearKeepAlive],
+  );
 
   const emitDurationResolved = useCallback((runtime: ActiveRuntime) => {
     if (runtime.durationResolved) return;
@@ -331,6 +428,7 @@ export function useElevenLabsTtsRuntime(
       runtime.ready = false;
       runtime.queuedFrames = [];
       clearSessionFallbackTimer(runtime);
+      clearKeepAlive(runtime);
       if (runtime.rejectSession) {
         runtime.rejectSession(createRunCancelledError());
         runtime.resolveSession = null;
@@ -361,23 +459,35 @@ export function useElevenLabsTtsRuntime(
         runtime.audioContext = null;
       }
     },
-    [clearSessionFallbackTimer],
+    [clearKeepAlive, clearSessionFallbackTimer],
   );
 
-  const flushQueuedFrames = useCallback((runtime: ActiveRuntime) => {
-    if (!runtime.ready || runtime.closed || !runtime.socket) return;
-    while (runtime.queuedFrames.length > 0) {
-      const next = runtime.queuedFrames.shift();
-      if (!next) continue;
-      if (next.type === "text") {
-        runtime.socket.send(JSON.stringify({ text: next.text }));
-        runtime.sentTextChars += next.text.length;
-      } else {
-        runtime.requestedStreamEnd = true;
-        runtime.socket.send(JSON.stringify({ text: "" }));
+  const flushQueuedFrames = useCallback(
+    (runtime: ActiveRuntime) => {
+      const { socket, protocol, voiceId } = runtime;
+      if (!runtime.ready || runtime.closed || !socket || !protocol) return;
+      while (runtime.queuedFrames.length > 0) {
+        const next = runtime.queuedFrames.shift();
+        if (!next) continue;
+        if (next.type === "text") {
+          const frames = textFrames(
+            protocol,
+            voiceId,
+            next.text,
+            !runtime.flushedFirstChunk,
+          );
+          runtime.flushedFirstChunk = true;
+          for (const frame of frames) socket.send(JSON.stringify(frame));
+          runtime.sentTextChars += next.text.length;
+        } else {
+          runtime.requestedStreamEnd = true;
+          socket.send(JSON.stringify(endFrame(protocol)));
+        }
       }
-    }
-  }, []);
+      scheduleKeepAlive(runtime);
+    },
+    [scheduleKeepAlive],
+  );
 
   const markStreamFinished = useCallback(
     (runtime: ActiveRuntime) => {
@@ -385,6 +495,7 @@ export function useElevenLabsTtsRuntime(
       runtime.sawStreamFinished = true;
       runtime.ready = false;
       runtime.socket = null;
+      clearKeepAlive(runtime);
       emitDurationResolved(runtime);
       if (runtime.sawAudio && runtime.player) {
         try {
@@ -399,7 +510,7 @@ export function useElevenLabsTtsRuntime(
         void closeRuntime(runtime);
       }
     },
-    [closeRuntime, emitDurationResolved, emitPlaybackEnded],
+    [clearKeepAlive, closeRuntime, emitDurationResolved, emitPlaybackEnded],
   );
 
   const handleRuntimeFailure = useCallback(
@@ -507,6 +618,13 @@ export function useElevenLabsTtsRuntime(
       activeRuntimeRef.current = runtime;
 
       const session = await resolveSessionForRun(runtime);
+      // The dialogue socket names its voice in every frame; a session without
+      // one would only fail later, at the provider.
+      if (
+        realtimeSpeechProtocol(session) === "dialogue" &&
+        !session.voice_id.trim()
+      )
+        throw new Error("The ElevenLabs realtime TTS session has no voice.");
       const wsUrl = buildDirectElevenLabsRealtimeWsUrl(
         session,
         socketPolicy.current,
@@ -578,7 +696,10 @@ export function useElevenLabsTtsRuntime(
         },
       );
       const socket = new WebSocket(wsUrl);
+      const protocol = realtimeSpeechProtocol(session);
       runtime.socket = socket;
+      runtime.protocol = protocol;
+      runtime.voiceId = session.voice_id;
       runtime.ready = false;
 
       socket.binaryType = "arraybuffer";
@@ -593,7 +714,7 @@ export function useElevenLabsTtsRuntime(
             transport: session.transport ?? "direct",
           },
         );
-        socket.send(JSON.stringify({ text: " " }));
+        socket.send(JSON.stringify(openingFrame(protocol, session.voice_id)));
         runtime.ready = true;
         flushQueuedFrames(runtime);
       };
@@ -683,8 +804,8 @@ export function useElevenLabsTtsRuntime(
               "elevenlabs_audio_decode_failed",
               "Failed to decode ElevenLabs realtime audio.",
             );
+            return;
           }
-          return;
         }
 
         if (payload.type === "ready") {
@@ -693,7 +814,9 @@ export function useElevenLabsTtsRuntime(
           return;
         }
 
-        if (payload.type === "error") {
+        // The dialogue socket reports failures as `{message, error, code}`
+        // before closing; older streams used `{type: "error"}`.
+        if (payload.type === "error" || typeof payload.error === "string") {
           const message =
             typeof payload.message === "string" && payload.message.trim()
               ? payload.message.trim()
@@ -702,7 +825,13 @@ export function useElevenLabsTtsRuntime(
           return;
         }
 
-        if (payload.isFinal === true || payload.final === true) {
+        // `is_final` ends the dialogue stream (a turn's end is only
+        // `is_final_audio_for_turn`); hosted sockets may still send `isFinal`.
+        if (
+          payload.is_final === true ||
+          payload.isFinal === true ||
+          payload.final === true
+        ) {
           markStreamFinished(runtime);
         }
       };
@@ -840,7 +969,7 @@ export function useElevenLabsTtsRuntime(
       void ensureStarted(runId, context);
       const runtime = activeRuntimeRef.current;
       if (!runtime || runtime.runId !== runId) return;
-      runtime.queuedFrames.push({ type: "flush" });
+      runtime.queuedFrames.push({ type: "end" });
       flushQueuedFrames(runtime);
     },
     [ensureStarted, flushQueuedFrames],

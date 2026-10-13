@@ -72,31 +72,40 @@ ElevenLabsRealtimeEmotionLabel = Literal[
     "gloom",
 ]
 
-ElevenLabsRealtimeTtsModelId = Literal[
-    "eleven_multilingual_v2",
-    "eleven_flash_v2_5",
-]
+ElevenLabsRealtimeTtsModelId = Literal["eleven_v4_turbo"]
 
 ElevenLabsFinalizedTtsModelId = Literal["eleven_v3"]
 
 ElevenLabsChatTtsModelId = Literal[
-    "eleven_multilingual_v2",
-    "eleven_flash_v2_5",
+    "eleven_v4_turbo",
     "eleven_v3",
 ]
 
-SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS: tuple[ElevenLabsRealtimeTtsModelId, ...] = (
-    "eleven_multilingual_v2",
-    "eleven_flash_v2_5",
-)
+SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS: tuple[ElevenLabsRealtimeTtsModelId, ...] = ("eleven_v4_turbo",)
+
+DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID: ElevenLabsRealtimeTtsModelId = "eleven_v4_turbo"
 
 SUPPORTED_ELEVENLABS_FINALIZED_TTS_MODEL_IDS: tuple[ElevenLabsFinalizedTtsModelId, ...] = ("eleven_v3",)
 
 SUPPORTED_ELEVENLABS_CHAT_TTS_MODEL_IDS: tuple[ElevenLabsChatTtsModelId, ...] = (
-    "eleven_multilingual_v2",
-    "eleven_flash_v2_5",
+    "eleven_v4_turbo",
     "eleven_v3",
 )
+
+# Retired model ids and the model that now speaks for them. Saved preferences
+# and requests from a tab opened before an upgrade still carry these ids.
+RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS: dict[str, ElevenLabsChatTtsModelId] = {
+    "eleven_flash_v2_5": "eleven_v4_turbo",
+    "eleven_multilingual_v2": "eleven_v4_turbo",
+}
+
+
+def replace_retired_elevenlabs_tts_model_id(value: object) -> object:
+    """Return the current model for a retired ElevenLabs model id, or the value unchanged."""
+
+    if isinstance(value, str):
+        return RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS.get(value, value)
+    return value
 
 
 class PyElevenLabsRealtimeTtsSessionRequest(_ElevenLabsSchema):

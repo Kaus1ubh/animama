@@ -21,6 +21,10 @@ from elevenlabs.types.voice_settings import VoiceSettings
 from fastapi import HTTPException, status
 from starlette.concurrency import run_in_threadpool
 
+from animama.app.contracts.elevenlabs import (
+    DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID,
+    replace_retired_elevenlabs_tts_model_id,
+)
 from animama.app.model_clients.credential_store import ELEVENLABS_CREDENTIAL_ENV, CredentialSnapshot
 from animama.app.voice_emotional_tone import (
     bounded_finalized_tts_previous_text,
@@ -47,8 +51,12 @@ from animama.server.schemas.elevenlabs import (
 
 DEFAULT_TTS_MEDIA_TYPE = "audio/mpeg"
 ELEVENLABS_REALTIME_TTS_OUTPUT_FORMAT = "pcm_24000"
-ELEVENLABS_REALTIME_TTS_SYNC_ALIGNMENT = False
+# Ask for character timing with the audio; it costs nothing extra.
+ELEVENLABS_REALTIME_TTS_SYNC_ALIGNMENT = True
 ELEVENLABS_REALTIME_TTS_WEBSOCKET_BASE_URL = "wss://api.elevenlabs.io"
+# The Text to Dialogue socket accepts only this token type; ``tts_websocket``
+# tokens are refused with ``invalid_token_type``.
+ELEVENLABS_DIALOGUE_WEBSOCKET_TOKEN_TYPE = "ttd_websocket"
 ELEVENLABS_FINALIZED_TTS_OUTPUT_FORMAT = "pcm_24000"
 ELEVENLABS_FINALIZED_TTS_APPLY_TEXT_NORMALIZATION = "off"
 ELEVENLABS_VOICE_ACCESS_POSITIVE_TTL_SECONDS = 30 * 60
@@ -183,29 +191,21 @@ def _require_api_key() -> str:
 def resolve_realtime_tts_model_id(
     model_id: ElevenLabsRealtimeTtsModelId | str | None,
 ) -> ElevenLabsRealtimeTtsModelId:
-    """Resolve and validate the ElevenLabs realtime TTS model id."""
+    """Resolve the ElevenLabs realtime TTS model id.
 
-    explicit = isinstance(model_id, str) and bool(model_id.strip())
-    candidate = (
-        model_id.strip()
-        if explicit and isinstance(model_id, str)
-        else settings.elevenlabs_realtime_tts_default_model_id.strip()
-    )
+    No id speaks with v4 Turbo; a retired realtime id speaks with its replacement.
+    """
+
+    candidate = replace_retired_elevenlabs_tts_model_id(model_id.strip() if isinstance(model_id, str) else model_id)
+    if not candidate:
+        return DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID
     if candidate in SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS:
         return cast(ElevenLabsRealtimeTtsModelId, candidate)
 
     supported = ", ".join(SUPPORTED_ELEVENLABS_REALTIME_TTS_MODEL_IDS)
-    if explicit:
-        raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
-            detail=f"Unsupported ElevenLabs realtime TTS model_id: {candidate}. Supported values: {supported}",
-        )
     raise HTTPException(
-        status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-        detail=(
-            "Configured ANIMAMA_ELEVENLABS_REALTIME_TTS_DEFAULT_MODEL_ID is not supported: "
-            f"{candidate}. Supported values: {supported}"
-        ),
+        status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+        detail=f"Unsupported ElevenLabs realtime TTS model_id: {candidate}. Supported values: {supported}",
     )
 
 
@@ -754,14 +754,16 @@ def normalize_voice_profile(
     return profile.model_dump(mode="json")
 
 
-async def mint_tts_websocket_single_use_token() -> str:
+async def mint_dialogue_websocket_single_use_token() -> str:
+    """Mint a single-use token that admits one browser connection to the Text to Dialogue socket."""
+
     client = get_elevenlabs_client()
     try:
         response = await _call_elevenlabs(
             client.tokens.single_use.create,
             fallback_detail="Failed to mint ElevenLabs single-use token",
-            operation_name="create_tts_websocket_token",
-            token_type="tts_websocket",
+            operation_name="create_dialogue_websocket_token",
+            token_type=ELEVENLABS_DIALOGUE_WEBSOCKET_TOKEN_TYPE,
         )
     except ApiError as exc:
         _raise_from_api_error(exc, fallback_detail="Failed to mint ElevenLabs single-use token")
@@ -859,7 +861,7 @@ async def resolve_realtime_tts_session(
         sync_alignment=ELEVENLABS_REALTIME_TTS_SYNC_ALIGNMENT,
         language_code=language_code.strip() if isinstance(language_code, str) and language_code.strip() else None,
         websocket_base_url=ELEVENLABS_REALTIME_TTS_WEBSOCKET_BASE_URL,
-        token=await mint_tts_websocket_single_use_token(),
+        token=await mint_dialogue_websocket_single_use_token(),
     )
 
 

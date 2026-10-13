@@ -6,7 +6,7 @@ describe("buildElevenLabsChatTtsDispatchOptions", () => {
   it("includes finalized chunking only for Eleven v3", () => {
     expect(
       buildElevenLabsChatTtsDispatchOptions({
-        modelId: "eleven_flash_v2_5",
+        modelId: "eleven_v4_turbo",
         finalizedChunkingPreference: "paragraph",
       }),
     ).toEqual({
@@ -14,7 +14,7 @@ describe("buildElevenLabsChatTtsDispatchOptions", () => {
       provider: "elevenlabs",
       transport: "auto",
       language_code: null,
-      model_id: "eleven_flash_v2_5",
+      model_id: "eleven_v4_turbo",
     });
 
     expect(

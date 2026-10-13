@@ -180,7 +180,7 @@ let root: Root | null = null;
 
 /** Mount the hook for an Anima whose owner chose ElevenLabs with `modelId`. */
 function renderPlayback({
-  modelId = "eleven_flash_v2_5",
+  modelId = "eleven_v4_turbo",
   mountedVoice = null,
 }: {
   modelId?: string;
@@ -266,7 +266,7 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     act(() =>
       playback().acceptElevenLabsSession("run-1", {
         voice_id: "voice-1",
-        model_id: "eleven_flash_v2_5",
+        model_id: "eleven_v4_turbo",
         output_format: "pcm_24000",
         sync_alignment: false,
         transport: "server",
@@ -392,7 +392,7 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
       playback().startRun("run-1");
       playback().acceptElevenLabsSession("run-1", {
         voice_id: "voice-1",
-        model_id: "eleven_flash_v2_5",
+        model_id: "eleven_v4_turbo",
         output_format: "pcm_24000",
         sync_alignment: false,
         transport: "server",

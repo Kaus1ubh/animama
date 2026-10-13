@@ -3160,7 +3160,7 @@ export type PyAnimaTtsRunOptions = {
     /**
      * Model Id
      */
-    model_id?: 'eleven_multilingual_v2' | 'eleven_flash_v2_5' | 'eleven_v3' | 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts' | null;
+    model_id?: 'eleven_v4_turbo' | 'eleven_v3' | 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts' | null;
     /**
      * Provider
      */

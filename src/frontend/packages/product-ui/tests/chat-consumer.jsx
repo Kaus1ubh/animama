@@ -20,7 +20,7 @@ let stopOnToken = false;
 let run = 0;
 let api;
 let speechEnabled = false;
-let speechModel = "eleven_flash_v2_5";
+let speechModel = "eleven_v4_turbo";
 let speechProvider = "elevenlabs";
 let pocketFallback = true;
 const speechSessions = [];
@@ -239,7 +239,7 @@ function mount(owner = "owner-fixture", session = false, sessionKey = owner) {
 window.fixture = {
   mount,
   enableSpeech: ({
-    model = "eleven_flash_v2_5",
+    model = "eleven_v4_turbo",
     provider = "elevenlabs",
     fallback = true,
   } = {}) => {

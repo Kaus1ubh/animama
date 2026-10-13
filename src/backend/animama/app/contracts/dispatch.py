@@ -4,9 +4,9 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from animama.app.contracts.elevenlabs import ElevenLabsChatTtsModelId
+from animama.app.contracts.elevenlabs import ElevenLabsChatTtsModelId, replace_retired_elevenlabs_tts_model_id
 from animama.app.contracts.gemini import SUPPORTED_GEMINI_TTS_MODEL_IDS, GeminiTtsModelId
 from animama.domain.events import EventType
 
@@ -20,6 +20,13 @@ class PyAnimaTtsRunOptions(BaseModel):
     language_code: str | None = Field(default=None, min_length=2, max_length=8)
     model_id: ElevenLabsChatTtsModelId | GeminiTtsModelId | None = None
     finalized_chunking: Literal["sentence", "paragraph"] | None = None
+
+    @field_validator("model_id", mode="before")
+    @classmethod
+    def _replace_retired_model(cls, value: object) -> object:
+        """Speak a retired ElevenLabs model id with its replacement instead of refusing the turn."""
+
+        return replace_retired_elevenlabs_tts_model_id(value)
 
     @model_validator(mode="after")
     def _model_matches_provider(self) -> PyAnimaTtsRunOptions:

@@ -421,7 +421,7 @@ async def test_an_anima_without_an_owner_is_not_found(guarded: GuardedChat) -> N
 
 async def test_speech_resolves_only_the_callers_anima_voice(guarded: GuardedChat) -> None:
     guarded.model.replies.append(structured("Hello there. The kettle is on."))
-    realtime = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_flash_v2_5"}}
+    realtime = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}}
 
     response = await guarded.turn("speech", dispatch_options=realtime)
 
@@ -448,7 +448,7 @@ async def test_a_speech_refusal_keeps_its_code_in_the_speech_frames(guarded: Gua
 
     realtime = await guarded.turn(
         "declined-realtime",
-        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_flash_v2_5"}},
+        dispatch_options={"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}},
     )
     finalized = await guarded.turn(
         "declined-finalized",

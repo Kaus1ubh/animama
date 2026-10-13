@@ -177,9 +177,9 @@ class FakeSpeech:
         self.calls.append(("realtime_session", principal.id, resolved.voice_id))
         return PyElevenLabsRealtimeTtsSessionResponse(
             voice_id=resolved.voice_id,
-            model_id=model_id or "eleven_flash_v2_5",
+            model_id=model_id or "eleven_v4_turbo",
             output_format="pcm_24000",
-            sync_alignment=False,
+            sync_alignment=True,
             language_code=language_code,
             token="fake-speech-token",
             websocket_base_url="wss://speech.invalid",

@@ -1,8 +1,8 @@
 # ElevenLabs TTS Guide
 
 This document describes the browser-side ElevenLabs TTS runtimes in
-`src/frontend/web`: admitted realtime websocket speech for Flash/Multilingual
-models and finalized-text `chat:sse` audio push for Eleven v3.
+`src/frontend/web`: admitted realtime websocket speech for Eleven v4 Turbo and
+finalized-text `chat:sse` audio push for Eleven v3.
 
 ## Runtime Model
 
@@ -22,10 +22,14 @@ v3 finalized-audio grouping preference is stored as
 `tts_elevenlabs_v3_finalized_chunking` with `"sentence"` as the default and
 `"paragraph"` as the opt-in smoother long-form mode.
 
-## Realtime Models
+## Realtime Model
 
-Realtime values are `eleven_flash_v2_5` and `eleven_multilingual_v2`.
-`eleven_flash_v2_5` is the frontend default.
+The realtime model is `eleven_v4_turbo`, the frontend and server default. It
+speaks only on ElevenLabs' Text to Dialogue WebSocket
+(`/v1/text-to-dialogue/stream-input`); the Text to Speech socket rejects v4.
+Saved `eleven_flash_v2_5` and `eleven_multilingual_v2` preferences read as
+`eleven_v4_turbo` (`toElevenLabsTtsModelId`), and the chat request contract maps
+the same retired ids, so a tab opened before an upgrade still gets its reply.
 
 For realtime chat turns, `useChatSession.ts` sends explicit TTS intent in
 `dispatch_options.tts`. `chat:sse` resolves the ElevenLabs realtime session and
@@ -40,12 +44,39 @@ settle usage/cancellation. Frontend fixture success does not establish that serv
 boundary or real speech delivery.
 
 The `tts.session` event includes the selected voice, model, output format,
-transport, and `sync_alignment`. `sync_alignment` remains `false`; Anima does
-not request ElevenLabs timing metadata for realtime speech.
+transport, and `sync_alignment`. Local sessions set `sync_alignment: true`, so
+ElevenLabs returns character timing with the audio; the browser does not use it
+yet.
+
+The direct socket protocol (`use-elevenlabs-tts-runtime.ts`):
+
+- The URL carries `model_id`, `output_format`, `sync_alignment`, an optional
+  `language_code` and the single-use token. The voice is not in the path.
+- The first message registers the voice: `{"voices": [voice_id]}`.
+- Each text chunk is sent as `{"inputs": [{"text": "<chunk> ", "voice_id": ...}]}`.
+  The runtime restores the separating space that the chunker trims.
+- After the run's first chunk the runtime sends one `{"flush": true}`. A short
+  first sentence then starts speaking without waiting for the provider's
+  buffer of about 40 characters and 8 words. Later chunks are not flushed, so
+  the rest of the reply stays in one prosody turn.
+- ElevenLabs closes a socket after 20 s without a client message. The runtime
+  sends `{"keep_alive": true}` after 10 s without one, until the reply's text
+  ends.
+- Completion sends `{"close_socket": true}`, and the run ends on
+  `{"is_final": true}`. A `{message, error, code}` message ends that reply's
+  speech with the usual notice.
+- Each open socket holds an ElevenLabs dialogue session, so cancel, a
+  superseding run and stop close it at once.
+
+The hosted server transport keeps the frames its consumer validates:
+`{"text": " "}` on open, `{"text": chunk}` per chunk, and `{"text": ""}` at the
+end, with no flush or keep-alive frames. It ends on `isFinal` or `is_final`.
+
 Loadout → Voices saves the Anima voice ID without contacting ElevenLabs, even
 when another provider is selected. The backend checks voice accessibility when
 starting ElevenLabs playback and keeps a short process-local runtime cache. Realtime chat still
-resolves the selected voice and mints a single-use websocket token per run, but
+resolves the selected voice and mints a single-use `ttd_websocket` token per run
+(the dialogue socket refuses `tts_websocket` tokens), but
 it does not perform a fresh ElevenLabs `voices.get` call when the cache says the
 voice was recently valid.
 
@@ -73,10 +104,9 @@ All ElevenLabs chat models prefer `tts_text` over visible speech text when
 admitted websocket; Eleven v3 sends that text from the backend to ElevenLabs.
 
 For structured speech streaming, `useChatSession.ts` sends each speech delta
-into the existing TTS pipeline as it arrives. Realtime ElevenLabs models keep
-one browser websocket per chat run; ordered websocket text frames provide
-continuity, and completion still sends the terminal empty-text frame through
-the existing runtime.
+into the existing TTS pipeline as it arrives. Realtime ElevenLabs speech keeps
+one browser websocket per chat run; ordered input frames provide continuity,
+and completion ends the stream as described under the realtime model.
 
 For Eleven v3 sentence grouping, the backend trusts each sentence `tts_text` as
 already prepared by gruut and sends one finalized request per sentence. For
@@ -162,13 +192,12 @@ phonemes and playback callbacks, not ElevenLabs alignment metadata.
 ## Settings
 
 When ElevenLabs is selected, application speech settings expose a model selector.
-`Flash v2.5` persists `eleven_flash_v2_5`; `Multilingual v2` persists
-`eleven_multilingual_v2`; `Eleven v3` persists `eleven_v3`.
+`Eleven v4 Turbo` persists `eleven_v4_turbo`; `Eleven v3` persists `eleven_v3`.
 
 When `Eleven v3` is selected, the "Stream chunked TTS" switch is shown unchecked
 and disabled because v3 uses backend-pushed finalized audio instead of frontend
 text-token chunking. The saved `tts_stream_chunks` preference is not
-overwritten, so switching back to Flash or Multilingual restores the previous
+overwritten, so switching back to Eleven v4 Turbo restores the previous
 effective chunked behavior.
 
 When `Eleven v3` is selected, application speech settings also show an `Audio

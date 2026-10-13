@@ -76,7 +76,7 @@ are logged and never stop dictation.
 | ------------ | ---------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `browser`    | `speechSynthesis`            | fallback/simple speech | queue of utterances                                                                                                                  |
 | `pocket_tts` | local worker/worklet runtime | primary voice UX       | detailed below; preferred for avatar sync                                                                                            |
-| `elevenlabs` | ElevenLabs WS or HTTP stream | streamed speech output | realtime Flash/Multilingual models stream from text chunks; v3 plays backend-pushed finalized audio grouped by sentence or paragraph |
+| `elevenlabs` | ElevenLabs WS or HTTP stream | streamed speech output | realtime Eleven v4 Turbo streams text chunks over the Text to Dialogue socket; v3 plays backend-pushed finalized audio grouped by sentence or paragraph |
 | `gemini`     | Gemini via `chat:sse`        | streamed speech output | offered only with the `gemini_tts` capability; plays backend-pushed sentence audio like Eleven v3                                    |
 
 ## Core Concepts and IDs
@@ -893,9 +893,10 @@ Mechanics:
 
 ### ElevenLabs TTS
 
-Realtime models receive an SSE-provided single-use token and open a direct
-provider WebSocket. Setup waits at most 1500 ms for the session event; failures
-stop audio for that run while chat continues. Eleven v3 receives finalized PCM
+Realtime Eleven v4 Turbo receives an SSE-provided single-use token and opens a
+direct Text to Dialogue WebSocket ([protocol](elevenlabs-tts.md#realtime-model)).
+Setup waits at most 1500 ms for the session event; failures stop audio for that
+run while chat continues. Eleven v3 receives finalized PCM
 through `tts.audio` on the chat stream instead.
 
 A hosted server can decline a run's ElevenLabs speech with

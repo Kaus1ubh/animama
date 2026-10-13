@@ -142,7 +142,9 @@ Ownership and boundaries:
   Phases 1–2 authorized.
 - [x] Spec published to #471 at `5e0c6797` and read back (2026-10-12). Phase
   issues #480 and #481 were created as native sub-issues of #471.
-- [ ] Phase 1 (#480): realtime v4 Turbo over the dialogue socket.
+- [x] Phase 1 (#480): realtime v4 Turbo over the dialogue socket. All checks
+  pass, Code Review #1–#3 passed, and the live web and desktop checks show a
+  median first audio of 155 ms. Pending G2 (owner listening).
 - [ ] Phase 2 (#481): finalized v4, model cleanup and every language.
 - [ ] Phase 3: timing plumbing and the timing evidence module (not yet
   authorized).
@@ -324,7 +326,7 @@ Changes:
    - Realtime `Literal["eleven_v4_turbo"]`; the chat union becomes
      `eleven_v4_turbo | eleven_v3`. The `SUPPORTED_*` names that Cloud imports are
      kept.
-   - Add `LEGACY_ELEVENLABS_TTS_MODEL_REPLACEMENTS` with
+   - Add `RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS` with
      `eleven_flash_v2_5` and `eleven_multilingual_v2` → `eleven_v4_turbo`.
      Phase 2 adds `eleven_v3` → `eleven_v4`.
 2. **Dispatch** (`dispatch.py`, `options.py`): a `mode="before"` validator on
@@ -369,8 +371,11 @@ Changes:
    - The options are "Eleven v4 Turbo" (realtime, fastest, default) and the
      existing "Eleven v3" (finalized) until Phase 2.
    - `DEFAULT_ELEVENLABS_TTS_MODEL_ID = "eleven_v4_turbo"`.
-   - Normalizers map the legacy realtime ids. The settings modal writes the
-     replacement when it loads a migrated value, so old ids are never sent.
+   - `toElevenLabsTtsModelId` maps the retired realtime ids at every read
+     (chat dispatch and settings), so old ids are never sent. The stored value
+     is replaced the next time App Settings writes the ElevenLabs model: the
+     Text-to-Speech switch, the provider or the model selector. See the Phase 1
+     implementation notes for why this replaced the earlier write-on-load idea.
 7. **Contracts and client:**
    - `local-http` 6.0.0 in `contracts/versions.json`, mirrored in
      `hosted-web.md` and `http-api.md`.
@@ -434,13 +439,262 @@ Completion:
 - Checks and review pass.
 - Commit `feat(voice)[p1]: stream realtime replies with Eleven v4 Turbo`.
 
+#### Phase 1 implementation notes
+
+- **Migration happens at read time.** The plan first proposed that the
+  settings modal write the replacement id when it loads a retired value. That
+  would save settings without any owner action, merely because the modal was
+  opened. Instead, every read goes through `toElevenLabsTtsModelId`, so no
+  retired id reaches the backend. The backend's `PyAnimaTtsRunOptions`
+  validator maps the same ids for tabs opened before the upgrade.
+- **Protocol helpers.** The runtime keeps a protocol per socket: `dialogue`
+  for the direct session, `server` for the hosted transport. It pairs that with
+  the voice id registered on the socket, so each frame matches the session that
+  opened it.
+- **No `product-ui` bump.** Its declarations do not change: its types use
+  `string`, and its built output has no `eleven_*` literals (confirmed in
+  review). `local-http` 6.0.0 and `runtime-contracts` 0.6.0 carry the enum
+  change.
+- **Worktree setup.** The new worktree's Git LFS files were pointers. `git lfs
+  pull` was needed before `pnpm web:lint` and the stack's speech worklet would
+  work.
+
+#### Phase 1 results
+
+Results are on the initial Phase 1 source (`git diff b8ef2dcf`, snapshot
+`26be5c5a818567da`) unless marked otherwise. The final source after both review
+rounds was re-verified: see the end of the Code Review #2 Revisions.
+
+- **Backend:**
+  - `make check-test`: typed-content audit, `ruff format --check` (832 files),
+    `ruff check` and mypy (832 files) clean; pytest 4,123 passed and 29
+    skipped, in 8 min 12 s.
+  - Golden fixture `tts-realtime.sse` re-recorded: `model_id` is now
+    `eleven_v4_turbo` and `sync_alignment` is `true`.
+- **Frontend:**
+  - `pnpm check`, `pnpm web:lint` and `pnpm prettier:check` pass.
+  - `pnpm web:test`: Vitest 470 files (4,201 passed, 1 skipped), plus every
+    node and browser suite, including both hosted server-socket browser tests.
+  - `pnpm packages:test`: product-ui 30 of 30. `pnpm desktop:test`: 506
+    passed and 14 skipped.
+  - `pnpm openapi-ts` regenerated the client; the reviewer's
+    `openapi-ts:check` confirmed it is current.
+- **Live web check (G1)** on the task stack `animama-ev4`
+  (`http://animama-ev4.localhost:8460`, development mode). Setup: Annie with the
+  default voice, OpenAI chat. The page WebSocket was instrumented, with the
+  token redacted.
+  - **First audio after the first input frame:** 265, 141, 157, 143 and 155 ms
+    over 5 replies. The median is **155 ms**, against 862 ms for Flash v2.5 in
+    the spike.
+  - Every reply used `/v1/text-to-dialogue/stream-input` with
+    `sync_alignment=true` and alignment frames. Each ended on `is_final` with
+    close 1000 and no errors. The frames were `voices`, `inputs`, `flush`, any
+    further `inputs`, then `close_socket`.
+  - **Long pause:** the reply's speech events were held in the page for 25 s,
+    simulating a slow model. The socket sent `keep_alive` at 10.1 s and
+    20.1 s. The speech arrived at 27.6 s and spoke, with first audio 158 ms
+    later and close 1000.
+  - **Cancel:** with a reply's speech held, Stop closed its open dialogue
+    socket 46 ms after the click (close 1005), after two keep-alives.
+  - **Japanese (D9, streamed path):** the input frame carried
+    「おはようございます！今日はどんな感じですか？」. It spoke 2.2 s of audio,
+    with first audio in 181 ms and close 1000.
+  - **App Settings → Voice** shows "Eleven v4 Turbo", with "Realtime speech
+    that starts while the reply is written".
+- **Live desktop check (G1):** the unpackaged Electron shell ran against the
+  same stack with an isolated profile (`ANIMAMA_DESKTOP_DEV_USER_DATA` in the
+  scratch area), driven over a local CDP port. First audio was 177, 155, 131,
+  184 and 154 ms, a median of **155 ms**. All 5 replies were final, with close
+  1000 and no errors.
+- **Provider probe:** a reply with no speech registers the voice, then sends
+  `close_socket` with no text. ElevenLabs answers `{"is_final": true}` and
+  closes cleanly, so the runtime ends quietly with no notice.
+- **Spend (G1):** about 2,100 characters of v4 Turbo across the live checks,
+  roughly US$0.08. Total spent from the US$1 budget is about US$0.10.
+- **Limits:** the 25 s pause was simulated by holding the chat stream in the
+  page, not produced by a slow model. Audio was confirmed as received bytes and
+  timing, not by ear; listening is G2.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: independent `sdlc-reviewer`. Reviewed source: the uncommitted tree
+against `b8ef2dcf`, with diff snapshot `26be5c5a818567da` unchanged before and
+after review.
+
+The reviewer's checks:
+
+- `ruff check` and `ruff format --check` clean;
+- mypy on the changed files clean;
+- repository import boundary clean (0 forbidden edges);
+- 166 focused backend tests passed;
+- `pnpm openapi-ts:check` current;
+- 55 focused Vitest tests passed;
+- prettier and eslint on the changed web files clean;
+- the protocol checked against ElevenLabs' AsyncAPI for the dialogue socket.
+
+Result: one blocking finding; the code is otherwise correct.
+
+- **P1-R1-F1 (blocking).** `docs/frontend/runtime/voice.md:79` still said
+  realtime Flash and Multilingual models stream from text chunks. The Phase 2
+  id search would not catch this prose.
+- **P1-R1-F2 (optional, test gap).** The final-message test would still pass
+  if the runtime ended on `is_final_audio_for_turn`. That regression would cut
+  every reply off after its flushed first chunk. Audio arriving together with
+  `is_final` was also untested.
+- **P1-R1-F3 (optional, docs).** "Later chunks are not flushed, so the reply
+  keeps one prosody turn" is inaccurate. The first flush makes a second turn.
+- **P1-R1-F4 (optional, comments).** The service and test comments claimed the
+  browser keeps timing as lip-sync evidence. In Phase 1 it does not.
+- **P1-R1-F5 (optional, plan accuracy).** The plan referred to missing
+  implementation notes. It overstated when the stored value is replaced, and
+  named the map `LEGACY_...` instead of `RETIRED_...`.
+- **P1-R1-F6 (optional, consistency).**
+  `replace_retired_elevenlabs_tts_model_id` stripped only for the lookup, so a
+  padded retired id was accepted while a padded current id was refused.
+- **P1-R1-F7 (optional, robustness).** Input frames took `voice_id` from
+  `providedSession`, while the `voices` registration used the session captured
+  when the socket opened. An empty fallback would silently send an invalid id.
+- **P1-R1-F8 (optional, docs).** A missing paragraph break in
+  `elevenlabs-tts.md`.
+- **Note:** a reply with no speech sends `voices`, then `close_socket`; the
+  provider's response was unmeasured.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **F1, accepted:** the provider table now says realtime Eleven v4 Turbo
+  streams text chunks over the Text to Dialogue socket. The ElevenLabs section
+  links the protocol.
+- **F2, accepted:**
+  - The test now asserts the stream continues after a mid-reply
+    `is_final_audio_for_turn`, plays more audio, and ends only on `is_final`.
+  - A new test covers audio together with `is_final`.
+  - Mutation check: ending on the turn marker fails the test; restored, 9 of 9
+    pass.
+- **F3, accepted:** the docs now say "so the rest of the reply stays in one
+  prosody turn".
+- **F4, accepted:** the comments now say only that timing is requested.
+- **F5, accepted:** implementation notes added. The replacement trigger is now
+  stated as App Settings' TTS switch, provider and model writes. The map name
+  is corrected.
+- **F6, accepted:** the map is now an exact lookup. `resolve_realtime_tts_model_id`
+  still strips its input first.
+- **F7, accepted:** the runtime stores `voiceId` with the socket's protocol
+  when the socket is created. Frames use it and are not sent without it.
+- **F8, accepted:** paragraph break added.
+- **Note, verified:** see the provider probe under Phase 1 results.
+
+Post-revision source: `git diff b8ef2dcf` snapshot `67257293ded4ab68`. Eight
+files changed in the revisions:
+
+- `docs/frontend/runtime/elevenlabs-tts.md`, `docs/frontend/runtime/voice.md`
+  and the plan;
+- `src/backend/animama/app/contracts/elevenlabs.py` and
+  `src/backend/animama/server/elevenlabs_service.py`;
+- the realtime runtime and its socket test;
+- `tests/test_elevenlabs_realtime_router.py`.
+
+Checks after the revisions:
+
+- `ruff check` (src/backend, tests) clean;
+- `ruff format --check` and mypy on the changed Python files clean;
+- pytest 166 passed (ElevenLabs service and router, chat SSE, golden, chat
+  turns);
+- `pnpm check`, `pnpm web:lint` and `pnpm prettier:check` pass;
+- Vitest `src/hooks`, `src/lib/settings`, `src/lib/chat` and `tests/speech`:
+  29 files, 256 passed.
+
+Repair budget: round 1 of 2 used.
+
+#### Code Review #2 Findings
+
+Targeted recheck by the same reviewer of snapshot `67257293ded4ab68`, using an
+interdiff rebuilt from the Round 1 snapshot. Result: **pass**. All eight fixes
+were verified, and each new test fails under the regression it targets.
+
+The reviewer's checks:
+
+- ruff, ruff format, and mypy on the changed files;
+- pytest 166 passed, plus the docs-mode tests (20 passed);
+- Vitest 6 files, 56 passed;
+- prettier and eslint on the runtime and test;
+- `check:source`.
+
+- **P1-R2-F1 (optional, latent; caused by the F7 revision).** The new
+  `!voiceId` guard gated both protocols. A session with an empty `voice_id`
+  would then hold its frames:
+  - on the server protocol, it would also depart from the documented
+    `{text}` sequence;
+  - on the dialogue socket, frames would be held silently until the provider
+    rejected the session.
+
+  There is no current impact: Cloud issues only allowlisted voices, and the
+  local backend refuses blank voices with 409.
+- **P1-R2-F2 (optional, bookkeeping).** The revision record should name the
+  revised snapshot, the changed files and the post-revision checks. The
+  results lead-in implied that older suites cover the revised runtime.
+- **Cosmetic:** the edited `voice.md` table row is wider than the aligned
+  header. It renders fine, and `docs/` is not Prettier-enforced.
+
+#### Code Review #2 Revisions
+
+- **F1, accepted:**
+  - `startRun` now refuses a direct (dialogue) session whose `voice_id` is
+    blank before opening a socket. The failure surfaces as the existing
+    `elevenlabs_start_failed` notice.
+  - `flushQueuedFrames` no longer checks the voice, so server sessions keep
+    their frames.
+  - A new test covers the refusal: no socket is opened and the warning is
+    shown.
+- **F2, accepted:** the results lead-in now names the source it covers. This
+  record lists the revised snapshot, the changed files and the checks.
+- **Cosmetic, not changed:** the table renders correctly, and realigning it
+  would reformat an unrelated part of a file that was not Prettier-clean
+  before.
+
+Final Phase 1 source: verified after the round-2 revisions.
+
+- `pnpm check`, `pnpm web:lint` and `pnpm prettier:check` pass.
+- Vitest runtime, socket, `elevenlabsTtsRuntime` and use-tts-playback tests:
+  39 passed.
+- `pnpm web:test` full run (snapshot `723a423371d732e6`, which was the
+  committed Phase 1 source):
+  - Vitest 470 files: 4,203 passed and 1 skipped.
+  - Node and browser suites: 220 of 220 passed, including both hosted
+    server-socket browser tests.
+  - An earlier full run on the same source had one failure in the untouched
+    `src/app/hosted-runtime/hosted-composition.test.ts`: the "eof" admission
+    case counted 3 reads instead of 2 under fake timers. That file passed 5 of
+    5 isolated reruns and the complete rerun. It is timing-sensitive under
+    load, and this change does not touch its code paths.
+- **Live web reply on the stack (hot-reloaded source):** first audio 144 ms,
+  6.2 s spoken, `is_final`, close 1000, no errors.
+
+Repair budget: rounds 1 and 2 of 2 used.
+
+#### Code Review #3 Findings
+
+Final targeted recheck of snapshot `723a423371d732e6`, using an interdiff of
+three files: the runtime, its socket test and the plan.
+
+Result: **pass**. Both round-2 fixes were verified with no regression:
+
+- server frames no longer depend on the voice;
+- a blank direct voice fails before any socket, URL or audio resource is
+  created, and only while its run is active;
+- the new test fails without the guard.
+
+The reviewer's checks:
+
+- Vitest on the 4 runtime test files, 39 passed;
+- prettier and eslint on the changed files clean;
+- `check:source` passed;
+- the hosted-composition test passed 5 of 5 isolated reruns;
+- an import-graph trace showed that test does not reach the changed runtime.
+
+The only open item was recording the full `web:test` result, which is now done
+above.
+
+Phase 1 review: **passed**, using one full review and two repair rounds.
 
 ### Phase 2: finalized v4, model cleanup and every language
 
@@ -461,7 +715,7 @@ Changes:
 1. **Models and migration:**
    - The finalized literal becomes `Literal["eleven_v4"]`, and the chat union
      `eleven_v4_turbo | eleven_v4`.
-   - Add `eleven_v3` → `eleven_v4` to the legacy map.
+   - Add `eleven_v3` → `eleven_v4` to `RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS`.
    - Frontend: the "Eleven v4" option (finalized, highest quality, speaks each
      sentence once written) replaces "Eleven v3", and
      `isElevenLabsFinalizedTtsModelId` is true for `eleven_v4`.

@@ -166,10 +166,10 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **5.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **6.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.5.0 and
+surface, not another wire schema. `runtime-contracts` is version 0.6.0 and
 `product-ui` is version 0.9.0. Consumers explicitly admit
 the new contract major before adoption.
 
@@ -263,9 +263,16 @@ direct provider. The cookie authorizes the handshake. The consumer validates the
 current session and Origin, reserves before provider dispatch, and owns bounded
 cancellation and settlement. Browser fixtures do not establish those server gates.
 
+On a server socket the browser sends `{"text": " "}` when it opens, one
+`{"text": "<chunk>"}` per reply chunk and `{"text": ""}` at the end. It sends no
+other frames. It plays base64 `pcm_24000` from `{"audio": ...}` frames and
+ends the stream on `{"isFinal": true}` or `{"is_final": true}`. The realtime model
+is `eleven_v4_turbo`.
+
 The existing local session remains `transport: "direct"` (or an omitted legacy
-transport) with its backend-issued short-lived token. Direct playback additionally
-requires `provider_credentials: true`. Both paths fence late session/audio work,
+transport) with its backend-issued short-lived token. Its socket is ElevenLabs'
+Text to Dialogue socket, opened with a single-use `ttd_websocket` token. Direct
+playback additionally requires `provider_credentials: true`. Both paths fence late session/audio work,
 close audio resources on failure or teardown, and preserve text fallback.
 
 A speech error frame with `code: "speech_allowance_exhausted"` (`tts.session.error`

@@ -173,7 +173,7 @@ async def test_reply_with_emotion_gesture_memory_title_and_notice(world: ChatWor
     assert_golden("reply", await world.turn("reply"), world)
 
 
-ELEVENLABS_REALTIME = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_flash_v2_5"}}
+ELEVENLABS_REALTIME = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}}
 ELEVENLABS_FINALIZED = {"tts": {"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v3"}}
 
 

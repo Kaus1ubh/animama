@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   DEFAULT_ANIMAMA_PREFERENCES,
+  DEFAULT_ELEVENLABS_TTS_MODEL_ID,
   DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING,
+  ELEVENLABS_TTS_MODEL_OPTIONS,
   isParakeetWebgpuPreferred,
   mergePreferences,
   modelRolePatch,
@@ -11,6 +13,7 @@ import {
   normalizeThemeSetting,
   resolveElevenLabsV3FinalizedChunking,
   resolvePreferences,
+  toElevenLabsTtsModelId,
   toElevenLabsV3FinalizedChunking,
   toGeminiTtsModelId,
 } from "./preferences";
@@ -50,6 +53,30 @@ describe("Anima TTS provider", () => {
       );
     },
   );
+});
+
+describe("ElevenLabs model preference", () => {
+  it("defaults to Eleven v4 Turbo and offers it beside the finalized model", () => {
+    expect(DEFAULT_ELEVENLABS_TTS_MODEL_ID).toBe("eleven_v4_turbo");
+    expect(ELEVENLABS_TTS_MODEL_OPTIONS.map((option) => option.id)).toEqual([
+      "eleven_v4_turbo",
+      "eleven_v3",
+    ]);
+  });
+
+  it.each(["eleven_flash_v2_5", "eleven_multilingual_v2"])(
+    "reads the retired realtime model %s as Eleven v4 Turbo",
+    (saved) => {
+      expect(toElevenLabsTtsModelId(saved)).toBe("eleven_v4_turbo");
+    },
+  );
+
+  it("keeps current models and rejects unknown ones", () => {
+    expect(toElevenLabsTtsModelId("eleven_v4_turbo")).toBe("eleven_v4_turbo");
+    expect(toElevenLabsTtsModelId("eleven_v3")).toBe("eleven_v3");
+    expect(toElevenLabsTtsModelId("eleven_turbo_v2")).toBeNull();
+    expect(toElevenLabsTtsModelId(undefined)).toBeNull();
+  });
 });
 
 describe("ElevenLabs v3 finalized chunking preferences", () => {

@@ -12,10 +12,10 @@ import {
 } from "@/lib/settings/preferences";
 
 describe("ElevenLabs realtime TTS runtime", () => {
-  it("builds direct websocket URLs from the provided session model id", () => {
+  it("builds Text to Dialogue websocket URLs from the provided session", () => {
     const url = buildDirectElevenLabsRealtimeWsUrl({
       voice_id: "voice/custom",
-      model_id: "eleven_multilingual_v2",
+      model_id: "eleven_v4_turbo",
       output_format: "pcm_24000",
       sync_alignment: false,
       language_code: "en",
@@ -23,10 +23,12 @@ describe("ElevenLabs realtime TTS runtime", () => {
       websocket_base_url: "wss://example.elevenlabs.test",
     });
 
+    // The dialogue socket names its voice in the first message, not the path.
     expect(url).toContain(
-      "wss://example.elevenlabs.test/v1/text-to-speech/voice%2Fcustom/stream-input?",
+      "wss://example.elevenlabs.test/v1/text-to-dialogue/stream-input?",
     );
-    expect(url).toContain("model_id=eleven_multilingual_v2");
+    expect(url).not.toContain("voice%2Fcustom");
+    expect(url).toContain("model_id=eleven_v4_turbo");
     expect(url).toContain("output_format=pcm_24000");
     expect(url).toContain("sync_alignment=false");
     expect(url).toContain("language_code=en");
@@ -35,12 +37,11 @@ describe("ElevenLabs realtime TTS runtime", () => {
 });
 
 describe("ElevenLabs TTS model helpers", () => {
-  it("classifies v3 as finalized and Flash/Multilingual as realtime", () => {
+  it("classifies v3 as finalized and v4 Turbo as realtime", () => {
     expect(toElevenLabsTtsModelId("eleven_v3")).toBe("eleven_v3");
     expect(isElevenLabsFinalizedTtsModelId("eleven_v3")).toBe(true);
     expect(isElevenLabsRealtimeTtsModelId("eleven_v3")).toBe(false);
-    expect(isElevenLabsRealtimeTtsModelId("eleven_flash_v2_5")).toBe(true);
-    expect(isElevenLabsRealtimeTtsModelId("eleven_multilingual_v2")).toBe(true);
+    expect(isElevenLabsRealtimeTtsModelId("eleven_v4_turbo")).toBe(true);
   });
 });
 

@@ -127,20 +127,21 @@ async def test_realtime_tts_session_is_direct_only(
         _fake_ensure_voice_accessible,
     )
     monkeypatch.setattr(
-        "animama.server.elevenlabs_service.mint_tts_websocket_single_use_token",
+        "animama.server.elevenlabs_service.mint_dialogue_websocket_single_use_token",
         _fake_mint_token,
     )
 
     payload = await resolve_realtime_tts_session(
         voice=_primary_voice,
         language_code="en",
-        model_id="eleven_flash_v2_5",
+        model_id="eleven_v4_turbo",
     )
 
     assert payload.voice_id == "voice-primary"
-    assert payload.model_id == "eleven_flash_v2_5"
+    assert payload.model_id == "eleven_v4_turbo"
     assert payload.output_format == "pcm_24000"
-    assert payload.sync_alignment is False
+    # Character timing is always requested with the audio.
+    assert payload.sync_alignment is True
     assert payload.language_code == "en"
     assert payload.token == "sutkn-direct"
     assert payload.websocket_base_url == "wss://api.elevenlabs.io"

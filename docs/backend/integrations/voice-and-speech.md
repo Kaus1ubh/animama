@@ -19,11 +19,11 @@ When a new anima saves an `elevenlabs_voice_profile`, the backend validates the
 selected voice against the configured ElevenLabs API key before persisting it.
 That fresh save-time check also primes a small process-local runtime cache.
 
-Configuration lives in `server/config.py`, including the API key and
-`ANIMAMA_ELEVENLABS_REALTIME_TTS_DEFAULT_MODEL_ID`. The default realtime model
-is `eleven_flash_v2_5`. Do not return backend API keys to clients. For
-realtime chat, return short-lived direct websocket credentials in `chat:sse`
-`tts.session` events.
+Configuration lives in `server/config.py`, including the API key. The realtime
+model is `eleven_v4_turbo`; the former
+`ANIMAMA_ELEVENLABS_REALTIME_TTS_DEFAULT_MODEL_ID` setting was removed and is
+ignored. Do not return backend API keys to clients. For realtime chat, return
+short-lived direct websocket credentials in `chat:sse` `tts.session` events.
 
 ## Realtime TTS
 
@@ -36,8 +36,10 @@ is ElevenLabs:
 - `provider: "elevenlabs"`
 - `transport: "auto" | "direct"` as request intent
 - optional `language_code`
-- optional `model_id`: `eleven_flash_v2_5` or `eleven_multilingual_v2` for
-  realtime speech, or `eleven_v3` for finalized-text speech
+- optional `model_id`: `eleven_v4_turbo` for realtime speech, or `eleven_v3`
+  for finalized-text speech. The retired `eleven_flash_v2_5` and
+  `eleven_multilingual_v2` ids are accepted and mapped to `eleven_v4_turbo`
+  (`RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS`).
 - optional `finalized_chunking`: `"sentence"` or `"paragraph"` for
   `eleven_v3` only
 
@@ -47,15 +49,19 @@ accessibility validation uses the process-local cache populated at save time or
 by recent chat runs; if the cache misses, the setup task validates once and
 caches the result instead of checking repeatedly.
 When session setup succeeds, `chat:sse` emits `tts.session`; the event may
-arrive before or after the final `user.response`. The event includes the single-use
-`tts_websocket` token for direct browser-to-ElevenLabs playback. If setup
-fails, `chat:sse` emits `tts.session.error` and continues the assistant
-response.
+arrive before or after the final `user.response`. The event includes a
+single-use `ttd_websocket` token, which admits one browser connection to
+ElevenLabs' Text to Dialogue socket. That socket refuses `tts_websocket`
+tokens. The event also sets `sync_alignment: true`, so ElevenLabs returns
+character timing with the audio. If setup fails, `chat:sse` emits
+`tts.session.error` and continues the assistant response.
 
-When `model_id` is present, the backend validates it against the realtime
-allowlist and returns the selected value in `tts.session.model_id`. When it is
-omitted, the backend uses the configured default. The selected model is used in
-the upstream ElevenLabs websocket URL.
+An omitted `model_id` selects `eleven_v4_turbo`. The backend returns the
+selected model in `tts.session.model_id`, and the browser uses it in the
+upstream ElevenLabs websocket URL. An unknown explicit realtime id is refused
+with 422. Each open dialogue socket holds an ElevenLabs dialogue session from a
+pool separate from ordinary request concurrency, so the browser closes it as
+soon as the reply ends.
 
 When `model_id` is `eleven_v3`, `chat:sse` does not start realtime session
 setup and does not emit `tts.session` or `tts.session.error`. After the

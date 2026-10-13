@@ -44,9 +44,7 @@ export type TtsProviderPreference =
   | "elevenlabs"
   | "gemini";
 
-export type ElevenLabsRealtimeTtsModelId =
-  | "eleven_flash_v2_5"
-  | "eleven_multilingual_v2";
+export type ElevenLabsRealtimeTtsModelId = "eleven_v4_turbo";
 export type ElevenLabsFinalizedTtsModelId = "eleven_v3";
 export type ElevenLabsTtsModelId =
   | ElevenLabsRealtimeTtsModelId
@@ -55,10 +53,20 @@ export type ElevenLabsV3FinalizedChunking = "sentence" | "paragraph";
 /** The backend's Gemini speech models; removing or renaming one there is a type error here. */
 export type GeminiTtsModelId = GeminiTtsCapability["models"][number];
 
-export const DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID =
-  "eleven_flash_v2_5" satisfies ElevenLabsRealtimeTtsModelId;
 export const DEFAULT_ELEVENLABS_TTS_MODEL_ID =
-  DEFAULT_ELEVENLABS_REALTIME_TTS_MODEL_ID satisfies ElevenLabsTtsModelId;
+  "eleven_v4_turbo" satisfies ElevenLabsTtsModelId;
+
+/**
+ * Retired ElevenLabs models and the model that now speaks for them. Saved
+ * preferences keep a retired id until they are next written, so every read
+ * maps it and the old id never reaches the backend.
+ */
+const RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS: Readonly<
+  Record<string, ElevenLabsTtsModelId>
+> = {
+  eleven_flash_v2_5: "eleven_v4_turbo",
+  eleven_multilingual_v2: "eleven_v4_turbo",
+};
 export const DEFAULT_ELEVENLABS_V3_FINALIZED_CHUNKING =
   "paragraph" satisfies ElevenLabsV3FinalizedChunking;
 export const DEFAULT_GEMINI_TTS_MODEL_ID =
@@ -89,15 +97,9 @@ export const ELEVENLABS_TTS_MODEL_OPTIONS: Array<{
   capability: "realtime" | "finalized";
 }> = [
   {
-    id: "eleven_flash_v2_5",
-    label: "Flash v2.5",
-    description: "Lower-latency realtime ElevenLabs speech.",
-    capability: "realtime",
-  },
-  {
-    id: "eleven_multilingual_v2",
-    label: "Multilingual v2",
-    description: "The established multilingual realtime model.",
+    id: "eleven_v4_turbo",
+    label: "Eleven v4 Turbo",
+    description: "Realtime speech that starts while the reply is written.",
     capability: "realtime",
   },
   {
@@ -107,18 +109,6 @@ export const ELEVENLABS_TTS_MODEL_OPTIONS: Array<{
     capability: "finalized",
   },
 ];
-
-export const ELEVENLABS_REALTIME_TTS_MODEL_OPTIONS =
-  ELEVENLABS_TTS_MODEL_OPTIONS.filter(
-    (
-      option,
-    ): option is {
-      id: ElevenLabsRealtimeTtsModelId;
-      label: string;
-      description: string;
-      capability: "realtime";
-    } => option.capability === "realtime",
-  );
 
 export const ELEVENLABS_V3_FINALIZED_CHUNKING_OPTIONS: Array<{
   id: ElevenLabsV3FinalizedChunking;
@@ -381,28 +371,21 @@ export function themesEquivalent(
   return storedNormalized === currentNormalized;
 }
 
-export function toElevenLabsRealtimeTtsModelId(
-  value: unknown,
-): ElevenLabsRealtimeTtsModelId | null {
-  return value === "eleven_flash_v2_5" || value === "eleven_multilingual_v2"
-    ? value
-    : null;
-}
-
+/** A saved ElevenLabs model, with a retired id read as its replacement. */
 export function toElevenLabsTtsModelId(
   value: unknown,
 ): ElevenLabsTtsModelId | null {
-  return value === "eleven_flash_v2_5" ||
-    value === "eleven_multilingual_v2" ||
-    value === "eleven_v3"
-    ? value
+  if (typeof value !== "string") return null;
+  const current = RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS[value] ?? value;
+  return ELEVENLABS_TTS_MODEL_OPTIONS.some((option) => option.id === current)
+    ? (current as ElevenLabsTtsModelId)
     : null;
 }
 
 export function isElevenLabsRealtimeTtsModelId(
   value: unknown,
 ): value is ElevenLabsRealtimeTtsModelId {
-  return toElevenLabsRealtimeTtsModelId(value) !== null;
+  return value === "eleven_v4_turbo";
 }
 
 export function toGeminiTtsModelId(value: unknown): GeminiTtsModelId | null {

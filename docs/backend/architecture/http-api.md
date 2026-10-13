@@ -169,7 +169,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 5.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 6.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -796,10 +796,10 @@ ElevenLabs realtime session concurrently with the primary model turn and emits a
 TTS-specific session or session-error event. `dispatch_options.tts.transport`
 is request intent only; backend config decides the actual direct vs backend
 intermediary transport. `dispatch_options.tts.model_id` may request
-`eleven_flash_v2_5` or `eleven_multilingual_v2` for realtime speech, or
-`eleven_v3` for finalized-text speech. Realtime omitted values use the backend
-configured default. Realtime selected models are returned in
-`tts.session.model_id`. `eleven_v3` does not start realtime bootstrap and does
+`eleven_v4_turbo` for realtime speech, or `eleven_v3` for finalized-text speech.
+The retired `eleven_flash_v2_5` and `eleven_multilingual_v2` ids are accepted and
+mapped to `eleven_v4_turbo`. An omitted realtime model is `eleven_v4_turbo`.
+Realtime selected models are returned in `tts.session.model_id`. `eleven_v3` does not start realtime bootstrap and does
 not emit `tts.session` or `tts.session.error`.
 With `dispatch_options.tts.provider="gemini"`, `model_id` may be
 `gemini-3.8-flash-lite-tts` (the default) or `gemini-3.8-flash-tts`. A Gemini
@@ -1406,15 +1406,16 @@ preview, sound effects, and audio isolation. `POST /v1/animas/{anima_id}/chat:ss
 bootstrap and audio delivery.
 
 Realtime chat TTS resolves the anima voice from
-`speech.elevenlabs.primary_voice`, ignores legacy saved variant maps, validates
-`eleven_flash_v2_5` or `eleven_multilingual_v2`, and emits `tts.session` with a
-short-lived direct ElevenLabs websocket token. `eleven_v3` finalized chat TTS
+`speech.elevenlabs.primary_voice`, ignores legacy saved variant maps, selects
+`eleven_v4_turbo`, and emits `tts.session` with a single-use `ttd_websocket`
+token for ElevenLabs' Text to Dialogue socket, with `sync_alignment: true`. `eleven_v3` finalized chat TTS
 uses backend-prepared gruut `tts_text` per structured speech segment, calls
 ElevenLabs' plain streaming TTS API with `output_format="pcm_24000"` and text
 normalization off, then emits ordered `tts.audio` frames and one final
 `tts.done` over `chat:sse`. Segment failures emit `tts.error` and stop v3 audio
-synthesis without blocking the final chat completion frame. Anima does not
-request or forward ElevenLabs timestamp/alignment metadata.
+synthesis without blocking the final chat completion frame. Realtime sessions
+request ElevenLabs character timing, which the browser does not use yet; the
+finalized path requests none.
 
 ## Gemini voice samples
 
