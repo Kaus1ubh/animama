@@ -2215,8 +2215,8 @@ Validated revision: `7b50f27c`, the merged branch. Baseline: `00442ec9`
 | `make check-test` | Typed-content audit, Ruff format (833 files), Ruff and mypy (833 files) pass. pytest: 3,164 passed, 29 skipped, 0 failed, and 995 errors. Every error is `DockerException: Error while fetching server API version` from the Postgres test containers. |
 | `pnpm openapi-ts:check` | Current |
 | `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm build` | Pass |
-| `pnpm web:test` | Vitest, 484 files: 4,301 passed, 1 skipped. Node suites: 114 and 13 passed. |
-| `pnpm packages:test` | product-ui 30 of 30; discover-client passes |
+| `pnpm web:test` | Vitest, 484 files: 4,301 passed, 1 skipped. Node and browser suites: 220 of 220 (unit suites of 89, 4 and 13, and 114 browser tests, including both hosted server-socket tests). |
+| `pnpm packages:test` | product-ui 30 of 30, runtime-contracts 3 of 3; discover-client passes |
 | `pnpm desktop:test` | 509 passed, 14 skipped |
 | Package sets | `build.py build` for `7b50f27c`, and for `main` at `00442ec9` (current tooling, with the primary checkout as source). `compare`: "Compatibility policy passed". |
 
@@ -2430,6 +2430,30 @@ After the repairs, `tsc` and ESLint are clean, and Vitest across `src/ui/debug`
 and `src/stores` passes 9 files and 110 tests.
 
 Repair budget: round 1 of 2 used.
+
+### Final Integration Review #2 Findings
+
+Targeted recheck of `bc6e491a`. Result: **pass**. FI-F1 to FI-F5 and the nits
+are verified, and the record matches the validation logs.
+
+- **FI2-F1 (optional, recommended).** The FI-F2 guard skipped the clear whenever
+  any reply was speaking.
+  - A reply without its own plan (Japanese, Chinese or Korean, or an English
+    reply whose plan is still building) kept the replay's segment on a
+    stopped clock.
+  - Its mouth froze in the replay's last pose.
+- **FI2-F2 (optional, record).** The `web:test` and `packages:test` rows did not
+  break down their suites.
+
+### Final Integration Review #2 Revisions
+
+- **FI2-F1: accepted.** `stopReplaySegment` skips the clear only when a speaking
+  run has applied its own plan (`startedRuns`), with a store test for each
+  case. The guide says so.
+- **FI2-F2: accepted.** The rows list the 220 Node and browser tests, including
+  both hosted server-socket tests, and runtime-contracts' 3 tests.
+
+Repair budget: round 2 of 2 used. A final targeted recheck closes this review.
 
 ### Phases 1–2 scope review (2026-10-13)
 
