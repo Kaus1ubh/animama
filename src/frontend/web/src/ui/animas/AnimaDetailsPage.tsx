@@ -68,7 +68,6 @@ import { AnimaCarousel } from "@/ui/animas/AnimaCarousel";
 import {
   ANIMA_SHOWCASE_CAMERAS,
   ANIMA_SHOWCASE_ORBIT_TARGET,
-  AnimaPageBackdrop,
 } from "@/ui/animas/AnimaManagementStagePresentation";
 import { useAnimaRosterLayout } from "@/ui/animas/useAnimaRosterLayout";
 import { AppShellPage } from "@/ui/app/AppShellPage";
@@ -209,7 +208,7 @@ function ManagementPanel({
 
   return (
     <>
-      <aside className="border-border/70 bg-card/94 m-3 flex min-w-0 flex-col rounded-[1.75rem] border shadow-xl shadow-black/10 backdrop-blur-md xl:my-5 xl:mr-5 xl:ml-0 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
+      <aside className="border-border/70 bg-card/80 m-3 flex min-w-0 flex-col rounded-[1.75rem] border shadow-xl shadow-black/10 backdrop-blur-md xl:my-5 xl:mr-5 xl:ml-0 xl:min-h-0 xl:flex-1 xl:overflow-hidden">
         <div className="px-5 pt-4 md:px-7 md:pt-5">
           <div className="flex min-w-0 flex-wrap items-center gap-3">
             <button
@@ -497,7 +496,15 @@ export function AnimaDetailsPage({
     <AppShellPage
       className="min-h-[100dvh] xl:h-[100dvh] xl:overflow-hidden"
       contentClassName="min-h-full max-w-none gap-0 px-0 py-0 md:px-0 md:py-0 lg:px-0 xl:h-full xl:min-h-0"
-      backdrop={<AnimaPageBackdrop />}
+      backdrop={
+        // A soft, full-window wash of the stage image reaches behind the
+        // frosted sidebar and panel; the stage column draws it sharply.
+        <StageBackgroundLayer
+          variant="showcase"
+          boundImage={runtimeContentQuery.data?.background_image ?? null}
+          className="fixed inset-0 scale-110 opacity-60 blur-2xl"
+        />
+      }
       sidebarBehavior="adaptive-canvas"
     >
       <div
@@ -552,6 +559,7 @@ export function AnimaDetailsPage({
               <StageBackgroundLayer
                 variant="showcase"
                 boundImage={runtimeContentQuery.data?.background_image ?? null}
+                className="[mask-image:linear-gradient(to_right,transparent,black_18%,black_82%,transparent)]"
               />
             }
             transparent

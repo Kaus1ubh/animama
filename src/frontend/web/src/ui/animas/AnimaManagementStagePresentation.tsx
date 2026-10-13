@@ -21,7 +21,3 @@ export const ANIMA_SHOWCASE_CAMERAS: Record<
 export const ANIMA_SHOWCASE_ORBIT_TARGET: [number, number, number] = [
   0, 0.65, 0,
 ];
-
-export function AnimaPageBackdrop() {
-  return <div className="bg-background absolute inset-0" />;
-}
