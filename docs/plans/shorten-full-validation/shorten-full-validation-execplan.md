@@ -87,13 +87,12 @@ and this plan does not edit it.
 
 ## Progress
 
-- [ ] Phase 1: local measurement and Q1 recommendation (not started).
+- [x] Phase 1: local measurement and the Q1 decision (#482). See Phase 1 results.
 - [x] Phase 2: suite selection, the `selective` profile and the gate. Review passed after one repair round (#483).
-- [ ] Phase 3: concurrent browser groups and run summary (not started).
+- [x] Phase 3: concurrent browser groups and the run summary. Review passed with no repair round (#484).
 - [x] Phase 4: baseline set reuse. Review passed after one repair round (#485).
 - [x] Phase 5: the reused receipt names the PR set. Review passed after one repair round (#486).
-- [ ] Phase 6 (only if the owner chooses a Q1 option): backend-suite lever (not
-  started).
+- [ ] Phase 6: two pytest-xdist workers for the hosted backend suite (#494). Implemented; review pending.
 - [ ] Phase 7: documentation and final integration review (not started).
 - [ ] Hosted runs H1–H3 (each needs separate owner approval).
 
@@ -212,6 +211,63 @@ Q1 recommendation.
 
 **Gate:** the owner chooses a Q1 option, or none. Phases 2–5 do not depend on
 this choice and may proceed.
+
+#### Phase 1 results (2026-10-12)
+
+**Environment.** The pinned local-validation image ran on arm64 (OrbStack),
+limited with `--cpus=2 --memory=7g`, at base `95a2db39`.
+
+- The first two-lane attempt used Docker's default 64 MB `/dev/shm` and
+  crashed a concurrent Chromium launch. Later runs use `--shm-size=2g`, as
+  hosted runners have ample `/dev/shm`.
+- The browser layouts were timed with a scratch lane runner. Its layout logic
+  became `scripts/ci/browser_tests.py`.
+
+**Browser files.** Wall-clock seconds:
+
+| Layout | Wall | Notes |
+| --- | ---: | --- |
+| One at a time (12 files) | 983 | Hosted: 846 (14.1 min). Locally, tooling is about 2× hosted and hosted screens about 0.75× |
+| Prelude + two lanes (tooling ‖ hosted+core) | 721 | −27% |
+| Prelude + three lanes | 791 | Slower than two lanes: the two CPUs are saturated |
+| Core group only (selective run) | 66 | |
+
+The local per-group sums, one at a time, were 641 s for tooling, 267 s for the
+hosted screens and 76 s for core.
+
+**Backend suite.**
+
+| Option | Seconds | Result |
+| --- | ---: | --- |
+| Alone, one process | 410 | 4117 passed |
+| `pytest -n 2` (pytest-xdist 3.8.0, temporary) | 219 | 4117 passed (−47%) |
+| Backend + web unit (141 s) + core browser (61 s), one after another | 612 | Baseline for Q1 |
+| The same, with the backend concurrent with the frontend part (option a) | 483 | −21%; the backend alone slowed to 477 s |
+| The same, with the backend run as `pytest -n 2` (option b) | 421 | −31% |
+| `pytest -n 2`, three confirmation runs | 260, 219, 203 | 4117 passed each time |
+
+**Browser confirmation runs.** These used the real
+`scripts/ci/browser_tests.py`, all groups and two lanes:
+
+- arm64: 653 s, 674 s and 540 s.
+- amd64 under Rosetta (slow, but the hosted architecture): 1074 s and 1058 s.
+
+**Flakiness under concurrency.** On arm64, a Chromium launch crashed with
+SIGSEGV in 3 of 5 concurrent runs:
+
+- `animation-preview` twice, once with the 64 MB `/dev/shm`;
+- `effect-check` once.
+
+Each crash failed its file, and since Phase 3 the step fails without hanging.
+No sequential run crashed, both amd64 runs were clean, and the hosted logs
+from sequential runs show none. The crash appears specific to arm64.
+
+**Decisions:**
+
+- Two lanes (Phase 3). H1 confirms on the real runner. If a launch crash
+  appears there, `LANES` falls back to one lane.
+- Q1 option (b): pytest-xdist with two workers (Phase 6, #494). It beat
+  option (a) and is a smaller change.
 
 ### Phase 2: Suite selection, the `selective` profile and the gate
 
