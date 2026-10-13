@@ -20,13 +20,6 @@ import {
 } from "@/ui/components/command";
 import { LiveWaveform, SyntheticWaveform } from "@/ui/components/live-waveform";
 import {
-  ModelSelector,
-  ModelSelectorContent,
-  ModelSelectorEmpty,
-  ModelSelectorGroup,
-  ModelSelectorInput,
-  ModelSelectorItem,
-  ModelSelectorList,
   ModelSelectorLogo,
   ModelSelectorName,
 } from "@/ui/components/model-selector";
@@ -65,19 +58,16 @@ import {
   withWebSearch,
 } from "@/lib/chat/model-provider-native-tools";
 import {
-  Check,
-  ChevronDown,
+  ArrowLeft,
   ChevronRight,
   FileText,
   Loader2,
   Mic,
   MicOff,
   Paperclip,
-  RotateCcw,
   Settings2,
   TriangleAlert,
   Upload,
-  Zap,
 } from "lucide-react";
 import {
   alternateModelIds,
@@ -399,9 +389,9 @@ function ChatInputModelSelector({
   ...props
 }: ChatInputModelSelectorProps) {
   const [open, setOpen] = useState(false);
-  const [effortOpen, setEffortOpen] = useState(false);
-  const [featuresOpen, setFeaturesOpen] = useState(false);
-  const effortTriggerRef = useRef<HTMLButtonElement>(null);
+  const [view, setView] = useState<"reasoning" | "models" | "features">(
+    "reasoning",
+  );
   const { data: anima } = useAnima(animaId);
   const { data: catalog = [], isSuccess: catalogLoaded } = useModelProviders();
   const updateAnimaChatProfile = useUpdateAnimaChatProfile();
@@ -520,7 +510,7 @@ function ChatInputModelSelector({
     (item: PyModelProviderCatalogItem) => {
       void selectModel(item).then((result) => {
         if (result.ok) {
-          setOpen(false);
+          setView("reasoning");
         }
         if (result.ok && result.changed) {
           resetChatRequestSettingsForModel(item);
@@ -556,8 +546,7 @@ function ChatInputModelSelector({
   useEffect(() => {
     if (closeSignal > 0) {
       setOpen(false);
-      setEffortOpen(false);
-      setFeaturesOpen(false);
+      setView("reasoning");
     }
   }, [closeSignal]);
 
@@ -591,315 +580,289 @@ function ChatInputModelSelector({
   }, [activeItemId, activeSearchState, setChatRequestOverrides]);
 
   return (
-    <ModelSelector
+    <Popover
+      modal
       open={open}
       onOpenChange={(nextOpen) => {
         if (nextOpen && isDisabled) return;
         setOpen(nextOpen);
+        if (nextOpen) setView("reasoning");
       }}
     >
-      <Popover
-        open={effortOpen}
-        onOpenChange={(nextOpen) => {
-          setEffortOpen(nextOpen && !isDisabled);
-          if (nextOpen) setFeaturesOpen(false);
-        }}
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <PopoverTrigger asChild>
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className={cn(
+                "text-muted-foreground hover:text-foreground rounded-full",
+                className,
+              )}
+              disabled={isDisabled}
+              aria-label={`Model and reasoning: ${tooltipLabel}`}
+              {...props}
+            >
+              {updateAnimaChatProfile.isPending ? (
+                <Loader2 className="size-4 animate-spin" />
+              ) : activeUnavailable ? (
+                <TriangleAlert className="text-destructive size-4" />
+              ) : (
+                <ModelSelectorLogo
+                  provider={
+                    activeItem?.logo_provider ??
+                    activeItem?.model_provider ??
+                    "AI"
+                  }
+                />
+              )}
+            </Button>
+          </PopoverTrigger>
+        </TooltipTrigger>
+        <TooltipContent avoidCollisions={false} side="top">
+          {tooltipLabel}
+        </TooltipContent>
+      </Tooltip>
+      <PopoverContent
+        align="end"
+        side="top"
+        sideOffset={8}
+        aria-label={
+          view === "models"
+            ? "Select model"
+            : view === "features"
+              ? "Chat features"
+              : "Model and reasoning"
+        }
+        className={cn(
+          "w-[min(20rem,calc(100vw-2rem))] rounded-xl",
+          view === "models" ? "p-1" : "p-4",
+        )}
       >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className={cn(
-                  "text-muted-foreground hover:text-foreground h-8 gap-1.5 rounded-full px-2.5 text-xs",
-                  className,
-                )}
-                disabled={isDisabled}
-                aria-label={`Model and reasoning: ${tooltipLabel}`}
-                ref={effortTriggerRef}
-                {...props}
-              >
-                {updateAnimaChatProfile.isPending ? (
-                  <Loader2 className="size-4 animate-spin" />
-                ) : activeUnavailable ? (
-                  <TriangleAlert className="text-destructive size-4" />
-                ) : (
-                  <Zap className="size-4" aria-hidden="true" />
-                )}
-                <span>{activeUnavailable ? "Unavailable" : effortLabel}</span>
-                <ChevronDown className="size-3" aria-hidden="true" />
-              </Button>
-            </PopoverTrigger>
-          </TooltipTrigger>
-          <TooltipContent avoidCollisions={false} side="top">
-            {tooltipLabel}
-          </TooltipContent>
-        </Tooltip>
-        <PopoverContent
-          align="end"
-          side="top"
-          sideOffset={8}
-          className="w-[min(20rem,calc(100vw-2rem))] rounded-xl p-4"
-          onCloseAutoFocus={(event) => {
-            // Let the model chooser take focus when it replaces this popover.
-            if (open) event.preventDefault();
-          }}
-        >
-          <div className="flex items-start gap-2">
-            <Zap
-              className="text-primary mt-1 size-5 shrink-0"
-              aria-hidden="true"
-            />
-            <div className="min-w-0 flex-1 text-center">
-              <p className="text-base font-medium">
-                {selectedReasoningEffort ? effortLabel : "Select model"}
-              </p>
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="text-muted-foreground h-auto max-w-full gap-1 px-2 py-1 text-xs font-normal"
-                disabled={isDisabled}
-                aria-label="Select model"
-                onClick={() => {
-                  setEffortOpen(false);
-                  setOpen(true);
-                }}
-              >
-                <span className="truncate">
-                  {activeItem
-                    ? modelDisplayName(
-                        activeItem,
-                        alternateIds.has(activeItem.id),
-                      )
-                    : activeUnavailable
-                      ? "Model unavailable"
-                      : "Choose a model"}
-                </span>
-                <ChevronRight className="size-3 shrink-0" aria-hidden="true" />
-              </Button>
-            </div>
-            {selectedReasoningEffort ? (
+        {view === "reasoning" ? (
+          <>
+            <div className="flex items-start gap-2">
               <Tooltip>
                 <TooltipTrigger asChild>
                   <Button
                     type="button"
                     variant="ghost"
                     size="icon-sm"
-                    className="text-muted-foreground size-7 shrink-0 rounded-full"
-                    aria-label="Reset reasoning to model default"
-                    disabled={
-                      isDisabled ||
-                      selectedReasoningEffort ===
-                        defaultReasoningEffort(activeItem)
-                    }
-                    onClick={() => {
-                      const effort = defaultReasoningEffort(activeItem);
-                      if (effort) handleReasoningChange(effort);
-                    }}
+                    className="text-muted-foreground hover:text-foreground size-7 shrink-0 rounded-full"
+                    disabled={isDisabled || !activeItem}
+                    aria-label="Chat features"
+                    onClick={() => setView("features")}
                   >
-                    <RotateCcw className="size-4" aria-hidden="true" />
+                    <Settings2 className="size-4" aria-hidden="true" />
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>
-                  Reset reasoning to model default
-                </TooltipContent>
+                <TooltipContent side="top">Chat features</TooltipContent>
               </Tooltip>
-            ) : (
-              <span className="size-7 shrink-0" aria-hidden="true" />
-            )}
-          </div>
-          {reasoningEfforts.length > 1 ? (
-            <div className="relative mt-4">
-              <Slider
-                min={0}
-                max={reasoningEfforts.length - 1}
-                step={1}
-                value={[selectedEffortIndex]}
-                disabled={isDisabled}
-                onValueChange={([index]) => {
-                  const effort = reasoningEfforts[index];
-                  if (effort) handleReasoningChange(effort);
-                }}
-                thumbProps={{
-                  "aria-label": "Reasoning effort",
-                  "aria-valuetext": effortLabel,
-                }}
-                className="[&_[data-slot=slider-thumb]]:border-border h-8 [&_[data-slot=slider-thumb]]:size-8 [&_[data-slot=slider-track]]:h-7"
-              />
-              <div
-                className="pointer-events-none absolute inset-x-4 top-1/2 flex -translate-y-1/2 justify-between"
-                aria-hidden="true"
-              >
-                {reasoningEfforts.map((effort, index) => (
-                  <span
-                    key={effort}
-                    className={cn(
-                      "size-1 rounded-full",
-                      index < selectedEffortIndex
-                        ? "bg-primary-foreground/50"
-                        : "bg-muted-foreground/50",
-                      index === selectedEffortIndex && "opacity-0",
-                    )}
+              <div className="min-w-0 flex-1 text-center">
+                <p className="text-base font-medium">
+                  {selectedReasoningEffort ? effortLabel : "Select model"}
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  autoFocus
+                  className="text-muted-foreground h-auto max-w-full gap-1 px-2 py-1 text-xs font-normal"
+                  disabled={isDisabled}
+                  aria-label="Select model"
+                  onClick={() => setView("models")}
+                >
+                  <span className="truncate">
+                    {activeItem
+                      ? modelDisplayName(
+                          activeItem,
+                          alternateIds.has(activeItem.id),
+                        )
+                      : activeUnavailable
+                        ? "Model unavailable"
+                        : "Choose a model"}
+                  </span>
+                  <ChevronRight
+                    className="size-3 shrink-0"
+                    aria-hidden="true"
                   />
-                ))}
+                </Button>
               </div>
+              <span className="size-7 shrink-0" aria-hidden="true" />
             </div>
-          ) : activeItem && reasoningEfforts.length === 0 ? (
-            <p className="text-muted-foreground mt-3 text-center text-xs">
-              This model has no adjustable reasoning.
-            </p>
-          ) : null}
-        </PopoverContent>
-      </Popover>
-      <Popover
-        open={featuresOpen}
-        onOpenChange={(nextOpen) => {
-          setFeaturesOpen(nextOpen && !isDisabled);
-          if (nextOpen) setEffortOpen(false);
-        }}
-      >
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <PopoverTrigger asChild>
+            {reasoningEfforts.length > 1 ? (
+              <div className="relative mt-4">
+                <Slider
+                  min={0}
+                  max={reasoningEfforts.length - 1}
+                  step={1}
+                  value={[selectedEffortIndex]}
+                  disabled={isDisabled}
+                  onValueChange={([index]) => {
+                    const effort = reasoningEfforts[index];
+                    if (effort) handleReasoningChange(effort);
+                  }}
+                  thumbProps={{
+                    "aria-label": "Reasoning effort",
+                    "aria-valuetext": effortLabel,
+                  }}
+                  className="[&_[data-slot=slider-thumb]]:border-border h-8 [&_[data-slot=slider-thumb]]:size-8 [&_[data-slot=slider-track]]:h-7"
+                />
+                <div
+                  className="pointer-events-none absolute inset-x-4 top-1/2 flex -translate-y-1/2 justify-between"
+                  aria-hidden="true"
+                >
+                  {reasoningEfforts.map((effort, index) => (
+                    <span
+                      key={effort}
+                      className={cn(
+                        "size-1 rounded-full",
+                        index < selectedEffortIndex
+                          ? "bg-primary-foreground/50"
+                          : "bg-muted-foreground/50",
+                        index === selectedEffortIndex && "opacity-0",
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : activeItem && reasoningEfforts.length === 0 ? (
+              <p className="text-muted-foreground mt-3 text-center text-xs">
+                This model has no adjustable reasoning.
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <div
+              className={cn(
+                "mb-3 flex items-center gap-2",
+                view === "models" && "px-2 pt-2",
+              )}
+            >
               <Button
                 type="button"
                 variant="ghost"
                 size="icon-sm"
-                className="text-muted-foreground hover:text-foreground rounded-full"
-                disabled={isDisabled || !activeItem}
-                aria-label="Chat features"
+                autoFocus={view === "features"}
+                className="text-muted-foreground size-7 shrink-0 rounded-full"
+                aria-label="Back to model and reasoning"
+                onClick={() => setView("reasoning")}
               >
-                <Settings2 className="size-4" aria-hidden="true" />
+                <ArrowLeft className="size-4" aria-hidden="true" />
               </Button>
-            </PopoverTrigger>
-          </TooltipTrigger>
-          <TooltipContent avoidCollisions={false} side="top">
-            Chat features
-          </TooltipContent>
-        </Tooltip>
-        <PopoverContent
-          align="end"
-          side="top"
-          sideOffset={8}
-          className="w-64 space-y-3 rounded-xl p-4"
-        >
-          <p className="text-sm font-medium">Chat features</p>
-          {searchAvailability?.state === "unavailable" ? (
-            <div className="space-y-1">
-              <label className="text-muted-foreground flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={false}
-                  disabled
-                  aria-describedby={`${animaId}-web-search-reason`}
-                />
-                <span>{nativeToolLabel(WEB_SEARCH_TOOL)}</span>
-              </label>
-              <p
-                id={`${animaId}-web-search-reason`}
-                className="text-muted-foreground text-xs"
-              >
-                {searchAvailability.reason}
+              <p className="text-sm font-medium">
+                {view === "models" ? "Select model" : "Chat features"}
               </p>
             </div>
-          ) : null}
-          {nativeTools.map((tool) => (
-            <label
-              key={tool}
-              className="flex cursor-pointer items-center gap-2 text-sm"
-            >
-              <Checkbox
-                checked={selectedNativeTools.has(tool)}
-                disabled={isDisabled}
-                onCheckedChange={(checked) =>
-                  handleNativeToolChange(tool, checked === true)
-                }
-              />
-              <span>{nativeToolLabel(tool)}</span>
-            </label>
-          ))}
-          {nativeTools.length === 0 && !searchAvailability ? (
-            <p className="text-muted-foreground text-xs">
-              No optional features for this model.
-            </p>
-          ) : null}
-        </PopoverContent>
-      </Popover>
-      <ModelSelectorContent
-        title="Select model"
-        onCloseAutoFocus={(event) => {
-          // The chooser opens from a popover that has already closed.
-          event.preventDefault();
-          effortTriggerRef.current?.focus();
-        }}
-      >
-        <ModelSelectorInput placeholder="Search models..." />
-        <ModelSelectorList>
-          <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
-          {modelGroups.map((group) => (
-            <ModelSelectorGroup
-              key={group.providerLabel}
-              heading={group.providerLabel}
-            >
-              {group.models.map((item, index) => {
-                const isActive = item.id === activeItemId;
-                const rowGate = chatModelSendGate(activeChat, item);
-                const rowUnsupported =
-                  !rowGate.ok && rowGate.reason === "unsupported_model";
-                // Owner models need a context window before they can chat.
-                const rowNeedsWindow =
-                  item.source === "owner" && item.context_window_tokens == null;
-                const modelName = modelDisplayName(
-                  item,
-                  alternateIds.has(item.id),
-                );
-                const providerName = modelOptionDetail(item);
-                return (
-                  <ModelSelectorItem
-                    key={item.id}
-                    // The index keeps values unique without making the
-                    // row's internal id searchable.
-                    value={`${providerName} ${modelName} ${item.model} ${index}`}
-                    disabled={
-                      updateAnimaChatProfile.isPending ||
-                      rowUnsupported ||
-                      rowNeedsWindow
-                    }
-                    data-checked={isActive}
-                    onSelect={() => handleSelect(item)}
-                    className="gap-2"
-                  >
-                    {item.logo_provider ? (
-                      <ModelSelectorLogo provider={item.logo_provider} />
-                    ) : null}
-                    <div className="min-w-0 flex-1">
-                      <ModelSelectorName className="block">
-                        {modelName}
-                      </ModelSelectorName>
-                      <span className="text-muted-foreground block truncate text-xs">
-                        {rowUnsupported
-                          ? "Not available for direct chat yet"
-                          : rowNeedsWindow
-                            ? "Set its context window in App Settings → Models"
-                            : providerName}
-                      </span>
-                    </div>
-                    {isActive ? (
-                      <Check
-                        className="size-4 shrink-0"
-                        aria-label="Selected"
+            {view === "features" ? (
+              <div className="space-y-3">
+                {searchAvailability?.state === "unavailable" ? (
+                  <div className="space-y-1">
+                    <label className="text-muted-foreground flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={false}
+                        disabled
+                        aria-describedby={`${animaId}-web-search-reason`}
                       />
-                    ) : null}
-                  </ModelSelectorItem>
-                );
-              })}
-            </ModelSelectorGroup>
-          ))}
-        </ModelSelectorList>
-      </ModelSelectorContent>
-    </ModelSelector>
+                      <span>{nativeToolLabel(WEB_SEARCH_TOOL)}</span>
+                    </label>
+                    <p
+                      id={`${animaId}-web-search-reason`}
+                      className="text-muted-foreground text-xs"
+                    >
+                      {searchAvailability.reason}
+                    </p>
+                  </div>
+                ) : null}
+                {nativeTools.map((tool) => (
+                  <label
+                    key={tool}
+                    className="flex cursor-pointer items-center gap-2 text-sm"
+                  >
+                    <Checkbox
+                      checked={selectedNativeTools.has(tool)}
+                      disabled={isDisabled}
+                      onCheckedChange={(checked) =>
+                        handleNativeToolChange(tool, checked === true)
+                      }
+                    />
+                    <span>{nativeToolLabel(tool)}</span>
+                  </label>
+                ))}
+                {nativeTools.length === 0 && !searchAvailability ? (
+                  <p className="text-muted-foreground text-xs">
+                    No optional features for this model.
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <Command>
+                <CommandInput autoFocus placeholder="Search models..." />
+                <CommandList>
+                  <CommandEmpty>No models found.</CommandEmpty>
+                  {modelGroups.map((group) => (
+                    <CommandGroup
+                      key={group.providerLabel}
+                      heading={group.providerLabel}
+                    >
+                      {group.models.map((item, index) => {
+                        const isActive = item.id === activeItemId;
+                        const rowGate = chatModelSendGate(activeChat, item);
+                        const rowUnsupported =
+                          !rowGate.ok && rowGate.reason === "unsupported_model";
+                        // Owner models need a context window before they can chat.
+                        const rowNeedsWindow =
+                          item.source === "owner" &&
+                          item.context_window_tokens == null;
+                        const modelName = modelDisplayName(
+                          item,
+                          alternateIds.has(item.id),
+                        );
+                        const providerName = modelOptionDetail(item);
+                        return (
+                          <CommandItem
+                            key={item.id}
+                            // The index keeps values unique without making the
+                            // row's internal id searchable.
+                            value={`${providerName} ${modelName} ${item.model} ${index}`}
+                            disabled={
+                              isDisabled || rowUnsupported || rowNeedsWindow
+                            }
+                            data-checked={isActive}
+                            onSelect={() => handleSelect(item)}
+                            className="data-[selected=true]:bg-muted gap-2"
+                          >
+                            {item.logo_provider ? (
+                              <ModelSelectorLogo
+                                provider={item.logo_provider}
+                              />
+                            ) : null}
+                            <div className="min-w-0 flex-1">
+                              <ModelSelectorName className="block">
+                                {modelName}
+                              </ModelSelectorName>
+                              <span className="text-muted-foreground block truncate text-xs">
+                                {rowUnsupported
+                                  ? "Not available for direct chat yet"
+                                  : rowNeedsWindow
+                                    ? "Set its context window in App Settings → Models"
+                                    : providerName}
+                              </span>
+                            </div>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  ))}
+                </CommandList>
+              </Command>
+            )}
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 

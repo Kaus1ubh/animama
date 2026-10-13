@@ -93,54 +93,6 @@ vi.mock("@/ui/settings/SettingsProvider", async () => {
     },
   };
 });
-// Render the chooser and popovers inline to exercise real slider keyboard
-// interaction and feature checkboxes independently of portal timing.
-vi.mock("@/ui/components/model-selector", () => {
-  const Pass = ({ children }: { children?: ReactNode }) => <>{children}</>;
-  return {
-    ModelSelector: Pass,
-    ModelSelectorTrigger: Pass,
-    ModelSelectorContent: ({ children }: { children?: ReactNode }) => (
-      <div>{children}</div>
-    ),
-    ModelSelectorInput: () => null,
-    ModelSelectorList: Pass,
-    ModelSelectorEmpty: () => null,
-    ModelSelectorGroup: Pass,
-    ModelSelectorItem: ({
-      children,
-      value,
-      onSelect,
-      disabled,
-    }: {
-      children?: ReactNode;
-      value?: string;
-      onSelect?: () => void;
-      disabled?: boolean;
-    }) => (
-      <button
-        type="button"
-        data-row={value}
-        disabled={disabled}
-        onClick={onSelect}
-      >
-        {children}
-      </button>
-    ),
-    ModelSelectorLogo: () => null,
-    ModelSelectorName: Pass,
-  };
-});
-vi.mock("@/ui/components/popover", () => {
-  const Pass = ({ children }: { children?: ReactNode }) => <>{children}</>;
-  return {
-    Popover: Pass,
-    PopoverTrigger: Pass,
-    PopoverContent: ({ children }: { children?: ReactNode }) => (
-      <div>{children}</div>
-    ),
-  };
-});
 vi.mock("@/ui/components/tooltip", () => {
   const Pass = ({ children }: { children?: ReactNode }) => <>{children}</>;
   return { Tooltip: Pass, TooltipTrigger: Pass, TooltipContent: () => null };
@@ -175,12 +127,14 @@ const catalogRow = (
 const luna = catalogRow(LUNA, {
   model_provider: "OpenAIResponsesHTTPAgent",
   connection_name: "OpenAI",
+  logo_provider: "openai",
   api_standard: "responses",
   default_reasoning_effort: null,
 });
 const haiku = catalogRow(HAIKU, {
   model_provider: "AnthropicMessagesHTTPAgent",
   connection_name: "Anthropic",
+  logo_provider: "anthropic",
   api_standard: "anthropic_messages",
   default_reasoning_effort: "medium",
 });
@@ -191,6 +145,7 @@ let container: HTMLElement | null = null;
 async function renderPicker(
   activeModelId: string,
   props: Partial<React.ComponentProps<typeof ChatInputModelSelector>> = {},
+  openPicker = true,
 ) {
   fixture.activeModelId.set(activeModelId);
   container = document.createElement("div");
@@ -199,14 +154,42 @@ async function renderPicker(
     root = createRoot(container!);
     root.render(<ChatInputModelSelector animaId="anima-1" {...props} />);
   });
+  if (openPicker) await click(trigger());
+}
+
+function trigger() {
+  return document.querySelector<HTMLButtonElement>(
+    'button[aria-label^="Model and reasoning:"]',
+  )!;
+}
+
+function button(label: string) {
+  return document.querySelector<HTMLButtonElement>(
+    `button[aria-label="${label}"]`,
+  )!;
+}
+
+function popover() {
+  return document.querySelector<HTMLElement>('[data-slot="popover-content"]')!;
 }
 
 function row(model: string) {
   const element = [
-    ...document.querySelectorAll<HTMLButtonElement>("[data-row]"),
-  ].find((candidate) => candidate.dataset.row?.split(" ").includes(model));
+    ...document.querySelectorAll<HTMLElement>('[data-slot="command-item"]'),
+  ].find((candidate) => candidate.textContent?.includes(model));
   if (!element) throw new Error(`No ${model} row`);
   return element;
+}
+
+async function chooseModel(model: string) {
+  await click(button("Select model"));
+  await click(row(model));
+}
+
+async function toggleSearch() {
+  await click(button("Chat features"));
+  await click(webSearch());
+  await click(button("Back to model and reasoning"));
 }
 
 function slider() {
@@ -248,6 +231,21 @@ afterEach(() => {
 });
 
 describe("chat model picker settings", () => {
+  it("keeps the composer logo-only and removes fast and reset controls", async () => {
+    await renderPicker(LUNA, {}, false);
+
+    expect(trigger().textContent).toBe("");
+    expect(
+      trigger().querySelector('[aria-label="openai provider"]'),
+    ).not.toBeNull();
+    expect(button("Chat features")).toBeNull();
+    expect(popover()).toBeNull();
+    await click(trigger());
+    expect(popover().contains(button("Chat features"))).toBe(true);
+    expect(button("Reset reasoning to model default")).toBeNull();
+    expect(document.querySelector(".lucide-zap")).toBeNull();
+  });
+
   it("starts at the selected model's default and exposes readable slider values", async () => {
     await renderPicker(LUNA);
 
@@ -258,16 +256,33 @@ describe("chat model picker settings", () => {
     expect(slider().getAttribute("aria-label")).toBe("Reasoning effort");
     expect(slider().getAttribute("aria-valuetext")).toBe("None");
     expect(slider().getAttribute("aria-valuemax")).toBe("5");
-    expect(
-      document.querySelector('[aria-label="Chat features"]'),
-    ).not.toBeNull();
+  });
+
+  it("transforms the same popover into models and back without changing settings", async () => {
+    await renderPicker(LUNA);
+    await pressEffortKey("End");
+    const panel = popover();
+    await click(button("Select model"));
+
+    expect(popover()).toBe(panel);
+    expect(document.querySelector('[data-slot="dialog-content"]')).toBeNull();
+    expect(document.activeElement).toBe(
+      document.querySelector('[placeholder="Search models..."]'),
+    );
+    expect(row("claude-haiku-5-5")).not.toBeNull();
+    await click(button("Back to model and reasoning"));
+
+    expect(popover()).toBe(panel);
+    expect(slider().getAttribute("aria-valuetext")).toBe("Max");
+    expect(document.activeElement).toBe(button("Select model"));
+    expect(fixture.saveModel).not.toHaveBeenCalled();
   });
 
   it("selecting a different model uses its own default effort and features", async () => {
     await renderPicker(LUNA);
     await pressEffortKey("End");
-    await click(webSearch());
-    await click(row("claude-haiku-5-5"));
+    await toggleSearch();
+    await chooseModel("claude-haiku-5-5");
 
     expect(fixture.saveModel).toHaveBeenCalledWith(HAIKU);
     expect(fixture.overrides.get()).toEqual({
@@ -275,21 +290,26 @@ describe("chat model picker settings", () => {
       reasoning_effort: "medium",
     });
     expect(slider().getAttribute("aria-valuetext")).toBe("Medium");
+    expect(
+      trigger().querySelector('[aria-label="anthropic provider"]'),
+    ).not.toBeNull();
   });
 
   it("does not carry the Anthropic effort to an OpenAI model", async () => {
     await renderPicker(HAIKU);
-    await click(row("gpt-6-luna"));
+    await chooseModel("gpt-6-luna");
 
     expect(fixture.saveModel).toHaveBeenCalledWith(LUNA);
     expect(fixture.overrides.get().reasoning_effort).toBe("none");
   });
 
-  it("keeps the active model's chosen effort when its features change", async () => {
+  it("keeps feature and reasoning choices when navigating between views", async () => {
     await renderPicker(HAIKU);
     await pressEffortKey("ArrowRight");
-    await click(webSearch());
+    const panel = popover();
+    await toggleSearch();
 
+    expect(popover()).toBe(panel);
     expect(fixture.saveModel).not.toHaveBeenCalled();
     expect(fixture.overrides.get()).toEqual({
       native_tools: [],
@@ -297,24 +317,9 @@ describe("chat model picker settings", () => {
     });
     await pressEffortKey("ArrowRight");
     expect(slider().getAttribute("aria-valuetext")).toBe("Extra high");
+    await click(button("Chat features"));
+    expect(webSearch().getAttribute("aria-checked")).toBe("false");
     expect(fixture.overrides.get().native_tools).toEqual([]);
-  });
-
-  it("reset restores the model default while preserving feature choices", async () => {
-    await renderPicker(HAIKU);
-    await click(webSearch());
-    await pressEffortKey("End");
-    await click(
-      document.querySelector<HTMLButtonElement>(
-        '[aria-label="Reset reasoning to model default"]',
-      )!,
-    );
-
-    expect(fixture.overrides.get()).toEqual({
-      native_tools: [],
-      reasoning_effort: "medium",
-    });
-    expect(fixture.saveModel).not.toHaveBeenCalled();
   });
 
   it("retains confirmation for an incompatible chat without changing overrides", async () => {
@@ -323,11 +328,12 @@ describe("chat model picker settings", () => {
       activeChat: { id: "chat-1", api_standard: "responses" },
       onIncompatibleModelSelect,
     });
-    await click(row("claude-haiku-5-5"));
+    await chooseModel("claude-haiku-5-5");
 
     expect(onIncompatibleModelSelect).toHaveBeenCalledWith(haiku);
     expect(fixture.saveModel).not.toHaveBeenCalled();
     expect(fixture.overrides.get().reasoning_effort).toBe("none");
+    expect(popover().getAttribute("aria-label")).toBe("Select model");
   });
 
   it("explains unavailable web search and omits a slider for fixed models", async () => {
@@ -343,27 +349,29 @@ describe("chat model picker settings", () => {
     await renderPicker(LUNA);
 
     expect(slider()).toBeNull();
+    expect(button("Select model")).not.toBeNull();
+    await click(button("Chat features"));
     expect(webSearch().disabled).toBe(true);
-    expect(container?.textContent).toContain(
+    expect(popover().textContent).toContain(
       "Set up web search in App Settings.",
     );
-    expect(
-      document.querySelector('[aria-label="Select model"]'),
-    ).not.toBeNull();
     await click(webSearch());
     expect(fixture.overrides.get().native_tools).toBeUndefined();
   });
 
-  it("prevents feature and reasoning changes while chat controls are disabled", async () => {
-    await renderPicker(HAIKU, { disabled: true });
+  it("prevents feature and reasoning changes when chat controls become disabled", async () => {
+    await renderPicker(HAIKU);
+    await act(async () => {
+      root!.render(<ChatInputModelSelector animaId="anima-1" disabled />);
+    });
     await pressEffortKey("End");
-    await click(webSearch());
 
     expect(fixture.overrides.get()).toEqual({
       native_tools: ["web_search"],
       reasoning_effort: "medium",
     });
     expect(slider().getAttribute("data-disabled")).not.toBeNull();
-    expect(webSearch().disabled).toBe(true);
+    expect(button("Chat features").disabled).toBe(true);
+    expect(trigger().disabled).toBe(true);
   });
 });

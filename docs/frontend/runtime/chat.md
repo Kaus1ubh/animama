@@ -155,7 +155,7 @@ changes through `PATCH /v1/animas/{anima_id}/chat-profile`.
 The selector groups catalog options by provider label, lists only chat models
 (hidden ones only while active; owner models without a context window disabled),
 marks the active `default_model_provider_id`, shows a warning when that row is
-no longer in the catalog, closes after selection, and disables while a chat
+no longer in the catalog, returns to reasoning after selection, and disables while a chat
 stream or profile update mutation is in flight. A failed update surfaces a
 toast and leaves the current persisted profile unchanged. The selected model
 applies to future chat requests; it does not alter an already-running stream.
@@ -183,12 +183,13 @@ The dialog, **Start a new chat?**, explains in user terms that the selected
 model keeps conversations differently, without naming APIs. Quick Chat does not
 switch; it shows a toast directing the user to the main chat.
 
-The input's model-and-reasoning button opens a compact popover with the current
-effort, a model chooser, and a discrete slider for the model's supported efforts.
-Reset restores its default effort. Models without adjustable reasoning retain
-the model chooser without a slider. The adjacent Chat features button exposes
-native tools, currently `web_search`, for the active model. Catalog rows advertise
-these choices through `requestable_native_tool_support` and
+The input's provider-logo button opens a compact popover with the current effort,
+model name, and a discrete slider for the model's supported efforts. Selecting
+the model name replaces that popover with a searchable model list; Back returns
+to reasoning. Models without adjustable reasoning retain the model chooser
+without a slider. The Chat features icon in the popover header opens native tools,
+currently `web_search`, for the active model in the same popover. Catalog rows
+advertise these choices through `requestable_native_tool_support` and
 `supported_reasoning_efforts`. Supported native tools
 are enabled by default when the active model advertises them. The effort starts
 at the row's `default_reasoning_effort` when the row offers it (`medium` on
