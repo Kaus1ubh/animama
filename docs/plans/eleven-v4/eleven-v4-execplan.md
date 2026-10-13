@@ -69,7 +69,8 @@ Orientation (paths relative to the repository root):
   - `src/frontend/web/src/hooks/use-tts-playback.ts` (orchestration, chunker
     feed, Pocket fallback);
   - `src/frontend/web/src/lib/speech/tts-chunker.ts`.
-- **Browser finalized (Gemini only):** `src/frontend/web/src/hooks/use-elevenlabs-finalized-tts-runtime.ts`.
+- **Browser finalized (Gemini only):** `src/frontend/web/src/hooks/use-finalized-tts-runtime.ts`
+  (renamed from `use-elevenlabs-finalized-tts-runtime.ts` for #499).
 - **Shared chat client (product-ui):**
   - `src/frontend/packages/product-ui/src/query/mutations/useChatSse.ts` (SSE
     types);
@@ -150,8 +151,9 @@ Ownership and boundaries:
 - [x] Phase 2 amendment (owner, 2026-10-12): finalized v4 removed; ElevenLabs
   speaks only with Eleven v4 Turbo. Checks pass, and Amendment Code Review #1–#2
   passed. Pending G2 (owner listening to v4 Turbo).
-- [ ] Folded follow-ups: #498 (Japanese and Chinese sentence splitting) and #499
-  (provider-neutral names for the Gemini finalized path).
+- [x] Folded follow-ups: #498 (Japanese and Chinese sentence splitting) and #499
+  (provider-neutral names for the Gemini finalized path). Checks and live checks
+  pass, and Code Review #1–#3 passed.
 - [ ] Phase 3 (#500): timing plumbing and the timing evidence module.
 - [ ] Phase 4 (#501): side-by-side view with pluggable plan sources.
 - [ ] Phase 5 (#502): hosted contract, Cloud issue, docs and full validation.
@@ -1439,13 +1441,199 @@ Commits:
 Review: one bounded review covers both (one full review, at most two repair
 rounds).
 
+#### Folded follow-ups implementation notes
+
+Starting revision: `561c1d27`.
+
+- **#498, backend.** `UserResponseSegmenter` matches one pattern with two
+  alternatives:
+  - ASCII `.!?` runs (with ASCII closers) followed by whitespace, still checked
+    by the digit, initial and abbreviation heuristics;
+  - a full-width `。！？` followed by any further marks (full-width or ASCII)
+    and closers (full-width, curly or ASCII quotes). It ends at the next
+    character that is not a mark or closer, so a run streamed one mark per
+    delta stays with its sentence.
+- **#498, browser chunker.** `tts-chunker.ts` also ends sentences at `。！？`
+  and keeps full-width closers with their sentence. A run of marks (`！？`,
+  `?!`, `...`) now stays in one chunk in every language. The existing
+  24-character minimum per chunk applies to every language, so two short
+  sentences can share a chunk.
+- **#499.**
+  - The runtime is now `use-finalized-tts-runtime.ts`
+    (`useFinalizedTtsRuntime`). The playback functions, product-ui effects and
+    warning reasons lose their ElevenLabs names, and the decode failure reads
+    "Failed to decode the reply's audio."
+  - The runtime no longer stamps `provider: "elevenlabs"`; `useTtsPlayback`
+    attaches the provider of the run it prepared.
+  - product-ui's `onTtsError` no longer tries the Pocket fallback, so a Gemini
+    decline ends that reply's speech. `tts.session.error` keeps the realtime
+    fallback.
+  - product-ui is 0.10.0 (effects renamed), mirrored in
+    `contracts/hosted-web.md`.
+  - `cancelAll` stops the finalized runtime directly; the Pocket fallback stops
+    only the ElevenLabs runtime.
+  - The finalized helper tests moved to `tests/speech/finalizedTtsRuntime.test.ts`.
+
+#### Folded follow-ups results
+
+Checks (2026-10-13):
+
+- `make format-check`, `uv run ruff check` and mypy on the changed files pass.
+- pytest (segmenter, structured response, chat SSE and golden suites): 191
+  passed after the review repair. The 17 segmenter tests cover:
+  - Japanese and Chinese;
+  - a mark at the end of a delta, and a run split across deltas;
+  - runs and closers, and a quoted full-width sentence;
+  - mixed Japanese and English;
+  - unchanged English, Korean and Spanish.
+
+  ASCII segmentation matched HEAD on 20,000 random inputs.
+- `pnpm check`, `pnpm packages:build`, `pnpm web:lint`, `pnpm desktop:check` and
+  Prettier on the changed files pass.
+- `pnpm packages:test`: 30 passed. Vitest across `src/hooks`, `tests/speech`,
+  `src/ui/main/chat`, `src/lib/chat`, `src/lib/speech`, `src/stores` and
+  `src/lib/avatar`: 110 files, 1,466 passed and 1 skipped. After the review
+  repair, the chunker, playback and speech suites pass (9 files, 68 tests).
+- `pnpm desktop:test`: 506 passed, 14 skipped.
+
+Live on `animama-ev4` (times from send):
+
+- **Realtime v4 Turbo, Japanese (five sentences).** Segments arrived at 3.24,
+  3.32, 3.54, 3.70 and 3.82 s. The chunker sent three socket inputs (3.32, 3.70
+  and 3.82 s), and the first audio arrived at 3.47 s, before the reply finished
+  at 4.17 s. 10.1 s of audio played to `is_final`. Before #498 the whole reply
+  was one segment, sent only when the reply finished.
+- **Gemini, Japanese (four sentences).** Four segments (2.74 s, then three at
+  3.27 s) became four requests in the default sentence chunking. 54 `tts.audio`
+  frames from `gemini-3.8-flash-lite-tts` played with no errors.
+
 #### Folded follow-ups Code Review #1 Findings
 
-Pending.
+An independent reviewer (`sdlc-reviewer`) reviewed the uncommitted tree on
+`561c1d27`. Result: **blocked**, on two required fixes.
+
+- **FF1-F1 (required), `domain/text_segmenter.py`.** A run of full-width marks
+  splits when it ends a delta. The lookahead excluded closers but not marks, so
+  `"本当！"`, `"？"` gave `本当！` and `？` as separate segments, and a closer after
+  a split run left its sentence. Gemini drops a segment without letters, so
+  "えっ、本当！？" was spoken as "えっ、本当！".
+- **FF1-F2 (required), `use-tts-playback.ts`.** `cancelElevenLabsPlayback` was the
+  only place that stopped the Gemini finalized runtime, which kept an ElevenLabs
+  name in that path.
+- **FF1-F3 (optional).** ASCII quotes are not closers after a full-width mark, so
+  `You say "ありがとう！" to thank a friend.` orphaned the closing quote.
+- **FF1-F4 (optional).** Two comments above `finalizedProviderRef` said the same
+  thing.
+- **FF1-F5 (optional), `tts-chunker.ts`.** A chunk stops at the first mark of a
+  run, so a realtime input could start with `？` (as ASCII `?!` already could).
+- **FF1-F6 (optional).** `isExclamationTtsChunk` recognises only ASCII `!`; this
+  predates the change.
+- **FF1-F7 (optional), plan record.** The results lacked the rerun numbers. The
+  Cloud issue list did not mention the product-ui 0.10.0 effect renames, and the
+  implementation note about deltas was inaccurate until FF1-F1 was fixed.
+
+Verified with no defect:
+
+- ASCII segmentation is unchanged;
+- removing the `onTtsError` fallback changes nothing;
+- no old identifiers remain;
+- the hard constraints hold.
 
 #### Folded follow-ups Code Review #1 Revisions
 
-Pending.
+- **FF1-F1: accepted.**
+  - Reproduced with the reviewer's three delta sequences.
+  - The full-width alternative now ends at the next character that is not a
+    mark or closer, and also absorbs ASCII marks after a full-width mark.
+  - New tests cover a run split across deltas (with its closer) and `！?`.
+  - `chat.md`, the code comment and the implementation note were corrected.
+  - 191 backend tests pass, and ASCII segmentation still matches HEAD on 20,000
+    random inputs.
+- **FF1-F2: accepted.** The wrapper is removed. `cancelAll` calls
+  `stopElevenLabsRuntime()` and `stopFinalizedRuntime()`, and the Pocket fallback
+  (ElevenLabs runs only) calls `stopElevenLabsRuntime()`. The playback tests pass.
+- **FF1-F3: accepted.** ASCII `"` and `'` are closers after a full-width mark,
+  with a test for the quoted sentence. The quote now stays, and the sentence
+  splits after it, as `He said "Wow!" and left.` already does in ASCII.
+- **FF1-F4: accepted.** One comment remains.
+- **FF1-F5: accepted.** The chunker keeps a run of marks in one chunk in every
+  language, with a test for `！？`, `?!` and `...`.
+- **FF1-F6: deferred.** Treating `！` as an exclamation would change talking-hands
+  gestures for Japanese and Chinese, which is outside #498 and #499. It is noted
+  for a follow-up.
+- **FF1-F7: accepted.**
+  - The results record the rerun numbers.
+  - The Phase 5 Cloud issue mentions the product-ui 0.10.0 renames. This is
+    informational: Cloud pins 0.8.0 and does not implement `ChatSessionEffects`.
+  - The note is corrected.
+  - The `licenses/source-review.json` paths are refreshed at release preparation,
+    as before.
+
+#### Folded follow-ups Code Review #2 Findings
+
+Targeted recheck of the repairs. Result: **pass**. All six repairs were verified:
+
+- the three delta cases stay whole;
+- streaming and whole-text segmentation agree on 30,000 random mixed texts;
+- ASCII still matches HEAD.
+
+Optional findings caused by the repairs:
+
+- **FF2-F1 (recommended), `tts-chunker.ts`.** The continuation loop also took
+  marks after the space, so `… years. .NET is …` lost the leading dot of `.NET`
+  to the previous chunk.
+- **FF2-F2, `isExclamationTtsChunk`.** With runs kept whole, `…that!?` was no
+  longer an exclamation, and `…that?!` became one.
+- **FF2-F3 (no action).** An opening ASCII quote straight after a full-width
+  mark stays with the previous sentence. Quotes are not spoken, and the visible
+  text is intact.
+- **FF2-F4 (docs).** `voice.md` did not say that following marks stay with a
+  chunk.
+
+#### Folded follow-ups Code Review #2 Revisions
+
+- **FF2-F1: accepted.** Marks are absorbed only before the first space, with a
+  `.NET` test.
+- **FF2-F2: accepted.** A chunk is an exclamation when its closing run of marks
+  includes `!` (`Wow!`, `Really?!`, `No!?`). A test covers it; `！` stays with
+  the deferred FF1-F6.
+- **FF2-F3: accepted as is**, as the reviewer recommends.
+- **FF2-F4: accepted.** `voice.md` "Chunking behavior" names the following
+  marks.
+
+Verification: Vitest (`src/lib/speech`, the playback test and `tests/speech`)
+passes 25 files and 224 tests; ESLint and Prettier on the chunker files are
+clean.
+
+#### Folded follow-ups Code Review #3 Findings
+
+Final targeted recheck. Result: **pass**. FF2-F1, F2 and F4 are verified:
+
+- the `.NET` and ellipsis cases match HEAD;
+- 120,000 random texts differ from the round 1 chunker only by the intended run
+  rule.
+
+Optional findings:
+
+- **FF3-F1, `tts-chunker.ts`.** A line break as the boundary counted no space,
+  so a mark that starts the next line (`.NET`) still moved back.
+- **FF3-F2, `use-tts-playback.ts`.** The single whole-reply chunk for Browser and
+  Pocket TTS kept an inline copy of the old exclamation and word-count patterns.
+
+#### Folded follow-ups Code Review #3 Revisions
+
+The review budget is used. Both optional fixes are one line each and are left to
+the final integration review:
+
+- **FF3-F1: accepted.** A whitespace boundary counts as the space, with a
+  newline `.NET` test.
+- **FF3-F2: accepted.** That chunk now calls `isExclamationTtsChunk` and
+  `countTtsChunkWords`.
+
+Vitest across `src/lib/speech`, `src/hooks`, `tests/speech` and
+`src/ui/main/chat` passes 40 files and 307 tests; ESLint and Prettier are clean.
+
+Folded follow-ups review: **passed** (one full review and two repair rounds).
 
 ### Phase 3: timing plumbing and the timing evidence module
 
@@ -1621,6 +1809,9 @@ Changes:
    - optional timing via `stream/with-timestamps`, forwarded on the server
      socket as `alignment` with run-relative times;
    - never issuing direct `ttd_websocket` tokens to multi-user browsers;
+   - the product-ui 0.10.0 effect renames (`acceptFinalizedAudio`,
+     `completeFinalizedAudio` and `markFinalizedAudioFailed`), which are
+     informational while Cloud pins 0.8.0 and implements no `ChatSessionEffects`;
    - the end marker;
    - pricing keys;
    - rollout ordering (G3);

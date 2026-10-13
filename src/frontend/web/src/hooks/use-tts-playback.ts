@@ -50,10 +50,10 @@ import {
   type ElevenLabsSessionResponse,
 } from "@/hooks/use-elevenlabs-tts-runtime";
 import {
-  useElevenLabsFinalizedTtsRuntime,
+  useFinalizedTtsRuntime,
   type FinalizedTtsAudioPayload,
   type FinalizedTtsErrorPayload,
-} from "@/hooks/use-elevenlabs-finalized-tts-runtime";
+} from "@/hooks/use-finalized-tts-runtime";
 import { useSoundController } from "@/hooks/use-sound-controller";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { useSettings } from "@/ui/settings/SettingsProvider";
@@ -83,12 +83,12 @@ type UseTtsPlaybackResult = {
     runId: string,
     error: ElevenLabsSessionError | string,
   ) => void;
-  acceptElevenLabsFinalizedAudio: (
+  acceptFinalizedAudio: (
     runId: string,
     payload: FinalizedTtsAudioPayload,
   ) => void;
-  completeElevenLabsFinalizedAudio: (runId: string) => void;
-  markElevenLabsFinalizedAudioFailed: (
+  completeFinalizedAudio: (runId: string) => void;
+  markFinalizedAudioFailed: (
     runId: string,
     error: FinalizedTtsErrorPayload | string,
   ) => void;
@@ -283,16 +283,16 @@ export function useTtsPlayback(
       emitAudioEnded(runId, "elevenlabs", runSeqRef.current, reason);
     },
   });
-  // Which provider's pushed audio the shared finalized runtime is playing.
-  const finalizedProviderRef = useRef<"elevenlabs" | "gemini">("elevenlabs");
+  // The provider of the run whose pushed audio is playing (set when it is prepared).
+  const finalizedProviderRef = useRef<TtsProvider>("gemini");
   const {
-    prepareRun: prepareElevenLabsFinalizedRun,
-    acceptAudioChunk: acceptElevenLabsFinalizedAudioChunk,
-    finishPushedStream: finishElevenLabsFinalizedPushedStream,
-    failPushedStream: failElevenLabsFinalizedPushedStream,
-    stop: stopElevenLabsFinalizedRuntime,
-    setVolume: setElevenLabsFinalizedVolume,
-  } = useElevenLabsFinalizedTtsRuntime({
+    prepareRun: prepareFinalizedRun,
+    acceptAudioChunk: acceptFinalizedAudioChunk,
+    finishPushedStream: finishFinalizedPushedStream,
+    failPushedStream: failFinalizedPushedStream,
+    stop: stopFinalizedRuntime,
+    setVolume: setFinalizedVolume,
+  } = useFinalizedTtsRuntime({
     onWarning: (runId, reason, message) => {
       const key = `${runId}:${reason}`;
       if (warnedKeysRef.current.has(key)) return;
@@ -667,11 +667,6 @@ export function useTtsPlayback(
     stopPocketRuntime();
   }, [stopPocketRuntime]);
 
-  const cancelElevenLabsPlayback = useCallback(() => {
-    stopElevenLabsRuntime();
-    stopElevenLabsFinalizedRuntime();
-  }, [stopElevenLabsFinalizedRuntime, stopElevenLabsRuntime]);
-
   const cancelAll = useCallback(() => {
     runSeqRef.current += 1;
     clearIdleFlushTimer();
@@ -684,13 +679,15 @@ export function useTtsPlayback(
     resetRunPlaybackLifecycle();
     cancelBrowserPlayback();
     cancelPocketPlayback();
-    cancelElevenLabsPlayback();
+    stopElevenLabsRuntime();
+    stopFinalizedRuntime();
   }, [
     cancelBrowserPlayback,
-    cancelElevenLabsPlayback,
     cancelPocketPlayback,
     clearIdleFlushTimer,
     resetRunPlaybackLifecycle,
+    stopElevenLabsRuntime,
+    stopFinalizedRuntime,
   ]);
 
   const drainBrowserQueue = useCallback(() => {
@@ -871,10 +868,10 @@ export function useTtsPlayback(
     }
     setPocketTtsVolume(effectiveTtsVolume);
     setElevenLabsVolume(effectiveTtsVolume);
-    setElevenLabsFinalizedVolume(effectiveTtsVolume);
+    setFinalizedVolume(effectiveTtsVolume);
   }, [
     effectiveTtsVolume,
-    setElevenLabsFinalizedVolume,
+    setFinalizedVolume,
     setElevenLabsVolume,
     setPocketTtsVolume,
   ]);
@@ -1290,7 +1287,7 @@ export function useTtsPlayback(
           );
         } else if (isFinalizedServerProvider(provider)) {
           finalizedProviderRef.current = provider;
-          prepareElevenLabsFinalizedRun(runId);
+          prepareFinalizedRun(runId);
           logger.info("Run", "Waiting for finalized server speech text", {
             runId,
             provider,
@@ -1305,7 +1302,7 @@ export function useTtsPlayback(
     [
       cancelAll,
       logger,
-      prepareElevenLabsFinalizedRun,
+      prepareFinalizedRun,
       resolveActiveProvider,
       resolveSpeechRuntimeContext,
       startElevenLabsRuntime,
@@ -1496,34 +1493,34 @@ export function useTtsPlayback(
     [markElevenLabsRuntimeSessionFailed, resolveActiveProvider],
   );
 
-  const acceptElevenLabsFinalizedAudio = useCallback(
+  const acceptFinalizedAudio = useCallback(
     (runId: string, payload: FinalizedTtsAudioPayload) => {
       if (!runId) return;
       const provider = resolveActiveProvider(runId);
       if (!isFinalizedServerProvider(provider)) return;
-      acceptElevenLabsFinalizedAudioChunk(runId, payload);
+      acceptFinalizedAudioChunk(runId, payload);
     },
-    [acceptElevenLabsFinalizedAudioChunk, resolveActiveProvider],
+    [acceptFinalizedAudioChunk, resolveActiveProvider],
   );
 
-  const completeElevenLabsFinalizedAudio = useCallback(
+  const completeFinalizedAudio = useCallback(
     (runId: string) => {
       if (!runId) return;
       const provider = resolveActiveProvider(runId);
       if (!isFinalizedServerProvider(provider)) return;
-      finishElevenLabsFinalizedPushedStream(runId);
+      finishFinalizedPushedStream(runId);
     },
-    [finishElevenLabsFinalizedPushedStream, resolveActiveProvider],
+    [finishFinalizedPushedStream, resolveActiveProvider],
   );
 
-  const markElevenLabsFinalizedAudioFailed = useCallback(
+  const markFinalizedAudioFailed = useCallback(
     (runId: string, error: FinalizedTtsErrorPayload | string) => {
       if (!runId) return;
       const provider = resolveActiveProvider(runId);
       if (!isFinalizedServerProvider(provider)) return;
-      failElevenLabsFinalizedPushedStream(runId, error);
+      failFinalizedPushedStream(runId, error);
     },
-    [failElevenLabsFinalizedPushedStream, resolveActiveProvider],
+    [failFinalizedPushedStream, resolveActiveProvider],
   );
 
   /**
@@ -1550,7 +1547,8 @@ export function useTtsPlayback(
         return false;
       }
       clearIdleFlushTimer();
-      cancelElevenLabsPlayback();
+      // Only an ElevenLabs run falls back, so only its realtime speech stops.
+      stopElevenLabsRuntime();
       declinedElevenLabsRunIdRef.current = runId;
       setPocketFallbackUsed(true);
       // Text already sent to ElevenLabs was never spoken; Pocket starts over.
@@ -1569,11 +1567,11 @@ export function useTtsPlayback(
       return true;
     },
     [
-      cancelElevenLabsPlayback,
       clearIdleFlushTimer,
       completeRun,
       logger,
       resolveActiveProvider,
+      stopElevenLabsRuntime,
       warmupPocketRuntime,
     ],
   );
@@ -1664,9 +1662,9 @@ export function useTtsPlayback(
     completeRun,
     acceptElevenLabsSession,
     markElevenLabsSessionFailed,
-    acceptElevenLabsFinalizedAudio,
-    completeElevenLabsFinalizedAudio,
-    markElevenLabsFinalizedAudioFailed,
+    acceptFinalizedAudio,
+    completeFinalizedAudio,
+    markFinalizedAudioFailed,
     fallBackToPocketTts,
     cancelAll,
     isAudioActive,

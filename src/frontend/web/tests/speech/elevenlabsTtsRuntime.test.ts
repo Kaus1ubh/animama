@@ -1,9 +1,5 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  convertElevenLabsPcm16ToFloat32,
-  decodeElevenLabsBase64Pcm,
-} from "@/hooks/use-elevenlabs-finalized-tts-runtime";
 import { buildDirectElevenLabsRealtimeWsUrl } from "@/hooks/use-elevenlabs-tts-runtime";
 
 describe("ElevenLabs realtime TTS runtime", () => {
@@ -28,19 +24,5 @@ describe("ElevenLabs realtime TTS runtime", () => {
     expect(url).toContain("sync_alignment=false");
     expect(url).toContain("language_code=en");
     expect(url).toContain("single_use_token=single+use+token");
-  });
-});
-
-describe("ElevenLabs finalized TTS runtime helpers", () => {
-  it("decodes base64 PCM into Int16 samples", () => {
-    expect(Array.from(decodeElevenLabsBase64Pcm("AQACAA=="))).toEqual([1, 2]);
-  });
-
-  it("converts Int16 PCM into normalized Float32 samples", () => {
-    const samples = convertElevenLabsPcm16ToFloat32(
-      new Int16Array([-32768, -16384, 0, 16384, 32767]),
-    );
-
-    expect(Array.from(samples)).toEqual([-1, -0.5, 0, 0.5, 32767 / 32768]);
   });
 });

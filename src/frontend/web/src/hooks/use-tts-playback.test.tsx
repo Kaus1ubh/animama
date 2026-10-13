@@ -112,10 +112,8 @@ vi.mock("@/hooks/use-elevenlabs-tts-runtime", () => ({
     return fixture.realtime;
   },
 }));
-vi.mock("@/hooks/use-elevenlabs-finalized-tts-runtime", () => ({
-  useElevenLabsFinalizedTtsRuntime: (
-    options: typeof fixture.finalizedOptions,
-  ) => {
+vi.mock("@/hooks/use-finalized-tts-runtime", () => ({
+  useFinalizedTtsRuntime: (options: typeof fixture.finalizedOptions) => {
     fixture.finalizedOptions = options;
     return fixture.finalized;
   },
@@ -598,9 +596,9 @@ describe("playing Gemini audio the server pushes", () => {
     });
     act(() => {
       playback().startRun("run-1");
-      playback().acceptElevenLabsFinalizedAudio("run-1", audio);
-      playback().completeElevenLabsFinalizedAudio("run-1");
-      playback().markElevenLabsFinalizedAudioFailed("run-1", "voice error");
+      playback().acceptFinalizedAudio("run-1", audio);
+      playback().completeFinalizedAudio("run-1");
+      playback().markFinalizedAudioFailed("run-1", "voice error");
     });
 
     expect(fixture.finalized.acceptAudioChunk).toHaveBeenCalledWith(
@@ -669,7 +667,7 @@ describe("playing Gemini audio the server pushes", () => {
     });
     act(() => {
       latest.current.startRun("run-1");
-      latest.current.acceptElevenLabsFinalizedAudio("run-1", audio);
+      latest.current.acceptFinalizedAudio("run-1", audio);
     });
     expect(fixture.finalized.prepareRun).not.toHaveBeenCalled();
     expect(fixture.finalized.acceptAudioChunk).not.toHaveBeenCalled();

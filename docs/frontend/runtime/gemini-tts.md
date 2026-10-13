@@ -35,7 +35,7 @@ The main runtime files are:
 - `src/frontend/web/src/lib/chat/gemini-chat-tts-dispatch.ts`
 - `src/frontend/web/src/ui/main/chat/useChatSession.ts`
 - `src/frontend/web/src/hooks/use-tts-playback.ts`
-- `src/frontend/web/src/hooks/use-elevenlabs-finalized-tts-runtime.ts`
+- `src/frontend/web/src/hooks/use-finalized-tts-runtime.ts`
 - `src/frontend/web/src/stores/avatar-lipsync-bridge-store.ts`
 
 For each TTS-enabled turn, `useChatSession.ts` sends `dispatch_options.tts`
@@ -47,10 +47,9 @@ one Gemini request and pushes its audio as `tts.audio` frames (`pcm_24000`,
 `ChatSpeechPolicy.finalizedServerAudio` is true only for Gemini, the one
 provider whose audio the server pushes, so the shared session routes
 `tts.audio`, `tts.done` and `tts.error` to playback. `useTtsPlayback` prepares
-the finalized runtime (`use-elevenlabs-finalized-tts-runtime.ts`, named for its
-first provider) when the run starts instead of streaming text, prewarming the
-local `AudioContext` and gain node before the first frame. Its audio signals
-report the run's own provider.
+the finalized runtime (`use-finalized-tts-runtime.ts`) when the run starts
+instead of streaming text, prewarming the local `AudioContext` and gain node
+before the first frame. Its audio signals report the run's own provider.
 
 Each `pcm_24000` frame is decoded into `Int16Array` samples, converted to
 normalized `Float32Array` audio, wrapped in a 24 kHz `AudioBuffer` and

@@ -151,12 +151,11 @@ function SessionConsumer() {
         speechSessions.push({ runId, value }),
       markElevenLabsSessionFailed: (runId, error) =>
         speechFailures.push({ runId, error }),
-      markElevenLabsFinalizedAudioFailed: (runId, error) =>
+      markFinalizedAudioFailed: (runId, error) =>
         speechFailures.push({ runId, error }),
-      acceptElevenLabsFinalizedAudio: (runId, payload) =>
+      acceptFinalizedAudio: (runId, payload) =>
         finalizedAudio.push({ runId, provider: payload.provider }),
-      completeElevenLabsFinalizedAudio: (runId) =>
-        finalizedCompletions.push(runId),
+      completeFinalizedAudio: (runId) => finalizedCompletions.push(runId),
       // The playback adapter speaks a declined run with Pocket TTS if it can.
       fallBackToPocketTts: (runId) => {
         speechFallbacks.push(runId);
