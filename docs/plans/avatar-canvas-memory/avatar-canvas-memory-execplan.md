@@ -9,7 +9,7 @@ Authorized scope:
 - Phase 1 is delivered.
 - Phases 2–5 were approved by the owner on 2026-10-12, Phase 5 included. Phases 2–4 are delivered.
 - The owner deferred Phase 5 later the same day; see the Decision Log.
-- The owner approved merging PR #474 once review and checks pass.
+- The owner gave a conditional approval to merge PR #474 once review and checks pass; see the Decision Log.
 
 ## Purpose and context
 
@@ -79,6 +79,7 @@ this plan without machine paths.
 
 - 2026-10-12, owner: expand #472 from the Library Dock fix to the measured canvas leaks and churn, then add PiP and desktop windows.
 - 2026-10-12, owner: approve the spec and this plan as written, and include Phase 5 (R5).
+- 2026-10-12, owner: approve merging PR #474 "if review/checks pass". The approval came before the final review found that R3's per-load peak had not been compared against a baseline. The PR discloses that gap at merge.
 - 2026-10-12, owner: defer Phase 5 after the Phase 2 measurements. The per-switch model load is inherent, and the old renderer and model are now released promptly. Keeping the renderer would mainly save one WebGL context and scene rebuild per switch, but it would need an explicit reset for the canvas mode, fullscreen, both PiP kinds, transforms, camera and safety state.
 - 2026-10-12, agent: treat this as substantial and risky work, because it touches the shared Avatar runtime, router lifetime and chat remount semantics. Hence this ExecPlan.
 - 2026-10-12, agent: fix R2 centrally in `Avatar.unload()` by detaching before disposing, rather than reordering every caller's cleanup.
@@ -180,7 +181,7 @@ Results (2026-10-12):
   - In chat-only mode, live bitmaps drop to 0 before any GC.
   - **Per-load peak (R3), measured during final review:**
     - Task build, peak renderer growth from a GC'd base during one Avatar Effect creator model switch, sampled every 150 ms: +66, +59 and +45 MB (median +59 MB).
-    - The same run on the baseline main build was not possible: the shared main stack was stopped at 23:03Z by something outside this task and was not restarted. So the per-load peak was not compared directly, and the R3 peak criterion is not claimed as met.
+    - The same run on the baseline was not run. The shared main stack had been stopped at 23:03Z by something outside this task, and no separate baseline stack was built. So the per-load peak was not compared directly, and the R3 peak criterion is not claimed as met.
     - What was established: retained growth per switch after GC fell from about +59 MB (baseline, 520 → 1705 MB over 20 switches) to about +1 MB, and live decoded textures stay bounded to the current model.
   - Chat Anima switching still creates one WebGL context per switch; that is Phase 5. Live decoded textures stay bounded to the current model (88–119 MB). The remaining per-switch peak is the model's ArrayBuffers and the new context.
   - No console errors about closed images or `texImage2D`.
