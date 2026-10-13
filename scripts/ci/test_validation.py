@@ -434,6 +434,12 @@ class GateReceiptTests(unittest.TestCase):
         self.selection = self.root / "selection.json"
         self.selection.write_text(json.dumps({"plan": self.plan, "source_commit": "a" * 40, "source_tree": "b" * 40}))
         self.steps = {name: {"outcome": "success", "conclusion": "success"} for name in self.plan["required"]}
+        self.steps["package-artifacts"]["outputs"] = {"artifact-id": "300", "artifact-digest": "9" * 64}
+        self.set_dir = self.root / "public-artifacts"
+        self.set_dir.mkdir()
+        self.manifest = json.dumps({"source": {"commit": "a" * 40, "tree": "b" * 40}}).encode()
+        (self.set_dir / "manifest.json").write_bytes(self.manifest)
+        (self.set_dir / "validation.json").write_bytes(b'{"passed": true}')
         for name in set(self.plan["required"]) - UNTIMED:
             self.write_check(name)
 
@@ -459,6 +465,8 @@ class GateReceiptTests(unittest.TestCase):
                     "CI_PLAN_PATH": str(self.selection),
                     "CI_STEPS": json.dumps(self.steps),
                     "CI_RESULTS_DIR": str(self.checks),
+                    "CI_PACKAGE_SET_DIR": str(self.set_dir),
+                    "CI_BASELINE_RECORD": str(self.root / "baseline-set.json"),
                     "GITHUB_STEP_SUMMARY": str(self.root / "summary.md"),
                 },
             ),
@@ -466,6 +474,46 @@ class GateReceiptTests(unittest.TestCase):
         ):
             code = validation.gate(output)
         return code, json.loads(output.read_text())
+
+    def test_promotion_runs_record_their_uploaded_set(self):
+        (self.root / "baseline-set.json").write_text(json.dumps({"path": "retained", "run_id": 5}))
+        code, receipt = self.gate()
+        self.assertEqual(code, 0, receipt["reason"])
+        self.assertEqual(receipt["schema_version"], 3)
+        self.assertEqual(
+            receipt["package_set"],
+            {
+                "artifact_id": 300,
+                "artifact_digest": "sha256:" + "9" * 64,
+                "manifest_sha256": hashlib.sha256(self.manifest).hexdigest(),
+                "source": {"commit": "a" * 40, "tree": "b" * 40},
+                "consumer_receipt_sha256": hashlib.sha256(b'{"passed": true}').hexdigest(),
+                "promotion_suites": {name: "success" for name in sorted(SUITES["promotion"])},
+            },
+        )
+        self.assertEqual(receipt["baseline_set"], {"path": "retained", "run_id": 5})
+        (self.root / "baseline-set.json").write_text("{truncated")
+        code, receipt = self.gate()
+        self.assertEqual((code, receipt["reason"]), (1, "Malformed baseline set record"))
+        (self.root / "baseline-set.json").unlink()
+        for outputs in (
+            {},
+            {"artifact-id": "x", "artifact-digest": "9" * 64},
+            {"artifact-id": "1", "artifact-digest": "z"},
+        ):
+            self.steps["package-artifacts"]["outputs"] = outputs
+            code, receipt = self.gate()
+            self.assertEqual(code, 1)
+            self.assertNotIn("package_set", receipt)
+        self.steps["package-artifacts"]["outputs"] = {"artifact-id": "300", "artifact-digest": "9" * 64}
+        (self.set_dir / "manifest.json").unlink()
+        self.assertEqual(self.gate()[0], 1)
+
+    def test_runs_without_the_promotion_suite_record_no_set(self):
+        self.steps["package-artifacts"] = {"outcome": "skipped", "conclusion": "skipped"}
+        code, receipt = self.gate()
+        self.assertNotIn("package_set", receipt)
+        self.assertNotIn("baseline_set", receipt)
 
     def test_reused_gate_rejects_missing_or_mismatched_evidence(self):
         from hosted_evidence import WORKFLOW_PATH
@@ -482,6 +530,18 @@ class GateReceiptTests(unittest.TestCase):
             "artifact_digest": "sha256:" + "d" * 64,
             "run_url": "https://github.com/owner/repo/actions/runs/10",
             "workflow": WORKFLOW_PATH,
+            "tested_commit": "e" * 40,
+            "package_set": {
+                "artifact_id": 30,
+                "artifact_name": f"animama-set-{'e' * 40}-1",
+                "artifact_digest": "sha256:" + "f" * 64,
+                "expires_at": "2026-10-26T00:00:00Z",
+                "manifest_sha256": "1" * 64,
+                "source": {"commit": "e" * 40, "tree": "b" * 40},
+                "tested_commit_parents": ["c" * 40, "9" * 40],
+                "consumer_receipt_sha256": "2" * 64,
+                "promotion_suites": {name: "success" for name in sorted(SUITES["promotion"])},
+            },
         }
         selection = {
             "plan": selected,
@@ -491,7 +551,7 @@ class GateReceiptTests(unittest.TestCase):
             "source_tree": "b" * 40,
             "base": "c" * 40,
         }
-        for value in (None, {}, evidence | {"source_tree": "d" * 40}, evidence):
+        for value in (None, {}, evidence | {"source_tree": "d" * 40}, evidence | {"package_set": {}}, evidence):
             selection["hosted_evidence"] = value
             self.selection.write_text(json.dumps(selection))
             self.assertEqual(self.gate()[0], 0 if value == evidence else 1)

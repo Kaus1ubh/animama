@@ -14,7 +14,7 @@ import subprocess
 from pathlib import Path
 
 from browser_tests import browser_groups
-from validation_policy import LOCAL_CHECKS, UNTIMED, choose_plan, classify, evaluate
+from validation_policy import LOCAL_CHECKS, SUITES, UNTIMED, choose_plan, classify, evaluate
 
 SHA = re.compile(r"[0-9a-f]{40}")
 WORKFLOW = "Portable product validation"
@@ -394,6 +394,34 @@ def check_receipts(directory: Path, selected: object) -> tuple[list[dict], str |
     return checks, None
 
 
+def package_set_record(steps: object, directory: Path) -> tuple[dict | None, str | None]:
+    """Identify the uploaded set of a run that executed the promotion suite.
+
+    The PR receipt carries this record so a later `reused` main run can name the
+    set without downloading it; a missing identity fails the run.
+    """
+    upload = steps.get("package-artifacts") if isinstance(steps, dict) else None
+    if not isinstance(upload, dict) or upload.get("outcome") != "success":
+        return None, None
+    try:
+        outputs = upload["outputs"]
+        digest = outputs["artifact-digest"].removeprefix("sha256:")
+        manifest = (directory / "manifest.json").read_bytes()
+        if not re.fullmatch(r"[0-9a-f]{64}", digest):
+            raise ValueError("Malformed artifact digest")
+        return {
+            "artifact_id": int(outputs["artifact-id"]),
+            "artifact_digest": "sha256:" + digest,
+            "manifest_sha256": hashlib.sha256(manifest).hexdigest(),
+            "source": json.loads(manifest)["source"],
+            "consumer_receipt_sha256": hashlib.sha256((directory / "validation.json").read_bytes()).hexdigest(),
+            # Outcome of every promotion-suite step, so consumers see what ran.
+            "promotion_suites": {name: steps[name]["outcome"] for name in sorted(SUITES["promotion"])},
+        }, None
+    except (OSError, KeyError, TypeError, ValueError, AttributeError):
+        return None, "Uploaded package set cannot be identified"
+
+
 def gate(output: Path) -> int:
     """Evaluate actual step outcomes and preserve a receipt even after early failure."""
     try:
@@ -415,7 +443,20 @@ def gate(output: Path) -> int:
     checks, receipt_error = check_receipts(directory, selected)
     if receipt_error:
         result = {"success": False, "reason": receipt_error}
-    receipt = {"schema_version": 2, "selection": selection, "steps": steps, "checks": checks, **result}
+    package_set, set_error = package_set_record(steps, Path(os.environ.get("CI_PACKAGE_SET_DIR", "/nonexistent")))
+    if set_error:
+        result = {"success": False, "reason": set_error}
+    baseline_set, baseline_record = None, Path(os.environ.get("CI_BASELINE_RECORD", "/nonexistent"))
+    if baseline_record.is_file():
+        try:
+            baseline_set = json.loads(baseline_record.read_text())
+        except (OSError, ValueError):
+            result = {"success": False, "reason": "Malformed baseline set record"}
+    receipt = {"schema_version": 3, "selection": selection, "steps": steps, "checks": checks, **result}
+    if package_set:
+        receipt["package_set"] = package_set
+    if baseline_set is not None:
+        receipt["baseline_set"] = baseline_set
     write_json(output, receipt)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
         with open(summary, "a") as target:
@@ -428,9 +469,13 @@ def gate(output: Path) -> int:
                 target.write("Profile: **" + selected["mode"] + "**. " + selected["reason"] + "\n\n")
                 if selected["mode"] == "reused" and result["success"]:
                     evidence = selection["hosted_evidence"]
+                    package_set = evidence["package_set"]
                     target.write(
                         f"Full hosted evidence: [run {evidence['run_id']}]({evidence['run_url']}); "
                         f"artifact `{evidence['artifact_id']}`, digest `{evidence['artifact_digest']}`.\n\n"
+                        f"Package set for promotion: `{package_set['artifact_name']}` "
+                        f"(artifact `{package_set['artifact_id']}`, manifest `{package_set['manifest_sha256']}`), "
+                        f"built from tested merge `{evidence['tested_commit']}` with this tree.\n\n"
                     )
                 else:
                     target.write("Local assertions are owner-reviewed, not independently executed by this runner.\n\n")
