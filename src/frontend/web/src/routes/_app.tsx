@@ -24,26 +24,25 @@ function ApplicationAreaLayout() {
     select: (state) => state.location.pathname,
   });
   if (admission.status !== "ready") return null;
-  // The app home is also the entry route; continue an accepted entry
-  // navigation without reopening a departing creator's blocker.
-  if (admission.onboardingRequired) return <FirstRunAgeConfirmation />;
   const reason = unavailableRouteReason(pathname, admission.capabilities);
   return (
-    <SettingsGate>
-      <AppShell>
-        <ContentPreviewDockProvider>
-          <SidebarShell />
-          {reason ? (
-            <AppShellPage>
-              <h1 className="text-lg font-semibold">Unavailable here</h1>
-              <p className="text-muted-foreground">{reason}</p>
-            </AppShellPage>
-          ) : (
-            <Outlet />
-          )}
-          <DesktopUpdatesPanel notice />
-        </ContentPreviewDockProvider>
-      </AppShell>
-    </SettingsGate>
+    <FirstRunAgeConfirmation>
+      <SettingsGate>
+        <AppShell>
+          <ContentPreviewDockProvider>
+            <SidebarShell />
+            {reason ? (
+              <AppShellPage>
+                <h1 className="text-lg font-semibold">Unavailable here</h1>
+                <p className="text-muted-foreground">{reason}</p>
+              </AppShellPage>
+            ) : (
+              <Outlet />
+            )}
+            {!admission.onboardingRequired && <DesktopUpdatesPanel notice />}
+          </ContentPreviewDockProvider>
+        </AppShell>
+      </SettingsGate>
+    </FirstRunAgeConfirmation>
   );
 }

@@ -46,11 +46,15 @@ vi.mock("@web/app/local-runtime/LocalRuntimeProvider", () => ({
   }),
 }));
 // The app shell is irrelevant to entry redirects and never renders here.
-vi.mock("@/ui/app/AppShell", () => ({}));
-vi.mock("@/ui/content-preview/ContentPreviewDockProvider", () => ({}));
-vi.mock("@/ui/settings/SettingsGate", () => ({}));
-vi.mock("@/ui/settings/DesktopUpdatesPanel", () => ({}));
-vi.mock("@/ui/sidebar", () => ({}));
+vi.mock("@/ui/app/AppShell", () => ({ AppShell: () => null }));
+vi.mock("@/ui/content-preview/ContentPreviewDockProvider", () => ({
+  ContentPreviewDockProvider: () => null,
+}));
+vi.mock("@/ui/settings/SettingsGate", () => ({ SettingsGate: () => null }));
+vi.mock("@/ui/settings/DesktopUpdatesPanel", () => ({
+  DesktopUpdatesPanel: () => null,
+}));
+vi.mock("@/ui/sidebar", () => ({ SidebarShell: () => null }));
 vi.mock("@/query/hooks/useAnimas", () => ({
   useAnimas: () => ({
     isSuccess: true,
