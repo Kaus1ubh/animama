@@ -133,8 +133,10 @@ friendly default tone instead of failing the chat turn.
 The frontend finalized runtime decodes and plays PCM audio from SSE events.
 Avatar lip-sync continues to use gruut phonemes from SSE plus provider
 audio-start and actual-duration callbacks. Anima preserves the additive
-`tts_text` fields on `user.response` as provider handoff data. The realtime
-socket's ElevenLabs character timing is requested but not consumed yet.
+`tts_text` fields on `user.response` as provider handoff data. The browser
+collects the realtime socket's ElevenLabs character timing as lip-sync evidence
+(see the frontend ElevenLabs TTS guide); the lip-sync planner does not use it
+yet.
 
 ## Gemini TTS
 

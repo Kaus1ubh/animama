@@ -2156,6 +2156,64 @@ Completion:
 - Review passes.
 - Commit `docs(voice)[p5]: document Eleven v4 speech, timing evidence and the hosted contract`.
 
+#### Phase 5 implementation notes
+
+Starting revision: `3c6b7d98`, merged with `main` at `00442ec9` in `10812ec4`
+(no conflicts).
+
+- **Contract.**
+  - Phase 3 already documented the optional server-socket `alignment` and its
+    time base.
+  - The end marker and the allowance refusal on `tts.session.error` were already
+    current.
+  - The package versions in `contracts/hosted-web.md` match the packages:
+    `local-http` 6.0.0, `runtime-contracts` 0.6.0 and `product-ui` 0.10.0. The
+    web-only Phases 3–4 needed no bump.
+- **Docs.**
+  - `voice-and-speech.md` and `http-api.md` no longer call the realtime timing
+    unused (P3-F8).
+  - The frontend guides were updated in their phases. `chat.md` and the server
+    reference needed no change.
+- **Cloud issue.**
+  - [`cloud-issue-draft.md`](cloud-issue-draft.md) is a behaviour-level handoff.
+  - It covers models, pricing, the provider endpoint, optional run-relative
+    timing, no direct tokens, the end marker, allowance refusals, concurrency
+    and the G3 rollout order: Cloud accepts and prices `eleven_v4_turbo` before
+    adopting the new packages.
+  - It is not filed.
+- **G2 pack.** The checklist is below.
+
+#### G2 owner gate pack
+
+The owner's checks before merge. Each English reply costs about US$0.004 of
+v4 Turbo characters.
+
+1. **Listen to v4 Turbo with the voices in use.**
+   - On the PR's stack, choose ElevenLabs in App Settings → Voice.
+   - For each voice in use (the default voice and every Anima's own), send one
+     English and one Japanese reply.
+   - Judge the voice's identity, pronunciation, the prosody across a reply (one
+     flush after the first sentence) and how quickly speech starts.
+   - The spike's samples for v3, v4 and v4 Turbo are in the ignored
+     `evidence/voices/`.
+2. **Hear every language.** Korean, Chinese and Spanish replies speak with v4
+   Turbo. Japanese and Chinese replies start speaking before the reply finishes
+   (#498).
+3. **Review the side-by-side view.**
+   - Restart only the web service with the debug panel on:
+     `source .animama-stack.env`, then
+     `HOST_UID=$(id -u) HOST_GID=$(id -g) VITE_ENABLE_DEBUG_PANEL=true docker compose -p animama-ev4 up -d --no-deps web`.
+   - Send a reply. Open the Anima debug panel (bug icon) and expand Lip-sync.
+   - Check that the envelope, words and pauses line up, then press Replay and
+     watch the mouth against the audio.
+   - Japanese, Chinese and Korean replies show their timing but "no plan": the
+     avatar's mouth stays still for them today, as on `main`. Accept that until
+     #468, or say otherwise.
+4. **Gemini is unchanged.** With Gemini selected, a Japanese reply is spoken
+   sentence by sentence.
+5. **Hosted.** Read `cloud-issue-draft.md` and decide whether to file it in the
+   Cloud repository.
+
 #### Code Review #1 Findings
 
 Pending.

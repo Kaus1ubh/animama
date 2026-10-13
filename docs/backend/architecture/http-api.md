@@ -1413,7 +1413,8 @@ Realtime chat TTS resolves the anima voice from
 `speech.elevenlabs.primary_voice`, ignores legacy saved variant maps, selects
 `eleven_v4_turbo`, and emits `tts.session` with a single-use `ttd_websocket`
 token for ElevenLabs' Text to Dialogue socket, with `sync_alignment: true`.
-The session requests ElevenLabs character timing, which is not used yet.
+The session requests ElevenLabs character timing, which the browser keeps as
+lip-sync evidence; the backend never sees it.
 ElevenLabs offers no finalized chat speech; Gemini is the only provider whose
 audio the route pushes.
 
