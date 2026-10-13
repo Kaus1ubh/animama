@@ -93,7 +93,7 @@ and this plan does not edit it.
 - [x] Phase 4: baseline set reuse. Review passed after one repair round (#485).
 - [x] Phase 5: the reused receipt names the PR set. Review passed after one repair round (#486).
 - [x] Phase 6: two pytest-xdist workers for the hosted backend suite (#494). Review passed.
-- [ ] Phase 7: documentation and final integration review (not started).
+- [x] Phase 7: documentation and final integration review (#487). Passed after one repair round.
 - [ ] Hosted runs H1–H3 (each needs separate owner approval).
 
 ## Surprises & Discoveries
@@ -729,6 +729,17 @@ step set is the added `browser-tests` step.
   rebuild. The cost is small.
 - Checks after the revisions: unittest 125 OK, ruff clean. Repair round 1 of 2
   used.
+
+#### Final Review #2 Findings
+
+This was a targeted recheck at `0cc3c835`. FI-F1 through FI-F5 are resolved,
+there are no regressions and no import cycle, and unittest 125 OK. One
+optional note: suites that ran get a fixed reason in the summary. Result: pass.
+
+#### Final Review #2 Revisions
+
+None required. The fixed reason is accurate for every PR run that executes a
+suite. Final integration review passed after one repair round.
 
 ## Validation and acceptance
 
