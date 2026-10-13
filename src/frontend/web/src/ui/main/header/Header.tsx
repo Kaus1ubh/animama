@@ -6,6 +6,7 @@ import { useLocation, useParams } from "@tanstack/react-router";
 import { Menu } from "lucide-react";
 
 import { cn } from "@/lib/utils";
+import { EmotionMascot } from "@/ui/components/emotion-mascot";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
 import { DEBUG_ENABLED } from "@/platform/env";
 import { useAnimas } from "@/query/hooks/useAnimas";
@@ -113,9 +114,12 @@ export function Header({
         <span
           role="img"
           aria-label={emotionPresentation.feeling.label}
-          className="shrink-0 text-xl"
+          className="shrink-0"
         >
-          {emotionPresentation.feeling.emoji}
+          <EmotionMascot
+            src={emotionPresentation.feeling.mascot}
+            className="size-7"
+          />
         </span>
       ) : null}
     </button>

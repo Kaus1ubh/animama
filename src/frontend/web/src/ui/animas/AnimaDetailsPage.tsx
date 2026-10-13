@@ -76,6 +76,7 @@ import { usePreparedContentPreview } from "@/ui/content-preview/usePreparedConte
 import { Button } from "@/ui/components/button";
 import { Card, CardContent } from "@/ui/components/card";
 import { EmotionalState } from "@/ui/components/emotional-state";
+import { EmotionMascot } from "@/ui/components/emotion-mascot";
 import { RuntimeImageFrame } from "@/ui/components/runtime-image-frame";
 import { Tabs, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Switch } from "@/ui/components/switch";
@@ -261,10 +262,13 @@ function ManagementPanel({
                   type="button"
                   onClick={() => onTabChange("emotions")}
                   aria-label={`Open Emotions tab. ${emotion.feeling.label}`}
-                  className="focus-visible:ring-ring/50 ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-2xl transition-opacity outline-none hover:opacity-80 focus-visible:ring-[3px]"
+                  className="focus-visible:ring-ring/50 ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full transition-opacity outline-none hover:opacity-80 focus-visible:ring-[3px]"
                   style={{ backgroundColor: `${emotion.color}14` }}
                 >
-                  <span aria-hidden="true">{emotion.feeling.emoji}</span>
+                  <EmotionMascot
+                    src={emotion.feeling.mascot}
+                    className="size-8"
+                  />
                 </button>
               </TooltipTrigger>
               <TooltipContent>{emotion.feeling.label}</TooltipContent>

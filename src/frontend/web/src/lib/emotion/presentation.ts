@@ -8,6 +8,7 @@ import {
   type ResolvedEmotionGroup,
   type TrackedEmotion,
 } from "@/lib/emotion";
+import { publicResourceUrl } from "@/lib/resource-urls";
 
 /** Shared UI palette; domain emotion and voice mappings remain unchanged. */
 export const EMOTION_PALETTE: Record<ResolvedEmotionGroup, string> = {
@@ -21,9 +22,11 @@ export const EMOTION_PALETTE: Record<ResolvedEmotionGroup, string> = {
   gloom: "#648BC0",
   neutral: "#8A9099",
 };
+export type FeelingIntensity = "slightly" | "plain" | "very";
+
 export const FEELING_LABELS: Record<
   TrackedEmotion,
-  { label: string; emojis: Record<"slightly" | "plain" | "very", string> }
+  { label: string; emojis: Record<FeelingIntensity, string> }
 > = {
   admiration: {
     label: "Feeling admiring",
@@ -123,6 +126,19 @@ export const FEELING_LABELS: Record<
   },
 };
 
+/**
+ * The Animama mascot drawn for a feeling, one per emotion and intensity (the
+ * emoji in `FEELING_LABELS` stays as text fallback and copy); `null` is neutral.
+ */
+export function emotionMascotUrl(
+  emotion: TrackedEmotion | null,
+  intensity: FeelingIntensity,
+): string {
+  return publicResourceUrl(
+    emotion ? `emotions/${emotion}-${intensity}.webp` : "emotions/neutral.webp",
+  );
+}
+
 /** Normalize either a raw values map or runtime envelope using the domain rules. */
 export function buildEmotionPresentation(value: unknown) {
   const source =
@@ -154,8 +170,7 @@ export function buildEmotionPresentation(value: unknown) {
     .slice(0, 3)
     .map((summary) => groups.find((group) => group.group === summary.group)!);
   const primary = runtime.dominantGroupSummary?.primaryEmotion;
-  const baseFeeling = primary ? FEELING_LABELS[primary.emotion] : null;
-  const intensity =
+  const intensity: FeelingIntensity =
     primary && primary.value <= 15
       ? "slightly"
       : primary && primary.value >= 26
@@ -167,15 +182,20 @@ export function buildEmotionPresentation(value: unknown) {
     topGroups,
     dominantGroup: runtime.dominantGroup,
     color: EMOTION_PALETTE[runtime.dominantGroup],
-    feeling: baseFeeling
+    feeling: primary
       ? {
-          emoji: baseFeeling.emojis[intensity],
-          label: baseFeeling.label.replace(
+          emoji: FEELING_LABELS[primary.emotion].emojis[intensity],
+          mascot: emotionMascotUrl(primary.emotion, intensity),
+          label: FEELING_LABELS[primary.emotion].label.replace(
             "Feeling ",
             intensity === "plain" ? "Feeling " : `Feeling ${intensity} `,
           ),
         }
-      : { label: "Feeling neutral", emoji: "😐" },
+      : {
+          label: "Feeling neutral",
+          emoji: "😐",
+          mascot: emotionMascotUrl(null, "plain"),
+        },
   };
 }
 

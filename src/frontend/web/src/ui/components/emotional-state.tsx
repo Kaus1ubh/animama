@@ -28,6 +28,7 @@ import {
   EMOTION_PALETTE,
 } from "@/lib/emotion/presentation";
 import { cn } from "@/lib/utils";
+import { EmotionMascot } from "@/ui/components/emotion-mascot";
 
 type EmotionalStateProps = {
   emotionalState?: unknown;
@@ -95,10 +96,13 @@ export function EmotionSummary({
         <p className="flex items-center gap-2 font-medium">
           <span
             aria-hidden="true"
-            className="flex size-9 shrink-0 items-center justify-center rounded-full text-xl"
+            className="flex size-9 shrink-0 items-center justify-center rounded-full"
             style={{ backgroundColor: `${presentation.color}1A` }}
           >
-            {presentation.feeling.emoji}
+            <EmotionMascot
+              src={presentation.feeling.mascot}
+              className="size-7"
+            />
           </span>
           {presentation.feeling.label}
         </p>
