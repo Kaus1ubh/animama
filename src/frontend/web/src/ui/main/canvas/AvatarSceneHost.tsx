@@ -48,8 +48,7 @@ import {
 } from "@/ui/main/canvas/transform-state";
 import { TransformPanel } from "@/ui/main/canvas/TransformPanel";
 
-// const DEFAULT_MAIN_SCENE_CAMERA_PRESET: SceneCameraPreset = "portrait";
-const DEFAULT_MAIN_SCENE_CAMERA_PRESET: SceneCameraPreset = "full-body";
+const DEFAULT_MAIN_SCENE_CAMERA_PRESET: SceneCameraPreset = "portrait";
 const LazyAnimaDebugPanel =
   __ANIMAMA_DEV_BUILD__ && DEBUG_ENABLED
     ? lazy(() => import("@/ui/debug/SceneDebugPanel"))
