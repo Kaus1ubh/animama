@@ -1,6 +1,7 @@
 # Lip-sync that follows the voice in every language, with vocal tags
 
-Status: Proposal, drafted 2026-10-13 for owner review.
+Status: Proposal, drafted 2026-10-13. D2–D4 were agreed on 2026-10-13; D1 awaits the
+owner.
 
 Owner decisions, 2026-10-13 (recorded in the research brief's "Owner decisions"):
 
@@ -18,9 +19,8 @@ Owner decisions, 2026-10-13 (recorded in the research brief's "Owner decisions")
 
 Authoritative source: this file until `workspace-setup` publishes it to parent issue
 [#468](https://github.com/raymond-van/animama/issues/468).
-Research: [lipsync-research.md](lipsync-research.md), the brief at `7f2e087c` on
-[#473](https://github.com/raymond-van/animama/pull/473). It holds the measurements,
-method and prototype findings this spec relies on.
+Research: [lipsync-research.md](lipsync-research.md), beside this file. It holds the
+measurements, method and prototype findings this spec relies on.
 
 ## Problem and intended users
 
@@ -107,12 +107,22 @@ Exclude:
 - When a sentence has no usable text, for example only digits or symbols, the mouth
   follows the audio alone.
 
-### R3 — Vocal tags
+### R3 — Audio tags on Gemini and ElevenLabs voices
 
-- Tags in the text sent to the provider are never mouthed as words. That covers
-  Gemini's angle-bracket tags and ElevenLabs' square-bracket directions, including
-  combined directions such as `[whispering, playful]`.
-- Each tag behaves by its kind:
+Gemini and ElevenLabs v4 Turbo voices perform audio tags; Pocket TTS and browser
+speech receive tag-free text (#479), so they produce no tag events. For the two
+tag-capable providers, the planner combines the tags in the spoken text with the
+audio, and on ElevenLabs also with the provider's timing:
+
+| Per reply | Gemini | ElevenLabs v4 Turbo |
+| --- | --- | --- |
+| Tags in the text sent | Angle brackets from Gemini's list, such as `<laugh>`, `<sigh>`, `<whispers>`, `<long pause>` | Free-form square brackets, such as `[laughs]`, `[sighs]`, `[whispering, playful]`, `[excited]` |
+| Emotion | Request style from `emotional_tone`; no emotion tags | A leading tone tag from `emotional_tone`, plus inline emotion tags (#479) |
+| Provider timing | None | Each tag's characters get a window, often shorter than the sound |
+| Where the sound is found | In the audio between the neighbouring words: loud stretches that are not voiced speech, and low phone density when the model is installed | The timing window as a starting point, then the audio, as on Gemini |
+
+- **Never words:** tags are never mouthed as words, including combined directions.
+- **Each tag behaves by its kind:**
 
   | Kind | Examples | Mouth | Expression |
   | --- | --- | --- | --- |
@@ -122,14 +132,21 @@ Exclude:
   | Other vocal sound | cough, cry, groan | Follows loudness with a neutral shape | none |
   | Pause | short pause, long pause, `[pause]` | Closed | none |
   | Sound effect | `[applause]`, `[door]` | At rest | none |
-  | Whisper | whispers, whispering | Narrower shapes for the words that follow | none |
+  | Whisper | whispers, whispering | Narrower shapes until the next delivery tag or the end of the speech part | none |
   | Other delivery or emotion | `[excited]`, `[softly]` | Unchanged | none |
 
-- A tag's mouth event is placed where its sound is in the audio, not where the
-  text or the provider's timing puts it. A tag the voice did not perform leaves no
-  event.
-- Tag expressions are brief overlays during the sound. They return to the Anima's
-  current emotion afterwards and do not change its emotion state.
+- **The audio decides placement.** A tag's event covers its sound in the audio, not
+  the position the text or the provider's timing suggests. A tag the voice did not
+  perform leaves no event.
+- **Expressions are brief overlays** during the sound. The face returns to the
+  Anima's current emotion afterwards, and its emotion state does not change.
+- **Emotion tags change the voice, not the face.** As agreed in #479, the avatar's
+  emotion follows `emotional_tone`, not inline emotion tags.
+
+Example: an ElevenLabs reply says "Oh my gosh, [laughs] that is the funniest thing".
+Its timing gives `[laughs]` 48 ms and credits the laugh to "gosh,". The laugh event
+still covers the audible laugh between "gosh" and "that": the mouth pulses with it,
+`happy` shows briefly, and the word "laughs" is never mouthed.
 
 ### R4 — Provider timing as evidence
 
@@ -217,7 +234,7 @@ Exclude:
 Scored by the repository evaluation (R10) on its fixed set, which keeps the
 brief's 35 clips and adds the 8 v4 Turbo socket clips, held-out clips not used for
 tuning and an anime-pitched voice. Alignment is progressive, at each provider's
-delivery rate. Proposed thresholds (D2):
+delivery rate. Thresholds (D2, agreed 2026-10-13):
 
 - [ ] **Default tier, Gemini and Pocket:**
   - open in silence at most 10% on English and tag lines;
@@ -250,26 +267,31 @@ delivery rate. Proposed thresholds (D2):
 
 ## Open questions and decisions
 
-Agreed on 2026-10-13: the decisions listed at the top.
+Agreed on 2026-10-13: the decisions listed at the top, and:
 
-Proposed, for the owner:
-
-- **D1 — gruut stays for now.** This work stops lip-sync and talking hands from
-  needing gruut beyond its English phonemes, but leaves the backend gruut step in
-  place. Removing gruut changes how English text is prepared for TTS (numbers and
-  symbols) and the SSE contract. Proposed follow-up issue: a browser English
-  converter, then gruut's removal.
-- **D2 — Thresholds.** The acceptance numbers above are proposals from the brief's
-  measurements. Two risks:
+- **D2 — Thresholds:** as in the acceptance criteria. Two risks remain:
   - Japanese kanji without readings were not measured in the default tier, so the
-    Japanese share of the 40% target may need adjusting after the first
+    Japanese share of the 40% target may need revisiting after the first
     measurement;
   - the brief's text aligners were tuned on their own clips, hence the held-out
     check.
-- **D3 — Where to install the phone model.** Proposed: in Voice settings, beside
-  the other speech Model assets, described as "Sharper lip-sync" with its size.
-- **D4 — Test clip spend.** Proposed: up to US$0.30 for held-out and anime-voice
-  clips on Gemini and ElevenLabs.
+- **D3 — Installing the phone model:** in Voice settings, beside the other speech
+  Model assets, described as "Sharper lip-sync" with its size.
+- **D4 — Test clip spend:** up to US$0.30 for held-out and anime-voice clips on
+  Gemini and ElevenLabs.
+
+Proposed, for the owner:
+
+- **D1 — English pronunciation comes from gruut's existing phonemes; gruut stays.**
+  The planner takes timing from the audio and provider timing, not from phonemes.
+  It needs text only to know which syllables, pauses and tags to expect and which
+  vowel shape each syllable has. Kana, Hangul and pinyin spell their sounds, so
+  small tables suffice. English spelling does not ("though", "laugh"), so English
+  vowel shapes need a pronunciation source. This work uses the phonemes the backend
+  already sends, and builds no English converter. Removing gruut would change how
+  English text is prepared for TTS (numbers and symbols) and the SSE contract.
+  That removal, with a browser English source, is a separate follow-up issue if
+  wanted.
 
 Open, for the ExecPlan's early spikes:
 
@@ -299,5 +321,6 @@ To be drafted with `to-execplan` after the owner agrees this spec, as
 
 ## Delivery links
 
-- Research: [#473](https://github.com/raymond-van/animama/pull/473).
-- Sub-issues and the implementation PR: to follow.
+- PR [#473](https://github.com/raymond-van/animama/pull/473) carries the research,
+  this spec and, once authorized, the implementation.
+- Sub-issues: to follow.
