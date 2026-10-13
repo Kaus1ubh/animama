@@ -40,6 +40,11 @@ vi.mock("@web/app/runtime/RuntimeAdmissionProvider", () => ({
       : { status: "loading" },
   }),
 }));
+vi.mock("@web/app/local-runtime/LocalRuntimeProvider", () => ({
+  useLocalRuntime: () => ({
+    state: { status: "ready", principalId: "entry-test-owner" },
+  }),
+}));
 // The app shell is irrelevant to entry redirects and never renders here.
 vi.mock("@/ui/app/AppShell", () => ({}));
 vi.mock("@/ui/content-preview/ContentPreviewDockProvider", () => ({}));
