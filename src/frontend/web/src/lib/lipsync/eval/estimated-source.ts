@@ -12,22 +12,27 @@ export const estimatedEvalSource: EvalPlanSource = {
   id: "estimated",
   label: "Estimated (today)",
   progressive: false,
-  plan: ({ clip }) => {
-    const track = emptyLipSyncTrack(clip.durationSec);
-    const inputs = clip.estimated;
-    if (!inputs || !inputs.phonemizedText.length) return track;
-    const plan = buildGruutVisemeKeyframes({
-      phonemizedText: inputs.phonemizedText,
-      tokenizedText: inputs.tokenizedText,
-      fps: LIPSYNC_FPS,
-      targetDurationSec: clip.durationSec,
-    });
-    if (!plan) return track;
-    const count = track.frames.length / 5;
-    for (const key of plan.keyframes) {
-      if (key.frameIndex < 0 || key.frameIndex >= count) continue;
-      track.frames.set([key.A, key.E, key.I, key.O, key.U], key.frameIndex * 5);
-    }
-    return track;
-  },
+  start:
+    () =>
+    ({ clip }) => {
+      const track = emptyLipSyncTrack(clip.durationSec);
+      const inputs = clip.estimated;
+      if (!inputs || !inputs.phonemizedText.length) return track;
+      const plan = buildGruutVisemeKeyframes({
+        phonemizedText: inputs.phonemizedText,
+        tokenizedText: inputs.tokenizedText,
+        fps: LIPSYNC_FPS,
+        targetDurationSec: clip.durationSec,
+      });
+      if (!plan) return track;
+      const count = track.frames.length / 5;
+      for (const key of plan.keyframes) {
+        if (key.frameIndex < 0 || key.frameIndex >= count) continue;
+        track.frames.set(
+          [key.A, key.E, key.I, key.O, key.U],
+          key.frameIndex * 5,
+        );
+      }
+      return track;
+    },
 };

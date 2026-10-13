@@ -2,9 +2,10 @@
 /**
  * Lip-sync evaluation commands.
  *
- *   pnpm lipsync:eval [--source estimated,...] [--mode whole,faster,live] [--json out.json]
+ *   pnpm lipsync:eval [--source estimated,aligned,...] [--mode whole,faster,live] [--json out.json]
  *     Score plan sources on the committed fixtures (tests/lipsync/fixtures).
- *     Offline: no network, no paid speech.
+ *     Offline: no network, no paid speech. Opt-in sources, such as
+ *     aligned-full, run only when named.
  *
  *   pnpm lipsync:fixtures --clips <dir> [--only id,...]
  *     Rebuild fixtures from a maintainer clip directory made with
@@ -205,11 +206,12 @@ async function runEvaluation(argv) {
       if (!only || only.has(clip.id)) clips.push(clip);
     }
     const wanted = values.source ? new Set(values.source.split(",")) : null;
-    const sources = EVAL_PLAN_SOURCES.filter(
-      (source) => !wanted || wanted.has(source.id),
+    const sources = EVAL_PLAN_SOURCES.filter((source) =>
+      wanted ? wanted.has(source.id) : !source.optIn,
     );
     if (!sources.length)
       throw new Error(`No plan source matches ${values.source}`);
+    for (const source of sources) await source.prepare?.();
     const modes = values.mode.split(",");
     const rows = evaluate(clips, sources, modes);
     console.log(formatEvaluation(rows));

@@ -5,7 +5,11 @@ The lip-sync evaluation scores plan sources against recorded speech, offline:
 ```bash
 pnpm --dir src/frontend/web lipsync:eval
 pnpm --dir src/frontend/web lipsync:eval --source estimated --mode whole --json /tmp/eval.json
+pnpm --dir src/frontend/web lipsync:eval --source aligned,aligned-full --mode faster,live
 ```
+
+Sources are listed in `src/frontend/web/src/lib/lipsync/eval/sources.ts`;
+`aligned-full` runs only when named.
 
 It reads the committed fixtures in `src/frontend/web/tests/lipsync/fixtures/`. Each
 fixture holds one test line's text as sent (tags included), its audio features at

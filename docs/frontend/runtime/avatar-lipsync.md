@@ -531,3 +531,14 @@ faster than real time like Gemini (`faster`), or in real time behind a 0.3 s
 playback buffer (`live`). Sources live in `src/lib/lipsync/eval/sources.ts`; the
 fixtures and how to rebuild them are described in
 [`scripts/lipsync/README.md`](../../../scripts/lipsync/README.md).
+
+- `estimated`: today's gruut-based planner, scored whole.
+- `aligned`: the audio-aligned planner (`src/lib/lipsync/planner.ts`), which
+  re-aligns only the newest audio as it arrives.
+- `aligned-full` (opt-in, `--source aligned-full`): the same planner re-aligning
+  everything on every step, a reference for the windowed planner's accuracy and
+  cost.
+
+`src/lib/lipsync/eval/aligned-thresholds.test.ts` holds `aligned` to the agreed
+thresholds at each provider's delivery rate, so a tuning change that breaks one
+fails `pnpm web:test`.

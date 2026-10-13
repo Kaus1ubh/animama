@@ -57,7 +57,15 @@ export type EvalPlanSource = {
   label: string;
   /** Whether the source can plan from partial audio; otherwise it is only scored whole. */
   progressive: boolean;
-  plan: (request: EvalPlanRequest) => LipSyncTrack;
+  /** Scored only when named with `--source`. */
+  optIn?: boolean;
+  /** Load what the source needs, such as pronunciation data, before planning. */
+  prepare?: () => Promise<void>;
+  /**
+   * Start planning one clip. The returned function is called with each step's
+   * request, in order, so it may keep what earlier plans found.
+   */
+  start: (clip: EvalClip) => (request: EvalPlanRequest) => LipSyncTrack;
 };
 
 export type EvalRun = {
@@ -117,9 +125,10 @@ export function runPlanSource(
   mode: ArrivalMode,
   stepSec = 0.25,
 ): EvalRun {
+  const plan = source.start(clip);
   if (mode.kind === "whole" || !source.progressive) {
     const started = performance.now();
-    const track = source.plan(request(clip, clip.durationSec));
+    const track = plan(request(clip, clip.durationSec));
     return { track, runs: 1, cpuMs: performance.now() - started };
   }
 
@@ -135,7 +144,7 @@ export function runPlanSource(
   for (let arrived = stepSec; ; arrived += stepSec) {
     const req = request(clip, arrived);
     const started = performance.now();
-    const plan = source.plan(req);
+    const track = plan(req);
     cpuMs += performance.now() - started;
     runs += 1;
     // This plan serves every frame that plays from now until the next plan is
@@ -146,12 +155,12 @@ export function runPlanSource(
     const until = req.complete
       ? total
       : Math.max(0, Math.ceil(playheadAt(arrived + stepSec) * LIPSYNC_FPS));
-    const end = Math.min(until, plan.frames.length / 5);
+    const end = Math.min(until, track.frames.length / 5);
     if (end > from) {
-      out.frames.set(plan.frames.subarray(from * 5, end * 5), from * 5);
+      out.frames.set(track.frames.subarray(from * 5, end * 5), from * 5);
       commitEvents(
         out.events,
-        plan.events,
+        track.events,
         from / LIPSYNC_FPS,
         req.complete ? Infinity : end / LIPSYNC_FPS,
       );

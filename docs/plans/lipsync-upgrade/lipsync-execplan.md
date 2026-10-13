@@ -156,6 +156,15 @@ From planning, 2026-10-13 (code reading of `main` at `b10ee432`):
     no unit tests.
 - **The `server` extra holds only gruut** (`pyproject.toml`). Removing gruut empties
   it.
+- **Partial audio misleads loudness levels (Phase 4):** a part that opens with a
+  laugh or sigh gives an 8th-percentile "noise" inside that sound, so the sound
+  reads as silence and progressive plans commit it as a pause. The lab never saw
+  this because it measured levels on the whole clip. Fixing it took live
+  ElevenLabs tags from 8/12 to 12/12 placed.
+- **Provider timing implies what has not started (Phase 4):** timing arrives with
+  its audio, so a word with no timed character has not begun. Holding such words
+  after the end of the audio, with the pause before them left open, keeps live
+  plans from mouthing a breath as the next word.
 
 ## Decision Log
 
@@ -1072,7 +1081,104 @@ Completion:
 - if Japanese misses 40% because kanji have no readings, record it and ask the owner
   (the D2 risk).
 
-Results: —
+Results (2026-10-13, starting source `11b28086`):
+
+- **Built** under `src/frontend/web/src/lib/lipsync/`:
+  - `align/aligner.ts`: the lab's explicit-duration alignment on 10 ms frames,
+    with:
+    - loudness levels robust to a short start (the noise percentile grows from
+      the lowest to the 8th over three seconds; a speech peak of at least -35
+      dBFS);
+    - lip closures that prefer quiet or voiced frames, never a loud breath (the
+      lab's closure let a breath swallow Japanese units);
+    - a tag still sounding at the end of partial audio that pays no penalty for
+      being short;
+    - duration costs computed once per state.
+  - `align/timing-windows.ts`: provider timing as soft windows (cost 1.5 a frame;
+    60 ms for speech, 0.4 s for tags, loose for punctuation; gap pauses between
+    words), matched to the text ignoring the socket's added spaces. While audio
+    is arriving, units not yet timed start after the end of the audio, and the
+    pause before them stays open.
+  - `align/estimate.ts`: the text-only estimate (R6), re-anchored on known word
+    starts.
+  - `render/render.ts`: `vowel5` frames at 60 FPS:
+    - weak and whispered vowels smaller;
+    - a neutral opening for unknown units and other vocal sounds;
+    - laughs pulse with loudness; sighs close; gasps open; pauses and sound
+      effects rest;
+    - openness from loudness, with a 40 ms release, closed 30 dB under a peak of
+      at least -20 dBFS;
+    - tag events with labels; pause events without.
+  - `render/beats.ts`: word timings, phrases between stops, long pauses and tags,
+    and beats on prominent syllables (louder, higher or longer than two neighbours
+    each side, English stress as a tie-break, 0.4 s apart).
+  - `planner.ts`: text to units once, then progressive plans. Units ending a
+    second behind the newest audio are kept, only the audio after them is
+    re-aligned, and the speaking rate comes from the units already placed.
+  - Evaluation sources `aligned` and opt-in `aligned-full`, which re-aligns
+    everything. Sources now start per clip, so a planner keeps state across
+    steps.
+- **Scores** (tuning clips; held-out in brackets), from `pnpm lipsync:eval`:
+
+  | Set, arrival | Vowel match ja/ko/zh | Open in silence, English / tags | Tags placed |
+  | --- | --: | --: | --: |
+  | Main, whole | 46.7% (54.2%) | 0.1% / 6.9% | 5/8 (0/2) |
+  | Main, 2.9× (D2: ≥40%, ≤10%) | 41.4% (45.7%) | 0.4% / 6.4% | 2/8 (1/2) |
+  | Main, live | 43.5% (35.0%) | 0% / 3.8% | 2/8 (0/2) |
+  | ElevenLabs HTTP, 2.9× | 61.8% | 4.0% / 3.0% | 7/7 |
+  | ElevenLabs socket, 2.9× | 61.0% (67.3%) | — / 7.1% | 3/5 (1/2) |
+  | ElevenLabs HTTP, live | 61.1% | 4.0% / 2.7% | 7/7 |
+  | ElevenLabs socket, live | 63.9% (61.1%) | — / 9.7% | 4/5 (0/2) |
+
+  - **Against D2:**
+    - default tier at 2.9×: passes, narrowly on vowels (41.4%);
+    - ElevenLabs (D2: ≥60%, ≤10%, ≥75% of tags): passes at 2.9× (tags 10/12)
+      and live (11/12), narrowly on tag-line silence (9.7% live on the socket).
+  - **Today's planner** for comparison: 6% vowel match on the main set and
+    13% / 6% on ElevenLabs HTTP / socket, with the mouth open in 60–74% of
+    silences.
+  - **Japanese (the D2 risk):** 45% on the main set at 2.9× (Korean 40%, Chinese
+    38%), so kanji as unknown units do not sink the 40% target. Held-out
+    Japanese is 37%.
+  - **Held-out clips** stay within 10 points on vowel match and silence. Tags do
+    not, on two tags per set (one clip each, never tuned on):
+    - ElevenLabs (`h-e-en-tags`): the laugh is placed at 2.9× (IoU 0.51) but not
+      live (0.40); the sigh lands at IoU 0.41 in every mode;
+    - Gemini (`h-g-en-tags`): the laugh is placed at 2.9× (0.64) but not live;
+      the sigh is missed (IoU 0.19 or less).
+
+    This is recorded for the owner at G1 rather than tuned on held-out clips.
+  - **Gemini tags** (no timing) are placed whole (5/8) but rarely when
+    progressive (2/8); R3 asks only for audio placement here, and the phone model
+    (Phase 6) targets tags.
+- **Progressive spike** (same code, both sources, Node):
+
+  | Arrival | Windowed: vowel / CPU | Full re-align: vowel / CPU |
+  | --- | --: | --: |
+  | Main, 2.9× | 41% / 3.4 ms/s | 41% / 15.6 ms/s |
+  | Main, live | 43% / 3.3 ms/s | 28% / 17.9 ms/s |
+  | Socket, live | 64% / 3.6 ms/s | 61% / 15.4 ms/s |
+
+  Windowed alignment is as accurate (better live, where full re-alignment
+  re-decides past units on too little audio) at a fifth of the cost. Precomputing
+  duration costs then halved it.
+- **CPU per second of audio** (Node, this Mac, progressive, all clips): median 2.0
+  ms, 90th percentile 2.8 ms, highest 6.3 ms (`h-e-en-tags`, many tags and timed
+  pauses; 4.4 ms once warm). The 5 ms budget is measured in Electron in Phase 5.
+- **Beats against gruut** on the 28 scored English clips: 83.8% of 160 beats fall
+  on gruut's primary-stressed syllable (67.3% of syllables are), and 96.9% on a
+  word gruut stresses.
+- **Tests:** aligner on synthetic signals, timing windows, renderer, beats,
+  estimate, planner stability and the D2 threshold test
+  (`eval/aligned-thresholds.test.ts`, about 2 s).
+- **Checks** (Phase 3 at `11b28086` plus Phase 4; the lip-sync suite was rerun on
+  `69d8105d` plus Phase 4):
+  - `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`: passed;
+  - `pnpm web:test`: 497 vitest files, 4,545 passed and 1 skipped. Two browser
+    reload journeys in `hosted-workflows.browser.test.mjs` timed out while a
+    reviewer ran tests in parallel; the file alone then passed 25 of 25;
+  - `pnpm desktop:test`: 27 files, 509 passed and 14 skipped;
+  - `npx vitest run src/lib/lipsync`: 11 files, 205 passed.
 
 #### Code Review #1 Findings
 

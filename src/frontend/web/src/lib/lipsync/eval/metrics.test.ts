@@ -216,20 +216,23 @@ describe("runPlanSource", () => {
     label: "Probe",
     progressive: true,
     // Opens the mouth from the start up to the newest available feature frame.
-    plan: ({ clip: c, features, complete }) => {
-      const track = emptyLipSyncTrack(c.durationSec);
-      const known = complete
-        ? c.durationSec
-        : features.loudnessDb.length / features.rate;
-      for (let f = 0; f <= known * LIPSYNC_FPS; f += 1) track.frames[f * 5] = 1;
-      track.events.push({
-        kind: "laugh",
-        startSec: 0.8,
-        endSec: Math.min(1.2, known),
-        label: "[laughs]",
-      });
-      return track;
-    },
+    start:
+      () =>
+      ({ clip: c, features, complete }) => {
+        const track = emptyLipSyncTrack(c.durationSec);
+        const known = complete
+          ? c.durationSec
+          : features.loudnessDb.length / features.rate;
+        for (let f = 0; f <= known * LIPSYNC_FPS; f += 1)
+          track.frames[f * 5] = 1;
+        track.events.push({
+          kind: "laugh",
+          startSec: 0.8,
+          endSec: Math.min(1.2, known),
+          label: "[laughs]",
+        });
+        return track;
+      },
   };
 
   it("plans once for the whole clip", () => {
@@ -255,11 +258,13 @@ describe("runPlanSource", () => {
     id: "stamp",
     label: "Stamp",
     progressive: true,
-    plan: ({ clip: c, arrivedSec, complete }) => {
-      const track = emptyLipSyncTrack(c.durationSec);
-      track.frames.fill(complete ? 99 : arrivedSec);
-      return track;
-    },
+    start:
+      () =>
+      ({ clip: c, arrivedSec, complete }) => {
+        const track = emptyLipSyncTrack(c.durationSec);
+        track.frames.fill(complete ? 99 : arrivedSec);
+        return track;
+      },
   };
 
   it.each([
