@@ -11,8 +11,9 @@
  * `windowed: false` every call re-aligns everything, which the evaluation uses
  * as a reference.
  *
- * When the text has nothing to say (only symbols) or cannot be aligned to the
- * audio, the mouth follows the audio alone, and the plan says why.
+ * When the text has nothing to say (only symbols or punctuation) or cannot be
+ * aligned to the audio, the mouth follows the audio alone, and the plan says
+ * why.
  */
 
 import type { SpeechFeatures } from "@/lib/lipsync/audio/features";
@@ -45,7 +46,7 @@ const RATE_MIN_WEIGHT = 4;
  * Once a plan has placed a tag for this long, later plans keep it, starting
  * near the same time, so its event does not flicker as audio arrives.
  */
-const PIN_TAG_SEC = 0.2;
+const PIN_TAG_SEC = 0.4;
 const PIN_TOLERANCE_SEC = 0.1;
 /** Frames of speech that make audio worth following when the text cannot be used. */
 const MIN_SPEECH_FRAMES = 10;
@@ -99,7 +100,8 @@ export function createLipSyncPlanner(
     hanLanguage: options.hanLanguage ?? detectHanLanguage(options.text),
   });
   const textUnits = new Set(units);
-  const hasText = units.some(isSpeech);
+  // Words or tags: a part of only "[laughs]" still places its laugh.
+  const hasText = units.some((unit) => unit.kind !== "pause");
   const windowed = options.windowed ?? true;
   /** Units placed for good, and where the audio after them starts. */
   const committed: AlignedUnit[] = [];

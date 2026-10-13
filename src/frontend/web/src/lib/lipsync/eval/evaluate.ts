@@ -15,6 +15,7 @@ import {
   formatSummaryTable,
   scoreRun,
   summarise,
+  wordDrift,
   type EvalSummary,
   type ScoredClip,
 } from "./report";
@@ -44,13 +45,29 @@ export function evaluate(
     }
   }
   const scoredClips = clips.filter((clip) => clip.groups.length > 0);
+  // Whole-clip runs, the reference for progressive runs' word drift.
+  const wholeRuns = new Map<string, ReturnType<typeof runPlanSource>>();
+  const wholeRun = (source: EvalPlanSource, clip: EvalClip) => {
+    const key = `${source.id}:${clip.id}`;
+    let run = wholeRuns.get(key);
+    if (!run) {
+      run = runPlanSource(source, clip, ARRIVAL_MODES.whole);
+      wholeRuns.set(key, run);
+    }
+    return run;
+  };
   const rows: EvaluationRow[] = [];
   for (const source of sources) {
     for (const mode of modes) {
       if (mode !== "whole" && !source.progressive) continue;
-      const scored = scoredClips.map((clip) =>
-        scoreRun(clip, runPlanSource(source, clip, ARRIVAL_MODES[mode])),
-      );
+      const scored = scoredClips.map((clip) => {
+        const run = runPlanSource(source, clip, ARRIVAL_MODES[mode]);
+        const result = scoreRun(clip, run);
+        if (mode !== "whole" && run.words) {
+          result.wordDriftSec = wordDrift(run, wholeRun(source, clip));
+        }
+        return result;
+      });
       for (const heldOut of [false, true]) {
         for (const set of EVAL_SETS) {
           const selected = scored.filter(
@@ -90,10 +107,11 @@ export function evaluationJson(rows: EvaluationRow[]) {
     set: row.set,
     heldOut: row.heldOut,
     summary: row.summary,
-    clips: row.clips.map(({ clip, score, run }) => ({
+    clips: row.clips.map(({ clip, score, run, wordDriftSec }) => ({
       id: clip.id,
       ...score,
       cpuMs: Number(run.cpuMs.toFixed(2)),
+      wordDriftSec: wordDriftSec ?? null,
       events: run.track.events,
     })),
   }));

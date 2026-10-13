@@ -14,15 +14,22 @@ export type ScoredClip = {
   clip: EvalClip;
   score: ClipScore;
   run: EvalRun;
+  /**
+   * Mean distance, in seconds, between each word's start in force when
+   * playback reached it and its start when the whole clip is planned at once.
+   * Set for progressive runs of sources that report words.
+   */
+  wordDriftSec?: number | null;
 };
 
 export type EvalSummary = {
   clips: number;
-  /**
-   * Mean share of reference vowel frames with the mouth open, over all clips:
-   * low when the plan drifts away from the speech.
-   */
+  /** Mean share of reference vowel frames with the mouth open, over all clips. */
   vowelOpen: number | null;
+  /** Mean word drift from whole-clip planning (progressive runs), in seconds. */
+  wordDriftSec: number | null;
+  /** The largest word drift of any clip, in seconds. */
+  maxWordDriftSec: number | null;
   /** Mean vowel match over Japanese, Korean and Chinese clips. */
   vowelMatchCjk: number | null;
   /** Mean vowel match over Japanese, Korean, Chinese and Spanish clips (the brief's figure). */
@@ -76,6 +83,10 @@ export function summarise(scored: ScoredClip[]): EvalSummary {
   return {
     clips: scored.length,
     vowelOpen: mean(scored.map((s) => s.score.vowelOpen)),
+    wordDriftSec: mean(scored.map((s) => s.wordDriftSec ?? null)),
+    maxWordDriftSec: scored.some((s) => s.wordDriftSec != null)
+      ? Math.max(...scored.map((s) => s.wordDriftSec ?? 0))
+      : null,
     vowelMatchCjk: mean(scored.filter(isCjk).map((s) => s.score.vowelMatch)),
     vowelMatchCjkEs: mean(
       scored
@@ -114,6 +125,7 @@ export function formatSummaryTable(rows: SummaryRow[]): string {
     "source / mode",
     "clips",
     "vowel open",
+    "drift",
     "vowel ja/ko/zh",
     "+es",
     "silence en",
@@ -126,6 +138,7 @@ export function formatSummaryTable(rows: SummaryRow[]): string {
     label,
     String(summary.clips),
     percent(summary.vowelOpen),
+    summary.wordDriftSec === null ? "—" : `${summary.wordDriftSec.toFixed(2)}s`,
     percent(summary.vowelMatchCjk),
     percent(summary.vowelMatchCjkEs),
     percent(summary.openInSilenceEnglish),
@@ -148,4 +161,18 @@ export function formatSummaryTable(rows: SummaryRow[]): string {
       )
       .join("  ");
   return [line(header), ...body.map(line)].join("\n");
+}
+
+/** Mean absolute difference between two runs' word starts, over shared words. */
+export function wordDrift(run: EvalRun, reference: EvalRun): number | null {
+  if (!run.words || !reference.words) return null;
+  let total = 0;
+  let count = 0;
+  for (const [word, start] of run.words) {
+    const expected = reference.words.get(word);
+    if (expected === undefined) continue;
+    total += Math.abs(start - expected);
+    count += 1;
+  }
+  return count ? total / count : null;
 }

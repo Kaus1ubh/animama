@@ -29,8 +29,16 @@ function alignedSource(
     prepare,
     start: (clip) => {
       const planner = createLipSyncPlanner({ text: clip.text, windowed });
-      return ({ features, timing, complete }) =>
-        planner.plan({ features, timing, complete }).track;
+      return ({ features, timing, complete }) => {
+        const plan = planner.plan({ features, timing, complete });
+        return {
+          ...plan.track,
+          words: plan.gestures.words.map(({ wordIndex, startSec }) => ({
+            wordIndex,
+            startSec,
+          })),
+        };
+      };
     },
   };
 }

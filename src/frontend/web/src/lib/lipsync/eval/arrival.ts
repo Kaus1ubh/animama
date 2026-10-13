@@ -52,6 +52,11 @@ export type EvalPlanRequest = {
   complete: boolean;
 };
 
+/** A plan: its track and, when the source knows, where it puts each word. */
+export type EvalPlan = LipSyncTrack & {
+  words?: ReadonlyArray<{ wordIndex: number; startSec: number }>;
+};
+
 export type EvalPlanSource = {
   id: string;
   label: string;
@@ -65,11 +70,16 @@ export type EvalPlanSource = {
    * Start planning one clip. The returned function is called with each step's
    * request, in order, so it may keep what earlier plans found.
    */
-  start: (clip: EvalClip) => (request: EvalPlanRequest) => LipSyncTrack;
+  start: (clip: EvalClip) => (request: EvalPlanRequest) => EvalPlan;
 };
 
 export type EvalRun = {
   track: LipSyncTrack;
+  /**
+   * Each word's start in the plan in force when playback reached it, when the
+   * source reports words.
+   */
+  words: Map<number, number> | null;
   /** Number of plans made. */
   runs: number;
   /** CPU spent planning, in milliseconds. */
@@ -129,7 +139,11 @@ export function runPlanSource(
   if (mode.kind === "whole" || !source.progressive) {
     const started = performance.now();
     const track = plan(request(clip, clip.durationSec));
-    return { track, runs: 1, cpuMs: performance.now() - started };
+    const cpuMs = performance.now() - started;
+    const words = track.words
+      ? new Map(track.words.map((word) => [word.wordIndex, word.startSec]))
+      : null;
+    return { track, words, runs: 1, cpuMs };
   }
 
   const total = lipSyncFrameCount(clip.durationSec);
@@ -138,6 +152,7 @@ export function runPlanSource(
   const playheadAt = (arrived: number) =>
     mode.kind === "faster" ? arrived / mode.rate : arrived - mode.bufferSec;
   const out = emptyLipSyncTrack(clip.durationSec);
+  let words: Map<number, number> | null = null;
   let committed = 0;
   let runs = 0;
   let cpuMs = 0;
@@ -156,6 +171,16 @@ export function runPlanSource(
       ? total
       : Math.max(0, Math.ceil(playheadAt(arrived + stepSec) * LIPSYNC_FPS));
     const end = Math.min(until, track.frames.length / 5);
+    // A word's start is the one in force when playback reaches it.
+    if (track.words) {
+      words ??= new Map();
+      for (const word of track.words) {
+        if (words.has(word.wordIndex)) continue;
+        if (req.complete || word.startSec < end / LIPSYNC_FPS) {
+          words.set(word.wordIndex, word.startSec);
+        }
+      }
+    }
     if (end > from) {
       out.frames.set(track.frames.subarray(from * 5, end * 5), from * 5);
       commitEvents(
@@ -168,5 +193,5 @@ export function runPlanSource(
     committed = Math.max(committed, end);
     if (req.complete) break;
   }
-  return { track: out, runs, cpuMs };
+  return { track: out, words, runs, cpuMs };
 }

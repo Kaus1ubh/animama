@@ -59,6 +59,17 @@ describe("createLipSyncPlanner", () => {
     expect(Math.max(...plan.track.frames)).toBeGreaterThan(0.3);
   });
 
+  it("places a tag that is a part on its own", () => {
+    // A laugh in a part of its own: "That's great! <laugh>" can end that way.
+    const clip = fixture("g-en-laugh");
+    const plan = createLipSyncPlanner({ text: "<laugh>" }).plan({
+      features: clip.features,
+      timing: null,
+      complete: true,
+    });
+    expect(plan.fallback).not.toBe("no_text");
+  });
+
   it("reports and falls back when the text cannot fit the audio", () => {
     // "Hi!" against thirteen seconds of speech.
     const clip = fixture("p-en-long");

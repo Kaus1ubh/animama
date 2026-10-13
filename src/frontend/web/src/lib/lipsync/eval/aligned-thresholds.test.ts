@@ -4,9 +4,11 @@
  * and live, ElevenLabs at 2.9× and as a live stream with a 0.3 s buffer.
  *
  * Beyond D2, the tests guard against progressive plans drifting from the
- * speech: on every set, and on multi-sentence parts made by joining clips, the
- * mouth must open on reference vowels about as often as when the whole clip is
- * planned at once.
+ * speech, on every set and on multi-sentence parts made by joining tuning
+ * clips: words must start about where planning the whole clip at once puts
+ * them (word drift), and the mouth must open on reference vowels about as often.
+ * Untimed parts with voiced sighs or laughs still drift (recorded in the plan),
+ * so the bounds catch regressions rather than prove there is no drift.
  */
 
 import { readdirSync, readFileSync } from "node:fs";
@@ -19,7 +21,7 @@ import { ARRIVAL_MODES, runPlanSource } from "./arrival";
 import { decodeEvalClip, type EncodedEvalClip, type EvalClip } from "./clip";
 import { evaluate, type EvaluationRow } from "./evaluate";
 import { scoreClip } from "./metrics";
-import { summarise } from "./report";
+import { summarise, wordDrift } from "./report";
 
 const fixturesDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -63,6 +65,11 @@ const MAIN = ["main"] as const;
 const ELEVEN = ["eleven-http", "eleven-socket"] as const;
 /** Progressive plans may open on reference vowels this much less than whole ones. */
 const DRIFT_ALLOWANCE = 0.05;
+/** Mean word drift per set, and the most any one clip may drift, in seconds. */
+const SET_WORD_DRIFT_SEC = 0.35;
+const CLIP_WORD_DRIFT_SEC = 1.5;
+/** Mean word drift of a joined multi-sentence part, in seconds. */
+const PART_WORD_DRIFT_SEC = 1.2;
 
 describe("aligned planner thresholds (D2)", () => {
   it.each(["faster", "live"] as const)(
@@ -126,11 +133,19 @@ describe("progressive plans stay with the speech", () => {
         (set) => [mode, set] as const,
       ),
     ),
-  )("%s, %s: vowels open about as often as whole", (mode, set) => {
+  )("%s, %s: words and vowels stay close to whole planning", (mode, set) => {
     const whole = summary("whole", [set], false).vowelOpen!;
-    expect(summary(mode, [set], false).vowelOpen!).toBeGreaterThanOrEqual(
+    const progressive = summary(mode, [set], false);
+    expect(progressive.vowelOpen!).toBeGreaterThanOrEqual(
       whole - DRIFT_ALLOWANCE,
     );
+    expect(progressive.wordDriftSec!).toBeLessThanOrEqual(SET_WORD_DRIFT_SEC);
+    // Held-out clips count here too: no clip may drift grossly.
+    for (const heldOut of [false, true]) {
+      const worst = summary(mode, [set], heldOut).maxWordDriftSec;
+      if (worst !== null)
+        expect(worst).toBeLessThanOrEqual(CLIP_WORD_DRIFT_SEC);
+    }
   });
 
   /** Clips joined into one part with 0.3 s of silence between, without timing. */
@@ -174,22 +189,25 @@ describe("progressive plans stay with the speech", () => {
 
   it.each([
     ["Gemini English", ["s-en", "g-en-long", "s-en-sad"]],
-    ["Pocket English", ["p-en", "p-en-long", "h-p-en"]],
-    ["Gemini Japanese", ["s-ja", "s-ja-excited", "h-g-ja", "g-ja-laugh"]],
+    ["Pocket English", ["p-en", "p-en-long", "p-en-pause"]],
+    ["Gemini Japanese", ["s-ja", "s-ja-excited", "g-ja-laugh"]],
     ["ElevenLabs English without timing", ["e-en", "e-en-long"]],
   ])("a multi-sentence part: %s", (_name, ids) => {
     const part = join(ids);
-    const whole = scoreClip(
-      runPlanSource(alignedEvalSource, part, ARRIVAL_MODES.whole).track,
+    const wholeRun = runPlanSource(
+      alignedEvalSource,
       part,
-    ).vowelOpen!;
+      ARRIVAL_MODES.whole,
+    );
+    const whole = scoreClip(wholeRun.track, part).vowelOpen!;
     for (const mode of ["faster", "live"] as const) {
-      const score = scoreClip(
-        runPlanSource(alignedEvalSource, part, ARRIVAL_MODES[mode]).track,
-        part,
-      );
+      const run = runPlanSource(alignedEvalSource, part, ARRIVAL_MODES[mode]);
+      const score = scoreClip(run.track, part);
       expect(score.vowelOpen!, mode).toBeGreaterThanOrEqual(
         whole - DRIFT_ALLOWANCE,
+      );
+      expect(wordDrift(run, wholeRun)!, mode).toBeLessThanOrEqual(
+        PART_WORD_DRIFT_SEC,
       );
     }
   });

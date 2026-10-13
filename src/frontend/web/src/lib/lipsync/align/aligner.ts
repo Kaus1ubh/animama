@@ -164,23 +164,10 @@ export function alignUnits(
   features: SpeechFeatures,
   options: AlignOptions = {},
 ): AlignedUnit[] | null {
-  return alignUnitsScored(units, features, options)?.aligned ?? null;
-}
-
-/**
- * `alignUnits`, with the alignment's cost: its negative log-likelihood, which
- * compares alignments of the same units and audio under different settings,
- * such as speaking rates.
- */
-export function alignUnitsScored(
-  units: readonly LipSyncUnit[],
-  features: SpeechFeatures,
-  options: AlignOptions = {},
-): { aligned: AlignedUnit[]; cost: number } | null {
   const rate = features.rate;
   const from = Math.max(0, options.fromFrame ?? 0);
   const T = features.loudnessDb.length - from;
-  if (T <= 0 || !units.length) return { aligned: [], cost: 0 };
+  if (T <= 0 || !units.length) return [];
   const { floor } = options.levels ?? loudnessLevels(features.loudnessDb);
   const speech = new Float64Array(T);
   const voiced = new Float64Array(T);
@@ -376,14 +363,11 @@ export function alignUnitsScored(
   states.push(edge());
   const path = viterbi(states, T, !!options.partial);
   return path
-    ? {
-        aligned: path.spans.map((span) => ({
-          unit: span.unit,
-          startSec: (from + span.start) / rate,
-          endSec: (from + span.end) / rate,
-        })),
-        cost: path.cost,
-      }
+    ? path.map((span) => ({
+        unit: span.unit,
+        startSec: (from + span.start) / rate,
+        endSec: (from + span.end) / rate,
+      }))
     : null;
 }
 
@@ -494,5 +478,5 @@ function viterbi(states: State[], T: number, partial: boolean) {
     if (a < 0) break;
     t = a;
   }
-  return { spans: out.reverse(), cost: best };
+  return out.reverse();
 }

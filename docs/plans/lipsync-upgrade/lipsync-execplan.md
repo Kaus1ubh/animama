@@ -1143,7 +1143,7 @@ Results (2026-10-13, starting source `11b28086`; revised after Code Review #1):
     - the speaking rate comes from the units already placed, starting from a
       deliberately slow 16 frames per unit of weight (a lagging plan catches
       up; one running ahead uses up words early);
-    - a tag placed for 0.2 s is pinned near its start in later plans;
+    - a tag placed for 0.4 s is pinned near its start in later plans;
     - with no usable text, or no alignment that fits, the mouth follows the
       audio alone and `fallback` says why (`no_text`, `no_alignment`).
   - Evaluation sources `aligned` and opt-in `aligned-full`, which re-aligns
@@ -1168,11 +1168,38 @@ Results (2026-10-13, starting source `11b28086`; revised after Code Review #1):
     - default tier: passes at 2.9× (49.4%) and live (41.0%);
     - ElevenLabs (≥60%, ≤10%, ≥75% of tags): passes at 2.9× (tags 9/12, at the
       line) and live (10/12).
-  - **Drift:** progressive plans open on reference vowels as often as whole ones
-    on every set, and on multi-sentence parts made by joining clips without
-    timing (Gemini and Pocket English, Gemini Japanese, untimed ElevenLabs,
-    17–29 s). A 91 s part joining eight clips of different voices still lags
-    whole planning live (84% against 90% vowel open).
+  - **Word drift** (how far each word starts, in the plan in force when playback
+    reaches it, from where planning the whole clip puts it; mean per set, worst
+    clip in brackets):
+
+    | Set | 2.9× | Live |
+    | --- | --: | --: |
+    | Main | 0.15 s (1.03) | 0.27 s (1.33) |
+    | Main, held out | 0.17 s (1.09) | 0.27 s (1.04) |
+    | ElevenLabs HTTP | 0.01 s (0.04) | 0.05 s (0.16) |
+    | ElevenLabs socket | 0.01 s (0.04) | 0.11 s (0.45) |
+
+    Vowel opening alone cannot show drift: the mouth follows loudness wherever
+    the words are placed.
+  - **Known limit, for the owner at G1: untimed parts with voiced sighs or
+    laughs drift ahead of the speech.** Loudness and voicing cannot tell a voiced
+    sigh or laugh from words, so a progressive plan can spend words on it, and
+    the kept units keep the error:
+    - Gemini tag lines: `g-ko-sigh` 1.33 s live, `h-g-en-tags` 1.09 s,
+      `g-zh-laugh` 0.88 s, `g-en-laugh` 0.69 s (whole planning skips some of these
+      sighs too);
+    - ElevenLabs without timing (hosted, until animama-cloud#87): 0.35 s mean
+      live, up to 1.57 s (`e-en-long`);
+    - joined parts without timing: Gemini English (25 s) 0.39 s, Pocket English
+      (28 s) 0.09 s, Gemini Japanese (17 s) 1.05 s, untimed ElevenLabs (17 s)
+      0.26 s; a 56 s Gemini part with tags 2.4 s, and a 91 s part mixing eight
+      voices 7.1 s, by which point it has run out of text.
+
+    ElevenLabs with timing, and Pocket, stay close. The phone model (Phase 6)
+    adds phone density, which separates sighs and laughs from words. Re-anchoring
+    the plan at long silences is a possible later step. An end-of-text cost
+    (penalising partial plans that place more speech than the audio shows) was
+    tried and made drift worse.
   - **Today's planner** for comparison: 6% vowel match on the main set and
     13% / 6% on ElevenLabs HTTP / socket, with the mouth open in 60–74% of
     silences.
@@ -1188,14 +1215,24 @@ Results (2026-10-13, starting source `11b28086`; revised after Code Review #1):
       0.42–0.46 for tuning clips (every one of the six held-out clips is
       0.21–0.35); the main set matches. They use the same voice as the tuning
       clips, so the cause is not established.
-    - None of these clips was used for tuning.
+    - **Exception:** two held-out clips, `h-p-en` and `h-g-ja`, were inside the
+      joined parts used to choose the hold, starting rate and lookahead in
+      repair round 1. The tests now join tuning clips only.
   - **Gemini tags** (no timing) are placed in 2–4 of 8 progressive. Laughs and
     sighs that are voiced look like speech to loudness and voicing alone; the
     phone model (Phase 6) adds phone density for them.
-  - **Unperformed tags** leave no event when the whole part is planned. A
-    progressive plan can still flash one for up to 0.2 s before dropping it
-    (`[laughs]` before "Welcome back" gave a 0.16 s event live). Phase 5's tag
-    overlay should ramp in over about 0.15 s so such blips stay invisible.
+  - **Unperformed tags** (`<laugh>` inserted into the 34 scored lines without
+    tags, no timing; events of 0.2 s or more):
+
+    | Where | Whole | 2.9× | Live |
+    | --- | --: | --: | --: |
+    | Start of the line | 2 | 2 | 3 |
+    | After the first sentence | 7 | 7 | 10 |
+
+    The longest is 0.68 s. Mid-line, a laugh can sit on an unvoiced stretch
+    between words even when the whole line is planned. Phase 5's overlay ramps
+    in over 0.15 s, which hides only the shortest; the phone model should help
+    here too.
 - **Progressive spike** (final code, Node, all clips):
 
   | Arrival | Windowed: vowel open / ja-ko-zh / CPU | Full re-align: vowel open / ja-ko-zh / CPU |
@@ -1270,7 +1307,9 @@ Optional:
   them, and a too-fast rate and a one-second hold kept the result. Fixed by:
   - optional short gaps between words and between CJK characters;
   - a two-second hold before units are kept;
-  - a slower starting rate (16 frames per unit of weight);
+  - keeping the starting rate at 16 frames per unit of weight (a trial of 12
+    ran ahead; this item first read as a change, but 16 was already the
+    default);
   - cheaper alignment (start costs precomputed) to pay for the longer window;
   - a narrower lookahead (1.2× the remaining audio plus 0.5 s).
 
@@ -1310,6 +1349,58 @@ Optional:
     upload permission…", `retained-screens.browser.test.mjs`) timed out at 35 s;
     the file alone then passed 8 of 8;
   - `pnpm desktop:test`: 27 files, 509 passed and 14 skipped.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `83b78028`. P4-F2, F4–F11 are fixed, and every recorded
+figure reproduces. Required:
+
+- **P4-F12:** P4-F1 is only partly fixed:
+  - untimed single clips with tags still place words seconds early
+    (`h-g-en-tags`, `g-ko-sigh`, untimed `e-en-long`);
+  - long parts still run out of text (15 s early on the 91 s part), so "still
+    lags" was wrong;
+  - vowel opening cannot see it, because the mouth follows loudness;
+  - needed: a drift measure that sees words, per clip and per joined part, and
+    either a fix or a recorded limit, with Results and the docs corrected.
+- **P4-F13:** unperformed tags still leave events, and a pin keeps them to the
+  final plan (0.3–0.5 s); the record overstated the fix.
+- **P4-F14 (regression):** a part of only a tag went to `no_text` and lost its
+  tag.
+- **P4-F15:** two held-out clips fed the joined-part tests and the round-1 tuning
+  sweeps, against the record.
+
+Optional:
+
+- P4-F16: the starting rate was already 16; the record called it a change.
+- P4-F17: `alignUnitsScored` had no caller.
+- P4-F18: a text that cannot fit is flagged late in progressive plans.
+
+#### Code Review #2 Revisions
+
+- **P4-F12 accepted, recorded as a known limit for the owner at G1:**
+  - the evaluation now reports word drift, per clip, and per set with the worst
+    clip;
+  - `aligned-thresholds.test.ts` bounds it per set (0.35 s), per clip (1.5 s,
+    held-out included) and per joined part (1.2 s), so regressions fail;
+  - Results record the drift that remains, with the measured cases; the
+    end-of-text cost was tried and rejected, measured.
+  - The docs now say word drift, not vowel opening, shows a plan running ahead.
+- **P4-F13 accepted:** a tag is pinned only once placed for 0.4 s, which brings
+  progressive plans down to the whole-plan rate. Results record the measured
+  rates, and the Phase 5 note no longer claims the overlay ramp hides them.
+- **P4-F14 accepted:** tags count as text; only symbol or punctuation parts are
+  `no_text`. Tested.
+- **P4-F15 accepted:** the joined parts use tuning clips only, and Results record
+  the exception for round 1.
+- **P4-F16, P4-F17 accepted:** the record is corrected; `alignUnitsScored` is
+  folded back into `alignUnits`.
+- **P4-F18:** recorded here, not changed: until enough audio shows the text
+  cannot fit, the plan places it as well as it can, and the fallback follows.
+- **Checks** (`83b78028` plus these revisions, with the Phase 5 work set aside):
+  `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`: passed; `pnpm web:test`:
+  497 vitest files, 4,567 passed and 1 skipped, and every browser journey passed;
+  `pnpm desktop:test`: 27 files, 509 passed and 14 skipped.
 
 ### Phase 5: In the app
 
