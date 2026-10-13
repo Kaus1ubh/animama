@@ -118,6 +118,8 @@ export type PresentationPreferences = {
   render_markdown?: boolean;
   disable_animation?: boolean;
   disable_vfx?: boolean;
+  /** Hide the app stage image behind the Avatar; a bound image still shows. */
+  disable_background?: boolean;
   avatar_background?: AvatarBackgroundPreferences | null;
   [key: string]: unknown;
 };
@@ -162,6 +164,7 @@ export const DEFAULT_ANIMAMA_PREFERENCES: SettingsPreferences = {
     enable_avatar_transform_controls: false,
     disable_animation: false,
     disable_vfx: false,
+    disable_background: false,
   },
 };
 

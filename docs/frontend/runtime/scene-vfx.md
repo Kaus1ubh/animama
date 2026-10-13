@@ -43,8 +43,10 @@ Private entries remain selectable as Gesture or Reaction dependencies rather
 than independent loadout rows. Their optional local Sound alias is rewritten
 through the parent Action's prepared reference map and played once when the
 effect is applied. The ordinary scene background image is loadout-owned: live
-`Scene` rendering uses the typed Appearance binding and never falls back to a
-settings-owned media URL.
+`Scene` rendering uses the typed Appearance binding. Without one it draws the
+themed app stage image unless the Anima's
+`preferences.presentation.disable_background` is set; settings never select a
+media URL.
 
 ### Rendering
 
@@ -249,7 +251,7 @@ The current runtime flow is:
 1. `MainShell` measures the canvas host and provides viewport data through `CanvasViewportProvider`.
 2. `MainShell` also provides the live `Avatar | null` through `SceneRuntimeProvider` so scene effects can resolve avatar-dependent targets without putting the avatar instance in Zustand.
 3. `Scene` renders:
-   - the mounted Anima Appearance Image, if configured
+   - `StageBackgroundLayer`: the mounted Anima Appearance Image, else the themed app stage image unless the Anima turned it off
    - `SceneVFXUnderlayHost`
    - the transparent `<Canvas>`
 4. `MainShell` renders `SceneVFXOverlayHost` as a sibling above the scene host.
@@ -273,7 +275,7 @@ There are two DOM render bands:
 
 Mounted in `Scene.tsx` like this:
 
-1. static anima background image
+1. static stage background (`StageBackgroundLayer`)
 2. `SceneVFXUnderlayHost`
 3. transparent React Three Fiber canvas
 

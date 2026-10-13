@@ -8,7 +8,12 @@ The Anima management Appearance dialog edits Profile and Background as
 independent typed bindings. It can save a Local Appearance Image and frame it
 with Fill/Fit, focal point, and zoom before a reviewed loadout commit. Upload
 failure never changes the loadout; Cancel discards unsaved framing. Removing a
-profile override permits the registered Avatar portrait fallback. Included
+profile override permits the registered Avatar portrait fallback. Background
+offers App background (the default), None, or a Local image. With no bound
+image, chat and the Anima page draw the themed app stage image from
+`public/background/`; None is stored per Anima as
+`preferences.presentation.disable_background` and leaves the plain theme
+background. Included
 portraits and Local images use protected catalog delivery, not public storage
 URLs.
 

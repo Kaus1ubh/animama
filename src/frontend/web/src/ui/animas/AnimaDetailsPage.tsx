@@ -69,10 +69,10 @@ import {
   ANIMA_SHOWCASE_CAMERAS,
   ANIMA_SHOWCASE_ORBIT_TARGET,
   AnimaPageBackdrop,
-  AnimaStageEffects,
 } from "@/ui/animas/AnimaManagementStagePresentation";
 import { useAnimaRosterLayout } from "@/ui/animas/useAnimaRosterLayout";
 import { AppShellPage } from "@/ui/app/AppShellPage";
+import { StageBackgroundLayer } from "@/ui/main/canvas/StageBackgroundLayer";
 import { usePreparedContentPreview } from "@/ui/content-preview/usePreparedContentPreview";
 import { Button } from "@/ui/components/button";
 import { Card, CardContent } from "@/ui/components/card";
@@ -548,7 +548,12 @@ export function AnimaDetailsPage({
                   : undefined
             }
             className="h-full min-h-0"
-            backdrop={<AnimaStageEffects />}
+            backdrop={
+              <StageBackgroundLayer
+                variant="showcase"
+                boundImage={runtimeContentQuery.data?.background_image ?? null}
+              />
+            }
             transparent
             overlay={
               <>

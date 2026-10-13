@@ -3,6 +3,7 @@
 import { LoaderCircle, RotateCcw, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useTheme } from "next-themes";
 import { toast } from "sonner";
 
 import type { PyRuntimeImageReference } from "@/lib/content/catalogTypes";
@@ -10,14 +11,24 @@ import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { getContentUploadErrorPresentation } from "@/lib/content/contentUploads";
 import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
+import {
+  mergePreferences,
+  type SettingsPreferences,
+} from "@/lib/settings/preferences";
+import {
+  appStageBackgroundUrl,
+  isStageBackgroundDisabled,
+} from "@/lib/stage-background/stageBackground";
 import { cn } from "@/lib/utils";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
+import { useAnimaSettings } from "@/query/hooks/useAnimaSettings";
 import { useAnimaPresentationImage } from "@/query/hooks/useAnimaPresentationImage";
 import { useAppearanceImagePreview } from "@/query/hooks/useAppearanceImagePreview";
 import { useAppearanceImages } from "@/query/hooks/useAppearanceImages";
 import { queryKeys } from "@/query/keys";
 import { useAnimaLoadoutMutations } from "@/query/mutations/useAnimaLoadoutMutations";
 import { useAppearanceContentActions } from "@/query/mutations/useAppearanceContentActions";
+import { useUpdateAnimaSettings } from "@/query/mutations/useUpdateAnimaSettings";
 import { Button } from "@/ui/components/button";
 import {
   Dialog,
@@ -38,13 +49,23 @@ type AppearanceConfig = {
   focal_y: number;
   zoom: number;
 };
-type AppearanceDraft = { itemId: string; config: AppearanceConfig };
+/**
+ * `itemId` selects a Local image. With no image, a background draft shows the
+ * app stage image unless `backgroundOff` is set.
+ */
+type AppearanceDraft = {
+  itemId: string;
+  config: AppearanceConfig;
+  backgroundOff?: boolean;
+};
 type PendingUpload = { file: File; operationId: string };
 
 const SECTION_LABELS: Record<AnimaAppearanceSection, string> = {
   profile_image: "Profile",
   background_image: "Background",
 };
+/** Select value for an explicitly disabled background; never a Local item id. */
+const NO_BACKGROUND_VALUE = "__no_background__";
 const DEFAULT_CONFIG: AppearanceConfig = {
   fit: "cover",
   focal_x: 0.5,
@@ -99,6 +120,12 @@ export function AnimaAppearanceDialog({
   const images = useAppearanceImages();
   const mutations = useAnimaLoadoutMutations(animaId);
   const contentActions = useAppearanceContentActions();
+  const animaSettings = useAnimaSettings(animaId, { enabled: open });
+  const updateAnimaSettings = useUpdateAnimaSettings();
+  const { resolvedTheme } = useTheme();
+  const storedPreferences =
+    (animaSettings.data?.preferences as SettingsPreferences | undefined) ??
+    null;
   const fileInput = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
   const [drafts, setDrafts] = useState<
@@ -143,15 +170,20 @@ export function AnimaAppearanceDialog({
         config: normalizeConfig(selected?.presentation),
       };
     };
+    const background = initial("background");
     setDrafts({
       profile_image: initial("profile"),
-      background_image: initial("background"),
+      background_image: {
+        ...background,
+        backgroundOff:
+          !background.itemId && isStageBackgroundDisabled(storedPreferences),
+      },
     });
     setPendingUpload(null);
     setStatus(null);
     clearSaveFailure();
     setProgress(null);
-  }, [clearSaveFailure, loadout.data, open]);
+  }, [clearSaveFailure, loadout.data, open, storedPreferences]);
 
   useEffect(() => () => abortRef.current?.abort(), []);
 
@@ -162,11 +194,18 @@ export function AnimaAppearanceDialog({
   const defaultProfile = useAnimaPresentationImage(
     showsDefaultProfile ? profileThumbnail : null,
   );
+  const showsAppBackground =
+    use === "background" && !draft.itemId && !draft.backgroundOff;
   const previewUrl = draft.itemId
     ? selectedPreview.url
     : showsDefaultProfile
       ? defaultProfile.url
-      : null;
+      : showsAppBackground
+        ? appStageBackgroundUrl(
+            "chat",
+            resolvedTheme === "dark" ? "dark" : "light",
+          )
+        : null;
   const previewPending = draft.itemId
     ? selectedPreview.isPending
     : showsDefaultProfile
@@ -175,7 +214,8 @@ export function AnimaAppearanceDialog({
   const busy =
     contentActions.createAppearanceImage.isPending ||
     mutations.planAppearance.isPending ||
-    mutations.commitAppearance.isPending;
+    mutations.commitAppearance.isPending ||
+    updateAnimaSettings.isPending;
 
   const setDraft = (next: AppearanceDraft) => {
     setDrafts((current) => ({ ...current, [activeSection]: next }));
@@ -236,8 +276,25 @@ export function AnimaAppearanceDialog({
           idempotency_key: crypto.randomUUID(),
         });
       }
+      if (use === "background") {
+        const backgroundOff = !draft.itemId && draft.backgroundOff === true;
+        if (backgroundOff !== isStageBackgroundDisabled(storedPreferences)) {
+          await updateAnimaSettings.mutateAsync({
+            animaId,
+            body: {
+              preferences: mergePreferences(storedPreferences ?? {}, {
+                presentation: { disable_background: backgroundOff },
+              }),
+            },
+          });
+        }
+      }
       await invalidatePresentation();
-      toast.success(`${SECTION_LABELS[activeSection]} image updated.`);
+      toast.success(
+        use === "background"
+          ? "Background updated."
+          : `${SECTION_LABELS[activeSection]} image updated.`,
+      );
       onOpenChange(false);
     } catch (caught) {
       setFailureMessage(
@@ -351,7 +408,7 @@ export function AnimaAppearanceDialog({
               emptyLabel={
                 activeSection === "profile_image"
                   ? "The Avatar portrait will be used"
-                  : "No background image"
+                  : "No background"
               }
               onUploadClick={() => fileInput.current?.click()}
               uploadDisabled={busy}
@@ -404,18 +461,34 @@ export function AnimaAppearanceDialog({
           <div className="grid gap-4 sm:grid-cols-[1fr_auto] sm:items-end">
             <select
               className="border-input bg-background h-10 rounded-md border px-3 text-sm"
-              value={draft.itemId}
-              disabled={busy || images.isPending}
-              onChange={(event) =>
-                setDraft({ itemId: event.target.value, config: DEFAULT_CONFIG })
+              value={
+                draft.backgroundOff && !draft.itemId
+                  ? NO_BACKGROUND_VALUE
+                  : draft.itemId
               }
+              disabled={busy || images.isPending || animaSettings.isPending}
+              onChange={(event) => {
+                const value = event.target.value;
+                setDraft(
+                  value === NO_BACKGROUND_VALUE
+                    ? {
+                        itemId: "",
+                        config: DEFAULT_CONFIG,
+                        backgroundOff: true,
+                      }
+                    : { itemId: value, config: DEFAULT_CONFIG },
+                );
+              }}
               aria-label={`${SECTION_LABELS[activeSection]} image source`}
             >
               <option value="">
                 {activeSection === "profile_image"
                   ? "Default Avatar portrait"
-                  : "No image"}
+                  : "App background"}
               </option>
+              {activeSection === "background_image" ? (
+                <option value={NO_BACKGROUND_VALUE}>None</option>
+              ) : null}
               {readyImages.map((image) => (
                 <option key={image.itemId} value={image.itemId}>
                   {image.name}
@@ -494,7 +567,9 @@ export function AnimaAppearanceDialog({
             type="button"
             variant="ghost"
             disabled={busy || !binding}
-            onClick={() => setDraft({ ...draft, itemId: "" })}
+            onClick={() =>
+              setDraft({ ...draft, itemId: "", backgroundOff: false })
+            }
           >
             <Trash2 className="size-4" /> Remove
           </Button>
