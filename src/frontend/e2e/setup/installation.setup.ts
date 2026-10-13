@@ -38,6 +38,20 @@ test("complete accountless first-run setup on the isolated installation", async 
     await expect(
       page.getByRole("dialog", { name: "Before you start" }),
     ).toBeVisible();
+    // The real avatar renderer starts behind the dialog; interactive chat
+    // stays unmounted until the explicit backend confirmation succeeds.
+    const canvas = page.locator("canvas").first();
+    await expect(canvas).toBeVisible({ timeout: 60_000 });
+    const loadedCanvas = await canvas.elementHandle();
+    expect(loadedCanvas).not.toBeNull();
+    await expect(page.locator("textarea")).toHaveCount(0);
+    expect(
+      await canvas.evaluate((element) => Boolean(element.closest("[inert]"))),
+    ).toBe(true);
+    await test.info().attach("avatar-loading-behind-age-confirmation", {
+      body: await page.screenshot(),
+      contentType: "image/png",
+    });
     await page
       .getByRole("button", { name: "I am 18 or older", exact: true })
       .click();
@@ -46,6 +60,16 @@ test("complete accountless first-run setup on the isolated installation", async 
     await expect(
       page.getByRole("dialog", { name: "Before you start" }),
     ).toBeHidden();
+    expect(await loadedCanvas!.evaluate((element) => element.isConnected)).toBe(
+      true,
+    );
+    expect(
+      await canvas.evaluate((element) => Boolean(element.closest("[inert]"))),
+    ).toBe(false);
+    await loadedCanvas!.dispose();
+    await expect(
+      page.getByRole("button", { name: /Browser Fixture/u }),
+    ).toBeVisible();
   }
   await page.waitForURL(
     (url) => url.pathname !== "/" && url.pathname !== "/setup",

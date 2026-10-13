@@ -290,6 +290,13 @@ async function mount(options = {}) {
       return route.fulfill({ json: [{ id: "annie" }] });
     if (pathname === "/v1/runtime-context")
       return route.fulfill({ json: context });
+    if (pathname === "/v1/users/me/profile")
+      return route.fulfill({
+        json: {
+          user_id: context.principal_id,
+          display_name: context.display_name,
+        },
+      });
     if (pathname === "/v1/runtime/onboarding:complete") {
       const input = request.postDataJSON();
       bodies.onboarding = input;
@@ -526,6 +533,21 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
     await button(page, "Skip for now").click();
     const ageDialog = page.getByRole("dialog", { name: "Before you start" });
     await ageDialog.waitFor();
+    const loadedApp = page.getByTestId("loaded-application");
+    await loadedApp.waitFor();
+    assert.equal(
+      await loadedApp.evaluate((element) =>
+        Boolean(element.closest("[inert]")),
+      ),
+      true,
+    );
+    await loadedApp.locator("button").evaluate((element) => element.focus());
+    assert.equal(
+      await ageDialog.evaluate((element) =>
+        element.contains(document.activeElement),
+      ),
+      true,
+    );
     assert.equal(bodies.onboarding, undefined);
     assert.equal(
       await page.getByText("Setup complete", { exact: true }).count(),
@@ -548,8 +570,27 @@ test("only Welcome gates; steps move focus to their headings and Skip finishes w
     await page.reload();
     await page.getByRole("dialog", { name: "Before you start" }).waitFor();
     assert.equal(bodies.onboarding, undefined);
+    const instance = await loadedApp.getAttribute("data-instance");
+    await page
+      .getByTestId("profile-name")
+      .filter({ hasText: /^You$/u })
+      .waitFor();
+    assert.equal(await page.getByTestId("profile-name").innerText(), "You");
     await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
+    await page
+      .getByTestId("profile-name")
+      .filter({ hasText: "Ada Lovelace" })
+      .waitFor();
+    assert.equal(await loadedApp.getAttribute("data-instance"), instance);
+    assert.equal(
+      await loadedApp.evaluate((element) =>
+        Boolean(element.closest("[inert]")),
+      ),
+      false,
+    );
+    await button(page, "Application control").focus();
+    assert.equal(await focusedText(page), "Application control");
 
     assert.deepEqual(bodies.onboarding, {
       display_name: "Ada Lovelace",

@@ -1,23 +1,16 @@
-import {
-  Link,
-  Navigate,
-  useNavigate,
-  useRouterState,
-} from "@tanstack/react-router";
+import { Link, Navigate, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 
 import { useLocalRuntime } from "../LocalRuntimeProvider";
+import { useRuntimeAdmission } from "../../runtime/RuntimeAdmissionProvider";
 import {
   clearSetupDraft,
   readSetupDraft,
   writeSetupDraft,
   type SetupDraft,
 } from "../setup-draft";
-import { resolveSelectedAnimaId } from "@/lib/animas/anima-management-search";
 import { normalizeLocalDisplayName } from "@/lib/user-profile/display-name";
-import { useAnimas } from "@/query/hooks/useAnimas";
-import { useUserSettings } from "@/query/hooks/useUserSettings";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { queryKeys } from "@/query/keys";
 import { Button } from "@/ui/components/button";
@@ -34,26 +27,41 @@ import {
   modelSettingsAvailability,
 } from "@/ui/settings/models/model-configuration-state";
 
-/** Keep every application route blocked until backend onboarding is complete. */
-export function FirstRunAgeConfirmation() {
+/** Load the app behind an inert boundary while explicit confirmation is pending. */
+export function FirstRunAgeConfirmation({ children }: { children: ReactNode }) {
+  const { admission } = useRuntimeAdmission();
   const { state } = useLocalRuntime();
-  if (state.status !== "ready") return null;
-  const draft = readSetupDraft(state.principalId);
-  if (
-    !draft.awaitingAgeConfirmation ||
-    !normalizeLocalDisplayName(draft.displayName)
-  )
-    return <Navigate to="/setup" replace ignoreBlocker />;
+  const pending = admission.status === "ready" && admission.onboardingRequired;
+  const draft =
+    pending && state.status === "ready"
+      ? readSetupDraft(state.principalId)
+      : null;
+  if (pending) {
+    if (!draft) return null;
+    if (
+      !draft.awaitingAgeConfirmation ||
+      !normalizeLocalDisplayName(draft.displayName)
+    )
+      return <Navigate to="/setup" replace ignoreBlocker />;
+  }
   return (
-    <AgeConfirmation
-      key={state.principalId}
-      ownerId={state.principalId}
-      draft={draft}
-    />
+    <>
+      {/* Keep this boundary stable so accepting never remounts the loaded app. */}
+      <div className="contents" inert={pending}>
+        {children}
+      </div>
+      {pending && draft && state.status === "ready" ? (
+        <AgeConfirmation
+          key={state.principalId}
+          ownerId={state.principalId}
+          draft={draft}
+        />
+      ) : null}
+    </>
   );
 }
 
-/** Finishing the wizard opens the first Anima URL without mounting its chat or avatar. */
+/** The app can prepare its avatar, but only this dialog completes onboarding. */
 function AgeConfirmation({
   ownerId,
   draft,
@@ -63,24 +71,12 @@ function AgeConfirmation({
 }) {
   const { completeOnboarding } = useLocalRuntime();
   const navigate = useNavigate();
-  const pathname = useRouterState({
-    select: (state) => state.location.pathname,
-  });
-  const animas = useAnimas();
-  const settings = useUserSettings();
   const capabilities = useRuntimeCapabilities();
   const { modelConfiguration } = modelSettingsAvailability(capabilities.data);
   const queryClient = useQueryClient();
   const [declined, setDeclined] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const animaId =
-    animas.isSuccess && settings.isSuccess
-      ? resolveSelectedAnimaId(
-          animas.data.map((anima) => anima.id),
-          settings.data.last_active_anima_id,
-        )
-      : null;
 
   const backToSetup = () => {
     writeSetupDraft(ownerId, { ...draft, awaitingAgeConfirmation: false });
@@ -102,7 +98,9 @@ function AgeConfirmation({
       });
       clearSetupDraft(ownerId);
       for (const queryKey of [
+        queryKeys.userProfile.all(ownerId),
         queryKeys.settings.all(ownerId),
+        queryKeys.animas.all(ownerId),
         queryKeys.modelConfiguration.all(ownerId),
         queryKeys.modelProviders.all(ownerId),
       ])
@@ -117,95 +115,86 @@ function AgeConfirmation({
     }
   };
 
-  if (pathname === "/" && animaId)
-    return (
-      <Navigate to="/$animaId" params={{ animaId }} replace ignoreBlocker />
-    );
-
   return (
-    <main className="bg-background text-foreground flex min-h-screen items-center justify-center">
-      <p className="text-muted-foreground text-sm" role="status">
-        Opening your Anima…
-      </p>
-      <Dialog open>
-        <DialogContent
-          showCloseButton={false}
-          onEscapeKeyDown={(event) => event.preventDefault()}
-          onPointerDownOutside={(event) => event.preventDefault()}
+    <Dialog open>
+      <DialogContent
+        showCloseButton={false}
+        onEscapeKeyDown={(event) => event.preventDefault()}
+        onPointerDownOutside={(event) => event.preventDefault()}
+        onKeyDown={(event) => event.stopPropagation()}
+      >
+        <DialogHeader>
+          <DialogTitle>Before you start</DialogTitle>
+          <DialogDescription>
+            Animama is for adults 18 and older. Animas are AI companions, not
+            people.
+          </DialogDescription>
+        </DialogHeader>
+        <Link
+          to="/safety"
+          className="text-muted-foreground text-xs underline underline-offset-2"
         >
-          <DialogHeader>
-            <DialogTitle>Before you start</DialogTitle>
-            <DialogDescription>
-              Animama is for adults 18 and older. Animas are AI companions, not
-              people.
-            </DialogDescription>
-          </DialogHeader>
-          <Link
-            to="/safety"
-            className="text-muted-foreground text-xs underline underline-offset-2"
-          >
-            Safety and crisis protocol
-          </Link>
-          {declined ? (
-            <p role="status" className="text-sm">
-              Animama is only for adults 18 and older. You can&apos;t continue
-              to chat.
-            </p>
-          ) : null}
-          {error ? (
+          Safety and crisis protocol
+        </Link>
+        {declined ? (
+          <p role="status" className="text-sm">
+            Animama is only for adults 18 and older. You can&apos;t continue to
+            chat.
+          </p>
+        ) : null}
+        {error ? (
+          <p role="alert" className="text-destructive text-sm">
+            {error}
+          </p>
+        ) : null}
+        {capabilities.isError ? (
+          <div className="space-y-2">
             <p role="alert" className="text-destructive text-sm">
-              {error}
+              AI settings could not be checked. Please try again.
             </p>
-          ) : null}
-          {capabilities.isError ? (
-            <div className="space-y-2">
-              <p role="alert" className="text-destructive text-sm">
-                AI settings could not be checked. Please try again.
-              </p>
+            <Button
+              variant="outline"
+              disabled={capabilities.isFetching}
+              onClick={() => void capabilities.refetch()}
+            >
+              Retry
+            </Button>
+          </div>
+        ) : null}
+        <Button
+          type="button"
+          variant="link"
+          size="sm"
+          disabled={submitting}
+          onClick={backToSetup}
+          className="text-muted-foreground h-auto w-fit justify-start p-0 text-xs"
+        >
+          Back to setup
+        </Button>
+        <DialogFooter>
+          {declined ? (
+            <Button variant="outline" onClick={() => setDeclined(false)}>
+              Go back
+            </Button>
+          ) : (
+            <>
               <Button
-                variant="outline"
-                disabled={capabilities.isFetching}
-                onClick={() => void capabilities.refetch()}
+                variant="ghost"
+                disabled={submitting}
+                onClick={() => setDeclined(true)}
               >
-                Retry
+                I&apos;m under 18
               </Button>
-            </div>
-          ) : null}
-          <Button
-            type="button"
-            variant="link"
-            size="sm"
-            disabled={submitting}
-            onClick={backToSetup}
-            className="text-muted-foreground h-auto w-fit justify-start p-0 text-xs"
-          >
-            Back to setup
-          </Button>
-          <DialogFooter>
-            {declined ? (
-              <Button variant="outline" onClick={() => setDeclined(false)}>
-                Go back
+              <Button
+                disabled={submitting || !capabilities.isSuccess}
+                onClick={() => void confirm()}
+              >
+                {submitting ? "Opening…" : "I am 18 or older"}
               </Button>
-            ) : (
-              <>
-                <Button
-                  variant="ghost"
-                  disabled={submitting}
-                  onClick={() => setDeclined(true)}
-                >
-                  I&apos;m under 18
-                </Button>
-                <Button
-                  disabled={submitting || !capabilities.isSuccess}
-                  onClick={() => void confirm()}
-                >
-                  {submitting ? "Opening…" : "I am 18 or older"}
-                </Button>
-              </>
-            )}
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </main>
+            </>
+          )}
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }

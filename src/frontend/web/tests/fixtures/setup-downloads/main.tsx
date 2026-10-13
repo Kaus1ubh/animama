@@ -1,4 +1,5 @@
 import { createRoot } from "react-dom/client";
+import { useState } from "react";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -13,6 +14,7 @@ import { RuntimeController } from "@/app/runtime/runtime-controller";
 import { useRuntimeAdmission } from "@/app/runtime/RuntimeAdmissionProvider";
 import { Route } from "@/routes/setup";
 import { FirstRunAgeConfirmation } from "@/app/local-runtime/setup/FirstRunAgeConfirmation";
+import { useUserProfile } from "@/query/hooks/useUserProfile";
 import "@/index.css";
 
 // Only native IPC is simulated. Runtime readiness, form, secure-key panel, model
@@ -56,11 +58,29 @@ const setupRoute = createRoute({
   component: Route.options.component,
 });
 function Completion() {
+  return (
+    <FirstRunAgeConfirmation>
+      <LoadedApplication />
+    </FirstRunAgeConfirmation>
+  );
+}
+/** A persistent application instance makes background loading observable. */
+function LoadedApplication() {
   const { admission } = useRuntimeAdmission();
-  return admission.status === "ready" && admission.onboardingRequired ? (
-    <FirstRunAgeConfirmation />
-  ) : (
-    <p>Setup complete</p>
+  const profile = useUserProfile();
+  const [instance] = useState(() => crypto.randomUUID());
+  return (
+    <div data-testid="loaded-application" data-instance={instance}>
+      <button type="button">Application control</button>
+      <p data-testid="profile-name">
+        {profile.isSuccess
+          ? (profile.data.display_name ?? "You")
+          : "Loading profile"}
+      </p>
+      {admission.status === "ready" && !admission.onboardingRequired ? (
+        <p>Setup complete</p>
+      ) : null}
+    </div>
   );
 }
 const completedRoute = createRoute({
