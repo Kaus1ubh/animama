@@ -342,14 +342,7 @@ describe("debug replay segments", () => {
     expect(calls.at(-1)).toBe("clear");
   });
 
-  it("leaves a speaking reply's lip-sync when a replay stops", () => {
-    const { avatar, calls } = fakeAvatar();
-    const store = useAvatarLipSyncBridgeStore.getState();
-    store.registerAvatarInstance({
-      avatar: avatar as unknown as Parameters<
-        typeof store.registerAvatarInstance
-      >[0]["avatar"],
-    });
+  function speakingRun(started: boolean) {
     useAvatarLipSyncBridgeStore.setState({
       speechAudioStartsByRun: {
         "run-1": {
@@ -360,11 +353,39 @@ describe("debug replay segments", () => {
           receivedAtMs: 0,
         },
       },
+      startedRuns: started ? { "run-1": true } : {},
     });
+  }
+
+  it("leaves a speaking reply's own plan when a replay stops", () => {
+    const { avatar, calls } = fakeAvatar();
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.registerAvatarInstance({
+      avatar: avatar as unknown as Parameters<
+        typeof store.registerAvatarInstance
+      >[0]["avatar"],
+    });
+    speakingRun(true);
 
     useAvatarLipSyncBridgeStore.getState().stopReplaySegment();
 
     expect(calls).toEqual([]);
+  });
+
+  it("clears a stopped replay when the speaking reply has no plan of its own", () => {
+    const { avatar, calls } = fakeAvatar();
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.registerAvatarInstance({
+      avatar: avatar as unknown as Parameters<
+        typeof store.registerAvatarInstance
+      >[0]["avatar"],
+    });
+    // A Japanese reply has no estimated plan, so the replay's pose would freeze.
+    speakingRun(false);
+
+    useAvatarLipSyncBridgeStore.getState().stopReplaySegment();
+
+    expect(calls).toEqual(["clear"]);
   });
 
   it("does not play a replay without a ready avatar", () => {

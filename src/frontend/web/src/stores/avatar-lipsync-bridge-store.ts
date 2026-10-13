@@ -127,8 +127,8 @@ type AvatarLipSyncBridgeState = {
     audioStartSec: number;
   }) => boolean;
   /**
-   * Clear a debug replay's plan from the avatar, unless a reply has started
-   * speaking since and now owns its lip-sync.
+   * Clear a debug replay's plan from the avatar, unless a speaking reply has
+   * since applied its own plan.
    */
   stopReplaySegment: () => void;
   tickGate: (args: TickGateArgs) => void;
@@ -817,8 +817,16 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
       },
 
       stopReplaySegment: () => {
-        if (Object.keys(get().speechAudioStartsByRun).length > 0) return;
-        get().avatar?.clearLipSync();
+        const state = get();
+        // A reply without its own plan (Japanese, or one still being planned)
+        // would otherwise keep the replay's last pose on a stopped clock.
+        if (
+          Object.keys(state.speechAudioStartsByRun).some(
+            (runId) => state.startedRuns[runId],
+          )
+        )
+          return;
+        state.avatar?.clearLipSync();
       },
 
       getSpeechTimingContext: (preferredRunId) => {
