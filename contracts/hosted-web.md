@@ -289,8 +289,11 @@ A speech error frame with `code: "speech_allowance_exhausted"`
 (`tts.session.error`, with `run_id`, `provider: "elevenlabs"` and a human
 `error`) means the owner's voice allowance cannot cover that reply, and no
 provider audio plays for it. ElevenLabs speech is always realtime: there is no
-finalized ElevenLabs model, and a retired `eleven_v3` request is spoken with
-`eleven_v4_turbo`. A
+finalized ElevenLabs model, and the browser ignores an ElevenLabs `tts.error`.
+The shared route maps a retired id (`eleven_v3`, `eleven_flash_v2_5` or
+`eleven_multilingual_v2`) to `eleven_v4_turbo`. A consumer that validates its
+own chat requests applies the same mapping
+(`replace_retired_elevenlabs_tts_model_id`). A
 decline known before the turn precedes all reply text and no `tts.session` is
 sent for the run; one found while reserving the reply's speech may follow the
 reply text. Either must precede `run.completed`. Where Pocket TTS runs, the

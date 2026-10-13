@@ -332,7 +332,7 @@ From Phase 4, 2026-10-13:
   - Read the key from the owner-only `~/.config/animama/dev-secrets.env`:
     - scripts: `uv run --env-file "$HOME/.config/animama/dev-secrets.env" ...`;
     - stacks:
-      `COMPOSE_ENV_FILES="$HOME/.config/animama/dev-secrets.env" ./reset.sh --name ev4 --base-port 8240`.
+      `COMPOSE_ENV_FILES="$HOME/.config/animama/dev-secrets.env" ./reset.sh --name ev4 --base-port 8460`.
   - Never print key or token values.
   - Desktop live checks use the desktop app's own key storage, under the owner's
     control.
@@ -2188,8 +2188,12 @@ Starting revision: `3c6b7d98`, merged with `main` at `00442ec9` in `10812ec4`
 The owner's checks before merge. Each English reply costs about US$0.004 of
 v4 Turbo characters.
 
+If the stack is not running, start it from this worktree's root with the debug
+panel on, then open http://animama-ev4.localhost:8460:
+`COMPOSE_ENV_FILES="$HOME/.config/animama/dev-secrets.env" VITE_ENABLE_DEBUG_PANEL=true ./reset.sh --name ev4 --base-port 8460`.
+
 1. **Listen to v4 Turbo with the voices in use.**
-   - On the PR's stack, choose ElevenLabs in App Settings → Voice.
+   - Choose ElevenLabs in App Settings → Voice.
    - For each voice in use (the default voice and every Anima's own), send one
      English and one Japanese reply.
    - Judge the voice's identity, pronunciation, the prosody across a reply (one
@@ -2200,8 +2204,8 @@ v4 Turbo characters.
    Turbo. Japanese and Chinese replies start speaking before the reply finishes
    (#498).
 3. **Review the side-by-side view.**
-   - Restart only the web service with the debug panel on:
-     `source .animama-stack.env`, then
+   - If the stack started without the panel, restart only its web service with
+     the panel on, from this worktree's root: `source .animama-stack.env`, then
      `HOST_UID=$(id -u) HOST_GID=$(id -g) VITE_ENABLE_DEBUG_PANEL=true docker compose -p animama-ev4 up -d --no-deps web`.
    - Send a reply. Open the Anima debug panel (bug icon) and expand Lip-sync.
    - Check that the envelope, words and pauses line up, then press Replay and
@@ -2209,18 +2213,82 @@ v4 Turbo characters.
    - Japanese, Chinese and Korean replies show their timing but "no plan": the
      avatar's mouth stays still for them today, as on `main`. Accept that until
      #468, or say otherwise.
-4. **Gemini is unchanged.** With Gemini selected, a Japanese reply is spoken
-   sentence by sentence.
+4. **Gemini speaks sentence by sentence.** With Gemini selected, a Japanese
+   reply makes one request per sentence (#498); otherwise Gemini is unchanged.
 5. **Hosted.** Read `cloud-issue-draft.md` and decide whether to file it in the
    Cloud repository.
+6. **Finalized ElevenLabs.** Confirm that no finalized ElevenLabs model returns
+   (D13). Reviving one from `c6b87dd2` would be a separate follow-up.
 
 #### Code Review #1 Findings
 
-Pending.
+An independent reviewer (`sdlc-reviewer`) reviewed commit `75de884c` (parent
+`10812ec4`) and checked the merge for semantic conflicts, finding none. Result:
+**blocked**, on three required findings in the Cloud draft.
+
+- **P5-F1 (required).** The draft said Animama maps retired ids before they
+  reach a composition. Only the shared route's `PyAnimaTtsRunOptions` maps
+  them.
+  - Cloud's own route passes a plain `dispatch_options` object to
+    `merge_chat_request_options`, which drops unsupported ids.
+  - A tab opened before the deploy would therefore send a retired id, get no
+    model, and lose the reply's voice.
+  - A probe confirmed it: raw `eleven_v3` gives no model, while the request
+    model gives `eleven_v4_turbo`.
+- **P5-F2 (required).** The draft omitted that `ProductSpeech` no longer needs
+  finalized methods.
+- **P5-F3 (required).** One acceptance criterion, the debug view on a hosted
+  reply, cannot be met. The debug panel exists only on the local development
+  server, and the hosted app is only ever built.
+- **P5-F4 (optional).** The G2 pack did not say how to start the stack, had no
+  step for the D13 decision, and called Gemini unchanged despite #498.
+- **P5-F5 (optional).** Draft clarity:
+  - the `similarity_boost` name;
+  - the receipt check on `/with-timestamps` and v4 Turbo's multiplier;
+  - the pinned backend dropping v4 Turbo before adoption;
+  - naming the backend by source commit, and admitting `local-http` 6.0.0;
+  - the no-session `eleven_v3` delivery;
+  - `sync_alignment: false` on the server transport.
+- **P5-F6 (optional).** The backend timing sentence sat in the Gemini section,
+  without a link.
+- **P5-F7 (optional).** The contract could say the browser ignores an ElevenLabs
+  `tts.error`.
+
+Verified with no defect:
+
+- contract frames and versions;
+- every frontend and backend guide;
+- the draft's facts about current Cloud and the research;
+- repository dependencies (no private ones);
+- links.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P5-F1: accepted.**
+  - The draft now says the shared route maps retired ids. It requires Cloud's
+    own route to apply `replace_retired_elevenlabs_tts_model_id`, or validate
+    with `PyAnimaTtsRunOptions`, and explains the failure without it.
+  - G3 step 1 adds that mapping.
+  - The contract says the shared route maps them and that a consumer
+    validating its own requests applies the same mapping.
+  - Making the shared normalizer map them as well was considered and left out.
+    It is a shared behaviour change with its own tests, and Cloud already has
+    to change this area before adoption.
+- **P5-F2: accepted.** An informational line about `ProductSpeech`.
+- **P5-F3: accepted.** The criterion is now Cloud's server-socket tests on
+  run-relative `alignment`, including a later request's offset, with optional
+  inspection in developer tools.
+- **P5-F4: accepted.**
+  - The pack opens with the reset command (debug panel on) and the URL.
+  - It adds a D13 confirmation step and renames the Gemini step.
+  - The setup's base port is corrected to 8460, the one the stack uses.
+- **P5-F5: accepted.** Every point is in the draft.
+- **P5-F6: accepted.** The sentence moved beside `sync_alignment: true`, with a
+  link.
+- **P5-F7: accepted.**
+
+These corrections touch only docs and the plan, so the validation of
+`75de884c` still applies to the code.
 
 ### Linked: audio tags in the chat model's `speech` (D12)
 

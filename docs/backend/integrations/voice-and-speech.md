@@ -51,7 +51,9 @@ arrive before or after the final `user.response`. The event includes a
 single-use `ttd_websocket` token, which admits one browser connection to
 ElevenLabs' Text to Dialogue socket. That socket refuses `tts_websocket`
 tokens. The event also sets `sync_alignment: true`, so ElevenLabs returns
-character timing with the audio. If setup fails, `chat:sse` emits
+character timing with the audio. The browser keeps it as lip-sync evidence
+([provider character timing](../../frontend/runtime/elevenlabs-tts.md#provider-character-timing));
+the lip-sync planner does not use it yet. If setup fails, `chat:sse` emits
 `tts.session.error` and continues the assistant response.
 
 An omitted `model_id` selects `eleven_v4_turbo`. The backend returns the
@@ -133,10 +135,7 @@ friendly default tone instead of failing the chat turn.
 The frontend finalized runtime decodes and plays PCM audio from SSE events.
 Avatar lip-sync continues to use gruut phonemes from SSE plus provider
 audio-start and actual-duration callbacks. Anima preserves the additive
-`tts_text` fields on `user.response` as provider handoff data. The browser
-collects the realtime socket's ElevenLabs character timing as lip-sync evidence
-(see the frontend ElevenLabs TTS guide); the lip-sync planner does not use it
-yet.
+`tts_text` fields on `user.response` as provider handoff data.
 
 ## Gemini TTS
 
