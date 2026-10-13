@@ -3,6 +3,9 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { initialLocale } from "./i18n/locale-preference";
 import { createWebI18n } from "./i18n/web-i18n";
+// Product UI's stylesheet comes first so the app's own utilities override it;
+// it is CSS only, so loading it here runs no application code.
+import "@animama/product-ui/styles.css";
 import "./index.css";
 
 // Text renders in the first-paint locale; App settings may switch it once loaded.

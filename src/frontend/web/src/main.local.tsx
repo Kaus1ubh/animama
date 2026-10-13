@@ -4,6 +4,9 @@ import { createRoot } from "react-dom/client";
 
 import { initialLocale } from "@web/i18n/locale-preference";
 import { createWebI18n } from "@web/i18n/web-i18n";
+// Product UI's stylesheet comes first so the app's own utilities override it;
+// it is CSS only, so loading it here runs no application code.
+import "@animama/product-ui/styles.css";
 import "./index.css";
 
 // Keep development profiling cleanup out of all built application artifacts.
