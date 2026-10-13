@@ -1,11 +1,12 @@
-# Lip-sync upgrade research brief (as of 2026-10-12)
+# Lip-sync upgrade research brief (as of 2026-10-13)
 
 Investigation for [#468](https://github.com/raymond-van/animama/issues/468): how to
 replace or upgrade Animama's lip-sync so the avatar's mouth follows what the voice
 actually does, including vocal tags, laughter and languages other than English.
-Source revision `1b34e471`. This brief is evidence and a recommendation for
-`to-spec`; it changes no product code. **The owner has not chosen a direction yet**
-(see [Owner decisions](#owner-decisions)).
+Measured at source revision `1b34e471`, then updated for `main` at `37096910`, which
+includes Eleven v4 ([#497](https://github.com/raymond-van/animama/pull/497)). This
+brief is evidence for `to-spec`; it changes no product code. The owner chose the
+direction on 2026-10-13 (see [Owner decisions](#owner-decisions)).
 
 Labels: **(M)** measured for this brief on the owner's Mac; **(V)** vendor or author
 statement; **(I)** independent or third-party figure; **(U)** unverified.
@@ -15,29 +16,30 @@ statement; **(I)** independent or third-party figure; **(U)** unverified.
 - **Today's lip-sync fails the three goals.** Japanese, Korean and Chinese lines
   give gruut no phonemes, so the mouth stays shut; vocal tags would be phonemized
   as words; and one global rescale cannot follow pauses, so the mouth is open in
-  72% of the silent gaps in English lines (M). The same gruut step also decides
-  which sentences reach the finalized TTS providers: a Japanese, Korean or Chinese
-  sentence produces no TTS segment, so Gemini and Eleven v3 never speak it (M,
-  function-level check).
-- **Recommended direction: one browser lip-sync planner that aligns per-language
-  text to the TTS audio, with vocal tags as non-speech events, in two tiers.**
+  72% of the silent gaps in English lines (M). The same gruut step also decided
+  which sentences reached the finalized TTS providers, so Gemini and Eleven v3 never
+  spoke a Japanese, Korean or Chinese sentence (M, function-level check). #497 removed
+  that gate; the mouth still stays shut for those languages.
+- **Chosen direction: one browser lip-sync planner that aligns per-language text to
+  the TTS audio, with vocal tags as non-speech events, in two tiers.**
   1. **Default, no download:** small text converters plus loudness and voicing
      alignment. About 5 KB of code (plus a 145 KB pinyin table loaded only for
      Chinese, and an English converter still to be sized) and about 3 ms of CPU per
      second of audio (M).
-  2. **Optional model pack:** the ZIPA small phone recognizer (CC-BY-4.0 weights)
-     feeds phone posteriors into the same aligner. About 52 ms of CPU per second of
-     audio on one thread (M). The fp16 model (119 MB download) gave the best vowel
-     match (78%) and placed all 8 tags; int8 (56 MB) gave 77% and 7 of 8 (M).
-  3. **Provider timing** (ElevenLabs v4 character alignment, planned in
-     [#471](https://github.com/raymond-van/animama/issues/471)) plugs into the same
-     planner as a third source of evidence when present. Measured on ElevenLabs v4
-     audio, it lifts vowel match without a model from 38% to 66%, places 6 of 7 tags
-     (5 without it), and keeps a simulated live stream at 71% instead of 31% (M). Used
-     alone, without the audio, it leaves the mouth open in pauses (see
+  2. **Optional model pack, opt-in:** the ZIPA small phone recognizer (CC-BY-4.0
+     weights) feeds phone posteriors into the same aligner. About 52 ms of CPU per
+     second of audio on one thread (M). The owner chose int8 (56 MB download): 77%
+     vowel match against fp16's 78% (119 MB), within noise on every clip set (M).
+  3. **Provider timing** (ElevenLabs v4 Turbo character timing, delivered for
+     realtime speech by #497) is a third source of evidence in the same planner.
+     Measured on ElevenLabs v4 audio, it lifts vowel match without a model from 38%
+     to 66%, places 6 of 7 tags (5 without it), and keeps a simulated live stream at
+     71% instead of 31% (M). The v4 Turbo socket's timing scored the same on 8 paired
+     lines. Used alone, without the audio, it leaves the mouth open in pauses (see
      [Provider timing](#6-provider-timing)).
-- **Drop the backend gruut step** in stages: first stop gating TTS on it, then
-  move its English phonemes and talking-hands beats to the browser, then remove it.
+- **Drop the backend gruut step** in stages. The first stage, no longer gating TTS
+  on it, shipped in #497. Next, move its English phonemes and talking-hands beats to
+  the browser, then remove it.
 - **Not recommended as the main path:** wLipSync (needs a calibration recording per
   voice and scored lowest of the vowel-classifying methods), jaw-from-volume alone
   (no vowel shapes), heavy audio-to-face models (hundreds of MB, GPU runtimes).
@@ -76,8 +78,9 @@ run, consistent with a throttled hidden browser pane.
 | English (3) | plain, sad, long four-sentence reply | Gemini Flash-Lite and Flash (long reply: one request per sentence) |
 | English, local (4) | plain, "haha" laugh, pause, long reply | Pocket TTS `english_2026-04`, voices azelma and eve, rendered offline with the repo's runtime and the worker's 0.25 s chunk gap |
 | ElevenLabs (14) | the 8 tag lines (ElevenLabs tags `[laughs]`, `[sighs]`, `[gasps]`, `[whispers]`; an ellipsis for the pause), plus ja, ko, zh, es, English plain and the long reply | `eleven_v4` over Text to Dialogue HTTP streaming with timestamps, voice Jessica; the long reply as one request per sentence |
+| ElevenLabs v4 Turbo (8) | the same text as 8 of the ElevenLabs clips: English laugh, sigh and pause; Japanese laugh; Chinese gasp and laugh; ja, ko, es | `eleven_v4_turbo` over the Text to Dialogue WebSocket with `sync_alignment`, sent as the app sends it (one input per sentence, a flush after the first); voice Jessica |
 
-The first 21 clips are the main set; the summary table uses them. The 14 ElevenLabs
+The first 21 clips are the main set; the summary table uses them. The ElevenLabs
 clips are scored separately in [Provider timing](#6-provider-timing).
 
 - **New paid generation:** 16 Gemini requests: 13 for 10 new test clips and 3
@@ -92,6 +95,8 @@ clips are scored separately in [Provider timing](#6-provider-timing).
   requests, and one calibration utterance), 904 characters sent, about US$0.07 at
   US$0.08 per 1,000 characters (calculated). Tags were performed, not read
   (Parakeet transcripts, M).
+- **ElevenLabs v4 Turbo:** 8 socket requests, 422 characters at half v4's credit
+  rate, about US$0.02 (calculated).
 
 ### Reference and metrics
 
@@ -146,26 +151,26 @@ Two limits of the reference:
   separately (see [Streaming and latency](#streaming-and-latency)).
 - **Voice range:** no anime-pitched voice was tested. Gemini Leda is the brightest
   voice in the set.
-- **ElevenLabs:** one voice (Jessica), finalized HTTP timing only. The v4 Turbo
-  dialogue socket was not tested here; its live case was simulated by revealing the
-  HTTP timing as the audio arrived.
+- **ElevenLabs:** one voice (Jessica). The live case was simulated by revealing the
+  timing as the audio arrived, for both the HTTP and the socket clips.
 - **Kanji readings:** Japanese kanji readings came from `pyopenjtalk-plus` run
   offline; a shipped design needs a browser-side reading source (see
   [Japanese kanji readings](#japanese-kanji-readings)).
 
 ## Current pipeline: verified gaps
 
-1. **gruut gates TTS for finalized providers (M, function-level).**
-   - `_attach_tts_speech_payload` (`product_http/chat/sse_events.py`) prepares a TTS
-     segment only when gruut returns phonemes.
-   - gruut is fixed to `en_US`, so Japanese, Korean and Chinese sentences return
-     none. `chat/tts.py` then has no segment to send to **Gemini or Eleven v3**, and
-     those sentences are shown but never spoken.
-   - Spanish and tagged English pass, and `<laugh>` reaches `tts_text` unchanged.
-   - This was checked by calling the function, not end to end in a running stack.
+1. **gruut gated TTS for finalized providers (M, function-level; fixed by #497).**
+   - At `1b34e471`, `_attach_tts_speech_payload` (`product_http/chat/sse_events.py`)
+     prepared a TTS segment only when gruut returned phonemes. Japanese, Korean and
+     Chinese sentences returned none, so Gemini and Eleven v3 never spoke them.
+   - Since #497, every sentence is spoken. gruut prepares only text whose letters
+     are all ASCII (`gruut_prepares_text`); other text is spoken as written, with
+     the `visible_text` basis and no phonemes.
 2. **No phonemes beyond English (M).** Every Japanese, Korean and Chinese line gave
    0 phoneme words. Tags became words (`<laugh>` → "laugh"), and Spanish got
-   English phonemes.
+   English phonemes. On `main`, Spanish with accented letters, such as "¿Qué tal tu
+   día?", now gets no phonemes at all, so today's planner leaves that sentence's
+   mouth still too (code reading).
 3. **Drift (M).** On English clips today's plan is open in 72% of silent gaps,
    correlates 0.13 with the reference and runs about 130 ms early on average. On the
    Japanese laugh clip it stretches the single word "laugh" across the whole line.
@@ -175,7 +180,9 @@ Two limits of the reference:
    294–549 ms for Korean (medians of five runs on the same text), though the Asian
    lines produce nothing. The first pass over a new sentence costs more: 32–141 ms
    for English in a single-run pass. For finalized providers this runs before the TTS request, so it adds to
-   time to first audio.
+   time to first audio. On `main`, the second call is skipped for text with
+   non-ASCII letters, but the speech frame still calls gruut on every sentence
+   (code reading).
 5. **Packaging.** gruut and its English data are about 15 MB in the desktop runtime
    (2026-10-09 survey), and the upstream repository is archived (I, GitHub).
 6. **Other consumers of gruut output** that a replacement must cover:
@@ -184,11 +191,11 @@ Two limits of the reference:
      markers). `talking-hands-speech-planner.ts` and the lip-sync bridge consume it.
    - **SSE fields:** `tokenized_text` and `phonemized_text` on speech frames, and
      `tts_text`, `tts_phonemized_text` and `tts_text_basis` on TTS segments.
-   - **Backend:** the `gruut_text_with_ws` text basis in `app/contracts/elevenlabs.py`
-     and `server/finalized_speech.py`, and the desktop runtime self-check in
-     `runtime/resources.py`.
+   - **Backend:** the `gruut_text_with_ws` text basis (`server/finalized_speech.py`
+     and the SSE path), and the desktop runtime self-check in `runtime/resources.py`.
    - **Prompt:** the tag ban appears three times, in `prompts/profiles.py` (twice)
      and in `app/main_structured_response.py` with different wording.
+     [#479](https://github.com/raymond-van/animama/issues/479) owns lifting it.
 
 ## Approaches
 
@@ -255,6 +262,12 @@ Findings:
     silences (22% vs 18% on English).
   - In the text + ZIPA aligner, int8 misplaced the Chinese laugh, which depends on
     phone density (7 of 8 tags against 8 of 8).
+  - On the 16 ElevenLabs clips scored on 2026-10-13, the text + ZIPA aligner gave
+    int8 82% / 77% and fp16 81% / 79% vowel match (v4 HTTP / v4 Turbo socket), with
+    the same tags placed. The precisions differ by no more than the clip sets do.
+  - Both run on onnxruntime-web's WASM CPU backend, which needs WASM SIMD and no
+    GPU. int8's output depends on onnxruntime-web's quantized kernels, so pin the
+    version and re-check accuracy on upgrades.
 - **Cost (M):**
   - 48–50 ms per audio second on one thread, about 20× real time; 21–22 ms with four
     threads.
@@ -299,8 +312,8 @@ openness from the audio.
     lines); 4 of 8 tags placed.
   - The converters cost under 0.01 ms per audio second. Alignment costs about 3 ms
     per audio second, rising with segment length: 2.8 ms on a 4 s clip and 4.3 ms on
-    11–13 s clips. Eleven v3's paragraph chunking makes segments longer than one
-    sentence.
+    11–13 s clips. ElevenLabs realtime audio is one stream per reply, so a planner
+    must align it in windows rather than per sentence.
 - **Limit found:** loudness and voicing cannot always tell a laugh or a breath from
   speech. On the Chinese clip `<gasp>真的吗？太好了！<laugh>…` it slid the sentence
   into the gasp, and the laugh over the next phrase.
@@ -352,15 +365,22 @@ The same aligner with ZIPA added to its emissions:
 ### 6. Provider timing
 
 Gemini, Pocket TTS and OpenAI realtime return no timing; Pocket gives the total
-duration only. ElevenLabs returns character timing. The first two points below come
-from #471's spike, whose plan is not yet published:
+duration only. ElevenLabs returns character timing:
 
 - **Text to Dialogue WebSocket** (v4 Turbo): `sync_alignment`; times restart at 0
-  in every alignment frame.
+  in every alignment frame. Since #497 this is the only way the app speaks with
+  ElevenLabs. The browser places the timing on the run clock
+  (`lib/speech/provider-speech-timing.ts`). Hosted gets it only if Cloud forwards
+  the optional server-socket `alignment`
+  ([animama-cloud#87](https://github.com/raymond-van/animama-cloud/issues/87)).
 - **Text to Dialogue HTTP streaming with timestamps** (v4): character start and end
-  times, cumulative from the start of the request. This brief used this endpoint.
+  times, cumulative from the start of the request. The first 14 ElevenLabs clips
+  used this endpoint; the app no longer does.
 - **Tags appear in the timing as their literal characters** (M, and the #471 spike),
-  so a planner must filter them out of the words.
+  so a planner must filter them out of the words. On `main`,
+  `lib/speech/speech-timing-evidence.ts` does this: it returns words (one window
+  per Han, kana or Hangul character), punctuation as possible pauses, and tags
+  classed as non-verbal, sound effect, pacing or delivery.
 
 The prototype maps the timing onto the converters' units:
 - each Latin word, and each Hangul or Han character, gets its window;
@@ -413,12 +433,42 @@ What the timing gets right and wrong (M):
   jumps from 38% to 66–77%. Spanish jumps most (32% → 79%); without Spanish the jump
   is 39% → 63%.
 
-Rendering the timing directly, as #471's Phase 3 currently plans on top of today's
-planner, would also fall back to the estimate for Japanese, Korean and Chinese. It
-matches gruut's words, and gruut has none for those languages.
+Rendering the timing directly on top of today's planner would also fall back to
+the estimate for Japanese, Korean and Chinese. It matches gruut's words, and gruut
+has none for those languages. #497 therefore built evidence only, and left today's
+planner unchanged.
+
+**v4 Turbo socket (M, 2026-10-13).** Eight of the lines were re-recorded over the
+dialogue socket, sent as the app sends them. Their frames were replayed through
+`main`'s `createSpeechTimingCollector`. Scored on the same 8 lines:
+
+| Same 8 lines, v4 HTTP / v4 Turbo socket | Vowel match, ja/ko/zh/es | Open in silence, English | Open in silence, tag lines | Tags placed (of 5) |
+| --- | --: | --: | --: | --: |
+| Today's gruut estimate | 6% / 10% | 65% / 59% | 77% / 71% | — |
+| Text + audio, no timing | 39% / 35% | 3% / 7% | 4% / 6% | 4 / 2 |
+| Timing alone, fixed mouth height | 77% / 72% | 10% / 9% | 12% / 13% | 3 / 4 |
+| **Timing as evidence in the text + audio aligner** | 66% / 68% | 0% / 6% | 5% / 6% | 4 / 4 |
+| Same, live stream simulated at real time | 71% / 71% | 0% / 1% | 5% / 3% | — |
+| Timing as evidence, with ZIPA fp16 | 83% / 85% | 17% / 0% | 13% / 0% | 3 / 1 |
+
+- **Word starts:** across 47 English and Spanish words, the median offset from the
+  reference is 29 ms on the socket (90th percentile 172 ms, maximum 224 ms), against
+  35 ms (115 ms, 212 ms) for the same words over HTTP.
+- **Turn ends:** most prosody turns' timing ran 80 ms past their audio, as #497
+  found. The collector restarts each turn at the audio received, so the error does
+  not accumulate.
+- **Tags:** the leading Japanese `[laughs]` got 0–0.56 s (0–0.24 s over HTTP). The
+  mid-sentence English `[laughs]` was again mistimed: 1.56–1.68 s, against a laugh
+  of about 0.9–1.59 s.
+- **With ZIPA added, tags drifted** (1 of 5 placed on the socket clips). Phone
+  density pulled the tag units away from the windows the timing gave them. When
+  timing is present, tag windows should come from the timing, and ZIPA should refine
+  only the speech units.
+- **Verdict:** the socket's timing is as useful as the HTTP timing, so the design
+  below stands.
 
 **Verdict:** adopt ElevenLabs timing as **evidence in the shared planner**, not as a
-separate lip-sync path.
+separate lip-sync path (confirmed for the v4 Turbo socket above).
 - It gives most of the model pack's vowel accuracy without a download.
 - It is the strongest fix for live streams.
 - The audio has to decide word ends, pauses and mid-sentence tags. The windows must
@@ -460,13 +510,14 @@ excluded, and none of the measured packages bundles them.
 
 - **Pocket TTS:** PCM is produced in the inference worker, faster than real time,
   and can be passed to the lip-sync worker per chunk.
-- **Gemini and Eleven v3/v4 finalized:** `tts.audio` PCM frames arrive per sentence
-  (Eleven v3 also per paragraph) over `chat:sse`. Gemini delivers audio at about
-  2.9× real time after a 0.2 s leading silence (measured in the 2026-10-09 survey).
-- **ElevenLabs realtime (v4 Turbo after #471):** audio arrives with character
-  timing, usually ahead of playback; #471's spike saw seconds of audio queued. If
-  delivery slows to real time, timing matters most: in the simulated worst case the
-  aligner kept 71% vowel match with timing against 31% without (see
+- **Gemini (the only finalized provider since #497):** `tts.audio` PCM frames
+  arrive per sentence over `chat:sse`. Gemini delivers audio at about 2.9× real time
+  after a 0.2 s leading silence (measured in the 2026-10-09 survey).
+- **ElevenLabs realtime (v4 Turbo only, since #497):** audio arrives with character
+  timing, usually ahead of playback; #471's spike saw seconds of audio queued, and
+  first audio came 0.12–0.30 s after the first input here (M). If delivery slows to
+  real time, timing matters most: in the simulated worst case the aligner kept 71%
+  vowel match with timing against 31% without (see
   [Provider timing](#6-provider-timing)).
 - **Browser `speechSynthesis`:** its audio cannot be captured. Fall back to the text
   converters with estimated durations, anchored to `boundary` events where the voice
@@ -495,8 +546,8 @@ whole-clip table (M):
 | Text + ZIPA int8 | real time, 0.3 s buffer | 67% | 0% / 3% | 78% |
 
 - **Faster-than-real-time delivery is nearly as good as whole-clip alignment**, so no
-  playback delay is needed for Gemini. Finalized ElevenLabs and Pocket also deliver
-  faster than real time, but their rates were not measured here (U). Live streams
+  playback delay is needed for Gemini. Pocket also delivers faster than real time,
+  but its rate was not measured here (U). Live streams
   lose accuracy unless the playback buffer grows or provider timing is available.
 - **The simulation's CPU is an upper bound:** it re-aligned from the start of the
   segment and re-ran ZIPA on the whole prefix each time. That cost 21–102 ms
@@ -515,22 +566,26 @@ Replace the gruut planner with a browser lip-sync worker shared by web, Electron
 and self-host:
 
 1. **Tag parser:** split the spoken text into text spans and neutral tags.
-2. **Converters:** text spans → units, chosen by the Anima's speech language (#385).
-   Ship Japanese kana, Korean, Chinese (lazy `pinyin-pro`), Spanish and English
-   first; French, German and Portuguese rules next.
+2. **Converters:** text spans → units, chosen by each sentence's script (owner
+   decision): kana → Japanese, Hangul → Korean, Han without kana in the reply →
+   Chinese, Latin → English. Spanish, French, German and Portuguese converters need
+   a speech language for Latin text, which a per-Anima setting (#385 or a smaller
+   prerequisite) supplies later. Kanji without a reading become unknown-vowel units.
 3. **Evidence per TTS segment:**
    - loudness and voicing from the segment's PCM;
-   - ZIPA phone posteriors when the pack is installed;
-   - provider character timing when the provider returns it, as a window per unit
-     that the aligner may leave only at a cost. Window ends stay soft, and
-     punctuation stays a possible pause, so the audio decides word ends, pauses and
-     mid-sentence tags.
+   - ZIPA phone posteriors when the pack (int8, opt-in) is installed;
+   - provider character timing from `buildSpeechTimingEvidence` when the provider
+     returns it, as a window per unit that the aligner may leave only at a cost.
+     Window ends stay soft, and punctuation stays a possible pause, so the audio
+     decides word ends, pauses and mid-sentence tags. With timing present, tag
+     windows come from the timing rather than from ZIPA's phone density.
 4. **Aligner:** explicit-duration alignment of units to the segment's audio,
    progressive as audio arrives. Each segment anchors to its own audio start, so
    errors never accumulate across a reply.
 5. **Renderer:**
    - `vowel5` frames for the existing bridge and `ExpressionController`;
-   - expression events for laughs, sighs and gasps;
+   - expression events for laughs (`happy`), sighs (`relaxed`) and gasps
+     (`surprised`), and narrower shapes with no expression for whispers;
    - the speech gesture timeline for talking hands, with word timings from the
      aligned units and beats from stressed syllables (English stress from the
      converter) or loudness peaks.
@@ -540,13 +595,14 @@ and self-host:
 ElevenLabs needs no lip-sync path of its own. Its timing is one more kind of
 evidence in this planner, beside loudness and ZIPA. A separate path would duplicate
 the converters, tag handling and renderer, and would still need the audio for word
-ends and mid-sentence tags.
+ends and mid-sentence tags. The planner registers as a source with
+`registerLipSyncPlanSource` (`lib/speech/lipsync-plan-sources.ts`), so the debug
+panel's Lip-sync view compares it with today's estimate on captured runs.
 
 ### Migration path
 
-1. **Stop gating TTS on gruut.** Prepare TTS segments from the speech text in any
-   language, so Gemini and ElevenLabs speak Japanese, Korean and Chinese sentences.
-   Keep gruut phonemes for English while the old planner remains.
+1. **Stop gating TTS on gruut.** Done in #497: every sentence is spoken, and gruut
+   phonemes remain for English while the old planner remains.
 2. **Ship the browser planner (default tier)** behind the existing bridge. It reads
    the speech text and the decoded PCM instead of `tts_phonemized_text` and the
    rescale, and emits the talking-hands timeline. During this step English keeps
@@ -557,36 +613,30 @@ ends and mid-sentence tags.
    - the SSE fields (a `local-http` contract change under the package-set version
      rules);
    - the `gruut_text_with_ws` text basis.
-4. **Optional pack:** add ZIPA small as a verified model asset through the existing
-   model-download path, with CC-BY attribution in the third-party notices.
-5. **Provider timing:** when #471 delivers ElevenLabs v4 alignment, feed it to the
-   aligner as evidence.
+4. **Optional pack:** add ZIPA small (int8) as a verified, opt-in model asset
+   through the existing model-download path, with CC-BY attribution in the
+   third-party notices.
+5. **Provider timing:** consume the evidence `main` already collects for ElevenLabs
+   realtime runs (the bridge store's `providerSpeechTimingByRun`).
 
-**Coordination with #471 (Eleven v4).** #471 is the more finished work and can go
-first. Proposed split:
+**Delivered by #471 (merged as #497).** The reusable parts this planner needs are on
+`main`:
 
-- **#471 builds the reusable parts:**
-  - the timing plumbing (socket frames with a cursor per turn; an absolute
-    `alignment` field on `tts.audio`);
-  - a provider-neutral evidence module: spoken words and per-character windows for
-    Japanese, Korean and Chinese, tag intervals with their raw text and a class, and
-    recorded fixtures;
-  - a side-by-side review view that does not care which planner produced a plan.
-- **#471 does not extend today's gruut planner** with word windows, or keeps that
-  change minimal with its limits stated: pauses leak, mid-sentence tags are
-  mistimed, and ja/ko/zh fall back.
-- **The gruut gate (step 1 above) can move into #471,** so v4's languages are spoken
-  as soon as it ships. #471's draft (its D9) currently proposes the opposite, leaving
-  the gate to this work; the owner decides. The streamed path already falls back to the visible speech
-  text when gruut gives no `tts_text` (`selectStructuredSpeechTtsPayload`); only the
-  finalized server path is gated (code reading, not run end to end).
-- **This planner then consumes #471's evidence module.**
+- the timing plumbing: `createSpeechTimingCollector` puts socket frames on one clock
+  per run, restarting each prosody turn at the audio received;
+- the provider-neutral evidence module, `buildSpeechTimingEvidence`, with recorded
+  socket fixtures for en, ja, ko, zh, es and tags under `lib/speech/fixtures/`;
+- the plan-source registry and the debug panel's Lip-sync view, which draws each
+  source's mouth-openness curve and replays any source on the avatar;
+- the gruut gate removal (step 1).
+
+Today's gruut planner was not extended (#471's D11).
 
 ### Vocal tags from prompt to audio
 
-How the chat model should write tags needs its own intent discovery and spec
-section (vocabulary, frequency, placement, validation and visible text). The
-providers differ:
+How the chat model writes tags is
+[#479](https://github.com/raymond-van/animama/issues/479), whose intent discovery is
+done. The providers differ:
 
 | | Gemini 3.8 TTS (V) | ElevenLabs v3/v4 (V) |
 | --- | --- | --- |
@@ -597,28 +647,30 @@ providers differ:
 | Emotion | Not a tag: per-request `speech_metadata.style` | Tags such as `[excited]`; Animama already sends a leading tone tag |
 | Language | English tag names in any language | (not stated) |
 
-- **Prompt:** replace the three "no bracketed audio tags" rules with a per-provider
-  rule. When the selected TTS provider supports tags (Gemini; ElevenLabs v4), the
-  prompt allows a small neutral vocabulary in `speech`, for example laugh, chuckle,
-  giggle, sigh, gasp, breath, whisper (a modifier), short pause and long pause.
-  Otherwise the ban stays.
-- **TTS request:** the backend maps the neutral tags to each provider's syntax. For
-  example, laugh becomes `<laugh>` for Gemini and `[laughs]` for ElevenLabs. Emotion
-  stays where it is today: Gemini's style and ElevenLabs' leading tone tag. Pocket TTS
-  and browser speech get the text with tags removed.
-- **Validation:** unknown tags are dropped or mapped to the nearest supported one.
-  No tag may reach a provider that would read it aloud.
-- **Visible text:** chat shows the speech without tags. The owner may prefer a
-  subtle laugh or sigh marker.
-- **Lip-sync:** receives the speech text with neutral tags, and the provider.
-  - In ElevenLabs timing, bracketed text is classified: non-verbal sounds become
-    non-speech intervals, delivery and emotion tags become markers on the following
-    words, and pacing tags become silent intervals.
-  - A tag the provider ignored finds no matching audio and costs little.
+#479's discovery outcome, as it affects lip-sync:
+
+- **Prompt and mapping:** tags are allowed in `speech` only for Gemini and
+  ElevenLabs v4 Turbo. The model writes a small neutral set (laugh, chuckle, giggle,
+  sigh, gasp, breath, short pause, long pause, and whisper as a modifier). The
+  backend maps it to each provider's syntax and drops tags a provider cannot perform.
+  With ElevenLabs, inline emotion and delivery directions, more non-verbal sounds
+  and sound effects are also allowed.
+- **Visible text and history:** chat bubbles hide tags; the stored transcript keeps
+  them.
+- **Lip-sync input:** lip-sync receives the speech text with its tags, and the
+  provider. Until this planner ships, the English phoneme input stays tag-free.
+- **Lip-sync behaviour** stays with #468. Sound effects are a non-speech interval
+  with the mouth at rest, separate from vocal sounds; the evidence module already
+  has that class. A tag the provider ignored finds no matching audio and costs
+  little.
 
 ### Japanese kanji readings
 
-Converters need kana for kanji. Options, cheapest first:
+Converters need kana for kanji. The owner chose option 2 on 2026-10-13: kanji
+without a reading become unknown-vowel units, timed by the audio and by ElevenLabs'
+per-character windows, and the ZIPA pack recovers their vowels when installed. How
+well the default tier handles this is not measured. Options considered, cheapest
+first:
 
 1. **LLM-supplied readings:** the structured response adds a kana reading for
    Japanese speech. No download; accuracy depends on the chat model (U).
@@ -629,111 +681,31 @@ Converters need kana for kanji. Options, cheapest first:
 
 ## Owner decisions
 
-1. **Direction:**
-   - **A:** default tier only (text + audio, no download).
-   - **B (recommended):** default tier plus the optional ZIPA pack.
-   - **C:** require the ZIPA pack everywhere.
-2. **Download budget:** proposed ≤ 200 KB gzip of lip-sync code in the default bundle
-   (English converter included), and ≤ 125 MB for the optional pack. Should the
-   desktop app download the pack by default?
-3. **Model precision:**
-   - fp16 (119 MB): 78% vowel match and 8 of 8 tags.
-   - int8 (56 MB): 77% and 7 of 8; it decodes finer phones worse in onnxruntime-web.
-   - Proposed: fp16 for the pack, revisiting int8 if a newer onnxruntime-web closes
-     the gap.
-4. **Visible tags:** hide tags in chat, or show a small marker?
-5. **Kanji readings:** LLM-supplied readings first, or a dictionary pack?
-6. **Expressions for tags:** confirm laugh → `happy` and sigh → `relaxed`, and choose
-   one for gasp (for example `surprised`).
-7. **Whispering:** confirm narrower mouth shapes with no extra expression.
-8. **Order with #471:** confirm that #471 ships first, with the narrowed timing work
-   and the gruut gate removal, and that this planner then consumes its evidence
-   module.
-9. **Tags in `speech`:** run intent discovery for the tag vocabulary and the prompt
-   rules, under this work's R4 or a linked issue. #471 keeps `speech` tag-free until
-   the prompt ban is lifted.
+Decided on 2026-10-13, after #497 merged:
 
-## Draft spec outline (for `to-spec`)
+1. **Direction:** the default tier everywhere, plus the ZIPA pack as an opt-in
+   download (option B). The desktop app does not download the pack by default.
+2. **Download budget:** at most 200 KB gzip of lip-sync code in the default bundle,
+   English converter included. The pack is about 56 MB gzip.
+3. **Model precision:** int8.
+4. **Visible tags:** hidden in chat and kept in history (#479).
+5. **Kanji readings:** unknown-vowel units in the default tier; the pack refines
+   them.
+6. **Expressions for tags:** laugh → `happy`, sigh → `relaxed`, gasp → `surprised`.
+7. **Whispering:** narrower mouth shapes, with no extra expression.
+8. **Order with #471:** #471 shipped first (#497) with the narrowed timing work and
+   the gruut gate removal. This planner consumes its evidence module.
+9. **Tags in `speech`:** #479 (intent discovery done; implementation not started).
+10. **Language source:** detected from each sentence's script until a per-Anima
+    speech language exists. Latin text uses the English converter until then.
 
-**Desired outcome:** the avatar's mouth follows the TTS audio actually spoken, in
-every supported language, with laughs, sighs, gasps, whispers and pauses shown
-instead of read, and with no per-request cost.
+## Next steps
 
-**Goals and non-goals:**
-
-- **Goals:** language-aware, tag-aware, audio-aligned lip-sync for every TTS
-  provider; every sentence spoken in every language; gruut removed.
-- **Non-goals:** choosing TTS or STT models, UI translation (#385), multi-speaker
-  dialogue, ARKit-52 or tongue animation, and the ElevenLabs v4 migration itself
-  (#471).
-
-**Requirements:**
-
-- **R1:** Every speech sentence reaches the selected TTS provider whatever its
-  language; no phoneme step gates TTS.
-- **R2:** Lip-sync is planned in the browser per TTS segment, from the speech text,
-  the Anima's speech language and the segment's audio. Each segment anchors to its
-  own audio start; there is no whole-reply rescale.
-- **R3:** Converters cover en, ja, ko, zh and es first, then fr, de and pt. A
-  language without a converter falls back to audio-only shapes.
-- **R4:** Providers that support vocal tags may receive them:
-  - the prompt allows a neutral tag vocabulary only for those providers;
-  - the backend maps it to each provider's syntax;
-  - tags are removed for other providers and from visible text;
-  - no tag is phonemized as a word.
-- **R5:** Tags produce non-speech mouth events and optional expressions (laugh,
-  sigh, gasp). Pauses close the mouth, and whispers narrow it.
-- **R6:** Talking hands keep word timings and beats from the new planner.
-- **R7:** An optional phone-model pack (ZIPA small) is downloaded, verified and used
-  when installed. Lip-sync works without it.
-- **R8:** Provider character timing (ElevenLabs, #471) is used as alignment
-  evidence when present, never as the only source. Bracketed text in the timing is
-  never mouthed as a word.
-- **R9:** Fallbacks: without capturable audio (browser `speechSynthesis`), lip-sync
-  uses text estimates; without text or a converter, it uses audio-only shapes.
-- **R10:** gruut, its SSE fields and its text basis are removed once English has a
-  browser converter, with contract versioning and a smaller desktop runtime.
-
-**Constraints:**
-
-- **Performance:** the default tier stays ≤ 5 ms CPU per audio second, and the pack
-  tier ≤ 60 ms, on one worker thread on the reference Mac, including progressive
-  re-alignment. No delay is added before first audio, and the bundle stays within the
-  agreed budget.
-- **Licence:** no GPL code in the app process; CC-BY attribution for ZIPA.
-- **Privacy:** all analysis runs locally; no audio or text goes to a new service.
-- **Compatibility:** the bridge and `ExpressionController` keep the `vowel5`
-  contract; hosted compositions keep working without the pack.
-
-**Acceptance (proposed):**
-
-- On this brief's fixed test set (or a successor that adds an anime-pitched voice
-  and a held-out set), scored with the same metrics and **progressive** alignment at
-  each provider's delivery rate:
-  - open in silence ≤ 10% on English and tag lines;
-  - vowel match ≥ 40% (default tier) and ≥ 70% (pack tier) on ja/ko/zh/es for
-    providers that deliver faster than real time; live streams without provider
-    timing are reported, not gated;
-  - tags placed ≥ 6 of 8 with the pack;
-  - on ElevenLabs v4 audio with timing: open in silence ≤ 10% on English and tag
-    lines, tags placed ≥ 6 of 7, and vowel match ≥ 60% on ja/ko/zh/es, including in
-    a real-time live stream.
-- Japanese, Korean and Chinese replies are spoken by Gemini and ElevenLabs, shown end
-  to end in a running stack.
-- Talking hands still gesture on speech beats in English and in at least one other
-  language.
-- Unit tests cover the converters, the tag parser and mapping, and the aligner on
-  recorded fixtures. `pnpm check`, `pnpm web:test`, backend tests and
-  `make check-test` pass.
-- **Owner gate:** a side-by-side review of the new lip-sync against today's, on a
-  laugh, a sigh or pause, and a ja/ko/zh line.
-
-**Open questions:** the owner decisions above; windowed re-alignment and chunked ZIPA
-accuracy (a spike before the ExecPlan); ElevenLabs v4 Turbo socket timing, not yet
-measured against audio (#471); the tag vocabulary for `speech` (intent discovery).
-
-**Dependencies:** a per-Anima speech language (#385 or a smaller prerequisite);
-#471 for ElevenLabs v4 timing and tags.
+- **Spec:** drafted from this brief as `lipsync-spec.md` for #468.
+- **Open spikes before or during the ExecPlan:**
+  - windowed re-alignment and chunked ZIPA, for accuracy and CPU;
+  - the size of a browser English converter (a CMUdict subset plus spelling rules);
+  - an anime-pitched voice and a held-out test set.
 
 ## Sources
 
