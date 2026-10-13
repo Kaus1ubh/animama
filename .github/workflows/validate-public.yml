@@ -295,6 +295,9 @@ jobs:
       - name: Run web unit and tooling tests
         id: web-tests
         if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode)
+        env:
+          # Vitest defaults to CPUs - 1 (one worker on this runner); two measured 26% faster.
+          VITEST_MAX_WORKERS: "2"
         run: |
           python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" web-tests --cwd src/frontend -- pnpm --filter animama-web test:source:unit
       - name: Run the selected browser test groups

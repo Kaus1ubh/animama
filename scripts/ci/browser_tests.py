@@ -32,11 +32,13 @@ SUITE_GROUPS = {"browser-tooling": "tooling", "browser-hosted": "hosted"}
 # Lanes, in order of preference for each file. Files with tight timing windows
 # run before the lanes start so they never share the CPUs with rendering work.
 PRELUDE = ("initial-navigation-diagnostics", "model-download-coordination")
-# Two lanes, measured on a two-CPU Linux container (see the shorten-full-validation
-# ExecPlan): the tooling renders, which share a Vite cache directory and must
-# stay in one lane, and the hosted screens, then the remaining files. A third
-# lane was slower on two CPUs.
-LANES: tuple[tuple[str, ...], ...] = (GROUPS["tooling"], GROUPS["hosted"])
+# One lane on the hosted two-vCPU runner. Two lanes (tooling renders beside the
+# hosted screens) helped in a local two-CPU container but, in hosted run
+# 38335080833, doubled each file's time, timed out an animation preview and took
+# 19.3 min against 14.1 one at a time (see the shorten-full-validation ExecPlan).
+# The effect renders share a Vite cache directory, so they must never be split
+# across concurrent lanes.
+LANES: tuple[tuple[str, ...], ...] = (GROUPS["tooling"] + GROUPS["hosted"],)
 # A file whose browser fails to launch can leave a server open and never exit.
 # Bound each file well above its slowest hosted time (about 4 minutes).
 FILE_TIMEOUT_SECONDS = 20 * 60

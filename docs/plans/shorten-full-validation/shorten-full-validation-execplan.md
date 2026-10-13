@@ -688,6 +688,44 @@ is fixed locally before asking for another run. Other merges are held during a
 run window. The consumer's adoption of H3's receipt is tracked in its own
 repository.
 
+## Hosted runs
+
+**H1, first attempt: [run 38335080833](https://github.com/raymond-van/animama/actions/runs/38335080833)**
+(`full`, 2026-10-13, failed after 39.6 min).
+
+- The backend suite with `-n 2` took 8.2 min (9.4–10.8 before) and the web
+  unit step 6.2 min.
+- The browser step failed. With two lanes, every file ran about twice as long
+  as one at a time, for example:
+  - animation-preview 786 s against 216 s;
+  - hosted-composition 321 s against 156 s.
+
+  One preview test hit a `TimeoutError`, and the step took 19.3 min against
+  14.1 min one at a time.
+- The local arm64 container under-predicted contention on the two-vCPU runner.
+  **Decision (agent, delegated):** browser files run in one lane (`LANES`
+  holds a single lane). Runner support for lanes stays for a larger runner.
+- The promotion steps did not run, because they depend on the failed step.
+  H1 is re-run.
+
+**H2, first attempt: [run 38335086137](https://github.com/raymond-van/animama/actions/runs/38335086137)**
+failed in `backend-format`. The cause was the probe's own appended comment, not
+this branch.
+
+**H2 re-run: [run 38335941086](https://github.com/raymond-van/animama/actions/runs/38335941086)**
+(`selective`, passed in 23.2 min against 66).
+
+- All three suites were skipped.
+- Main steps: backend 451 s, web unit 327 s, browser core group 127 s, web
+  build 51 s, accountless smoke 71 s.
+- This misses the 20-minute target by about 3 min.
+
+**Follow-up lever.** Vitest's default in run mode is `availableParallelism − 1`,
+which is one worker on the runner. With `VITEST_MAX_WORKERS=2` in the two-CPU
+container, Vitest took 117 s and 113 s against 158 s and 152 s with one worker
+(−26%; 4189 passed each time). The workflow now sets it on the web-unit step.
+H1 and H2 are re-run with the single lane and this setting.
+
 ## Final integration review
 
 #### Final Review #1 Findings

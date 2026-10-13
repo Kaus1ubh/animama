@@ -726,10 +726,10 @@ or from fresh-resolution consumer dependency drift, therefore surfaces on the
 next promotion-candidate run, usually the `main` push after merge.
 
 `scripts/ci/browser_tests.py` runs the selected browser groups. Each file runs
-in its own process with a 20-minute bound. The two files with tight timing
-windows run first, alone. The rest run in two concurrent lanes: the tooling
-renders, which share a Vite cache directory, and then the hosted screens and the
-remaining files. The gate checks that the files that ran match the selected
+in its own process with a 20-minute bound and writes its own result row. The
+files run one at a time: on the two-vCPU runner, two concurrent lanes doubled
+each file's time and timed out a preview. The runner keeps a lane table for a
+larger runner. The gate checks that the files that ran match the selected
 groups. Locally, `pnpm --filter animama-web test:source` still runs every file,
 one at a time.
 
@@ -848,8 +848,9 @@ Full backend verification retains the `make check-test` contract: typed-content
 audit, formatting, Ruff, mypy and complete offline pytest, shown as separate
 hosted steps. `UV_NO_SYNC=1` prevents re-resolution after the frozen install.
 Missing fixtures remain failures, not automatic skips. The hosted backend suite
-runs with two pytest-xdist workers (`pytest -n 2`), about half the time on the
-two-CPU runner; `make check-test` still runs one process locally. Full frontend validation
+runs with two pytest-xdist workers (`pytest -n 2`), and the web unit step sets
+`VITEST_MAX_WORKERS=2` (Vitest otherwise uses one worker on the two-vCPU
+runner). `make check-test` and local `pnpm` commands keep their defaults. Full frontend validation
 prepares shared packages once and invokes the individual source/harness/type/test/
 build commands; standalone developer commands still prepare their dependencies.
 `pnpm ci:source` remains a local convenience, not an opaque hosted CI step.
