@@ -1,7 +1,7 @@
 # Lip-sync that follows the voice in every language, without gruut
 
 Status: Agreed. The owner requested the ExecPlan on 2026-10-13 after reviewing this
-spec at `35fc8d7f`, then approved the plan and authorized Phases 1–7 on 2026-10-14.
+spec at `35fc8d7f`, then approved the plan and authorized Phases 1–7 on 2026-10-13.
 D5 was not answered explicitly; work proceeds with the proposed budget.
 
 Owner decisions, 2026-10-13 (recorded in the research brief's "Owner decisions"):
@@ -20,8 +20,9 @@ Owner decisions, 2026-10-13 (recorded in the research brief's "Owner decisions")
 - gruut is removed in this work, replaced by a browser English pronunciation source,
   and Pocket TTS gets numbers and symbols spelled out (D1).
 
-Authoritative source: this file until `workspace-setup` publishes it to parent issue
-[#468](https://github.com/raymond-van/animama/issues/468).
+Authoritative source: parent issue [#468](https://github.com/raymond-van/animama/issues/468),
+published on 2026-10-13 (updated 19:14 UTC) from this file at `92b3e735`. This file is
+that snapshot; refresh it from the issue before resuming.
 Research: [lipsync-research.md](lipsync-research.md), beside this file. It holds the
 measurements, method and prototype findings this spec relies on.
 
@@ -397,8 +398,8 @@ Dependencies:
 
 ## Spec
 
-This document, until it is published to
-[#468](https://github.com/raymond-van/animama/issues/468).
+[#468](https://github.com/raymond-van/animama/issues/468) (published 2026-10-13); this
+file is a snapshot.
 
 ## ExecPlan
 
@@ -408,4 +409,4 @@ This document, until it is published to
 
 - PR [#473](https://github.com/raymond-van/animama/pull/473) carries the research,
   this spec and, once authorized, the implementation.
-- Sub-issues: to follow.
+- Phase issues: #513–#519, sub-issues of #468.

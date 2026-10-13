@@ -5,9 +5,9 @@ for this plan on 2026-10-13 after reviewing that revision, which is recorded as
 agreement for planning. D5 (download budget) is unanswered and is planned as
 proposed (see the Decision Log).
 Authorized scope: Phases 1–7. The owner approved this plan, including agent
-proposals P1–P5, and authorized Phases 1–7 on 2026-10-14.
-Parent issue: [#468](https://github.com/raymond-van/animama/issues/468) (the spec is
-published there by `workspace-setup`). PR:
+proposals P1–P5, and authorized Phases 1–7 on 2026-10-13.
+Parent issue: [#468](https://github.com/raymond-van/animama/issues/468), which holds the
+spec (published 2026-10-13 at 19:14 UTC from `92b3e735`). PR:
 [#473](https://github.com/raymond-van/animama/pull/473), which already carries the
 research brief and the spec.
 
@@ -84,14 +84,19 @@ prototypes.
 
 ## Progress
 
-- [ ] Setup: merge `main` into the branch (waits on gate G0).
-- [ ] Phase 1: evaluation harness, fixtures and baseline (R10).
-- [ ] Phase 2: text units, tags and spelled-out numbers (R2, R3, R12 for Pocket).
-- [ ] Phase 3: English pronunciation source (R11, D5).
-- [ ] Phase 4: aligner, renderer and beats, scored offline (R1, R3, R4, R6, R7).
-- [ ] Phase 5: in the app, including the debug comparison (R1, R3, R6–R9). Gate G1.
-- [ ] Phase 6: optional phone model (R5). Gates G2 and G4.
-- [ ] Phase 7: gruut removed (R12 providers, R13). Gate G3.
+- [x] Setup (2026-10-13): the owner merged `main` (`7a25aa34`) into the branch at
+  `b8c7080c`; spec published to #468; phase issues #513–#519 created as
+  sub-issues with their dependencies.
+- [ ] Phase 1 (#513): evaluation harness, fixtures and baseline (R10).
+- [ ] Phase 2 (#514): text units, tags and spelled-out numbers (R2, R3, R12 for
+  Pocket).
+- [ ] Phase 3 (#515): English pronunciation source (R11, D5).
+- [ ] Phase 4 (#516): aligner, renderer and beats, scored offline (R1, R3, R4, R6,
+  R7).
+- [ ] Phase 5 (#517): in the app, including the debug comparison (R1, R3, R6–R9).
+  Gate G1.
+- [ ] Phase 6 (#518): optional phone model (R5). Gates G2 and G4.
+- [ ] Phase 7 (#519): gruut removed (R12 providers, R13). Gate G3.
 - [ ] Final integration review.
 - [ ] Owner acceptance and merge approval.
 
@@ -230,7 +235,7 @@ stay in this plan and the PR, not in separate issues.
 
 ### Phase 1: Evaluation harness, fixtures and baseline
 
-Requirements: R10, and the acceptance set. Issue: —. Starting source: the merged
+Requirements: R10, and the acceptance set. Issue: #513. Starting source: the merged
 branch from Setup.
 
 Outcome: one command scores any plan source on the fixed clip set, offline,
@@ -300,7 +305,7 @@ Requirements:
 - R3 (parsing and kinds);
 - R12, Pocket and lip-sync, but not yet providers speaking text as written.
 
-Issue: —. Depends on: Phase 1 (fixtures for scoring).
+Issue: #514. Depends on: Phase 1 (fixtures for scoring).
 
 Outcome: every reply's text becomes units ready for alignment, in the browser; tags
 never become words; and Pocket TTS speaks numbers and symbols correctly.
@@ -354,7 +359,7 @@ Results: —
 
 ### Phase 3: English pronunciation source
 
-Requirements: R11, D5. Issue: —. Depends on: Phase 2.
+Requirements: R11, D5. Issue: #515. Depends on: Phase 2.
 
 Outcome: English syllables, vowel shapes and stress come from data shipped with the
 web app, agreeing with gruut on at least 90% of a fixed word list.
@@ -402,7 +407,7 @@ Results: —
 ### Phase 4: Aligner, renderer and beats, scored offline
 
 Requirements: R1, R3 (placement and shapes), R4, R6 (text-only estimate) and R7
-(beats). Issue: —. Depends on: Phases 1–3.
+(beats). Issue: #516. Depends on: Phases 1–3.
 
 Outcome: the new planner meets the default-tier and ElevenLabs thresholds on the
 evaluation set, including progressive alignment, with no app wiring yet.
@@ -465,7 +470,7 @@ Results: —
 ### Phase 5: In the app
 
 Requirements: R1, R3 (overlays), R6, R7 (consumers), R8 (comparison) and R9.
-Issue: —. Depends on: Phase 4.
+Issue: #517. Depends on: Phase 4.
 
 Outcome: every reply's mouth, tag expressions and hands come from the new planner,
 in the main view and picture-in-picture, and the owner can compare it with today's
@@ -558,7 +563,7 @@ Results: —
 
 ### Phase 6: Optional phone model
 
-Requirements: R5 and the pack-tier acceptance. Issue: —. Depends on: Phase 4 (it
+Requirements: R5 and the pack-tier acceptance. Issue: #518. Depends on: Phase 4 (it
 can run beside Phase 5).
 
 Outcome: installing "Sharper lip-sync" in Voice settings improves vowels and tags
@@ -623,7 +628,7 @@ Results: —
 
 ### Phase 7: gruut removed
 
-Requirements: R13, and R12 (providers speak text as written). Issue: —. Depends on:
+Requirements: R13, and R12 (providers speak text as written). Issue: #519. Depends on:
 G1 passed, and Phase 3's recorded agreement.
 
 Outcome: no gruut in the product, chat frames carry no phoneme fields, and every
