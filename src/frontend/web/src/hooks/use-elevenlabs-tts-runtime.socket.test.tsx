@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import socketJa from "@/lib/speech/fixtures/v4-turbo-socket-ja.json";
 import type { TimedChar } from "@/lib/speech/provider-speech-timing";
+import { setSpeechPcmTap } from "@/lib/speech/speech-debug-tap";
 import {
   useElevenLabsTtsRuntime,
   type ElevenLabsSessionResponse,
@@ -366,6 +367,32 @@ describe("ElevenLabs v4 Turbo dialogue socket", () => {
       .flatMap((event) => event.chars)
       .find((entry) => entry.char === "今");
     expect(second?.startSec).toBeCloseTo(1.12, 6);
+  });
+
+  it("hands each audio frame to an installed debug tap only", async () => {
+    const socket = await openRun(directSession);
+    act(() => runtime().appendText(RUN_ID, "Hi!", CONTEXT));
+    act(() => socket.receive({ audio: "AQACAA==" }));
+
+    const tapped: Array<{ runId: string; samples: number[] }> = [];
+    setSpeechPcmTap((event) =>
+      tapped.push({ runId: event.runId, samples: Array.from(event.pcm) }),
+    );
+    try {
+      act(() => socket.receive({ audio: "AwAEAA==" }));
+    } finally {
+      setSpeechPcmTap(null);
+    }
+    act(() => socket.receive({ audio: "BQAGAA==" }));
+
+    expect(tapped).toEqual([{ runId: RUN_ID, samples: [3, 4] }]);
+    expect(
+      fixture.players.at(-1)?.played.map((pcm) => Array.from(pcm)),
+    ).toEqual([
+      [1, 2],
+      [3, 4],
+      [5, 6],
+    ]);
   });
 
   it("drops timing that arrives after the run is cancelled", async () => {

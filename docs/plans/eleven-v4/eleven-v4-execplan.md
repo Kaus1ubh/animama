@@ -18,7 +18,7 @@ plus the folded issues #498 and #499.
 Explicit gates:
 
 - **G1 — Paid live checks.** Live ElevenLabs checks during implementation stay
-  within the owner-approved budget (spec D6: US$1, of which about US$0.19 is
+  within the owner-approved budget (spec D6: US$1, of which about US$0.20 is
   spent).
 - **G2 — Owner gate before merge.**
   - The owner listens to v4 Turbo with the voices in use.
@@ -157,7 +157,9 @@ Ownership and boundaries:
 - [x] Phase 3 (#500): timing plumbing and the timing evidence module. Checks
   pass, live English and Japanese timelines were collected, and Code Review #1–#2
   passed (`9a4e9be3`).
-- [ ] Phase 4 (#501): side-by-side view with pluggable plan sources.
+- [x] Phase 4 (#501): side-by-side view with pluggable plan sources. Checks
+  pass; live capture, replay and both layouts were checked; Code Review #1–#2
+  passed.
 - [ ] Phase 5 (#502): hosted contract, Cloud issue, docs and full validation.
 - [x] Intent discovery for audio tags in `speech` (D12), 2026-10-12: linked
   issue [#479](https://github.com/raymond-van/animama/issues/479).
@@ -213,6 +215,18 @@ From the spike, 2026-10-12 (details and numbers in the research brief):
     response carries a `request-id` header.
   - 8 v4 Turbo sockets generated at once with no refusal, at 408–436 ms first
     audio.
+
+From Phase 4, 2026-10-13:
+
+- **No lip-sync for Japanese, Chinese or Korean.** gruut's English model finds no
+  phonemes in that text, so today's planner makes no plan and the avatar's mouth
+  stays still. A live Japanese reply's vowel weights stayed at 0 throughout.
+  - This was already true on `main`. Accented Latin text keeps gruut's
+    English-reading phonemes.
+  - Provider timing is these replies' only lip-sync evidence (#468).
+- **The debug panel closes on any outside click**, including typing a message.
+  Capture therefore runs while the panel is enabled rather than only while it
+  is open.
 
 ## Decision Log
 
@@ -1932,13 +1946,149 @@ Completion:
 - Checks and review pass.
 - Commit `feat(avatar)[p4]: compare lip-sync plans against ElevenLabs timing in the debug panel`.
 
+#### Phase 4 implementation notes
+
+Starting revision: `5bd75135` (Phase 3, reviewed as `9a4e9be3` before a
+record-only amend).
+
+- **Registry** (`lib/speech/lipsync-plan-sources.ts`):
+  - A `LipSyncPlanSource` is `{id, label, build(inputs)}`. `build` returns a
+    promise of a vowel viseme segment, or `null`.
+  - "Estimated (today)" runs today's planner (`buildVisemeAssetsFromRaw`,
+    `actual_prestart`) at the played length.
+  - `registerLipSyncPlanSource` adds or replaces a source by id.
+  - `mouthOpennessCurve` turns a segment into a display-only opening curve.
+- **Capture:**
+  - `lib/speech/speech-debug-tap.ts` is empty unless a capture installs a
+    listener, so ordinary speech pays one null check per frame.
+  - `stores/lipsync-debug-store.ts` keeps the latest run only, capped at 90 s.
+    It copies the run's planner inputs, timing and length from the bridge
+    before the run is cleared, and registers a private-state reset.
+  - `SceneDebugPanel` starts the capture while the panel is enabled, because
+    the panel closes on any outside click.
+- **View:**
+  - `ui/debug/LipSyncDebugSection.tsx` is the "Lip-sync" section, with a
+    `lipSync` key and a `lipSyncCapture` producer.
+  - `lipsync-debug-timeline.ts` draws three canvas lanes (envelope, evidence,
+    curves) at 120 px/s. The timeline scrolls inside the 20rem panel and
+    follows the replay's playhead.
+  - Evidence for a finished run uses `complete: true`.
+- **Replay** (`lipsync-debug-replay.ts`):
+  - It plays the stored PCM through its own `AudioContext`.
+  - It applies the chosen segment under a fresh replay run id through the
+    bridge's new `playReplaySegment`, which uses the same segment path as live
+    runs but skips the chat-run gate.
+  - Stop clears it with `stopReplaySegment`.
+
+#### Phase 4 results
+
+Checks (2026-10-13), Vitest:
+
+- registry 6, capture store 6, replay 3, timeline 3 and section 7;
+- bridge store 8 (2 new), socket runtime 14 (1 new).
+
+These are the counts after the review repairs: 47 tests across the seven Phase 4
+suites.
+
+`tsc` and ESLint are clean.
+
+- `pnpm check`, `pnpm web:lint`, `pnpm web:test`, `pnpm prettier:check` and
+  `pnpm build` pass.
+- `pnpm desktop:test`: 506 passed, 14 skipped.
+- Not run: the backend checks and `pnpm openapi-ts` (no backend or schema change).
+
+Live on `animama-ev4` (realtime v4 Turbo, `VITE_ENABLE_DEBUG_PANEL=true`):
+
+- **English.** A 4.88 s reply was captured with the panel closed and shown when
+  it opened: 20 words, 2 pauses and a 293-frame estimated plan.
+  - Replay with "Estimated (today)" moved the playhead and drove the avatar's
+    vowel weights from 0.2 s to 4.8 s (peak 0.995).
+  - The button reset when the audio ended.
+- **Japanese.** A 5.68 s reply was captured with 43 character windows and 4
+  pauses. "Estimated (today)" showed "no plan", which led to the discovery
+  above.
+- **Layout.** The view holds at 1440×900 and at 390×844, where the timeline
+  scrolls horizontally. Screenshots are in the ignored
+  `evidence/phase4/lipsync-view-desktop.jpg` and `lipsync-view-narrow.jpg`.
+- **G1 spend.** About 155 characters, or US$0.01; about US$0.20 of US$1 is
+  spent.
+
 #### Code Review #1 Findings
 
-Pending.
+An independent reviewer (`sdlc-reviewer`) reviewed commit `8908194a` against
+`5bd75135`. Result: **blocked**, on two required findings.
+
+- **P4-F1 (required).** A capture capped at 90 s spread its kept audio across
+  the uncapped played length. The envelope misaligned with words, curves and the
+  playhead (20 s off at 60 s of a 120 s reply), and the canvas grew without a
+  bound.
+- **P4-F2 (required).** Replay was enabled as soon as the stream ended, while
+  buffered audio still played. A replay then took over the live reply's
+  lip-sync, and the live end stopped the replay's mouth.
+- **P4-F3 (optional).** Three comments said capture runs while the panel is
+  open; it runs while the panel is enabled.
+- **P4-F4 (optional).** The section test never checked a curve: happy-dom has no
+  2D canvas.
+- **P4-F5 (optional).** Every replay frame resized the canvas and recomputed
+  each curve.
+- **P4-F6 (optional).** A failed replay start left the previous replay showing
+  as active.
+
+Verified with no defect:
+
+- production exclusion (only the inert tap ships);
+- the `complete` evidence follow-up from Phase 3;
+- the capture lifecycle and session reset;
+- unchanged chat lip-sync (D8);
+- the replay mechanics and the registry;
+- the repository boundaries.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **P4-F1: accepted.** The view draws on `min(played length, kept samples ÷
+  rate)`. Width, axis, playhead and scrolling share it, which also bounds the
+  canvas. A test covers a capped 120 s reply.
+- **P4-F2: accepted.**
+  - The capture records `playbackEnded` when the bridge clears its run, which
+    happens when the audio stops.
+  - Plans, Replay and complete evidence wait for it, with store and section
+    tests.
+  - Live, a reply's 6.2 s of audio had arrived by 3 s while it still played;
+    Replay stayed off until playback ended at about 7.3 s.
+- **P4-F3: accepted.** The comments say "enabled".
+- **P4-F4: accepted.** The test stubs the canvas context and checks the curve ids
+  the view draws.
+- **P4-F5: accepted.** The canvas resizes only when its size changes, and the
+  curves are memoised.
+- **P4-F6: accepted.** A new replay clears the previous one before starting,
+  with a test.
+
+Vitest across `src/ui/debug`, `src/stores`, `src/lib/speech` and `src/hooks`
+passes; `tsc` and ESLint are clean.
+
+Repair budget: round 1 of 2 used.
+
+#### Code Review #2 Findings
+
+Targeted recheck of commit `d40fec7e`. Result: **pass**.
+
+- All six findings are resolved, with no regression.
+- The reviewer traced every path that clears the bridge's run and ran the seven
+  Phase 4 suites, tsc, ESLint and Prettier.
+- **P4R2-F1 (optional).** The gate covered only the captured reply. Replay
+  during another provider's reply could take over its lip-sync.
+- **P4R2-F2 (optional).** The results kept pre-repair test counts.
+
+#### Code Review #2 Revisions
+
+The two optional fixes are left to the final integration review:
+
+- **P4R2-F1: accepted.** Replay is also disabled while any run is speaking (the
+  bridge's `speechAudioStartsByRun` is not empty), with a note in the view and
+  a test. The JSDoc and the guide are qualified.
+- **P4R2-F2: accepted.** The counts are current.
+
+Phase 4 review: **passed** (one full review and one repair round).
 
 ### Phase 5: hosted contract, Cloud issue, docs and full validation
 

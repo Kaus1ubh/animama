@@ -10,6 +10,7 @@ import {
   type SpeechTimingCollector,
   type TimedChar,
 } from "@/lib/speech/provider-speech-timing";
+import { speechPcmTap } from "@/lib/speech/speech-debug-tap";
 import { redactUrlForLogging } from "@/lib/utils";
 import { publicResourceUrl } from "@/lib/resource-urls";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
@@ -563,6 +564,13 @@ export function useElevenLabsTtsRuntime(
           },
         );
       }
+      // The debug panel's Lip-sync view copies the run's audio while it is enabled.
+      speechPcmTap()?.({
+        runId: runtime.runId,
+        provider: "elevenlabs",
+        sampleRate: ELEVENLABS_SAMPLE_RATE,
+        pcm,
+      });
       player.playAudio(pcm);
     },
     [],

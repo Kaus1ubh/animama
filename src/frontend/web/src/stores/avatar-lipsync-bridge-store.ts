@@ -116,6 +116,18 @@ type AvatarLipSyncBridgeState = {
   getSpeechTimingContext: (
     preferredRunId?: string | null,
   ) => ProceduralSpeechTimingContext | null;
+  /**
+   * Play a debug replay's plan on the avatar against the replay's own audio
+   * clock (the debug panel's Lip-sync view). It bypasses the chat-run gate and
+   * returns whether an avatar was ready.
+   */
+  playReplaySegment: (args: {
+    segment: VowelVisemeLipSyncSegment;
+    audioContext: AudioContext;
+    audioStartSec: number;
+  }) => boolean;
+  /** Clear a debug replay's plan from the avatar. */
+  stopReplaySegment: () => void;
   tickGate: (args: TickGateArgs) => void;
   clearRun: (runId?: string | null, options?: ClearOptions) => void;
   clearAll: (options?: ClearOptions) => void;
@@ -782,6 +794,27 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
             },
           },
         }));
+      },
+
+      playReplaySegment: ({ segment, audioContext, audioStartSec }) => {
+        const avatar = get().avatar;
+        if (!avatar?.isReady) return false;
+        applySegmentToAvatarPlayback({
+          avatar,
+          segment,
+          audioStart: {
+            runId: segment.meta.run_id ?? segment.segmentId,
+            audioStartSec,
+            audioContext,
+            generationId: null,
+            receivedAtMs: Date.now(),
+          },
+        });
+        return true;
+      },
+
+      stopReplaySegment: () => {
+        get().avatar?.clearLipSync();
       },
 
       getSpeechTimingContext: (preferredRunId) => {

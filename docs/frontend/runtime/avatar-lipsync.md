@@ -459,6 +459,45 @@ Inspect these stages in order:
 5. Confirm raw playback-ended cleared lip-sync; the higher-level Audio ended
    callback may wait for run completion.
 
+### Comparing plans in the debug panel
+
+In a development build with `VITE_ENABLE_DEBUG_PANEL=true`, the Anima debug
+panel's **Lip-sync** section shows the latest realtime ElevenLabs reply:
+
+- its audio envelope;
+- its timing evidence: words, punctuation and tags;
+- one mouth-openness curve per plan source.
+
+**Replay** plays the captured audio through its own `AudioContext` and drives
+the avatar with that plan (`playReplaySegment`, under a replay run id), so plans
+can be compared by eye and ear.
+
+- Plans are built, and Replay is enabled, only once the captured reply has
+  finished playing: when the bridge clears its run. The stream ends earlier,
+  while buffered audio still plays.
+- Replay also stays off while any other reply is speaking, whatever its
+  provider, so a replay never takes over a live reply's lip-sync.
+- A capped capture is drawn and replayed on the 90 s it kept.
+
+- **Capture.** `SceneDebugPanel` starts the capture while the panel is enabled,
+  whether or not it is open, because the panel closes on any outside click
+  such as typing a message.
+  - The ElevenLabs runtime hands each audio frame to the debug tap
+    (`lib/speech/speech-debug-tap.ts`). Without a capture the tap is empty and
+    nothing is copied.
+  - `stores/lipsync-debug-store.ts` keeps only the latest run, capped at 90 s.
+  - It copies the run's planner inputs, timing and length from the bridge
+    before the run is cleared, and clears with the session.
+- **Plan sources.** `lib/speech/lipsync-plan-sources.ts` lists "Estimated
+  (today)" (today's planner at the played length) first. A planner registers
+  itself with `registerLipSyncPlanSource({id, label, build})`; the view needs
+  no change.
+- **No estimated plan.** gruut's English model finds no phonemes in Japanese,
+  Chinese or Korean speech. "Estimated (today)" therefore has no plan for it,
+  and the avatar's mouth stays still while it plays, as before Eleven v4. Its
+  provider timing is still shown. Accented Latin text keeps gruut's
+  English-reading phonemes.
+
 ## 13) Known limitations / caveats
 
 1. **Single-chunk Pocket runs do not get inter-chunk gap silence**
