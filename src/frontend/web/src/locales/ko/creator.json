@@ -4,6 +4,10 @@
     "tryAgain": "다시 시도"
   },
   "avatar": {
+    "loading": {
+      "model": "모델을 불러오는 중…",
+      "setup": "준비하는 중…"
+    },
     "noRuntimeFile": "선택한 아바타 모델에 런타임 파일이 없습니다.",
     "notAuthorized": "선택한 아바타 모델에 대한 접근을 승인받지 못했습니다.",
     "renderFailed": "선택한 아바타를 표시할 수 없습니다."
@@ -61,13 +65,18 @@
   "modelPreview": {
     "animaModel": "{{name}} (Anima)",
     "animasFailed": "Anima를 불러올 수 없습니다.",
+    "avatar": "아바타",
     "includedFailed": "선택한 기본 제공 아바타를 준비할 수 없습니다.",
     "includedListFailed": "기본 제공 아바타를 불러올 수 없습니다.",
     "noAnima": "아바타에서 이 효과를 미리 보려면 먼저 Anima를 만드세요.",
     "noAvatar": "선택한 Anima에 사용할 수 있는 아바타가 없습니다.",
     "releaseUnavailable": "선택한 아바타 릴리스를 더 이상 사용할 수 없습니다.",
     "runtimeFailed": "미리 보기 Anima의 런타임을 불러올 수 없습니다.",
-    "unnamedAnimaModel": "내 Anima"
+    "unnamedAnimaModel": "내 Anima",
+    "versions": {
+      "equipped": "미리 보기 Anima에 장착됨",
+      "included": "기본 제공 아바타"
+    }
   },
   "panel": {
     "authoringTools": "편집 도구",

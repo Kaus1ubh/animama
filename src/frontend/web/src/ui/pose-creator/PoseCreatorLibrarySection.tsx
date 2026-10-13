@@ -3,6 +3,7 @@
 import { useProductApiClient } from "@animama/product-ui";
 
 import { CreatorHeaderDocument } from "@/ui/content-creator/CreatorHeaderDocument";
+import { getCreatorHistoryShortcutLabels } from "@/ui/creator-history/CreatorHistory";
 
 import {
   Code2Icon,
@@ -92,7 +93,6 @@ import {
 } from "@/ui/components/tooltip";
 import { PoseCreatorPanelSection } from "./PoseCreatorPanelSection";
 import { confirmPoseCreatorDirtyReplacement } from "./poseCreatorDirtyGuard";
-import { getPoseCreatorHistoryShortcutLabels } from "./poseCreatorUndo";
 import {
   bakePoseCreatorAnimaPose,
   applyPoseCreatorBasePose,
@@ -367,9 +367,7 @@ export function PoseCreatorLibrarySection({
       alive.current = false;
     };
   }, []);
-  const historyShortcuts = getPoseCreatorHistoryShortcutLabels(
-    runtimePlatform.os,
-  );
+  const historyShortcuts = getCreatorHistoryShortcutLabels(runtimePlatform.os);
   const jsonFileInputRef = useRef<HTMLInputElement | null>(null);
   const [importText, setImportText] = useState("");
   const [importDialogOpen, setImportDialogOpen] = useState(false);

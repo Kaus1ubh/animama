@@ -274,6 +274,8 @@
       "reaction": "要丢弃当前更改，并将“{{name}}”自定义为新反应吗？"
     },
     "confirmLoad": "要丢弃当前更改并加载“{{name}}”吗？",
+    "customName": "{{name}}（自定义）",
+    "customNotes": "由内置的“{{name}}”自定义而来。",
     "description": "打开你的内容，或自定义不可更改的内置片段。",
     "loading": "正在加载…",
     "mine": {
@@ -325,6 +327,7 @@
     },
     "save": {
       "chooseVrma": "保存前请选择一个 VRMA 文件。",
+      "clipTooLarge": "此片段超过了应用可播放的 {{size}} 上限。请缩短片段或删除关键帧。",
       "incomplete": {
         "gesture": "请填写动作的必填信息。",
         "reaction": "请填写反应的必填信息。"
@@ -333,7 +336,8 @@
         "gesture": "已保存动作。",
         "reaction": "已保存反应。"
       },
-      "savedDescription": "可读取的本地文件已更新。正在进行的聊天会继续使用已加载的数据，直到重新打开。"
+      "savedDescription": "可读取的本地文件已更新。正在进行的聊天会继续使用已加载的数据，直到重新打开。",
+      "sessionExpired": "编辑会话已过期。"
     }
   },
   "persistence": {

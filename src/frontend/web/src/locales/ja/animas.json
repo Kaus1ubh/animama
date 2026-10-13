@@ -21,6 +21,7 @@
   },
   "appearance": {
     "created": "ローカルの外観画像を作成しました。",
+    "defaultImageName": "Anima の画像",
     "defaultOption": {
       "background_image": "画像なし",
       "profile_image": "デフォルトのアバターポートレート"

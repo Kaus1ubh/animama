@@ -38,6 +38,7 @@ import { DEFAULT_POCKET_VOICE } from "@/lib/speech/pocket/voice-catalog";
 import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
 import {
   showPocketVoiceUnavailable,
+  showTtsRuntimeFailure,
   showTtsUnavailable,
 } from "@/hooks/tts-warnings";
 import {
@@ -237,7 +238,7 @@ export function useTtsPlayback(
       const key = `${runId}:${reason}`;
       if (warnedKeysRef.current.has(key)) return;
       warnedKeysRef.current.add(key);
-      showTtsUnavailable(reason, message);
+      showTtsRuntimeFailure(reason, message);
     },
     onAudioStarted: ({ runId, audioContext, audioStartSec }) => {
       emitAudioStarted(runId, "elevenlabs", runSeqRef.current, {
@@ -286,7 +287,7 @@ export function useTtsPlayback(
       const key = `${runId}:${reason}`;
       if (warnedKeysRef.current.has(key)) return;
       warnedKeysRef.current.add(key);
-      showTtsUnavailable(reason, message);
+      showTtsRuntimeFailure(reason, message);
     },
     onAudioStarted: ({ runId, audioContext, audioStartSec }) => {
       emitAudioStarted(runId, "elevenlabs", runSeqRef.current, {

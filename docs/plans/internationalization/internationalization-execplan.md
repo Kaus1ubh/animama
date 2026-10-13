@@ -71,13 +71,20 @@ Boundaries:
 - [x] Phase 6: Settings, profile and sound (R7); review #2 passed 2026-10-10.
 - [x] Phase 7: creators (R7); review #2 passed 2026-10-10.
 - [x] Phase 8: desktop shell (R8); review #3 passed 2026-10-10; G2 pending.
-- [ ] Phase 9: completion, guards at full strength and pseudo-locale smoke (R7, R17).
+- [x] Phase 9: completion, guards at full strength and pseudo-locale smoke (R7, R17); review #2 passed 2026-10-13.
 - [ ] Final integration review.
 - [ ] PR; owner gates G1–G3; owner merge approval.
 
 ## Handoff
 
 Paused by the owner during Phase 7 and resumed the same day (2026-10-10).
+Paused again on 2026-10-10 during Phase 9, after Code Review #1.
+- Phases 1–8 are committed (`a65ec81c` is Phase 8).
+- Phase 9 and the Phase 7 stylesheet fix are uncommitted in the worktree; see
+  Phase 9's Code Review #1 Revisions for the next steps.
+- The full journey suite passed 38 of 38 on this tree, and the pseudo smoke
+  passed 3 of 3.
+- The task stacks are stopped.
 
 - Worktree `worktrees/animama/i18n-intent-discovery-42bc7e`, branch
   `feat/internationalization`, based on `5993bbee`. Each phase is committed
@@ -114,6 +121,18 @@ Paused by the owner during Phase 7 and resumed the same day (2026-10-10).
   stays separate.
 - `user_settings.locale` defaults to `en-US`, which is not a supported tag under
   this plan and cannot mean "unset".
+- Phase 7 load-order change, problem 1: wording during module load blanked the
+  app before i18n existed, and Vitest could not show it because its setup
+  initializes i18n first.
+- Phase 7 load-order change, problem 2: moving the application imports behind
+  `createWebI18n` changed stylesheet order in production builds only.
+  - `RuntimeOwnerContext` imports `@animama/product-ui/styles.css`, which then
+    became a later chunk, so its `.hidden` overrode the app's `lg:` utilities.
+  - The creator toolbars collapsed to the narrow layout at 1440 px.
+  - The Vite development server, Vitest and the pseudo smoke did not show it.
+  - The full journey suite on a built stack did: 19 failures.
+  - The entry files now import that stylesheet before `index.css`, and
+    `entrypoints.test.ts` checks the order.
 
 ## Decision Log
 
@@ -1257,13 +1276,123 @@ Issue: #426.
 Checks: full local validation (below) and `pnpm e2e:test` against a disposable
 built stack, since Animas, Loadouts and content flows change.
 
+Results (2026-10-10; Phase 8 committed as `a65ec81c`):
+
+- **Guards at full strength.**
+  - `web/i18n-scope.json` keeps only `exempt` (debug tools, the two
+    debug-route Create previews and the motion-authoring CLI) and the lint
+    settings. The transitional `converted` list is gone.
+  - The raw-string lint and the toast ESLint rule now cover all of `web/src`
+    except tests and the exemptions. Both pass.
+- **Plain-code audit** (one agent, about 400 English literals checked):
+  - Converted:
+    - Action editor save errors;
+    - 13 modules that threw already-worded text now throw `WordedError`;
+    - display paths that put plain English first (content save, sharing,
+      uploads, Idle Style preview) now use `failureLine`;
+    - ElevenLabs runtime failures show English as detail;
+    - Uppy restriction messages;
+    - creator Avatar loading status and version labels;
+    - default names for new Reactions, customized Starters and Anima images;
+    - the 18 built-in VRM expression presets (ja and ko show their vowels for
+      visemes);
+    - the runtime Avatar placeholder name.
+  - Left, with reasons recorded by the agent: logger, telemetry, worker and
+    protocol invariants that render only as detail; validator text shared with
+    CLIs; stored data; product, OS and key names; the diagnostics summary, kept
+    English for support.
+  - Cleanups: the remaining local size formatters use `useFormatters`; inline
+    English plurals remain only in the exempt debug panel; unused English
+    helpers are removed.
+  - Term list adds Starter.
+- **Pseudo-locale smoke.**
+  - A Playwright `pseudo` suite runs through `pnpm e2e:test:pseudo` and
+    requires a development stack.
+  - It covers setup (Welcome, AI, Voice), chat, all nine App Settings sections,
+    Library, `/gestures/new` and `/particle-effects/new`.
+  - It fails on visible text without pseudo markers, excluding API data, VRM
+    expression names, file names, identifiers and a short documented
+    allowlist.
+  - The first run found 15 English strings (VRM expression labels and the
+    runtime Avatar name). After the fixes it passes: 3 of 3 tests.
+- **Full journeys.** The first `pnpm e2e:test` on a built stack found the
+  stylesheet-order regression above (19 failures). After the fix, the rerun on
+  a rebuilt built stack (`animama-i18n-e2e`, port 8600) passed 38 of 38 in
+  13.2 minutes.
+- **Docs.** `i18n.md` Checks covers whole-app linting and the pseudo smoke;
+  `browser-journeys.md` has a "Pseudo-locale smoke" section.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full review of the Phase 9 working tree on
+`a65ec81c`, plus the stylesheet-order fix. It found these sound:
+- whole-app guard coverage and justified exemptions;
+- the default `pnpm e2e:test` behavior and the development-build guard;
+- the stylesheet fix, which restores the order from before Phase 7;
+- the Uppy keys;
+- locale-independent Starter identifiers;
+- the Starter term.
+
+Findings:
+- **P9-R1-01 (required).** `ParticleVFXContentPackageError`
+  (`lib/content/particleVFXContentPackage.ts`) carries catalog-worded messages
+  but extends `Error`. `toContentSaveApiError` now sends it through
+  `failureLine`, so in `ja` an oversized-texture Save shows the generic "check
+  the backend logs" message with the reason as detail. Fix: extend
+  `WordedError`.
+- **P9-R1-02 (required).** `entrypoints.test.ts` compares `indexOf` results,
+  and a missing product-ui stylesheet import gives −1, which still passes.
+  Fix: assert the import is present (index ≥ 0) or compare the exact CSS
+  import order.
+- Optional:
+  - redundant `WordedError` branches in `contentSaveErrors.ts` and
+    `content-sharing/errors.ts`;
+  - `useActionEditorActions` reuses `loader.starterUnavailable`, which reads
+    wrong for VRMA Gestures and Reactions; use a neutral key;
+  - `getUserFileErrorMessage`'s English default is used only by debug callers;
+  - dead `sourceLabel` values (pre-existing);
+  - documented pseudo-smoke limits;
+  - a stray untracked `.animama-stack.e2e.env`, which must not be committed.
 
 #### Code Review #1 Revisions
 
-Pending.
+Resumed 2026-10-13.
+
+- **P9-R1-01 accepted.** `ParticleVFXContentPackageError` extends
+  `WordedError`, so its catalog-worded reasons show as they are in every locale.
+- **P9-R1-02 accepted.** `entrypoints.test.ts` compares the exact list of
+  static CSS imports (`@animama/product-ui/styles.css`, then `./index.css`), so
+  a missing import fails.
+- Optional accepted:
+  - `toContentSaveApiError` and `sharingErrorMessage` drop the redundant
+    `WordedError` branches; `failureLine` handles them.
+  - The Action editor's missing-source error uses the neutral
+    `errors:creation.source_unavailable` ("The selected content is
+    unavailable."), so the English is unchanged and it fits VRMA Gestures and
+    Reactions.
+- Optional not changed:
+  - `getUserFileErrorMessage`'s default is used only by exempt debug callers.
+  - The dead `sourceLabel` values predate this plan.
+  - The pseudo-smoke limits are documented.
+  - The stray `.animama-stack.e2e.env` is removed.
+- Checks:
+  - web `tsc` and `eslint src` pass;
+  - vitest in app, content, sharing, query, particle creator, action editor
+    and errors: 118 files, 844 pass;
+  - `pnpm i18n:check` passes.
+
+Repair budget: one of two repair rounds used.
+
+#### Code Review #2 Findings
+
+Targeted recheck. P9-R1-01 and P9-R1-02 are resolved. The particle Save path
+was traced end to end, and the CSS-order assertion fails when the import is
+removed or swapped. The optional revisions do not change behavior. Result: pass.
+
+Optional, not changed:
+- The English particle texture-fetch text matches the network-failure pattern,
+  so English shows the network message. This already happens on `main`.
+- No `ja` test covers a particle package error through `toContentSaveApiError`.
 
 ## Final integration review
 

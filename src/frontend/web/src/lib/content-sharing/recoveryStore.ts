@@ -2,6 +2,7 @@ import { getI18n } from "react-i18next";
 
 import type { ImportRecovery, RecoveryStore } from "./importSession";
 import { recoverySessionIsActive } from "@/lib/content/recovery-session";
+import { WordedError } from "@/lib/errors/apiError";
 
 const idPattern = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
 /** Persist identifiers only; never save file bytes, names, identity text or review contents. */
@@ -49,7 +50,7 @@ export function importRecoveryStore(
     write(value) {
       const t = getI18n().getFixedT(null, "library");
       if (value && !recoverySessionIsActive(owner))
-        throw new Error(t("sharing.import.sessionEnded"));
+        throw new WordedError(t("sharing.import.sessionEnded"));
       const prior = storage.getItem(key);
       if (prior) {
         const current = JSON.parse(prior) as ImportRecovery;
@@ -57,13 +58,13 @@ export function importRecoveryStore(
           current.operation_id !== ownedOperation &&
           current.operation_id !== value?.operation_id
         )
-          throw new Error(t("sharing.import.otherWindow"));
+          throw new WordedError(t("sharing.import.otherWindow"));
       }
       try {
         if (value) storage.setItem(key, JSON.stringify(value));
         else storage.removeItem(key);
       } catch {
-        throw new Error(t("sharing.import.recoveryNotSaved"));
+        throw new WordedError(t("sharing.import.recoveryNotSaved"));
       }
       ownedOperation = value?.operation_id ?? null;
     },

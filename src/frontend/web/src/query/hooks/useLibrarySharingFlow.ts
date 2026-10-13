@@ -45,6 +45,7 @@ import { useAnimas } from "./useAnimas";
 import { useSharingInventory } from "./useSharingInventory";
 import { fetchAnimaRuntimeCatalog } from "./useAnimaRuntimeCatalog";
 import { useRuntimeCapabilities } from "./useRuntimeCapabilities";
+import { WordedError } from "@/lib/errors/apiError";
 
 function storage(owner: string): RecoveryStore {
   try {
@@ -53,10 +54,10 @@ function storage(owner: string): RecoveryStore {
     const t = getI18n().getFixedT(null, "library");
     return {
       read: () => {
-        throw new Error(t("sharing.import.storageUnavailable"));
+        throw new WordedError(t("sharing.import.storageUnavailable"));
       },
       write: () => {
-        throw new Error(t("sharing.import.enableStorage"));
+        throw new WordedError(t("sharing.import.enableStorage"));
       },
     };
   }
@@ -391,7 +392,7 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
           mount = await new RuntimeMountPreparer().prepare(typed, { signal });
           signal.throwIfAborted();
           if (mount.playbackStatus === "degraded" || !typed.can_chat)
-            throw new Error(t("sharing.import.runtimeUnavailable"));
+            throw new WordedError(t("sharing.import.runtimeUnavailable"));
           client.setQueryData(
             queryKeys.animaLoadouts.runtime(owner, id),
             typed,

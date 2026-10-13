@@ -21,6 +21,7 @@
   },
   "appearance": {
     "created": "已建立本機外觀圖片。",
+    "defaultImageName": "Anima 圖片",
     "defaultOption": {
       "background_image": "無圖片",
       "profile_image": "預設虛擬形象肖像"

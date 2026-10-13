@@ -94,9 +94,10 @@ function normalizeConfig(
   };
 }
 
-function imageName(filename: string) {
+/** The new image's name: its file name without the extension, else `fallback`. */
+function imageName(filename: string, fallback: string) {
   const dot = filename.lastIndexOf(".");
-  return (dot > 0 ? filename.slice(0, dot) : filename).trim() || "Anima image";
+  return (dot > 0 ? filename.slice(0, dot) : filename).trim() || fallback;
 }
 
 function sectionUse(section: AnimaAppearanceSection): "profile" | "background" {
@@ -300,7 +301,7 @@ export function AnimaAppearanceDialog({
     setProgress(0);
     try {
       const created = await contentActions.createAppearanceImage.mutateAsync({
-        name: imageName(file.name),
+        name: imageName(file.name, t("appearance.defaultImageName")),
         file,
         uses: ["profile", "background"],
         operationId,

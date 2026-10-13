@@ -280,6 +280,8 @@ export default interface Resources {
         "reaction": "Discard the current changes and customize “{{name}}” as a new reaction?"
       },
       "confirmLoad": "Discard the current changes and load “{{name}}”?",
+      "customName": "{{name}} Custom",
+      "customNotes": "Customized from Starter {{name}}.",
       "description": "Open your content or customize an immutable Starter clip.",
       "loading": "Loading…",
       "mine": {
@@ -331,6 +333,7 @@ export default interface Resources {
       },
       "save": {
         "chooseVrma": "Choose a VRMA file before saving.",
+        "clipTooLarge": "This clip is larger than the {{size}} the app can play. Shorten it or remove keyframes.",
         "incomplete": {
           "gesture": "Complete the required Gesture details.",
           "reaction": "Complete the required Reaction details."
@@ -339,7 +342,8 @@ export default interface Resources {
           "gesture": "Gesture saved.",
           "reaction": "Reaction saved."
         },
-        "savedDescription": "The readable Local files were updated. Active chats keep their mounted bytes until reopened."
+        "savedDescription": "The readable Local files were updated. Active chats keep their mounted bytes until reopened.",
+        "sessionExpired": "The editable content session expired."
       }
     },
     "persistence": {
@@ -563,6 +567,7 @@ export default interface Resources {
     },
     "appearance": {
       "created": "Local Appearance Image created.",
+      "defaultImageName": "Anima image",
       "defaultOption": {
         "background_image": "No image",
         "profile_image": "Default Avatar portrait"
@@ -1176,7 +1181,13 @@ export default interface Resources {
       "processingUnavailable": "Processing was not queued. You can process the original from Library once document processing is available.",
       "processingUnavailableDesktop": "Document processing is unavailable. Install the pack in Settings, then process the file from Library.",
       "queuedForProcessing": "File uploaded and queued for processing.",
-      "rejected": "File cannot be uploaded."
+      "rejected": "File cannot be uploaded.",
+      "restrictions": {
+        "duplicate": "{{file}} has already been added.",
+        "fileTypes": "Only these file types can be uploaded: {{types}}",
+        "tooLarge": "{{file}} exceeds the maximum size of {{size}}.",
+        "unnamed": "Unnamed file"
+      }
     },
     "voiceDownloads": {
       "changeFailed": "The voice download change could not finish. Retry in a moment.",
@@ -1955,6 +1966,10 @@ export default interface Resources {
       "tryAgain": "Try again"
     },
     "avatar": {
+      "loading": {
+        "model": "Loading model…",
+        "setup": "Setting up…"
+      },
       "noRuntimeFile": "The selected Avatar Model has no runtime file.",
       "notAuthorized": "The selected Avatar Model could not be authorized.",
       "renderFailed": "The selected Avatar could not be rendered."
@@ -2012,13 +2027,18 @@ export default interface Resources {
     "modelPreview": {
       "animaModel": "{{name}} (Anima)",
       "animasFailed": "Could not load your Animas.",
+      "avatar": "Avatar",
       "includedFailed": "The selected Included Avatar could not be prepared.",
       "includedListFailed": "Could not load the Included Avatars.",
       "noAnima": "Create an Anima before previewing this effect on an Avatar.",
       "noAvatar": "The selected Anima does not have an available Avatar.",
       "releaseUnavailable": "The selected Avatar release is no longer available.",
       "runtimeFailed": "Could not load the preview Anima's runtime.",
-      "unnamedAnimaModel": "Your (Anima)"
+      "unnamedAnimaModel": "Your (Anima)",
+      "versions": {
+        "equipped": "Equipped on preview Anima",
+        "included": "Included Avatar"
+      }
     },
     "panel": {
       "authoringTools": "Authoring tools",
@@ -5309,6 +5329,26 @@ export default interface Resources {
       "loadModel": "Load a VRM with registered expressions to edit facial weights.",
       "noMatches": "No matching expressions",
       "none": "No expressions available",
+      "presets": {
+        "aa": "Aa",
+        "angry": "Angry",
+        "blink": "Blink",
+        "blinkLeft": "Blink Left",
+        "blinkRight": "Blink Right",
+        "ee": "Ee",
+        "happy": "Happy",
+        "ih": "Ih",
+        "lookDown": "Look Down",
+        "lookLeft": "Look Left",
+        "lookRight": "Look Right",
+        "lookUp": "Look Up",
+        "neutral": "Neutral",
+        "oh": "Oh",
+        "ou": "Ou",
+        "relaxed": "Relaxed",
+        "sad": "Sad",
+        "surprised": "Surprised"
+      },
       "search": "Search expressions",
       "slider": "Expression {{name}}",
       "subtitle_one": "{{count}} expression available",

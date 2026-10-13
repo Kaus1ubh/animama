@@ -4,19 +4,18 @@ import base from "./i18next.config";
 import scope from "./i18n-scope.json" with { type: "json" };
 
 /**
- * Raw-string lint for UI that has moved to catalogs. `converted` grows as each
- * area is converted; `exempt` lists developer and debug tools that stay English;
- * `lint` is shared with the check's fixture tests.
+ * Raw-string lint for all application code. `exempt` lists developer and debug
+ * tools that stay English; `lint` is shared with the check's fixture tests.
  */
 export default defineConfig({
   ...base,
   extract: {
     ...base.extract,
-    // A converted directory may hold stylesheets; only its code is linted.
-    input: scope.converted.map((glob) =>
-      glob.endsWith("/**") ? `${glob}/*.{ts,tsx}` : glob,
-    ),
-    ignore: [...(base.extract.ignore as string[]), ...scope.exempt],
+    ignore: [
+      ...(base.extract.ignore as string[]),
+      "src/**/*.test.{ts,tsx}",
+      ...scope.exempt,
+    ],
   },
   // Every element, including components such as SettingsRow and SelectItem,
   // and the user-visible attributes listed in i18n-scope.json.

@@ -3,8 +3,10 @@ import { getI18n } from "react-i18next";
 import {
   apiErrorLine,
   errorWording,
+  failureLine,
   readApiError,
   sourceLocaleActive,
+  uncodedErrorText,
   WordedError,
 } from "@/lib/errors/apiError";
 
@@ -189,18 +191,23 @@ export function toContentSaveApiError(
     return new ContentSaveApiError(status, null, unknownSaveMessage());
   }
 
+  // A worded failure keeps its text; other English is primary only in English.
   if (cause instanceof Error) {
     return new ContentSaveApiError(
       null,
       null,
       isNetworkFailure(cause)
         ? networkSaveMessage()
-        : cause.message.trim() || unknownSaveMessage(),
+        : failureLine(cause, unknownSaveMessage()),
     );
   }
 
   if (typeof cause === "string" && cause.trim()) {
-    return new ContentSaveApiError(null, null, cause.trim());
+    return new ContentSaveApiError(
+      null,
+      null,
+      apiErrorLine(uncodedErrorText(cause.trim(), unknownSaveMessage())),
+    );
   }
 
   return new ContentSaveApiError(null, null, unknownSaveMessage());

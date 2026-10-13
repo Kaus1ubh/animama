@@ -4,6 +4,10 @@
     "tryAgain": "重試"
   },
   "avatar": {
+    "loading": {
+      "model": "正在載入模型…",
+      "setup": "正在準備…"
+    },
     "noRuntimeFile": "所選虛擬形象模型沒有執行階段檔案。",
     "notAuthorized": "無法取得所選虛擬形象模型的存取授權。",
     "renderFailed": "無法算繪所選虛擬形象。"
@@ -61,13 +65,18 @@
   "modelPreview": {
     "animaModel": "{{name}}（Anima）",
     "animasFailed": "無法載入你的 Anima。",
+    "avatar": "虛擬形象",
     "includedFailed": "無法準備所選的內建虛擬形象。",
     "includedListFailed": "無法載入內建虛擬形象。",
     "noAnima": "請先建立 Anima，再於虛擬形象上預覽此特效。",
     "noAvatar": "所選 Anima 沒有可用的虛擬形象。",
     "releaseUnavailable": "所選虛擬形象版本已無法使用。",
     "runtimeFailed": "無法載入預覽 Anima 的執行階段。",
-    "unnamedAnimaModel": "你的 Anima"
+    "unnamedAnimaModel": "你的 Anima",
+    "versions": {
+      "equipped": "已裝備在預覽 Anima 上",
+      "included": "內建虛擬形象"
+    }
   },
   "panel": {
     "authoringTools": "創作工具",

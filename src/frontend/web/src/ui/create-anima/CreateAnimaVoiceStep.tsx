@@ -25,6 +25,7 @@ import {
 } from "@/ui/components/select";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import type { CreateAnimaDraft, DraftEdit } from "./createAnimaDraft";
+import { WordedError } from "@/lib/errors/apiError";
 
 /** Shared library writes are explicit; provider/voice selection only edits this draft. */
 export function CreateAnimaVoiceStep({
@@ -77,10 +78,10 @@ export function CreateAnimaVoiceStep({
       ? voice.pocket.voice_id
       : DEFAULT_POCKET_VOICE;
   const select = async (id: string) => {
-    if (disabled || cloning) throw new Error(t("voiceStep.busy"));
+    if (disabled || cloning) throw new WordedError(t("voiceStep.busy"));
     if (id.startsWith("clone:")) {
       const clone = clones.find((item) => `clone:${item.item_id}` === id);
-      if (!clone) throw new Error(t("voiceStep.cloneUnavailable"));
+      if (!clone) throw new WordedError(t("voiceStep.cloneUnavailable"));
       onChange({
         voice: {
           ...voice,

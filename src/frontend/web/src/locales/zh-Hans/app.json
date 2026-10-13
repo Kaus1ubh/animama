@@ -197,7 +197,13 @@
     "processingUnavailable": "处理未加入队列。文档处理可用后，你可以在资源库中处理原始文件。",
     "processingUnavailableDesktop": "文档处理不可用。请在设置中安装功能包，然后在资源库中处理该文件。",
     "queuedForProcessing": "文件已上传并加入处理队列。",
-    "rejected": "无法上传此文件。"
+    "rejected": "无法上传此文件。",
+    "restrictions": {
+      "duplicate": "{{file}} 已添加。",
+      "fileTypes": "仅可上传以下文件类型：{{types}}",
+      "tooLarge": "{{file}} 超过了 {{size}} 的大小上限。",
+      "unnamed": "未命名文件"
+    }
   },
   "voiceDownloads": {
     "changeFailed": "语音下载更改未能完成。请稍后重试。",

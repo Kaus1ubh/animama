@@ -8,6 +8,7 @@ import {
   type ParticleVFXShapeAutoFit,
   type ParticleVFXTransform,
 } from "@/lib/avatar/particle-vfx";
+import { WordedError } from "@/lib/errors/apiError";
 import { normalizeRuntimeContentId } from "@/lib/runtime-content/runtimeId";
 
 const MAX_TEXTURES = 16;
@@ -44,7 +45,8 @@ export type ParticleVFXContentPackage = {
   notices: readonly string[];
 };
 
-export class ParticleVFXContentPackageError extends Error {
+/** A package refusal, worded in the UI Locale from the catalog. */
+export class ParticleVFXContentPackageError extends WordedError {
   constructor(message: string) {
     super(message);
     this.name = "ParticleVFXContentPackageError";

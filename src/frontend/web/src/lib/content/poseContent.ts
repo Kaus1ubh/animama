@@ -10,6 +10,7 @@ import {
 } from "@/lib/avatar/poses/animaPose";
 import { PreviewByteSession } from "@/lib/runtime-content/PreviewByteSession";
 import { contentPreviewFileUrl } from "./contentPreview";
+import { WordedError } from "@/lib/errors/apiError";
 
 export type PoseContentDocument = { item: PyPose; pose: ResolvedAnimaPose };
 
@@ -32,12 +33,12 @@ export async function loadPoseContent(
     preview.item.item_id !== item.item_id ||
     preview.item.revision_sha256 !== item.revision_sha256
   ) {
-    throw new Error(t("content.pose.changed"));
+    throw new WordedError(t("content.pose.changed"));
   }
   const file = preview.files.find(
     (candidate) => candidate.role === "descriptor",
   );
-  if (!file) throw new Error(t("content.pose.descriptorUnavailable"));
+  if (!file) throw new WordedError(t("content.pose.descriptorUnavailable"));
   const session = await PreviewByteSession.prepare(
     {
       preview_id: preview.preview_id,
@@ -62,10 +63,11 @@ export async function loadPoseContent(
   );
   try {
     const prepared = session.files.get(file.file_ref);
-    if (!prepared) throw new Error(t("content.pose.descriptorUnavailable"));
+    if (!prepared)
+      throw new WordedError(t("content.pose.descriptorUnavailable"));
     const raw: unknown = JSON.parse(await prepared.blob.text());
     if (!raw || typeof raw !== "object")
-      throw new Error(t("content.pose.descriptorInvalid"));
+      throw new WordedError(t("content.pose.descriptorInvalid"));
     const descriptor = raw as Record<string, unknown>;
     if (
       descriptor.schema_version !== 1 ||
@@ -73,13 +75,13 @@ export async function loadPoseContent(
       descriptor.content_id !== item.pose_id ||
       descriptor.name !== item.name
     ) {
-      throw new Error(t("content.pose.descriptorMismatch"));
+      throw new WordedError(t("content.pose.descriptorMismatch"));
     }
     const pose = parseAnimaPose(descriptor.pose);
     if (pose.id !== item.pose_id || pose.name !== item.name)
-      throw new Error(t("content.pose.payloadMismatch"));
+      throw new WordedError(t("content.pose.payloadMismatch"));
     signal?.throwIfAborted();
-    if (pose.parent) throw new Error(t("content.pose.notSelfContained"));
+    if (pose.parent) throw new WordedError(t("content.pose.notSelfContained"));
     return { item, pose };
   } finally {
     // The resolved values are copied in memory; descriptor URLs never outlive admission.
@@ -126,8 +128,9 @@ export function preparePoseSaveAttempt(
 ): PoseSaveAttempt {
   const t = getI18n().getFixedT(null, "library");
   const name = draft.name.trim();
-  if (!name) throw new Error(t("content.pose.nameRequired"));
-  if (draft.pose.parent) throw new Error(t("content.pose.resolveBeforeSaving"));
+  if (!name) throw new WordedError(t("content.pose.nameRequired"));
+  if (draft.pose.parent)
+    throw new WordedError(t("content.pose.resolveBeforeSaving"));
   const fingerprint = JSON.stringify({
     name,
     pose: draft.pose,

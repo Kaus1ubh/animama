@@ -1,5 +1,6 @@
 import type { ProductApiTransport } from "@animama/runtime-contracts";
 import { getI18n } from "react-i18next";
+import { WordedError } from "@/lib/errors/apiError";
 
 /** One admitted browser lifetime; it owns requests and registered private resources. */
 export class SessionRequestScope {
@@ -19,7 +20,7 @@ export class SessionRequestScope {
     this.assertActive();
     if (this.suspended) {
       const t = getI18n().getFixedT(null, "app");
-      throw new Error(t("connection.requestNotSent"));
+      throw new WordedError(t("connection.requestNotSent"));
     }
     const target =
       typeof input === "string"

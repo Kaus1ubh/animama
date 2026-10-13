@@ -15,12 +15,16 @@ import {
 } from "@/lib/content/contentUploads";
 import { createLogger } from "@/lib/logger";
 import type { UserFileUploadStage } from "@/lib/user-files/upload-card-status";
-import { getUserFileErrorMessage } from "@/lib/user-files/uploads";
-import { USER_FILE_UPLOAD_RESTRICTIONS } from "@/lib/user-files/uploads";
+import {
+  getUserFileErrorMessage,
+  USER_FILE_UPLOAD_RESTRICTIONS,
+  userFileUploadLocale,
+} from "@/lib/user-files/uploads";
 import { useFinalizeUserFileUpload } from "@/query/mutations/useFinalizeUserFileUpload";
 import { useInitUserFileUpload } from "@/query/mutations/useInitUserFileUpload";
 import { useProcessUserFile } from "@/query/mutations/useProcessUserFile";
 import { fetchRuntimeCapabilities } from "@/query/runtime-capabilities";
+import { WordedError } from "@/lib/errors/apiError";
 
 export type UserFileUploadMeta = Meta & {
   file_id?: string;
@@ -46,7 +50,7 @@ function asBrowserFile(file: UppyFile<UserFileUploadMeta, UserFileUploadBody>) {
 
   if (!(file.data instanceof Blob)) {
     const t = getI18n().getFixedT(null, "app");
-    throw new Error(t("uploads.fileDataUnavailable"));
+    throw new WordedError(t("uploads.fileDataUnavailable"));
   }
 
   return new File([file.data], file.name ?? "upload", {
@@ -142,6 +146,7 @@ export function useUserFileUpload({
       allowMultipleUploadBatches: true,
       restrictions: USER_FILE_UPLOAD_RESTRICTIONS,
     });
+    instance.setOptions({ locale: userFileUploadLocale() });
     const activeUploads = new Map<string, AbortController>();
     instance.addUploader(async (fileIds) => {
       const files = fileIds.map((fileId) => instance.getFile(fileId));
@@ -209,7 +214,7 @@ export function useUserFileUpload({
               signal: controller.signal,
             });
             if (!response.ok) {
-              throw new Error(
+              throw new WordedError(
                 t("uploads.httpFailed", { status: response.status }),
               );
             }
@@ -225,7 +230,9 @@ export function useUserFileUpload({
             });
           } catch (cause) {
             const error =
-              cause instanceof Error ? cause : new Error(t("uploads.failed"));
+              cause instanceof Error
+                ? cause
+                : new WordedError(t("uploads.failed"));
             instance.emit("upload-error", instance.getFile(fileId), error);
           } finally {
             activeUploads.delete(fileId);
@@ -453,6 +460,15 @@ export function useUserFileUpload({
       uppy.off("restriction-failed", handleRestrictionFailed);
     };
   }, [apiClient, uppy]);
+
+  // Restriction messages follow a UI Locale switch.
+  useEffect(() => {
+    const i18n = getI18n();
+    const relocalize = () =>
+      uppy.setOptions({ locale: userFileUploadLocale() });
+    i18n.on("languageChanged", relocalize);
+    return () => i18n.off("languageChanged", relocalize);
+  }, [uppy]);
 
   useStrictModeSafeDestroy(uppy, (instance) => instance.destroy());
 

@@ -219,7 +219,12 @@ export async function actionDocumentFromPreview(args: {
   // its reason instead of opening as an empty timeline.
   if (implementationKind === "anima_clip") parseAnimaPoseClip(sequence);
   const placement = object(root.placement_hint);
-  const customName = args.customizeStarter ? `${item.name} Custom` : item.name;
+  // A customized Starter is new owner content, so its default name and notes
+  // follow the UI Locale.
+  const t = getI18n().getFixedT(null, "actionEditor");
+  const customName = args.customizeStarter
+    ? t("load.customName", { name: item.name })
+    : item.name;
   const semanticKey =
     intent === "gesture"
       ? args.customizeStarter
@@ -243,9 +248,8 @@ export async function actionDocumentFromPreview(args: {
     implementation: implementationKind,
     suggestedEmotion: String(placement.emotion ?? ""),
     suggestedIntensity: selectedIntensity(placement.intensity),
-    // Notes and the "Custom" name are saved with the content, so stay English.
     notes: args.customizeStarter
-      ? `Customized from Starter ${item.name}.`
+      ? t("load.customNotes", { name: item.name })
       : String(object(item.metadata).notes ?? ""),
     sequence:
       args.customizeStarter && implementationKind === "anima_clip"

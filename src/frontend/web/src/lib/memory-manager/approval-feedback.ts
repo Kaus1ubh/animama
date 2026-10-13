@@ -1,6 +1,7 @@
 import { getI18n } from "react-i18next";
 
 import type { PyMemoryManagerApprovalDecisionRequest } from "@/lib/content/catalogTypes";
+import { WordedError } from "@/lib/errors/apiError";
 
 export const MEMORY_MANAGER_REJECTION_FEEDBACK_MAX_CHARS = 2000;
 
@@ -44,6 +45,6 @@ export function memoryManagerApprovalDecisionRequest(
   }
   if (feedback === undefined) return { decision };
   const validated = validateMemoryManagerRejectionFeedback(feedback);
-  if (!validated.valid) throw new Error(validated.error);
+  if (!validated.valid) throw new WordedError(validated.error);
   return { decision, feedback: validated.feedback };
 }

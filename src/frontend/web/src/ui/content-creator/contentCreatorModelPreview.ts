@@ -3,6 +3,7 @@ import { getI18n } from "react-i18next";
 import type { PyAnimaListItem } from "@/lib/content/catalogTypes";
 import { WordedError } from "@/lib/errors/apiError";
 import type { ContentPreviewTarget } from "@/lib/content-preview/types";
+import { RUNTIME_AVATAR_MODEL_NAME } from "@/lib/runtime-content/runtimeSnapshotAdapter";
 import type { AnimaRuntimeCatalogSnapshot } from "@/lib/runtime-content/types";
 
 export type ContentCreatorPreviewAnimaStatus =
@@ -20,6 +21,7 @@ type ContentCreatorModelSourceBase = {
   key: string;
   displayName: string;
   versionLabel: string;
+  /** Identifies the source; display text comes from the creator catalogs. */
   sourceLabel: "Preview Anima" | "Built-in Avatar" | "My Avatar";
   runtimeId: string;
   configSchemaVersion: number;
@@ -60,12 +62,13 @@ export function contentCreatorIncludedAvatarSource(item: {
   catalog_item_id: string;
   name: string;
 }): ContentCreatorIncludedAvatarSource {
+  const t = getI18n().getFixedT(null, "creator");
   return {
     key: `included:${item.catalog_item_id}`,
     sourceType: "included_avatar",
     itemId: item.catalog_item_id,
     displayName: item.name,
-    versionLabel: "Included Avatar",
+    versionLabel: t("modelPreview.versions.included"),
     sourceLabel: "Built-in Avatar",
     runtimeId: `included-avatar-${item.catalog_item_id}`,
     configSchemaVersion: 1,
@@ -106,18 +109,20 @@ export function contentCreatorModelSourceFromAnima(
   runtime: AnimaRuntimeCatalogSnapshot,
 ): ContentCreatorAnimaModelSource {
   const entry = runtime.avatar_model;
-  if (!entry) {
-    const t = getI18n().getFixedT(null, "creator");
-    throw new WordedError(t("modelPreview.noAvatar"));
-  }
+  const t = getI18n().getFixedT(null, "creator");
+  if (!entry) throw new WordedError(t("modelPreview.noAvatar"));
   return {
     key: `resolved:${animaId}:${runtime.effective_revision}:${entry.content_revision}`,
     sourceType: "resolved_entry",
     animaId,
     effectiveRevision: runtime.effective_revision,
     contentRevision: entry.content_revision,
-    displayName: entry.display_name,
-    versionLabel: "Equipped on preview Anima",
+    // The runtime's placeholder name is worded; any other name is data.
+    displayName:
+      entry.display_name === RUNTIME_AVATAR_MODEL_NAME
+        ? t("modelPreview.avatar")
+        : entry.display_name,
+    versionLabel: t("modelPreview.versions.equipped"),
     sourceLabel: "Preview Anima",
     runtimeId: entry.runtime_id,
     configSchemaVersion: entry.config_schema_version,

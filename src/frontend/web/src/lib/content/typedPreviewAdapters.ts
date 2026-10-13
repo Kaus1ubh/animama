@@ -9,6 +9,7 @@ import type {
   PyIdleStylePreview,
 } from "@/lib/content/catalogTypes";
 import { typedLogicalResourceFiles } from "@/lib/content/typedLogicalResources";
+import { WordedError } from "@/lib/errors/apiError";
 
 type PreviewItem = PyTypedContentPreview["item"];
 
@@ -207,7 +208,7 @@ export function typedActionPreview(
   const item = preview.item;
   if (item.kind !== "gesture" && item.kind !== "reaction") {
     const t = getI18n().getFixedT(null, "library");
-    throw new Error(t("content.preview.notAction"));
+    throw new WordedError(t("content.preview.notAction"));
   }
   const implementationDependency = (item.dependencies ?? []).find(
     (dependency) =>
@@ -281,20 +282,20 @@ export function typedIdleStylePreview(
   if (style.kind === "gesture") {
     const selectedRef = style.logical_key;
     if (!selectedRef || (gestureRef && gestureRef !== selectedRef))
-      throw new Error(t("content.preview.idleGestureUnavailable"));
+      throw new WordedError(t("content.preview.idleGestureUnavailable"));
     return idleGesturePreview(preview, selectedRef);
   }
   if (style.kind !== "idle_style")
-    throw new Error(t("content.preview.notIdleStyle"));
+    throw new WordedError(t("content.preview.notIdleStyle"));
   const selectedRef = gestureRef ?? style.default_pool[0];
-  if (!selectedRef) throw new Error(t("content.preview.noIdleGesture"));
+  if (!selectedRef) throw new WordedError(t("content.preview.noIdleGesture"));
   const selectedDependency = (style.dependencies ?? []).find(
     (dependency) =>
       dependency.kind === "gesture" && dependency.ref === selectedRef,
   );
   const gesture = exactDependencyTarget(preview, selectedDependency);
   if (!gesture || gesture.kind !== "gesture")
-    throw new Error(t("content.preview.idleGestureUnavailable"));
+    throw new WordedError(t("content.preview.idleGestureUnavailable"));
   const supports: PreviewItem[] = [];
   const seen = new Set([gesture.item_id]);
   const pending = [...(gesture.dependencies ?? [])];
@@ -302,7 +303,7 @@ export function typedIdleStylePreview(
     const dependency = pending.shift()!;
     const support = exactDependencyTarget(preview, dependency);
     if (!support)
-      throw new Error(t("content.preview.idleDependencyUnavailable"));
+      throw new WordedError(t("content.preview.idleDependencyUnavailable"));
     if (seen.has(support.item_id)) continue;
     seen.add(support.item_id);
     supports.push(support);

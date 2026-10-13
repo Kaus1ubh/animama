@@ -34,6 +34,7 @@ import type {
   ClientParakeetWorkerRequest,
   ClientParakeetWorkerResponse,
 } from "@/lib/speech/client-parakeet/worker-protocol";
+import { WordedError } from "@/lib/errors/apiError";
 
 const logger = createLogger("ClientParakeetWorkerClient");
 
@@ -488,7 +489,7 @@ export async function loadClientParakeetWorker(
   if (!capabilities.offline_speech_enabled) {
     // Dictation shows this message; worker and transport failures stay English.
     const t = getI18n().getFixedT(null, "app");
-    throw new Error(t("dictation.errors.offlineSpeechMissing"));
+    throw new WordedError(t("dictation.errors.offlineSpeechMissing"));
   }
   await cancelClientParakeetIdleDispose("load");
 

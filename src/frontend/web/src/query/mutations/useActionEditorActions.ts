@@ -4,6 +4,8 @@ import { contentSlug } from "@/lib/content/nameIdentifiers";
 import { useProductApiClient } from "@animama/product-ui";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { formattersForLanguage } from "@animama/product-ui/i18n";
+import { getI18n } from "react-i18next";
 
 import {
   previewGesture,
@@ -28,6 +30,7 @@ import {
   saveCatalogItem,
 } from "@/lib/content/catalogApi";
 import { contentSaveFieldError } from "@/lib/content/contentSaveErrors";
+import { WordedError } from "@/lib/errors/apiError";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { registerPrivateStateReset } from "@/app/runtime/private-module-state";
@@ -36,6 +39,12 @@ import type {
   ActionDocument,
   ActionIntent,
 } from "@/ui/action-editor/actionDocument";
+
+/** The editor's in-memory session is gone, for example after a sign-out. */
+function sessionExpiredError(): WordedError {
+  const t = getI18n().getFixedT(null, "actionEditor");
+  return new WordedError(t("page.save.sessionExpired"));
+}
 
 type EditSessionIdentity = {
   itemId: string;
@@ -169,12 +178,17 @@ export function useActionEditorActions(intent: ActionIntent) {
       document.implementation === "vrma"
         ? null
         : serializeAnimaPoseClipFile(document.sequence);
+    const t = getI18n().getFixedT(null, "actionEditor");
     if (
       sequenceText &&
       new Blob([sequenceText]).size > MAX_ANIMA_POSE_CLIP_BYTES
     ) {
       throw contentSaveFieldError(
-        "This clip is larger than the 2 MB the app can play. Shorten it or remove keyframes.",
+        t("page.save.clipTooLarge", {
+          size: formattersForLanguage(getI18n().resolvedLanguage).fileSize(
+            MAX_ANIMA_POSE_CLIP_BYTES,
+          ),
+        }),
         "files",
       );
     }
@@ -182,8 +196,7 @@ export function useActionEditorActions(intent: ActionIntent) {
       sequenceText === null
         ? pending.file
         : new File([sequenceText], companionName, { type: "application/json" });
-    if (!file)
-      throw contentSaveFieldError("Choose a VRMA file before saving.", "files");
+    if (!file) throw contentSaveFieldError(t("page.save.chooseVrma"), "files");
     const saved = await saveCatalogItem(apiClient, {
       kind: intent,
       entryName: document.name,
@@ -260,7 +273,10 @@ export function useActionEditorActions(intent: ActionIntent) {
           items.find((item) => item.logical_key === source.content_id)
             ?.item_id ?? null;
       }
-      if (!itemId) throw new Error("The selected content is unavailable.");
+      if (!itemId) {
+        const t = getI18n().getFixedT(null, "errors");
+        throw new WordedError(t("creation.source_unavailable"));
+      }
       return previewSavedAction(itemId);
     },
   });
@@ -277,7 +293,7 @@ export function useActionEditorActions(intent: ActionIntent) {
   >({
     mutationFn: async ({ sessionId, file, role, sha256 }) => {
       const pending = pendingActions.get(sessionId);
-      if (!pending) throw new Error("The editable content session expired.");
+      if (!pending) throw sessionExpiredError();
       pending.file = file;
       pending.savedItemId = undefined;
       pending.savedRevision = undefined;
@@ -302,7 +318,7 @@ export function useActionEditorActions(intent: ActionIntent) {
   >({
     mutationFn: async ({ identity }) => {
       const pending = pendingActions.get(identity.sessionId);
-      if (!pending) throw new Error("The editable content session expired.");
+      if (!pending) throw sessionExpiredError();
       const saved =
         pending.savedItemId && pending.savedRevision
           ? await getTypedActionCatalogItem(

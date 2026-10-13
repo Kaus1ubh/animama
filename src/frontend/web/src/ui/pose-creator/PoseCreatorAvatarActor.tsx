@@ -92,10 +92,7 @@ export function PoseCreatorAvatarActor({
     setSceneObject(null);
     onAvatarInstanceChange?.(null);
     setLoadStatus("loading");
-    setLoadProgress({
-      phase: "setup",
-      message: "Setting up...",
-    });
+    setLoadProgress({ phase: "setup" });
 
     const loadAvatar = async () => {
       const logicalUrl = runtimeContentDeliveryUrl(entry);

@@ -25,6 +25,7 @@ import {
 } from "@/ui/components/dialog";
 import { Input } from "@/ui/components/input";
 import { librarySoundSaveInput } from "./librarySoundSave";
+import { WordedError } from "@/lib/errors/apiError";
 
 /** A Library edit pins revision authority and retains its receipt across uncertain retries. */
 export function LibrarySoundDialog({
@@ -70,7 +71,7 @@ export function LibrarySoundDialog({
         // original metadata without advancing this dialog's revision authority.
         const stored = await getCatalogItem(apiClient, item.item_id);
         if (stored.revision_sha256 !== item.revision_sha256)
-          throw new Error(t("sound.changed"));
+          throw new WordedError(t("sound.changed"));
         const audio =
           file ??
           (await loadCreatorPreviewFile(

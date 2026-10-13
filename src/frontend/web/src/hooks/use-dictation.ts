@@ -65,6 +65,7 @@ import { getVoiceDebugSink } from "@/lib/voice/voiceDebugSink";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
 import type { SttSegmentSource } from "@/lib/types/voice-types";
 import type { MicVadInstance } from "@/hooks/voice/mic-vad-runtime";
+import { WordedError } from "@/lib/errors/apiError";
 
 type DictationSegment = {
   text: string;
@@ -1688,7 +1689,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         const errorObj =
           err instanceof Error
             ? err
-            : new Error(dictationErrorText("transcriptionFailed"));
+            : new WordedError(dictationErrorText("transcriptionFailed"));
         setError(errorObj);
         onErrorRef.current?.(errorObj);
         getVoiceDebugSink()?.setError(errorObj.message);
@@ -1931,7 +1932,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           typeof window === "undefined" ||
           typeof AudioWorkletNode !== "function"
         ) {
-          throw new Error(dictationErrorText("audioWorkletParakeet"));
+          throw new WordedError(dictationErrorText("audioWorkletParakeet"));
         }
 
         const isCurrentParakeetStart = () =>
@@ -2237,7 +2238,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         const errorObj =
           err instanceof Error
             ? err
-            : new Error(dictationErrorText("parakeetFailed"));
+            : new WordedError(dictationErrorText("parakeetFailed"));
         if (activeParakeetSessionIdRef.current !== sessionId) {
           if (!canReuseTurnState && runIdRef.current === runId) {
             setRunId(null);
@@ -2381,13 +2382,13 @@ export function useDictation(options: UseDictationOptions = {}) {
     ) => {
       const SpeechRecognition = getSpeechRecognitionConstructor();
       if (!SpeechRecognition) {
-        throw new Error(dictationErrorText("webSpeechUnsupported"));
+        throw new WordedError(dictationErrorText("webSpeechUnsupported"));
       }
       if (
         provider === "browser_local" &&
         !supportsLocalWebSpeechStrict(platform)
       ) {
-        throw new Error(dictationErrorText("localWebSpeechUnsupported"));
+        throw new WordedError(dictationErrorText("localWebSpeechUnsupported"));
       }
 
       const canReuseTurnState =
@@ -2474,7 +2475,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         const errorMessage = dictationErrorText("audioWorkletVad");
         debugStore?.setError(errorMessage);
         debugStore?.setStatus("error");
-        throw new Error(errorMessage);
+        throw new WordedError(errorMessage);
       }
 
       try {
@@ -2647,7 +2648,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         try {
           recognition.processLocally = true;
         } catch {
-          throw new Error(dictationErrorText("localWebSpeechNotEnabled"));
+          throw new WordedError(dictationErrorText("localWebSpeechNotEnabled"));
         }
 
         const preferredLang = recognition.lang || "en-US";
@@ -2798,7 +2799,7 @@ export function useDictation(options: UseDictationOptions = {}) {
         }
         throw err instanceof Error
           ? err
-          : new Error(dictationErrorText("browserStartFailed"));
+          : new WordedError(dictationErrorText("browserStartFailed"));
       }
 
       activeProviderRef.current = provider;
@@ -2861,7 +2862,7 @@ export function useDictation(options: UseDictationOptions = {}) {
       const errorObj =
         err instanceof Error
           ? err
-          : new Error(dictationErrorText("unmuteFailed"));
+          : new WordedError(dictationErrorText("unmuteFailed"));
       setError(errorObj);
       onErrorRef.current?.(errorObj);
     }
@@ -2885,7 +2886,7 @@ export function useDictation(options: UseDictationOptions = {}) {
           parakeetAvailable: capabilities.offline_speech_enabled,
         });
         if (resolved.provider === "parakeet" && !resolved.parakeetAvailable) {
-          throw new Error(dictationErrorText("offlineSpeechMissing"));
+          throw new WordedError(dictationErrorText("offlineSpeechMissing"));
         }
         if (mode === "voice") {
           if (resolved.provider === "parakeet") {
@@ -2916,7 +2917,9 @@ export function useDictation(options: UseDictationOptions = {}) {
         await startBrowserDictation(resolved.provider, "dictation");
       } catch (err) {
         const errorObj =
-          err instanceof Error ? err : new Error(dictationErrorText("failed"));
+          err instanceof Error
+            ? err
+            : new WordedError(dictationErrorText("failed"));
         setError(errorObj);
         onErrorRef.current?.(errorObj);
         setSessionState({

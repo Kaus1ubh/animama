@@ -587,8 +587,14 @@ export function ActionEditorPage({
     const next = await captureActionDocumentForSave(
       () => documentRef.current,
       () => usePoseCreatorStore.getState().clipDraft,
-      // A stored default name, so it stays English like other saved data.
-      () => actions.allocateDefaultName("New Reaction"),
+      // New owner content takes its default name in the UI Locale; the name
+      // field's placeholder shows the same name.
+      () => {
+        const t = getI18n().getFixedT(null, "actionEditor");
+        return actions.allocateDefaultName(
+          t("header.namePlaceholder.reaction"),
+        );
+      },
     );
     documentRef.current = next;
     setDocument(next);
@@ -639,7 +645,7 @@ export function ActionEditorPage({
           : t("page.save.incomplete.reaction"),
         { description },
       );
-      throw new Error(description);
+      throw new WordedError(description);
     }
     try {
       setSaveStage("preparing");

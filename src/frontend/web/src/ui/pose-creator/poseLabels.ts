@@ -1,4 +1,7 @@
-import type { VRMHumanBoneName } from "@pixiv/three-vrm";
+import type {
+  VRMExpressionPresetName,
+  VRMHumanBoneName,
+} from "@pixiv/three-vrm";
 import type { TFunction } from "i18next";
 
 import type { ParticleVFXAnchor } from "@/lib/avatar/particle-vfx/types";
@@ -263,6 +266,56 @@ export function beatLabel(t: TFunction<"pose">, label: string): string {
       return t("beats.beat");
     default:
       return label;
+  }
+}
+
+/**
+ * Display name for a VRM expression: the 18 VRM presets have catalog labels;
+ * an Avatar's own expression names are its data, shown title-cased.
+ */
+export function expressionLabel(
+  t: TFunction<"pose">,
+  expressionName: string,
+): string {
+  switch (expressionName as VRMExpressionPresetName) {
+    case "neutral":
+      return t("expressions.presets.neutral");
+    case "happy":
+      return t("expressions.presets.happy");
+    case "angry":
+      return t("expressions.presets.angry");
+    case "sad":
+      return t("expressions.presets.sad");
+    case "relaxed":
+      return t("expressions.presets.relaxed");
+    case "surprised":
+      return t("expressions.presets.surprised");
+    case "aa":
+      return t("expressions.presets.aa");
+    case "ih":
+      return t("expressions.presets.ih");
+    case "ou":
+      return t("expressions.presets.ou");
+    case "ee":
+      return t("expressions.presets.ee");
+    case "oh":
+      return t("expressions.presets.oh");
+    case "blink":
+      return t("expressions.presets.blink");
+    case "blinkLeft":
+      return t("expressions.presets.blinkLeft");
+    case "blinkRight":
+      return t("expressions.presets.blinkRight");
+    case "lookUp":
+      return t("expressions.presets.lookUp");
+    case "lookDown":
+      return t("expressions.presets.lookDown");
+    case "lookLeft":
+      return t("expressions.presets.lookLeft");
+    case "lookRight":
+      return t("expressions.presets.lookRight");
+    default:
+      return identifierLabel(expressionName);
   }
 }
 

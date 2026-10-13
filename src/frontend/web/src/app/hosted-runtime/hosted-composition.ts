@@ -22,6 +22,7 @@ import {
   forgetHostedRecoveryIdentity,
 } from "./recovery-identity";
 import { purgeHostedRecoverySessions } from "@/lib/content/recovery-session";
+import { WordedError } from "@/lib/errors/apiError";
 
 type HostedContext = {
   schema_version: number;
@@ -713,7 +714,9 @@ export function createHostedComposition(
       openAccount: () => {
         if (!accountUrl) {
           const t = getI18n().getFixedT(null, "app");
-          throw new Error(t("admission.accountUnavailableContactOperator"));
+          throw new WordedError(
+            t("admission.accountUnavailableContactOperator"),
+          );
         }
         options.navigate(accountUrl);
       },

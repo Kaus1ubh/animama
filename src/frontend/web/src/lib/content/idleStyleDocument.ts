@@ -2,6 +2,7 @@ import { getI18n } from "react-i18next";
 
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
 import { emotionLabel } from "@/lib/emotion/presentation";
+import { WordedError } from "@/lib/errors/apiError";
 
 export const IDLE_INTENSITIES = ["1", "2", "3"] as const;
 export type IdleIntensity = (typeof IDLE_INTENSITIES)[number];
@@ -21,11 +22,15 @@ export type IdleStyleDocument = {
 function validatePool(pool: string[], label: string, allowEmpty: boolean) {
   const t = getI18n().getFixedT(null, "library");
   if (!allowEmpty && pool.length === 0)
-    throw new Error(t("content.idleStyle.poolEmpty", { pool: label }));
+    throw new WordedError(t("content.idleStyle.poolEmpty", { pool: label }));
   if (pool.some((ref) => !ref.trim()))
-    throw new Error(t("content.idleStyle.poolBlankReference", { pool: label }));
+    throw new WordedError(
+      t("content.idleStyle.poolBlankReference", { pool: label }),
+    );
   if (new Set(pool).size !== pool.length)
-    throw new Error(t("content.idleStyle.poolDuplicate", { pool: label }));
+    throw new WordedError(
+      t("content.idleStyle.poolDuplicate", { pool: label }),
+    );
 }
 
 /** Build the Style descriptor without changing Gesture playback or equipment. */

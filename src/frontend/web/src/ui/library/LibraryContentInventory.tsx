@@ -78,6 +78,7 @@ import { LibrarySoundDialog } from "./LibrarySoundDialog";
 import { LibraryFilterMenu } from "./LibraryFilterMenu";
 import { LibraryProductRow, type LibraryLayout } from "./LibraryProductRow";
 import { useLibraryLayout } from "./useLibraryLayout";
+import { failureLine } from "@/lib/errors/apiError";
 
 type SearchUpdate = (update: Partial<ContentLibrarySearch>) => void;
 
@@ -518,9 +519,7 @@ export function LibraryContentInventory({
       );
     } catch (cause) {
       setPreviewError(
-        cause instanceof Error
-          ? cause.message
-          : t("inventory.idleStylePreviewFailed"),
+        failureLine(cause, t("inventory.idleStylePreviewFailed")),
       );
     }
   };

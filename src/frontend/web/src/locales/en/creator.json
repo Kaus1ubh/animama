@@ -4,6 +4,10 @@
     "tryAgain": "Try again"
   },
   "avatar": {
+    "loading": {
+      "model": "Loading model…",
+      "setup": "Setting up…"
+    },
     "noRuntimeFile": "The selected Avatar Model has no runtime file.",
     "notAuthorized": "The selected Avatar Model could not be authorized.",
     "renderFailed": "The selected Avatar could not be rendered."
@@ -61,13 +65,18 @@
   "modelPreview": {
     "animaModel": "{{name}} (Anima)",
     "animasFailed": "Could not load your Animas.",
+    "avatar": "Avatar",
     "includedFailed": "The selected Included Avatar could not be prepared.",
     "includedListFailed": "Could not load the Included Avatars.",
     "noAnima": "Create an Anima before previewing this effect on an Avatar.",
     "noAvatar": "The selected Anima does not have an available Avatar.",
     "releaseUnavailable": "The selected Avatar release is no longer available.",
     "runtimeFailed": "Could not load the preview Anima's runtime.",
-    "unnamedAnimaModel": "Your (Anima)"
+    "unnamedAnimaModel": "Your (Anima)",
+    "versions": {
+      "equipped": "Equipped on preview Anima",
+      "included": "Included Avatar"
+    }
   },
   "panel": {
     "authoringTools": "Authoring tools",

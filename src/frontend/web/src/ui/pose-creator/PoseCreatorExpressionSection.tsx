@@ -16,6 +16,7 @@ import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
 import { Slider } from "@/ui/components/slider";
 import { PoseCreatorPanelSection } from "./PoseCreatorPanelSection";
+import { expressionLabel } from "./poseLabels";
 import {
   clampExpressionWeight,
   formatExpressionWeight,
@@ -24,13 +25,6 @@ import {
   usePoseCreatorClipUndoGrouping,
   usePoseCreatorUndoGrouping,
 } from "./usePoseCreatorUndoGrouping";
-
-function formatExpressionLabel(expressionName: string): string {
-  const spaced = expressionName
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/_/g, " ");
-  return spaced.replace(/\b\w/g, (character) => character.toUpperCase());
-}
 
 function PoseCreatorExpressionSectionContent({
   variant = "panel",
@@ -87,9 +81,9 @@ function PoseCreatorExpressionSectionContent({
     return expressionNames.filter(
       (expressionName) =>
         expressionName.toLowerCase().includes(query) ||
-        formatExpressionLabel(expressionName).toLowerCase().includes(query),
+        expressionLabel(t, expressionName).toLowerCase().includes(query),
     );
-  }, [expressionNames, expressionSearch]);
+  }, [expressionNames, expressionSearch, t]);
 
   const handleExpressionChange = (expressionName: string, value: number) => {
     if (!activeAvatar) return;
@@ -240,7 +234,7 @@ function PoseCreatorExpressionSectionContent({
                     )}
                     title={expressionName}
                   >
-                    {formatExpressionLabel(expressionName)}
+                    {expressionLabel(t, expressionName)}
                   </span>
                   <Slider
                     value={[currentValue]}
@@ -262,7 +256,7 @@ function PoseCreatorExpressionSectionContent({
                     onBlur={endUndoGroup}
                     className="[&_[data-slot=slider-thumb]]:size-3.5 [&_[data-slot=slider-thumb]]:border-white [&_[data-slot=slider-thumb]]:shadow-sm [&_[data-slot=slider-track]]:h-1.5"
                     aria-label={t("expressions.slider", {
-                      name: expressionName,
+                      name: expressionLabel(t, expressionName),
                     })}
                   />
                   <button
@@ -384,7 +378,9 @@ function PoseCreatorExpressionSectionContent({
                   onKeyDown={beginUndoGroup}
                   onKeyUp={endUndoGroup}
                   onBlur={endUndoGroup}
-                  aria-label={t("expressions.slider", { name: expressionName })}
+                  aria-label={t("expressions.slider", {
+                    name: expressionLabel(t, expressionName),
+                  })}
                 />
               </div>
             );

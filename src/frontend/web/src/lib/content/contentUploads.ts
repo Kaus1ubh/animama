@@ -1,7 +1,13 @@
 import { getI18n } from "react-i18next";
 
 import { parseContentApiErrorDetail } from "@/lib/content/contentSaveErrors";
-import { errorWording } from "@/lib/errors/apiError";
+import {
+  apiErrorLine,
+  errorWording,
+  failureLine,
+  uncodedErrorText,
+  WordedError,
+} from "@/lib/errors/apiError";
 import { normalizeBaseUrl } from "@/lib/utils";
 
 export type ContentPreflightResult = {
@@ -81,7 +87,7 @@ export function sha256File(
     );
     worker.addEventListener("error", () => {
       cleanup();
-      reject(new Error(getI18n().t("errors:uploads.hashingFailed")));
+      reject(new WordedError(getI18n().t("errors:uploads.hashingFailed")));
     });
     options?.signal?.addEventListener("abort", abort, { once: true });
     if (options?.signal?.aborted) {
@@ -174,10 +180,15 @@ export function getContentUploadErrorPresentation(
     }
     if (code) return { message: conflictMessage(code), code, details };
   }
+  // A worded failure shows as it is; other English is primary only in English.
   if (error instanceof Error && error.message.trim())
-    return { message: error.message, code: null, details: {} };
+    return { message: failureLine(error, fallback), code: null, details: {} };
   if (typeof error === "string" && error.trim())
-    return { message: error, code: null, details: {} };
+    return {
+      message: apiErrorLine(uncodedErrorText(error, fallback)),
+      code: null,
+      details: {},
+    };
   return { message: fallback, code: null, details: {} };
 }
 

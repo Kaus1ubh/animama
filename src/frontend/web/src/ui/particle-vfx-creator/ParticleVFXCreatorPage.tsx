@@ -681,8 +681,9 @@ export function ParticleVFXCreatorPage({ itemId }: { itemId?: string }) {
     const nextId = draft?.catalog.id ?? "custom-particle-vfx";
     const nextDraft = createParticleVFXEditorDraftFromImport(parsed, {
       id: nextId,
-      label: draft?.catalog.label ?? "Custom Particle VFX",
-      description: draft?.catalog.description ?? "Imported particle effect.",
+      // Unnamed, Save gives it the default name in the UI Locale.
+      label: draft?.catalog.label ?? "",
+      description: draft?.catalog.description ?? "",
       assetPath:
         draft?.catalog.assetPath ?? `/effects/vfx/quark/${nextId}.json`,
       defaultAnchor: draft?.catalog.defaultAnchor ?? "head",

@@ -16,7 +16,6 @@ export type GestureLoadoutPresentation = {
     motionType: PyGesture["implementation_kind"] | null;
     gesture: PyGesture | null;
   }>;
-  starterSummary: string;
 };
 
 export type CustomGestureCatalogRow = {
@@ -228,7 +227,6 @@ export function presentGestureLoadout(
 ): GestureLoadoutPresentation {
   const starter = loadout.gestures.filter((row) => row.origin === "starter");
   const custom = loadout.gestures.filter((row) => row.origin === "custom");
-  const disabled = loadout.disabled_starter_gestures.length;
   const builtinBySemanticKey = new Map(
     builtinGestures
       .filter(
@@ -248,15 +246,5 @@ export function presentGestureLoadout(
         loadout.starter_gesture_implementation_kinds?.[starterId] ?? null,
       gesture: builtinBySemanticKey.get(starterId) ?? null,
     })),
-    starterSummary: `${starter.length} active${disabled ? ` · ${disabled} disabled` : ""}`,
   };
-}
-
-/** Product-facing state label for a canonical Reaction cell. */
-export function reactionStateLabel(
-  state: "starter" | "custom" | "empty",
-): string {
-  if (state === "starter") return "Starter";
-  if (state === "custom") return "Custom";
-  return "Empty";
 }

@@ -1,7 +1,7 @@
 import { getI18n } from "react-i18next";
 
 import { parseContentApiErrorDetail } from "@/lib/content/contentSaveErrors";
-import { errorWording } from "@/lib/errors/apiError";
+import { errorWording, failureLine } from "@/lib/errors/apiError";
 
 /** The message for a failure, naming the display names the server attached. */
 function sharingErrorText(code: string, items: readonly string[]): string {
@@ -38,8 +38,14 @@ export function sharingMessage(code: string): string {
     errorWording("sharing", code) ?? getI18n().t("errors:sharing.unexpected")
   );
 }
+/**
+ * One line for a package failure: a worded failure as it is, other English
+ * primary in English and secondary detail elsewhere (`failureLine`).
+ */
 export function sharingErrorMessage(error: unknown): string {
-  if (error instanceof Error) return error.message;
+  if (error instanceof SharingError) return error.message;
+  if (error instanceof Error)
+    return failureLine(error, getI18n().t("errors:sharing.unexpected"));
   const code = parseContentApiErrorDetail(error)?.code;
   return code
     ? sharingMessage(code)

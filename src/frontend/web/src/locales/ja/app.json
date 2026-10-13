@@ -197,7 +197,13 @@
     "processingUnavailable": "処理はキューに追加されませんでした。ドキュメント処理が利用可能になったら、ライブラリから元のファイルを処理できます。",
     "processingUnavailableDesktop": "ドキュメント処理を利用できません。設定でパックをインストールしてから、ライブラリでファイルを処理してください。",
     "queuedForProcessing": "ファイルをアップロードし、処理のキューに追加しました。",
-    "rejected": "このファイルはアップロードできません。"
+    "rejected": "このファイルはアップロードできません。",
+    "restrictions": {
+      "duplicate": "{{file}} はすでに追加されています。",
+      "fileTypes": "アップロードできるファイル形式: {{types}}",
+      "tooLarge": "{{file}} は上限サイズの {{size}} を超えています。",
+      "unnamed": "名前のないファイル"
+    }
   },
   "voiceDownloads": {
     "changeFailed": "音声のダウンロードの変更を完了できませんでした。しばらくしてから再試行してください。",

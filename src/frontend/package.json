@@ -21,6 +21,7 @@
     "e2e:test": "node scripts/run-playwright-e2e.mjs",
     "e2e:test:fast": "node scripts/run-playwright-e2e.mjs --grep-invert @complete-anima",
     "e2e:test:headed": "node scripts/run-playwright-e2e.mjs --headed",
+    "e2e:test:pseudo": "node scripts/run-playwright-e2e.mjs --pseudo-locale",
     "e2e:cleanup": "node scripts/cleanup-playwright-e2e.mjs",
     "e2e:report": "node scripts/show-playwright-report.mjs",
     "e2e:install": "playwright install chromium",

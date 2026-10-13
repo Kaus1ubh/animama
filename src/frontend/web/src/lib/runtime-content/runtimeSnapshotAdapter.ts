@@ -9,6 +9,12 @@ import type {
   RuntimeContentSlot,
 } from "./types";
 
+/**
+ * The runtime carries no Avatar name, so the snapshot entry uses this English
+ * placeholder; display code words it in the UI Locale.
+ */
+export const RUNTIME_AVATAR_MODEL_NAME = "Avatar";
+
 const slotsByType: Record<string, RuntimeContentSlot> = {
   particle_effect: "particle_vfx",
   avatar_effect: "avatar_vfx",
@@ -182,7 +188,7 @@ export function adaptRuntimeSnapshot(
       runtime.avatar_model = privateEntry(
         {
           ...avatar,
-          name: "Avatar",
+          name: RUNTIME_AVATAR_MODEL_NAME,
           config: {
             avatar_catalog_item_id: String(object(avatar.source).item_id ?? ""),
             // The effective face part correction; validated where it is read.

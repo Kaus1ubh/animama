@@ -2,28 +2,6 @@ import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 
 export type PoseCreatorDraftUndoGroup = "pose" | "clip";
 export type PoseCreatorHistoryKeyboardAction = "undo" | "redo";
-export type PoseCreatorHistoryShortcutLabels = {
-  undo: string;
-  redo: string;
-};
-
-function readBrowserPlatformHint(): string {
-  if (typeof navigator === "undefined") return "";
-  return `${navigator.platform} ${navigator.userAgent}`;
-}
-
-/** Format history shortcuts using the host OS conventions shown to the user. */
-export function getPoseCreatorHistoryShortcutLabels(
-  os: string | null = null,
-  browserPlatformHint = readBrowserPlatformHint(),
-): PoseCreatorHistoryShortcutLabels {
-  const platform = `${os ?? ""} ${browserPlatformHint}`.toLowerCase();
-  const isApplePlatform = /darwin|mac|iphone|ipad|ipod/.test(platform);
-  return isApplePlatform
-    ? { undo: "⌘Z", redo: "⇧⌘Z" }
-    : { undo: "Ctrl+Z", redo: "Ctrl+Shift+Z or Ctrl+Y" };
-}
-
 /** Route FK/expression edits to Pose history or the active inline Clip pose. */
 export function beginPoseCreatorDraftUndoGroup(): PoseCreatorDraftUndoGroup {
   const state = usePoseCreatorStore.getState();

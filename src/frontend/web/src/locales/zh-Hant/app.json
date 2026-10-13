@@ -197,7 +197,13 @@
     "processingUnavailable": "處理未加入佇列。文件處理可用後，你可以在資源庫中處理原始檔案。",
     "processingUnavailableDesktop": "無法使用文件處理。請在設定中安裝功能包，然後在資源庫中處理該檔案。",
     "queuedForProcessing": "檔案已上傳並加入處理佇列。",
-    "rejected": "無法上傳此檔案。"
+    "rejected": "無法上傳此檔案。",
+    "restrictions": {
+      "duplicate": "{{file}} 已新增。",
+      "fileTypes": "僅可上傳以下檔案類型：{{types}}",
+      "tooLarge": "{{file}} 超過了 {{size}} 的大小上限。",
+      "unnamed": "未命名檔案"
+    }
   },
   "voiceDownloads": {
     "changeFailed": "語音下載變更未能完成。請稍後重試。",

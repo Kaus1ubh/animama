@@ -21,6 +21,7 @@
   },
   "appearance": {
     "created": "Local Appearance Image created.",
+    "defaultImageName": "Anima image",
     "defaultOption": {
       "background_image": "No image",
       "profile_image": "Default Avatar portrait"

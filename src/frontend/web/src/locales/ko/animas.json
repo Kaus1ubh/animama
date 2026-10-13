@@ -21,6 +21,7 @@
   },
   "appearance": {
     "created": "로컬 외형 이미지를 만들었습니다.",
+    "defaultImageName": "Anima 이미지",
     "defaultOption": {
       "background_image": "이미지 없음",
       "profile_image": "기본 아바타 초상화"

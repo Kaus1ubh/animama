@@ -1,6 +1,8 @@
 import { getI18n } from "react-i18next";
 import { toast } from "sonner";
 
+import { apiErrorLine, uncodedErrorText } from "@/lib/errors/apiError";
+
 /**
  * Word a Text-to-Speech warning from its reason code. Reasons without their
  * own wording (provider and runtime failures that carry a specific message,
@@ -43,6 +45,19 @@ export function showTtsUnavailable(reason: string, message?: string): void {
   toast.error(t("tts.unavailable"), {
     description: ttsWarningText(reason, message),
   });
+}
+
+/**
+ * Report a provider or runtime failure. Its English message shows as written
+ * in English and as detail under the generic warning elsewhere; reasons with
+ * their own wording ignore it.
+ */
+export function showTtsRuntimeFailure(reason: string, message: string): void {
+  const t = getI18n().getFixedT(null, "app");
+  showTtsUnavailable(
+    reason,
+    apiErrorLine(uncodedErrorText(message, t("tts.warnings.generic"))),
+  );
 }
 
 /** Report a saved Pocket voice that cannot be used this session. */

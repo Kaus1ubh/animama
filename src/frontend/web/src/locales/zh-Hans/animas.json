@@ -21,6 +21,7 @@
   },
   "appearance": {
     "created": "已创建本地外观图片。",
+    "defaultImageName": "Anima 图片",
     "defaultOption": {
       "background_image": "无图片",
       "profile_image": "默认虚拟形象肖像"

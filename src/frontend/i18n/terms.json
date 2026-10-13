@@ -14,6 +14,7 @@
     { "en": "Scene Effect", "ja": "シーンエフェクト", "ko": "장면 효과", "zh-Hans": "场景特效", "zh-Hant": "場景特效" },
     { "en": "Action", "ja": "アクション", "ko": "액션", "zh-Hans": "行为", "zh-Hant": "行為", "note": "The family of Gestures, Reactions and Effects an Anima can perform; a plan step or operation is a different word (ja 操作, ko 작업, zh 操作)." },
     { "en": "Identity", "ja": "アイデンティティ", "ko": "정체성", "zh-Hans": "身份设定", "zh-Hant": "身分設定", "note": "An Anima's private identity document." },
+    { "en": "Starter", "ja": "同梱", "ko": "기본 제공", "zh-Hans": "内置", "zh-Hant": "內建", "note": "Included content offered as a starting point (for example a Starter Gesture); renders like Included content." },
     { "en": "Starter Pack", "ja": "スターターパック", "ko": "스타터 팩", "zh-Hans": "入门包", "zh-Hant": "入門包" },
     { "en": "My Content", "ja": "マイコンテンツ", "ko": "내 콘텐츠", "zh-Hans": "我的内容", "zh-Hant": "我的內容", "note": "The owner's Local content as labelled in the UI; Chinese wraps it in quotation marks inside sentences." },
     { "en": "Clip", "ja": "クリップ", "ko": "클립", "zh-Hans": "片段", "zh-Hant": "片段", "note": "A timed animation inside a Gesture, Reaction or Pose." },

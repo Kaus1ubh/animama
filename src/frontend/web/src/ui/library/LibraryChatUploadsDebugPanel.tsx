@@ -12,6 +12,7 @@ import {
   Trash2,
   Upload,
 } from "lucide-react";
+import { useFormatters } from "@animama/product-ui/i18n";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { DEBUG_ENABLED } from "@/platform/env";
 import { toast } from "sonner";
@@ -26,11 +27,8 @@ import {
   type UserFileUploadCardStatus,
 } from "@/lib/user-files/upload-card-status";
 import {
-  formatFileSize,
-  formatUserFileTimestamp,
   getUserFileErrorMessage,
   USER_FILE_ACTIVE_JOB_STATUSES,
-  userFileStatusLabel,
 } from "@/lib/user-files/uploads";
 import { cn } from "@/lib/utils";
 import { useUserFiles } from "@/query/hooks/useUserFiles";
@@ -50,6 +48,22 @@ const PROCESSABLE_STATUSES = new Set([
 ]);
 type UppyFilesState = ReturnType<UserFileUploadUppy["getState"]>["files"];
 
+/** Debug-only timestamp text; this panel stays English. */
+function formatUserFileTimestamp(value: string | null | undefined) {
+  if (!value) return "Never";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "Unknown";
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short",
+  }).format(date);
+}
+
+/** Debug-only status text from a backend status ID. */
+function userFileStatusLabel(status: string | null | undefined) {
+  if (!status) return "Unknown";
+  return status.replaceAll("_", " ");
+}
 function isActiveJob(file: PyUserFileResponse) {
   const jobStatus = file.latest_processing_job?.status;
   return Boolean(jobStatus && USER_FILE_ACTIVE_JOB_STATUSES.has(jobStatus));
@@ -207,6 +221,7 @@ const DebugSearchTools =
     : null;
 
 export function LibraryChatUploadsDebugPanel() {
+  const { fileSize } = useFormatters();
   const capabilities = useRuntimeCapabilities();
   const processingEnabled =
     capabilities.data?.user_file_processing.enabled === true;
@@ -447,9 +462,10 @@ export function LibraryChatUploadsDebugPanel() {
                         <div className="text-muted-foreground mt-1 flex flex-wrap gap-x-2 gap-y-1 text-xs">
                           <span>{file.normalized_extension}</span>
                           <span>
-                            {formatFileSize(
+                            {fileSize(
                               file.stored_size_bytes ??
-                                file.declared_size_bytes,
+                                file.declared_size_bytes ??
+                                0,
                             )}
                           </span>
                           {file.last_error ? (

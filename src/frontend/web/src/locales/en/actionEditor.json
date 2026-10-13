@@ -278,6 +278,8 @@
       "reaction": "Discard the current changes and customize “{{name}}” as a new reaction?"
     },
     "confirmLoad": "Discard the current changes and load “{{name}}”?",
+    "customName": "{{name}} Custom",
+    "customNotes": "Customized from Starter {{name}}.",
     "description": "Open your content or customize an immutable Starter clip.",
     "loading": "Loading…",
     "mine": {
@@ -329,6 +331,7 @@
     },
     "save": {
       "chooseVrma": "Choose a VRMA file before saving.",
+      "clipTooLarge": "This clip is larger than the {{size}} the app can play. Shorten it or remove keyframes.",
       "incomplete": {
         "gesture": "Complete the required Gesture details.",
         "reaction": "Complete the required Reaction details."
@@ -337,7 +340,8 @@
         "gesture": "Gesture saved.",
         "reaction": "Reaction saved."
       },
-      "savedDescription": "The readable Local files were updated. Active chats keep their mounted bytes until reopened."
+      "savedDescription": "The readable Local files were updated. Active chats keep their mounted bytes until reopened.",
+      "sessionExpired": "The editable content session expired."
     }
   },
   "persistence": {

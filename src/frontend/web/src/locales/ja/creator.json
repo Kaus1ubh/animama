@@ -4,6 +4,10 @@
     "tryAgain": "再試行"
   },
   "avatar": {
+    "loading": {
+      "model": "モデルを読み込み中…",
+      "setup": "準備中…"
+    },
     "noRuntimeFile": "選択したアバターモデルにはランタイムファイルがありません。",
     "notAuthorized": "選択したアバターモデルへのアクセスを許可できませんでした。",
     "renderFailed": "選択したアバターを表示できませんでした。"
@@ -61,13 +65,18 @@
   "modelPreview": {
     "animaModel": "{{name}}（Anima）",
     "animasFailed": "Anima を読み込めませんでした。",
+    "avatar": "アバター",
     "includedFailed": "選択した同梱アバターを準備できませんでした。",
     "includedListFailed": "同梱アバターを読み込めませんでした。",
     "noAnima": "アバターでこのエフェクトをプレビューするには、先に Anima を作成してください。",
     "noAvatar": "選択した Anima には利用できるアバターがありません。",
     "releaseUnavailable": "選択したアバターのリリースは利用できなくなりました。",
     "runtimeFailed": "プレビュー用 Anima のランタイムを読み込めませんでした。",
-    "unnamedAnimaModel": "あなたの Anima"
+    "unnamedAnimaModel": "あなたの Anima",
+    "versions": {
+      "equipped": "プレビュー用 Anima に装備中",
+      "included": "同梱アバター"
+    }
   },
   "panel": {
     "authoringTools": "編集ツール",

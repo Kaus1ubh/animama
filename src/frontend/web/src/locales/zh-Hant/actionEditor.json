@@ -274,6 +274,8 @@
       "reaction": "要捨棄目前的變更，並將「{{name}}」自訂為新反應嗎？"
     },
     "confirmLoad": "要捨棄目前的變更並載入「{{name}}」嗎？",
+    "customName": "{{name}}（自訂）",
+    "customNotes": "由內建的「{{name}}」自訂而來。",
     "description": "開啟你的內容，或自訂無法變更的內建片段。",
     "loading": "正在載入…",
     "mine": {
@@ -325,6 +327,7 @@
     },
     "save": {
       "chooseVrma": "儲存前請選擇一個 VRMA 檔案。",
+      "clipTooLarge": "此片段超過了應用程式可播放的 {{size}} 上限。請縮短片段或刪除關鍵影格。",
       "incomplete": {
         "gesture": "請填寫動作的必填資訊。",
         "reaction": "請填寫反應的必填資訊。"
@@ -333,7 +336,8 @@
         "gesture": "已儲存動作。",
         "reaction": "已儲存反應。"
       },
-      "savedDescription": "可讀取的本機檔案已更新。進行中的聊天會繼續使用已載入的資料，直到重新開啟。"
+      "savedDescription": "可讀取的本機檔案已更新。進行中的聊天會繼續使用已載入的資料，直到重新開啟。",
+      "sessionExpired": "編輯工作階段已過期。"
     }
   },
   "persistence": {
