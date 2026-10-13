@@ -13,11 +13,9 @@ Welcome asks “What should Animama call you?” and accepts a required nonblank
 display name up to 80 characters. Welcome has no Skip action. AI
 (model and the OpenAI or Anthropic key) and Voice (speech downloads,
 Text-to-Speech and the ElevenLabs key) offer "Skip for now". Finish writes changed
-Text-to-Speech preferences and opens a concise 18+ confirmation modal while
-entering the first Anima. Chat remains blocked until the owner chooses
-"I am 18 or older"; the modal links `/safety`, offers a decline path and can
-return to setup. A reload resumes the modal. Only explicit confirmation stores
-the name, age confirmation and any chosen model. Completion is idempotent and controlled by backend runtime
+Text-to-Speech preferences and opens a blocking 18+ modal on the first Anima.
+The modal links `/safety`; only explicit confirmation stores the name,
+age confirmation and any chosen model. Completion is idempotent and controlled by backend runtime
 context rather than browser storage. The bootstrap placeholder may be null
 before setup. An earlier skipped or unconfirmed setup reopens without resetting
 data.

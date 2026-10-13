@@ -22,7 +22,6 @@ export type SetupTtsProvider = "pocket_tts" | "elevenlabs";
 export type SetupDraft = {
   step: SetupStep;
   displayName: string;
-  adultConfirmed: boolean;
   /** The wizard is finished; backend onboarding still needs explicit confirmation. */
   awaitingAgeConfirmation: boolean;
   modelLocation: SetupModelLocation;
@@ -40,7 +39,6 @@ let volatileDraft: { ownerId: string; draft: SetupDraft } | null = null;
 export const emptySetupDraft = (): SetupDraft => ({
   step: "welcome",
   displayName: "",
-  adultConfirmed: false,
   awaitingAgeConfirmation: false,
   modelLocation: "cloud",
   chatModelId: null,
@@ -63,8 +61,7 @@ function parseDraft(value: unknown): SetupDraft {
   const raw = value as Record<string, unknown>;
   if (
     typeof raw.displayName !== "string" ||
-    raw.displayName.length > DISPLAY_NAME_MAX_LENGTH ||
-    typeof raw.adultConfirmed !== "boolean"
+    raw.displayName.length > DISPLAY_NAME_MAX_LENGTH
   )
     return empty;
   const step = SETUP_STEPS.find((item) => item === raw.step) ?? "welcome";
@@ -72,7 +69,6 @@ function parseDraft(value: unknown): SetupDraft {
     // The name is the wizard prerequisite; age confirmation follows it.
     step: raw.displayName.trim() ? step : "welcome",
     displayName: raw.displayName,
-    adultConfirmed: raw.adultConfirmed,
     awaitingAgeConfirmation:
       Boolean(raw.displayName.trim()) && raw.awaitingAgeConfirmation === true,
     modelLocation: raw.modelLocation === "local" ? "local" : "cloud",
@@ -114,7 +110,6 @@ export function writeSetupDraft(
     const projected: SetupDraft = {
       step: draft.step,
       displayName: draft.displayName.slice(0, DISPLAY_NAME_MAX_LENGTH),
-      adultConfirmed: draft.adultConfirmed === true,
       awaitingAgeConfirmation: draft.awaitingAgeConfirmation === true,
       modelLocation: draft.modelLocation === "local" ? "local" : "cloud",
       chatModelId: draft.chatModelId?.slice(0, MAX_MODEL_ID_LENGTH) || null,

@@ -183,14 +183,11 @@ The dialog, **Start a new chat?**, explains in user terms that the selected
 model keeps conversations differently, without naming APIs. Quick Chat does not
 switch; it shows a toast directing the user to the main chat.
 
-The input's provider-logo button opens a compact popover with the current effort,
-model name, and a discrete slider for the model's supported efforts. Selecting
-the model name replaces that popover with a searchable model list; Back returns
-to reasoning. Models without adjustable reasoning retain the model chooser
-without a slider. The Chat features icon in the popover header opens native tools,
-currently `web_search`, for the active model in the same popover. Catalog rows
-advertise these choices through `requestable_native_tool_support` and
-`supported_reasoning_efforts`. Supported native tools
+The input's provider-logo button opens a popover with the supported reasoning
+slider. Its model name and Chat features icon switch the same popover to the
+model list or native-tool settings; Back returns to reasoning. Catalog rows
+advertise `requestable_native_tool_support` and `supported_reasoning_efforts`.
+Models without adjustable reasoning omit the slider. Supported native tools
 are enabled by default when the active model advertises them. The effort starts
 at the row's `default_reasoning_effort` when the row offers it (`medium` on
 Anthropic rows), else at its first supported effort (`defaultReasoningEffort`

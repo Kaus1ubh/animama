@@ -320,6 +320,31 @@ describe("chat model picker settings", () => {
     await click(button("Chat features"));
     expect(webSearch().getAttribute("aria-checked")).toBe("false");
     expect(fixture.overrides.get().native_tools).toEqual([]);
+    await click(button("Back to model and reasoning"));
+    await chooseModel("claude-haiku-5-5");
+    expect(fixture.overrides.get()).toEqual({
+      native_tools: [],
+      reasoning_effort: "xhigh",
+    });
+    expect(fixture.saveModel).not.toHaveBeenCalled();
+  });
+
+  it("keeps the current model, overrides and chooser when saving a new model fails", async () => {
+    const onModelChange = vi.fn();
+    await renderPicker(LUNA, { onModelChange });
+    await pressEffortKey("End");
+    fixture.saveModel.mockImplementationOnce(() => {
+      throw new Error("Profile update failed");
+    });
+    await chooseModel("claude-haiku-5-5");
+
+    expect(fixture.activeModelId.get()).toBe(LUNA);
+    expect(fixture.overrides.get()).toEqual({
+      native_tools: ["web_search"],
+      reasoning_effort: "max",
+    });
+    expect(popover().getAttribute("aria-label")).toBe("Select model");
+    expect(onModelChange).not.toHaveBeenCalled();
   });
 
   it("retains confirmation for an incompatible chat without changing overrides", async () => {

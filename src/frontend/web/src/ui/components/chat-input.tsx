@@ -49,7 +49,6 @@ import type {
   PyModelProviderCatalogItem,
   PyUserFileResponse,
 } from "@/lib/content/catalogTypes";
-import type { WebSearchCapability } from "@animama/runtime-contracts/api-types";
 import { chatModelSendGate } from "@/lib/chat/model-provider-compatibility";
 import {
   selectableNativeTools,
@@ -335,23 +334,6 @@ function groupModelOptions(items: PyModelProviderCatalogItem[]) {
   }));
 }
 
-type WebSearchState = WebSearchCapability | null | undefined;
-
-function supportedNativeTools(
-  item: PyModelProviderCatalogItem | null,
-  webSearch: WebSearchState,
-) {
-  return selectableNativeTools(item, webSearch);
-}
-
-/** Every available tool starts on, including web search. */
-function defaultNativeTools(
-  item: PyModelProviderCatalogItem | null,
-  webSearch: WebSearchState,
-) {
-  return supportedNativeTools(item, webSearch);
-}
-
 /** Friendly labels without changing the catalog's supported effort values. */
 function reasoningEffortLabel(effort: string) {
   if (effort === "xhigh") return "Extra high";
@@ -370,12 +352,6 @@ type ChatInputModelSelectorProps = React.ComponentProps<typeof Button> & {
   disabled?: boolean;
   onIncompatibleModelSelect?: (item: PyModelProviderCatalogItem) => void;
   onModelChange?: () => void;
-};
-
-type SelectModelResult = {
-  ok: boolean;
-  // Re-selecting the active model must preserve request-scoped options.
-  changed: boolean;
 };
 
 function ChatInputModelSelector({
@@ -418,10 +394,10 @@ function ChatInputModelSelector({
   // Rows sharing a name on one connection are told apart without naming APIs.
   const alternateIds = useMemo(() => alternateModelIds(models), [models]);
   const selectedNativeTools = useMemo(() => {
-    const supported = new Set(supportedNativeTools(activeItem, webSearch));
+    const supported = new Set(selectableNativeTools(activeItem, webSearch));
     const requested = Array.isArray(chatRequestOptions?.native_tools)
       ? chatRequestOptions.native_tools
-      : defaultNativeTools(activeItem, webSearch);
+      : selectableNativeTools(activeItem, webSearch);
     return new Set(requested.filter((tool) => supported.has(tool)));
   }, [activeItem, chatRequestOptions?.native_tools, webSearch]);
   const reasoningEfforts = supportedReasoningEfforts(activeItem);
@@ -439,7 +415,7 @@ function ChatInputModelSelector({
   const effortLabel = selectedReasoningEffort
     ? reasoningEffortLabel(selectedReasoningEffort)
     : "Model";
-  const nativeTools = supportedNativeTools(activeItem, webSearch);
+  const nativeTools = selectableNativeTools(activeItem, webSearch);
   const searchAvailability = webSearchAvailability(activeItem, webSearch);
   const isDisabled = Boolean(
     disabledProp || updateAnimaChatProfile.isPending || !anima?.chat_profile,
@@ -454,7 +430,8 @@ function ChatInputModelSelector({
 
   const resetChatRequestSettingsForModel = useCallback(
     (item: PyModelProviderCatalogItem) => {
-      const nativeTools = defaultNativeTools(item, webSearch);
+      // Every available tool starts on, including web search.
+      const nativeTools = selectableNativeTools(item, webSearch);
       setChatRequestOverrides((current) => ({
         ...current,
         native_tools: nativeTools.length ? nativeTools : undefined,
@@ -464,62 +441,40 @@ function ChatInputModelSelector({
     [setChatRequestOverrides, webSearch],
   );
 
-  const selectModel = useCallback(
-    async (item: PyModelProviderCatalogItem): Promise<SelectModelResult> => {
-      if (isDisabled) return { ok: false, changed: false };
+  const handleSelect = async (item: PyModelProviderCatalogItem) => {
+    if (isDisabled) return;
 
-      const gate = chatModelSendGate(activeChat, item);
-      if (!gate.ok) {
-        if (gate.reason === "api_standard_mismatch") {
-          onIncompatibleModelSelect?.(item);
-        } else if (gate.reason === "unsupported_model") {
-          toast.error("This model is not available for direct chat yet.");
-        } else {
-          toast.error("Select a model before chatting.");
-        }
-        return { ok: false, changed: false };
+    const gate = chatModelSendGate(activeChat, item);
+    if (!gate.ok) {
+      if (gate.reason === "api_standard_mismatch") {
+        onIncompatibleModelSelect?.(item);
+      } else if (gate.reason === "unsupported_model") {
+        toast.error("This model is not available for direct chat yet.");
+      } else {
+        toast.error("Select a model before chatting.");
       }
-      if (item.id === activeItemId) {
-        return { ok: true, changed: false };
-      }
+      return;
+    }
+    // Re-selecting the active model must preserve request-scoped options.
+    if (item.id === activeItemId) {
+      setView("reasoning");
+      return;
+    }
 
-      try {
-        await updateAnimaChatProfile.mutateAsync({
-          animaId,
-          body: {
-            default_model_provider_id: item.id,
-          },
-        });
-        return { ok: true, changed: true };
-      } catch {
-        toast.error("Failed to update model");
-        return { ok: false, changed: false };
-      }
-    },
-    [
-      activeChat,
-      activeItemId,
-      isDisabled,
-      animaId,
-      onIncompatibleModelSelect,
-      updateAnimaChatProfile,
-    ],
-  );
-
-  const handleSelect = useCallback(
-    (item: PyModelProviderCatalogItem) => {
-      void selectModel(item).then((result) => {
-        if (result.ok) {
-          setView("reasoning");
-        }
-        if (result.ok && result.changed) {
-          resetChatRequestSettingsForModel(item);
-          onModelChange?.();
-        }
+    try {
+      await updateAnimaChatProfile.mutateAsync({
+        animaId,
+        body: { default_model_provider_id: item.id },
       });
-    },
-    [onModelChange, resetChatRequestSettingsForModel, selectModel],
-  );
+    } catch {
+      toast.error("Failed to update model");
+      return;
+    }
+
+    setView("reasoning");
+    resetChatRequestSettingsForModel(item);
+    onModelChange?.();
+  };
 
   const handleNativeToolChange = (tool: string, checked: boolean) => {
     if (isDisabled || !activeItem || !nativeTools.includes(tool)) return;
@@ -831,7 +786,7 @@ function ChatInputModelSelector({
                               isDisabled || rowUnsupported || rowNeedsWindow
                             }
                             data-checked={isActive}
-                            onSelect={() => handleSelect(item)}
+                            onSelect={() => void handleSelect(item)}
                             className="data-[selected=true]:bg-muted gap-2"
                           >
                             {item.logo_provider ? (

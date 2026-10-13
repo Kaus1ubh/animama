@@ -18,7 +18,6 @@ import {
   adjacentSetupStep,
   anthropicDefaultModel,
   detectedModelsToAdd,
-  onboardingInput,
   openAiDefaultModel,
   ownerModelChoices,
   resolveSetupTtsProvider,
@@ -33,7 +32,6 @@ import {
 const OPENAI_MODEL = "OpenAIResponsesHTTPAgent:gpt-6-luna";
 const HAIKU = "AnthropicMessagesHTTPAgent:claude-haiku-5-5";
 const fixture = vi.hoisted(() => ({
-  completeOnboarding: vi.fn(),
   draft: null as SetupDraft | null,
   capabilities: {
     isPending: false,
@@ -51,7 +49,6 @@ vi.mock("@web/app/local-runtime/LocalRuntimeProvider", () => ({
       firstRunComplete: false,
       principalId: "test-owner",
     },
-    completeOnboarding: fixture.completeOnboarding,
   }),
 }));
 vi.mock("@/app/local-runtime/setup-draft", async (importOriginal) => {
@@ -138,7 +135,7 @@ function renderSetup(draft: Partial<SetupDraft> | null = null): string {
   );
 }
 
-const welcomeDone = { displayName: "Ada", adultConfirmed: true };
+const welcomeDone = { displayName: "Ada" };
 
 const builtinConnection = {
   id: "builtin-openai",
@@ -254,11 +251,10 @@ describe("local first-run setup", () => {
     // Keys and downloads moved to later steps.
     expect(html).not.toContain("data-key-panel");
     expect(html).not.toContain("Download CPU model");
-    expect(fixture.completeOnboarding).not.toHaveBeenCalled();
   });
 
   it("enables Continue with a name before age confirmation", () => {
-    const html = renderSetup({ displayName: "Ada", adultConfirmed: false });
+    const html = renderSetup({ displayName: "Ada" });
     expect(html).toMatch(/<button[^>]*type="submit"[^>]*>Continue<\/button>/u);
     expect(html).not.toMatch(/type="submit"[^>]*disabled=""/u);
   });
@@ -411,22 +407,6 @@ describe("setup step logic", () => {
     expect(adjacentSetupStep("welcome", 1)).toBe("ai");
     expect(adjacentSetupStep("ai", -1)).toBe("welcome");
     expect(adjacentSetupStep("voice", 1)).toBeNull();
-  });
-
-  it("sends the chosen model only when one was chosen and models are configurable", () => {
-    const draft = { adultConfirmed: true, chatModelId: OPENAI_MODEL };
-    expect(onboardingInput(draft, "Ada", true)).toEqual({
-      displayName: "Ada",
-      adultConfirmed: true,
-      chatModelProviderId: OPENAI_MODEL,
-    });
-    expect(
-      onboardingInput({ ...draft, chatModelId: null }, "Ada", true),
-    ).toEqual({ displayName: "Ada", adultConfirmed: true });
-    expect(onboardingInput(draft, "Ada", false)).toEqual({
-      displayName: "Ada",
-      adultConfirmed: true,
-    });
   });
 
   it("writes the Text-to-Speech provider only when chosen, keeping it on", () => {

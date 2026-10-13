@@ -14,7 +14,6 @@ import {
   writeSetupDraft,
   type SetupDraft,
 } from "../setup-draft";
-import { onboardingInput } from "./setup-state";
 import { resolveSelectedAnimaId } from "@/lib/animas/anima-management-search";
 import { normalizeLocalDisplayName } from "@/lib/user-profile/display-name";
 import { useAnimas } from "@/query/hooks/useAnimas";
@@ -94,13 +93,13 @@ function AgeConfirmation({
     try {
       // Only this explicit button press supplies true. A restored wizard draft
       // never supplies the attestation, even if an older draft recorded one.
-      await completeOnboarding(
-        onboardingInput(
-          { ...draft, adultConfirmed: true },
-          normalizeLocalDisplayName(draft.displayName)!,
-          modelConfiguration,
-        ),
-      );
+      await completeOnboarding({
+        displayName: normalizeLocalDisplayName(draft.displayName)!,
+        adultConfirmed: true,
+        ...(modelConfiguration && draft.chatModelId
+          ? { chatModelProviderId: draft.chatModelId }
+          : {}),
+      });
       clearSetupDraft(ownerId);
       for (const queryKey of [
         queryKeys.settings.all(ownerId),

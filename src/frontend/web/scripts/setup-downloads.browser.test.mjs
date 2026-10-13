@@ -1122,6 +1122,21 @@ test("the hosted composition's AI step offers no model choice", async () => {
     assert.equal(await page.getByRole("radio").count(), 0);
     await button(page, "Continue").click();
     await button(page, "Finish").click();
+    await page.getByRole("dialog", { name: "Before you start" }).waitFor();
+    // A restored legacy draft cannot attest age or override withheld model configuration.
+    await page.evaluate((chatModelId) => {
+      const key = Object.keys(localStorage).find((key) =>
+        key.startsWith("animama:setup-draft:"),
+      );
+      const draft = JSON.parse(localStorage.getItem(key));
+      localStorage.setItem(
+        key,
+        JSON.stringify({ ...draft, chatModelId, adultConfirmed: true }),
+      );
+    }, OPENAI_MODEL);
+    await page.reload();
+    await page.getByRole("dialog", { name: "Before you start" }).waitFor();
+    assert.equal(bodies.onboarding, undefined);
     await button(page, "I am 18 or older").click();
     await page.getByText("Setup complete", { exact: true }).waitFor();
     assert.equal(bodies.onboarding.chat_model_provider_id, undefined);
