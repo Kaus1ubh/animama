@@ -440,8 +440,14 @@ class GateReceiptTests(unittest.TestCase):
         self.manifest = json.dumps({"source": {"commit": "a" * 40, "tree": "b" * 40}}).encode()
         (self.set_dir / "manifest.json").write_bytes(self.manifest)
         (self.set_dir / "validation.json").write_bytes(b'{"passed": true}')
+        self.browser = self.root / "browser-results.json"
+        self.write_browser(["core", "hosted", "tooling"])
         for name in set(self.plan["required"]) - UNTIMED:
             self.write_check(name)
+
+    def write_browser(self, groups, status="passed"):
+        files = [{"file": "a.browser.test.mjs", "group": "core", "lane": "prelude", "status": status, "seconds": 1}]
+        self.browser.write_text(json.dumps({"groups": groups, "wall_seconds": 1, "files": files}))
 
     def write_check(self, name, **changes):
         log = f"Synthetic unit-test command record for {name}\n".encode()
@@ -467,6 +473,7 @@ class GateReceiptTests(unittest.TestCase):
                     "CI_RESULTS_DIR": str(self.checks),
                     "CI_PACKAGE_SET_DIR": str(self.set_dir),
                     "CI_BASELINE_RECORD": str(self.root / "baseline-set.json"),
+                    "CI_BROWSER_RESULTS": str(self.browser),
                     "GITHUB_STEP_SUMMARY": str(self.root / "summary.md"),
                 },
             ),
@@ -507,6 +514,17 @@ class GateReceiptTests(unittest.TestCase):
             self.assertNotIn("package_set", receipt)
         self.steps["package-artifacts"]["outputs"] = {"artifact-id": "300", "artifact-digest": "9" * 64}
         (self.set_dir / "manifest.json").unlink()
+        self.assertEqual(self.gate()[0], 1)
+
+    def test_browser_results_must_match_the_selected_groups(self):
+        self.assertEqual(self.gate()[0], 0)
+        for groups, status in ((["core"], "passed"), (["core", "hosted", "tooling"], "failed")):
+            self.write_browser(groups, status)
+            self.assertEqual(self.gate()[0], 1)
+        self.browser.unlink()
+        code, receipt = self.gate()
+        self.assertEqual((code, receipt["reason"]), (1, "Missing or malformed browser file results"))
+        self.steps["browser-tests"] = {"outcome": "failure", "conclusion": "failure"}
         self.assertEqual(self.gate()[0], 1)
 
     def test_runs_without_the_promotion_suite_record_no_set(self):

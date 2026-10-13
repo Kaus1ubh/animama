@@ -422,6 +422,23 @@ def package_set_record(steps: object, directory: Path) -> tuple[dict | None, str
         return None, "Uploaded package set cannot be identified"
 
 
+def browser_record(steps: object, selected: object, path: Path) -> tuple[dict | None, str | None]:
+    """A successful browser step must have run exactly the plan's groups, all passing."""
+    step = steps.get("browser-tests") if isinstance(steps, dict) else None
+    if not isinstance(step, dict) or step.get("outcome") != "success":
+        return None, None
+    try:
+        record = json.loads(path.read_text())
+        skipped = {row["suite"] for row in selected["skipped"]}
+        if record["groups"] != browser_groups(skipped):
+            return record, "Browser groups differ from the selection"
+        if not record["files"] or any(row["status"] != "passed" for row in record["files"]):
+            return record, "Browser file results missing or failed"
+        return record, None
+    except (OSError, ValueError, KeyError, TypeError):
+        return None, "Missing or malformed browser file results"
+
+
 def gate(output: Path) -> int:
     """Evaluate actual step outcomes and preserve a receipt even after early failure."""
     try:
@@ -452,6 +469,9 @@ def gate(output: Path) -> int:
             baseline_set = json.loads(baseline_record.read_text())
         except (OSError, ValueError):
             result = {"success": False, "reason": "Malformed baseline set record"}
+    browser, browser_error = browser_record(steps, selected, Path(os.environ.get("CI_BROWSER_RESULTS", "/nonexistent")))
+    if browser_error:
+        result = {"success": False, "reason": browser_error}
     receipt = {"schema_version": 3, "selection": selection, "steps": steps, "checks": checks, **result}
     if package_set:
         receipt["package_set"] = package_set
@@ -459,29 +479,26 @@ def gate(output: Path) -> int:
         receipt["baseline_set"] = baseline_set
     write_json(output, receipt)
     if summary := os.environ.get("GITHUB_STEP_SUMMARY"):
+        from run_summary import render
+
+        try:
+            evidence = ""
+            if isinstance(selected, dict) and selected.get("mode") == "reused" and result["success"]:
+                hosted = selection["hosted_evidence"]
+                named = hosted["package_set"]
+                evidence = (
+                    f"Full hosted evidence: [run {hosted['run_id']}]({hosted['run_url']}); "
+                    f"artifact `{hosted['artifact_id']}`, digest `{hosted['artifact_digest']}`.\n\n"
+                    f"Package set for promotion: `{named['artifact_name']}` "
+                    f"(artifact `{named['artifact_id']}`, manifest `{named['manifest_sha256']}`), "
+                    f"built from tested merge `{hosted['tested_commit']}` with this tree."
+                )
+            text = render(selected, result["reason"], checks, browser, evidence)
+        except (KeyError, TypeError, ValueError):
+            # The summary is informational; acceptance is already decided above.
+            text = f"## Validation\n\n{result['reason']}\n\nSummary details unavailable.\n\n"
         with open(summary, "a") as target:
-            target.write("## Validation\n\n" + result["reason"] + "\n\n")
-            if (
-                isinstance(selected, dict)
-                and isinstance(selected.get("mode"), str)
-                and isinstance(selected.get("reason"), str)
-            ):
-                target.write("Profile: **" + selected["mode"] + "**. " + selected["reason"] + "\n\n")
-                if selected["mode"] == "reused" and result["success"]:
-                    evidence = selection["hosted_evidence"]
-                    package_set = evidence["package_set"]
-                    target.write(
-                        f"Full hosted evidence: [run {evidence['run_id']}]({evidence['run_url']}); "
-                        f"artifact `{evidence['artifact_id']}`, digest `{evidence['artifact_digest']}`.\n\n"
-                        f"Package set for promotion: `{package_set['artifact_name']}` "
-                        f"(artifact `{package_set['artifact_id']}`, manifest `{package_set['manifest_sha256']}`), "
-                        f"built from tested merge `{evidence['tested_commit']}` with this tree.\n\n"
-                    )
-                else:
-                    target.write("Local assertions are owner-reviewed, not independently executed by this runner.\n\n")
-            target.write("| Check | Result | Seconds |\n| --- | --- | ---: |\n")
-            for check in checks:
-                target.write(f"| {check['id']} | {check['status']} | {check['duration_seconds']} |\n")
+            target.write(text)
     print(json.dumps(receipt, indent=2))
     return 0 if result["success"] else 1
 

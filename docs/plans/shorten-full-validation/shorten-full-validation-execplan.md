@@ -371,6 +371,50 @@ Requirements: R6, R10. Changes:
 **Completion:** three consecutive green runs at the chosen level. The summary
 renders from a recorded fixture of `CI_STEPS` and receipts.
 
+#### Phase 3 implementation notes
+
+- The layout uses two lanes. A serial prelude runs initial-navigation-diagnostics
+  and model-download-coordination. Lane 1 holds the tooling renders. Lane 2
+  holds the hosted screens, then the remaining core files.
+- The per-caller Vite cache change is not needed. The three effect files that
+  share `node_modules/.vite-effect-render` always run one after another in one
+  lane, and a test guards that.
+- Each file runs in its own process group with a 20-minute bound. SIGTERM goes
+  first, then SIGKILL.
+- `scripts/ci/run_summary.py` renders the job summary. It reads step timings
+  from the jobs API, falling back to command receipts. The gate now holds the
+  read-only token, used only for this summary.
+- The gate rejects browser results that don't match the plan's groups.
+
+#### Code Review #1 Findings
+
+The reviewed source was the uncommitted tree on `2f050ee8`. Checks: unittest
+125 OK, ruff clean, YAML parses. No blocking findings. Optional findings:
+
+- **P3-F1:** Chromium has its own process group, so `killpg` misses it, and
+  SIGKILL skips Playwright's cleanup.
+- **P3-F2:** the timeout test does not assert that the grandchild was killed.
+- **P3-F3:** no test guards that the effect files stay in one lane.
+- **P3-F4:** the name of a release-caller job does not match `Validation`.
+- **P3-F5:** an error while rendering the summary could change the exit code.
+
+The reviewer confirmed that failures, timeouts and missing rows fail the step,
+that the gate fails closed, and that the token is used only for the summary.
+
+#### Code Review #1 Revisions
+
+- **P3-F1, accepted:** SIGTERM goes to the group first, with SIGKILL after 10
+  seconds, and the docstring is corrected.
+- **P3-F3, accepted:** the effect files are asserted to share one lane, and the
+  `core,hosted` layout is tested.
+- **P3-F4, accepted:** a job named `<caller> / Validation` matches.
+- **P3-F5, accepted:** a rendering error writes a minimal summary. Acceptance is
+  decided before rendering, and `package_set` is no longer rebound.
+- **P3-F2, deferred:** the test checks the status and the log line. Process
+  cleanup on an ephemeral runner is not acceptance-relevant.
+- Checks after the revisions: unittest 125 OK, ruff clean. Phase 3 review
+  passed at round 1, with no repair round needed.
+
 ### Phase 4: Baseline set reuse
 
 Requirements: R7, R9. Changes:

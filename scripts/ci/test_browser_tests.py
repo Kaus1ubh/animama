@@ -49,6 +49,12 @@ class GroupTests(unittest.TestCase):
             self.assertEqual(len(placed), len(set(placed)))
             self.assertEqual(set(placed), {stem for stem, group in files.items() if group in groups})
             self.assertEqual(prelude, list(PRELUDE))
+        # The effect renders share node_modules/.vite-effect-render: one lane, in sequence.
+        prelude, lanes = layout(files, ["core", "hosted", "tooling"])
+        effect = {"effect-check", "effect-render", "effect-thumbnails"}
+        self.assertEqual(sum(bool(effect & set(lane)) for lane in lanes), 1)
+        prelude, lanes = layout(files, ["core", "hosted"])
+        self.assertNotIn("effect-check", [stem for lane in lanes for stem in lane])
         prelude, lanes = layout(files, ["core"])
         self.assertNotIn("animation-preview", prelude + [stem for lane in lanes for stem in lane])
 
@@ -61,17 +67,31 @@ class RunTests(unittest.TestCase):
             with self.assertRaises(SystemExit):
                 run(groups, output, web)
 
-        def fake(command, **kwargs):
-            kwargs["stdout"].write(b"log\n")
-            return type("Result", (), {"returncode": 1 if "effect-check" in command[-1] else 0})()
+        def fake(stem, web, log):
+            log.write(b"log\n")
+            return "failed" if stem == "effect-check" else "passed"
 
-        with patch("browser_tests.subprocess.run", side_effect=fake):
+        with patch("browser_tests.run_file", side_effect=fake):
             self.assertEqual(run(["core", "tooling"], output, web), 1)
         rows = json.loads((output / "results.json").read_text())["files"]
         self.assertEqual({row["file"] for row in rows if row["status"] == "failed"}, {"effect-check.browser.test.mjs"})
         self.assertNotIn("hosted-workflows.browser.test.mjs", {row["file"] for row in rows})
-        with patch("browser_tests.subprocess.run", side_effect=lambda command, **kwargs: fake(["ok"], **kwargs)):
+        with patch("browser_tests.run_file", side_effect=lambda stem, web, log: fake("ok", web, log)):
             self.assertEqual(run(["core"], Path(tempfile.mkdtemp()), web), 0)
+
+    def test_a_file_that_never_exits_times_out_and_fails(self):
+        web = Path(tempfile.mkdtemp())
+        (web / "scripts").mkdir()
+        # A child that outlives its parent must be stopped with the process group.
+        (web / "scripts/hang.browser.test.mjs").write_text(
+            "import {spawn} from 'node:child_process';"
+            "spawn(process.execPath, ['-e', 'setInterval(() => {}, 1000)'], {stdio: 'ignore'});"
+            "setInterval(() => {}, 1000);\n"
+        )
+        log_path = web / "hang.log"
+        with log_path.open("wb") as log:
+            self.assertEqual(browser_tests.run_file("hang", web, log, timeout=2), "timed-out")
+        self.assertIn("Timed out", log_path.read_text())
 
 
 if __name__ == "__main__":

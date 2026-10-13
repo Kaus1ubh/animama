@@ -386,6 +386,9 @@ jobs:
           CI_RESULTS_DIR: ${{ runner.temp }}/checks
           CI_PACKAGE_SET_DIR: ${{ runner.temp }}/public-artifacts
           CI_BASELINE_RECORD: ${{ runner.temp }}/baseline-set.json
+          CI_BROWSER_RESULTS: ${{ runner.temp }}/browser-tests/results.json
+          # Read-only step timings for the job summary.
+          CI_READ_TOKEN: ${{ github.token }}
         run: python3 scripts/ci/validation.py gate --output "$RUNNER_TEMP/validation.json"
       - name: Retain success and failure diagnostics
         id: diagnostics

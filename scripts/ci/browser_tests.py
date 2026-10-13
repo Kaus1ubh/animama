@@ -11,6 +11,8 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
+import signal
 import subprocess
 import sys
 import threading
@@ -30,7 +32,14 @@ SUITE_GROUPS = {"browser-tooling": "tooling", "browser-hosted": "hosted"}
 # Lanes, in order of preference for each file. Files with tight timing windows
 # run before the lanes start so they never share the CPUs with rendering work.
 PRELUDE = ("initial-navigation-diagnostics", "model-download-coordination")
-LANES: tuple[tuple[str, ...], ...] = (GROUPS["tooling"] + GROUPS["hosted"],)
+# Two lanes, measured on a two-CPU Linux container (see the shorten-full-validation
+# ExecPlan): the tooling renders, which share a Vite cache directory and must
+# stay in one lane, and the hosted screens, then the remaining files. A third
+# lane was slower on two CPUs.
+LANES: tuple[tuple[str, ...], ...] = (GROUPS["tooling"], GROUPS["hosted"])
+# A file whose browser fails to launch can leave a server open and never exit.
+# Bound each file well above its slowest hosted time (about 4 minutes).
+FILE_TIMEOUT_SECONDS = 20 * 60
 
 
 def browser_groups(skipped_suites: set[str]) -> list[str]:
@@ -59,6 +68,32 @@ def layout(files: dict[str, str], groups: list[str]) -> tuple[list[str], list[li
     return prelude, [lane for lane in lanes if lane]
 
 
+def run_file(stem: str, web: Path, log, timeout: float = FILE_TIMEOUT_SECONDS) -> str:
+    """Run one file in its own process group so a timeout stops its servers and test process.
+
+    Playwright starts Chromium in its own group; it exits once its controlling
+    pipe closes, and SIGTERM first lets Playwright's cleanup run.
+    """
+    with subprocess.Popen(
+        ["node", "--test", f"scripts/{stem}.browser.test.mjs"],
+        cwd=web,
+        stdout=log,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+    ) as process:
+        try:
+            return "passed" if process.wait(timeout=timeout) == 0 else "failed"
+        except subprocess.TimeoutExpired:
+            os.killpg(process.pid, signal.SIGTERM)
+            try:
+                process.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                os.killpg(process.pid, signal.SIGKILL)
+                process.wait()
+            log.write(f"\nTimed out after {timeout} seconds\n".encode())
+            return "timed-out"
+
+
 def run(groups: list[str], output: Path, web: Path = WEB) -> int:
     if "core" not in groups or any(group not in {"core", *GROUPS} for group in groups):
         raise SystemExit(f"Unknown or incomplete browser groups: {groups}")
@@ -72,19 +107,13 @@ def run(groups: list[str], output: Path, web: Path = WEB) -> int:
         for stem in stems:
             started = time.time()
             with (output / f"{stem}.log").open("wb") as log:
-                code = subprocess.run(
-                    ["node", "--test", f"scripts/{stem}.browser.test.mjs"],
-                    cwd=web,
-                    stdout=log,
-                    stderr=subprocess.STDOUT,
-                    check=False,
-                ).returncode
+                status = run_file(stem, web, log)
             row = {
                 "file": f"{stem}.browser.test.mjs",
                 "group": files[stem],
                 "lane": lane,
                 "seconds": round(time.time() - started, 1),
-                "status": "passed" if code == 0 else "failed",
+                "status": status,
             }
             with lock:
                 results.append(row)
