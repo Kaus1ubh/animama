@@ -698,10 +698,12 @@ Decided on 2026-10-13, after #497 merged:
 9. **Tags in `speech`:** #479 (intent discovery done; implementation not started).
 10. **Language source:** detected from each sentence's script until a per-Anima
     speech language exists. Latin text uses the English converter until then.
+11. **gruut removal:** in this work's scope, with a browser English pronunciation
+    source, and numbers and symbols spelled out in the browser for Pocket TTS.
 
 ## Next steps
 
-- **Spec:** drafted from this brief as `lipsync-spec.md` for #468.
+- **Spec:** [lipsync-spec.md](lipsync-spec.md), drafted from this brief for #468.
 - **Open spikes before or during the ExecPlan:**
   - windowed re-alignment and chunked ZIPA, for accuracy and CPU;
   - the size of a browser English converter (a CMUdict subset plus spelling rules);
