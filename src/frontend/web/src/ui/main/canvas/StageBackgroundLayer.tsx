@@ -64,7 +64,9 @@ export function StageBackgroundLayer({
           src={background.src}
           draggable={false}
           decoding="async"
-          className="size-full object-cover select-none"
+          // Softened so the app image frames the Avatar without competing;
+          // the theme background shows through. Owner-chosen images keep full strength.
+          className="size-full object-cover opacity-55 select-none"
         />
       ) : null}
     </div>
