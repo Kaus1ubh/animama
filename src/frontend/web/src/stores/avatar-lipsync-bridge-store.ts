@@ -126,7 +126,10 @@ type AvatarLipSyncBridgeState = {
     audioContext: AudioContext;
     audioStartSec: number;
   }) => boolean;
-  /** Clear a debug replay's plan from the avatar. */
+  /**
+   * Clear a debug replay's plan from the avatar, unless a reply has started
+   * speaking since and now owns its lip-sync.
+   */
   stopReplaySegment: () => void;
   tickGate: (args: TickGateArgs) => void;
   clearRun: (runId?: string | null, options?: ClearOptions) => void;
@@ -814,6 +817,7 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
       },
 
       stopReplaySegment: () => {
+        if (Object.keys(get().speechAudioStartsByRun).length > 0) return;
         get().avatar?.clearLipSync();
       },
 

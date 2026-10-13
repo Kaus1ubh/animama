@@ -157,6 +157,10 @@ export function LipSyncDebugSection() {
     if (!replay) return;
     return () => replay.replay.stop();
   }, [replay]);
+  // A reply that starts speaking takes over the avatar, so the replay ends.
+  useEffect(() => {
+    if (speechPlaying) setReplay(null);
+  }, [speechPlaying]);
   useEffect(() => {
     setReplay(null);
   }, [capture?.runId]);

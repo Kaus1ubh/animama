@@ -475,8 +475,8 @@ can be compared by eye and ear.
 - Plans are built, and Replay is enabled, only once the captured reply has
   finished playing: when the bridge clears its run. The stream ends earlier,
   while buffered audio still plays.
-- Replay also stays off while any other reply is speaking, whatever its
-  provider, so a replay never takes over a live reply's lip-sync.
+- Replay cannot start while any reply is speaking, whatever its provider. A
+  reply that starts speaking during a replay ends it and keeps its own lip-sync.
 - A capped capture is drawn and replayed on the 90 s it kept.
 
 - **Capture.** `SceneDebugPanel` starts the capture while the panel is enabled,

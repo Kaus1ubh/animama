@@ -342,6 +342,31 @@ describe("debug replay segments", () => {
     expect(calls.at(-1)).toBe("clear");
   });
 
+  it("leaves a speaking reply's lip-sync when a replay stops", () => {
+    const { avatar, calls } = fakeAvatar();
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.registerAvatarInstance({
+      avatar: avatar as unknown as Parameters<
+        typeof store.registerAvatarInstance
+      >[0]["avatar"],
+    });
+    useAvatarLipSyncBridgeStore.setState({
+      speechAudioStartsByRun: {
+        "run-1": {
+          runId: "run-1",
+          audioStartSec: 0,
+          audioContext: {} as AudioContext,
+          generationId: null,
+          receivedAtMs: 0,
+        },
+      },
+    });
+
+    useAvatarLipSyncBridgeStore.getState().stopReplaySegment();
+
+    expect(calls).toEqual([]);
+  });
+
   it("does not play a replay without a ready avatar", () => {
     expect(
       useAvatarLipSyncBridgeStore.getState().playReplaySegment({

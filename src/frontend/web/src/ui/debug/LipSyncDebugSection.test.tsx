@@ -226,6 +226,36 @@ describe("Lip-sync debug section", () => {
     expect(stop).toHaveBeenCalled();
   });
 
+  it("ends a replay when a reply starts speaking", async () => {
+    const stop = vi.fn();
+    vi.mocked(startLipSyncReplay).mockResolvedValue({
+      runId: "lipsync-replay-1",
+      audioContext: { currentTime: 0 } as AudioContext,
+      audioStartSec: 0,
+      stop,
+    });
+    capture();
+    await render();
+    await act(async () => button("Replay with Estimated (today)")?.click());
+
+    await act(async () => {
+      useAvatarLipSyncBridgeStore.setState({
+        speechAudioStartsByRun: {
+          "run-2": {
+            runId: "run-2",
+            audioStartSec: 0,
+            audioContext: {} as AudioContext,
+            generationId: null,
+            receivedAtMs: 0,
+          },
+        },
+      });
+    });
+
+    expect(stop).toHaveBeenCalled();
+    expect(container?.textContent).not.toContain("Stop replay");
+  });
+
   it("clears the previous replay when a new one cannot start", async () => {
     const stop = vi.fn();
     vi.mocked(startLipSyncReplay)
