@@ -7,8 +7,9 @@ The issue is authoritative; the spec file is its snapshot.
 
 Authorized scope:
 - Phase 1 is delivered.
-- Phases 2–5 were approved by the owner on 2026-10-12, Phase 5 included.
-- Merge approval remains separate.
+- Phases 2–5 were approved by the owner on 2026-10-12, Phase 5 included. Phases 2–4 are delivered.
+- The owner deferred Phase 5 later the same day; see the Decision Log.
+- The owner approved merging PR #474 once review and checks pass.
 
 ## Purpose and context
 
@@ -63,7 +64,7 @@ this plan without machine paths.
 - [x] Phase 1: Library Dock reuse (R1). Delivered in `7172794f`. Review passed after two repair rounds; the evidence is below.
 - [x] Phase 2: Avatar disposal releases GPU and decoded resources (R2, R3). `afacb9fe`; review passed.
 - [x] Phase 3: One live scroll tracker per admitted session (R4). `fa3caa9f`; review passed after one repair round.
-- [x] Phase 4: Desktop and PiP window memory (R6). F7.1 was fixed by Phase 2; the F7.2 PiP owner-listener leak is fixed here. Review passed after two repair rounds. Packaged, Windows, long-session and Quick Chat design checks remain owner gates.
+- [x] Phase 4: Desktop and PiP window memory (R6). `acea31d5`. F7.1 was fixed by Phase 2; the F7.2 PiP owner-listener leak is fixed here. Review passed after two repair rounds. Packaged, Windows, long-session and Quick Chat design checks remain owner gates.
 - [ ] Phase 5: Chat keeps its renderer across Animas (R5). Deferred by the owner on 2026-10-12; #478 stays open as the follow-up.
 - [ ] Final integration review, fast browser journeys and PR update.
 
@@ -170,13 +171,17 @@ Results (2026-10-12):
 
   | Scenario | Before | After |
   | --- | --- | --- |
-  | Avatar Effect creator, 20 preview-model switches: renderer after GC | 520 → 1705 MB | 306 → 329 MB |
-  | Same: GPU | 885 → 2129 MB | 778 → 825 MB |
+  | Avatar Effect creator, 20 preview-model switches: renderer after GC (baseline before the first switch → after the 20th) | 520 → 1705 MB | 306 → 329 MB; +7.5% against the first switch's 306 MB |
+  | Same: GPU | 885 → 2129 MB | 778 → 825 MB; +6.0% |
   | Same: live ImageBitmaps | 52 → 356 after GC | one model's set (26–29) throughout, before any GC |
   | Chat, 10 Chat only ↔ Avatar + Chat toggles: live ImageBitmaps after GC | 78 | 26 |
   | Same: canvases alive | 2 extra detached | 1 |
 
   - In chat-only mode, live bitmaps drop to 0 before any GC.
+  - **Per-load peak (R3), measured during final review:**
+    - Task build, peak renderer growth from a GC'd base during one Avatar Effect creator model switch, sampled every 150 ms: +66, +59 and +45 MB (median +59 MB).
+    - The same run on the baseline main build was not possible: the shared main stack was stopped at 23:03Z by something outside this task and was not restarted. So the per-load peak was not compared directly, and the R3 peak criterion is not claimed as met.
+    - What was established: retained growth per switch after GC fell from about +59 MB (baseline, 520 → 1705 MB over 20 switches) to about +1 MB, and live decoded textures stay bounded to the current model.
   - Chat Anima switching still creates one WebGL context per switch; that is Phase 5. Live decoded textures stay bounded to the current model (88–119 MB). The remaining per-switch peak is the model's ArrayBuffers and the new context.
   - No console errors about closed images or `texImage2D`.
 - **Visual checks:** models render after switching in chat, `/animas/<id>` (including the carousel), the Avatar Effect creator (Annie ↔ Caitlyn) and the Library Dock (Annie → Caitlyn → Gesture).
@@ -423,19 +428,49 @@ Steps:
 4. **Built stack:**
    - 20 Annie ↔ Caitlyn switches create one WebGL context, and the renderer after GC stays within 10% of the first switch.
    - Visual checks of each Anima's model, transform and background, a fresh chat, and the safety UI.
-   - With desktop PiP open, the PiP window follows the switch.
+   - With desktop PiP open, an Anima switch closes native PiP, as it does today, unless the owner decides PiP should follow the switch.
 5. Bounded review, then commit `fix(chat)[p5]: …`.
 
 Recovery: revert the phase commit to restore the remount.
 
 ## Final integration review
 
-Run once all authorized phases are complete:
-- `code-review` in final integration mode across all phases;
-- `pnpm e2e:test:fast` on a built task stack from the final candidate;
-- `pnpm desktop:check`.
+Independent `sdlc-reviewer` review of `acea31d5` against `95a2db39`, covering Phases 1–4 with Phase 5 deferred.
 
-Then update PR #474's title, body and closing references for the expanded scope.
+**Cross-phase integration passed:**
+- the Phase 1 keyed actor and retry work with Phase 2's release;
+- bitmap closing does not affect textures shared across the Dock, chat, the PiP route, creators or portrait capture;
+- Phase 3 router retirement works with the auxiliary windows and the warm Dock;
+- Phase 4 is independent of Phase 2;
+- boundaries hold: no Cloud imports, auth changes or generated edits.
+
+**Findings:**
+- **FIR-1, required:** the R3 per-load peak had no evidence.
+- **FIR-2, required:** the PR body still described only Phase 1.
+- **FIR-3, required:** the R5 deferral was not reflected in #478 or in this plan's Phase 5 PiP expectation.
+- **FIR-4, required:** this plan's final sections were incomplete.
+- **Optional:**
+  - O1: wording drift between the spec and the issue.
+  - O2: R3 says unload drops callbacks; dispose does that, by design.
+  - O3: state the within-10% reference values.
+  - O4: doc placement and the router architecture note.
+  - O5: commit scope naming.
+
+**Revisions:**
+- **FIR-1:** measured on the task build (median +59 MB). The baseline comparison was not possible, so R3's peak criterion is recorded as not met rather than claimed (Phase 2 results).
+- **FIR-2:** PR #474 updated for the full scope.
+- **FIR-3:** #478 records the deferral and that PR #474 does not deliver it. The Phase 5 PiP expectation now matches current behavior.
+- **FIR-4:** this section, Authorized scope, Progress and Outcomes completed.
+- **O1:** the spec status notes the deferral.
+- **O3:** the reference values are added.
+- **O2, O4 and O5:** accepted as is. The R3 refinement is recorded in Phase 2, and future plan docs use a non-colliding scope.
+
+**Reused evidence:**
+- **Web:**
+  - `pnpm check`, `pnpm web:lint` and `pnpm web:test` (474 files, 4209 tests, browser scripts 0 failures) on `fa3caa9f`.
+  - `pnpm e2e:test:fast` 38/38 on a built stack serving `fa3caa9f`.
+  - `git diff --stat fa3caa9f..acea31d5` touches only desktop and plan files, so the web build is identical.
+- **Desktop:** Vitest 509 passed and `pnpm desktop:check` exit 0 on `acea31d5`.
 
 ## Validation and acceptance
 
@@ -453,4 +488,18 @@ the last active Anima.
 
 ## Outcomes & Retrospective
 
-Not yet complete.
+**Delivered:**
+- R1, R2 and R4 are met.
+- R6 is met within the recorded limits.
+- R3 is met for decoded-texture release and dropped references, but its per-load peak criterion was not compared against a baseline.
+- R5 is deferred to #478.
+
+**Remaining owner gates:**
+- the packaged macOS app;
+- Windows;
+- a long real-session PiP check with speech, covering the unexplained main-process footprint and heap residue;
+- confirming that Quick Chat's prepared hidden renderer is acceptable.
+
+**Lessons:**
+- A heap-only measurement missed a listener leak that the logged `MaxListenersExceededWarning` and direct counters showed. Measure listeners and windows directly.
+- Each removed remount needs its own explicit resets, so measure the benefit before taking on that risk. That is why R5 was deferred.

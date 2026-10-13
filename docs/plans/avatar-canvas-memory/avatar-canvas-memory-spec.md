@@ -1,6 +1,6 @@
 # Release Avatar canvas memory promptly
 
-Status: Agreed
+Status: Agreed; R5 deferred
 Snapshot: [issue #472](https://github.com/raymond-van/animama/issues/472), published at 2026-10-12T21:36:42Z and updated at 2026-10-12T23:25:36Z for the R5 deferral. The issue is authoritative.
 Owner decision: 2026-10-12, the owner asked to expand issue #472 to fix the memory
 leaks and churn found while investigating Library previews, and then to include
