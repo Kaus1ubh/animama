@@ -25,7 +25,7 @@ describe("Gemini voice catalog", () => {
     );
     expect(GEMINI_VOICE_DETAILS.Puck).toEqual({
       gender: "male",
-      description: "Upbeat",
+      description: "upbeat",
     });
   });
 

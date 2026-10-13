@@ -1,4 +1,6 @@
 import { useQuery } from "@tanstack/react-query";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 import type { RuntimeAccountActions } from "@animama/runtime-contracts";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
@@ -20,6 +22,8 @@ export function AccountUsage({
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }) {
+  const { t } = useTranslation("sidebar");
+  const { number, dateTime } = useFormatters();
   const sessionKey = useRuntimeCacheKey();
   const usage = useQuery({
     queryKey: queryKeys.accountUsage(sessionKey ?? "__anon__"),
@@ -31,23 +35,21 @@ export function AccountUsage({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Usage and limits</DialogTitle>
-          <DialogDescription>
-            Your account's current usage. Limits are enforced by the runtime.
-          </DialogDescription>
+          <DialogTitle>{t("usage.title")}</DialogTitle>
+          <DialogDescription>{t("usage.description")}</DialogDescription>
         </DialogHeader>
         {usage.isPending ? (
-          <p role="status">Loading usage…</p>
+          <p role="status">{t("usage.loading")}</p>
         ) : usage.isError ? (
           <div>
-            <p role="alert">Usage could not be loaded.</p>
+            <p role="alert">{t("usage.loadFailed")}</p>
             <button
               type="button"
               onClick={() => {
                 void usage.refetch();
               }}
             >
-              Try again
+              {t("usage.retry")}
             </button>
           </div>
         ) : (
@@ -56,10 +58,15 @@ export function AccountUsage({
               <div key={unit.id}>
                 <dt className="font-medium">{unit.label}</dt>
                 <dd>
-                  {unit.used.toLocaleString()} of {unit.limit.toLocaleString()}
+                  {t("usage.amount", {
+                    used: number(unit.used),
+                    limit: number(unit.limit),
+                  })}
                   {unit.resetsAt ? (
                     <span className="text-muted-foreground block text-sm">
-                      Resets {new Date(unit.resetsAt).toLocaleString()}
+                      {t("usage.resets", {
+                        time: dateTime(new Date(unit.resetsAt)),
+                      })}
                     </span>
                   ) : null}
                 </dd>

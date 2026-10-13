@@ -1,4 +1,5 @@
 import { createFileRoute, Navigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import { resolveSelectedAnimaId } from "@/lib/animas/anima-management-search";
 import { useAnimas } from "@/query/hooks/useAnimas";
@@ -14,6 +15,7 @@ export const Route = createFileRoute("/_app/")({
 
 /** Open the last opened owned Anima only after both startup reads settle. */
 function ChatLaunchRoute() {
+  const { t } = useTranslation("app");
   const { admission } = useRuntimeAdmission();
   const animas = useAnimas();
   const settings = useUserSettings();
@@ -21,12 +23,9 @@ function ChatLaunchRoute() {
   if (animas.isError || settings.isError) {
     return (
       <AppShellPage contentClassName="max-w-xl text-center">
-        <h1 className="text-lg font-semibold">
-          Your Anima could not be opened
-        </h1>
+        <h1 className="text-lg font-semibold">{t("launch.failed.title")}</h1>
         <p className="text-muted-foreground">
-          Animama could not load your Animas or saved selection. Please try
-          again.
+          {t("launch.failed.description")}
         </p>
         <Button
           variant="outline"
@@ -36,7 +35,7 @@ function ChatLaunchRoute() {
             if (settings.isError) void settings.refetch();
           }}
         >
-          Retry
+          {t("actions.retry")}
         </Button>
       </AppShellPage>
     );
@@ -46,7 +45,7 @@ function ChatLaunchRoute() {
   if (!animas.isSuccess || !settings.isSuccess) {
     return (
       <AppShellPage contentClassName="max-w-xl text-center">
-        <p role="status">Opening your Anima…</p>
+        <p role="status">{t("launch.opening")}</p>
       </AppShellPage>
     );
   }

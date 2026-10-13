@@ -81,6 +81,9 @@ async def test_idle_style_selection_uses_style_cells_and_rejects_anima_overrides
         await async_session.commit()
         unavailable = await service.read_model(user_id=fixture.user_id, anima_id=fixture.anima_id)
         assert unavailable.idle_style.state == "empty"
-        assert any(warning.code == "loadout_source_unavailable" for warning in unavailable.warnings)
+        assert any(
+            warning.code == "loadout_source_unavailable" and warning.params.get("slot")
+            for warning in unavailable.warnings
+        )
     finally:
         await cleanup_loadout_fixture(async_session, fixture)

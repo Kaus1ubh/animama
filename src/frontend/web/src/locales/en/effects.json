@@ -1,0 +1,868 @@
+{
+  "avatar": {
+    "attachments": {
+      "body": {
+        "description": "Follows a body point such as the chest or a hand.",
+        "label": "On the body"
+      },
+      "face_landmark": {
+        "description": "A flat image in front of the eyes, mouth or forehead.",
+        "label": "Floating on the face"
+      },
+      "face_surface": {
+        "description": "Drawn onto the skin or eyes, so it follows the face.",
+        "label": "Painted on the face"
+      },
+      "silhouette": {
+        "description": "A pattern or tint drawn only over the avatar.",
+        "label": "Fill the silhouette"
+      },
+      "sticker": {
+        "description": "Comic lettering or a sticker that stays readable.",
+        "label": "Sticker beside the avatar"
+      }
+    },
+    "bodyPoints": {
+      "chest": "Chest",
+      "head": "Head",
+      "hips": "Hips",
+      "leftFoot": "Left foot",
+      "leftHand": "Left hand",
+      "neck": "Neck",
+      "rightFoot": "Right foot",
+      "rightHand": "Right hand",
+      "root": "Feet (whole avatar)",
+      "spine": "Waist"
+    },
+    "confirmNew": "Discard the current changes and start a new Avatar Effect?",
+    "faceOptions": {
+      "cleanUpEyes": "Clean up the eye area",
+      "cleanUpHint": "Cover painted detail with the sampled skin colour.",
+      "cleanUpMouth": "Clean up the mouth area",
+      "closeEyes": "Close the eyes",
+      "closeEyesHint": "Blink the avatar's eyes behind the art.",
+      "hideEyeDetails": "Hide eye details",
+      "hideEyeDetailsHint": "Hide eye highlights, eye lines and eyelashes.",
+      "hidePart": "Hide {{part, lowercase}}",
+      "hideParts": "Hide other face parts ({{hidden, number}})",
+      "hidePartsHint": "Hide these parts while the effect plays. The part the art is on stays visible.",
+      "skinBackdrop": "Skin-coloured backing",
+      "skinBackdropHint": "Place skin colour behind transparent parts of the art."
+    },
+    "flipbook": {
+      "columns": "Columns",
+      "description": "The image holds frames on a grid, played in order.",
+      "fps": "Frames per second",
+      "frames": "Frames",
+      "loop": "Repeat",
+      "once": "Play once",
+      "pingpong": "Back and forth",
+      "playback": "Playback",
+      "rows": "Rows",
+      "title": "Animated sprite sheet"
+    },
+    "guides": {
+      "canvas": "Placement guides",
+      "canvasDetails": "Placement guides: {{items, list(type: unit)}}",
+      "estimated": "{{label}} · estimated"
+    },
+    "image": {
+      "tooLarge": "The effect image must be {{size}} or smaller.",
+      "tooWide": "The effect image must be at most {{pixels, number}} px on each side.",
+      "typeInvalid": "Choose one PNG, JPEG, or WebP image."
+    },
+    "import": {
+      "description": "Paste an Animama Avatar Effect editor document. Image bytes must be reselected.",
+      "earlierFormat": "This document uses the earlier Avatar Effect editor format, which this creator no longer opens. Open the saved effect from the Library instead.",
+      "notDocument": "This is not an Animama Avatar Effect editor document.",
+      "reselectImages": "Reselect the imported document's images before saving.",
+      "title": "Import Avatar Effect JSON"
+    },
+    "inspector": {
+      "axes": {
+        "down": "Down",
+        "forward": "Forward",
+        "right": "Right",
+        "sideways": "Sideways",
+        "up": "Up"
+      },
+      "blend": "Blend",
+      "blends": {
+        "additive": "Glow (add light)",
+        "multiply": "Shade (multiply)",
+        "normal": "Normal"
+      },
+      "height": "Height",
+      "noTint": "No tint",
+      "opacity": "Opacity (%)",
+      "placementHelp": "Drag the art on the preview, or use its corner handles to resize and its round handle to turn it. With the preview focused, arrow keys nudge it; hold Shift to move further.",
+      "position": "Position ({{unit}})",
+      "removeTint": "Remove tint",
+      "rotation": "Rotation (°)",
+      "scale": "Size (×)",
+      "size": "Size ({{unit}})",
+      "tabs": {
+        "look": "Look",
+        "motion": "Motion",
+        "placement": "Placement"
+      },
+      "tilt": "Tilt (°)",
+      "tiltForward": "Tilt forward",
+      "tint": "Tint",
+      "tintApplied": "Multiplied into the art ({{color}})",
+      "tintColour": "Tint colour",
+      "turnSideways": "Turn sideways",
+      "width": "Width"
+    },
+    "json": {
+      "description": "This document contains authoring values and exact dependency sources, but never local Blob URLs or capabilities.",
+      "title": "Portable Avatar Effect JSON"
+    },
+    "keyframes": {
+      "add": "Add",
+      "help": "Change size, turn, position or opacity over time. Leave a value empty to blend from the neighbours.",
+      "label": "Keyframe {{index, number}}",
+      "moveX": "Move X ({{unit}})",
+      "moveY": "Move Y ({{unit}})",
+      "opacity": "Opacity (%)",
+      "order": "Keyframe {{index, number}} must come after keyframe {{previous, number}}.",
+      "remove": "Remove keyframe {{index, number}}",
+      "repeat": "Repeat the keyframes",
+      "scale": "Size (×)",
+      "time": "Time (s)",
+      "title": "Keyframes",
+      "turn": "Turn (°)"
+    },
+    "landmarks": {
+      "eyes": "Eyes",
+      "forehead": "Forehead",
+      "mouth": "Mouth",
+      "top": "Top of the head",
+      "top_edge": "Above the head"
+    },
+    "loading": "Loading Avatar Effect…",
+    "missingPart": "This Avatar has no detected {{part, lowercase}}, so the effect is not shown on it. Correct the part under Face parts, or preview another Avatar.",
+    "motion": {
+      "clockwise": "Clockwise",
+      "counterclockwise": "Counterclockwise",
+      "direction": "Direction",
+      "drift": "Drift",
+      "driftHint": "Keep moving in one direction.",
+      "driftX": "Sideways (art widths/s)",
+      "driftY": "Up/down (art heights/s)",
+      "largest": "Largest size (×)",
+      "pulse": "Pulse",
+      "pulseHint": "Grow and shrink in a loop.",
+      "pulsesPerSecond": "Pulses per second",
+      "smallest": "Smallest size (×)",
+      "spin": "Spin",
+      "spinDirection": "Spin direction",
+      "spinHint": "Turn continuously, or rock back and forth.",
+      "spinRange": "Range (turns)",
+      "spinRangeHint": "Below one turn, the art rocks back and forth. One turn spins continuously.",
+      "spinSpeed": "Speed (°/s)"
+    },
+    "open": {
+      "imageDownloadFailed": "The content image could not be downloaded.",
+      "noImage": "The content item has no editable image file."
+    },
+    "openFailed": "The Avatar Effect could not be opened.",
+    "pivots": {
+      "bottom": "Bottom",
+      "bottomLeft": "Bottom left",
+      "bottomRight": "Bottom right",
+      "centre": "Centre",
+      "left": "Left",
+      "right": "Right",
+      "top": "Top",
+      "topLeft": "Top left",
+      "topRight": "Top right"
+    },
+    "positionHints": {
+      "body": "Centimetres from the body point.",
+      "face_landmark": "Centimetres from the face point.",
+      "face_surface": "Percent of the painted texture.",
+      "silhouette": "Percent of a pattern tile.",
+      "sticker": "Percent of the avatar's height."
+    },
+    "positions": {
+      "farLeft": "Far left",
+      "farRight": "Far right",
+      "left": "Left",
+      "middle": "Middle",
+      "right": "Right"
+    },
+    "recovery": {
+      "metadataOnly": "Image bytes could not be stored for crash recovery. Reselect the image after restoring this draft.",
+      "needsImages": "This recovered draft needs its images reselected before Save.",
+      "oldDraft": "An unsaved Avatar Effect draft from an earlier version of this creator could not be opened and was discarded.",
+      "tooLarge": "This image is too large for browser crash recovery. Keep this tab open until Save completes."
+    },
+    "regions": {
+      "advanced": "Advanced",
+      "automatic": "Automatic: {{region, lowercase}}",
+      "blush": "Effects on the cheeks",
+      "body": "Effects on the body",
+      "emote": "Nothing; it plays alongside others",
+      "eyes": "Effects on the eyes",
+      "full_face": "Nothing; it plays alongside other whole-face art",
+      "mouth": "Effects on the mouth",
+      "replaces": "Replaces",
+      "replacesHint": "When two effects on the same area play together, the newer one replaces the older.",
+      "silhouette": "Silhouette effects",
+      "sticker": "Sticker effects",
+      "undereye": "Effects under the eyes"
+    },
+    "save": {
+      "chooseImage": "Choose an image before saving.",
+      "defaultName": "New Avatar FX",
+      "reselectOtherSide": "Reselect the other side image before saving.",
+      "saved": "Avatar Effect saved."
+    },
+    "settings": {
+      "effect": "Effect",
+      "faceOptions": "Face options",
+      "flipbook": "Flipbook",
+      "image": "Image",
+      "keyframes": "Keyframes",
+      "look": "Look",
+      "motion": "Motion",
+      "otherEyeImage": "Other eye image",
+      "patternSize": "Pattern size",
+      "placement": "Placement",
+      "position": "Position",
+      "replaces": "Replaces",
+      "rotation": "Rotation",
+      "scrollSpeed": "Scroll speed",
+      "size": "Size",
+      "tint": "Tint"
+    },
+    "setup": {
+      "attachTo": "Attach to",
+      "avatarSides": "Left and right are the avatar's own.",
+      "besideBody": "Body",
+      "besideHead": "Head",
+      "besideThe": "Beside the",
+      "bodyPoint": "Body point",
+      "browse": "Browse",
+      "chooseImage": "Choose image",
+      "drawnFor": "Art is drawn for the",
+      "faceCamera": "Always face the camera",
+      "faceCameraHint": "Off keeps the art turned with the body point.",
+      "fill": "Fill",
+      "fillPattern": "Repeat the image as a pattern",
+      "fillTint": "Tint with the image's colour",
+      "image": "Image",
+      "imageHint": "PNG, JPEG, or WebP · up to {{size}}",
+      "keepOriginal": "Keep the original underneath",
+      "keepOriginalHint": "Off replaces the part's own texture where the art is.",
+      "leftEye": "Left eye",
+      "leftSide": "Left side",
+      "otherImage": "Other side image (optional)",
+      "otherImageHint": "Drawn as is on the mirrored side, for a wink or other uneven art.",
+      "paintOn": "Paint on",
+      "pivot": "Image point placed on the face",
+      "position": "Position",
+      "replaceImage": "Replace",
+      "rightEye": "Right eye",
+      "rightSide": "Right side",
+      "scrollX": "Scroll X (tiles/s)",
+      "scrollY": "Scroll Y (tiles/s)",
+      "tileSize": "Tile size (×)",
+      "useMirroredImage": "Use the mirrored main image instead",
+      "where": "Where",
+      "whereOnFace": "Where on the face",
+      "whichEyes": "Which eyes",
+      "whichSide": "Which side"
+    },
+    "setupTitle": "Effect Setup",
+    "sides": {
+      "across": "One image across both sides",
+      "acrossEyes": "One image across both eyes",
+      "between": "One image between the eyes",
+      "both": "Both eyes",
+      "left": "Left only",
+      "mirrored": "Both sides, mirrored",
+      "mirroredEyes": "Both eyes, mirrored",
+      "right": "Right only"
+    },
+    "stage": {
+      "chooseImage": "Choose an image in Setup to preview the effect.",
+      "label": "Effect preview. Drag the art to move it, its corners to resize and its round handle to turn it. Arrow keys nudge it; Shift moves further.",
+      "picking": "Click a part of the avatar to add it to or remove it from the selected face part."
+    },
+    "summary": {
+      "body": "On the body",
+      "face_landmark": "Floating on the face",
+      "face_surface": "Painted on the face",
+      "silhouette": "Silhouette fill",
+      "sticker": "Sticker"
+    },
+    "surfaceAreas": {
+      "blush": "Cheeks",
+      "eyes": "Eyes",
+      "full": "Whole part",
+      "mouth": "Mouth",
+      "undereye": "Under the eyes"
+    },
+    "targetParts": {
+      "eye_highlight": "Eye highlights",
+      "eye_iris": "Eyes (iris)",
+      "eyelash": "Eyelashes",
+      "eyeline": "Eye lines",
+      "face_skin": "Face skin"
+    },
+    "template": {
+      "notInstalled": "{{name}} is not available in this installation.",
+      "unavailable": "This Avatar Effect template is unavailable."
+    },
+    "thisAvatar": "this Avatar",
+    "units": {
+      "cm": "cm",
+      "percent": "%"
+    },
+    "uv": {
+      "artwork": "Artwork",
+      "baseColor": "{{material}} · Base color",
+      "canvas": "{{surface}} texture with selected placement guides",
+      "coverage": "Skin coverage",
+      "help": "Reference areas guide placement; they do not clip artwork. Left and right follow the avatar.",
+      "inactive": "No live artwork while the effect is inactive.",
+      "legend": "UV guide legend",
+      "material": "Material",
+      "pivot": "Pivot",
+      "reference": "Reference",
+      "shadeColor": "{{material}} · Shade color",
+      "surfaceSelect": "UV preview material and texture",
+      "title": "UV preview"
+    },
+    "validation": {
+      "flipbookFrames": "A flipbook cannot have more frames than columns × rows.",
+      "modelIncompatible": "This effect is valid, but the selected Avatar does not expose the required live binding or face anchor.",
+      "nameTooLong": "Keep the Avatar Effect name within {{max, number}} characters.",
+      "reselectImage": "Reselect the image so its bytes can be saved.",
+      "reselectOtherEyeImage": "Reselect the other eye image so its bytes can be saved.",
+      "settingInvalid": "{{setting}}: the settings are incompatible.",
+      "settingProblem": "{{setting}}: {{detail}}"
+    },
+    "views": {
+      "face": "Face",
+      "fullBody": "Full body",
+      "portrait": "Portrait",
+      "threeQuarter": "Three-quarter"
+    }
+  },
+  "creator": {
+    "aTemplate": "a template",
+    "description": "Description",
+    "discardFailed": "The draft could not be discarded.",
+    "imageReadFailed": "The image could not be read.",
+    "importFailed": "The JSON could not be imported.",
+    "json": {
+      "copied": "JSON copied.",
+      "copy": "Copy JSON",
+      "import": "Import"
+    },
+    "loading": "Loading…",
+    "loadingSaved": "Loading saved content…",
+    "loadingTemplate": "Loading template…",
+    "model": "Model",
+    "modelPlaceholder": "Avatar",
+    "openFailed": "Unable to open effect.",
+    "panels": {
+      "inspector": "Inspector",
+      "setup": "Setup"
+    },
+    "previewAvatarFailed": "Unable to load the preview Avatar.",
+    "previewNoun": "preview",
+    "previewWarning": "The preview Avatar reported a problem with this effect.",
+    "recoveredDraft": "Recovered local draft",
+    "recovery": {
+      "unavailable": "Browser crash recovery is unavailable. Keep this tab open until Save completes."
+    },
+    "replaceUnsaved": "Replace the current unsaved document?",
+    "save": {
+      "label": "Save",
+      "paused": "Save paused. Retry will reuse the preserved draft.",
+      "uploading": "Uploading {{progress, number(style: percent)}}",
+      "validating": "Validating"
+    },
+    "sound": {
+      "exact": "{{name}} · exact content",
+      "label": "Sound when applied",
+      "licensedOmitted": "The built-in sound plays only with the built-in effect, so this copy has no sound. You can choose one of your own.",
+      "loading": "Loading sounds…",
+      "none": "No sound"
+    },
+    "status": {
+      "saved": "Saved",
+      "saveFailed": "Save failed",
+      "unsaved": "Unsaved"
+    },
+    "validation": {
+      "reselectSound": "Reselect the Sound Effect so exact catalog content can be saved."
+    },
+    "view": "View"
+  },
+  "faceParts": {
+    "cancel": "Cancel",
+    "done": "Done",
+    "edit": "Edit",
+    "editPart": "Edit {{part, lowercase}}",
+    "heading": "Face parts on {{model}}",
+    "help": "Effects find the face and eyes through these parts. If an effect is missing or lands on the wrong place, correct the part here. The correction is saved with this Avatar and used everywhere.",
+    "meshFallback": "Mesh",
+    "meshList": "{{items, list(style: narrow)}}",
+    "meshName": "{{name}} ({{key}})",
+    "meshPartsFor": "Mesh parts for {{part, lowercase}}",
+    "noMesh": "No mesh part",
+    "noneDetected": "This Avatar has no detected face parts.",
+    "optional": "{{part}} (optional)",
+    "pick": "Pick on the avatar",
+    "picking": "Click the avatar to add or remove a part",
+    "problems": {
+      "noDigest": "This Avatar's file digest is unavailable, so a correction cannot be saved.",
+      "required": "Choose at least one mesh part for the {{part, lowercase}}.",
+      "unknownMesh": "The correction names mesh parts this Avatar does not have. Cancel and choose its parts again."
+    },
+    "readFailed": "The saved correction for this Avatar could not be read.",
+    "roles": {
+      "eye_highlight": "Eye highlights",
+      "eye_left": "Left eye",
+      "eye_right": "Right eye",
+      "eyelash": "Eyelashes",
+      "eyeline": "Eye lines",
+      "face_skin": "Face skin",
+      "hair": "Hair"
+    },
+    "saveCorrection": "Save correction",
+    "saveFailed": "The correction could not be saved.",
+    "saving": "Saving",
+    "status": {
+      "absent": "Marked absent",
+      "changed": "Changed, not saved",
+      "corrected": "Corrected",
+      "detected": "Detected · {{confidence, number(style: percent)}}",
+      "foundByName": "Found by name · {{confidence, number(style: percent)}}, check it",
+      "missing": "Missing",
+      "uncertain": "Detected · {{confidence, number(style: percent)}}, check it"
+    },
+    "title": "Face parts",
+    "useDetected": "Use detected parts"
+  },
+  "guides": {
+    "labels": {
+      "blushLeft": "Blush left",
+      "blushRight": "Blush right",
+      "blushSpan": "Blush span",
+      "eyeCenter": "Eye center",
+      "eyeLeft": "Eye left",
+      "eyeRight": "Eye right",
+      "face": "Face",
+      "flattenEye": "Flatten eye",
+      "flattenEyeLeft": "Flatten eye left",
+      "flattenEyeRight": "Flatten eye right",
+      "flattenMouth": "Flatten mouth",
+      "foreheadLeft": "Forehead left",
+      "foreheadMiddle": "Forehead middle",
+      "foreheadRight": "Forehead right",
+      "irisBoth": "Iris both",
+      "irisLeft": "Iris left",
+      "irisRight": "Iris right",
+      "mouth": "Mouth",
+      "skinSample": "Skin sample",
+      "topEdgeLeft": "Top edge left",
+      "topEdgeLeftCorner": "Top edge left corner",
+      "topEdgeMiddle": "Top edge middle",
+      "topEdgeRight": "Top edge right",
+      "topEdgeRightCorner": "Top edge right corner",
+      "topLeft": "Top left",
+      "topMiddle": "Top middle",
+      "topRight": "Top right",
+      "undereyeLeft": "Under-eye left",
+      "undereyeRight": "Under-eye right",
+      "undereyeSpan": "Under-eye span"
+    },
+    "messages": {
+      "anchorWarning": "This placement's face anchor is unavailable on this avatar.",
+      "estimatedAnchor": "This placement uses an estimated anchor for this avatar.",
+      "estimatedFlatten": "Flatten coverage uses an estimated region for this avatar.",
+      "hoverAnchorUnavailable": "The selected hover anchor is unavailable on this avatar.",
+      "landmarksUnavailable": "Face landmarks are unavailable on this avatar.",
+      "liveAnchorUnavailable": "The avatar's live face anchor is unavailable for spatial guides.",
+      "noMaterialTarget": "No compatible material target is available on this avatar.",
+      "noTextureSurface": "The selected material has no readable texture surface.",
+      "target": "Target: {{materials, list}}.",
+      "textureAnchorsUnavailable": "Face texture anchors are unavailable on this avatar."
+    },
+    "selectedMaterial": "Selected material"
+  },
+  "kinds": {
+    "avatarEffect": "Avatar Effect",
+    "avatarFx": "Avatar FX",
+    "sceneEffect": "Scene Effect",
+    "sceneFx": "Scene FX"
+  },
+  "scene": {
+    "checks": {
+      "previewAvatar": "Preview Avatar",
+      "ready": "Ready to save",
+      "readyDetail": "Scene settings are ready.",
+      "states": {
+        "error": "Error",
+        "idle": "Idle",
+        "loading": "Loading",
+        "ready": "Ready"
+      },
+      "title": "Checks"
+    },
+    "common": {
+      "opacity": "Opacity"
+    },
+    "confirmNew": "Discard the current changes and start a new Scene Effect?",
+    "controls": {
+      "addStop": "Add stop",
+      "alternateSpin": "Alternate spin",
+      "angle": "Angle (deg)",
+      "centerX": "Center X",
+      "centerY": "Center Y",
+      "chooseTileImage": "Choose tile image",
+      "colorPicker": "{{label}} picker",
+      "fade": "Fade (ms)",
+      "flashColor": "Flash color",
+      "gradientType": "Gradient type",
+      "itemsShown": "Items shown",
+      "keepFaceClear": "Keep the face clear",
+      "keepFaceClearHint": "Still items, and items drifting up or down, stay out of the column behind the head.",
+      "length": "Length",
+      "newSeed": "New random seed",
+      "opacity": "Opacity",
+      "pulse": "Pulse",
+      "rangeMax": "{{label}} max",
+      "rangeMin": "{{label}} min",
+      "region": "Region (top to bottom)",
+      "removeScatter": "Remove scatter layer",
+      "removeStop": "Remove stop {{index, number}}",
+      "replaceTileImage": "Replace tile image",
+      "rotation": "Rotation (deg)",
+      "screenColor": "Screen color",
+      "screenKind": "Screen kind",
+      "size": "Size (px)",
+      "spiky": "Spiky starburst",
+      "spin": "Spin (deg/s)",
+      "stopAt": "At",
+      "stopColor": "Stop {{index, number}} color",
+      "stops": "Stops",
+      "swaySeconds": "Seconds per sway (0 still)",
+      "tileSize": "Tile size (px)",
+      "turnSeconds": "Seconds per turn (0 still)",
+      "width": "Width (px)"
+    },
+    "directions": {
+      "down": "Down",
+      "downLeft": "Diagonal down left",
+      "downRight": "Diagonal down right",
+      "left": "Left",
+      "right": "Right",
+      "static": "Static",
+      "up": "Up",
+      "upLeft": "Diagonal up left",
+      "upRight": "Diagonal up right"
+    },
+    "fields": {
+      "baseThickness": "Base thickness",
+      "definition": "Effect settings",
+      "description": "Description",
+      "duration": "Duration",
+      "flashColor": "Flash color",
+      "flashDuration": "Flash fade",
+      "flicker": "Flicker timing",
+      "gap": "Gap",
+      "gradientAngle": "Gradient angle",
+      "gradientCenterX": "Gradient center X",
+      "gradientCenterY": "Gradient center Y",
+      "gradientStop": "Gradient stop {{index, number}}",
+      "gradientStops": "Gradient stops",
+      "images": "Private images",
+      "itemSize": "Item size",
+      "lengthVariation": "Length variation",
+      "lineColor": "Line color",
+      "lineCount": "Line count",
+      "lineOpacity": "Line opacity",
+      "marqueeItem": "Marquee item {{index, number}}",
+      "marqueeItems": "Marquee items",
+      "marqueeOpacity": "Marquee opacity",
+      "maxHiddenMs": "Longest hidden (ms)",
+      "maxVisibleMs": "Longest visible (ms)",
+      "minHiddenMs": "Shortest hidden (ms)",
+      "minVisibleMs": "Shortest visible (ms)",
+      "name": "Name",
+      "opacityJitter": "Opacity jitter",
+      "overscan": "Overscan",
+      "paddingX": "Padding X",
+      "paddingY": "Padding Y",
+      "patternColor": "Pattern color",
+      "patternOpacity": "Pattern opacity",
+      "patternSize": "Pattern size",
+      "patternSpacing": "Pattern spacing",
+      "rotationOffset": "Rotation offset",
+      "rowGap": "Row gap",
+      "scatter": {
+        "count": "Scatter {{layer, number}} items shown",
+        "item": "Scatter {{layer, number}} item {{index, number}}",
+        "items": "Scatter {{layer, number}} items",
+        "layer": "Scatter {{layer, number}}",
+        "maxOpacity": "Scatter {{layer, number}} highest opacity",
+        "maxRotation": "Scatter {{layer, number}} largest rotation",
+        "maxSize": "Scatter {{layer, number}} largest size",
+        "maxSpin": "Scatter {{layer, number}} fastest spin",
+        "minOpacity": "Scatter {{layer, number}} lowest opacity",
+        "minRotation": "Scatter {{layer, number}} smallest rotation",
+        "minSize": "Scatter {{layer, number}} smallest size",
+        "minSpin": "Scatter {{layer, number}} slowest spin",
+        "opacity": "Scatter {{layer, number}} opacity",
+        "region": "Scatter {{layer, number}} region",
+        "regionBottom": "Scatter {{layer, number}} region bottom",
+        "regionTop": "Scatter {{layer, number}} region top",
+        "rotation": "Scatter {{layer, number}} rotation",
+        "seed": "Scatter {{layer, number}} seed",
+        "size": "Scatter {{layer, number}} size",
+        "speed": "Scatter {{layer, number}} speed",
+        "spin": "Scatter {{layer, number}} spin"
+      },
+      "scatters": "Scatter layers",
+      "screenCenterX": "Ray center X",
+      "screenCenterY": "Ray center Y",
+      "screenColor": "Screen color",
+      "screenCount": "Ray or line count",
+      "screenLength": "Line length",
+      "screenMaxLength": "Longest line length",
+      "screenMaxWidth": "Thickest line width",
+      "screenMinLength": "Shortest line length",
+      "screenMinWidth": "Thinnest line width",
+      "screenOpacity": "Screen opacity",
+      "screenSeed": "Screen seed",
+      "screenSway": "Seconds per sway",
+      "screenThrob": "Throbs per second",
+      "screenTurn": "Seconds per turn",
+      "screenWidth": "Line width",
+      "seed": "Seed",
+      "solidColor": "Solid color",
+      "sound": "Sound",
+      "speed": "Speed",
+      "target": "Target",
+      "thicknessVariation": "Thickness variation",
+      "tileImage": "Tile image",
+      "tileOpacity": "Tile opacity",
+      "tileSize": "Tile size",
+      "tileSpeed": "Tile speed"
+    },
+    "focus": {
+      "avatarFace": "Avatar face",
+      "behindAvatar": "Behind Avatar",
+      "box": {
+        "height": "Height",
+        "width": "Width",
+        "x": "X",
+        "y": "Y"
+      },
+      "frontOfAvatar": "Front of Avatar",
+      "manualBox": "Manual box",
+      "placement": "Render placement",
+      "seed": "Seed",
+      "tabs": {
+        "lines": "Lines",
+        "motion": "Motion",
+        "style": "Style",
+        "target": "Target"
+      },
+      "target": "Target"
+    },
+    "gradientTypes": {
+      "linear": "Linear",
+      "radial": "Radial"
+    },
+    "image": {
+      "dimensionsTooLarge": "Scene images must be at most {{size}} px on each side.",
+      "tooLarge": "Scene images must be at most {{size, number}} MiB.",
+      "typeInvalid": "Choose a PNG, JPEG, WebP, or static SVG image.",
+      "unreadable": "The image is not a readable PNG, JPEG or WebP file."
+    },
+    "import": {
+      "description": "Paste an Animama Scene Effect editor document. Private image bytes must be reselected.",
+      "notDocument": "This is not an Animama Scene Effect editor document.",
+      "reselectImages": "Reselect the imported document's private images before saving.",
+      "title": "Import Scene Effect JSON",
+      "unsupportedSchema": "The Scene Effect editor schema is unsupported."
+    },
+    "items": {
+      "addImage": "Add private image",
+      "emojiRemoved": "Animama no longer provides emoji items. Replace each with a sticker or image, or remove it, before saving.",
+      "empty": "Add a sticker or private image.",
+      "missingEmoji": "Missing emoji",
+      "moveDown": "Move {{name}} down",
+      "moveUp": "Move {{name}} up",
+      "remove": "Remove {{name}}",
+      "title": "Items"
+    },
+    "json": {
+      "description": "The authoring document contains local logical image names and exact dependency sources, never Blob URLs or storage capabilities.",
+      "title": "Portable Scene Effect JSON"
+    },
+    "kinds": {
+      "background": "Background",
+      "focusLines": "Focus Lines"
+    },
+    "layers": {
+      "addScatter": "Add scatter layer",
+      "enabled": "{{layer}} enabled",
+      "flash": "Entry flash",
+      "flashSummary": "{{color}} · {{ms, number}} ms",
+      "gradient": "Gradient",
+      "gradientSummary_one": "{{type}} · {{count, number}} stop",
+      "gradientSummary_other": "{{type}} · {{count, number}} stops",
+      "marquee": "Marquee",
+      "marqueeSummary_one": "{{count, number}} item · {{direction}}",
+      "marqueeSummary_other": "{{count, number}} items · {{direction}}",
+      "pattern": "Pattern",
+      "patternSummary": "{{pattern}} · {{size, number}}px",
+      "scatter": "Scatter {{index, number}}",
+      "scatterSummary_one": "{{count, number}} item · {{shown, number}} shown · {{pulse}}",
+      "scatterSummary_other": "{{count, number}} items · {{shown, number}} shown · {{pulse}}",
+      "screen": "Screen",
+      "screenSummary": "{{kind}} · {{total, number}}",
+      "solid": "Solid",
+      "summary": "{{layer}} layer",
+      "tile": "Tile",
+      "tileNoImage": "No image",
+      "title": "Layers (front to back)"
+    },
+    "loading": "Loading Scene Effect…",
+    "marquee": {
+      "direction": "Direction",
+      "gap": "Gap",
+      "itemSize": "Item size",
+      "rotation": "Rotation",
+      "rotationOffset": "Rotation offset (deg)",
+      "rowGap": "Row gap",
+      "speed": "Speed (px/s)",
+      "tabs": {
+        "appearance": "Appearance",
+        "content": "Content",
+        "motion": "Motion"
+      }
+    },
+    "open": {
+      "backgroundIncomplete": "The background layer definition is incomplete.",
+      "contentImageDownloadFailed": "The content image {{file}} could not be downloaded.",
+      "contentImageUnavailable": "The content image {{file}} is unavailable.",
+      "definitionUnavailable": "The Scene Effect definition is unavailable.",
+      "focusIncomplete": "The focus-line definition is incomplete.",
+      "imageUnavailable": "The release image {{file}} is unavailable.",
+      "itemImageUnavailable": "The image for marquee item {{index, number}} is unavailable.",
+      "itemInvalid": "Marquee item {{index, number}} is invalid.",
+      "itemKindUnsupported": "The Scene item kind is unsupported.",
+      "itemUnsupported": "Marquee item {{index, number}} is unsupported.",
+      "kindUnsupported": "The Scene Effect kind is unsupported.",
+      "scatterInvalid": "Scatter layer {{index, number}} is invalid."
+    },
+    "openFailed": "The Scene Effect could not be opened.",
+    "pattern": {
+      "color": "Color",
+      "enabled": "Pattern enabled",
+      "kind": "Pattern kind",
+      "size": "Size",
+      "spacing": "Spacing"
+    },
+    "patterns": {
+      "heart": "Heart",
+      "none": "None",
+      "polkadot": "Polkadot",
+      "star": "Star"
+    },
+    "pulses": {
+      "flicker": "Flicker",
+      "none": "None",
+      "pop": "Pop",
+      "twinkle": "Twinkle"
+    },
+    "recovery": {
+      "metadataOnly": "Image bytes could not be stored for crash recovery. Reselect private images after restoring this draft.",
+      "needsImages": "This recovered draft needs its private images reselected before Save.",
+      "tooLarge": "These images are too large for browser crash recovery. Keep this tab open until Save completes."
+    },
+    "rotationModes": {
+      "followTrack": "Follow track",
+      "upright": "Upright"
+    },
+    "save": {
+      "defaultName": "New Scene FX",
+      "reselectImage": "Reselect {{file}} before saving.",
+      "saved": "Scene Effect saved."
+    },
+    "screenKinds": {
+      "lines": "Lines",
+      "rays": "Rays"
+    },
+    "setup": {
+      "behavior": "Effect behavior",
+      "coverUi": "Cover UI overlays",
+      "coverUiHint": "Preview the effect over app chrome when supported.",
+      "custom": "Custom",
+      "dismissOnInput": "Dismiss on input",
+      "duration": "Duration (s)",
+      "focusLinesHint": "Emphasize the Avatar’s face or a selected area.",
+      "startingTemplate": "Starting template",
+      "sticky": "Sticky",
+      "title": "Scene Setup"
+    },
+    "solid": {
+      "color": "Solid color",
+      "enabled": "Solid enabled"
+    },
+    "stickers": {
+      "add": "Add {{name}} sticker",
+      "extras": "Extras",
+      "loadFailed": "The sticker could not be loaded.",
+      "title": "Add a sticker"
+    },
+    "template": {
+      "unavailable": "This Scene Effect template is unavailable."
+    },
+    "validation": {
+      "bounds": "{{setting}} must be between {{min, number}} and {{max, number}}.",
+      "boundsWhole": "{{setting}} must be a whole number between {{min, number}} and {{max, number}}.",
+      "countAtMost": "{{setting}} can have at most {{max, number}} entries.",
+      "countRange": "{{setting}} needs {{min, number}} to {{max, number}} entries.",
+      "definitionInvalid": "The Scene Effect settings are invalid.",
+      "descriptionTooLong": "Description must be {{max, number}} characters or shorter.",
+      "duplicateItemIds": "Every item needs a unique id.",
+      "duration": "Duration must be sticky or between {{min, number}} and {{max, number}} seconds.",
+      "flashColor": "Choose a six-digit hex flash color.",
+      "flickerOrder": "Minimum flicker times cannot exceed their maximums.",
+      "gradientStopColor": "Choose a six-digit hex gradient stop color.",
+      "imagesTooLarge": "Private Scene images must total {{size}} or less.",
+      "imageType": "{{file}} is not PNG, JPEG, WebP, or SVG.",
+      "legacyEmoji": "{{label}} is an emoji, which Animama no longer provides. Replace it with a sticker or image, or remove it.",
+      "legacyEmojiUnnamed": "This item is an emoji, which Animama no longer provides. Replace it with a sticker or image, or remove it.",
+      "lineColor": "Choose a six-digit hex line color.",
+      "manualTarget": "The manual target must stay within the normalized viewport.",
+      "minAboveMax": "{{setting}}: the minimum cannot exceed the maximum.",
+      "nameTooLong": "Keep the Scene Effect name within {{max, number}} characters.",
+      "patternColor": "Choose a six-digit hex pattern color.",
+      "reselectForPreview": "Reselect {{file}} for preview.",
+      "reselectImage": "Reselect {{file}} so its bytes can be saved.",
+      "scatterTotal": "Scattered layers can show at most {{max, number}} items in all.",
+      "screenColor": "Choose a six-digit hex screen color.",
+      "solidColor": "Choose a six-digit hex solid color.",
+      "stopsAscending": "Gradient stops must run in ascending position.",
+      "tileImage": "Choose an image to tile.",
+      "tooManyImages": "A Scene Effect can contain at most {{max, number}} private images.",
+      "unusedImages": "Unused background image bytes will not be saved with Focus Lines."
+    },
+    "views": {
+      "fullScene": "Full scene",
+      "portrait": "Portrait"
+    }
+  }
+}

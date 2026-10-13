@@ -41,6 +41,7 @@ from animama.app.services.content_kind_registry import (
     descriptor_filename,
     handler_for_kind,
 )
+from animama.app.services.content_names import folding_drops_characters, name_hash
 from animama.app.services.content_package_archive import InspectedPackage, InspectedPackageEntry
 from animama.app.services.content_package_export import _json_stream, portable_json
 from animama.app.services.content_portability import is_non_portable
@@ -81,9 +82,15 @@ def _numbered_name(name: str, number: int, limit: int = 120) -> str:
 
 
 def _path_name(name: str) -> str:
-    """Names are display text; ASCII filenames do not constrain valid Unicode names."""
+    """Names are display text; ASCII filenames do not constrain valid Unicode names.
+
+    Names in other scripts keep a name hash so different names get different paths.
+    """
     segment = re.sub(r"[^A-Za-z0-9_-]+", "-", unicodedata.normalize("NFKD", name).encode("ascii", "ignore").decode())
-    segment = segment.strip("-.").lower()[:100] or "content"
+    segment = segment.strip("-.").lower()[:100]
+    if folding_drops_characters(name):
+        segment = f"{(segment or 'content')[:92]}-{name_hash(name)}"
+    segment = segment or "content"
     if re.fullmatch(r"(?i)(con|prn|aux|nul|com[1-9]|lpt[1-9])(\..*)?", segment):
         segment = f"content-{segment}"
     return segment

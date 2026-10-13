@@ -1,4 +1,5 @@
-import { describe, expect, it } from "vitest";
+import { getI18n } from "react-i18next";
+import { afterEach, describe, expect, it } from "vitest";
 
 import type { PyUserFileResponse } from "@/lib/content/catalogTypes";
 import {
@@ -44,7 +45,8 @@ describe("Library Chat Uploads", () => {
       key: "upload:file-1",
       name: "Project Notes.md",
       extension: "MD",
-      size: "2.0 KB",
+      sizeBytes: 2048,
+      createdAt: "2026-07-18T12:00:00Z",
       contentType: "text/markdown",
       chunkCount: 4,
       statusLabel: "Processing",
@@ -140,6 +142,35 @@ describe("Library Chat Uploads", () => {
       statusLabel: "Failed",
       statusTone: "destructive",
       error: "Could not parse document.",
+    });
+  });
+
+  describe("outside English", () => {
+    afterEach(async () => {
+      await getI18n().changeLanguage("en");
+    });
+
+    it("words a stored error by status, keeping the English as detail", async () => {
+      await getI18n().changeLanguage("ja");
+      const t = getI18n().getFixedT(null, "library");
+      const detail = (message: string) =>
+        getI18n().t("errors:generic.withDetail", {
+          message,
+          detail: "Embeddings unavailable.",
+        });
+      expect(
+        presentLibraryUpload(
+          upload({
+            status: "ready_keyword_only",
+            last_error: "Embeddings unavailable.",
+          }),
+        ).error,
+      ).toBe(detail(t("uploads.keywordOnly")));
+      expect(
+        presentLibraryUpload(
+          upload({ status: "failed", last_error: "Embeddings unavailable." }),
+        ).error,
+      ).toBe(detail(t("uploads.processingFailed")));
     });
   });
 });

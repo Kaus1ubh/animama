@@ -37,6 +37,7 @@ from .anthropic_instructions import (
     INSTRUCTION_STYLE_ANTHROPIC,
     INSTRUCTION_STYLE_DEFAULT,
 )
+from .conversation_language import ConversationLanguage, reply_language_instruction
 from .direct_turn.types import DirectChatAttachmentContext
 from .memory_context import (
     ANIMA_MEMORIES_GUIDANCE,
@@ -131,6 +132,7 @@ class DirectChatPromptAssembler:
         reasoning_effort: str | None = None,
         stream_options: ChatCompletionStreamOptionsParam | None = None,
         instruction_style: str = INSTRUCTION_STYLE_DEFAULT,
+        conversation_language: ConversationLanguage | None = None,
     ) -> DirectChatPrompt:
         guardrails = COMPANION_GUARDRAILS.strip()
         memory_map_text = memory_map.strip() if isinstance(memory_map, str) and memory_map.strip() else None
@@ -171,6 +173,7 @@ class DirectChatPromptAssembler:
             response_format_guidance=response_format_guidance,
             native_memory_patch_enabled=native_memory_patch_enabled,
             instruction_style=instruction_style,
+            conversation_language=conversation_language,
         )
         if supports_developer_role:
             system_text = "\n\n".join((*stable_sections, guardrails))
@@ -242,8 +245,9 @@ def _stable_instruction_sections(
     response_format_guidance: str | None = None,
     native_memory_patch_enabled: bool = False,
     instruction_style: str = INSTRUCTION_STYLE_DEFAULT,
+    conversation_language: ConversationLanguage | None = None,
 ) -> list[str]:
-    """Return the system sections that change only per Anima, in order, before the guardrails."""
+    """Return the system sections that change only per Anima (or language), in order, before the guardrails."""
 
     anthropic = instruction_style == INSTRUCTION_STYLE_ANTHROPIC
 
@@ -279,6 +283,9 @@ def _stable_instruction_sections(
         "# Memory Guidance\n\n" + memory_guidance,
         "# Response Guidance\n\n" + (guidance or MAIN_STRUCTURED_OUTPUT_GUIDANCE.strip()),
     ]
+    # A non-English UI Locale is the language the Anima replies and speaks in.
+    if conversation_language is not None:
+        sections.append(reply_language_instruction(conversation_language))
     if anthropic:
         # The turn context arrives in a mid-conversation system message after the user's words.
         sections.append(ANTHROPIC_TURN_CONTEXT_DESCRIPTION)

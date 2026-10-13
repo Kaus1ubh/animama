@@ -53,11 +53,11 @@ export type HandShape = {
 
 // ── Segments ─────────────────────────────────────────────────────────────
 
+/** A Hands-tool segment; its display name lives in the `pose` catalog (`hands.segments`). */
 export type HandSegment = {
   id: string;
   digit: HandDigit;
   segment: "metacarpal" | "proximal" | "intermediate" | "distal";
-  label: string;
   spread: boolean;
 };
 const capitalize = (value: string) => value[0].toUpperCase() + value.slice(1);
@@ -72,7 +72,6 @@ export const HAND_SEGMENTS: HandSegment[] = HAND_DIGITS.flatMap((digit) =>
     id: `${digit}${capitalize(segment)}`,
     digit,
     segment,
-    label: `${capitalize(digit)} ${segment}`,
     spread: index === 0,
   })),
 );

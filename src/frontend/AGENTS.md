@@ -159,6 +159,21 @@ or migration behavior.
 - On mutation success, update or invalidate caches narrowly.
 - Keep server state in TanStack Query and transient runtime state in Zustand.
 
+### Interface Text And Locales
+
+- User-visible text comes from catalogs, never inline English: add the English
+  string to `web/src/locales/en/<namespace>.json` (or product-ui's
+  `locales/en/product.json`), use it with `useTranslation`/`t` (product-ui code:
+  `useProductTranslation`), and add `ja`, `ko`, `zh-Hans` and `zh-Hant`
+  translations with `src/frontend/i18n/terms.json`. See
+  `docs/frontend/architecture/i18n.md`.
+- Word backend failures from their codes; do not render backend English as the
+  primary message. Format dates and numbers with `useFormatters()`.
+- Never translate stored data or IDs; map them to catalog keys for display.
+- Electron shell text (startup page, menu, window titles) uses
+  `desktop/src/locales/<tag>.json` through the main process's shell strings.
+- Run `pnpm i18n:check`; `pnpm i18n:status` lists untranslated keys.
+
 ### Routing
 
 - Use TanStack Router primitives directly: `Link`, `useNavigate`,

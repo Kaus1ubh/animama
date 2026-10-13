@@ -10,6 +10,7 @@ import {
   X,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import type {
   PyMemoryManagerApproval,
@@ -34,6 +35,7 @@ import {
   episodeProcessingPresentation,
   reflectionPresentation,
 } from "@/lib/memory-manager/workspace-state";
+import { uncodedErrorText } from "@/lib/errors/apiError";
 import { cn } from "@/lib/utils";
 import { Response as PlainTextResponse } from "@/ui/components/animated-text-response";
 import { Button } from "@/ui/components/button";
@@ -102,14 +104,13 @@ function ApprovalCard({
   ) => void;
   onUndo: (approval: PyMemoryManagerApproval) => void;
 }) {
+  const { t } = useTranslation("memory");
   const pending = approval.status === "pending";
   const showUndo = canShowMemoryManagerApprovalUndo(approval, isUndoing);
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [feedback, setFeedback] = useState("");
-  const feedbackValidation = useMemo(
-    () => validateMemoryManagerRejectionFeedback(feedback),
-    [feedback],
-  );
+  // Validated each render so its message follows the active UI Locale.
+  const feedbackValidation = validateMemoryManagerRejectionFeedback(feedback);
   const feedbackErrorId = `approval-feedback-error-${approval.id}`;
   const animaFolders = useMemoryAnimaFolders();
   return (
@@ -121,7 +122,9 @@ function ApprovalCard({
       />
       {approval.decision_feedback ? (
         <div className="border-border/70 bg-muted/30 rounded-lg border px-3 py-2 text-sm">
-          <p className="text-foreground font-medium">Rejection feedback</p>
+          <p className="text-foreground font-medium">
+            {t("manager.approval.rejectionFeedback")}
+          </p>
           <p className="text-muted-foreground mt-1 whitespace-pre-wrap">
             {approval.decision_feedback}
           </p>
@@ -133,7 +136,7 @@ function ApprovalCard({
             className="text-foreground text-sm font-medium"
             htmlFor={`approval-feedback-${approval.id}`}
           >
-            Request a revised memory change
+            {t("manager.approval.requestRevision")}
           </label>
           <Textarea
             id={`approval-feedback-${approval.id}`}
@@ -143,7 +146,7 @@ function ApprovalCard({
             className="min-h-24 resize-y"
             disabled={isDeciding}
             onChange={(event) => setFeedback(event.target.value)}
-            placeholder="Explain what should change, such as a different Markdown path or wording."
+            placeholder={t("manager.approval.feedbackPlaceholder")}
             value={feedback}
           />
           <div className="flex flex-wrap items-start justify-between gap-2">
@@ -157,12 +160,14 @@ function ApprovalCard({
                 )}
               >
                 {feedbackValidation.valid
-                  ? "This rejects the current diff and sends your feedback to the manager."
+                  ? t("manager.approval.feedbackHint")
                   : feedbackValidation.error}
               </p>
               <p className="text-muted-foreground mt-1">
-                {feedback.length.toLocaleString()} /{" "}
-                {MEMORY_MANAGER_REJECTION_FEEDBACK_MAX_CHARS.toLocaleString()}
+                {t("manager.approval.feedbackCount", {
+                  length: feedback.length,
+                  max: MEMORY_MANAGER_REJECTION_FEEDBACK_MAX_CHARS,
+                })}
               </p>
             </div>
             <div className="flex gap-2">
@@ -173,7 +178,7 @@ function ApprovalCard({
                 disabled={isDeciding}
                 onClick={() => setFeedbackOpen(false)}
               >
-                Cancel
+                {t("shared.cancel")}
               </Button>
               <Button
                 type="button"
@@ -190,7 +195,7 @@ function ApprovalCard({
                 ) : (
                   <MessageSquareText className="size-4" />
                 )}
-                Send feedback
+                {t("manager.approval.sendFeedback")}
               </Button>
             </div>
           </div>
@@ -223,7 +228,7 @@ function ApprovalCard({
                 ) : (
                   <X className="size-4" />
                 )}
-                Reject
+                {t("manager.approval.reject")}
               </Button>
               <Button
                 type="button"
@@ -233,7 +238,7 @@ function ApprovalCard({
                 onClick={() => setFeedbackOpen((current) => !current)}
               >
                 <MessageSquareText className="size-4" />
-                Request changes
+                {t("manager.approval.requestChanges")}
               </Button>
               <Button
                 type="button"
@@ -246,7 +251,7 @@ function ApprovalCard({
                 ) : (
                   <Check className="size-4" />
                 )}
-                Approve
+                {t("manager.approval.approve")}
               </Button>
             </>
           ) : showUndo ? (
@@ -257,7 +262,7 @@ function ApprovalCard({
               onClick={() => onUndo(approval)}
             >
               <Undo2 className="size-4" />
-              Undo
+              {t("manager.approval.undo")}
             </Button>
           ) : null}
         </div>
@@ -378,6 +383,7 @@ export function MemoryManagerChatPanel({
   onUndo,
   onRetry,
 }: MemoryManagerChatPanelProps) {
+  const { t } = useTranslation("memory");
   const transcriptItems = useMemo(
     () =>
       projectMemoryManagerTranscript({
@@ -388,6 +394,11 @@ export function MemoryManagerChatPanel({
     [optimisticSubmission, snapshot?.approvals, snapshot?.messages],
   );
   const failed = snapshot?.run.status === "failed";
+  // The run stores the service's English error; other locales show a
+  // translated summary with that English as secondary detail.
+  const runError = snapshot?.run.error
+    ? uncodedErrorText(snapshot.run.error, t("manager.runFailed"))
+    : null;
   const completed = snapshot?.run.status === "completed";
   const processingStatus =
     episodeProcessingPresentation(snapshot?.run) ??
@@ -421,30 +432,30 @@ export function MemoryManagerChatPanel({
           ) : null}
           {isLoading ? (
             <ChatTranscriptEmptyState
-              description="Resolving the current conversation."
+              description={t("manager.loadingDescription")}
               icon={<Loader2 className="size-6 animate-spin" />}
-              title="Loading memory manager"
+              title={t("manager.loadingTitle")}
             />
           ) : isError ? (
             <ChatTranscriptEmptyState className="gap-4">
               <AlertTriangle className="text-destructive size-8" />
               <div>
                 <p className="text-foreground text-sm font-medium">
-                  Failed to load this memory-manager conversation.
+                  {t("manager.loadFailed")}
                 </p>
                 <p className="text-muted-foreground mt-1 text-sm">
-                  Retry it before changing its lifecycle.
+                  {t("manager.loadFailedHint")}
                 </p>
               </div>
               <Button type="button" onClick={onRetry}>
                 <RefreshCw className="size-4" />
-                Retry
+                {t("shared.retry")}
               </Button>
             </ChatTranscriptEmptyState>
           ) : transcriptItems.length === 0 && !failed && !completed ? (
             <ChatTranscriptEmptyState
-              description="Ask it to create, update, or organize a memory file."
-              title="Start a memory conversation"
+              description={t("manager.emptyDescription")}
+              title={t("manager.emptyTitle")}
             />
           ) : (
             <div className="w-full min-w-0">
@@ -453,11 +464,13 @@ export function MemoryManagerChatPanel({
                   role="alert"
                   className="border-destructive/30 bg-destructive/5 text-destructive mb-4 rounded-lg border p-4 text-sm"
                 >
-                  <p className="font-medium">Memory manager stopped.</p>
+                  <p className="font-medium">{t("manager.stopped")}</p>
                   <p className="mt-1">
-                    {snapshot?.run.error ??
-                      "The conversation could not continue. Select New to retry."}
+                    {runError?.message ?? t("manager.stoppedFallback")}
                   </p>
+                  {runError?.detail ? (
+                    <p className="mt-1 text-xs opacity-80">{runError.detail}</p>
+                  ) : null}
                 </div>
               ) : null}
               {completed ? (
@@ -465,7 +478,7 @@ export function MemoryManagerChatPanel({
                   role="status"
                   className="border-border/70 bg-muted/30 text-muted-foreground mb-4 rounded-lg border p-4 text-sm"
                 >
-                  This conversation is complete. Select New to begin another.
+                  {t("manager.completed")}
                 </div>
               ) : null}
               {transcriptItems.map((item) => (
@@ -504,10 +517,10 @@ export function MemoryManagerChatPanel({
               variant="default"
             >
               <ChatInputTextArea
-                aria-label="Memory manager message"
+                aria-label={t("manager.messageLabel")}
                 className="bg-transparent placeholder:text-sm"
                 disabled={composerDisabled}
-                placeholder="Ask the memory manager to create or update a memory file"
+                placeholder={t("manager.placeholder")}
               />
             </ChatInput>
           </div>

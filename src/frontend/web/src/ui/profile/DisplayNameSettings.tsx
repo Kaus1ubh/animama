@@ -2,6 +2,7 @@
 
 import { Loader2 } from "lucide-react";
 import { useId, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type { PyUserProfile } from "@animama/runtime-contracts/sdk";
@@ -22,6 +23,7 @@ function DisplayNameEditor({
 }: {
   initialProfile: PyUserProfile;
 }) {
+  const { t } = useTranslation("settings");
   const inputId = useId();
   const [displayName, setDisplayName] = useState(
     initialProfile.display_name ?? "",
@@ -35,18 +37,20 @@ function DisplayNameEditor({
     event.preventDefault();
     if (!changed || updateProfile.isPending) return;
     if (!normalized) {
-      setError("Enter a display name between 1 and 80 characters.");
+      setError(
+        t("profile.displayName.required", { max: DISPLAY_NAME_MAX_LENGTH }),
+      );
       return;
     }
     setError(null);
     try {
       await updateProfile.mutateAsync({ display_name: normalized });
-      toast.success("Display name saved.");
+      toast.success(t("profile.displayName.saved"));
     } catch (caught) {
       setError(
         caught instanceof UserProfileApiError
           ? caught.message
-          : "Could not save your display name. Try again.",
+          : t("profile.displayName.saveFailed"),
       );
     }
   };
@@ -55,9 +59,12 @@ function DisplayNameEditor({
     <form onSubmit={handleSubmit} className="space-y-4">
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <Label htmlFor={inputId}>Display Name</Label>
+          <Label htmlFor={inputId}>{t("profile.displayName.fieldLabel")}</Label>
           <span className="text-muted-foreground text-xs">
-            {displayName.length}/{DISPLAY_NAME_MAX_LENGTH}
+            {t("profile.displayName.count", {
+              length: displayName.length,
+              max: DISPLAY_NAME_MAX_LENGTH,
+            })}
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -69,7 +76,7 @@ function DisplayNameEditor({
             required
             autoComplete="name"
             disabled={updateProfile.isPending}
-            placeholder="Your name"
+            placeholder={t("profile.displayName.placeholder")}
             onChange={(event) => {
               setDisplayName(event.target.value);
               setError(null);
@@ -83,7 +90,7 @@ function DisplayNameEditor({
             {updateProfile.isPending ? (
               <Loader2 className="size-4 animate-spin" />
             ) : null}
-            Save
+            {t("profile.displayName.save")}
           </Button>
         </div>
         {error ? (
@@ -98,11 +105,12 @@ function DisplayNameEditor({
 
 /** Edit the private display name within App Settings without changing its owner. */
 export function DisplayNameSettings({ className }: { className?: string }) {
+  const { t } = useTranslation("settings");
   const profile = useUserProfile();
 
   return (
     <section
-      aria-label="Display name"
+      aria-label={t("profile.displayName.label")}
       className={cn(
         "border-border/60 bg-muted/10 rounded-xl border p-5",
         className,
@@ -115,9 +123,9 @@ export function DisplayNameSettings({ className }: { className?: string }) {
         />
       ) : profile.isError ? (
         <div className="space-y-4 text-center">
-          <p className="font-medium">Display name unavailable</p>
+          <p className="font-medium">{t("profile.displayName.unavailable")}</p>
           <p className="text-muted-foreground text-sm">
-            Animama could not load the local profile.
+            {t("profile.displayName.loadFailed")}
           </p>
           <Button
             type="button"
@@ -125,7 +133,7 @@ export function DisplayNameSettings({ className }: { className?: string }) {
             disabled={profile.isFetching}
             onClick={() => void profile.refetch()}
           >
-            Try again
+            {t("actions.tryAgain")}
           </Button>
         </div>
       ) : (
@@ -134,7 +142,7 @@ export function DisplayNameSettings({ className }: { className?: string }) {
           role="status"
         >
           <Loader2 className="size-4 animate-spin" />
-          Loading display name…
+          {t("profile.displayName.loading")}
         </div>
       )}
     </section>

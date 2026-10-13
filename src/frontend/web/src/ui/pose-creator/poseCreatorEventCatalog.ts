@@ -3,6 +3,7 @@ import type { ParticleVFXCatalogEntry } from "@/lib/avatar/particle-vfx/types";
 import type { AvatarVFXCatalogEntry } from "@/lib/avatar/vfx/types";
 import type { RuntimeAudioDescriptor } from "@/lib/runtime-content/AnimaRuntimeMediaCatalog";
 import type { SceneVFXEntry, SceneVFXKind } from "@/lib/scene-vfx/types";
+import { compareDisplayText } from "@animama/product-ui/i18n";
 
 export type PoseCreatorAvatarVFXOption = {
   id: string;
@@ -175,7 +176,8 @@ function sortOptions<T extends { id: string; label: string }>(
 ): T[] {
   return values.sort(
     (left, right) =>
-      left.label.localeCompare(right.label) || left.id.localeCompare(right.id),
+      compareDisplayText(left.label, right.label) ||
+      left.id.localeCompare(right.id),
   );
 }
 

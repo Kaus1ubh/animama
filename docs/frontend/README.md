@@ -13,6 +13,8 @@ Start here:
 - `architecture/auth-server.md`: FastAPI local HTTP serving, request policy,
   development proxy, renderer capability, and accountless runtime-readiness seam.
 - `architecture/data-layer.md`: generated client and TanStack Query patterns.
+- `architecture/i18n.md`: UI Locale resolution, catalogs, translation workflow,
+  checks and the pseudo-locale.
 - `architecture/content-and-workers.md`: runtime content, workers, and LFS notes.
 - `architecture/local-content-runtime.md`: authenticated local HTTP byte
   delivery, ephemeral prepared mounts, degraded playback, no-hot-swap, and the

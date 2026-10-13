@@ -43,6 +43,8 @@ import {
   Wrench,
 } from "lucide-react";
 import { Fragment, useCallback, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import type { PyMemoryEntryHeader } from "@/lib/content/catalogTypes";
 import { useElementSize } from "@/hooks/useElementSize";
@@ -295,6 +297,11 @@ function ExplorerRow({
   repairingAnimaId: string | null;
   onRepairAnimaMemories?: (animaId: string) => void;
 }) {
+  const { t } = useTranslation("memory");
+  // The virtual Episodes root is the only fixed label; everything else is a
+  // stored name, an Anima name or a formatted date.
+  const label =
+    node.kind === "episode-root" ? t("explorer.episodesRoot") : node.label;
   const expandable =
     node.children.length > 0 ||
     (node.kind !== "file" && node.kind !== "episode-file");
@@ -307,7 +314,7 @@ function ExplorerRow({
   const path =
     (node.kind === "file" ? node.displayPath : undefined) ??
     entry?.path ??
-    node.label;
+    label;
   // Flag the pre-existing root entry occupying the reserved `animas` name.
   const reservedConflict = Boolean(
     entry && !entry.parent_id && isReservedUserMemoryEntry(entry),
@@ -437,26 +444,23 @@ function ExplorerRow({
         )}
         <span className="min-w-0 flex-1 py-1">
           <span className="flex min-w-0 items-center gap-1.5">
-            <span className="min-w-0 truncate">{node.label}</span>
+            <span className="min-w-0 truncate">{label}</span>
             {dirty ? (
               <span
                 className="bg-warning size-1.5 shrink-0 rounded-full"
-                title="Unsaved changes"
+                title={t("explorer.unsavedChanges")}
               />
             ) : null}
             {reservedConflict ? (
-              <span
-                className="shrink-0"
-                title="This name is reserved for Anima identities. Rename it, or move its contents out, to edit them."
-              >
+              <span className="shrink-0" title={t("explorer.reservedNameHint")}>
                 <AlertTriangle aria-hidden className="text-warning size-3.5" />
-                <span className="sr-only">Reserved name</span>
+                <span className="sr-only">{t("explorer.reservedName")}</span>
               </span>
             ) : null}
             {repairNeeded ? (
-              <span className="shrink-0" title="Needs repair">
+              <span className="shrink-0" title={t("explorer.needsRepair")}>
                 <AlertTriangle aria-hidden className="text-warning size-3.5" />
-                <span className="sr-only">Needs repair</span>
+                <span className="sr-only">{t("explorer.needsRepair")}</span>
               </span>
             ) : null}
           </span>
@@ -468,9 +472,13 @@ function ExplorerRow({
         </span>
         {node.kind === "episode-root" && pendingEpisodeCount > 0 ? (
           <span
-            aria-label={`${pendingEpisodeCount} pending ${pendingEpisodeCount === 1 ? "episode" : "episodes"}`}
+            aria-label={t("explorer.pendingEpisodes", {
+              count: pendingEpisodeCount,
+            })}
             className="bg-primary text-primary-foreground text-2xs ml-auto shrink-0 rounded-full px-1.5 py-0.5 leading-none"
-            title={`${pendingEpisodeCount} pending ${pendingEpisodeCount === 1 ? "episode" : "episodes"}`}
+            title={t("explorer.pendingEpisodes", {
+              count: pendingEpisodeCount,
+            })}
           >
             {pendingCountLabel(pendingEpisodeCount)}
           </span>
@@ -489,7 +497,7 @@ function ExplorerRow({
                   ? "opacity-0 group-hover/tree-row:opacity-100 focus-visible:opacity-100 data-[state=open]:opacity-100"
                   : "opacity-100 md:opacity-0 md:group-hover/tree-row:opacity-100 md:focus-visible:opacity-100 md:data-[state=open]:opacity-100",
               )}
-              aria-label={`Actions for ${path}`}
+              aria-label={t("explorer.actionsFor", { path })}
             >
               <EllipsisVertical className="size-3" />
             </Button>
@@ -519,7 +527,7 @@ function ExplorerRow({
       )}
       {expanded && node.kind === "anima-directory" && node.identityMissing ? (
         <p className={missingFileNoticeClass(compact)}>
-          This Anima&apos;s identity is missing and needs repair.
+          {t("explorer.identityMissing")}
         </p>
       ) : null}
       {expanded && node.children.length > 0 ? (
@@ -560,7 +568,9 @@ function ExplorerRow({
       ) : expanded &&
         (node.kind === "episode-root" || node.kind === "anima-root") ? (
         <p className="text-muted-foreground border-border/60 ml-3 border-l px-3 py-2 text-xs">
-          {node.kind === "episode-root" ? "No episodes yet." : "No Animas yet."}
+          {node.kind === "episode-root"
+            ? t("explorer.noEpisodes")
+            : t("explorer.noAnimas")}
         </p>
       ) : null}
       {expanded && node.kind === "anima-directory" && node.memoriesMissing ? (
@@ -570,7 +580,7 @@ function ExplorerRow({
             "flex flex-wrap items-center gap-2",
           )}
         >
-          <span>MEMORIES.md is missing.</span>
+          <span>{t("explorer.memoriesMissing")}</span>
           {onRepairAnimaMemories ? (
             <Button
               type="button"
@@ -578,7 +588,7 @@ function ExplorerRow({
               size="sm"
               className="h-6 px-2 text-xs"
               disabled={Boolean(repairingAnimaId)}
-              aria-label={`Repair MEMORIES.md for ${node.label}`}
+              aria-label={t("explorer.repairMemories", { name: node.label })}
               onClick={() => onRepairAnimaMemories(node.animaId)}
             >
               {repairingAnimaId === node.animaId ? (
@@ -586,7 +596,7 @@ function ExplorerRow({
               ) : (
                 <Wrench className="size-3" />
               )}
-              Repair
+              {t("explorer.repair")}
             </Button>
           ) : null}
         </div>
@@ -610,6 +620,7 @@ function ExplorerToolbar({
   onToggleAllDirectories: () => void;
   onCollapse: () => void;
 }) {
+  const { t } = useTranslation("memory");
   const compactButtonClass = compact ? "size-6" : undefined;
   const toolbarIconClass = compact ? "size-3.5" : "size-4";
 
@@ -637,10 +648,12 @@ function ExplorerToolbar({
                 onClick={() => controls.onCreateFile()}
               >
                 <FilePlus2 className={toolbarIconClass} />
-                <span className="sr-only">New markdown file</span>
+                <span className="sr-only">{t("explorer.newMarkdownFile")}</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">New markdown file</TooltipContent>
+            <TooltipContent side="bottom">
+              {t("explorer.newMarkdownFile")}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -652,10 +665,14 @@ function ExplorerToolbar({
                 onClick={() => controls.onCreateDirectory()}
               >
                 <FolderPlus className={toolbarIconClass} />
-                <span className="sr-only">New directory</span>
+                <span className="sr-only">
+                  {t("explorer.actions.newDirectory")}
+                </span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">New directory</TooltipContent>
+            <TooltipContent side="bottom">
+              {t("explorer.actions.newDirectory")}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -674,15 +691,15 @@ function ExplorerToolbar({
                 )}
                 <span className="sr-only">
                   {allDirectoriesExpanded
-                    ? "Collapse all directories"
-                    : "Expand all directories"}
+                    ? t("explorer.collapseAll")
+                    : t("explorer.expandAll")}
                 </span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
               {allDirectoriesExpanded
-                ? "Collapse all directories"
-                : "Expand all directories"}
+                ? t("explorer.collapseAll")
+                : t("explorer.expandAll")}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -701,10 +718,12 @@ function ExplorerToolbar({
                     controls.isRefreshing && "animate-spin",
                   )}
                 />
-                <span className="sr-only">Refresh memory files</span>
+                <span className="sr-only">{t("explorer.refresh")}</span>
               </Button>
             </TooltipTrigger>
-            <TooltipContent side="bottom">Refresh memory files</TooltipContent>
+            <TooltipContent side="bottom">
+              {t("explorer.refresh")}
+            </TooltipContent>
           </Tooltip>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -716,11 +735,11 @@ function ExplorerToolbar({
                 onClick={onCollapse}
               >
                 <PanelLeftClose className={toolbarIconClass} />
-                <span className="sr-only">Collapse file explorer</span>
+                <span className="sr-only">{t("explorer.collapse")}</span>
               </Button>
             </TooltipTrigger>
             <TooltipContent side="bottom">
-              Collapse file explorer
+              {t("explorer.collapse")}
             </TooltipContent>
           </Tooltip>
         </div>
@@ -731,8 +750,10 @@ function ExplorerToolbar({
           value={controls.query}
           onChange={(event) => controls.onQueryChange(event.target.value)}
           className="h-8 w-full max-w-full min-w-0 pl-8 text-xs"
-          placeholder={compact ? "Filter" : "Filter files"}
-          aria-label="Filter memory files"
+          placeholder={
+            compact ? t("explorer.filter") : t("explorer.filterFiles")
+          }
+          aria-label={t("explorer.filterLabel")}
         />
       </div>
     </div>
@@ -766,6 +787,8 @@ export function MemoryFileExplorer({
   repairingAnimaId = null,
   onRepairAnimaMemories,
 }: MemoryFileExplorerProps) {
+  const { t } = useTranslation("memory");
+  const { locale } = useFormatters();
   const [explorerElement, setExplorerElement] = useState<HTMLDivElement | null>(
     null,
   );
@@ -779,8 +802,8 @@ export function MemoryFileExplorer({
     useSensor(KeyboardSensor),
   );
   const tree = useMemo(
-    () => providedTree ?? buildMemoryWorkspaceTree(entries),
-    [entries, providedTree],
+    () => providedTree ?? buildMemoryWorkspaceTree(entries, locale),
+    [entries, locale, providedTree],
   );
   const visibleTree = useMemo(
     () => filterMemoryWorkspaceTree(tree, controls?.query ?? ""),
@@ -824,33 +847,37 @@ export function MemoryFileExplorer({
   const accessibility = useMemo(
     () => ({
       screenReaderInstructions: {
-        draggable:
-          "Press Space or Enter to pick up a memory entry. Use the arrow keys to choose a directory, then press Space or Enter to move it. Press Escape to cancel.",
+        draggable: t("explorer.drag.instructions"),
       },
       announcements: {
         onDragStart({ active }) {
           const source = entriesById.get(String(active.id));
-          return source ? `Picked up ${source.path}.` : undefined;
+          return source
+            ? t("explorer.drag.pickedUp", { path: source.path })
+            : undefined;
         },
         onDragOver({ over }) {
           const destination = over ? entriesById.get(String(over.id)) : null;
           return destination
-            ? `Move into ${destination.path}.`
-            : "Not over a valid memory directory.";
+            ? t("explorer.drag.moveInto", { path: destination.path })
+            : t("explorer.drag.notOver");
         },
         onDragEnd({ active, over }) {
           const source = entriesById.get(String(active.id));
           const destination = over ? entriesById.get(String(over.id)) : null;
           return source && destination
-            ? `Moving ${source.path} into ${destination.path}.`
-            : "Memory move cancelled.";
+            ? t("explorer.drag.moving", {
+                source: source.path,
+                destination: destination.path,
+              })
+            : t("explorer.drag.cancelled");
         },
         onDragCancel() {
-          return "Memory move cancelled.";
+          return t("explorer.drag.cancelled");
         },
       },
     }),
-    [entriesById],
+    [entriesById, t],
   ) satisfies {
     screenReaderInstructions: { draggable: string };
     announcements: Announcements;
@@ -873,11 +900,11 @@ export function MemoryFileExplorer({
                   onClick={() => onCollapsedChange(false)}
                 >
                   <PanelLeftOpen className="size-4" />
-                  <span className="sr-only">Expand file explorer</span>
+                  <span className="sr-only">{t("explorer.expand")}</span>
                 </Button>
               </TooltipTrigger>
               <TooltipContent side="right" sideOffset={6} className="z-[150]">
-                Expand file explorer
+                {t("explorer.expand")}
               </TooltipContent>
             </Tooltip>
           </div>
@@ -908,7 +935,7 @@ export function MemoryFileExplorer({
         ) : (
           <div className="border-border/40 flex h-12 shrink-0 items-center justify-between border-b px-3">
             <p className="text-foreground truncate text-xs font-semibold tracking-wide uppercase">
-              Memory files
+              {t("explorer.heading")}
             </p>
             <Button
               type="button"
@@ -918,7 +945,7 @@ export function MemoryFileExplorer({
               onClick={() => onCollapsedChange(true)}
             >
               <PanelLeftClose className="size-4" />
-              <span className="sr-only">Collapse file explorer</span>
+              <span className="sr-only">{t("explorer.collapse")}</span>
             </Button>
           </div>
         )}
@@ -934,19 +961,19 @@ export function MemoryFileExplorer({
           <ContextMenu>
             <ContextMenuTrigger asChild disabled={!controls}>
               <nav
-                aria-label="Memory files"
+                aria-label={t("explorer.heading")}
                 className="min-h-0 min-w-0 flex-1 overflow-x-hidden overflow-y-auto p-2"
               >
                 {isLoading ? (
                   <div className="text-muted-foreground flex h-full items-center justify-center px-3 text-center text-xs">
-                    <Loader2 className="mr-2 size-4 animate-spin" /> Loading
-                    files...
+                    <Loader2 className="mr-2 size-4 animate-spin" />{" "}
+                    {t("explorer.loading")}
                   </div>
                 ) : isError ? (
                   <div className="flex h-full flex-col items-center justify-center gap-3 px-3 text-center">
                     <AlertTriangle className="text-destructive size-6" />
                     <p className="text-muted-foreground text-xs">
-                      Failed to load memory files.
+                      {t("explorer.loadFailed")}
                     </p>
                     <Button
                       type="button"
@@ -954,14 +981,14 @@ export function MemoryFileExplorer({
                       size="sm"
                       onClick={onRetry}
                     >
-                      <RefreshCw className="size-4" /> Retry
+                      <RefreshCw className="size-4" /> {t("shared.retry")}
                     </Button>
                   </div>
                 ) : visibleTree.length === 0 ? (
                   <div className="text-muted-foreground flex h-full items-center justify-center px-3 text-center text-xs">
                     {controls?.query.trim()
-                      ? "No matching memory files."
-                      : "No memory files yet."}
+                      ? t("explorer.noMatches")
+                      : t("explorer.empty")}
                   </div>
                 ) : (
                   <ul className="max-w-full min-w-0">
@@ -996,12 +1023,14 @@ export function MemoryFileExplorer({
             </ContextMenuTrigger>
             <ContextMenuContent>
               <ContextMenuItem onSelect={() => controls?.onCreateFile(null)}>
-                <FilePlus2 className="mr-2 size-4" /> New file
+                <FilePlus2 className="mr-2 size-4" />{" "}
+                {t("explorer.actions.newFile")}
               </ContextMenuItem>
               <ContextMenuItem
                 onSelect={() => controls?.onCreateDirectory(null)}
               >
-                <FolderPlus className="mr-2 size-4" /> New directory
+                <FolderPlus className="mr-2 size-4" />{" "}
+                {t("explorer.actions.newDirectory")}
               </ContextMenuItem>
             </ContextMenuContent>
           </ContextMenu>

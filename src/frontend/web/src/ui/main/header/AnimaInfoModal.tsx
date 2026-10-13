@@ -19,6 +19,7 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from "motion/react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import type { PyAnimaResponse } from "@/lib/content/catalogTypes";
 import { getAnimaDisplayName } from "@/lib/anima-profile";
@@ -81,6 +82,7 @@ function AnimaProfile({
   emotionState,
   emotionSourceLabel = null,
 }: AnimaInfoModalProps) {
+  const { t } = useTranslation("chat");
   const navigate = useNavigate();
   const emotionalState =
     emotionState === undefined
@@ -225,7 +227,7 @@ function AnimaProfile({
 
   const displayName = anima
     ? getAnimaDisplayName(anima)
-    : (animaLabel ?? "Anima");
+    : (animaLabel ?? t("header.anima.fallback"));
   const fallbackIdentity = anima?.avatar?.identity?.trim() ?? "";
   const identity = resolveAnimaIdentityContent(
     identityQuery.data?.content,
@@ -277,7 +279,7 @@ function AnimaProfile({
         }}
       >
         <Dialog.Description className="sr-only">
-          Appearance, emotions, identity, memories and settings.
+          {t("profile.description")}
         </Dialog.Description>
         <div
           ref={setProfileElement}
@@ -292,7 +294,8 @@ function AnimaProfile({
                 className="mr-auto shrink-0"
                 onClick={returnToProfile}
               >
-                <ArrowLeft aria-hidden="true" className="size-4" /> Back
+                <ArrowLeft aria-hidden="true" className="size-4" />{" "}
+                {t("profile.back")}
               </Button>
             ) : null}
             <Dialog.Title className="sr-only">{displayName}</Dialog.Title>
@@ -302,13 +305,13 @@ function AnimaProfile({
                   <button
                     type="button"
                     className={iconButtonClass}
-                    aria-label="See full details"
+                    aria-label={t("profile.fullDetails")}
                     onClick={() => openAnimaDetailsPage(anima.id)}
                   >
                     <ExternalLink className="size-5" aria-hidden="true" />
                   </button>
                 </TooltipTrigger>
-                <TooltipContent>See full details</TooltipContent>
+                <TooltipContent>{t("profile.fullDetails")}</TooltipContent>
               </Tooltip>
             ) : null}
             <Tooltip>
@@ -317,7 +320,7 @@ function AnimaProfile({
                   ref={settingsTriggerRef}
                   type="button"
                   className={iconButtonClass}
-                  aria-label="Anima Settings"
+                  aria-label={t("profile.settings")}
                   aria-pressed={view === "settings"}
                   onClick={() => {
                     if (view === "settings") {
@@ -332,14 +335,14 @@ function AnimaProfile({
                   <Settings className="size-5" aria-hidden="true" />
                 </button>
               </TooltipTrigger>
-              <TooltipContent>Anima Settings</TooltipContent>
+              <TooltipContent>{t("profile.settings")}</TooltipContent>
             </Tooltip>
             <Dialog.Close asChild>
               <button
                 type="button"
                 className={iconButtonClass}
-                aria-label="Close anima profile"
-                title="Close"
+                aria-label={t("profile.close")}
+                title={t("profile.closeShort")}
               >
                 <X className="size-5" aria-hidden="true" />
               </button>
@@ -354,7 +357,7 @@ function AnimaProfile({
               {backgroundImage.url ? (
                 <RuntimeImageFrame
                   src={backgroundImage.url}
-                  alt={`${displayName} background`}
+                  alt={t("profile.backgroundAlt", { name: displayName })}
                   presentation={runtimeImagePresentation(backgroundEntry)}
                   className="size-full"
                 />
@@ -366,7 +369,7 @@ function AnimaProfile({
                     appearanceTriggerRef.current = event.currentTarget;
                     setAppearanceSection("background_image");
                   }}
-                  aria-label="Edit background image"
+                  aria-label={t("profile.editBackground")}
                   className={cn(
                     appearanceButtonClass,
                     "absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2",
@@ -383,7 +386,9 @@ function AnimaProfile({
                     {profileImage.url ? (
                       <RuntimeImageFrame
                         src={profileImage.url}
-                        alt={`${displayName} profile`}
+                        alt={t("profile.profileImageAlt", {
+                          name: displayName,
+                        })}
                         presentation={profileImage.presentation}
                         className="size-full rounded-full"
                       />
@@ -399,7 +404,7 @@ function AnimaProfile({
                           appearanceTriggerRef.current = event.currentTarget;
                           setAppearanceSection("profile_image");
                         }}
-                        aria-label="Edit profile image"
+                        aria-label={t("profile.editProfileImage")}
                         className={cn(
                           appearanceButtonClass,
                           "border-background absolute right-0 bottom-0 border-[3px]",
@@ -419,7 +424,9 @@ function AnimaProfile({
                   )}
                   tabIndex={hoverMode ? 0 : undefined}
                   role={hoverMode ? "button" : undefined}
-                  aria-label={hoverMode ? "Explore emotions" : undefined}
+                  aria-label={
+                    hoverMode ? t("profile.exploreEmotions") : undefined
+                  }
                   aria-expanded={hoverMode ? emotionsOpen : undefined}
                   aria-controls={hoverMode ? emotionPanelId : undefined}
                   onPointerEnter={openOnHover}
@@ -472,7 +479,7 @@ function AnimaProfile({
                             setEmotionsOpen((previous) => !previous)
                           }
                         >
-                          Emotions
+                          {t("profile.emotions")}
                           <ChevronDown
                             aria-hidden="true"
                             className={cn(
@@ -491,7 +498,7 @@ function AnimaProfile({
                   <motion.section
                     key="inline-emotions"
                     id={emotionPanelId}
-                    aria-label="Emotions"
+                    aria-label={t("profile.emotions")}
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: "auto", opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
@@ -504,7 +511,7 @@ function AnimaProfile({
                   </motion.section>
                 ) : null}
               </AnimatePresence>
-              <section aria-label="Anima documents">
+              <section aria-label={t("profile.documents.label")}>
                 {anima?.id ? (
                   <AnimaProfileDocuments
                     tab={documentTab}
@@ -521,7 +528,7 @@ function AnimaProfile({
                   />
                 ) : (
                   <p className="text-muted-foreground text-sm">
-                    No identity content provided yet.
+                    {t("profile.noIdentity")}
                   </p>
                 )}
               </section>
@@ -530,7 +537,7 @@ function AnimaProfile({
           {view === "settings" ? (
             <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 pb-6">
               <h2 className="mb-4 text-xl font-semibold">
-                {displayName} settings
+                {t("profile.settingsTitle", { name: displayName })}
               </h2>
               <AnimaSettingsModal />
             </div>
@@ -549,7 +556,7 @@ function AnimaProfile({
               onFocusCapture={cancelHoverClose}
               onBlurCapture={scheduleHoverClose}
               id={emotionPanelId}
-              aria-label="Emotions"
+              aria-label={t("profile.emotions")}
               initial={{ x: reducedMotion ? 0 : -12, opacity: 0 }}
               animate={{ x: 0, opacity: 1 }}
               exit={{ x: reducedMotion ? 0 : -12, opacity: 0 }}
@@ -557,7 +564,7 @@ function AnimaProfile({
               className="border-border bg-background absolute top-0 left-[calc(100%+16px)] max-h-full w-[360px] overflow-y-auto overscroll-contain rounded-2xl border px-3 py-1 shadow-xl"
             >
               <h2 className="pointer-events-none absolute top-3 left-4 text-sm font-semibold">
-                Emotions
+                {t("profile.emotions")}
               </h2>
               {details}
             </motion.section>

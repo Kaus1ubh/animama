@@ -1,5 +1,6 @@
 import { QueryClient } from "@tanstack/react-query";
 import type { RuntimeAdmission } from "@animama/runtime-contracts";
+import { getI18n } from "react-i18next";
 import { createLogger } from "@/lib/logger";
 import { queryClientOptions } from "@/query/queryClientOptions";
 import type {
@@ -12,6 +13,16 @@ import { clearPrivateSessionState } from "./private-session-state";
 import { beginHostedRecoverySession } from "@/lib/content/recovery-session";
 
 const logger = createLogger("RuntimeController");
+
+/** Admission explanations the controller reports, in the active UI Locale. */
+function admissionText() {
+  const t = getI18n().getFixedT(null, "app");
+  return {
+    cleanupFailed: t("admission.messages.cleanupFailed"),
+    signOutDataRemains: t("admission.messages.signOutDataRemains"),
+    unreachable: t("admission.unavailable.description"),
+  };
+}
 const NO_ACCOUNT: AccountAffordances = {
   canOpenAccount: false,
   signOutIncomplete: false,
@@ -147,8 +158,7 @@ export class RuntimeController {
       if (admission.status === "ready" && this.takeCleanupFailures())
         this.publish({
           status: "unavailable",
-          message:
-            "Animama could not finish clearing the previous session from this browser. Reload the page, or try again to continue.",
+          message: admissionText().cleanupFailed,
         });
       else this.publish(admission);
     } catch {
@@ -167,7 +177,7 @@ export class RuntimeController {
         }
         this.publish({
           status: "unavailable",
-          message: "Animama could not reach the runtime. Please try again.",
+          message: admissionText().unreachable,
         });
       }
     } finally {
@@ -201,8 +211,7 @@ export class RuntimeController {
       !incomplete && (cleanupFailed || remote.status === "rejected")
         ? {
             status: "sign-in-required",
-            message:
-              "You are signed out, but some private data could not be removed from this browser. Reload the page before signing in again.",
+            message: admissionText().signOutDataRemains,
           }
         : { status: "sign-in-required" },
     );

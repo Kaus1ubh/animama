@@ -6,6 +6,7 @@ import {
   HeartPulseIcon,
   WandSparklesIcon,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { ActionComponentType } from "@/query/hooks/useEffects";
 import { Button } from "@/ui/components/button";
@@ -31,6 +32,7 @@ export function CreatorEffectHandoffActions({
   itemId: string | null | undefined;
   componentType: ActionComponentType;
 }) {
+  const { t } = useTranslation("creator");
   if (!itemId) return null;
   const search = effectCreatorHandoffSearch(itemId, componentType);
   return (
@@ -42,7 +44,7 @@ export function CreatorEffectHandoffActions({
           className="bg-background dark:bg-background dark:hover:bg-accent h-11 rounded-xl shadow-sm"
         >
           <WandSparklesIcon />
-          <span className="hidden xl:inline">Use in…</span>
+          <span className="hidden xl:inline">{t("handoff.useIn")}</span>
           <ChevronDownIcon className="size-3.5" />
         </Button>
       </DropdownMenuTrigger>
@@ -50,13 +52,13 @@ export function CreatorEffectHandoffActions({
         <DropdownMenuItem asChild>
           <Link to="/gestures/new" search={search}>
             <WandSparklesIcon className="mr-2 size-4" />
-            Use in a Gesture
+            {t("handoff.gesture")}
           </Link>
         </DropdownMenuItem>
         <DropdownMenuItem asChild>
           <Link to="/reactions/new" search={search}>
             <HeartPulseIcon className="mr-2 size-4" />
-            Use in a Reaction
+            {t("handoff.reaction")}
           </Link>
         </DropdownMenuItem>
       </DropdownMenuContent>

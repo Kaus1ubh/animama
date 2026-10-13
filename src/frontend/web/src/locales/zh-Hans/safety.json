@@ -1,0 +1,21 @@
+{
+  "aiNotice": {
+    "reminder": "提醒：{{name}} 是 AI，不是真人。",
+    "reminderUnnamed": "提醒：Anima 是 AI，不是真人。",
+    "start": "你正在与 {{name}} 交谈，它是 AI，不是真人。",
+    "startUnnamed": "你正在与 Anima 交谈，它是 AI，不是真人。"
+  },
+  "crisis": {
+    "dismiss": "关闭",
+    "emergency": "如果你正处于紧急危险中，请拨打 {{number}}。",
+    "emergencyLocal": "如果你正处于紧急危险中，请拨打当地的紧急求助电话。",
+    "intro": "如果你正在考虑自杀或自我伤害，你不必独自面对。受过专业训练的人可以帮助你。",
+    "label": "危机支持资源",
+    "noServices": "请联系当地的危机热线或你信任的人。",
+    "notProfessional": "Anima 是 AI，不能替代专业帮助。"
+  },
+  "protocol": {
+    "back": "返回 Animama",
+    "title": "安全与危机应对规程"
+  }
+}

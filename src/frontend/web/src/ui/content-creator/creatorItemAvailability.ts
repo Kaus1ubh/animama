@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import type { PyCatalogViewItem } from "@/lib/content/catalogTypes";
 
 type CreatorItem = Pick<PyCatalogViewItem, "state" | "origin" | "editable">;
@@ -31,11 +33,9 @@ export function creatorItemUnavailableMessage({
 }): string | null {
   if (!itemId) return null;
   if (loadError) return loadError;
-  if (!item)
-    return readFailed
-      ? `This ${label} could not be found. It may have been deleted, or the link may be out of date.`
-      : null;
+  const t = getI18n().getFixedT(null, "creator");
+  if (!item) return readFailed ? t("unavailable.notFound", { label }) : null;
   if (!isCreatorItemOpenable(item))
-    return `This ${label} is unavailable. Check it in the Library.`;
+    return t("unavailable.unavailable", { label });
   return null;
 }

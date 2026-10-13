@@ -1,9 +1,16 @@
 "use client";
 
+import { getI18n } from "react-i18next";
+
+/**
+ * Ask before replacing unsaved Pose edits. `message` defaults to the
+ * replace-the-draft question in the UI Locale.
+ */
 export function confirmPoseCreatorDirtyReplacement(
   isDirty: boolean,
-  message = "Discard unsaved pose changes and replace the current draft?",
+  message?: string,
 ): boolean {
   if (!isDirty) return true;
-  return window.confirm(message);
+  const t = getI18n().getFixedT(null, "pose");
+  return window.confirm(message ?? t("dirty.replace"));
 }

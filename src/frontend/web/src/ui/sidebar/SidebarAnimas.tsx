@@ -3,6 +3,8 @@
 import { useMemo, useState } from "react";
 import { Link, useLocation, useParams } from "@tanstack/react-router";
 import { AnimatePresence, motion } from "motion/react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 import { cn } from "@/lib/utils";
 import { getAnimaDisplayName, sortAnimasByRecent } from "@/lib/anima-profile";
 import { useSidebar } from "@/ui/sidebar/Sidebar";
@@ -29,6 +31,8 @@ import {
 } from "@animama/product-ui/components";
 
 export const SidebarAnimas = () => {
+  const { t } = useTranslation("sidebar");
+  const { compare } = useFormatters();
   const { open } = useSidebar();
   const params = useParams({ strict: false });
   const pathname = useLocation({ select: (location) => location.pathname });
@@ -56,13 +60,9 @@ export const SidebarAnimas = () => {
     return [...animas].sort(
       (left, right) =>
         direction *
-        getAnimaDisplayName(left).localeCompare(
-          getAnimaDisplayName(right),
-          undefined,
-          { sensitivity: "base" },
-        ),
+        compare(getAnimaDisplayName(left), getAnimaDisplayName(right)),
     );
-  }, [animas, recentlyUsedAnimaId, sort]);
+  }, [animas, compare, recentlyUsedAnimaId, sort]);
 
   if (!open) {
     if (isLoading || isError || animas.length === 0) return null;
@@ -109,14 +109,14 @@ export const SidebarAnimas = () => {
   return (
     <div className="group/sidebar-section mt-4">
       <SidebarSectionHeader
-        label="Animas"
+        label={t("animas.heading")}
         expanded={expanded}
         controlsId="sidebar-animas-list"
         filterActive={sort !== "recent"}
-        filterLabel="Filter and sort Animas"
+        filterLabel={t("animas.filter")}
         onToggle={() => setExpanded((prev) => !prev)}
       >
-        <DropdownMenuLabel>Sort</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("animas.sort.label")}</DropdownMenuLabel>
         <DropdownMenuRadioGroup
           value={sort}
           onValueChange={(value) => setSort(value as SidebarAnimaSort)}
@@ -125,19 +125,19 @@ export const SidebarAnimas = () => {
             value="recent"
             className="focus:bg-muted focus:text-foreground"
           >
-            Recently used
+            {t("animas.sort.recent")}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
             value="name-asc"
             className="focus:bg-muted focus:text-foreground"
           >
-            Name: A–Z
+            {t("animas.sort.nameAscending")}
           </DropdownMenuRadioItem>
           <DropdownMenuRadioItem
             value="name-desc"
             className="focus:bg-muted focus:text-foreground"
           >
-            Name: Z–A
+            {t("animas.sort.nameDescending")}
           </DropdownMenuRadioItem>
         </DropdownMenuRadioGroup>
       </SidebarSectionHeader>
@@ -154,15 +154,15 @@ export const SidebarAnimas = () => {
             <div className="flex flex-col gap-1">
               {isLoading ? (
                 <div className="text-muted-foreground px-2 py-2 text-xs">
-                  Loading animas...
+                  {t("animas.loading")}
                 </div>
               ) : isError ? (
                 <div className="text-destructive px-2 py-2 text-xs">
-                  Failed to load animas
+                  {t("animas.loadFailed")}
                 </div>
               ) : animas.length === 0 ? (
                 <div className="text-muted-foreground px-2 py-2 text-xs">
-                  No animas yet
+                  {t("animas.empty")}
                 </div>
               ) : (
                 <AnimaSelection

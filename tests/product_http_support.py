@@ -195,6 +195,7 @@ class FakeGeminiSpeech:
     """
 
     calls: list[tuple[str, str, object]] = field(default_factory=list)
+    language_codes: list[str | None] = field(default_factory=list)
     refusal: ProductRefusal | None = None
     stream_refusal: ProductRefusal | None = None
 
@@ -210,10 +211,12 @@ class FakeGeminiSpeech:
         text_basis: str,
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
+        language_code: str | None = None,
     ) -> FakeFinalizedSpeech:
         if self.refusal is not None:
             raise self.refusal
         self.calls.append(("prepare_finalized", principal.id, voice_id))
+        self.language_codes.append(language_code)
         return FakeFinalizedSpeech(voice_id=voice_id, model_id=model_id or DEFAULT_GEMINI_TTS_MODEL_ID)
 
     async def stream_finalized(self, prepared: FinalizedSpeech) -> AsyncIterator[dict[str, Any]]:

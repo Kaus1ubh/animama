@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { getI18n } from "react-i18next";
+import { afterEach, describe, expect, it } from "vitest";
 
 import {
   isChatAiNotice,
@@ -87,6 +88,62 @@ describe("crisis card", () => {
     expect(html).toContain("call your local emergency number");
     // The protocol opens in place, so the card never navigates away.
     expect(html).not.toContain('href="/safety"');
+  });
+});
+
+describe("crisis card under another UI Locale (spec R9)", () => {
+  afterEach(async () => {
+    await getI18n().changeLanguage("en");
+  });
+
+  it("translates the card's labels and shows the verified service data as sent", async () => {
+    await getI18n().changeLanguage("ja");
+    const t = getI18n().getFixedT("ja", "safety");
+    const html = renderToStaticMarkup(
+      <CompanionSafetyView
+        notice={null}
+        noticeVisible={false}
+        crisis={crisis}
+        onDismissCrisis={noop}
+      />,
+    );
+
+    // The card's own labels come from the catalog.
+    expect(html).toContain(`aria-label="${t("crisis.label")}"`);
+    expect(html).toContain(t("crisis.intro"));
+    expect(html).toContain(t("crisis.emergency", { number: "911" }));
+    expect(html).toContain(t("crisis.notProfessional"));
+    expect(html).toContain(t("protocol.title"));
+    expect(html).toContain(`>${t("crisis.dismiss")}<`);
+    expect(html).not.toContain("Trained people can help");
+    expect(html).not.toContain(">Dismiss<");
+
+    // Service names, descriptions and contacts are the backend's data, unchanged.
+    expect(html).toContain("988 Suicide &amp; Crisis Lifeline");
+    expect(html).toContain("Free, confidential support 24/7.");
+    expect(html).toContain(">Call 988<");
+    expect(html).toContain(">Text 988<");
+    expect(html).toContain(">Chat online<");
+    expect(html).toContain('href="tel:988"');
+    expect(html).toContain('href="https://chat.988lifeline.org/"');
+  });
+
+  it("words the AI notice in the UI Locale around the Anima's name", async () => {
+    await getI18n().changeLanguage("ja");
+    const html = renderToStaticMarkup(
+      <CompanionSafetyView
+        notice={{ kind: "reminder", animaName: "Annie" }}
+        noticeVisible
+        crisis={null}
+        onDismissCrisis={noop}
+      />,
+    );
+    expect(html).toContain(
+      getI18n().getFixedT("ja", "safety")("aiNotice.reminder", {
+        name: "Annie",
+      }),
+    );
+    expect(html).not.toContain("not a person");
   });
 });
 

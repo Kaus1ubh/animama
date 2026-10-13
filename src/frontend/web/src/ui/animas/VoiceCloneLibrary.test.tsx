@@ -1,9 +1,14 @@
 // @vitest-environment happy-dom
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
-import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
+import type {
+  PyModelAssetState,
+  PyVoiceContent,
+} from "@animama/runtime-contracts/api-types";
+import { getI18n } from "react-i18next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { toVoiceCloneError } from "@/lib/speech/pocket/voice-clones";
 import { PocketVoiceEncoderDownloadRequired } from "@/lib/speech/pocket/voice-cloning-encoder";
 import { withRuntime } from "@/test/runtime-markup";
 import { VoiceCloneLibrary } from "./VoiceCloneLibrary";
@@ -12,6 +17,7 @@ const fixture = vi.hoisted(() => ({
   capabilities: {} as Record<string, unknown>,
   prepare: vi.fn(),
   modelAction: vi.fn(),
+  remove: vi.fn(),
 }));
 
 vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
@@ -29,7 +35,7 @@ vi.mock("@/query/mutations/useModelAssetActions", () => ({
 vi.mock("@/query/mutations/useVoiceCloneActions", () => ({
   useVoiceCloneActions: () => ({
     saveVoiceClone: { mutateAsync: vi.fn() },
-    deleteVoiceClone: { mutateAsync: vi.fn() },
+    deleteVoiceClone: { mutateAsync: fixture.remove },
   }),
 }));
 // The download prompt's own copy is covered by its tests; its bundled
@@ -122,5 +128,46 @@ describe("voice cloning without the encoder", () => {
     expect(text).toContain("Download voice cloning?");
     expect(text).toContain("Download and clone");
     expect(text).not.toContain("managed by the hosted operator");
+  });
+});
+
+describe("deleting a voice clone an Anima still uses", () => {
+  afterEach(async () => {
+    await act(async () => root?.unmount());
+    container?.remove();
+    root = null;
+    container = null;
+    await getI18n().changeLanguage("en");
+  });
+
+  it("shows the voice wording, not the backend English, outside English", async () => {
+    await getI18n().changeLanguage("ja");
+    fixture.capabilities = { local_filesystem_administration: true };
+    fixture.remove.mockRejectedValue(
+      toVoiceCloneError({ detail: { code: "catalog_item_in_use" } }, 409),
+    );
+    container = document.createElement("div");
+    document.body.append(container);
+    await act(async () => {
+      root = createRoot(container!);
+      root.render(
+        withRuntime(
+          <VoiceCloneLibrary
+            disabled={false}
+            deleting={{ name: "Narrator" } as PyVoiceContent}
+            onDeleteClose={() => {}}
+            onBusyChange={() => {}}
+          />,
+        ),
+      );
+    });
+    const t = getI18n().getFixedT(null, "animas");
+    const confirm = Array.from(document.querySelectorAll("button")).find(
+      (button) => button.textContent === t("voices.cloning.delete.confirm"),
+    )!;
+    await act(async () => confirm.click());
+    const text = document.body.textContent ?? "";
+    expect(text).toContain(t("voices.cloning.errors.inUse"));
+    expect(text).not.toContain("This voice is used by an Anima");
   });
 });

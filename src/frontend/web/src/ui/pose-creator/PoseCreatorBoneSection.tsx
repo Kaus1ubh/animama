@@ -21,6 +21,8 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import { cn } from "@/lib/utils";
 import type {
@@ -66,6 +68,7 @@ import {
 } from "./poseCreatorAuthoring";
 import { usePoseCreatorBoneRotation } from "./usePoseCreatorBoneRotation";
 import { usePoseCreatorUndoGrouping } from "./usePoseCreatorUndoGrouping";
+import { boneLabel } from "./poseLabels";
 
 const ROTATION_AXES: Array<{
   axis: PoseCreatorRotationAxis;
@@ -76,9 +79,12 @@ const ROTATION_AXES: Array<{
   { axis: "z", label: "Z" },
 ];
 
-function formatRowDegrees(row: PoseCreatorBoneRow): string {
+function formatRowDegrees(
+  t: TFunction<"pose">,
+  row: PoseCreatorBoneRow,
+): string {
   const value = row.currentEulerDegrees;
-  if (!value) return "Missing";
+  if (!value) return t("bones.missing");
   return `${value.x.toFixed(0)} / ${value.y.toFixed(0)} / ${value.z.toFixed(0)}`;
 }
 
@@ -170,6 +176,7 @@ function BoneTreeRow({
   onSelectBone: (boneName: string) => void;
   variant: "panel" | "workspace" | "mobile";
 }) {
+  const { t } = useTranslation("pose");
   const hasChildren = node.children.length > 0;
   const isExpanded = expandedBoneNames.has(node.boneName);
   const isSelected = node.boneName === selectedBone;
@@ -206,7 +213,9 @@ function BoneTreeRow({
               ? "hover:text-foreground cursor-pointer"
               : "cursor-default opacity-0",
           )}
-          aria-label={isExpanded ? "Collapse bone group" : "Expand bone group"}
+          aria-label={
+            isExpanded ? t("bones.collapseGroup") : t("bones.expandGroup")
+          }
           aria-expanded={hasChildren ? isExpanded : undefined}
           onClick={() => hasChildren && onToggleBone(node.boneName)}
           disabled={!hasChildren}
@@ -231,12 +240,12 @@ function BoneTreeRow({
             )}
           >
             {variant === "workspace"
-              ? formatBoneLabel(node.boneName)
+              ? boneLabel(t, node.boneName)
               : node.boneName}
           </span>
           {variant === "panel" ? (
             <span className="text-muted-foreground block truncate">
-              {node.normalizedNodeName ?? "Unavailable"}
+              {node.normalizedNodeName ?? t("bones.unavailable")}
             </span>
           ) : null}
         </button>
@@ -247,7 +256,7 @@ function BoneTreeRow({
               isDrafted && "text-primary",
             )}
           >
-            {formatRowDegrees(node)}
+            {formatRowDegrees(t, node)}
           </span>
         ) : null}
       </div>
@@ -268,25 +277,20 @@ function BoneTreeRow({
   );
 }
 
-function formatBoneLabel(boneName: string): string {
-  const withSpaces = boneName
-    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
-    .replace(/_/g, " ");
-  return withSpaces.replace(/\b\w/g, (character) => character.toUpperCase());
-}
-
+/** Bones whose ID or displayed name contains the query, with their ancestors. */
 function filterBoneTree(
+  t: TFunction<"pose">,
   tree: PoseCreatorBoneTreeNode[],
   query: string,
 ): PoseCreatorBoneTreeNode[] {
-  const normalizedQuery = query.trim().toLowerCase();
+  const normalizedQuery = query.trim().toLocaleLowerCase();
   if (!normalizedQuery) return tree;
 
   return tree.flatMap((node) => {
-    const children = filterBoneTree(node.children, normalizedQuery);
+    const children = filterBoneTree(t, node.children, normalizedQuery);
     const matches =
       node.boneName.toLowerCase().includes(normalizedQuery) ||
-      formatBoneLabel(node.boneName).toLowerCase().includes(normalizedQuery);
+      boneLabel(t, node.boneName).toLocaleLowerCase().includes(normalizedQuery);
     return matches || children.length > 0 ? [{ ...node, children }] : [];
   });
 }
@@ -311,6 +315,7 @@ export function PoseCreatorBoneSection({
   /** Supplied only by Gesture Pose mode; other shared editors keep their tools. */
   handToggle?: ReactNode;
 }) {
+  const { t } = useTranslation("pose");
   const activeAvatar = usePoseCreatorStore((state) => state.activeAvatar);
   const basePose = usePoseCreatorStore((state) => state.basePose);
   const selectedBone = usePoseCreatorStore((state) => state.selectedBone);
@@ -389,8 +394,8 @@ export function PoseCreatorBoneSection({
     basePose !== POSE_CREATOR_VRM_T_POSE_BASE_POSE_ID,
   );
   const filteredBoneTree = useMemo(
-    () => filterBoneTree(boneTree, boneSearch),
-    [boneSearch, boneTree],
+    () => filterBoneTree(t, boneTree, boneSearch),
+    [boneSearch, boneTree, t],
   );
   const searchExpandedBoneNames = useMemo(
     () =>
@@ -556,9 +561,9 @@ export function PoseCreatorBoneSection({
       >
         <div className="mb-3 flex items-center justify-between gap-3">
           <div>
-            <h2 className="text-sm font-semibold">Bones</h2>
+            <h2 className="text-sm font-semibold">{t("bones.title")}</h2>
             <p className="text-muted-foreground text-2xs mt-0.5">
-              {availableBoneCount} available
+              {t("bones.available", { count: availableBoneCount })}
             </p>
           </div>
           <div className="flex items-center gap-0.5">
@@ -576,12 +581,12 @@ export function PoseCreatorBoneSection({
                       expandedBoneNames.has(boneName),
                     )
                   }
-                  aria-label="Expand all bone groups"
+                  aria-label={t("bones.expandAllLabel")}
                 >
                   <ChevronsDownIcon className="size-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">Expand all</TooltipContent>
+              <TooltipContent side="top">{t("bones.expandAll")}</TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -592,12 +597,14 @@ export function PoseCreatorBoneSection({
                   className="text-muted-foreground size-7"
                   onClick={handleCollapseAllBones}
                   disabled={expandedBoneNames.size === 0}
-                  aria-label="Collapse all bone groups"
+                  aria-label={t("bones.collapseAllLabel")}
                 >
                   <ChevronsUpIcon className="size-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">Collapse all</TooltipContent>
+              <TooltipContent side="top">
+                {t("bones.collapseAll")}
+              </TooltipContent>
             </Tooltip>
             <Tooltip>
               <TooltipTrigger asChild>
@@ -608,12 +615,14 @@ export function PoseCreatorBoneSection({
                   className="text-muted-foreground size-7"
                   onClick={handleResetAllBones}
                   disabled={!hasDraftedBones}
-                  aria-label="Reset all bone changes"
+                  aria-label={t("bones.resetAllLabel")}
                 >
                   <RotateCcwIcon className="size-3.5" />
                 </Button>
               </TooltipTrigger>
-              <TooltipContent side="top">Reset all changes</TooltipContent>
+              <TooltipContent side="top">
+                {t("bones.resetAllChanges")}
+              </TooltipContent>
             </Tooltip>
             {variant === "workspace" && onCollapse ? (
               <Tooltip>
@@ -624,13 +633,13 @@ export function PoseCreatorBoneSection({
                     variant="ghost"
                     className="text-muted-foreground size-7"
                     onClick={onCollapse}
-                    aria-label="Collapse bone tools"
+                    aria-label={t("bones.collapseTools")}
                   >
                     <ChevronUpIcon className="size-3.5" />
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent side="bottom">
-                  Collapse bone tools
+                  {t("bones.collapseTools")}
                 </TooltipContent>
               </Tooltip>
             ) : null}
@@ -642,8 +651,8 @@ export function PoseCreatorBoneSection({
             <Input
               value={boneSearch}
               onChange={(event) => setBoneSearch(event.currentTarget.value)}
-              placeholder="Search bones"
-              aria-label="Search bones"
+              placeholder={t("bones.search")}
+              aria-label={t("bones.search")}
               className="bg-background h-9 rounded-lg pl-9 text-xs shadow-none"
             />
           </div>
@@ -664,7 +673,7 @@ export function PoseCreatorBoneSection({
           />
         ) : (
           <p className="text-muted-foreground py-8 text-center text-xs">
-            No matching bones
+            {t("bones.noMatches")}
           </p>
         )}
       </aside>
@@ -689,6 +698,7 @@ export function PoseCreatorBoneSection({
     searchExpandedBoneNames,
     selectedBone,
     setBoneHelperNodesVisible,
+    t,
     variant,
   ]);
 
@@ -729,11 +739,13 @@ export function PoseCreatorBoneSection({
               )}
             >
               <div className="min-w-0">
-                <h2 className="text-sm font-semibold">Bone Authoring</h2>
+                <h2 className="text-sm font-semibold">
+                  {t("bones.authoring")}
+                </h2>
                 <p className="text-muted-foreground mt-1 truncate text-xs">
                   {selectedRow
-                    ? formatBoneLabel(selectedRow.boneName)
-                    : "Select a bone to edit its rotation"}
+                    ? boneLabel(t, selectedRow.boneName)
+                    : t("bones.selectPrompt")}
                 </p>
               </div>
               {selectedRow ? (
@@ -743,7 +755,7 @@ export function PoseCreatorBoneSection({
                   variant="ghost"
                   className="text-muted-foreground -mt-1 -mr-1 size-7"
                   onClick={() => setSelectedBone(null)}
-                  aria-label="Clear selected bone"
+                  aria-label={t("bones.clearSelected")}
                 >
                   <XIcon className="size-4" />
                 </Button>
@@ -796,7 +808,7 @@ export function PoseCreatorBoneSection({
                           axis === "z" &&
                             "[&_[data-slot=slider-range]]:bg-[#4d8fda]",
                         )}
-                        aria-label={`${label} rotation`}
+                        aria-label={t("bones.rotation", { axis: label })}
                       />
                       <div className="relative">
                         <Input
@@ -828,7 +840,9 @@ export function PoseCreatorBoneSection({
                               event.currentTarget.blur();
                           }}
                           className="h-7 w-full [appearance:textfield] border-0 bg-transparent pr-3 pl-0 text-right font-mono text-xs tabular-nums shadow-none focus-visible:ring-0 dark:bg-transparent [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                          aria-label={`${label} rotation degrees`}
+                          aria-label={t("bones.rotationDegrees", {
+                            axis: label,
+                          })}
                         />
                         <span className="text-muted-foreground text-2xs pointer-events-none absolute top-1/2 right-0 -translate-y-1/2">
                           °
@@ -840,17 +854,21 @@ export function PoseCreatorBoneSection({
 
                 <div className="border-border/60 mt-4 flex items-center justify-between gap-4 border-t pt-3">
                   <label className="flex items-center gap-3 text-xs">
-                    <span className="text-muted-foreground">Inherit</span>
+                    <span className="text-muted-foreground">
+                      {t("bones.inherit")}
+                    </span>
                     <Switch
                       checked={!selectedDraft}
                       onCheckedChange={(checked) => {
                         if (checked) handleResetSelectedBone();
                       }}
-                      aria-label="Inherit selected bone rotation"
+                      aria-label={t("bones.inheritLabel")}
                     />
                   </label>
                   <label className="flex items-center gap-3 text-xs">
-                    <span className="text-muted-foreground">Rest</span>
+                    <span className="text-muted-foreground">
+                      {t("bones.rest")}
+                    </span>
                     <Switch
                       checked={selectedBoneIsRest}
                       onCheckedChange={(checked) => {
@@ -861,7 +879,7 @@ export function PoseCreatorBoneSection({
                         }
                       }}
                       disabled={!canSetNeutralOverride && !selectedBoneIsRest}
-                      aria-label="Use neutral rest rotation"
+                      aria-label={t("bones.restLabel")}
                     />
                   </label>
                 </div>
@@ -882,7 +900,7 @@ export function PoseCreatorBoneSection({
                   aria-pressed={mirrorOppositeBone}
                 >
                   <ArrowLeftRightIcon className="size-3.5" />
-                  Mirror opposite bone
+                  {t("bones.mirror")}
                 </Button>
               </>
             ) : null}
@@ -894,8 +912,11 @@ export function PoseCreatorBoneSection({
 
   return (
     <PoseCreatorPanelSection
-      title="Bone Authoring"
-      subtitle={`${availableRows.length} available / ${rows.length} standard bones`}
+      title={t("bones.authoring")}
+      subtitle={t("bones.panelSubtitle", {
+        available: availableRows.length,
+        total: rows.length,
+      })}
       openRequestKey={selectedBoneFocusRequest?.requestId ?? null}
       actions={
         <Button
@@ -907,17 +928,17 @@ export function PoseCreatorBoneSection({
           className="h-7 px-2 text-xs"
         >
           <RotateCcwIcon className="size-3.5" />
-          Reset all
+          {t("bones.resetAll")}
         </Button>
       }
     >
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-2">
           <span className="text-muted-foreground text-xs font-medium">
-            Bones
+            {t("bones.title")}
           </span>
           <span className="text-muted-foreground text-2xs font-mono">
-            X / Y / Z
+            {ROTATION_AXES.map(({ label }) => label).join(" / ")}
           </span>
         </div>
         <BoneTree
@@ -931,7 +952,7 @@ export function PoseCreatorBoneSection({
 
       <div className="space-y-1.5">
         <label className="text-muted-foreground text-xs font-medium">
-          Selected bone
+          {t("bones.selected")}
         </label>
         <Select
           value={selectedBone ?? ""}
@@ -939,7 +960,7 @@ export function PoseCreatorBoneSection({
           disabled={!activeAvatar || availableRows.length === 0}
         >
           <SelectTrigger className="w-full">
-            <SelectValue placeholder="Select bone" />
+            <SelectValue placeholder={t("bones.selectBone")} />
           </SelectTrigger>
           <SelectContent>
             {rows.map((row) => (
@@ -948,8 +969,9 @@ export function PoseCreatorBoneSection({
                 value={row.boneName}
                 disabled={!row.available}
               >
-                {row.boneName}
-                {!row.available ? " (missing)" : ""}
+                {row.available
+                  ? row.boneName
+                  : t("bones.missingOption", { bone: row.boneName })}
               </SelectItem>
             ))}
           </SelectContent>
@@ -959,21 +981,23 @@ export function PoseCreatorBoneSection({
       {selectedRow ? (
         <div className="border-border/70 bg-muted/20 space-y-2 rounded-md border p-3 text-xs">
           <div className="grid grid-cols-[84px_minmax(0,1fr)] gap-2">
-            <span className="text-muted-foreground">Raw node</span>
+            <span className="text-muted-foreground">{t("bones.rawNode")}</span>
             <span
               className="text-foreground truncate"
-              title={selectedRow.rawNodeName ?? "Unavailable"}
+              title={selectedRow.rawNodeName ?? t("bones.unavailable")}
             >
-              {selectedRow.rawNodeName ?? "Unavailable"}
+              {selectedRow.rawNodeName ?? t("bones.unavailable")}
             </span>
           </div>
           <div className="grid grid-cols-[84px_minmax(0,1fr)] gap-2">
-            <span className="text-muted-foreground">Norm node</span>
+            <span className="text-muted-foreground">
+              {t("bones.normalizedNode")}
+            </span>
             <span
               className="text-foreground truncate"
-              title={selectedRow.normalizedNodeName ?? "Unavailable"}
+              title={selectedRow.normalizedNodeName ?? t("bones.unavailable")}
             >
-              {selectedRow.normalizedNodeName ?? "Unavailable"}
+              {selectedRow.normalizedNodeName ?? t("bones.unavailable")}
             </span>
           </div>
         </div>
@@ -991,16 +1015,16 @@ export function PoseCreatorBoneSection({
             handleMirrorOppositeBoneChange(checked === true)
           }
           disabled={!canMirrorSelectedBone}
-          aria-label="Mirror opposite left or right bone"
+          aria-label={t("bones.mirrorLabel")}
         />
         <span className="min-w-0">
           <span className="text-foreground block font-medium">
-            Mirror opposite bone
+            {t("bones.mirror")}
           </span>
           <span className="text-muted-foreground mt-0.5 block">
             {mirroredBoneName && mirroredRow?.available
-              ? `Target: ${mirroredBoneName}`
-              : "No opposite bone available."}
+              ? t("bones.mirrorTarget", { bone: mirroredBoneName })
+              : t("bones.noMirror")}
           </span>
         </span>
       </label>
@@ -1037,9 +1061,11 @@ export function PoseCreatorBoneSection({
                       }
                     }}
                     className="h-7 w-20 px-2 text-right font-mono text-xs tabular-nums"
-                    aria-label={`${label} rotation degrees`}
+                    aria-label={t("bones.rotationDegrees", { axis: label })}
                   />
-                  <span className="text-muted-foreground text-2xs">deg</span>
+                  <span className="text-muted-foreground text-2xs">
+                    {t("bones.degrees")}
+                  </span>
                 </div>
                 <Button
                   type="button"
@@ -1049,7 +1075,7 @@ export function PoseCreatorBoneSection({
                   onClick={() => handleResetAxis(axis)}
                   disabled={!selectedDraft}
                 >
-                  Reset
+                  {t("bones.reset")}
                 </Button>
               </div>
             </div>
@@ -1072,7 +1098,7 @@ export function PoseCreatorBoneSection({
               onKeyDown={beginUndoGroup}
               onKeyUp={endUndoGroup}
               onBlur={endUndoGroup}
-              aria-label={`${label} rotation`}
+              aria-label={t("bones.rotation", { axis: label })}
             />
           </div>
         ))}
@@ -1088,7 +1114,7 @@ export function PoseCreatorBoneSection({
           className="h-8"
         >
           <RotateCcwIcon className="size-3.5" />
-          Inherit
+          {t("bones.inherit")}
         </Button>
         <Button
           type="button"
@@ -1099,7 +1125,7 @@ export function PoseCreatorBoneSection({
           className="h-8"
         >
           <MinusIcon className="size-3.5" />
-          Neutral/rest
+          {t("bones.neutralRest")}
         </Button>
       </div>
     </PoseCreatorPanelSection>

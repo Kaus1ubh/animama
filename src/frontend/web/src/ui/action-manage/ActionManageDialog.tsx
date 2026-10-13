@@ -3,6 +3,7 @@
 import { useProductApiClient } from "@animama/product-ui";
 
 import { useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { useQueries, useQueryClient } from "@tanstack/react-query";
 import { Check, ExternalLink, Loader2, Plus, X } from "lucide-react";
 import { toast } from "sonner";
@@ -20,6 +21,7 @@ import type {
   PyReactionIntent,
 } from "@animama/runtime-contracts/api-types";
 import type { PyExactContentSource } from "@/lib/content/catalogTypes";
+import { loadoutFailureText } from "@/lib/errors/loadoutErrors";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { invalidateAnimaLoadoutAndRuntime } from "@/query/animaLoadoutInvalidation";
 import { useAnimas } from "@/query/hooks/useAnimas";
@@ -63,6 +65,7 @@ export function ActionManageDialog({
   onPreview?: () => void;
 }) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation(["animas", "errors"]);
 
   const userId = useRuntimeCacheKey() ?? "__anon__";
   const animas = useAnimas();
@@ -98,12 +101,13 @@ export function ActionManageDialog({
     loadout: PyAnimaLoadout,
     equipped: boolean,
   ) => {
+    const source = actionManageLoadoutSource(target);
+    if (!equipped && !source) {
+      toast.error(t("manage.notLocal"));
+      return;
+    }
     setBusyAnimaId(animaId);
     try {
-      const source = actionManageLoadoutSource(target);
-      if (!equipped && !source) {
-        throw new Error("This Action is not available in the local catalog.");
-      }
       if (target.kind === "gesture") {
         const binding = loadout.gestures.find(
           (candidate) => candidate.source.catalog_item_id === target.itemId,
@@ -189,16 +193,17 @@ export function ActionManageDialog({
         });
       }
       await invalidateAnimaLoadoutAndRuntime(queryClient, userId, animaId);
+      const anima =
+        rows.find((row) => row.anima.id === animaId)?.anima.presentation
+          .display_name ?? t("manage.animaFallback");
       toast.success(
-        `${target.name} ${equipped ? "removed from" : "equipped to"} ${
-          rows.find((row) => row.anima.id === animaId)?.anima.presentation
-            .display_name ?? "Anima"
-        }.`,
+        equipped
+          ? t("manage.removedFrom", { name: target.name, anima })
+          : t("manage.equippedTo", { name: target.name, anima }),
       );
     } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Loadout update failed",
-      );
+      const text = loadoutFailureText(error, t("errors:loadout.equipFailed"));
+      toast.error(text.message, { description: text.detail ?? undefined });
     } finally {
       setBusyAnimaId(null);
     }
@@ -208,10 +213,11 @@ export function ActionManageDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Equip {target.name}</DialogTitle>
+          <DialogTitle>{t("manage.title", { name: target.name })}</DialogTitle>
           <DialogDescription>
-            Choose which Animas can invoke this {target.kind}. Active chats keep
-            their existing bytes; open a new chat to mount the change.
+            {target.kind === "gesture"
+              ? t("manage.description.gesture")
+              : t("manage.description.reaction")}
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-2 py-2">
@@ -234,10 +240,12 @@ export function ActionManageDialog({
                   </span>
                   <span className="text-muted-foreground block text-xs">
                     {equipped
-                      ? "Equipped"
+                      ? t("actions.equipped")
                       : replacing
-                        ? `Will replace the current ${target.kind}`
-                        : "Not equipped"}
+                        ? target.kind === "gesture"
+                          ? t("manage.willReplace.gesture")
+                          : t("manage.willReplace.reaction")
+                        : t("manage.notEquipped")}
                   </span>
                 </span>
                 <Button
@@ -253,12 +261,12 @@ export function ActionManageDialog({
                     <Loader2 className="size-4 animate-spin" />
                   ) : equipped ? (
                     <>
-                      <X className="size-4" /> Remove
+                      <X className="size-4" /> {t("actions.remove")}
                     </>
                   ) : (
                     <>
                       <Plus className="size-4" />{" "}
-                      {replacing ? "Replace" : "Equip"}
+                      {replacing ? t("actions.replace") : t("actions.equip")}
                     </>
                   )}
                 </Button>
@@ -269,7 +277,7 @@ export function ActionManageDialog({
         <DialogFooter>
           {onPreview ? (
             <Button type="button" variant="outline" onClick={onPreview}>
-              <ExternalLink className="size-4" /> Preview
+              <ExternalLink className="size-4" /> {t("actions.preview")}
             </Button>
           ) : null}
           <Button
@@ -277,7 +285,7 @@ export function ActionManageDialog({
             variant="outline"
             onClick={() => onOpenChange(false)}
           >
-            Done
+            {t("actions.done")}
           </Button>
         </DialogFooter>
       </DialogContent>

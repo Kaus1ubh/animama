@@ -1,5 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Brain } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import type { ChatMemoryCue } from "@animama/product-ui/chat";
 import { Button } from "@/ui/components/button";
@@ -29,6 +31,7 @@ export function MemoryCue({
   animaName,
   onOpenMemoryEntry,
 }: MemoryCueProps) {
+  const { t } = useTranslation("chat");
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -36,7 +39,7 @@ export function MemoryCue({
           type="button"
           variant="ghost"
           size="icon-sm"
-          aria-label="Memory updated"
+          aria-label={t("memoryCue.updated")}
           className="text-muted-foreground hover:text-foreground -ml-1.5 size-6"
         >
           <Brain aria-hidden="true" className="size-3.5" />
@@ -45,7 +48,7 @@ export function MemoryCue({
       <PopoverContent
         align="start"
         side="top"
-        aria-label={memoryCueTitle(animaName)}
+        aria-label={memoryCueTitle(t, animaName)}
         className="w-80 max-w-[calc(100vw-2rem)] p-3 text-sm"
       >
         <MemoryCueDetails
@@ -58,8 +61,28 @@ export function MemoryCue({
   );
 }
 
-function memoryCueTitle(animaName: string | null | undefined) {
-  return animaName ? `What ${animaName} remembered` : "What was remembered";
+function memoryCueTitle(
+  t: TFunction<"chat">,
+  animaName: string | null | undefined,
+) {
+  return animaName
+    ? t("memoryCue.title", { name: animaName })
+    : t("memoryCue.titleUnnamed");
+}
+
+/** The heading for the `MEMORIES.md` change, naming whose memories changed. */
+function memoriesHeading(
+  t: TFunction<"chat">,
+  animaName: string | null | undefined,
+  added: boolean,
+) {
+  if (added)
+    return animaName
+      ? t("memoryCue.added", { name: animaName })
+      : t("memoryCue.addedUnnamed");
+  return animaName
+    ? t("memoryCue.changed", { name: animaName })
+    : t("memoryCue.changedUnnamed");
 }
 
 /**
@@ -72,7 +95,7 @@ export function MemoryCueDetails({
   animaName,
   onOpenMemoryEntry,
 }: MemoryCueProps) {
-  const owner = animaName ? `${animaName}'s` : "this Anima's";
+  const { t } = useTranslation("chat");
   const memories = cue.memories;
   const excerpt = memories?.excerpt.trim() ?? "";
 
@@ -82,7 +105,7 @@ export function MemoryCueDetails({
         {cue.episode ? (
           <div className="space-y-1">
             <dt className="text-muted-foreground text-xs font-medium">
-              Noted in episodes
+              {t("memoryCue.episodes")}
             </dt>
             <dd className="max-h-40 overflow-y-auto whitespace-pre-wrap">
               {cue.episode.text}
@@ -92,12 +115,10 @@ export function MemoryCueDetails({
         {memories ? (
           <div className="space-y-1">
             <dt className="text-muted-foreground text-xs font-medium">
-              {excerpt
-                ? `Added to ${owner} memories`
-                : `Updated ${owner} memories`}
+              {memoriesHeading(t, animaName, Boolean(excerpt))}
             </dt>
             <dd className="max-h-40 overflow-y-auto whitespace-pre-wrap">
-              {excerpt || "No new text was added."}
+              {excerpt || t("memoryCue.noText")}
             </dd>
           </div>
         ) : null}
@@ -111,7 +132,7 @@ export function MemoryCueDetails({
             className="h-auto p-0"
             onClick={() => onOpenMemoryEntry(memories.entry_id)}
           >
-            Open in Memories
+            {t("memoryCue.open")}
           </Button>
         ) : (
           <Button asChild variant="link" size="sm" className="h-auto p-0">
@@ -123,7 +144,7 @@ export function MemoryCueDetails({
                 entryId: memories.entry_id,
               }}
             >
-              Open in Memories
+              {t("memoryCue.open")}
             </Link>
           </Button>
         )

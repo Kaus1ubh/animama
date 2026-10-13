@@ -1,0 +1,29 @@
+{
+  "exempt": [
+    "src/dev/**",
+    "src/lib/development/**",
+    "src/lib/voice/voiceDebugSink.ts",
+    "src/hooks/pocket-tts-runtime-debug.ts",
+    "src/routes/_app/avatar-portrait-debug.tsx",
+    "src/ui/debug/**",
+    "src/ui/library/LibraryChatUploadsDebugPanel.tsx",
+    "src/ui/create/CreateAnimaAvatarPreview.tsx",
+    "src/ui/create/CreateAnimaAvatarPreviewScene.tsx",
+    "src/lib/avatar/motion-authoring/**"
+  ],
+  "lint": {
+    "acceptedTags": "all",
+    "acceptedAttributes": [
+      "alt",
+      "aria-description",
+      "aria-label",
+      "aria-placeholder",
+      "aria-roledescription",
+      "aria-valuetext",
+      "description",
+      "label",
+      "placeholder",
+      "title"
+    ]
+  }
+}

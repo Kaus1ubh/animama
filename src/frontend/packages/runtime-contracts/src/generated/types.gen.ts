@@ -4140,7 +4140,10 @@ export type PyCatalogPreviewSource = {
 /**
  * PyChatClientContext
  *
- * Client-reported context used only for safety presentation (spec R2, R5).
+ * Client-reported context for one turn.
+ *
+ * ``time_zone`` and ``locale`` serve only safety presentation (companion safety
+ * spec R2, R5). ``ui_locale`` sets the conversation language (ADR 0024).
  */
 export type PyChatClientContext = {
     /**
@@ -4155,6 +4158,12 @@ export type PyChatClientContext = {
      * IANA time zone, e.g. America/Toronto.
      */
     time_zone?: string | null;
+    /**
+     * Ui Locale
+     *
+     * UI Locale the client applied, e.g. ja. A non-English supported locale sets the language the Anima replies and speaks in; other values are ignored.
+     */
+    ui_locale?: string | null;
 };
 
 /**
@@ -5625,6 +5634,8 @@ export type PyLoadoutCommitResult = {
 
 /**
  * PyLoadoutDiagnostic
+ *
+ * A Loadout warning; clients word it from ``code`` and ``params``.
  */
 export type PyLoadoutDiagnostic = {
     /**
@@ -5633,8 +5644,18 @@ export type PyLoadoutDiagnostic = {
     code: string;
     /**
      * Message
+     *
+     * English detail for logs and API clients.
      */
     message: string;
+    /**
+     * Params
+     *
+     * Values for the code's wording.
+     */
+    params?: {
+        [key: string]: string;
+    };
     /**
      * Scope
      */
@@ -9528,8 +9549,10 @@ export type PyUserSettings = {
     last_active_anima_id?: string | null;
     /**
      * Locale
+     *
+     * UI Locale for interface text and formatting; null follows the system language.
      */
-    locale?: string;
+    locale?: 'en' | 'ja' | 'ko' | 'zh-Hans' | 'zh-Hant' | null;
     /**
      * Preferences
      */
@@ -9556,8 +9579,10 @@ export type PyUserSettingsUpdate = {
     last_active_anima_id?: string | null;
     /**
      * Locale
+     *
+     * UI Locale for interface text and formatting; null follows the system language.
      */
-    locale?: string | null;
+    locale?: 'en' | 'ja' | 'ko' | 'zh-Hans' | 'zh-Hant' | null;
     /**
      * Preferences
      */

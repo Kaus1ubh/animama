@@ -2,23 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   getPoseCreatorHistoryKeyboardAction,
-  getPoseCreatorHistoryShortcutLabels,
   isPoseCreatorNativeUndoTarget,
   isPoseCreatorUndoKeyboardEvent,
 } from "./poseCreatorUndo";
 
 describe("Pose Creator history shortcuts", () => {
-  it("formats shortcut labels for Apple and non-Apple platforms", () => {
-    expect(getPoseCreatorHistoryShortcutLabels("darwin", "")).toEqual({
-      undo: "⌘Z",
-      redo: "⇧⌘Z",
-    });
-    expect(getPoseCreatorHistoryShortcutLabels(null, "Win32")).toEqual({
-      undo: "Ctrl+Z",
-      redo: "Ctrl+Shift+Z or Ctrl+Y",
-    });
-  });
-
   it("accepts the standard macOS and Windows/Linux shortcuts", () => {
     expect(
       isPoseCreatorUndoKeyboardEvent({

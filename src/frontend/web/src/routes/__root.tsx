@@ -8,12 +8,17 @@ import {
   useRouterState,
   notFound,
 } from "@tanstack/react-router";
+import { getI18n, useTranslation } from "react-i18next";
 import { RouteView } from "@web/app/components/RouteView";
 import type { AppRouterContext } from "@web/app/router-context";
 import { useRuntimeAdmission } from "@web/app/runtime/RuntimeAdmissionProvider";
-import { unavailableRouteReason } from "@web/app/runtime/route-admission";
+import {
+  unavailableReasonText,
+  unavailableRouteReason,
+} from "@web/app/runtime/route-admission";
 
 function RootLayout() {
+  const { t } = useTranslation("app");
   const { admission } = useRuntimeAdmission();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -28,12 +33,12 @@ function RootLayout() {
       <ScrollRestoration />
       {reason ? (
         <RouteView
-          eyebrow="Unavailable"
-          title="Unavailable here"
-          description={reason}
+          eyebrow={t("unavailable.eyebrow")}
+          title={t("unavailable.title")}
+          description={unavailableReasonText(reason, t)}
           actions={
             <Link to="/" className="action-link">
-              Return home
+              {t("unavailable.returnHome")}
             </Link>
           }
         />
@@ -46,6 +51,7 @@ function RootLayout() {
 }
 
 function NotFoundView() {
+  const { t } = useTranslation("app");
   const { admission } = useRuntimeAdmission();
   const pathname = useRouterState({
     select: (state) => state.location.pathname,
@@ -56,12 +62,14 @@ function NotFoundView() {
       : null;
   return (
     <RouteView
-      eyebrow="Not found"
-      title={reason ? "Unavailable here" : "Page not found"}
-      description={reason ?? "This address does not lead to an Animama page."}
+      eyebrow={t("notFound.eyebrow")}
+      title={reason ? t("unavailable.title") : t("notFound.title")}
+      description={
+        reason ? unavailableReasonText(reason, t) : t("notFound.description")
+      }
       actions={
         <Link to="/" className="action-link">
-          Return home
+          {t("unavailable.returnHome")}
         </Link>
       }
     />
@@ -77,15 +85,16 @@ export const Route = createRootRouteWithContext<AppRouterContext>()({
     )
       throw notFound({ routeId: "__root__" });
   },
-  head: () => ({
-    meta: [
-      { title: "Animama" },
-      {
-        name: "description",
-        content: "Animama, your AI avatar companion.",
-      },
-    ],
-  }),
+  head: () => {
+    // Worded when the route matches, in the active UI Locale.
+    const t = getI18n().getFixedT(null, "app");
+    return {
+      meta: [
+        { title: "Animama" },
+        { name: "description", content: t("meta.description") },
+      ],
+    };
+  },
   component: RootLayout,
   notFoundComponent: NotFoundView,
 });

@@ -7,6 +7,9 @@ import {
   type Ref,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 import {
   credentialProviders,
   credentialTarget,
@@ -48,10 +51,10 @@ export type DesktopCredentialsController = {
 };
 
 /** A readable name for a provider or a model connection's key variable. */
-function credentialName(target: string): string {
+function credentialName(t: TFunction<"models">, target: string): string {
   return target in names
     ? names[target as CredentialProvider]
-    : "Model connection key";
+    : t("credentials.connectionKey");
 }
 
 /** Main retains failures across window recreation, including for an unselected provider. */
@@ -60,12 +63,16 @@ export function DesktopCredentialFailures({
 }: {
   statuses: CredentialStatus[];
 }) {
+  const { t } = useTranslation("models");
   return statuses.map((status) => {
     const message = credentialFailureMessage(status);
     const target = credentialTarget(status);
     return message ? (
       <p className="text-sm" role="status" key={target}>
-        {credentialName(target)}: {message}
+        {t("credentials.failure.line", {
+          name: credentialName(t, target),
+          message,
+        })}
       </p>
     ) : null;
   });
@@ -159,6 +166,8 @@ export function DesktopCredentialsPanel({
   /** Save or discard unsaved edits from outside the panel. */
   controllerRef?: Ref<DesktopCredentialsController>;
 }) {
+  const { t } = useTranslation("models");
+  const formatters = useFormatters();
   const available = useDesktopCredentialsAvailable();
   const statusQuery = useDesktopCredentialStatuses(available);
   const statuses = statusQuery.data ?? EMPTY_STATUSES;
@@ -211,10 +220,15 @@ export function DesktopCredentialsPanel({
       );
       setMessage(
         result.ok
-          ? "Saved."
+          ? t("credentials.saved")
           : result.failed.length
-            ? `Some changes could not finish (${result.failed.map(credentialName).join(", ")}). Retry them; saved keys are never shown here.`
-            : "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
+            ? t("credentials.someFailed", {
+                names: formatters.list(
+                  result.failed.map((target) => credentialName(t, target)),
+                  "unit",
+                ),
+              })
+            : t("credentials.allFailed"),
       );
       return result.ok;
     } finally {
@@ -244,26 +258,21 @@ export function DesktopCredentialsPanel({
         className,
       )}
       aria-busy={busy}
-      aria-label={showTitle ? undefined : "API keys"}
+      aria-label={showTitle ? undefined : t("credentials.title")}
     >
       {showTitle || description !== null ? (
         <div className="space-y-2">
           {showTitle ? (
             <h3 className="text-base font-semibold">
-              API keys{" "}
+              {t("credentials.title")}{" "}
               <span className="text-muted-foreground text-sm font-normal">
-                (optional)
+                {t("optional")}
               </span>
             </h3>
           ) : null}
           {description === undefined ? (
             <p className="text-muted-foreground text-sm">
-              Add an OpenAI or Anthropic key for cloud chat or an ElevenLabs or
-              Gemini key for voices. Keys for other model servers are entered on
-              each connection in App Settings → Models. Keys are encrypted with
-              this computer’s secure storage and never shown again. Changes
-              apply as soon as you save. You can change them later in App
-              Settings → API Keys.
+              {t("credentials.description")}
             </p>
           ) : description !== null ? (
             <p className="text-muted-foreground text-xs">{description}</p>
@@ -287,10 +296,10 @@ export function DesktopCredentialsPanel({
                   className="text-muted-foreground text-xs"
                 >
                   {removing
-                    ? "Will be removed when you save."
+                    ? t("credentials.status.removing")
                     : configured
-                      ? "Configured"
-                      : "Not set"}
+                      ? t("credentials.status.configured")
+                      : t("credentials.status.notSet")}
                 </p>
               </div>
               <div className="flex items-center gap-2">
@@ -315,7 +324,9 @@ export function DesktopCredentialsPanel({
                     }
                   }}
                   placeholder={
-                    configured ? "Enter a new key to replace" : "API key"
+                    configured
+                      ? t("credentials.replacePlaceholder")
+                      : t("connectionForm.apiKey")
                   }
                 />
                 {/* Fixed slot keeps inputs aligned whether or not a key is set. */}
@@ -326,12 +337,20 @@ export function DesktopCredentialsPanel({
                       size="sm"
                       variant="ghost"
                       disabled={busy}
-                      aria-label={`${removing ? "Undo removing" : "Remove"} ${names[provider]} key`}
+                      aria-label={
+                        removing
+                          ? t("credentials.undoRemoveNamed", {
+                              name: names[provider],
+                            })
+                          : t("credentials.removeNamed", {
+                              name: names[provider],
+                            })
+                      }
                       onClick={() =>
                         updateDraft(provider, removing ? {} : { remove: true })
                       }
                     >
-                      {removing ? "Undo" : "Remove"}
+                      {removing ? t("actions.undo") : t("actions.remove")}
                     </Button>
                   ) : null}
                 </div>
@@ -348,21 +367,20 @@ export function DesktopCredentialsPanel({
           onClick={() => void save()}
         >
           {busy
-            ? "Saving…"
+            ? t("actions.saving")
             : changes.length > 1
-              ? `Save ${changes.length} changes`
-              : "Save"}
+              ? t("credentials.saveChanges", { count: changes.length })
+              : t("actions.save")}
         </Button>
         {changes.length > 0 && !busy ? (
           <Button type="button" size="sm" variant="ghost" onClick={discard}>
-            Discard
+            {t("actions.discard")}
           </Button>
         ) : null}
       </div>
       {statusQuery.isError ? (
         <p className="text-sm" role="status">
-          Protected settings are unavailable. Open runtime recovery and try
-          again.
+          {t("credentials.unavailable")}
         </p>
       ) : null}
       <DesktopCredentialFailures statuses={failures} />

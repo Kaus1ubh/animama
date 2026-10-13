@@ -1,0 +1,170 @@
+{
+  "details": {
+    "label": "감정 상태"
+  },
+  "emotions": {
+    "admiration": "감탄",
+    "amusement": "재미",
+    "anger": "분노",
+    "annoyance": "짜증",
+    "caring": "배려",
+    "confidence": "자신감",
+    "confusion": "혼란",
+    "curiosity": "호기심",
+    "desire": "갈망",
+    "disappointment": "실망",
+    "disapproval": "못마땅함",
+    "disgust": "역겨움",
+    "embarrassment": "부끄러움",
+    "excitement": "설렘",
+    "fear": "두려움",
+    "gratitude": "감사",
+    "grief": "비탄",
+    "joy": "기쁨",
+    "love": "사랑",
+    "nervousness": "긴장",
+    "optimism": "낙관",
+    "remorse": "후회",
+    "respect": "존경",
+    "sadness": "슬픔"
+  },
+  "feelings": {
+    "admiration": {
+      "plain": "감탄한 기분",
+      "slightly": "조금 감탄한 기분",
+      "very": "매우 감탄한 기분"
+    },
+    "amusement": {
+      "plain": "재미있는 기분",
+      "slightly": "조금 재미있는 기분",
+      "very": "매우 재미있는 기분"
+    },
+    "anger": {
+      "plain": "화난 기분",
+      "slightly": "조금 화난 기분",
+      "very": "매우 화난 기분"
+    },
+    "annoyance": {
+      "plain": "짜증 난 기분",
+      "slightly": "조금 짜증 난 기분",
+      "very": "매우 짜증 난 기분"
+    },
+    "caring": {
+      "plain": "다정한 기분",
+      "slightly": "조금 다정한 기분",
+      "very": "매우 다정한 기분"
+    },
+    "confidence": {
+      "plain": "자신 있는 기분",
+      "slightly": "조금 자신 있는 기분",
+      "very": "매우 자신 있는 기분"
+    },
+    "confusion": {
+      "plain": "혼란스러운 기분",
+      "slightly": "조금 혼란스러운 기분",
+      "very": "매우 혼란스러운 기분"
+    },
+    "curiosity": {
+      "plain": "궁금한 기분",
+      "slightly": "조금 궁금한 기분",
+      "very": "매우 궁금한 기분"
+    },
+    "desire": {
+      "plain": "그리운 기분",
+      "slightly": "조금 그리운 기분",
+      "very": "매우 그리운 기분"
+    },
+    "disappointment": {
+      "plain": "실망한 기분",
+      "slightly": "조금 실망한 기분",
+      "very": "매우 실망한 기분"
+    },
+    "disapproval": {
+      "plain": "못마땅한 기분",
+      "slightly": "조금 못마땅한 기분",
+      "very": "매우 못마땅한 기분"
+    },
+    "disgust": {
+      "plain": "역겨운 기분",
+      "slightly": "조금 역겨운 기분",
+      "very": "매우 역겨운 기분"
+    },
+    "embarrassment": {
+      "plain": "부끄러운 기분",
+      "slightly": "조금 부끄러운 기분",
+      "very": "매우 부끄러운 기분"
+    },
+    "excitement": {
+      "plain": "설레는 기분",
+      "slightly": "조금 설레는 기분",
+      "very": "매우 설레는 기분"
+    },
+    "fear": {
+      "plain": "두려운 기분",
+      "slightly": "조금 두려운 기분",
+      "very": "매우 두려운 기분"
+    },
+    "gratitude": {
+      "plain": "고마운 기분",
+      "slightly": "조금 고마운 기분",
+      "very": "매우 고마운 기분"
+    },
+    "grief": {
+      "plain": "비통한 기분",
+      "slightly": "조금 비통한 기분",
+      "very": "매우 비통한 기분"
+    },
+    "joy": {
+      "plain": "기쁜 기분",
+      "slightly": "조금 기쁜 기분",
+      "very": "매우 기쁜 기분"
+    },
+    "love": {
+      "plain": "애틋한 기분",
+      "slightly": "조금 애틋한 기분",
+      "very": "매우 애틋한 기분"
+    },
+    "nervousness": {
+      "plain": "긴장된 기분",
+      "slightly": "조금 긴장된 기분",
+      "very": "매우 긴장된 기분"
+    },
+    "neutral": "평온한 기분",
+    "optimism": {
+      "plain": "낙관적인 기분",
+      "slightly": "조금 낙관적인 기분",
+      "very": "매우 낙관적인 기분"
+    },
+    "remorse": {
+      "plain": "후회스러운 기분",
+      "slightly": "조금 후회스러운 기분",
+      "very": "매우 후회스러운 기분"
+    },
+    "respect": {
+      "plain": "존경하는 기분",
+      "slightly": "조금 존경하는 기분",
+      "very": "매우 존경하는 기분"
+    },
+    "sadness": {
+      "plain": "슬픈 기분",
+      "slightly": "조금 슬픈 기분",
+      "very": "매우 슬픈 기분"
+    }
+  },
+  "groups": {
+    "affection": "애정",
+    "alarm": "불안",
+    "delight": "즐거움",
+    "drive": "의욕",
+    "esteem": "존중",
+    "gloom": "우울",
+    "rejection": "반발",
+    "revulsion": "혐오"
+  },
+  "radar": {
+    "axis": "{{group}}: {{maximum}}. {{emotions}}",
+    "axisEmotion": "{{emotion}} {{value}}",
+    "label": "감정 스펙트럼: 8개 그룹과 각 그룹에서 가장 강한 감정",
+    "series": "가장 강한 감정"
+  }
+}

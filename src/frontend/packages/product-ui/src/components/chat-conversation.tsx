@@ -13,6 +13,7 @@ import {
 import { Response as StreamdownResponse } from "./streamdown-response";
 import MessageLoaderV2 from "./message-loader-v2";
 import { chatRunStatusLabel } from "../lib/chat/run-status";
+import { useProductTranslation } from "../i18n/product-translation";
 import type { ChatMessage } from "../chat/useProductChatSession";
 /** The ordinary chat transcript; hosts may supply shell-specific message positioning. */
 export function ChatConversation({
@@ -43,6 +44,7 @@ export function ChatConversation({
    */
   renderAssistantAccessory?: (message: ChatMessage) => ReactNode;
 }) {
+  const { t } = useProductTranslation();
   // Markdown renders its final response directly; only plain text has a queue to drain.
   useEffect(() => {
     if (markdownEnabled && completionPending) onQueueComplete?.();
@@ -52,7 +54,7 @@ export function ChatConversation({
     <div
       className="animama-chat-conversation"
       role="log"
-      aria-label="Conversation"
+      aria-label={t("conversation.label")}
     >
       {" "}
       {messages.map((message) => {
@@ -72,7 +74,7 @@ export function ChatConversation({
                   <div className="flex items-center gap-2" role="status">
                     <MessageLoaderV2 />
                     <span className="text-sm">
-                      {chatRunStatusLabel(message.pendingStatus)}
+                      {chatRunStatusLabel(message.pendingStatus, t)}
                     </span>
                   </div>
                 ) : message.isPending ? (

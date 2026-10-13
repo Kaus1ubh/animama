@@ -2,6 +2,7 @@ import { useProductApiClient } from "@animama/product-ui";
 import { useEffect, useReducer, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { UploadIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { listCatalogItems, saveCatalogItem } from "@/lib/content/catalogApi";
 import type { PyContentItem } from "@/lib/content/catalogTypes";
@@ -20,6 +21,7 @@ export function SoundUploadButton({
   className?: string;
 }) {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("sound");
 
   const client = useQueryClient();
   const owner = useRuntimeCacheKey();
@@ -73,7 +75,7 @@ export function SoundUploadButton({
         accept={SOUND_UPLOAD_ACCEPT}
         multiple
         className="hidden"
-        aria-label="Upload sound files"
+        aria-label={t("upload.inputLabel")}
         onChange={(event) => {
           const files = Array.from(event.target.files ?? []);
           event.target.value = "";
@@ -87,11 +89,11 @@ export function SoundUploadButton({
         className="w-fit"
         onClick={() => input.current?.click()}
       >
-        <UploadIcon className="size-3.5" /> Upload
+        <UploadIcon className="size-3.5" /> {t("upload.button")}
       </Button>
       {queue.entries.length ? (
         <ul
-          aria-label="Sound uploads"
+          aria-label={t("upload.listLabel")}
           aria-live="polite"
           className="grid max-h-40 gap-2 overflow-y-auto text-xs"
         >
@@ -109,16 +111,16 @@ export function SoundUploadButton({
                     className="w-fit underline"
                     onClick={() => void queue.retry(entry.id)}
                   >
-                    Retry {entry.file.name}
+                    {t("upload.retry", { name: entry.file.name })}
                   </button>
                 </>
               ) : (
                 <span className="text-muted-foreground">
                   {entry.status === "saved"
-                    ? "Saved to Library"
+                    ? t("upload.saved")
                     : entry.status === "uploading"
-                      ? "Uploading…"
-                      : "Queued"}
+                      ? t("upload.uploading")
+                      : t("upload.queued")}
                 </span>
               )}
               {entry.notificationError ? (
@@ -131,7 +133,7 @@ export function SoundUploadButton({
                     className="w-fit underline"
                     onClick={() => void queue.refresh(entry.id)}
                   >
-                    Refresh catalog
+                    {t("upload.refresh")}
                   </button>
                 </>
               ) : null}

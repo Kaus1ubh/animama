@@ -1,0 +1,2 @@
+/* The microphone permission prompt. English stays in Info.plist (electron-builder.yml extendInfo). */
+"NSMicrophoneUsageDescription" = "Animama は音声入力と音声モードでマイクを使用します。";

@@ -126,3 +126,31 @@ async def test_patch_user_settings_allows_clearing_last_active_anima_id_with_nul
 
     assert updated.last_active_anima_id is None
     assert uow.commits == 1
+
+
+async def test_patch_user_settings_clears_locale_with_null_and_keeps_it_when_omitted() -> None:
+    user_repo = _FakeUserSettingsRepo()
+    service = SettingsService(
+        user_settings=user_repo,
+        anima_settings=_FakeAnimaSettingsRepo(),
+        uow=_FakeUnitOfWork(),
+    )
+    await user_repo.upsert(UserSettings(user_id="user-1", locale="ja"))
+
+    kept = await service.patch_user_settings(user_id="user-1", theme="anima")
+    assert kept.locale == "ja"
+
+    cleared = await service.patch_user_settings(user_id="user-1", locale=None)
+    assert cleared.locale is None
+
+
+async def test_new_user_settings_follow_the_system_locale() -> None:
+    service = SettingsService(
+        user_settings=_FakeUserSettingsRepo(),
+        anima_settings=_FakeAnimaSettingsRepo(),
+        uow=_FakeUnitOfWork(),
+    )
+
+    created = await service.patch_user_settings(user_id="user-1", theme="anima")
+
+    assert created.locale is None

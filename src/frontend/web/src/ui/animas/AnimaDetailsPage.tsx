@@ -24,6 +24,8 @@ import {
   useRef,
   useState,
 } from "react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 
 import type {
   PyAnimaResponse,
@@ -95,40 +97,52 @@ export type AnimaDetailsPageProps = {
   createAnimaUnavailableReason?: string;
 };
 
-const TAB_LABELS: Record<AnimaManagementTab, string> = {
-  overview: "Identity",
-  memories: "Memories",
-  emotions: "Emotions",
-  loadout: "Loadout",
-  settings: "Settings",
-};
+/** Display label for a management tab; tab IDs stay in the URL. */
+function tabLabel(t: TFunction<"animas">, tab: AnimaManagementTab): string {
+  switch (tab) {
+    case "overview":
+      return t("management.tabs.overview");
+    case "memories":
+      return t("management.tabs.memories");
+    case "emotions":
+      return t("management.tabs.emotions");
+    case "loadout":
+      return t("management.tabs.loadout");
+    case "settings":
+      return t("management.tabs.settings");
+  }
+}
 
-function stagePreviewStatusLabel(status: ContentPreviewLoadStatus): string {
+function stagePreviewStatusLabel(
+  t: TFunction<"animas">,
+  status: ContentPreviewLoadStatus,
+): string {
   switch (status) {
     case "loading":
-      return "Loading anima";
+      return t("management.preview.states.loading");
     case "playing":
-      return "Playing";
+      return t("management.preview.states.playing");
     case "ready":
-      return "Ready";
+      return t("management.preview.states.ready");
     case "error":
-      return "Preview unavailable";
+      return t("management.preview.states.error");
     default:
-      return "Preview idle";
+      return t("management.preview.states.idle");
   }
 }
 
 function LoadingManagementWorkspace() {
+  const { t } = useTranslation("animas");
   return (
     <AppShellPage contentClassName="max-w-2xl">
       <Card className="border-border/70 bg-card/90 shadow-xl shadow-black/10">
         <CardContent className="flex min-h-64 items-center justify-center p-8 text-center">
           <div className="space-y-2">
             <p className="text-foreground font-medium">
-              Preparing Anima management
+              {t("management.loading.title")}
             </p>
             <p className="text-muted-foreground text-sm">
-              Loading the character stage and details…
+              {t("management.loading.description")}
             </p>
           </div>
         </CardContent>
@@ -144,18 +158,19 @@ function ManagementError({
   message: string;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation("animas");
   return (
     <AppShellPage contentClassName="max-w-2xl">
       <Card className="border-destructive/35 bg-card/90 shadow-xl shadow-black/10">
         <CardContent className="flex min-h-64 flex-col items-center justify-center gap-4 p-8 text-center">
           <div className="space-y-2">
             <h1 className="text-destructive font-semibold">
-              Anima management is unavailable
+              {t("management.error.title")}
             </h1>
             <p className="text-muted-foreground text-sm">{message}</p>
           </div>
           <Button type="button" variant="outline" onClick={onRetry}>
-            Retry
+            {t("actions.retry")}
           </Button>
         </CardContent>
       </Card>
@@ -164,9 +179,10 @@ function ManagementError({
 }
 
 function EmotionsTab({ anima }: { anima: PyAnimaResponse }) {
+  const { t } = useTranslation("animas");
   return (
     <section className="space-y-3">
-      <h2 className="text-xl font-semibold">Emotional State</h2>
+      <h2 className="text-xl font-semibold">{t("management.emotionsTitle")}</h2>
       <EmotionalState
         emotionalState={anima.emotional_state}
         variant="inline"
@@ -201,7 +217,9 @@ function ManagementPanel({
   onTabChange: (tab: AnimaManagementTab) => void;
   onStagePreview: (target: ContentPreviewTarget) => void;
 }) {
-  const emotion = buildEmotionPresentation(anima.emotional_state);
+  const { t } = useTranslation("animas");
+  const { t: emotionT } = useTranslation("emotion");
+  const emotion = buildEmotionPresentation(anima.emotional_state, emotionT);
   const [appearanceSection, setAppearanceSection] =
     useState<AnimaAppearanceSection | null>(null);
   const profileThumbnailMedia = useAnimaPresentationImage(profileThumbnail);
@@ -215,7 +233,9 @@ function ManagementPanel({
             <button
               type="button"
               onClick={() => setAppearanceSection("profile_image")}
-              aria-label={`Customize ${displayName}'s appearance`}
+              aria-label={t("management.customizeAppearance", {
+                name: displayName,
+              })}
               className="group focus-visible:ring-ring/50 hover:bg-muted/45 relative -ml-2 flex min-w-0 cursor-pointer items-center gap-2 overflow-hidden rounded-2xl px-2 py-1 text-left transition-[background-color,box-shadow,transform] outline-none hover:shadow-sm focus-visible:ring-[3px] motion-reduce:transition-none"
             >
               {backgroundMedia.url ? (
@@ -261,7 +281,9 @@ function ManagementPanel({
                 <button
                   type="button"
                   onClick={() => onTabChange("emotions")}
-                  aria-label={`Open Emotions tab. ${emotion.feeling.label}`}
+                  aria-label={t("management.openEmotions", {
+                    feeling: emotion.feeling.label,
+                  })}
                   className="focus-visible:ring-ring/50 ml-auto flex size-11 shrink-0 cursor-pointer items-center justify-center rounded-full text-2xl transition-opacity outline-none hover:opacity-80 focus-visible:ring-[3px]"
                   style={{ backgroundColor: `${emotion.color}14` }}
                 >
@@ -288,7 +310,7 @@ function ManagementPanel({
                   value={tab}
                   className="text-muted-foreground data-[state=active]:text-foreground data-[state=active]:after:bg-primary relative rounded-none bg-transparent px-1 py-3 text-xs shadow-none after:absolute after:inset-x-2 after:bottom-[-1px] after:h-0.5 after:rounded-full after:bg-transparent data-[state=active]:bg-transparent data-[state=active]:shadow-none sm:text-sm"
                 >
-                  {TAB_LABELS[tab]}
+                  {tabLabel(t, tab)}
                 </TabsTrigger>
               ))}
             </TabsList>
@@ -344,6 +366,7 @@ export function AnimaDetailsPage({
   onCreateAnima,
   createAnimaUnavailableReason,
 }: AnimaDetailsPageProps) {
+  const { t } = useTranslation("animas");
   const [stagePreview, dispatchStagePreview] = useReducer(
     reduceAnimaStagePreview,
     INITIAL_ANIMA_STAGE_PREVIEW_STATE,
@@ -468,7 +491,7 @@ export function AnimaDetailsPage({
   if (animasQuery.isError) {
     return (
       <ManagementError
-        message="The owned-Anima carousel could not be loaded."
+        message={t("management.error.roster")}
         onRetry={() => void animasQuery.refetch()}
       />
     );
@@ -477,7 +500,7 @@ export function AnimaDetailsPage({
   if (animaQuery.isError || !anima) {
     return (
       <ManagementError
-        message="This Anima could not be loaded. It may no longer be available."
+        message={t("management.error.anima")}
         onRetry={() => void animaQuery.refetch()}
       />
     );
@@ -535,16 +558,16 @@ export function AnimaDetailsPage({
             showMetadata={false}
             emptyTitle={
               runtimeContentQuery.isLoading
-                ? "Preparing avatar"
+                ? t("management.avatar.preparingTitle")
                 : runtimeContentQuery.isError
-                  ? "Avatar preview unavailable"
+                  ? t("management.avatar.unavailableTitle")
                   : undefined
             }
             emptyDescription={
               runtimeContentQuery.isLoading
-                ? "Resolving this Anima's primary model…"
+                ? t("management.avatar.preparingDescription")
                 : runtimeContentQuery.isError
-                  ? "The selected runtime could not be loaded."
+                  ? t("management.avatar.unavailableDescription")
                   : undefined
             }
             className="h-full min-h-0"
@@ -557,7 +580,7 @@ export function AnimaDetailsPage({
                   variant="outline"
                   size="icon-lg"
                   disabled={!canMove}
-                  aria-label="Select previous Anima"
+                  aria-label={t("carousel.previous")}
                   onClick={() => selectAdjacent(-1)}
                   className="bg-background/88 pointer-events-auto absolute top-[43%] left-[calc(var(--app-shell-sidebar-inset)+1.25rem)] -translate-y-1/2 rounded-full shadow-lg backdrop-blur-md md:left-[calc(var(--app-shell-sidebar-inset)+2rem)]"
                 >
@@ -568,7 +591,7 @@ export function AnimaDetailsPage({
                   variant="outline"
                   size="icon-lg"
                   disabled={!canMove}
-                  aria-label="Select next Anima"
+                  aria-label={t("carousel.next")}
                   onClick={() => selectAdjacent(1)}
                   className="bg-background/88 pointer-events-auto absolute top-[43%] right-5 -translate-y-1/2 rounded-full shadow-lg backdrop-blur-md md:right-8"
                 >
@@ -577,15 +600,17 @@ export function AnimaDetailsPage({
 
                 <div className="bg-background/84 text-muted-foreground absolute bottom-[7.75rem] left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-xl border px-3 py-2 text-xs shadow-md backdrop-blur-md md:bottom-[10rem] xl:bottom-[10.25rem]">
                   <MousePointer2 className="size-3.5" />
-                  <span className="min-[360px]:hidden">Drag · Pinch</span>
+                  <span className="min-[360px]:hidden">
+                    {t("management.gestureHint.short")}
+                  </span>
                   <span className="hidden min-[360px]:inline md:hidden">
-                    Drag · Pinch to zoom
+                    {t("management.gestureHint.pinch")}
                   </span>
                   <span className="hidden md:inline xl:hidden">
-                    Drag to rotate · Pinch to zoom
+                    {t("management.gestureHint.touch")}
                   </span>
                   <span className="hidden xl:inline">
-                    Drag to rotate · Scroll to zoom
+                    {t("management.gestureHint.pointer")}
                   </span>
                 </div>
 
@@ -597,7 +622,7 @@ export function AnimaDetailsPage({
                       size="sm"
                       onClick={() => void runtimeContentQuery.refetch()}
                     >
-                      Retry avatar
+                      {t("management.avatar.retry")}
                     </Button>
                   </div>
                 ) : null}
@@ -606,7 +631,9 @@ export function AnimaDetailsPage({
                   <div
                     role="region"
                     data-anima-preview-overlay
-                    aria-label={`Previewing ${stagePreview.target.displayName}`}
+                    aria-label={t("management.preview.region", {
+                      name: stagePreview.target.displayName,
+                    })}
                     aria-busy={stagePreview.status === "loading"}
                     className="bg-background/90 pointer-events-auto absolute inset-x-3 top-3 flex max-w-[42rem] flex-wrap items-center gap-2 rounded-xl border px-3 py-2 shadow-lg backdrop-blur-md sm:right-auto sm:left-1/2 sm:w-[calc(100%-2rem)] sm:-translate-x-1/2 md:top-5"
                   >
@@ -616,18 +643,24 @@ export function AnimaDetailsPage({
                       aria-live="polite"
                       aria-atomic="true"
                     >
-                      {stagePreview.target.displayName} preview:{" "}
-                      {stagePreview.error ??
-                        stagePreviewStatusLabel(stagePreview.status)}
+                      {t("management.preview.status", {
+                        name: stagePreview.target.displayName,
+                        status:
+                          stagePreview.error ??
+                          stagePreviewStatusLabel(t, stagePreview.status),
+                      })}
                     </p>
                     <div className="min-w-0 flex-1 basis-28">
                       <p className="truncate text-sm font-semibold">
                         {stagePreview.target.displayName}
                       </p>
                       <p className="text-muted-foreground truncate text-xs">
-                        {stagePreview.target.versionLabel} ·{" "}
-                        {stagePreview.error ??
-                          stagePreviewStatusLabel(stagePreview.status)}
+                        {t("management.preview.summary", {
+                          version: stagePreview.target.versionLabel,
+                          status:
+                            stagePreview.error ??
+                            stagePreviewStatusLabel(t, stagePreview.status),
+                        })}
                       </p>
                     </div>
                     <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -639,31 +672,37 @@ export function AnimaDetailsPage({
                           stagePreview.status === "loading" ||
                           !stagePreview.prepared
                         }
-                        aria-label={`Replay ${stagePreview.target.displayName} preview`}
+                        aria-label={t("management.preview.replay", {
+                          name: stagePreview.target.displayName,
+                        })}
                         onClick={() => dispatchStagePreview({ type: "replay" })}
                       >
-                        <RotateCcw className="size-3.5" /> Replay
+                        <RotateCcw className="size-3.5" /> {t("actions.replay")}
                       </Button>
                       <Button
                         type="button"
                         size="sm"
                         variant="outline"
                         className="min-h-10"
-                        aria-label={`Stop ${stagePreview.target.displayName} preview`}
+                        aria-label={t("management.preview.stop", {
+                          name: stagePreview.target.displayName,
+                        })}
                         onClick={stopStagePreview}
                       >
-                        <Square className="size-3.5" /> Stop
+                        <Square className="size-3.5" /> {t("actions.stop")}
                       </Button>
                       {stagePreview.target.kind === "animation" ? (
                         <label className="flex min-h-10 items-center gap-2 text-xs font-medium">
                           <Switch
                             checked={stagePreview.loop}
-                            aria-label={`Loop ${stagePreview.target.displayName} preview`}
+                            aria-label={t("management.preview.loop", {
+                              name: stagePreview.target.displayName,
+                            })}
                             onCheckedChange={(loop) =>
                               dispatchStagePreview({ type: "set_loop", loop })
                             }
                           />
-                          Loop
+                          {t("actions.loop")}
                         </label>
                       ) : null}
                       <Button
@@ -672,12 +711,14 @@ export function AnimaDetailsPage({
                         variant={stagePreviewMoveAvatar ? "default" : "outline"}
                         className="min-h-10"
                         aria-expanded={stagePreviewMoveAvatar}
-                        aria-label={`Move ${stagePreview.target.displayName} preview avatar`}
+                        aria-label={t("management.preview.move", {
+                          name: stagePreview.target.displayName,
+                        })}
                         onClick={() =>
                           setStagePreviewMoveAvatar((current) => !current)
                         }
                       >
-                        Move <Move3D className="size-3.5" />
+                        {t("actions.move")} <Move3D className="size-3.5" />
                       </Button>
                       {stagePreview.error && !stagePreview.prepared ? (
                         <Button
@@ -685,10 +726,12 @@ export function AnimaDetailsPage({
                           size="sm"
                           variant="outline"
                           className="min-h-10"
-                          aria-label={`Retry ${stagePreview.target.displayName} preview`}
+                          aria-label={t("management.preview.retry", {
+                            name: stagePreview.target.displayName,
+                          })}
                           onClick={() => void stagePreparation.retry()}
                         >
-                          Retry
+                          {t("actions.retry")}
                         </Button>
                       ) : null}
                     </div>

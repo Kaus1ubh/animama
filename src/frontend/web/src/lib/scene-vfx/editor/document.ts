@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import type {
   PyContentDependency,
   PyExactContentSource,
@@ -6,7 +8,11 @@ import {
   SCENE_IMAGE_LIMITS,
   inspectEffectArt,
 } from "@/lib/effects/effectArtLimits";
-import { sceneDefinitionLimitIssues } from "@/lib/scene-vfx/limits";
+import { failureLine, WordedError } from "@/lib/errors/apiError";
+import {
+  sceneDefinitionLimitIssues,
+  type SceneLimitIssue,
+} from "@/lib/scene-vfx/limits";
 import { sceneEntryFromDefinition } from "@/lib/scene-vfx/sceneDefinition";
 import type { SceneVFXEntry } from "@/lib/scene-vfx/types";
 import {
@@ -26,6 +32,7 @@ import {
   type SceneEffectTemplateId,
   type SceneEffectValidationIssue,
 } from "./types";
+import { formattersForLanguage } from "@animama/product-ui/i18n";
 
 const COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
 export const SCENE_EFFECT_IMAGE_TYPES = new Set([
@@ -193,12 +200,12 @@ export function canonicalSceneEffectImageName(
 export async function inspectSceneEffectImage(
   file: Blob,
 ): Promise<{ ok: true; contentType: string } | { ok: false; message: string }> {
+  const t = getI18n().getFixedT(null, "effects");
   if (!SCENE_EFFECT_IMAGE_TYPES.has(file.type))
-    return {
-      ok: false,
-      message: "Choose a PNG, JPEG, WebP, or static SVG image.",
-    };
-  const tooLarge = `Scene images must be at most ${SCENE_IMAGE_LIMITS.bytes / MIB} MiB.`;
+    return { ok: false, message: t("scene.image.typeInvalid") };
+  const tooLarge = t("scene.image.tooLarge", {
+    size: SCENE_IMAGE_LIMITS.bytes / MIB,
+  });
   if (file.type === "image/svg+xml")
     return file.size > SCENE_IMAGE_LIMITS.bytes
       ? { ok: false, message: tooLarge }
@@ -212,8 +219,10 @@ export async function inspectSceneEffectImage(
       inspection.reason === "bytes"
         ? tooLarge
         : inspection.reason === "format"
-          ? "The image is not a readable PNG, JPEG or WebP file."
-          : `Scene images must be at most ${SCENE_IMAGE_LIMITS.dimension} px on each side.`,
+          ? t("scene.image.unreadable")
+          : t("scene.image.dimensionsTooLarge", {
+              size: SCENE_IMAGE_LIMITS.dimension,
+            }),
   };
 }
 
@@ -381,8 +390,12 @@ export function sceneEffectRuntimeEntry(
   imageUrls: ReadonlyMap<string, string>,
 ): SceneVFXEntry {
   for (const image of sceneEffectImageMetadata(document))
-    if (!imageUrls.get(image.logicalName))
-      throw new Error(`Reselect ${image.originalName} for preview.`);
+    if (!imageUrls.get(image.logicalName)) {
+      const t = getI18n().getFixedT(null, "effects");
+      throw new WordedError(
+        t("scene.validation.reselectForPreview", { file: image.originalName }),
+      );
+    }
   return sceneEntryFromDefinition(
     sceneEffectDefinition(document),
     {
@@ -430,14 +443,15 @@ export function validateSceneEffectDocument(
   document: SceneEffectEditorDocument,
   resources: readonly SceneEffectEditorImageResource[],
 ): SceneEffectValidationIssue[] {
+  const t = getI18n().getFixedT(null, "effects");
   const issues: SceneEffectValidationIssue[] = [];
   if (document.name.trim().length > 120)
-    issue(issues, "name", "Keep the Scene Effect name within 120 characters.");
+    issue(issues, "name", t("scene.validation.nameTooLong", { max: 120 }));
   if (document.description.length > 2000)
     issue(
       issues,
       "description",
-      "Description must be 2,000 characters or shorter.",
+      t("scene.validation.descriptionTooLong", { max: 2000 }),
     );
   if (
     document.durationMs !== null &&
@@ -448,21 +462,18 @@ export function validateSceneEffectDocument(
     issue(
       issues,
       "duration",
-      "Duration must be sticky or between 0.1 and 30 seconds.",
+      t("scene.validation.duration", { min: 0.1, max: 30 }),
     );
   if (document.sound && !isExactContentSource(document.sound.source))
-    issue(
-      issues,
-      "sound",
-      "Reselect the Sound Effect so exact catalog content can be saved.",
-    );
+    issue(issues, "sound", t("creator.validation.reselectSound"));
 
   // Ranges, counts and legacy Twemoji items, as the backend checks them at
   // Save (the duration is reported above in the creator's own terms).
   for (const limit of sceneDefinitionLimitIssues(
     sceneEffectDefinition(document),
   ))
-    if (limit.field !== "durationMs") issue(issues, limit.field, limit.message);
+    if (limit.field !== "durationMs")
+      issue(issues, limit.field, sceneLimitMessage(limit));
   if (document.kind === "background_layers") {
     validateBackground(document, resources, issues);
   } else {
@@ -471,8 +482,7 @@ export function validateSceneEffectDocument(
       issues.push({
         field: "images",
         severity: "warning",
-        message:
-          "Unused background image bytes will not be saved with Focus Lines.",
+        message: t("scene.validation.unusedImages"),
       });
   }
   try {
@@ -487,12 +497,204 @@ export function validateSceneEffectDocument(
     issue(
       issues,
       "definition",
-      error instanceof Error
-        ? error.message
-        : "The Scene Effect definition is invalid.",
+      failureLine(error, t("scene.validation.definitionInvalid")),
     );
   }
   return issues;
+}
+
+/**
+ * The plain label for a validation field (`name`, `pattern.size`,
+ * `scatters.0.minSize`, `focus.animation.minVisibleMs`), as the Checks list
+ * and messages name it.
+ */
+export function sceneEffectFieldLabel(field: string): string {
+  const t = getI18n().getFixedT(null, "effects");
+  const scatter = /^scatters\.(\d+)\.(.+)$/.exec(field);
+  if (scatter)
+    return sceneScatterFieldLabel(Number(scatter[1]) + 1, scatter[2]!);
+  const indexed = /^(marquee\.items|gradient\.stops)\.(\d+)$/.exec(field);
+  if (indexed)
+    return indexed[1] === "marquee.items"
+      ? t("scene.fields.marqueeItem", { index: Number(indexed[2]) + 1 })
+      : t("scene.fields.gradientStop", { index: Number(indexed[2]) + 1 });
+  switch (field) {
+    case "name":
+      return t("scene.fields.name");
+    case "description":
+      return t("scene.fields.description");
+    case "duration":
+      return t("scene.fields.duration");
+    case "sound":
+      return t("scene.fields.sound");
+    case "images":
+      return t("scene.fields.images");
+    case "solid.color":
+      return t("scene.fields.solidColor");
+    case "pattern.color":
+      return t("scene.fields.patternColor");
+    case "pattern.size":
+      return t("scene.fields.patternSize");
+    case "pattern.spacing":
+      return t("scene.fields.patternSpacing");
+    case "pattern.opacity":
+      return t("scene.fields.patternOpacity");
+    case "marquee.items":
+      return t("scene.fields.marqueeItems");
+    case "marquee.itemSize":
+      return t("scene.fields.itemSize");
+    case "marquee.gap":
+      return t("scene.fields.gap");
+    case "marquee.rowGap":
+      return t("scene.fields.rowGap");
+    case "marquee.rotation":
+      return t("scene.fields.rotationOffset");
+    case "marquee.speed":
+      return t("scene.fields.speed");
+    case "marquee.opacity":
+      return t("scene.fields.marqueeOpacity");
+    case "focus.color":
+      return t("scene.fields.lineColor");
+    case "focus.lineCount":
+      return t("scene.fields.lineCount");
+    case "focus.opacity":
+      return t("scene.fields.lineOpacity");
+    case "focus.baseThickness":
+      return t("scene.fields.baseThickness");
+    case "focus.thicknessVariation":
+      return t("scene.fields.thicknessVariation");
+    case "focus.lengthVariation":
+      return t("scene.fields.lengthVariation");
+    case "focus.overscan":
+      return t("scene.fields.overscan");
+    case "focus.paddingX":
+      return t("scene.fields.paddingX");
+    case "focus.paddingY":
+      return t("scene.fields.paddingY");
+    case "focus.target":
+      return t("scene.fields.target");
+    case "focus.animation":
+      return t("scene.fields.flicker");
+    case "focus.animation.minVisibleMs":
+      return t("scene.fields.minVisibleMs");
+    case "focus.animation.maxVisibleMs":
+      return t("scene.fields.maxVisibleMs");
+    case "focus.animation.minHiddenMs":
+      return t("scene.fields.minHiddenMs");
+    case "focus.animation.maxHiddenMs":
+      return t("scene.fields.maxHiddenMs");
+    case "focus.animation.opacityJitter":
+      return t("scene.fields.opacityJitter");
+    case "focus.seed":
+      return t("scene.fields.seed");
+    case "gradient.angle":
+      return t("scene.fields.gradientAngle");
+    case "gradient.centerX":
+      return t("scene.fields.gradientCenterX");
+    case "gradient.centerY":
+      return t("scene.fields.gradientCenterY");
+    case "gradient.stops":
+      return t("scene.fields.gradientStops");
+    case "tile.image":
+      return t("scene.fields.tileImage");
+    case "tile.size":
+      return t("scene.fields.tileSize");
+    case "tile.opacity":
+      return t("scene.fields.tileOpacity");
+    case "tile.speed":
+      return t("scene.fields.tileSpeed");
+    case "screen.color":
+      return t("scene.fields.screenColor");
+    case "screen.count":
+      return t("scene.fields.screenCount");
+    case "screen.opacity":
+      return t("scene.fields.screenOpacity");
+    case "screen.centerX":
+      return t("scene.fields.screenCenterX");
+    case "screen.centerY":
+      return t("scene.fields.screenCenterY");
+    case "screen.throb":
+      return t("scene.fields.screenThrob");
+    case "screen.seed":
+      return t("scene.fields.screenSeed");
+    case "screen.turnSeconds":
+      return t("scene.fields.screenTurn");
+    case "screen.minLength":
+      return t("scene.fields.screenMinLength");
+    case "screen.maxLength":
+      return t("scene.fields.screenMaxLength");
+    case "screen.length":
+      return t("scene.fields.screenLength");
+    case "screen.minWidth":
+      return t("scene.fields.screenMinWidth");
+    case "screen.maxWidth":
+      return t("scene.fields.screenMaxWidth");
+    case "screen.width":
+      return t("scene.fields.screenWidth");
+    case "screen.sway":
+      return t("scene.fields.screenSway");
+    case "scatters":
+      return t("scene.fields.scatters");
+    case "flash.color":
+      return t("scene.fields.flashColor");
+    case "flash.duration":
+      return t("scene.fields.flashDuration");
+    default:
+      return t("scene.fields.definition");
+  }
+}
+
+/** A scatter layer's field (`minSize`, `items.2`), for scatter layer `layer` (1-based). */
+function sceneScatterFieldLabel(layer: number, field: string): string {
+  const t = getI18n().getFixedT(null, "effects");
+  const item = /^items\.(\d+)$/.exec(field);
+  if (item)
+    return t("scene.fields.scatter.item", {
+      layer,
+      index: Number(item[1]) + 1,
+    });
+  switch (field) {
+    case "items":
+      return t("scene.fields.scatter.items", { layer });
+    case "count":
+      return t("scene.fields.scatter.count", { layer });
+    case "seed":
+      return t("scene.fields.scatter.seed", { layer });
+    case "minSize":
+      return t("scene.fields.scatter.minSize", { layer });
+    case "maxSize":
+      return t("scene.fields.scatter.maxSize", { layer });
+    case "size":
+      return t("scene.fields.scatter.size", { layer });
+    case "minRotationDeg":
+      return t("scene.fields.scatter.minRotation", { layer });
+    case "maxRotationDeg":
+      return t("scene.fields.scatter.maxRotation", { layer });
+    case "rotation":
+      return t("scene.fields.scatter.rotation", { layer });
+    case "minOpacity":
+      return t("scene.fields.scatter.minOpacity", { layer });
+    case "maxOpacity":
+      return t("scene.fields.scatter.maxOpacity", { layer });
+    case "opacity":
+      return t("scene.fields.scatter.opacity", { layer });
+    case "regionTop":
+      return t("scene.fields.scatter.regionTop", { layer });
+    case "regionBottom":
+      return t("scene.fields.scatter.regionBottom", { layer });
+    case "region":
+      return t("scene.fields.scatter.region", { layer });
+    case "minSpinDegPerSec":
+      return t("scene.fields.scatter.minSpin", { layer });
+    case "maxSpinDegPerSec":
+      return t("scene.fields.scatter.maxSpin", { layer });
+    case "spin":
+      return t("scene.fields.scatter.spin", { layer });
+    case "speed":
+      return t("scene.fields.scatter.speed", { layer });
+    default:
+      return t("scene.fields.scatter.layer", { layer });
+  }
 }
 
 function validateBackground(
@@ -500,19 +702,23 @@ function validateBackground(
   resources: readonly SceneEffectEditorImageResource[],
   issues: SceneEffectValidationIssue[],
 ) {
+  const t = getI18n().getFixedT(null, "effects");
   const { solid, pattern, marquee, gradient, tile, screen, scatters, flash } =
     document.background;
-  const color = (field: string, value: string, noun: string) => {
-    if (!COLOR_PATTERN.test(value))
-      issue(issues, field, `Choose a six-digit hex ${noun} color.`);
+  const color = (field: string, value: string, message: string) => {
+    if (!COLOR_PATTERN.test(value)) issue(issues, field, message);
   };
-  color("solid.color", solid.color, "solid");
-  color("pattern.color", pattern.color, "pattern");
+  color("solid.color", solid.color, t("scene.validation.solidColor"));
+  color("pattern.color", pattern.color, t("scene.validation.patternColor"));
   gradient.stops.forEach((stop, index) =>
-    color(`gradient.stops.${index}`, stop.color, "gradient stop"),
+    color(
+      `gradient.stops.${index}`,
+      stop.color,
+      t("scene.validation.gradientStopColor"),
+    ),
   );
-  color("screen.color", screen.color, "screen");
-  color("flash.color", flash.color, "flash");
+  color("screen.color", screen.color, t("scene.validation.screenColor"));
+  color("flash.color", flash.color, t("scene.validation.flashColor"));
   for (const [field, items] of [
     ["marquee.items", marquee.items],
     ...scatters.map(
@@ -520,15 +726,15 @@ function validateBackground(
     ),
   ] as const)
     if (new Set(items.map((item) => item.id)).size !== items.length)
-      issue(issues, field, "Every item needs a unique id.");
+      issue(issues, field, t("scene.validation.duplicateItemIds"));
   if (tile.enabled && !tile.image)
-    issue(issues, "tile.image", "Choose an image to tile.");
+    issue(issues, "tile.image", t("scene.validation.tileImage"));
   const metadata = sceneEffectImageMetadata(document);
   if (metadata.length > SCENE_IMAGE_LIMITS.count)
     issue(
       issues,
       "images",
-      `A Scene Effect can contain at most ${SCENE_IMAGE_LIMITS.count} private images.`,
+      t("scene.validation.tooManyImages", { max: SCENE_IMAGE_LIMITS.count }),
     );
   const resourcesByName = new Map(
     resources.map((resource) => [resource.logicalName, resource]),
@@ -538,13 +744,13 @@ function validateBackground(
       issue(
         issues,
         "images",
-        `${image.originalName} is not PNG, JPEG, WebP, or SVG.`,
+        t("scene.validation.imageType", { file: image.originalName }),
       );
     if (!resourcesByName.has(image.logicalName))
       issue(
         issues,
         "images",
-        `Reselect ${image.originalName} so its bytes can be saved.`,
+        t("scene.validation.reselectImage", { file: image.originalName }),
       );
   }
   const totalBytes = metadata.reduce((sum, image) => sum + image.sizeBytes, 0);
@@ -552,7 +758,11 @@ function validateBackground(
     issue(
       issues,
       "images",
-      `Private Scene images must total ${SCENE_IMAGE_LIMITS.totalBytes / MIB} MiB or less.`,
+      t("scene.validation.imagesTooLarge", {
+        size: formattersForLanguage(getI18n().resolvedLanguage).fileSize(
+          SCENE_IMAGE_LIMITS.totalBytes,
+        ),
+      }),
     );
 }
 
@@ -560,9 +770,10 @@ function validateFocus(
   document: SceneEffectEditorDocument,
   issues: SceneEffectValidationIssue[],
 ) {
+  const t = getI18n().getFixedT(null, "effects");
   const focus = document.focus;
   if (!COLOR_PATTERN.test(focus.color))
-    issue(issues, "focus.color", "Choose a six-digit hex line color.");
+    issue(issues, "focus.color", t("scene.validation.lineColor"));
   if (focus.target.kind === "manual_box") {
     const { x, y, width, height } = focus.target.rect;
     if (
@@ -573,22 +784,14 @@ function validateFocus(
       x + width > 1 ||
       y + height > 1
     )
-      issue(
-        issues,
-        "focus.target",
-        "The manual target must stay within the normalized viewport.",
-      );
+      issue(issues, "focus.target", t("scene.validation.manualTarget"));
   }
   const animation = focus.animation;
   if (
     animation.minVisibleMs > animation.maxVisibleMs ||
     animation.minHiddenMs > animation.maxHiddenMs
   )
-    issue(
-      issues,
-      "focus.animation",
-      "Minimum flicker times cannot exceed their maximums.",
-    );
+    issue(issues, "focus.animation", t("scene.validation.flickerOrder"));
 }
 
 export function sceneEffectDocumentFingerprint(
@@ -611,11 +814,12 @@ export function parseSceneEffectEditorExport(
 ): SceneEffectEditorDocument {
   const record = object(value);
   const raw = object(record?.document);
+  const t = getI18n().getFixedT(null, "effects");
   if (record?.schema !== SCENE_EFFECT_EDITOR_SCHEMA || !raw)
-    throw new Error("This is not an Animama Scene Effect editor document.");
+    throw new WordedError(t("scene.import.notDocument"));
   const document = raw as unknown as SceneEffectEditorDocument;
   if (document.schema !== SCENE_EFFECT_EDITOR_SCHEMA)
-    throw new Error("The Scene Effect editor schema is unsupported.");
+    throw new WordedError(t("scene.import.unsupportedSchema"));
   const clone = normalizeSceneEffectDocument(
     cloneSceneEffectDocument(document),
   );
@@ -639,12 +843,13 @@ export function createSceneEffectDocumentFromDefinition(args: {
   images: ReadonlyMap<string, SceneEffectEditorImage>;
   sound: SceneEffectEditorSound | null;
 }): SceneEffectEditorDocument {
+  const t = getI18n().getFixedT(null, "effects");
   const raw = object(args.definition);
-  if (!raw) throw new Error("The Scene Effect definition is unavailable.");
+  if (!raw) throw new WordedError(t("scene.open.definitionUnavailable"));
   const defaults = createDefaultSceneEffectDocument();
   const kind = raw.kind;
   if (kind !== "background_layers" && kind !== "focus_lines")
-    throw new Error("The Scene Effect kind is unsupported.");
+    throw new WordedError(t("scene.open.kindUnsupported"));
   const durationMs =
     raw.durationMs === null
       ? null
@@ -667,7 +872,7 @@ export function createSceneEffectDocumentFromDefinition(args: {
     const pattern = object(raw.pattern);
     const marquee = object(raw.marquee);
     if (!solid || !pattern || !marquee || !Array.isArray(marquee.items))
-      throw new Error("The background layer definition is incomplete.");
+      throw new WordedError(t("scene.open.backgroundIncomplete"));
     const items = marquee.items.map((value, index) =>
       hydrateMarqueeItem(value, index, args.images),
     );
@@ -679,8 +884,8 @@ export function createSceneEffectDocumentFromDefinition(args: {
         ? args.images.get(tile.image)
         : null;
     if (tile && !tileImage)
-      throw new Error(
-        `The release image ${String(tile.image)} is unavailable.`,
+      throw new WordedError(
+        t("scene.open.imageUnavailable", { file: String(tile.image) }),
       );
     document.background = {
       solid: solid as unknown as Background["solid"],
@@ -707,7 +912,9 @@ export function createSceneEffectDocumentFromDefinition(args: {
         ? raw.scatters.map((value, index) => {
             const layer = object(value);
             if (!layer || !Array.isArray(layer.items))
-              throw new Error(`Scatter layer ${index + 1} is invalid.`);
+              throw new WordedError(
+                t("scene.open.scatterInvalid", { index: index + 1 }),
+              );
             return {
               ...(layer as unknown as Background["scatters"][number]),
               items: layer.items.map((item, itemIndex) =>
@@ -724,7 +931,7 @@ export function createSceneEffectDocumentFromDefinition(args: {
     const target = object(raw.target);
     const animation = object(raw.animation);
     if (!target || !animation)
-      throw new Error("The focus-line definition is incomplete.");
+      throw new WordedError(t("scene.open.focusIncomplete"));
     document.focus = {
       renderPlacement:
         raw.renderPlacement as SceneEffectEditorDocument["focus"]["renderPlacement"],
@@ -754,14 +961,18 @@ function hydrateMarqueeItem(
   index: number,
   images: ReadonlyMap<string, SceneEffectEditorImage>,
 ): SceneEffectEditorMarqueeItem {
+  const t = getI18n().getFixedT(null, "effects");
   const item = object(value);
-  if (!item) throw new Error(`Marquee item ${index + 1} is invalid.`);
+  if (!item)
+    throw new WordedError(t("scene.open.itemInvalid", { index: index + 1 }));
   if (item.kind === "image") {
     const logicalName = String(item.image ?? "");
     const image = images.get(logicalName);
     if (!image)
-      throw new Error(
-        `The release image ${logicalName || index + 1} is unavailable.`,
+      throw new WordedError(
+        logicalName
+          ? t("scene.open.imageUnavailable", { file: logicalName })
+          : t("scene.open.itemImageUnavailable", { index: index + 1 }),
       );
     return {
       id: String(item.id),
@@ -771,7 +982,9 @@ function hydrateMarqueeItem(
     };
   }
   if (item.kind !== "emoji")
-    throw new Error(`Marquee item ${index + 1} is unsupported.`);
+    throw new WordedError(
+      t("scene.open.itemUnsupported", { index: index + 1 }),
+    );
   // A Twemoji item, kept so the creator can show it as missing.
   return {
     id: String(item.id),
@@ -795,7 +1008,8 @@ function definitionItem(
   // blocks Save until it is replaced; any other kind is a forged document.
   if (item.kind === "emoji")
     return { id: item.id, kind: "emoji", label: item.label, emoji: item.emoji };
-  throw new Error("The Scene item kind is unsupported.");
+  const t = getI18n().getFixedT(null, "effects");
+  throw new WordedError(t("scene.open.itemKindUnsupported"));
 }
 
 function issue(
@@ -804,6 +1018,52 @@ function issue(
   message: string,
 ) {
   issues.push({ field, severity: "error", message });
+}
+
+function boundsMessage(
+  setting: string,
+  min: number,
+  max: number,
+  integer: boolean,
+): string {
+  const t = getI18n().getFixedT(null, "effects");
+  return integer
+    ? t("scene.validation.boundsWhole", { setting, min, max })
+    : t("scene.validation.bounds", { setting, min, max });
+}
+
+/** A definition limit issue (`sceneDefinitionLimitIssues`) in the UI Locale. */
+function sceneLimitMessage({ field, problem }: SceneLimitIssue): string {
+  const t = getI18n().getFixedT(null, "effects");
+  const setting = sceneEffectFieldLabel(field);
+  switch (problem.kind) {
+    case "range":
+      return boundsMessage(
+        setting,
+        problem.minimum,
+        problem.maximum,
+        problem.integer,
+      );
+    case "order":
+      return t("scene.validation.minAboveMax", { setting });
+    case "ascending":
+      return t("scene.validation.stopsAscending");
+    case "count":
+      return problem.minimum > 0
+        ? t("scene.validation.countRange", {
+            setting,
+            min: problem.minimum,
+            max: problem.maximum,
+          })
+        : t("scene.validation.countAtMost", { setting, max: problem.maximum });
+    case "total":
+      return t("scene.validation.scatterTotal", { max: problem.maximum });
+    case "legacyEmoji":
+      // The label is the stored item name, shown as it was saved.
+      return problem.label
+        ? t("scene.validation.legacyEmoji", { label: problem.label })
+        : t("scene.validation.legacyEmojiUnnamed");
+  }
 }
 
 function isExactContentSource(value: unknown): value is PyExactContentSource {

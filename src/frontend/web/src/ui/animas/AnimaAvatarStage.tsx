@@ -14,6 +14,8 @@ import {
   useState,
 } from "react";
 import type { Group, Object3D } from "three";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import type {
   AnimaRuntimeCatalogSnapshot,
@@ -46,6 +48,7 @@ import type {
   ContentPreviewLoadStatus,
   ContentPreviewTarget,
 } from "@/lib/content-preview/types";
+import { apiErrorLine, uncodedErrorText } from "@/lib/errors/apiError";
 import { createLogger } from "@/lib/logger";
 import { AnimaRuntimeCatalog } from "@/lib/runtime-content/AnimaRuntimeCatalog";
 import { runtimeContentEntryUrl } from "@/lib/runtime-content/animaRuntimeSnapshot";
@@ -135,13 +138,6 @@ export type AnimaAvatarStageProps = {
   emptyDescription?: string;
 };
 
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) {
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
-
 function StageAvatarActor({
   source,
   runtimeContent,
@@ -161,6 +157,18 @@ function StageAvatarActor({
   setErrorMessage,
 }: StageActorProps) {
   const logger = useMemo(() => createLogger("AnimaAvatarStage"), []);
+  const { t } = useTranslation("animas");
+  // Effects read the latest wording through a ref, so a locale switch never
+  // reloads the VRM or interrupts playback.
+  const errorText = {
+    modelRestored: t("stage.errors.modelRestored"),
+    render: t("stage.errors.render"),
+    contentPreview: t("stage.errors.contentPreview"),
+  };
+  const errorTextRef = useRef(errorText);
+  useEffect(() => {
+    errorTextRef.current = errorText;
+  });
   const { camera, gl } = useThree();
   const avatarRef = useRef<Avatar | null>(null);
   const catalogSession = useMemo(() => new PreviewRuntimeCatalogSession(), []);
@@ -259,12 +267,12 @@ function StageAvatarActor({
           temporaryModelErrorRef.current();
           onContentPreviewStatusChange?.(
             "error",
-            "The selected avatar model could not be loaded. The saved model was restored.",
+            errorTextRef.current.modelRestored,
           );
           return;
         }
         setStatus("error");
-        setErrorMessage("This avatar could not be rendered as a VRM preview.");
+        setErrorMessage(errorTextRef.current.render);
       } finally {
         download?.release();
       }
@@ -398,11 +406,15 @@ function StageAvatarActor({
       }
     })().catch((error: unknown) => {
       if (generation !== playbackGenerationRef.current) return;
+      // Preview runtime failures are English: primary in English, detail elsewhere.
       onContentPreviewStatusChange?.(
         "error",
-        error instanceof Error && error.message.trim()
-          ? error.message
-          : "The selected content could not be previewed.",
+        apiErrorLine(
+          uncodedErrorText(
+            error instanceof Error ? error.message.trim() || null : null,
+            errorTextRef.current.contentPreview,
+          ),
+        ),
       );
     });
     return () => {
@@ -486,9 +498,16 @@ function AnimaAvatarStageInner({
   onContentPreviewStatusChange,
   transparent = false,
   showMetadata = true,
-  emptyTitle = "No avatar preview available",
-  emptyDescription = "This anima does not currently expose a previewable VRM avatar.",
+  emptyTitle,
+  emptyDescription,
 }: AnimaAvatarStageProps) {
+  const { t } = useTranslation("animas");
+  const noRuntimeFileText = t("stage.errors.noRuntimeFile");
+  const noRuntimeFileRef = useRef(noRuntimeFileText);
+  useEffect(() => {
+    noRuntimeFileRef.current = noRuntimeFileText;
+  }, [noRuntimeFileText]);
+  const formatters = useFormatters();
   const [hostElement, setHostElement] = useState<HTMLDivElement | null>(null);
   const [activeAvatar, setActiveAvatar] = useState<Avatar | null>(null);
   const [sceneVFX, setSceneVFX] = useState<SceneVFXRuntimeEntry | null>(null);
@@ -558,13 +577,17 @@ function AnimaAvatarStageInner({
   );
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const previewLabel =
-    source?.kind === "file" ? source.file.name : `${animaName} avatar`;
+    source?.kind === "file"
+      ? source.file.name
+      : t("stage.avatarLabel", { name: animaName });
   const previewMeta =
     source?.kind === "file"
-      ? `${formatFileSize(source.file.size)} • Local replacement preview`
+      ? t("stage.localReplacement", {
+          size: formatters.fileSize(source.file.size),
+        })
       : source
-        ? "Current saved avatar"
-        : "No VRM avatar available";
+        ? t("stage.savedAvatar")
+        : t("stage.noAvatar");
   const cameraSettings = useMemo<SceneCameraSettings>(
     () => ({
       position: {
@@ -642,10 +665,7 @@ function AnimaAvatarStageInner({
   useEffect(() => {
     if (!temporaryPreviewModel || temporaryPreviewModelUrl) return;
     handleTemporaryPreviewModelError();
-    onContentPreviewStatusChange?.(
-      "error",
-      "The selected avatar model has no previewable runtime file. The saved model was restored.",
-    );
+    onContentPreviewStatusChange?.("error", noRuntimeFileRef.current);
   }, [
     handleTemporaryPreviewModelError,
     onContentPreviewStatusChange,
@@ -670,7 +690,7 @@ function AnimaAvatarStageInner({
         transparent ? "bg-transparent" : "bg-background",
         className,
       )}
-      aria-label={`Interactive preview of ${animaName}`}
+      aria-label={t("stage.label", { name: animaName })}
       data-playback-surface={
         observationTarget ? "anima-loadout-stage" : undefined
       }
@@ -745,10 +765,10 @@ function AnimaAvatarStageInner({
                 size="sm"
                 variant="secondary"
                 className="bg-background/85 min-h-10 gap-1 px-2.5 text-xs shadow-sm backdrop-blur-sm"
-                aria-label="Reset preview camera"
+                aria-label={t("stage.resetCamera")}
                 onClick={() => setResetCameraRequest((current) => current + 1)}
               >
-                Reset <Camera className="size-3.5" />
+                {t("actions.reset")} <Camera className="size-3.5" />
               </Button>
             </div>
           ) : null}
@@ -784,8 +804,12 @@ function AnimaAvatarStageInner({
       ) : (
         <div className="relative z-10 flex h-full w-full items-center justify-center bg-[radial-gradient(circle_at_top,rgba(148,163,184,0.18),transparent_42%),linear-gradient(160deg,rgba(15,23,42,0.15),transparent_58%)] px-6 text-center">
           <div className="space-y-2">
-            <p className="text-foreground text-sm font-medium">{emptyTitle}</p>
-            <p className="text-muted-foreground text-xs">{emptyDescription}</p>
+            <p className="text-foreground text-sm font-medium">
+              {emptyTitle ?? t("stage.emptyTitle")}
+            </p>
+            <p className="text-muted-foreground text-xs">
+              {emptyDescription ?? t("stage.emptyDescription")}
+            </p>
           </div>
         </div>
       )}
@@ -797,7 +821,7 @@ function AnimaAvatarStageInner({
           aria-live="polite"
         >
           <div className="rounded-full border border-white/20 bg-black/45 px-4 py-2 text-xs font-medium text-white">
-            Loading anima
+            {t("stage.loading")}
           </div>
         </div>
       ) : null}

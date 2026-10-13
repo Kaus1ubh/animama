@@ -1,0 +1,21 @@
+{
+  "aiNotice": {
+    "reminder": "A reminder: {{name}} is an AI, not a person.",
+    "reminderUnnamed": "A reminder: an Anima is an AI, not a person.",
+    "start": "You're talking with {{name}}, an AI — not a person.",
+    "startUnnamed": "You're talking with an Anima, an AI — not a person."
+  },
+  "crisis": {
+    "dismiss": "Dismiss",
+    "emergency": "If you're in immediate danger, call {{number}}.",
+    "emergencyLocal": "If you're in immediate danger, call your local emergency number.",
+    "intro": "If you're thinking about suicide or self-harm, you don't have to go through it alone. Trained people can help.",
+    "label": "Crisis support resources",
+    "noServices": "Please contact a local crisis line or someone you trust.",
+    "notProfessional": "Animas are AI and are not a substitute for professional help."
+  },
+  "protocol": {
+    "back": "Back to Animama",
+    "title": "Safety and crisis protocol"
+  }
+}

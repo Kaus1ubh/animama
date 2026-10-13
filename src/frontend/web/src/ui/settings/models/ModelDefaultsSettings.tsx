@@ -1,4 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
+import { getI18n, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import type { PyModelRoleAssignment } from "@animama/runtime-contracts/api-types";
@@ -30,54 +32,72 @@ import {
 
 const DEFAULT_CHOICE = "__role_default__";
 
-/** Copy for each default model section in App Settings → Models. */
-export const MODEL_DEFAULTS: Record<
-  ModelRole,
-  { label: string; description: string; defaultLabel: string }
-> = {
-  chat: {
-    label: "Chat",
-    description:
-      "The model new Animas start with. Existing Animas keep their own.",
-    defaultLabel: "System default",
-  },
-  memory_manager: {
-    label: "Memory Manager",
-    description:
-      "Reviews conversations and proposes memory file changes. Needs tool calling.",
-    defaultLabel: "Same as Chat",
-  },
-  utility: {
-    label: "Compaction",
-    description:
-      "Writes chat titles and compacts long chats. A small, fast model works well.",
-    defaultLabel: "Same as Chat",
-  },
-  embeddings: {
-    label: "Embeddings",
-    description:
-      "Finds file and archive passages by meaning. Changing it re-embeds stored content.",
-    defaultLabel: "Off",
-  },
+/** Display copy for one default model role. */
+export type ModelDefaultCopy = {
+  label: string;
+  description: string;
+  /** The choice that leaves the role to its default. */
+  defaultLabel: string;
 };
+
+/** Copy for a default model section in App Settings → Models, in the active UI Locale. */
+export function modelDefaultCopy(
+  role: ModelRole,
+  t: TFunction<"models"> = getI18n().getFixedT(null, "models"),
+): ModelDefaultCopy {
+  switch (role) {
+    case "chat":
+      return {
+        label: t("defaults.roles.chat.label"),
+        description: t("defaults.roles.chat.description"),
+        defaultLabel: t("defaults.roles.chat.default"),
+      };
+    case "memory_manager":
+      return {
+        label: t("defaults.roles.memoryManager.label"),
+        description: t("defaults.roles.memoryManager.description"),
+        defaultLabel: t("defaults.roles.memoryManager.default"),
+      };
+    case "utility":
+      return {
+        label: t("defaults.roles.utility.label"),
+        description: t("defaults.roles.utility.description"),
+        defaultLabel: t("defaults.roles.utility.default"),
+      };
+    case "embeddings":
+      return {
+        label: t("defaults.roles.embeddings.label"),
+        description: t("defaults.roles.embeddings.description"),
+        defaultLabel: t("defaults.roles.embeddings.default"),
+      };
+    default: {
+      // Every role needs its own copy.
+      const unworded: never = role;
+      return unworded;
+    }
+  }
+}
 
 /** Where the role's model comes from when the owner has not chosen one. */
 function effectiveNote(
+  t: TFunction<"models">,
   assignment: PyModelRoleAssignment | undefined,
 ): string | null {
   if (!assignment) return null;
-  if (!assignment.assignment_available)
-    return "The chosen model is unavailable, so the default is used.";
+  if (!assignment.assignment_available) return t("defaults.unavailable");
   if (assignment.source === "off")
     return assignment.role === "embeddings"
       ? null
-      : "No model can do this job; choose one with the capabilities it needs.";
+      : t("defaults.noCapableModel");
   if (assignment.source === "owner") return null;
   const model = assignment.model_label ?? assignment.model_provider_id;
-  const connection = assignment.connection_name
-    ? ` (${assignment.connection_name})`
-    : "";
-  return model ? `Currently ${model}${connection}.` : null;
+  if (!model) return null;
+  return assignment.connection_name
+    ? t("defaults.currentOn", {
+        model,
+        connection: assignment.connection_name,
+      })
+    : t("defaults.current", { model });
 }
 
 /**
@@ -91,12 +111,13 @@ export function ModelDefaultSetting({
   role: ModelRole;
   disabled: boolean;
 }) {
+  const { t } = useTranslation("models");
   const { userPreferences, updateUserPreferences } = useSettings();
   const providers = useModelProviders();
   const roles = useModelRoles(true);
   const queryClient = useQueryClient();
   const ownerKey = useRuntimeCacheKey() ?? "__anon__";
-  const { label, description, defaultLabel } = MODEL_DEFAULTS[role];
+  const { label, description, defaultLabel } = modelDefaultCopy(role, t);
 
   const stored = readModelRoleId(userPreferences, role);
   const candidates = roleCandidates(providers.data ?? [], role, stored);
@@ -107,8 +128,8 @@ export function ModelDefaultSetting({
     !candidates.some((item) => item.id === stored);
   const assignment = roles.data?.roles.find((entry) => entry.role === role);
   const notes = [
-    providers.isError ? "Models could not be loaded." : null,
-    effectiveNote(assignment),
+    providers.isError ? t("defaults.loadFailed") : null,
+    effectiveNote(t, assignment),
     role === "embeddings"
       ? embeddingsStatusText(roles.data?.embeddings_refresh)
       : null,
@@ -122,7 +143,7 @@ export function ModelDefaultSetting({
           queryKey: queryKeys.modelConfiguration.roles(ownerKey),
         }),
       )
-      .catch(() => toast.error(`The ${label} model could not be saved.`));
+      .catch(() => toast.error(t("defaults.saveFailed", { role: label })));
   };
 
   return (
@@ -135,14 +156,17 @@ export function ModelDefaultSetting({
           disabled={disabled || !providers.isSuccess}
           onValueChange={choose}
         >
-          <SelectTrigger className="w-56" aria-label={`${label} model`}>
+          <SelectTrigger
+            className="w-56"
+            aria-label={t("defaults.roleModel", { role: label })}
+          >
             <SelectValue placeholder={defaultLabel} />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={DEFAULT_CHOICE}>{defaultLabel}</SelectItem>
             {storedMissing && stored ? (
               <SelectItem value={stored} disabled>
-                {stored} (unavailable)
+                {t("defaults.unavailableChoice", { model: stored })}
               </SelectItem>
             ) : null}
             {candidates.map((item) => (

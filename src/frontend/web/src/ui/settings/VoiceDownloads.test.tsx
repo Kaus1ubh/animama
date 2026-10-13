@@ -1,6 +1,11 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { getI18n } from "react-i18next";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
+import {
+  DownloadGuardError,
+  PACK_WORK_BLOCKS_ASSET,
+} from "@/query/model-download-coordination";
 import {
   OfflineSpeechDownloads,
   OfflineSpeechDownloadsView,
@@ -104,7 +109,7 @@ describe("offline speech recognition downloads", () => {
     const html = view();
     expect(html).toContain("Offline speech recognition (Parakeet)");
     expect(html).toContain("CPU model");
-    expect(html).toContain("631 MB download");
+    expect(html).toContain("630.7 MB download");
     expect(html).toMatch(enabled("Download CPU model"));
     expect(html).toContain("GPU acceleration");
     expect(html).toContain("Requires the CPU model");
@@ -204,6 +209,23 @@ describe("offline speech recognition downloads", () => {
     ).toContain(off);
     // Without the CPU model, the download is the actionable state.
     expect(view({ turnedOff: true })).not.toContain(off);
+  });
+
+  it("words the rows and the feature pack guard in the UI Locale", async () => {
+    // Thrown in English, shown after the switch: the guard follows the locale.
+    const guard = new DownloadGuardError(PACK_WORK_BLOCKS_ASSET);
+    await getI18n().changeLanguage("ja");
+    try {
+      const t = getI18n().getFixedT(null, "voice");
+      const html = view();
+      expect(html).toContain(t("offlineSpeech.cpu.download"));
+      expect(html).not.toContain("Download CPU model");
+      expect(modelChangeErrorText(guard)).toBe(
+        getI18n().t("app:featurePacks.guards.packChangeRunning"),
+      );
+    } finally {
+      await getI18n().changeLanguage("en");
+    }
   });
 
   it("never mentions reloading the app", () => {
@@ -321,7 +343,7 @@ describe("optional speech synthesis downloads", () => {
     expect(result).not.toContain("PocketTTS voices");
     expect(result).not.toContain("Browse voices");
     expect(result).toContain("Download voice cloning");
-    expect(result).toContain("38 MB download");
+    expect(result).toContain("37.9 MB download");
     expect(result).not.toContain("Select Eve");
     expect(manager.mutate).not.toHaveBeenCalled();
   });

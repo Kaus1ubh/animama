@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { Button } from "@/ui/components/button";
 import {
   Dialog,
@@ -29,6 +31,7 @@ export function CreatorTemplateDraftDialog({
   contentLabel: string;
   templateName: string;
 }) {
+  const { t } = useTranslation("creator");
   const { seedError, starting } = start;
   return (
     <Dialog
@@ -39,13 +42,16 @@ export function CreatorTemplateDraftDialog({
     >
       <DialogContent showCloseButton={false}>
         <DialogHeader>
-          <DialogTitle>Continue your unsaved draft?</DialogTitle>
+          <DialogTitle>{t("templateDraft.title")}</DialogTitle>
           <DialogDescription>
-            {`You have an unsaved ${contentLabel} started from ${templateName}. Continue it, or discard it and start again from the template. Saved content is unchanged.`}
+            {t("templateDraft.description", {
+              label: contentLabel,
+              template: templateName,
+            })}
           </DialogDescription>
           {seedError ? (
             <p role="alert" className="text-destructive text-sm">
-              {`The template could not be opened: ${seedError}`}
+              {t("templateDraft.seedFailed", { reason: seedError })}
             </p>
           ) : null}
         </DialogHeader>
@@ -55,10 +61,10 @@ export function CreatorTemplateDraftDialog({
             disabled={starting || Boolean(seedError)}
             onClick={() => void start.startFromTemplate()}
           >
-            {starting ? "Discarding…" : "Discard and use template"}
+            {starting ? t("leave.discarding") : t("templateDraft.useTemplate")}
           </Button>
           <Button disabled={starting} onClick={start.continueDraft}>
-            Continue draft
+            {t("templateDraft.continue")}
           </Button>
         </DialogFooter>
       </DialogContent>

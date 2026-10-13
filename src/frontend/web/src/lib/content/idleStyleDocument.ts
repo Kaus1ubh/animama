@@ -1,4 +1,8 @@
+import { getI18n } from "react-i18next";
+
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
+import { emotionLabel } from "@/lib/emotion/presentation";
+import { WordedError } from "@/lib/errors/apiError";
 
 export const IDLE_INTENSITIES = ["1", "2", "3"] as const;
 export type IdleIntensity = (typeof IDLE_INTENSITIES)[number];
@@ -16,17 +20,23 @@ export type IdleStyleDocument = {
 };
 
 function validatePool(pool: string[], label: string, allowEmpty: boolean) {
+  const t = getI18n().getFixedT(null, "library");
   if (!allowEmpty && pool.length === 0)
-    throw new Error(`${label} needs at least one Gesture.`);
+    throw new WordedError(t("content.idleStyle.poolEmpty", { pool: label }));
   if (pool.some((ref) => !ref.trim()))
-    throw new Error(`${label} contains an empty Gesture reference.`);
+    throw new WordedError(
+      t("content.idleStyle.poolBlankReference", { pool: label }),
+    );
   if (new Set(pool).size !== pool.length)
-    throw new Error(`${label} Gesture references must be unique.`);
+    throw new WordedError(
+      t("content.idleStyle.poolDuplicate", { pool: label }),
+    );
 }
 
 /** Build the Style descriptor without changing Gesture playback or equipment. */
 export function idleStyleSpec(document: IdleStyleDocument) {
-  validatePool(document.defaultPool, "Default", true);
+  const t = getI18n().getFixedT(null, "library");
+  validatePool(document.defaultPool, t("content.idleStyle.defaultPool"), true);
   const refs = new Set(document.defaultPool);
   const cells: IdleStyleCells = {};
   for (const emotion of TRACKED_EMOTIONS) {
@@ -34,7 +44,14 @@ export function idleStyleSpec(document: IdleStyleDocument) {
       const cell = document.cells[emotion]?.[intensity];
       if (!cell) continue;
       if (cell.mode === "pool") {
-        validatePool(cell.gestures, `${emotion} ${intensity}`, false);
+        validatePool(
+          cell.gestures,
+          t("content.idleStyle.cellPool", {
+            emotion: emotionLabel(emotion),
+            intensity,
+          }),
+          false,
+        );
         cell.gestures.forEach((ref) => refs.add(ref));
       }
       cells[emotion] ??= {};
@@ -93,26 +110,25 @@ export function readIdleStyleDocument(
 export function idleGestureIneligibilityMessage(
   reason: string | null | undefined,
 ): string {
-  const messages: Record<string, string> = {
-    idle_speed_invalid:
-      "This Gesture needs a positive playback speed before it can idle.",
-    idle_repetitions_invalid:
-      "This looping Gesture needs a finite repetition count. Edit its playback before adding it.",
-    idle_duration_invalid:
-      "This Gesture has no positive finite motion duration.",
-    idle_lifetime_unsupported:
-      "This Gesture lasts for a phase, state or run. Choose a Gesture with a finite timeline.",
-    idle_loop_invalid:
-      "This Gesture's loop mode is not supported for idle playback.",
-    idle_motion_invalid:
-      "This Gesture's motion could not be validated. Check its animation or clip in Creator Studio.",
-    idle_motion_unavailable:
-      "This Gesture's animation is unavailable. Restore the required content first.",
-    idle_motion_ambiguous:
-      "This Gesture needs exactly one animation or clip file for idle playback.",
-  };
-  return (
-    (reason && messages[reason]) ||
-    "This Gesture cannot be used for finite idle playback. Check its content and dependencies in Creator Studio."
-  );
+  const t = getI18n().getFixedT(null, "library");
+  switch (reason) {
+    case "idle_speed_invalid":
+      return t("content.idleStyle.ineligible.speed");
+    case "idle_repetitions_invalid":
+      return t("content.idleStyle.ineligible.repetitions");
+    case "idle_duration_invalid":
+      return t("content.idleStyle.ineligible.duration");
+    case "idle_lifetime_unsupported":
+      return t("content.idleStyle.ineligible.lifetime");
+    case "idle_loop_invalid":
+      return t("content.idleStyle.ineligible.loop");
+    case "idle_motion_invalid":
+      return t("content.idleStyle.ineligible.motionInvalid");
+    case "idle_motion_unavailable":
+      return t("content.idleStyle.ineligible.motionUnavailable");
+    case "idle_motion_ambiguous":
+      return t("content.idleStyle.ineligible.motionAmbiguous");
+    default:
+      return t("content.idleStyle.ineligible.other");
+  }
 }

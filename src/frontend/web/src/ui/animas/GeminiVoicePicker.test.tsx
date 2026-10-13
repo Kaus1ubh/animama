@@ -8,7 +8,7 @@ import {
   type VoiceSampleSource,
 } from "@/lib/speech/pocket/voice-sample-player";
 import { renderToStaticMarkup } from "@/test/runtime-markup";
-import { GEMINI_SAMPLE_NOTE, GeminiVoiceList } from "./GeminiVoicePicker";
+import { GeminiVoiceList } from "./GeminiVoicePicker";
 
 (
   globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }
@@ -71,7 +71,9 @@ describe("Gemini voice list", () => {
     );
     expect(html).toContain(">Upbeat</p>");
     expect(html).toContain('aria-label="Play Leda sample"');
-    expect(html).toContain(GEMINI_SAMPLE_NOTE);
+    expect(html).toContain(
+      "The first play of each voice uses your Gemini API key; the sample is then kept.",
+    );
   });
 
   it("says when no voice matches", () => {

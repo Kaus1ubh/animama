@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { parseAnimaPoseClip } from "@/lib/avatar/poses/animaPoseClip";
@@ -281,6 +282,7 @@ export function ActionTimelineEditor({
   variant?: "workspace" | "mobile";
   className?: string;
 }) {
+  const { t } = useTranslation("actionEditor");
   return (
     <div
       className={cn(
@@ -293,7 +295,9 @@ export function ActionTimelineEditor({
     >
       <PoseCreatorClipTimeline
         variant={variant}
-        poseLaneLabel={reaction ? "Expression" : "Pose"}
+        poseLaneLabel={
+          reaction ? t("timeline.expressionLane") : t("timeline.poseLane")
+        }
         allowHumanoid={!reaction}
         playbackPending={playbackPending}
         settingsContent={settingsContent}

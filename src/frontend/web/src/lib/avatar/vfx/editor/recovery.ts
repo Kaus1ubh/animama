@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import {
   createCreatorRecoveryStore,
   creatorRecoveryTextBytes,
@@ -14,8 +16,10 @@ export const AVATAR_EFFECT_RECOVERY_SCHEMA =
   "animama/avatar-effect-recovery/1" as const;
 
 /** Shown once when a draft in the pre-`/2` editor format is found and dropped. */
-export const AVATAR_EFFECT_OLD_DRAFT_NOTICE =
-  "An unsaved Avatar Effect draft from an earlier version of this creator could not be opened and was discarded.";
+export function avatarEffectOldDraftNotice(): string {
+  const t = getI18n().getFixedT(null, "effects");
+  return t("avatar.recovery.oldDraft");
+}
 
 export type AvatarEffectRecovery = {
   schema: typeof AVATAR_EFFECT_RECOVERY_SCHEMA;
@@ -31,7 +35,7 @@ export type AvatarEffectRecovery = {
   /**
    * Set when the stored draft used the pre-`/2` editor format. Its document
    * cannot be opened; restoring it drops it with
-   * {@link AVATAR_EFFECT_OLD_DRAFT_NOTICE}.
+   * {@link avatarEffectOldDraftNotice}.
    */
   dropped?: "old_editor_format";
 };
@@ -51,14 +55,20 @@ export const avatarEffectRecoveryStore = createCreatorRecoveryStore({
   fallbackKeyPrefix: "anima.avatarEffectCreator.recovery.v1",
   maxBytes: 18 * 1024 * 1024,
   messages: {
-    tooLarge:
-      "This image is too large for browser crash recovery. Keep this tab open until Save completes.",
-    unavailable:
-      "Browser crash recovery is unavailable. Keep this tab open until Save completes.",
-    metadataOnly: (recovery: AvatarEffectRecovery) =>
-      recovery.document.art.image
-        ? "Image bytes could not be stored for crash recovery. Reselect the image after restoring this draft."
-        : null,
+    tooLarge: () => {
+      const t = getI18n().getFixedT(null, "effects");
+      return t("avatar.recovery.tooLarge");
+    },
+    unavailable: () => {
+      const t = getI18n().getFixedT(null, "effects");
+      return t("creator.recovery.unavailable");
+    },
+    metadataOnly: (recovery: AvatarEffectRecovery) => {
+      const t = getI18n().getFixedT(null, "effects");
+      return recovery.document.art.image
+        ? t("avatar.recovery.metadataOnly")
+        : null;
+    },
   },
   codec: {
     measure: (recovery: AvatarEffectRecovery) =>

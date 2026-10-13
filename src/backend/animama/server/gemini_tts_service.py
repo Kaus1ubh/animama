@@ -49,13 +49,15 @@ _client_cache: tuple[str, Any] | None = None
 
 @dataclass(frozen=True, slots=True)
 class GeminiFinalizedSpeech:
-    """One reply segment ready to speak: the text, voice, model and style."""
+    """One reply segment ready to speak: the text, voice, model, style and language."""
 
     run_id: str
     voice_id: str
     model_id: str
     text: str
     style: str | None
+    language_code: str | None = None
+    """The conversation language (ISO 639-1); ``None`` lets Gemini detect it."""
     output_format: str = FINALIZED_TTS_OUTPUT_FORMAT
 
 
@@ -92,6 +94,7 @@ async def prepare_gemini_finalized_speech(
     text_basis: str,
     emotional_tone: str | None,
     emotional_state: dict[str, int] | None,
+    language_code: str | None = None,
 ) -> GeminiFinalizedSpeech:
     """Check the key and prepare one segment; an unknown voice or model falls back to the default."""
 
@@ -103,7 +106,17 @@ async def prepare_gemini_finalized_speech(
         text=finalized_tts_text(text, text_basis=text_basis),
         # Every segment speaks in the reply's style.
         style=gemini_speaking_style(emotional_tone=emotional_tone, emotional_state=emotional_state),
+        language_code=language_code,
     )
+
+
+def _speech_config(prepared: GeminiFinalizedSpeech) -> dict[str, str]:
+    """The segment's voice, plus its language when the turn has one (otherwise Gemini detects it)."""
+
+    config = {"voice": prepared.voice_id}
+    if prepared.language_code:
+        config["language"] = prepared.language_code
+    return config
 
 
 def _interaction_request(prepared: GeminiFinalizedSpeech) -> dict[str, Any]:
@@ -114,7 +127,7 @@ def _interaction_request(prepared: GeminiFinalizedSpeech) -> dict[str, Any]:
         "model": prepared.model_id,
         "input": [{"type": "user_input", "content": [content]}],
         "response_format": {"type": "audio", "mime_type": "audio/l16", "sample_rate": GEMINI_TTS_SAMPLE_RATE},
-        "generation_config": {"speech_config": [{"voice": prepared.voice_id}]},
+        "generation_config": {"speech_config": [_speech_config(prepared)]},
         "store": False,
         "stream": True,
     }
@@ -228,8 +241,9 @@ class LocalGeminiSpeech:
         text_basis: str,
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
+        language_code: str | None = None,
     ) -> GeminiFinalizedSpeech:
-        # The turn resolves the prebuilt voice itself; Gemini detects the language.
+        # The turn resolves the prebuilt voice and the conversation language itself.
         return await prepare_gemini_finalized_speech(
             voice_id=voice_id,
             run_id=run_id,
@@ -238,6 +252,7 @@ class LocalGeminiSpeech:
             text_basis=text_basis,
             emotional_tone=emotional_tone,
             emotional_state=emotional_state,
+            language_code=language_code,
         )
 
     def stream_finalized(self, prepared: Any) -> AsyncIterator[dict[str, Any]]:

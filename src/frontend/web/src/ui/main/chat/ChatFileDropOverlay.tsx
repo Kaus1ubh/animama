@@ -5,6 +5,7 @@ import { getUserFileErrorMessage } from "@/lib/user-files/uploads";
 import { cn } from "@/lib/utils";
 import { FileUp } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 type ChatFileDropOverlayProps = {
@@ -39,6 +40,7 @@ export function ChatFileDropOverlay({
   enabled,
   uppy,
 }: ChatFileDropOverlayProps) {
+  const { t } = useTranslation("chat");
   const [draggingFiles, setDraggingFiles] = useState(false);
   const dragDepthRef = useRef(0);
 
@@ -66,17 +68,18 @@ export function ChatFileDropOverlay({
       if (firstError) {
         const title =
           failedCount === files.length
-            ? "Files could not be added."
-            : `${failedCount} file${failedCount === 1 ? "" : "s"} could not be added.`;
+            ? t("composer.drop.allFailed")
+            : t("composer.drop.someFailed", { count: failedCount });
+        // The uploader's own message is kept as written; it may name a limit.
         toast.error(title, {
           description: getUserFileErrorMessage(
             firstError,
-            "Check the file type and size, then try again.",
+            t("composer.drop.failedHint"),
           ),
         });
       }
     },
-    [uppy],
+    [t, uppy],
   );
 
   useEffect(() => {
@@ -128,7 +131,7 @@ export function ChatFileDropOverlay({
 
       if (files.length === 0) return;
       if (!accepting || !uppy) {
-        toast.error("File uploads are unavailable right now.");
+        toast.error(t("composer.drop.unavailable"));
         return;
       }
 
@@ -152,7 +155,7 @@ export function ChatFileDropOverlay({
       window.removeEventListener("blur", resetDragState);
       window.removeEventListener("dragend", resetDragState);
     };
-  }, [accepting, addDroppedFiles, enabled, resetDragState, uppy]);
+  }, [accepting, addDroppedFiles, enabled, resetDragState, t, uppy]);
 
   if (!draggingFiles) {
     return null;
@@ -169,7 +172,7 @@ export function ChatFileDropOverlay({
     >
       <div className="text-foreground flex flex-col items-center gap-3 text-center">
         <FileUp className="text-primary size-14" aria-hidden="true" />
-        <p className="text-2xl font-semibold">Drop files here</p>
+        <p className="text-2xl font-semibold">{t("composer.drop.prompt")}</p>
       </div>
     </div>
   );

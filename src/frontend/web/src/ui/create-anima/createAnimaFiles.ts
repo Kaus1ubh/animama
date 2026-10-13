@@ -1,11 +1,16 @@
+import { getI18n } from "react-i18next";
+
+import { CreatorError } from "./createAnimaErrors";
+
 /** Advisory browser checks prevent provisional VRMs from fetching external resources. */
 export async function checkCreationVrm(
   file: File,
   maxBytes = 100 * 1024 * 1024,
 ): Promise<void> {
+  const t = getI18n().getFixedT(null, "create");
   if (!/\.vrm$/i.test(file.name) || file.size < 20 || file.size > maxBytes)
-    throw new Error(
-      `Choose a self-contained .vrm file up to ${Math.floor(maxBytes / 1024 / 1024)} MiB.`,
+    throw new CreatorError(
+      t("files.tooLarge", { limit: Math.floor(maxBytes / 1024 / 1024) }),
     );
   const header = new DataView(await file.slice(0, 20).arrayBuffer());
   if (
@@ -14,10 +19,10 @@ export async function checkCreationVrm(
     header.getUint32(8, true) !== file.size ||
     header.getUint32(16, true) !== 0x4e4f534a
   )
-    throw new Error("This is not a binary VRM/GLB file.");
+    throw new CreatorError(t("files.notBinary"));
   const length = header.getUint32(12, true);
   if (length > 16 * 1024 * 1024 || length + 20 > file.size)
-    throw new Error("The VRM document exceeds the supported limit.");
+    throw new CreatorError(t("files.documentTooLarge"));
   let document: Record<string, unknown>;
   try {
     const parsed: unknown = JSON.parse(
@@ -27,7 +32,7 @@ export async function checkCreationVrm(
       throw new Error();
     document = parsed as Record<string, unknown>;
   } catch {
-    throw new Error("This file does not contain a valid VRM document.");
+    throw new CreatorError(t("files.invalidDocument"));
   }
   const extensions =
     document.extensions && typeof document.extensions === "object"
@@ -43,7 +48,7 @@ export async function checkCreationVrm(
       : null;
   const version = vrm1?.specVersion ?? vrm0?.specVersion;
   if (version !== "1.0" && version !== "0.0")
-    throw new Error("Choose a VRM 0.x (0.0) or VRM 1.0 model.");
+    throw new CreatorError(t("files.unsupportedVersion"));
   const resources = [document.buffers, document.images].flatMap((value) =>
     Array.isArray(value) ? value : [],
   );
@@ -54,8 +59,6 @@ export async function checkCreationVrm(
       typeof (item as Record<string, unknown>).uri === "string" &&
       !(item as Record<string, string>).uri.startsWith("data:")
     )
-      throw new Error(
-        "External model resources are not allowed. Export a self-contained VRM.",
-      );
+      throw new CreatorError(t("files.externalResources"));
   }
 }

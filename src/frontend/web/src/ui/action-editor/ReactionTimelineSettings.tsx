@@ -1,6 +1,10 @@
 "use client";
 
+import { useTranslation } from "react-i18next";
+
 import { TRACKED_EMOTIONS } from "@/lib/emotion";
+import { emotionLabel } from "@/lib/emotion/presentation";
+import { reactionIntensityLabel } from "@/ui/animas/ActionLoadoutRows";
 import {
   Select,
   SelectContent,
@@ -24,14 +28,15 @@ export function ReactionTimelineSettings() {
 
 /** Optional placement is editable for both timeline and existing VRMA reactions. */
 export function ReactionEmotionSettings() {
+  const { t } = useTranslation("actionEditor");
   const { document, setDocument } = useActionEditorWorkspace();
   return (
     <section className="border-t pt-3">
       <h2 className="text-foreground text-sm font-semibold">
-        Emotion suggestion
+        {t("reactionSettings.title")}
       </h2>
       <div className="mt-3 space-y-3">
-        <InspectorRow label="Emotion">
+        <InspectorRow label={t("reactionSettings.emotion")}>
           <Select
             value={document.suggestedEmotion || NO_SUGGESTION}
             onValueChange={(emotion) =>
@@ -43,21 +48,23 @@ export function ReactionEmotionSettings() {
           >
             <SelectTrigger
               className="h-9 w-[176px]"
-              aria-label="Suggested emotion"
+              aria-label={t("reactionSettings.suggestedEmotion")}
             >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value={NO_SUGGESTION}>None</SelectItem>
+              <SelectItem value={NO_SUGGESTION}>
+                {t("reactionSettings.none")}
+              </SelectItem>
               {TRACKED_EMOTIONS.map((emotion) => (
                 <SelectItem key={emotion} value={emotion}>
-                  {emotion[0]!.toUpperCase() + emotion.slice(1)}
+                  {emotionLabel(emotion)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
         </InspectorRow>
-        <InspectorRow label="Intensity">
+        <InspectorRow label={t("reactionSettings.intensity")}>
           <Select
             value={String(document.suggestedIntensity)}
             disabled={!document.suggestedEmotion}
@@ -70,20 +77,22 @@ export function ReactionEmotionSettings() {
           >
             <SelectTrigger
               className="h-9 w-[176px]"
-              aria-label="Suggested intensity"
+              aria-label={t("reactionSettings.suggestedIntensity")}
             >
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="1">Mild</SelectItem>
-              <SelectItem value="2">Medium</SelectItem>
-              <SelectItem value="3">Strong</SelectItem>
+              {([1, 2, 3] as const).map((intensity) => (
+                <SelectItem key={intensity} value={String(intensity)}>
+                  {reactionIntensityLabel(intensity)}
+                </SelectItem>
+              ))}
             </SelectContent>
           </Select>
         </InspectorRow>
       </div>
       <p className="text-muted-foreground mt-3 text-xs">
-        Optional. Choose the actual emotion slot when equipping.
+        {t("reactionSettings.hint")}
       </p>
     </section>
   );

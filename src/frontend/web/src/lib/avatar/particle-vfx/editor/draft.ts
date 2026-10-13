@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import { getParticleVFXCatalogEntryById } from "../catalog";
 import { cloneParticleVFXShapeAutoFit } from "../autoFit";
 import {
@@ -89,13 +91,14 @@ import { isParticleVFXAnchor } from "../runtime";
 export function parseParticleVFXEditorJson(
   value: string,
 ): JsonObject | ParticleVFXEditorValidationIssue {
+  const t = getI18n().getFixedT(null, "particles");
   try {
     const parsed = JSON.parse(value) as unknown;
     if (!isJsonObject(parsed)) {
       return {
         severity: "error",
         code: "invalid-json",
-        message: "Quarks JSON must be an object.",
+        message: t("json.notObject"),
         target: "json",
       };
     }
@@ -104,10 +107,11 @@ export function parseParticleVFXEditorJson(
     return {
       severity: "error",
       code: "invalid-json",
+      // The parser's own explanation stays as technical detail.
       message:
         error instanceof Error
-          ? `Quarks JSON could not parse: ${error.message}`
-          : "Quarks JSON could not parse.",
+          ? t("json.parseFailed", { detail: error.message })
+          : t("json.parseFailedUnexplained"),
       target: "json",
     };
   }
@@ -230,6 +234,8 @@ export function duplicateParticleVFXEditorEmitter(
   const index = children.length + 1;
   const duplicate = cloneJsonObject(emitter);
   duplicate.uuid = makeEmitterUuid(next.catalog.id, index);
+  // Emitter names are stored identifiers (Auto Fit refers to emitters by name),
+  // so the copy suffix stays English like the other generated names.
   duplicate.name = `${readEmitterName(emitter, index)} Copy`;
   const ps = ensureJsonObjectProperty(duplicate, "ps");
   const source = collectEmitterDraft(

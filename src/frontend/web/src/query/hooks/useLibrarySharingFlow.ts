@@ -7,6 +7,7 @@ import {
   useSyncExternalStore,
 } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { getI18n, useTranslation } from "react-i18next";
 import { useNavigate } from "@tanstack/react-router";
 import type {
   ExportReview,
@@ -44,17 +45,19 @@ import { useAnimas } from "./useAnimas";
 import { useSharingInventory } from "./useSharingInventory";
 import { fetchAnimaRuntimeCatalog } from "./useAnimaRuntimeCatalog";
 import { useRuntimeCapabilities } from "./useRuntimeCapabilities";
+import { WordedError } from "@/lib/errors/apiError";
 
 function storage(owner: string): RecoveryStore {
   try {
     return importRecoveryStore(owner, window.localStorage);
   } catch {
+    const t = getI18n().getFixedT(null, "library");
     return {
       read: () => {
-        throw new Error("Browser storage is unavailable.");
+        throw new WordedError(t("sharing.import.storageUnavailable"));
       },
       write: () => {
-        throw new Error("Enable browser storage before importing.");
+        throw new WordedError(t("sharing.import.enableStorage"));
       },
     };
   }
@@ -63,6 +66,7 @@ function storage(owner: string): RecoveryStore {
 /** Own exact export snapshots and one recoverable import independently of dialog presentation. */
 export function useLibrarySharingFlow(): LibrarySharingFlow {
   const apiClient = useProductApiClient();
+  const { t } = useTranslation("library");
 
   const packageImportApi = useMemo(
     () => createPackageImportApi(apiClient),
@@ -243,9 +247,7 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
     busy,
     progress: imported.progress,
     error:
-      (animaImportUnavailable
-        ? "Importing an Anima package is unavailable here. Import content or export an existing Anima instead."
-        : null) ??
+      (animaImportUnavailable ? t("sharing.import.animaUnavailable") : null) ??
       error ??
       (page === "import"
         ? imported.error
@@ -329,7 +331,7 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
     download: () => {
       if (!exportReview || busy) return;
       if (Date.parse(exportReview.expires_at) <= Date.now()) {
-        setError("This export expired. Go back and prepare a new review.");
+        setError(t("sharing.export.expired"));
         return;
       }
       const anchor = document.createElement("a");
@@ -339,7 +341,7 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
       anchor.click();
       anchor.remove();
       setDownloadStarted(true);
-      setNotice("Download started. Check your browser or desktop save prompt.");
+      setNotice(t("sharing.export.downloadNotice"));
     },
     chooseFile: (file) => {
       if (!busy) {
@@ -384,15 +386,13 @@ export function useLibrarySharingFlow(): LibrarySharingFlow {
         ]);
         let mount: PreparedRuntimeMount | null = null;
         let transferred = false;
-        setNotice("Your Anima is imported. Preparing its content…");
+        setNotice(t("sharing.import.preparingAnima"));
         try {
           const typed = await fetchAnimaRuntimeCatalog(apiClient, id, signal);
           mount = await new RuntimeMountPreparer().prepare(typed, { signal });
           signal.throwIfAborted();
           if (mount.playbackStatus === "degraded" || !typed.can_chat)
-            throw new Error(
-              "Your Anima is imported, but some runtime content is unavailable. Retry opening it or visit Animas to repair its content.",
-            );
+            throw new WordedError(t("sharing.import.runtimeUnavailable"));
           client.setQueryData(
             queryKeys.animaLoadouts.runtime(owner, id),
             typed,

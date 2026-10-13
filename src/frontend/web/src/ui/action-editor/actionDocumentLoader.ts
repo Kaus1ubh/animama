@@ -1,4 +1,7 @@
+import { getI18n } from "react-i18next";
+
 import { isNonPortable } from "@/lib/content/portability";
+import { WordedError } from "@/lib/errors/apiError";
 import type {
   PyContentDependency,
   PyCatalogViewItem,
@@ -116,18 +119,19 @@ async function ownedSequence(
   preview: PyActionPreview,
   root: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
+  const t = getI18n().getFixedT(null, "actionEditor");
   const sequenceFile = (Array.isArray(root.files) ? root.files : []).find(
     (raw) => object(raw).role === "sequence",
   );
   const fileRef = object(sequenceFile).file_ref;
   if (typeof fileRef !== "string" || !fileRef) {
-    throw new Error("This Action has no readable sequence.");
+    throw new WordedError(t("loader.noSequence"));
   }
   const response = await fetchContentPreviewFile(preview, {
     file_ref: fileRef,
   });
   if (!response.ok) {
-    throw new Error("This Action could not be downloaded.");
+    throw new WordedError(t("loader.downloadFailed"));
   }
   return (await readBoundedJsonResponse(
     response,
@@ -139,6 +143,7 @@ function builtinSequence(
   intent: ActionIntent,
   root: Record<string, unknown>,
 ): Record<string, unknown> {
+  const t = getI18n().getFixedT(null, "actionEditor");
   const technical = object(object(root.implementation).technical_source);
   const key =
     technical.type === "runtime_catalog"
@@ -147,13 +152,13 @@ function builtinSequence(
         ? technical.ref
         : null;
   if (typeof key !== "string") {
-    throw new Error("Only Starter Anima Pose Clips can be customized.");
+    throw new WordedError(t("page.load.starterOnly"));
   }
   const clip =
     intent === "gesture"
       ? BUILT_IN_AVATAR_MOTION_CATALOG.getPoseClip(key)
       : BUILT_IN_AVATAR_MOTION_CATALOG.getReactionClip(key);
-  if (!clip) throw new Error("This Starter Anima Pose Clip is unavailable.");
+  if (!clip) throw new WordedError(t("loader.starterUnavailable"));
   return structuredClone(clip) as unknown as Record<string, unknown>;
 }
 
@@ -234,7 +239,12 @@ export async function actionDocumentFromPreview(args: {
   // its reason instead of opening as an empty timeline.
   if (implementationKind === "anima_clip") parseAnimaPoseClip(sequence);
   const placement = object(root.placement_hint);
-  const customName = args.customizeStarter ? `${item.name} Custom` : item.name;
+  // A customized Starter is new owner content, so its default name and notes
+  // follow the UI Locale.
+  const t = getI18n().getFixedT(null, "actionEditor");
+  const customName = args.customizeStarter
+    ? t("load.customName", { name: item.name })
+    : item.name;
   const semanticKey =
     intent === "gesture"
       ? args.customizeStarter
@@ -259,7 +269,7 @@ export async function actionDocumentFromPreview(args: {
     suggestedEmotion: String(placement.emotion ?? ""),
     suggestedIntensity: selectedIntensity(placement.intensity),
     notes: args.customizeStarter
-      ? `Customized from Starter ${item.name}.`
+      ? t("load.customNotes", { name: item.name })
       : String(object(item.metadata).notes ?? ""),
     sequence:
       args.customizeStarter && implementationKind === "anima_clip"

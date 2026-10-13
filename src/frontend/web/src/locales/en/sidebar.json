@@ -1,0 +1,71 @@
+{
+  "animas": {
+    "empty": "No animas yet",
+    "filter": "Filter and sort Animas",
+    "heading": "Animas",
+    "loadFailed": "Failed to load animas",
+    "loading": "Loading animas...",
+    "sort": {
+      "label": "Sort",
+      "nameAscending": "Name: A–Z",
+      "nameDescending": "Name: Z–A",
+      "recent": "Recently used"
+    }
+  },
+  "chats": {
+    "allAnimas": "All Animas",
+    "empty": "No chats yet",
+    "emptyForAnima": "No chats for this Anima",
+    "filter": "Filter Chats",
+    "filterByAnima": "Anima",
+    "heading": "Chats",
+    "loadFailed": "Failed to load chats",
+    "loading": "Loading chats...",
+    "untitled": "Untitled chat"
+  },
+  "close": "Close sidebar",
+  "create": {
+    "anima": "Anima",
+    "effects": "Effects",
+    "gesture": "Gesture",
+    "label": "Create",
+    "reaction": "Reaction"
+  },
+  "links": {
+    "animas": "Animas",
+    "library": "Library",
+    "memory": "Memory",
+    "newChat": "New Chat",
+    "search": "Search"
+  },
+  "open": "Open sidebar",
+  "search": {
+    "close": "Close search",
+    "description": "Search persisted chat messages.",
+    "failed": "Search failed.",
+    "loadMore": "Load more",
+    "noResults": "No matching messages.",
+    "open": "Search chats",
+    "placeholder": "Search chats",
+    "profileAlt": "{{name}} profile",
+    "searching": "Searching...",
+    "title": "Search chats"
+  },
+  "usage": {
+    "amount": "{{used}} of {{limit}}",
+    "description": "Your account's current usage. Limits are enforced by the runtime.",
+    "loadFailed": "Usage could not be loaded.",
+    "loading": "Loading usage…",
+    "resets": "Resets {{time}}",
+    "retry": "Try again",
+    "title": "Usage and limits"
+  },
+  "user": {
+    "account": "Account",
+    "accountUnavailable": "Account access is unavailable.",
+    "appSettings": "App Settings",
+    "fallbackName": "You",
+    "signOut": "Sign out",
+    "usage": "Usage and limits"
+  }
+}

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { getI18n } from "react-i18next";
 import { toast } from "sonner";
 
 import type { CanvasMode } from "@/ui/main/canvas/CanvasControls";
@@ -146,10 +147,10 @@ export function useDocumentPiP({
       if (
         lifetime === lifetimeRef.current &&
         !(error instanceof DOMException && error.name === "AbortError")
-      )
-        toast.error(
-          "Picture-in-picture is unavailable. Keep using the companion in this window.",
-        );
+      ) {
+        const t = getI18n().getFixedT(null, "app");
+        toast.error(t("pip.unavailable"));
+      }
       return;
     } finally {
       if (pendingRef.current === lifetime) pendingRef.current = null;

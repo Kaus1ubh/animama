@@ -1,5 +1,6 @@
 "use client";
 
+import { withNameHash } from "@/lib/content/nameIdentifiers";
 import { useProductApiClient } from "@animama/product-ui";
 import type { Client } from "@animama/runtime-contracts/sdk";
 
@@ -27,13 +28,17 @@ export type AppearanceImageSaveInput = {
 };
 
 function logicalName(value: string): string {
-  return (
-    value
-      .trim()
-      .toLocaleLowerCase()
-      .replace(/[^a-z0-9]+/g, "-")
-      .replace(/^-|-$/g, "") || "image"
-  );
+  const folded = value
+    .trim()
+    .toLocaleLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  return withNameHash(value, folded, {
+    separator: "-",
+    stem: "image",
+    empty: "image",
+    maxLength: 160,
+  });
 }
 
 async function imageSize(

@@ -1,4 +1,5 @@
 import { isProviderCredential } from "../../../../shared/desktop-runtime";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { copyText } from "@/lib/diagnostics/copy-text";
@@ -9,6 +10,7 @@ import { useDesktopFeaturePacks } from "@/hooks/useDesktopFeaturePacks";
 import { Button } from "@/ui/components/button";
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
 
+/** Operating system names are product names and stay as written. */
 const OS_LABELS: Record<string, string> = {
   darwin: "macOS",
   win32: "Windows",
@@ -17,18 +19,22 @@ const OS_LABELS: Record<string, string> = {
 
 /** Human-readable platform: desktop OS, or the browser app. */
 function usePlatformLabel(): string {
+  const { t } = useTranslation("settings");
   const platform = useRuntimePlatform();
-  if (!platform.isDesktop) return "Web browser";
+  if (!platform.isDesktop) return t("about.platform.web");
   const os = platform.os ? (OS_LABELS[platform.os] ?? platform.os) : null;
-  return os ? `Desktop (${os})` : "Desktop";
+  return os
+    ? t("about.platform.desktopOs", { os })
+    : t("about.platform.desktop");
 }
 
 /** App version and platform, shown in both the browser and desktop app. */
 export function AboutVersionSetting() {
+  const { t } = useTranslation("settings");
   const platformLabel = usePlatformLabel();
   return (
     <SettingsRow
-      label="Version"
+      label={t("about.version")}
       description={platformLabel}
       control={
         <span className="text-foreground font-mono text-sm">
@@ -41,14 +47,15 @@ export function AboutVersionSetting() {
 
 /** Desktop only: reveal the redacted main-process log folder. */
 export function OpenLogsSetting() {
+  const { t } = useTranslation("settings");
   const platform = useRuntimePlatform();
   const runtime = platform.isDesktop
     ? platform.desktopBridge.runtime
     : undefined;
   return (
     <SettingsRow
-      label="Logs"
-      description="Open the folder with Animama's logs for troubleshooting."
+      label={t("about.logs.label")}
+      description={t("about.logs.description")}
       control={
         <Button
           type="button"
@@ -57,10 +64,10 @@ export function OpenLogsSetting() {
           onClick={() => {
             void runtime
               ?.openLogs()
-              .catch(() => toast.error("The logs folder could not be opened."));
+              .catch(() => toast.error(t("about.logs.openFailed")));
           }}
         >
-          Open logs folder
+          {t("about.logs.open")}
         </Button>
       }
     />
@@ -72,6 +79,7 @@ export function OpenLogsSetting() {
  * `lib/diagnostics/summary.ts` for what is and is not included.
  */
 export function CopyDiagnosticsSetting() {
+  const { t } = useTranslation("settings");
   const platform = useRuntimePlatform();
   const { packs } = useDesktopFeaturePacks();
 
@@ -104,17 +112,17 @@ export function CopyDiagnosticsSetting() {
         configured: status.configured,
       })),
     });
-    if (await copyText(summary)) toast.success("Diagnostics copied.");
-    else toast.error("Diagnostics could not be copied to the clipboard.");
+    if (await copyText(summary)) toast.success(t("about.diagnostics.copied"));
+    else toast.error(t("about.diagnostics.copyFailed"));
   };
 
   return (
     <SettingsRow
-      label="Diagnostics"
-      description="Copy version, platform and component status for a bug report. Keys, chats and memories are never included."
+      label={t("about.diagnostics.label")}
+      description={t("about.diagnostics.description")}
       control={
         <Button type="button" variant="outline" onClick={() => void copy()}>
-          Copy summary
+          {t("about.diagnostics.copy")}
         </Button>
       }
     />

@@ -10,6 +10,8 @@ import {
   ShuffleIcon,
   Trash2Icon,
 } from "lucide-react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import {
   defaultSceneLinesScreen,
   defaultSceneRaysScreen,
@@ -46,6 +48,13 @@ import {
   CreatorNumberField as NumberField,
   CreatorToggleRow as ToggleRow,
 } from "@/ui/content-creator";
+import {
+  sceneDirectionName,
+  sceneGradientTypeName,
+  sceneLayerName,
+  scenePulseName,
+  sceneScreenKindName,
+} from "./sceneEffectLabels";
 
 /**
  * Scene creator controls for the background layers: the item list shared by
@@ -56,11 +65,38 @@ import {
 
 const L = SCENE_EFFECT_LIMITS;
 
-export function humanize(value: string): string {
-  return value
-    .replaceAll("_", " ")
-    .replaceAll("-", " ")
-    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+/**
+ * The picker heading for a sticker family. Families are the emotion groups
+ * (worded from the `emotion` catalog) plus Extras; another family shows as
+ * stored.
+ */
+function stickerFamilyName(
+  t: TFunction<"effects">,
+  tEmotion: TFunction<"emotion">,
+  family: string,
+): string {
+  switch (family) {
+    case "Affection":
+      return tEmotion("groups.affection");
+    case "Alarm":
+      return tEmotion("groups.alarm");
+    case "Delight":
+      return tEmotion("groups.delight");
+    case "Drive":
+      return tEmotion("groups.drive");
+    case "Esteem":
+      return tEmotion("groups.esteem");
+    case "Gloom":
+      return tEmotion("groups.gloom");
+    case "Rejection":
+      return tEmotion("groups.rejection");
+    case "Revulsion":
+      return tEmotion("groups.revulsion");
+    case "Extras":
+      return t("scene.stickers.extras");
+    default:
+      return family;
+  }
 }
 
 export function moveItem<T>(items: T[], from: number, to: number): T[] {
@@ -80,6 +116,7 @@ export function ColorField({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const { t } = useTranslation("effects");
   return (
     <Field label={label}>
       <div className="grid grid-cols-[44px_1fr] gap-2">
@@ -87,7 +124,7 @@ export function ColorField({
           type="color"
           className="p-1"
           value={value}
-          aria-label={`${label} picker`}
+          aria-label={t("scene.controls.colorPicker", { label })}
           onChange={(event) => onChange(event.target.value)}
         />
         <Input
@@ -105,11 +142,14 @@ function SelectField<T extends string>({
   label,
   value,
   values,
+  name,
   onChange,
 }: {
   label: string;
   value: T;
   values: readonly T[];
+  /** The worded name of a stored value. */
+  name: (value: T) => string;
   onChange: (value: T) => void;
 }) {
   return (
@@ -121,7 +161,7 @@ function SelectField<T extends string>({
         <SelectContent>
           {values.map((option) => (
             <SelectItem key={option} value={option}>
-              {humanize(option)}
+              {name(option)}
             </SelectItem>
           ))}
         </SelectContent>
@@ -146,10 +186,11 @@ function RangeFields({
   step: number;
   onChange: (low: number, high: number) => void;
 }) {
+  const { t } = useTranslation("effects");
   return (
     <div className="grid grid-cols-2 gap-3">
       <NumberField
-        label={`${label} min`}
+        label={t("scene.controls.rangeMin", { label })}
         value={low}
         min={range[0]}
         max={range[1]}
@@ -157,7 +198,7 @@ function RangeFields({
         onChange={(value) => onChange(value, Math.max(value, high))}
       />
       <NumberField
-        label={`${label} max`}
+        label={t("scene.controls.rangeMax", { label })}
         value={high}
         min={range[0]}
         max={range[1]}
@@ -175,10 +216,11 @@ function SeedField({
   value: number;
   onChange: (seed: number) => void;
 }) {
+  const { t } = useTranslation("effects");
   return (
     <div className="grid grid-cols-[1fr_auto] items-end gap-2">
       <NumberField
-        label="Seed"
+        label={t("scene.fields.seed")}
         value={value}
         min={0}
         max={L.seed[1]}
@@ -189,7 +231,7 @@ function SeedField({
         type="button"
         size="icon-sm"
         variant="outline"
-        aria-label="New random seed"
+        aria-label={t("scene.controls.newSeed")}
         onClick={() => onChange(Math.floor(Math.random() * 1_000_000))}
       >
         <ShuffleIcon />
@@ -265,6 +307,7 @@ function SceneItemRow({
   onMove: (offset: -1 | 1) => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation("effects");
   // A Twemoji item from before the sticker set: shown as missing.
   const missing = item.kind === "emoji";
   return (
@@ -287,7 +330,9 @@ function SceneItemRow({
       <div className="min-w-0 flex-1">
         <div className="truncate text-sm font-medium">{item.label}</div>
         <div className="text-muted-foreground text-2xs truncate">
-          {item.kind === "image" ? item.image.logicalName : "Missing emoji"}
+          {item.kind === "image"
+            ? item.image.logicalName
+            : t("scene.items.missingEmoji")}
         </div>
       </div>
       <Button
@@ -295,7 +340,7 @@ function SceneItemRow({
         size="icon-sm"
         variant="ghost"
         disabled={first}
-        aria-label={`Move ${item.label} up`}
+        aria-label={t("scene.items.moveUp", { name: item.label })}
         onClick={() => onMove(-1)}
       >
         <ArrowUpIcon />
@@ -305,7 +350,7 @@ function SceneItemRow({
         size="icon-sm"
         variant="ghost"
         disabled={last}
-        aria-label={`Move ${item.label} down`}
+        aria-label={t("scene.items.moveDown", { name: item.label })}
         onClick={() => onMove(1)}
       >
         <ArrowDownIcon />
@@ -314,7 +359,7 @@ function SceneItemRow({
         type="button"
         size="icon-sm"
         variant="ghost"
-        aria-label={`Remove ${item.label}`}
+        aria-label={t("scene.items.remove", { name: item.label })}
         onClick={onRemove}
       >
         <Trash2Icon />
@@ -339,11 +384,12 @@ export function SceneItemsEditor({
   images: SceneImageControls;
   onItemsChange: (items: SceneEffectEditorMarqueeItem[]) => void;
 }) {
+  const { t } = useTranslation("effects");
   const full = items.length >= maxItems;
   const missing = items.some((item) => item.kind === "emoji");
   return (
     <div className="space-y-3">
-      <Label>Items</Label>
+      <Label>{t("scene.items.title")}</Label>
       {items.length ? (
         <div className="space-y-2">
           {items.map((item, index) => (
@@ -368,13 +414,12 @@ export function SceneItemsEditor({
         </div>
       ) : (
         <p className="text-muted-foreground text-sm">
-          Add a sticker or private image.
+          {t("scene.items.empty")}
         </p>
       )}
       {missing ? (
         <p role="alert" className="text-destructive text-xs">
-          Animama no longer provides emoji items. Replace each with a sticker or
-          image, or remove it, before saving.
+          {t("scene.items.emojiRemoved")}
         </p>
       ) : null}
       <StickerPicker
@@ -383,7 +428,7 @@ export function SceneItemsEditor({
       />
       {full ? null : (
         <ImageInput
-          label="Add private image"
+          label={t("scene.items.addImage")}
           busy={images.imageBusy}
           invalid={images.filesInvalid}
           onChooseImage={images.onChooseImage}
@@ -404,13 +449,15 @@ function StickerPicker({
   disabled: boolean;
   onChoose: (sticker: SceneSticker) => void;
 }) {
+  const { t } = useTranslation("effects");
+  const { t: tEmotion } = useTranslation("emotion");
   return (
     <div className="space-y-2">
-      <Label>Add a sticker</Label>
+      <Label>{t("scene.stickers.title")}</Label>
       {sceneStickerFamilies().map(({ family, stickers }) => (
         <section key={family} className="space-y-1">
           <div className="text-muted-foreground text-2xs font-semibold uppercase">
-            {family}
+            {stickerFamilyName(t, tEmotion, family)}
           </div>
           <div className="grid grid-cols-6 gap-1.5">
             {stickers.map((sticker) => (
@@ -418,7 +465,7 @@ function StickerPicker({
                 key={sticker.id}
                 type="button"
                 disabled={disabled}
-                aria-label={`Add ${sticker.label} sticker`}
+                aria-label={t("scene.stickers.add", { name: sticker.label })}
                 title={sticker.label}
                 className="border-border/70 bg-background/55 hover:bg-accent/50 flex aspect-square items-center justify-center rounded-md border p-1 transition disabled:pointer-events-none disabled:opacity-50"
                 onClick={() => onChoose(sticker)}
@@ -448,25 +495,29 @@ export function GradientInspector({
   background,
   onBackground,
 }: BackgroundProps) {
+  const { t } = useTranslation("effects");
   const gradient = background.gradient;
   const patch = (change: Partial<typeof gradient>) =>
     onBackground({ gradient: { ...gradient, ...change } });
   return (
     <div className="space-y-3">
       <ToggleRow
-        label="Gradient enabled"
+        label={t("scene.layers.enabled", {
+          layer: sceneLayerName(t, "gradient"),
+        })}
         checked={gradient.enabled}
         onChecked={(enabled) => patch({ enabled })}
       />
       <SelectField
-        label="Gradient type"
+        label={t("scene.controls.gradientType")}
         value={gradient.type}
         values={SCENE_BACKGROUND_GRADIENT_TYPES}
+        name={(type) => sceneGradientTypeName(t, type)}
         onChange={(type) => patch({ type })}
       />
       {gradient.type === "linear" ? (
         <NumberField
-          label="Angle (deg)"
+          label={t("scene.controls.angle")}
           value={gradient.angleDeg}
           min={L.gradient.angleDeg[0]}
           max={L.gradient.angleDeg[1]}
@@ -476,7 +527,7 @@ export function GradientInspector({
       ) : (
         <div className="grid grid-cols-2 gap-3">
           <NumberField
-            label="Centre X"
+            label={t("scene.controls.centerX")}
             value={gradient.centerX}
             min={0}
             max={1}
@@ -484,7 +535,7 @@ export function GradientInspector({
             onChange={(centerX) => patch({ centerX })}
           />
           <NumberField
-            label="Centre Y"
+            label={t("scene.controls.centerY")}
             value={gradient.centerY}
             min={0}
             max={1}
@@ -493,14 +544,14 @@ export function GradientInspector({
           />
         </div>
       )}
-      <Label>Stops</Label>
+      <Label>{t("scene.controls.stops")}</Label>
       {gradient.stops.map((stop, index) => (
         <div
           key={index}
           className="grid grid-cols-[1fr_88px_auto] items-end gap-2"
         >
           <ColorField
-            label={`Stop ${index + 1} colour`}
+            label={t("scene.controls.stopColor", { index: index + 1 })}
             value={stop.color}
             onChange={(color) =>
               patch({
@@ -511,7 +562,7 @@ export function GradientInspector({
             }
           />
           <NumberField
-            label="At"
+            label={t("scene.controls.stopAt")}
             value={stop.position}
             min={0}
             max={1}
@@ -529,7 +580,7 @@ export function GradientInspector({
             size="icon-sm"
             variant="ghost"
             disabled={gradient.stops.length <= L.gradient.stops[0]}
-            aria-label={`Remove stop ${index + 1}`}
+            aria-label={t("scene.controls.removeStop", { index: index + 1 })}
             onClick={() =>
               patch({ stops: gradient.stops.filter((_, at) => at !== index) })
             }
@@ -552,7 +603,7 @@ export function GradientInspector({
           })
         }
       >
-        <PlusIcon /> Add stop
+        <PlusIcon /> {t("scene.controls.addStop")}
       </Button>
     </div>
   );
@@ -572,16 +623,18 @@ function MotionFields({
     speedPxPerSec?: number;
   }) => void;
 }) {
+  const { t } = useTranslation("effects");
   return (
     <div className="grid grid-cols-2 gap-3">
       <SelectField
-        label="Direction"
+        label={t("scene.marquee.direction")}
         value={direction}
         values={SCENE_BACKGROUND_DIRECTIONS}
+        name={(next) => sceneDirectionName(t, next)}
         onChange={(next) => onChange({ direction: next })}
       />
       <NumberField
-        label="Speed (px/s)"
+        label={t("scene.marquee.speed")}
         value={speed}
         min={0}
         max={maxSpeed}
@@ -598,6 +651,7 @@ export function TileInspector({
   onBackground,
   images,
 }: BackgroundProps & { images: SceneImageControls }) {
+  const { t } = useTranslation("effects");
   const tile = background.tile;
   const patch = (change: Partial<typeof tile>) =>
     onBackground({ tile: { ...tile, ...change } });
@@ -605,7 +659,7 @@ export function TileInspector({
   return (
     <div className="space-y-3">
       <ToggleRow
-        label="Tile enabled"
+        label={t("scene.layers.enabled", { layer: sceneLayerName(t, "tile") })}
         checked={tile.enabled}
         onChecked={(enabled) => patch({ enabled })}
       />
@@ -624,7 +678,11 @@ export function TileInspector({
         </div>
       ) : null}
       <ImageInput
-        label={tile.image ? "Replace tile image" : "Choose tile image"}
+        label={
+          tile.image
+            ? t("scene.controls.replaceTileImage")
+            : t("scene.controls.chooseTileImage")
+        }
         busy={images.imageBusy}
         invalid={images.filesInvalid}
         onChooseImage={images.onChooseImage}
@@ -634,7 +692,7 @@ export function TileInspector({
       ) : null}
       <div className="grid grid-cols-2 gap-3">
         <NumberField
-          label="Tile size (px)"
+          label={t("scene.controls.tileSize")}
           value={tile.size}
           min={L.tile.size[0]}
           max={L.tile.size[1]}
@@ -642,7 +700,7 @@ export function TileInspector({
           onChange={(size) => patch({ size })}
         />
         <NumberField
-          label="Opacity"
+          label={t("scene.controls.opacity")}
           value={tile.opacity}
           min={0}
           max={1}
@@ -662,6 +720,7 @@ export function TileInspector({
 
 /** C3: procedural rays or lines. */
 export function ScreenInspector({ background, onBackground }: BackgroundProps) {
+  const { t } = useTranslation("effects");
   const screen = background.screen;
   const patch = (change: Partial<typeof screen>) =>
     onBackground({ screen: { ...screen, ...change } as typeof screen });
@@ -669,14 +728,17 @@ export function ScreenInspector({ background, onBackground }: BackgroundProps) {
   return (
     <div className="space-y-3">
       <ToggleRow
-        label="Screen enabled"
+        label={t("scene.layers.enabled", {
+          layer: sceneLayerName(t, "screen"),
+        })}
         checked={screen.enabled}
         onChecked={(enabled) => patch({ enabled })}
       />
       <SelectField
-        label="Screen kind"
+        label={t("scene.controls.screenKind")}
         value={screen.kind}
         values={SCENE_BACKGROUND_SCREEN_KINDS}
+        name={(kind) => sceneScreenKindName(t, kind)}
         onChange={(kind) =>
           onBackground({
             screen:
@@ -687,13 +749,13 @@ export function ScreenInspector({ background, onBackground }: BackgroundProps) {
         }
       />
       <ColorField
-        label="Screen colour"
+        label={t("scene.controls.screenColor")}
         value={screen.color}
         onChange={(color) => patch({ color })}
       />
       <div className="grid grid-cols-2 gap-3">
         <NumberField
-          label={screen.kind === "rays" ? "Rays" : "Lines"}
+          label={sceneScreenKindName(t, screen.kind)}
           value={screen.count}
           min={limits.count[0]}
           max={limits.count[1]}
@@ -701,7 +763,7 @@ export function ScreenInspector({ background, onBackground }: BackgroundProps) {
           onChange={(count) => patch({ count })}
         />
         <NumberField
-          label="Opacity"
+          label={t("scene.controls.opacity")}
           value={screen.opacity}
           min={0}
           max={1}
@@ -713,7 +775,7 @@ export function ScreenInspector({ background, onBackground }: BackgroundProps) {
         <>
           <div className="grid grid-cols-2 gap-3">
             <NumberField
-              label="Centre X"
+              label={t("scene.controls.centerX")}
               value={screen.centerX}
               min={0}
               max={1}
@@ -721,7 +783,7 @@ export function ScreenInspector({ background, onBackground }: BackgroundProps) {
               onChange={(centerX) => patch({ centerX })}
             />
             <NumberField
-              label="Centre Y"
+              label={t("scene.controls.centerY")}
               value={screen.centerY}
               min={0}
               max={1}
@@ -729,7 +791,7 @@ export function ScreenInspector({ background, onBackground }: BackgroundProps) {
               onChange={(centerY) => patch({ centerY })}
             />
             <NumberField
-              label="Seconds per turn (0 still)"
+              label={t("scene.controls.turnSeconds")}
               value={screen.turnSeconds}
               min={-L.rays.turnSeconds[1]}
               max={L.rays.turnSeconds[1]}
@@ -737,7 +799,7 @@ export function ScreenInspector({ background, onBackground }: BackgroundProps) {
               onChange={(turnSeconds) => patch({ turnSeconds })}
             />
             <NumberField
-              label="Throbs per second"
+              label={t("scene.fields.screenThrob")}
               value={screen.throbPerSec}
               min={0}
               max={L.rays.throbPerSec[1]}
@@ -746,7 +808,7 @@ export function ScreenInspector({ background, onBackground }: BackgroundProps) {
             />
           </div>
           <ToggleRow
-            label="Spiky starburst"
+            label={t("scene.controls.spiky")}
             checked={screen.spiky}
             onChecked={(spiky) => patch({ spiky })}
           />
@@ -754,7 +816,7 @@ export function ScreenInspector({ background, onBackground }: BackgroundProps) {
       ) : (
         <>
           <RangeFields
-            label="Length"
+            label={t("scene.controls.length")}
             low={screen.minLength}
             high={screen.maxLength}
             range={L.lines.length}
@@ -762,7 +824,7 @@ export function ScreenInspector({ background, onBackground }: BackgroundProps) {
             onChange={(minLength, maxLength) => patch({ minLength, maxLength })}
           />
           <RangeFields
-            label="Width (px)"
+            label={t("scene.controls.width")}
             low={screen.minWidthPx}
             high={screen.maxWidthPx}
             range={L.lines.widthPx}
@@ -772,7 +834,7 @@ export function ScreenInspector({ background, onBackground }: BackgroundProps) {
             }
           />
           <NumberField
-            label="Seconds per sway (0 still)"
+            label={t("scene.controls.swaySeconds")}
             value={screen.swaySeconds}
             min={0}
             max={L.lines.swaySeconds[1]}
@@ -802,13 +864,16 @@ export function ScatterInspector({
   onItemsChange: (items: SceneEffectEditorMarqueeItem[]) => void;
   onRemove: () => void;
 }) {
+  const { t } = useTranslation("effects");
   const S = L.scatter;
   const patch = (change: Partial<SceneEffectEditorScatter>) =>
     onLayer({ ...layer, ...change });
   return (
     <div className="space-y-3">
       <ToggleRow
-        label={`Scatter ${index + 1} enabled`}
+        label={t("scene.layers.enabled", {
+          layer: t("scene.layers.scatter", { index: index + 1 }),
+        })}
         checked={layer.enabled}
         onChecked={(enabled) => patch({ enabled })}
       />
@@ -820,7 +885,7 @@ export function ScatterInspector({
       />
       <div className="grid grid-cols-2 gap-3">
         <NumberField
-          label="Items shown"
+          label={t("scene.controls.itemsShown")}
           value={layer.count}
           min={S.count[0]}
           max={S.count[1]}
@@ -828,14 +893,15 @@ export function ScatterInspector({
           onChange={(count) => patch({ count })}
         />
         <SelectField
-          label="Pulse"
+          label={t("scene.controls.pulse")}
           value={layer.pulse}
           values={SCENE_BACKGROUND_SCATTER_PULSES}
+          name={(pulse) => scenePulseName(t, pulse)}
           onChange={(pulse) => patch({ pulse })}
         />
       </div>
       <RangeFields
-        label="Size (px)"
+        label={t("scene.controls.size")}
         low={layer.minSize}
         high={layer.maxSize}
         range={S.sizePx}
@@ -843,7 +909,7 @@ export function ScatterInspector({
         onChange={(minSize, maxSize) => patch({ minSize, maxSize })}
       />
       <RangeFields
-        label="Rotation (deg)"
+        label={t("scene.controls.rotation")}
         low={layer.minRotationDeg}
         high={layer.maxRotationDeg}
         range={S.rotationDeg}
@@ -853,7 +919,7 @@ export function ScatterInspector({
         }
       />
       <RangeFields
-        label="Opacity"
+        label={t("scene.controls.opacity")}
         low={layer.minOpacity}
         high={layer.maxOpacity}
         range={S.opacity}
@@ -861,7 +927,7 @@ export function ScatterInspector({
         onChange={(minOpacity, maxOpacity) => patch({ minOpacity, maxOpacity })}
       />
       <RangeFields
-        label="Region (top to bottom)"
+        label={t("scene.controls.region")}
         low={layer.regionTop}
         high={layer.regionBottom}
         range={S.region}
@@ -871,8 +937,8 @@ export function ScatterInspector({
         }
       />
       <ToggleRow
-        label="Keep the face clear"
-        description="Still items, and items drifting up or down, stay out of the column behind the head."
+        label={t("scene.controls.keepFaceClear")}
+        description={t("scene.controls.keepFaceClearHint")}
         checked={layer.keepFaceClear}
         onChecked={(keepFaceClear) => patch({ keepFaceClear })}
       />
@@ -883,7 +949,7 @@ export function ScatterInspector({
         onChange={patch}
       />
       <RangeFields
-        label="Spin (deg/s)"
+        label={t("scene.controls.spin")}
         low={layer.minSpinDegPerSec}
         high={layer.maxSpinDegPerSec}
         range={S.spinDegPerSec}
@@ -893,13 +959,13 @@ export function ScatterInspector({
         }
       />
       <ToggleRow
-        label="Alternate spin"
+        label={t("scene.controls.alternateSpin")}
         checked={layer.alternateSpin}
         onChecked={(alternateSpin) => patch({ alternateSpin })}
       />
       <SeedField value={layer.seed} onChange={(seed) => patch({ seed })} />
       <Button type="button" variant="outline" size="sm" onClick={onRemove}>
-        <Trash2Icon /> Remove scatter layer
+        <Trash2Icon /> {t("scene.controls.removeScatter")}
       </Button>
     </div>
   );
@@ -907,23 +973,24 @@ export function ScatterInspector({
 
 /** C6: one fade from a colour when the Scene starts. */
 export function FlashInspector({ background, onBackground }: BackgroundProps) {
+  const { t } = useTranslation("effects");
   const flash = background.flash;
   const patch = (change: Partial<typeof flash>) =>
     onBackground({ flash: { ...flash, ...change } });
   return (
     <div className="space-y-3">
       <ToggleRow
-        label="Entry flash enabled"
+        label={t("scene.layers.enabled", { layer: sceneLayerName(t, "flash") })}
         checked={flash.enabled}
         onChecked={(enabled) => patch({ enabled })}
       />
       <ColorField
-        label="Flash colour"
+        label={t("scene.controls.flashColor")}
         value={flash.color}
         onChange={(color) => patch({ color })}
       />
       <NumberField
-        label="Fade (ms)"
+        label={t("scene.controls.fade")}
         value={flash.durationMs}
         min={L.flash.durationMs[0]}
         max={L.flash.durationMs[1]}

@@ -128,6 +128,8 @@ const appDependencies = [
   "use-stick-to-bottom",
   "zod",
   "zustand",
+  "i18next",
+  "react-i18next",
 ] as const;
 
 export const devOptimizedDependencies = [
@@ -138,6 +140,12 @@ export const devOptimizedDependencies = [
   "@noble/hashes/sha2.js",
   "onnxruntime-web",
   "parakeet.js",
+  // The i18n runtime is imported through the linked product-ui build. Pre-bundle
+  // it at startup so loading a locale's first catalog cannot trigger a late
+  // dependency optimization; a fresh dev session once left mounted text in the
+  // previous language after the first switch.
+  "i18next",
+  "react-i18next",
 ] as const;
 
 // Vite is a development-only application origin; keep its host policy enabled.

@@ -2,6 +2,7 @@
 
 import { ChevronDownIcon, ChevronUpIcon } from "lucide-react";
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
@@ -34,7 +35,10 @@ export function CreatorPanelCollapseButton({
     : collapseDirection === "down"
       ? ChevronUpIcon
       : ChevronDownIcon;
-  const action = expanded ? "Collapse" : "Expand";
+  const { t } = useTranslation("creator");
+  const action = expanded
+    ? t("panel.collapse", { label })
+    : t("panel.expand", { label });
 
   return (
     <Tooltip>
@@ -45,13 +49,13 @@ export function CreatorPanelCollapseButton({
           size="icon-sm"
           className={cn("text-muted-foreground size-7 rounded-lg", className)}
           onClick={() => onExpandedChange(!expanded)}
-          aria-label={`${action} ${label}`}
+          aria-label={action}
         >
           <Icon className="size-3.5" />
         </Button>
       </TooltipTrigger>
       <TooltipContent side={collapseDirection === "down" ? "top" : "bottom"}>
-        {action} {label}
+        {action}
       </TooltipContent>
     </Tooltip>
   );
@@ -88,7 +92,7 @@ export function CreatorCollapsedPanelHeader({
       </div>
       {actions}
       <CreatorPanelCollapseButton
-        label={label.toLowerCase()}
+        label={label}
         expanded={false}
         collapseDirection={collapseDirection}
         onExpandedChange={(expanded) => {

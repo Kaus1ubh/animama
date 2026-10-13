@@ -1,0 +1,246 @@
+{
+  "background": {
+    "apply": "적용",
+    "applying": "적용 중...",
+    "back": "배경 설정으로 돌아가기",
+    "canvasSize": "{{width}} x {{height}}",
+    "description": "선택한 아바타 배경의 자르기와 확대/축소를 조정합니다.",
+    "heading": "미디어 편집",
+    "hint": "드래그해 위치를 조정하고 확대/축소해 실시간 아바타 캔버스에 맞추세요.",
+    "liveCanvas": "실시간 캔버스",
+    "reset": "재설정",
+    "title": "{{name}} 배경 크기 조정",
+    "zoomIn": "배경 확대",
+    "zoomOut": "배경 축소"
+  },
+  "canvas": {
+    "camera": {
+      "axis": "{{label}} {{axis}}",
+      "bones": {
+        "chest": "가슴",
+        "head": "머리",
+        "hips": "골반",
+        "manual": "수동"
+      },
+      "custom": "사용자 지정",
+      "fieldOfView": "시야각",
+      "fieldOfViewLabel": "카메라 시야각",
+      "fineTune": "카메라 미세 조정",
+      "orbitTarget": "궤도 중심",
+      "orbitTargetYSource": "궤도 중심 Y 기준",
+      "orbitTargetYSourceLabel": "궤도 중심 Y 기준",
+      "position": "카메라 위치",
+      "positionYSource": "카메라 Y 기준",
+      "positionYSourceLabel": "카메라 Y 기준",
+      "preset": "카메라 프리셋",
+      "presets": {
+        "fullBody": "전신",
+        "fullBodyClose": "전신(가까이)",
+        "portrait": "상반신",
+        "portraitClose": "상반신(가까이)"
+      },
+      "reset": "재설정",
+      "title": "카메라"
+    },
+    "fullscreen": {
+      "enter": "전체 화면으로 보기",
+      "exit": "전체 화면 종료"
+    },
+    "pip": {
+      "open": "화면 속 화면 열기",
+      "toggle": "화면 속 화면 전환",
+      "unsupported": "이 브라우저는 화면 속 화면을 지원하지 않습니다"
+    },
+    "settings": {
+      "audio": "오디오",
+      "mode": "모드",
+      "modes": {
+        "avatar": "아바타만",
+        "avatarChat": "아바타 + 채팅",
+        "chat": "채팅만"
+      },
+      "open": "캔버스 설정 열기",
+      "pipBackground": "PiP 배경",
+      "pipBackgrounds": {
+        "scene": "장면",
+        "transparent": "투명"
+      },
+      "title": "캔버스 설정"
+    },
+    "transform": {
+      "position": "위치 {{axis}}",
+      "rotation": "회전 {{axis}}(도)",
+      "scale": "크기 {{axis}}",
+      "shortcut": "단축키: {{key}}",
+      "titles": {
+        "rotate": "아바타 회전",
+        "scale": "아바타 크기 조정",
+        "translate": "아바타 이동"
+      },
+      "uniformScale": "균등 크기 조정",
+      "uniformScaleDescription": "모든 축을 함께 편집합니다."
+    }
+  },
+  "composer": {
+    "attach": {
+      "add": "파일 추가",
+      "chunks_other": "{{count}}개 청크",
+      "empty": "사용할 수 있는 업로드한 파일이 없습니다.",
+      "fileDetails": "{{size}} · {{chunks}} · {{status}}",
+      "fileDetailsNoSize": "{{chunks}} · {{status}}",
+      "files": "파일",
+      "fromComputer": "컴퓨터에서 업로드",
+      "keywordOnly": "키워드만",
+      "loadFailed": "업로드한 파일을 불러올 수 없습니다.",
+      "loading": "업로드한 파일을 불러오는 중…",
+      "search": "업로드한 파일 검색…",
+      "uploading": "업로드 중 {{percent}}"
+    },
+    "dictation": {
+      "failed": "받아쓰기에 실패했습니다",
+      "mute": "마이크 음소거",
+      "start": "받아쓰기",
+      "stop": "받아쓰기 중지",
+      "stopIcon": "중지",
+      "unmute": "마이크 음소거 해제"
+    },
+    "drop": {
+      "allFailed": "파일을 추가할 수 없습니다.",
+      "failedHint": "파일 형식과 크기를 확인한 후 다시 시도하세요.",
+      "prompt": "여기에 파일을 놓으세요",
+      "someFailed_other": "파일 {{count}}개를 추가할 수 없습니다.",
+      "unavailable": "지금은 파일을 업로드할 수 없습니다."
+    },
+    "files": {
+      "cardLabel": "{{name}} {{status}}",
+      "genericKind": "파일",
+      "noToolsNote": "이 모델은 도구를 호출할 수 없어 첨부 파일을 검색할 수 없습니다. 첨부 파일을 사용하려면 도구 호출을 지원하는 모델을 선택하세요.",
+      "ready": "준비됨",
+      "readyKeywordOnly": "준비됨(키워드만)",
+      "remove": "입력창에서 제거"
+    },
+    "model": {
+      "back": "모델 및 추론으로 돌아가기",
+      "choose": "모델을 선택하세요",
+      "empty": "모델을 찾을 수 없습니다.",
+      "fallbackLabel": "모델",
+      "features": "채팅 기능",
+      "needsWindow": "앱 설정 → 모델에서 컨텍스트 창을 설정하세요",
+      "noFeatures": "이 모델에는 선택할 수 있는 기능이 없습니다.",
+      "noProfile": "채팅 프로필 없음",
+      "noReasoning": "이 모델은 추론을 조정할 수 없습니다.",
+      "notDirect": "아직 직접 채팅에서 사용할 수 없음",
+      "panel": "모델 및 추론",
+      "reasoningEffort": "추론 강도",
+      "reasoningEfforts": {
+        "high": "높음",
+        "low": "낮음",
+        "max": "최대",
+        "medium": "중간",
+        "minimal": "최소",
+        "none": "없음",
+        "xhigh": "매우 높음"
+      },
+      "search": "모델 검색...",
+      "searchUnavailable": {
+        "key_missing": "Brave Search 키가 설정되지 않았습니다. 앱 설정의 웹 검색을 확인하세요.",
+        "not_configured": "앱 설정에서 웹 검색을 설정하세요.",
+        "tools_unsupported": "이 모델은 도구를 호출할 수 없어 검색할 수 없습니다."
+      },
+      "select": "모델 선택",
+      "toasts": {
+        "selectFirst": "채팅하기 전에 모델을 선택하세요.",
+        "unsupported": "이 모델은 아직 직접 채팅에서 사용할 수 없습니다.",
+        "updateFailed": "모델을 업데이트하지 못했습니다"
+      },
+      "trigger": "모델 및 추론: {{model}}",
+      "unavailable": "모델을 사용할 수 없습니다. 다른 모델을 선택하세요.",
+      "unavailableShort": "모델을 사용할 수 없음",
+      "webSearch": "웹 검색"
+    }
+  },
+  "header": {
+    "anima": {
+      "fallback": "Anima",
+      "loading": "Anima 불러오는 중...",
+      "none": "Anima 없음"
+    },
+    "openAnimaDetails": "Anima 세부 정보 열기",
+    "openSidebar": "사이드바 열기",
+    "voiceDownload": {
+      "downloading": "다운로드 중 {{percent}}",
+      "failed": "다운로드에 실패했습니다. 선택하면 다시 시도합니다",
+      "whenSelected": "선택하면 다운로드됩니다"
+    }
+  },
+  "memoryCue": {
+    "added": "{{name}}의 기억에 추가됨",
+    "addedUnnamed": "이 Anima의 기억에 추가됨",
+    "changed": "{{name}}의 기억이 업데이트됨",
+    "changedUnnamed": "이 Anima의 기억이 업데이트됨",
+    "episodes": "에피소드에 기록됨",
+    "noText": "새 텍스트가 추가되지 않았습니다.",
+    "open": "기억에서 열기",
+    "title": "{{name}}이(가) 기억한 내용",
+    "titleUnnamed": "기억된 내용",
+    "updated": "기억이 업데이트됨"
+  },
+  "model": {
+    "alternate": "{{name}} (대체)",
+    "optionLabel": "{{connection}}: {{model}}"
+  },
+  "modelSwitch": {
+    "cancel": "취소",
+    "confirm": "새 채팅 시작",
+    "description": "{{model}}은(는) 대화를 다르게 관리하므로 이 채팅은 새 채팅에서 이어집니다.",
+    "descriptionUnnamed": "이 모델은 대화를 다르게 관리하므로 이 채팅은 새 채팅에서 이어집니다.",
+    "title": "새 채팅을 시작할까요?"
+  },
+  "playback": {
+    "degraded": "일부 아바타 콘텐츠를 사용할 수 없습니다. 텍스트 채팅은 계속 사용할 수 있습니다.",
+    "preparing": "애니메이션과 효과를 준비하는 중…",
+    "preparingCanChat": "애니메이션과 효과를 준비하는 중… 지금 채팅할 수 있습니다."
+  },
+  "profile": {
+    "back": "뒤로",
+    "backgroundAlt": "{{name}} 배경",
+    "close": "Anima 프로필 닫기",
+    "closeShort": "닫기",
+    "description": "외모, 감정, 정체성, 기억 및 설정.",
+    "documents": {
+      "editIdentity": "정체성 편집",
+      "editMemories": "기억 편집",
+      "identity": "정체성",
+      "label": "Anima 문서",
+      "memories": "기억"
+    },
+    "editBackground": "배경 이미지 편집",
+    "editProfileImage": "프로필 이미지 편집",
+    "emotions": "감정",
+    "exploreEmotions": "감정 살펴보기",
+    "fullDetails": "전체 세부 정보 보기",
+    "noIdentity": "아직 정체성 내용이 없습니다.",
+    "profileImageAlt": "{{name}} 프로필 이미지",
+    "settings": "Anima 설정",
+    "settingsTitle": "{{name}} 설정"
+  },
+  "shell": {
+    "chatUnavailable": {
+      "description": "런타임 셸, 장면, 아바타, 설정, WebSocket, 기억 기능은 작동 중이지만 이 셸에는 채팅 패널이 제공되지 않았습니다.",
+      "title": "런타임 채팅을 사용할 수 없음"
+    }
+  },
+  "speech": {
+    "install": "받아쓰기와 음성 모드를 사용하려면 오프라인 음성 인식을 설치하세요",
+    "installFromMainWindow": "기본 Animama 창에서 앱 설정 → 음성을 열어 다운로드하세요.",
+    "unavailableHere": "이곳에서는 받아쓰기와 음성 모드용 오프라인 음성 인식을 사용할 수 없습니다"
+  },
+  "suggestions": {
+    "greeting": "간단한 인사",
+    "joke": "농담해 줘",
+    "greetingMessage": "안녕! 요즘 어때?",
+    "greetingMessageNamed": "안녕, {{name}}! 요즘 어때?",
+    "jokeMessage": "있잖아, 농담 하나 해 줘!",
+    "jokeMessageNamed": "{{name}}, 농담 하나 해 줘!"
+  }
+}

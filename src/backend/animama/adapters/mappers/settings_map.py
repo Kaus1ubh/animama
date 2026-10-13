@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from animama.app.contracts.settings import PyAnimaSettings, PyUserSettings
-from animama.domain.settings import AnimaSettings, UserSettings
+from animama.domain.settings import AnimaSettings, UserSettings, ui_locale_or_none
 from animama.orm.settings import ORMAnimaSettings, ORMUserSettings
 
 
@@ -13,7 +13,8 @@ def user_settings_orm_to_domain(orm: ORMUserSettings) -> UserSettings:
     return UserSettings(
         user_id=orm.user_id,
         theme=orm.theme,
-        locale=orm.locale,
+        # Legacy rows may hold unsupported tags such as 'en-US'; read them as unset.
+        locale=ui_locale_or_none(orm.locale),
         last_active_anima_id=orm.last_active_anima_id,
         preferences=dict(getattr(orm, "preferences", {}) or {}),
         created_at=getattr(orm, "created_at", None),

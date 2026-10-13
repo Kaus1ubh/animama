@@ -24,10 +24,16 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import type { TFunction } from "i18next";
+import { getI18n, useTranslation } from "react-i18next";
 
 import type { Avatar } from "@/lib/avatar";
 import { getAnimaDisplayName } from "@/lib/anima-profile";
-import type { ContentPreviewMissingDependency } from "@/lib/content-preview/playback";
+import {
+  contentPreviewDependencyLabel,
+  shouldAutoplayContentPreview,
+  type ContentPreviewMissingDependency,
+} from "@/lib/content-preview/playback";
 import { resolvePlaybackObservationStatus } from "@/lib/content-preview/playbackObservation";
 import type { PreparedContentPreview } from "@/lib/content-preview/preparation";
 import {
@@ -44,7 +50,6 @@ import {
   contentPreviewSupportsLoop,
   type ContentPreviewLoadStatus,
 } from "@/lib/content-preview/types";
-import { shouldAutoplayContentPreview } from "@/lib/content-preview/playback";
 import {
   resolveLibraryPreviewAnimaContextState,
   selectLibraryPreviewAnima,
@@ -77,18 +82,21 @@ import { useContentPreviewDock } from "./ContentPreviewDockProvider";
 import { usePreparedContentPreview } from "./usePreparedContentPreview";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 
-function statusLabel(status: ContentPreviewLoadStatus): string {
+function statusLabel(
+  t: TFunction<"actionEditor">,
+  status: ContentPreviewLoadStatus,
+): string {
   switch (status) {
     case "loading":
-      return "Loading preview";
+      return t("preview.status.loading");
     case "playing":
-      return "Playing";
+      return t("preview.status.playing");
     case "error":
-      return "Preview unavailable";
+      return t("preview.status.unavailable");
     case "ready":
-      return "Ready";
+      return t("preview.status.ready");
     default:
-      return "Preview";
+      return t("preview.status.idle");
   }
 }
 
@@ -97,19 +105,20 @@ function statusLabel(status: ContentPreviewLoadStatus): string {
  * runtime withholds Anima creation, keep the action disabled with its reason.
  */
 export function PreviewCreateAnimaAction() {
+  const { t } = useTranslation("actionEditor");
   return (
     <RuntimeFeatureGate
       capability="anima_creation"
       unavailable={(reason) => (
         <UnavailableAction reason={reason}>
           <Button type="button" size="sm" variant="outline">
-            Create Anima
+            {t("preview.createAnima")}
           </Button>
         </UnavailableAction>
       )}
     >
       <Button asChild type="button" size="sm" variant="outline">
-        <Link to="/animas/new">Create Anima</Link>
+        <Link to="/animas/new">{t("preview.createAnima")}</Link>
       </Button>
     </RuntimeFeatureGate>
   );
@@ -135,6 +144,7 @@ const PREVIEW_FOCUSABLE_SELECTOR = [
 
 /** One force-mounted visual host; visibility changes never replace its canvas. */
 export function ContentPreviewHost() {
+  const { t } = useTranslation("actionEditor");
   const appShell = useOptionalAppShell();
   const sidebarInset = resolveAppShellSidebarLayout({
     behavior: "inset",
@@ -236,11 +246,16 @@ export function ContentPreviewHost() {
   });
   const [dragging, setDragging] = useState(false);
 
+  // The scene's load and playback effects depend on this callback, so it
+  // words text when called and keeps its identity across a UI Locale change.
   const handleStatusChange = useCallback(
     (next: ContentPreviewLoadStatus, message?: string) => {
+      const t = getI18n().getFixedT(null, "actionEditor");
       setObservationStopped(false);
       setStatus(next);
-      setError(next === "error" ? (message ?? "Preview unavailable.") : null);
+      setError(
+        next === "error" ? (message ?? t("preview.unavailableSentence")) : null,
+      );
       if (next === "playing") {
         logContentPreviewLifecycle("first_playable_frame", "dock");
       }
@@ -394,11 +409,15 @@ export function ContentPreviewHost() {
     : null;
   const animaContextError =
     animaContextState === "animas_unavailable"
-      ? "Your Animas could not be loaded for this preview."
+      ? t("preview.anima.animasUnavailable")
       : animaContextState === "anima_required"
-        ? "Create an Anima before previewing this content."
+        ? t("preview.anima.required")
         : animaContextState === "runtime_unavailable"
-          ? `Could not load ${previewAnimaName ?? "the selected Anima"}'s preview catalog.`
+          ? previewAnimaName
+            ? t("preview.anima.catalogUnavailableNamed", {
+                name: previewAnimaName,
+              })
+            : t("preview.anima.catalogUnavailable")
           : null;
   const visibleError = animaContextError ?? preparation.error ?? error;
   const waitingForPrivateEntry =
@@ -662,7 +681,7 @@ export function ContentPreviewHost() {
               (dragging ? "cursor-grabbing select-none" : "cursor-grab"),
           )}
           tabIndex={view === "expanded" ? -1 : 0}
-          aria-label={view === "expanded" ? undefined : "Move content preview"}
+          aria-label={view === "expanded" ? undefined : t("preview.movePanel")}
           onPointerDown={startDragging}
           onPointerMove={dragPreview}
           onPointerUp={stopDragging}
@@ -674,7 +693,7 @@ export function ContentPreviewHost() {
               id="content-preview-title"
               className="block truncate text-sm font-semibold"
             >
-              {target?.displayName ?? "Content Preview"}
+              {target?.displayName ?? t("preview.title")}
             </span>
           </div>
           {minimized ? (
@@ -687,7 +706,7 @@ export function ContentPreviewHost() {
                 onClick={restore}
               >
                 <ChevronUp className="size-4" />
-                <span className="sr-only">Restore preview</span>
+                <span className="sr-only">{t("preview.restore")}</span>
               </Button>
               <Button
                 type="button"
@@ -697,7 +716,7 @@ export function ContentPreviewHost() {
                 onClick={destroyPreview}
               >
                 <X className="size-4" />
-                <span className="sr-only">Destroy preview</span>
+                <span className="sr-only">{t("preview.close")}</span>
               </Button>
             </>
           ) : (
@@ -715,7 +734,9 @@ export function ContentPreviewHost() {
                   <Expand className="size-4" />
                 )}
                 <span className="sr-only">
-                  {view === "expanded" ? "Restore dock size" : "Expand preview"}
+                  {view === "expanded"
+                    ? t("preview.restoreDock")
+                    : t("preview.expand")}
                 </span>
               </Button>
               <Button
@@ -726,7 +747,7 @@ export function ContentPreviewHost() {
                 onClick={minimize}
               >
                 <ChevronDown className="size-4" />
-                <span className="sr-only">Minimize preview</span>
+                <span className="sr-only">{t("preview.minimize")}</span>
               </Button>
             </>
           )}
@@ -745,8 +766,11 @@ export function ContentPreviewHost() {
             aria-atomic="true"
           >
             {target
-              ? `${target.displayName} preview: ${statusLabel(status)}.`
-              : "Content preview closed."}
+              ? t("preview.statusAnnouncement", {
+                  name: target.displayName,
+                  status: statusLabel(t, status),
+                })
+              : t("preview.closed")}
           </p>
           <div className="bg-muted/30 relative min-h-0 flex-1 overflow-hidden">
             {/* Keep the last prepared scene, its Canvas and its Avatar while a
@@ -782,13 +806,14 @@ export function ContentPreviewHost() {
                     size="sm"
                     variant="secondary"
                     className="bg-background/85 min-h-10 gap-1 px-2.5 text-xs shadow-sm backdrop-blur-sm"
-                    aria-label="Reset preview camera"
+                    aria-label={t("preview.resetCamera.label")}
                     onClick={() =>
                       setResetCameraRequest((current) => current + 1)
                     }
-                    title="Reset camera"
+                    title={t("preview.resetCamera.title")}
                   >
-                    Reset <Camera className="size-3.5" />
+                    {t("preview.resetCamera.button")}{" "}
+                    <Camera className="size-3.5" />
                   </Button>
                 ) : null}
                 <Button
@@ -800,11 +825,12 @@ export function ContentPreviewHost() {
                     !moveAvatar && "bg-background/85",
                   )}
                   aria-expanded={moveAvatar}
-                  aria-label="Move preview avatar"
+                  aria-label={t("preview.moveAvatar.label")}
                   onClick={() => setMoveAvatar((current) => !current)}
-                  title="Move avatar"
+                  title={t("preview.moveAvatar.title")}
                 >
-                  Move <Move3D className="size-3.5" />
+                  {t("preview.moveAvatar.button")}{" "}
+                  <Move3D className="size-3.5" />
                 </Button>
               </div>
             ) : null}
@@ -832,8 +858,8 @@ export function ContentPreviewHost() {
                 >
                   <LoaderCircle className="size-4 animate-spin motion-reduce:animate-none" />
                   {dependenciesLoading
-                    ? "Loading included resources…"
-                    : "Loading preview…"}
+                    ? t("preview.loadingResources")
+                    : t("preview.loading")}
                 </p>
               </div>
             ) : null}
@@ -842,7 +868,9 @@ export function ContentPreviewHost() {
                 className="bg-background/90 absolute inset-0 flex flex-col items-center justify-center gap-3 p-6 text-center"
                 role="alert"
               >
-                <p className="text-sm font-medium">Preview unavailable</p>
+                <p className="text-sm font-medium">
+                  {t("preview.status.unavailable")}
+                </p>
                 <p className="text-muted-foreground max-w-sm text-xs">
                   {visibleError}
                 </p>
@@ -855,7 +883,7 @@ export function ContentPreviewHost() {
                     variant="outline"
                     onClick={retryPreview}
                   >
-                    <RefreshCw className="size-4" /> Retry
+                    <RefreshCw className="size-4" /> {t("preview.retry")}
                   </Button>
                 )}
               </div>
@@ -865,7 +893,7 @@ export function ContentPreviewHost() {
           {missingDependencies.length > 0 ? (
             <aside
               className="border-warning/35 bg-warning/10 flex max-h-40 shrink-0 gap-2 overflow-y-auto border-t p-3 text-xs"
-              aria-label="Content preview dependency warning"
+              aria-label={t("preview.dependencies.label")}
             >
               <AlertTriangle
                 className="text-warning mt-0.5 size-4 shrink-0"
@@ -874,13 +902,18 @@ export function ContentPreviewHost() {
               <div className="min-w-0 flex-1">
                 <div className="space-y-1.5" role="status" aria-live="polite">
                   <p className="font-medium">
-                    Some included resources could not be loaded
-                    {previewAnimaName ? ` for ${previewAnimaName}` : ""}.
+                    {previewAnimaName
+                      ? t("preview.dependencies.missingFor", {
+                          name: previewAnimaName,
+                        })
+                      : t("preview.dependencies.missing")}
                   </p>
                   <ul className="space-y-1">
                     {missingDependencies.map((dependency) => (
                       <li key={`${dependency.kind}:${dependency.runtimeId}`}>
-                        {dependency.label}:{" "}
+                        {t("preview.dependencies.item", {
+                          label: contentPreviewDependencyLabel(dependency.kind),
+                        })}{" "}
                         <code className="bg-background/70 rounded px-1 py-0.5 break-all">
                           {dependency.runtimeId}
                         </code>
@@ -888,9 +921,7 @@ export function ContentPreviewHost() {
                     ))}
                   </ul>
                   <p className="text-muted-foreground">
-                    The clip motion continues without these events. Retry the
-                    preview; if this continues, the release may reference an
-                    unavailable resource.
+                    {t("preview.dependencies.hint")}
                   </p>
                 </div>
                 <Button
@@ -900,7 +931,7 @@ export function ContentPreviewHost() {
                   className="mt-1 min-h-9"
                   onClick={replay}
                 >
-                  <RefreshCw className="size-4" /> Retry preview
+                  <RefreshCw className="size-4" /> {t("preview.retryPreview")}
                 </Button>
                 {previewAnima && target?.sourceType !== "resolved_action" ? (
                   <Button
@@ -915,7 +946,11 @@ export function ContentPreviewHost() {
                       params={{ animaId: previewAnima.id }}
                       search={{ tab: "loadout" }}
                     >
-                      Open {previewAnimaName ?? "Anima"} Loadout
+                      {previewAnimaName
+                        ? t("preview.openLoadoutNamed", {
+                            name: previewAnimaName,
+                          })
+                        : t("preview.openLoadout")}
                     </Link>
                   </Button>
                 ) : null}
@@ -931,7 +966,7 @@ export function ContentPreviewHost() {
               onClick={replay}
               disabled={!canPlay}
             >
-              <RotateCcw className="size-4" /> Replay
+              <RotateCcw className="size-4" /> {t("preview.replay")}
             </Button>
             <Button
               type="button"
@@ -941,7 +976,7 @@ export function ContentPreviewHost() {
               onClick={stop}
               disabled={!canPlay}
             >
-              <Pause className="size-4" /> Stop
+              <Pause className="size-4" /> {t("preview.stop")}
             </Button>
             {target && contentPreviewSupportsLoop(target) ? (
               <label className="ml-auto flex items-center gap-2 text-sm">
@@ -951,9 +986,9 @@ export function ContentPreviewHost() {
                     setLoop(checked);
                     if (canPlay) setPlayRequest((current) => current + 1);
                   }}
-                  aria-label="Loop preview"
+                  aria-label={t("preview.loop.label")}
                 />
-                Loop
+                {t("preview.loop.button")}
               </label>
             ) : null}
           </footer>

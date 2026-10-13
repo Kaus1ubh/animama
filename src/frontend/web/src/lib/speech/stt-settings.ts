@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import {
   toSttProvider,
   type SttProvider,
@@ -22,16 +24,16 @@ export function getSttSettingsSelection(
 export function getSttSettingsOptions(
   options: readonly SttProviderOption[],
 ): SttSettingsOption[] {
+  const t = getI18n().getFixedT(null, "voice");
   return options.flatMap<SttSettingsOption>((option) =>
     option.id === "parakeet"
       ? [
-          { ...option, label: "Parakeet (CPU)" },
+          { ...option, label: t("providers.stt.parakeet.cpuLabel") },
           {
             ...option,
             id: "parakeet_webgpu",
-            label: "Parakeet (WebGPU · Experimental)",
-            description:
-              "Experimental local speech recognition on the GPU with live previews. Falls back to the CPU when unavailable.",
+            label: t("providers.stt.parakeet.webgpuLabel"),
+            description: t("providers.stt.parakeet.webgpuDescription"),
           },
         ]
       : [option],

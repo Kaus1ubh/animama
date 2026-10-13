@@ -1,4 +1,6 @@
 import { Download } from "lucide-react";
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import { cn } from "@/lib/utils";
 import type { PocketVoiceAvailability } from "@/lib/speech/pocket/voice-preferences";
@@ -14,6 +16,8 @@ export function PocketVoiceDownloadIcon({
 }: {
   availability: PocketVoiceAvailability | null;
 }) {
+  const { t } = useTranslation("chat");
+  const formatters = useFormatters();
   if (
     !availability ||
     availability.status === "installed" ||
@@ -28,7 +32,12 @@ export function PocketVoiceDownloadIcon({
         viewBox="0 0 14 14"
         className="size-3.5 -rotate-90"
         role="img"
-        aria-label={`Downloading ${Math.round(progress * 100)}%`}
+        aria-label={t("header.voiceDownload.downloading", {
+          percent: formatters.number(progress, {
+            style: "percent",
+            maximumFractionDigits: 0,
+          }),
+        })}
         data-state="downloading"
       >
         <circle
@@ -59,7 +68,9 @@ export function PocketVoiceDownloadIcon({
       role="img"
       data-state={availability.status}
       aria-label={
-        failed ? "Download failed; select to retry" : "Downloads when selected"
+        failed
+          ? t("header.voiceDownload.failed")
+          : t("header.voiceDownload.whenSelected")
       }
     />
   );

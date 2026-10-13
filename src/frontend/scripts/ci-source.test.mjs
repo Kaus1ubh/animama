@@ -28,6 +28,7 @@ test("full source plan prepares packages once before every consumer", () => {
     "desktop:test",
     "web:lint",
     "openapi-ts:check",
+    "i18n:check",
   ]) {
     assert.ok(
       commands.some((command) => command.includes(script)),

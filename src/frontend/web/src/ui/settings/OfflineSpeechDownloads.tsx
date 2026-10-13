@@ -1,5 +1,7 @@
 import { useEffect, useState, type ReactNode } from "react";
+import { getI18n, useTranslation } from "react-i18next";
 
+import { useFormatters } from "@animama/product-ui/i18n";
 import type { PyModelAssetState } from "@animama/runtime-contracts/api-types";
 
 import parakeetWebgpuAttribution from "../../../../../../models/parakeet-tdt-0.6b-v2-webgpu/ATTRIBUTION.md?raw";
@@ -14,63 +16,67 @@ import {
   getParakeetWebgpuStatus,
 } from "@/lib/speech/client-parakeet/client";
 import type { ParakeetWebgpuStatus } from "@/lib/speech/client-parakeet/webgpu";
-import { formatFileSize } from "@/lib/user-files/uploads";
 import {
   useModelAssets,
   useOperatorManagedModelAssets,
 } from "@/query/hooks/useModelAssets";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useModelAssetAction } from "@/query/mutations/useModelAssetActions";
-import { PACK_WORK_BLOCKS_ASSET } from "@/query/model-download-coordination";
+import {
+  DownloadGuardError,
+  downloadGuardText,
+} from "@/query/model-download-coordination";
 import { Button } from "@/ui/components/button";
-import { OPERATOR_MANAGED_MODELS_NOTE } from "./operator-managed-models";
+import { operatorManagedModelsNote } from "./operator-managed-models";
 
-// Stable failure codes from the model-asset API; they never carry paths.
-const ASSET_FAILURE_TEXT: Record<
-  NonNullable<PyModelAssetState["reason"]>,
-  string
-> = {
-  asset_download_failed:
-    "The download did not finish. Check the internet connection, then retry.",
-  asset_host_not_allowed: "This build does not allow the download source.",
-  asset_size_invalid:
-    "A downloaded file did not have the expected size and was discarded.",
-  asset_hash_invalid:
-    "A downloaded file did not match its checksum and was discarded.",
-  asset_store_failed:
-    "The model could not be stored. Check the data directory, then retry.",
-  asset_insufficient_space: "Not enough free space for downloads.",
-};
-
-// Refusals of a model change (HTTP 409 `detail.code`).
-const REFUSAL_TEXT: Record<string, string> = {
-  model_asset_in_use:
-    "Speech recognition is in use. Close dictation and Voice Mode to remove it.",
-  model_asset_required_by: "Remove GPU acceleration first.",
-  model_asset_requires: "Download the CPU model first.",
-  model_asset_busy: "This model is still changing. Retry in a moment.",
-};
-
-/** Why a failed download stopped, from its stable failure code. */
+/**
+ * Why a failed download stopped, from its stable failure code (the model-asset
+ * API never sends paths).
+ */
 export function assetFailureText(asset: PyModelAssetState): string {
-  return (
-    (asset.reason && ASSET_FAILURE_TEXT[asset.reason]) ??
-    "The download did not finish. Retry when ready."
-  );
+  const t = getI18n().getFixedT(null, "voice");
+  switch (asset.reason) {
+    case "asset_download_failed":
+      return t("offlineSpeech.failures.downloadFailed");
+    case "asset_host_not_allowed":
+      return t("offlineSpeech.failures.hostNotAllowed");
+    case "asset_size_invalid":
+      return t("offlineSpeech.failures.sizeInvalid");
+    case "asset_hash_invalid":
+      return t("offlineSpeech.failures.hashInvalid");
+    case "asset_store_failed":
+      return t("offlineSpeech.failures.storeFailed");
+    case "asset_insufficient_space":
+      return t("offlineSpeech.failures.insufficientSpace");
+    default:
+      return t("offlineSpeech.failures.unknown");
+  }
 }
 
-/** A readable message for a failed model change, never a raw payload. */
+/**
+ * A readable message for a failed model change, never a raw payload. Refusals
+ * (HTTP 409 `detail.code`) have their own wording.
+ */
 export function modelChangeErrorText(error: unknown): string {
-  if (error instanceof Error && error.message === PACK_WORK_BLOCKS_ASSET)
-    return PACK_WORK_BLOCKS_ASSET;
+  if (error instanceof DownloadGuardError)
+    return downloadGuardText(error.reason);
+  const t = getI18n().getFixedT(null, "voice");
   const detail =
     error && typeof error === "object" && "detail" in error
       ? (error as { detail?: { code?: unknown } }).detail
       : undefined;
-  const code = typeof detail?.code === "string" ? detail.code : "";
-  return (
-    REFUSAL_TEXT[code] ?? "The change could not finish. Retry in a moment."
-  );
+  switch (detail?.code) {
+    case "model_asset_in_use":
+      return t("offlineSpeech.refusals.inUse");
+    case "model_asset_required_by":
+      return t("offlineSpeech.gpu.removeFirst");
+    case "model_asset_requires":
+      return t("offlineSpeech.gpu.blocked.needsCpu");
+    case "model_asset_busy":
+      return t("offlineSpeech.refusals.busy");
+    default:
+      return t("offlineSpeech.refusals.changeFailed");
+  }
 }
 
 /**
@@ -87,11 +93,11 @@ export function gpuInstallBlockedReason({
   cpuInstalled: boolean;
   support: ParakeetWebgpuStatus | null;
 }): string | null {
-  if (!gpu) return "GPU acceleration is unavailable in this build.";
-  if (support === "unsupported")
-    return "WebGPU is not available in this browser or on this device.";
-  if (!cpuInstalled) return "Download the CPU model first.";
-  if (support === null) return "Checking WebGPU support…";
+  const t = getI18n().getFixedT(null, "voice");
+  if (!gpu) return t("offlineSpeech.gpu.blocked.missing");
+  if (support === "unsupported") return t("offlineSpeech.gpu.blocked.noWebgpu");
+  if (!cpuInstalled) return t("offlineSpeech.gpu.blocked.needsCpu");
+  if (support === null) return t("offlineSpeech.gpu.blocked.checking");
   return null;
 }
 
@@ -143,6 +149,7 @@ export function OfflineSpeechDownloadsView({
   heading = true,
   onChange,
 }: OfflineSpeechDownloadsViewProps) {
+  const { t } = useTranslation("voice");
   // Without a list, the add-on's availability is still unknown.
   const listReady = cpu !== undefined || gpu !== undefined;
   const cpuInstalled = cpu?.status === "installed";
@@ -152,43 +159,40 @@ export function OfflineSpeechDownloadsView({
   const errorFor = (assetId: string) =>
     error?.assetId === assetId ? error.message : null;
   return (
-    <section
-      className="space-y-3"
-      aria-label="Offline speech recognition (Parakeet)"
-    >
+    <section className="space-y-3" aria-label={t("offlineSpeech.title")}>
       {heading ? (
         <div className="space-y-1">
-          <h3 className="text-sm font-medium">
-            Offline speech recognition (Parakeet)
-          </h3>
+          <h3 className="text-sm font-medium">{t("offlineSpeech.title")}</h3>
           <p className="text-muted-foreground text-xs">
-            Dictation and Voice Mode transcribe on this device, so audio never
-            leaves it.
+            {t("offlineSpeech.description")}
           </p>
         </div>
       ) : null}
       {turnedOff && cpuInstalled ? (
         <p role="status" className="text-muted-foreground text-xs">
-          Offline speech recognition is turned off on this server.
+          {t("offlineSpeech.turnedOff")}
         </p>
       ) : null}
       {operatorManaged ? (
         <p className="text-muted-foreground text-xs">
-          {OPERATOR_MANAGED_MODELS_NOTE}
+          {operatorManagedModelsNote()}
         </p>
       ) : null}
       {cpu ? (
         <ModelSetRow
-          label="CPU model"
+          label={t("offlineSpeech.cpu.label")}
           asset={cpu}
           managed={operatorManaged}
-          names={{ install: "Download CPU model", remove: "Remove CPU model" }}
+          names={{
+            install: t("offlineSpeech.cpu.download"),
+            remove: t("offlineSpeech.cpu.remove"),
+          }}
           freeBytes={freeBytes}
           retry={retryAssetIds?.has(cpu.id) ?? false}
           pending={pending}
           installBlockedReason={blockedReason ?? null}
           removeBlockedReason={
-            gpuActive ? "Remove GPU acceleration first." : null
+            gpuActive ? t("offlineSpeech.gpu.removeFirst") : null
           }
           error={errorFor(cpu.id)}
           onChange={(change) => onChange(change, cpu.id)}
@@ -196,19 +200,19 @@ export function OfflineSpeechDownloadsView({
       ) : (
         <p role="status" className="text-muted-foreground text-xs">
           {listUnavailable
-            ? "Speech downloads are unavailable. Reopen Settings to retry."
-            : "Checking offline speech recognition…"}
+            ? t("offlineSpeech.listUnavailable")
+            : t("offlineSpeech.checking")}
         </p>
       )}
       <div className="border-border/60 space-y-2 border-l-2 pl-3">
         <ModelSetRow
-          label="GPU acceleration"
-          description="Faster recognition with live previews. Requires the CPU model and a WebGPU-capable device."
+          label={t("offlineSpeech.gpu.label")}
+          description={t("offlineSpeech.gpu.description")}
           asset={gpu}
           managed={operatorManaged}
           names={{
-            install: "Download GPU acceleration",
-            remove: "Remove GPU acceleration",
+            install: t("offlineSpeech.gpu.download"),
+            remove: t("offlineSpeech.gpu.remove"),
           }}
           freeBytes={freeBytes}
           retry={gpu ? (retryAssetIds?.has(gpu.id) ?? false) : false}
@@ -223,21 +227,19 @@ export function OfflineSpeechDownloadsView({
                 blockedReason ??
                 null)
               : listUnavailable
-                ? "GPU acceleration is unavailable right now."
-                : "Checking offline speech recognition…"
+                ? t("offlineSpeech.gpu.unavailableNow")
+                : t("offlineSpeech.checking")
           }
           removeBlockedReason={null}
           error={gpu ? errorFor(gpu.id) : null}
           installedNote={
-            gpuFellBack
-              ? "WebGPU failed to load last time, so speech recognition used the CPU."
-              : undefined
+            gpuFellBack ? t("offlineSpeech.gpu.fellBack") : undefined
           }
           onChange={(change) => gpu && onChange(change, gpu.id)}
         >
           <details className="text-xs">
             <summary className="text-muted-foreground cursor-pointer">
-              Model attribution (CC BY 4.0)
+              {t("offlineSpeech.gpu.attribution")}
             </summary>
             {/* Plain text keeps the reviewed notice compact inside a settings row. */}
             <pre className="text-muted-foreground mt-2 font-sans text-xs whitespace-pre-wrap">
@@ -285,6 +287,8 @@ function ModelSetRow({
   onChange(change: Change): void;
   children?: ReactNode;
 }) {
+  const { t } = useTranslation("voice");
+  const { fileSize, number } = useFormatters();
   const [confirmRemove, setConfirmRemove] = useState(false);
   const installed = asset?.status === "installed";
   const downloading = asset?.status === "downloading";
@@ -303,19 +307,26 @@ function ModelSetRow({
   const installBlocked =
     installBlockedReason ??
     (lowSpace
-      ? `Not enough free space: downloads need ${formatFileSize(asset.required_free_bytes)} free.`
+      ? t("downloads.lowSpace", { size: fileSize(asset.required_free_bytes) })
       : null);
   const status = !asset
     ? null
     : installed
-      ? `Installed${installedNote ? ` · ${installedNote}` : ""}`
+      ? installedNote
+        ? t("downloads.installedWithNote", { note: installedNote })
+        : t("downloads.installed")
       : downloading
         ? progress === 1
-          ? "Verifying download…"
-          : `Downloading ${Math.round((progress ?? 0) * 100)}%`
+          ? t("downloads.verifying")
+          : t("downloads.downloading", {
+              percent: number(progress ?? 0, {
+                style: "percent",
+                maximumFractionDigits: 0,
+              }),
+            })
         : managed
-          ? "Not available"
-          : `${formatFileSize(asset.size_bytes)} download`;
+          ? t("downloads.notAvailable")
+          : t("downloads.size", { size: fileSize(asset.size_bytes) });
   return (
     <div className="space-y-2">
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -335,7 +346,7 @@ function ModelSetRow({
                 disabled={pending || Boolean(installBlocked)}
                 onClick={() => onChange("install")}
               >
-                {failed ? "Retry download" : names.install}
+                {failed ? t("downloads.retry") : names.install}
               </Button>
             ) : null}
             {downloading ? (
@@ -346,7 +357,7 @@ function ModelSetRow({
                 variant="ghost"
                 onClick={() => onChange("cancel")}
               >
-                Cancel download
+                {t("downloads.cancel")}
               </Button>
             ) : null}
             {installed ? (
@@ -363,7 +374,7 @@ function ModelSetRow({
                   }
                 }}
               >
-                {confirmRemove ? "Confirm removal" : names.remove}
+                {confirmRemove ? t("downloads.confirmRemoval") : names.remove}
               </Button>
             ) : null}
           </div>
@@ -379,7 +390,7 @@ function ModelSetRow({
           className="w-full"
           max={1}
           value={progress}
-          aria-label={`${label} download progress`}
+          aria-label={t("downloads.progressLabel", { label })}
         />
       ) : null}
       {asset?.status === "failed" ? (
@@ -439,15 +450,22 @@ export function OfflineSpeechDownloads({
 }: {
   heading?: boolean;
 }) {
-  if (!PARAKEET_DOWNLOADS_OFFERED)
-    return (
-      <p className="text-muted-foreground text-xs">
-        This development stack serves speech models from the host: run python3
-        scripts/models/parakeet.py acquire (and parakeet_webgpu.py acquire for
-        GPU acceleration), then rerun reset.sh.
-      </p>
-    );
+  if (!PARAKEET_DOWNLOADS_OFFERED) return <HostSpeechModelsNote />;
   return <OfflineSpeechDownloadsManager heading={heading} />;
+}
+
+/** How a Vite development stack acquires the host's speech model sets. */
+function HostSpeechModelsNote() {
+  const { t } = useTranslation("voice");
+  return (
+    <p className="text-muted-foreground text-xs">
+      {t("offlineSpeech.developmentAcquire", {
+        cpuCommand: "python3 scripts/models/parakeet.py acquire",
+        gpuCommand: "parakeet_webgpu.py acquire",
+        resetCommand: "reset.sh",
+      })}
+    </p>
+  );
 }
 
 function OfflineSpeechDownloadsManager({ heading }: { heading: boolean }) {
@@ -468,6 +486,8 @@ export function useOfflineSpeechDownloads(): Omit<
   OfflineSpeechDownloadsViewProps,
   "heading"
 > {
+  // Rerender on a UI Locale change, which rewords the blocked reason and error.
+  useTranslation("voice");
   const assets = useModelAssets({ enabled: true });
   const capabilities = useRuntimeCapabilities();
   const operatorManaged = useOperatorManagedModelAssets();
@@ -475,9 +495,10 @@ export function useOfflineSpeechDownloads(): Omit<
   const [gpuSupport, setGpuSupport] = useState<ParakeetWebgpuStatus | null>(
     null,
   );
+  // The cause is kept so its wording follows the UI Locale.
   const [error, setError] = useState<{
     assetId: string;
-    message: string;
+    cause: unknown;
   } | null>(null);
   const cpu = assets.data?.assets.find((item) => item.id === PARAKEET_ASSET_ID);
   const gpu = assets.data?.assets.find(
@@ -502,8 +523,7 @@ export function useOfflineSpeechDownloads(): Omit<
       releaseIdleLeases: disposeIdleClientParakeetWorker,
       send: (request) =>
         action.mutate(request, {
-          onError: (cause) =>
-            setError({ assetId, message: modelChangeErrorText(cause) }),
+          onError: (cause) => setError({ assetId, cause }),
         }),
     });
   };
@@ -516,7 +536,10 @@ export function useOfflineSpeechDownloads(): Omit<
     retryAssetIds: assets.retryAssetIds,
     pending: action.isPending || action.busy,
     blockedReason: action.blockedReason,
-    error,
+    error: error && {
+      assetId: error.assetId,
+      message: modelChangeErrorText(error.cause),
+    },
     gpuFellBack:
       getLastClientParakeetBackendState()?.fellBackFromWebgpu ?? false,
     listUnavailable: assets.isError,

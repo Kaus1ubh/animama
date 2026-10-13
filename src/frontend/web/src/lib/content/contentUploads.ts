@@ -1,4 +1,13 @@
+import { getI18n } from "react-i18next";
+
 import { parseContentApiErrorDetail } from "@/lib/content/contentSaveErrors";
+import {
+  apiErrorLine,
+  errorWording,
+  failureLine,
+  uncodedErrorText,
+  WordedError,
+} from "@/lib/errors/apiError";
 import { normalizeBaseUrl } from "@/lib/utils";
 
 export type ContentPreflightResult = {
@@ -39,7 +48,9 @@ export function sha256File(
     );
     const abort = () => {
       worker.terminate();
-      reject(new DOMException("Upload cancelled.", "AbortError"));
+      reject(
+        new DOMException(getI18n().t("errors:uploads.cancelled"), "AbortError"),
+      );
     };
     const cleanup = () => {
       options?.signal?.removeEventListener("abort", abort);
@@ -76,7 +87,7 @@ export function sha256File(
     );
     worker.addEventListener("error", () => {
       cleanup();
-      reject(new Error("File hashing failed."));
+      reject(new WordedError(getI18n().t("errors:uploads.hashingFailed")));
     });
     options?.signal?.addEventListener("abort", abort, { once: true });
     if (options?.signal?.aborted) {
@@ -105,8 +116,7 @@ export async function preflightContentFile(
     if (header.startsWith("GIF87a") || header.startsWith("GIF89a")) {
       return {
         sourceFormat: "gif",
-        error:
-          "Animated GIF is not supported. Export one still frame as JPEG, PNG, or WebP.",
+        error: getI18n().t("errors:uploads.gifUnsupported"),
       };
     }
     if (ascii(bytes.slice(4, 8)) === "ftyp") {
@@ -114,8 +124,7 @@ export async function preflightContentFile(
       if (["heic", "heix", "hevc", "hevx", "mif1", "msf1"].includes(brand)) {
         return {
           sourceFormat: "heic",
-          error:
-            "HEIC/HEIF is not supported yet. Export the image as JPEG, PNG, or WebP.",
+          error: getI18n().t("errors:uploads.heicUnsupported"),
         };
       }
     }
@@ -132,8 +141,7 @@ export async function preflightContentFile(
     if (text.startsWith("{")) return { sourceFormat: "json-gltf", error: null };
     return {
       sourceFormat: null,
-      error:
-        "This does not look like JSON glTF or binary GLB VRMA. Re-export the animation as a self-contained .vrma file.",
+      error: getI18n().t("errors:uploads.vrmaUnrecognized"),
     };
   }
   return { sourceFormat: null, error: null };
@@ -158,7 +166,7 @@ export function gatewayUploadHeaders(headers?: HeadersInit): Headers {
 
 export function getContentUploadErrorPresentation(
   error: unknown,
-  fallback = "Content upload failed.",
+  fallback: string = getI18n().t("errors:uploads.failed"),
 ): ContentUploadErrorPresentation {
   const detail = parseContentApiErrorDetail(error);
   if (detail) {
@@ -170,32 +178,35 @@ export function getContentUploadErrorPresentation(
         details,
       };
     }
-    if (code)
-      return {
-        message:
-          CONFLICT_MESSAGES[code] ??
-          "The content could not be updated in its current state. Refresh and try again.",
-        code,
-        details,
-      };
+    if (code) return { message: conflictMessage(code), code, details };
   }
+  // A worded failure shows as it is; other English is primary only in English.
   if (error instanceof Error && error.message.trim())
-    return { message: error.message, code: null, details: {} };
+    return { message: failureLine(error, fallback), code: null, details: {} };
   if (typeof error === "string" && error.trim())
-    return { message: error, code: null, details: {} };
+    return {
+      message: apiErrorLine(uncodedErrorText(error, fallback)),
+      code: null,
+      details: {},
+    };
   return { message: fallback, code: null, details: {} };
 }
 
-const CONFLICT_MESSAGES: Record<string, string> = {
-  content_upload_idempotency_mismatch:
-    "That retry is a different file. Remove the old draft file first, then choose the replacement.",
-  content_upload_retry_required:
-    "Retry this file to create a fresh private staging upload.",
-  content_uploads_incomplete:
-    "Some package files still need attention before this content can be saved.",
-  content_storage_unavailable:
-    "Private storage is temporarily unavailable. Your draft is preserved; try again.",
-};
+/** Upload state conflicts worded as `errors:uploads.<code>`. */
+const CONFLICT_CODES = new Set([
+  "content_upload_idempotency_mismatch",
+  "content_upload_retry_required",
+  "content_uploads_incomplete",
+  "content_storage_unavailable",
+]);
+
+/** Guidance for an upload state conflict, by code. */
+function conflictMessage(code: string): string {
+  return (
+    (CONFLICT_CODES.has(code) && errorWording("uploads", code)) ||
+    getI18n().t("errors:uploads.conflict")
+  );
+}
 
 function stringList(value: unknown): string[] {
   return Array.isArray(value)
@@ -205,65 +216,61 @@ function stringList(value: unknown): string[] {
     : [];
 }
 
+/** Backend reasons worded as `errors:uploads.<reason>`, without parameters. */
+const WORDED_REASONS = new Set([
+  "animated_image_unsupported",
+  "unsupported_image_format",
+  "content_mismatch",
+  "invalid_glb_header",
+  "vrma_external_resource",
+  "document_unsupported_encoding",
+  "document_invalid_pdf",
+  "document_pdf_encrypted",
+  "document_invalid_utf8",
+  "document_utf8_bom",
+  "document_invalid_json",
+  "document_pdf_page_limit",
+  "ambiguous_particle_texture_filename",
+]);
+
 /** Translate stable backend reasons into corrective product guidance. */
 function remediationForContentError(
   reason: string,
   details: Record<string, unknown>,
 ): string {
-  const messages: Record<string, string> = {
-    animated_image_unsupported:
-      "Animated PNG/WebP is not supported for still images. Export one static frame and retry.",
-    unsupported_image_format:
-      "This image format is not supported. Export it as JPEG, PNG, or static WebP.",
-    content_mismatch:
-      "The file contents do not match the selected format. Re-export the source instead of renaming its extension.",
-    invalid_glb_header:
-      "This is not a valid binary GLB file. Re-export it from a VRM-compatible tool.",
-    vrma_external_resource:
-      "VRMA must be self-contained. Embed its buffers and remove external URLs before retrying.",
-    vrma_animation_count: `VRMA must contain exactly one animation; this file contains ${String(details.animation_count ?? "an unsupported number")}.`,
-    audio_unsupported_codec: `This audio codec is not supported. Use ${stringList(details.supported_codecs).join(", ") || "a supported MP3, WAV, or Ogg codec"}.`,
-    document_unsupported_encoding:
-      "Text documents must be UTF-8 without a UTF-16/UTF-32 byte-order mark.",
-    document_invalid_pdf:
-      "The PDF is incomplete or malformed. Open and re-export it as a standard, unencrypted PDF.",
-    document_pdf_encrypted:
-      "Encrypted PDFs are not supported. Save an unencrypted copy and retry.",
-    document_invalid_utf8:
-      "This text is not valid UTF-8. Re-save it as UTF-8 without a byte-order mark.",
-    document_utf8_bom:
-      "Remove the UTF-8 byte-order mark, then save and retry the document.",
-    document_invalid_json:
-      "This JSON document is incomplete or malformed. Correct its syntax and retry.",
-    document_pdf_page_limit:
-      "This PDF has too many pages. Split it into smaller documents and retry.",
-    manifest_reference_mismatch: particleMismatchMessage(details),
-    ambiguous_particle_texture_filename:
-      "Particle texture filenames must remain unique when case and Unicode differences are ignored. Rename the colliding textures and update the manifest.",
-    cardinality: `This role needs ${String(details.minimum_count ?? "the required")}–${String(details.maximum_count ?? "the allowed")} files; it currently has ${String(details.actual_count ?? "an invalid number")}.`,
-  };
-  if (messages[reason]) return messages[reason];
-  if (
-    reason === "invalid_image" ||
-    reason === "image_pixel_budget" ||
-    reason === "canonical_image_size_limit"
-  ) {
-    return "The image cannot be normalized within Animama's size and pixel limits. Resize it, export a standard still JPEG/PNG/WebP, and retry.";
+  const t = getI18n().t;
+  const worded = WORDED_REASONS.has(reason) && errorWording("uploads", reason);
+  if (worded) return worded;
+  switch (reason) {
+    case "vrma_animation_count":
+      return details.animation_count == null
+        ? t("errors:uploads.vrmaAnimationCount")
+        : t("errors:uploads.vrma_animation_count", {
+            animations: String(details.animation_count),
+          });
+    case "audio_unsupported_codec": {
+      const codecs = stringList(details.supported_codecs);
+      return codecs.length
+        ? t("errors:uploads.audio_unsupported_codec", { codecs })
+        : t("errors:uploads.audioCodecUnsupported");
+    }
+    case "manifest_reference_mismatch":
+      return particleMismatchMessage(details);
+    case "cardinality":
+      return cardinalityMessage(details);
+    case "invalid_image":
+    case "image_pixel_budget":
+    case "canonical_image_size_limit":
+      return t("errors:uploads.imageLimits");
   }
-  if (reason.startsWith("vrma_")) {
-    return "The VRMA package is not a complete, self-contained animation Animama can play. Re-export one glTF 2 animation with embedded buffers and VRMC_vrm_animation 1.0.";
-  }
-  if (reason.startsWith("vrm_")) {
-    return "The avatar is not a complete runtime-compatible VRM. Re-export a self-contained GLB VRM with a valid humanoid definition.";
-  }
-  if (reason.startsWith("audio_")) {
-    return "The audio stream is incomplete or outside Animama's playback limits. Re-export a stereo-or-mono MP3, PCM/float WAV, Vorbis Ogg, or Opus Ogg at 8–96 kHz and retry.";
-  }
+  if (reason.startsWith("vrma_")) return t("errors:uploads.vrmaInvalid");
+  if (reason.startsWith("vrm_")) return t("errors:uploads.vrmInvalid");
+  if (reason.startsWith("audio_")) return t("errors:uploads.audioInvalid");
   if (
     reason.startsWith("invalid_anima_pose_clip_") ||
     reason === "anima_pose_clip_duration_limit"
   ) {
-    return "The pose clip does not match Animama's timeline, pose, event, or playback schema. Correct the manifest in the pose editor and export it again.";
+    return t("errors:uploads.poseClipInvalid");
   }
   if (
     reason.startsWith("invalid_particle_vfx_") ||
@@ -272,19 +279,33 @@ function remediationForContentError(
     reason.startsWith("particle_vfx_") ||
     reason.startsWith("duplicate_particle_vfx_")
   ) {
-    return "The particle manifest uses an unsupported or unsafe Three.quarks shape. Correct the named system, generator, behavior, resource, or budget and export the package again.";
+    return t("errors:uploads.particleManifestInvalid");
   }
-  return "Animama could not process this file for the selected content type. Correct the source and retry, or replace this draft file.";
+  return t("errors:uploads.unprocessable");
+}
+
+function cardinalityMessage(details: Record<string, unknown>): string {
+  const { minimum_count, maximum_count, actual_count } = details;
+  return minimum_count == null || maximum_count == null || actual_count == null
+    ? getI18n().t("errors:uploads.cardinalityUnknown")
+    : getI18n().t("errors:uploads.cardinality", {
+        minimum: String(minimum_count),
+        maximum: String(maximum_count),
+        actual: String(actual_count),
+      });
 }
 
 function particleMismatchMessage(details: Record<string, unknown>): string {
   const missing = stringList(details.missing_filenames);
   const unexpected = stringList(details.unexpected_filenames);
-  const parts = [
-    missing.length > 0 ? `add ${missing.join(", ")}` : "",
-    unexpected.length > 0 ? `remove or rename ${unexpected.join(", ")}` : "",
-  ].filter(Boolean);
-  return parts.length > 0
-    ? `The particle manifest and texture files do not match: ${parts.join("; ")}.`
-    : "The particle manifest and texture files do not match. Replace the manifest or the incorrect texture without re-uploading the verified files.";
+  const t = getI18n().t;
+  if (missing.length && unexpected.length)
+    return t("errors:uploads.particleMissingAndUnexpected", {
+      missing,
+      unexpected,
+    });
+  if (missing.length) return t("errors:uploads.particleMissing", { missing });
+  if (unexpected.length)
+    return t("errors:uploads.particleUnexpected", { unexpected });
+  return t("errors:uploads.manifest_reference_mismatch");
 }

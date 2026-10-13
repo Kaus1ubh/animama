@@ -1,15 +1,20 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
-// The canonical, public protocol document (spec R7); bundled at build time.
-import crisisProtocol from "../../../../../docs/safety/crisis-protocol.md?raw";
 import { MemoryMarkdownPreview } from "@/ui/memory/MemoryMarkdownPreview";
+import { useCrisisProtocol } from "@/ui/safety/crisisProtocol";
 
 export const Route = createFileRoute("/safety")({
   component: SafetyRoute,
 });
 
-/** Safety and crisis protocol, reachable before and after first run. */
+/**
+ * Safety and crisis protocol, reachable before and after first run, in the
+ * active UI Locale (machine translations; English is authoritative).
+ */
 function SafetyRoute() {
+  const { t } = useTranslation("safety");
+  const crisisProtocol = useCrisisProtocol();
   return (
     <main className="bg-background text-foreground min-h-screen px-6 py-10">
       <div className="mx-auto w-full max-w-2xl space-y-6">
@@ -17,7 +22,7 @@ function SafetyRoute() {
           to="/"
           className="text-muted-foreground text-sm underline underline-offset-2"
         >
-          Back to Animama
+          {t("protocol.back")}
         </Link>
         <MemoryMarkdownPreview value={crisisProtocol} allowImages={false} />
       </div>

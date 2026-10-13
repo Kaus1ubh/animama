@@ -185,6 +185,7 @@ class AnimaLoadoutService:
                         code="loadout_source_unavailable",
                         message=f"{row.slot_key} is unavailable and will be omitted until corrected.",
                         scope="source",
+                        params={"slot": row.slot_key},
                     )
                 )
                 return None
@@ -204,6 +205,7 @@ class AnimaLoadoutService:
                     LoadoutDiagnostic(
                         code="gesture_semantic_key_conflict",
                         message=f"Gesture {value.document.name} has a conflicting semantic key.",
+                        params={"name": value.document.name},
                     )
                 )
                 continue
@@ -243,6 +245,7 @@ class AnimaLoadoutService:
                         code="starter_gesture_unavailable",
                         message=f"Included Gesture {semantic_key} is unavailable.",
                         scope="source",
+                        params={"semanticKey": semantic_key},
                     )
                 )
                 continue

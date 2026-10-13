@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+import { useFormatters } from "@animama/product-ui/i18n";
 import type { LibrarySharingFlow } from "@/lib/content-sharing/types";
 import { FileArchive } from "lucide-react";
 import { Button } from "@/ui/components/button";
@@ -7,12 +9,14 @@ import {
   SharingNonPortableItems,
   SharingRequiredItems,
 } from "./SharingPackageDetails";
-import { sharingSize } from "./sharingPresentation";
 
 /** Review is a whole-package decision; resolved names are fixed by the server. */
 export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
+  const { t } = useTranslation("library");
+  const formatters = useFormatters();
   const review = flow.importReview;
-  if (!review) return <p role="status">Preparing your import review…</p>;
+  if (!review)
+    return <p role="status">{t("sharing.import.preparingReview")}</p>;
   const items = review.items.map((item) => ({
     id: item.entry_id,
     name: item.name,
@@ -24,15 +28,15 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
   return (
     <>
       <ol
-        aria-label="Import progress"
+        aria-label={t("sharing.import.progress")}
         className="text-muted-foreground mx-auto flex items-center gap-4 text-sm"
       >
-        <li>1 · Choose file</li>
+        <li>{t("sharing.import.steps.choose")}</li>
         <li
           aria-current="step"
           className="bg-primary/15 text-foreground rounded-full px-3 py-1.5"
         >
-          2 · Review
+          {t("sharing.import.steps.review")}
         </li>
       </ol>
       <div className="flex flex-wrap items-center gap-3 rounded-xl border p-4">
@@ -43,10 +47,19 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
         <div className="min-w-0 flex-1">
           <p className="font-medium break-words">{review.filename}</p>
           <p className="text-muted-foreground mt-1 text-sm">
-            {sharingSize(review.size_bytes)} · {review.selected_count} selected
-            {review.required_count > 0
-              ? ` · ${review.required_count} required ${review.required_count === 1 ? "dependency" : "dependencies"}`
-              : null}
+            {[
+              formatters.fileSize(review.size_bytes),
+              t("sharing.import.selectedCount", {
+                count: review.selected_count,
+              }),
+              review.required_count > 0
+                ? t("sharing.requiredDependencies", {
+                    count: review.required_count,
+                  })
+                : null,
+            ]
+              .filter(Boolean)
+              .join(" · ")}
           </p>
         </div>
         {!flow.commitPending ? (
@@ -55,13 +68,15 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
             onClick={flow.discardImport}
             disabled={flow.busy}
           >
-            Change file
+            {t("sharing.import.changeFile")}
           </Button>
         ) : null}
       </div>
       <section className="space-y-3">
         <h3 className="text-lg font-semibold">
-          {review.anima ? "Add a new Anima" : "Add to your Library"}
+          {review.anima
+            ? t("sharing.import.addAnima")
+            : t("sharing.import.addToLibrary")}
         </h3>
         {review.anima ? (
           <SharingAnimaDetails anima={review.anima} items={items} />
@@ -72,7 +87,9 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
               .map((item) => (
                 <SharingItemRow key={item.id} item={item}>
                   <span className="text-muted-foreground shrink-0 rounded-full border px-2 py-1 text-xs">
-                    {item.name === item.originalName ? "New" : "Renamed"}
+                    {item.name === item.originalName
+                      ? t("sharing.import.new")
+                      : t("sharing.import.renamed")}
                   </span>
                 </SharingItemRow>
               ))}
@@ -83,8 +100,8 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
       </section>
       <p className="text-muted-foreground border-t pt-4 text-sm">
         {renamed
-          ? "Some names already exist. The automatic names shown above keep every imported item separate."
-          : "Every item is added as an independent copy. Existing content is kept."}
+          ? t("sharing.import.renamedNote")
+          : t("sharing.import.copiesNote")}
       </p>
       {flow.error && !flow.commitPending ? (
         <Button
@@ -93,19 +110,19 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
           disabled={flow.busy}
           onClick={flow.refreshImport}
         >
-          Refresh review
+          {t("sharing.import.refreshReview")}
         </Button>
       ) : null}
       <footer className="bg-popover sticky bottom-0 z-10 flex flex-wrap items-center justify-between gap-4 border-t py-4">
         <p className="text-muted-foreground max-w-xs text-sm">
           {review.anima
-            ? "Creates a fresh companion with the reviewed content and configuration."
-            : "Content is added to your Library. It won’t be equipped automatically."}
+            ? t("sharing.import.animaNote")
+            : t("sharing.import.contentNote")}
         </p>
         <div className="flex flex-wrap gap-2">
           {flow.commitPending ? (
             <Button onClick={flow.recover} disabled={flow.busy}>
-              Check import status
+              {t("sharing.import.checkStatus")}
             </Button>
           ) : (
             <>
@@ -114,10 +131,12 @@ export function ContentImportReview({ flow }: { flow: LibrarySharingFlow }) {
                 disabled={flow.busy || Boolean(flow.error)}
               >
                 {flow.busy
-                  ? "Importing…"
+                  ? t("sharing.import.importing")
                   : review.anima
-                    ? "Import Anima"
-                    : `Import ${review.selected_count} ${review.selected_count === 1 ? "item" : "items"}`}
+                    ? t("sharing.import.importAnima")
+                    : t("sharing.import.importItems", {
+                        count: review.selected_count,
+                      })}
               </Button>
             </>
           )}

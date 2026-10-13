@@ -1,9 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { Check, ChevronDown } from "lucide-react";
 
 import {
   filteredGeminiVoices,
   GEMINI_VOICE_DETAILS,
+  geminiVoiceDescription,
   type GeminiVoice,
   type GeminiVoiceFilter,
 } from "@/lib/speech/gemini-voices";
@@ -27,9 +29,6 @@ import {
   type VoiceSamplePlayback,
 } from "./VoiceSampleButton";
 
-export const GEMINI_SAMPLE_NOTE =
-  "The first play of each voice uses your Gemini API key; the sample is then kept.";
-
 type GeminiVoicePickerProps = {
   /** The voice replies are spoken in: the saved voice, or the default. */
   value: GeminiVoice;
@@ -44,6 +43,7 @@ type GeminiVoicePickerProps = {
 
 /** Gemini's prebuilt voices in the PocketTTS picker's layout, with a sample on every voice. */
 export function GeminiVoicePicker(props: GeminiVoicePickerProps) {
+  const { t } = useTranslation("animas");
   const [open, setOpen] = useState(false);
   const [sample, setSample] = useState(IDLE_VOICE_SAMPLE);
   const player = useMemo(() => createVoiceSamplePlayer(setSample), []);
@@ -61,7 +61,7 @@ export function GeminiVoicePicker(props: GeminiVoicePickerProps) {
             variant="outline"
             disabled={props.disabled}
             className="min-w-0 flex-1 justify-between"
-            aria-label={`Gemini voice: ${props.value}`}
+            aria-label={t("voices.gemini.trigger", { name: props.value })}
           >
             <span className="truncate">{props.value}</span>
             <ChevronDown className="size-4 shrink-0 opacity-60" />
@@ -81,7 +81,7 @@ export function GeminiVoicePicker(props: GeminiVoicePickerProps) {
       <PopoverContent
         align="start"
         className="flex max-h-[var(--radix-popover-content-available-height)] w-[min(30rem,var(--radix-popover-content-available-width))] flex-col p-0"
-        aria-label="Gemini voices"
+        aria-label={t("voices.gemini.listLabel")}
       >
         {open ? (
           <GeminiVoiceList
@@ -107,6 +107,7 @@ export function GeminiVoiceList({
   sample,
   player,
 }: GeminiVoicePickerProps & VoiceSamplePlayback & { onSelected: () => void }) {
+  const { t } = useTranslation("animas");
   const [gender, setGender] = useState<GeminiVoiceFilter["gender"]>("any");
   const [search, setSearch] = useState("");
   const shown = filteredGeminiVoices(voices, { gender, search });
@@ -129,18 +130,25 @@ export function GeminiVoiceList({
     >
       <div className="flex shrink-0 flex-col gap-3 border-b p-3">
         <Input
-          aria-label="Search Gemini voices"
-          placeholder="Search voices"
+          aria-label={t("voices.gemini.searchLabel")}
+          placeholder={t("voices.picker.search")}
           value={search}
           onChange={(event) => {
             player.stop();
             setSearch(event.target.value);
           }}
         />
-        <TabsList className="grid w-full grid-cols-3" aria-label="Voice gender">
-          <TabsTrigger value="any">All</TabsTrigger>
-          <TabsTrigger value="female">Female</TabsTrigger>
-          <TabsTrigger value="male">Male</TabsTrigger>
+        <TabsList
+          className="grid w-full grid-cols-3"
+          aria-label={t("voices.picker.gender.label")}
+        >
+          <TabsTrigger value="any">{t("voices.picker.gender.any")}</TabsTrigger>
+          <TabsTrigger value="female">
+            {t("voices.picker.gender.female")}
+          </TabsTrigger>
+          <TabsTrigger value="male">
+            {t("voices.picker.gender.male")}
+          </TabsTrigger>
         </TabsList>
       </div>
       <div
@@ -149,20 +157,18 @@ export function GeminiVoiceList({
       >
         <span>
           {gender === "any"
-            ? "All voices"
+            ? t("voices.picker.filters.any")
             : gender === "female"
-              ? "Female voices"
-              : "Male voices"}
+              ? t("voices.picker.filters.female")
+              : t("voices.picker.filters.male")}
         </span>
-        <span>
-          {shown.length} {shown.length === 1 ? "voice" : "voices"}
-        </span>
+        <span>{t("voices.picker.count", { count: shown.length })}</span>
       </div>
       <TabsContent value={gender} className="mt-0 min-h-0 overflow-y-auto">
         <div
           className="max-h-[min(22rem,45dvh)] min-h-0 overflow-y-auto overscroll-contain px-2 pb-2"
           role="list"
-          aria-label="Available Gemini voices"
+          aria-label={t("voices.gemini.available")}
         >
           {shown.map((voice) => (
             <div
@@ -177,15 +183,17 @@ export function GeminiVoiceList({
                 type="button"
                 disabled={disabled}
                 onClick={() => void choose(voice)}
-                aria-label={`Select ${voice}`}
+                aria-label={t("voices.picker.select", { name: voice })}
                 aria-pressed={value === voice}
                 className="hover:bg-muted/40 focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-2.5 text-left outline-none focus-visible:ring-2 disabled:opacity-50"
               >
                 <div className="min-w-0 flex-1">
                   <p className="truncate text-sm font-medium">{voice}</p>
-                  {GEMINI_VOICE_DETAILS[voice]?.description ? (
+                  {GEMINI_VOICE_DETAILS[voice] ? (
                     <p className="text-muted-foreground text-xs">
-                      {GEMINI_VOICE_DETAILS[voice]?.description}
+                      {geminiVoiceDescription(
+                        GEMINI_VOICE_DETAILS[voice].description,
+                      )}
                     </p>
                   ) : null}
                 </div>
@@ -201,7 +209,7 @@ export function GeminiVoiceList({
           ))}
           {!shown.length ? (
             <p className="text-muted-foreground px-3 py-5 text-sm">
-              No voices match these filters.
+              {t("voices.picker.noMatch")}
             </p>
           ) : null}
         </div>
@@ -210,7 +218,7 @@ export function GeminiVoiceList({
         role="status"
         className="text-muted-foreground shrink-0 border-t px-4 py-3 text-xs"
       >
-        {GEMINI_SAMPLE_NOTE}
+        {t("voices.gemini.sampleNote")}
       </p>
       {sample.error ? (
         <p

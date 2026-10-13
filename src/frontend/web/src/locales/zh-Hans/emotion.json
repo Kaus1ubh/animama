@@ -1,0 +1,170 @@
+{
+  "details": {
+    "label": "情绪状态"
+  },
+  "emotions": {
+    "admiration": "钦佩",
+    "amusement": "乐趣",
+    "anger": "愤怒",
+    "annoyance": "烦躁",
+    "caring": "关怀",
+    "confidence": "自信",
+    "confusion": "困惑",
+    "curiosity": "好奇",
+    "desire": "渴望",
+    "disappointment": "失望",
+    "disapproval": "不满",
+    "disgust": "反感",
+    "embarrassment": "尴尬",
+    "excitement": "兴奋",
+    "fear": "恐惧",
+    "gratitude": "感激",
+    "grief": "悲痛",
+    "joy": "喜悦",
+    "love": "爱",
+    "nervousness": "紧张",
+    "optimism": "乐观",
+    "remorse": "懊悔",
+    "respect": "尊重",
+    "sadness": "悲伤"
+  },
+  "feelings": {
+    "admiration": {
+      "plain": "感到钦佩",
+      "slightly": "有点钦佩",
+      "very": "非常钦佩"
+    },
+    "amusement": {
+      "plain": "被逗乐了",
+      "slightly": "有点被逗乐",
+      "very": "乐不可支"
+    },
+    "anger": {
+      "plain": "感到生气",
+      "slightly": "有点生气",
+      "very": "非常生气"
+    },
+    "annoyance": {
+      "plain": "感到烦躁",
+      "slightly": "有点烦躁",
+      "very": "非常烦躁"
+    },
+    "caring": {
+      "plain": "感到关切",
+      "slightly": "有点关切",
+      "very": "非常关切"
+    },
+    "confidence": {
+      "plain": "感到自信",
+      "slightly": "有点自信",
+      "very": "非常自信"
+    },
+    "confusion": {
+      "plain": "感到困惑",
+      "slightly": "有点困惑",
+      "very": "非常困惑"
+    },
+    "curiosity": {
+      "plain": "感到好奇",
+      "slightly": "有点好奇",
+      "very": "非常好奇"
+    },
+    "desire": {
+      "plain": "感到渴望",
+      "slightly": "有点渴望",
+      "very": "非常渴望"
+    },
+    "disappointment": {
+      "plain": "感到失望",
+      "slightly": "有点失望",
+      "very": "非常失望"
+    },
+    "disapproval": {
+      "plain": "感到不认同",
+      "slightly": "有点不认同",
+      "very": "非常不认同"
+    },
+    "disgust": {
+      "plain": "感到反感",
+      "slightly": "有点反感",
+      "very": "非常反感"
+    },
+    "embarrassment": {
+      "plain": "感到尴尬",
+      "slightly": "有点尴尬",
+      "very": "非常尴尬"
+    },
+    "excitement": {
+      "plain": "感到兴奋",
+      "slightly": "有点兴奋",
+      "very": "非常兴奋"
+    },
+    "fear": {
+      "plain": "感到害怕",
+      "slightly": "有点害怕",
+      "very": "非常害怕"
+    },
+    "gratitude": {
+      "plain": "感到感激",
+      "slightly": "有点感激",
+      "very": "非常感激"
+    },
+    "grief": {
+      "plain": "感到悲痛",
+      "slightly": "有点悲痛",
+      "very": "非常悲痛"
+    },
+    "joy": {
+      "plain": "感到开心",
+      "slightly": "有点开心",
+      "very": "非常开心"
+    },
+    "love": {
+      "plain": "满怀爱意",
+      "slightly": "有些爱意",
+      "very": "爱意满满"
+    },
+    "nervousness": {
+      "plain": "感到紧张",
+      "slightly": "有点紧张",
+      "very": "非常紧张"
+    },
+    "neutral": "心情平静",
+    "optimism": {
+      "plain": "感到乐观",
+      "slightly": "有点乐观",
+      "very": "非常乐观"
+    },
+    "remorse": {
+      "plain": "感到懊悔",
+      "slightly": "有点懊悔",
+      "very": "非常懊悔"
+    },
+    "respect": {
+      "plain": "感到敬重",
+      "slightly": "有点敬重",
+      "very": "非常敬重"
+    },
+    "sadness": {
+      "plain": "感到难过",
+      "slightly": "有点难过",
+      "very": "非常难过"
+    }
+  },
+  "groups": {
+    "affection": "爱意",
+    "alarm": "不安",
+    "delight": "愉悦",
+    "drive": "动力",
+    "esteem": "敬重",
+    "gloom": "忧郁",
+    "rejection": "抗拒",
+    "revulsion": "厌恶"
+  },
+  "radar": {
+    "axis": "{{group}}：{{maximum}}。{{emotions}}",
+    "axisEmotion": "{{emotion}} {{value}}",
+    "label": "情绪光谱：八个分组，每组显示其最强烈的情绪",
+    "series": "最强烈的情绪"
+  }
+}

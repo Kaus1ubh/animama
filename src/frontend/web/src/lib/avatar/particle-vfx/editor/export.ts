@@ -1,3 +1,5 @@
+import { getI18n } from "react-i18next";
+
 import { DEFAULT_IMPORTED_CATALOG_DRAFT } from "./constants";
 import { buildParticleVFXCreatorDocument } from "./creatorDocument";
 import { roundEditorNumber } from "./numbers";
@@ -11,10 +13,11 @@ import type { ParticleVFXShapeAutoFit, ParticleVFXTransform } from "../types";
 export function parseParticleVFXEditorExportJsonForViewer(
   quarksJson: string | null | undefined,
 ): ParticleVFXEditorExportJsonViewerPayload {
+  const t = getI18n().getFixedT(null, "particles");
   if (!quarksJson?.trim()) {
     return {
       value: null,
-      error: "No export JSON is available.",
+      error: t("export.unavailable"),
     };
   }
 
@@ -28,8 +31,8 @@ export function parseParticleVFXEditorExportJsonForViewer(
       value: null,
       error:
         error instanceof Error
-          ? `Export JSON could not parse: ${error.message}`
-          : "Export JSON could not parse.",
+          ? t("export.parseFailed", { detail: error.message })
+          : t("export.parseFailedUnexplained"),
     };
   }
 }

@@ -1,0 +1,145 @@
+{
+  "actions": {
+    "back": "Back",
+    "cancel": "Cancel",
+    "continue": "Continue",
+    "finish": "Finish",
+    "finishing": "Finishing…",
+    "skip": "Skip for now"
+  },
+  "ageConfirmation": {
+    "backToSetup": "Back to setup",
+    "confirm": "I am 18 or older",
+    "decline": "I'm under 18",
+    "declined": "Animama is only for adults 18 and older. You can't continue to chat.",
+    "errors": {
+      "capabilitiesFailed": "AI settings could not be checked. Please try again.",
+      "modelUnavailable": "The chosen model can no longer be used. Go back to setup and choose another, or skip AI.",
+      "saveFailed": "Setup could not be saved. Please try again."
+    },
+    "goBack": "Go back",
+    "heading": "Before you start",
+    "notice": "Animama is for adults 18 and older. Animas are AI companions, not people.",
+    "opening": "Opening…",
+    "retry": "Retry",
+    "safetyLink": "Safety and crisis protocol"
+  },
+  "ai": {
+    "addCustomServer": "Add a custom server",
+    "addModel": "Add model",
+    "addModelTo": "Add model to {{name}}",
+    "builtin": {
+      "serverKey": "Uses the {{name}} key configured on this server.",
+      "serverKeyMissing": "Set {{env}} on the server to use {{name}}."
+    },
+    "checking": "Checking which models this installation offers…",
+    "connect": "Connect",
+    "connecting": "Connecting…",
+    "connectionDetail": "{{host}} · {{status}}",
+    "heading": "Choose your AI",
+    "loadFailed": "Models could not be loaded. You can skip this step and set them up later in App Settings → Models.",
+    "local": {
+      "add": "Add",
+      "adding": "Adding…",
+      "addNamed": "Add {{model}}",
+      "allAdded": "All of its models are added.",
+      "lookingFor": "Looking for {{server}}…",
+      "noModels": "{{server}} lists no models. Download one in {{server}}, then search again.",
+      "notFound": "No {{server}} server found. Install and start {{server}}, then search again.",
+      "runningAt": "Running at {{host}}",
+      "search": "Search",
+      "searchAgain": "Search again",
+      "searching": "Searching…",
+      "setUpLater": "Set up later"
+    },
+    "providedModels": "This installation provides its own models, so there is nothing to choose here.",
+    "providerTabs": "{{location}} providers",
+    "purpose": "Pick the model your Animas chat with."
+  },
+  "errors": {
+    "displayName": "Enter a display name between 1 and {{max}} characters.",
+    "keyNotSaved": "Your key wasn't saved. Complete the details on this step, or discard the key.",
+    "voiceSettings": "Voice settings could not be saved. Try again, or skip this step."
+  },
+  "keys": {
+    "saving": "Saving your key…",
+    "storedDescription": "Encrypted on this computer and never shown again.",
+    "unsavedPrompt": {
+      "description": "You entered a key that isn't saved yet. Save it now, or discard it and continue.",
+      "discard": "Discard",
+      "keepEditing": "Keep editing",
+      "save": "Save key",
+      "saving": "Saving…",
+      "title": "Save your API key?"
+    }
+  },
+  "links": {
+    "opensInNewWindow": "(opens in a new window)"
+  },
+  "progress": {
+    "label": "Setup progress",
+    "optional": "(optional)",
+    "position": "Step {{current}} of {{total}}"
+  },
+  "steps": {
+    "ai": "AI",
+    "voice": "Voice",
+    "welcome": "Welcome"
+  },
+  "voice": {
+    "heading": "Set up voice",
+    "purpose": "Talk to your Animas and hear them reply.",
+    "stt": {
+      "checking": "Checking speech recognition…",
+      "cpu": {
+        "description": "<link>NVIDIA's Parakeet TDT 0.6B v2</link> transcribes English speech on this device, so your voice never leaves it.",
+        "label": "Parakeet (CPU)",
+        "labelWithSize": "Parakeet (CPU, {{size}})"
+      },
+      "download": "Download",
+      "downloaded": "Downloaded",
+      "downloading": "Downloading {{percent}}",
+      "gpu": {
+        "description": "Faster, with live previews as you speak. Needs the CPU version and a WebGPU-capable GPU.",
+        "label": "Parakeet (GPU)",
+        "labelWithSize": "Parakeet (GPU, {{size}})",
+        "needsCpu": "Download the CPU version first."
+      },
+      "heading": "Speech-to-Text",
+      "listUnavailable": "Speech downloads are unavailable right now. You can add them later in App Settings.",
+      "lowSpace": "Not enough free space: downloads need {{size}} free.",
+      "models": "Speech recognition models",
+      "notDownloaded": "Not downloaded",
+      "progressLabel": "{{label}} download progress",
+      "retryDownload": "Retry download",
+      "turnedOff": "Speech recognition is turned off on this server.",
+      "unavailableInBuild": "Unavailable in this build.",
+      "verifying": "Verifying download…",
+      "webgpu": {
+        "available": "WebGPU available",
+        "checking": "Checking WebGPU…",
+        "unavailable": "WebGPU unavailable on this device"
+      }
+    },
+    "tts": {
+      "elevenLabs": {
+        "description": "Cloud voices with your ElevenLabs API key.",
+        "label": "ElevenLabs"
+      },
+      "heading": "Text-to-Speech",
+      "pocket": {
+        "description": "<link>Kyutai's Pocket TTS</link> speaks replies on this computer, with no key or account needed.",
+        "label": "PocketTTS (built-in)"
+      },
+      "providers": "Text-to-Speech provider",
+      "unavailableReason": "{{provider}}: {{reason}}"
+    }
+  },
+  "welcome": {
+    "displayName": {
+      "label": "Display name",
+      "placeholder": "Your name"
+    },
+    "heading": "What should Animama call you?"
+  }
+}

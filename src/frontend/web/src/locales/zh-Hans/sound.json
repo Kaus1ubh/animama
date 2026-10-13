@@ -1,0 +1,38 @@
+{
+  "preview": {
+    "loadFailed": "无法加载音效预览。",
+    "noAudio": "此音效没有可播放的音频。",
+    "playFailed": "无法播放音效预览。"
+  },
+  "upload": {
+    "button": "上传",
+    "defaultName": "音效",
+    "failed": "无法保存音效。请重试。",
+    "inputLabel": "上传音效文件",
+    "listLabel": "音效上传",
+    "queued": "排队中",
+    "refresh": "刷新目录",
+    "refreshFailed": "目录刷新失败。",
+    "retry": "重试 {{name}}",
+    "saved": "已保存到资源库",
+    "savedRefreshFailed": "已保存到资源库。{{message}}",
+    "unsupportedType": "请选择 WAV、MP3 或 Ogg 音频文件。",
+    "uploading": "正在上传…"
+  },
+  "volume": {
+    "mute": "静音",
+    "muteAll": "全部静音",
+    "muteAllLabel": "将所有音频静音",
+    "sfx": {
+      "label": "音效",
+      "mute": "将音效静音",
+      "slider": "音效音量"
+    },
+    "title": "音量",
+    "tts": {
+      "label": "语音",
+      "mute": "将文字转语音静音",
+      "slider": "文字转语音音量"
+    }
+  }
+}

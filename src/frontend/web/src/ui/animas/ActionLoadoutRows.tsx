@@ -5,6 +5,8 @@ import {
   type ComponentProps,
   type ReactNode,
 } from "react";
+import type { TFunction } from "i18next";
+import { getI18n, useTranslation } from "react-i18next";
 
 import { contentRowDescription } from "@/lib/content/libraryPresentation";
 import { cn } from "@/lib/utils";
@@ -96,11 +98,20 @@ export function ActionRowIdentity({
   );
 }
 
-export function reactionIntensityLabel(intensity: number | string): string {
-  if (String(intensity) === "1") return "Mild";
-  if (String(intensity) === "2") return "Moderate";
-  if (String(intensity) === "3") return "Strong";
-  return `Level ${intensity}`;
+/** The `animas` translator for the active UI Locale, for callers without a hook. */
+function activeAnimasT(): TFunction<"animas"> {
+  return getI18n().getFixedT(null, "animas");
+}
+
+/** Display name of a Reaction intensity level (1–3), or its number for any other level. */
+export function reactionIntensityLabel(
+  intensity: number | string,
+  t: TFunction<"animas"> = activeAnimasT(),
+): string {
+  if (String(intensity) === "1") return t("reactions.intensity.mild");
+  if (String(intensity) === "2") return t("reactions.intensity.moderate");
+  if (String(intensity) === "3") return t("reactions.intensity.strong");
+  return t("reactions.intensity.level", { level: intensity });
 }
 
 export function ReactionIntensityBadge({
@@ -108,9 +119,10 @@ export function ReactionIntensityBadge({
 }: {
   intensity: number | string;
 }) {
+  const { t } = useTranslation("animas");
   return (
     <span className="border-primary/15 bg-primary/8 text-primary inline-flex h-8 w-20 shrink-0 items-center justify-center rounded-md border px-2 text-xs font-medium">
-      {reactionIntensityLabel(intensity)}
+      {reactionIntensityLabel(intensity, t)}
     </span>
   );
 }

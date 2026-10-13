@@ -1,13 +1,19 @@
+import { getI18n } from "react-i18next";
+
 import type { PyMemoryManagerApproval } from "@/lib/content/catalogTypes";
 
+/** Status badge text for an approval, worded in the active UI Locale. */
 export function memoryManagerApprovalStatusLabel(
   approval: PyMemoryManagerApproval,
 ) {
-  if (approval.status === "pending") return "Pending review";
-  if (approval.status === "rejected") return "Rejected";
+  const t = getI18n().getFixedT(null, "memory");
+  if (approval.status === "pending")
+    return t("manager.approval.status.pending");
+  if (approval.status === "rejected")
+    return t("manager.approval.status.rejected");
   return isAppliedMemoryManagerApproval(approval)
-    ? "Approved"
-    : "Approved · Undone";
+    ? t("manager.approval.status.approved")
+    : t("manager.approval.status.approvedUndone");
 }
 
 /** An approved change still stands until it is undone. */

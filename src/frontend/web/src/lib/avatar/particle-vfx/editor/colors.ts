@@ -9,6 +9,12 @@ import type {
   ParticleVFXEditorStartColorDraft,
 } from "./types";
 
+/** Stored in place of a three.quarks type name when a generator has none. */
+export const UNTYPED_QUARKS_GENERATOR_LABEL = "Unsupported";
+
+/** Stored when a color behavior has no color generator. */
+export const MISSING_COLOR_GENERATOR_LABEL = "Missing color generator";
+
 export const DEFAULT_START_COLOR: ParticleVFXEditorColor = {
   r: 1,
   g: 1,
@@ -144,7 +150,7 @@ export function readColorOverLifeDraft(
     return {
       mode: "unsupported",
       raw: cloneJsonObject(behavior),
-      label: "Missing color generator",
+      label: MISSING_COLOR_GENERATOR_LABEL,
     };
   }
 
@@ -536,7 +542,9 @@ function colorStop(
 }
 
 function readGeneratorLabel(generator: JsonObject): string {
-  return typeof generator.type === "string" ? generator.type : "Unsupported";
+  return typeof generator.type === "string"
+    ? generator.type
+    : UNTYPED_QUARKS_GENERATOR_LABEL;
 }
 
 function findColorOverLifeBehavior(ps: JsonObject): JsonObject | null {

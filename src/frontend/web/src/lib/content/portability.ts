@@ -4,9 +4,13 @@
  * and enforces this; the UI only explains unavailable actions.
  */
 
-/** Plain-language reason shown wherever an action is unavailable. */
-export const NON_PORTABLE_REASON =
-  "Included with this app for use here only. It can't be customized, copied or exported.";
+import { getI18n } from "react-i18next";
+
+/** Plain-language reason shown wherever an action is unavailable, in the UI Locale. */
+export function nonPortableReason(): string {
+  const t = getI18n().getFixedT(null, "library");
+  return t("content.nonPortableReason");
+}
 
 /** Whether a catalog item is non-portable; a missing value means portable. */
 export function isNonPortable(

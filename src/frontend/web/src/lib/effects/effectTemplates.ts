@@ -31,9 +31,8 @@ export type EffectCreatorRoute =
   | "/avatar-effects/new"
   | "/scene-effects/new";
 
+/** A kind's creator; its label and description are worded by the picker. */
 export type EffectTemplateKindInfo = {
-  label: string;
-  description: string;
   /** The creator's `/new` route; templates add `?template=<id>`. */
   route: EffectCreatorRoute;
 };
@@ -42,21 +41,9 @@ export const EFFECT_TEMPLATE_KIND_INFO: Record<
   EffectTemplateKind,
   EffectTemplateKindInfo
 > = {
-  particle: {
-    label: "Particle FX",
-    description: "Add bursts, trails, and atmospheric particles.",
-    route: "/particle-effects/new",
-  },
-  avatar: {
-    label: "Avatar FX",
-    description: "Add art on the face, the body or beside the Avatar.",
-    route: "/avatar-effects/new",
-  },
-  scene: {
-    label: "Scene FX",
-    description: "Compose backgrounds and focus lines around your Anima.",
-    route: "/scene-effects/new",
-  },
+  particle: { route: "/particle-effects/new" },
+  avatar: { route: "/avatar-effects/new" },
+  scene: { route: "/scene-effects/new" },
 };
 
 export type AvatarEffectTemplateGroup =
@@ -67,18 +54,12 @@ export type AvatarEffectTemplateGroup =
   | "mouth"
   | "body";
 
-/** Avatar template groups, by what the effect changes, in picker order. */
-export const AVATAR_EFFECT_TEMPLATE_GROUPS: ReadonlyArray<{
-  id: AvatarEffectTemplateGroup;
-  label: string;
-}> = [
-  { id: "eyes", label: "Eyes" },
-  { id: "cheeks", label: "Cheeks" },
-  { id: "whole-face", label: "Whole face" },
-  { id: "around-head", label: "Around the head" },
-  { id: "mouth", label: "Mouth" },
-  { id: "body", label: "Body" },
-];
+/**
+ * Avatar template groups, by what the effect changes, in picker order. The
+ * picker words each group.
+ */
+export const AVATAR_EFFECT_TEMPLATE_GROUPS: readonly AvatarEffectTemplateGroup[] =
+  ["eyes", "cheeks", "whole-face", "around-head", "mouth", "body"];
 
 export type AvatarEffectTemplate = {
   /** The Included folder stem; also the `?template=` value and thumbnail name. */

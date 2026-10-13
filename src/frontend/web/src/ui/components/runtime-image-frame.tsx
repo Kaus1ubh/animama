@@ -7,6 +7,7 @@ import {
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useElementSize } from "@/hooks/useElementSize";
 import {
@@ -153,15 +154,16 @@ export function RuntimeImageCropEditor({
   circular = false,
   className,
   editable = false,
-  emptyLabel = "No image selected",
+  emptyLabel,
   loading = false,
   onPresentationChange,
   onUploadClick,
   presentation,
   src,
   uploadDisabled = false,
-  uploadLabel = "Upload image",
+  uploadLabel,
 }: RuntimeImageCropEditorProps) {
+  const { t } = useTranslation("components");
   const [stageElement, setStageElement] = useState<HTMLDivElement | null>(null);
   const [imageSize, setImageSize] = useState({ width: 0, height: 0 });
   const stageSize = useElementSize(stageElement);
@@ -270,7 +272,7 @@ export function RuntimeImageCropEditor({
 
       {!src && !loading ? (
         <div className="text-muted-foreground absolute inset-0 flex items-center justify-center pt-16">
-          <span className="text-sm">{emptyLabel}</span>
+          <span className="text-sm">{emptyLabel ?? t("imageCrop.empty")}</span>
         </div>
       ) : null}
 
@@ -296,7 +298,7 @@ export function RuntimeImageCropEditor({
       {onUploadClick && !loading ? (
         <button
           type="button"
-          aria-label={uploadLabel}
+          aria-label={uploadLabel ?? t("imageCrop.upload")}
           disabled={uploadDisabled}
           onPointerDown={(event) => event.stopPropagation()}
           onClick={(event) => {

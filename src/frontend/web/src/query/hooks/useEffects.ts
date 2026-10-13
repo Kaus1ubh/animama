@@ -23,6 +23,7 @@ import { typedComponentCatalogViewItem } from "@/lib/content/catalogTypes";
 import { isNonPortable } from "@/lib/content/portability";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { queryKeys } from "@/query/keys";
+import { compareDisplayText } from "@animama/product-ui/i18n";
 
 export type ContentOrigin = "all" | "builtin" | "owned";
 export type ActionComponentType =
@@ -135,7 +136,7 @@ export function listedEffectRows(
           item.name.toLocaleLowerCase().includes(needle) ||
           (item.description ?? "").toLocaleLowerCase().includes(needle)),
     )
-    .sort((left, right) => left.name.localeCompare(right.name));
+    .sort((left, right) => compareDisplayText(left.name, right.name));
 }
 
 function useEffectPage(

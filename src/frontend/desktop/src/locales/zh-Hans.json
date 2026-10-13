@@ -1,0 +1,108 @@
+{
+  "menu": {
+    "about": "关于 {{name}}",
+    "services": "服务",
+    "hide": "隐藏 {{name}}",
+    "hideOthers": "隐藏其他",
+    "showAll": "全部显示",
+    "quitApp": "退出 {{name}}",
+    "file": "文件",
+    "closeWindow": "关闭窗口",
+    "close": "关闭",
+    "exit": "退出",
+    "quit": "退出",
+    "edit": "编辑",
+    "undo": "撤销",
+    "redo": "重做",
+    "cut": "剪切",
+    "copy": "复制",
+    "paste": "粘贴",
+    "pasteAndMatchStyle": "粘贴并匹配样式",
+    "delete": "删除",
+    "selectAll": "全选",
+    "substitutions": "替换",
+    "showSubstitutions": "显示替换",
+    "smartQuotes": "智能引号",
+    "smartDashes": "智能破折号",
+    "textReplacement": "文本替换",
+    "speech": "语音",
+    "startSpeaking": "开始朗读",
+    "stopSpeaking": "停止朗读",
+    "view": "视图",
+    "reload": "重新加载",
+    "forceReload": "强制重新加载",
+    "toggleDevTools": "切换开发者工具",
+    "actualSize": "实际大小",
+    "zoomIn": "放大",
+    "zoomOut": "缩小",
+    "toggleFullScreen": "切换全屏",
+    "window": "窗口",
+    "minimize": "最小化",
+    "zoom": "缩放",
+    "bringAllToFront": "前置全部窗口",
+    "help": "帮助"
+  },
+  "startup": {
+    "title": {
+      "error": "Animama 需要处理",
+      "updating": "正在安装更新",
+      "stopping": "正在关闭 Animama"
+    },
+    "status": {
+      "preparing": "正在准备你的私有本地运行环境…",
+      "ready": "正在打开应用…",
+      "updating": "本地服务已停止。正在验证下载的应用并重新启动…",
+      "stopping": "正在完成工作并停止所管理的服务…"
+    },
+    "stages": {
+      "validating": "正在检查已安装的运行环境文件…",
+      "vault": "正在解锁受保护的设置…",
+      "application": "正在打开本地应用…",
+      "database": "正在启动私有数据库…",
+      "migrations": "正在准备本地数据…",
+      "backend": "正在启动 Animama 服务…"
+    },
+    "actions": {
+      "retry": "重试",
+      "openLogs": "打开日志",
+      "openBackups": "打开备份",
+      "quit": "退出"
+    },
+    "snapshot": "快照：{{path}}",
+    "actionFailed": "操作无法完成。请打开日志，或在解决问题后退出并重新打开 Animama。",
+    "genericError": "启动无法完成。请打开日志查看详情，解决问题后重试。你的本地数据已保留。",
+    "secureStorage": {
+      "macos": "macOS 安全存储不可用。请解锁登录钥匙串后重试。",
+      "windows": "此账户无法使用 Windows 受保护存储。请使用你自己的账户（而非临时配置文件）登录 Windows 后重试。"
+    },
+    "freshProfile": {
+      "macos": "退出 Animama 并运行 pnpm desktop:mac:reset，归档此配置文件后重新开始",
+      "windows": "退出 Animama 并将 %LOCALAPPDATA%\\Animama 重命名（例如改为 Animama.backup），保留此配置文件后重新开始"
+    },
+    "advice": {
+      "gateway_port_in_use": "已保存的应用端口被占用。请关闭正在使用该端口的其他应用后重试。你的数据未被更改。",
+      "data_path_too_long": "你的 Windows 用户配置文件夹路径过长，无法存放 Animama 数据。请使用配置文件路径较短的 Windows 账户，然后重新打开 Animama。",
+      "administrator_launch_unsupported": "Animama 无法以管理员权限运行其私有数据库。请退出，然后以正常方式打开 Animama，而不是使用“以管理员身份运行”。你的数据未被更改。",
+      "vault_unreadable": "无法解锁受保护的设置。请恢复相互匹配的保险库和数据库备份；不要为了消除此错误而删除其中任何一个。",
+      "vault_missing_for_database": "此数据库缺少与之匹配的保险库。请从备份中同时恢复两者。",
+      "previous_runtime_running": "上次启动的进程仍在运行。请等待几秒后重试。如果问题持续，请退出该 Animama 实例或重新启动电脑。",
+      "unsupported_postgresql_major": "此数据库需要升级到受支持的版本。你现有的数据已保留。",
+      "runtime_manifest_invalid": "运行环境缺失或已损坏。请重新安装完整的 Animama 版本；你的用户数据是单独存放的。",
+      "runtime_file_invalid": "某个已安装的运行环境文件缺失或已损坏。请在不删除数据的情况下重新安装 Animama。",
+      "unsupported_runtime_platform": "此 Animama 版本需要搭载 Apple 芯片的 macOS 15 或更高版本，或 x64 上的 Windows 11。你的数据未被更改。",
+      "runtime_busy": "Animama 仍在完成本地工作。之前的配置已保留；请等待恢复完成后再重试此更改。",
+      "runtime_quiesce_failed": "无法安全地停止本地工作。之前的配置已保留。重试前请打开日志或重新启动 Animama。",
+      "migration_failed": "数据库升级失败。原始快照保留在下方。请打开日志，解决问题后使用此版本重试。不要重置、降级或自动恢复：这可能会丢弃较新的数据。",
+      "pre_migration_backup_failed": "无法验证数据库快照。迁移尚未开始。重试前请检查磁盘空间和日志。",
+      "migration_recovery_required": "之前的数据库升级需要处理。请保留其快照和当前数据库。在尝试其他版本之前，请打开日志并完成该升级。",
+      "update_install_timeout": "安装程序未能按时完成。为安全起见，服务仍保持停止。请退出并重新打开 Animama，或重新安装已签名的版本。不要重置你的数据。",
+      "owned_services_stop_failed": "部分 Animama 服务无法停止。更新前请再次退出或重新启动电脑。你的数据已保留。",
+      "database_schema_mismatch": "你的本地数据库结构与此版本 Animama 所需的结构不一致，因此在使用前已停止启动。你的本地数据已保留，重试也不会改变这一情况。如果是开发版本，请{{freshProfile}}。否则，请重新打开创建此数据的 Animama 版本。",
+      "content_startup_failed": "Animama 无法协调其内容资源库，因此停止启动，而不是以不完整的状态运行。你的本地数据已保留。请打开日志查看详情，然后重试。如果开发版本持续在此失败，请{{freshProfile}}。"
+    }
+  },
+  "windows": {
+    "pip": "Anima 画中画",
+    "quickChat": "Anima 快速聊天"
+  }
+}

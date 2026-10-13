@@ -169,7 +169,7 @@ local server package, so any composition can return the same contract; the local
 router is a thin adapter. `runtime_kind` is presentation metadata (`desktop`,
 `self_hosted_web` or `hosted`), not an authentication mode or a feature gate;
 the local composition never reports `hosted`. Capability schema version 2 is
-exported in `local-http` contract version 6.0.0. `chat`, `model_selection` and
+exported in `local-http` contract version 7.0.0. `chat`, `model_selection` and
 `model_role_selection` admit chat and choices from the composition's catalog,
 independently of provider administration. The local adapter reports them true.
 `provider_credentials` and `local_filesystem_administration` describe owner key
@@ -534,7 +534,9 @@ The owner-scoped loadout endpoints are:
 
 Plan requests carry the expected loadout revision and a typed family intent.
 Commit repeats that intent with the reviewed plan digest and an idempotency
-key. Selections store logical catalog items; Particle, Avatar, and Scene
+key. Loadout `warnings` carry `code`, `scope`, an English `message` for logs
+and API clients, and `params` (for example `slot`, `name` or `semanticKey`)
+that clients use to word the code in the owner's UI Locale. Selections store logical catalog items; Particle, Avatar, and Scene
 Effects plus Sounds remain compiler-managed support dependencies of
 Gesture/Reaction roots and cannot be equipped directly.
 
@@ -753,8 +755,9 @@ persistent WebSocket.
 
 The route accepts a `PyAnimaChatRequest` with a required non-blank `message`,
 optional `chat_id`, optional `run_id`, optional `model_provider_id`,
-optional `dispatch_options`, optional `client_context` (`time_zone`, `locale`
-for safety presentation), and required `runtime_revision`. The backend
+optional `dispatch_options`, optional `client_context` (`time_zone` and
+`locale` for safety presentation; `ui_locale` for the conversation language),
+and required `runtime_revision`. The backend
 authorizes that owner's persisted runtime snapshot before provider work and
 returns `409 runtime_remount_required` when it is missing or expired. The same
 snapshot's Gesture inventory defines the strict model enum,
@@ -1274,6 +1277,14 @@ Settings routes manage:
 
 - user-level settings
 - anima-level settings
+
+User `locale` is the UI Locale: `en`, `ja`, `ko`, `zh-Hans` or `zh-Hant`, or
+`null` for "System default" (the client resolves it from the OS or browser).
+It controls interface text and formatting; the client reports the locale it
+applied with each chat turn (`client_context.ui_locale`), which sets the
+Conversation language. It is never the crisis region. `POST`/`PATCH` accept
+`null` to clear it; any other tag, including `en-US`, returns 422. Stored
+unsupported values read as `null`.
 
 Anima settings include runtime preferences such as memory influence, memory
 updates, emotional analysis, and presentation flags for animation or visual

@@ -139,7 +139,8 @@ Renderer access to Electron goes through `window.animamaDesktop`, exposed by the
 sandboxed preload at `desktop/src/preload.cts`.
 
 API version 2 identifies the platform and window role and groups runtime,
-credential, feature-pack, update, fullscreen, PiP, Quick Chat and shortcut methods.
+credential, feature-pack, update, fullscreen, PiP, Quick Chat, shortcut and
+locale methods.
 See `desktop/src/preload.cts` for the complete surface.
 
 The preload source uses `.cts` and is bundled to `dist/preload.cjs` after
@@ -210,6 +211,7 @@ On macOS the user-data root is `~/Library/Application Support/Animama`:
 | `backups/pre-migration`  | Verified custom-format upgrade dumps and migration journal                    |
 | `packs/<id>/versions`    | Immutable optional pack versions and retained prior bytes                     |
 | `packs/active.json`      | Atomic active pointers, reverified before use                                 |
+| `ui-locale.json`         | Last UI Locale the app applied, for the shell's own text                      |
 | `downloads`              | Bounded partial archives and strong-ETag resume metadata                      |
 
 Packaged `resources/runtime/content/included-core` is immutable and separate
@@ -265,7 +267,8 @@ and a progress bar (Open Logs and Quit appear if startup stalls); on failure it
 shows the advice and a safe error code with Retry, Open Logs, Open Backups, and
 Quit. It is a self-contained data URL, so it embeds DM Sans, the logo and a copy
 of the theme tokens (`STARTUP_THEME` in `recovery.ts`, kept in sync with
-`theme.css` by a desktop test) and follows the system light or dark setting. Retry does
+`theme.css` by a desktop test) and follows the system light or dark setting. It
+renders in the [shell locale](../architecture/i18n.md#desktop-shell). Retry does
 not reset data; Open Backups appears only for a relevant snapshot. See
 [Troubleshooting](troubleshooting.md) before changing files. A damaged runtime
 requires a complete build to be reinstalled. A missing

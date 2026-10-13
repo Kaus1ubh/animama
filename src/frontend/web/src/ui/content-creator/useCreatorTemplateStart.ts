@@ -7,7 +7,11 @@ import {
   useEffectEvent,
   useState,
 } from "react";
+import { getI18n } from "react-i18next";
 import { toast } from "sonner";
+
+import { failureLine } from "@/lib/errors/apiError";
+import { creatorDiscardFailureText } from "./useCreatorLeaveGuard";
 
 /**
  * Browser recovery key for a new draft started from a template. A plain `/new`
@@ -89,11 +93,12 @@ export function useCreatorTemplateStart<TSnapshot>({
 }) {
   const onStart = useCallback(
     (snapshot: TSnapshot, source: "template" | "draft") => {
+      const t = getI18n().getFixedT(null, "creator");
       install(snapshot);
       baselineRef.current = CREATOR_TEMPLATE_DRAFT_BASELINE;
       setHydration({
         state: "ready",
-        message: source === "draft" ? "Recovered local draft" : null,
+        message: source === "draft" ? t("recovery.recoveredDraft") : null,
       });
     },
     [baselineRef, install, setHydration],
@@ -120,12 +125,10 @@ export function useCreatorTemplateStart<TSnapshot>({
       },
       (error: unknown) => {
         if (controller.signal.aborted) return;
+        const t = getI18n().getFixedT(null, "creator");
         setSeed({
           status: "error",
-          message:
-            error instanceof Error
-              ? error.message
-              : "The template could not be opened.",
+          message: failureLine(error, t("templateDraft.openFailed")),
         });
       },
     );
@@ -181,11 +184,7 @@ export function useCreatorTemplateStart<TSnapshot>({
       onStart(seed.snapshot, "template");
       setDecision("done");
     } catch (error) {
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "The draft could not be discarded.",
-      );
+      toast.error(creatorDiscardFailureText(error));
     } finally {
       setStarting(false);
     }

@@ -112,7 +112,7 @@ test("accountless Scene layers save, reopen, preview and travel in packages", as
       await page
         .getByLabel("Add private image", { exact: true })
         .setInputFiles(petalFile);
-      await expect(layerCard(page, "Scatter 1")).toContainText("1 items");
+      await expect(layerCard(page, "Scatter 1")).toContainText("1 item ·");
       await page
         .getByRole("textbox", { name: "Scene FX name", exact: true })
         .fill(name);
@@ -145,7 +145,7 @@ test("accountless Scene layers save, reopen, preview and travel in packages", as
     await test.step("reopen restores every layer from the backend", async () => {
       await page.reload();
       await expect(layerCard(page, "Tile")).toContainText("bokeh.png");
-      await expect(layerCard(page, "Scatter 1")).toContainText("1 items");
+      await expect(layerCard(page, "Scatter 1")).toContainText("1 item ·");
       await expect
         .poll(() => drawnLayers(page.locator("body")))
         .toEqual(EXPECTED_LAYERS);

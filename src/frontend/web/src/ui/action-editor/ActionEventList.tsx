@@ -1,10 +1,33 @@
 import { Trash2Icon } from "lucide-react";
+import { useFormatters } from "@animama/product-ui/i18n";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
+import { POSE_CREATOR_BASE_BEAT_LABEL } from "@/ui/pose-creator/poseCreatorClipAuthoring";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { cn } from "@/lib/utils";
 import { useActionEditorWorkspace } from "./ActionEditorWorkspaceContext";
 
+/**
+ * Display text for a stored beat label. The labels the creator writes itself
+ * stay English in the clip and are worded here; others show as authored.
+ */
+function beatLabelText(t: TFunction<"actionEditor">, label: string): string {
+  if (label === POSE_CREATOR_BASE_BEAT_LABEL) return t("events.beats.base");
+  if (label === "Expression") return t("events.beats.expression");
+  return label;
+}
+
 /** A chronological selection surface over the same draft as the graphical timeline. */
 export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
+  const { t } = useTranslation("actionEditor");
+  const formatters = useFormatters();
+  const seconds = (value: number) =>
+    t("time.seconds", {
+      value: formatters.number(value, {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    });
   const workspace = useActionEditorWorkspace();
   const draft = usePoseCreatorStore((state) => state.clipDraft);
   const selectKeyframe = usePoseCreatorStore(
@@ -48,7 +71,7 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
     ...draft.keyframes.map((frame) => ({
       id: `keyframe:${frame.id}`,
       time: frame.time,
-      label: frame.label,
+      label: beatLabelText(t, frame.label),
       remove: () => {
         selectKeyframe(frame.id);
         deleteKeyframe();
@@ -77,10 +100,10 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
   if (!items.length) return null;
   return (
     <section
-      aria-label="Timeline events"
+      aria-label={t("events.label")}
       className="bg-background flex max-h-full min-h-0 flex-col rounded-2xl border p-3 shadow-xl"
     >
-      <h2 className="mb-3 text-sm font-semibold">Timeline</h2>
+      <h2 className="mb-3 text-sm font-semibold">{t("events.title")}</h2>
       <ol className="min-h-0 space-y-1 overflow-y-auto">
         {items.map((item) => (
           <li
@@ -100,7 +123,7 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
               className="focus-visible:ring-ring flex min-w-0 flex-1 items-center gap-2 rounded-lg px-2 py-1.5 text-left focus-visible:ring-2"
             >
               <span className="text-muted-foreground text-2xs shrink-0 tabular-nums">
-                {item.time.toFixed(2)}s
+                {seconds(item.time)}
               </span>
               <span className="min-w-0">
                 <span
@@ -115,8 +138,11 @@ export function ActionEventList({ onSelect }: { onSelect?: () => void }) {
               type="button"
               disabled={editing}
               onClick={item.remove}
-              aria-label={`Delete ${item.label} at ${item.time.toFixed(2)}s`}
-              title="Delete timeline item"
+              aria-label={t("events.deleteAt", {
+                label: item.label,
+                time: seconds(item.time),
+              })}
+              title={t("events.delete")}
               className="text-muted-foreground hover:text-foreground focus-visible:ring-ring mr-1 flex size-7 shrink-0 items-center justify-center rounded-md focus-visible:ring-2 disabled:opacity-50"
             >
               <Trash2Icon className="size-3.5" />

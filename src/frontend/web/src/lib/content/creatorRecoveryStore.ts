@@ -8,6 +8,8 @@
  * only: it never blocks Save, and write failures surface as warnings.
  */
 
+import { getI18n } from "react-i18next";
+import { WordedError } from "@/lib/errors/apiError";
 import {
   recoverySessionIsActive,
   writeSessionRecovery,
@@ -51,13 +53,18 @@ export type CreatorRecoveryStoreConfig<
   /** Records larger than this are not stored at all. */
   maxBytes: number;
   codec: CreatorRecoveryCodec<TRecord>;
+  /** Warnings; a function words the warning in the UI Locale when it is shown. */
   messages: {
-    tooLarge: string;
-    unavailable: string;
+    tooLarge: string | (() => string);
+    unavailable: string | (() => string);
     /** Warning for a fallback write that dropped binary resources. */
     metadataOnly?: (record: TRecord) => string | null;
   };
 };
+
+function messageText(message: string | (() => string)): string {
+  return typeof message === "function" ? message() : message;
+}
 
 export type CreatorRecoveryStore<TRecord extends CreatorRecoveryIdentity> = {
   save(record: TRecord): Promise<CreatorRecoveryWriteResult>;
@@ -133,7 +140,7 @@ export function createCreatorRecoveryStore<
       return {
         stored: false,
         metadataOnly: false,
-        warning: messages.tooLarge,
+        warning: messageText(messages.tooLarge),
       };
     }
     try {
@@ -180,7 +187,7 @@ export function createCreatorRecoveryStore<
       return {
         stored: false,
         metadataOnly: false,
-        warning: messages.unavailable,
+        warning: messageText(messages.unavailable),
       };
     }
   };
@@ -244,10 +251,10 @@ export function createCreatorRecoveryStore<
         }
       } catch (cause) {
         if (options.strict) {
-          throw new Error(
-            "Browser recovery could not be discarded. Please retry.",
-            { cause },
-          );
+          const t = getI18n().getFixedT(null, "library");
+          throw new WordedError(t("content.recovery.discardFailed"), {
+            cause,
+          });
         }
         // Save cleanup remains best-effort when browser storage is unavailable.
       }

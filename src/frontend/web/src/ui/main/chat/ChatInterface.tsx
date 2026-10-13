@@ -67,6 +67,7 @@ import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import { isWebSpeechSupported } from "@/lib/speech/stt-provider";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, ReactNode } from "react";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
@@ -217,6 +218,7 @@ export function ChatInterfaceView({
   safetySlot = null,
   crisisSlot = null,
 }: ChatInterfaceViewProps) {
+  const { t } = useTranslation("chat");
   const panelRef = useRef<HTMLDivElement>(null);
   const inputRegionRef = useRef<HTMLDivElement>(null);
   const crisisCardRef = useRef<HTMLDivElement>(null);
@@ -354,8 +356,9 @@ export function ChatInterfaceView({
                 className="text-muted-foreground mb-2 px-1 text-xs"
                 role="status"
               >
-                Preparing animations and effects…
-                {canChat ? " You can chat now." : ""}
+                {canChat
+                  ? t("playback.preparingCanChat")
+                  : t("playback.preparing")}
               </p>
             ) : null}
             {showPromptSuggestions ? (
@@ -442,7 +445,7 @@ export function ChatInterfaceView({
                     note={
                       activeModelSearchesFiles
                         ? null
-                        : "This model can't call tools, so it can't search attached files. Pick a model with tool calling to use them."
+                        : t("composer.files.noToolsNote")
                     }
                     existingFiles={existingAttachmentFiles}
                     onRemoveExistingFile={onRemoveExistingFile}
@@ -461,14 +464,11 @@ export function ChatInterfaceView({
               <details className="text-muted-foreground mt-2 text-xs">
                 <summary>
                   {operatorManagedModels
-                    ? "Offline speech recognition for dictation and Voice Mode is not available here"
-                    : "Install offline speech recognition to use dictation and Voice Mode"}
+                    ? t("speech.unavailableHere")
+                    : t("speech.install")}
                 </summary>
                 {quickChatSurface ? (
-                  <p>
-                    Open App Settings → Voice in the main Animama window to
-                    download it.
-                  </p>
+                  <p>{t("speech.installFromMainWindow")}</p>
                 ) : (
                   <div className="mt-2">
                     <OfflineSpeechDownloads heading={false} />
@@ -504,6 +504,7 @@ export const ChatInterface = ({
   replaceChatRoute,
   openMemoryEntry,
 }: ChatInterfaceProps) => {
+  const { t } = useTranslation("chat");
   const companionSafety = useCompanionSafety();
   const fileUploadUppy = useUserFileUpload({
     id: `chat-user-files-${animaId}`,
@@ -611,12 +612,17 @@ export const ChatInterface = ({
   const contentWarning = useMemo(() => {
     if (mountedRuntimeContent.playbackStatus !== "degraded") return null;
     return {
-      message: "Some avatar content is unavailable. Text chat still works.",
+      message: t("playback.degraded"),
+      // Diagnostics are technical detail, shown as a tooltip as written.
       details: mountedRuntimeContent.diagnostics
         .map((diagnostic) => diagnostic.message)
         .join("\n"),
     };
-  }, [mountedRuntimeContent.diagnostics, mountedRuntimeContent.playbackStatus]);
+  }, [
+    mountedRuntimeContent.diagnostics,
+    mountedRuntimeContent.playbackStatus,
+    t,
+  ]);
   const { chatMarkdownEnabled, userPreferences } = useSettings();
   const queryClient = useQueryClient();
   const userId = useRuntimeCacheKey();
@@ -706,7 +712,7 @@ export const ChatInterface = ({
       applyDictationText(dictationCommittedRef.current, nextInterim);
     },
     onError: (error) => {
-      toast.error("Dictation failed", {
+      toast.error(t("composer.dictation.failed"), {
         description: error.message,
       });
     },
@@ -880,31 +886,25 @@ export const ChatInterface = ({
     [activeMode, clearDictationBuffers, markManualTypingActivity, setInput],
   );
 
-  const promptSuggestions = useMemo(() => {
-    if (!animaName) {
-      return [
-        {
-          label: "Simple greeting",
-          text: `Hi! How's it going?`,
-        },
-        {
-          label: "Tell me a joke",
-          text: `Hey, tell me a joke!`,
-        },
-      ];
-    }
-
-    return [
+  // The label and the message it sends are both in the UI Locale, the
+  // language the Anima speaks (ADR 0024).
+  const promptSuggestions = useMemo(
+    () => [
       {
-        label: "Simple greeting",
-        text: `Hi ${animaName}! How's it going?`,
+        label: t("suggestions.greeting"),
+        text: animaName
+          ? t("suggestions.greetingMessageNamed", { name: animaName })
+          : t("suggestions.greetingMessage"),
       },
       {
-        label: "Tell me a joke",
-        text: `Hey ${animaName}, tell me a joke!`,
+        label: t("suggestions.joke"),
+        text: animaName
+          ? t("suggestions.jokeMessageNamed", { name: animaName })
+          : t("suggestions.jokeMessage"),
       },
-    ];
-  }, [animaName]);
+    ],
+    [animaName, t],
+  );
 
   const isFirstChat = useFirstChatSuggestions(displayMessages);
   const showPromptSuggestions =
@@ -1043,9 +1043,7 @@ export const ChatInterface = ({
   });
 
   const pendingModelLabel =
-    pendingModelSwitch?.item.model_label ??
-    pendingModelSwitch?.item.model ??
-    "This model";
+    pendingModelSwitch?.item.model_label ?? pendingModelSwitch?.item.model;
 
   return (
     <>
@@ -1114,10 +1112,11 @@ export const ChatInterface = ({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Start a new chat?</DialogTitle>
+            <DialogTitle>{t("modelSwitch.title")}</DialogTitle>
             <DialogDescription>
-              {pendingModelLabel} keeps conversations differently, so this chat
-              continues in a new chat.
+              {pendingModelLabel
+                ? t("modelSwitch.description", { model: pendingModelLabel })
+                : t("modelSwitch.descriptionUnnamed")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -1127,7 +1126,7 @@ export const ChatInterface = ({
               disabled={isConfirmingModelSwitch}
               onClick={cancelPendingModelSwitch}
             >
-              Cancel
+              {t("modelSwitch.cancel")}
             </Button>
             <Button
               type="button"
@@ -1137,7 +1136,7 @@ export const ChatInterface = ({
                 void confirmPendingModelSwitch();
               }}
             >
-              Start new chat
+              {t("modelSwitch.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

@@ -25,6 +25,8 @@ import {
   modelConfigurationErrorCode,
   modelConfigurationErrorMessage,
   modelInUseUsage,
+  modelLocationLabel,
+  modelProviderLabel,
   modelSettingsAvailability,
   builtinConnectionKey,
   ownerModelRules,
@@ -346,11 +348,11 @@ describe("Cloud and Local tabs", () => {
   };
 
   it("offers the planned providers on each tab, OpenAI recommended", () => {
-    expect(MODEL_LOCATION_TABS.map((tab) => tab.label)).toEqual([
+    expect(MODEL_LOCATION_TABS.map(modelLocationLabel)).toEqual([
       "Cloud",
       "Local",
     ]);
-    expect(MODEL_LOCATION_PROVIDERS.cloud.map((entry) => entry.label)).toEqual([
+    expect(MODEL_LOCATION_PROVIDERS.cloud.map(modelProviderLabel)).toEqual([
       "OpenAI",
       "Anthropic",
       "DeepSeek",
@@ -358,7 +360,7 @@ describe("Cloud and Local tabs", () => {
       "OpenRouter",
       "Custom",
     ]);
-    expect(MODEL_LOCATION_PROVIDERS.local.map((entry) => entry.label)).toEqual([
+    expect(MODEL_LOCATION_PROVIDERS.local.map(modelProviderLabel)).toEqual([
       "Ollama",
       "LM Studio",
       "llama.cpp",

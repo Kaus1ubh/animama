@@ -32,6 +32,18 @@ import {
   quadManipulationPlacement,
 } from "./manipulationPlacement";
 import { MeshUvLocator } from "./meshUvLocator";
+import {
+  anchoredGuideLabel,
+  boxGuideLabel,
+  eyeGuideLabel,
+  flattenGuideLabel,
+  materialTargetMessage,
+  mouthGuideLabel,
+  placementGuideMessage,
+  placementWarningMessage,
+  textureGuideLabel,
+  unnamedMaterialName,
+} from "./placementGuideText";
 
 import type { Avatar } from "../Avatar";
 import type {
@@ -1795,25 +1807,28 @@ function hasHoverSkinBackdrop(
   );
 }
 
-/** Name guide instances in authoring terms; side labels always use the avatar's perspective. */
+/**
+ * Name guide instances in authoring terms, in the UI Locale; side labels
+ * always use the avatar's perspective.
+ */
 function placementGuideLabel(
   effect: AvatarVFXCatalogEntry,
   label: string,
 ): string {
-  if (isEyeHoverVFXEntry(effect)) return `Eye ${label}`;
+  if (isEyeHoverVFXEntry(effect)) return eyeGuideLabel(label);
   if (
     isMouthHoverVFXEntry(effect) ||
     (isFaceAnchoredVFXEntry(effect) && effect.anchor === "mouth")
   )
-    return "Mouth";
-  if (isFaceAnchoredVFXEntry(effect)) {
-    const name = effect.anchor === "undereye" ? "Under-eye" : "Blush";
-    return `${name} ${effect.layout === "span" ? "span" : label}`;
-  }
+    return mouthGuideLabel();
+  if (isFaceAnchoredVFXEntry(effect))
+    return anchoredGuideLabel(
+      effect.anchor === "undereye" ? "undereye" : "blush",
+      effect.layout === "span" ? "span" : label,
+    );
   if (isTextureVFXEntry(effect))
-    return effect.targetRole === "eye_iris" ? `Iris ${label}` : "Face";
-  const name = label.replaceAll("-", " ");
-  return name.charAt(0).toUpperCase() + name.slice(1);
+    return textureGuideLabel(effect.targetRole === "eye_iris", label);
+  return boxGuideLabel(label);
 }
 
 /** An animation state that leaves the authored placement unchanged. */
@@ -1951,24 +1966,22 @@ export class AvatarVFXController {
           (binding): binding is BindingState => binding !== null,
         );
     if (!selected.length)
-      result.messages.push(
-        "No compatible material target is available on this avatar.",
-      );
+      result.messages.push(placementGuideMessage("noMaterialTarget"));
     else if (isTextureVFXEntry(effect)) {
       const targets = Array.from(
         new Set(
           selected.map(
-            (binding) => binding.materialName ?? "Selected material",
+            (binding) => binding.materialName ?? unnamedMaterialName(),
           ),
         ),
       );
-      result.messages.push(`Target: ${targets.join(", ")}.`);
+      result.messages.push(materialTargetMessage(targets));
     }
 
     const referenceUv: AvatarVFXUvGuide[] = [];
     if (isHoverVFXEntry(effect)) {
       if (!result.anchor || landmarks?.status !== "ready") {
-        result.messages.push("Face landmarks are unavailable on this avatar.");
+        result.messages.push(placementGuideMessage("landmarksUnavailable"));
       } else {
         const references = resolveHoverPlacementInstances({
           effect: {
@@ -1979,9 +1992,7 @@ export class AvatarVFXController {
           faceTextureAnchors: anchors,
         });
         if (!references?.length)
-          result.messages.push(
-            "The selected hover anchor is unavailable on this avatar.",
-          );
+          result.messages.push(placementGuideMessage("hoverAnchorUnavailable"));
         if (isBoxHoverVFXEntry(effect))
           result.faceBounds = landmarks.faceBoundsLocal;
         result.anchor.updateWorldMatrix(true, false);
@@ -2030,7 +2041,7 @@ export class AvatarVFXController {
     } else if (isFaceAnchoredVFXEntry(effect)) {
       if (anchors?.status !== "ready") {
         result.messages.push(
-          "Face texture anchors are unavailable on this avatar.",
+          placementGuideMessage("textureAnchorsUnavailable"),
         );
       } else {
         const resolved = resolveAnchoredTexturePlacementInstances({
@@ -2038,7 +2049,8 @@ export class AvatarVFXController {
           faceTextureAnchors: anchors,
           imageSize: null,
         });
-        if (resolved.warning) result.messages.push(resolved.warning);
+        if (resolved.warning)
+          result.messages.push(placementWarningMessage(resolved.warning));
         for (const placement of resolved.instances) {
           let reference: AvatarFaceTextureAnchorSnapshot | null;
           if (effect.anchor === "mouth") {
@@ -2116,14 +2128,10 @@ export class AvatarVFXController {
     }
 
     if (result.spatial.some((reference) => reference.source === "fallback")) {
-      result.messages.push(
-        "This placement uses an estimated anchor for this avatar.",
-      );
+      result.messages.push(placementGuideMessage("estimatedAnchor"));
     }
     if (result.spatial.length && !result.anchor) {
-      result.messages.push(
-        "The avatar's live face anchor is unavailable for spatial guides.",
-      );
+      result.messages.push(placementGuideMessage("liveAnchorUnavailable"));
     }
     if (isBoxHoverVFXEntry(effect)) return result;
 
@@ -2222,10 +2230,7 @@ export class AvatarVFXController {
           regions.push(anchors.flatten.sample.center);
         for (const region of regions) {
           guides.push({
-            label:
-              region.region === "sample"
-                ? "Skin sample"
-                : `Flatten ${region.region}${region.side ? ` ${region.side}` : ""}`,
+            label: flattenGuideLabel(region.region, region.side),
             kind: region.region === "sample" ? "sample" : "flatten",
             shape: region.region === "sample" ? "polygon" : "ellipse",
             source: region.source,
@@ -2239,7 +2244,7 @@ export class AvatarVFXController {
         if (isHoverVFXEntry(effect) && !guides.length) continue;
         result.surfaces.push({
           key: `${binding.bindingKey}:${slot.slot}`,
-          materialName: binding.materialName ?? "Selected material",
+          materialName: binding.materialName ?? unnamedMaterialName(),
           slot: slot.slot,
           image: surface,
           width: slot.width,
@@ -2260,14 +2265,10 @@ export class AvatarVFXController {
         ),
       )
     ) {
-      result.messages.push(
-        "Flatten coverage uses an estimated region for this avatar.",
-      );
+      result.messages.push(placementGuideMessage("estimatedFlatten"));
     }
     if (!isHoverVFXEntry(effect) && !result.surfaces.length)
-      result.messages.push(
-        "The selected material has no readable texture surface.",
-      );
+      result.messages.push(placementGuideMessage("noTextureSurface"));
     return result;
   }
 

@@ -1,0 +1,185 @@
+{
+  "chatFailure": {
+    "categories": {
+      "context_exceeded": {
+        "guidance": "請選擇上下文視窗較大的模型；如果伺服器允許，也可以在「$t(chatFailure.settingsPath)」中調大此模型的視窗，或傳送較短的訊息。",
+        "title": "對話過長，{{name}}的模型無法處理。"
+      }
+    },
+    "codes": {
+      "anthropic_stream_incomplete": {
+        "guidance": "{{name}}在回覆完成前就結束了。請再次傳送你的訊息。",
+        "title": "回覆已中斷。"
+      },
+      "chat_stream_interrupted": {
+        "guidance": "在 Animama 確認完成之前，連線已中斷。請檢查網路連線後再重新傳送。",
+        "title": "回覆已中斷。"
+      },
+      "connection_base_url_missing": {
+        "guidance": "請在「$t(chatFailure.settingsPath)」中設定其基礎 URL，然後重新傳送訊息。",
+        "title": "{{name}}沒有伺服器位址。"
+      },
+      "connection_unavailable": {
+        "guidance": "請選擇其他模型，然後重新傳送訊息。",
+        "title": "所選模型的連線已被移除。"
+      },
+      "gateway_request_rejected": {
+        "guidance": "請透過已設定的應用程式位址開啟 Animama，或重新開啟桌面應用程式。如果問題持續，請聯絡安裝擁有者檢查存取設定。",
+        "title": "此安裝拒絕了該請求。"
+      },
+      "missing_api_key": {
+        "guidance": "請聯絡安裝擁有者在「$t(chatFailure.settingsPath)」或「API 金鑰」中新增金鑰，然後重新傳送訊息。",
+        "title": "{{name}}未設定 API 金鑰。"
+      },
+      "model_refused": {
+        "guidance": "請換個說法再試一次。",
+        "title": "模型拒絕回覆此訊息。"
+      },
+      "openai_authentication_error": {
+        "guidance": "請聯絡安裝擁有者檢查為{{name}}設定的金鑰，然後再試一次。",
+        "title": "{{name}}拒絕了 API 金鑰。"
+      },
+      "openai_bad_request": {
+        "guidance": "請在「$t(chatFailure.settingsPath)」中檢查所選模型及其設定，然後再試一次。",
+        "title": "{{name}}拒絕了此請求。"
+      },
+      "openai_connection_error": {
+        "guidance": "請檢查網路連線，準備好後再試一次。",
+        "guidanceLocal": "{{localServer}} 是否正在執行？請啟動它，然後再試一次。",
+        "guidanceLocalAt": "{{localServer}} 是否正在 {{baseUrl}} 上執行？請啟動它，然後再試一次。",
+        "title": "Animama 無法連線至{{name}}。"
+      },
+      "openai_not_found": {
+        "guidance": "請在「$t(chatFailure.settingsPath)」中檢查模型 ID，或選擇其他模型。",
+        "title": "{{name}}找不到所選模型。"
+      },
+      "openai_overloaded": {
+        "guidance": "請稍候片刻，再重新傳送訊息。",
+        "title": "{{name}}暫時無法使用。"
+      },
+      "openai_permission_denied": {
+        "guidance": "請檢查帳戶的模型存取權限，或選擇其他可用的模型。",
+        "title": "{{name}}拒絕存取此模型。"
+      },
+      "openai_quota_exceeded": {
+        "guidance": "請檢查帳戶的帳單和用量上限，然後再試一次。",
+        "title": "{{name}}的帳戶已達用量上限。"
+      },
+      "openai_rate_limit": {
+        "guidance": "請稍候片刻，再重新傳送訊息。",
+        "title": "{{name}}收到的請求過多。"
+      },
+      "openai_server_error": {
+        "guidance": "請稍候片刻，再重新傳送訊息。",
+        "guidanceLocal": "請確認 {{localServer}} 已載入模型，然後再試一次。",
+        "title": "{{name}}無法完成此請求。"
+      },
+      "openai_timeout": {
+        "guidance": "請檢查網路連線，準備好後再試一次。",
+        "guidanceLocal": "模型可能仍在載入中。請再試一次，或在「$t(chatFailure.settingsPath)」中延長此連線的逾時時間。",
+        "title": "{{name}}回應逾時。"
+      }
+    },
+    "defaultConnection": "模型伺服器",
+    "hosted": {
+      "busy": {
+        "guidance": "請稍後再試。",
+        "guidanceWait": "請在{{wait}}後再試。",
+        "title": "Animama 目前忙碌中。"
+      },
+      "chatLimitReached": {
+        "guidance": "請繼續現有的其中一個聊天。",
+        "title": "此帳戶的聊天數量已達上限。",
+        "titleLimit": "此帳戶的聊天數量已達上限（{{limit, number}}個）。"
+      },
+      "messageTooLong": {
+        "guidance": "請縮短訊息，然後重新傳送。",
+        "guidanceMaximum": "訊息最多可包含{{maximum, number}}個字元。",
+        "title": "此訊息過長。"
+      },
+      "quotaExceeded": {
+        "guidance": "請在額度重設後再試一次。",
+        "guidanceWait": "將於{{wait}}後重設。",
+        "title": "你已達到此帳戶的託管用量上限。"
+      },
+      "quotaInputTokens": {
+        "guidance": "請開始新的聊天，或縮短你的訊息。",
+        "title": "此對話過長，超出託管服務單次回合可處理的範圍。"
+      },
+      "trialComplete": {
+        "guidance": "下載 Animama，繼續與你的 Anima 聊天。",
+        "link": "下載 Animama",
+        "title": "你的 Animama 試用已結束。"
+      }
+    },
+    "network": {
+      "guidance": "請檢查網路連線以及安裝是否正在執行，然後再試一次。",
+      "title": "Animama 無法連線至其服務。"
+    },
+    "notice": {
+      "details": "詳細資料",
+      "errorCode": "錯誤代碼：",
+      "incompleteReply": "回覆不完整",
+      "notConfirmed": "無法確認是否完成。此通知和任何部分回覆會保留在這裡，直到你離開此聊天或重新載入。",
+      "restore": "還原訊息",
+      "restoreDisabled": "在沒有進行中的回覆且輸入框為空時可用。",
+      "restoreHint": "還原文字以供編輯。不會自動傳送任何內容。",
+      "retryAfter_other": "服務供應商建議至少等待{{count}}秒後再試。"
+    },
+    "service": {
+      "guidance": "請稍候片刻再試一次。如果問題持續，請檢查或重新啟動此安裝的服務。",
+      "title": "Animama 的服務無法使用。"
+    },
+    "settingsPath": "應用程式設定 → 模型",
+    "unknown": {
+      "guidance": "還原你的訊息以再試一次。如果問題持續，請將錯誤代碼提供給安裝擁有者。",
+      "title": "無法完成此訊息。"
+    },
+    "wait": {
+      "day_other": "約{{count}}天",
+      "hour_other": "約{{count}}小時",
+      "minute_other": "約{{count}}分鐘",
+      "second_other": "約{{count}}秒"
+    }
+  },
+  "composer": {
+    "send": "傳送訊息",
+    "sending": "正在傳送訊息",
+    "speechUnavailable": "離線語音辨識無法使用",
+    "stop": "停止",
+    "stopVoice": "停止語音模式",
+    "voiceMode": "語音模式"
+  },
+  "conversation": {
+    "label": "對話"
+  },
+  "runStatus": {
+    "searching_web": "正在搜尋網路…",
+    "summarizing_context": "正在摘要先前的對話…"
+  },
+  "session": {
+    "placeholder": {
+      "loadingAnima": "正在載入 Anima…",
+      "loadingRuntime": "正在載入 Anima 執行環境…",
+      "ready": "你在想什麼？"
+    },
+    "toasts": {
+      "animaLoading": "Anima 仍在載入中。",
+      "avatarSessionExpired": "此虛擬形象工作階段已過期。請重新載入後再次傳送訊息。",
+      "chatLoadFailed": "無法載入聊天。",
+      "chatLoading": "聊天仍在載入中。",
+      "missingAnima": "缺少 Anima。",
+      "modelNotDirect": "此模型尚不支援直接聊天。",
+      "modelsLoading": "模型仍在載入中。",
+      "newChatModelFailed": "無法使用該模型開始新的聊天。",
+      "reloadAvatarSession": "重新載入虛擬形象工作階段",
+      "restoreModelFailed": "無法還原此聊天的模型。",
+      "runtimeLoading": "Anima 執行環境仍在載入中。",
+      "selectModel": "請先選擇模型再聊天。"
+    }
+  },
+  "transcript": {
+    "emptyDescription": "開始聊天後，訊息會顯示在這裡",
+    "emptyTitle": "尚無訊息"
+  }
+}

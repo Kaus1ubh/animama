@@ -10,6 +10,7 @@ import {
   type ChangeEvent,
   type WheelEvent,
 } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useDesktopPipRuntimeConsumer } from "@/hooks/useDesktopPipRuntimeSync";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
@@ -62,6 +63,7 @@ function clampPipSizeScale(value: number): number {
 }
 
 function DesktopPipRoute() {
+  const { t } = useTranslation("app");
   const { animaId } = Route.useParams();
   const platform = useRuntimePlatform();
   const pipBridge =
@@ -154,7 +156,7 @@ function DesktopPipRoute() {
           </div>
           <input
             type="range"
-            aria-label="Resize picture-in-picture"
+            aria-label={t("pip.resize")}
             min={MIN_PIP_SIZE_SCALE}
             max={MAX_PIP_SIZE_SCALE}
             step={PIP_SIZE_SLIDER_STEP}
@@ -167,7 +169,7 @@ function DesktopPipRoute() {
           />
           <button
             type="button"
-            aria-label="Close picture-in-picture"
+            aria-label={t("pip.close")}
             onClick={handleClose}
             className={cn(
               "anima-pip-no-drag bg-background/60 text-foreground/70 hover:bg-background/80 hover:text-foreground pointer-events-auto absolute top-1 right-1 z-50 inline-flex h-3.5 w-3.5 items-center justify-center rounded-full opacity-0 shadow-sm backdrop-blur-md transition focus-visible:opacity-100",

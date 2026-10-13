@@ -34,6 +34,7 @@ import {
   DEFAULT_SCENE_LIGHTS,
   DEFAULT_SCENE_ORBIT_TARGET,
 } from "@/ui/main/canvas/sceneCameraPresets";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 type PreviewStatus = "idle" | "loading" | "ready" | "error";
 
@@ -57,13 +58,6 @@ type PortraitCaptureContext = {
 const PREVIEW_MANIFEST_ANIMATIONS = getManifestAnimationInventory().filter(
   (entry) => !entry.disabled && entry.type === "vrma",
 );
-
-function formatFileSize(bytes: number): string {
-  if (bytes < 1024 * 1024) {
-    return `${Math.max(1, Math.round(bytes / 1024))} KB`;
-  }
-  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
-}
 
 function toAnimationBlendMode(
   value: string | null | undefined,
@@ -167,6 +161,7 @@ function PreviewAvatarActor({
 }
 
 export function CreateAnimaAvatarPreviewScene({ file }: { file: File }) {
+  const { fileSize } = useFormatters();
   const [status, setStatus] = useState<PreviewStatus>("loading");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [avatarRuntime, setAvatarRuntime] = useState<Avatar | null>(null);
@@ -396,7 +391,7 @@ export function CreateAnimaAvatarPreviewScene({ file }: { file: File }) {
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/60 via-black/5 to-transparent px-4 py-3">
         <p className="text-sm font-medium text-white">{file.name}</p>
         <p className="text-xs text-white/80">
-          {formatFileSize(file.size)} • Local preview only
+          {fileSize(file.size)} • Local preview only
         </p>
       </div>
 

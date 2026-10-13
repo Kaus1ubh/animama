@@ -1,3 +1,15 @@
+import { getI18n } from "react-i18next";
+
+import {
+  apiErrorLine,
+  errorWording,
+  failureLine,
+  readApiError,
+  sourceLocaleActive,
+  uncodedErrorText,
+  WordedError,
+} from "@/lib/errors/apiError";
+
 export type ContentApiErrorDetail = {
   code: string | null;
   /** Creator control (`name`, `files`) or a definition JSON path. */
@@ -8,55 +20,15 @@ export type ContentApiErrorDetail = {
   details: Record<string, unknown>;
 };
 
-const NETWORK_SAVE_MESSAGE =
-  "Animama could not be reached. Check that the local stack is running, then retry. Your draft is preserved.";
-const UNKNOWN_SAVE_MESSAGE =
-  "Animama encountered an unexpected error while saving. Your draft is preserved; retry or check the backend logs.";
+/** Shown when the browser could not reach the backend. */
+function networkSaveMessage(): string {
+  return getI18n().t("errors:contentSave.network");
+}
 
-const CONTENT_SAVE_MESSAGES: Record<string, string> = {
-  content_non_portable:
-    "These files match content included with this app for use here only, so they can't be saved as your own content.",
-  content_non_portable_dependency:
-    "Licensed built-in sounds play only with built-in effects. Choose one of your own sounds. Your draft is preserved.",
-  content_optional_dependency:
-    "Only built-in effects can have an optional sound. Choose a sound or none. Your draft is preserved.",
-  catalog_revision_conflict:
-    "This item changed since you opened it. Reload the latest version before saving. Your draft is preserved.",
-  content_path_exists:
-    "Another item already uses this name. Choose a different name and try again. Your draft is preserved.",
-  invalid_entry_name:
-    "Use a name containing letters, numbers, spaces, periods, underscores, or hyphens. Your draft is preserved.",
-  content_path_invalid:
-    "Use a name containing letters, numbers, spaces, periods, underscores, or hyphens. Your draft is preserved.",
-  content_file_empty:
-    "The selected file is empty. Choose a valid exported file. Your draft is preserved.",
-  content_file_too_large:
-    "The selected file exceeds the supported size limit. Reduce its size and retry. Your draft is preserved.",
-  content_entry_too_large:
-    "The combined files exceed the supported entry size. Remove or reduce companion files. Your draft is preserved.",
-  duplicate_companion_path:
-    "Two files would be saved to the same path. Rename one of them and retry. Your draft is preserved.",
-  unsupported_standalone_extension:
-    "This file type is not supported for this content kind. Choose a supported export format. Your draft is preserved.",
-  standalone_extension_change_requires_new_item:
-    "Changing the primary file type requires saving this as a new item. Your draft is preserved.",
-  content_not_found:
-    "The original item no longer exists. Return to the Library or save this draft as a new item. Your draft is preserved.",
-  content_destination_mismatch:
-    "This draft no longer matches the original item. Reload the item before saving. Your draft is preserved.",
-  saved_content_invalid:
-    "The saved files did not produce a valid content item. Correct the source and retry. Your draft is preserved.",
-  descriptor_not_supported:
-    "This creator produced descriptor data that the content kind does not support. Your draft is preserved; retry or check the backend logs.",
-  standalone_requires_one_file:
-    "This content kind requires exactly one primary file. Choose a single file and retry. Your draft is preserved.",
-  invalid_companion_paths:
-    "One or more companion file paths are invalid. Rename the affected files and retry. Your draft is preserved.",
-  content_metadata_too_large:
-    "The item details exceed the supported size limit. Shorten the description or configuration and retry. Your draft is preserved.",
-  content_descriptor_too_large:
-    "The content definition exceeds the supported size limit. Simplify it and retry. Your draft is preserved.",
-};
+/** Shown for a failure with no worded code. */
+function unknownSaveMessage(): string {
+  return getI18n().t("errors:contentSave.unexpected");
+}
 
 const CONTENT_SAVE_FIELDS: Record<string, string> = {
   content_non_portable_dependency: "sound",
@@ -79,25 +51,22 @@ function objectValue(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function stringValue(value: unknown): string | null {
-  return typeof value === "string" && value.trim() ? value.trim() : null;
-}
-
-/** Extract stable content error fields from direct and legacy API envelopes. */
+/**
+ * Extract stable content error fields from direct and legacy API envelopes
+ * (`{ detail }` or `{ data: { detail } }` with an object `detail`).
+ */
 export function parseContentApiErrorDetail(
   value: unknown,
 ): ContentApiErrorDetail | null {
   const root = objectValue(value);
-  if (!root) return null;
-  const data = objectValue(root.data);
-  const envelope = data ?? root;
-  const detail = objectValue(envelope.detail);
+  const detail = objectValue((objectValue(root?.data) ?? root)?.detail);
   if (!detail) return null;
+  const { code, field, reason, message } = readApiError(value);
   return {
-    code: stringValue(detail.code),
-    field: stringValue(detail.field),
-    reason: stringValue(detail.reason),
-    message: stringValue(detail.message),
+    code,
+    field,
+    reason,
+    message,
     details: objectValue(detail.details) ?? {},
   };
 }
@@ -106,27 +75,57 @@ function sentence(value: string): string {
   return /[.!?]$/.test(value) ? value : `${value}.`;
 }
 
+/**
+ * A validation sentence with the backend's English explanation: inside the
+ * sentence in English, and after the translated sentence as secondary detail
+ * in other locales.
+ */
+function explainedMessage(
+  explanation: string | null,
+  explained: (cause: string) => string,
+  unexplained: () => string,
+): string {
+  if (!explanation) return unexplained();
+  if (sourceLocaleActive()) return explained(sentence(explanation));
+  return apiErrorLine({ message: unexplained(), detail: explanation });
+}
+
 /** Name the definition setting by its path below `definition`, e.g. `transform.offset.x`. */
 function avatarEffectDefinitionMessage(detail: ContentApiErrorDetail): string {
   const setting =
     detail.field?.replace(/^definition\.(?=.)/, "") ?? "definition";
-  const cause = detail.message ? `: ${sentence(detail.message)}` : ".";
-  return `The Avatar Effect setting "${setting}" is invalid${cause} Correct it and retry. Your draft is preserved.`;
+  const t = getI18n().t;
+  return explainedMessage(
+    detail.message,
+    (cause) =>
+      t("errors:contentSave.avatarEffectSettingInvalid", { setting, cause }),
+    () =>
+      t("errors:contentSave.avatarEffectSettingInvalidUnexplained", {
+        setting,
+      }),
+  );
 }
 
+/**
+ * Word a Save failure from its code. A validation failure keeps the backend's
+ * explanation (a technical setting path or English validator text) as detail.
+ */
 function contentSaveMessage(detail: ContentApiErrorDetail): string {
   if (detail.code === "content_invalid") {
     if (detail.reason === "avatar_effect_definition_invalid")
       return avatarEffectDefinitionMessage(detail);
-    const explanation = detail.message ?? detail.reason;
-    const reason = explanation
-      ? `Content validation failed: ${sentence(explanation)}`
-      : "The content did not pass validation.";
-    return `${reason} Correct the source and retry. Your draft is preserved.`;
+    const t = getI18n().t;
+    return explainedMessage(
+      detail.message ?? detail.reason,
+      (explanation) =>
+        t("errors:contentSave.validationFailed", { explanation }),
+      () => t("errors:contentSave.validationFailedUnexplained"),
+    );
   }
-  return detail.code
-    ? (CONTENT_SAVE_MESSAGES[detail.code] ?? UNKNOWN_SAVE_MESSAGE)
-    : UNKNOWN_SAVE_MESSAGE;
+  return (
+    (detail.code && errorWording("contentSave", detail.code)) ??
+    unknownSaveMessage()
+  );
 }
 
 function isNetworkFailure(error: Error): boolean {
@@ -136,7 +135,7 @@ function isNetworkFailure(error: Error): boolean {
 }
 
 /** Actionable failure exposed consistently by every typed content creator. */
-export class ContentSaveApiError extends Error {
+export class ContentSaveApiError extends WordedError {
   readonly status: number | null;
   readonly code: string | null;
   readonly reason: string | null;
@@ -191,22 +190,27 @@ export function toContentSaveApiError(
   }
 
   if (status !== null) {
-    return new ContentSaveApiError(status, null, UNKNOWN_SAVE_MESSAGE);
+    return new ContentSaveApiError(status, null, unknownSaveMessage());
   }
 
+  // A worded failure keeps its text; other English is primary only in English.
   if (cause instanceof Error) {
     return new ContentSaveApiError(
       null,
       null,
       isNetworkFailure(cause)
-        ? NETWORK_SAVE_MESSAGE
-        : cause.message.trim() || UNKNOWN_SAVE_MESSAGE,
+        ? networkSaveMessage()
+        : failureLine(cause, unknownSaveMessage()),
     );
   }
 
   if (typeof cause === "string" && cause.trim()) {
-    return new ContentSaveApiError(null, null, cause.trim());
+    return new ContentSaveApiError(
+      null,
+      null,
+      apiErrorLine(uncodedErrorText(cause.trim(), unknownSaveMessage())),
+    );
   }
 
-  return new ContentSaveApiError(null, null, UNKNOWN_SAVE_MESSAGE);
+  return new ContentSaveApiError(null, null, unknownSaveMessage());
 }

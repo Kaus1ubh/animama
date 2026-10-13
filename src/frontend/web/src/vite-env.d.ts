@@ -60,6 +60,7 @@ interface Window {
     readonly credentials?: import("../../shared/desktop-runtime").CredentialsBridge;
     readonly featurePacks?: import("../../shared/desktop-runtime").FeaturePacksBridge;
     readonly updates?: import("../../shared/desktop-runtime").UpdatesBridge;
+    readonly locale?: import("../../shared/desktop-runtime").LocaleBridge;
     readonly fullscreen?: {
       enter(): Promise<boolean>;
       exit(): Promise<boolean>;

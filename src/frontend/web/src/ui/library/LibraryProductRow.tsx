@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import {
   Hand,
   Wind,
@@ -57,6 +58,7 @@ export function LibraryProductRow({
   particleThumbnail?: PyCatalogViewItem["particle_thumbnail"];
   layout?: LibraryLayout;
 }) {
+  const { t } = useTranslation("library");
   const Icon = icons[row.family];
   return (
     <article
@@ -101,17 +103,17 @@ export function LibraryProductRow({
                 </span>
                 {row.family === "pose" && row.origin === "Mine" ? (
                   <span className="bg-muted text-2xs rounded-full px-2 py-0.5">
-                    Local
+                    {t("row.local")}
                   </span>
                 ) : null}
                 {row.updateAvailable ? (
                   <span className="border-primary/35 bg-primary/10 text-primary text-2xs rounded-full border px-2 py-0.5 font-medium">
-                    Update available
+                    {t("row.updateAvailable")}
                   </span>
                 ) : null}
                 {row.equippedCount ? (
                   <span className="bg-muted text-2xs rounded-full px-2 py-0.5">
-                    Added to {row.equippedCount}
+                    {t("row.addedTo", { count: row.equippedCount })}
                   </span>
                 ) : null}
               </span>

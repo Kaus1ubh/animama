@@ -906,7 +906,7 @@ CREATE TABLE user_profiles (
 CREATE TABLE user_settings (
     user_id character varying NOT NULL,
     theme character varying DEFAULT 'anima'::character varying NOT NULL,
-    locale character varying DEFAULT 'en-US'::character varying NOT NULL,
+    locale character varying,
     last_active_anima_id character varying,
     preferences jsonb DEFAULT '{}'::jsonb NOT NULL,
     created_at timestamp without time zone DEFAULT CURRENT_TIMESTAMP NOT NULL,

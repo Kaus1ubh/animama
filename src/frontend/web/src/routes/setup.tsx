@@ -7,6 +7,8 @@ import {
   type FormEvent,
   type ReactNode,
 } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 
 import { useLocalRuntime } from "@web/app/local-runtime/LocalRuntimeProvider";
 import {
@@ -35,12 +37,13 @@ import {
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import type { DesktopCredentialsController } from "@/ui/settings/DesktopCredentialsPanel";
+import { LanguageSelect } from "@/ui/settings/LanguageSetting";
 import { SetupAiStep } from "@/app/local-runtime/setup/SetupAiStep";
 import { SetupVoiceStep } from "@/app/local-runtime/setup/SetupVoiceStep";
 import {
   adjacentSetupStep,
   resolveSetupTtsProvider,
-  SETUP_STEP_LABELS,
+  setupStepLabel,
   setupStepPosition,
   setupTtsPatch,
 } from "@/app/local-runtime/setup/setup-state";
@@ -56,17 +59,20 @@ function LocalSetupRoute() {
   return <LocalSetupForm key={state.principalId} ownerId={state.principalId} />;
 }
 
-const STEP_HEADINGS: Record<SetupStep, string> = {
-  welcome: "What should Animama call you?",
-  ai: "Choose your AI",
-  voice: "Set up voice",
-};
-
-const STEP_PURPOSE: Record<SetupStep, string | null> = {
-  welcome: null,
-  ai: "Pick the model your Animas chat with.",
-  voice: "Talk to your Animas and hear them reply.",
-};
+/** A step's heading and the purpose line under it (Welcome has none). */
+function stepHeading(
+  t: TFunction<"setup">,
+  step: SetupStep,
+): [heading: string, purpose: string | null] {
+  switch (step) {
+    case "welcome":
+      return [t("welcome.heading"), null];
+    case "ai":
+      return [t("ai.heading"), t("ai.purpose")];
+    case "voice":
+      return [t("voice.heading"), t("voice.purpose")];
+  }
+}
 
 /**
  * Leaving AI or Voice: continue, go back, skip the step, or finish setup
@@ -82,6 +88,7 @@ type LeaveAction = "back" | "continue" | "skip" | "finish";
  * the wizard, before opening the first Anima.
  */
 function LocalSetupForm({ ownerId }: { ownerId: string }) {
+  const { t } = useTranslation("setup");
   const [draft, setDraft] = useState(() => readSetupDraft(ownerId));
   const updateDraft = useCallback(
     (change: Partial<SetupDraft>) =>
@@ -113,7 +120,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
   const [prompt, setPrompt] = useState<LeaveAction | null>(null);
   const [promptSaving, setPromptSaving] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<SetupFailure | null>(null);
 
   // Focus each step's heading after navigation, not on first render.
   const heading = useRef<HTMLHeadingElement>(null);
@@ -144,9 +151,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
       // Read-merge-write: other preferences are kept.
       if (patch) await mergePreferences.mutateAsync({ speech: patch });
     } catch {
-      setError(
-        "Voice settings could not be saved. Try again, or skip this step.",
-      );
+      setError("voiceSettings");
       setSubmitting(false);
       return;
     }
@@ -186,9 +191,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
       // produce no panel message of their own.
       if (!saved) {
         setPrompt(null);
-        setError(
-          "Your key wasn't saved. Complete the details on this step, or discard the key.",
-        );
+        setError("keyNotSaved");
         return;
       }
     }
@@ -199,13 +202,14 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
   const handleWelcome = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!normalizedName) {
-      setError("Enter a display name between 1 and 80 characters.");
+      setError("displayName");
       return;
     }
     goTo("ai");
   };
 
   const busy = submitting || keyBusy;
+  const [stepTitle, stepPurpose] = stepHeading(t, step);
   const keyCallbacks = {
     credentialsController: credentials,
     onKeyPendingChange: setKeyPending,
@@ -224,12 +228,10 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
             tabIndex={-1}
             className="text-2xl font-semibold outline-none"
           >
-            {STEP_HEADINGS[step]}
+            {stepTitle}
           </h1>
-          {STEP_PURPOSE[step] ? (
-            <p className="text-muted-foreground text-sm">
-              {STEP_PURPOSE[step]}
-            </p>
+          {stepPurpose ? (
+            <p className="text-muted-foreground text-sm">{stepPurpose}</p>
           ) : null}
         </header>
         {step === "welcome" ? (
@@ -246,7 +248,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
             <StepFooter>
               <span />
               <Button type="submit" disabled={!welcomeDone}>
-                Continue
+                {t("actions.continue")}
               </Button>
             </StepFooter>
           </form>
@@ -275,7 +277,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
             <SetupError error={error} />
             {keyBusy ? (
               <p className="text-muted-foreground text-sm" role="status">
-                Saving your key…
+                {t("keys.saving")}
               </p>
             ) : null}
             <StepFooter>
@@ -285,7 +287,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
                 disabled={busy}
                 onClick={() => leave("back")}
               >
-                Back
+                {t("actions.back")}
               </Button>
               <div className="flex flex-wrap items-center justify-end gap-2">
                 <Button
@@ -294,7 +296,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
                   disabled={busy}
                   onClick={() => leave("skip")}
                 >
-                  Skip for now
+                  {t("actions.skip")}
                 </Button>
                 <Button
                   type="button"
@@ -305,9 +307,9 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
                 >
                   {step === "voice"
                     ? submitting
-                      ? "Finishing…"
-                      : "Finish"
-                    : "Continue"}
+                      ? t("actions.finishing")
+                      : t("actions.finish")
+                    : t("actions.continue")}
                 </Button>
               </div>
             </StepFooter>
@@ -320,10 +322,9 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
       >
         <DialogContent showCloseButton={false}>
           <DialogHeader>
-            <DialogTitle>Save your API key?</DialogTitle>
+            <DialogTitle>{t("keys.unsavedPrompt.title")}</DialogTitle>
             <DialogDescription>
-              You entered a key that isn&apos;t saved yet. Save it now, or
-              discard it and continue.
+              {t("keys.unsavedPrompt.description")}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
@@ -333,7 +334,7 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
               disabled={promptSaving}
               onClick={() => setPrompt(null)}
             >
-              Keep editing
+              {t("keys.unsavedPrompt.keepEditing")}
             </Button>
             <Button
               type="button"
@@ -341,14 +342,16 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
               disabled={promptSaving}
               onClick={() => void resolvePrompt("discard")}
             >
-              Discard
+              {t("keys.unsavedPrompt.discard")}
             </Button>
             <Button
               type="button"
               disabled={promptSaving}
               onClick={() => void resolvePrompt("save")}
             >
-              {promptSaving ? "Saving…" : "Save key"}
+              {promptSaving
+                ? t("keys.unsavedPrompt.saving")
+                : t("keys.unsavedPrompt.save")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -359,11 +362,12 @@ function LocalSetupForm({ ownerId }: { ownerId: string }) {
 
 /** "Step 2 of 3" and the step list, with the current step marked and the skippable steps labelled optional. */
 function SetupProgress({ step }: { step: SetupStep }) {
+  const { t } = useTranslation("setup");
   const current = SETUP_STEPS.indexOf(step);
   return (
-    <nav aria-label="Setup progress" className="space-y-2">
+    <nav aria-label={t("progress.label")} className="space-y-2">
       <p className="text-muted-foreground text-xs font-medium">
-        {setupStepPosition(step)}
+        {setupStepPosition(step, t)}
       </p>
       <ol className="grid grid-cols-3 gap-2">
         {SETUP_STEPS.map((item, index) => (
@@ -377,10 +381,10 @@ function SetupProgress({ step }: { step: SetupStep }) {
                 : "border-muted text-muted-foreground",
             )}
           >
-            {SETUP_STEP_LABELS[item]}
+            {setupStepLabel(item, t)}
             {item === "welcome" ? null : (
               <span className="text-muted-foreground text-2xs ml-1 font-normal">
-                (optional)
+                {t("progress.optional")}
               </span>
             )}
           </li>
@@ -390,7 +394,10 @@ function SetupProgress({ step }: { step: SetupStep }) {
   );
 }
 
-/** The private display name is the only required wizard answer. */
+/**
+ * The private display name is the only required wizard answer. The language
+ * applies and saves as soon as it is picked, so the rest of setup follows it.
+ */
 function WelcomeStep({
   displayName,
   autoFocus,
@@ -400,11 +407,14 @@ function WelcomeStep({
   autoFocus: boolean;
   onNameChange: (value: string) => void;
 }) {
+  const { t } = useTranslation(["setup", "settings"]);
   return (
     <>
       <div className="space-y-2">
         <div className="flex items-center justify-between gap-3">
-          <Label htmlFor="local-display-name">Display name</Label>
+          <Label htmlFor="local-display-name">
+            {t("welcome.displayName.label")}
+          </Label>
           <span className="text-muted-foreground text-xs">
             {displayName.length}/{DISPLAY_NAME_MAX_LENGTH}
           </span>
@@ -416,18 +426,40 @@ function WelcomeStep({
           required
           autoComplete="name"
           autoFocus={autoFocus}
-          placeholder="Your name"
+          placeholder={t("welcome.displayName.placeholder")}
           onChange={(event) => onNameChange(event.target.value)}
         />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="local-language">{t("settings:language.label")}</Label>
+        <LanguageSelect id="local-language" className="w-full" />
+        <p className="text-muted-foreground text-xs">
+          {t("settings:language.description")}
+        </p>
       </div>
     </>
   );
 }
 
-function SetupError({ error }: { error: string | null }) {
+/** A failure the current step reports below its fields. */
+type SetupFailure = "displayName" | "keyNotSaved" | "voiceSettings";
+
+function setupFailureText(t: TFunction<"setup">, failure: SetupFailure) {
+  switch (failure) {
+    case "displayName":
+      return t("errors.displayName", { max: DISPLAY_NAME_MAX_LENGTH });
+    case "keyNotSaved":
+      return t("errors.keyNotSaved");
+    case "voiceSettings":
+      return t("errors.voiceSettings");
+  }
+}
+
+function SetupError({ error }: { error: SetupFailure | null }) {
+  const { t } = useTranslation("setup");
   return error ? (
     <p className="text-destructive text-sm" role="alert">
-      {error}
+      {setupFailureText(t, error)}
     </p>
   ) : null;
 }

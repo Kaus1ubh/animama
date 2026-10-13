@@ -1,34 +1,45 @@
 import type { RuntimeAdmission } from "@animama/runtime-contracts";
+import type { TFunction } from "i18next";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
-const messages = {
-  loading: ["Preparing Animama…", ""],
-  "sign-in-required": [
-    "Sign in to Animama",
-    "Sign in to access your Animas, chats and Library.",
-  ],
-  ineligible: [
-    "Account access is not available",
-    "This account is not eligible for hosted Animama. Check your account access or contact the operator.",
-  ],
-  restricted: [
-    "Account access is restricted",
-    "Your account is paused or being updated. You can check account access and try again later.",
-  ],
-  recovery: [
-    "Your account needs recovery",
-    "Animama could not finish preparing your account. Try recovery to continue.",
-  ],
-  unavailable: [
-    "Runtime unavailable",
-    "Animama could not reach the runtime. Please try again.",
-  ],
-} as const;
+type AdmissionStatus = Exclude<RuntimeAdmission, { status: "ready" }>["status"];
 
-const signOutIncompleteCopy = [
-  "Sign-out did not complete",
-  "Animama closed this view, but your account may still be signed in. Try again to finish signing out.",
-] as const;
+/** Heading and explanation for an admission state; loading has no explanation. */
+function admissionCopy(
+  t: TFunction<"app">,
+  status: AdmissionStatus,
+): [title: string, description: string | null] {
+  switch (status) {
+    case "loading":
+      return [t("admission.loading.title"), null];
+    case "sign-in-required":
+      return [
+        t("admission.signInRequired.title"),
+        t("admission.signInRequired.description"),
+      ];
+    case "ineligible":
+      return [
+        t("admission.ineligible.title"),
+        t("admission.ineligible.description"),
+      ];
+    case "restricted":
+      return [
+        t("admission.restricted.title"),
+        t("admission.restricted.description"),
+      ];
+    case "recovery":
+      return [
+        t("admission.recovery.title"),
+        t("admission.recovery.description"),
+      ];
+    case "unavailable":
+      return [
+        t("admission.unavailable.title"),
+        t("admission.unavailable.description"),
+      ];
+  }
+}
 
 /** Common admission states render without mounting any private feature. */
 export function AdmissionScreen({
@@ -49,10 +60,14 @@ export function AdmissionScreen({
   openAccount?: () => void;
   signOut?: () => void;
 }) {
+  const { t } = useTranslation("app");
   const [accountError, setAccountError] = useState<string | null>(null);
   const [title, description] = signOutIncomplete
-    ? signOutIncompleteCopy
-    : messages[admission.status];
+    ? [
+        t("admission.signOutIncomplete.title"),
+        t("admission.signOutIncomplete.description"),
+      ]
+    : admissionCopy(t, admission.status);
   // A sign-in view keeps its explanation and announces a problem as an alert.
   const alert =
     admission.status === "sign-in-required" ? admission.message : undefined;
@@ -69,7 +84,7 @@ export function AdmissionScreen({
       >
         <h1 className="text-lg font-semibold">
           {admission.status === "unavailable" && !hosted
-            ? "Local runtime unavailable"
+            ? t("admission.unavailable.localTitle")
             : title}
         </h1>
         {text ? <p className="text-muted-foreground text-sm">{text}</p> : null}
@@ -85,16 +100,16 @@ export function AdmissionScreen({
             className="bg-primary text-primary-foreground hover:bg-primary/90 rounded-md px-4 py-2 text-sm font-medium"
           >
             {offersSignIn
-              ? "Sign in"
+              ? t("admission.actions.signIn")
               : admission.status === "recovery"
-                ? "Try recovery"
-                : "Try again"}
+                ? t("admission.actions.tryRecovery")
+                : t("admission.actions.tryAgain")}
           </button>
         ) : null}
         {signOutIncomplete && signIn ? (
           <div className="flex justify-center gap-4 text-sm">
             <button type="button" onClick={signIn}>
-              Sign in
+              {t("admission.actions.signIn")}
             </button>
           </div>
         ) : null}
@@ -112,17 +127,17 @@ export function AdmissionScreen({
                     setAccountError(
                       error instanceof Error
                         ? error.message
-                        : "Account access is unavailable.",
+                        : t("admission.accountUnavailable"),
                     );
                   }
                 }}
               >
-                Account
+                {t("admission.actions.account")}
               </button>
             ) : null}
             {signOut ? (
               <button type="button" onClick={signOut}>
-                Sign out
+                {t("admission.actions.signOut")}
               </button>
             ) : null}
           </div>

@@ -1,0 +1,525 @@
+{
+  "anchors": {
+    "chest": "胸部",
+    "head": "头部",
+    "hips": "臀部",
+    "inherit": "继承默认锚点",
+    "leftFoot": "左脚",
+    "leftHand": "左手",
+    "neck": "颈部",
+    "rightFoot": "右脚",
+    "rightHand": "右手",
+    "root": "根节点",
+    "spine": "脊柱"
+  },
+  "autoFit": {
+    "description": "让发射宽度和高度适配虚拟形象的边界，而不是相机或画布。发射器位置仍相对于各自的锚点。",
+    "emitters": "要适配的矩形发射器",
+    "heightPadding": "高度边距 (m)",
+    "maxHeight": "最大高度 (m)",
+    "maxHint": "最大尺寸：0 表示不限制。",
+    "maxWidth": "最大宽度 (m)",
+    "minHeight": "最小高度 (m)",
+    "minWidth": "最小宽度 (m)",
+    "title": "矩形适配虚拟形象",
+    "widthPadding": "宽度边距 (m)"
+  },
+  "behavior": {
+    "axis": "轴",
+    "colorFadeOverLife": "随生命周期淡化颜色",
+    "forceAxis": "力 {{axis}}",
+    "forceOverLife": "随生命周期的力",
+    "limitSpeed": {
+      "dampen": "阻尼",
+      "speed": "速度",
+      "title": "随生命周期限制速度"
+    },
+    "noise": {
+      "frequency": "频率",
+      "positionAmount": "位置幅度",
+      "power": "强度",
+      "rotationAmount": "旋转幅度",
+      "title": "噪声"
+    },
+    "orbit": {
+      "speed": "环绕速度",
+      "title": "随生命周期环绕"
+    },
+    "rotation3D": {
+      "angle": "角度 (rad)",
+      "angleAxis": "角度 {{axis}}",
+      "eulerOrder": "欧拉角顺序",
+      "modes": {
+        "axisAngle": "轴角",
+        "euler": "欧拉角",
+        "off": "关闭",
+        "random": "随机"
+      },
+      "title": "3D 旋转"
+    },
+    "rotationOverLife": "随生命周期旋转",
+    "sizeOverLife": "随生命周期的大小",
+    "speedOverLife": "随生命周期的速度",
+    "turbulence": {
+      "octaves": "八度",
+      "scale": "缩放",
+      "timeScale": "时间缩放",
+      "title": "湍流",
+      "velocity": "速度"
+    },
+    "unsupported": "不支持的行为（{{label}}）在编辑前会保留。",
+    "widthOverLength": "随长度的宽度"
+  },
+  "color": {
+    "channels": {
+      "alpha": "A",
+      "blue": "B",
+      "green": "G",
+      "red": "R"
+    },
+    "missingGenerator": "缺少颜色生成器",
+    "mode": "模式",
+    "overLife": {
+      "applyTheme": "应用主题渐变",
+      "description": "随着粒子老化对颜色进行相乘。",
+      "fadeStops": "淡出色标",
+      "gradientStops": "渐变色标",
+      "modes": {
+        "fade": "淡出",
+        "gradient": "渐变",
+        "off": "关闭",
+        "randomGradient": "随机渐变"
+      },
+      "randomGradient": "随机渐变 {{name}}",
+      "title": "随生命周期的颜色"
+    },
+    "picker": "{{label}}颜色",
+    "start": {
+      "description": "每个粒子生成时采样的初始颜色。",
+      "fixed": "固定",
+      "modes": {
+        "fixed": "固定",
+        "range": "范围",
+        "theme": "主题"
+      },
+      "rangeEnd": "范围结束",
+      "rangeStart": "范围开始",
+      "theme": "主题",
+      "title": "起始颜色"
+    },
+    "stops": {
+      "add": "色标",
+      "alpha": "透明度",
+      "color": "色标 {{index}} 的颜色",
+      "position": "位置",
+      "remove": "移除色标 {{index}}"
+    },
+    "themes": {
+      "affection": {
+        "description": "温暖的粉色，带柔和的金色尾韵。",
+        "label": "喜爱"
+      },
+      "magicSparkle": {
+        "description": "青色、紫罗兰色与柔和白色的微光。",
+        "label": "魔法/闪光"
+      },
+      "neutralSoft": {
+        "description": "珍珠、薄荷与浅天蓝的通用颜色。",
+        "label": "中性/柔和"
+      },
+      "sadness": {
+        "description": "冷蓝与薰衣草色的雨天色调。",
+        "label": "悲伤"
+      },
+      "sleep": {
+        "description": "月光般暗淡的蓝紫色薄雾。",
+        "label": "睡眠"
+      },
+      "surprise": {
+        "description": "明亮的黄色与橙色爆发色。",
+        "label": "惊讶"
+      }
+    },
+    "title": "颜色"
+  },
+  "contentLabel": "粒子特效",
+  "emission": {
+    "burst": {
+      "count": "爆发数量",
+      "interval": "重复间隔 (s)",
+      "probability": "爆发概率 (0–1)",
+      "repetitions": "爆发重复次数",
+      "time": "爆发时间 (s)",
+      "title": "爆发发射"
+    },
+    "initialRotation": "初始旋转 (rad)",
+    "initialSize": "初始大小 (m)",
+    "initialSpeed": "初始速度 (m/s)",
+    "lifetime": "粒子生命周期 (s)",
+    "perMeter": "每米粒子数",
+    "perSecond": "每秒粒子数"
+  },
+  "emitters": {
+    "add": "添加",
+    "count_other": "{{count}} 个发射器",
+    "duplicate": "复制",
+    "duplicateSelected": "复制所选发射器",
+    "noMatches": "没有与搜索匹配的发射器。",
+    "removeSelected": "移除所选发射器",
+    "search": "搜索发射器",
+    "summary": {
+      "custom": "自定义",
+      "range": "{{min}}–{{max}}",
+      "rate": "{{shape}} · {{rate}}/秒",
+      "withBurst": "{{shape}} · {{rate}}/秒 · 爆发 {{burst}}"
+    },
+    "title": "发射器"
+  },
+  "export": {
+    "catalogSettings": "目录设置",
+    "clipEvent": "片段事件",
+    "collapseAll": "全部折叠",
+    "copied": "已复制",
+    "copy": "复制",
+    "creatorDocument": "创作器文档（导入时保留名称和设置）",
+    "currentPayload": "当前导出内容",
+    "download": "下载 JSON",
+    "exactJson": "导出的 JSON 原文",
+    "expandAll": "全部展开",
+    "parseFailed": "无法解析导出的 JSON：{{detail}}",
+    "parseFailedUnexplained": "无法解析导出的 JSON。",
+    "resetView": "重置视图",
+    "snippets": "创作器文档、目录设置和片段事件",
+    "title": "粒子特效导出",
+    "unavailable": "没有可导出的 JSON。"
+  },
+  "generator": {
+    "convert": "转换",
+    "end": "结束",
+    "max": "最大值",
+    "min": "最小值",
+    "modes": {
+      "constant": "常量",
+      "linear": "线性",
+      "range": "范围"
+    },
+    "start": "开始",
+    "unsupported": "不支持的生成器（{{label}}）",
+    "unsupportedPreserved": "不支持的生成器（{{label}}）在编辑前会保留。",
+    "untyped": "不支持",
+    "value": "值"
+  },
+  "import": {
+    "ariaLabel": "粒子特效 JSON",
+    "confirm": "导入特效",
+    "confirmReplace": "要丢弃当前粒子特效的更改并加载此 JSON 吗？",
+    "description": "粘贴一个 three.quarks 特效，或从导出获得的创作器文档（它还会设置名称和设置）。确认未保存的更改后，有效的 JSON 会替换当前文档。嵌入的 PNG 纹理会保留。其他非内置纹理在你选择其文件之前会显示为缺失；普通 Quarks JSON 会继续使用此特效已携带的纹理。",
+    "embeddedTextureRefused": "未导入嵌入的纹理：{{reason}}",
+    "title": "导入粒子特效 JSON"
+  },
+  "inspector": {
+    "applyPreset": "应用发射器预设",
+    "emitterName": "发射器名称",
+    "empty": "请选择或添加一个发射器。",
+    "presetHint": "会替换所选发射器的设置。",
+    "presets": {
+      "aura": "光环",
+      "pop": "弹出",
+      "smokeFade": "烟雾淡出",
+      "sparkleBurst": "闪光爆发",
+      "speedStreak": "速度线"
+    },
+    "selectEmitter": "选择发射器",
+    "selectEmitterPlaceholder": "选择一个发射器",
+    "tabs": {
+      "appearance": "外观",
+      "behavior": "行为方式",
+      "emission": "发射",
+      "position": "位置",
+      "shape": "形状"
+    }
+  },
+  "issues": {
+    "ambiguousTextureFilename": "纹理路径 {{first}} 和 {{second}} 在移植时会使用相同的文件名。",
+    "atlasGridLimit": "精灵图每个方向的图块数为 1 到 {{max}}。",
+    "atlasMetadataMismatch": "渲染器的图块数与所选图集纹理的元数据不一致。",
+    "atlasTilesMissing": "所选图集纹理应在渲染器中使用多个图块。",
+    "blobTextureUrl": "Blob 纹理 URL 仅用于预览，无法导出。",
+    "durationLimit": "每个发射器的时长都必须在保存的最大时长预算内。",
+    "durationOverBudget": "发射器时长超出了目录的最大时长预算。",
+    "embeddedTextureUrl": "此嵌入纹理不是特效可携带的 PNG；请替换为导入的纹理。",
+    "emptyTextureUrl": "纹理图片 URL 必须是非空字符串。",
+    "frameAnimationNeedsTiles": "帧动画需要多个渲染器图块。",
+    "frameAnimationWithoutAtlas": "已启用帧动画，但所选纹理不是图集。",
+    "frameRangeOutOfBounds": "帧动画范围超出了所选图集纹理的帧数。",
+    "invalidDuration": "发射器时长必须大于零。",
+    "invalidEmitterAnchor": "请选择支持的发射器锚点或继承。",
+    "invalidRuntimeDefaults": "默认时长必须为正数，且不超过 {{seconds}} 秒的最大时长。",
+    "loopingMetadata": "要使用循环发射器，必须在运行时默认值中允许循环。",
+    "loopingNotAllowed": "此目录预算不允许循环发射器。",
+    "manifestLimit": "粒子特效清单超出了 {{size}} MiB 的内容上限。",
+    "missingEmitter": "Quarks JSON 必须至少包含一个 ParticleEmitter。",
+    "missingObject": "Quarks JSON 必须包含 object 根节点。",
+    "missingTexture": "Quarks JSON 必须至少包含一张纹理图片。",
+    "nodeLimit": "粒子特效包含超过 {{max}} 个对象节点。",
+    "particleBudgetExceeded": "预计粒子数 {{estimated, number}} 超出了目录预算 {{budget, number}}。",
+    "particleBudgetUnestimated": "无法估算粒子用量（某个发射量、生命周期、爆发或持续时间值不受支持）；目录预算为 {{budget, number}}。",
+    "particleLimit": "预计粒子数为 {{estimated, number}}，保存的预算为 {{budget, number}}：两者都必须符合 {{max}} 个粒子的私有内容上限。",
+    "remoteTextureUrl": "随附的 VFX 资源中不允许使用远程纹理 URL。",
+    "resourceLimit": "{{key}} 必须是最多包含 {{max}} 个条目的数组。",
+    "rotation3DWithoutMesh": "3D 旋转需要网格渲染模式才能预览。",
+    "runtimeId": "运行时 ID 只能使用小写字母、数字以及单个连字符或下划线。",
+    "systemLimit": "粒子特效必须包含 {{min}} 到 {{max}} 个发射器。",
+    "tooManyTextures": "粒子特效引用了超过 {{max}} 个不同的纹理。",
+    "trailSettingsMissing": "拖尾渲染模式需要可编辑的起始长度生成器。",
+    "unportableEmitter": "此发射器保留了超出可移植创作器格式的设置。",
+    "unresolvedTexture": "此内容无法使用纹理 {{texture}}。",
+    "unsafeTextureReference": "资源纹理必须使用安全的包内相对路径。",
+    "unsupportedBehaviorSettings": "高级行为设置会保留，但无法完全编辑：{{items, list}}。",
+    "unsupportedNodes": "私有粒子特效仅支持 Group 和 ParticleEmitter 节点。",
+    "unsupportedRenderMode": "此发射器使用了创作器无法编辑的渲染模式。",
+    "unsupportedShape": "此发射器使用了创作器无法编辑的形状。",
+    "unsupportedTextureUrl": "纹理 URL 必须是相对路径、根相对路径、data:image 或 blob。",
+    "widthOverLengthWithoutTrail": "随长度的宽度仅对拖尾渲染模式有效。",
+    "worldSpaceEmitter": "世界空间发射器会在锚点处生成，但之后不会持续跟随锚点。"
+  },
+  "json": {
+    "creatorDocumentInvalid": "粒子创作器文档需要名称、设置和 quarks 特效。",
+    "notObject": "Quarks JSON 必须是一个对象。",
+    "parseFailed": "无法解析 Quarks JSON：{{detail}}",
+    "parseFailedUnexplained": "无法解析 Quarks JSON。"
+  },
+  "load": {
+    "failed": "无法加载粒子特效。",
+    "loading": "正在加载粒子特效…",
+    "manifestMissing": "缺少粒子特效清单。",
+    "textureFailed": "无法加载粒子特效的纹理。"
+  },
+  "position": {
+    "anchorAndPosition": "锚点和位置",
+    "anchorOverride": "覆盖锚点",
+    "axisMeters": "位置 {{axis}} (m)",
+    "cycle": "周期",
+    "cycleDuration": "发射器周期时长 (s)",
+    "loop": "循环此发射器",
+    "offsetHint": "偏移量相对于此发射器解析出的锚点。",
+    "worldSpace": "将发射的粒子保留在世界空间中"
+  },
+  "preview": {
+    "avatar": "虚拟形象",
+    "avatarStatus": {
+      "error": "虚拟形象出错",
+      "idle": "虚拟形象空闲",
+      "loading": "正在加载虚拟形象",
+      "ready": "虚拟形象已就绪"
+    },
+    "fitNeedsAvatar": "有虚拟形象时，矩形适配会使用虚拟形象的边界。",
+    "loadingModels": "正在加载模型…",
+    "loadMoreAvatars": "加载更多虚拟形象",
+    "model": "模型",
+    "modelSource": "{{source}}：{{name}}",
+    "modelSources": {
+      "builtInAvatar": "内置虚拟形象",
+      "myAvatar": "我的虚拟形象",
+      "previewAnima": "预览 Anima"
+    },
+    "outline": "轮廓",
+    "quarksFailed": "预览无法加载 three.quarks。",
+    "resourcesUnavailable": "粒子特效预览资源不可用。",
+    "retryModel": "重试预览虚拟形象模型",
+    "selectingModel": "正在选择虚拟形象模型…",
+    "selectModel": "选择预览模型",
+    "showAvatar": "显示虚拟形象",
+    "showOutline": "显示发射器形状轮廓",
+    "status": {
+      "error": "预览出错",
+      "idle": "预览空闲",
+      "loading": "正在加载预览",
+      "ready": "预览已就绪"
+    }
+  },
+  "recoveryLabel": "粒子特效",
+  "renderer": {
+    "advanced": "高级渲染",
+    "alphaTest": "Alpha 测试",
+    "blending": "混合",
+    "blendings": {
+      "additive": "叠加",
+      "normal": "正常"
+    },
+    "depthTest": "深度测试",
+    "depthWrite": "深度写入",
+    "farFade": "远处淡出距离 (m)",
+    "followLocalOrigin": "跟随本地原点",
+    "lengthFactor": "长度系数",
+    "mode": "渲染模式",
+    "modes": {
+      "billboard": "公告板",
+      "horizontal": "水平公告板",
+      "mesh": "网格",
+      "stretched": "拉伸公告板",
+      "trail": "拖尾",
+      "vertical": "垂直公告板"
+    },
+    "nearFade": "近处淡出距离 (m)",
+    "opacity": "不透明度",
+    "renderOrder": "渲染顺序",
+    "softParticles": "软粒子",
+    "speedFactor": "速度系数",
+    "title": "渲染器",
+    "trailStartLength": "拖尾起始长度"
+  },
+  "save": {
+    "busy": {
+      "hashing": "正在计算私有内容的哈希…",
+      "preparing": "正在准备私有内容…",
+      "uploading": "正在上传私有内容…",
+      "validating": "正在验证私有内容…"
+    },
+    "defaultName": "新粒子特效",
+    "nameLength": "请为此粒子特效设置 {{min}} 到 {{max}} 个字符的名称。",
+    "paused": "保存已暂停。重试会从保留的草稿继续。",
+    "reviewNotice": "{{notice}} 请检查调整内容，然后再次保存。",
+    "saved": "粒子特效已保存。"
+  },
+  "settings": {
+    "advanced": "高级设置",
+    "allowCoexist": "允许与其他特效同时播放",
+    "allowLooping": "允许发射器循环",
+    "defaultAnchor": "默认锚点",
+    "estimatedAtOnce_other": "同时存在的预计数量：最多 {{count, number}} 个粒子",
+    "estimateUnavailable": "同时存在的预计数量：无法估算（某个发射量、生命周期、爆发或持续时间值不受支持）",
+    "limitsHint": "性能上限适用于整个特效。在此允许循环后，各个发射器可以重复它们的周期。",
+    "maxDuration": "最大播放时长 (s)",
+    "maxParticles": "最大粒子总数",
+    "playbackDuration": "特效播放时长 (s)",
+    "preload": "预加载",
+    "preloadTiers": {
+      "none": "无",
+      "tierA": "A 级",
+      "tierB": "B 级"
+    },
+    "title": "设置"
+  },
+  "shape": {
+    "angle": "角度 (rad)",
+    "arc": "弧度 (rad)",
+    "height": "高度 (m)",
+    "mode": "模式",
+    "modes": {
+      "burst": "爆发",
+      "loop": "循环",
+      "pingPong": "往返",
+      "random": "随机"
+    },
+    "radius": "半径 (m)",
+    "speed": "形状速度",
+    "spread": "扩散",
+    "thickness": "厚度",
+    "title": "形状",
+    "types": {
+      "cone": "圆锥",
+      "point": "点",
+      "rectangle": "矩形",
+      "sphere": "球体",
+      "unsupported": "不支持"
+    },
+    "width": "宽度 (m)"
+  },
+  "texture": {
+    "animateFrames": "播放帧动画",
+    "atlas": "图集",
+    "blendTiles": "混合图块",
+    "carried": {
+      "chooseFile": "为 {{file}} 选择文件",
+      "dimensions": "{{width}}×{{height}}",
+      "hint": "PNG 最大 {{size, number}} MiB、{{dimension}} px。精灵图请设置图集图块数。",
+      "import": "导入 PNG 纹理",
+      "missing": "缺少纹理 {{file}}。请选择其 PNG 文件。",
+      "title": "此特效的纹理"
+    },
+    "files": {
+      "dimensionsTooLarge": "纹理每条边不得超过 {{size}} px。",
+      "fileRefused": "纹理 {{texture}}：{{reason}}",
+      "notPng": "纹理文件必须是 PNG 图像。",
+      "tooLarge": "纹理文件不得超过 {{size, number}} MiB。",
+      "tooMany": "一个粒子特效最多可使用 {{max, number}} 个纹理。",
+      "totalTooLarge": "一个粒子特效中的纹理总计不得超过 {{size, number}} MiB。"
+    },
+    "frameEnd": "结束帧",
+    "frameStart": "起始帧",
+    "names": {
+      "brackeysFlare": "光晕",
+      "brackeysSmoke": "烟雾",
+      "brackeysSpark": "火花",
+      "cloud": "云朵",
+      "dustSoft": "柔和尘埃",
+      "exclamation": "感叹号",
+      "fire8x8": "火焰 8x8",
+      "flame16x4": "烈焰 16x4",
+      "flareStar": "星形光晕",
+      "glowSharp": "锐利光芒",
+      "glowSoft": "柔和光芒",
+      "heart": "爱心",
+      "heartV2": "爱心 v2",
+      "kenneyEmberSpark": "Kenney 余烬火花",
+      "kenneyFireGlow": "Kenney 火光",
+      "kenneyFlameCore": "Kenney 火焰核心",
+      "kenneyFlameTongue": "Kenney 火舌",
+      "kenneySmokeWisp": "Kenney 轻烟",
+      "magicRing": "魔法环",
+      "question": "问号",
+      "raindrop": "雨滴",
+      "runeCircle": "符文圈",
+      "shockRing": "冲击环",
+      "slashArc": "斩击弧",
+      "smoke8x8": "烟雾 8x8",
+      "smokePuff": "烟团",
+      "smokeWisp": "轻烟",
+      "softDot": "柔和圆点",
+      "sparkCross": "十字火花",
+      "sparkDot": "火花点",
+      "sparkle": "闪光",
+      "sparkPop6x5": "火花迸发 6x5",
+      "sparkStreak": "火花条纹",
+      "speedLine": "速度线",
+      "star": "星星",
+      "starV2": "星星 v2",
+      "trailTaper": "渐细拖尾",
+      "zzz": "Zzz"
+    },
+    "roles": {
+      "glow": "光芒",
+      "smoke": "烟雾/尘埃",
+      "spark": "火花",
+      "symbol": "符号",
+      "trail": "拖尾/条纹"
+    },
+    "title": "纹理",
+    "uTiles": "U 图块数",
+    "vTiles": "V 图块数"
+  },
+  "timeline": {
+    "loading": "正在加载",
+    "paused": "已暂停",
+    "playing": "播放中",
+    "selectEmitter": "选择发射器 {{name}}",
+    "target": "特效预览",
+    "time": "特效预览时间",
+    "title": "预览时间轴"
+  },
+  "toolbar": {
+    "confirmNew": "要丢弃当前粒子特效的更改并开始新的特效吗？"
+  },
+  "transform": {
+    "depthOffset": "深度偏移 (m)",
+    "offset": "偏移 (m)",
+    "rotation": "旋转 (rad)",
+    "scale": "缩放（倍数）",
+    "title": "变换"
+  },
+  "typeLabel": "粒子特效",
+  "validation": {
+    "onTarget": "{{target}}：{{message}}"
+  }
+}

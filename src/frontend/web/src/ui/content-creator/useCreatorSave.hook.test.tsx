@@ -208,6 +208,29 @@ describe("useCreatorSave", () => {
     hook.unmount();
   });
 
+  it("restores once when the restore callback changes identity", async () => {
+    const seeded = {
+      userId: "owner",
+      documentKey: "new",
+      operationId: "restored-operation",
+      snapshot: edited,
+    };
+    const { store, onRestore, props } = setup(undefined, seeded);
+    const hook = renderCreatorSave(props(clean, false));
+    await advance(0);
+    expect(onRestore).toHaveBeenCalledOnce();
+
+    // A UI Locale change gives creators a new callback that words its text.
+    const reworded = vi.fn();
+    hook.rerender({ ...props(edited, true), onRestore: reworded });
+    await advance(0);
+    expect(store.load).toHaveBeenCalledOnce();
+    expect(onRestore).toHaveBeenCalledOnce();
+    expect(reworded).not.toHaveBeenCalled();
+    expect(hook.result.current.recovered).toBe(true);
+    hook.unmount();
+  });
+
   it("autosaves only while dirty, and clears once the document is unchanged again", async () => {
     const { store, records, props } = setup("item-1");
     const hook = renderCreatorSave(props(clean, false));

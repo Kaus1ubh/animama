@@ -21,6 +21,7 @@ from animama.app.services.content_image import (
     validate_appearance_image_stream,
 )
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS, definition_for_kind, handler_for_kind
+from animama.app.services.content_names import portable_name
 from animama.app.services.content_package_capabilities import scene_emoji_items, validate_avatar_effect_document
 from animama.app.services.content_portability import reject_restricted_bytes
 from animama.app.services.local_content_mutations import mutation_digest
@@ -46,9 +47,16 @@ _ENTRY_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$")
 
 
 def readable_entry_name(value: str) -> str:
-    """Normalize a display name to one portable, understandable path segment."""
+    """Normalize a display name to one portable, understandable path segment.
+
+    Names outside ASCII fold to ASCII (accents dropped); names in other scripts
+    keep a name hash so different names stay distinct. Invalid ASCII names are
+    rejected unchanged.
+    """
 
     stripped = value.strip()
+    if not stripped.isascii():
+        stripped = portable_name(stripped, separator="-", stem="item", limit=120)
     if not _ENTRY_NAME.fullmatch(stripped):
         raise ContentConflictError("invalid_entry_name", field="name")
     normalized = re.sub(r"[ _]+", "-", stripped).strip("-.").lower()

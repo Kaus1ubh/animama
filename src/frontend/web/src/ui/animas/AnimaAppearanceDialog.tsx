@@ -3,12 +3,17 @@
 import { LoaderCircle, RotateCcw, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import type { PyRuntimeImageReference } from "@/lib/content/catalogTypes";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
 import { getContentUploadErrorPresentation } from "@/lib/content/contentUploads";
 import { ContentSaveApiError } from "@/lib/content/contentSaveErrors";
+import { apiErrorLine } from "@/lib/errors/apiError";
+import { loadoutFailureText } from "@/lib/errors/loadoutErrors";
 import { useContentSaveFailure } from "@/hooks/useContentSaveFailure";
 import { cn } from "@/lib/utils";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
@@ -41,10 +46,36 @@ type AppearanceConfig = {
 type AppearanceDraft = { itemId: string; config: AppearanceConfig };
 type PendingUpload = { file: File; operationId: string };
 
-const SECTION_LABELS: Record<AnimaAppearanceSection, string> = {
-  profile_image: "Profile",
-  background_image: "Background",
-};
+/** Section-specific wording; section IDs stay as the Loadout uses them. */
+function sectionText(
+  t: TFunction<"animas">,
+  section: AnimaAppearanceSection,
+  animaName: string,
+) {
+  return section === "background_image"
+    ? {
+        label: t("appearance.sections.background_image"),
+        updated: t("appearance.updated.background_image"),
+        previewAlt: t("appearance.previewAlt.background_image", {
+          name: animaName,
+        }),
+        empty: t("appearance.empty.background_image"),
+        upload: t("appearance.uploadLabel.background_image"),
+        source: t("appearance.sourceLabel.background_image"),
+        defaultOption: t("appearance.defaultOption.background_image"),
+      }
+    : {
+        label: t("appearance.sections.profile_image"),
+        updated: t("appearance.updated.profile_image"),
+        previewAlt: t("appearance.previewAlt.profile_image", {
+          name: animaName,
+        }),
+        empty: t("appearance.empty.profile_image"),
+        upload: t("appearance.uploadLabel.profile_image"),
+        source: t("appearance.sourceLabel.profile_image"),
+        defaultOption: t("appearance.defaultOption.profile_image"),
+      };
+}
 const DEFAULT_CONFIG: AppearanceConfig = {
   fit: "cover",
   focal_x: 0.5,
@@ -63,9 +94,10 @@ function normalizeConfig(
   };
 }
 
-function imageName(filename: string) {
+/** The new image's name: its file name without the extension, else `fallback`. */
+function imageName(filename: string, fallback: string) {
   const dot = filename.lastIndexOf(".");
-  return (dot > 0 ? filename.slice(0, dot) : filename).trim() || "Anima image";
+  return (dot > 0 ? filename.slice(0, dot) : filename).trim() || fallback;
 }
 
 function sectionUse(section: AnimaAppearanceSection): "profile" | "background" {
@@ -90,8 +122,11 @@ export function AnimaAppearanceDialog({
   onOpenChange: (open: boolean) => void;
   onCloseAutoFocus?: (event: Event) => void;
 }) {
+  const { t } = useTranslation("animas");
+  const formatters = useFormatters();
   const open = section !== null;
   const activeSection = section ?? "profile_image";
+  const text = sectionText(t, activeSection, animaName);
   const use = sectionUse(activeSection);
   const userId = useRuntimeCacheKey() ?? "__anon__";
   const queryClient = useQueryClient();
@@ -205,8 +240,10 @@ export function AnimaAppearanceDialog({
             }
           : null;
       if (draft.itemId) {
-        if (!source)
-          throw new Error("The selected Local image is unavailable.");
+        if (!source) {
+          setFailureMessage(t("appearance.localImageUnavailable"));
+          return;
+        }
         const intent = {
           operation: "set" as const,
           use,
@@ -237,13 +274,11 @@ export function AnimaAppearanceDialog({
         });
       }
       await invalidatePresentation();
-      toast.success(`${SECTION_LABELS[activeSection]} image updated.`);
+      toast.success(text.updated);
       onOpenChange(false);
     } catch (caught) {
       setFailureMessage(
-        caught instanceof Error
-          ? caught.message
-          : "The image could not be updated.",
+        apiErrorLine(loadoutFailureText(caught, t("appearance.saveFailed"))),
       );
     }
   };
@@ -251,11 +286,11 @@ export function AnimaAppearanceDialog({
   const upload = async (pending: PendingUpload) => {
     const { file, operationId } = pending;
     if (!["image/png", "image/jpeg", "image/webp"].includes(file.type)) {
-      setFailureMessage("Choose a PNG, JPEG, or WebP image.", "files");
+      setFailureMessage(t("appearance.fileType"), "files");
       return;
     }
     if (file.size > 25 * 1024 * 1024) {
-      setFailureMessage("Choose an image smaller than 25 MiB.", "files");
+      setFailureMessage(t("appearance.fileSize"), "files");
       return;
     }
     abortRef.current?.abort();
@@ -266,7 +301,7 @@ export function AnimaAppearanceDialog({
     setProgress(0);
     try {
       const created = await contentActions.createAppearanceImage.mutateAsync({
-        name: imageName(file.name),
+        name: imageName(file.name, t("appearance.defaultImageName")),
         file,
         uses: ["profile", "background"],
         operationId,
@@ -275,25 +310,29 @@ export function AnimaAppearanceDialog({
           setProgress(next.percent);
           setStatus(
             next.stage === "uploading"
-              ? `Saving${next.percent === null ? "" : ` ${next.percent}%`}…`
-              : "Preparing Local image…",
+              ? next.percent === null
+                ? t("appearance.saving")
+                : t("appearance.savingProgress", {
+                    percent: formatters.number(next.percent / 100, {
+                      style: "percent",
+                    }),
+                  })
+              : t("appearance.preparing"),
           );
         },
       });
       setDraft({ itemId: created.itemId, config: DEFAULT_CONFIG });
       setPendingUpload(null);
       setProgress(null);
-      setStatus("Image is ready. Adjust the crop, then save it to this Anima.");
-      toast.success("Local Appearance Image created.");
+      setStatus(t("appearance.ready"));
+      toast.success(t("appearance.created"));
     } catch (caught) {
       if (caught instanceof DOMException && caught.name === "AbortError")
         return;
       setProgress(null);
       setFailureMessage(
-        getContentUploadErrorPresentation(
-          caught,
-          "The image could not be saved.",
-        ).message,
+        getContentUploadErrorPresentation(caught, t("appearance.uploadFailed"))
+          .message,
         caught instanceof ContentSaveApiError ? caught.field : null,
       );
       setStatus(null);
@@ -314,7 +353,7 @@ export function AnimaAppearanceDialog({
         className="flex max-h-[min(92dvh,52rem)] flex-col overflow-hidden sm:max-w-2xl"
       >
         <DialogHeader className="flex-row items-center justify-between gap-3 pr-8">
-          <DialogTitle>Appearance</DialogTitle>
+          <DialogTitle>{t("appearance.title")}</DialogTitle>
           <ContentHealth />
         </DialogHeader>
         <div className="border-border/70 grid grid-cols-2 rounded-xl border p-1">
@@ -326,7 +365,7 @@ export function AnimaAppearanceDialog({
               onClick={() => onSectionChange(candidate)}
               disabled={busy}
             >
-              {SECTION_LABELS[candidate]}
+              {sectionText(t, candidate, animaName).label}
             </Button>
           ))}
         </div>
@@ -341,21 +380,17 @@ export function AnimaAppearanceDialog({
             <RuntimeImageCropEditor
               key={`${activeSection}:${draft.itemId || "default"}`}
               src={previewUrl}
-              alt={`${animaName} ${SECTION_LABELS[activeSection].toLocaleLowerCase()} preview`}
+              alt={text.previewAlt}
               presentation={draft.config}
               onPresentationChange={(config) => setDraft({ ...draft, config })}
               editable={!busy && Boolean(draft.itemId && previewUrl)}
               loading={previewPending}
               aspectRatio={activeSection === "profile_image" ? 1 : 16 / 9}
               circular={activeSection === "profile_image"}
-              emptyLabel={
-                activeSection === "profile_image"
-                  ? "The Avatar portrait will be used"
-                  : "No background image"
-              }
+              emptyLabel={text.empty}
               onUploadClick={() => fileInput.current?.click()}
               uploadDisabled={busy}
-              uploadLabel={`Upload ${SECTION_LABELS[activeSection].toLocaleLowerCase()} image`}
+              uploadLabel={text.upload}
             />
             <div className="mt-4 grid gap-4 sm:grid-cols-[auto_1fr_auto] sm:items-center">
               <div className="border-border/70 flex rounded-lg border p-1">
@@ -370,12 +405,19 @@ export function AnimaAppearanceDialog({
                       setDraft({ ...draft, config: { ...draft.config, fit } })
                     }
                   >
-                    {fit === "cover" ? "Fill" : "Fit"}
+                    {fit === "cover"
+                      ? t("appearance.fit.cover")
+                      : t("appearance.fit.contain")}
                   </Button>
                 ))}
               </div>
               <label className="grid gap-2 text-sm font-medium">
-                Zoom {draft.config.zoom.toFixed(1)}×
+                {t("appearance.zoom", {
+                  zoom: formatters.number(draft.config.zoom, {
+                    minimumFractionDigits: 1,
+                    maximumFractionDigits: 1,
+                  }),
+                })}
                 <Slider
                   min={1}
                   max={4}
@@ -397,7 +439,7 @@ export function AnimaAppearanceDialog({
                 disabled={busy || !draft.itemId}
                 onClick={() => setDraft({ ...draft, config: DEFAULT_CONFIG })}
               >
-                <RotateCcw className="size-4" /> Reset
+                <RotateCcw className="size-4" /> {t("actions.reset")}
               </Button>
             </div>
           </div>
@@ -409,13 +451,9 @@ export function AnimaAppearanceDialog({
               onChange={(event) =>
                 setDraft({ itemId: event.target.value, config: DEFAULT_CONFIG })
               }
-              aria-label={`${SECTION_LABELS[activeSection]} image source`}
+              aria-label={text.source}
             >
-              <option value="">
-                {activeSection === "profile_image"
-                  ? "Default Avatar portrait"
-                  : "No image"}
-              </option>
+              <option value="">{text.defaultOption}</option>
               {readyImages.map((image) => (
                 <option key={image.itemId} value={image.itemId}>
                   {image.name}
@@ -434,7 +472,7 @@ export function AnimaAppearanceDialog({
               asChild
             >
               <label>
-                <Upload className="size-4" /> Upload image
+                <Upload className="size-4" /> {t("appearance.upload")}
                 <input
                   ref={fileInput}
                   type="file"
@@ -457,7 +495,7 @@ export function AnimaAppearanceDialog({
           {progress !== null ? (
             <div
               role="progressbar"
-              aria-label="Image save progress"
+              aria-label={t("appearance.progress")}
               aria-valuemin={0}
               aria-valuemax={100}
               aria-valuenow={progress}
@@ -483,7 +521,7 @@ export function AnimaAppearanceDialog({
                   disabled={busy}
                   onClick={() => void upload(pendingUpload)}
                 >
-                  Retry save
+                  {t("appearance.retrySave")}
                 </Button>
               ) : null}
             </div>
@@ -496,7 +534,7 @@ export function AnimaAppearanceDialog({
             disabled={busy || !binding}
             onClick={() => setDraft({ ...draft, itemId: "" })}
           >
-            <Trash2 className="size-4" /> Remove
+            <Trash2 className="size-4" /> {t("actions.remove")}
           </Button>
           <Button
             type="button"
@@ -504,7 +542,7 @@ export function AnimaAppearanceDialog({
             onClick={() => void save()}
           >
             {busy ? <LoaderCircle className="size-4 animate-spin" /> : null}{" "}
-            Save
+            {t("actions.save")}
           </Button>
         </DialogFooter>
       </DialogContent>

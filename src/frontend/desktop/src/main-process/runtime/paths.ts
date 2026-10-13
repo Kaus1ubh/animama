@@ -27,6 +27,8 @@ export function runtimePaths(userData: string) {
     backups: path.join(base, "backups/pre-migration"),
     packs: path.join(base, "packs"),
     downloads: path.join(base, "downloads"),
+    /** The UI Locale the app last applied, for the shell's own text. */
+    uiLocale: path.join(base, "ui-locale.json"),
   };
 }
 

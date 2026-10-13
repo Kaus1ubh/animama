@@ -1,11 +1,14 @@
 "use client";
 
 import { useProductApiClient } from "@animama/product-ui";
+import { useFormatters } from "@animama/product-ui/i18n";
 
 import { Link, useNavigate } from "@tanstack/react-router";
 import { useQueryClient } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 import { Play, Plus, X } from "lucide-react";
+import type { TFunction } from "i18next";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
@@ -37,6 +40,8 @@ import {
 } from "@/lib/content/contentEditRecovery";
 import { idleStylePreviewTarget } from "@/lib/content-preview/idleStylePreviewTarget";
 import { TRACKED_EMOTIONS, type TrackedEmotion } from "@/lib/emotion";
+import { emotionLabel } from "@/lib/emotion/presentation";
+import { failureLine } from "@/lib/errors/apiError";
 import { useGestures } from "@/query/hooks/useActions";
 import { useIdleStyle } from "@/query/hooks/useIdleStyles";
 import { useIdleGesturePlayback } from "@/query/hooks/useIdleGesturePlayback";
@@ -47,8 +52,6 @@ import { Button } from "@/ui/components/button";
 import { cn } from "@/lib/utils";
 
 const fieldClass = "bg-background rounded-md border px-3 py-2";
-const emotionLabel = (emotion: string) =>
-  emotion[0]!.toUpperCase() + emotion.slice(1);
 type SelectedCell = {
   emotion: TrackedEmotion;
   intensity: IdleIntensity;
@@ -61,6 +64,22 @@ function readDependencyItemIds(value: unknown): Record<string, string> {
       (entry): entry is [string, string] => typeof entry[1] === "string",
     ),
   );
+}
+
+/** What one emotion and intensity cell does, as shown in the grid. */
+function cellStateText(
+  t: TFunction<"actionEditor">,
+  cell: IdleStyleCell | undefined,
+): string {
+  if (cell?.mode === "none") return t("idleStyle.cells.noIdle");
+  if (cell?.mode === "pool")
+    return t("idleStyle.cells.gestures", { count: cell.gestures.length });
+  return t("idleStyle.cells.useDefault");
+}
+
+/** A preview failure as one line; English without wording follows the uncoded-error rule. */
+function previewFailure(t: TFunction<"actionEditor">, cause: unknown): string {
+  return failureLine(cause, t("idleStyle.previewFailed"));
 }
 
 /** Authored locator refs keep their admitted identity throughout this edit. */
@@ -83,21 +102,21 @@ export function IdleStyleEditorPage({
   itemId?: string;
   duplicate?: boolean;
 }) {
+  const { t } = useTranslation("actionEditor");
   const existingQuery = useIdleStyle(itemId ?? null);
   if (itemId && existingQuery.isPending)
     return (
       <p className="p-6" role="status">
-        Loading Idle Style…
+        {t("idleStyle.loading")}
       </p>
     );
   if (itemId && (existingQuery.isError || !existingQuery.data))
     return (
       <div className="space-y-3 p-6">
-        <p role="alert">
-          The Idle Style could not be loaded. Your existing content is
-          unchanged.
-        </p>
-        <Button onClick={() => void existingQuery.refetch()}>Retry</Button>
+        <p role="alert">{t("idleStyle.loadFailed")}</p>
+        <Button onClick={() => void existingQuery.refetch()}>
+          {t("idleStyle.retry")}
+        </Button>
       </div>
     );
   return (
@@ -117,6 +136,7 @@ function IdleStyleEditor({
   existing?: PyIdleStyle;
   duplicate: boolean;
 }) {
+  const { t } = useTranslation("actionEditor");
   const apiClient = useProductApiClient();
 
   const userId = useRuntimeCacheKey();
@@ -129,6 +149,7 @@ function IdleStyleEditor({
     [userId, documentKey],
   );
   const isCopy = duplicate || existing?.catalog_source === "included";
+  // The "-copy" suffix becomes part of a saved name, so it stays English.
   const [name, setName] = useState(() =>
     String(
       recovery?.form.name ??
@@ -210,14 +231,18 @@ function IdleStyleEditor({
         : document.defaultPool
     : document.defaultPool;
   const selectedLabel = selectedCell
-    ? `${emotionLabel(selectedCell.emotion)} · intensity ${selectedCell.intensity}`
-    : "Default";
+    ? t("idleStyle.cells.selected", {
+        emotion: emotionLabel(selectedCell.emotion),
+        intensity: selectedCell.intensity,
+      })
+    : t("idleStyle.cells.default");
   let validationError: string | null = null;
   try {
     idleStyleSpec(document);
   } catch (cause) {
+    // `idleStyleSpec` words its failures in the UI Locale.
     validationError =
-      cause instanceof Error ? cause.message : "Check your Gesture pools.";
+      cause instanceof Error ? cause.message : t("idleStyle.checkPools");
   }
   const changed =
     recoveredSavePending ||
@@ -245,9 +270,7 @@ function IdleStyleEditor({
   const previewMember = async (ref: string) => {
     const gesture = poolGesture(ref, gestures, baseline.dependencyItemIds);
     if (!gesture) {
-      toast.error(
-        "This Gesture is unavailable. Refresh the Library and check the Style.",
-      );
+      toast.error(t("idleStyle.gestureUnavailable"));
       return;
     }
     try {
@@ -266,7 +289,7 @@ function IdleStyleEditor({
       );
       setLastPreview(gesture.name);
     } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : "Preview failed.");
+      toast.error(previewFailure(t, cause));
     } finally {
       setPreviewBusy(false);
     }
@@ -286,7 +309,7 @@ function IdleStyleEditor({
       openPreview(idleStylePreviewTarget(preview, existing.name));
       setLastPreview(preview.selected_gesture_name);
     } catch (cause) {
-      toast.error(cause instanceof Error ? cause.message : "Preview failed.");
+      toast.error(previewFailure(t, cause));
     } finally {
       setPreviewBusy(false);
     }
@@ -349,11 +372,7 @@ function IdleStyleEditor({
           }),
         ]);
       }
-      toast.success(
-        isCopy
-          ? "Local Idle Style copy saved. Select it in your Anima’s loadout to use it."
-          : "Idle Style saved.",
-      );
+      toast.success(isCopy ? t("idleStyle.savedCopy") : t("idleStyle.saved"));
       initialState.current = JSON.stringify({ name, description, document });
       setRecoveredSavePending(false);
       setBaseline({
@@ -380,32 +399,28 @@ function IdleStyleEditor({
     <main className="mx-auto flex w-full max-w-6xl flex-col gap-6 p-4 sm:p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
-          <p className="text-muted-foreground text-sm">Creator Studio</p>
+          <p className="text-muted-foreground text-sm">
+            {t("idleStyle.studio")}
+          </p>
           <h1 className="text-3xl font-semibold">
             {isCopy
-              ? "Copy Idle Style"
+              ? t("idleStyle.title.copy")
               : existing
-                ? "Edit Idle Style"
-                : "New Idle Style"}
+                ? t("idleStyle.title.edit")
+                : t("idleStyle.title.new")}
           </h1>
         </div>
         <div className="flex items-center gap-2">
           <ContentHealth />
           <Link to="/create" className="underline">
-            Create hub
+            {t("idleStyle.createHub")}
           </Link>
         </div>
       </div>
-      <p className="text-muted-foreground text-sm">
-        Choose existing Gestures for quiet moments. Their animations, sounds and
-        effects stay intact. Adding them here does not equip them for AI
-        invocation.
-      </p>
+      <p className="text-muted-foreground text-sm">{t("idleStyle.intro")}</p>
       {existing ? (
         <p className="rounded-lg border p-3 text-sm">
-          {isCopy
-            ? "Saving creates an independent Local Style. The original Style stays unchanged."
-            : "Editing this shared Style affects every Anima using it on its next runtime refresh. Duplicate it in Loadout for a separate variation."}
+          {isCopy ? t("idleStyle.copyNotice") : t("idleStyle.sharedNotice")}
         </p>
       ) : null}
       <fieldset
@@ -413,7 +428,7 @@ function IdleStyleEditor({
         className="grid gap-4 rounded-xl border p-5 md:grid-cols-2"
       >
         <label className="grid gap-2 text-sm font-medium">
-          Name
+          {t("idleStyle.name")}
           <input
             className={cn(
               fieldClass,
@@ -428,7 +443,7 @@ function IdleStyleEditor({
           />
         </label>
         <label className="grid gap-2 text-sm font-medium">
-          Description
+          {t("idleStyle.description")}
           <textarea
             className={fieldClass}
             value={description}
@@ -439,7 +454,7 @@ function IdleStyleEditor({
       <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,1fr)]">
         <section
           className="space-y-3 rounded-xl border p-4"
-          aria-label="Idle Style cells"
+          aria-label={t("idleStyle.cells.label")}
         >
           <Button
             variant={selectedCell ? "outline" : "secondary"}
@@ -448,23 +463,25 @@ function IdleStyleEditor({
             onClick={() => setSelectedCell(null)}
             aria-pressed={!selectedCell}
           >
-            <span>Default · neutral</span>
+            <span>{t("idleStyle.cells.defaultNeutral")}</span>
             <span>
-              {document.defaultPool.length}{" "}
-              {document.defaultPool.length === 1 ? "Gesture" : "Gestures"}
+              {t("idleStyle.cells.gestures", {
+                count: document.defaultPool.length,
+              })}
             </span>
           </Button>
           <p className="text-muted-foreground text-xs">
-            Unconfigured cells use Default. An empty Default schedules no idle
-            Gestures; procedural breathing and resting continue.
+            {t("idleStyle.cells.defaultHint")}
           </p>
           <div className="max-h-[34rem] overflow-auto">
             <table className="w-full text-left text-sm">
-              <caption className="sr-only">Emotion pools by intensity</caption>
+              <caption className="sr-only">
+                {t("idleStyle.cells.caption")}
+              </caption>
               <thead className="bg-background sticky top-0">
                 <tr>
                   <th scope="col" className="py-2">
-                    Emotion
+                    {t("idleStyle.cells.emotion")}
                   </th>
                   {IDLE_INTENSITIES.map((intensity) => (
                     <th
@@ -494,7 +511,11 @@ function IdleStyleEditor({
                             type="button"
                             disabled={busy}
                             aria-pressed={active}
-                            aria-label={`${emotionLabel(emotion)} intensity ${intensity}: ${cell?.mode === "none" ? "No idle" : cell?.mode === "pool" ? `${cell.gestures.length} ${cell.gestures.length === 1 ? "Gesture" : "Gestures"}` : "Use Default"}`}
+                            aria-label={t("idleStyle.cells.cellLabel", {
+                              emotion: emotionLabel(emotion),
+                              intensity,
+                              state: cellStateText(t, cell),
+                            })}
                             className={cn(
                               "focus-visible:ring-ring w-full rounded-md border px-2 py-2 text-xs focus-visible:ring-2",
                               active
@@ -506,10 +527,12 @@ function IdleStyleEditor({
                             }
                           >
                             {cell?.mode === "none"
-                              ? "No idle"
+                              ? t("idleStyle.cells.noIdle")
                               : cell?.mode === "pool"
-                                ? `${cell.gestures.length} ${cell.gestures.length === 1 ? "Gesture" : "Gestures"}`
-                                : "Default"}
+                                ? t("idleStyle.cells.gestures", {
+                                    count: cell.gestures.length,
+                                  })
+                                : t("idleStyle.cells.default")}
                           </button>
                         </td>
                       );
@@ -522,12 +545,12 @@ function IdleStyleEditor({
         </section>
         <section
           className="space-y-4 rounded-xl border p-4"
-          aria-label={`${selectedLabel} pool`}
+          aria-label={t("idleStyle.pool.label", { cell: selectedLabel })}
         >
           <h2 className="text-lg font-semibold">{selectedLabel}</h2>
           {selectedCell ? (
             <label className="grid gap-2 text-sm">
-              Behavior
+              {t("idleStyle.pool.behavior")}
               <select
                 className={fieldClass}
                 value={selected?.mode ?? "inherit"}
@@ -542,21 +565,23 @@ function IdleStyleEditor({
                   )
                 }
               >
-                <option value="inherit">Use Default</option>
-                <option value="pool">Choose Gestures</option>
-                <option value="none">No idle</option>
+                <option value="inherit">
+                  {t("idleStyle.cells.useDefault")}
+                </option>
+                <option value="pool">{t("idleStyle.pool.choose")}</option>
+                <option value="none">{t("idleStyle.cells.noIdle")}</option>
               </select>
             </label>
           ) : null}
           {selected?.mode === "none" ? (
             <p className="text-muted-foreground text-sm">
-              No scheduled idle Gesture at this emotion and intensity.
+              {t("idleStyle.pool.none")}
             </p>
           ) : (
             <>
               {selectedCell && !selected ? (
                 <p className="text-muted-foreground text-sm">
-                  This cell inherits the Default pool.
+                  {t("idleStyle.pool.inherits")}
                 </p>
               ) : null}
               <GesturePoolEditor
@@ -583,7 +608,7 @@ function IdleStyleEditor({
                   disabled={previewBusy || busy}
                   onClick={() => void previewSavedPool()}
                 >
-                  <Play /> Preview saved pool
+                  <Play /> {t("idleStyle.pool.previewSaved")}
                 </Button>
               ) : null}
             </>
@@ -607,11 +632,15 @@ function IdleStyleEditor({
           }
           onClick={() => void save()}
         >
-          {busy ? "Saving…" : isCopy ? "Save Local copy" : "Save Idle Style"}
+          {busy
+            ? t("idleStyle.saving")
+            : isCopy
+              ? t("idleStyle.saveCopy")
+              : t("idleStyle.save")}
         </Button>
         {lastPreview ? (
           <p className="text-muted-foreground text-sm">
-            Previewing {lastPreview}
+            {t("idleStyle.previewing", { name: lastPreview })}
           </p>
         ) : null}
       </div>
@@ -643,6 +672,8 @@ function GesturePoolEditor({
   onPreview: (ref: string) => void;
   onRetry: () => void;
 }) {
+  const { t } = useTranslation("actionEditor");
+  const formatters = useFormatters();
   const [candidateId, setCandidateId] = useState("");
   const [search, setSearch] = useState("");
   const candidate = gestures.find((gesture) => gesture.item_id === candidateId);
@@ -675,7 +706,9 @@ function GesturePoolEditor({
                 size="icon-sm"
                 variant="outline"
                 disabled={!gesture || previewBusy}
-                aria-label={`Preview ${gesture?.name ?? ref}`}
+                aria-label={t("idleStyle.pool.previewMember", {
+                  name: gesture?.name ?? ref,
+                })}
                 onClick={() => onPreview(ref)}
               >
                 <Play />
@@ -685,7 +718,9 @@ function GesturePoolEditor({
                 size="icon-sm"
                 variant="ghost"
                 disabled={disabled}
-                aria-label={`Remove ${gesture?.name ?? ref}`}
+                aria-label={t("idleStyle.pool.removeMember", {
+                  name: gesture?.name ?? ref,
+                })}
                 onClick={() =>
                   onChange(pool.filter((member) => member !== ref))
                 }
@@ -697,26 +732,26 @@ function GesturePoolEditor({
         })}
         {!pool.length ? (
           <li className="text-muted-foreground p-3 text-sm">
-            No Gestures in this pool.
+            {t("idleStyle.pool.empty")}
           </li>
         ) : null}
       </ul>
       {loading ? (
         <p role="status" className="text-muted-foreground text-sm">
-          Loading Gestures…
+          {t("idleStyle.gestures.loading")}
         </p>
       ) : loadError ? (
         <div>
-          <p role="alert">Gestures could not be loaded.</p>
+          <p role="alert">{t("idleStyle.gestures.loadFailed")}</p>
           <Button variant="outline" onClick={onRetry}>
-            Retry
+            {t("idleStyle.retry")}
           </Button>
         </div>
       ) : null}
       {!disabled ? (
         <fieldset disabled={loading || loadError} className="space-y-3">
           <label className="grid gap-1 text-sm">
-            Search Gestures
+            {t("idleStyle.add.search")}
             <input
               className={fieldClass}
               type="search"
@@ -728,17 +763,18 @@ function GesturePoolEditor({
             />
           </label>
           <label className="grid gap-1 text-sm">
-            Add an existing Gesture
+            {t("idleStyle.add.label")}
             <select
               className={fieldClass}
               value={candidateId}
               onChange={(event) => setCandidateId(event.target.value)}
             >
-              <option value="">Choose a Gesture</option>
+              <option value="">{t("idleStyle.add.choose")}</option>
               {choices.map((gesture) => (
                 <option value={gesture.item_id} key={gesture.item_id}>
-                  {gesture.name} ·{" "}
-                  {gesture.implementation_kind === "vrma" ? "VRMA" : "Clip"}
+                  {gesture.implementation_kind === "vrma"
+                    ? t("idleStyle.add.optionVrma", { name: gesture.name })
+                    : t("idleStyle.add.optionClip", { name: gesture.name })}
                 </option>
               ))}
             </select>
@@ -746,24 +782,30 @@ function GesturePoolEditor({
           {candidate ? (
             <div className="text-sm" aria-live="polite">
               {playback.isPending ? (
-                "Checking finite playback…"
+                t("idleStyle.playback.checking")
               ) : playback.isError ? (
                 <>
-                  <p role="alert">Playback could not be checked.</p>
+                  <p role="alert">{t("idleStyle.playback.checkFailed")}</p>
                   <Button
                     variant="outline"
                     onClick={() => void playback.refetch()}
                   >
-                    Retry check
+                    {t("idleStyle.playback.retryCheck")}
                   </Button>
                 </>
               ) : playback.data?.eligible ? (
                 <p className="text-muted-foreground">
-                  Finite playback
                   {playback.data.duration_seconds
-                    ? ` · ${playback.data.duration_seconds.toFixed(1)} seconds`
-                    : ""}
-                  . Authored sounds and effects are preserved.
+                    ? t("idleStyle.playback.finiteFor", {
+                        seconds: formatters.number(
+                          playback.data.duration_seconds,
+                          {
+                            minimumFractionDigits: 1,
+                            maximumFractionDigits: 1,
+                          },
+                        ),
+                      })
+                    : t("idleStyle.playback.finite")}
                 </p>
               ) : (
                 <p className="text-destructive">
@@ -787,7 +829,7 @@ function GesturePoolEditor({
               }
             }}
           >
-            <Plus /> Add to pool
+            <Plus /> {t("idleStyle.add.submit")}
           </Button>
         </fieldset>
       ) : null}

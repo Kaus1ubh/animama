@@ -4,6 +4,7 @@ import type {
   PyVoiceContent,
 } from "@animama/runtime-contracts/api-types";
 import { streamContentFileV1ContentFilesFileRefGet } from "@animama/runtime-contracts/sdk";
+import { getI18n } from "react-i18next";
 import {
   ContentSaveApiError,
   contentSaveFieldError,
@@ -11,6 +12,7 @@ import {
 } from "@/lib/content/contentSaveErrors";
 import { buildPocketVoiceCatalogFile } from "./catalog-builder";
 import type { PocketVoiceEncoderOptions } from "./voice-cloning-encoder";
+import { PocketVoiceCloningError } from "./voice-cloning-error";
 import type { VoiceSampleSource } from "./voice-sample-player";
 
 export const POCKET_VOICE_CLONE_CODEC = "pocket-tts-catalog-v1";
@@ -33,34 +35,31 @@ export type PreparedVoiceClone = {
 export function voiceCloneName(name: string): string {
   const trimmed = name.trim();
   if (!trimmed || trimmed.length > 120) {
-    throw contentSaveFieldError(
-      "Enter a voice name of 1–120 characters.",
-      "name",
-    );
+    const t = getI18n().getFixedT(null, "voice");
+    throw contentSaveFieldError(t("pocket.clones.nameLength"), "name");
   }
   return trimmed;
 }
 
 /** Use the recording name when no display name is supplied; only strip its final extension. */
 export function voiceCloneNameFromFile(filename: string): string {
+  const t = getI18n().getFixedT(null, "voice");
   return (
     filename
       .replace(/\.[^.]*$/, "")
       .trim()
       .slice(0, 120)
-      .trim() || "Voice clone"
+      .trim() || t("pocket.clones.defaultName")
   );
 }
 
 function validateSize(file: Blob) {
+  const t = getI18n().getFixedT(null, "voice");
   if (!file.size) {
-    throw contentSaveFieldError("Choose a nonempty audio file.", "files");
+    throw contentSaveFieldError(t("pocket.clones.emptyFile"), "files");
   }
   if (file.size > MAX_VOICE_CLONE_FILE_BYTES) {
-    throw contentSaveFieldError(
-      "Each voice file must be 25 MiB or smaller.",
-      "files",
-    );
+    throw contentSaveFieldError(t("pocket.clones.fileTooLarge"), "files");
   }
 }
 
@@ -85,10 +84,8 @@ export async function prepareVoiceClone(
   validateSize(file);
   const extension = file.name.split(".").at(-1)?.toLowerCase();
   if (!extension || !["wav", "mp3", "ogg"].includes(extension)) {
-    throw contentSaveFieldError(
-      "Choose a WAV, MP3, or Ogg recording.",
-      "files",
-    );
+    const t = getI18n().getFixedT(null, "voice");
+    throw contentSaveFieldError(t("pocket.clones.unsupportedType"), "files");
   }
   const id = crypto.randomUUID();
   const stem =
@@ -146,12 +143,13 @@ export async function loadVoiceCloneFile(
     responseValidator: undefined,
     throwOnError: true,
   });
+  const t = getI18n().getFixedT(null, "voice");
   if (!(result.data instanceof Blob)) {
-    throw new Error("The saved voice file could not be read.");
+    throw new PocketVoiceCloningError(t("pocket.clones.readFailed"));
   }
   validateSize(result.data);
   if (result.data.size !== file.size_bytes) {
-    throw new Error("The saved voice file changed. Reload the voice library.");
+    throw new PocketVoiceCloningError(t("pocket.clones.fileChanged"));
   }
   return result.data;
 }
@@ -161,6 +159,7 @@ export function voiceCloneSampleSource(
   apiClient: Client,
   clone: PyVoiceContent,
 ): VoiceSampleSource {
+  const t = getI18n().getFixedT(null, "voice");
   const source = { id: `clone:${clone.item_id}`, name: clone.name };
   const samples =
     clone.files?.filter((file) => file.role === "source_sample") ?? [];
@@ -169,7 +168,10 @@ export function voiceCloneSampleSource(
         ...source,
         loadSample: (signal) => loadVoiceCloneSample(apiClient, clone, signal),
       }
-    : { ...source, sampleUnavailable: "Original recording unavailable" };
+    : {
+        ...source,
+        sampleUnavailable: t("pocket.clones.originalUnavailable"),
+      };
 }
 
 /** Original sample for the library player; its AbortSignal belongs to that player. */
@@ -181,7 +183,8 @@ export async function loadVoiceCloneSample(
   const samples =
     clone.files?.filter((file) => file.role === "source_sample") ?? [];
   if (clone.codec !== POCKET_VOICE_CLONE_CODEC || samples.length !== 1) {
-    throw new Error("This voice does not have an original recording to play.");
+    const t = getI18n().getFixedT(null, "voice");
+    throw new PocketVoiceCloningError(t("pocket.clones.noOriginal"));
   }
   return loadVoiceCloneFile(apiClient, samples[0], signal);
 }
@@ -193,10 +196,11 @@ export function toVoiceCloneError(
 ) {
   const normalized = toContentSaveApiError(error, status);
   if (normalized.code !== "catalog_item_in_use") return normalized;
+  const t = getI18n().getFixedT(null, "animas");
   return new ContentSaveApiError(
     normalized.status,
     normalized.code,
-    "This voice is used by an Anima. Choose another voice for that Anima before deleting it.",
+    t("voices.cloning.errors.inUse"),
     normalized.reason,
     normalized.details,
     normalized.field,
