@@ -1,7 +1,7 @@
 # Lip-sync that follows the voice in every language, without gruut
 
-Status: Proposal, drafted 2026-10-13. D1–D4 were agreed on 2026-10-13; D5 and the
-spec as a whole await the owner.
+Status: Agreed for planning. The owner requested the ExecPlan on 2026-10-13 after
+reviewing this spec at `35fc8d7f`. D5 awaits confirmation.
 
 Owner decisions, 2026-10-13 (recorded in the research brief's "Owner decisions"):
 
@@ -229,7 +229,9 @@ still covers the audible laugh between "gosh" and "that": the mouth pulses with 
 ### R12 — Numbers and symbols spelled out
 
 - Before Pocket TTS speaks English text, the browser spells out numbers and
-  symbols. It covers at least what gruut handles today:
+  symbols. Pocket's worker does this today, but gets many cases wrong (measured in
+  the ExecPlan); the shared speller replaces those passes. It covers at least what
+  gruut handles today:
   - cardinals with separators ("1,250" → "one thousand two hundred fifty");
   - decimals and currency in dollars, euros, pounds and yen ("$5.99" → "five dollars
     ninety-nine cents");
@@ -399,8 +401,7 @@ This document, until it is published to
 
 ## ExecPlan
 
-To be drafted with `to-execplan` after the owner agrees this spec, as
-`lipsync-execplan.md` beside it.
+[lipsync-execplan.md](lipsync-execplan.md), drafted 2026-10-13 for owner review.
 
 ## Delivery links
 
