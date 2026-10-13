@@ -876,8 +876,14 @@ Chunk helpers:
 
 Behavior:
 
-- browser TTS respects `tts_stream_chunks`
-- pocket TTS is forced non-streaming at token phase (`shouldStreamChunksForProvider` returns `false` for pocket), then emits final chunks on completion
+- A chunk ends at `.`, `!`, `?`, `;` or a newline, or at Japanese and Chinese
+  `。！？`, with any following marks (`?!`, `！？`, `...`) and closing quotes or
+  brackets, once at least 24 characters are buffered. Longer text splits near
+  140 characters, and 700 ms without new text flushes at least 36 characters.
+- Only ElevenLabs respects `tts_stream_chunks`.
+- Browser and Pocket TTS are forced non-streaming at token phase
+  (`shouldStreamChunksForProvider` returns `false` for them), then emit final
+  chunks on completion.
 - Gemini is forced non-streaming in the frontend token pipeline because
   backend-pushed `tts.audio` frames carry the finalized audio for structured
   speech batches

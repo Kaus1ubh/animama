@@ -325,6 +325,11 @@ Normal chat emits `response_format="main_structured_json"` and uses
 `user.response` frames. Those visible parts may arrive as sentence-level stream
 chunks with `is_delta=true`, increasing `part_index` values scoped to the
 response part, and `part_final=true` on the final chunk or final empty marker.
+A sentence ends at ASCII `.!?` followed by whitespace, except after common
+abbreviations, initials and list numbers. It also ends at Japanese or Chinese
+`。！？`, with any following marks and closing brackets or quotes. That end waits
+for the next character that is not a mark or closer, so a run streamed one mark
+at a time stays with its sentence (`domain/text_segmenter.py`).
 The hidden `emotional_tone` event is emitted only after both
 `emotional_tone` and `emotional_intensity` have been decoded, so request-local
 state receives the paired delivery metadata before speech chunks arrive. The

@@ -5,9 +5,11 @@ import { toast } from "sonner";
 
 import { createLogger } from "@/lib/logger";
 import {
+  countTtsChunkWords,
   createTtsChunkRecords,
   extractReadyTtsChunkCandidates,
   flushRemainingTtsChunkCandidates,
+  isExclamationTtsChunk,
   takeIdleTtsChunkCandidate,
   TTS_CHUNKING_DEFAULTS,
   type TtsChunkCandidate,
@@ -1387,8 +1389,8 @@ export function useTtsPlayback(
                   {
                     text: finalChunk,
                     boundaryType: "final" as const,
-                    isExclamation: /![\s"')\]}]*$/.test(finalChunk.trim()),
-                    wordCount: finalChunk.match(/[A-Za-z0-9']+/g)?.length ?? 0,
+                    isExclamation: isExclamationTtsChunk(finalChunk),
+                    wordCount: countTtsChunkWords(finalChunk),
                   },
                 ]
               : [];
