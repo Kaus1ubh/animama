@@ -143,10 +143,12 @@ def _extract(repository: str, artifact: dict, archive: Path, destination: Path) 
 
 
 def recipe_compatible(old: dict, new: dict) -> bool:
-    """True when both sets came from the same producer code."""
+    """True when both sets came from the same producer code and pinned toolchain."""
 
     def producer(manifest: dict) -> dict:
-        return {name: value for name, value in manifest["build"]["recipe"].items() if not CONTRACT_RECIPE.match(name)}
+        build = manifest["build"]
+        recipe = {name: value for name, value in build["recipe"].items() if not CONTRACT_RECIPE.match(name)}
+        return {"recipe": recipe, **{tool: build[tool] for tool in ("python", "uv", "node", "pnpm")}}
 
     return producer(old) == producer(new)
 

@@ -63,7 +63,7 @@ class SummaryTests(unittest.TestCase):
         text = render(plan, "All passed", [], browser, "Evidence line.", steps=lambda: (rows, 600))
         self.assertIn("Evidence line.", text)
         self.assertIn("Profile: **selective**", text)
-        self.assertIn("| promotion | No packaging input changed", text)
+        self.assertIn("| promotion | no | No packaging input changed", text)
         self.assertIn("Job wall-clock before the gate: **10.0 min**", text)
         self.assertIn("| x | success | 3 |", text)
         self.assertIn("| a.browser.test.mjs | core | prelude | passed | 4 |", text)

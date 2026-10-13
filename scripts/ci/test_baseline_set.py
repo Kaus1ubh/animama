@@ -161,7 +161,8 @@ class FindTests(unittest.TestCase):
 class RecipeAndArchiveTests(unittest.TestCase):
     def manifest(self, **recipe):
         base = {"scripts/package-sets/build.py": "1" * 64, "contracts/versions.json": "2" * 64}
-        return {"build": {"recipe": base | recipe}}
+        tools = {"python": "3.12.13", "uv": "0.11.28", "node": "24.15.0", "pnpm": "10.33.0"}
+        return {"build": {"recipe": base | recipe, **tools}}
 
     def test_only_contract_inputs_may_differ(self):
         self.assertTrue(baseline_set.recipe_compatible(self.manifest(), self.manifest()))
@@ -172,6 +173,9 @@ class RecipeAndArchiveTests(unittest.TestCase):
         extra = copy.deepcopy(self.manifest())
         extra["build"]["recipe"]["scripts/package-sets/application.py"] = "4" * 64
         self.assertFalse(baseline_set.recipe_compatible(self.manifest(), extra))
+        toolchain = copy.deepcopy(self.manifest())
+        toolchain["build"]["node"] = "24.16.0"
+        self.assertFalse(baseline_set.recipe_compatible(self.manifest(), toolchain))
 
     def fetch(self, members: dict[str, bytes], digest: str | None = None):
         buffer = io.BytesIO()
@@ -195,12 +199,15 @@ class RecipeAndArchiveTests(unittest.TestCase):
                 self.fetch({name: b"x"})
 
 
+TOOLS = {"python": "3.12.13", "uv": "0.11.28", "node": "24.15.0", "pnpm": "10.33.0"}
+
+
 class RunTests(unittest.TestCase):
     def args(self, root: Path):
         candidate = root / "candidate"
         candidate.mkdir()
         recipe = {"scripts/package-sets/build.py": "1" * 64}
-        (candidate / "manifest.json").write_text(json.dumps({"build": {"recipe": recipe}}))
+        (candidate / "manifest.json").write_text(json.dumps({"build": {"recipe": recipe, **TOOLS}}))
         return baseline_set.argparse.Namespace(
             baseline=BASELINE, checkout=root, candidate=candidate, work=root, record=root / "record.json"
         )
@@ -213,7 +220,7 @@ class RunTests(unittest.TestCase):
             destination.mkdir(parents=True)
             manifest = {
                 "source": {"commit": BASELINE, "tree": TREE},
-                "build": {"recipe": {"scripts/package-sets/build.py": recipe * 64}},
+                "build": {"recipe": {"scripts/package-sets/build.py": recipe * 64}, **TOOLS},
             }
             (destination / "manifest.json").write_text(json.dumps(manifest))
 

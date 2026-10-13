@@ -753,7 +753,9 @@ The lightweight run still executes CI policy tests, source/evidence selection
 and the aggregate gate. Its receipt and job summary link the original full run
 and record the artifact digest. Its `selection.json` `hosted_evidence.package_set`
 names the PR run's set so the hosted consumer can promote it without a second
-full run. The record holds:
+full run. The consumer's acceptance of this record is tracked in its own
+repository; until it lands, promoting a reused merge still needs a full `main`
+run, such as a manual dispatch. The record holds:
 
 - the artifact ID, name and digest, and its expiry;
 - the manifest digest and the manifest's `source` record;

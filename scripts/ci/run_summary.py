@@ -11,6 +11,7 @@ import os
 from datetime import datetime
 
 from github_evidence import _get_json, _repository
+from validation_policy import SUITES
 
 
 def _seconds(start: str | None, end: str | None) -> float | None:
@@ -50,9 +51,12 @@ def render(
             lines += [evidence, ""]
         if plan["mode"] in {"backend", "web"}:
             lines += ["Local assertions are owner-reviewed, not independently executed by this runner.", ""]
-        if plan.get("skipped"):
-            lines += ["| Skipped suite | Reason |", "| --- | --- |"]
-            lines += [f"| {row['suite']} | {row['reason']} |" for row in plan["skipped"]]
+        if plan["mode"] in {"full", "selective"}:
+            skipped = {row["suite"]: row["reason"] for row in plan.get("skipped", [])}
+            lines += ["| Suite | Ran | Reason |", "| --- | --- | --- |"]
+            for suite in sorted(SUITES):
+                reason = skipped.get(suite, "Promotion candidate or changed inputs")
+                lines += [f"| {suite} | {'no' if suite in skipped else 'yes'} | {reason} |"]
             lines += [""]
     try:
         rows, wall = steps() if steps else job_steps()

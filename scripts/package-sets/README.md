@@ -195,9 +195,15 @@ require them. A change to this shape is a change to this section.
 
 ## Compatibility policy
 
-Full validation compares package sets against the exact PR base, pre-push
-commit, or dispatched commit parent selected by the workflow. The baseline is
-built independently; an unavailable required baseline fails validation.
+Every run that executes the promotion suite compares its set against the exact
+PR base, pre-push commit, or dispatched commit parent selected by the workflow.
+`scripts/ci/baseline_set.py` first uses the set a successful full run of that
+baseline retained (or the PR set a `reused` receipt names for the same tree).
+That set must be verified and come from the same producer code and toolchain.
+Otherwise it rebuilds the baseline independently. The run's
+`validation-receipt` records the path taken as `baseline_set`. A baseline that
+can neither be found nor rebuilt fails validation. A `selective` PR run builds
+no set and makes no comparison.
 Contract versions must never decrease. Documentation-only JSON Schema/OpenAPI changes are compatible;
 all structural changes conservatively require a new major contract version,
 including additions not yet covered by a more precise compatibility rule.

@@ -271,6 +271,11 @@ from sequential runs show none. The crash appears specific to arm64.
 
 ### Phase 2: Suite selection, the `selective` profile and the gate
 
+> Revised in `c1cdae0d` (see the Decision Log): any packaging input selects
+> every suite, so the planned per-prefix `promotion` selection and the
+> `steps.select.outputs.package` output were replaced. A run is `full` or
+> `selective`, and `promotion` runs only in `full`.
+
 Requirements: R1–R5, R9. Changes:
 
 - `validation_policy.py`:
@@ -685,8 +690,45 @@ repository.
 
 ## Final integration review
 
-Pending. Scope: Phases 2–7 together against R1–R11 and the receipt contract,
-reusing valid phase evidence.
+#### Final Review #1 Findings
+
+Scope: `95a2db39..9b041f1d`. Checks: unittest 125 OK, ruff check and format,
+`uv lock --check`, the YAML parse, and a baseline-against-HEAD comparison of
+the policy modules. The cross-phase contracts were traced with no mismatches:
+
+- plan → workflow conditions → browser runner → gate;
+- `package_set` → `hosted_for_main` → `bound_evidence` → `baseline_set.find`.
+
+The revision in `c1cdae0d` was verified. For R1, the only change to the full
+step set is the added `browser-tests` step.
+
+- **FI-F1 (required):** the Compatibility policy section of the package-set
+  README still described an always-independent rebuild.
+- **FI-F2 (required):** the reuse docs did not say that the consumer's
+  acceptance is still pending, so promotion still needs a full `main` run.
+- **Optional:**
+  - **FI-F3:** the summary listed only the skipped suites, while R10 asks for
+    selected and skipped suites.
+  - **FI-F4:** the toolchain fields were not part of the recipe check.
+  - **FI-F5:** the Phase 2 body predates `c1cdae0d`.
+  - **FI-F6:** the baseline checkout still hydrates LFS when the retained path
+    is used.
+
+#### Final Review #1 Revisions
+
+- **FI-F1, accepted:** the README now describes the retained-or-rebuilt path,
+  the `baseline_set` record and the absence of a comparison in selective runs.
+- **FI-F2, accepted:** the docs state that promoting a reused merge needs a full
+  `main` run until the consumer's acceptance lands.
+- **FI-F3, accepted:** the summary has a table of every suite: whether it ran,
+  and why.
+- **FI-F4, accepted:** `recipe_compatible` also requires equal `python`, `uv`,
+  `node` and `pnpm` versions. Tested.
+- **FI-F5, accepted:** a revision note was added to Phase 2.
+- **FI-F6, rejected:** the checkout supplies the tree identity and the fallback
+  rebuild. The cost is small.
+- Checks after the revisions: unittest 125 OK, ruff clean. Repair round 1 of 2
+  used.
 
 ## Validation and acceptance
 
