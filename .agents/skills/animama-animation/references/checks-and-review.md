@@ -144,7 +144,8 @@ descriptor, or `library:avatar-effect/`, `library:particle-effect/` or
 judge timing, which still frames miss:
 
 - play at 0.25–1× speed, loop, scrub, or click a beat marker;
-- switch camera presets (front, ¾, side, face);
+- switch camera presets (front, ¾, side, face, and portrait, the chat's
+  Portrait framing);
 - `--compare library:<original>` plays an existing Gesture in a second row,
   for example next to its replacement;
 - switch sources in the page: the **Review** and **Compare** pickers list the

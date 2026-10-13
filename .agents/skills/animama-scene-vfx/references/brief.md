@@ -40,7 +40,7 @@ one exists; ask before departing from it.
 - **Face:** <how the calm zone behind the head is kept>
 - **Duration:** <held (null) or milliseconds; dismissed by input?>
 - **Art direction:** <what each image shows, palette, outline; reused
-  Twemoji items>
+  Animama stickers>
 - **Budget:** <`scene-sticker` per item image, `scene-tile` for a tile;
   counts against the scatter limits (96 items in all)>
 ```

@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:heart-fireworks",
+  "version": 1,
+  "name": "Heart Fireworks",
+  "description": "Two pink heart-shaped fireworks bloom beside the head, behind the Avatar, then sparkle and drift down, for love and sweet, happy moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "heart-fireworks",
+    "slots": {
+      "particle_vfx": {
+        "label": "Heart Fireworks",
+        "description": "Two pink heart-shaped fireworks bloom beside the head, behind the Avatar, then sparkle and drift down, for love and sweet, happy moments.",
+        "anchor": "head",
+        "duration_seconds": 3.6,
+        "max_duration_seconds": 4,
+        "preload_tier": "none",
+        "follow_anchor": false,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 104
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/heart-glow.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/heart-streak.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/heart-pattern.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/heart-twinkle.png",
+      "role": "texture"
+    }
+  ]
+}

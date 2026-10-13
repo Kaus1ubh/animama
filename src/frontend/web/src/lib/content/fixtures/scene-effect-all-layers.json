@@ -91,11 +91,10 @@
       "enabled": true,
       "items": [
         {
-          "id": "sparkle",
-          "kind": "emoji",
-          "label": "Sparkles",
-          "emoji": "✨",
-          "provider": "twemoji"
+          "id": "glint",
+          "kind": "image",
+          "label": "Glint",
+          "image": "bokeh.png"
         }
       ],
       "count": 9,

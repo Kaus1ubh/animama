@@ -36,10 +36,10 @@ const JOURNEYS: readonly AnimaLoadoutJourney[] = [
     contentName: "Admiration Reaction 3",
     target: { kind: "anima_pose_clip", runtimeId: "admiration-3" },
     requiredFiles: [
-      "heart.png",
+      "glossy-heart.png",
       "star3.png",
-      "emoji-star-struck-1f929.svg",
-      "emoji-sparkles-2728.svg",
+      "lilac-star-flower.png",
+      "bokeh-tile.png",
     ],
   },
 ] as const;
@@ -81,9 +81,9 @@ for (const journey of JOURNEYS) {
               expectedEventIds: [
                 "scene-emotion-background",
                 "avatar-star3",
-                "particle-hearts",
+                "particle-heart-burst",
               ],
-              expectedParticleEffects: ["hearts"],
+              expectedParticleEffects: ["heart-burst"],
               expectedSceneEffects: ["scene-vfx-emotion-admiration"],
               expectedTarget: journey.target,
               expressionThresholds: { happy: 0.72, relaxed: 0.24 },

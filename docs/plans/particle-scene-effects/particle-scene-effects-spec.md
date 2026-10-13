@@ -8,11 +8,12 @@ asked for this draft and, on review the same day, resolved its open questions
 (see the dated spec-review decisions) and accepted the spec. Items still marked
 **Proposal** are
 fixed by the named plan or gate: the R2 capability list and R6 budget values by
-Plan 1, the R9 and R10 lists before Plan 2 starts.
+Plan 1, the R9 and R10 lists before Plan 2 starts (decided 2026-10-10).
 Authoritative source: [#297](https://github.com/raymond-van/animama/issues/297),
-published 2026-10-09 (read back at 2026-10-09T20:29:45Z). This file is a
-snapshot of the published spec at `71ac3316`; refresh it from the issue before
-resuming and do not edit it as a competing source.
+published 2026-10-09 and updated with the before-Plan-2 decisions, the
+Plan 2 R9 additions and the owner's Plan 2 review (read back at
+2026-10-12T17:54:16Z). This file is a snapshot of that issue text; refresh it
+from the issue before resuming and do not edit it as a competing source.
 Related: [#298](https://github.com/raymond-van/animama/issues/298) (Avatar
 Effects v2: unified effects creator, effect preview, shared effect-asset skill
 and the Avatar Effect pipeline this work mirrors).
@@ -112,8 +113,7 @@ In scope:
 6. About 8 Scene background designs, one per emotion family. All 24 emotions
    get a preset with their own custom art and colour.
 7. An Animama sticker set that replaces Twemoji in the Scene creator.
-8. Reactions rewired on an escalating intensity ladder, and `shy-finger-poke`
-   rewired.
+8. Reactions rewired on an escalating intensity ladder.
 9. Removal of every other current Included Particle Effect and every current
    Included Scene Effect once its replacement is approved. This includes
    duplicate copies in bundled app catalogs and tests.
@@ -280,8 +280,8 @@ tooling:
   stays within the runtime limits unless a runtime change is agreed (see
   [Goals, scope and non-goals](#goals-scope-and-non-goals)).
 
-**Proposal:** the owner trims these 13 candidates to the final set before
-Plan 2 starts.
+**Final set (owner, 2026-10-10):** all candidates except #8 (Sweat spray).
+Heart burst (#2) is the effect approved in Plan 1's dry run.
 
 | # | Effect | Mechanic and layers | Emotions |
 | --- | --- | --- | --- |
@@ -298,6 +298,19 @@ Plan 2 starts.
 | 11 | Stink miasma | Green wisps and bubbles drifting up | disgust |
 | 12 | Rain cloud | Cloud with drizzle and splashes over the head | sadness, grief, disappointment |
 | 13 | Gloom wisps | Pale will-o'-wisps drift slowly around the Avatar | grief, remorse, disappointment |
+
+**Additions (owner, 2026-10-11 and 2026-10-12, Plan 2 gate G2):** three
+fireworks effects, designed with creative freedom, and Sparkle Hearts, from an
+owner reference image, join the set, so it has 16 effects with `hearts-v1`.
+Their emotions are the Plan 2 ladder's proposals, pending the owner's G4
+review.
+
+| # | Effect | Mechanic and layers | Emotions |
+| --- | --- | --- | --- |
+| 14 | Fireworks show | Three shells burst one after another behind the Avatar, then glitter twinkles down | excitement |
+| 15 | Heart fireworks | Two heart-shaped fireworks bloom beside the head, then sparkle and drift down | desire |
+| 16 | Golden willow | A golden willow firework opens behind the head and its branches droop and fall | optimism |
+| 17 | Sparkle hearts | Heart outlines drawn in tiny twinkling glitter float around the face | caring |
 
 #### R10 — Scene background library
 
@@ -346,9 +359,10 @@ For each of the 24 Reaction emotions:
 
 Assignments follow each effect's brief, and their timing works with the
 Reaction's expression and its Avatar Effects. A Reaction uses an effect only
-when it adds a clear beat. The `shy-finger-poke` Gesture is rewired from
-`kawaii-sparkles` and `light-streak` to new content. Reaction and Gesture edits
-use `animaPoseClip/2.0`.
+when it adds a clear beat. Reaction and Gesture edits use
+`animaPoseClip/2.0`. (The `shy-finger-poke` rewiring was dropped on
+2026-10-10: #406 deleted that Gesture, and no Included Gesture plays a Particle
+or Scene Effect.)
 
 #### R13 — Removal of old content
 
@@ -491,7 +505,6 @@ use `animaPoseClip/2.0`.
   - A table in the plan lists every Reaction's Particle and Scene Effects by
     intensity, and the owner approves the wired Reactions in the live preview.
   - Every emotion has a background at intensity 3.
-  - `shy-finger-poke` plays its new effects.
 - [ ] **R13, R14:**
   - No removed item, bundled duplicate or stale test remains.
   - Promoted content passes `tests/test_included_content_integrity.py`,
@@ -571,10 +584,46 @@ Decisions (owner, 2026-10-09, review of this draft):
 - **Agreement.** The owner accepted this spec on 2026-10-09 and authorized
   Plan 1 (phases P1–P9) the same day.
 
-Open:
+Decisions (owner, before Plan 2):
 
-- **Final lists** (before Plan 2): the owner trims the R9 candidates and
-  confirms the R10 families and directions.
+- **R10 families (2026-10-09, Plan 1 gate G1).** The eight family designs as
+  drafted, with embarrassment moved from Revulsion to Affection for its Scene
+  design.
+- **R9 final set (2026-10-10).** All candidates except Sweat spray. The Plan 1
+  dry-run effects Heart burst and Gloom Sadness (the Gloom family's sadness
+  preset) are used as approved. Quality bar: the level of Heart burst; simpler
+  effects are fine and sparkles or rings are not required in each.
+- **R9 additions and runtime limits (2026-10-11 and 2026-10-12, Plan 2
+  gate G2).** The four effects above join the set (16 in all). The Particle
+  emitter limit rises from 8 to 16 and the particle art budgets to 1024 px /
+  512 KiB (texture) and 2048 px / 2 MiB (sheet), so layered effects and closed
+  auras fit; each new effect's visible span is 20% longer; the particle
+  estimate counts particles alive at once. The owner approved all 14 new or
+  retuned effects on 2026-10-12.
+- **R12 (2026-10-10).** The `shy-finger-poke` rewiring is dropped (the Gesture
+  was deleted by #406); this supersedes that part of the 2026-10-09 decisions.
+
+- **R12 ladder (2026-10-10, Plan 2 gate G1).** Intensity 3 escalates through
+  the emotion's background, with a bigger Particle Effect where one fits; where
+  both tiers share an effect, the background is the step up (no intensity-3
+  variants), and fear, nervousness and disapproval have no Particle Effect.
+  The approved table is in the Plan 2 ExecPlan.
+
+- **Owner review of Plan 2 (2026-10-12).** G2, G3 and G4 are approved with
+  three revisions: every intensity-1 Reaction plays one fitting Avatar Effect
+  without its accompanying sound (still no Particle or Scene Effect; it uses
+  existing effects, including #462's Kira Star, Question Mark and Sigh Puff,
+  and one new effect, Single Tear, plus the droop-style Sigh Puff Droop kept
+  as an alternate that no Reaction uses; mouth effects stay out of Reactions because
+  they sit on the lip-synced mouth, so amusement-1 uses a redrawn, bolder Eye VV
+  and amusement-2 adds #462's Heh Lettering);
+  Scene stickers are spread evenly, still stickers never overlap another still
+  sticker, layers moving the same way never collide, and a moving sticker may
+  pass over another layer's still one, with still stickers in the upper half of
+  the emotion backgrounds; Heart Burst plays smaller at the chest with fewer
+  small hearts, and caring-3 drops its chest Heart Throb.
+
+Open: none.
 
 ## Spec
 
@@ -585,7 +634,9 @@ file is its snapshot.
 
 Plan 1 (R1–R8):
 [particle-scene-effects-execplan.md](particle-scene-effects-execplan.md).
-Plans 2 (R9–R14) and 3 (R15–R17) are written after their predecessors merge.
+Plan 2 (R9–R14):
+[particle-scene-effects-content-execplan.md](particle-scene-effects-content-execplan.md).
+Plan 3 (R15–R17) is written after Plan 2 merges.
 
 ## Delivery links
 

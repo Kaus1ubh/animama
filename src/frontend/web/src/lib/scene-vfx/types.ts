@@ -33,10 +33,6 @@ export const SCENE_BACKGROUND_ITEM_ROTATION_MODES = [
 export type SceneBackgroundItemRotationMode =
   (typeof SCENE_BACKGROUND_ITEM_ROTATION_MODES)[number];
 
-export const SCENE_BACKGROUND_EMOJI_PROVIDERS = ["twemoji"] as const;
-export type SceneBackgroundEmojiProvider =
-  (typeof SCENE_BACKGROUND_EMOJI_PROVIDERS)[number];
-
 export const SCENE_FOCUS_LINES_RENDER_PLACEMENTS = [
   "behind_avatar",
   "front_of_avatar",
@@ -79,34 +75,37 @@ export type SceneBackgroundSvgLineItem = {
   label: string;
 };
 
-export type SceneBackgroundEmojiLineItem = {
-  id: string;
-  kind: "emoji";
-  emoji: string;
-  label: string;
-  provider?: SceneBackgroundEmojiProvider;
-};
-
 export type SceneBackgroundLineItem =
   | SceneBackgroundPngLineItem
-  | SceneBackgroundSvgLineItem
-  | SceneBackgroundEmojiLineItem;
+  | SceneBackgroundSvgLineItem;
 
 export type ResolvedSceneBackgroundPngLineItem = SceneBackgroundPngLineItem;
 export type ResolvedSceneBackgroundSvgLineItem = SceneBackgroundSvgLineItem;
 
-export type ResolvedSceneBackgroundEmojiLineItem = Omit<
-  SceneBackgroundEmojiLineItem,
-  "provider"
-> & {
-  provider: SceneBackgroundEmojiProvider;
-  src: string;
-};
-
 export type ResolvedSceneBackgroundLineItem =
   | ResolvedSceneBackgroundPngLineItem
-  | ResolvedSceneBackgroundSvgLineItem
-  | ResolvedSceneBackgroundEmojiLineItem;
+  | ResolvedSceneBackgroundSvgLineItem;
+
+/**
+ * A marquee or scatter item from before the sticker set: a Twemoji glyph,
+ * which Animama no longer provides. A Scene saved with one plays without it,
+ * and its creator shows it as missing until it is replaced or removed.
+ */
+export type SceneLegacyEmojiItem = {
+  id: string;
+  kind: "emoji";
+  label: string;
+  emoji: string;
+};
+
+/** Whether a stored or runtime item is a legacy Twemoji item. */
+export function isSceneLegacyEmojiItem(value: unknown): boolean {
+  return (
+    Boolean(value) &&
+    typeof value === "object" &&
+    (value as { kind?: unknown }).kind === "emoji"
+  );
+}
 
 export type SceneBackgroundSolidLayer = {
   enabled: boolean;

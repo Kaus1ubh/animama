@@ -61,6 +61,24 @@ describe("Particle VFX Asset readiness", () => {
     );
   });
 
+  it("accepts up to sixteen emitters and blocks a seventeenth", () => {
+    let draft = createParticleVFXEditorDraftFromBlank();
+    while (draft.emitters.length < 16) {
+      draft = addParticleVFXEditorEmitter(draft);
+    }
+    const systemLimit = (value: typeof draft) =>
+      validateParticleVFXContentReadiness(value).issues.filter(
+        (issue) => issue.code === "asset-system-limit",
+      );
+
+    expect(systemLimit(draft)).toEqual([]);
+    expect(systemLimit(addParticleVFXEditorEmitter(draft))).toEqual([
+      expect.objectContaining({
+        message: "Particle VFX must contain between 1 and 16 emitters.",
+      }),
+    ]);
+  });
+
   it("allows only an exact trusted legacy App texture reference", () => {
     const draft = createParticleVFXEditorDraftFromBlank();
     const rawImage = readJsonObject((draft.quarksJson.images as unknown[])[0]);

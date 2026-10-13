@@ -8,7 +8,7 @@ import {
   type AnimaPoseClipParticleVFXEvent,
   type AnimaPoseClipSceneVFXEvent,
 } from "@/lib/avatar";
-import { getSceneBackgroundLayerPresetById } from "@/lib/scene-vfx/catalog";
+import { createTestSceneBackground } from "@/lib/scene-vfx/sceneVFXTestFixtures";
 import type { SceneVFXKind } from "@/lib/scene-vfx/types";
 import { useSceneVFXStore } from "@/stores/scene-vfx-store";
 import {
@@ -39,11 +39,11 @@ const avatarEvent: AnimaPoseClipAvatarVFXEvent = {
 };
 
 const particleEvent: AnimaPoseClipParticleVFXEvent = {
-  id: "particle-stars",
+  id: "particle-star-burst",
   time: 0,
   kind: "particle_vfx",
-  effectId: "stars",
-  duration: 1.4,
+  effectId: "star-burst",
+  duration: 1.8,
 };
 
 const sceneEvent: AnimaPoseClipSceneVFXEvent = {
@@ -56,8 +56,8 @@ const sceneEvent: AnimaPoseClipSceneVFXEvent = {
 
 const eventContext: AnimaPoseClipEventContext = {
   clipId: "joy-3",
-  eventId: "particle-stars",
-  appliedId: "poseClip:joy-3:particle-stars",
+  eventId: "particle-star-burst",
+  appliedId: "poseClip:joy-3:particle-star-burst",
   playbackTime: 0,
   clipTime: 0,
   occurrenceIndex: 0,
@@ -65,7 +65,7 @@ const eventContext: AnimaPoseClipEventContext = {
 
 const resolveFixtureSceneVFX = (kind: SceneVFXKind, runtimeId: string) =>
   kind === "background_layers"
-    ? getSceneBackgroundLayerPresetById(runtimeId)
+    ? createTestSceneBackground({ id: runtimeId })
     : null;
 
 describe("clip-owned VFX preference gate", () => {
@@ -133,10 +133,7 @@ describe("clip-owned VFX preference gate", () => {
   });
 
   it("clears tracked clip-owned scene VFX and restores the previous entry", () => {
-    const previousPreset = getSceneBackgroundLayerPresetById("comic-pop");
-    if (!previousPreset) {
-      throw new Error("Missing comic-pop scene VFX preset.");
-    }
+    const previousPreset = createTestSceneBackground();
     useSceneVFXStore.getState().applySceneVFX({
       ...previousPreset,
       id: "manual-background",

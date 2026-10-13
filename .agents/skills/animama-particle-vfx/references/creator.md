@@ -132,7 +132,7 @@ Frontend package limits at the verified baseline are:
 
 | Resource | Limit |
 | --- | --- |
-| Emitters | 1–8 |
+| Emitters | 1–16 |
 | Object graph | Group/ParticleEmitter nodes; at most 128 nodes |
 | Resource arrays | At most 64 entries each in geometries/materials/textures/images |
 | Unique textures | 16 |

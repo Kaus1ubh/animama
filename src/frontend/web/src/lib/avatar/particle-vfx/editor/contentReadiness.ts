@@ -11,7 +11,8 @@ import type {
 } from "./types";
 
 const MAX_MANIFEST_BYTES = 5 * 1024 * 1024;
-const MAX_SYSTEMS = 8;
+/** Most emitters (Quarks particle systems) one Particle Effect may carry. */
+export const PARTICLE_VFX_MAX_EMITTERS = 16;
 const MAX_RESOURCES = 64;
 const MAX_NODES = 128;
 const MAX_TEXTURES = 16;
@@ -88,10 +89,10 @@ export function validateParticleVFXContentReadiness(
       "object",
     );
   }
-  if (systemCount < 1 || systemCount > MAX_SYSTEMS) {
+  if (systemCount < 1 || systemCount > PARTICLE_VFX_MAX_EMITTERS) {
     push(
       "asset-system-limit",
-      `Particle VFX must contain between 1 and ${MAX_SYSTEMS} emitters.`,
+      `Particle VFX must contain between 1 and ${PARTICLE_VFX_MAX_EMITTERS} emitters.`,
       "object.children",
     );
   }

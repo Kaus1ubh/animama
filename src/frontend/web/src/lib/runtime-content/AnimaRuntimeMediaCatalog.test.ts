@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { AVATAR_PARTICLE_VFX_CATALOG } from "@/lib/avatar/particle-vfx/catalog";
-import { getSceneBackgroundLayerPresetIds } from "@/lib/scene-vfx/catalog";
+import { getSceneFocusLinePresetIds } from "@/lib/scene-vfx/catalog";
 import type { RuntimeCatalogEntry, RuntimeContentSlot } from "./types";
 import { AnimaRuntimeMediaCatalog } from "./AnimaRuntimeMediaCatalog";
 
@@ -147,7 +147,8 @@ describe("AnimaRuntimeMediaCatalog", () => {
 
   it("resolves only exact mounted built-in entries for every media family", async () => {
     const particleFixture = AVATAR_PARTICLE_VFX_CATALOG[0];
-    const sceneFixtureId = getSceneBackgroundLayerPresetIds()[0];
+    // The bundled catalog holds only the focus presets.
+    const sceneFixtureId = getSceneFocusLinePresetIds()[0];
     if (!particleFixture || !sceneFixtureId) {
       throw new Error("Missing built-in media fixtures");
     }
@@ -159,11 +160,11 @@ describe("AnimaRuntimeMediaCatalog", () => {
     });
     const sceneVfx = builtInEntry({
       kind: "scene_vfx",
-      slot: "scene_background_vfx",
+      slot: "scene_focus_vfx",
       runtimeId: "mounted-scene-vfx",
       source: {
         type: "runtime_catalog",
-        catalog: "scene_background_presets",
+        catalog: "scene_focus_presets",
         key: sceneFixtureId,
       },
     });
@@ -177,7 +178,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
     const catalog = new AnimaRuntimeMediaCatalog(
       mediaCatalog({
         particleVfx: [particle],
-        sceneBackgroundVfx: [sceneVfx],
+        sceneFocusVfx: [sceneVfx],
         sfx: [sfx],
       }),
     );
@@ -187,17 +188,17 @@ describe("AnimaRuntimeMediaCatalog", () => {
     ).resolves.toMatchObject({
       id: "mounted-particle",
     });
-    await expect(catalog.resolveParticleVFX("hearts")).resolves.toBeNull();
+    await expect(
+      catalog.resolveParticleVFX(particleFixture.id),
+    ).resolves.toBeNull();
     expect(
-      catalog.resolveSceneVFX("background_layers", "mounted-scene-vfx")?.id,
+      catalog.resolveSceneVFX("focus_lines", "mounted-scene-vfx")?.id,
     ).toBe("mounted-scene-vfx");
-    expect(catalog.listSceneVFX("background_layers")).toEqual([
+    expect(catalog.listSceneVFX("focus_lines")).toEqual([
       expect.objectContaining({ id: "mounted-scene-vfx" }),
     ]);
-    expect(catalog.listSceneVFX("focus_lines")).toEqual([]);
-    expect(
-      catalog.resolveSceneVFX("background_layers", sceneFixtureId),
-    ).toBeNull();
+    expect(catalog.listSceneVFX("background_layers")).toEqual([]);
+    expect(catalog.resolveSceneVFX("focus_lines", sceneFixtureId)).toBeNull();
     expect(catalog.listAudio("sfx")).toEqual([
       expect.objectContaining({
         runtimeId: "mounted-sfx",

@@ -11,10 +11,12 @@ export class SharingError extends Error {
     status: number | null = null,
     items: readonly string[] = [],
   ) {
+    // A message that introduces item names ends with a colon; without names
+    // it ends the sentence instead.
     super(
       items.length
         ? `${sharingMessage(code)} ${items.join(", ")}.`
-        : sharingMessage(code),
+        : (unnamedMessages[code] ?? sharingMessage(code).replace(/:$/, ".")),
     );
     this.code = code;
     this.status = status;
@@ -27,6 +29,8 @@ const messages: Record<string, string> = {
     "Some content comes with Animama for use only where it is installed, so it can't be exported or imported:",
   package_dependency_missing:
     "Some content uses an Included effect that was removed. Open it in its creator, map or remove those effect events, then export:",
+  scene_emoji_item_removed:
+    "Some Scene Effects use emoji, which Animama no longer provides. Open each in its creator, replace each emoji with a sticker or image or remove it, then export again:",
   package_transport_unavailable:
     "Animama could not be reached. Check the local app and retry.",
   package_invalid:
@@ -69,6 +73,16 @@ const messages: Record<string, string> = {
     "This package contains a clip in an unsupported format, such as the retired animaPoseClip/1.0. Only animaPoseClip/2.0 clips can be imported or exported.",
   package_anima_import_unavailable:
     "Anima creation is not ready on this installation. Check the default model settings, then refresh the review.",
+};
+
+/**
+ * Messages for a refusal that names no items, where the named form's advice
+ * does not apply. Package import refuses an emoji item without names: the
+ * importer does not have those Scene Effects to open.
+ */
+const unnamedMessages: Record<string, string> = {
+  scene_emoji_item_removed:
+    "This package has Scene Effects that use emoji, which Animama no longer provides, so it can't be imported. Ask whoever exported it to replace each emoji with a sticker or image, then export again.",
 };
 
 export function sharingMessage(code: string): string {

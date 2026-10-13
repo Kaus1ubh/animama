@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:halo-rays",
+  "version": 1,
+  "name": "Halo Rays",
+  "description": "Soft golden rays fan out and slowly turn behind the head while gold sparkles twinkle up beside it, for respectful, confident, grateful and hopeful moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "halo-rays",
+    "slots": {
+      "particle_vfx": {
+        "label": "Halo Rays",
+        "description": "Soft golden rays fan out and slowly turn behind the head while gold sparkles twinkle up beside it, for respectful, confident, grateful and hopeful moments.",
+        "anchor": "head",
+        "duration_seconds": 4.05,
+        "max_duration_seconds": 4.8,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.06,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 17
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/halo-glow.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/halo-rayfan-cream.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/halo-rayfan-gold.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/halo-sparkle.png",
+      "role": "texture"
+    }
+  ]
+}

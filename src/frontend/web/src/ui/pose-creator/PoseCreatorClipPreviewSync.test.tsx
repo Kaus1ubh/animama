@@ -2,7 +2,7 @@ import { renderToString } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { usePoseCreatorStore } from "@/stores/pose-creator-store";
 import { createPoseCreatorClipDraftFromAnimaPoseClip } from "./poseCreatorClipAuthoring";
-import { getSceneBackgroundLayerPresetById } from "@/lib/scene-vfx/catalog";
+import { createTestSceneBackground } from "@/lib/scene-vfx/sceneVFXTestFixtures";
 import { PoseCreatorClipPreviewSync } from "./PoseCreatorClipPreviewSync";
 
 const harness = vi.hoisted(() => ({
@@ -267,7 +267,7 @@ describe.each(["avatar_vfx", "scene_vfx"] as const)(
       async (playAccompanyingSound) => {
         const playSfxCue = vi.fn();
         harness.sound = { playSfxCue, sfxVolume: 1 };
-        const preset = getSceneBackgroundLayerPresetById("kawaii-sparkles")!;
+        const preset = createTestSceneBackground();
         harness.catalog = {
           loadAvatarVFX: vi.fn().mockResolvedValue({
             id: "effect",

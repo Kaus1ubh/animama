@@ -1,5 +1,8 @@
-import { createDefaultParticleVFXTransform } from "./catalog";
-import { isParticleVFXAnchor, normalizeParticleVFXTransform } from "./runtime";
+import {
+  createDefaultParticleVFXTransform,
+  isParticleVFXAnchor,
+  normalizeParticleVFXTransform,
+} from "./runtime";
 import type { ParticleVFXCatalogEntry, ParticleVFXShapeAutoFit } from "./types";
 
 type ParticleVFXRuntimeDefaults = Omit<

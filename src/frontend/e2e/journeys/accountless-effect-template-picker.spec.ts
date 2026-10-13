@@ -174,9 +174,9 @@ test("accountless effect templates seed unsaved drafts and Start from scratch op
           picker.getByRole("heading", { name: group, exact: true }),
         ).toBeVisible();
       const images = picker.locator("img");
-      await expect(images).toHaveCount(73);
+      await expect(images).toHaveCount(75);
       // Thumbnails load lazily, so bring each card into view before checking.
-      for (let index = 0; index < 73; index += 1)
+      for (let index = 0; index < (await images.count()); index += 1)
         await images.nth(index).scrollIntoViewIfNeeded();
       await expect
         .poll(

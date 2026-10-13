@@ -301,7 +301,7 @@ describe("Starter action customization", () => {
     };
     starterClosure.root.reference_map = {
       "emote_!": "builtin:avatar-effect:emote",
-      "question-marks": "builtin:particle-effect:question-marks",
+      "question-orbit": "builtin:particle-effect:question-orbit",
     };
     starterClosure.root.dependencies = [
       {
@@ -311,8 +311,8 @@ describe("Starter action customization", () => {
         config: {},
       },
       {
-        ref: "builtin:particle-effect:question-marks",
-        alias: "question-marks",
+        ref: "builtin:particle-effect:question-orbit",
+        alias: "question-orbit",
         content_type: "particle_effect",
         config: {},
       },
@@ -340,11 +340,11 @@ describe("Starter action customization", () => {
         config: {},
       },
       {
-        alias: "question-marks",
+        alias: "question-orbit",
         content_type: "particle_effect",
         source: {
           type: "builtin",
-          content_id: "builtin:particle-effect:question-marks",
+          content_id: "builtin:particle-effect:question-orbit",
           version: 1,
         },
         config: {},

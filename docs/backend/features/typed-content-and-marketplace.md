@@ -277,6 +277,18 @@ admit such an Action is refused (`saved_content_invalid` with field
 `dependencies`, `package_catalog_admission_failed`): only Actions saved before
 the removal outlive it.
 
+### Scene Effects with a Twemoji item
+
+A Local Scene Effect saved with an `emoji` item (Animama no longer provides
+Twemoji) stays valid, plays without the item and is listed in Content Health
+with a `scene_emoji_item_removed` diagnostic per item
+([data model](../architecture/data-model.md)). Item and Anima export refuse it,
+and anything that includes it, with `scene_emoji_item_removed` and the item
+names in `detail.items`, until its creator replaces or removes those items.
+Package import refuses an emoji item, or a declared `animama/twemoji/…`
+capability, with the same code; Save refuses it as `saved_content_invalid`
+with the item as `field`.
+
 Resource filenames inside a content directory stay unchanged so embedded image
 and texture references remain valid when the containing item receives a collision
 suffix. Avatar imports also register the logical model used by Library and Anima

@@ -4,49 +4,107 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-sadness",
   "version": 1,
   "name": "Emotion Sadness",
-  "description": "Scene background effect preset",
+  "description": "An overcast blue sky with gloom lines hanging from the top and raindrops falling beside the Avatar, for sad, dejected moments.",
   "dependencies": [],
   "definition": {
-    "schema": "animama/scene-effect/1",
-    "kind": "background_layers",
-    "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
-    "solid": {
-      "enabled": true,
-      "color": "#d4e6ff"
-    },
-    "pattern": {
-      "enabled": true,
-      "pattern": "polkadot",
+    "dismissOnInput": false,
+    "durationMs": null,
+    "flash": {
       "color": "#ffffff",
-      "size": 20,
-      "spacing": 18,
-      "opacity": 0.3
+      "durationMs": 260,
+      "enabled": false
     },
-    "marquee": {
+    "gradient": {
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.5,
       "enabled": true,
-      "itemSize": 72,
+      "stops": [
+        {
+          "color": "#4f6a8f",
+          "position": 0
+        },
+        {
+          "color": "#b9c9df",
+          "position": 1
+        }
+      ],
+      "type": "linear"
+    },
+    "kind": "background_layers",
+    "marquee": {
+      "direction": "left",
+      "enabled": false,
       "gap": 24,
-      "rowGap": 18,
-      "direction": "diagonal-up-left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
-        {
-          "id": "emoji-cloud-rain",
-          "kind": "image",
-          "label": "Cloud with Rain 🌧",
-          "image": "emoji-cloud-rain-1f327.svg"
-        }
-      ]
+      "itemSize": 72,
+      "items": [],
+      "opacity": 1,
+      "rowGap": 18,
+      "speedPxPerSec": 100
+    },
+    "pattern": {
+      "color": "#ffffff",
+      "enabled": false,
+      "opacity": 0.3,
+      "pattern": "none",
+      "size": 10,
+      "spacing": 20
+    },
+    "scatters": [
+      {
+        "alternateSpin": false,
+        "count": 18,
+        "direction": "down",
+        "enabled": true,
+        "items": [
+          {
+            "id": "drop",
+            "image": "drop.png",
+            "kind": "image",
+            "label": "Raindrop"
+          }
+        ],
+        "keepFaceClear": true,
+        "maxOpacity": 1,
+        "maxRotationDeg": 0,
+        "maxSize": 44,
+        "maxSpinDegPerSec": 0,
+        "minOpacity": 0.8,
+        "minRotationDeg": 0,
+        "minSize": 22,
+        "minSpinDegPerSec": 0,
+        "pulse": "none",
+        "regionBottom": 1,
+        "regionTop": 0,
+        "seed": 83,
+        "speedPxPerSec": 240
+      }
+    ],
+    "schema": "animama/scene-effect/1",
+    "screen": {
+      "color": "#1e2b45",
+      "count": 32,
+      "enabled": true,
+      "kind": "lines",
+      "maxLength": 0.5,
+      "maxWidthPx": 4,
+      "minLength": 0.1,
+      "minWidthPx": 1.5,
+      "opacity": 0.5,
+      "seed": 11,
+      "swaySeconds": 8
+    },
+    "solid": {
+      "color": "#4f6a8f",
+      "enabled": false
     }
   },
   "files": [
     {
-      "path": "emoji-cloud-rain-1f327.svg",
+      "path": "drop.png",
       "role": "image"
     }
   ]

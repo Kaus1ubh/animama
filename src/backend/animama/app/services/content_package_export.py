@@ -51,6 +51,7 @@ from animama.app.services.non_portable_packages import idle_pools_using, strip_i
 from animama.app.services.package_inspection import inspect_package
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentResolutionContext
 from animama.domain.content_catalog import (
+    SCENE_EMOJI_ITEM_REMOVED,
     CatalogContentEntry,
     CatalogContentFile,
     ContentConflictError,
@@ -404,6 +405,15 @@ class ContentPackageExportService:
             raise ContentConflictError(
                 "package_dependency_missing", items=tuple(item.display_name for item in outdated)
             )
+        # A Scene saved with a Twemoji item plays without it here; elsewhere
+        # the item would be unavailable, so it is replaced in its creator first.
+        with_emoji = [
+            item.item
+            for item in entries.values()
+            if any(diagnostic.code == SCENE_EMOJI_ITEM_REMOVED for diagnostic in item.item.diagnostics)
+        ]
+        if with_emoji:
+            raise ContentConflictError(SCENE_EMOJI_ITEM_REMOVED, items=tuple(item.display_name for item in with_emoji))
         portraits = _portraits(
             tuple(item.item for item in entries.values() if item.item.kind is ContentKind.AVATAR), visible
         )

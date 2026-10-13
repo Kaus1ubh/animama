@@ -1,0 +1,169 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-caring",
+  "version": 1,
+  "name": "Emotion Caring",
+  "description": "A warm apricot glow behind the Avatar with apricot blossoms and small leaves drifting gently down through soft bokeh, for caring, tender moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "coverUiOverlays": false,
+    "dismissOnInput": false,
+    "solid": {
+      "enabled": false,
+      "color": "#ffc7a1"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.32,
+      "stops": [
+        {
+          "color": "#fff8ef",
+          "position": 0
+        },
+        {
+          "color": "#ffe6cf",
+          "position": 0.4
+        },
+        {
+          "color": "#ffc7a1",
+          "position": 1
+        }
+      ]
+    },
+    "tile": {
+      "enabled": true,
+      "size": 180,
+      "opacity": 0.3,
+      "direction": "up",
+      "speedPxPerSec": 6,
+      "image": "bokeh-tile.png"
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "blossom",
+            "kind": "image",
+            "label": "Apricot blossom",
+            "image": "apricot-blossom.png"
+          },
+          {
+            "id": "leaf",
+            "kind": "image",
+            "label": "Leaf",
+            "image": "leaf.png"
+          }
+        ],
+        "count": 14,
+        "seed": 101,
+        "minSize": 28,
+        "maxSize": 52,
+        "minRotationDeg": -180,
+        "maxRotationDeg": 180,
+        "minOpacity": 0.8,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "diagonal-down-left",
+        "speedPxPerSec": 24,
+        "minSpinDegPerSec": 6,
+        "maxSpinDegPerSec": 18,
+        "alternateSpin": true,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "sparkle",
+            "kind": "image",
+            "label": "Sparkle",
+            "image": "sparkle-white.png"
+          }
+        ],
+        "count": 6,
+        "seed": 9,
+        "minSize": 12,
+        "maxSize": 22,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.75,
+        "maxOpacity": 0.95,
+        "regionTop": 0.04,
+        "regionBottom": 0.5,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
+    }
+  },
+  "files": [
+    {
+      "path": "apricot-blossom.png",
+      "role": "image"
+    },
+    {
+      "path": "leaf.png",
+      "role": "image"
+    },
+    {
+      "path": "sparkle-white.png",
+      "role": "image"
+    },
+    {
+      "path": "bokeh-tile.png",
+      "role": "image"
+    }
+  ]
+}

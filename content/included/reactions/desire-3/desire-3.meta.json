@@ -15,8 +15,14 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:hearts",
-      "alias": "hearts",
+      "ref": "builtin:scene-effect:background:scene-vfx-emotion-desire",
+      "alias": "scene-vfx-emotion-desire",
+      "content_type": "scene_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:heart-fireworks",
+      "alias": "heart-fireworks",
       "content_type": "particle_effect",
       "config": {}
     },

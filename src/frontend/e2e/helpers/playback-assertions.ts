@@ -348,27 +348,31 @@ export async function expectBottomRightDock(dock: Locator): Promise<void> {
   );
 }
 
-/** Prove Kawaii Sparkles' pattern, Blob-backed cells, and running marquee motion. */
-export async function proveKawaiiSparklesDom(effectRoot: Locator): Promise<void> {
-  await expect(
-    effectRoot.locator('[data-scene-vfx-layer="pattern"]'),
-  ).toBeVisible();
-  await expect(
-    effectRoot.locator('[data-scene-vfx-layer="marquee"]'),
-  ).toBeVisible();
-  for (const itemId of ["emoji-sparkles", "emoji-sparkling-heart"]) {
+/**
+ * Prove Emotion Joy's gradient and polka-dot pattern, its Blob-backed scatter
+ * items (stars and confetti), and their running drift.
+ */
+export async function proveEmotionJoySceneDom(
+  effectRoot: Locator,
+): Promise<void> {
+  for (const layer of ["gradient", "pattern"])
+    await expect(
+      effectRoot.locator(`[data-scene-vfx-layer="${layer}"]`),
+    ).toBeVisible();
+  const scatters = effectRoot.locator('[data-scene-vfx-layer="scatter"]');
+  await expect(scatters).toHaveCount(2);
+  for (const itemId of ["star", "curl"]) {
     const matching = effectRoot.locator(`[data-scene-vfx-item-id="${itemId}"]`);
     await expect(matching).not.toHaveCount(0);
-    await expect(matching.first()).toBeVisible();
     const backgroundImage = await matching
       .first()
       .evaluate((element) => getComputedStyle(element).backgroundImage);
     expect(backgroundImage).toContain("blob:");
   }
 
-  const track = effectRoot.locator("[data-scene-vfx-marquee-track]").first();
-  await expect(track).toBeVisible();
-  const first = await track.evaluate((element) => {
+  // Each placement drifts on its outermost element.
+  const placement = scatters.first().locator(":scope > div").first();
+  const first = await placement.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
       animationName: style.animationName,
@@ -376,10 +380,10 @@ export async function proveKawaiiSparklesDom(effectRoot: Locator): Promise<void>
       transform: style.transform,
     };
   });
-  expect(first.animationName).toContain("scene-vfx-marquee-shift");
+  expect(first.animationName).toContain("scene-vfx-drift");
   expect(first.animationPlayState).toBe("running");
-  await track.page().waitForTimeout(250);
-  const secondTransform = await track.evaluate(
+  await placement.page().waitForTimeout(250);
+  const secondTransform = await placement.evaluate(
     (element) => getComputedStyle(element).transform,
   );
   expect(secondTransform).not.toBe(first.transform);

@@ -504,8 +504,8 @@ Budgets (longest side and file size):
 | `landmark`, `body`, `sticker` | Avatar Effect art floating at the face, on a body point or beside the Avatar | 512 px, 256 KiB |
 | `surface`, `silhouette` | Painted on the face (keeps its layout); silhouette overlay | 1024 px, 512 KiB |
 | `flipbook` | A whole Avatar Effect flipbook sheet | 2048 px, 1024 KiB |
-| `particle-texture` | One Particle sprite | 512 px, 256 KiB |
-| `particle-sheet` | A Particle sprite sheet | 2048 px, 1024 KiB |
+| `particle-texture` | One Particle sprite | 1024 px, 512 KiB |
+| `particle-sheet` | A Particle sprite sheet | 2048 px, 2048 KiB |
 | `scene-sticker` | A Scene marquee or scatter item | 512 px, 256 KiB |
 | `scene-tile` | A repeating Scene tile (may be opaque; keeps its margins) | 512 px, 256 KiB |
 | `scene-background` | A full Scene background (may be opaque; keeps its framing) | 2048 px, 1024 KiB |
@@ -537,9 +537,10 @@ pnpm -s effects promote ./promote.json --dry-run
   with the effect and against a baseline (for face effects, the same effect
   with transparent stand-in images, so closed eyes and face cleanup are in
   both): the art must show on every Avatar in some frame. A Particle Effect
-  also gets Save's readiness rules and particle estimate against its declared
-  budget and the 512-particle limit, and fails an own texture named like a
-  built-in creator texture (Save would keep the built-in art); a Scene Effect
+  also gets Save's readiness rules and its estimate of particles alive at
+  once against its declared budget and the 512-particle limit, and fails an
+  own texture named like a built-in creator texture (Save would keep the
+  built-in art); a Scene Effect
   gets the shared Scene limits and its image list. Each check prints a PASS
   or its problems. `--times` defaults to 0.25 s and 1 s.
   `--with-clip <clip.json|Gesture folder|library:<gesture>>` poses both
@@ -603,7 +604,8 @@ sourcing the stack record, unless `--local-content` is given.
 `pnpm -s effects:render` renders effects on both Included Avatars in headless
 Chromium (SwiftShader) with the chat canvas settings (ACES Filmic, sRGB, the
 default scene lights), stepping fixed 60 Hz frames with automatic animation
-off, so renders are deterministic:
+off, so renders are deterministic (a Reaction that starts two Particle Effects
+in one frame can still differ by a few pixels between runs):
 
 ```bash
 pnpm -s effects:render ./my-effect --out /tmp/my-effect.png
@@ -652,8 +654,9 @@ folder's README provenance current.
 ### Headed preview
 
 `pnpm -s animation:preview` reviews an effect live on both Included Avatars in
-the system browser, with the motion preview's camera presets, transport and
-review notes:
+the system browser, with the motion preview's camera presets (Front, ¾, Side,
+Face and Portrait, the chat's Portrait preset at the rest head, as the review
+renders frame it), transport and review notes:
 
 ```bash
 pnpm -s animation:preview ./my-effect                # folder or descriptor .json

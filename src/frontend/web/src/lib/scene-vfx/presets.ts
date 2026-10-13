@@ -1,7 +1,4 @@
-import {
-  cloneSceneBackgroundLineItem,
-  toSceneBackgroundLineItemDraft,
-} from "./assets";
+import { cloneSceneBackgroundLineItem } from "./assets";
 import {
   getSceneBackgroundLayerPresetById,
   getSceneBackgroundLayerPresetIds,
@@ -162,7 +159,7 @@ export function draftSceneBackgroundLayersVFXEntryFromResolved(
     },
     marquee: {
       ...entry.marquee,
-      items: entry.marquee.items.map(toSceneBackgroundLineItemDraft),
+      items: entry.marquee.items.map(cloneSceneBackgroundLineItem),
     },
   };
 }

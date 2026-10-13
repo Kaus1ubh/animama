@@ -142,8 +142,8 @@ test("resolves a Reaction's dependencies to served effects", async () => {
         config: {},
       },
       {
-        ref: "builtin:particle-effect:question-marks",
-        alias: "question-marks",
+        ref: "builtin:particle-effect:question-orbit",
+        alias: "question-orbit",
         content_type: "particle_effect",
         config: { duration_seconds: 3 },
       },
@@ -153,8 +153,8 @@ test("resolves a Reaction's dependencies to served effects", async () => {
         content_type: "avatar_effect",
       },
       {
-        ref: "builtin:scene-effect:background:kawaii-sparkles",
-        alias: "kawaii-sparkles",
+        ref: "builtin:scene-effect:background:scene-vfx-emotion-curiosity",
+        alias: "scene-vfx-emotion-curiosity",
         content_type: "scene_effect",
       },
     ],
@@ -165,19 +165,20 @@ test("resolves a Reaction's dependencies to served effects", async () => {
     [["swirl", "Eye Confused Swirl"]],
   );
   const [particle] = media.particleEffects;
-  assert.equal(particle.alias, "question-marks");
+  assert.equal(particle.alias, "question-orbit");
   // The dependency's config overrides the stored defaults.
   assert.equal(particle.config.duration_seconds, 3);
   assert.equal(particle.config.anchor, "head");
   const manifest = particle.manifestUrl.slice("/__preview/media/".length);
   assert.ok(await files.lookup(manifest));
   // The manifest's relative texture URL resolves beside it.
-  const texture = `${manifest.split("/")[0]}/textures/question.png`;
+  const texture = `${manifest.split("/")[0]}/textures/glossy-question.png`;
   assert.ok(await files.lookup(texture));
   // A Scene's images are served too.
   const [scene] = media.sceneEffects;
-  assert.equal(scene.alias, "kawaii-sparkles");
+  assert.equal(scene.alias, "scene-vfx-emotion-curiosity");
   assert.equal(scene.definition.kind, "background_layers");
+  assert.ok(Object.keys(scene.imageUrls).length > 0);
   for (const url of Object.values(scene.imageUrls))
     assert.ok(await files.lookup(url.slice("/__preview/media/".length)), url);
   assert.deepEqual(media.notices, [
@@ -197,7 +198,7 @@ test("offers Library Avatar Effects and named effect sources as choices", async 
   const included = choices.filter(
     ({ group }) => group === "Included Avatar Effects",
   );
-  assert.equal(included.length, 73);
+  assert.equal(included.length, 75);
   assert.ok(
     included.some(
       ({ spec }) =>
@@ -307,10 +308,7 @@ test("loads Particle and Scene Effect sources with their files served", async ()
       await files.lookup(url.slice("/__preview/media/".length).split("?")[0]),
       url,
     );
-  assert.equal(
-    PreviewMediaFiles.contentType("emoji-star-2b50.svg"),
-    "image/svg+xml",
-  );
+  assert.equal(PreviewMediaFiles.contentType("star.svg"), "image/svg+xml");
 
   // Changing a texture or an image gives a new version, so the page reloads.
   const textureFile = path.join(dir, "kinds/hearts-v1/textures/heart.png");
@@ -328,7 +326,10 @@ test("loads Particle and Scene Effect sources with their files served", async ()
     "kinds/scene-vfx-emotion-joy",
     Object.keys(scene.effect.imageUrls)[0],
   );
-  await writeFile(imageFile, `${await readFile(imageFile, "utf8")}\n`);
+  await writeFile(
+    imageFile,
+    Buffer.concat([await readFile(imageFile), Buffer.from([0])]),
+  );
   const redrawn = await adapter.load(
     await adapter.resolve("kinds/scene-vfx-emotion-joy", roots()),
     roots(),

@@ -4,26 +4,26 @@
   "content_id": "builtin:particle-effect:rain-cloud",
   "version": 1,
   "name": "Rain Cloud",
-  "description": "A small cloud and light rain for sadness or disappointment.",
+  "description": "A glossy little rain cloud pops in over the head and drizzles thin glowing streaks that glint at the crown, a personal gloom cloud for sad, grieving or disappointed moments.",
   "runtime_defaults": {
     "schema_version": 1,
     "runtime_id": "rain-cloud",
     "slots": {
       "particle_vfx": {
         "label": "Rain Cloud",
-        "description": "A small cloud and light rain for sadness or disappointment.",
+        "description": "A glossy little rain cloud pops in over the head and drizzles thin glowing streaks that glint at the crown, a personal gloom cloud for sad, grieving or disappointed moments.",
         "anchor": "head",
-        "duration_seconds": 2.4,
-        "max_duration_seconds": 2.8,
-        "preload_tier": "tier_a",
+        "duration_seconds": 3.75,
+        "max_duration_seconds": 4.2,
+        "preload_tier": "none",
         "follow_anchor": true,
         "transform": {
           "offset": {
             "x": 0,
-            "y": 0.42,
+            "y": 0.32,
             "z": 0
           },
-          "depth_offset": 0.08,
+          "depth_offset": 0.02,
           "rotation": {
             "x": 0,
             "y": 0,
@@ -36,8 +36,8 @@
           }
         },
         "looping_allowed": false,
-        "can_coexist": false,
-        "max_particles": 16
+        "can_coexist": true,
+        "max_particles": 22
       }
     }
   },
@@ -47,11 +47,19 @@
       "role": "manifest"
     },
     {
-      "path": "textures/cloud.png",
+      "path": "textures/glossy-cloud.png",
       "role": "texture"
     },
     {
-      "path": "textures/raindrop.png",
+      "path": "textures/cloud-glow.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/rain-streak.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/splash-glint.png",
       "role": "texture"
     }
   ]

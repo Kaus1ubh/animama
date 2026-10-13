@@ -84,10 +84,11 @@ All playable Included and Local content has registered file descriptors.
 Typed descriptors and runtime projections contain no `public_url`, public
 `/vrm` or `/animations` alias, host locator, or second download URL. Frontend
 code must not infer one from an Included label. Browser-engine resources such
-as ONNX models, PocketTTS workers, Basis decoders, fonts, UI imagery, the Scene
-Effect creator's Twemoji palette, and other authoring-only engine templates
-remain version-coupled application resources;
-they are not content dependencies or portable package members.
+as ONNX models, PocketTTS workers, Basis decoders, fonts, UI imagery and
+authoring-only engine templates remain version-coupled application resources;
+they are not content dependencies or portable package members. The Scene
+Effect creator's sticker set is such a resource only until a sticker is
+chosen: its PNG is then copied into the effect as the effect's own image.
 
 ## Mounted runtime preparation
 

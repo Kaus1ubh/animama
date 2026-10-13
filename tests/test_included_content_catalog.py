@@ -70,7 +70,7 @@ def test_representative_included_entries_are_human_locatable(included: Path) -> 
     assert "avatars/AvatarSample_A_1_New.vrm" in by_locator
     assert "gestures/have-an-idea" in by_locator
     assert "reactions/admiration-2" in by_locator
-    assert "vfx/particle/quark/hearts" in by_locator
+    assert "vfx/particle/quark/heart-burst" in by_locator
     assert by_locator["gestures/have-an-idea"].logical_key == "builtin:gesture:have-an-idea"
     assert by_locator["reactions/admiration-2"].dependencies
 
@@ -126,7 +126,7 @@ def test_authoring_resources_are_not_registered_as_typed_products(included: Path
 
     assert not any(locator.startswith("resources/") for locator in locators)
     assert not any(locator.startswith("vfx/avatar/misc/") for locator in locators)
-    assert (ROOT / "content/included/resources/scene-vfx/twemoji/2728.svg").is_file()
+    assert (ROOT / "content/included/resources/scene-vfx/stickers/stickers.json").is_file()
     assert not (ROOT / "content/included/vfx/avatar/misc").exists()
 
 

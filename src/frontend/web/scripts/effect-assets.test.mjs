@@ -314,6 +314,24 @@ test("particle and scene budgets carry their kind's hard limits", async () => {
   }
 });
 
+test("particle budgets leave room for detailed sprites and sheets", async () => {
+  assert.deepEqual(
+    {
+      texture: BUDGETS["particle-texture"].maxDimension,
+      textureKiB: BUDGETS["particle-texture"].maxKiB,
+      sheet: BUDGETS["particle-sheet"].maxDimension,
+      sheetKiB: BUDGETS["particle-sheet"].maxKiB,
+    },
+    { texture: 1024, textureKiB: 512, sheet: 2048, sheetKiB: 2048 },
+  );
+  // A 1024 px ray fan fits a particle sprite's budget.
+  const input = await png(1024, 1024, disc(512, 512, 480, clear));
+  const found = codes(
+    await checkImage(input, { budget: BUDGETS["particle-texture"] }),
+  );
+  assert.ok(!found.some((code) => code.startsWith("FAIL:budget")), found);
+});
+
 test("art over a particle texture's hard limit fails with that limit", async () => {
   const input = await png(2050, 8, (x) =>
     x < 1000 ? [200, 40, 40, 255] : [0, 0, 0, 0],

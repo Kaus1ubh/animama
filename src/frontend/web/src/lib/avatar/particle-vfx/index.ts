@@ -1,4 +1,5 @@
 export { ParticleVFXController } from "./ParticleVFXController";
+export { createParticleVFXBatchedRenderer } from "./batchedRenderer";
 export {
   PARTICLE_VFX_ROOT_OBJECT_NAME,
   applyParticleVFXRectangleShapeAutoFit,
@@ -9,12 +10,12 @@ export {
 } from "./autoFit";
 export {
   AVATAR_PARTICLE_VFX_CATALOG,
-  createDefaultParticleVFXTransform,
+  getParticleVFXCatalogEntryById,
+  getParticleVFXCatalogIds,
 } from "./catalog";
 export {
   cloneParticleVFXTransform,
-  getParticleVFXCatalogEntryById,
-  getParticleVFXCatalogIds,
+  createDefaultParticleVFXTransform,
   getParticleVFXCombinedOffset,
   isParticleVFXAnchor,
   mergeParticleVFXTransform,
@@ -59,6 +60,7 @@ export {
   resolveParticleVFXEditorPreviewJson,
   resolveParticleVFXPublicAssetPath,
   updateParticleVFXEditorCatalogDraft,
+  PARTICLE_VFX_MAX_EMITTERS,
   validateParticleVFXContentReadiness,
   validateParticleVFXEditorDraft,
 } from "./editor";

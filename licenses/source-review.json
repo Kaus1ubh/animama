@@ -3537,483 +3537,301 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f305.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f305.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/anger-mark.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f327.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f327.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/apricot-blossom.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f338.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f338.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/blush-hatch.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f380.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f380.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/bubble-clear.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f389.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f389.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/bubble-green.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f3af.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f3af.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/burst-zigzag.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f3c5.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f3c5.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/cloud-puff.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f44e.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f44e.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/comet-streak.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f451.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f451.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/confetti-chip-teal.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f496.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f496.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/confetti-chip-violet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f4a2.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f4a2.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/confetti-curl-pink.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f4a5.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f4a5.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/cross-mark.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f4a6.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f4a6.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/dizzy-spiral.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f4ab.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f4ab.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/drizzle-streak.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f602.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f602.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/exclamation-mark.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f61e.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f61e.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/flame.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f622.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f622.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/flower-bud.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f633.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f633.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/giggle-squiggle.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f64f.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f64f.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/glint-gold.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f914.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f914.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/glint-silver.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f917.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f917.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/heart-peach.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f922.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f922.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/heart-red.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f929.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f929.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/heart-star-pink.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/1f97a.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f97a.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/leaf.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/26a0.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/26a0.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/light-bulb.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/2728.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/2728.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/lightning-bolt.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/2753.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/2753.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/lilac-star-flower.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/2b50.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/2b50.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/resources/scene-vfx/stickers/music-note.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/resources/scene-vfx/twemoji/README.md",
+      "path": "content/included/resources/scene-vfx/stickers/pop-star-yellow.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/question-mark.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/raindrop.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/rose-heart-petal.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/sakura-blossom.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/sparkle-white.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/spiral-dusk.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/spiral-green.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/steam-puff.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/stickers.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/sweat-drop.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/teardrop.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/twinkle-star-gold.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/twinkle-star-mint.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/resources/scene-vfx/stickers/zzz-sleep.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -4860,6 +4678,34 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "content/included/vfx/avatar/sigh_puff_droop/sigh_puff.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/sigh_puff_droop/sigh_puff_droop.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/single_tear/single_tear.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/avatar/single_tear/single_tear.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "content/included/vfx/avatar/sly_glint/sly_glint.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "AI-agent-authored effect definition under Raymond Van's direction (animama-avatar-vfx skill, #409); owner-reviewed and approved 2026-10-11; no third-party art",
@@ -5592,217 +5438,311 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/confusion-orbit-marks/confusion-orbit-marks.json",
+      "path": "content/included/vfx/particle/quark/confetti/confetti.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/confusion-orbit-marks/particle.json",
+      "path": "content/included/vfx/particle/quark/confetti/particle.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/confusion-orbit-marks/textures/glow-soft.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/confusion-orbit-marks/textures/question.png",
+      "path": "content/included/vfx/particle/quark/confetti/textures/confetti-glint.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/confusion-orbit-marks/textures/spark-dot.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/exclamation-v1/exclamation-v1.json",
+      "path": "content/included/vfx/particle/quark/confetti/textures/confetti-sheet.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/exclamation-v1/particle.json",
+      "path": "content/included/vfx/particle/quark/confetti/textures/ribbon-sheet.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/exclamation-v1/textures/exclamation.png",
+      "path": "content/included/vfx/particle/quark/fireworks-show/fireworks-show.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/exclamation/exclamation.json",
+      "path": "content/included/vfx/particle/quark/fireworks-show/particle.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/exclamation/particle.json",
+      "path": "content/included/vfx/particle/quark/fireworks-show/textures/show-flash.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/exclamation/textures/brackeys-flare.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "brackeys",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/exclamation/textures/exclamation.png",
+      "path": "content/included/vfx/particle/quark/fireworks-show/textures/show-star.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/flame-loop/flame-loop.json",
+      "path": "content/included/vfx/particle/quark/fireworks-show/textures/show-streak.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/flame-loop/particle.json",
+      "path": "content/included/vfx/particle/quark/fireworks-show/textures/show-twinkle.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/flame-loop/textures/kenney-ember-spark.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/particle/quark/fume-puffs/fume-puffs.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/flame-loop/textures/kenney-fire-glow.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/particle/quark/fume-puffs/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/flame-loop/textures/kenney-flame-core.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/particle/quark/fume-puffs/textures/ear-jet-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/flame-loop/textures/kenney-flame-tongue.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/particle/quark/fume-puffs/textures/heat-glow.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/flame-loop/textures/kenney-smoke-wisp.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/particle/quark/gloom-wisps/gloom-wisps.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/gloom-wisps/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/gloom-wisps/textures/gloom-wisp-sheet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/gloom-wisps/textures/spirit-glow.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/golden-willow/golden-willow.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/golden-willow/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/golden-willow/textures/willow-crackle.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/golden-willow/textures/willow-flash.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/golden-willow/textures/willow-glint.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/golden-willow/textures/willow-glow.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/golden-willow/textures/willow-trail.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/halo-rays/halo-rays.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/halo-rays/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/halo-rays/textures/halo-glow.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/halo-rays/textures/halo-rayfan-cream.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/halo-rays/textures/halo-rayfan-gold.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/halo-rays/textures/halo-sparkle.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-burst/heart-burst.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-burst/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-burst/textures/glint-star.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-burst/textures/glossy-heart.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-burst/textures/heart-glow.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-burst/textures/heart-ring.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-fireworks/heart-fireworks.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-fireworks/particle.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-fireworks/textures/heart-glow.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-fireworks/textures/heart-pattern.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-fireworks/textures/heart-streak.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/particle/quark/heart-fireworks/textures/heart-twinkle.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -5827,175 +5767,70 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/hearts-v2/hearts-v2.json",
+      "path": "content/included/vfx/particle/quark/question-orbit/particle.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/hearts-v2/particle.json",
+      "path": "content/included/vfx/particle/quark/question-orbit/question-orbit.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/hearts-v2/textures/heart-v2.png",
+      "path": "content/included/vfx/particle/quark/question-orbit/textures/glossy-question.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/hearts/hearts.json",
+      "path": "content/included/vfx/particle/quark/question-orbit/textures/orbit-dot.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/hearts/particle.json",
+      "path": "content/included/vfx/particle/quark/rage-aura/particle.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/hearts/textures/heart.png",
+      "path": "content/included/vfx/particle/quark/rage-aura/rage-aura.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/magic-sparkle-burst/magic-sparkle-burst.json",
+      "path": "content/included/vfx/particle/quark/rage-aura/textures/ember-spark.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/magic-sparkle-burst/particle.json",
+      "path": "content/included/vfx/particle/quark/rage-aura/textures/flame-aura.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/magic-sparkle-burst/textures/brackeys-flare.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "brackeys",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/magic-sparkle-burst/textures/magic-ring.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/magic-sparkle-burst/textures/spark-pop-6x5.png",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "brackeys",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "CodeManu; repackaged by Brackeys",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/magic-sparkle-burst/textures/spark-streak.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/magic-sparkle-burst/textures/sparkle.png",
+      "path": "content/included/vfx/particle/quark/rage-aura/textures/rage-glow.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/question-marks/particle.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/question-marks/question-marks.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/question-marks/textures/question.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/question-v1/particle.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/question-v1/question-v1.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/question-v1/textures/question.png",
+      "path": "content/included/vfx/particle/quark/rage-aura/textures/soft-flame-sheet.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -6016,365 +5851,182 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/rain-cloud/textures/cloud.png",
+      "path": "content/included/vfx/particle/quark/rain-cloud/textures/cloud-glow.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/rain-cloud/textures/raindrop.png",
+      "path": "content/included/vfx/particle/quark/rain-cloud/textures/glossy-cloud.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/sad-rain-puff/particle.json",
+      "path": "content/included/vfx/particle/quark/rain-cloud/textures/rain-streak.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/sad-rain-puff/sad-rain-puff.json",
+      "path": "content/included/vfx/particle/quark/rain-cloud/textures/splash-glint.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/sad-rain-puff/textures/cloud.png",
+      "path": "content/included/vfx/particle/quark/sparkle-hearts/particle.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/sad-rain-puff/textures/dust-soft.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/sad-rain-puff/textures/raindrop.png",
+      "path": "content/included/vfx/particle/quark/sparkle-hearts/sparkle-hearts.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/sad-rain-puff/textures/smoke-puff.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/sleep-bubbles/particle.json",
+      "path": "content/included/vfx/particle/quark/sparkle-hearts/textures/glitter-bead.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/sleep-bubbles/sleep-bubbles.json",
+      "path": "content/included/vfx/particle/quark/sparkle-hearts/textures/pink-bokeh.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/sleep-bubbles/textures/soft-dot.png",
+      "path": "content/included/vfx/particle/quark/sparkle-hearts/textures/soft-haze.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/sleep-bubbles/textures/spark-dot.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/sleep-bubbles/textures/zzz.png",
+      "path": "content/included/vfx/particle/quark/sparkle-hearts/textures/star-glint.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/soft-heart-pop/particle.json",
+      "path": "content/included/vfx/particle/quark/star-burst/particle.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/soft-heart-pop/soft-heart-pop.json",
+      "path": "content/included/vfx/particle/quark/star-burst/star-burst.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/soft-heart-pop/textures/glow-soft.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/soft-heart-pop/textures/heart-v2.png",
+      "path": "content/included/vfx/particle/quark/star-burst/textures/burst-flash.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/soft-heart-pop/textures/heart.png",
+      "path": "content/included/vfx/particle/quark/star-burst/textures/burst-glow.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/soft-heart-pop/textures/spark-dot.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/sparkles/particle.json",
+      "path": "content/included/vfx/particle/quark/star-burst/textures/burst-ring.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/sparkles/sparkles.json",
+      "path": "content/included/vfx/particle/quark/star-burst/textures/glitter-glint.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/sparkles/textures/brackeys-flare.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "brackeys",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/sparkles/textures/sparkle.png",
+      "path": "content/included/vfx/particle/quark/star-burst/textures/star-shard.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/star-v2/particle.json",
+      "path": "content/included/vfx/particle/quark/stink-miasma/particle.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/star-v2/star-v2.json",
+      "path": "content/included/vfx/particle/quark/stink-miasma/stink-miasma.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/star-v2/textures/star.png",
+      "path": "content/included/vfx/particle/quark/stink-miasma/textures/gross-bubble.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/stars/particle.json",
+      "path": "content/included/vfx/particle/quark/stink-miasma/textures/soft-wisp-sheet.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/stars/stars.json",
+      "path": "content/included/vfx/particle/quark/stink-miasma/textures/stink-aura.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/stars/textures/star.png",
+      "path": "content/included/vfx/particle/quark/twinkle-shimmer/particle.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/surprise-shock-pop/particle.json",
+      "path": "content/included/vfx/particle/quark/twinkle-shimmer/textures/shimmer-glint.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/surprise-shock-pop/surprise-shock-pop.json",
+      "path": "content/included/vfx/particle/quark/twinkle-shimmer/textures/shimmer-glow.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/particle/quark/surprise-shock-pop/textures/brackeys-flare.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "brackeys",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Picster/Raffaele Picca and Kenney; repackaged by Brackeys",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Brackeys-License-and-Credits.txt",
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/surprise-shock-pop/textures/exclamation.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/surprise-shock-pop/textures/shock-ring.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/surprise-shock-pop/textures/spark-streak.png",
-      "candidate_license": "CC0-1.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "kenney",
-      "revision": "Exact archived source hashes in mapping",
-      "copyright": "Kenney Vleugels and credited contributors",
-      "evidence": [
-        "licenses/third-party/art-particles.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-Kenney-License.txt",
-        "licenses/third-party/art-CC0-1.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/zzz/particle.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/zzz/textures/zzz.png",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/particle/quark/zzz/zzz.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/scene/comic-pop/comic-pop.json",
+      "path": "content/included/vfx/particle/quark/twinkle-shimmer/twinkle-shimmer.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -6388,47 +6040,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/kawaii-sparkles/emoji-sparkles-2728.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/2728.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/scene/kawaii-sparkles/emoji-sparkling-heart-1f496.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f496.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/scene/kawaii-sparkles/kawaii-sparkles.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "content/included/vfx/scene/light-streak/light-streak.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -6436,37 +6047,17 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-admiration/emoji-sparkles-2728.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/2728.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-admiration/bokeh-tile.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-admiration/emoji-star-struck-1f929.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f929.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-admiration/lilac-star-flower.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6477,20 +6068,24 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-amusement/emoji-face-tears-joy-1f602.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f602.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-admiration/sparkle-white.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-amusement/giggle-squiggle.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-amusement/music-note.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6501,37 +6096,10 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-anger/emoji-anger-symbol-1f4a2.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f4a2.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-anger/emoji-collision-1f4a5.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f4a5.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-anger/anger-mark.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6542,20 +6110,66 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-confidence/emoji-crown-1f451.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f451.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-annoyance/anger-mark.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-annoyance/scene-vfx-emotion-annoyance.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-annoyance/steam-puff.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-caring/apricot-blossom.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-caring/bokeh-tile.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-caring/leaf.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-caring/scene-vfx-emotion-caring.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-caring/sparkle-white.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-confidence/glint-gold.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6566,37 +6180,24 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-curiosity/emoji-question-mark-2753.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/2753.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-confusion/dizzy-spiral.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-curiosity/emoji-thinking-face-1f914.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f914.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-confusion/scene-vfx-emotion-confusion.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-curiosity/comet-streak.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6607,20 +6208,52 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-disappointment/emoji-disappointed-face-1f61e.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f61e.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-curiosity/star-field-tile.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-curiosity/twinkle-star-mint.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-desire/heart-star-pink.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-desire/scene-vfx-emotion-desire.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-desire/star-field-tile.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-desire/twinkle-star-gold.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-disappointment/drizzle-streak.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6631,20 +6264,10 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-disapproval/emoji-thumbs-down-1f44e.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f44e.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-disapproval/cross-mark.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6655,20 +6278,10 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-disgust/emoji-nauseated-face-1f922.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f922.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-disgust/bubble-green.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6679,20 +6292,24 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-embarrassment/emoji-flushed-face-1f633.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f633.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-disgust/spiral-green.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-embarrassment/blush-hatch.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-embarrassment/bokeh-tile.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6703,37 +6320,45 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-excitement/emoji-party-popper-1f389.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f389.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-embarrassment/sparkle-white.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-excitement/emoji-star-2b50.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/2b50.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-embarrassment/steam-puff.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-excitement/burst-zigzag.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-excitement/confetti-chip-teal.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-excitement/confetti-chip-violet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-excitement/confetti-curl-pink.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6744,20 +6369,10 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-fear/emoji-warning-26a0.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/26a0.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-fear/lightning-bolt.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6768,20 +6383,24 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-gratitude/emoji-folded-hands-1f64f.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f64f.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-gratitude/flower-bud.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-gratitude/glint-gold.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-gratitude/heart-peach.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6792,23 +6411,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-grief/emoji-crying-face-1f622.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f622.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "content/included/vfx/scene/scene-vfx-emotion-grief/scene-vfx-emotion-grief.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -6816,37 +6418,38 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-joy/emoji-sparkles-2728.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/2728.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-grief/teardrop.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-joy/emoji-star-2b50.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/2b50.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-joy/confetti-chip-teal.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-joy/confetti-chip-violet.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-joy/confetti-curl-pink.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-joy/pop-star-yellow.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6857,20 +6460,17 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-love/emoji-sparkling-heart-1f496.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f496.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-love/bokeh-tile.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-love/rose-heart-petal.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6881,20 +6481,10 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-nervousness/emoji-sweat-droplets-1f4a6.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f4a6.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-love/sparkle-white.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6905,20 +6495,10 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-optimism/emoji-sunrise-1f305.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f305.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-nervousness/sweat-drop.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6929,20 +6509,45 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-respect/emoji-medal-1f3c5.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f3c5.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
+      "path": "content/included/vfx/scene/scene-vfx-emotion-optimism/star-field-tile.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-optimism/twinkle-star-gold.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-remorse/bubble-clear.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-remorse/scene-vfx-emotion-remorse.json",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-remorse/spiral-dusk.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "content/included/vfx/scene/scene-vfx-emotion-respect/glint-silver.png",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
@@ -6953,31 +6558,14 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-sadness/emoji-cloud-rain-1f327.svg",
-      "candidate_license": "CC-BY-4.0",
-      "basis": "Retained third-party artwork and verified source mapping",
-      "source": "https://raw.githubusercontent.com/twitter/twemoji/v14.0.2/assets/svg/1f327.svg",
-      "revision": "v14.0.2",
-      "copyright": "Twitter, Inc. and other contributors",
-      "evidence": [
-        "licenses/third-party/art-twemoji.json"
-      ],
-      "notices": [
-        "licenses/third-party/art-NOTICES.md",
-        "licenses/third-party/art-CC-BY-4.0.txt"
-      ],
-      "conditions": [],
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "content/included/vfx/scene/scene-vfx-emotion-sadness/scene-vfx-emotion-sadness.json",
+      "path": "content/included/vfx/scene/scene-vfx-emotion-sadness/drop.png",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "content/included/vfx/scene/shoujo-hearts/shoujo-hearts.json",
+      "path": "content/included/vfx/scene/scene-vfx-emotion-sadness/scene-vfx-emotion-sadness.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -7585,13 +7173,6 @@
     },
     {
       "path": "licenses/third-party/art-particles.json",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "licenses/third-party/art-twemoji.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -14778,6 +14359,50 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/assets/effect-templates/sigh_puff_droop.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/assets/effect-templates/single_tear.webp",
+      "candidate_license": "LicenseRef-pixiv-VRoidPreset",
+      "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an owner-authored Included Avatar Effect; retained under the corresponding model terms like Annie's portrait",
+      "source": "https://vrm.dev/licenses/1.0/",
+      "revision": "Regenerated by pnpm -s effects:thumbnails; exact VRM hashes and embedded metadata in evidence",
+      "copyright": [
+        "pixiv VRoid Project",
+        "2026 Raymond Van (effect artwork)"
+      ],
+      "evidence": [
+        "licenses/third-party/art-vroid-review.json",
+        "src/frontend/web/src/assets/effect-templates/README.md"
+      ],
+      "notices": [
+        "licenses/third-party/art-NOTICES.md"
+      ],
+      "conditions": [
+        "Raymond confirms this exact retained model is the distributable pixiv preset (Annie) or his own VRoid Studio creation (Caitlyn), and authorizes redistribution metadata correction. Preserve the distinct model terms; final candidate and binary publication approval remain separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/assets/effect-templates/sly_glint.webp",
       "candidate_license": "LicenseRef-pixiv-VRoidPreset",
       "basis": "Direct Animama renderer capture of Annie (owner-confirmed pixiv VRoid preset) wearing an Included Avatar Effect with agent-made art (#409), posed by the Included Gesture Scheming Hands; retained under the corresponding model terms like Annie's portrait",
@@ -17613,13 +17238,6 @@
     },
     {
       "path": "src/frontend/web/src/lib/scene-vfx/editor/types.ts",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/scene-vfx/emoji.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

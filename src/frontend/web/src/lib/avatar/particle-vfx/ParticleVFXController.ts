@@ -12,6 +12,8 @@ import {
   updateParticleVFXEmitterAnchors,
   type ParticleVFXEmitterAnchorBindings,
 } from "./emitterAnchors";
+import { createParticleVFXBatchedRenderer } from "./batchedRenderer";
+import { cloneParticleVFXPrefab } from "./quarksClone";
 import {
   cloneParticleVFXTransform,
   mergeParticleVFXTransform,
@@ -304,7 +306,7 @@ export class ParticleVFXController {
       )
         return false;
 
-      object = createParticleVFXEffectContainer(prefab.clone(true));
+      object = createParticleVFXEffectContainer(cloneParticleVFXPrefab(prefab));
       object.name = `ParticleVFX:${effect.id}:${appliedId}`;
       object.frustumCulled = false;
       object.traverse((child) => {
@@ -513,7 +515,7 @@ export class ParticleVFXController {
     this._quarks = quarks;
     if (this._isDisposed) return quarks;
     if (!this._batchRenderer) {
-      this._batchRenderer = new quarks.BatchedRenderer();
+      this._batchRenderer = createParticleVFXBatchedRenderer(quarks);
       this._batchRenderer.name = "AnimamaParticleVFXBatchedRenderer";
       this._root.add(this._batchRenderer);
     }

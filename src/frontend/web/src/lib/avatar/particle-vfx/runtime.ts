@@ -2,29 +2,23 @@ import * as THREE from "three";
 
 import type { Avatar } from "../Avatar";
 import { resolveHumanoidAnchorObject } from "../humanoidAnchors";
-import { AVATAR_PARTICLE_VFX_CATALOG } from "./catalog";
 import {
   PARTICLE_VFX_ANCHORS,
   type ParticleVFXAnchor,
-  type ParticleVFXCatalogEntry,
   type ParticleVFXResolvedAnchor,
   type ParticleVFXTransform,
   type ParticleVFXTransformAxisTriple,
   type ParticleVFXTransformInput,
 } from "./types";
 
-const PARTICLE_VFX_CATALOG_BY_ID = new Map<string, ParticleVFXCatalogEntry>(
-  AVATAR_PARTICLE_VFX_CATALOG.map((entry) => [entry.id, entry]),
-);
-
-export function getParticleVFXCatalogEntryById(
-  effectId: string,
-): ParticleVFXCatalogEntry | null {
-  return PARTICLE_VFX_CATALOG_BY_ID.get(effectId) ?? null;
-}
-
-export function getParticleVFXCatalogIds(): string[] {
-  return AVATAR_PARTICLE_VFX_CATALOG.map((entry) => entry.id);
+/** The identity transform: no offset or rotation, unit scale. */
+export function createDefaultParticleVFXTransform(): ParticleVFXTransform {
+  return {
+    offset: { x: 0, y: 0, z: 0 },
+    depthOffset: 0,
+    rotation: { x: 0, y: 0, z: 0 },
+    scale: { x: 1, y: 1, z: 1 },
+  };
 }
 
 export function isParticleVFXAnchor(
@@ -50,15 +44,7 @@ export function cloneParticleVFXTransform(
 export function normalizeParticleVFXTransform(
   value: ParticleVFXTransformInput | null | undefined,
 ): ParticleVFXTransform {
-  return mergeParticleVFXTransform(
-    {
-      offset: { x: 0, y: 0, z: 0 },
-      depthOffset: 0,
-      rotation: { x: 0, y: 0, z: 0 },
-      scale: { x: 1, y: 1, z: 1 },
-    },
-    value,
-  );
+  return mergeParticleVFXTransform(createDefaultParticleVFXTransform(), value);
 }
 
 export function mergeParticleVFXTransform(

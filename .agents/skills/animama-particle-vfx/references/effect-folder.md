@@ -87,14 +87,15 @@ does. The example values below show the shape, not a tuned effect.
   `max_duration_seconds` (at most 30) bounds it and every emitter cycle.
   `looping_allowed` lets emitters loop inside that lifetime.
 - **max_particles** is the declared budget: at most 512, and at least Save's
-  estimate (`effects check` prints it).
+  estimate of particles alive at once (`effects check` prints it). Playback
+  reserves it while the effect plays, against 512 for all active effects.
 - **files**: the manifest, then each texture the manifest's images use. A
   listed texture nothing uses is refused by `effects save`.
 
 ## Manifest (`particle.json`)
 
 A three.quarks object: `images`, `textures`, `materials`, `geometries` and an
-`object` Group whose `children` are `ParticleEmitter` nodes (one to eight).
+`object` Group whose `children` are `ParticleEmitter` nodes (1 to 16).
 The chain from an emitter to its art is `ps.material` → material `map` →
 texture `image` → image `url`. Fields you usually change, in each emitter's
 `ps`:
@@ -112,9 +113,27 @@ texture `image` → image `url`. Fields you usually change, in each emitter's
 
 Behaviours act on different things: Speed Over Life scales only the position
 update, while gravity (Force Over Life) and a stretched sprite's length still
-follow the full velocity. Included manifests leave each texture's
-`colorSpace` empty, so colours render paler than the PNG; tint with
-`startColor` or Color Over Life rather than over-saturating the art.
+follow the full velocity.
+
+Colour: Included manifests leave each texture's `colorSpace` empty. The
+particle shader applies the chat's ACES Filmic tone mapping without an sRGB
+output step, so pure white art peaks near RGB 194 and colours flatten; tint
+with `startColor` or Color Over Life rather than over-saturating the art. A
+texture's `colorSpace` may be `"srgb"`: the runtime, creator preview,
+`effects:render` and Save keep it, but it decodes the art to linear first,
+which darkens mid-tones (sRGB 128 renders near 68) without brightening white.
+Leave it empty unless a render shows the darker art is wanted.
+
+To show art at full brightness (white highlights, crisp outlined symbols), set
+`"toneMapped": false` on the emitter's material. Those emitters skip tone
+mapping in chat, the creator preview, `effects:render` and
+`animation:preview`, and the texture's stored values reach the screen as
+authored (white 255, grey 128 stays 128); keep `colorSpace` empty with it, as
+an `"srgb"` texture would render darker. Use it when art must read as drawn,
+not for soft glows that blend with the lit Avatar. It changes every colour
+the material draws: retune the art, `startColor` and Color Over Life after
+switching (colours tuned under tone mapping look brighter and harsher), and
+compare renders before and after.
 
 Texture URLs are relative paths: `textures/<name>.png` for the effect's own
 PNGs. A URL that names one of the creator's built-in textures (the files in
@@ -134,21 +153,28 @@ when its `time` falls inside its emitter's cycle (`duration`). A sphere's
 `arc` of π (half a turn) emits from its upper half only, which keeps a spray
 off the face.
 
-Sizing: the art budget's 512 px is a ceiling; 256 px is plenty for small
-sparkles and beads, and a stretched sprite keeps its own proportions (`fix
---trim --pad 8` without `--square`). Declare `max_particles` close to the
+Sizing: the art budget's 1024 px is a ceiling for detailed rays, rings and
+hero sprites; 256 px is plenty for small sparkles and beads, and a stretched
+sprite keeps its own proportions (`fix --trim --pad 8` without `--square`).
+Declare `max_particles` close to the
 estimate: the check fails a budget below it but does not flag one far above
 it.
 
 ## Rules that `effects check` and Save enforce
 
-- one to eight emitters; at most 16 textures, each a PNG within 4 MiB and
+- 1 to 16 emitters; at most 16 textures, each a PNG within 4 MiB and
   2048 px (`particle-texture` budget for a sprite, `particle-sheet` when an
   emitter tiles it; a sheet's grid at most 16 × 16);
 - every image URL resolves to a listed texture or a built-in one;
-- the estimate (each emitter's maximum rate over its duration plus all its
-  bursts, a looping emitter over the longest emitter's duration) fits the
-  declared budget, and the budget fits 512;
+- the estimate of particles alive at once fits the declared budget, and the
+  budget fits 512. Per emitter it is the maximum rate × the longest
+  `startLife` (capped by `duration` plus one 0.1 s frame unless looping) plus
+  one, a trail's life extended by `startLength` × 0.1 s, and each burst's
+  count (rounded up) for every assumed wave and loop repeat whose particles
+  can still be alive; emitter peaks are summed (the formula is in
+  `docs/frontend/runtime/avatar-particle-vfx.md`). A 30 s loop at 20/s with
+  lives up to 2 s counts 41; shortening lives lowers it, lengthening the
+  cycle does not raise it;
 - durations fit `max_duration_seconds` (at most 30 s);
 - own textures are not named like a built-in creator texture.
 

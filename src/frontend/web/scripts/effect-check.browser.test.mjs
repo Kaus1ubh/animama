@@ -172,7 +172,7 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "animama-effect-check-kinds-"));
   try {
     const sources = [
-      await copyIncluded(dir, "vfx/particle/quark/hearts-v1", "hearts"),
+      await copyIncluded(dir, "vfx/particle/quark/hearts-v1", "stream"),
       // Declares fewer particles than its emitters produce.
       await copyIncluded(
         dir,
@@ -224,7 +224,7 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
     const effects = await Promise.all(
       sources.map((source) => resolveAnyEffectSource(source)),
     );
-    const [hearts, crowded, clear, joy, unlisted, joyExtra] =
+    const [stream, crowded, clear, joy, unlisted, joyExtra] =
       await checkEffects({
         effects,
         times: [0.5, 1],
@@ -234,14 +234,14 @@ test("effects check reviews Particle and Scene Effect folders", async () => {
     const fails = (result) =>
       result.lines.filter((line) => line.level === "FAIL");
 
-    assert.deepEqual(fails(hearts), [], JSON.stringify(hearts.lines));
+    assert.deepEqual(fails(stream), [], JSON.stringify(stream.lines));
     assert.ok(
-      hearts.lines.some((line) =>
+      stream.lines.some((line) =>
         /^particles: Save's estimate is up to \d+ at once \(declared budget 64/.test(
           line.message,
         ),
       ),
-      JSON.stringify(hearts.lines),
+      JSON.stringify(stream.lines),
     );
     assert.ok(
       fails(crowded).some((line) =>
@@ -372,6 +372,82 @@ test("effects check sees each optional Scene layer on its own", async () => {
         `${result.stem}: ${lines}`,
       );
     }
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// A Scene saved with a Twemoji item (no longer provided) draws without it,
+// with no load failure; the check fails the item by name, as Save refuses it.
+test("effects check draws a Scene with a Twemoji item without it and fails the item", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-effect-check-emoji-"));
+  try {
+    const allLayers = JSON.parse(
+      await readFile(
+        new URL(
+          "../src/lib/content/fixtures/scene-effect-all-layers.json",
+          import.meta.url,
+        ),
+        "utf8",
+      ),
+    );
+    const folder = path.join(dir, "old-sparkles");
+    await mkdir(folder, { recursive: true });
+    await writeFile(path.join(folder, "petal.png"), await disc(255));
+    const plain = { ...allLayers };
+    for (const layer of ["gradient", "tile", "screen", "flash"])
+      delete plain[layer];
+    await writeFile(
+      path.join(folder, "old-sparkles.json"),
+      JSON.stringify({
+        schema_version: 1,
+        content_type: "scene_effect",
+        name: "Old sparkles",
+        definition: {
+          ...plain,
+          solid: { ...plain.solid, enabled: false },
+          pattern: { ...plain.pattern, enabled: false },
+          marquee: {
+            ...plain.marquee,
+            enabled: true,
+            items: [
+              {
+                id: "old",
+                kind: "emoji",
+                label: "Sparkles",
+                emoji: "\u2728",
+                provider: "twemoji",
+              },
+            ],
+          },
+          scatters: [allLayers.scatters[0]],
+        },
+        files: [{ path: "petal.png", role: "image" }],
+      }),
+    );
+    const [result] = await checkEffects({
+      effects: [await resolveAnyEffectSource(folder)],
+      times: [0.1, 1],
+      views: ["front"],
+      tile: { width: 96, height: 120 },
+    });
+    const lines = JSON.stringify(result.lines);
+    assert.deepEqual(
+      result.lines
+        .filter((line) => line.level === "FAIL")
+        .map((line) => line.message),
+      [
+        "scene: Sparkles is an emoji, which Animama no longer provides. Replace it with a sticker or image, or remove it.",
+      ],
+      lines,
+    );
+    assert.equal(
+      result.lines.filter((line) =>
+        /visible in [12] of 2 frames/.test(line.message),
+      ).length,
+      2,
+      lines,
+    );
   } finally {
     await rm(dir, { recursive: true, force: true });
   }

@@ -4,7 +4,6 @@ import type {
   ResolvedSceneBackgroundLayersVFXEntry,
   ResolvedSceneFocusLinesVFXEntry,
   SceneBackgroundLayersVFXEntry,
-  SceneBackgroundLineItem,
   SceneFocusLinesVFXEntry,
 } from "@/lib/scene-vfx/types";
 import {
@@ -139,29 +138,6 @@ export function toSceneFocusLinesPreviewEntry(
     durationMs: null,
     dismissOnInput: false,
   };
-}
-
-export function upsertSceneBackgroundLineItemAtIndex(
-  items: SceneBackgroundLineItem[],
-  index: number,
-  nextItem: SceneBackgroundLineItem | null,
-): SceneBackgroundLineItem[] {
-  const nextItems = items.slice(0, 2);
-
-  if (!nextItem) {
-    if (index < nextItems.length) {
-      nextItems.splice(index, 1);
-    }
-    return nextItems;
-  }
-
-  if (index >= nextItems.length) {
-    nextItems.push(nextItem);
-  } else {
-    nextItems[index] = nextItem;
-  }
-
-  return nextItems.slice(0, 2);
 }
 
 export function formatSceneVFXDuration(

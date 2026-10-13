@@ -116,8 +116,8 @@ effect skill).
 | `sticker` | Sticker beside the Avatar | 512 px | 256 KiB |
 | `silhouette` | Silhouette overlay art | 1024 px | 512 KiB |
 | `flipbook` | A whole flipbook sheet; frames near 256 px | 2048 px | 1024 KiB |
-| `particle-texture` | One Particle sprite | 512 px | 256 KiB |
-| `particle-sheet` | A Particle sprite sheet; tiles near 256 px | 2048 px | 1024 KiB |
+| `particle-texture` | One Particle sprite | 1024 px | 512 KiB |
+| `particle-sheet` | A Particle sprite sheet; tiles near 256 px | 2048 px | 2048 KiB |
 | `scene-sticker` | A Scene marquee or scatter item | 512 px | 256 KiB |
 | `scene-tile` | A repeating Scene pattern tile (may be opaque; keeps its margins) | 512 px | 256 KiB |
 | `scene-background` | A full Scene background (may be opaque; keeps its framing) | 2048 px | 1024 KiB |
