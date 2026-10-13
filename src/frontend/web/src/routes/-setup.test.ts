@@ -239,7 +239,7 @@ describe("local first-run setup", () => {
     },
   );
 
-  it("starts on Welcome, which alone gates on the name and explicit 18+ confirmation", () => {
+  it("starts on Welcome, which gates only on the private name", () => {
     const html = renderSetup();
     expect(html).toContain("Step 1 of 3");
     expect(html).toMatch(/<li aria-current="step"[^>]*>Welcome<\/li>/u);
@@ -247,12 +247,8 @@ describe("local first-run setup", () => {
     expect(html).toMatch(
       /<button[^>]*type="submit"[^>]*disabled=""[^>]*>Continue<\/button>/u,
     );
-    expect(html).toMatch(
-      /<input[^>]*type="checkbox"[^>]*name="adult-confirmed"/u,
-    );
-    expect(html).not.toContain("checked=");
-    expect(html).toContain("I am 18 or older");
-    expect(html).toContain("I&#x27;m under 18");
+    expect(html).not.toContain("adult-confirmed");
+    expect(html).not.toContain("I am 18 or older");
     expect(html).not.toContain("Skip for now");
     expect(html).not.toContain("Back");
     // Keys and downloads moved to later steps.
@@ -261,17 +257,8 @@ describe("local first-run setup", () => {
     expect(fixture.completeOnboarding).not.toHaveBeenCalled();
   });
 
-  it("keeps the AI and minors notices and the safety link unchanged", () => {
-    const html = renderSetup();
-    expect(html).toContain("Animas are AI companions, not people.");
-    expect(html).toContain("may not be suitable for some minors");
-    expect(html).not.toMatch(/professional help/iu);
-    expect(html).toContain('href="/safety"');
-    expect(html).toContain("Safety and crisis protocol");
-  });
-
-  it("enables Continue once both Welcome answers are present", () => {
-    const html = renderSetup({ displayName: "Ada", adultConfirmed: true });
+  it("enables Continue with a name before age confirmation", () => {
+    const html = renderSetup({ displayName: "Ada", adultConfirmed: false });
     expect(html).toMatch(/<button[^>]*type="submit"[^>]*>Continue<\/button>/u);
     expect(html).not.toMatch(/type="submit"[^>]*disabled=""/u);
   });

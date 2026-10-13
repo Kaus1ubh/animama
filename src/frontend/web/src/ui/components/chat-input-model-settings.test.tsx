@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   PyAnimaDispatchOptions,
   PyModelProviderCatalogItem,
+  WebSearchCapability,
 } from "@animama/runtime-contracts/api-types";
 
 import { ChatInputModelSelector } from "./chat-input";
@@ -36,6 +37,7 @@ const fixture = vi.hoisted(() => {
     overrides: store<Partial<PyAnimaDispatchOptions>>({}),
     catalog: [] as PyModelProviderCatalogItem[],
     saveModel: vi.fn(),
+    webSearch: undefined as WebSearchCapability | undefined,
   };
 });
 
@@ -55,7 +57,7 @@ vi.mock("@/query/hooks/useModelProviders", () => ({
   useModelProviders: () => ({ data: fixture.catalog, isSuccess: true }),
 }));
 vi.mock("@/query/hooks/useRuntimeCapabilities", () => ({
-  useRuntimeCapabilities: () => ({ data: undefined }),
+  useRuntimeCapabilities: () => ({ data: { web_search: fixture.webSearch } }),
 }));
 vi.mock("@/query/mutations/useUpdateAnimaChatProfile", () => ({
   useUpdateAnimaChatProfile: () => ({
@@ -91,8 +93,8 @@ vi.mock("@/ui/settings/SettingsProvider", async () => {
     },
   };
 });
-// Render the picker and every row's settings popover inline, so the test
-// drives the real checkboxes and radios without dialog or popover timing.
+// Render the chooser and popovers inline to exercise real slider keyboard
+// interaction and feature checkboxes independently of portal timing.
 vi.mock("@/ui/components/model-selector", () => {
   const Pass = ({ children }: { children?: ReactNode }) => <>{children}</>;
   return {
@@ -108,10 +110,23 @@ vi.mock("@/ui/components/model-selector", () => {
     ModelSelectorItem: ({
       children,
       value,
+      onSelect,
+      disabled,
     }: {
       children?: ReactNode;
       value?: string;
-    }) => <div data-row={value}>{children}</div>,
+      onSelect?: () => void;
+      disabled?: boolean;
+    }) => (
+      <button
+        type="button"
+        data-row={value}
+        disabled={disabled}
+        onClick={onSelect}
+      >
+        {children}
+      </button>
+    ),
     ModelSelectorLogo: () => null,
     ModelSelectorName: Pass,
   };
@@ -173,35 +188,42 @@ const haiku = catalogRow(HAIKU, {
 let root: Root | null = null;
 let container: HTMLElement | null = null;
 
-async function renderPicker(activeModelId: string) {
+async function renderPicker(
+  activeModelId: string,
+  props: Partial<React.ComponentProps<typeof ChatInputModelSelector>> = {},
+) {
   fixture.activeModelId.set(activeModelId);
   container = document.createElement("div");
   document.body.append(container);
   await act(async () => {
     root = createRoot(container!);
-    root.render(<ChatInputModelSelector animaId="anima-1" />);
+    root.render(<ChatInputModelSelector animaId="anima-1" {...props} />);
   });
 }
 
-/** The settings controls of one picker row, found by its model name. */
 function row(model: string) {
-  const element = [...document.querySelectorAll<HTMLElement>("[data-row]")]
-    .filter((candidate) => candidate.dataset.row?.split(" ").includes(model))
-    .at(0);
+  const element = [
+    ...document.querySelectorAll<HTMLButtonElement>("[data-row]"),
+  ].find((candidate) => candidate.dataset.row?.split(" ").includes(model));
   if (!element) throw new Error(`No ${model} row`);
-  return {
-    webSearch: element.querySelector<HTMLButtonElement>(
-      'button[role="checkbox"]',
-    )!,
-    effort: (value: string) =>
-      element.querySelector<HTMLButtonElement>(
-        `button[role="radio"][value="${value}"]`,
-      )!,
-    checkedEffort: () =>
-      element
-        .querySelector('button[role="radio"][aria-checked="true"]')
-        ?.getAttribute("value"),
-  };
+  return element;
+}
+
+function slider() {
+  return document.querySelector<HTMLElement>('[role="slider"]')!;
+}
+
+function webSearch() {
+  return document.querySelector<HTMLButtonElement>('button[role="checkbox"]')!;
+}
+
+async function pressEffortKey(key: string) {
+  await act(async () => {
+    slider().focus();
+    slider().dispatchEvent(
+      new KeyboardEvent("keydown", { key, bubbles: true }),
+    );
+  });
 }
 
 async function click(element: HTMLElement) {
@@ -215,6 +237,7 @@ beforeEach(() => {
   fixture.catalog = [luna, haiku];
   fixture.overrides.set({});
   fixture.saveModel.mockReset();
+  fixture.webSearch = undefined;
 });
 
 afterEach(() => {
@@ -225,65 +248,122 @@ afterEach(() => {
 });
 
 describe("chat model picker settings", () => {
-  it("starts each model at its own default effort", async () => {
+  it("starts at the selected model's default and exposes readable slider values", async () => {
     await renderPicker(LUNA);
 
     expect(fixture.overrides.get()).toEqual({
       native_tools: ["web_search"],
       reasoning_effort: "none",
     });
-    expect(row("gpt-6-luna").checkedEffort()).toBe("none");
-    // An inactive row's popover shows that row's default, not the active one's.
-    expect(row("claude-haiku-5-5").checkedEffort()).toBe("medium");
+    expect(slider().getAttribute("aria-label")).toBe("Reasoning effort");
+    expect(slider().getAttribute("aria-valuetext")).toBe("None");
+    expect(slider().getAttribute("aria-valuemax")).toBe("5");
+    expect(
+      document.querySelector('[aria-label="Chat features"]'),
+    ).not.toBeNull();
   });
 
-  it("switching from an inactive row's tools keeps that row's default effort", async () => {
+  it("selecting a different model uses its own default effort and features", async () => {
     await renderPicker(LUNA);
-
-    await click(row("claude-haiku-5-5").webSearch);
+    await pressEffortKey("End");
+    await click(webSearch());
+    await click(row("claude-haiku-5-5"));
 
     expect(fixture.saveModel).toHaveBeenCalledWith(HAIKU);
     expect(fixture.overrides.get()).toEqual({
-      native_tools: [],
+      native_tools: ["web_search"],
       reasoning_effort: "medium",
     });
+    expect(slider().getAttribute("aria-valuetext")).toBe("Medium");
   });
 
-  it("does not carry the Anthropic effort to an OpenAI row", async () => {
+  it("does not carry the Anthropic effort to an OpenAI model", async () => {
     await renderPicker(HAIKU);
-    expect(fixture.overrides.get().reasoning_effort).toBe("medium");
-
-    await click(row("gpt-6-luna").webSearch);
+    await click(row("gpt-6-luna"));
 
     expect(fixture.saveModel).toHaveBeenCalledWith(LUNA);
-    expect(fixture.overrides.get()).toEqual({
-      native_tools: [],
-      reasoning_effort: "none",
-    });
+    expect(fixture.overrides.get().reasoning_effort).toBe("none");
   });
 
-  it("applies an effort chosen in an inactive row's popover", async () => {
-    await renderPicker(LUNA);
-
-    await click(row("claude-haiku-5-5").effort("low"));
-
-    expect(fixture.saveModel).toHaveBeenCalledWith(HAIKU);
-    expect(fixture.overrides.get()).toEqual({
-      native_tools: ["web_search"],
-      reasoning_effort: "low",
-    });
-  });
-
-  it("keeps the active model's chosen effort when its tools change", async () => {
+  it("keeps the active model's chosen effort when its features change", async () => {
     await renderPicker(HAIKU);
-
-    await click(row("claude-haiku-5-5").effort("high"));
-    await click(row("claude-haiku-5-5").webSearch);
+    await pressEffortKey("ArrowRight");
+    await click(webSearch());
 
     expect(fixture.saveModel).not.toHaveBeenCalled();
     expect(fixture.overrides.get()).toEqual({
       native_tools: [],
       reasoning_effort: "high",
     });
+    await pressEffortKey("ArrowRight");
+    expect(slider().getAttribute("aria-valuetext")).toBe("Extra high");
+    expect(fixture.overrides.get().native_tools).toEqual([]);
+  });
+
+  it("reset restores the model default while preserving feature choices", async () => {
+    await renderPicker(HAIKU);
+    await click(webSearch());
+    await pressEffortKey("End");
+    await click(
+      document.querySelector<HTMLButtonElement>(
+        '[aria-label="Reset reasoning to model default"]',
+      )!,
+    );
+
+    expect(fixture.overrides.get()).toEqual({
+      native_tools: [],
+      reasoning_effort: "medium",
+    });
+    expect(fixture.saveModel).not.toHaveBeenCalled();
+  });
+
+  it("retains confirmation for an incompatible chat without changing overrides", async () => {
+    const onIncompatibleModelSelect = vi.fn();
+    await renderPicker(LUNA, {
+      activeChat: { id: "chat-1", api_standard: "responses" },
+      onIncompatibleModelSelect,
+    });
+    await click(row("claude-haiku-5-5"));
+
+    expect(onIncompatibleModelSelect).toHaveBeenCalledWith(haiku);
+    expect(fixture.saveModel).not.toHaveBeenCalled();
+    expect(fixture.overrides.get().reasoning_effort).toBe("none");
+  });
+
+  it("explains unavailable web search and omits a slider for fixed models", async () => {
+    fixture.catalog = [
+      {
+        ...luna,
+        requestable_native_tool_support: [],
+        supported_reasoning_efforts: [],
+        supports_reasoning: false,
+      },
+    ];
+    fixture.webSearch = { configuration: true, configured: false };
+    await renderPicker(LUNA);
+
+    expect(slider()).toBeNull();
+    expect(webSearch().disabled).toBe(true);
+    expect(container?.textContent).toContain(
+      "Set up web search in App Settings.",
+    );
+    expect(
+      document.querySelector('[aria-label="Select model"]'),
+    ).not.toBeNull();
+    await click(webSearch());
+    expect(fixture.overrides.get().native_tools).toBeUndefined();
+  });
+
+  it("prevents feature and reasoning changes while chat controls are disabled", async () => {
+    await renderPicker(HAIKU, { disabled: true });
+    await pressEffortKey("End");
+    await click(webSearch());
+
+    expect(fixture.overrides.get()).toEqual({
+      native_tools: ["web_search"],
+      reasoning_effort: "medium",
+    });
+    expect(slider().getAttribute("data-disabled")).not.toBeNull();
+    expect(webSearch().disabled).toBe(true);
   });
 });

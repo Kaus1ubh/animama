@@ -1,11 +1,11 @@
 import {
-  Navigate,
   Outlet,
   createFileRoute,
   useRouterState,
 } from "@tanstack/react-router";
 
 import { useRuntimeAdmission } from "@web/app/runtime/RuntimeAdmissionProvider";
+import { FirstRunAgeConfirmation } from "@web/app/local-runtime/setup/FirstRunAgeConfirmation";
 import { unavailableRouteReason } from "@web/app/runtime/route-admission";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { AppShell } from "@/ui/app/AppShell";
@@ -26,8 +26,7 @@ function ApplicationAreaLayout() {
   if (admission.status !== "ready") return null;
   // The app home is also the entry route; continue an accepted entry
   // navigation without reopening a departing creator's blocker.
-  if (admission.onboardingRequired)
-    return <Navigate to="/setup" replace ignoreBlocker />;
+  if (admission.onboardingRequired) return <FirstRunAgeConfirmation />;
   const reason = unavailableRouteReason(pathname, admission.capabilities);
   return (
     <SettingsGate>

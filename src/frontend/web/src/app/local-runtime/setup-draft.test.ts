@@ -41,12 +41,38 @@ describe("unfinished installation setup draft", () => {
     expect(readSetupDraft("owner-a", store)).toEqual(saved);
     expect(readSetupDraft("owner-b", store)).toEqual(emptySetupDraft());
     writeSetupDraft("owner-a", { ...saved, adultConfirmed: false }, store);
-    // A later step needs the Welcome answers.
+    // The wizard can advance before the separate age confirmation.
     expect(readSetupDraft("owner-a", store)).toMatchObject({
-      step: "welcome",
+      step: "voice",
       adultConfirmed: false,
       chatModelId: "OpenAIHTTPAgent:qwen3",
     });
+  });
+
+  it("restores the final modal without treating its handoff as age confirmation", () => {
+    const store = storage();
+    writeSetupDraft(
+      "pending-owner",
+      draft({
+        step: "voice",
+        displayName: "Ada",
+        awaitingAgeConfirmation: true,
+      }),
+      store,
+    );
+    expect(readSetupDraft("pending-owner", store)).toMatchObject({
+      step: "voice",
+      awaitingAgeConfirmation: true,
+      adultConfirmed: false,
+    });
+    writeSetupDraft(
+      "pending-owner",
+      draft({ displayName: "   ", awaitingAgeConfirmation: true }),
+      store,
+    );
+    expect(readSetupDraft("pending-owner", store).awaitingAgeConfirmation).toBe(
+      false,
+    );
   });
 
   it("stores only bounded nonsecret fields, never credentials or readiness", () => {

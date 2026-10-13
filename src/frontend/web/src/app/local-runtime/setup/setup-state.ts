@@ -217,8 +217,8 @@ function sameBaseUrl(left: string | null | undefined, right: string): boolean {
 }
 
 /**
- * The onboarding request: the Welcome answers and, when the AI step chose
- * one, the model that becomes the Chat default. A runtime that does not let
+ * The onboarding request: the private name, the final modal's explicit age
+ * confirmation and, when the AI step chose one, the model that becomes the Chat default. A runtime that does not let
  * the owner configure models never sends one.
  */
 export function onboardingInput(

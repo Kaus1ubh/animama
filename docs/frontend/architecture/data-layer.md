@@ -187,17 +187,20 @@ mutations. Only admitted state supplies the installation principal to shared
 features through `RuntimeOwnerContext`. First-run state remains local to the
 local composition.
 
-The app layout sends `/` to `/setup` until the backend's `first_run_complete`
-boolean is true, which also requires the owner's recorded 18+ confirmation.
-Setup's Welcome step requires a nonblank private name and the 18+ checkbox;
-Finish calls `POST /v1/runtime/onboarding:complete` with `adult_confirmed:
-true` and the model set up last in the AI step (saving the OpenAI or
-Anthropic key, or adding a chat model), if any. Text-to-Speech is on by
+The app layout blocks application content until the backend's `first_run_complete`
+boolean is true. It sends unfinished wizards to `/setup`, whose Welcome step
+requires a nonblank private name. Finish marks only the wizard complete and
+opens the first Anima URL behind a blocking 18+ modal. Its explicit confirmation
+calls `POST /v1/runtime/onboarding:complete` with `adult_confirmed: true` and
+the model set up last in the AI step (saving the OpenAI or Anthropic key, or
+adding a chat model), if any. The browser draft never proves age confirmation
+or backend readiness. Text-to-Speech is on by
 default with built-in voices (`DEFAULT_ANIMAMA_PREFERENCES`); `/setup` sits outside
 `SettingsProvider`, so a provider chosen in the Voice step is saved with
 `useMergeUserPreferences` (fresh read, merge, write). The step and nonsecret
-choices persist in a per-owner localStorage draft (`setup-draft.ts`), never
-keys. Repeating the request after a lost response returns the completed
+choices, including the pending-modal handoff, persist in a per-owner localStorage
+draft (`setup-draft.ts`), never keys. If storage is unavailable, the current
+renderer keeps the draft in memory; reloading then requires choosing again. Repeating the request after a lost response returns the completed
 context. The `/` entry route shares the owned Anima and user
 settings queries, waits for both, and opens the remembered owned Anima
 (`last_active_anima_id`) or the first in stable creation order. Desktop PiP

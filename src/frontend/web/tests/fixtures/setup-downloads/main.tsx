@@ -12,6 +12,7 @@ import { createLocalComposition } from "@/app/local-runtime/local-composition";
 import { RuntimeController } from "@/app/runtime/runtime-controller";
 import { useRuntimeAdmission } from "@/app/runtime/RuntimeAdmissionProvider";
 import { Route } from "@/routes/setup";
+import { FirstRunAgeConfirmation } from "@/app/local-runtime/setup/FirstRunAgeConfirmation";
 import "@/index.css";
 
 // Only native IPC is simulated. Runtime readiness, form, secure-key panel, model
@@ -54,13 +55,26 @@ const setupRoute = createRoute({
   path: "/setup",
   component: Route.options.component,
 });
+function Completion() {
+  const { admission } = useRuntimeAdmission();
+  return admission.status === "ready" && admission.onboardingRequired ? (
+    <FirstRunAgeConfirmation />
+  ) : (
+    <p>Setup complete</p>
+  );
+}
 const completedRoute = createRoute({
   getParentRoute: () => rootRoute,
   path: "/",
-  component: () => <p>Setup complete</p>,
+  component: Completion,
+});
+const animaRoute = createRoute({
+  getParentRoute: () => rootRoute,
+  path: "/$animaId",
+  component: Completion,
 });
 const router = createRouter({
-  routeTree: rootRoute.addChildren([setupRoute, completedRoute]),
+  routeTree: rootRoute.addChildren([setupRoute, completedRoute, animaRoute]),
   history: createMemoryHistory({ initialEntries: ["/setup"] }),
 });
 function FixtureRouter() {

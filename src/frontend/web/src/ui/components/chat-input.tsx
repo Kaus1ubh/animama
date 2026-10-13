@@ -29,14 +29,13 @@ import {
   ModelSelectorList,
   ModelSelectorLogo,
   ModelSelectorName,
-  ModelSelectorTrigger,
 } from "@/ui/components/model-selector";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/ui/components/popover";
-import { RadioGroup, RadioGroupItem } from "@/ui/components/radio-group";
+import { Slider } from "@/ui/components/slider";
 import {
   Tooltip,
   TooltipContent,
@@ -66,14 +65,19 @@ import {
   withWebSearch,
 } from "@/lib/chat/model-provider-native-tools";
 import {
+  Check,
+  ChevronDown,
+  ChevronRight,
   FileText,
   Loader2,
   Mic,
   MicOff,
   Paperclip,
+  RotateCcw,
   Settings2,
   TriangleAlert,
   Upload,
+  Zap,
 } from "lucide-react";
 import {
   alternateModelIds,
@@ -358,16 +362,10 @@ function defaultNativeTools(
   return supportedNativeTools(item, webSearch);
 }
 
-function hasModelSettingsMenu(
-  item: PyModelProviderCatalogItem,
-  webSearch: WebSearchState,
-) {
-  return (
-    supportedNativeTools(item, webSearch).length > 0 ||
-    webSearchAvailability(item, webSearch) !== null ||
-    (item.supports_reasoning === true &&
-      supportedReasoningEfforts(item).length > 0)
-  );
+/** Friendly labels without changing the catalog's supported effort values. */
+function reasoningEffortLabel(effort: string) {
+  if (effort === "xhigh") return "Extra high";
+  return effort.charAt(0).toUpperCase() + effort.slice(1).replaceAll("_", " ");
 }
 
 function nativeToolLabel(tool: string) {
@@ -386,9 +384,7 @@ type ChatInputModelSelectorProps = React.ComponentProps<typeof Button> & {
 
 type SelectModelResult = {
   ok: boolean;
-  // Settings-only interactions can target the already-active model. Treat those
-  // as successful but unchanged so they do not reset request-scoped options or
-  // trigger broader model refresh side effects.
+  // Re-selecting the active model must preserve request-scoped options.
   changed: boolean;
 };
 
@@ -403,12 +399,14 @@ function ChatInputModelSelector({
   ...props
 }: ChatInputModelSelectorProps) {
   const [open, setOpen] = useState(false);
+  const [effortOpen, setEffortOpen] = useState(false);
+  const [featuresOpen, setFeaturesOpen] = useState(false);
+  const effortTriggerRef = useRef<HTMLButtonElement>(null);
   const { data: anima } = useAnima(animaId);
   const { data: catalog = [], isSuccess: catalogLoaded } = useModelProviders();
   const updateAnimaChatProfile = useUpdateAnimaChatProfile();
   const webSearch = useRuntimeCapabilities().data?.web_search;
   const { chatRequestOptions, setChatRequestOverrides } = useSettings();
-  const skipNextActiveItemResetRef = useRef(false);
   // Track the model id instead of the full catalog object. Query refreshes can
   // replace model objects without changing the active model, and those refreshes
   // should not overwrite the user's per-request tool/reasoning selections.
@@ -436,8 +434,23 @@ function ChatInputModelSelector({
       : defaultNativeTools(activeItem, webSearch);
     return new Set(requested.filter((tool) => supported.has(tool)));
   }, [activeItem, chatRequestOptions?.native_tools, webSearch]);
-  const selectedReasoningEffort =
+  const reasoningEfforts = supportedReasoningEfforts(activeItem);
+  const requestedEffort =
     chatRequestOptions?.reasoning_effort ?? defaultReasoningEffort(activeItem);
+  const selectedReasoningEffort = reasoningEfforts.includes(
+    requestedEffort ?? "",
+  )
+    ? requestedEffort
+    : defaultReasoningEffort(activeItem);
+  const selectedEffortIndex = Math.max(
+    0,
+    reasoningEfforts.indexOf(selectedReasoningEffort ?? ""),
+  );
+  const effortLabel = selectedReasoningEffort
+    ? reasoningEffortLabel(selectedReasoningEffort)
+    : "Model";
+  const nativeTools = supportedNativeTools(activeItem, webSearch);
+  const searchAvailability = webSearchAvailability(activeItem, webSearch);
   const isDisabled = Boolean(
     disabledProp || updateAnimaChatProfile.isPending || !anima?.chat_profile,
   );
@@ -460,12 +473,6 @@ function ChatInputModelSelector({
     },
     [setChatRequestOverrides, webSearch],
   );
-
-  const stopSettingsMenuEvent = useCallback((event: React.SyntheticEvent) => {
-    // The popover sits inside a selectable model row. Without this, checkbox or
-    // radio events also select the row, which resets settings back to defaults.
-    event.stopPropagation();
-  }, []);
 
   const selectModel = useCallback(
     async (item: PyModelProviderCatalogItem): Promise<SelectModelResult> => {
@@ -524,105 +531,33 @@ function ChatInputModelSelector({
     [onModelChange, resetChatRequestSettingsForModel, selectModel],
   );
 
-  const applySettingsForModel = useCallback(
-    async (
-      item: PyModelProviderCatalogItem,
-      patch: {
-        nativeTools?: string[];
-        reasoningEffort?: string;
-      },
-    ) => {
-      const willSelectInactiveModel = item.id !== activeItemId;
-      if (willSelectInactiveModel) {
-        // Selecting an inactive row from its settings popover causes the active
-        // model to change first. The effect below would normally reset the new
-        // model to defaults, so skip that one reset and apply the user's chosen
-        // override in this callback instead.
-        skipNextActiveItemResetRef.current = true;
-      }
-      const result = await selectModel(item);
-      if (!result.ok) {
-        if (willSelectInactiveModel) {
-          skipNextActiveItemResetRef.current = false;
-        }
-        return;
-      }
-      if (willSelectInactiveModel && !result.changed) {
-        skipNextActiveItemResetRef.current = false;
-      }
+  const handleNativeToolChange = (tool: string, checked: boolean) => {
+    if (isDisabled || !activeItem || !nativeTools.includes(tool)) return;
+    const nextTools = checked
+      ? Array.from(new Set([...selectedNativeTools, tool]))
+      : Array.from(selectedNativeTools).filter(
+          (activeTool) => activeTool !== tool,
+        );
+    setChatRequestOverrides((current) => ({
+      ...current,
+      // An explicit empty array keeps default-on tools off for future requests.
+      native_tools: nextTools,
+    }));
+  };
 
-      const supportedTools = new Set(supportedNativeTools(item, webSearch));
-      const supportedReasoning = supportedReasoningEfforts(item);
-      const fallbackReasoning = defaultReasoningEffort(item);
-      const fallbackNativeTools = defaultNativeTools(item, webSearch);
-      setChatRequestOverrides((current) => {
-        const currentNativeTools =
-          Array.isArray(current.native_tools) && !willSelectInactiveModel
-            ? current.native_tools
-            : fallbackNativeTools;
-        const nextNativeTools = (
-          patch.nativeTools ?? currentNativeTools
-        ).filter((tool) => supportedTools.has(tool));
-        // Like the tools above, the current effort belongs to the previously
-        // active model when this change also switches models; the new model
-        // starts from its own default unless the patch picks an effort.
-        const currentReasoning =
-          typeof current.reasoning_effort === "string" &&
-          !willSelectInactiveModel
-            ? current.reasoning_effort
-            : undefined;
-        const requestedReasoning = patch.reasoningEffort ?? currentReasoning;
-        const nextReasoningEffort = supportedReasoning.includes(
-          requestedReasoning ?? "",
-        )
-          ? requestedReasoning
-          : fallbackReasoning;
-
-        return {
-          ...current,
-          // Preserve an explicit empty array. It means the user turned a
-          // default-on native tool off for future chat requests.
-          native_tools: nextNativeTools,
-          reasoning_effort: nextReasoningEffort ?? undefined,
-        };
-      });
-      if (result.changed) {
-        onModelChange?.();
-      }
-    },
-    [
-      activeItemId,
-      onModelChange,
-      selectModel,
-      setChatRequestOverrides,
-      webSearch,
-    ],
-  );
-
-  const handleNativeToolChange = useCallback(
-    (item: PyModelProviderCatalogItem, tool: string, checked: boolean) => {
-      const activeTools =
-        item.id === activeItemId
-          ? Array.from(selectedNativeTools)
-          : defaultNativeTools(item, webSearch);
-      const nextTools = checked
-        ? Array.from(new Set([...activeTools, tool]))
-        : activeTools.filter((activeTool) => activeTool !== tool);
-      void applySettingsForModel(item, { nativeTools: nextTools });
-    },
-    [activeItemId, applySettingsForModel, selectedNativeTools, webSearch],
-  );
-
-  const handleReasoningChange = useCallback(
-    (item: PyModelProviderCatalogItem, effort: string) => {
-      void applySettingsForModel(item, { reasoningEffort: effort });
-    },
-    [applySettingsForModel],
-  );
+  const handleReasoningChange = (effort: string) => {
+    if (isDisabled || !activeItem || !reasoningEfforts.includes(effort)) return;
+    setChatRequestOverrides((current) => ({
+      ...current,
+      reasoning_effort: effort,
+    }));
+  };
 
   useEffect(() => {
     if (closeSignal > 0) {
       setOpen(false);
+      setEffortOpen(false);
+      setFeaturesOpen(false);
     }
   }, [closeSignal]);
 
@@ -630,10 +565,6 @@ function ChatInputModelSelector({
     if (!activeItem || !activeItemId) return;
     if (lastActiveItemIdRef.current === activeItemId) return;
     lastActiveItemIdRef.current = activeItemId;
-    if (skipNextActiveItemResetRef.current) {
-      skipNextActiveItemResetRef.current = false;
-      return;
-    }
     resetChatRequestSettingsForModel(activeItem);
   }, [activeItem, activeItemId, resetChatRequestSettingsForModel]);
 
@@ -667,40 +598,243 @@ function ChatInputModelSelector({
         setOpen(nextOpen);
       }}
     >
-      <Tooltip>
-        <TooltipTrigger asChild>
-          <ModelSelectorTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className={cn(
-                "text-muted-foreground hover:text-foreground rounded-full",
-                className,
-              )}
-              disabled={isDisabled}
-              {...props}
-            >
-              {updateAnimaChatProfile.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : activeUnavailable ? (
-                <TriangleAlert className="text-destructive size-4" />
-              ) : activeItem?.logo_provider ? (
-                <ModelSelectorLogo
-                  provider={activeItem.logo_provider}
-                  className="size-4"
+      <Popover
+        open={effortOpen}
+        onOpenChange={(nextOpen) => {
+          setEffortOpen(nextOpen && !isDisabled);
+          if (nextOpen) setFeaturesOpen(false);
+        }}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className={cn(
+                  "text-muted-foreground hover:text-foreground h-8 gap-1.5 rounded-full px-2.5 text-xs",
+                  className,
+                )}
+                disabled={isDisabled}
+                aria-label={`Model and reasoning: ${tooltipLabel}`}
+                ref={effortTriggerRef}
+                {...props}
+              >
+                {updateAnimaChatProfile.isPending ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : activeUnavailable ? (
+                  <TriangleAlert className="text-destructive size-4" />
+                ) : (
+                  <Zap className="size-4" aria-hidden="true" />
+                )}
+                <span>{activeUnavailable ? "Unavailable" : effortLabel}</span>
+                <ChevronDown className="size-3" aria-hidden="true" />
+              </Button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent avoidCollisions={false} side="top">
+            {tooltipLabel}
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent
+          align="end"
+          side="top"
+          sideOffset={8}
+          className="w-[min(20rem,calc(100vw-2rem))] rounded-xl p-4"
+          onCloseAutoFocus={(event) => {
+            // Let the model chooser take focus when it replaces this popover.
+            if (open) event.preventDefault();
+          }}
+        >
+          <div className="flex items-start gap-2">
+            <Zap
+              className="text-primary mt-1 size-5 shrink-0"
+              aria-hidden="true"
+            />
+            <div className="min-w-0 flex-1 text-center">
+              <p className="text-base font-medium">
+                {selectedReasoningEffort ? effortLabel : "Select model"}
+              </p>
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="text-muted-foreground h-auto max-w-full gap-1 px-2 py-1 text-xs font-normal"
+                disabled={isDisabled}
+                aria-label="Select model"
+                onClick={() => {
+                  setEffortOpen(false);
+                  setOpen(true);
+                }}
+              >
+                <span className="truncate">
+                  {activeItem
+                    ? modelDisplayName(
+                        activeItem,
+                        alternateIds.has(activeItem.id),
+                      )
+                    : activeUnavailable
+                      ? "Model unavailable"
+                      : "Choose a model"}
+                </span>
+                <ChevronRight className="size-3 shrink-0" aria-hidden="true" />
+              </Button>
+            </div>
+            {selectedReasoningEffort ? (
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-muted-foreground size-7 shrink-0 rounded-full"
+                    aria-label="Reset reasoning to model default"
+                    disabled={
+                      isDisabled ||
+                      selectedReasoningEffort ===
+                        defaultReasoningEffort(activeItem)
+                    }
+                    onClick={() => {
+                      const effort = defaultReasoningEffort(activeItem);
+                      if (effort) handleReasoningChange(effort);
+                    }}
+                  >
+                    <RotateCcw className="size-4" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  Reset reasoning to model default
+                </TooltipContent>
+              </Tooltip>
+            ) : (
+              <span className="size-7 shrink-0" aria-hidden="true" />
+            )}
+          </div>
+          {reasoningEfforts.length > 1 ? (
+            <div className="relative mt-4">
+              <Slider
+                min={0}
+                max={reasoningEfforts.length - 1}
+                step={1}
+                value={[selectedEffortIndex]}
+                disabled={isDisabled}
+                onValueChange={([index]) => {
+                  const effort = reasoningEfforts[index];
+                  if (effort) handleReasoningChange(effort);
+                }}
+                thumbProps={{
+                  "aria-label": "Reasoning effort",
+                  "aria-valuetext": effortLabel,
+                }}
+                className="[&_[data-slot=slider-thumb]]:border-border h-8 [&_[data-slot=slider-thumb]]:size-8 [&_[data-slot=slider-track]]:h-7"
+              />
+              <div
+                className="pointer-events-none absolute inset-x-4 top-1/2 flex -translate-y-1/2 justify-between"
+                aria-hidden="true"
+              >
+                {reasoningEfforts.map((effort, index) => (
+                  <span
+                    key={effort}
+                    className={cn(
+                      "size-1 rounded-full",
+                      index < selectedEffortIndex
+                        ? "bg-primary-foreground/50"
+                        : "bg-muted-foreground/50",
+                      index === selectedEffortIndex && "opacity-0",
+                    )}
+                  />
+                ))}
+              </div>
+            </div>
+          ) : activeItem && reasoningEfforts.length === 0 ? (
+            <p className="text-muted-foreground mt-3 text-center text-xs">
+              This model has no adjustable reasoning.
+            </p>
+          ) : null}
+        </PopoverContent>
+      </Popover>
+      <Popover
+        open={featuresOpen}
+        onOpenChange={(nextOpen) => {
+          setFeaturesOpen(nextOpen && !isDisabled);
+          if (nextOpen) setEffortOpen(false);
+        }}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <PopoverTrigger asChild>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="text-muted-foreground hover:text-foreground rounded-full"
+                disabled={isDisabled || !activeItem}
+                aria-label="Chat features"
+              >
+                <Settings2 className="size-4" aria-hidden="true" />
+              </Button>
+            </PopoverTrigger>
+          </TooltipTrigger>
+          <TooltipContent avoidCollisions={false} side="top">
+            Chat features
+          </TooltipContent>
+        </Tooltip>
+        <PopoverContent
+          align="end"
+          side="top"
+          sideOffset={8}
+          className="w-64 space-y-3 rounded-xl p-4"
+        >
+          <p className="text-sm font-medium">Chat features</p>
+          {searchAvailability?.state === "unavailable" ? (
+            <div className="space-y-1">
+              <label className="text-muted-foreground flex items-center gap-2 text-sm">
+                <Checkbox
+                  checked={false}
+                  disabled
+                  aria-describedby={`${animaId}-web-search-reason`}
                 />
-              ) : (
-                <span className="size-4" aria-hidden="true" />
-              )}
-              <span className="sr-only">{tooltipLabel}</span>
-            </Button>
-          </ModelSelectorTrigger>
-        </TooltipTrigger>
-        <TooltipContent avoidCollisions={false} side="bottom">
-          {tooltipLabel}
-        </TooltipContent>
-      </Tooltip>
-      <ModelSelectorContent title="Select model">
+                <span>{nativeToolLabel(WEB_SEARCH_TOOL)}</span>
+              </label>
+              <p
+                id={`${animaId}-web-search-reason`}
+                className="text-muted-foreground text-xs"
+              >
+                {searchAvailability.reason}
+              </p>
+            </div>
+          ) : null}
+          {nativeTools.map((tool) => (
+            <label
+              key={tool}
+              className="flex cursor-pointer items-center gap-2 text-sm"
+            >
+              <Checkbox
+                checked={selectedNativeTools.has(tool)}
+                disabled={isDisabled}
+                onCheckedChange={(checked) =>
+                  handleNativeToolChange(tool, checked === true)
+                }
+              />
+              <span>{nativeToolLabel(tool)}</span>
+            </label>
+          ))}
+          {nativeTools.length === 0 && !searchAvailability ? (
+            <p className="text-muted-foreground text-xs">
+              No optional features for this model.
+            </p>
+          ) : null}
+        </PopoverContent>
+      </Popover>
+      <ModelSelectorContent
+        title="Select model"
+        onCloseAutoFocus={(event) => {
+          // The chooser opens from a popover that has already closed.
+          event.preventDefault();
+          effortTriggerRef.current?.focus();
+        }}
+      >
         <ModelSelectorInput placeholder="Search models..." />
         <ModelSelectorList>
           <ModelSelectorEmpty>No models found.</ModelSelectorEmpty>
@@ -711,16 +845,6 @@ function ChatInputModelSelector({
             >
               {group.models.map((item, index) => {
                 const isActive = item.id === activeItemId;
-                const rowNativeTools = supportedNativeTools(item, webSearch);
-                const rowReasoningEfforts = supportedReasoningEfforts(item);
-                const rowSelectedNativeTools = isActive
-                  ? selectedNativeTools
-                  : new Set(defaultNativeTools(item, webSearch));
-                const rowSelectedReasoningEffort = isActive
-                  ? selectedReasoningEffort
-                  : defaultReasoningEffort(item);
-                const showSettingsMenu = hasModelSettingsMenu(item, webSearch);
-                const rowSearch = webSearchAvailability(item, webSearch);
                 const rowGate = chatModelSendGate(activeChat, item);
                 const rowUnsupported =
                   !rowGate.ok && rowGate.reason === "unsupported_model";
@@ -762,115 +886,11 @@ function ChatInputModelSelector({
                             : providerName}
                       </span>
                     </div>
-                    {showSettingsMenu ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            aria-label={`${modelName} settings`}
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            disabled={updateAnimaChatProfile.isPending}
-                            className="text-muted-foreground hover:text-foreground size-7 rounded-full"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                            }}
-                            onPointerDown={(event) => {
-                              event.stopPropagation();
-                            }}
-                          >
-                            <Settings2 className="h-4 w-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="end"
-                          side="right"
-                          sideOffset={8}
-                          className="w-56 p-3"
-                          onClick={stopSettingsMenuEvent}
-                          onPointerDown={stopSettingsMenuEvent}
-                          onKeyDown={stopSettingsMenuEvent}
-                          onOpenAutoFocus={(event) => {
-                            event.preventDefault();
-                          }}
-                        >
-                          <div className="space-y-3">
-                            {rowSearch?.state === "unavailable" ? (
-                              <div className="space-y-1">
-                                <label className="text-muted-foreground flex items-center gap-2 text-sm">
-                                  <Checkbox
-                                    checked={false}
-                                    disabled
-                                    aria-describedby={`${item.id}-web-search-reason`}
-                                  />
-                                  <span>
-                                    {nativeToolLabel(WEB_SEARCH_TOOL)}
-                                  </span>
-                                </label>
-                                <p
-                                  id={`${item.id}-web-search-reason`}
-                                  className="text-muted-foreground text-xs"
-                                >
-                                  {rowSearch.reason}
-                                </p>
-                              </div>
-                            ) : null}
-                            {rowNativeTools.length > 0 ? (
-                              <div className="space-y-2">
-                                {rowNativeTools.map((tool) => (
-                                  <label
-                                    key={tool}
-                                    className="flex cursor-pointer items-center gap-2 text-sm"
-                                  >
-                                    <Checkbox
-                                      checked={rowSelectedNativeTools.has(tool)}
-                                      disabled={
-                                        updateAnimaChatProfile.isPending
-                                      }
-                                      onCheckedChange={(checked) => {
-                                        handleNativeToolChange(
-                                          item,
-                                          tool,
-                                          checked === true,
-                                        );
-                                      }}
-                                    />
-                                    <span>{nativeToolLabel(tool)}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            ) : null}
-                            {rowReasoningEfforts.length > 0 ? (
-                              <div className="space-y-2">
-                                <div className="text-muted-foreground text-xs font-medium">
-                                  Reasoning
-                                </div>
-                                <RadioGroup
-                                  value={rowSelectedReasoningEffort ?? ""}
-                                  onValueChange={(effort) => {
-                                    handleReasoningChange(item, effort);
-                                  }}
-                                >
-                                  {rowReasoningEfforts.map((effort) => (
-                                    <label
-                                      key={effort}
-                                      className="flex cursor-pointer items-center gap-2 text-sm"
-                                    >
-                                      <RadioGroupItem
-                                        value={effort}
-                                        disabled={
-                                          updateAnimaChatProfile.isPending
-                                        }
-                                      />
-                                      <span>{effort}</span>
-                                    </label>
-                                  ))}
-                                </RadioGroup>
-                              </div>
-                            ) : null}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
+                    {isActive ? (
+                      <Check
+                        className="size-4 shrink-0"
+                        aria-label="Selected"
+                      />
                     ) : null}
                   </ModelSelectorItem>
                 );

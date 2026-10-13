@@ -7,8 +7,11 @@ import { cn } from "@/lib/utils";
 
 const Slider = React.forwardRef<
   React.ElementRef<typeof SliderPrimitive.Root>,
-  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root>
->(({ className, ...props }, ref) => (
+  React.ComponentPropsWithoutRef<typeof SliderPrimitive.Root> & {
+    /** Accessible labels and value text belong on the focusable thumb. */
+    thumbProps?: React.ComponentPropsWithoutRef<typeof SliderPrimitive.Thumb>;
+  }
+>(({ className, thumbProps, ...props }, ref) => (
   <SliderPrimitive.Root
     ref={ref}
     data-slot="slider"
@@ -28,8 +31,12 @@ const Slider = React.forwardRef<
       />
     </SliderPrimitive.Track>
     <SliderPrimitive.Thumb
+      {...thumbProps}
       data-slot="slider-thumb"
-      className="border-primary/50 bg-background focus-visible:ring-ring block h-4 w-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50"
+      className={cn(
+        "border-primary/50 bg-background focus-visible:ring-ring block h-4 w-4 rounded-full border shadow transition-colors focus-visible:ring-1 focus-visible:outline-none disabled:pointer-events-none disabled:opacity-50",
+        thumbProps?.className,
+      )}
     />
   </SliderPrimitive.Root>
 ));
