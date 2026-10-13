@@ -179,9 +179,17 @@ still covers the audible laugh between "gosh" and "that": the mouth pulses with 
 
 ### R7 — Talking hands and other consumers
 
-- Talking hands beat on speech in every supported language. Beats come from
-  stressed syllables when the text gives stress (English), otherwise from loudness
-  peaks. Hands do not beat during tags or pauses.
+- Talking hands beat on speech in every supported language. The planner supplies
+  the same timeline the talking-hands layer reads today (word timings and beat
+  times), so the layer itself does not change.
+- Beats fall on prominent syllables, found in the audio: louder, higher-pitched or
+  longer than their neighbours. That works in any language, and none of it needs
+  gruut. Where the text marks stress (English, from gruut's phonemes while they
+  exist), it decides between candidates that are close together. Hands do not beat
+  during tags, pauses or sound effects.
+- The layer starts a gesture about 0.5 s before its beat. When audio arrives ahead
+  of playback, beats are ready in time. When it does not, provisional beats from
+  the text are used first and replaced once the audio arrives, as today's plan is.
 - The desktop picture-in-picture avatar shows the same mouth and hands as the main
   view.
 
@@ -294,6 +302,9 @@ Proposed, for the owner:
   wanted.
 
 Open, for the ExecPlan's early spikes:
+
+- How well beats from audio prominence agree with gruut's stressed syllables on the
+  English clips. Nothing is measured yet; the owner's visual check decides.
 
 - Windowed re-alignment and chunked phone-model inference: accuracy and CPU when
   aligning progressively. Only a naive version was simulated.
