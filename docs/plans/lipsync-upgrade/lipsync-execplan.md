@@ -4,8 +4,8 @@ Source agreement: [lipsync-spec.md](lipsync-spec.md) at `35fc8d7f`. The owner as
 for this plan on 2026-10-13 after reviewing that revision, which is recorded as
 agreement for planning. D5 (download budget) is unanswered and is planned as
 proposed (see the Decision Log).
-Authorized scope: planning only. Implementation needs the owner's review of this
-plan and an explicit authorization of a phase range.
+Authorized scope: Phases 1–7. The owner approved this plan, including agent
+proposals P1–P5, and authorized Phases 1–7 on 2026-10-14.
 Parent issue: [#468](https://github.com/raymond-van/animama/issues/468) (the spec is
 published there by `workspace-setup`). PR:
 [#473](https://github.com/raymond-van/animama/pull/473), which already carries the

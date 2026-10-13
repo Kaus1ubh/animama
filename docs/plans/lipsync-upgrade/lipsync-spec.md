@@ -1,7 +1,8 @@
 # Lip-sync that follows the voice in every language, without gruut
 
-Status: Agreed for planning. The owner requested the ExecPlan on 2026-10-13 after
-reviewing this spec at `35fc8d7f`. D5 awaits confirmation.
+Status: Agreed. The owner requested the ExecPlan on 2026-10-13 after reviewing this
+spec at `35fc8d7f`, then approved the plan and authorized Phases 1–7 on 2026-10-14.
+D5 was not answered explicitly; work proceeds with the proposed budget.
 
 Owner decisions, 2026-10-13 (recorded in the research brief's "Owner decisions"):
 
