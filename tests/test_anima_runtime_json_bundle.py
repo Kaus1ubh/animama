@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import gzip
 import hashlib
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
@@ -19,10 +21,12 @@ from animama.app.services.anima_runtime_service import RuntimeFileAuthorization,
 from animama.domain.content_catalog import ContentSource
 from animama.domain.request_principal import RequestPrincipal
 from animama.domain.runtime_json_bundle import select_runtime_json_members
+from animama.product_http.delivery import encoded_json_response
+from animama.product_http.ports import install_product_ports
+from animama.product_http.principal import get_current_principal
+from animama.product_http.routes import anima_runtime
 from animama.server.config import Settings
-from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.routers import anima_runtime
 from tests.local_http_client import local_client
 
 
@@ -128,8 +132,29 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
     async def principal() -> RequestPrincipal:
         return RequestPrincipal(id=state.owner)
 
-    async def session():  # noqa: ANN202
-        yield state.session
+    class Ports:
+        """Serve the fake runtime and the real local store as the owner's content."""
+
+        store = FilesystemContentStore(
+            included_root=paths.included_root,
+            included_sources=paths.included_sources,
+            local_root=paths.local_root,
+            operations_root=paths.operations_root,
+        )
+
+        @asynccontextmanager
+        async def write_session(self, principal: RequestPrincipal) -> AsyncIterator[Any]:
+            yield state.session
+
+        read_session = write_session
+
+        @asynccontextmanager
+        async def content(self, session: Any, principal: RequestPrincipal) -> AsyncIterator[Any]:
+            yield SimpleNamespace(runtime=Runtime(session), store=self.store)
+
+        async def json_response(self, request: Any, body: bytes, **options: Any) -> Any:
+            # The local delivery policy.
+            return await encoded_json_response(body, **options)
 
     original_open = FilesystemContentStore.open_verified_file
 
@@ -138,8 +163,7 @@ def bundle_http(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> SimpleNamesp
         return original_open(self, **kwargs)
 
     app.dependency_overrides[get_current_principal] = principal
-    app.dependency_overrides[get_async_session] = session
-    monkeypatch.setattr(anima_runtime, "AnimaRuntimeService", Runtime)
+    install_product_ports(app, Ports())  # type: ignore[arg-type]
     monkeypatch.setattr(FilesystemContentStore, "open_verified_file", opened)
     return state
 

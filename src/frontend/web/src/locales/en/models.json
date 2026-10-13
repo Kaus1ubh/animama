@@ -19,6 +19,7 @@
       "label": "App search"
     },
     "builtInSearch": {
+      "anthropicDescription": "Searches the web with Anthropic's own search. Anthropic bills each search to your Anthropic account.",
       "description": "Searches the web with the provider's own search",
       "label": "Built-in search"
     },
@@ -45,7 +46,8 @@
     "baseUrl": "Base URL",
     "baseUrlHelp": "The server's OpenAI-compatible address, usually ending in /v1.",
     "compatibility": {
-      "foldDeveloperRole": "Merge developer instructions into the system message",
+      "foldDeveloperRole": "Send no developer messages",
+      "foldDeveloperRoleHelp": "For servers that reject the developer role. Each turn's context (memory map, attached files) goes in a tagged block at the start of the user message; a summary of compacted history and instructions within a turn are merged into the system message.",
       "sendOpenaiExtensions": "Send OpenAI-only request fields",
       "sendStreamUsage": "Request token usage while streaming",
       "stripFunctionStrict": "Remove strict flags from tools"
@@ -82,6 +84,10 @@
     "added": "Connection added.",
     "addModel": "Add model",
     "addModelTo": "Add model to {{name}}",
+    "builtinKey": {
+      "managed": "Encrypted on this computer and never shown again. Also in App Settings → API Keys.",
+      "server": "Uses the {{name}} key configured on this server ({{env}})."
+    },
     "connect": "Connect",
     "connecting": "Connecting…",
     "detail": "{{host}} · {{status}}",
@@ -90,10 +96,6 @@
     "loadFailed": "Model connections could not be loaded.",
     "modelsOf": "{{name}} models",
     "noModels": "No models yet. Add one to chat with it.",
-    "openAiKey": {
-      "managed": "Encrypted on this computer and never shown again. Also in App Settings → API Keys.",
-      "server": "Uses the OpenAI key configured on this server (OPENAI_API_KEY)."
-    },
     "removed": "Connection removed.",
     "removeNamed": "Remove {{name}}",
     "saved": "Connection saved.",
@@ -112,7 +114,7 @@
   "credentials": {
     "allFailed": "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
     "connectionKey": "Model connection key",
-    "description": "Add an OpenAI key for cloud chat or an ElevenLabs key for voices. Keys for other model servers are entered on each connection in App Settings → Models. Keys are encrypted with this computer’s secure storage and never shown again. Changes apply as soon as you save. You can change them later in App Settings → API Keys.",
+    "description": "Add an OpenAI or Anthropic key for cloud chat or an ElevenLabs or Gemini key for voices. Keys for other model servers are entered on each connection in App Settings → Models. Keys are encrypted with this computer’s secure storage and never shown again. Changes apply as soon as you save. You can change them later in App Settings → API Keys.",
     "failure": {
       "full": "This computer already stores the most model connection keys it allows ({{max, number}}). Remove the key from a connection you no longer use, then retry.",
       "line": "{{name}}: {{message}}",
@@ -245,10 +247,15 @@
     },
     "contextWindow": "Context window (tokens)",
     "contextWindowHelp": "Required. Use the context size the server loads the model with (for example Ollama's num_ctx or llama.cpp's -c), not the model's maximum; long chats are summarized to fit.",
+    "contextWindowHelpAnthropic": "Required. Test the model to fill in the window Anthropic publishes for it; long chats are summarized to fit.",
     "copyFrom": "Copy capabilities from",
     "copyFromHelp": "Useful for a newer version of a built-in model.",
     "copyNothing": "Nothing (set them below)",
     "displayName": "Display name",
+    "earlyCompaction": {
+      "description": "Summarizes earlier conversation before prompts reach the higher long-context price (at {{early, number}} tokens on {{model}}). Off waits until {{late, number}} tokens, keeping more word for word at the higher price.",
+      "label": "Compact early"
+    },
     "editDescription": {
       "chat": "Chat model on {{connection}}. Change its details, then save.",
       "embedding": "Embedding model on {{connection}}. Change its details, then save."
@@ -285,6 +292,7 @@
     "connected": " (connected)",
     "custom": "Custom",
     "purpose": {
+      "anthropic": "Chat with Anthropic's Claude models using your API key.",
       "customCloud": "Connect any OpenAI-compatible cloud service.",
       "customLocal": "Connect any OpenAI-compatible server on this computer or your network.",
       "deepseek": "Chat with DeepSeek's models using your DeepSeek API key.",
@@ -353,7 +361,7 @@
       "help": "Enable the json format under search.formats in its settings.yml. From a Docker stack, a server on this computer is at host.docker.internal instead of 127.0.0.1."
     },
     "service": {
-      "description": "Lets any model that can call tools search the web. OpenAI models with built-in search keep using it.",
+      "description": "Lets models that can call tools search the web. Models with built-in search keep using theirs, and Anthropic models never use this service.",
       "label": "Search service"
     },
     "testPassed_one": "Search works: {{count, number}} result for a test query.",

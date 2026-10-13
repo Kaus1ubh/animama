@@ -20,8 +20,8 @@
     },
     "nonPortableReason": "隨此應用程式提供，僅限在此使用。無法自訂、複製或匯出。",
     "particle": {
-      "aTextureTooLarge": "有材質超過 25 MiB 的上限。",
-      "autoFitEmitters": "矩形自動調整的發射器名稱必須唯一，且最多符合八個發射器。",
+      "aTextureTooLarge": "有材質超過 {{size}} MiB 的上限。",
+      "autoFitEmitters": "矩形自動調整的發射器名稱必須唯一，且最多符合 {{max}} 個發射器。",
       "autoFitEmpty": "矩形自動調整尺寸不能為空白。",
       "autoFitHeightRange": "矩形自動調整高度的最小值超過最大值。",
       "autoFitWidthRange": "矩形自動調整寬度的最小值超過最大值。",
@@ -43,12 +43,14 @@
         "scale": "縮放"
       },
       "textureAmbiguous": "材質 {{texture}} 的資源來源不明確。",
+      "textureDimensionsTooLarge": "材質 {{texture}} 的每一邊不得超過 {{size}} px。",
       "textureEmpty": "材質 {{texture}} 為空白。",
       "textureFetchFailed": "取得材質失敗（HTTP {{status}}）。",
       "textureMismatched": "材質 {{texture}} 的影像資料不符或不受支援。",
       "textureNotAvailable": "材質 {{texture}} 對此內容項目無法使用。",
       "textureNotInApp": "無法從確切的應用程式來源取得材質 {{texture}}。",
-      "textureTooLarge": "材質 {{texture}} 超過 25 MiB 的上限。",
+      "texturesTotalTooLarge": "一個粒子特效中的材質總計不得超過 {{size}} MiB。",
+      "textureTooLarge": "材質 {{texture}} 超過 {{size}} MiB 的上限。",
       "textureUnresolved": "有未解析的材質資源。",
       "tooManyTextures_other": "粒子特效最多支援 {{count}} 個不同的材質。"
     },
@@ -71,6 +73,7 @@
     },
     "recovery": {
       "discardFailed": "無法捨棄瀏覽器復原資料。請再試一次。",
+      "particleTexturesNotStored": "無法為當機復原儲存材質檔案。復原此草稿後，請重新選擇缺少的材質。",
       "particleTooLarge": "此特效過大，無法用於瀏覽器當機復原。儲存仍可繼續。",
       "unavailable": "瀏覽器當機復原無法使用。請在儲存完成前保持此分頁開啟。"
     },
@@ -165,6 +168,19 @@
       "poses": "姿勢",
       "reactions": "反應"
     },
+    "contentTypes": {
+      "all": "全部",
+      "avatarEffects": "形象特效",
+      "avatars": "虛擬形象",
+      "gestures": "動作",
+      "idleStyles": "待機風格",
+      "label": "資源庫內容類型",
+      "particle": "粒子特效",
+      "poses": "姿勢",
+      "reactions": "反應",
+      "scene": "場景特效",
+      "sound": "音效"
+    },
     "fxFilters": {
       "all": "全部",
       "avatar": "形象特效",
@@ -238,6 +254,7 @@
       },
       "noAnimas": "還沒有可匯出的 Anima。",
       "noMatches": "沒有符合的內容。",
+      "omittedSounds_other": "{{count, number}} 個內建特效音效會保留在此應用程式中。這些特效的匯入副本將在沒有音效的情況下播放。",
       "plusRequired_other": "+ {{count}} 個必要相依項目",
       "preparingPackage": "正在準備你的套件…",
       "refreshSelection": "重新整理所選內容",

@@ -47,10 +47,11 @@ from animama.app.services.content_kind_registry import MAX_JSON_BYTES, handler_f
 from animama.app.services.content_package_staging import PackageStageService
 from animama.app.services.content_portability import is_non_portable
 from animama.app.services.local_content_mutations import _finish_owned_work, mutation_digest
-from animama.app.services.non_portable_packages import idle_pools_using, strip_idle_refs
+from animama.app.services.non_portable_packages import idle_pools_using, strip_idle_refs, strip_optional_refs
 from animama.app.services.package_inspection import inspect_package
 from animama.app.services.typed_content_service import TypedCatalogItem, TypedContentResolutionContext
 from animama.domain.content_catalog import (
+    SCENE_EMOJI_ITEM_REMOVED,
     CatalogContentEntry,
     CatalogContentFile,
     ContentConflictError,
@@ -296,7 +297,8 @@ class _Selection:
     root_ids: tuple[str, ...]
     portraits: dict[str, str | None]
     anima_snapshot: AnimaPackageSnapshot | None = None
-    # Portable Idle Style item id -> non-portable Gesture item ids removed from it.
+    # Portable item id -> non-portable item ids removed from it: Gestures pooled
+    # by an Idle Style, or an effect's optional accompanying sound.
     stripped: dict[str, frozenset[str]] = field(default_factory=dict)
     non_portable: tuple[tuple[CatalogContentEntry, tuple[_NonPortableUse, ...]], ...] = ()
     # Effective face-part corrections by Avatar item id, written into each portable sidecar.
@@ -396,6 +398,22 @@ class ContentPackageExportService:
                 if item.item.kind not in PACKAGE_ENTRY_KINDS:
                     raise ContentConflictError("package_kind_unsupported")
                 entries[item.item.id] = item
+        # An Action that still names a removed Included effect would travel
+        # with events nothing plays; it is repaired in its creator first.
+        outdated = [item.item for item in entries.values() if item.item.missing_dependencies]
+        if outdated:
+            raise ContentConflictError(
+                "package_dependency_missing", items=tuple(item.display_name for item in outdated)
+            )
+        # A Scene saved with a Twemoji item plays without it here; elsewhere
+        # the item would be unavailable, so it is replaced in its creator first.
+        with_emoji = [
+            item.item
+            for item in entries.values()
+            if any(diagnostic.code == SCENE_EMOJI_ITEM_REMOVED for diagnostic in item.item.diagnostics)
+        ]
+        if with_emoji:
+            raise ContentConflictError(SCENE_EMOJI_ITEM_REMOVED, items=tuple(item.display_name for item in with_emoji))
         portraits = _portraits(
             tuple(item.item for item in entries.values() if item.item.kind is ContentKind.AVATAR), visible
         )
@@ -404,7 +422,8 @@ class ContentPackageExportService:
                 for item in context.resolve(portrait):
                     entries[item.item.id] = item
         # After portraits, so a non-portable portrait is refused like any other item.
-        stripped = self._strip_non_portable(entries, uses)
+        silent: set[str] = set()
+        stripped = self._strip_non_portable(entries, uses, silent)
         face_parts = await self._face_parts(user_id=user_id, entries=tuple(entries.values()))
         total = sum(file.size_bytes for item in entries.values() for file in _shared_files(item.item))
         count = sum(len(_shared_files(item.item)) for item in entries.values())
@@ -442,7 +461,13 @@ class ContentPackageExportService:
                 for item in entries.values()
             ),
             anima=definition,
-            omitted=tuple(ExportOmittedItem(item.kind.value, item.display_name) for item, _ in non_portable),
+            omitted=tuple(
+                ExportOmittedItem(item.kind.value, item.display_name)
+                for item in (
+                    *(item for item, _ in non_portable),
+                    *sorted((visible[item_id] for item_id in silent), key=lambda item: item.display_name),
+                )
+            ),
         )
         return _Selection(
             summary,
@@ -457,13 +482,15 @@ class ContentPackageExportService:
 
     @staticmethod
     def _strip_non_portable(
-        entries: dict[str, TypedCatalogItem], uses: dict[str, list[_NonPortableUse]]
+        entries: dict[str, TypedCatalogItem], uses: dict[str, list[_NonPortableUse]], silent: set[str]
     ) -> dict[str, frozenset[str]]:
-        """Remove non-portable Gestures pooled by portable Idle Styles; refuse any other use.
+        """Remove non-portable Gestures pooled by portable Idle Styles and optional
+        non-portable sounds; refuse any other use.
 
-        Mutates ``entries`` and ``uses``. A non-portable item reached in any other
-        way (as a root, through another kind, or with dependencies of its own)
-        blocks the export and is named in the error.
+        Mutates ``entries``, ``uses`` and ``silent`` (sounds omitted without a
+        reference). A non-portable item reached in any other way (as a root,
+        through another kind, or with dependencies of its own) blocks the export
+        and is named in the error.
         """
 
         restricted = {item_id for item_id, item in entries.items() if is_non_portable(item.item)}
@@ -473,10 +500,16 @@ class ContentPackageExportService:
         allowed: set[str] = set()
         for item_id, typed in entries.items():
             targets = dict(zip(typed.item.dependency_item_ids, typed.item.dependencies, strict=True))
+            optional = {edge.ref for edge in typed.document.dependencies if edge.optional}
             for target, ref in targets.items():
                 if target not in restricted:
                     continue
                 dependency = entries[target]
+                if item_id not in restricted and ref in optional and dependency.item.kind is ContentKind.SOUND_EFFECT:
+                    stripped.setdefault(item_id, set()).add(target)
+                    allowed.add(target)
+                    silent.add(target)
+                    continue
                 if (
                     item_id in restricted
                     or typed.item.kind is not ContentKind.IDLE_STYLE
@@ -563,7 +596,9 @@ class ContentPackageExportService:
             profile = await self._profiles.get_profile(user_id) if self._profiles is not None else None
             label = (profile.display_name if profile is not None else None) or "content"
         filename = _download_filename(label)
-        lease = self._stages.reserve_export(user_id, filename, max(1, selected.summary.estimated_size_bytes))
+        lease = await asyncio.to_thread(
+            self._stages.reserve_export, user_id, filename, max(1, selected.summary.estimated_size_bytes)
+        )
         record = lease.record
         try:
             manifest = await asyncio.to_thread(self._write_reserved, selected, lease)
@@ -590,7 +625,7 @@ class ContentPackageExportService:
                 required_count=selected.summary.required_count,
                 manifest=manifest,
             )
-            published = lease.publish_review(review.model_dump(mode="json"), review.digest)
+            published = await asyncio.to_thread(lease.publish_review, review.model_dump(mode="json"), review.digest)
             review.expires_at = published.expires_at
             return review
         except BaseException as exc:
@@ -599,7 +634,7 @@ class ContentPackageExportService:
                 raise ContentConflictError("package_export_source_changed") from exc
             raise
         finally:
-            lease.close()
+            await asyncio.to_thread(lease.close)
 
     def _write_reserved(self, selected: _Selection, lease: PackageStageLease) -> PackageManifest:
         with lease.write_archive() as handle:
@@ -614,7 +649,7 @@ class ContentPackageExportService:
                 raise ContentConflictError("package_local_path_unavailable")
             return CachedExport(local_path, download.review)
         finally:
-            download.close()
+            await asyncio.to_thread(download.close)
 
     async def download(self, *, user_id: str, export_id: str) -> DownloadLease:
         """Open the exact sealed archive while retaining its cleanup exclusion lease."""
@@ -723,13 +758,15 @@ class ContentPackageExportService:
                 if isinstance(document, VoiceDocumentV1):
                     projection["files"] = [file for file in projection["files"] if file["role"] != "source_sample"]
                 removed = selected.stripped.get(entry.id, frozenset())
-                if removed:
-                    removed_refs = {
-                        ref
-                        for ref, target in zip(entry.dependencies, entry.dependency_item_ids, strict=True)
-                        if target in removed
-                    }
+                removed_refs = {
+                    ref
+                    for ref, target in zip(entry.dependencies, entry.dependency_item_ids, strict=True)
+                    if target in removed
+                }
+                if isinstance(document, IdleStyleDocumentV2) and removed_refs:
                     projection = strip_idle_refs(projection, removed_refs)
+                else:
+                    projection = strip_optional_refs(projection, removed_refs)
                 if isinstance(document, AvatarDocumentV1):
                     projection.pop("face_parts", None)
                     if entry.id in selected.face_parts:

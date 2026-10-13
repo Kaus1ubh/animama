@@ -159,10 +159,12 @@
       "elevenLabsClosedEarly": "ElevenLabs 실시간 TTS가 재생이 끝나기 전에 종료되었습니다.",
       "elevenLabsConnectionFailed": "이 답변에서 ElevenLabs 실시간 TTS 연결에 실패했습니다.",
       "elevenLabsDecodeFailed": "ElevenLabs 실시간 오디오를 디코딩하지 못했습니다.",
-      "elevenLabsFinalizedDecodeFailed": "ElevenLabs 최종 오디오를 디코딩하지 못했습니다.",
       "elevenLabsMissingAnima": "이 답변의 ElevenLabs TTS에는 Anima 컨텍스트가 필요합니다.",
       "elevenLabsUnsupported": "이 브라우저 환경은 ElevenLabs TTS를 지원하지 않습니다.",
+      "finalizedDecodeFailed": "답변 오디오를 디코딩하지 못했습니다.",
       "generic": "이 답변의 음성을 재생할 수 없습니다.",
+      "geminiMissingAnima": "이 답변의 Gemini TTS에는 Anima 컨텍스트가 필요합니다.",
+      "geminiUnsupported": "Gemini TTS에는 Web Audio API가 필요하지만 이 브라우저는 지원하지 않습니다.",
       "pocketGenerationFailed": "PocketTTS가 이 답변의 일부를 합성하지 못했습니다.",
       "pocketUnsupported": "이 브라우저 환경은 PocketTTS를 지원하지 않습니다."
     }

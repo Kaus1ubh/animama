@@ -35,9 +35,13 @@ _PROVIDER_ENVIRONMENT = (
     "HF_TOKEN",
     "OPENROUTER_API_KEY",
     "ELEVENLABS_API_KEY",
+    "ANTHROPIC_API_KEY",
+    "ANTHROPIC_BASE_URL",
+    "GEMINI_API_KEY",
+    "GOOGLE_API_KEY",
 )
 for _name in _PROVIDER_ENVIRONMENT:
-    if not (_live_tests_enabled and _name == "OPENAI_API_KEY"):
+    if not (_live_tests_enabled and _name in {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY"}):
         _test_environment.delenv(_name, raising=False)
 if not _live_tests_enabled:
     _test_environment.setenv("OPENAI_API_KEY", "test-key")
@@ -241,10 +245,11 @@ async def db_ready(db_url: str) -> AsyncIterator[str]:
 
                 await conn.run_sync(_create_all)
                 # Every catalog row belongs to a connection; the release seed
-                # normally creates the built-in OpenAI connection.
+                # normally creates the built-in OpenAI and Anthropic connections.
                 await conn.exec_driver_sql(
                     "INSERT INTO model_connections (id, source, name, preset, compatibility, active) "
-                    "VALUES ('openai', 'builtin', 'OpenAI', 'openai', '{}'::jsonb, TRUE)"
+                    "VALUES ('openai', 'builtin', 'OpenAI', 'openai', '{}'::jsonb, TRUE), "
+                    "('anthropic', 'builtin', 'Anthropic', 'anthropic', '{}'::jsonb, TRUE)"
                 )
 
             def _get_engine_patched(url: str | None = None):

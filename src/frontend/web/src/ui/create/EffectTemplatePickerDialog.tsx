@@ -35,6 +35,7 @@ import {
   sceneEffectTemplateLabel,
 } from "@/lib/scene-vfx/editor/defaults";
 import type { SceneEffectTemplateId } from "@/lib/scene-vfx/editor/types";
+import { gradientCss } from "@/lib/scene-vfx/layerGeometry";
 import { cn } from "@/lib/utils";
 import { Button } from "@/ui/components/button";
 import {
@@ -500,13 +501,22 @@ function SceneTemplatePreview({
         </span>
       </PreviewFrame>
     );
-  const { solid, pattern } = template.background;
+  const { solid, pattern, gradient } = template.background;
+  // The template's gradient over its solid colour, with its pattern as dots.
+  const layers = [
+    pattern.enabled
+      ? `radial-gradient(${pattern.color} 22%, transparent 24%)`
+      : null,
+    gradient.enabled ? gradientCss(gradient) : null,
+  ].filter((layer): layer is string => layer !== null);
   return (
     <PreviewFrame
       style={{
-        backgroundColor: solid.color,
-        backgroundImage: `radial-gradient(${pattern.color} 22%, transparent 24%)`,
-        backgroundSize: "22px 22px",
+        backgroundColor: solid.enabled ? solid.color : undefined,
+        backgroundImage: layers.join(", ") || undefined,
+        backgroundSize: pattern.enabled
+          ? ["22px 22px", ...layers.slice(1).map(() => "auto")].join(", ")
+          : undefined,
       }}
     />
   );

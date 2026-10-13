@@ -12,6 +12,7 @@ Library URLs are sparse and section-specific. The default state is simply
 The canonical parameters are:
 
 - `section=avatars|actions|fx|chat-uploads`; omitted means All
+- under All, optional `type=avatars|gestures|reactions|poses|idle-styles|particle|avatar-effects|scene|sound`
 - under Actions, optional `action=gestures|reactions|poses|idle-styles`,
   `gestureMotion=anima_clip|vrma`, `gestureUpdatesOnly=true`,
   `gestureStatus=equipped|unequipped`, and
@@ -22,9 +23,13 @@ The canonical parameters are:
 - under Chat Uploads, optional `uploadQuery` and
   `uploadStatus=pending_upload|uploaded|processing|ready|ready_keyword_only|failed`
 
-For example, Scene FX is `/library?section=fx&fx=scene`. Changing sections
-discards filters owned by the previous section. The route expands sparse URL
+For example, Scene FX is `/library?section=fx&fx=scene`, while
+`/library?type=scene` filters the All section to Scene FX. All keeps its own
+secondary type row beneath the main sections; choosing a type leaves the main
+All tab selected. Choosing All in that row restores the combined inventory.
+Changing sections discards section-specific filters. The route expands sparse URL
 state into complete internal defaults before rendering Library components.
+Gesture filters also apply under All when All types or Gestures is selected.
 Gesture-only filters are cleared for Poses; its available sorts are name and
 relevance. The typed Pose response has no update timestamp, so Recently updated
 is unavailable for that subtype.
@@ -44,7 +49,9 @@ Edit follows Preview for Poses, Gestures, Reactions and Particle/Avatar/Scene Ef
 It opens the selected item in its creator: Local content updates that
 item, while Included content starts a Local copy. Gesture/Reaction rows can Add or Manage Anima
 loadout selections. Sounds offer Play/Stop and Manage for Local rename, same-format replacement and
-guarded deletion. Included Sounds are read-only. Effects and Sounds offer “Use in Gesture/Reaction” because
+guarded deletion. Included Sounds are read-only. Licensed built-in sounds are not
+listed: they play only through their built-in effects. A Local file with the same
+licensed bytes is hidden too; remove it from the Local folder by hand. Effects and Sounds offer “Use in Gesture/Reaction” because
 they are action ingredients, not independent equipment.
 
 Actions contains All, Gestures, Reactions, Poses and Idle Styles. Idle Styles offer
@@ -174,8 +181,10 @@ package before **Download package**. Missing or changed sources require another
 review; an expired export can be prepared again from the retained selection.
 Downloaded filenames use the installation owner's display name (or `content`
 when unavailable), followed by a UTC timestamp. Non-portable items are listed
-but cannot be selected. A review lists any non-portable items the package leaves
-out, for example Gestures pooled by a selected Idle Style.
+but cannot be selected, except licensed sounds, which are not listed. A review
+lists any non-portable items the package leaves out, for example Gestures pooled
+by a selected Idle Style, and says how many built-in effect sounds stay with
+this app (imported copies of those effects play without them).
 
 In Anima mode, choose a saved companion and review its full identity and selected
 content before **Export Anima**. The package includes its name, identity, Avatar,

@@ -301,7 +301,12 @@
   "loader": {
     "downloadFailed": "이 액션을 다운로드할 수 없습니다.",
     "noSequence": "이 액션에는 읽을 수 있는 시퀀스가 없습니다.",
-    "starterUnavailable": "이 기본 제공 Anima 포즈 클립을 사용할 수 없습니다."
+    "starterUnavailable": "이 기본 제공 Anima 포즈 클립을 사용할 수 없습니다.",
+    "effectsRemoved": {
+      "gesture": "이 제스처는 더 이상 존재하지 않는 기본 제공 효과({{effects, list}})를 사용합니다. 해당 효과 없이 재생됩니다. 저장하기 전에 이벤트를 다른 효과에 연결하거나 제거하세요.",
+      "reaction": "이 리액션은 더 이상 존재하지 않는 기본 제공 효과({{effects, list}})를 사용합니다. 해당 효과 없이 재생됩니다. 저장하기 전에 이벤트를 다른 효과에 연결하거나 제거하세요.",
+      "title": "일부 효과가 제거되었습니다"
+    }
   },
   "page": {
     "catalogUnavailable": "이 효과 카탈로그를 불러올 수 없습니다.",

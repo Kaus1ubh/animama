@@ -84,11 +84,16 @@ The explicit allowlist selects `accountless-library`, `accountless-journeys`,
 `accountless-content-sharing`, `accountless-imported-playback`,
 `accountless-numeric-input`, `accountless-creator-discard(-local)`,
 `accountless-effect-template-picker`,
-`accountless-avatar-effect-direct-manipulation` and
-`accountless-creator-generated-gesture` specs. They cover Library, companion
+`accountless-avatar-effect-direct-manipulation`,
+`accountless-creator-generated-gesture`,
+`accountless-particle-texture-import` and `accountless-scene-layers` specs.
+They cover Library, companion
 selection, chat Stop/recovery, creator JSON import/preview, Save/reload revision
 integrity, package sharing, the Effects template picker and template drafts,
-Avatar Effect direct manipulation and face-part correction, responsive access to
+Avatar Effect direct manipulation and face-part correction, Particle texture
+import through recovery, Save, reopen and packages, the optional Scene layers
+through the creator, Save, reopen, the preview dock and packages, responsive
+access to
 review and recovery controls, and `animaPoseClip/2.0` creator round trips (a
 generated Gesture retimed, posed, saved and reopened with its detail; 1.0
 Gestures and Reactions saved as 2.0).
@@ -170,6 +175,15 @@ revisions. Whole-package cleanup records every installed dependency and any new
 Anima/private Avatar; saved-definition checks protect later Anima edits. Pending
 outcomes or changed items retain the ledger and block deletion. Names never grant
 cleanup authority.
+
+The backend admits two open package stages per owner. A committed import or an
+undownloaded export review counts until the sharing dialog releases it or it
+expires after 30 minutes. After each journey, a fixture discards the stages the
+browser opened and left open, attaching `package-stages-released-after-journey`
+evidence. A stage that stays held, or a stage reply it cannot read, fails that
+journey. Helpers that open stages through `page.request`, such as the Pose round
+trip, must release their own. Stages from an interrupted run still count until
+they expire, so a following run can fail with `package_stage_limit`.
 
 Creator coverage uses the editor JSON import UI. The Pose round trip uses the
 reviewed package API with `.zip` files and the `/3` manifest; the separate sharing
@@ -344,8 +358,9 @@ when it is safe to share with active tasks:
 ```
 
 Open `http://localhost:8000`. An installation whose first run is incomplete
-shows `/setup`; its Welcome step requires a nonblank private display name and
-the 18+ confirmation, while the AI and Voice steps offer "Skip for now".
+shows `/setup`; its Welcome step requires a nonblank private display name,
+while the AI and Voice steps offer "Skip for now". Finish opens a blocking 18+
+modal at the first Anima; only explicit confirmation completes onboarding.
 After completion, `/` resolves to the last visited owned Anima's chat, or Annie
 on a fresh installation. A normal restart must retain
 the completed state, local display name, Animas, chats, content, and files.

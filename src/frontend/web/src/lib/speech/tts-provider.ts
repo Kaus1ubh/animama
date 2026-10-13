@@ -14,6 +14,7 @@ export const TTS_PROVIDERS = [
   "browser",
   "pocket_tts",
   "elevenlabs",
+  "gemini",
 ] as const satisfies readonly TtsProvider[];
 
 type TtsProviderSet = Record<TtsProvider, true>;
@@ -22,6 +23,7 @@ const TTS_PROVIDER_SET: TtsProviderSet = {
   browser: true,
   pocket_tts: true,
   elevenlabs: true,
+  gemini: true,
 };
 
 /** A provider choice; its text is worded in the UI Locale when it is listed. */
@@ -38,9 +40,17 @@ export type ResolveTtsProviderResult = {
   hasExplicitPreference: boolean;
 };
 
+/** Providers the backend composition offers beyond the browser-only ones. */
+export type TtsProviderOffers = {
+  /** Gemini voice, present when runtime capabilities report `gemini_tts`. */
+  gemini?: boolean;
+};
+
 type ResolveTtsProviderInput = {
   savedProvider?: TtsProvider | null;
   platform?: RuntimePlatform;
+  /** Without an offer, a saved Gemini choice falls back like an unsupported provider. */
+  offers?: TtsProviderOffers;
 };
 
 type SpeechSynthesisWindow = Window &
@@ -142,6 +152,15 @@ export function isElevenLabsTtsSupported(): boolean {
   return "audioWorklet" in AudioContextCtor.prototype;
 }
 
+/** Gemini audio is pushed by the server as PCM, so playback needs only Web Audio. */
+export function isGeminiTtsSupported(): boolean {
+  const speechWindow = asSpeechSynthesisWindow();
+  if (!speechWindow) return false;
+  const AudioContextCtor =
+    speechWindow.AudioContext ?? speechWindow.webkitAudioContext;
+  return Boolean(AudioContextCtor);
+}
+
 /**
  * Why this browser cannot run an audio-worklet TTS engine named `provider`
  * that needs `transport`, or undefined when it can.
@@ -192,11 +211,13 @@ export function isTtsProviderSupported(
     return isBrowserSpeechSynthesisSupported(platform);
   if (provider === "pocket_tts") return isPocketTtsSupported();
   if (provider === "elevenlabs") return isElevenLabsTtsSupported();
+  if (provider === "gemini") return isGeminiTtsSupported();
   return false;
 }
 
 export function getTtsProviderOptions(
   platform: RuntimePlatform = getRuntimePlatformSnapshot(),
+  offers: TtsProviderOffers = {},
 ): TtsProviderOption[] {
   const isDesktop = platform.isDesktop;
   const browserSupported = isBrowserSpeechSynthesisSupported(platform);
@@ -234,6 +255,18 @@ export function getTtsProviderOptions(
       reason: elevenlabsReason,
     },
   ];
+  if (offers.gemini) {
+    const geminiSupported = isGeminiTtsSupported();
+    options.push({
+      id: "gemini",
+      label: "Gemini",
+      description: t("providers.tts.gemini.description"),
+      disabled: !geminiSupported,
+      reason: geminiSupported
+        ? undefined
+        : t("providers.tts.webAudioUnsupported"),
+    });
+  }
 
   return isDesktop
     ? options.filter((option) => option.id !== "browser")
@@ -243,8 +276,13 @@ export function getTtsProviderOptions(
 export function resolvePreferredTtsProvider({
   savedProvider = null,
   platform = getRuntimePlatformSnapshot(),
+  offers = {},
 }: ResolveTtsProviderInput = {}): ResolveTtsProviderResult {
-  if (savedProvider && isTtsProviderSupported(savedProvider, platform)) {
+  if (
+    savedProvider &&
+    (savedProvider !== "gemini" || offers.gemini === true) &&
+    isTtsProviderSupported(savedProvider, platform)
+  ) {
     return {
       provider: savedProvider,
       hasExplicitPreference: true,
@@ -258,8 +296,10 @@ export function resolvePreferredTtsProvider({
     };
   }
 
-  const firstSupported = TTS_PROVIDERS.find((provider) =>
-    isTtsProviderSupported(provider, platform),
+  // Gemini needs a key and a composition that offers it, so only an explicit choice selects it.
+  const firstSupported = TTS_PROVIDERS.find(
+    (provider) =>
+      provider !== "gemini" && isTtsProviderSupported(provider, platform),
   );
 
   return {

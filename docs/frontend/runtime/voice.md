@@ -1,7 +1,7 @@
 # Voice Guide (`src/frontend/web`)
 
 Voice input uses browser recognition or local Parakeet with acoustic and semantic
-VAD. Output uses browser speech, PocketTTS or ElevenLabs. See
+VAD. Output uses browser speech, PocketTTS, ElevenLabs or Gemini. See
 [Avatar lip-sync](avatar-lipsync.md) for synchronization and
 [Pocket catalogs](../features/emotional-voice-catalog.md) for voice embeddings.
 
@@ -76,7 +76,8 @@ are logged and never stop dictation.
 | ------------ | ---------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | `browser`    | `speechSynthesis`            | fallback/simple speech | queue of utterances                                                                                                                  |
 | `pocket_tts` | local worker/worklet runtime | primary voice UX       | detailed below; preferred for avatar sync                                                                                            |
-| `elevenlabs` | ElevenLabs WS or HTTP stream | streamed speech output | realtime Flash/Multilingual models stream from text chunks; v3 plays backend-pushed finalized audio grouped by sentence or paragraph |
+| `elevenlabs` | ElevenLabs WS                | streamed speech output | realtime Eleven v4 Turbo streams text chunks over the Text to Dialogue socket                                                        |
+| `gemini`     | Gemini via `chat:sse`        | streamed speech output | offered only with the `gemini_tts` capability; plays backend-pushed sentence audio                                                   |
 
 ## Core Concepts and IDs
 
@@ -855,6 +856,8 @@ Provider ids:
 - `browser`
 - `pocket_tts`
 - `elevenlabs`
+- `gemini` (only when runtime capabilities report `gemini_tts`; never chosen
+  automatically)
 
 ### TTS run lifecycle
 
@@ -873,9 +876,15 @@ Chunk helpers:
 
 Behavior:
 
-- browser TTS respects `tts_stream_chunks`
-- pocket TTS is forced non-streaming at token phase (`shouldStreamChunksForProvider` returns `false` for pocket), then emits final chunks on completion
-- ElevenLabs v3 is forced non-streaming in the frontend token pipeline because
+- A chunk ends at `.`, `!`, `?`, `;` or a newline, or at Japanese and Chinese
+  `。！？`, with any following marks (`?!`, `！？`, `...`) and closing quotes or
+  brackets, once at least 24 characters are buffered. Longer text splits near
+  140 characters, and 700 ms without new text flushes at least 36 characters.
+- Only ElevenLabs respects `tts_stream_chunks`.
+- Browser and Pocket TTS are forced non-streaming at token phase
+  (`shouldStreamChunksForProvider` returns `false` for them), then emit final
+  chunks on completion.
+- Gemini is forced non-streaming in the frontend token pipeline because
   backend-pushed `tts.audio` frames carry the finalized audio for structured
   speech batches
 
@@ -890,10 +899,10 @@ Mechanics:
 
 ### ElevenLabs TTS
 
-Realtime models receive an SSE-provided single-use token and open a direct
-provider WebSocket. Setup waits at most 1500 ms for the session event; failures
-stop audio for that run while chat continues. Eleven v3 receives finalized PCM
-through `tts.audio` on the chat stream instead.
+Realtime Eleven v4 Turbo receives an SSE-provided single-use token and opens a
+direct Text to Dialogue WebSocket ([protocol](elevenlabs-tts.md#realtime-model)).
+Setup waits at most 1500 ms for the session event; failures stop audio for that
+run while chat continues.
 
 A hosted server can decline a run's ElevenLabs speech with
 `speech_allowance_exhausted` (an exhausted voice allowance). Where Pocket TTS is
@@ -901,11 +910,19 @@ supported, `fallBackToPocketTts` then speaks that run as a Pocket run, with the
 same voice resolution and no notice, and later runs return to ElevenLabs. See the
 [hosted contract](../../../contracts/hosted-web.md#realtime-speech-session-descriptor).
 
-See [ElevenLabs TTS](elevenlabs-tts.md) for session setup, model-specific batching,
-settings, audio events and playback timing. The [chat contract](chat.md#main-structured-response-mode)
+See [ElevenLabs TTS](elevenlabs-tts.md) for session setup, the socket protocol,
+settings and playback timing. The [chat contract](chat.md#main-structured-response-mode)
 separates speakable `speech` from visible-only `display`; raw JSON and hidden
 emotion metadata are never spoken. The [lip-sync bridge](avatar-lipsync.md)
 uses the phonemes matching spoken text and local audio timing.
+
+### Gemini TTS
+
+Gemini audio always arrives as backend-pushed `tts.audio` frames, one Gemini
+request per sentence, and plays through the finalized server-audio runtime.
+A `tts.error` ends that reply's speech with the "Text-to-speech unavailable"
+notice; there is no Pocket fallback. See [Gemini TTS](gemini-tts.md) for
+availability, the key, settings, error codes and Google's terms.
 
 ### Pocket TTS (detailed)
 
@@ -1011,9 +1028,10 @@ the public ORT 1.24.2 inventory does not replace those dependency versions.
   `speech.tts_provider` for that Anima without changing the application enable
   flag or either voice. Animas without an override inherit the application provider,
   shown with an `(app)` suffix; inherited Browser TTS remains visible until the
-  user selects PocketTTS or ElevenLabs. Loadout is outside the chat route, so the
-  saved provider applies when returning to chat. Switching providers preserves
-  the hidden provider's configuration. Provider credentials and model
+  user selects PocketTTS, ElevenLabs or, where offered, Gemini. Loadout is
+  outside the chat route, so the saved provider applies when returning to
+  chat. Switching providers preserves the hidden provider's configuration.
+  Provider credentials and model
   configuration remain in application settings. The Pocket list supports name/accent
   search, Any/Female/Male filtering and Recommended only. Choosing a voice saves
   an explicit Anima value; legacy missing values keep their existing fallback.
@@ -1106,10 +1124,11 @@ verify the complete engine inventory and required small TTS runtime files.
 5. ElevenLabs TTS unsupported:
 
 - Requires secure context (`https` or localhost), `WebSocket`, `AudioContext`, and `AudioWorklet`.
-- If the active anima lacks a usable ElevenLabs voice profile, the backend
-  realtime bootstrap or finalized stream route returns `409` and only audio is
-  skipped.
-- If ElevenLabs is not configured server-side, the bootstrap route returns `503`.
+- If the active anima lacks a usable ElevenLabs voice profile, the realtime
+  session setup fails with a `tts.session.error` frame carrying
+  `status_code: 409`, and only audio is skipped.
+- If ElevenLabs is not configured server-side, the frame carries
+  `status_code: 503`.
 
 6. No auto-submit in voice mode:
 
@@ -1174,6 +1193,8 @@ verify the complete engine inventory and required small TTS runtime files.
 
 - TTS orchestrator: `src/frontend/web/src/hooks/use-tts-playback.ts`
 - ElevenLabs runtime hook: `src/frontend/web/src/hooks/use-elevenlabs-tts-runtime.ts`
+- Finalized server-audio runtime (Gemini): `src/frontend/web/src/hooks/use-finalized-tts-runtime.ts`
+- Gemini dispatch options: `src/frontend/web/src/lib/chat/gemini-chat-tts-dispatch.ts`
 - Pocket runtime hook: `src/frontend/web/src/hooks/use-pocket-tts-runtime.ts`
 - TTS provider helpers: `src/frontend/web/src/lib/speech/tts-provider.ts`
 - Shared speech PCM player: `src/frontend/web/src/lib/speech/audio/PCMPlayerWorklet.js`

@@ -159,9 +159,11 @@
       "elevenLabsClosedEarly": "ElevenLabs realtime TTS closed before playback completed.",
       "elevenLabsConnectionFailed": "ElevenLabs realtime TTS connection failed for this response.",
       "elevenLabsDecodeFailed": "Failed to decode ElevenLabs realtime audio.",
-      "elevenLabsFinalizedDecodeFailed": "Failed to decode ElevenLabs finalized audio.",
       "elevenLabsMissingAnima": "ElevenLabs TTS requires an Anima context for this response.",
       "elevenLabsUnsupported": "ElevenLabs TTS is not supported in this browser environment.",
+      "finalizedDecodeFailed": "Failed to decode the reply's audio.",
+      "geminiMissingAnima": "Gemini TTS requires an Anima context for this response.",
+      "geminiUnsupported": "Gemini TTS needs the Web Audio API, which this browser lacks.",
       "generic": "Speech could not play for this response.",
       "pocketGenerationFailed": "PocketTTS failed to synthesize part of this response.",
       "pocketUnsupported": "PocketTTS is not supported in this browser environment."

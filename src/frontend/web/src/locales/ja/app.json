@@ -159,10 +159,12 @@
       "elevenLabsClosedEarly": "ElevenLabs のリアルタイム読み上げが再生完了前に終了しました。",
       "elevenLabsConnectionFailed": "この返信で ElevenLabs のリアルタイム読み上げに接続できませんでした。",
       "elevenLabsDecodeFailed": "ElevenLabs のリアルタイム音声をデコードできませんでした。",
-      "elevenLabsFinalizedDecodeFailed": "ElevenLabs の確定音声をデコードできませんでした。",
       "elevenLabsMissingAnima": "この返信の ElevenLabs 読み上げには Anima のコンテキストが必要です。",
       "elevenLabsUnsupported": "このブラウザー環境は ElevenLabs の読み上げに対応していません。",
+      "finalizedDecodeFailed": "返信の音声をデコードできませんでした。",
       "generic": "この返信の音声を再生できませんでした。",
+      "geminiMissingAnima": "この返信の Gemini 読み上げには Anima のコンテキストが必要です。",
+      "geminiUnsupported": "Gemini の読み上げには Web Audio API が必要ですが、このブラウザーは対応していません。",
       "pocketGenerationFailed": "PocketTTS がこの返信の一部を合成できませんでした。",
       "pocketUnsupported": "このブラウザー環境は PocketTTS に対応していません。"
     }

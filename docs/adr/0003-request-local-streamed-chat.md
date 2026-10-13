@@ -42,8 +42,8 @@ provides execution correlation rather than identifying the conversation.
 
 ## Evidence and historical limits
 
-Observed implementation: [SSE lifecycle](../../src/backend/animama/server/routers/chat/chat_sse.py),
-[turn preparation](../../src/backend/animama/server/routers/chat/turn_setup.py),
+Observed implementation: [SSE lifecycle](../../src/backend/animama/product_http/chat/stream.py),
+[turn preparation](../../src/backend/animama/product_http/chat/turn_setup.py),
 [direct executor](../../src/backend/animama/app/chat/direct_executor.py), and
 [turn persistence](../../src/backend/animama/app/services/chat_manager.py).
 The [chat runtime guide](../backend/runtime/chat.md) documents the current

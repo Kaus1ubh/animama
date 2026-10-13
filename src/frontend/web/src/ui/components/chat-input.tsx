@@ -18,23 +18,15 @@ import {
 } from "@/ui/components/command";
 import { LiveWaveform, SyntheticWaveform } from "@/ui/components/live-waveform";
 import {
-  ModelSelector,
-  ModelSelectorContent,
-  ModelSelectorEmpty,
-  ModelSelectorGroup,
-  ModelSelectorInput,
-  ModelSelectorItem,
-  ModelSelectorList,
   ModelSelectorLogo,
   ModelSelectorName,
-  ModelSelectorTrigger,
 } from "@/ui/components/model-selector";
 import {
   Popover,
   PopoverContent,
   PopoverTrigger,
 } from "@/ui/components/popover";
-import { RadioGroup, RadioGroupItem } from "@/ui/components/radio-group";
+import { Slider } from "@/ui/components/slider";
 import {
   Tooltip,
   TooltipContent,
@@ -55,7 +47,6 @@ import type {
   PyModelProviderCatalogItem,
   PyUserFileResponse,
 } from "@/lib/content/catalogTypes";
-import type { WebSearchCapability } from "@animama/runtime-contracts/api-types";
 import { chatModelSendGate } from "@/lib/chat/model-provider-compatibility";
 import {
   selectableNativeTools,
@@ -65,6 +56,8 @@ import {
   type WebSearchUnavailableCode,
 } from "@/lib/chat/model-provider-native-tools";
 import {
+  ArrowLeft,
+  ChevronRight,
   FileText,
   Loader2,
   Mic,
@@ -76,11 +69,13 @@ import {
 } from "lucide-react";
 import {
   alternateModelIds,
+  defaultReasoningEffort,
   modelConnectionLabel,
   modelDisplayName,
   modelOptionDetail,
   modelOptionLabel,
   selectableChatModels,
+  supportedReasoningEfforts,
 } from "@/lib/chat/model-catalog";
 import type React from "react";
 import type { TFunction } from "i18next";
@@ -340,47 +335,6 @@ function groupModelOptions(items: PyModelProviderCatalogItem[]) {
   }));
 }
 
-type WebSearchState = WebSearchCapability | null | undefined;
-
-function supportedNativeTools(
-  item: PyModelProviderCatalogItem | null,
-  webSearch: WebSearchState,
-) {
-  return selectableNativeTools(item, webSearch);
-}
-
-function supportedReasoningEfforts(item: PyModelProviderCatalogItem | null) {
-  return Array.isArray(item?.supported_reasoning_efforts)
-    ? item.supported_reasoning_efforts.filter(
-        (effort) => typeof effort === "string",
-      )
-    : [];
-}
-
-function defaultReasoningEffort(item: PyModelProviderCatalogItem | null) {
-  return supportedReasoningEfforts(item)[0] ?? null;
-}
-
-/** Every available tool starts on, including web search. */
-function defaultNativeTools(
-  item: PyModelProviderCatalogItem | null,
-  webSearch: WebSearchState,
-) {
-  return supportedNativeTools(item, webSearch);
-}
-
-function hasModelSettingsMenu(
-  item: PyModelProviderCatalogItem,
-  webSearch: WebSearchState,
-) {
-  return (
-    supportedNativeTools(item, webSearch).length > 0 ||
-    webSearchAvailability(item, webSearch) !== null ||
-    (item.supports_reasoning === true &&
-      supportedReasoningEfforts(item).length > 0)
-  );
-}
-
 /** Why web search is unavailable for a model row, in the active locale. */
 function searchUnavailableText(
   t: TFunction<"chat">,
@@ -424,7 +378,10 @@ function nativeToolLabel(t: TFunction<"chat">, tool: string) {
   return tool.replaceAll("_", " ");
 }
 
-/** Reasoning effort names; an effort the app does not know shows its identifier. */
+/**
+ * Reasoning effort names, without changing the catalog's supported effort
+ * values; an effort the app does not know shows its identifier, capitalized.
+ */
 function reasoningEffortLabel(t: TFunction<"chat">, effort: string) {
   switch (effort) {
     case "none":
@@ -442,7 +399,9 @@ function reasoningEffortLabel(t: TFunction<"chat">, effort: string) {
     case "max":
       return t("composer.model.reasoningEfforts.max");
     default:
-      return effort;
+      return (
+        effort.charAt(0).toUpperCase() + effort.slice(1).replaceAll("_", " ")
+      );
   }
 }
 
@@ -453,14 +412,6 @@ type ChatInputModelSelectorProps = React.ComponentProps<typeof Button> & {
   disabled?: boolean;
   onIncompatibleModelSelect?: (item: PyModelProviderCatalogItem) => void;
   onModelChange?: () => void;
-};
-
-type SelectModelResult = {
-  ok: boolean;
-  // Settings-only interactions can target the already-active model. Treat those
-  // as successful but unchanged so they do not reset request-scoped options or
-  // trigger broader model refresh side effects.
-  changed: boolean;
 };
 
 function ChatInputModelSelector({
@@ -475,12 +426,14 @@ function ChatInputModelSelector({
 }: ChatInputModelSelectorProps) {
   const { t } = useTranslation("chat");
   const [open, setOpen] = useState(false);
+  const [view, setView] = useState<"reasoning" | "models" | "features">(
+    "reasoning",
+  );
   const { data: anima } = useAnima(animaId);
   const { data: catalog = [], isSuccess: catalogLoaded } = useModelProviders();
   const updateAnimaChatProfile = useUpdateAnimaChatProfile();
   const webSearch = useRuntimeCapabilities().data?.web_search;
   const { chatRequestOptions, setChatRequestOverrides } = useSettings();
-  const skipNextActiveItemResetRef = useRef(false);
   // Track the model id instead of the full catalog object. Query refreshes can
   // replace model objects without changing the active model, and those refreshes
   // should not overwrite the user's per-request tool/reasoning selections.
@@ -502,14 +455,29 @@ function ChatInputModelSelector({
   // Rows sharing a name on one connection are told apart without naming APIs.
   const alternateIds = useMemo(() => alternateModelIds(models), [models]);
   const selectedNativeTools = useMemo(() => {
-    const supported = new Set(supportedNativeTools(activeItem, webSearch));
+    const supported = new Set(selectableNativeTools(activeItem, webSearch));
     const requested = Array.isArray(chatRequestOptions?.native_tools)
       ? chatRequestOptions.native_tools
-      : defaultNativeTools(activeItem, webSearch);
+      : selectableNativeTools(activeItem, webSearch);
     return new Set(requested.filter((tool) => supported.has(tool)));
   }, [activeItem, chatRequestOptions?.native_tools, webSearch]);
-  const selectedReasoningEffort =
+  const reasoningEfforts = supportedReasoningEfforts(activeItem);
+  const requestedEffort =
     chatRequestOptions?.reasoning_effort ?? defaultReasoningEffort(activeItem);
+  const selectedReasoningEffort = reasoningEfforts.includes(
+    requestedEffort ?? "",
+  )
+    ? requestedEffort
+    : defaultReasoningEffort(activeItem);
+  const selectedEffortIndex = Math.max(
+    0,
+    reasoningEfforts.indexOf(selectedReasoningEffort ?? ""),
+  );
+  const effortLabel = selectedReasoningEffort
+    ? reasoningEffortLabel(t, selectedReasoningEffort)
+    : t("composer.model.fallbackLabel");
+  const nativeTools = selectableNativeTools(activeItem, webSearch);
+  const searchAvailability = webSearchAvailability(activeItem, webSearch);
   const isDisabled = Boolean(
     disabledProp || updateAnimaChatProfile.isPending || !anima?.chat_profile,
   );
@@ -523,7 +491,8 @@ function ChatInputModelSelector({
 
   const resetChatRequestSettingsForModel = useCallback(
     (item: PyModelProviderCatalogItem) => {
-      const nativeTools = defaultNativeTools(item, webSearch);
+      // Every available tool starts on, including web search.
+      const nativeTools = selectableNativeTools(item, webSearch);
       setChatRequestOverrides((current) => ({
         ...current,
         native_tools: nativeTools.length ? nativeTools : undefined,
@@ -533,165 +502,67 @@ function ChatInputModelSelector({
     [setChatRequestOverrides, webSearch],
   );
 
-  const stopSettingsMenuEvent = useCallback((event: React.SyntheticEvent) => {
-    // The popover sits inside a selectable model row. Without this, checkbox or
-    // radio events also select the row, which resets settings back to defaults.
-    event.stopPropagation();
-  }, []);
+  const handleSelect = async (item: PyModelProviderCatalogItem) => {
+    if (isDisabled) return;
 
-  const selectModel = useCallback(
-    async (item: PyModelProviderCatalogItem): Promise<SelectModelResult> => {
-      if (isDisabled) return { ok: false, changed: false };
-
-      const gate = chatModelSendGate(activeChat, item);
-      if (!gate.ok) {
-        if (gate.reason === "api_standard_mismatch") {
-          onIncompatibleModelSelect?.(item);
-        } else if (gate.reason === "unsupported_model") {
-          toast.error(t("composer.model.toasts.unsupported"));
-        } else {
-          toast.error(t("composer.model.toasts.selectFirst"));
-        }
-        return { ok: false, changed: false };
+    const gate = chatModelSendGate(activeChat, item);
+    if (!gate.ok) {
+      if (gate.reason === "api_standard_mismatch") {
+        onIncompatibleModelSelect?.(item);
+      } else if (gate.reason === "unsupported_model") {
+        toast.error(t("composer.model.toasts.unsupported"));
+      } else {
+        toast.error(t("composer.model.toasts.selectFirst"));
       }
-      if (item.id === activeItemId) {
-        return { ok: true, changed: false };
-      }
+      return;
+    }
+    // Re-selecting the active model must preserve request-scoped options.
+    if (item.id === activeItemId) {
+      setView("reasoning");
+      return;
+    }
 
-      try {
-        await updateAnimaChatProfile.mutateAsync({
-          animaId,
-          body: {
-            default_model_provider_id: item.id,
-          },
-        });
-        return { ok: true, changed: true };
-      } catch {
-        toast.error(t("composer.model.toasts.updateFailed"));
-        return { ok: false, changed: false };
-      }
-    },
-    [
-      activeChat,
-      activeItemId,
-      isDisabled,
-      animaId,
-      onIncompatibleModelSelect,
-      t,
-      updateAnimaChatProfile,
-    ],
-  );
-
-  const handleSelect = useCallback(
-    (item: PyModelProviderCatalogItem) => {
-      void selectModel(item).then((result) => {
-        if (result.ok) {
-          setOpen(false);
-        }
-        if (result.ok && result.changed) {
-          resetChatRequestSettingsForModel(item);
-          onModelChange?.();
-        }
+    try {
+      await updateAnimaChatProfile.mutateAsync({
+        animaId,
+        body: { default_model_provider_id: item.id },
       });
-    },
-    [onModelChange, resetChatRequestSettingsForModel, selectModel],
-  );
+    } catch {
+      toast.error(t("composer.model.toasts.updateFailed"));
+      return;
+    }
 
-  const applySettingsForModel = useCallback(
-    async (
-      item: PyModelProviderCatalogItem,
-      patch: {
-        nativeTools?: string[];
-        reasoningEffort?: string;
-      },
-    ) => {
-      const willSelectInactiveModel = item.id !== activeItemId;
-      if (willSelectInactiveModel) {
-        // Selecting an inactive row from its settings popover causes the active
-        // model to change first. The effect below would normally reset the new
-        // model to defaults, so skip that one reset and apply the user's chosen
-        // override in this callback instead.
-        skipNextActiveItemResetRef.current = true;
-      }
-      const result = await selectModel(item);
-      if (!result.ok) {
-        if (willSelectInactiveModel) {
-          skipNextActiveItemResetRef.current = false;
-        }
-        return;
-      }
-      if (willSelectInactiveModel && !result.changed) {
-        skipNextActiveItemResetRef.current = false;
-      }
+    setView("reasoning");
+    resetChatRequestSettingsForModel(item);
+    onModelChange?.();
+  };
 
-      const supportedTools = new Set(supportedNativeTools(item, webSearch));
-      const supportedReasoning = supportedReasoningEfforts(item);
-      const fallbackReasoning = defaultReasoningEffort(item);
-      const fallbackNativeTools = defaultNativeTools(item, webSearch);
-      setChatRequestOverrides((current) => {
-        const currentNativeTools =
-          Array.isArray(current.native_tools) && !willSelectInactiveModel
-            ? current.native_tools
-            : fallbackNativeTools;
-        const nextNativeTools = (
-          patch.nativeTools ?? currentNativeTools
-        ).filter((tool) => supportedTools.has(tool));
-        const requestedReasoning =
-          patch.reasoningEffort ??
-          (typeof current.reasoning_effort === "string"
-            ? current.reasoning_effort
-            : undefined);
-        const nextReasoningEffort = supportedReasoning.includes(
-          requestedReasoning ?? "",
-        )
-          ? requestedReasoning
-          : fallbackReasoning;
+  const handleNativeToolChange = (tool: string, checked: boolean) => {
+    if (isDisabled || !activeItem || !nativeTools.includes(tool)) return;
+    const nextTools = checked
+      ? Array.from(new Set([...selectedNativeTools, tool]))
+      : Array.from(selectedNativeTools).filter(
+          (activeTool) => activeTool !== tool,
+        );
+    setChatRequestOverrides((current) => ({
+      ...current,
+      // An explicit empty array keeps default-on tools off for future requests.
+      native_tools: nextTools,
+    }));
+  };
 
-        return {
-          ...current,
-          // Preserve an explicit empty array. It means the user turned a
-          // default-on native tool off for future chat requests.
-          native_tools: nextNativeTools,
-          reasoning_effort: nextReasoningEffort ?? undefined,
-        };
-      });
-      if (result.changed) {
-        onModelChange?.();
-      }
-    },
-    [
-      activeItemId,
-      onModelChange,
-      selectModel,
-      setChatRequestOverrides,
-      webSearch,
-    ],
-  );
-
-  const handleNativeToolChange = useCallback(
-    (item: PyModelProviderCatalogItem, tool: string, checked: boolean) => {
-      const activeTools =
-        item.id === activeItemId
-          ? Array.from(selectedNativeTools)
-          : defaultNativeTools(item, webSearch);
-      const nextTools = checked
-        ? Array.from(new Set([...activeTools, tool]))
-        : activeTools.filter((activeTool) => activeTool !== tool);
-      void applySettingsForModel(item, { nativeTools: nextTools });
-    },
-    [activeItemId, applySettingsForModel, selectedNativeTools, webSearch],
-  );
-
-  const handleReasoningChange = useCallback(
-    (item: PyModelProviderCatalogItem, effort: string) => {
-      void applySettingsForModel(item, { reasoningEffort: effort });
-    },
-    [applySettingsForModel],
-  );
+  const handleReasoningChange = (effort: string) => {
+    if (isDisabled || !activeItem || !reasoningEfforts.includes(effort)) return;
+    setChatRequestOverrides((current) => ({
+      ...current,
+      reasoning_effort: effort,
+    }));
+  };
 
   useEffect(() => {
     if (closeSignal > 0) {
       setOpen(false);
+      setView("reasoning");
     }
   }, [closeSignal]);
 
@@ -699,10 +570,6 @@ function ChatInputModelSelector({
     if (!activeItem || !activeItemId) return;
     if (lastActiveItemIdRef.current === activeItemId) return;
     lastActiveItemIdRef.current = activeItemId;
-    if (skipNextActiveItemResetRef.current) {
-      skipNextActiveItemResetRef.current = false;
-      return;
-    }
     resetChatRequestSettingsForModel(activeItem);
   }, [activeItem, activeItemId, resetChatRequestSettingsForModel]);
 
@@ -729,17 +596,20 @@ function ChatInputModelSelector({
   }, [activeItemId, activeSearchState, setChatRequestOverrides]);
 
   return (
-    <ModelSelector
+    <Popover
+      modal
       open={open}
       onOpenChange={(nextOpen) => {
         if (nextOpen && isDisabled) return;
         setOpen(nextOpen);
+        if (nextOpen) setView("reasoning");
       }}
     >
       <Tooltip>
         <TooltipTrigger asChild>
-          <ModelSelectorTrigger asChild>
+          <PopoverTrigger asChild>
             <Button
+              type="button"
               variant="ghost"
               size="icon-sm"
               className={cn(
@@ -747,213 +617,279 @@ function ChatInputModelSelector({
                 className,
               )}
               disabled={isDisabled}
+              aria-label={t("composer.model.trigger", { model: tooltipLabel })}
               {...props}
             >
               {updateAnimaChatProfile.isPending ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
+                <Loader2 className="size-4 animate-spin" />
               ) : activeUnavailable ? (
                 <TriangleAlert className="text-destructive size-4" />
-              ) : activeItem?.logo_provider ? (
-                <ModelSelectorLogo
-                  provider={activeItem.logo_provider}
-                  className="size-4"
-                />
               ) : (
-                <span className="size-4" aria-hidden="true" />
+                <ModelSelectorLogo
+                  provider={
+                    activeItem?.logo_provider ??
+                    activeItem?.model_provider ??
+                    "AI"
+                  }
+                />
               )}
-              <span className="sr-only">{tooltipLabel}</span>
             </Button>
-          </ModelSelectorTrigger>
+          </PopoverTrigger>
         </TooltipTrigger>
-        <TooltipContent avoidCollisions={false} side="bottom">
+        <TooltipContent avoidCollisions={false} side="top">
           {tooltipLabel}
         </TooltipContent>
       </Tooltip>
-      <ModelSelectorContent title={t("composer.model.select")}>
-        <ModelSelectorInput placeholder={t("composer.model.search")} />
-        <ModelSelectorList>
-          <ModelSelectorEmpty>{t("composer.model.empty")}</ModelSelectorEmpty>
-          {modelGroups.map((group) => (
-            <ModelSelectorGroup
-              key={group.providerLabel}
-              heading={group.providerLabel}
-            >
-              {group.models.map((item, index) => {
-                const isActive = item.id === activeItemId;
-                const rowNativeTools = supportedNativeTools(item, webSearch);
-                const rowReasoningEfforts = supportedReasoningEfforts(item);
-                const rowSelectedNativeTools = isActive
-                  ? selectedNativeTools
-                  : new Set(defaultNativeTools(item, webSearch));
-                const rowSelectedReasoningEffort = isActive
-                  ? selectedReasoningEffort
-                  : defaultReasoningEffort(item);
-                const showSettingsMenu = hasModelSettingsMenu(item, webSearch);
-                const rowSearch = webSearchAvailability(item, webSearch);
-                const rowGate = chatModelSendGate(activeChat, item);
-                const rowUnsupported =
-                  !rowGate.ok && rowGate.reason === "unsupported_model";
-                // Owner models need a context window before they can chat.
-                const rowNeedsWindow =
-                  item.source === "owner" && item.context_window_tokens == null;
-                const modelName = modelDisplayName(
-                  item,
-                  alternateIds.has(item.id),
-                  t,
-                );
-                const providerName = modelOptionDetail(item);
-                return (
-                  <ModelSelectorItem
-                    key={item.id}
-                    // The index keeps values unique without making the
-                    // row's internal id searchable.
-                    value={`${providerName} ${modelName} ${item.model} ${index}`}
-                    disabled={
-                      updateAnimaChatProfile.isPending ||
-                      rowUnsupported ||
-                      rowNeedsWindow
-                    }
-                    data-checked={isActive}
-                    onSelect={() => handleSelect(item)}
-                    className="gap-2"
+      <PopoverContent
+        align="end"
+        side="top"
+        sideOffset={8}
+        aria-label={
+          view === "models"
+            ? t("composer.model.select")
+            : view === "features"
+              ? t("composer.model.features")
+              : t("composer.model.panel")
+        }
+        className={cn(
+          "w-[min(20rem,calc(100vw-2rem))] rounded-xl",
+          view === "models" ? "p-1" : "p-4",
+        )}
+      >
+        {view === "reasoning" ? (
+          <>
+            <div className="flex items-start gap-2">
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon-sm"
+                    className="text-muted-foreground hover:text-foreground size-7 shrink-0 rounded-full"
+                    disabled={isDisabled || !activeItem}
+                    aria-label={t("composer.model.features")}
+                    onClick={() => setView("features")}
                   >
-                    {item.logo_provider ? (
-                      <ModelSelectorLogo provider={item.logo_provider} />
-                    ) : null}
-                    <div className="min-w-0 flex-1">
-                      <ModelSelectorName className="block">
-                        {modelName}
-                      </ModelSelectorName>
-                      <span className="text-muted-foreground block truncate text-xs">
-                        {rowUnsupported
-                          ? t("composer.model.notDirect")
-                          : rowNeedsWindow
-                            ? t("composer.model.needsWindow")
-                            : providerName}
-                      </span>
-                    </div>
-                    {showSettingsMenu ? (
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            aria-label={t("composer.model.settings", {
-                              model: modelName,
-                            })}
-                            type="button"
-                            variant="ghost"
-                            size="icon-sm"
-                            disabled={updateAnimaChatProfile.isPending}
-                            className="text-muted-foreground hover:text-foreground size-7 rounded-full"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                            }}
-                            onPointerDown={(event) => {
-                              event.stopPropagation();
-                            }}
+                    <Settings2 className="size-4" aria-hidden="true" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="top">
+                  {t("composer.model.features")}
+                </TooltipContent>
+              </Tooltip>
+              <div className="min-w-0 flex-1 text-center">
+                <p className="text-base font-medium">
+                  {selectedReasoningEffort
+                    ? effortLabel
+                    : t("composer.model.select")}
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  autoFocus
+                  className="text-muted-foreground h-auto max-w-full gap-1 px-2 py-1 text-xs font-normal"
+                  disabled={isDisabled}
+                  aria-label={t("composer.model.select")}
+                  onClick={() => setView("models")}
+                >
+                  <span className="truncate">
+                    {activeItem
+                      ? modelDisplayName(
+                          activeItem,
+                          alternateIds.has(activeItem.id),
+                          t,
+                        )
+                      : activeUnavailable
+                        ? t("composer.model.unavailableShort")
+                        : t("composer.model.choose")}
+                  </span>
+                  <ChevronRight
+                    className="size-3 shrink-0"
+                    aria-hidden="true"
+                  />
+                </Button>
+              </div>
+              <span className="size-7 shrink-0" aria-hidden="true" />
+            </div>
+            {reasoningEfforts.length > 1 ? (
+              <div className="relative mt-4">
+                <Slider
+                  min={0}
+                  max={reasoningEfforts.length - 1}
+                  step={1}
+                  value={[selectedEffortIndex]}
+                  disabled={isDisabled}
+                  onValueChange={([index]) => {
+                    const effort = reasoningEfforts[index];
+                    if (effort) handleReasoningChange(effort);
+                  }}
+                  thumbProps={{
+                    "aria-label": t("composer.model.reasoningEffort"),
+                    "aria-valuetext": effortLabel,
+                  }}
+                  className="[&_[data-slot=slider-thumb]]:border-border h-8 [&_[data-slot=slider-thumb]]:size-8 [&_[data-slot=slider-track]]:h-7"
+                />
+                <div
+                  className="pointer-events-none absolute inset-x-4 top-1/2 flex -translate-y-1/2 justify-between"
+                  aria-hidden="true"
+                >
+                  {reasoningEfforts.map((effort, index) => (
+                    <span
+                      key={effort}
+                      className={cn(
+                        "size-1 rounded-full",
+                        index < selectedEffortIndex
+                          ? "bg-primary-foreground/50"
+                          : "bg-muted-foreground/50",
+                        index === selectedEffortIndex && "opacity-0",
+                      )}
+                    />
+                  ))}
+                </div>
+              </div>
+            ) : activeItem && reasoningEfforts.length === 0 ? (
+              <p className="text-muted-foreground mt-3 text-center text-xs">
+                {t("composer.model.noReasoning")}
+              </p>
+            ) : null}
+          </>
+        ) : (
+          <>
+            <div
+              className={cn(
+                "mb-3 flex items-center gap-2",
+                view === "models" && "px-2 pt-2",
+              )}
+            >
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                autoFocus={view === "features"}
+                className="text-muted-foreground size-7 shrink-0 rounded-full"
+                aria-label={t("composer.model.back")}
+                onClick={() => setView("reasoning")}
+              >
+                <ArrowLeft className="size-4" aria-hidden="true" />
+              </Button>
+              <p className="text-sm font-medium">
+                {view === "models"
+                  ? t("composer.model.select")
+                  : t("composer.model.features")}
+              </p>
+            </div>
+            {view === "features" ? (
+              <div className="space-y-3">
+                {searchAvailability?.state === "unavailable" ? (
+                  <div className="space-y-1">
+                    <label className="text-muted-foreground flex items-center gap-2 text-sm">
+                      <Checkbox
+                        checked={false}
+                        disabled
+                        aria-describedby={`${animaId}-web-search-reason`}
+                      />
+                      <span>{nativeToolLabel(t, WEB_SEARCH_TOOL)}</span>
+                    </label>
+                    <p
+                      id={`${animaId}-web-search-reason`}
+                      className="text-muted-foreground text-xs"
+                    >
+                      {searchUnavailableText(t, searchAvailability.code)}
+                    </p>
+                  </div>
+                ) : null}
+                {nativeTools.map((tool) => (
+                  <label
+                    key={tool}
+                    className="flex cursor-pointer items-center gap-2 text-sm"
+                  >
+                    <Checkbox
+                      checked={selectedNativeTools.has(tool)}
+                      disabled={isDisabled}
+                      onCheckedChange={(checked) =>
+                        handleNativeToolChange(tool, checked === true)
+                      }
+                    />
+                    <span>{nativeToolLabel(t, tool)}</span>
+                  </label>
+                ))}
+                {nativeTools.length === 0 && !searchAvailability ? (
+                  <p className="text-muted-foreground text-xs">
+                    {t("composer.model.noFeatures")}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <Command>
+                <CommandInput
+                  autoFocus
+                  placeholder={t("composer.model.search")}
+                />
+                <CommandList>
+                  <CommandEmpty>{t("composer.model.empty")}</CommandEmpty>
+                  {modelGroups.map((group) => (
+                    <CommandGroup
+                      key={group.providerLabel}
+                      heading={group.providerLabel}
+                    >
+                      {group.models.map((item, index) => {
+                        const isActive = item.id === activeItemId;
+                        const rowGate = chatModelSendGate(activeChat, item);
+                        const rowUnsupported =
+                          !rowGate.ok && rowGate.reason === "unsupported_model";
+                        // Owner models need a context window before they can chat.
+                        const rowNeedsWindow =
+                          item.source === "owner" &&
+                          item.context_window_tokens == null;
+                        const modelName = modelDisplayName(
+                          item,
+                          alternateIds.has(item.id),
+                          t,
+                        );
+                        const providerName = modelOptionDetail(item);
+                        return (
+                          <CommandItem
+                            key={item.id}
+                            // The index keeps values unique without making the
+                            // row's internal id searchable.
+                            value={`${providerName} ${modelName} ${item.model} ${index}`}
+                            disabled={
+                              isDisabled || rowUnsupported || rowNeedsWindow
+                            }
+                            data-checked={isActive}
+                            onSelect={() => void handleSelect(item)}
+                            className="data-[selected=true]:bg-muted gap-2"
                           >
-                            <Settings2 className="h-4 w-4" />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent
-                          align="end"
-                          side="right"
-                          sideOffset={8}
-                          className="w-56 p-3"
-                          onClick={stopSettingsMenuEvent}
-                          onPointerDown={stopSettingsMenuEvent}
-                          onKeyDown={stopSettingsMenuEvent}
-                          onOpenAutoFocus={(event) => {
-                            event.preventDefault();
-                          }}
-                        >
-                          <div className="space-y-3">
-                            {rowSearch?.state === "unavailable" ? (
-                              <div className="space-y-1">
-                                <label className="text-muted-foreground flex items-center gap-2 text-sm">
-                                  <Checkbox
-                                    checked={false}
-                                    disabled
-                                    aria-describedby={`${item.id}-web-search-reason`}
-                                  />
-                                  <span>
-                                    {nativeToolLabel(t, WEB_SEARCH_TOOL)}
-                                  </span>
-                                </label>
-                                <p
-                                  id={`${item.id}-web-search-reason`}
-                                  className="text-muted-foreground text-xs"
-                                >
-                                  {searchUnavailableText(t, rowSearch.code)}
-                                </p>
-                              </div>
+                            {item.logo_provider ? (
+                              <ModelSelectorLogo
+                                provider={item.logo_provider}
+                              />
                             ) : null}
-                            {rowNativeTools.length > 0 ? (
-                              <div className="space-y-2">
-                                {rowNativeTools.map((tool) => (
-                                  <label
-                                    key={tool}
-                                    className="flex cursor-pointer items-center gap-2 text-sm"
-                                  >
-                                    <Checkbox
-                                      checked={rowSelectedNativeTools.has(tool)}
-                                      disabled={
-                                        updateAnimaChatProfile.isPending
-                                      }
-                                      onCheckedChange={(checked) => {
-                                        handleNativeToolChange(
-                                          item,
-                                          tool,
-                                          checked === true,
-                                        );
-                                      }}
-                                    />
-                                    <span>{nativeToolLabel(t, tool)}</span>
-                                  </label>
-                                ))}
-                              </div>
-                            ) : null}
-                            {rowReasoningEfforts.length > 0 ? (
-                              <div className="space-y-2">
-                                <div className="text-muted-foreground text-xs font-medium">
-                                  {t("composer.model.reasoning")}
-                                </div>
-                                <RadioGroup
-                                  value={rowSelectedReasoningEffort ?? ""}
-                                  onValueChange={(effort) => {
-                                    handleReasoningChange(item, effort);
-                                  }}
-                                >
-                                  {rowReasoningEfforts.map((effort) => (
-                                    <label
-                                      key={effort}
-                                      className="flex cursor-pointer items-center gap-2 text-sm"
-                                    >
-                                      <RadioGroupItem
-                                        value={effort}
-                                        disabled={
-                                          updateAnimaChatProfile.isPending
-                                        }
-                                      />
-                                      <span>
-                                        {reasoningEffortLabel(t, effort)}
-                                      </span>
-                                    </label>
-                                  ))}
-                                </RadioGroup>
-                              </div>
-                            ) : null}
-                          </div>
-                        </PopoverContent>
-                      </Popover>
-                    ) : null}
-                  </ModelSelectorItem>
-                );
-              })}
-            </ModelSelectorGroup>
-          ))}
-        </ModelSelectorList>
-      </ModelSelectorContent>
-    </ModelSelector>
+                            <div className="min-w-0 flex-1">
+                              <ModelSelectorName className="block">
+                                {modelName}
+                              </ModelSelectorName>
+                              <span className="text-muted-foreground block truncate text-xs">
+                                {rowUnsupported
+                                  ? t("composer.model.notDirect")
+                                  : rowNeedsWindow
+                                    ? t("composer.model.needsWindow")
+                                    : providerName}
+                              </span>
+                            </div>
+                          </CommandItem>
+                        );
+                      })}
+                    </CommandGroup>
+                  ))}
+                </CommandList>
+              </Command>
+            )}
+          </>
+        )}
+      </PopoverContent>
+    </Popover>
   );
 }
 

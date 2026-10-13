@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:rage-aura",
+  "version": 1,
+  "name": "Rage Aura",
+  "description": "A burning anime fighting-spirit aura: one blazing oval of fire flares up all around the upper body, flames licking along its whole outline and shedding embers, for real fury.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "rage-aura",
+    "slots": {
+      "particle_vfx": {
+        "label": "Rage Aura",
+        "description": "A burning anime fighting-spirit aura: one blazing oval of fire flares up all around the upper body, flames licking along its whole outline and shedding embers, for real fury.",
+        "anchor": "chest",
+        "duration_seconds": 4,
+        "max_duration_seconds": 4.8,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.05,
+            "z": -0.15
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 50
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/flame-aura.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/rage-glow.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/soft-flame-sheet.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/ember-spark.png",
+      "role": "texture"
+    }
+  ]
+}

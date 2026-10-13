@@ -60,6 +60,68 @@ The test uses `ANIMAMA_LIVE_OPENAI_API_KEY` when set, otherwise
 `OPENAI_API_KEY`. It skips when live tests are disabled or the test-suite
 placeholder key is active.
 
+`test_anthropic_messages_contract.py` records the Anthropic Messages behaviour
+the Anthropic adapter and Memory Manager runtime rely on: strict tools and
+structured output, thinking resend, mid-conversation system messages, native web
+search, threshold compaction, the memory tool, prompt caching and error shapes.
+`test_prompt_cache_layout.py` measures the share of input each provider path
+serves from its prompt cache over a scripted six-turn chat. Every run tags its
+synthetic identity with a fresh nonce, so reruns do not read an earlier run's
+cache while the shared text before the identity stays under the provider minimum. Set
+`ANIMAMA_TEST_LOCAL_CHAT_BASE_URL` and `ANIMAMA_TEST_LOCAL_CHAT_MODEL` to include a local
+Chat Completions server.
+
+Both make paid requests. They need `ANTHROPIC_API_KEY`, and the harness also
+needs `OPENAI_API_KEY`. A full run of both costs well under US$0.50. It includes
+six web searches, one compaction request of about 57,000 tokens, and 16
+six-turn harness passes across the production layout, the candidates and the owner
+layout. Run a single harness test with `::test_name` to spend less. Use `-s` to
+see the recorded measurements, which contain no request or response content.
+With the owner-only secrets file:
+
+```bash
+ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.env" pytest -q -s tests/live/test_anthropic_messages_contract.py tests/live/test_prompt_cache_layout.py
+```
+
+`test_anthropic_direct_turn.py` runs `DirectChatTurnExecutor` with the real
+Anthropic adapter against Claude Haiku 5.5:
+
+- one structured turn;
+- one memory-tool round, and a next turn rebuilt from the stored rows;
+- a turn that searches the web with Anthropic's server tool;
+- a turn that compacts on the server at the 50,000-token minimum trigger, and
+  a next turn replayed from the stored compaction block.
+
+Memory tools and chat storage are the offline fakes. It needs only
+`ANTHROPIC_API_KEY`. A full run costs under US$0.05: one or two web searches,
+billed per search, and one compaction request of about 60,000 tokens.
+
+`test_anthropic_memory_manager.py` runs `MemoryManagerService` with the real
+Anthropic Memory Manager runtime on Claude Haiku 5.5 over a small seeded memory
+workspace in the test database. Asked to record a preference, the run must
+propose an approval through the memory tool; approving it from a freshly built
+service, as after a restart, must commit the change and resume to completion,
+the older contradicting line in `PROFILE.md` must be corrected, and no progress
+or scratch file may be proposed. It needs `ANTHROPIC_API_KEY`
+and Docker for the test database, and costs under US$0.01 (about 10,000 input
+tokens).
+
+`test_gemini_tts_contract.py` records what the Gemini voice relies on, through
+the pinned SDK client:
+
+- on both 3.8 TTS models, one- and three-sentence inputs with and without a
+  speaking style: time to first audio, chunk sizes, format, sample rate, byte
+  order and whether the style is accepted;
+- one two-sentence reply through `server/gemini_tts_service.py`, which must
+  stream re-framed PCM and end with `done`.
+
+It needs only `GEMINI_API_KEY` and costs under US$0.01. Run it with `-s` to
+see the measurements; no key or audio is printed or saved:
+
+```bash
+ANIMAMA_RUN_LIVE_TESTS=1 uv run --env-file "$HOME/.config/animama/dev-secrets.env" pytest -q -s tests/live/test_gemini_tts_contract.py
+```
+
 ## Manual OpenAI Stream Metadata Smoke
 
 Use this checklist only when validating a real OpenAI-backed local or staging

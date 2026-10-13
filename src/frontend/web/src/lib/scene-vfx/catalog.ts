@@ -2,15 +2,11 @@ import rawCatalog from "@/assets/effects/scene-vfx/catalog.json";
 
 import type {
   SceneBackgroundDirection,
-  SceneBackgroundEmojiLineItem,
-  SceneBackgroundEmojiProvider,
   SceneBackgroundLineItem,
   SceneBackgroundMarqueeLayer,
   SceneBackgroundPatternKind,
   SceneBackgroundPatternLayer,
-  SceneBackgroundPngLineItem,
   SceneBackgroundSolidLayer,
-  SceneBackgroundSvgLineItem,
   SceneFocusLinesAnimation,
   SceneFocusLinesRenderPlacement,
   SceneFocusLinesTarget,
@@ -22,21 +18,31 @@ import type {
   SceneVFXKind,
   SceneBackgroundItemRotationMode,
   SceneBackgroundLayersVFXEntry,
+  SceneBackgroundFlashLayer,
+  SceneBackgroundGradientLayer,
+  SceneBackgroundGradientType,
+  SceneBackgroundScatterLayer,
+  SceneBackgroundScatterPulse,
+  SceneBackgroundScreenKind,
+  SceneBackgroundScreenLayer,
+  SceneBackgroundTileLayer,
 } from "./types";
 import {
   SCENE_BACKGROUND_DIRECTIONS,
-  SCENE_BACKGROUND_EMOJI_PROVIDERS,
+  SCENE_BACKGROUND_GRADIENT_TYPES,
   SCENE_BACKGROUND_ITEM_ROTATION_MODES,
   SCENE_BACKGROUND_PATTERN_KINDS,
+  SCENE_BACKGROUND_SCATTER_PULSES,
+  SCENE_BACKGROUND_SCREEN_KINDS,
   SCENE_FOCUS_LINES_RENDER_PLACEMENTS,
   SCENE_FOCUS_LINES_TARGET_KINDS,
   SCENE_VFX_KINDS,
+  isSceneLegacyEmojiItem,
 } from "./types";
 
 type RawCatalogRecord = Record<string, unknown>;
 
 type RawSceneVFXCatalog = {
-  backgroundLineItems: SceneBackgroundLineItem[];
   backgroundLayerPresets: Array<{
     presetId: string;
     entry: SceneBackgroundLayersVFXEntry;
@@ -49,13 +55,6 @@ type RawSceneVFXCatalog = {
 
 type RawSceneVFXBaseEntry = SceneVFXBaseEntry & {
   kind: SceneVFXKind;
-};
-
-type RawSceneBackgroundMarqueeLayer = Omit<
-  SceneBackgroundMarqueeLayer,
-  "items"
-> & {
-  itemIds: string[];
 };
 
 export type SceneVFXCatalogBackgroundPresetId = string;
@@ -73,8 +72,14 @@ const SCENE_BACKGROUND_DIRECTION_SET = createAllowedValueSet(
 const SCENE_BACKGROUND_ITEM_ROTATION_MODE_SET = createAllowedValueSet(
   SCENE_BACKGROUND_ITEM_ROTATION_MODES,
 );
-const SCENE_BACKGROUND_EMOJI_PROVIDER_SET = createAllowedValueSet(
-  SCENE_BACKGROUND_EMOJI_PROVIDERS,
+const SCENE_BACKGROUND_GRADIENT_TYPE_SET = createAllowedValueSet(
+  SCENE_BACKGROUND_GRADIENT_TYPES,
+);
+const SCENE_BACKGROUND_SCREEN_KIND_SET = createAllowedValueSet(
+  SCENE_BACKGROUND_SCREEN_KINDS,
+);
+const SCENE_BACKGROUND_SCATTER_PULSE_SET = createAllowedValueSet(
+  SCENE_BACKGROUND_SCATTER_PULSES,
 );
 const SCENE_FOCUS_LINES_RENDER_PLACEMENT_SET = createAllowedValueSet(
   SCENE_FOCUS_LINES_RENDER_PLACEMENTS,
@@ -127,14 +132,21 @@ function readString(value: unknown, field: string, context: string): string {
   return trimmed;
 }
 
-function readStringArray(
+const SCENE_COLOR_PATTERN = /^#[0-9a-f]{6}$/i;
+
+/**
+ * A Scene colour: six-digit hex only. Colours reach CSS gradients and SVG
+ * paint, where any other text could name an external resource.
+ */
+function readSceneColor(
   value: unknown,
   field: string,
   context: string,
-): string[] {
-  return readArray(value, field, context).map((item, index) =>
-    readString(item, `${field}[${index}]`, context),
-  );
+): string {
+  const color = readString(value, field, context);
+  if (!SCENE_COLOR_PATTERN.test(color))
+    throw createError(context, `"${field}" must be a #rrggbb colour.`);
+  return color;
 }
 
 function readFiniteNumber(
@@ -185,16 +197,6 @@ function readEnumValue<T extends string>(
     throw createError(context, `"${field}" has unsupported value "${parsed}".`);
   }
   return parsed as T;
-}
-
-function readOptionalEnumValue<T extends string>(
-  value: unknown,
-  field: string,
-  context: string,
-  allowed: Set<string>,
-): T | undefined {
-  if (value === undefined) return undefined;
-  return readEnumValue<T>(value, field, context, allowed);
 }
 
 function readBaseEntry(
@@ -284,50 +286,42 @@ function readSceneBackgroundLineItem(
   value: unknown,
   context: string,
 ): SceneBackgroundLineItem {
-  const record = readRecord(value, "backgroundLineItems[]", context);
+  const record = readRecord(value, "items[]", context);
   const kind = readEnumValue<SceneBackgroundLineItem["kind"]>(
     record.kind,
     "kind",
     context,
-    new Set<string>(["png", "svg", "emoji"]),
+    new Set<string>(["png", "svg"]),
   );
   const base = {
     id: readString(record.id, "id", context),
-    kind,
     label: readString(record.label, "label", context),
   };
-
   if (kind === "png") {
-    return {
-      ...base,
-      kind,
-      src: readString(record.src, "src", context),
-    };
+    return { ...base, kind, src: readString(record.src, "src", context) };
   }
-
-  if (kind === "svg") {
-    return {
-      ...base,
-      kind,
-      src: readSceneBackgroundSvgSrc(record.src, "src", context),
-    };
-  }
-
-  const provider = readOptionalEnumValue<SceneBackgroundEmojiProvider>(
-    record.provider,
-    "provider",
-    context,
-    SCENE_BACKGROUND_EMOJI_PROVIDER_SET,
-  );
-  const item: SceneBackgroundEmojiLineItem = {
+  return {
     ...base,
     kind,
-    emoji: readString(record.emoji, "emoji", context),
+    src: readSceneBackgroundSvgSrc(record.src, "src", context),
   };
-  if (provider !== undefined) {
-    item.provider = provider;
-  }
-  return item;
+}
+
+/**
+ * Read a marquee or scatter item list. A legacy Twemoji item (Animama no
+ * longer provides Twemoji) is skipped, so a Scene saved with one plays
+ * without it and requests no image for it.
+ */
+function readSceneBackgroundLineItems(
+  value: unknown,
+  field: string,
+  context: string,
+): SceneBackgroundLineItem[] {
+  return readArray(value, field, context).flatMap((item, index) =>
+    isSceneLegacyEmojiItem(item)
+      ? []
+      : [readSceneBackgroundLineItem(item, `${context}.${field}[${index}]`)],
+  );
 }
 
 function readSceneBackgroundSolidLayer(
@@ -337,7 +331,7 @@ function readSceneBackgroundSolidLayer(
   const record = readRecord(value, "solid", context);
   return {
     enabled: readBoolean(record.enabled, "solid.enabled", context),
-    color: readString(record.color, "solid.color", context),
+    color: readSceneColor(record.color, "solid.color", context),
   };
 }
 
@@ -354,21 +348,25 @@ function readSceneBackgroundPatternLayer(
       context,
       SCENE_BACKGROUND_PATTERN_KIND_SET,
     ),
-    color: readString(record.color, "pattern.color", context),
+    color: readSceneColor(record.color, "pattern.color", context),
     size: readFiniteNumber(record.size, "pattern.size", context),
     spacing: readFiniteNumber(record.spacing, "pattern.spacing", context),
     opacity: readFiniteNumber(record.opacity, "pattern.opacity", context),
   };
 }
 
+/**
+ * A bundled preset's marquee. The bundled catalog has no line items, so each
+ * preset's marquee starts empty; the creator adds stickers or images to it.
+ */
 function readSceneBackgroundMarqueeLayer(
   value: unknown,
   context: string,
-): RawSceneBackgroundMarqueeLayer {
+): SceneBackgroundMarqueeLayer {
   const record = readRecord(value, "marquee", context);
   return {
     enabled: readBoolean(record.enabled, "marquee.enabled", context),
-    itemIds: readStringArray(record.itemIds, "marquee.itemIds", context),
+    items: [],
     itemSize: readFiniteNumber(record.itemSize, "marquee.itemSize", context),
     gap: readFiniteNumber(record.gap, "marquee.gap", context),
     rowGap: readFiniteNumber(record.rowGap, "marquee.rowGap", context),
@@ -398,31 +396,201 @@ function readSceneBackgroundMarqueeLayer(
   };
 }
 
-function resolveSceneBackgroundMarqueeLayer(
-  value: RawSceneBackgroundMarqueeLayer,
-  lineItemById: Map<string, SceneBackgroundLineItem>,
+function readSceneBackgroundGradientLayer(
+  value: unknown,
   context: string,
-): SceneBackgroundMarqueeLayer {
-  const { itemIds, ...marquee } = value;
+): SceneBackgroundGradientLayer {
+  const record = readRecord(value, "gradient", context);
   return {
-    ...marquee,
-    items: itemIds.map((itemId) => {
-      const item = lineItemById.get(itemId);
-      if (!item) {
-        throw createError(
-          context,
-          `"marquee.itemIds" references unknown item "${itemId}".`,
-        );
-      }
-      return cloneSceneBackgroundLineItem(item);
-    }),
+    enabled: readBoolean(record.enabled, "gradient.enabled", context),
+    type: readEnumValue<SceneBackgroundGradientType>(
+      record.type,
+      "gradient.type",
+      context,
+      SCENE_BACKGROUND_GRADIENT_TYPE_SET,
+    ),
+    angleDeg: readFiniteNumber(record.angleDeg, "gradient.angleDeg", context),
+    centerX: readFiniteNumber(record.centerX, "gradient.centerX", context),
+    centerY: readFiniteNumber(record.centerY, "gradient.centerY", context),
+    stops: readArray(record.stops, "gradient.stops", context).map(
+      (stop, index) => {
+        const field = `gradient.stops[${index}]`;
+        const stopRecord = readRecord(stop, field, context);
+        return {
+          color: readSceneColor(stopRecord.color, `${field}.color`, context),
+          position: readFiniteNumber(
+            stopRecord.position,
+            `${field}.position`,
+            context,
+          ),
+        };
+      },
+    ),
+  };
+}
+
+function readSceneBackgroundTileLayer(
+  value: unknown,
+  context: string,
+): SceneBackgroundTileLayer {
+  const record = readRecord(value, "tile", context);
+  return {
+    enabled: readBoolean(record.enabled, "tile.enabled", context),
+    src: readString(record.src, "tile.src", context),
+    size: readFiniteNumber(record.size, "tile.size", context),
+    opacity: readFiniteNumber(record.opacity, "tile.opacity", context),
+    direction: readEnumValue<SceneBackgroundDirection>(
+      record.direction,
+      "tile.direction",
+      context,
+      SCENE_BACKGROUND_DIRECTION_SET,
+    ),
+    speedPxPerSec: readFiniteNumber(
+      record.speedPxPerSec,
+      "tile.speedPxPerSec",
+      context,
+    ),
+  };
+}
+
+function readSceneBackgroundScreenLayer(
+  value: unknown,
+  context: string,
+): SceneBackgroundScreenLayer {
+  const record = readRecord(value, "screen", context);
+  const number = (field: string) =>
+    readFiniteNumber(record[field], `screen.${field}`, context);
+  const common = {
+    enabled: readBoolean(record.enabled, "screen.enabled", context),
+    color: readSceneColor(record.color, "screen.color", context),
+    opacity: number("opacity"),
+    count: number("count"),
+    seed: number("seed"),
+  };
+  const kind = readEnumValue<SceneBackgroundScreenKind>(
+    record.kind,
+    "screen.kind",
+    context,
+    SCENE_BACKGROUND_SCREEN_KIND_SET,
+  );
+  if (kind === "rays")
+    return {
+      ...common,
+      kind,
+      centerX: number("centerX"),
+      centerY: number("centerY"),
+      spiky: readBoolean(record.spiky, "screen.spiky", context),
+      turnSeconds: number("turnSeconds"),
+      throbPerSec: number("throbPerSec"),
+    };
+  return {
+    ...common,
+    kind,
+    minLength: number("minLength"),
+    maxLength: number("maxLength"),
+    minWidthPx: number("minWidthPx"),
+    maxWidthPx: number("maxWidthPx"),
+    swaySeconds: number("swaySeconds"),
+  };
+}
+
+function readSceneBackgroundScatterLayer(
+  value: unknown,
+  context: string,
+): SceneBackgroundScatterLayer {
+  const record = readRecord(value, "scatter", context);
+  const number = (field: string) =>
+    readFiniteNumber(record[field], field, context);
+  const boolean = (field: string) => readBoolean(record[field], field, context);
+  return {
+    enabled: boolean("enabled"),
+    items: readSceneBackgroundLineItems(record.items, "items", context),
+    count: number("count"),
+    seed: number("seed"),
+    minSize: number("minSize"),
+    maxSize: number("maxSize"),
+    minRotationDeg: number("minRotationDeg"),
+    maxRotationDeg: number("maxRotationDeg"),
+    minOpacity: number("minOpacity"),
+    maxOpacity: number("maxOpacity"),
+    regionTop: number("regionTop"),
+    regionBottom: number("regionBottom"),
+    keepFaceClear: boolean("keepFaceClear"),
+    direction: readEnumValue<SceneBackgroundDirection>(
+      record.direction,
+      "direction",
+      context,
+      SCENE_BACKGROUND_DIRECTION_SET,
+    ),
+    speedPxPerSec: number("speedPxPerSec"),
+    minSpinDegPerSec: number("minSpinDegPerSec"),
+    maxSpinDegPerSec: number("maxSpinDegPerSec"),
+    alternateSpin: boolean("alternateSpin"),
+    pulse: readEnumValue<SceneBackgroundScatterPulse>(
+      record.pulse,
+      "pulse",
+      context,
+      SCENE_BACKGROUND_SCATTER_PULSE_SET,
+    ),
+  };
+}
+
+function readSceneBackgroundFlashLayer(
+  value: unknown,
+  context: string,
+): SceneBackgroundFlashLayer {
+  const record = readRecord(value, "flash", context);
+  return {
+    enabled: readBoolean(record.enabled, "flash.enabled", context),
+    color: readSceneColor(record.color, "flash.color", context),
+    durationMs: readFiniteNumber(
+      record.durationMs,
+      "flash.durationMs",
+      context,
+    ),
+  };
+}
+
+/** The optional background layers (C1–C6) a runtime entry carries. */
+function readSceneBackgroundOptionalLayers(
+  record: RawCatalogRecord,
+  context: string,
+): Pick<
+  SceneBackgroundLayersVFXEntry,
+  "gradient" | "tile" | "screen" | "scatters" | "flash"
+> {
+  return {
+    ...(record.gradient === undefined
+      ? {}
+      : {
+          gradient: readSceneBackgroundGradientLayer(record.gradient, context),
+        }),
+    ...(record.tile === undefined
+      ? {}
+      : { tile: readSceneBackgroundTileLayer(record.tile, context) }),
+    ...(record.screen === undefined
+      ? {}
+      : { screen: readSceneBackgroundScreenLayer(record.screen, context) }),
+    ...(record.scatters === undefined
+      ? {}
+      : {
+          scatters: readArray(record.scatters, "scatters", context).map(
+            (layer, index) =>
+              readSceneBackgroundScatterLayer(
+                layer,
+                `${context}.scatters[${index}]`,
+              ),
+          ),
+        }),
+    ...(record.flash === undefined
+      ? {}
+      : { flash: readSceneBackgroundFlashLayer(record.flash, context) }),
   };
 }
 
 function readSceneBackgroundPreset(
   value: unknown,
   index: number,
-  lineItemById: Map<string, SceneBackgroundLineItem>,
 ): { presetId: string; entry: SceneBackgroundLayersVFXEntry } {
   const context = `backgroundLayerPresets[${index}]`;
   const record = readRecord(value, "backgroundLayerPresets[]", context);
@@ -447,11 +615,7 @@ function readSceneBackgroundPreset(
         entryRecord.pattern,
         `${context}.entry`,
       ),
-      marquee: resolveSceneBackgroundMarqueeLayer(
-        marquee,
-        lineItemById,
-        `${context}.entry`,
-      ),
+      marquee,
     },
   };
 }
@@ -565,7 +729,7 @@ function readSceneFocusLinePreset(
       "lineCount",
       `${context}.entry`,
     ),
-    color: readString(entryRecord.color, "color", `${context}.entry`),
+    color: readSceneColor(entryRecord.color, "color", `${context}.entry`),
     opacity: readFiniteNumber(
       entryRecord.opacity,
       "opacity",
@@ -605,22 +769,6 @@ function readSceneFocusLinePreset(
   return { presetId, entry };
 }
 
-function buildLineItemMap(
-  items: SceneBackgroundLineItem[],
-): Map<string, SceneBackgroundLineItem> {
-  const itemById = new Map<string, SceneBackgroundLineItem>();
-  for (const item of items) {
-    if (itemById.has(item.id)) {
-      throw createError(
-        "backgroundLineItems",
-        `duplicate item id "${item.id}".`,
-      );
-    }
-    itemById.set(item.id, item);
-  }
-  return itemById;
-}
-
 function buildPresetMap<TEntry>(
   presets: Array<{ presetId: string; entry: TEntry }>,
   context: string,
@@ -645,24 +793,12 @@ function readSceneVFXCatalog(value: unknown): RawSceneVFXCatalog {
     );
   }
 
-  const backgroundLineItems = readArray(
-    catalog.backgroundLineItems,
-    "backgroundLineItems",
-    "catalog",
-  ).map((item, index) =>
-    readSceneBackgroundLineItem(item, `backgroundLineItems[${index}]`),
-  );
-  const lineItemById = buildLineItemMap(backgroundLineItems);
-
   return {
-    backgroundLineItems,
     backgroundLayerPresets: readArray(
       catalog.backgroundLayerPresets,
       "backgroundLayerPresets",
       "catalog",
-    ).map((preset, index) =>
-      readSceneBackgroundPreset(preset, index, lineItemById),
-    ),
+    ).map((preset, index) => readSceneBackgroundPreset(preset, index)),
     focusLinePresets: readArray(
       catalog.focusLinePresets,
       "focusLinePresets",
@@ -729,7 +865,6 @@ function cloneSceneFocusLinesVFXEntry(
 }
 
 const SCENE_VFX_CATALOG = readSceneVFXCatalog(rawCatalog);
-const LINE_ITEM_BY_ID = buildLineItemMap(SCENE_VFX_CATALOG.backgroundLineItems);
 const BACKGROUND_LAYER_PRESET_BY_ID = buildPresetMap(
   SCENE_VFX_CATALOG.backgroundLayerPresets,
   "backgroundLayerPresets",
@@ -738,39 +873,6 @@ const FOCUS_LINE_PRESET_BY_ID = buildPresetMap(
   SCENE_VFX_CATALOG.focusLinePresets,
   "focusLinePresets",
 );
-
-export function getSceneBackgroundLineItems(): SceneBackgroundLineItem[] {
-  return SCENE_VFX_CATALOG.backgroundLineItems.map(
-    cloneSceneBackgroundLineItem,
-  );
-}
-
-export function getSceneBackgroundPngLineItems(): SceneBackgroundPngLineItem[] {
-  return SCENE_VFX_CATALOG.backgroundLineItems
-    .filter((item): item is SceneBackgroundPngLineItem => item.kind === "png")
-    .map(cloneSceneBackgroundLineItem);
-}
-
-export function getSceneBackgroundSvgLineItems(): SceneBackgroundSvgLineItem[] {
-  return SCENE_VFX_CATALOG.backgroundLineItems
-    .filter((item): item is SceneBackgroundSvgLineItem => item.kind === "svg")
-    .map(cloneSceneBackgroundLineItem);
-}
-
-export function getSceneBackgroundEmojiLineItems(): SceneBackgroundEmojiLineItem[] {
-  return SCENE_VFX_CATALOG.backgroundLineItems
-    .filter(
-      (item): item is SceneBackgroundEmojiLineItem => item.kind === "emoji",
-    )
-    .map(cloneSceneBackgroundLineItem);
-}
-
-export function getSceneBackgroundLineItemById(
-  itemId: string,
-): SceneBackgroundLineItem | null {
-  const item = LINE_ITEM_BY_ID.get(itemId);
-  return item ? cloneSceneBackgroundLineItem(item) : null;
-}
 
 export function getSceneBackgroundLayerPresetIds(): SceneVFXCatalogBackgroundPresetId[] {
   return SCENE_VFX_CATALOG.backgroundLayerPresets.map(
@@ -827,18 +929,17 @@ export function parseSceneVFXEntry(value: unknown): SceneVFXEntry {
       ...(sound ? { sound } : {}),
       solid: readSceneBackgroundSolidLayer(record.solid, "runtime entry"),
       pattern: readSceneBackgroundPatternLayer(record.pattern, "runtime entry"),
+      ...readSceneBackgroundOptionalLayers(record, "runtime entry"),
       marquee: {
         enabled: readBoolean(
           marquee.enabled,
           "marquee.enabled",
           "runtime entry",
         ),
-        items: readArray(marquee.items, "marquee.items", "runtime entry").map(
-          (item, index) =>
-            readSceneBackgroundLineItem(
-              item,
-              `runtime entry.marquee.items[${index}]`,
-            ),
+        items: readSceneBackgroundLineItems(
+          marquee.items,
+          "marquee.items",
+          "runtime entry",
         ),
         itemSize: readFiniteNumber(
           marquee.itemSize,
@@ -897,7 +998,7 @@ export function parseSceneVFXEntry(value: unknown): SceneVFXEntry {
       SCENE_FOCUS_LINES_RENDER_PLACEMENT_SET,
     ),
     lineCount: readFiniteNumber(record.lineCount, "lineCount", "runtime entry"),
-    color: readString(record.color, "color", "runtime entry"),
+    color: readSceneColor(record.color, "color", "runtime entry"),
     opacity: readFiniteNumber(record.opacity, "opacity", "runtime entry"),
     baseThicknessPx: readFiniteNumber(
       record.baseThicknessPx,

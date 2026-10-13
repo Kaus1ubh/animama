@@ -5,6 +5,7 @@ from dataclasses import dataclass, field
 from types import MappingProxyType
 from typing import TYPE_CHECKING, Any, Literal, Protocol, runtime_checkable
 
+from animama.domain.events import RunStatusKind, RunStatusPhase
 from animama.domain.model_provider import ModelProvider
 from animama.domain.usage import Usage
 
@@ -16,6 +17,10 @@ if TYPE_CHECKING:
 
 MODEL_CLIENT_TOOL_CALL_ITEM_TYPE = "model_client_tool_call"
 MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE = "model_client_tool_result"
+ANTHROPIC_TOOL_USE_ITEM_TYPE = "anthropic_tool_use"
+"""Prompt and history item for one Anthropic ``tool_use`` block (``id``, ``name``, ``input``)."""
+ANTHROPIC_TOOL_RESULT_ITEM_TYPE = "anthropic_tool_result"
+"""Prompt and history item for one Anthropic ``tool_result`` block (``tool_use_id``, ``content``)."""
 
 
 def _freeze_value(value: Any) -> Any:
@@ -112,6 +117,16 @@ class ModelClientFinal:
     Provider adapters should emit this only after seeing the provider-specific
     terminal signal they trust. For OpenAI Chat Completions that is the streamed
     finish_reason path; for OpenAI Responses that is response.completed.
+
+    ``continuation`` is request-local provider state for the turn's next round
+    after tool calls (Anthropic carries the turn's assistant content blocks,
+    including signed thinking, so they are resent unchanged). It is never
+    persisted.
+
+    ``replay_prefix`` holds provider content blocks that later turns must
+    replay before the reply text, persisted with the assistant row: the
+    turn's latest Anthropic compaction block, which carries the summary of
+    everything before it.
     """
 
     text: str
@@ -120,11 +135,18 @@ class ModelClientFinal:
     structured_payload: Mapping[str, Any] | None = None
     tool_calls: tuple[ModelClientToolCall, ...] = ()
     input_moderation: ModelClientModeration | None = None
+    continuation: ModelClientContinuation | None = None
+    replay_prefix: tuple[Mapping[str, Any], ...] = ()
     usage_reported: bool = False
     """True only for provider-reported usage, never estimates or default zero."""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "raw_provider_metadata", _frozen_mapping(self.raw_provider_metadata))
+        object.__setattr__(
+            self,
+            "replay_prefix",
+            tuple(_frozen_mapping(block) for block in self.replay_prefix if isinstance(block, Mapping)),
+        )
         structured = None if self.structured_payload is None else _frozen_mapping(self.structured_payload)
         object.__setattr__(self, "structured_payload", structured)
         object.__setattr__(
@@ -135,11 +157,25 @@ class ModelClientFinal:
 
 
 @dataclass(frozen=True, slots=True)
+class ModelClientRunStatus:
+    """Provider-side work shown while the reply is pending.
+
+    ``searching_web`` covers a provider-hosted web search and
+    ``summarizing_context`` a provider-side compaction. Each ``started`` is
+    followed by ``finished``.
+    """
+
+    status: RunStatusKind
+    phase: RunStatusPhase
+
+
+@dataclass(frozen=True, slots=True)
 class ModelClientDelta:
     """Streaming item emitted by a provider-neutral model client.
 
     `text_delta` carries public assistant text, `event` carries sanitized
-    provider observations for logs/metadata, `final` carries the authoritative
+    provider observations for logs/metadata, `run_status` carries provider-side
+    work to show while the reply is pending, `final` carries the authoritative
     assistant output, and `error` carries stream-level provider failure.
     """
 
@@ -148,6 +184,7 @@ class ModelClientDelta:
     final: ModelClientFinal | None = None
     error: str | None = None
     stream_event: MCEvent | None = None
+    run_status: ModelClientRunStatus | None = None
     raw_metadata: Mapping[str, Any] = field(default_factory=lambda: MappingProxyType({}))
 
     def __post_init__(self) -> None:
@@ -158,6 +195,12 @@ def model_client_event_delta(event: MCEvent) -> ModelClientDelta:
     """Build a streaming delta for an ordered provider observation."""
 
     return ModelClientDelta(kind="event", stream_event=event)
+
+
+def model_client_run_status_delta(status: RunStatusKind, phase: RunStatusPhase) -> ModelClientDelta:
+    """Build a streaming delta reporting provider-side work (a hosted search or compaction)."""
+
+    return ModelClientDelta(kind="run_status", run_status=ModelClientRunStatus(status=status, phase=phase))
 
 
 class ModelClientError(Exception):
@@ -211,9 +254,15 @@ class ModelClientProviderOptions:
     memory_apply_patch_enabled: bool = False
     moderation_model: str | None = None
     """Request provider-side moderation scores with this model, when the adapter supports it."""
+    utility_task: bool = False
+    """A backend Utility prompt (a chat title or another chat's summary), not a chat turn.
+
+    Adapters apply their provider's Utility defaults; Anthropic uses effort
+    ``low`` and no server-side compaction of the prompt."""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "native_tools", _string_tuple(self.native_tools))
+        object.__setattr__(self, "utility_task", self.utility_task is True)
         object.__setattr__(
             self,
             "moderation_model",
@@ -241,6 +290,7 @@ class ModelClientProviderOptions:
             store=store if isinstance(store, bool) else None,
             memory_apply_patch_enabled=value.get("memory_apply_patch_enabled") is True,
             moderation_model=value.get("moderation_model") if isinstance(value.get("moderation_model"), str) else None,
+            utility_task=value.get("utility_task") is True,
         )
 
     def get(self, key: str, default: object = None) -> object:
@@ -252,6 +302,8 @@ class ModelClientProviderOptions:
             return self.store
         if key == "memory_apply_patch_enabled":
             return self.memory_apply_patch_enabled
+        if key == "utility_task":
+            return self.utility_task
         return default
 
     def __getitem__(self, key: str) -> object:
@@ -263,6 +315,8 @@ class ModelClientProviderOptions:
             return self.store
         if key == "memory_apply_patch_enabled":
             return self.memory_apply_patch_enabled
+        if key == "utility_task":
+            return self.utility_task
         raise KeyError(key)
 
 
@@ -354,6 +408,8 @@ class StaticModelClientRegistry(ModelClientRegistry):
 
 
 __all__ = [
+    "ANTHROPIC_TOOL_RESULT_ITEM_TYPE",
+    "ANTHROPIC_TOOL_USE_ITEM_TYPE",
     "ModelClient",
     "MODEL_CLIENT_TOOL_CALL_ITEM_TYPE",
     "MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE",
@@ -366,11 +422,13 @@ __all__ = [
     "ModelClientProviderOptions",
     "ModelClientRequest",
     "ModelClientRegistry",
+    "ModelClientRunStatus",
     "ModelClientTimeoutError",
     "ModelClientToolCall",
     "ModelClientToolResult",
     "ModelClientWithComplete",
     "StaticModelClientRegistry",
     "model_client_event_delta",
+    "model_client_run_status_delta",
     "uses_native_context_compaction",
 ]

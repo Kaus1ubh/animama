@@ -148,27 +148,32 @@ class ContentPackageImportService:
 
     @asynccontextmanager
     async def _import_stage(self, *, user_id: str, stage_id: str) -> AsyncIterator[PackageStageLease]:
-        """Release denied import bytes after inspection, retaining unresolved publication."""
-        with self._stages.acquire(user_id, stage_id) as lease:
-            try:
-                yield lease
-            except ContentConflictError as exc:
-                if self._allow_anima_import or exc.code != "package_anima_import_unavailable":
-                    raise
-                record = lease.record
-                if record.operation_id is not None and self._mutations.has_pending(
-                    user_id=user_id, operation_id=record.operation_id
-                ):
-                    # Policy changes must not erase bytes needed to resolve an
-                    # earlier publication's unknown durable outcome.
-                    lease.set_state("recovery_needed")
-                else:
-                    if record.state in {"committing", "recovery_needed"}:
-                        # A crash before publication may leave a protected marker
-                        # without any publication work to recover.
-                        lease.set_state("failed")
-                    await asyncio.to_thread(lease.discard)
+        """Release denied import bytes after inspection, retaining unresolved publication.
+
+        Stage IO runs in worker threads; callers own the work through cancellation.
+        """
+        lease = await asyncio.to_thread(self._stages.acquire, user_id, stage_id)
+        try:
+            yield lease
+        except ContentConflictError as exc:
+            if self._allow_anima_import or exc.code != "package_anima_import_unavailable":
                 raise
+            record = lease.record
+            if record.operation_id is not None and self._mutations.has_pending(
+                user_id=user_id, operation_id=record.operation_id
+            ):
+                # Policy changes must not erase bytes needed to resolve an
+                # earlier publication's unknown durable outcome.
+                await asyncio.to_thread(lease.set_state, "recovery_needed")
+            else:
+                if record.state in {"committing", "recovery_needed"}:
+                    # A crash before publication may leave a protected marker
+                    # without any publication work to recover.
+                    await asyncio.to_thread(lease.set_state, "failed")
+                await asyncio.to_thread(lease.discard)
+            raise
+        finally:
+            await asyncio.to_thread(lease.close)
 
     async def review(self, *, user_id: str, stage_id: str) -> ReviewedPackageImport:
         """Validate all archive bytes and freeze a complete proposal without installing."""
@@ -182,7 +187,7 @@ class ContentPackageImportService:
                 self._admit_manifest(ReviewedImportPlan.model_validate(record.review["plan"]).manifest)
                 await asyncio.to_thread(lease.verify_archive)
                 assert record.review_digest is not None
-                renewed = lease.renew_review(record.review_digest)
+                renewed = await asyncio.to_thread(lease.renew_review, record.review_digest)
                 return ReviewedPackageImport.model_validate(record.review["public"]).model_copy(
                     update={"expires_at": renewed.expires_at}
                 )
@@ -223,8 +228,10 @@ class ContentPackageImportService:
                     for item in plan.non_portable
                 ),
             )
-            published = lease.publish_review(
-                {"plan": plan.model_dump(mode="json"), "public": public.model_dump(mode="json")}, review_digest
+            published = await asyncio.to_thread(
+                lease.publish_review,
+                {"plan": plan.model_dump(mode="json"), "public": public.model_dump(mode="json")},
+                review_digest,
             )
             return public.model_copy(update={"expires_at": published.expires_at})
 
@@ -327,7 +334,10 @@ class ContentPackageImportService:
         return PackageImportResult.model_validate(receipt["result"]["value"])
 
     def _release_completed_stage(self, *, user_id: str, operation_id: str) -> None:
-        """A receipt can release stale protected quota, but never depends on stage availability."""
+        """A receipt can release stale protected quota, but never depends on stage availability.
+
+        Blocking stage IO: call it through ``asyncio.to_thread``.
+        """
         try:
             stage = self._stages.find_import(user_id, operation_id)
             if stage is not None:
@@ -341,7 +351,7 @@ class ContentPackageImportService:
     ) -> PackageImportResult:
         completed = await self._completed(user_id=user_id, operation_id=operation_id, review_digest=review_digest)
         if completed is not None:
-            self._release_completed_stage(user_id=user_id, operation_id=operation_id)
+            await asyncio.to_thread(self._release_completed_stage, user_id=user_id, operation_id=operation_id)
             return completed
         async with self._import_stage(user_id=user_id, stage_id=stage_id) as lease:
             record = lease.record
@@ -354,7 +364,7 @@ class ContentPackageImportService:
             size, digest = await asyncio.to_thread(lease.verify_archive)
             if (size, digest) != (plan.size_bytes, plan.package_sha256):
                 raise ContentConflictError("package_archive_changed")
-            lease.set_state("committing")
+            await asyncio.to_thread(lease.set_state, "committing")
             try:
                 async with inspect_package(self._inspector, lease) as inspected:
                     self._admit_manifest(inspected.manifest)
@@ -379,20 +389,21 @@ class ContentPackageImportService:
                 )
                 if completed is not None:
                     try:
-                        lease.set_state("completed")
+                        await asyncio.to_thread(lease.set_state, "completed")
                     except OSError:
                         pass
                     return completed
-                lease.set_state(
+                await asyncio.to_thread(
+                    lease.set_state,
                     "recovery_needed"
                     if self._mutations.has_pending(user_id=user_id, operation_id=operation_id)
-                    else "failed"
+                    else "failed",
                 )
                 raise
             # SQL is the completion authority. A lost stage update cannot turn a
             # committed import into a new installation on retry or status lookup.
             try:
-                lease.set_state("completed")
+                await asyncio.to_thread(lease.set_state, "completed")
             except OSError:
                 pass
             return result
@@ -444,6 +455,8 @@ class ContentPackageImportService:
             if (
                 current is None
                 or current.status is not ContentStatus.VALID
+                # A package carries every effect its Actions use.
+                or current.missing_dependencies
                 or current.logical_key != item.logical_key
                 or current.revision_sha256 is None
             ):
@@ -596,12 +609,15 @@ class ContentPackageImportService:
     async def operation_status(self, *, user_id: str, operation_id: str) -> PackageOperationStatus:
         """A durable receipt outranks missing stages, deleted results and cleanup state."""
         self._content.require_owner(user_id)
+        return await _finish_owned_work(self._operation_status(user_id=user_id, operation_id=operation_id))
+
+    async def _operation_status(self, *, user_id: str, operation_id: str) -> PackageOperationStatus:
         receipt = await self._catalog.get_mutation_receipt(user_id=user_id, operation_id=operation_id)
         if receipt is not None:
             value = receipt["result"]["value"]
             if value.get("schema_version") == 1:
                 completed = PackageImportResult.model_validate(value)
-                self._release_completed_stage(user_id=user_id, operation_id=operation_id)
+                await asyncio.to_thread(self._release_completed_stage, user_id=user_id, operation_id=operation_id)
                 return PackageOperationStatus(
                     operation_id=operation_id,
                     state="completed",
@@ -624,28 +640,31 @@ class ContentPackageImportService:
                     ),
                     skipped_existing_item_ids=tuple(value["skipped_existing_item_ids"]),
                 )
-                self._release_completed_stage(user_id=user_id, operation_id=operation_id)
+                await asyncio.to_thread(self._release_completed_stage, user_id=user_id, operation_id=operation_id)
                 return PackageOperationStatus(operation_id=operation_id, state="completed", result=result)
             raise ContentConflictError("operation_id_reused")
-        stage = self._stages.find_import(user_id, operation_id)
+        stage = await asyncio.to_thread(self._stages.find_import, user_id, operation_id)
         if stage is None:
             if self._mutations.has_pending(user_id=user_id, operation_id=operation_id):
                 return PackageOperationStatus(operation_id=operation_id, state="recovery_needed")
             return PackageOperationStatus(operation_id=operation_id, state="not_found")
-        _, active = self._stages.status(user_id, stage.stage_id)
+        _, active = await asyncio.to_thread(self._stages.status, user_id, stage.stage_id)
         if not active and stage.state in {"committing", "recovery_needed"}:
             try:
-                with self._stages.acquire(user_id, stage.stage_id, allow_expired=True) as lease:
+                lease = await asyncio.to_thread(self._stages.acquire, user_id, stage.stage_id, allow_expired=True)
+                try:
 
                     async def recovered() -> dict[str, Any] | None:
                         return await self._catalog.get_mutation_receipt(user_id=user_id, operation_id=operation_id)
 
                     receipt = await self._mutations.reconcile(recovered)
                     if receipt is not None:
-                        lease.set_state("completed")
-                        return await self.operation_status(user_id=user_id, operation_id=operation_id)
-                    lease.set_state("failed")
+                        await asyncio.to_thread(lease.set_state, "completed")
+                        return await self._operation_status(user_id=user_id, operation_id=operation_id)
+                    await asyncio.to_thread(lease.set_state, "failed")
                     stage = lease.record
+                finally:
+                    await asyncio.to_thread(lease.close)
             except (ContentConflictError, OSError):
                 return PackageOperationStatus(
                     operation_id=operation_id,

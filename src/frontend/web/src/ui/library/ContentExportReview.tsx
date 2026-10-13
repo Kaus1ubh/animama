@@ -9,6 +9,23 @@ import {
   SharingRequiredItems,
 } from "./SharingPackageDetails";
 
+/** Licensed sounds the package leaves out with no reference (summary only). */
+function omittedSounds(flow: LibrarySharingFlow): number {
+  return (flow.summary?.omitted ?? []).filter(
+    (item) => item.kind === "sound_effect",
+  ).length;
+}
+
+function OmittedEffectSounds({ count }: { count: number }) {
+  const { t } = useTranslation("library");
+  if (!count) return null;
+  return (
+    <p className="text-muted-foreground text-sm">
+      {t("sharing.export.omittedSounds", { count })}
+    </p>
+  );
+}
+
 /** Only the prepared immutable manifest is shown at the final download step. */
 export function ContentExportReview({ flow }: { flow: LibrarySharingFlow }) {
   const { t } = useTranslation("library");
@@ -65,6 +82,7 @@ export function ContentExportReview({ flow }: { flow: LibrarySharingFlow }) {
           }),
         )}
       />
+      <OmittedEffectSounds count={omittedSounds(flow)} />
       {flow.downloadStarted && !flow.notice ? (
         <p role="status" className="bg-muted rounded-xl p-4">
           {t("sharing.export.downloadStarted")}

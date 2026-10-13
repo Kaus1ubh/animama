@@ -10,7 +10,7 @@ import re
 import stat
 import unicodedata
 import uuid
-from collections.abc import Mapping
+from collections.abc import Iterable, Mapping
 from contextlib import AbstractContextManager, nullcontext
 from dataclasses import replace
 from datetime import UTC, datetime
@@ -37,6 +37,7 @@ from animama.app.services.content_kind_registry import (
     is_descriptor_path,
     media_type_for,
     parse_json_object,
+    resolve_optional_dependencies,
     validate_descriptor,
     validate_metadata_sidecar,
     validate_standalone_file,
@@ -48,6 +49,7 @@ from animama.app.services.content_portability import (
     restricted_sha256 as manifest_sha256,
 )
 from animama.domain.content_catalog import (
+    LOCAL_TOLERATED_DIAGNOSTICS,
     CatalogContentEntry,
     ContentConflictError,
     ContentDiagnostic,
@@ -67,6 +69,7 @@ from animama.domain.content_sources import IncludedContentSource
 from animama.utils import files as safe_files
 
 _IGNORED_NAMES = {".DS_Store", ".gitkeep", "README.md"}
+
 _OPERATION_ID = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$")
 _COMPANION_EXTENSIONS = {
     ".bin",
@@ -96,6 +99,12 @@ class _PackageTarget(TypedDict, total=False):
     new_paths: list[str]
     before: dict[str, dict[str, Any] | None]
     after: dict[str, dict[str, Any] | None]
+
+
+def _scan_status(source: ContentSource, diagnostics: Iterable[ContentDiagnostic]) -> ContentStatus:
+    """Invalid on any diagnostic, except those Local content outlives (it plays without the part)."""
+    tolerated = LOCAL_TOLERATED_DIAGNOSTICS if source is ContentSource.LOCAL else frozenset()
+    return ContentStatus.INVALID if any(item.code not in tolerated for item in diagnostics) else ContentStatus.VALID
 
 
 def _with_relative_path(diagnostic: ContentDiagnostic, relative_path: str) -> ContentDiagnostic:
@@ -471,7 +480,7 @@ class FilesystemContentStore(ContentStore):
             kind=definition.kind,
             relative_locator=locator,
             display_name=display_name,
-            status=ContentStatus.INVALID if diagnostics else ContentStatus.VALID,
+            status=_scan_status(source, diagnostics),
             revision_sha256=_entry_revision(
                 scanned_files,
                 kind=definition.kind,
@@ -592,13 +601,21 @@ class FilesystemContentStore(ContentStore):
         )
 
     def scan(self, source: ContentSource) -> list[ScannedContentEntry]:
-        """Authoritatively scan registered roots while isolating entry failures."""
+        """Authoritatively scan registered roots while isolating entry failures.
 
+        Optional edges resolve against everything Included this store mounts,
+        so a missing private pack leaves its effects valid and silent.
+        """
+
+        entries = self._scan_entries(source)
+        return resolve_optional_dependencies(entries) if source is ContentSource.INCLUDED else entries
+
+    def _scan_entries(self, source: ContentSource) -> list[ScannedContentEntry]:
         if source is ContentSource.INCLUDED and self._included_sources:
             result: list[ScannedContentEntry] = []
             identities: dict[str, str] = {}
             for mount_id, store in self._included_stores.items():
-                for entry in store.scan(source):
+                for entry in store._scan_entries(source):
                     for identity in (entry.relative_locator, entry.logical_key):
                         if identity is None:
                             continue

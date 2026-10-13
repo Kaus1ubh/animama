@@ -20,7 +20,8 @@
     },
     "builtInSearch": {
       "description": "使用供應商內建的搜尋功能搜尋網頁",
-      "label": "內建搜尋"
+      "label": "內建搜尋",
+      "anthropicDescription": "使用 Anthropic 自己的搜尋功能搜尋網頁。每次搜尋都會向你的 Anthropic 帳戶計費。"
     },
     "context": {
       "description": "{{tokens, number}} token 上下文視窗"
@@ -45,7 +46,8 @@
     "baseUrl": "基礎 URL",
     "baseUrlHelp": "伺服器的 OpenAI 相容位址，通常以 /v1 結尾。",
     "compatibility": {
-      "foldDeveloperRole": "將開發者指示合併到系統訊息中",
+      "foldDeveloperRole": "不傳送 developer 訊息",
+      "foldDeveloperRoleHelp": "適用於拒絕 developer 角色的伺服器。每輪的上下文（記憶圖譜、附加檔案）放在使用者訊息開頭的帶標籤區塊中；壓縮歷史的摘要和輪內指示會合併到系統訊息中。",
       "sendOpenaiExtensions": "傳送 OpenAI 專用的請求欄位",
       "sendStreamUsage": "串流時請求 token 用量",
       "stripFunctionStrict": "移除工具中的 strict 旗標"
@@ -89,9 +91,9 @@
     "loadFailed": "無法載入模型連線。",
     "modelsOf": "{{name}} 的模型",
     "noModels": "還沒有模型。新增一個即可與它聊天。",
-    "openAiKey": {
+    "builtinKey": {
       "managed": "在這台電腦上加密儲存，之後不會再顯示。也可在應用程式設定 → API 金鑰中管理。",
-      "server": "使用此伺服器上設定的 OpenAI 金鑰（OPENAI_API_KEY）。"
+      "server": "使用此伺服器上設定的 {{name}} 金鑰（{{env}}）。"
     },
     "removed": "已移除連線。",
     "removeNamed": "移除 {{name}}",
@@ -110,7 +112,7 @@
   "credentials": {
     "allFailed": "變更未能完成。請檢查執行環境的復原狀況，然後重試。已儲存的金鑰不會在此顯示。",
     "connectionKey": "模型連線金鑰",
-    "description": "新增 OpenAI 金鑰以進行雲端聊天，或新增 ElevenLabs 金鑰以使用語音。其他模型伺服器的金鑰請在應用程式設定 → 模型中的各個連線輸入。金鑰會使用這台電腦的安全儲存空間加密，之後不會再顯示。儲存後變更會立即生效。之後可在應用程式設定 → API 金鑰中變更。",
+    "description": "新增 OpenAI 或 Anthropic 金鑰以進行雲端聊天，或新增 ElevenLabs 或 Gemini 金鑰以使用語音。其他模型伺服器的金鑰請在應用程式設定 → 模型中的各個連線輸入。金鑰會使用這台電腦的安全儲存空間加密，之後不會再顯示。儲存後變更會立即生效。之後可在應用程式設定 → API 金鑰中變更。",
     "failure": {
       "full": "這台電腦儲存的模型連線金鑰已達上限（{{max, number}} 個）。請移除不再使用的連線的金鑰，然後重試。",
       "line": "{{name}}：{{message}}",
@@ -239,6 +241,7 @@
     },
     "contextWindow": "上下文視窗（token）",
     "contextWindowHelp": "必填。請填寫伺服器載入模型時使用的上下文大小（例如 Ollama 的 num_ctx 或 llama.cpp 的 -c），而不是模型的最大值；過長的聊天會被摘要以符合視窗大小。",
+    "contextWindowHelpAnthropic": "必填。測試模型即可填入 Anthropic 公布的視窗大小；過長的聊天會被摘要以符合視窗大小。",
     "copyFrom": "從以下模型複製功能",
     "copyFromHelp": "適用於內建模型的較新版本。",
     "copyNothing": "不複製（在下方設定）",
@@ -255,7 +258,11 @@
     "saved": "已儲存模型。",
     "showInLists": "在模型清單中顯示",
     "showNamedInLists": "在模型清單中顯示 {{name}}",
-    "testModel": "測試模型"
+    "testModel": "測試模型",
+    "earlyCompaction": {
+      "label": "提前壓縮",
+      "description": "在提示達到更高的長上下文價格之前（{{model}} 為 {{early, number}} 個 token）摘要之前的對話。關閉後會等到 {{late, number}} 個 token，以更高的價格逐字保留更多內容。"
+    }
   },
   "probe": {
     "contextWindow": "伺服器回報的上下文視窗為 {{tokens, number}} 個 token。",
@@ -287,7 +294,8 @@
       "ollama": "與這台電腦上 Ollama 中執行的模型聊天。",
       "openai": "使用你的 API 金鑰與 OpenAI 的模型聊天。",
       "openrouter": "透過一組 OpenRouter 金鑰與眾多供應商的模型聊天。",
-      "vllm": "與這台電腦上 vLLM 提供的模型聊天。"
+      "vllm": "與這台電腦上 vLLM 提供的模型聊天。",
+      "anthropic": "使用你的 API 金鑰與 Anthropic 的 Claude 模型聊天。"
     },
     "recommended": "推薦",
     "tabsLabel": "{{location}}供應商"
@@ -344,7 +352,7 @@
       "help": "請在其 settings.yml 的 search.formats 中啟用 json 格式。在 Docker 堆疊中，這台電腦上的伺服器位址是 host.docker.internal，而不是 127.0.0.1。"
     },
     "service": {
-      "description": "讓任何能呼叫工具的模型都可以搜尋網頁。具備內建搜尋的 OpenAI 模型會繼續使用內建搜尋。",
+      "description": "讓能呼叫工具的模型可以搜尋網頁。具備內建搜尋的模型會繼續使用自己的搜尋，Anthropic 模型不會使用此服務。",
       "label": "搜尋服務"
     },
     "testPassed_other": "搜尋正常：測試查詢傳回了 {{count, number}} 個結果。",

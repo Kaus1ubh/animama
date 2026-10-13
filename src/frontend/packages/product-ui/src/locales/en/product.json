@@ -7,6 +7,10 @@
       }
     },
     "codes": {
+      "anthropic_stream_incomplete": {
+        "guidance": "{{name}} ended the reply before it finished. Try sending your message again.",
+        "title": "The reply was interrupted."
+      },
       "chat_stream_interrupted": {
         "guidance": "The connection ended before Animama confirmed completion. Check your connection before sending again.",
         "title": "The reply was interrupted."
@@ -26,6 +30,10 @@
       "missing_api_key": {
         "guidance": "Ask the installation owner to add its key in $t(chatFailure.settingsPath) or API Keys, then send your message again.",
         "title": "{{name}} has no API key configured."
+      },
+      "model_refused": {
+        "guidance": "Try rephrasing it.",
+        "title": "The model declined to respond to this message."
       },
       "openai_authentication_error": {
         "guidance": "Ask the installation owner to check the key configured for {{name}} before trying again.",

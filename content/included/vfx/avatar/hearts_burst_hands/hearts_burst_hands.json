@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:hearts_burst_hands",
+  "version": 1,
+  "name": "Hearts Burst Hands",
+  "description": "Three small red hearts pop one after another just above hands pressed together at the chest and float up a little, for a warm, happy thank-you.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:dreamy_bell_02v2",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "chest",
+      "offset": {
+        "x": 0.055,
+        "y": 0.215,
+        "z": 0.29
+      },
+      "size": 0.08,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "hearts_burst-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "rows": 2,
+        "frames": 7,
+        "fps": 12,
+        "loop": "once"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.12,
+            "opacity": 1
+          },
+          {
+            "t": 1.8,
+            "offset": {
+              "x": 0,
+              "y": 0.015
+            }
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "hearts_burst-sheet.png",
+      "role": "image"
+    }
+  ]
+}

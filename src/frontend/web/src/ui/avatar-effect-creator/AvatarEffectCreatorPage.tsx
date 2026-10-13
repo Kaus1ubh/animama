@@ -48,10 +48,7 @@ import {
 } from "@/lib/avatar/vfx/types";
 import { buildRuntimePrimitiveBindings } from "@/lib/avatar/vrmEditorInspection";
 import { listCatalogItems, previewCatalogItem } from "@/lib/content/catalogApi";
-import type {
-  PyContentDependency,
-  PyContentPreview,
-} from "@/lib/content/catalogTypes";
+import type { PyContentPreview } from "@/lib/content/catalogTypes";
 import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 import {
   contentPreviewPrimaryFile,
@@ -59,6 +56,7 @@ import {
 } from "@/lib/content/contentPreview";
 import { preflightContentFile, sha256File } from "@/lib/content/contentUploads";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
+import { previewSoundForCopy } from "@/lib/content/previewSound";
 import { avatarEffectTemplate } from "@/lib/effects/effectTemplates";
 import {
   apiErrorLine,
@@ -397,6 +395,8 @@ export function AvatarEffectCreatorPage({
     busy: guardLeave && contentSave.isBusy,
     discard: contentSave.discardChanges,
   });
+  // A copy of a built-in effect never carries its licensed sound; say so.
+  const [licensedSoundOmitted, setLicensedSoundOmitted] = useState(false);
   const installTemplateStart = useCallback(
     (next: AvatarEffectHistorySnapshot) => {
       setHasAttemptedSave(false);
@@ -408,8 +408,12 @@ export function AvatarEffectCreatorPage({
   );
   // The template loader must stay stable, or each render restarts the load.
   const loadTemplateSeed = useCallback(
-    (id: string, signal: AbortSignal) =>
-      loadAvatarEffectTemplate(apiClient, id, signal),
+    async (id: string, signal: AbortSignal) => {
+      const { licensedSoundOmitted: omitted, ...seed } =
+        await loadAvatarEffectTemplate(apiClient, id, signal);
+      setLicensedSoundOmitted(omitted);
+      return seed;
+    },
     [apiClient],
   );
   const templateStart = useCreatorTemplateStart({
@@ -531,6 +535,7 @@ export function AvatarEffectCreatorPage({
         if (controller.signal.aborted) return;
         load.complete();
         setHasAttemptedSave(false);
+        setLicensedSoundOmitted(loaded.licensedSoundOmitted);
         resetDocument(loaded.document, loaded.imageResources);
         if (!keptPreview)
           setCameraProfile(avatarEffectInitialView(loaded.document));
@@ -710,6 +715,7 @@ export function AvatarEffectCreatorPage({
       const parsed = parseAvatarEffectEditorExport(JSON.parse(importText));
       if (isDirty && !window.confirm(t("creator.replaceUnsaved"))) return;
       dispatch({ type: "replace", document: parsed }, NO_AVATAR_EFFECT_IMAGES);
+      setLicensedSoundOmitted(false);
       setImportError(null);
       setImportOpen(false);
       restartPreview();
@@ -1138,6 +1144,7 @@ export function AvatarEffectCreatorPage({
             invalidField={invalidField}
             soundOptions={soundOptions}
             soundPending={soundQuery.isPending}
+            licensedSoundOmitted={licensedSoundOmitted && !document.sound}
             onDispatch={(action) => {
               if (action.type === "patch" && action.patch.sound !== undefined)
                 contentSave.clearSaveErrorField("sound");
@@ -1505,7 +1512,7 @@ async function loadAvatarEffectTemplate(
   apiClient: Client,
   templateId: string,
   signal: AbortSignal,
-): Promise<AvatarEffectHistorySnapshot> {
+): Promise<AvatarEffectHydration> {
   const t = getI18n().getFixedT(null, "effects");
   const template = avatarEffectTemplate(templateId);
   if (!template) throw new WordedError(t("avatar.template.unavailable"));
@@ -1571,7 +1578,7 @@ async function hydrateAvatarEffect(
     description: string;
     signal: AbortSignal;
   },
-): Promise<AvatarEffectHistorySnapshot> {
+): Promise<AvatarEffectHydration> {
   const preview = await previewCatalogItem(
     apiClient,
     args.itemId,
@@ -1588,6 +1595,7 @@ async function hydrateAvatarEffect(
   const otherEye = otherEyeName
     ? await previewImageResource(preview, otherEyeName, args.signal)
     : null;
+  const { sound, licensedOmitted } = previewSoundForCopy(preview);
   return {
     document: createAvatarEffectDocumentFromDefinition({
       name: args.name,
@@ -1595,43 +1603,20 @@ async function hydrateAvatarEffect(
       definition,
       image: main.image,
       otherEyeImage: otherEye?.image ?? null,
-      sound: exactSoundFromPreview(preview),
+      sound,
     }),
     imageResources: {
       image: main.resource,
       otherEyeImage: otherEye?.resource ?? null,
     },
+    licensedSoundOmitted: licensedOmitted,
   };
 }
 
-function exactSoundFromPreview(
-  preview: PyContentPreview,
-): AvatarEffectEditorDocument["sound"] {
-  const dependencies = Array.isArray(preview.metadata.dependencies)
-    ? preview.metadata.dependencies
-    : [];
-  const edge = dependencies.find((value): value is PyContentDependency =>
-    Boolean(
-      object(value)?.content_type === "sound_effect" &&
-      typeof object(value)?.alias === "string" &&
-      object(object(value)?.source)?.type,
-    ),
-  );
-  if (!edge) return null;
-  const supports = Array.isArray(preview.metadata.supports)
-    ? preview.metadata.supports
-    : [];
-  const referenceMap = object(preview.metadata.reference_map);
-  const runtimeId = referenceMap?.[edge.alias];
-  const support = supports.find(
-    (value) => object(value)?.runtime_id === runtimeId,
-  );
-  return {
-    alias: edge.alias,
-    label: String(object(support)?.name ?? edge.alias),
-    source: edge.source,
-  };
-}
+/** A loaded draft, and whether its built-in effect's licensed sound stayed behind. */
+type AvatarEffectHydration = AvatarEffectHistorySnapshot & {
+  licensedSoundOmitted: boolean;
+};
 
 function safeRuntimeEntry(
   document: AvatarEffectEditorDocument,

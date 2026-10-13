@@ -60,6 +60,10 @@ function privateEntry(
     config: {
       ...object(node.config),
       runtime_reference_map: object(node.reference_map),
+      // Removed Included effects an Action plays without (alias → ref).
+      ...(node.missing_references
+        ? { runtime_missing_references: object(node.missing_references) }
+        : {}),
     },
     definition: object(node.definition),
     ...(typeof node.definition_error === "string"

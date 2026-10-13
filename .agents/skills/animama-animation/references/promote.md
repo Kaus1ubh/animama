@@ -159,8 +159,12 @@ no change and are refused).
 1. `git add` the new files: the backend Included-content tests and desktop
    staging read tracked files only.
 2. Update the pinned counts deliberately: `catalog.content.test.ts` (Gesture
-   and 2.0 counts) and
-   `includedGestures.test.ts` (2.0 Gesture count). After a rename or kind
+   and 2.0 counts), `includedGestures.test.ts` (2.0 Gesture count) and the
+   lower bound in `tests/test_included_content_integrity.py`. Record new and
+   replaced clips in `includedClipBaseline.test.ts` by its documented
+   procedure, and drop a re-animated Gesture from `MOTION_CHECK_EXEMPT`. When
+   a replace changes a clip's duration or loop, update its motion manifest
+   entry (`duration`, `loop_count`). After a rename or kind
    change, update what names the Gesture or its kind: the motion manifest
    (`src/frontend/web/src/assets/vrm/animations/manifest.json`, then
    `uv run --no-sync python src/backend/packaging/shared_catalogs.py --write`

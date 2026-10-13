@@ -205,7 +205,7 @@
       },
       "browserOnly": "{{provider}} 只能在浏览器环境中运行。",
       "elevenLabs": {
-        "description": "使用实时模型和定稿模型的 ElevenLabs 语音合成。"
+        "description": "使用 Eleven v4 Turbo 的实时 ElevenLabs 语音。"
       },
       "pocket": {
         "description": "在客户端运行的 PocketTTS 语音合成。"
@@ -213,7 +213,36 @@
       "secureContext": "{{provider}} 需要 HTTPS 或 localhost（安全上下文）。",
       "webAudioUnsupported": "此浏览器不支持 Web Audio API。",
       "webSocketUnsupported": "此浏览器不支持 WebSocket。",
-      "workersUnsupported": "此浏览器不支持 Web Workers。"
+      "workersUnsupported": "此浏览器不支持 Web Workers。",
+      "gemini": {
+        "description": "从服务器流式传输的 Gemini 语音。"
+      }
+    }
+  },
+  "gemini": {
+    "descriptors": {
+      "bright": "明亮",
+      "upbeat": "欢快",
+      "informative": "知性",
+      "firm": "坚定",
+      "excitable": "兴奋",
+      "youthful": "年轻",
+      "breezy": "轻快",
+      "easyGoing": "随和",
+      "breathy": "气声",
+      "clear": "清晰",
+      "smooth": "柔顺",
+      "gravelly": "沙哑",
+      "soft": "轻柔",
+      "even": "平稳",
+      "mature": "成熟",
+      "forward": "直率",
+      "friendly": "友好",
+      "casual": "随意",
+      "gentle": "温柔",
+      "lively": "活泼",
+      "knowledgeable": "博学",
+      "warm": "温暖"
     }
   }
 }

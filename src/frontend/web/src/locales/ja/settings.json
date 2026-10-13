@@ -403,39 +403,28 @@
     },
     "tts": {
       "elevenLabs": {
-        "grouping": {
-          "ariaLabel": "Eleven v3 の音声のまとめ方",
-          "fallbackDescription": "文単位のまとめ方が最も早く再生を始めます。",
-          "label": "音声のまとめ方",
-          "options": {
-            "paragraph": {
-              "description": "段落単位のリクエストで、長い音声がより滑らかになります。",
-              "label": "段落"
-            },
-            "sentence": {
-              "description": "文ごとに 1 回の確定リクエストを送り、最も早く再生を始めます。",
-              "label": "文"
-            }
-          },
-          "placeholder": "まとめ方を選択",
-          "updateFailed": "Eleven v3 の音声のまとめ方を更新できませんでした。"
-        },
         "key": {
           "description": "ElevenLabs の音声に必要です。このコンピューター上で暗号化され、API キーでも設定できます。",
           "label": "ElevenLabs API キー"
-        },
-        "model": {
-          "descriptions": {
-            "eleven_flash_v2_5": "低遅延のリアルタイム ElevenLabs 音声。",
-            "eleven_multilingual_v2": "定評のある多言語リアルタイムモデル。",
-            "eleven_v3": "応答の完了後に生成される、表現豊かな音声。"
-          },
-          "label": "ElevenLabs モデル",
-          "placeholder": "モデルを選択",
-          "updateFailed": "ElevenLabs モデルを更新できませんでした。"
         }
       },
       "enable": "読み上げを有効にする",
+      "gemini": {
+        "key": {
+          "description": "Gemini の音声に必要です。このコンピューター上で暗号化され、API キーでも設定できます。",
+          "label": "Gemini API キー"
+        },
+        "model": {
+          "descriptions": {
+            "flash": "Gemini の主力音声モデルです。料金は高めです。",
+            "flashLite": "低遅延・低コストの Gemini 音声です。"
+          },
+          "label": "Gemini モデル",
+          "note": "Gemini の音声は Google から API キーに対して課金されます。Anima ごとの声は ロードアウト → 音声 で選べます。",
+          "placeholder": "モデルを選択",
+          "updateFailed": "Gemini モデルを更新できませんでした。"
+        }
+      },
       "noProvider": "この環境で利用できる読み上げのプロバイダーがありません。",
       "provider": {
         "ariaLabel": "読み上げのプロバイダー",
@@ -448,7 +437,7 @@
       "stream": {
         "description": "応答全体の準備ができる前に話し始めます。",
         "label": "読み上げを分割してストリーミング",
-        "unavailable": "Eleven v3 では利用できません。",
+        "unavailable": "Gemini では利用できません。",
         "updateFailed": "読み上げのストリーミングモードを更新できませんでした。"
       },
       "updateFailed": "読み上げの設定を更新できませんでした。"

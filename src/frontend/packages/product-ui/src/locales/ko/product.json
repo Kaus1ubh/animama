@@ -7,6 +7,10 @@
       }
     },
     "codes": {
+      "anthropic_stream_incomplete": {
+        "guidance": "{{name}}에서 응답이 끝나기 전에 종료했습니다. 메시지를 다시 보내 보세요.",
+        "title": "응답이 중단되었습니다."
+      },
       "chat_stream_interrupted": {
         "guidance": "Animama가 완료를 확인하기 전에 연결이 끊어졌습니다. 다시 보내기 전에 연결 상태를 확인하세요.",
         "title": "응답이 중단되었습니다."
@@ -26,6 +30,10 @@
       "missing_api_key": {
         "guidance": "설치 소유자에게 $t(chatFailure.settingsPath) 또는 API 키에서 키를 추가해 달라고 요청한 다음 메시지를 다시 보내세요.",
         "title": "{{name}}에 API 키가 설정되어 있지 않습니다."
+      },
+      "model_refused": {
+        "guidance": "표현을 바꿔 다시 시도해 보세요.",
+        "title": "모델이 이 메시지에 대한 응답을 거절했습니다."
       },
       "openai_authentication_error": {
         "guidance": "다시 시도하기 전에 설치 소유자에게 {{name}}에 설정된 키를 확인해 달라고 요청하세요.",

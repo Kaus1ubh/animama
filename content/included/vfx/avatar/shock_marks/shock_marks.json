@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:shock_marks",
+  "version": 1,
+  "name": "Shock Marks",
+  "description": "Three spiky yellow shock bursts flash out above the flexed right fist and flicker, the shonen power-up mark for an \"I'm strong!\" flex or a proud show of strength.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": -0.255,
+        "y": 0.22,
+        "z": 0.12
+      },
+      "size": 0.1,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "shock_marks.png"
+    },
+    "motion": {
+      "pulse": {
+        "scaleMin": 0.97,
+        "scaleMax": 1.04,
+        "cyclesPerSecond": 3
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.08,
+            "opacity": 1,
+            "scale": 1.22
+          },
+          {
+            "t": 0.16,
+            "scale": 0.95
+          },
+          {
+            "t": 0.22,
+            "scale": 1
+          },
+          {
+            "t": 1.2,
+            "offset": {
+              "x": -0.004,
+              "y": 0.008
+            }
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "shock_marks.png",
+      "role": "image"
+    }
+  ]
+}

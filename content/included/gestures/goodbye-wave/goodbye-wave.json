@@ -1,0 +1,1095 @@
+{
+  "schema": "animaPoseClip/2.0",
+  "id": "goodbye-wave",
+  "name": "Goodbye Wave",
+  "duration": 3.256,
+  "basePose": "relaxedRest",
+  "fadeIn": {
+    "duration": 0.242
+  },
+  "fadeOut": {
+    "duration": 0.44
+  },
+  "mutedProceduralLayers": [
+    "sway",
+    "bounce",
+    "headNod",
+    "headSideTilt",
+    "cursorLookAt",
+    "emotionPosture"
+  ],
+  "plantFeet": true,
+  "beats": [
+    {
+      "id": "start",
+      "label": "Start",
+      "time": 0
+    },
+    {
+      "id": "raise",
+      "label": "Raise",
+      "time": 0.33
+    },
+    {
+      "id": "wave-1",
+      "label": "Wave 1",
+      "time": 0.638
+    },
+    {
+      "id": "wave-2",
+      "label": "Wave 2",
+      "time": 1.089
+    },
+    {
+      "id": "wave-3",
+      "label": "Wave 3",
+      "time": 1.54
+    },
+    {
+      "id": "chest",
+      "label": "Hand to chest",
+      "time": 2.178
+    },
+    {
+      "id": "nod",
+      "label": "Nod",
+      "time": 2.31
+    },
+    {
+      "id": "lower",
+      "label": "Lower",
+      "time": 2.486
+    },
+    {
+      "id": "settle",
+      "label": "Settle",
+      "time": 3.212
+    }
+  ],
+  "joints": {
+    "rightShoulder": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -4,
+          "beat": "start",
+          "dt": 0.11
+        },
+        {
+          "v": 6,
+          "beat": "raise"
+        },
+        {
+          "v": 17,
+          "beat": "wave-1"
+        },
+        {
+          "v": 15,
+          "beat": "wave-3",
+          "dt": 0.055
+        },
+        {
+          "v": 9,
+          "beat": "chest",
+          "dt": -0.286
+        },
+        {
+          "v": 3,
+          "beat": "chest",
+          "dt": 0.022
+        },
+        {
+          "v": 2,
+          "beat": "lower"
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.088
+        }
+      ],
+      "protraction": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 4,
+          "beat": "raise"
+        },
+        {
+          "v": 6,
+          "beat": "wave-1"
+        },
+        {
+          "v": 6,
+          "beat": "wave-3",
+          "dt": 0.055
+        },
+        {
+          "v": 12,
+          "beat": "chest",
+          "dt": 0.022
+        },
+        {
+          "v": 11,
+          "beat": "lower"
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.088
+        }
+      ]
+    },
+    "rightUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 80,
+          "beat": "raise"
+        },
+        {
+          "v": 141,
+          "beat": "wave-1"
+        },
+        {
+          "v": 117,
+          "beat": "wave-1",
+          "dt": 0.2255
+        },
+        {
+          "v": 139,
+          "beat": "wave-2"
+        },
+        {
+          "v": 120,
+          "beat": "wave-2",
+          "dt": 0.2255
+        },
+        {
+          "v": 134,
+          "beat": "wave-3"
+        },
+        {
+          "v": 98,
+          "beat": "wave-3",
+          "dt": 0.198
+        },
+        {
+          "v": 63,
+          "beat": "chest",
+          "dt": -0.242
+        },
+        {
+          "v": 54,
+          "beat": "chest",
+          "dt": -0.088
+        },
+        {
+          "v": 44,
+          "beat": "chest"
+        },
+        {
+          "v": 44,
+          "beat": "lower"
+        },
+        {
+          "v": 48,
+          "beat": "lower",
+          "dt": 0.198
+        },
+        {
+          "v": 30,
+          "beat": "lower",
+          "dt": 0.44
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.022
+        }
+      ],
+      "planeOfElevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 28,
+          "beat": "raise"
+        },
+        {
+          "v": 20,
+          "beat": "wave-1",
+          "dt": 0.022
+        },
+        {
+          "v": 20,
+          "beat": "wave-3",
+          "dt": 0.022
+        },
+        {
+          "v": 26,
+          "beat": "wave-3",
+          "dt": 0.198
+        },
+        {
+          "v": 40,
+          "beat": "chest",
+          "dt": -0.242
+        },
+        {
+          "v": 58,
+          "beat": "chest",
+          "dt": -0.088
+        },
+        {
+          "v": 66,
+          "beat": "chest"
+        },
+        {
+          "v": 66,
+          "beat": "lower"
+        },
+        {
+          "v": 66,
+          "beat": "lower",
+          "dt": 0.198
+        },
+        {
+          "v": 36,
+          "beat": "lower",
+          "dt": 0.44
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.022
+        }
+      ],
+      "rotation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 46,
+          "beat": "raise"
+        },
+        {
+          "v": 80,
+          "beat": "wave-1"
+        },
+        {
+          "v": 78,
+          "beat": "wave-3",
+          "dt": 0.022
+        },
+        {
+          "v": 50,
+          "beat": "wave-3",
+          "dt": 0.198
+        },
+        {
+          "v": 24,
+          "beat": "chest",
+          "dt": -0.242
+        },
+        {
+          "v": 20,
+          "beat": "chest",
+          "dt": -0.088
+        },
+        {
+          "v": 14,
+          "beat": "chest"
+        },
+        {
+          "v": 14,
+          "beat": "lower"
+        },
+        {
+          "v": 30,
+          "beat": "lower",
+          "dt": 0.198
+        },
+        {
+          "v": 14,
+          "beat": "lower",
+          "dt": 0.44
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.022
+        }
+      ]
+    },
+    "rightLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 40,
+          "beat": "raise",
+          "dt": 0.022
+        },
+        {
+          "v": 48,
+          "beat": "wave-1",
+          "dt": 0.044
+        },
+        {
+          "v": 14,
+          "beat": "wave-1",
+          "dt": 0.2695
+        },
+        {
+          "v": 46,
+          "beat": "wave-2",
+          "dt": 0.044
+        },
+        {
+          "v": 18,
+          "beat": "wave-2",
+          "dt": 0.2695
+        },
+        {
+          "v": 40,
+          "beat": "wave-3",
+          "dt": 0.044
+        },
+        {
+          "v": 36,
+          "beat": "wave-3",
+          "dt": 0.242
+        },
+        {
+          "v": 74,
+          "beat": "chest",
+          "dt": -0.22
+        },
+        {
+          "v": 110,
+          "beat": "chest",
+          "dt": -0.066
+        },
+        {
+          "v": 126,
+          "beat": "chest",
+          "dt": 0.022
+        },
+        {
+          "v": 126,
+          "beat": "lower"
+        },
+        {
+          "v": 112,
+          "beat": "lower",
+          "dt": 0.198
+        },
+        {
+          "v": 78,
+          "beat": "lower",
+          "dt": 0.396
+        },
+        {
+          "v": 38,
+          "beat": "lower",
+          "dt": 0.572
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ],
+      "supination": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -10,
+          "beat": "raise",
+          "dt": 0.022
+        },
+        {
+          "v": -20,
+          "beat": "wave-1",
+          "dt": 0.022
+        },
+        {
+          "v": -20,
+          "beat": "wave-3",
+          "dt": 0.066
+        },
+        {
+          "v": -16,
+          "beat": "wave-3",
+          "dt": 0.22
+        },
+        {
+          "v": 6,
+          "beat": "chest",
+          "dt": -0.22
+        },
+        {
+          "v": 28,
+          "beat": "chest",
+          "dt": -0.066
+        },
+        {
+          "v": 36,
+          "beat": "chest",
+          "dt": 0.022
+        },
+        {
+          "v": 36,
+          "beat": "lower"
+        },
+        {
+          "v": 14,
+          "beat": "lower",
+          "dt": 0.44
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "rightHand": {
+      "deviation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -4,
+          "beat": "raise",
+          "dt": 0.044
+        },
+        {
+          "v": 12,
+          "beat": "wave-1",
+          "dt": 0.11
+        },
+        {
+          "v": -12,
+          "beat": "wave-1",
+          "dt": 0.3355
+        },
+        {
+          "v": 10,
+          "beat": "wave-2",
+          "dt": 0.11
+        },
+        {
+          "v": -9,
+          "beat": "wave-2",
+          "dt": 0.3355
+        },
+        {
+          "v": 7,
+          "beat": "wave-3",
+          "dt": 0.11
+        },
+        {
+          "v": 4,
+          "beat": "chest",
+          "dt": -0.11
+        },
+        {
+          "v": 8,
+          "beat": "chest",
+          "dt": 0.044
+        },
+        {
+          "v": 8,
+          "beat": "lower"
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.022
+        }
+      ],
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": -4,
+          "beat": "raise",
+          "dt": 0.044
+        },
+        {
+          "v": -6,
+          "beat": "wave-1",
+          "dt": 0.044
+        },
+        {
+          "v": -6,
+          "beat": "wave-3",
+          "dt": 0.11
+        },
+        {
+          "v": 12,
+          "beat": "chest",
+          "dt": 0.044
+        },
+        {
+          "v": 12,
+          "beat": "lower"
+        },
+        {
+          "v": 8,
+          "beat": "lower",
+          "dt": 0.44
+        },
+        {
+          "v": "base",
+          "beat": "settle"
+        }
+      ]
+    },
+    "leftUpperArm": {
+      "elevation": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 20,
+          "beat": "wave-1"
+        },
+        {
+          "v": 19,
+          "beat": "chest"
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ]
+    },
+    "leftLowerArm": {
+      "flexion": [
+        {
+          "v": "base",
+          "beat": "start"
+        },
+        {
+          "v": 14,
+          "beat": "wave-1",
+          "dt": 0.044
+        },
+        {
+          "v": 12,
+          "beat": "chest"
+        },
+        {
+          "v": "base",
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ]
+    },
+    "spine": {
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "wave-1",
+          "dt": 0.066
+        },
+        {
+          "v": 2,
+          "beat": "wave-3",
+          "dt": 0.11
+        },
+        {
+          "v": 1,
+          "beat": "chest"
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ]
+    },
+    "chest": {
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "raise",
+          "dt": 0.066
+        },
+        {
+          "v": 6,
+          "beat": "wave-1",
+          "dt": 0.088
+        },
+        {
+          "v": 5,
+          "beat": "wave-1",
+          "dt": 0.3135
+        },
+        {
+          "v": 5.8,
+          "beat": "wave-2",
+          "dt": 0.088
+        },
+        {
+          "v": 5,
+          "beat": "wave-2",
+          "dt": 0.3135
+        },
+        {
+          "v": 5.5,
+          "beat": "wave-3",
+          "dt": 0.088
+        },
+        {
+          "v": 2,
+          "beat": "chest",
+          "dt": 0.044
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "raise",
+          "dt": 0.066
+        },
+        {
+          "v": -4,
+          "beat": "wave-1",
+          "dt": 0.066
+        },
+        {
+          "v": -4,
+          "beat": "wave-3",
+          "dt": 0.11
+        },
+        {
+          "v": -2,
+          "beat": "chest",
+          "dt": 0.044
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ],
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 1.2,
+          "beat": "start",
+          "dt": 0.132
+        },
+        {
+          "v": -1,
+          "beat": "raise",
+          "dt": 0.066
+        },
+        {
+          "v": 1,
+          "beat": "chest",
+          "dt": 0.022
+        },
+        {
+          "v": 3,
+          "beat": "nod",
+          "dt": 0.077
+        },
+        {
+          "v": 1,
+          "beat": "lower",
+          "dt": 0.055
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ]
+    },
+    "upperChest": {
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "wave-1",
+          "dt": 0.088
+        },
+        {
+          "v": 2,
+          "beat": "wave-3",
+          "dt": 0.11
+        },
+        {
+          "v": 1,
+          "beat": "chest"
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ],
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 2,
+          "beat": "nod",
+          "dt": 0.066
+        },
+        {
+          "v": 0.5,
+          "beat": "lower",
+          "dt": 0.066
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ]
+    },
+    "neck": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -2,
+          "beat": "raise"
+        },
+        {
+          "v": 1,
+          "beat": "chest"
+        },
+        {
+          "v": 4,
+          "beat": "nod",
+          "dt": 0.055
+        },
+        {
+          "v": 1,
+          "beat": "lower",
+          "dt": 0.055
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ]
+    },
+    "head": {
+      "flexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -3,
+          "beat": "raise",
+          "dt": -0.066
+        },
+        {
+          "v": -2,
+          "beat": "wave-3"
+        },
+        {
+          "v": 3,
+          "beat": "chest",
+          "dt": -0.022
+        },
+        {
+          "v": 10,
+          "beat": "nod",
+          "dt": 0.033
+        },
+        {
+          "v": 2,
+          "beat": "lower",
+          "dt": 0.022
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ],
+      "lateralFlexion": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": -6,
+          "beat": "raise",
+          "dt": -0.044
+        },
+        {
+          "v": -8.5,
+          "beat": "wave-1",
+          "dt": 0.11
+        },
+        {
+          "v": -6.5,
+          "beat": "wave-1",
+          "dt": 0.3355
+        },
+        {
+          "v": -8,
+          "beat": "wave-2",
+          "dt": 0.11
+        },
+        {
+          "v": -6.5,
+          "beat": "wave-2",
+          "dt": 0.3355
+        },
+        {
+          "v": -7.5,
+          "beat": "wave-3",
+          "dt": 0.11
+        },
+        {
+          "v": -4,
+          "beat": "chest"
+        },
+        {
+          "v": -4,
+          "beat": "lower"
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ],
+      "rotation": [
+        {
+          "v": 0,
+          "beat": "start"
+        },
+        {
+          "v": 3,
+          "beat": "raise",
+          "dt": -0.044
+        },
+        {
+          "v": 3,
+          "beat": "wave-3"
+        },
+        {
+          "v": 1,
+          "beat": "chest"
+        },
+        {
+          "v": 0,
+          "beat": "settle",
+          "dt": -0.055
+        }
+      ]
+    }
+  },
+  "hipsPosition": {
+    "x": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.018,
+        "beat": "wave-1",
+        "dt": 0.11
+      },
+      {
+        "v": 0.016,
+        "beat": "wave-3"
+      },
+      {
+        "v": 0.008,
+        "beat": "chest",
+        "dt": 0.055
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ]
+  },
+  "hands": {
+    "right": [
+      {
+        "preset": "relaxed",
+        "beat": "start"
+      },
+      {
+        "preset": "open-together",
+        "spread": 10,
+        "beat": "raise",
+        "dt": 0.055
+      },
+      {
+        "preset": "open-together",
+        "spread": 8,
+        "beat": "wave-3",
+        "dt": 0.132
+      },
+      {
+        "preset": "palm-flat",
+        "beat": "chest",
+        "dt": -0.11
+      },
+      {
+        "preset": "palm-flat",
+        "beat": "lower",
+        "dt": 0.066
+      },
+      {
+        "preset": "relaxed",
+        "beat": "settle",
+        "dt": -0.198
+      }
+    ]
+  },
+  "expressions": {
+    "happy": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.55,
+        "beat": "raise",
+        "dt": -0.055
+      },
+      {
+        "v": 0.56,
+        "beat": "wave-3"
+      },
+      {
+        "v": 0.48,
+        "beat": "chest"
+      },
+      {
+        "v": 0.48,
+        "beat": "lower"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "relaxed": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0,
+        "beat": "wave-3"
+      },
+      {
+        "v": 0.18,
+        "beat": "chest"
+      },
+      {
+        "v": 0.18,
+        "beat": "lower"
+      },
+      {
+        "v": 0,
+        "beat": "settle"
+      }
+    ],
+    "aa": [
+      {
+        "v": 0,
+        "beat": "start"
+      },
+      {
+        "v": 0.22,
+        "beat": "raise",
+        "dt": 0.055
+      },
+      {
+        "v": 0.18,
+        "beat": "wave-3"
+      },
+      {
+        "v": 0,
+        "beat": "chest",
+        "dt": -0.11
+      }
+    ]
+  },
+  "contacts": [
+    {
+      "bone": "rightHand",
+      "target": "upperChest",
+      "beat": "chest",
+      "from": 0,
+      "to": 0.352,
+      "offset": [0.073, 0.047, 0.1],
+      "tolerance": 0.04,
+      "point": "palm",
+      "facing": true
+    },
+    {
+      "bone": "rightLowerArm",
+      "target": "chest",
+      "beat": "chest",
+      "from": -0.066,
+      "to": 0.528,
+      "offset": [-0.125, 0.03, 0.13],
+      "tolerance": 0.06
+    }
+  ]
+}

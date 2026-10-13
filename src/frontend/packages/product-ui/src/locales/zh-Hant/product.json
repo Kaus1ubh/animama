@@ -7,6 +7,10 @@
       }
     },
     "codes": {
+      "anthropic_stream_incomplete": {
+        "guidance": "{{name}}在回覆完成前就結束了。請再次傳送你的訊息。",
+        "title": "回覆已中斷。"
+      },
       "chat_stream_interrupted": {
         "guidance": "在 Animama 確認完成之前，連線已中斷。請檢查網路連線後再重新傳送。",
         "title": "回覆已中斷。"
@@ -26,6 +30,10 @@
       "missing_api_key": {
         "guidance": "請聯絡安裝擁有者在「$t(chatFailure.settingsPath)」或「API 金鑰」中新增金鑰，然後重新傳送訊息。",
         "title": "{{name}}未設定 API 金鑰。"
+      },
+      "model_refused": {
+        "guidance": "請換個說法再試一次。",
+        "title": "模型拒絕回覆此訊息。"
       },
       "openai_authentication_error": {
         "guidance": "請聯絡安裝擁有者檢查為{{name}}設定的金鑰，然後再試一次。",

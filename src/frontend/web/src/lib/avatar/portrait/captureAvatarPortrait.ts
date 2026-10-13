@@ -64,6 +64,12 @@ export type CaptureAvatarPortraitInput = {
    * on the chest or beside the head in an effect thumbnail.
    */
   framingScale?: number;
+  /**
+   * Lowers the camera target by this share of the captured view height
+   * (0 to 0.5, default 0), so a widened framing can centre the body below
+   * the head, for example art at the hips in an effect thumbnail.
+   */
+  framingDrop?: number;
   dependencies?: AvatarPortraitCaptureDependencies;
 };
 
@@ -127,12 +133,15 @@ function createCaptureCamera(
   source: THREE.PerspectiveCamera,
   framing: AvatarPortraitFraming,
   framingScale: number,
+  framingDrop: number,
 ): THREE.PerspectiveCamera {
   const distance = framing.distance * framingScale;
+  const viewHeight =
+    2 * distance * Math.tan((PORTRAIT_FOV_DEGREES * Math.PI) / 360);
   const camera = source.clone();
   const target = new THREE.Vector3(
     framing.target.x,
-    framing.target.y,
+    framing.target.y - framingDrop * viewHeight,
     framing.target.z,
   );
   camera.aspect = 1;
@@ -225,6 +234,7 @@ export async function captureAvatarPortrait({
   signal,
   expression = "happy",
   framingScale = 1,
+  framingDrop = 0,
   dependencies = {},
 }: CaptureAvatarPortraitInput): Promise<Blob> {
   if (!Number.isInteger(size) || size < 64 || size > 2048) {
@@ -237,6 +247,12 @@ export async function captureAvatarPortrait({
     throw new AvatarPortraitCaptureError(
       "invalid_size",
       "Avatar portrait framing scale must be between 1 and 4.",
+    );
+  }
+  if (!(framingDrop >= 0 && framingDrop <= 0.5)) {
+    throw new AvatarPortraitCaptureError(
+      "invalid_size",
+      "Avatar portrait framing drop must be between 0 and 0.5.",
     );
   }
   throwIfAborted(signal);
@@ -301,7 +317,12 @@ export async function captureAvatarPortrait({
     const capture = () => {
       throwIfAborted(signal);
       const framing = resolveCaptureFraming(avatar);
-      const captureCamera = createCaptureCamera(camera, framing, framingScale);
+      const captureCamera = createCaptureCamera(
+        camera,
+        framing,
+        framingScale,
+        framingDrop,
+      );
       const pixelRatio = Math.max(1, renderer.getPixelRatio());
       const logicalTargetSize = size / pixelRatio;
       scene.background = null;

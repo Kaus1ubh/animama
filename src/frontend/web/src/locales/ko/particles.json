@@ -181,6 +181,7 @@
     "collapseAll": "모두 접기",
     "copied": "복사됨",
     "copy": "복사",
+    "creatorDocument": "크리에이터 문서 (가져오면 이름과 설정 유지)",
     "currentPayload": "현재 내보내기 내용",
     "download": "JSON 다운로드",
     "exactJson": "내보낼 JSON 원문",
@@ -188,7 +189,7 @@
     "parseFailed": "내보내기 JSON을 구문 분석할 수 없습니다: {{detail}}",
     "parseFailedUnexplained": "내보내기 JSON을 구문 분석할 수 없습니다.",
     "resetView": "보기 초기화",
-    "snippets": "카탈로그 설정 및 클립 이벤트",
+    "snippets": "크리에이터 문서, 카탈로그 설정 및 클립 이벤트",
     "title": "파티클 효과 내보내기",
     "unavailable": "내보낼 수 있는 JSON이 없습니다."
   },
@@ -212,7 +213,8 @@
     "ariaLabel": "파티클 효과 JSON",
     "confirm": "효과 가져오기",
     "confirmReplace": "현재 파티클 효과 변경 사항을 삭제하고 이 JSON을 불러오시겠습니까?",
-    "description": "three.quarks 효과를 붙여 넣으세요. 유효한 JSON은 저장되지 않은 변경 사항을 확인한 후 현재 문서를 대체합니다.",
+    "description": "three.quarks 효과나 내보내기에서 만든 크리에이터 문서를 붙여 넣으세요. 크리에이터 문서는 이름과 설정도 지정합니다. 유효한 JSON은 저장되지 않은 변경 사항을 확인한 후 현재 문서를 대체합니다. 내장 PNG 텍스처는 유지됩니다. 기본 제공되지 않는 다른 텍스처는 파일을 선택할 때까지 누락으로 표시되며, 일반 Quarks JSON은 이 효과가 이미 가진 텍스처를 계속 사용합니다.",
+    "embeddedTextureRefused": "내장 텍스처를 가져오지 않았습니다: {{reason}}",
     "title": "파티클 효과 JSON 가져오기"
   },
   "inspector": {
@@ -239,12 +241,13 @@
   },
   "issues": {
     "ambiguousTextureFilename": "텍스처 경로 {{first}}와 {{second}}는 이식 시 같은 파일 이름이 됩니다.",
+    "atlasGridLimit": "스프라이트 시트는 각 방향으로 1~{{max}}개의 타일을 사용합니다.",
     "atlasMetadataMismatch": "렌더러 타일 수가 선택한 아틀라스 텍스처 메타데이터와 일치하지 않습니다.",
     "atlasTilesMissing": "선택한 아틀라스 텍스처는 렌더러에서 타일을 두 개 이상 사용해야 합니다.",
     "blobTextureUrl": "Blob 텍스처 URL은 미리 보기 전용이며 내보낼 수 없습니다.",
     "durationLimit": "모든 이미터 길이는 저장된 최대 재생 시간 안에 들어가야 합니다.",
     "durationOverBudget": "이미터 길이가 카탈로그의 최대 재생 시간을 초과합니다.",
-    "embeddedTextureUrl": "내장 데이터 텍스처 URL은 작동하지만 관리되는 공개 에셋으로 옮겨야 합니다.",
+    "embeddedTextureUrl": "이 내장 텍스처는 효과에 포함할 수 있는 PNG가 아닙니다. 가져온 텍스처로 바꾸세요.",
     "emptyTextureUrl": "텍스처 이미지 URL은 비어 있지 않은 문자열이어야 합니다.",
     "frameAnimationNeedsTiles": "프레임 애니메이션에는 렌더러 타일이 두 개 이상 필요합니다.",
     "frameAnimationWithoutAtlas": "프레임 애니메이션이 켜져 있지만 선택한 텍스처가 아틀라스가 아닙니다.",
@@ -260,7 +263,8 @@
     "missingTexture": "Quarks JSON에는 텍스처 이미지가 하나 이상 있어야 합니다.",
     "nodeLimit": "파티클 효과의 오브젝트 노드가 {{max}}개를 초과합니다.",
     "particleBudgetExceeded": "예상 파티클 수 {{estimated, number}}개가 카탈로그 한도 {{budget, number}}개를 초과합니다.",
-    "particleLimit": "예상 파티클 사용량은 저장된 한도와 비공개 콘텐츠 한도 {{max}}개를 모두 넘지 않아야 합니다.",
+    "particleBudgetUnestimated": "파티클 사용량을 추정할 수 없습니다(방출량, 수명, 버스트 또는 지속 시간 값이 지원되지 않음). 카탈로그 한도는 {{budget, number}}개입니다.",
+    "particleLimit": "예상 파티클 수는 {{estimated, number}}개, 저장된 한도는 {{budget, number}}개입니다. 둘 다 비공개 콘텐츠 한도 {{max}}개를 넘지 않아야 합니다.",
     "remoteTextureUrl": "원격 텍스처 URL은 배포되는 VFX 에셋에서 사용할 수 없습니다.",
     "resourceLimit": "{{key}}은(는) 항목이 {{max}}개 이하인 배열이어야 합니다.",
     "rotation3DWithoutMesh": "3D 회전을 미리 보려면 메시 렌더 모드가 필요합니다.",
@@ -280,6 +284,7 @@
     "worldSpaceEmitter": "월드 공간 이미터는 앵커 위치에서 생성되지만 이후 앵커를 계속 따라가지 않습니다."
   },
   "json": {
+    "creatorDocumentInvalid": "파티클 크리에이터 문서에는 이름, 설정, quarks 효과가 필요합니다.",
     "notObject": "Quarks JSON은 객체여야 합니다.",
     "parseFailed": "Quarks JSON을 구문 분석할 수 없습니다: {{detail}}",
     "parseFailedUnexplained": "Quarks JSON을 구문 분석할 수 없습니다."
@@ -287,7 +292,8 @@
   "load": {
     "failed": "파티클 효과를 불러올 수 없습니다.",
     "loading": "파티클 효과를 불러오는 중…",
-    "manifestMissing": "파티클 효과 매니페스트가 없습니다."
+    "manifestMissing": "파티클 효과 매니페스트가 없습니다.",
+    "textureFailed": "파티클 효과 텍스처를 불러올 수 없습니다."
   },
   "position": {
     "anchorAndPosition": "앵커 및 위치",
@@ -381,7 +387,8 @@
     "allowCoexist": "다른 효과와 동시 재생 허용",
     "allowLooping": "이미터 반복 허용",
     "defaultAnchor": "기본 앵커",
-    "estimatedTotal_other": "예상 합계: 약 {{count, number}}개 파티클",
+    "estimatedAtOnce_other": "동시 예상 수: 최대 {{count, number}}개 파티클",
+    "estimateUnavailable": "동시 예상 수: 추정할 수 없음(방출량, 수명, 버스트 또는 지속 시간 값이 지원되지 않음)",
     "limitsHint": "성능 한도는 효과 전체에 적용됩니다. 여기에서 반복을 허용하면 개별 이미터가 주기를 반복할 수 있습니다.",
     "maxDuration": "최대 재생 시간 (s)",
     "maxParticles": "최대 파티클 수",
@@ -423,6 +430,22 @@
     "animateFrames": "프레임 애니메이션",
     "atlas": "아틀라스",
     "blendTiles": "타일 블렌딩",
+    "carried": {
+      "chooseFile": "{{file}} 파일 선택",
+      "dimensions": "{{width}}×{{height}}",
+      "hint": "PNG는 최대 {{size, number}} MiB, {{dimension}}px입니다. 스프라이트 시트는 아틀라스 타일 수를 설정하세요.",
+      "import": "PNG 텍스처 가져오기",
+      "missing": "텍스처 {{file}}이(가) 없습니다. PNG 파일을 선택하세요.",
+      "title": "이 효과의 텍스처"
+    },
+    "files": {
+      "dimensionsTooLarge": "텍스처의 각 변은 {{size}}px 이하여야 합니다.",
+      "fileRefused": "텍스처 {{texture}}: {{reason}}",
+      "notPng": "텍스처 파일은 PNG 이미지여야 합니다.",
+      "tooLarge": "텍스처 파일은 {{size, number}} MiB 이하여야 합니다.",
+      "tooMany": "파티클 효과 하나에는 텍스처를 최대 {{max, number}}개까지 사용할 수 있습니다.",
+      "totalTooLarge": "파티클 효과 하나의 텍스처는 합계 {{size, number}} MiB 이하여야 합니다."
+    },
     "frameEnd": "끝 프레임",
     "frameStart": "시작 프레임",
     "names": {

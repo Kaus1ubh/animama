@@ -4,7 +4,7 @@ import {
   request as httpRequest,
 } from "node:http";
 import type { IncomingHttpHeaders, Server } from "node:http";
-import type { AddressInfo } from "node:net";
+import { createServer as createNetServer, type AddressInfo } from "node:net";
 import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -19,6 +19,21 @@ import {
 
 const publicOrigin = "http://animama-fixture.localhost:8200";
 const authority = new URL(publicOrigin).host;
+
+/**
+ * Reserve an ephemeral loopback port. Vite treats `port: 0` as unset and falls
+ * back to its default 5173, which another local Vite may already hold.
+ */
+async function freePort(): Promise<number> {
+  const probe = createNetServer();
+  await new Promise<void>((resolve, reject) => {
+    probe.once("error", reject);
+    probe.listen(0, "127.0.0.1", () => resolve());
+  });
+  const { port } = probe.address() as AddressInfo;
+  await new Promise<void>((resolve) => probe.close(() => resolve()));
+  return port;
+}
 
 /** Use actual Node sockets and Vite, without the Docker stack or product data. */
 async function fixture() {
@@ -82,7 +97,7 @@ async function fixture() {
     optimizeDeps: { noDiscovery: true, include: [] },
     server: {
       host: "127.0.0.1",
-      port: 0,
+      port: await freePort(),
       strictPort: true,
       allowedHosts: ["animama-fixture.localhost"],
       proxy: localAPIProxy(`http://127.0.0.1:${apiPort}`),

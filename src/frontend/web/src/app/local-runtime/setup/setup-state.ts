@@ -5,7 +5,6 @@ import type {
   PyModelConnectionDetection,
   PyModelProviderCatalogItem,
 } from "@animama/runtime-contracts/api-types";
-import type { LocalOnboardingInput } from "@/app/local-runtime/LocalRuntimeProvider";
 import {
   SETUP_STEPS,
   type SetupDraft,
@@ -13,7 +12,13 @@ import {
   type SetupStep,
   type SetupTtsProvider,
 } from "@/app/local-runtime/setup-draft";
-import { alternateModelIds, modelDisplayName } from "@/lib/chat/model-catalog";
+import {
+  ANTHROPIC_DEFAULT_MODEL_ID,
+  ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+  RESPONSES_PROVIDER_TYPE,
+  alternateModelIds,
+  modelDisplayName,
+} from "@/lib/chat/model-catalog";
 import type { SpeechPreferences } from "@/lib/settings/preferences";
 import type { TtsProviderOption } from "@/lib/speech/tts-provider";
 import {
@@ -55,9 +60,57 @@ export function adjacentSetupStep(
   return SETUP_STEPS[SETUP_STEPS.indexOf(step) + direction] ?? null;
 }
 
-const RESPONSES_PROVIDER_TYPE = "OpenAIResponsesHTTPAgent";
+/** The built-in connections whose key the AI step takes. */
+export type SetupBuiltinProvider = "openai" | "anthropic";
 
-/** A model the AI step can choose, with the name shown next to its radio. */
+/** A built-in connection, found by its preset; each built-in has its own. */
+export function builtinConnectionOf<
+  C extends Pick<PyModelConnection, "source" | "preset">,
+>(connections: readonly C[], preset: SetupBuiltinProvider): C | undefined {
+  return connections.find(
+    (connection) =>
+      connection.source === "builtin" && connection.preset === preset,
+  );
+}
+
+/** A built-in provider's key state and the model saving its key chooses. */
+export type SetupBuiltin = {
+  provider: SetupBuiltinProvider;
+  /** Its key is set (in the desktop vault or the server environment). */
+  ready: boolean;
+  /** The model saving its key chooses, while the key is set; else null. */
+  modelId: string | null;
+};
+
+/**
+ * The AI step's built-in providers. Saving OpenAI's key chooses its default
+ * Responses model and saving Anthropic's chooses Claude Haiku 5.5, each only
+ * while its connection offers that model for chat.
+ */
+export function setupBuiltins(
+  items: readonly PyModelProviderCatalogItem[],
+  connections: readonly PyModelConnection[],
+  systemDefaultId: string | null | undefined,
+): Record<SetupBuiltinProvider, SetupBuiltin> {
+  const builtin = (
+    provider: SetupBuiltinProvider,
+    model: PyModelProviderCatalogItem | null,
+  ): SetupBuiltin => {
+    const ready =
+      builtinConnectionOf(connections, provider)?.credential_state ===
+      "configured";
+    return { provider, ready, modelId: ready ? (model?.id ?? null) : null };
+  };
+  return {
+    openai: builtin(
+      "openai",
+      openAiDefaultModel(items, connections, systemDefaultId),
+    ),
+    anthropic: builtin("anthropic", anthropicDefaultModel(items, connections)),
+  };
+}
+
+/** A chat model on one of the owner's connections, as the AI step tracks it. */
 export type SetupModelChoice = {
   id: string;
   label: string;
@@ -65,8 +118,8 @@ export type SetupModelChoice = {
 };
 
 /**
- * The model "Use OpenAI" chooses: the built-in OpenAI Responses chat model
- * the system uses by default (`systemDefaultId`, from the Chat role), or
+ * The model saving the OpenAI key chooses: the built-in OpenAI Responses chat
+ * model the system uses by default (`systemDefaultId`, from the Chat role), or
  * else the first visible one. Null when the catalog has none.
  */
 export function openAiDefaultModel(
@@ -74,14 +127,11 @@ export function openAiDefaultModel(
   connections: readonly PyModelConnection[],
   systemDefaultId: string | null | undefined,
 ): PyModelProviderCatalogItem | null {
-  const builtin = new Set(
-    connections
-      .filter((connection) => connection.source === "builtin")
-      .map((connection) => connection.id),
-  );
+  const openAi = builtinConnectionOf(connections, "openai");
   const candidates = roleCandidates(items, "chat").filter(
     (item) =>
-      builtin.has(item.connection_id ?? "") &&
+      openAi !== undefined &&
+      item.connection_id === openAi.id &&
       item.model_provider === RESPONSES_PROVIDER_TYPE,
   );
   return (
@@ -92,9 +142,30 @@ export function openAiDefaultModel(
 }
 
 /**
+ * The model saving the Anthropic key chooses: Claude Haiku 5.5, Anthropic's
+ * default, when the built-in Anthropic connection offers it for chat. The
+ * application default stays OpenAI's.
+ */
+export function anthropicDefaultModel(
+  items: readonly PyModelProviderCatalogItem[],
+  connections: readonly PyModelConnection[],
+): PyModelProviderCatalogItem | null {
+  const anthropic = builtinConnectionOf(connections, "anthropic");
+  return (
+    roleCandidates(items, "chat").find(
+      (item) =>
+        anthropic !== undefined &&
+        item.connection_id === anthropic.id &&
+        item.model_provider === ANTHROPIC_MESSAGES_PROVIDER_TYPE &&
+        item.id === ANTHROPIC_DEFAULT_MODEL_ID,
+    ) ?? null
+  );
+}
+
+/**
  * Chat models on the owner's own connections in one location, which the AI
- * step lists as choices. Built-in OpenAI models are offered only as "Use
- * OpenAI".
+ * step can have chosen by adding them. Built-in models are chosen only by
+ * saving their provider's key.
  */
 export function ownerModelChoices(
   items: readonly PyModelProviderCatalogItem[],
@@ -158,25 +229,6 @@ export function connectionForDetection(
 function sameBaseUrl(left: string | null | undefined, right: string): boolean {
   const normalize = (value: string) => value.trim().replace(/\/+$/u, "");
   return normalize(left ?? "") === normalize(right);
-}
-
-/**
- * The onboarding request: the Welcome answers and, when the AI step chose
- * one, the model that becomes the Chat default. A runtime that does not let
- * the owner configure models never sends one.
- */
-export function onboardingInput(
-  draft: Pick<SetupDraft, "adultConfirmed" | "chatModelId">,
-  displayName: string,
-  modelConfiguration: boolean,
-): LocalOnboardingInput {
-  return {
-    displayName,
-    adultConfirmed: draft.adultConfirmed,
-    ...(modelConfiguration && draft.chatModelId
-      ? { chatModelProviderId: draft.chatModelId }
-      : {}),
-  };
 }
 
 /**

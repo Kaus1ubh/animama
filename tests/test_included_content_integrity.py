@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 import json
+from itertools import pairwise
 from pathlib import Path
 from typing import Any
+
+import pytest
 
 from tests.anima_creation_service_support import copy_tracked_included
 
@@ -25,27 +28,112 @@ def test_included_license_inventory_records_the_release_gate() -> None:
     assert by_glob["gestures/**/*.json"]["license_id"] == "LicenseRef-Animama-owner-authored"
     # Mixamo motion ships only as the separate non-portable pack (see below).
     assert not any(rule["license_id"] == "LicenseRef-Adobe-Mixamo-embedded-product" for rule in rules)
-    assert by_glob["vfx/scene/**/emoji-*.svg"]["license_id"] == "CC-BY-4.0-Twemoji-graphics"
-    assert by_glob["vfx/particle/quark/**"]["license_id"] == "LicenseRef-Animama-generated-and-CC0-particle-VFX"
+    # The Scene creator's built-in sticker set and the Scene PNG art are owner-authored;
+    # no third-party emoji art remains.
+    assert by_glob["resources/scene-vfx/stickers/**"]["license_id"] == "LicenseRef-Animama-owner-authored"
+    assert by_glob["vfx/scene/**/*.png"]["license_id"] == "LicenseRef-Animama-owner-authored"
+    assert not any("emoji" in rule["glob"] or "twemoji" in rule["provenance"].lower() for rule in rules)
+    # Each library Particle Effect has its own owner-authored rule; the generated-art
+    # rule covers only the one legacy effect kept, the Heart stream.
+    particle_rules = [rule for rule in rules if rule["glob"].startswith("vfx/particle/quark/")]
+    for stem in sorted(path.name for path in (ROOT / "content/included/vfx/particle/quark").iterdir()):
+        rule = by_glob[f"vfx/particle/quark/{stem}/**"]
+        expected = (
+            "LicenseRef-Animama-generated-and-CC0-particle-VFX"
+            if stem == "hearts-v1"
+            else "LicenseRef-Animama-owner-authored"
+        )
+        assert rule["license_id"] == expected, stem
+    assert len(particle_rules) == len(list((ROOT / "content/included/vfx/particle/quark").iterdir()))
 
 
-def test_mixamo_motion_pack_inventory_is_public_safe_and_non_portable() -> None:
-    inventory = json.loads((ROOT / "scripts/mixamo-motion/inventory.json").read_text(encoding="utf-8"))
-    manifest = json.loads(
-        (ROOT / "src/backend/animama/resources/mixamo-motion-manifest.json").read_text(encoding="utf-8")
-    )
+@pytest.mark.parametrize(
+    ("pack_id", "license_id"),
+    [
+        ("mixamo-motion", "LicenseRef-Adobe-Mixamo-embedded-product"),
+        ("wow-comedy-sfx", "LicenseRef-WOW-Sound-Media-embedded-product"),
+    ],
+)
+def test_private_pack_inventories_are_public_safe_and_non_portable(pack_id: str, license_id: str) -> None:
+    inventory = json.loads((ROOT / f"scripts/{pack_id}/inventory.json").read_text(encoding="utf-8"))
+    manifest = json.loads((ROOT / f"src/backend/animama/resources/{pack_id}-manifest.json").read_text(encoding="utf-8"))
 
     assert inventory["schema_version"] == 1
     [rule] = inventory["rules"]
     # One rule matching every locator and file, so runtime and staging agree.
     assert rule["glob"] == "**"
     assert rule["distribution"] == "non-portable"
-    assert rule["license_id"] == "LicenseRef-Adobe-Mixamo-embedded-product"
+    assert rule["license_id"] == license_id
     assert rule["redistribution_review"] == "pending"
     text = json.dumps(inventory)
     assert "@" not in text and "/Users/" not in text and "X-Amz" not in text
-    assert manifest["pack_id"] == "mixamo-motion"
+    assert manifest["pack_id"] == pack_id
     assert all(set(item) == {"path", "size_bytes", "sha256"} for item in manifest["files"])
+
+
+# Public sources of the Mixamo pack's identities: its folder IDs (also its
+# content-ID suffixes), the Selector IDs its descriptor templates started from,
+# and the renames recorded in docs/plans/mixamo-built-in-motion (v1 `dance`,
+# `yawn`, `quick_shrug`; v2 idle loops without the `mixamo-idle-` prefix). The
+# other pack v2 renames are private, so new names are also checked by hand
+# before promotion.
+PACK_IDENTITY_SOURCES = (
+    "src/backend/animama/resources/mixamo-motion-manifest.json",
+    "scripts/mixamo-assets.json",
+)
+DOCUMENTED_PACK_RENAMES = {"dance", "yawn", "quick_shrug"}
+# Core Palms Up Shrug kept `shrug`; the pack's clip became `quick_shrug` (#242).
+ACCEPTED_PACK_OVERLAPS = {("palms-up-shrug", "shrug")}
+
+
+def _identity(value: str) -> str:
+    """Compare snake_case Selector IDs with kebab-case content-ID suffixes."""
+    return value.replace("-", "_")
+
+
+def _mixamo_pack_identities() -> set[str]:
+    manifest = json.loads((ROOT / PACK_IDENTITY_SOURCES[0]).read_text(encoding="utf-8"))
+    folders = {Path(entry["path"]).parts[1] for entry in manifest["files"] if entry["path"].startswith("gestures/")}
+    idle_loops = {folder.removeprefix("mixamo-idle-") for folder in folders if folder.startswith("mixamo-idle-")}
+    templates = json.loads((ROOT / PACK_IDENTITY_SOURCES[1]).read_text(encoding="utf-8"))
+    keys = {asset["document"]["semantic_key"] for asset in templates["assets"]}
+    renames = DOCUMENTED_PACK_RENAMES | {f"idle_{loop}" for loop in idle_loops}
+    return {_identity(value) for value in folders | keys | renames}
+
+
+def _pack_collisions(metas: list[dict[str, Any]], pack: set[str]) -> list[tuple[str, str]]:
+    """Core Gestures whose Selector ID or content-ID suffix is also a pack identity."""
+    collisions = []
+    for meta in metas:
+        folder = meta["content_id"].rsplit(":", 1)[-1]
+        for value in sorted({meta["semantic_key"], folder}):
+            if _identity(value) in pack and (folder, value) not in ACCEPTED_PACK_OVERLAPS:
+                collisions.append((folder, value))
+    return collisions
+
+
+def test_core_gesture_identities_stay_distinct_from_the_mixamo_pack() -> None:
+    pack = _mixamo_pack_identities()
+    assert {"crying", "wave", "telling_secret", "yawn", "idle_bored"} <= pack
+    metas = [
+        json.loads(path.read_text(encoding="utf-8"))
+        for path in sorted((ROOT / "content/included/gestures").glob("*/*.meta.json"))
+    ]
+    assert len(metas) >= 107
+    assert _pack_collisions(metas, pack) == []
+    assert _pack_collisions([{"content_id": "builtin:gesture:goodbye-wave", "semantic_key": "wave"}], pack) == [
+        ("goodbye-wave", "wave")
+    ]
+
+
+def test_the_preview_deny_list_holds_hashes_only() -> None:
+    deny = json.loads(
+        (ROOT / "src/backend/animama/resources/wow-comedy-sfx-preview-deny.json").read_text(encoding="utf-8")
+    )
+
+    assert deny["schema_version"] == 1
+    assert deny["files"]
+    assert all(set(item) == {"size_bytes", "sha256"} for item in deny["files"])
 
 
 def test_typed_media_moved_but_browser_engine_assets_remained_public(tmp_path: Path) -> None:
@@ -109,3 +197,71 @@ def test_every_reaction_emotion_has_a_variant_with_an_avatar_effect() -> None:
         emotions[emotion] = emotions.get(emotion, False) or has_effect
     assert len(emotions) == 24
     assert [emotion for emotion, has_effect in emotions.items() if not has_effect] == []
+
+
+def test_included_avatar_effect_sounds_are_optional_licensed_pack_sounds() -> None:
+    """A built-in Avatar Effect plays at most one sound, from the private comedy pack.
+
+    Most effects have one; some are silent by owner choice (idle-only effects,
+    and gags the owner preferred quiet, #409).
+    """
+
+    manifest = json.loads(
+        (ROOT / "src/backend/animama/resources/wow-comedy-sfx-manifest.json").read_text(encoding="utf-8")
+    )
+    shipped = {item["path"] for item in manifest["files"]}
+    effects = sorted((ROOT / "content/included/vfx/avatar").glob("*/*.json"))
+    assert effects
+    referenced: set[str] = set()
+    for path in effects:
+        document = json.loads(path.read_text(encoding="utf-8"))
+        edges = document["dependencies"]
+        assert len(edges) <= 1, path.name
+        if not edges:
+            assert "soundAlias" not in document["definition"], path.name
+            continue
+        [edge] = edges
+        assert edge["content_type"] == "sound_effect" and edge["optional"] is True, path.name
+        assert document["definition"]["soundAlias"] == edge["alias"], path.name
+        key = edge["ref"].removeprefix("builtin:sound-effect:")
+        assert {f"sfx/wow-comedy/{key}.ogg", f"sfx/wow-comedy/{key}.meta.json"} <= shipped, path.name
+        referenced.add(key)
+    # Only sounds that built-in effects use are shipped (owner decision Q3).
+    expected = {f"sfx/wow-comedy/{key}{suffix}" for key in referenced for suffix in (".ogg", ".meta.json")}
+    assert shipped == expected
+
+
+def test_stacked_avatar_effects_play_one_accompanying_sound_at_a_time() -> None:
+    """Effects applied together would otherwise play their sounds over each other."""
+
+    for path in sorted((ROOT / "content/included").glob("*/*/*.json")):
+        if path.parts[-3] not in {"reactions", "gestures"}:
+            continue
+        document = json.loads(path.read_text(encoding="utf-8"))
+        events = document.get("events") if isinstance(document, dict) else None
+        if not isinstance(events, list):
+            continue
+        audible = sorted(
+            float(event.get("time", 0))
+            for event in events
+            if event.get("kind") == "avatar_vfx" and event.get("playAccompanyingSound", True)
+        )
+        assert all(later - earlier >= 0.3 for earlier, later in pairwise(audible)), path.name
+
+
+def test_included_idle_gestures_play_no_accompanying_sound() -> None:
+    """Idle Gestures play while the Anima is quiet, so their effects stay silent."""
+
+    styles = sorted((ROOT / "content/included/idle-styles").glob("*/*.json"))
+    assert styles
+    for style_path in styles:
+        style = json.loads(style_path.read_text(encoding="utf-8"))
+        for edge in style["dependencies"]:
+            if edge["kind"] != "gesture":
+                continue
+            slug = edge["ref"].removeprefix("builtin:gesture:")
+            clip = json.loads((ROOT / f"content/included/gestures/{slug}/{slug}.json").read_text(encoding="utf-8"))
+            for event in clip.get("events", []):
+                assert event.get("kind") != "sfx", (style_path.name, slug, event.get("id"))
+                if event.get("kind") == "avatar_vfx":
+                    assert event.get("playAccompanyingSound") is False, (style_path.name, slug, event.get("id"))

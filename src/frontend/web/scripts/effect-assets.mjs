@@ -1,10 +1,12 @@
+import { readFileSync } from "node:fs";
 import { stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
 
 /**
- * Check and fix Avatar Effect art before it goes into an effect folder.
+ * Check and fix effect art (Avatar, Particle and Scene Effects) before it goes
+ * into an effect folder.
  *
  *   pnpm -s effects:assets check <png...> [--budget <name>] [--json]
  *   pnpm -s effects:assets fix <in.png> --out <out.png> [options]
@@ -33,8 +35,25 @@ export const RUNTIME_LIMITS = {
 export const FLIPBOOK_LIMITS = { grid: 16, frames: 256, fps: 60 };
 
 /**
- * Size budgets per attachment. Effects are small on screen; larger art only
- * costs memory and upload time. A brief may justify a larger budget.
+ * Hard limits for Particle textures and Scene images, shared with the app
+ * (`src/lib/effects/effectArtLimits.ts`) and the backend
+ * (`app/contracts/effect_art_limits.py`) through this record.
+ */
+export const EFFECT_ART_LIMITS = JSON.parse(
+  readFileSync(
+    new URL(
+      "../src/lib/content/fixtures/effect-art-limits.json",
+      import.meta.url,
+    ),
+    "utf8",
+  ),
+);
+
+/**
+ * Size budgets per use. Effects are small on screen; larger art only costs
+ * memory and upload time. A brief may justify a larger budget. `limits` names
+ * the app's hard limits for that kind of art (Avatar Effect images otherwise);
+ * `opaqueAllowed` art may cover its whole canvas.
  */
 export const BUDGETS = {
   /** Floating face art: eyes, emotes, marks above the head. */
@@ -49,6 +68,43 @@ export const BUDGETS = {
   silhouette: { maxDimension: 1024, maxKiB: 512 },
   /** A whole flipbook sheet; keep each frame near 256 px. */
   flipbook: { maxDimension: 2048, maxKiB: 1024 },
+  /** One Particle sprite; large enough for detailed rays and rings. */
+  "particle-texture": {
+    maxDimension: 1024,
+    maxKiB: 512,
+    limits: EFFECT_ART_LIMITS.particleTexture,
+  },
+  /** A Particle sprite sheet; keep each tile near 256 px. */
+  "particle-sheet": {
+    maxDimension: 2048,
+    maxKiB: 2048,
+    limits: EFFECT_ART_LIMITS.particleTexture,
+  },
+  /** A Scene marquee item. */
+  "scene-sticker": {
+    maxDimension: 512,
+    maxKiB: 256,
+    limits: EFFECT_ART_LIMITS.sceneImage,
+  },
+  /**
+   * A repeating Scene pattern tile; may be opaque. Its margins are the
+   * spacing between repeats, so they are kept.
+   */
+  "scene-tile": {
+    maxDimension: 512,
+    maxKiB: 256,
+    limits: EFFECT_ART_LIMITS.sceneImage,
+    opaqueAllowed: true,
+    keepsLayout: true,
+  },
+  /** A full Scene background; may be opaque and keeps its framing. */
+  "scene-background": {
+    maxDimension: 2048,
+    maxKiB: 1024,
+    limits: EFFECT_ART_LIMITS.sceneImage,
+    opaqueAllowed: true,
+    keepsLayout: true,
+  },
 };
 
 /** Alpha at or above this counts as meant to be opaque. */
@@ -272,20 +328,18 @@ function measure(
 function budgetIssues({ width, height, bytes }, budget) {
   const issues = [];
   const longest = Math.max(width, height);
-  if (
-    longest > RUNTIME_LIMITS.dimension ||
-    width * height > RUNTIME_LIMITS.pixels
-  )
+  const limits = budget?.limits ?? RUNTIME_LIMITS;
+  if (longest > limits.dimension || width * height > limits.pixels)
     issues.push({
       level: "FAIL",
       code: "dimension_limit",
-      message: `${width}×${height} exceeds the app's ${RUNTIME_LIMITS.dimension} px limit`,
+      message: `${width}×${height} exceeds the app's ${limits.dimension} px limit`,
     });
-  if (bytes > RUNTIME_LIMITS.bytes)
+  if (bytes > limits.bytes)
     issues.push({
       level: "FAIL",
       code: "bytes_limit",
-      message: `${kib(bytes)} KiB exceeds the app's 16 MiB limit`,
+      message: `${kib(bytes)} KiB exceeds the app's ${limits.bytes / 1024 / 1024} MiB limit`,
     });
   if (budget && longest > budget.maxDimension)
     issues.push({
@@ -323,7 +377,7 @@ export async function checkImage(input, { budget } = {}) {
     });
   const stats = measure(image);
   const background = detectBackground(image);
-  if (!image.hadAlpha || stats.belowOpaque === 0)
+  if (!budget?.opaqueAllowed && (!image.hadAlpha || stats.belowOpaque === 0))
     issues.push({
       level: "FAIL",
       code: "no_alpha",
@@ -338,14 +392,16 @@ export async function checkImage(input, { budget } = {}) {
       message:
         "a checkerboard is painted where transparency should be; fix --remove-background",
     });
-  else if (background.kind === "solid")
+  // Opaque tiles and backgrounds may fill their canvas: a full or flat
+  // border is their art, not a backdrop. A painted checkerboard still fails.
+  else if (background.kind === "solid" && !budget?.opaqueAllowed)
     issues.push({
       level: "WARN",
       code: "solid_background",
       message:
         "a flat colour fills the border; if it is a backdrop, fix --remove-background",
     });
-  else if (background.kind === "opaque")
+  else if (background.kind === "opaque" && !budget?.opaqueAllowed)
     issues.push({
       level: "WARN",
       code: "opaque_border",
@@ -1069,7 +1125,7 @@ async function main(argv) {
         (flags.has("--trim") || flags.has("--square") || values["--pad"])
       )
         throw new EffectAssetError(
-          "face-surface art is laid over the face texture; keep its size and margins (no --trim, --square or --pad).",
+          "this budget's art keeps its size and margins (face-surface art lies over the face texture; Scene tiles and backgrounds keep their framing): no --trim, --square or --pad.",
         );
       const { buffer, report } = await fixImage(input, {
         removeBackground: flags.has("--remove-background"),

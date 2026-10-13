@@ -2,8 +2,11 @@ import type { TFunction } from "i18next";
 
 import type {
   SceneBackgroundDirection,
+  SceneBackgroundGradientType,
   SceneBackgroundItemRotationMode,
   SceneBackgroundPatternKind,
+  SceneBackgroundScatterPulse,
+  SceneBackgroundScreenKind,
 } from "@/lib/scene-vfx/types";
 
 /*
@@ -66,92 +69,77 @@ export function scenePatternName(
 }
 
 /**
- * The name of a catalog emoji, found by its character so stored marquee items
- * (which keep the English catalog label) show it too; `null` for an emoji the
- * catalog does not name.
+ * A background layer the Setup panel lists and the Inspector edits; scatter
+ * layers are named by number instead (`scene.layers.scatter`).
  */
-export function sceneEmojiName(
-  t: TFunction<"effects">,
-  emoji: string,
-): string | null {
-  switch (emoji) {
-    case "✨":
-      return t("scene.emoji.sparkles");
-    case "💖":
-      return t("scene.emoji.sparklingHeart");
-    case "⭐":
-      return t("scene.emoji.star");
-    case "💥":
-      return t("scene.emoji.collision");
-    case "🌸":
-      return t("scene.emoji.cherryBlossom");
-    case "🎀":
-      return t("scene.emoji.ribbon");
-    case "🤩":
-      return t("scene.emoji.starStruck");
-    case "🤗":
-      return t("scene.emoji.huggingFace");
-    case "🏅":
-      return t("scene.emoji.medal");
-    case "👑":
-      return t("scene.emoji.crown");
-    case "🙏":
-      return t("scene.emoji.foldedHands");
-    case "😂":
-      return t("scene.emoji.tearsOfJoy");
-    case "🎉":
-      return t("scene.emoji.partyPopper");
-    case "🎯":
-      return t("scene.emoji.target");
-    case "🤔":
-      return t("scene.emoji.thinkingFace");
-    case "❓":
-      return t("scene.emoji.questionMark");
-    case "🌅":
-      return t("scene.emoji.sunrise");
-    case "⚠":
-    case "⚠️":
-      return t("scene.emoji.warning");
-    case "💦":
-      return t("scene.emoji.sweatDroplets");
-    case "💫":
-      return t("scene.emoji.dizzy");
-    case "💢":
-      return t("scene.emoji.angerSymbol");
-    case "👎":
-      return t("scene.emoji.thumbsDown");
-    case "🤢":
-      return t("scene.emoji.nauseatedFace");
-    case "😳":
-      return t("scene.emoji.flushedFace");
-    case "🥺":
-      return t("scene.emoji.pleadingFace");
-    case "😞":
-      return t("scene.emoji.disappointedFace");
-    case "😢":
-      return t("scene.emoji.cryingFace");
-    case "🌧":
-    case "🌧️":
-      return t("scene.emoji.cloudWithRain");
-    default:
-      return null;
-  }
-}
-
-/** A background layer the Setup panel lists and the Inspector edits. */
-export type SceneBackgroundLayer = "marquee" | "pattern" | "solid";
+export type SceneBackgroundLayer =
+  | "solid"
+  | "gradient"
+  | "pattern"
+  | "tile"
+  | "screen"
+  | "marquee"
+  | "flash";
 
 export function sceneLayerName(
   t: TFunction<"effects">,
   layer: SceneBackgroundLayer,
 ): string {
   switch (layer) {
-    case "marquee":
-      return t("scene.layers.marquee");
-    case "pattern":
-      return t("scene.layers.pattern");
     case "solid":
       return t("scene.layers.solid");
+    case "gradient":
+      return t("scene.layers.gradient");
+    case "pattern":
+      return t("scene.layers.pattern");
+    case "tile":
+      return t("scene.layers.tile");
+    case "screen":
+      return t("scene.layers.screen");
+    case "marquee":
+      return t("scene.layers.marquee");
+    case "flash":
+      return t("scene.layers.flash");
+  }
+}
+
+export function sceneScreenKindName(
+  t: TFunction<"effects">,
+  kind: SceneBackgroundScreenKind,
+): string {
+  switch (kind) {
+    case "rays":
+      return t("scene.screenKinds.rays");
+    case "lines":
+      return t("scene.screenKinds.lines");
+  }
+}
+
+export function sceneGradientTypeName(
+  t: TFunction<"effects">,
+  type: SceneBackgroundGradientType,
+): string {
+  switch (type) {
+    case "linear":
+      return t("scene.gradientTypes.linear");
+    case "radial":
+      return t("scene.gradientTypes.radial");
+  }
+}
+
+export function scenePulseName(
+  t: TFunction<"effects">,
+  pulse: SceneBackgroundScatterPulse,
+): string {
+  switch (pulse) {
+    case "none":
+      return t("scene.pulses.none");
+    case "twinkle":
+      return t("scene.pulses.twinkle");
+    case "pop":
+      return t("scene.pulses.pop");
+    case "flicker":
+      return t("scene.pulses.flicker");
   }
 }
 

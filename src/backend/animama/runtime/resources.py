@@ -49,10 +49,10 @@ def audit_resources() -> dict[str, Any]:
     """Validate resource structure without a database, HTTP listener, or provider key."""
 
     from alembic.script import ScriptDirectory
+    from animama.app.gruut_text import build_gruut_sse_text
     from animama.app.services.starter_loadout_policy import starter_loadout_policy
     from animama.prompts.avatar_animation_manifest import get_manifest_gesture_inventory
     from animama.server.app import app
-    from animama.server.gruut_text import build_gruut_sse_text
 
     for name in RESOURCE_INPUTS:
         if not runtime_resource(name).exists():

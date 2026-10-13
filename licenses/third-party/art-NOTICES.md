@@ -5,16 +5,6 @@ Exact paths and hashes are recorded in the adjacent `art-*.json` inventories.
 These notices preserve source evidence and owner-confirmed model permissions.
 Final source and binary publication approvals remain separate.
 
-## Twemoji
-
-Copyright Twitter, Inc. and other contributors. The 28 authoring SVGs and their
-26 retained scene copies are unchanged Twemoji v14.0.2 graphics, licensed under
-[CC BY 4.0](https://creativecommons.org/licenses/by/4.0/). The full text is
-[art-CC-BY-4.0.txt](art-CC-BY-4.0.txt). Source and per-file mappings:
-[Twitter Twemoji v14.0.2](https://github.com/twitter/twemoji/tree/v14.0.2) and
-[art-twemoji.json](art-twemoji.json). This is the graphics license, not Twemoji's
-separate code license. Attribution does not imply endorsement.
-
 ## Kenney and Brackeys particles
 
 Kenney Particle Pack 1.1 is dedicated under CC0. Credit Kenney Vleugels and the
@@ -29,16 +19,29 @@ Picca, Kenney, Thomas Iché and CodeManu. Its original
 
 Animama normalizes selected alpha textures to 256×256 PNG, converts TGA
 flipbooks to PNG, and resizes the CodeManu star atlas to 768×640. Exact source
-filenames, input hashes, derivative hashes and unchanged registered copies are
-in [art-particles.json](art-particles.json). All 27 derivations were reproduced
+filenames, input hashes and derivative hashes are in
+[art-particles.json](art-particles.json). All 27 derivations were reproduced
 byte-for-byte with the recorded Sharp version.
 
 CodeManu's [primary page](https://codemanu.itch.io/vfx-free-pack) describes the
 work as public domain while its metadata lists CC BY 4.0. Although the Brackeys
 archive declares CC0, retain CodeManu credit, [CC BY 4.0](art-CC-BY-4.0.txt), the
-source link and the change notice for `spark-pop-6x5.png` and its exact copies.
+source link and the change notice for `spark-pop-6x5.png`.
 This conservative treatment satisfies the attribution requirements rather than
 assuming the conflicting declaration away.
+
+## Nunito lettering
+
+The lettering images of five Included Avatar Effects (`bleh_lettering_head`,
+`heh_lettering`, `rawr_lettering_chest`, `sorry_lettering` and `zzz` in
+`content/included/vfx/avatar/`) were rendered from glyphs of the Nunito font
+(Black weight, version 3.602), which an agent-written script outlined, fattened
+and shaded. Nunito is Copyright 2014 The Nunito Project Authors
+([googlefonts/nunito](https://github.com/googlefonts/nunito)) and licensed under
+the [SIL Open Font License 1.1](https://openfontlicense.org/open-font-license-official-text/).
+The OFL places no condition on images made with the font; this credit is
+voluntary. The font file is not distributed with Animama; adding it would
+require shipping the OFL text with it.
 
 ## VRoid models and portraits: owner-confirmed permissions
 
@@ -66,8 +69,9 @@ terms. Do not edit its embedded permission flags.
 
 The Avatar FX template thumbnails in
 `src/frontend/web/src/assets/effect-templates/` are also direct Animama renderer
-captures of Annie, each wearing an Included Avatar Effect with owner-authored art
-and no other artwork. Like Annie's portrait, they follow Annie's model terms and retain
+captures of Annie, each wearing an Included Avatar Effect with Animama's own
+owner- or agent-authored art and no other artwork, in some cases posed by an
+Included Gesture. Like Annie's portrait, they follow Annie's model terms and retain
 pixiv VRoid Project credit. Their provenance and regeneration command are in
 that folder's README.
 
@@ -92,4 +96,7 @@ Its old inventory entry is historical acquisition information, not permission
 for future reintroduction. Mixamo raw/converted clips are likewise outside this
 art inventory. Desktop and hosted builds carry the owner's converted clips only
 in the private, non-portable Mixamo-motion pack, under its own licence
-inventory and Adobe's terms.
+inventory and Adobe's terms. WOW Sound's comedy sound effects are likewise
+outside this inventory: they ship only in the private, non-portable comedy sound
+pack under the owner's Media license, and the vendor's watermarked previews are
+restricted by hash.

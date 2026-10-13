@@ -86,21 +86,17 @@
   "gestures": {
     "all": "全部",
     "clips": "片段",
-    "customFailed": "無法載入自訂動作。",
     "customFirst": "自訂優先",
     "filter": "篩選與排序動作",
     "listLabel": "可用動作",
-    "loadingCustom": "正在載入自訂動作…",
     "motionType": "動畫類型",
     "nameAsc": "名稱 A–Z",
     "nameDesc": "名稱 Z–A",
-    "noCustom": "沒有可用的自訂動作。",
     "noFilterMatch": "沒有符合所選篩選條件的動作。",
     "noSearchMatch": "沒有符合搜尋的動作。",
     "search": "搜尋動作",
     "show": "顯示",
     "showMore": "顯示更多",
-    "showStarters": "顯示內建動作",
     "sortBy": "排序方式",
     "status": "狀態",
     "title": "動作",
@@ -109,7 +105,13 @@
     "updateInLibrary": "在資源庫中更新",
     "updatesOnly": "僅顯示有更新的項目",
     "viewInLibrary": "在資源庫中檢視",
-    "vrma": "VRMA"
+    "vrma": "VRMA",
+    "counts": "已裝備 {{equipped, number}} / 共 {{total, number}}",
+    "showIncluded": "顯示內建",
+    "showLocal": "顯示本機",
+    "loading": "正在載入動作…",
+    "loadFailed": "無法載入動作。",
+    "none": "沒有可用的動作。"
   },
   "identity": {
     "edit": "編輯身分設定",
@@ -431,6 +433,16 @@
       "sectionLabel": "語音供應商",
       "speechOff": "應用程式設定中已關閉語音。"
     },
-    "title": "語音"
+    "title": "語音",
+    "gemini": {
+      "available": "可用的 Gemini 語音",
+      "listLabel": "Gemini 語音",
+      "sampleNote": "每個語音首次播放時會使用你的 Gemini API 金鑰，之後會保留該樣本。",
+      "saved": "Gemini 語音已儲存。",
+      "saveFailed": "無法儲存 Gemini 語音。請再試一次。",
+      "searchLabel": "搜尋 Gemini 語音",
+      "sectionLabel": "Gemini 語音",
+      "trigger": "Gemini 語音：{{name}}"
+    }
   }
 }

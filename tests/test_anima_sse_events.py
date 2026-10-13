@@ -7,37 +7,37 @@ import pytest
 
 from animama.domain.emotions import EmotionValue
 from animama.domain.events import EventType, MemoryUpdatedPayload
-from animama.server import sse_events
+from animama.product_http.chat import sse_events
 
 
 @pytest.mark.asyncio
 async def test_sse_side_effect_persists_current_run_emotion(monkeypatch) -> None:
     calls: list[tuple[object, str, object]] = []
 
-    async def _fake_persist_emotional_state_update(session_factory, anima_id, payload):
-        calls.append((session_factory, anima_id, payload))
+    async def _fake_persist_emotional_state_update(sessions, anima_id, payload):
+        calls.append((sessions, anima_id, payload))
         return True
 
     monkeypatch.setattr(sse_events, "persist_emotional_state_update", _fake_persist_emotional_state_update)
-    session_factory = object()
+    sessions = object()
     payload = SimpleNamespace(run_id="run-1", emotions=[EmotionValue(emotion="joy", value=12)])
 
     persisted = await sse_events.persist_sse_side_effect(
         SimpleNamespace(type=EventType.EMOTION_UPDATE, payload=payload),
         run_id="run-1",
         anima_id="anima-1",
-        session_factory=session_factory,
+        sessions=sessions,  # type: ignore[arg-type]
     )
     skipped = await sse_events.persist_sse_side_effect(
         SimpleNamespace(type=EventType.EMOTION_UPDATE, payload=SimpleNamespace(run_id="run-2", emotions=[])),
         run_id="run-1",
         anima_id="anima-1",
-        session_factory=session_factory,
+        sessions=sessions,  # type: ignore[arg-type]
     )
 
     assert persisted is True
     assert skipped is False
-    assert calls == [(session_factory, "anima-1", payload)]
+    assert calls == [(sessions, "anima-1", payload)]
 
 
 def test_memory_updated_frame_carries_the_turn_memory_cue() -> None:

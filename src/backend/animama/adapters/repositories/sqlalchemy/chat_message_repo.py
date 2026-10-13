@@ -233,7 +233,7 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
         chat_id: str,
         *,
         after_turn: int | None = None,
-        limit: int = 200,
+        limit: int | None = 200,
     ) -> list[ChatMessage]:
         stmt = select(ORMChatMessage).where(
             ORMChatMessage.chat_id == chat_id,
@@ -252,11 +252,28 @@ class SQLAlchemyChatMessageRepository(ChatMessageRepository):
             desc(ORMChatMessage.turn).nulls_last(),
             desc(ORMChatMessage.created_at),
             desc(ORMChatMessage.id),
-        ).limit(limit)
+        )
+        if limit is not None:
+            stmt = stmt.limit(limit)
         res = await self._s.execute(stmt)
         messages = [chat_message_orm_to_domain(row) for row in res.scalars()]
         messages.reverse()
         return messages
+
+    async def latest_compaction_block_turn(self, chat_id: str) -> int | None:
+        stmt = (
+            select(ORMChatMessage.turn)
+            .where(
+                ORMChatMessage.chat_id == chat_id,
+                ORMChatMessage.internal.is_(False),
+                ORMChatMessage.role == "assistant",
+                ORMChatMessage.turn.is_not(None),
+                ORMChatMessage.raw_provider_message[("content", 0, "type")].astext == "compaction",
+            )
+            .order_by(desc(ORMChatMessage.turn))
+            .limit(1)
+        )
+        return (await self._s.execute(stmt)).scalar_one_or_none()
 
     async def visible_history_since(
         self,

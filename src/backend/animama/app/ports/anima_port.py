@@ -28,6 +28,11 @@ class AnimaRepository(Protocol):
 
         raise NotImplementedError
 
+    async def list_owned(self, *, user_id: str) -> list[Anima]:
+        """Return the user's Animas, oldest first, without their archives or chats."""
+
+        raise NotImplementedError
+
     async def list(self, *, ids: Iterable[str] | None = None) -> list[Anima]:
         """Return all animas or a filtered subset by id."""
 
@@ -45,6 +50,16 @@ class AnimaRepository(Protocol):
 
     async def delete(self, anima_id: str) -> bool:
         """Delete the anima; returns True if removed."""
+
+        raise NotImplementedError
+
+    async def stored_emotional_state(self, anima_id: str) -> dict[str, int] | None:
+        """Return the Anima's stored emotional state, normalized, or ``None`` when none is stored."""
+
+        raise NotImplementedError
+
+    async def record_emotional_state(self, *, user_id: str, anima_id: str, emotional_state: dict[str, int]) -> bool:
+        """Store the owned Anima's normalized emotional state; return whether it changed."""
 
         raise NotImplementedError
 

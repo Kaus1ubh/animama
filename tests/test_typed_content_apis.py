@@ -105,14 +105,14 @@ def test_typed_files_preserve_item_relative_logical_paths() -> None:
             file_ref=file_ref,
             item_id=item_id,
             source=ContentSource.INCLUDED,
-            relative_path=f"vfx/particle/quark/hearts/{relative_path}",
+            relative_path=f"vfx/particle/quark/heart-burst/{relative_path}",
             role=role,
             media_type=media_type,
             size_bytes=10,
             sha256=sha256,
         )
         for file_ref, relative_path, role, media_type, sha256 in (
-            ("descriptor-ref", "hearts.json", "descriptor", "application/json", "a" * 64),
+            ("descriptor-ref", "heart-burst.json", "descriptor", "application/json", "a" * 64),
             ("manifest-ref", "particle.json", "manifest", "application/json", "b" * 64),
             ("texture-ref", "textures/heart.png", "texture", "image/png", "c" * 64),
         )
@@ -123,7 +123,7 @@ def test_typed_files_preserve_item_relative_logical_paths() -> None:
         scope=ContentScope.INCLUDED,
         owner_user_id=None,
         kind=ContentKind.PARTICLE_EFFECT,
-        relative_locator="vfx/particle/quark/hearts",
+        relative_locator="vfx/particle/quark/heart-burst",
         display_name="Hearts",
         status=ContentStatus.VALID,
         revision_sha256="d" * 64,
@@ -148,7 +148,7 @@ def test_typed_files_preserve_item_relative_logical_paths() -> None:
     assert response.model_dump()["dependencies"][0]["item_id"] is None
 
     assert {file.file_ref: file.logical_path for file in response.files} == {
-        "descriptor-ref": "hearts.json",
+        "descriptor-ref": "heart-burst.json",
         "manifest-ref": "particle.json",
         "texture-ref": "textures/heart.png",
     }

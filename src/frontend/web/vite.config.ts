@@ -43,10 +43,6 @@ export const includedContentAliases: readonly IncludedContentAlias[] = [
     route: "/effects/vfx/particle-vfx",
     source: "vfx/particle/particle-vfx",
   },
-  {
-    route: "/effects/resources/scene-vfx/twemoji",
-    source: "resources/scene-vfx/twemoji",
-  },
 ] as const;
 const localParakeetModelBaseUrl = "/__client-parakeet-models";
 const localParakeetWebgpuModelBaseUrl = "/__client-parakeet-webgpu-models";
@@ -129,7 +125,6 @@ const appDependencies = [
   "streamdown",
   "tailwind-merge",
   "three",
-  "twemoji",
   "use-stick-to-bottom",
   "zod",
   "zustand",

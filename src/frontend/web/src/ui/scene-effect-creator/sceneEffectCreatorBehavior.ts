@@ -1,10 +1,25 @@
+import { preflightContentFile, sha256File } from "@/lib/content/contentUploads";
+import { WordedError } from "@/lib/errors/apiError";
 import {
+  addSceneEffectImage,
+  canonicalSceneEffectImageName,
   createDefaultSceneEffectDocument,
+  inspectSceneEffectImage,
+  replaceSceneEffectImage,
   sceneEffectDocumentFingerprint,
   sceneEffectEditorReducer,
+  sceneEffectImageItemLabel,
+  sceneEffectImageMetadata,
+  uniqueSceneEffectImageName,
   type SceneEffectEditorDocument,
+  type SceneEffectEditorImage,
   type SceneEffectEditorImageResource,
+  type SceneEffectImageTarget,
 } from "@/lib/scene-vfx/editor";
+import {
+  fetchSceneStickerFile,
+  type SceneSticker,
+} from "@/lib/scene-vfx/stickers";
 
 /** One undo step: the authored document and the private images it references. */
 export type SceneEffectHistorySnapshot = {
@@ -96,4 +111,129 @@ export function createSceneEffectObjectUrlLease(
       for (const url of urls.values()) api.revokeObjectURL(url);
     },
   };
+}
+
+/** How a chosen image is hashed; the content-hash worker by default. */
+type SceneEffectImageHash = (file: File) => Promise<string>;
+
+/** The document plus only the image bytes it still shows. */
+function keepReferencedImages(
+  document: SceneEffectEditorDocument,
+  imageResources: readonly SceneEffectEditorImageResource[],
+): SceneEffectHistorySnapshot {
+  const referenced = new Set(
+    sceneEffectImageMetadata(document).map((image) => image.logicalName),
+  );
+  return {
+    document,
+    imageResources: imageResources.filter((resource) =>
+      referenced.has(resource.logicalName),
+    ),
+  };
+}
+
+/**
+ * Check a chosen image before decoding it, then add it to `target` (or give
+ * an image whose bytes are missing after reopening its new bytes). The
+ * saved name follows the format the bytes are, so name and bytes agree.
+ * Bytes the effect already carries (the same sticker or file chosen again)
+ * are reused rather than copied. `label` names the new item (a sticker's
+ * label); by default the file's.
+ *
+ * `getSnapshot` is read after the checks, so edits made meanwhile are kept.
+ * Throws an error whose message tells the user why the image was refused.
+ */
+export async function addSceneEffectImageFile(
+  getSnapshot: () => SceneEffectHistorySnapshot,
+  source: File,
+  target: SceneEffectImageTarget,
+  {
+    label,
+    hash = sha256File,
+  }: { label?: string; hash?: SceneEffectImageHash } = {},
+): Promise<SceneEffectHistorySnapshot> {
+  const inspection = await inspectSceneEffectImage(source);
+  // Both refusals are already worded in the UI Locale.
+  if (!inspection.ok) throw new WordedError(inspection.message);
+  const preflight = await preflightContentFile("image", source);
+  if (preflight.error) throw new WordedError(preflight.error);
+  const sha256 = await hash(source);
+  const { document, imageResources } = getSnapshot();
+  const used = sceneEffectImageMetadata(document);
+  const carried = used.find(
+    (image) =>
+      image.sha256 === sha256 &&
+      imageResources.some(
+        (resource) => resource.logicalName === image.logicalName,
+      ),
+  );
+  // The new item is still named after the file just chosen. On the tile,
+  // the reused bytes can replace another image's: those are dropped.
+  if (carried)
+    return keepReferencedImages(
+      addSceneEffectImage(
+        document,
+        carried,
+        target,
+        label ?? sceneEffectImageItemLabel(source.name),
+      ),
+      imageResources,
+    );
+  const baseLogicalName = canonicalSceneEffectImageName(
+    source.name,
+    inspection.contentType,
+  );
+  // Reopened with this image's bytes missing: the new bytes fill every use.
+  const missing = used.some(
+    (image) =>
+      image.logicalName === baseLogicalName &&
+      !imageResources.some(
+        (resource) => resource.logicalName === baseLogicalName,
+      ),
+  );
+  const logicalName = missing
+    ? baseLogicalName
+    : uniqueSceneEffectImageName(
+        baseLogicalName,
+        used.map((image) => image.logicalName),
+      );
+  const file = new File([source], logicalName, {
+    type: inspection.contentType,
+    lastModified: source.lastModified,
+  });
+  const image: SceneEffectEditorImage = {
+    logicalName,
+    originalName: source.name,
+    contentType: inspection.contentType,
+    sizeBytes: source.size,
+    sha256,
+  };
+  const nextDocument = missing
+    ? replaceSceneEffectImage(document, image)
+    : addSceneEffectImage(document, image, target, label);
+  // Keep only bytes the document still shows (a replaced tile's go).
+  return keepReferencedImages(nextDocument, [
+    ...imageResources.filter(
+      (resource) => resource.logicalName !== logicalName,
+    ),
+    { logicalName, file, sha256 },
+  ]);
+}
+
+/**
+ * Add a built-in sticker to `target`: its PNG is fetched and added as the
+ * effect's own image, labelled with the sticker's label, exactly as a chosen
+ * private image is, so Save, recovery and Portable packages carry it.
+ */
+export async function addSceneEffectSticker(
+  getSnapshot: () => SceneEffectHistorySnapshot,
+  sticker: SceneSticker,
+  target: SceneEffectImageTarget,
+  options: { hash?: SceneEffectImageHash } = {},
+): Promise<SceneEffectHistorySnapshot> {
+  const file = await fetchSceneStickerFile(sticker);
+  return addSceneEffectImageFile(getSnapshot, file, target, {
+    ...options,
+    label: sticker.label,
+  });
 }

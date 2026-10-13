@@ -4,49 +4,111 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-confidence",
   "version": 1,
   "name": "Emotion Confidence",
-  "description": "Scene background effect preset",
+  "description": "A golden back-light with turning rays behind the Avatar and gold glints rising and twinkling, for proud, confident moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#ffe2a8"
+      "enabled": false,
+      "color": "#ffb938"
     },
     "pattern": {
-      "enabled": true,
-      "pattern": "star",
+      "enabled": false,
+      "pattern": "none",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.34
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "stops": [
         {
-          "id": "emoji-crown",
-          "kind": "image",
-          "label": "Crown 👑",
-          "image": "emoji-crown-1f451.svg"
+          "color": "#fffbe8",
+          "position": 0
+        },
+        {
+          "color": "#fff0b3",
+          "position": 0.22
+        },
+        {
+          "color": "#ffb938",
+          "position": 1
         }
       ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "rays",
+      "color": "#fff7d6",
+      "opacity": 0.42,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 30,
+      "throbPerSec": 0,
+      "seed": 7
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "glint",
+            "kind": "image",
+            "label": "Gold glint",
+            "image": "glint-gold.png"
+          }
+        ],
+        "count": 12,
+        "seed": 21,
+        "minSize": 16,
+        "maxSize": 40,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.85,
+        "maxOpacity": 1,
+        "regionTop": 0.4,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 22,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-crown-1f451.svg",
+      "path": "glint-gold.png",
       "role": "image"
     }
   ]

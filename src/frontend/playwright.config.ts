@@ -42,14 +42,7 @@ if (!Object.hasOwn(webglArgs, webgl)) {
     `ANIMAMA_E2E_WEBGL must be one of ${Object.keys(webglArgs).join(", ")}.`,
   );
 }
-const chromiumUse = {
-  browserName: "chromium" as const,
-  launchOptions: {
-    // Headed verification uses Chromium's normal hardware path, matching
-    // a manual browser session.
-    args: headed ? [] : webglArgs[webgl],
-  },
-};
+const chromiumUse = { browserName: "chromium" as const };
 // The pseudo-locale exists only in development builds, so its smoke check is a
 // separate suite selected by `pnpm e2e:test:pseudo`. Ordinary journeys stay
 // English and never include it.
@@ -85,6 +78,11 @@ export default defineConfig({
   ],
   use: {
     baseURL: webUrl,
+    // Setup now waits for the Anima to open, so it needs the same WebGL
+    // renderer as the journeys. Headed runs use the normal hardware path.
+    launchOptions: {
+      args: headed ? [] : webglArgs[webgl],
+    },
     viewport: { width: 1_440, height: 900 },
     timezoneId: "America/Toronto",
     locale: "en-CA",
@@ -118,7 +116,7 @@ export default defineConfig({
       : {
           name: "chromium",
           testMatch:
-            /accountless-(?:library|journeys|vfx-layout|pose-content|content-sharing|imported-playback|numeric-input|creator-discard(?:-local)?|effect-template-picker|avatar-effect-direct-manipulation|creator-generated-gesture)\.spec\.ts/,
+            /accountless-(?:library|journeys|vfx-layout|pose-content|content-sharing|imported-playback|numeric-input|creator-discard(?:-local)?|effect-template-picker|avatar-effect-direct-manipulation|creator-generated-gesture|particle-texture-import|scene-layers)\.spec\.ts/,
           dependencies: ["installation-setup"],
           use: chromiumUse,
         },

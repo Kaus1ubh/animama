@@ -63,6 +63,27 @@ const fixture = vi.hoisted(() => {
         audioStartSec?: number | null;
         audioContext?: AudioContext | null;
       }) => void;
+      onSpeechTiming?: (event: {
+        runId: string;
+        provider: "elevenlabs";
+        chars: Array<{ char: string; startSec: number; endSec: number }>;
+      }) => void;
+    },
+    // The callbacks the finalized runtime reports pushed audio through.
+    finalizedOptions: null as null | {
+      onAudioStarted?: (event: {
+        runId: string;
+        audioContext: AudioContext;
+        audioStartSec: number;
+      }) => void;
+      onAudioEnded?: (event: {
+        runId: string;
+        reason: "natural" | "error";
+      }) => void;
+      onAudioDurationResolved?: (event: {
+        runId: string;
+        audioDurationSec: number;
+      }) => void;
     },
     finalized: {
       prepareRun: vi.fn(),
@@ -96,8 +117,11 @@ vi.mock("@/hooks/use-elevenlabs-tts-runtime", () => ({
     return fixture.realtime;
   },
 }));
-vi.mock("@/hooks/use-elevenlabs-finalized-tts-runtime", () => ({
-  useElevenLabsFinalizedTtsRuntime: () => fixture.finalized,
+vi.mock("@/hooks/use-finalized-tts-runtime", () => ({
+  useFinalizedTtsRuntime: (options: typeof fixture.finalizedOptions) => {
+    fixture.finalizedOptions = options;
+    return fixture.finalized;
+  },
 }));
 vi.mock("@/hooks/use-pocket-voice-downloads", () => ({
   usePocketVoiceDownloads: ({ enabled }: { enabled: boolean }) => {
@@ -125,12 +149,20 @@ vi.mock("@/lib/speech/tts-provider", async (importOriginal) => ({
   ...(await importOriginal<typeof import("@/lib/speech/tts-provider")>()),
   isPocketTtsSupported: () => fixture.pocketSupported,
   isElevenLabsTtsSupported: () => true,
+  isGeminiTtsSupported: () => true,
   resolvePreferredTtsProvider: ({
     savedProvider,
+    offers,
   }: {
     savedProvider?: string | null;
+    offers?: { gemini?: boolean };
   }) => ({
-    provider: savedProvider ?? null,
+    // Like the real resolver, a saved Gemini needs the composition's offer (the
+    // real one then falls back to another provider).
+    provider:
+      savedProvider === "gemini" && !offers?.gemini
+        ? null
+        : (savedProvider ?? null),
     hasExplicitPreference: Boolean(savedProvider),
   }),
 }));
@@ -151,7 +183,7 @@ let root: Root | null = null;
 
 /** Mount the hook for an Anima whose owner chose ElevenLabs with `modelId`. */
 function renderPlayback({
-  modelId = "eleven_flash_v2_5",
+  modelId = "eleven_v4_turbo",
   mountedVoice = null,
 }: {
   modelId?: string;
@@ -165,11 +197,14 @@ function renderPlayback({
   };
   const onAudioStarted = vi.fn();
   const onAudioEnded = vi.fn();
+  const onAudioDurationResolved = vi.fn();
   const latest = { current: null as unknown as Playback };
   function Harness() {
     latest.current = useTtsPlayback({
       onAudioStarted,
       onAudioEnded,
+      onAudioDurationResolved,
+      geminiTtsOffered: true,
       getPocketVoiceSelectionContext: () => ({
         animaId: ANIMA_ID,
         emotionLabel: "neutral",
@@ -187,7 +222,7 @@ function renderPlayback({
   });
   // The hook's callbacks change identity when its audio state re-renders it.
   const playback = () => latest.current;
-  return { playback, onAudioStarted, onAudioEnded };
+  return { playback, onAudioStarted, onAudioEnded, onAudioDurationResolved };
 }
 
 function emitPocketEvent(name: string, detail: Record<string, unknown>) {
@@ -234,7 +269,7 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     act(() =>
       playback().acceptElevenLabsSession("run-1", {
         voice_id: "voice-1",
-        model_id: "eleven_flash_v2_5",
+        model_id: "eleven_v4_turbo",
         output_format: "pcm_24000",
         sync_alignment: false,
         transport: "server",
@@ -281,10 +316,9 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     expect(fixture.toast.warning).not.toHaveBeenCalled();
   });
 
-  it("speaks a finalized reply declined after its text with the Anima's Pocket voice", () => {
+  it("speaks a reply declined after its text with the Anima's Pocket voice", () => {
     const assertActive = vi.fn();
     const { playback } = renderPlayback({
-      modelId: "eleven_v3",
       mountedVoice: { catalogUrl: "blob:anima-voice", assertActive },
     });
     act(() => {
@@ -297,18 +331,15 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
       });
       playback().completeRun("run-1");
     });
-    expect(fixture.finalized.prepareRun).toHaveBeenCalledWith("run-1");
-    // Eleven v3 waits for pushed audio after the reply text completes.
+    // The realtime run owns the reply until the server declines its speech.
     expect(fixture.pocket.generateAndWait).not.toHaveBeenCalled();
-    fixture.finalized.stop.mockClear();
 
     let switched = false;
     act(() => {
       switched = playback().fallBackToPocketTts("run-1");
     });
     expect(switched).toBe(true);
-    expect(fixture.finalized.stop).toHaveBeenCalledTimes(1);
-    expect(fixture.finalized.failPushedStream).not.toHaveBeenCalled();
+    expect(fixture.realtime.markSessionFailed).not.toHaveBeenCalled();
     expect(fixture.pocket.generateAndWait).toHaveBeenCalledTimes(1);
     const [text, options] = fixture.pocket.generateAndWait.mock.calls[0];
     expect(text).toBe("Hi there. Nice to meet you.");
@@ -360,7 +391,7 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
       playback().startRun("run-1");
       playback().acceptElevenLabsSession("run-1", {
         voice_id: "voice-1",
-        model_id: "eleven_flash_v2_5",
+        model_id: "eleven_v4_turbo",
         output_format: "pcm_24000",
         sync_alignment: false,
         transport: "server",
@@ -391,33 +422,6 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
       expect.objectContaining({ endStream: true }),
     );
     expect(fixture.toast.error).not.toHaveBeenCalled();
-  });
-
-  it("ignores finalized audio or completion that arrives after the switch", () => {
-    const { playback } = renderPlayback({ modelId: "eleven_v3" });
-    act(() => {
-      playback().startRun("run-1");
-      playback().appendToken("run-1", "Hello there.", {
-        textBasis: "gruut_text_with_ws",
-      });
-      playback().completeRun("run-1");
-      playback().fallBackToPocketTts("run-1");
-    });
-    expect(fixture.pocket.generateAndWait).toHaveBeenCalledTimes(1);
-
-    act(() => {
-      playback().acceptElevenLabsFinalizedAudio("run-1", {
-        run_id: "run-1",
-        model_id: "eleven_v3",
-        output_format: "mp3_44100_128",
-        audio_base64: "AAA=",
-      });
-      playback().completeElevenLabsFinalizedAudio("run-1");
-    });
-    // The reply is spoken once, by Pocket only.
-    expect(fixture.finalized.acceptAudioChunk).not.toHaveBeenCalled();
-    expect(fixture.finalized.finishPushedStream).not.toHaveBeenCalled();
-    expect(fixture.pocket.generateAndWait).toHaveBeenCalledTimes(1);
   });
 
   it("uses the Anima's downloadable Pocket voice once its install state is read", () => {
@@ -547,5 +551,159 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     expect(fixture.pocket.setVolume.mock.calls).toEqual(
       fixture.pocket.setVolume.mock.calls.map(() => [0]),
     );
+  });
+});
+
+describe("ElevenLabs character timing", () => {
+  afterEach(() => {
+    act(() => root?.unmount());
+    root = null;
+  });
+
+  it("forwards the realtime runtime's timing for lip-sync", () => {
+    fixture.speech = { tts_provider: "elevenlabs" };
+    const onSpeechTiming = vi.fn();
+    function Harness() {
+      useTtsPlayback({ onSpeechTiming });
+      return null;
+    }
+    act(() => {
+      root = createRoot(document.createElement("div"));
+      root.render(<Harness />);
+    });
+
+    const event = {
+      runId: "run-1",
+      provider: "elevenlabs" as const,
+      chars: [{ char: "H", startSec: 0, endSec: 0.08 }],
+    };
+    act(() => fixture.realtimeOptions?.onSpeechTiming?.(event));
+
+    expect(onSpeechTiming).toHaveBeenCalledWith(event);
+  });
+});
+
+describe("playing Gemini audio the server pushes", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fixture.pocketSupported = true;
+    fixture.ttsMuted = false;
+    fixture.speech = { tts_provider: "gemini" };
+    fixture.realtimeOptions = null;
+    fixture.finalizedOptions = null;
+    fixture.coreHandlers.clear();
+  });
+  afterEach(() => {
+    act(() => root?.unmount());
+    root = null;
+  });
+
+  const audio = {
+    run_id: "run-1",
+    model_id: "gemini-3.8-flash-lite-tts",
+    output_format: "pcm_24000",
+    audio_base64: "AAA=",
+  };
+
+  it("waits for pushed audio instead of streaming text to a provider", () => {
+    const { playback } = renderPlayback({
+      modelId: "gemini-3.8-flash-lite-tts",
+    });
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "Hello there. How are you?", {
+        textBasis: "gruut_text_with_ws",
+      });
+      playback().completeRun("run-1");
+    });
+
+    expect(fixture.finalized.prepareRun).toHaveBeenCalledWith("run-1");
+    expect(fixture.realtime.startRun).not.toHaveBeenCalled();
+    expect(fixture.realtime.appendText).not.toHaveBeenCalled();
+    expect(fixture.realtime.completeRun).not.toHaveBeenCalled();
+    expect(fixture.pocket.generateAndWait).not.toHaveBeenCalled();
+  });
+
+  it("plays, finishes and fails the pushed stream", () => {
+    const { playback } = renderPlayback({
+      modelId: "gemini-3.8-flash-tts",
+    });
+    act(() => {
+      playback().startRun("run-1");
+      playback().acceptFinalizedAudio("run-1", audio);
+      playback().completeFinalizedAudio("run-1");
+      playback().markFinalizedAudioFailed("run-1", "voice error");
+    });
+
+    expect(fixture.finalized.acceptAudioChunk).toHaveBeenCalledWith(
+      "run-1",
+      audio,
+    );
+    expect(fixture.finalized.finishPushedStream).toHaveBeenCalledWith("run-1");
+    expect(fixture.finalized.failPushedStream).toHaveBeenCalledWith(
+      "run-1",
+      "voice error",
+    );
+  });
+
+  it("reports its audio as Gemini, so lip-sync follows it", () => {
+    const { playback, onAudioStarted, onAudioEnded, onAudioDurationResolved } =
+      renderPlayback({
+        modelId: "gemini-3.8-flash-lite-tts",
+      });
+    act(() => {
+      playback().startRun("run-1");
+      fixture.finalizedOptions?.onAudioStarted?.({
+        runId: "run-1",
+        audioContext: {} as AudioContext,
+        audioStartSec: 0.5,
+      });
+      fixture.finalizedOptions?.onAudioDurationResolved?.({
+        runId: "run-1",
+        audioDurationSec: 1.5,
+      });
+      fixture.finalizedOptions?.onAudioEnded?.({
+        runId: "run-1",
+        reason: "natural",
+      });
+    });
+
+    expect(onAudioStarted).toHaveBeenCalledWith(
+      expect.objectContaining({ runId: "run-1", provider: "gemini" }),
+    );
+    expect(onAudioDurationResolved).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: "run-1",
+        provider: "gemini",
+        audioDurationSec: 1.5,
+      }),
+    );
+    expect(onAudioEnded).toHaveBeenCalledWith(
+      expect.objectContaining({ runId: "run-1", provider: "gemini" }),
+    );
+  });
+
+  it("does not prepare Gemini playback without the composition's offer", () => {
+    fixture.speech = { tts_provider: "gemini" };
+    const latest = { current: null as unknown as Playback };
+    function Harness() {
+      latest.current = useTtsPlayback({
+        getSpeechVoiceSelectionContext: () => ({
+          animaId: ANIMA_ID,
+          modelId: "gemini-3.8-flash-lite-tts",
+        }),
+      });
+      return null;
+    }
+    act(() => {
+      root = createRoot(document.createElement("div"));
+      root.render(<Harness />);
+    });
+    act(() => {
+      latest.current.startRun("run-1");
+      latest.current.acceptFinalizedAudio("run-1", audio);
+    });
+    expect(fixture.finalized.prepareRun).not.toHaveBeenCalled();
+    expect(fixture.finalized.acceptAudioChunk).not.toHaveBeenCalled();
   });
 });

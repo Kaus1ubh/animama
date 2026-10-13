@@ -11,8 +11,10 @@ import { unsupportedAnimaPoseClipFormatMessage } from "@/lib/avatar/poses/animaP
 import {
   isCustomizableStarterAction,
   actionDocumentFromPreview,
+  removedActionEffects,
   starterGestureSemanticKey,
 } from "./actionDocumentLoader";
+import { unresolvedActionReferences } from "./actionProject";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -240,6 +242,45 @@ describe("Starter action customization", () => {
     expect(document.notes).toContain("Customized from Starter");
   });
 
+  it("leaves a licensed built-in sound out of a customized copy", async () => {
+    const starter = item({
+      intent: "reaction",
+      id: "builtin:reaction:admiration-2",
+      name: "Admiration Reaction 2",
+    });
+    const starterPreview = preview({
+      intent: "reaction",
+      id: starter.item_id,
+      key: "admiration-2",
+    });
+    const closure = starterPreview.closure as unknown as {
+      root: { reference_map: Record<string, string> };
+      supports: unknown[];
+    };
+    closure.root.reference_map.chime = "support-2";
+    closure.supports.push({
+      runtime_id: "support-2",
+      content_type: "sound_effect",
+      portability: "non-portable",
+      source: {
+        type: "catalog",
+        catalog_item_id: "licensed-sound",
+      },
+    });
+    const document = await actionDocumentFromPreview({
+      intent: "reaction",
+      item: starter,
+      preview: starterPreview,
+      base: createReactionDocument(),
+      customizeStarter: true,
+      semanticSuffix: "abcdef12",
+    });
+
+    expect(document.dependencies.map((value) => value.alias)).toEqual([
+      "sparkle",
+    ]);
+  });
+
   it("reconstructs exact sources from readable Included dependency refs", async () => {
     const starter = item({
       intent: "reaction",
@@ -260,7 +301,7 @@ describe("Starter action customization", () => {
     };
     starterClosure.root.reference_map = {
       "emote_!": "builtin:avatar-effect:emote",
-      "question-marks": "builtin:particle-effect:question-marks",
+      "question-orbit": "builtin:particle-effect:question-orbit",
     };
     starterClosure.root.dependencies = [
       {
@@ -270,8 +311,8 @@ describe("Starter action customization", () => {
         config: {},
       },
       {
-        ref: "builtin:particle-effect:question-marks",
-        alias: "question-marks",
+        ref: "builtin:particle-effect:question-orbit",
+        alias: "question-orbit",
         content_type: "particle_effect",
         config: {},
       },
@@ -299,11 +340,11 @@ describe("Starter action customization", () => {
         config: {},
       },
       {
-        alias: "question-marks",
+        alias: "question-orbit",
         content_type: "particle_effect",
         source: {
           type: "builtin",
-          content_id: "builtin:particle-effect:question-marks",
+          content_id: "builtin:particle-effect:question-orbit",
           version: 1,
         },
         config: {},
@@ -453,6 +494,61 @@ describe("owned action reopening", () => {
       );
     },
   );
+
+  it("reopens a Local Action that uses a removed Included effect and reports it", async () => {
+    const source = privateReactionPreview();
+    const root = (source.closure as { root: Record<string, unknown> }).root;
+    root.implementation = {
+      kind: "anima_clip",
+      technical_source: { type: "file", file_ref: "sequence-ref" },
+    };
+    root.missing_references = { joy: "builtin:scene-effect:background:joy" };
+    root.reference_map = {};
+    // An authored record in the legacy shape must not declare it again.
+    root.dependencies = [
+      {
+        alias: "joy",
+        content_type: "scene_effect",
+        ref: "builtin:scene-effect:background:joy",
+      },
+    ];
+    const sequence = {
+      schema: "animaPoseClip/2.0",
+      id: "cheer",
+      name: "Cheer",
+      duration: 1,
+      beats: [],
+      events: [
+        {
+          id: "bg",
+          kind: "scene_vfx",
+          time: 0,
+          presetId: "joy",
+          sceneKind: "background_layers",
+        },
+      ],
+    };
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => new Response(JSON.stringify(sequence))),
+    );
+    const document = await actionDocumentFromPreview({
+      intent: "reaction",
+      item: ownedReaction(),
+      preview: source,
+      base: createReactionDocument(),
+    });
+    expect(removedActionEffects(source)).toEqual([
+      { alias: "joy", ref: "builtin:scene-effect:background:joy" },
+    ]);
+    expect(document.dependencies).toEqual([]);
+    // The creator's repair check reports the event that now plays nothing.
+    expect(
+      unresolvedActionReferences(document.sequence, document.dependencies),
+    ).toEqual([
+      expect.objectContaining({ alias: "joy", contentType: "scene_effect" }),
+    ]);
+  });
 
   it("reopens an unassigned reaction without inventing a suggestion", async () => {
     const source = privateReactionPreview();

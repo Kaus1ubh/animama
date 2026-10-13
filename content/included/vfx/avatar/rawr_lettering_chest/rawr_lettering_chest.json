@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:rawr_lettering_chest",
+  "version": 1,
+  "name": "Rawr Lettering",
+  "description": "Green manga lettering \"RAWR!\" pops up and shakes beside the raised right claw on the roar and stays beside the head through the swipes. Anchored to the chest. For a playful pretend-monster growl.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "chest",
+      "offset": {
+        "x": -0.21,
+        "y": 0.455,
+        "z": 0.127
+      },
+      "size": 0.0561,
+      "facing": "camera",
+      "rotationDeg": -7
+    },
+    "art": {
+      "image": "rawr_lettering.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "rotationDeg": 0
+          },
+          {
+            "t": 0.1,
+            "opacity": 1,
+            "scale": 1.22,
+            "rotationDeg": 4
+          },
+          {
+            "t": 0.16,
+            "scale": 1,
+            "rotationDeg": -4
+          },
+          {
+            "t": 0.22,
+            "rotationDeg": 3
+          },
+          {
+            "t": 0.28,
+            "rotationDeg": -3
+          },
+          {
+            "t": 0.34,
+            "rotationDeg": 2
+          },
+          {
+            "t": 0.4,
+            "rotationDeg": 0
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "rawr_lettering.png",
+      "role": "image"
+    }
+  ]
+}

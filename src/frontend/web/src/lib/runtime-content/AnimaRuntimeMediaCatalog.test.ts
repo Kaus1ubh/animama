@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { AVATAR_PARTICLE_VFX_CATALOG } from "@/lib/avatar/particle-vfx/catalog";
-import { getSceneBackgroundLayerPresetIds } from "@/lib/scene-vfx/catalog";
+import { getSceneFocusLinePresetIds } from "@/lib/scene-vfx/catalog";
 import type { RuntimeCatalogEntry, RuntimeContentSlot } from "./types";
 import { AnimaRuntimeMediaCatalog } from "./AnimaRuntimeMediaCatalog";
 
@@ -147,7 +147,8 @@ describe("AnimaRuntimeMediaCatalog", () => {
 
   it("resolves only exact mounted built-in entries for every media family", async () => {
     const particleFixture = AVATAR_PARTICLE_VFX_CATALOG[0];
-    const sceneFixtureId = getSceneBackgroundLayerPresetIds()[0];
+    // The bundled catalog holds only the focus presets.
+    const sceneFixtureId = getSceneFocusLinePresetIds()[0];
     if (!particleFixture || !sceneFixtureId) {
       throw new Error("Missing built-in media fixtures");
     }
@@ -159,11 +160,11 @@ describe("AnimaRuntimeMediaCatalog", () => {
     });
     const sceneVfx = builtInEntry({
       kind: "scene_vfx",
-      slot: "scene_background_vfx",
+      slot: "scene_focus_vfx",
       runtimeId: "mounted-scene-vfx",
       source: {
         type: "runtime_catalog",
-        catalog: "scene_background_presets",
+        catalog: "scene_focus_presets",
         key: sceneFixtureId,
       },
     });
@@ -177,7 +178,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
     const catalog = new AnimaRuntimeMediaCatalog(
       mediaCatalog({
         particleVfx: [particle],
-        sceneBackgroundVfx: [sceneVfx],
+        sceneFocusVfx: [sceneVfx],
         sfx: [sfx],
       }),
     );
@@ -187,17 +188,17 @@ describe("AnimaRuntimeMediaCatalog", () => {
     ).resolves.toMatchObject({
       id: "mounted-particle",
     });
-    await expect(catalog.resolveParticleVFX("hearts")).resolves.toBeNull();
+    await expect(
+      catalog.resolveParticleVFX(particleFixture.id),
+    ).resolves.toBeNull();
     expect(
-      catalog.resolveSceneVFX("background_layers", "mounted-scene-vfx")?.id,
+      catalog.resolveSceneVFX("focus_lines", "mounted-scene-vfx")?.id,
     ).toBe("mounted-scene-vfx");
-    expect(catalog.listSceneVFX("background_layers")).toEqual([
+    expect(catalog.listSceneVFX("focus_lines")).toEqual([
       expect.objectContaining({ id: "mounted-scene-vfx" }),
     ]);
-    expect(catalog.listSceneVFX("focus_lines")).toEqual([]);
-    expect(
-      catalog.resolveSceneVFX("background_layers", sceneFixtureId),
-    ).toBeNull();
+    expect(catalog.listSceneVFX("background_layers")).toEqual([]);
+    expect(catalog.resolveSceneVFX("focus_lines", sceneFixtureId)).toBeNull();
     expect(catalog.listAudio("sfx")).toEqual([
       expect.objectContaining({
         runtimeId: "mounted-sfx",
@@ -644,7 +645,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
   });
 
   it("loads private Scene background images without leaking logical filenames", async () => {
-    const image = new Uint8Array([4, 5, 6]);
+    const image = pngHeader(64, 64);
     const entry = privateEntry({
       slot: "scene_background_vfx",
       runtimeId: "private-scene-effect",
@@ -653,13 +654,13 @@ describe("AnimaRuntimeMediaCatalog", () => {
         {
           role: "image",
           ordinal: 1,
-          filename: "mark.webp",
-          contentType: "image/webp",
+          filename: "mark.png",
+          contentType: "image/png",
           bytes: image.byteLength,
           url: "/runtime/scene-image",
         },
       ],
-      logicalResourceUrls: { "mark.webp": "/runtime/scene-image" },
+      logicalResourceUrls: { "mark.png": "/runtime/scene-image" },
       definition: {
         schema: "animama/scene-effect/1",
         kind: "background_layers",
@@ -678,7 +679,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
         marquee: {
           enabled: true,
           items: [
-            { id: "mark", kind: "image", label: "Mark", image: "mark.webp" },
+            { id: "mark", kind: "image", label: "Mark", image: "mark.png" },
           ],
           itemSize: 64,
           gap: 8,
@@ -710,6 +711,73 @@ describe("AnimaRuntimeMediaCatalog", () => {
       id: entry.runtime_id,
       marquee: { items: [{ kind: "png", src: "blob:scene-mark" }] },
     });
+  });
+
+  it("fails closed on a private Scene image over the size limits", async () => {
+    // Larger than the Scene image limit on one side (4096 px).
+    const image = pngHeader(4097, 16);
+    const entry = privateEntry({
+      slot: "scene_background_vfx",
+      runtimeId: "private-scene-effect",
+      kind: "scene_vfx",
+      files: [
+        {
+          role: "image",
+          ordinal: 1,
+          filename: "mark.png",
+          contentType: "image/png",
+          bytes: image.byteLength,
+          url: "/runtime/scene-image",
+        },
+      ],
+      logicalResourceUrls: { "mark.png": "/runtime/scene-image" },
+      definition: {
+        schema: "animama/scene-effect/1",
+        kind: "background_layers",
+        durationMs: 1000,
+        coverUiOverlays: false,
+        dismissOnInput: false,
+        solid: { enabled: true, color: "#ffffff" },
+        pattern: {
+          enabled: false,
+          pattern: "none",
+          color: "#000000",
+          size: 16,
+          spacing: 8,
+          opacity: 0.5,
+        },
+        marquee: {
+          enabled: true,
+          items: [
+            { id: "mark", kind: "image", label: "Mark", image: "mark.png" },
+          ],
+          itemSize: 64,
+          gap: 8,
+          rowGap: 8,
+          direction: "left",
+          itemRotationMode: "upright",
+          itemRotationOffsetDeg: 0,
+          speedPxPerSec: 80,
+          opacity: 1,
+        },
+      },
+    });
+    const catalog = new AnimaRuntimeMediaCatalog(
+      mediaCatalog({ sceneBackgroundVfx: [entry] }),
+      {
+        fetcher: async (input) =>
+          authorizedSource(input)
+            ? new Response(image, {
+                headers: { "content-length": String(image.byteLength) },
+              })
+            : authorizedDownload(String(input)),
+        createObjectURL: () => "blob:scene-mark",
+      },
+    );
+
+    await expect(
+      catalog.loadSceneVFX("background_layers", entry.runtime_id),
+    ).resolves.toBeNull();
   });
 
   it("shares one eager particle budget across priority tiers", () => {
@@ -753,7 +821,7 @@ describe("AnimaRuntimeMediaCatalog", () => {
       ],
       object: { type: "Object3D", children: [] },
     });
-    const texture = new Uint8Array([9, 8, 7]);
+    const texture = pngHeader(8, 8);
     const entry = privateEntry({
       slot: "particle_vfx",
       runtimeId: "private-particle",
@@ -849,6 +917,60 @@ describe("AnimaRuntimeMediaCatalog", () => {
       "blob:owned-1",
       "blob:owned-2",
     ]);
+  });
+
+  it("fails closed on a private particle texture over the size limits", async () => {
+    const manifest = JSON.stringify({
+      images: [{ url: "textures/huge.png" }],
+      object: { type: "Object3D", children: [] },
+    });
+    const texture = pngHeader(4096, 8);
+    const entry = privateEntry({
+      slot: "particle_vfx",
+      runtimeId: "huge-particle",
+      kind: "particle_vfx",
+      files: [
+        {
+          role: "manifest",
+          ordinal: 1,
+          filename: "effect.json",
+          contentType: "application/json",
+          bytes: new TextEncoder().encode(manifest).byteLength,
+          url: "/runtime/manifest",
+        },
+        {
+          role: "texture",
+          ordinal: 1,
+          filename: "huge.png",
+          contentType: "image/png",
+          bytes: texture.byteLength,
+          url: "/runtime/texture",
+        },
+      ],
+      logicalResourceUrls: { "textures/huge.png": "/runtime/texture" },
+      config: { max_particles: 32, duration_seconds: 1 },
+    });
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      const source = authorizedSource(input);
+      if (!source) return authorizedDownload(String(input));
+      const body = source.endsWith("manifest")
+        ? new TextEncoder().encode(manifest)
+        : texture;
+      return new Response(body, {
+        status: 200,
+        headers: { "content-length": String(body.byteLength) },
+      });
+    });
+    const createObjectURL = vi.fn(() => "blob:never");
+    const catalog = new AnimaRuntimeMediaCatalog(
+      mediaCatalog({ particleVfx: [entry] }),
+      { fetcher, createObjectURL, revokeObjectURL: vi.fn() },
+    );
+
+    await expect(
+      catalog.resolveParticleVFX("huge-particle"),
+    ).resolves.toBeNull();
+    expect(createObjectURL).not.toHaveBeenCalled();
   });
 
   it("fails closed when a particle manifest contains an unowned reference", async () => {

@@ -22,7 +22,8 @@ LOGICAL_KEY = re.compile(r"^[A-Za-z0-9][A-Za-z0-9:._-]{0,191}$")
 
 
 def _rows() -> list[dict[str, str]]:
-    return json.loads(FIXTURE.read_text())["names"]
+    rows: list[dict[str, str]] = json.loads(FIXTURE.read_text())["names"]
+    return rows
 
 
 @pytest.mark.parametrize("row", _rows(), ids=lambda row: row["name"])

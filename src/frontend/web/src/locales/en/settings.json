@@ -405,39 +405,28 @@
     },
     "tts": {
       "elevenLabs": {
-        "grouping": {
-          "ariaLabel": "Eleven v3 audio grouping",
-          "fallbackDescription": "Sentence grouping starts fastest.",
-          "label": "Audio grouping",
-          "options": {
-            "paragraph": {
-              "description": "Smoother long-form audio with paragraph-sized requests.",
-              "label": "Paragraph"
-            },
-            "sentence": {
-              "description": "Fastest start with one finalized request per sentence.",
-              "label": "Sentence"
-            }
-          },
-          "placeholder": "Select grouping",
-          "updateFailed": "Failed to update Eleven v3 audio grouping."
-        },
         "key": {
           "description": "Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys.",
           "label": "ElevenLabs API key"
-        },
-        "model": {
-          "descriptions": {
-            "eleven_flash_v2_5": "Lower-latency realtime ElevenLabs speech.",
-            "eleven_multilingual_v2": "The established multilingual realtime model.",
-            "eleven_v3": "Expressive speech generated after the response is complete."
-          },
-          "label": "ElevenLabs model",
-          "placeholder": "Select model",
-          "updateFailed": "Failed to update ElevenLabs model."
         }
       },
       "enable": "Enable Text-to-Speech",
+      "gemini": {
+        "key": {
+          "description": "Needed for Gemini voices. Encrypted on this computer and also in API Keys.",
+          "label": "Gemini API key"
+        },
+        "model": {
+          "descriptions": {
+            "flash": "Gemini's flagship speech model, at a higher cost.",
+            "flashLite": "Lower-latency, lower-cost Gemini speech."
+          },
+          "label": "Gemini model",
+          "note": "Google bills Gemini speech to your API key. Choose each Anima's voice in Loadout → Voices.",
+          "placeholder": "Select model",
+          "updateFailed": "Failed to update Gemini model."
+        }
+      },
       "noProvider": "No supported TTS provider is available in this environment.",
       "provider": {
         "ariaLabel": "Text-to-Speech provider",
@@ -450,7 +439,7 @@
       "stream": {
         "description": "Start speaking before the full response is ready.",
         "label": "Stream chunked Text-to-Speech",
-        "unavailable": "Unavailable with Eleven v3.",
+        "unavailable": "Unavailable with Gemini.",
         "updateFailed": "Failed to update TTS streaming mode."
       },
       "updateFailed": "Failed to update TTS settings."

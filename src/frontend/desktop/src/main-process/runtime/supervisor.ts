@@ -69,6 +69,13 @@ import {
   validateCredentialChanges,
 } from "./vault.js";
 
+/**
+ * Private, non-portable Included packs a build may stage under
+ * `content/<id>`; the same IDs as `scripts/runtime/private-packs.mjs` and the
+ * backend's accepted Included pack IDs.
+ */
+export const PRIVATE_PACK_IDS = ["mixamo-motion", "wow-comedy-sfx"] as const;
+
 type DatabaseState = {
   postgresql_version: string;
   pgvector_version: string | null;
@@ -158,6 +165,7 @@ export class RuntimeSupervisor {
     if (!this.vault || !this.manifest)
       throw new RuntimeError("runtime_not_initialized");
     const providerEnv = this.vault.childEnvironment();
+    const buildId = this.manifest.build_id;
     runtimeRedactor.add(
       this.vault.databasePassword(),
       ...Object.values(providerEnv),
@@ -189,23 +197,14 @@ export class RuntimeSupervisor {
               },
             ]
           : []),
-        // Non-portable Mixamo motion is bundled in the audited runtime when the
-        // build staged it; it is never a downloadable feature pack.
-        ...(existsSync(
-          path.join(this.options.runtimeRoot, "content/mixamo-motion"),
-        )
-          ? [
-              {
-                id: "mixamo-motion",
-                pack_id: "mixamo-motion",
-                version: this.manifest.build_id,
-                root: path.join(
-                  this.options.runtimeRoot,
-                  "content/mixamo-motion",
-                ),
-              },
-            ]
-          : []),
+        // Non-portable private packs are bundled in the audited runtime when
+        // the build staged them; they are never downloadable feature packs.
+        ...PRIVATE_PACK_IDS.map((id) => ({
+          id,
+          pack_id: id,
+          version: buildId,
+          root: path.join(this.options.runtimeRoot, "content", id),
+        })).filter((source) => existsSync(source.root)),
       ]),
       ANIMAMA_USER_FILE_PROCESSING_ENABLED: this.activePacks[
         "document-processing"

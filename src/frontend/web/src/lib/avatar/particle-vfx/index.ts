@@ -1,4 +1,5 @@
 export { ParticleVFXController } from "./ParticleVFXController";
+export { createParticleVFXBatchedRenderer } from "./batchedRenderer";
 export {
   PARTICLE_VFX_ROOT_OBJECT_NAME,
   applyParticleVFXRectangleShapeAutoFit,
@@ -9,12 +10,12 @@ export {
 } from "./autoFit";
 export {
   AVATAR_PARTICLE_VFX_CATALOG,
-  createDefaultParticleVFXTransform,
+  getParticleVFXCatalogEntryById,
+  getParticleVFXCatalogIds,
 } from "./catalog";
 export {
   cloneParticleVFXTransform,
-  getParticleVFXCatalogEntryById,
-  getParticleVFXCatalogIds,
+  createDefaultParticleVFXTransform,
   getParticleVFXCombinedOffset,
   isParticleVFXAnchor,
   mergeParticleVFXTransform,
@@ -41,8 +42,16 @@ export {
   createParticleVFXEditorDraftFromCatalog,
   createParticleVFXEditorDraftFromImport,
   duplicateParticleVFXEditorEmitter,
-  estimateParticleVFXDraftParticles,
+  estimateParticleVFXParticles,
+  extractEmbeddedParticleVFXTextures,
   getParticleVFXEditorTextureById,
+  importParticleVFXTextureFile,
+  loadParticleVFXTextureFiles,
+  missingParticleVFXTextureReferences,
+  readParticleVFXCreatorDocument,
+  readParticleVFXTextureFile,
+  referencedParticleVFXTextureFiles,
+  supplyParticleVFXTextureFile,
   parseParticleVFXEditorExportJsonForViewer,
   parseParticleVFXEditorJson,
   removeParticleVFXEditorEmitter,
@@ -50,6 +59,7 @@ export {
   resolveParticleVFXEditorPreviewJson,
   resolveParticleVFXPublicAssetPath,
   updateParticleVFXEditorCatalogDraft,
+  PARTICLE_VFX_MAX_EMITTERS,
   validateParticleVFXContentReadiness,
   validateParticleVFXEditorDraft,
 } from "./editor";
@@ -81,6 +91,8 @@ export type {
   ParticleVFXEditorColorThemePresetId,
   ParticleVFXCreatorPreviewPlacement,
   ParticleVFXEditorDraft,
+  ParticleVFXEditorTextureFile,
+  ParticleVFXTextureResult,
   ParticleVFXEditorEmitterMode,
   ParticleVFXEditorEmitterTemplateId,
   ParticleVFXEditorExport,

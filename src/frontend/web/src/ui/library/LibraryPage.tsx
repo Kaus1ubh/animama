@@ -6,7 +6,11 @@ import { LibraryBig, Menu } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { hostedExclusionReasons } from "@/app/runtime/route-admission";
-import type { ContentLibrarySearch } from "@/lib/content/librarySearch";
+import {
+  LIBRARY_CONTENT_TYPES,
+  type ContentLibrarySearch,
+  type LibraryContentType,
+} from "@/lib/content/librarySearch";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { AppShellPage } from "@/ui/app/AppShellPage";
 import { useOptionalAppShell } from "@/ui/app/AppShell";
@@ -45,6 +49,30 @@ export function LibraryPage({
 }) {
   const { t } = useTranslation(["library", "sidebar"]);
   const appShell = useOptionalAppShell();
+  const contentTypeLabel = (type: LibraryContentType) => {
+    switch (type) {
+      case "all":
+        return t("page.contentTypes.all");
+      case "avatars":
+        return t("page.contentTypes.avatars");
+      case "gestures":
+        return t("page.contentTypes.gestures");
+      case "reactions":
+        return t("page.contentTypes.reactions");
+      case "poses":
+        return t("page.contentTypes.poses");
+      case "idle-styles":
+        return t("page.contentTypes.idleStyles");
+      case "particle":
+        return t("page.contentTypes.particle");
+      case "avatar-effects":
+        return t("page.contentTypes.avatarEffects");
+      case "scene":
+        return t("page.contentTypes.scene");
+      case "sound":
+        return t("page.contentTypes.sound");
+    }
+  };
   const sectionLabel = (section: (typeof SECTIONS)[number]) => {
     switch (section) {
       case "all":
@@ -144,6 +172,7 @@ export function LibraryPage({
               <button
                 type="button"
                 className={underlineTabClassName(search.section === value)}
+                aria-pressed={search.section === value}
               >
                 {sectionLabel(value)}
               </button>
@@ -153,6 +182,7 @@ export function LibraryPage({
               key={value}
               type="button"
               className={underlineTabClassName(search.section === value)}
+              aria-pressed={search.section === value}
               onClick={() => onSearchChange({ section: value })}
             >
               {sectionLabel(value)}
@@ -160,6 +190,25 @@ export function LibraryPage({
           ),
         )}
       </nav>
+      {search.section === "all" ? (
+        <div
+          role="group"
+          aria-label={t("page.contentTypes.label")}
+          className="flex flex-wrap items-center gap-2 pt-4"
+        >
+          {LIBRARY_CONTENT_TYPES.map((value) => (
+            <Button
+              key={value}
+              size="sm"
+              variant={search.type === value ? "default" : "outline"}
+              aria-pressed={search.type === value}
+              onClick={() => onSearchChange({ type: value })}
+            >
+              {contentTypeLabel(value)}
+            </Button>
+          ))}
+        </div>
+      ) : null}
       {search.section === "actions" ? (
         <div className="flex flex-wrap items-center gap-2 pt-4">
           {ACTION_FILTERS.map((value) => (

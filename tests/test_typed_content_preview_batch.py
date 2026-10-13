@@ -7,8 +7,8 @@ from sqlalchemy import func, select, update
 
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMContentPreview, ORMContentPreviewFile
+from animama.product_http.routes import content
 from animama.server.deps import get_current_principal
-from animama.server.routers import content
 from tests.anima_creation_service_support import anima_creation_fixture
 from tests.local_http_client import local_client
 

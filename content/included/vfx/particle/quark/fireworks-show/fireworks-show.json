@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:fireworks-show",
+  "version": 1,
+  "name": "Fireworks Show",
+  "description": "A summer-festival fireworks show behind the Avatar: a crimson shell, a cyan shell and a gold-and-violet finale burst one after another, then glitter twinkles down. For big celebrations.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "fireworks-show",
+    "slots": {
+      "particle_vfx": {
+        "label": "Fireworks Show",
+        "description": "A summer-festival fireworks show behind the Avatar: a crimson shell, a cyan shell and a gold-and-violet finale burst one after another, then glitter twinkles down. For big celebrations.",
+        "anchor": "head",
+        "duration_seconds": 3.8,
+        "max_duration_seconds": 4.2,
+        "preload_tier": "none",
+        "follow_anchor": false,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 250
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/show-flash.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/show-streak.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/show-star.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/show-twinkle.png",
+      "role": "texture"
+    }
+  ]
+}

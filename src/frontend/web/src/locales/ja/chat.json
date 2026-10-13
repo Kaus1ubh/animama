@@ -120,11 +120,18 @@
       "remove": "入力欄から削除"
     },
     "model": {
+      "back": "モデルと推論に戻る",
+      "choose": "モデルを選んでください",
       "empty": "モデルが見つかりません。",
+      "fallbackLabel": "モデル",
+      "features": "チャット機能",
       "needsWindow": "「アプリ設定 → モデル」でコンテキストウィンドウを設定してください",
+      "noFeatures": "このモデルに選択できる機能はありません。",
       "noProfile": "チャットプロファイルがありません",
+      "noReasoning": "このモデルの推論は調整できません。",
       "notDirect": "まだ直接チャットでは使えません",
-      "reasoning": "推論",
+      "panel": "モデルと推論",
+      "reasoningEffort": "推論の強さ",
       "reasoningEfforts": {
         "high": "高",
         "low": "低",
@@ -141,13 +148,14 @@
         "tools_unsupported": "このモデルはツールを呼び出せないため、検索できません。"
       },
       "select": "モデルを選択",
-      "settings": "{{model}} の設定",
       "toasts": {
         "selectFirst": "チャットする前にモデルを選択してください。",
         "unsupported": "このモデルはまだ直接チャットで使えません。",
         "updateFailed": "モデルを更新できませんでした"
       },
+      "trigger": "モデルと推論: {{model}}",
       "unavailable": "モデルを利用できません。別のモデルを選択してください。",
+      "unavailableShort": "モデルを利用できません",
       "webSearch": "ウェブ検索"
     }
   },

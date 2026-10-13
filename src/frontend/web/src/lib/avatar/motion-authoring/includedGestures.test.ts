@@ -23,12 +23,7 @@ import { loadTestAvatar } from "./testing/includedAvatars";
  * changes (#337) whose hand-made poses touch the body or pass joint limits
  * on purpose, so the motion checks for authored clips do not apply.
  */
-const MOTION_CHECK_EXEMPT = new Set([
-  "heart-hands-build",
-  "meme-dab",
-  "shy-finger-poke-loop",
-  "single-hand-on-heart",
-]);
+const MOTION_CHECK_EXEMPT = new Set(["meme-dab", "shy-finger-poke-loop"]);
 const directory = fileURLToPath(
   new URL("../../../../../../../content/included/gestures/", import.meta.url),
 );
@@ -51,7 +46,7 @@ beforeAll(async () => {
 
 describe("Included 2.0 Gestures", () => {
   it("covers every authored Gesture", () => {
-    expect(clips).toHaveLength(43);
+    expect(clips).toHaveLength(107);
   });
 
   it.each(clips)(

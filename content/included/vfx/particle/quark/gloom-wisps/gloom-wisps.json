@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:gloom-wisps",
+  "version": 1,
+  "name": "Gloom Wisps",
+  "description": "Four soft spirit flames fade in beside the shoulders and drift slowly around the body with tiny pale motes, a quiet hitodama sorrow for grief, remorse and heavy disappointment.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "gloom-wisps",
+    "slots": {
+      "particle_vfx": {
+        "label": "Gloom Wisps",
+        "description": "Four soft spirit flames fade in beside the shoulders and drift slowly around the body with tiny pale motes, a quiet hitodama sorrow for grief, remorse and heavy disappointment.",
+        "anchor": "chest",
+        "duration_seconds": 4.5,
+        "max_duration_seconds": 5.5,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.15,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 18
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/spirit-glow.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/gloom-wisp-sheet.png",
+      "role": "texture"
+    }
+  ]
+}

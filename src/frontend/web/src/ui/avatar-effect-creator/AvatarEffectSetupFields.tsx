@@ -349,6 +349,7 @@ export function AvatarEffectSetupFields({
   invalidField,
   soundOptions,
   soundPending,
+  licensedSoundOmitted = false,
   onDispatch,
   onChooseImage,
   onClearOtherEyeImage,
@@ -361,6 +362,8 @@ export function AvatarEffectSetupFields({
   invalidField: string | null;
   soundOptions: SoundOption[];
   soundPending: boolean;
+  /** The draft was copied from a built-in effect whose licensed sound stayed behind. */
+  licensedSoundOmitted?: boolean;
   onDispatch: Dispatch;
   onChooseImage: (slot: AvatarEffectEditorImageSlot, file: File) => void;
   onClearOtherEyeImage: () => void;
@@ -484,6 +487,11 @@ export function AvatarEffectSetupFields({
             size="sm"
             className="w-full text-xs"
             aria-label={t("creator.sound.label")}
+            aria-describedby={
+              licensedSoundOmitted
+                ? "avatar-effect-licensed-sound-note"
+                : undefined
+            }
           >
             <SelectValue
               placeholder={
@@ -519,6 +527,14 @@ export function AvatarEffectSetupFields({
             )}
           </SelectContent>
         </Select>
+        {licensedSoundOmitted ? (
+          <p
+            id="avatar-effect-licensed-sound-note"
+            className="text-muted-foreground text-xs"
+          >
+            {t("creator.sound.licensedOmitted")}
+          </p>
+        ) : null}
       </Field>
       <Field label={t("creator.description")}>
         <Textarea

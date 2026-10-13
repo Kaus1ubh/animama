@@ -185,6 +185,7 @@ export type ModelSelectorLogoProps = Omit<
 // adapters retain the local initial fallback without constructing an asset URL.
 const PROVIDER_LOGOS = new Set([
   "openai",
+  "anthropic",
   "google",
   "xai",
   "groq",

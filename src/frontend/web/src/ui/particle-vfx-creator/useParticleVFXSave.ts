@@ -4,6 +4,7 @@ import { getI18n } from "react-i18next";
 
 import {
   createParticleVFXEditorDraftFromImport,
+  referencedParticleVFXTextureFiles,
   type ParticleVFXEditorDraft,
 } from "@/lib/avatar/particle-vfx";
 import { buildParticleVFXContentPackage } from "@/lib/content/particleVFXContentPackage";
@@ -114,13 +115,20 @@ export const particleVFXSaveAdapter: CreatorSaveAdapter<
     displayName: snapshot.catalog.label,
     catalog: snapshot.catalog,
     quarksJson: snapshot.quarksJson,
+    textures: Object.entries(referencedParticleVFXTextureFiles(snapshot)).map(
+      ([reference, file]) => ({ reference, ...file }),
+    ),
     updatedAt,
   }),
-  // A record the current editor cannot import throws and is discarded.
+  // A record the current editor cannot import throws and is discarded. A
+  // texture whose bytes were not kept shows as missing until it is chosen.
   fromRecovery: (record) => ({
     snapshot: createParticleVFXEditorDraftFromImport(
       record.quarksJson,
       record.catalog,
+      Object.fromEntries(
+        record.textures.map(({ reference, ...file }) => [reference, file]),
+      ),
     ),
     operationId: record.operationId,
   }),

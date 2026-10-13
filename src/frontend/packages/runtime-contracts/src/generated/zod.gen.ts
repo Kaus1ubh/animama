@@ -1055,6 +1055,80 @@ export const zFaceSurfaceAttachment = z.object({
 });
 
 /**
+ * GeminiTtsCapability
+ *
+ * Gemini voice options a composition offers; absent where Gemini voice is not offered.
+ */
+export const zGeminiTtsCapability = z.object({
+    default_model: z.enum(['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']),
+    default_voice: z.enum([
+        'Zephyr',
+        'Puck',
+        'Charon',
+        'Kore',
+        'Fenrir',
+        'Leda',
+        'Orus',
+        'Aoede',
+        'Callirrhoe',
+        'Autonoe',
+        'Enceladus',
+        'Iapetus',
+        'Umbriel',
+        'Algieba',
+        'Despina',
+        'Erinome',
+        'Algenib',
+        'Rasalgethi',
+        'Laomedeia',
+        'Achernar',
+        'Alnilam',
+        'Schedar',
+        'Gacrux',
+        'Pulcherrima',
+        'Achird',
+        'Zubenelgenubi',
+        'Vindemiatrix',
+        'Sadachbia',
+        'Sadaltager',
+        'Sulafat'
+    ]),
+    models: z.array(z.enum(['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts'])),
+    voices: z.array(z.enum([
+        'Zephyr',
+        'Puck',
+        'Charon',
+        'Kore',
+        'Fenrir',
+        'Leda',
+        'Orus',
+        'Aoede',
+        'Callirrhoe',
+        'Autonoe',
+        'Enceladus',
+        'Iapetus',
+        'Umbriel',
+        'Algieba',
+        'Despina',
+        'Erinome',
+        'Algenib',
+        'Rasalgethi',
+        'Laomedeia',
+        'Achernar',
+        'Alnilam',
+        'Schedar',
+        'Gacrux',
+        'Pulcherrima',
+        'Achird',
+        'Zubenelgenubi',
+        'Vindemiatrix',
+        'Sadachbia',
+        'Sadaltager',
+        'Sulafat'
+    ]))
+});
+
+/**
  * ImagePresentation
  */
 export const zImagePresentation = z.object({
@@ -1719,18 +1793,16 @@ export const zPyAnimaTtsRunOptions = z.object({
         z.null()
     ])),
     model_id: z.optional(z.union([
-        z.enum([
-            'eleven_multilingual_v2',
-            'eleven_flash_v2_5',
-            'eleven_v3'
-        ]),
+        z.literal('eleven_v4_turbo'),
+        z.enum(['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']),
         z.null()
     ])),
     provider: z.optional(z.union([
         z.enum([
             'browser',
             'pocket_tts',
-            'elevenlabs'
+            'elevenlabs',
+            'gemini'
         ]),
         z.null()
     ])),
@@ -2626,26 +2698,16 @@ export const zPyElevenLabsVoice = z.object({
 
 /**
  * PyElevenLabsVoiceSettings
+ *
+ * The voice settings Eleven v4 accepts; it has no Style, Speed or Speaker Boost.
  */
 export const zPyElevenLabsVoiceSettings = z.object({
     similarity_boost: z.optional(z.union([
         z.number().gte(0).lte(1),
         z.null()
     ])),
-    speed: z.optional(z.union([
-        z.number().gt(0).lte(4),
-        z.null()
-    ])),
     stability: z.optional(z.union([
         z.number().gte(0).lte(1),
-        z.null()
-    ])),
-    style: z.optional(z.union([
-        z.number().gte(0).lte(1),
-        z.null()
-    ])),
-    use_speaker_boost: z.optional(z.union([
-        z.boolean(),
         z.null()
     ]))
 });
@@ -2654,15 +2716,12 @@ export const zPyElevenLabsVoiceSettings = z.object({
  * PyElevenLabsTextToSpeechRequest
  */
 export const zPyElevenLabsTextToSpeechRequest = z.object({
-    model_id: z.optional(z.union([
-        z.string(),
-        z.null()
-    ])).default('eleven_multilingual_v2'),
+    model_id: z.optional(z.literal('eleven_v4_turbo')).default('eleven_v4_turbo'),
     output_format: z.optional(z.union([
         z.string(),
         z.null()
     ])).default('mp3_44100_128'),
-    text: z.string().min(1).max(5000),
+    text: z.string().min(1).max(2000),
     voice_id: z.string().min(1),
     voice_settings: z.optional(z.union([
         zPyElevenLabsVoiceSettings,
@@ -3965,6 +4024,9 @@ export const zPyModelCapabilitiesView = z.object({
  * PyConfiguredModel
  *
  * A catalog row as the owner manages it, including capabilities and probe results.
+ *
+ * ``early_compaction`` is the **Compact early** setting. It is ``None`` when
+ * the model has no long-context price step, so the setting does not apply.
  */
 export const zPyConfiguredModel = z.object({
     allow_memory_writes: z.boolean(),
@@ -3972,6 +4034,10 @@ export const zPyConfiguredModel = z.object({
     connection_id: z.string(),
     context_window_tokens: z.optional(z.union([
         z.int(),
+        z.null()
+    ])),
+    early_compaction: z.optional(z.union([
+        z.boolean(),
         z.null()
     ])),
     hidden: z.boolean(),
@@ -4150,11 +4216,21 @@ export const zPyModelConnectionUpdate = z.object({
 
 /**
  * PyModelProbeRequest
+ *
+ * ``provider_type`` defaults to the connection's API family: Anthropic Messages
+ * on the built-in Anthropic connection, Chat Completions elsewhere.
  */
 export const zPyModelProbeRequest = z.object({
     kind: z.optional(z.enum(['chat', 'embedding'])),
     model: z.string().min(1).max(256),
-    provider_type: z.optional(z.enum(['OpenAIHTTPAgent', 'OpenAIResponsesHTTPAgent']))
+    provider_type: z.optional(z.union([
+        z.enum([
+            'OpenAIHTTPAgent',
+            'OpenAIResponsesHTTPAgent',
+            'AnthropicMessagesHTTPAgent'
+        ]),
+        z.null()
+    ]))
 });
 
 /**
@@ -4177,6 +4253,10 @@ export const zPyModelProbeStep = z.object({
  * PyModelProbeReport
  *
  * Suggested capabilities; ``None`` means the probe could not determine a value.
+ *
+ * ``max_output_tokens``, ``supported_reasoning_efforts`` and
+ * ``native_tool_support`` come only from servers that publish them
+ * (Anthropic's Models API).
  */
 export const zPyModelProbeReport = z.object({
     context_window_tokens: z.optional(z.union([
@@ -4187,11 +4267,23 @@ export const zPyModelProbeReport = z.object({
         z.int(),
         z.null()
     ])),
+    max_output_tokens: z.optional(z.union([
+        z.int(),
+        z.null()
+    ])),
     model: z.string(),
+    native_tool_support: z.optional(z.union([
+        z.array(z.string()),
+        z.null()
+    ])),
     notes: z.optional(z.array(z.string())),
     steps: z.array(zPyModelProbeStep),
     structured_output_transport: z.optional(z.union([
         z.string(),
+        z.null()
+    ])),
+    supported_reasoning_efforts: z.optional(z.union([
+        z.array(z.string()),
         z.null()
     ])),
     supports_streaming: z.optional(z.union([
@@ -4224,6 +4316,10 @@ export const zPyModelProviderCatalogItem = z.object({
     ])),
     context_window_tokens: z.optional(z.union([
         z.int(),
+        z.null()
+    ])),
+    default_reasoning_effort: z.optional(z.union([
+        z.string(),
         z.null()
     ])),
     hidden: z.optional(z.boolean()).default(false),
@@ -4400,7 +4496,10 @@ export const zPyOwnerModelCapabilities = z.object({
 /**
  * PyOwnerModelPatch
  *
- * Built-in models accept only ``hidden``.
+ * Built-in models accept only ``hidden`` and ``early_compaction``.
+ *
+ * ``early_compaction`` is accepted only on models with a long-context price
+ * step (code ``early_compaction_unavailable`` otherwise).
  */
 export const zPyOwnerModelPatch = z.object({
     allow_memory_writes: z.optional(z.union([
@@ -4414,6 +4513,10 @@ export const zPyOwnerModelPatch = z.object({
     clear_context_window: z.optional(z.boolean()).default(false),
     context_window_tokens: z.optional(z.union([
         z.int(),
+        z.null()
+    ])),
+    early_compaction: z.optional(z.union([
+        z.boolean(),
         z.null()
     ])),
     hidden: z.optional(z.union([
@@ -4454,7 +4557,11 @@ export const zPyOwnerModelRequest = z.object({
         z.null()
     ])),
     provider_type: z.optional(z.union([
-        z.enum(['OpenAIHTTPAgent', 'OpenAIResponsesHTTPAgent']),
+        z.enum([
+            'OpenAIHTTPAgent',
+            'OpenAIResponsesHTTPAgent',
+            'AnthropicMessagesHTTPAgent'
+        ]),
         z.null()
     ])),
     template_id: z.optional(z.union([
@@ -4745,6 +4852,7 @@ export const zPyRuntimeAction = z.object({
         z.int(),
         z.null()
     ])),
+    missing_references: z.optional(z.record(z.string(), z.string())),
     name: z.string(),
     reference_map: z.optional(z.record(z.string(), z.string())),
     runtime_root_id: z.optional(z.union([
@@ -4832,6 +4940,7 @@ export const zPyRuntimeIdleGesture = z.object({
         z.int(),
         z.null()
     ])),
+    missing_references: z.optional(z.record(z.string(), z.string())),
     name: z.string(),
     reference_map: z.optional(z.record(z.string(), z.string())),
     runtime_root_id: z.optional(z.union([
@@ -6777,6 +6886,10 @@ export const zRuntimeCapabilities = z.object({
     chat: z.boolean(),
     chat_file_uploads: z.boolean(),
     companion_safety: zCompanionSafetyCapability,
+    gemini_tts: z.optional(z.union([
+        zGeminiTtsCapability,
+        z.null()
+    ])),
     local_filesystem_administration: z.boolean(),
     model_configuration: z.optional(z.boolean()).default(false),
     model_role_selection: z.boolean(),
@@ -8116,6 +8229,58 @@ export const zProcessUserFileV1FilesFileIdProcessPostData = z.object({
  * Successful Response
  */
 export const zProcessUserFileV1FilesFileIdProcessPostResponse = zPyUserFileProcessResponse;
+
+export const zGetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetData = z.object({
+    body: z.optional(z.never()),
+    path: z.object({
+        voice: z.enum([
+            'Zephyr',
+            'Puck',
+            'Charon',
+            'Kore',
+            'Fenrir',
+            'Leda',
+            'Orus',
+            'Aoede',
+            'Callirrhoe',
+            'Autonoe',
+            'Enceladus',
+            'Iapetus',
+            'Umbriel',
+            'Algieba',
+            'Despina',
+            'Erinome',
+            'Algenib',
+            'Rasalgethi',
+            'Laomedeia',
+            'Achernar',
+            'Alnilam',
+            'Schedar',
+            'Gacrux',
+            'Pulcherrima',
+            'Achird',
+            'Zubenelgenubi',
+            'Vindemiatrix',
+            'Sadachbia',
+            'Sadaltager',
+            'Sulafat'
+        ])
+    }),
+    query: z.optional(z.object({
+        model_id: z.optional(z.enum(['gemini-3.8-flash-lite-tts', 'gemini-3.8-flash-tts']))
+    })),
+    headers: z.optional(z.object({
+        'If-None-Match': z.optional(z.union([
+            z.string(),
+            z.null()
+        ]))
+    }))
+});
+
+/**
+ * The voice's sample as a 24 kHz mono WAV.
+ */
+export const zGetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponse = z.string();
 
 export const zListGesturesData = z.object({
     body: z.optional(z.never()),

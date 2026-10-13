@@ -86,21 +86,17 @@
   "gestures": {
     "all": "すべて",
     "clips": "クリップ",
-    "customFailed": "カスタムジェスチャーを読み込めませんでした。",
     "customFirst": "カスタムを先頭に",
     "filter": "ジェスチャーの絞り込みと並べ替え",
     "listLabel": "利用可能なジェスチャー",
-    "loadingCustom": "カスタムジェスチャーを読み込んでいます…",
     "motionType": "モーションの種類",
     "nameAsc": "名前 A–Z",
     "nameDesc": "名前 Z–A",
-    "noCustom": "利用できるカスタムジェスチャーはありません。",
     "noFilterMatch": "選択したフィルターに一致するジェスチャーはありません。",
     "noSearchMatch": "検索に一致するジェスチャーはありません。",
     "search": "ジェスチャーを検索",
     "show": "表示",
     "showMore": "さらに表示",
-    "showStarters": "同梱ジェスチャーを表示",
     "sortBy": "並べ替え",
     "status": "状態",
     "title": "ジェスチャー",
@@ -109,7 +105,13 @@
     "updateInLibrary": "ライブラリで更新",
     "updatesOnly": "アップデートがあるもののみ",
     "viewInLibrary": "ライブラリで表示",
-    "vrma": "VRMA"
+    "vrma": "VRMA",
+    "counts": "装備中 {{equipped, number}} / 全 {{total, number}}",
+    "showIncluded": "同梱を表示",
+    "showLocal": "ローカルを表示",
+    "loading": "ジェスチャーを読み込んでいます…",
+    "loadFailed": "ジェスチャーを読み込めませんでした。",
+    "none": "利用できるジェスチャーはありません。"
   },
   "identity": {
     "edit": "アイデンティティを編集",
@@ -431,6 +433,16 @@
       "sectionLabel": "音声プロバイダー",
       "speechOff": "アプリの設定で音声がオフになっています。"
     },
-    "title": "音声"
+    "title": "音声",
+    "gemini": {
+      "available": "利用できる Gemini の音声",
+      "listLabel": "Gemini の音声",
+      "sampleNote": "各音声を初めて再生するときは Gemini API キーを使用し、その後はサンプルが保存されます。",
+      "saved": "Gemini の音声を保存しました。",
+      "saveFailed": "Gemini の音声を保存できませんでした。もう一度お試しください。",
+      "searchLabel": "Gemini の音声を検索",
+      "sectionLabel": "Gemini の音声",
+      "trigger": "Gemini の音声: {{name}}"
+    }
   }
 }

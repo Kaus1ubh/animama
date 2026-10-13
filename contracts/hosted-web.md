@@ -7,6 +7,47 @@ capabilities, private API traffic and closed application/resource delivery. The
 retained actions and their verification boundaries. A consumer implements these
 contracts without importing local routes, installation state or a sibling checkout.
 
+Product routes every composition serves live in `animama.product_http` ([ADR
+0021](../docs/adr/0021-shared-product-http-routes.md)). A consumer mounts
+`animama.product_http.routes.ROUTERS` from the published wheel, installs its own
+`ProductPorts` (owner sessions under its commit authority, repositories, content
+services and byte delivery, upload storage, speech, the model catalog policy, role
+defaults and embedding refresh status, the Memory Manager service, and the chat
+policy, chat-turn guard and turn collaborators) and sets its request-principal
+resolver as `app.state.request_principal_resolver`; without either, shared routes
+answer 503. Its content port decides package admission: a
+composition that withholds Anima creation builds
+`ContentPackageService(allow_anima_import=False)`. A composition that serves only
+its own catalog sets `ModelCatalogPolicy(validate_role_preferences=True)`, so
+settings writes refuse a role preference its catalog cannot serve
+(`422 model_role_unavailable`). Its speech port refuses an operation it does not
+offer, and its Memory Manager port may wrap each operation with its own admission;
+either refuses with `ProductRefusal`, which the route reports as `detail.code`
+with the refusal's status. The route
+inventory marks each route shared, local-only or withheld by a capability. Shared
+byte routes answer GET only: a consumer that serves HEAD or Range for them adds
+those through its own delivery port or routes.
+
+`POST /v1/animas/{anima_id}/chat:sse` asks the consumer's guard to admit each turn
+(`admit_chat_turn`) after the Anima ownership and runtime-revision checks and
+before any write or model call; a refusal is a `ProductRefusal` (reported as
+`detail.code` with its status) or the consumer's own exception. It then runs the
+turn with the consumer's model clients,
+web search, attachment embedder and speech (`chat_turn`); a consumer that does
+not offer Gemini voice returns `None` from `ChatTurnServices.gemini_speech`, so
+a Gemini request gets no speech frames. The guard's lease is
+checked while the model streams and before each step after the reply, and settled
+exactly once, after every turn task stopped, as `unstarted`, `completed`, `failed`
+or `interrupted`; a stop before the reply is saved ends the turn with an error
+frame carrying its code and message ([chat-turn
+guard](../docs/backend/runtime/chat.md#chat-turn-guard)). The chat policy's
+`public_error_text` replaces the text and details of `error` frames; speech error
+frames carry the speech port's own messages, so it raises only browser-safe ones,
+and a speech decline (`ProductRefusal`, such as `speech_allowance_exhausted`)
+keeps its code in `tts.session.error` or `tts.error`.
+Frames carry gruut phoneme payloads only where the wheel's `server` extra is
+installed.
+
 ## Admission and browser lifetime
 
 `ProductRuntimeComposition` in `@animama/runtime-contracts` supplies one transport,
@@ -125,11 +166,11 @@ shows that a newer sign-in replaced the one it targeted.
 ## Capabilities and requests
 
 The sole wire schema is `app/contracts/runtime_capabilities.py`, exported offline
-in `local-http` version **4.0.0** with capability `schema_version: 2`. The generated
+in `local-http` version **7.0.0** with capability `schema_version: 2`. The generated
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
-surface, not another wire schema. `runtime-contracts` is version 0.4.0 and
-`product-ui` is version 0.8.0. Consumers explicitly admit
+surface, not another wire schema. `runtime-contracts` is version 0.7.0 and
+`product-ui` is version 0.11.0. Consumers explicitly admit
 the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:
@@ -143,6 +184,7 @@ Permissions are separate from browser support and temporary errors:
 | Model connections/catalog administration and keys          | `model_configuration`, `provider_credentials`, `web_search.configuration` | False; catalog/role reads and selections remain retained.                                |
 | Host paths, scans, file logs and server model installation | `local_filesystem_administration`                                         | False; virtual memory paths, creator assets and browser model downloads remain retained. |
 | Electron/native controls                                   | `native_features`                                                         | False; browser fullscreen/PiP use browser feature detection.                             |
+| Gemini voice                                               | `gemini_tts`                                                              | Absent or null; the hosted adapter refuses a runtime that reports it.                    |
 
 Web search use follows the runtime fields `web_search.configured`, `backend` and
 `credential_state`, not `web_search.configuration`: a hosted operator who
@@ -221,15 +263,38 @@ direct provider. The cookie authorizes the handshake. The consumer validates the
 current session and Origin, reserves before provider dispatch, and owns bounded
 cancellation and settlement. Browser fixtures do not establish those server gates.
 
+On a server socket the browser sends `{"text": " "}` when it opens, one
+`{"text": "<chunk>"}` per reply chunk and `{"text": ""}` at the end. It sends no
+other frames. It plays base64 `pcm_24000` from `{"audio": ...}` frames and
+ends the stream on `{"isFinal": true}` or `{"is_final": true}`. The realtime model
+is `eleven_v4_turbo`.
+
+An audio frame may also carry the spoken text's character timing as
+`alignment`: `{"characters": [...], "character_start_times_seconds": [...],
+"character_end_times_seconds": [...]}`, timed in seconds from the run's first
+audio sample. This is the shape ElevenLabs' `stream/with-timestamps` returns,
+offset to the run when it spans several requests. The browser keeps it as
+lip-sync evidence and ignores malformed timing. A frame without it plays as
+before. A multi-user hosted app keeps this server transport: a
+direct `ttd_websocket` token binds no text, voice or model, so a browser holding
+one could speak anything on the operator's account, beyond any reservation.
+
 The existing local session remains `transport: "direct"` (or an omitted legacy
-transport) with its backend-issued short-lived token. Direct playback additionally
-requires `provider_credentials: true`. Both paths fence late session/audio work,
+transport) with its backend-issued short-lived token. Its socket is ElevenLabs'
+Text to Dialogue socket, opened with a single-use `ttd_websocket` token. Direct
+playback additionally requires `provider_credentials: true`. Both paths fence late session/audio work,
 close audio resources on failure or teardown, and preserve text fallback.
 
-A speech error frame with `code: "speech_allowance_exhausted"` (`tts.session.error`
-for realtime sessions, `tts.error` for finalized `eleven_v3` audio, each with
-`run_id`, `provider: "elevenlabs"` and a human `error`) means the owner's voice
-allowance cannot cover that reply, and no provider audio plays for it. A
+A speech error frame with `code: "speech_allowance_exhausted"`
+(`tts.session.error`, with `run_id`, `provider: "elevenlabs"` and a human
+`error`) means the owner's voice allowance cannot cover that reply, and no
+provider audio plays for it. ElevenLabs speech is always realtime: there is no
+finalized ElevenLabs model, and the browser ignores an ElevenLabs `tts.error`.
+The shared route maps a retired id (`eleven_v3`, `eleven_flash_v2_5` or
+`eleven_multilingual_v2`) to `eleven_v4_turbo`. A route that does not validate
+`dispatch_options.tts` with `PyAnimaTtsRunOptions` must map retired ids with
+`replace_retired_elevenlabs_tts_model_id` before `merge_chat_request_options`,
+which drops unsupported ids. A
 decline known before the turn precedes all reply text and no `tts.session` is
 sent for the run; one found while reserving the reply's speech may follow the
 reply text. Either must precede `run.completed`. Where Pocket TTS runs, the

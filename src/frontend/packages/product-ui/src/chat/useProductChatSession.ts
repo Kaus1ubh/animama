@@ -361,9 +361,9 @@ export function useProductChatSession({
     completeTtsRun,
     acceptElevenLabsSession,
     markElevenLabsSessionFailed,
-    acceptElevenLabsFinalizedAudio,
-    completeElevenLabsFinalizedAudio,
-    markElevenLabsFinalizedAudioFailed,
+    acceptFinalizedAudio,
+    completeFinalizedAudio,
+    markFinalizedAudioFailed,
     fallBackToPocketTts,
     cancelTts,
     isTtsAudioActive,
@@ -912,14 +912,14 @@ export function useProductChatSession({
         const useMainStructuredResponse = ttsEnabled;
         const ttsProvider = speech.provider;
         const elevenLabsModelId = speech.elevenLabsModelId;
-        const shouldQueueViseme =
-          ttsEnabled &&
-          (ttsProvider === "pocket_tts" || ttsProvider === "elevenlabs");
         const visemeProvider =
-          ttsProvider === "pocket_tts" || ttsProvider === "elevenlabs"
+          ttsProvider === "pocket_tts" ||
+          ttsProvider === "elevenlabs" ||
+          ttsProvider === "gemini"
             ? ttsProvider
             : undefined;
-        const isFinalizedElevenLabsTts = speech.finalizedElevenLabs;
+        const shouldQueueViseme = ttsEnabled && visemeProvider !== undefined;
+        const isFinalizedServerAudio = speech.finalizedServerAudio;
 
         // 4) Start local run state before opening SSE:
         // - optimistic user message
@@ -1287,41 +1287,38 @@ export function useProductChatSession({
             const audioRunId = data.run_id ?? runId;
             if (
               !ttsEnabled ||
-              ttsProvider !== "elevenlabs" ||
-              !isFinalizedElevenLabsTts ||
+              !isFinalizedServerAudio ||
               speechFellBackToPocket ||
               ttsSkippedForRun(audioRunId)
             ) {
               return;
             }
-            acceptElevenLabsFinalizedAudio(audioRunId, data);
+            acceptFinalizedAudio(audioRunId, data);
           },
           onTtsDone: (data) => {
             const audioRunId = data.run_id ?? runId;
             if (
               !ttsEnabled ||
-              ttsProvider !== "elevenlabs" ||
-              !isFinalizedElevenLabsTts ||
+              !isFinalizedServerAudio ||
               speechFellBackToPocket ||
               ttsSkippedForRun(audioRunId)
             ) {
               return;
             }
-            completeElevenLabsFinalizedAudio(audioRunId);
+            completeFinalizedAudio(audioRunId);
           },
           onTtsError: (data) => {
             const audioRunId = data.run_id ?? runId;
             if (
               !ttsEnabled ||
-              ttsProvider !== "elevenlabs" ||
-              !isFinalizedElevenLabsTts ||
+              !isFinalizedServerAudio ||
               speechFellBackToPocket
             ) {
               return;
             }
-            if (fallBackFromDeclinedSpeech(audioRunId, data)) return;
+            // Finalized speech (Gemini) has no Pocket fallback: a decline ends it.
             skippedTtsRunIdsRef.current.add(audioRunId);
-            markElevenLabsFinalizedAudioFailed(audioRunId, data);
+            markFinalizedAudioFailed(audioRunId, data);
           },
           onEmotionUpdate: (data) => {
             // Full-state emotion updates drive both the live avatar runtime
@@ -1563,7 +1560,7 @@ export function useProductChatSession({
     [
       isStreaming,
       animaId,
-      acceptElevenLabsFinalizedAudio,
+      acceptFinalizedAudio,
       acceptElevenLabsSession,
       appendTtsToken,
       applyAvatarEmotionUpdate,
@@ -1571,7 +1568,7 @@ export function useProductChatSession({
       cancelTts,
       clearAvatarVisemeBridgeAll,
       clearAvatarVisemeBridgeRun,
-      completeElevenLabsFinalizedAudio,
+      completeFinalizedAudio,
       completeTtsRun,
       fallBackToPocketTts,
       markNonTtsResponseStarted,
@@ -1586,7 +1583,7 @@ export function useProductChatSession({
       capabilities.chat,
       recordUiInteraction,
       recordUiInteractionDuration,
-      markElevenLabsFinalizedAudioFailed,
+      markFinalizedAudioFailed,
       markElevenLabsSessionFailed,
       replaceChatRoute,
       routeChatId,

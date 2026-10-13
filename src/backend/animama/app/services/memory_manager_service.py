@@ -571,7 +571,8 @@ class MemoryManagerService:
                         feedback=clean_feedback,
                     )
             except MemoryManagerRuntimeError as exc:
-                runtime_result = self._runtime_failure_result(exc)
+                # The pinned row's runtime ran the resume, which may differ from the role's.
+                runtime_result = self._runtime_failure_result(exc, runtime_name=runtime.name if runtime else None)
             await self._persist_runtime_result(
                 run=run,
                 result=runtime_result,
@@ -1246,11 +1247,19 @@ class MemoryManagerService:
             outcome=MEMORY_MANAGER_RUNTIME_OUTCOME_BLOCKED,
         )
 
-    def _runtime_failure_result(self, exc: MemoryManagerRuntimeError) -> MemoryManagerRuntimeResult:
+    def _runtime_failure_result(
+        self,
+        exc: MemoryManagerRuntimeError,
+        *,
+        runtime_name: str | None = None,
+    ) -> MemoryManagerRuntimeResult:
+        """A failed result recording ``runtime_name``, the runtime that failed (the role's by default)."""
+
         detail = exc.detail
+        runtime_name = runtime_name or self._runtime.name
         self._log.warning(
             "MemoryManagerService.runtime.failed",
-            runtime=self._runtime.name,
+            runtime=runtime_name,
             error=detail,
             exc_info=True,
         )
@@ -1258,7 +1267,7 @@ class MemoryManagerService:
             assistant_message=f"Memory manager runtime failed: {detail}",
             serialized_agent_state=None,
             metadata={
-                "runtime": self._runtime.name,
+                "runtime": runtime_name,
                 "exception_class": exc.__class__.__name__,
                 "runtime_error_code": exc.code,
             },

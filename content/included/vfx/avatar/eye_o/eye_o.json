@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Eye O",
   "description": "Wide open eye hover for alarm, startled curiosity, or sudden emotional intensity.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:surprised_02v2",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "eyes",
@@ -50,7 +57,8 @@
       "hideParts": [
         "eye_highlight"
       ]
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

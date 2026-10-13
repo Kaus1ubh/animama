@@ -20,8 +20,8 @@
     },
     "nonPortableReason": "이 앱에 포함되어 여기에서만 사용할 수 있습니다. 사용자 지정, 복사, 내보내기를 할 수 없습니다.",
     "particle": {
-      "aTextureTooLarge": "텍스처가 25 MiB 제한을 초과합니다.",
-      "autoFitEmitters": "사각형 자동 맞춤 이미터 이름은 고유해야 하며 최대 8개의 이미터와 일치해야 합니다.",
+      "aTextureTooLarge": "텍스처가 {{size}} MiB 제한을 초과합니다.",
+      "autoFitEmitters": "사각형 자동 맞춤 이미터 이름은 고유해야 하며 최대 {{max}}개의 이미터와 일치해야 합니다.",
       "autoFitEmpty": "사각형 자동 맞춤 크기는 비워 둘 수 없습니다.",
       "autoFitHeightRange": "사각형 자동 맞춤 높이의 최솟값이 최댓값보다 큽니다.",
       "autoFitWidthRange": "사각형 자동 맞춤 너비의 최솟값이 최댓값보다 큽니다.",
@@ -43,12 +43,14 @@
         "scale": "크기"
       },
       "textureAmbiguous": "텍스처 {{texture}}의 리소스 출처가 모호합니다.",
+      "textureDimensionsTooLarge": "텍스처 {{texture}}의 각 변은 {{size}}px 이하여야 합니다.",
       "textureEmpty": "텍스처 {{texture}}이(가) 비어 있습니다.",
       "textureFetchFailed": "텍스처를 가져오지 못했습니다(HTTP {{status}}).",
       "textureMismatched": "텍스처 {{texture}}의 이미지 데이터가 일치하지 않거나 지원되지 않습니다.",
       "textureNotAvailable": "텍스처 {{texture}}은(는) 이 콘텐츠 항목에서 사용할 수 없습니다.",
       "textureNotInApp": "텍스처 {{texture}}은(는) 정확한 앱 소스에서 사용할 수 없습니다.",
-      "textureTooLarge": "텍스처 {{texture}}이(가) 25 MiB 제한을 초과합니다.",
+      "texturesTotalTooLarge": "파티클 효과 하나의 텍스처는 합계 {{size}} MiB 이하여야 합니다.",
+      "textureTooLarge": "텍스처 {{texture}}이(가) {{size}} MiB 제한을 초과합니다.",
       "textureUnresolved": "확인되지 않은 텍스처 리소스가 있습니다.",
       "tooManyTextures_other": "파티클 효과는 고유 텍스처를 최대 {{count}}개까지 지원합니다."
     },
@@ -71,6 +73,7 @@
     },
     "recovery": {
       "discardFailed": "브라우저 복구 데이터를 삭제할 수 없습니다. 다시 시도하세요.",
+      "particleTexturesNotStored": "텍스처 파일을 충돌 복구용으로 저장할 수 없습니다. 이 초안을 복원한 후 누락된 텍스처를 다시 선택하세요.",
       "particleTooLarge": "이 효과는 브라우저 충돌 복구에 너무 큽니다. 저장은 계속할 수 있습니다.",
       "unavailable": "브라우저 충돌 복구를 사용할 수 없습니다. 저장이 끝날 때까지 이 탭을 열어 두세요."
     },
@@ -165,6 +168,19 @@
       "poses": "포즈",
       "reactions": "리액션"
     },
+    "contentTypes": {
+      "all": "전체",
+      "avatarEffects": "아바타 효과",
+      "avatars": "아바타",
+      "gestures": "제스처",
+      "idleStyles": "대기 스타일",
+      "label": "라이브러리 콘텐츠 유형",
+      "particle": "파티클 효과",
+      "poses": "포즈",
+      "reactions": "리액션",
+      "scene": "장면 효과",
+      "sound": "사운드"
+    },
     "fxFilters": {
       "all": "전체",
       "avatar": "아바타 효과",
@@ -238,6 +254,7 @@
       },
       "noAnimas": "아직 내보낼 Anima가 없습니다.",
       "noMatches": "일치하는 콘텐츠가 없습니다.",
+      "omittedSounds_other": "기본 제공 효과 사운드 {{count, number}}개는 이 앱에 남습니다. 해당 효과의 가져온 사본은 사운드 없이 재생됩니다.",
       "plusRequired_other": "+ 필요한 종속 항목 {{count}}개",
       "preparingPackage": "패키지를 준비하는 중…",
       "refreshSelection": "선택 새로 고침",

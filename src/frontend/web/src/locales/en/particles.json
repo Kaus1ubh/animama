@@ -182,6 +182,7 @@
     "collapseAll": "Collapse all",
     "copied": "Copied",
     "copy": "Copy",
+    "creatorDocument": "Creator document (Import keeps the name and settings)",
     "currentPayload": "Current export payload",
     "download": "Download JSON",
     "exactJson": "Exact export JSON",
@@ -189,7 +190,7 @@
     "parseFailed": "Export JSON could not parse: {{detail}}",
     "parseFailedUnexplained": "Export JSON could not parse.",
     "resetView": "Reset view",
-    "snippets": "Catalog settings and clip event",
+    "snippets": "Creator document, catalog settings and clip event",
     "title": "Particle VFX export",
     "unavailable": "No export JSON is available."
   },
@@ -213,7 +214,8 @@
     "ariaLabel": "Particle VFX JSON",
     "confirm": "Import effect",
     "confirmReplace": "Discard the current Particle VFX changes and load this JSON?",
-    "description": "Paste a three.quarks effect. Valid JSON replaces the current document after the unsaved-change confirmation.",
+    "description": "Paste a three.quarks effect, or a creator document from Export, which also sets the name and settings. Valid JSON replaces the current document after the unsaved-change confirmation. Embedded PNG textures are kept. Other textures that are not built in show as missing until you choose their files; plain Quarks JSON keeps using textures this effect already carries.",
+    "embeddedTextureRefused": "An embedded texture was not imported: {{reason}}",
     "title": "Import Particle VFX JSON"
   },
   "inspector": {
@@ -240,12 +242,13 @@
   },
   "issues": {
     "ambiguousTextureFilename": "Texture paths {{first}} and {{second}} share one portable filename.",
+    "atlasGridLimit": "Sprite sheets have 1 to {{max}} tiles in each direction.",
     "atlasMetadataMismatch": "Renderer tile counts do not match the selected atlas texture metadata.",
     "atlasTilesMissing": "Selected atlas texture should use more than one tile in the renderer.",
     "blobTextureUrl": "Blob texture URLs are preview-only and cannot be exported.",
     "durationLimit": "Every emitter duration must fit the saved maximum duration budget.",
     "durationOverBudget": "Emitter duration exceeds the catalog max duration budget.",
-    "embeddedTextureUrl": "Embedded data texture URLs work but should be migrated to tracked public assets.",
+    "embeddedTextureUrl": "This embedded texture is not a PNG the effect can carry; replace it with an imported texture.",
     "emptyTextureUrl": "Texture image URL must be a non-empty string.",
     "frameAnimationNeedsTiles": "Frame animation needs more than one renderer tile.",
     "frameAnimationWithoutAtlas": "Frame animation is enabled but the selected texture is not an atlas.",
@@ -261,7 +264,8 @@
     "missingTexture": "Quarks JSON must include at least one texture image.",
     "nodeLimit": "Particle VFX contains more than {{max}} object nodes.",
     "particleBudgetExceeded": "Estimated {{estimated, number}} particles exceeds the catalog budget of {{budget, number}}.",
-    "particleLimit": "Estimated particle use must fit both the saved budget and the {{max}}-particle private limit.",
+    "particleBudgetUnestimated": "Particle use cannot be estimated (an emission, lifetime, burst or duration value is unsupported); the catalog budget is {{budget, number}}.",
+    "particleLimit": "Estimated {{estimated, number}} particles with a saved budget of {{budget, number}}: both must fit the {{max}}-particle private limit.",
     "remoteTextureUrl": "Remote texture URLs are not allowed in shipped VFX assets.",
     "resourceLimit": "{{key}} must be an array with no more than {{max}} entries.",
     "rotation3DWithoutMesh": "Rotation3DOverLife needs Mesh render mode to preview.",
@@ -281,6 +285,7 @@
     "worldSpaceEmitter": "World-space emitters spawn at the anchor but do not continuously follow it."
   },
   "json": {
+    "creatorDocumentInvalid": "A Particle creator document needs a name, its settings and a quarks effect.",
     "notObject": "Quarks JSON must be an object.",
     "parseFailed": "Quarks JSON could not parse: {{detail}}",
     "parseFailedUnexplained": "Quarks JSON could not parse."
@@ -288,7 +293,8 @@
   "load": {
     "failed": "The Particle Effect could not be loaded.",
     "loading": "Loading Particle Effect…",
-    "manifestMissing": "The Particle Effect manifest is missing."
+    "manifestMissing": "The Particle Effect manifest is missing.",
+    "textureFailed": "A Particle Effect texture could not be loaded."
   },
   "position": {
     "anchorAndPosition": "Anchor and position",
@@ -382,8 +388,9 @@
     "allowCoexist": "Allow simultaneous effects",
     "allowLooping": "Allow emitter looping",
     "defaultAnchor": "Default anchor",
-    "estimatedTotal_one": "Estimated total: ~{{count, number}} particle",
-    "estimatedTotal_other": "Estimated total: ~{{count, number}} particles",
+    "estimatedAtOnce_one": "Estimated at once: up to {{count, number}} particle",
+    "estimatedAtOnce_other": "Estimated at once: up to {{count, number}} particles",
+    "estimateUnavailable": "Estimated at once: cannot be estimated (an emission, lifetime, burst or duration value is unsupported)",
     "limitsHint": "Performance limits apply to the whole effect. Enabling looping here permits individual emitters to repeat their cycles.",
     "maxDuration": "Maximum playback duration (s)",
     "maxParticles": "Maximum total particles",
@@ -425,6 +432,22 @@
     "animateFrames": "Animate frames",
     "atlas": "Atlas",
     "blendTiles": "Blend tiles",
+    "carried": {
+      "chooseFile": "Choose file for {{file}}",
+      "dimensions": "{{width}}×{{height}}",
+      "hint": "PNG up to {{size, number}} MiB and {{dimension}} px. Set Atlas tiles for a sprite sheet.",
+      "import": "Import PNG texture",
+      "missing": "Texture {{file}} is missing. Choose its PNG file.",
+      "title": "This effect's textures"
+    },
+    "files": {
+      "dimensionsTooLarge": "Textures must be at most {{size}} px on each side.",
+      "fileRefused": "Texture {{texture}}: {{reason}}",
+      "notPng": "Texture files must be PNG images.",
+      "tooLarge": "Texture files must be at most {{size, number}} MiB.",
+      "tooMany": "A Particle Effect can use at most {{max, number}} textures.",
+      "totalTooLarge": "Textures in one Particle Effect must total at most {{size, number}} MiB."
+    },
     "frameEnd": "Frame end",
     "frameStart": "Frame start",
     "names": {

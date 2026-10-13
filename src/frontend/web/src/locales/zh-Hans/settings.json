@@ -401,39 +401,28 @@
     },
     "tts": {
       "elevenLabs": {
-        "grouping": {
-          "ariaLabel": "Eleven v3 音频分组",
-          "fallbackDescription": "按句分组启动最快。",
-          "label": "音频分组",
-          "options": {
-            "paragraph": {
-              "description": "按段落发送请求，长篇音频更流畅。",
-              "label": "段落"
-            },
-            "sentence": {
-              "description": "每句发送一次最终请求，启动最快。",
-              "label": "句子"
-            }
-          },
-          "placeholder": "选择分组",
-          "updateFailed": "无法更新 Eleven v3 音频分组。"
-        },
         "key": {
           "description": "使用 ElevenLabs 语音时需要。在此电脑上加密保存，也可在“API 密钥”中设置。",
           "label": "ElevenLabs API 密钥"
-        },
-        "model": {
-          "descriptions": {
-            "eleven_flash_v2_5": "低延迟的 ElevenLabs 实时语音。",
-            "eleven_multilingual_v2": "成熟的多语言实时模型。",
-            "eleven_v3": "在回复完成后生成的富有表现力的语音。"
-          },
-          "label": "ElevenLabs 模型",
-          "placeholder": "选择模型",
-          "updateFailed": "无法更新 ElevenLabs 模型。"
         }
       },
       "enable": "启用文字转语音",
+      "gemini": {
+        "key": {
+          "description": "使用 Gemini 语音时需要。在此电脑上加密保存，也可在“API 密钥”中设置。",
+          "label": "Gemini API 密钥"
+        },
+        "model": {
+          "descriptions": {
+            "flash": "Gemini 的旗舰语音模型，费用较高。",
+            "flashLite": "延迟更低、费用更低的 Gemini 语音。"
+          },
+          "label": "Gemini 模型",
+          "note": "Google 会按你的 API 密钥对 Gemini 语音计费。可在“装备 → 语音”中为每个 Anima 选择声音。",
+          "placeholder": "选择模型",
+          "updateFailed": "无法更新 Gemini 模型。"
+        }
+      },
       "noProvider": "此环境中没有可用的文字转语音提供商。",
       "provider": {
         "ariaLabel": "文字转语音提供商",
@@ -446,7 +435,7 @@
       "stream": {
         "description": "在完整回复准备好之前开始说话。",
         "label": "分块流式文字转语音",
-        "unavailable": "使用 Eleven v3 时不可用。",
+        "unavailable": "使用 Gemini 时不可用。",
         "updateFailed": "无法更新文字转语音流式模式。"
       },
       "updateFailed": "无法更新文字转语音设置。"

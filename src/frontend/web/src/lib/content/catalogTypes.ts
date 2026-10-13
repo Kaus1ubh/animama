@@ -68,6 +68,8 @@ export type PyContentFile = Partial<PyTransportContentFile> & {
   media_type: string;
   size_bytes: number;
   sha256: string;
+  /** Item-relative path a typed preview reports, as manifests refer to it. */
+  logical_path?: string;
 };
 
 export type PyContentPreviewFile = PyContentFile & { url: string };
@@ -400,6 +402,7 @@ export function typedComponentCatalogViewItem(
         ? particleThumbnailSource(item.files ?? [], item.revision_sha256)
         : undefined,
     editable: item.editable,
+    portability: item.portability,
     metadata,
     created_at: null,
     updated_at: null,

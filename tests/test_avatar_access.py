@@ -6,12 +6,13 @@ import pytest
 from fastapi import HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.domain.avatar import Avatar
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.avatar import ORMAvatar
 from animama.orm.content_catalog import ORMContentCatalogItem
+from animama.product_http.routes import avatars as avatar_router
 from animama.server import avatar_access as avatar_access_module
-from animama.server.routers import avatar as avatar_router
 
 
 class _StubAvatarRepository:
@@ -156,7 +157,7 @@ async def test_avatar_catalog_projects_product_rows_and_filters_origin(async_ses
 
     try:
         page = await avatar_router.list_avatar_catalog(
-            session=async_session,
+            repositories=SQLAlchemyProductRepositories(async_session),
             user=RequestPrincipal(id=user_id),
             q=None,
             origin="local",
@@ -235,7 +236,12 @@ async def test_catalog_hides_retired_defaults_and_uses_model_portraits(async_ses
     await async_session.flush()
     try:
         page = await avatar_router.list_avatar_catalog(
-            session=async_session, user=RequestPrincipal(id="owner"), q=suffix, origin="all", sort="name", limit=50
+            repositories=SQLAlchemyProductRepositories(async_session),
+            user=RequestPrincipal(id="owner"),
+            q=suffix,
+            origin="all",
+            sort="name",
+            limit=50,
         )
         assert [item.avatar_id for item in page.items] == [avatar_id]
         assert page.items[0].preview_url == f"/v1/content/files/{file_ref}"
@@ -246,7 +252,12 @@ async def test_catalog_hides_retired_defaults_and_uses_model_portraits(async_ses
         model.owner_user_id = "owner"
         await async_session.flush()
         page = await avatar_router.list_avatar_catalog(
-            session=async_session, user=RequestPrincipal(id="owner"), q=suffix, origin="all", sort="name", limit=50
+            repositories=SQLAlchemyProductRepositories(async_session),
+            user=RequestPrincipal(id="owner"),
+            q=suffix,
+            origin="all",
+            sort="name",
+            limit=50,
         )
         assert page.items[0].preview_url is None  # A Local basename collision cannot adopt Included art.
         portrait.source = "local"
@@ -255,20 +266,35 @@ async def test_catalog_hides_retired_defaults_and_uses_model_portraits(async_ses
         portrait.content_metadata = {"avatar_model": suffix, "presentation": {"avatar_item_id": model_id}}
         await async_session.flush()
         page = await avatar_router.list_avatar_catalog(
-            session=async_session, user=RequestPrincipal(id="owner"), q=suffix, origin="all", sort="name", limit=50
+            repositories=SQLAlchemyProductRepositories(async_session),
+            user=RequestPrincipal(id="owner"),
+            q=suffix,
+            origin="all",
+            sort="name",
+            limit=50,
         )
         assert page.items[0].preview_url == f"/v1/content/files/{file_ref}"
         portrait.owner_user_id = "someone-else"
         await async_session.flush()
         page = await avatar_router.list_avatar_catalog(
-            session=async_session, user=RequestPrincipal(id="owner"), q=suffix, origin="all", sort="name", limit=50
+            repositories=SQLAlchemyProductRepositories(async_session),
+            user=RequestPrincipal(id="owner"),
+            q=suffix,
+            origin="all",
+            sort="name",
+            limit=50,
         )
         assert page.items[0].preview_url is None
         portrait.owner_user_id = "owner"
         portrait.status = "invalid"
         await async_session.flush()
         page = await avatar_router.list_avatar_catalog(
-            session=async_session, user=RequestPrincipal(id="owner"), q=suffix, origin="all", sort="name", limit=50
+            repositories=SQLAlchemyProductRepositories(async_session),
+            user=RequestPrincipal(id="owner"),
+            q=suffix,
+            origin="all",
+            sort="name",
+            limit=50,
         )
         assert page.items[0].preview_url is None
     finally:

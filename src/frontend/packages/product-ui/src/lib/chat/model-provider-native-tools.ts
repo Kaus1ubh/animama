@@ -6,6 +6,12 @@ import type {
 /** The request tool name for web search, hosted or application. */
 export const WEB_SEARCH_TOOL = "web_search";
 
+/**
+ * The catalog `model_provider` of Anthropic Messages rows. Anthropic rows
+ * search only with Anthropic's own server tool.
+ */
+export const ANTHROPIC_MESSAGES_PROVIDER_TYPE = "AnthropicMessagesHTTPAgent";
+
 function normalizedTools(values: unknown): string[] {
   if (!Array.isArray(values)) return [];
   return Array.from(
@@ -30,7 +36,8 @@ export function requestableNativeTools(
  * application `web_search` tool through the runtime's configured backend, or
  * not at all with a reason for the owner. `null` means the row has no hosted
  * search and the runtime offers no application search the owner can use or
- * set up, so no control is shown.
+ * set up, or the row is an Anthropic row, which the backend never gives the
+ * application tool; no control is shown.
  */
 export type WebSearchAvailability =
   | { state: "hosted" }
@@ -55,7 +62,12 @@ export function webSearchAvailability(
 ): WebSearchAvailability | null {
   if (requestableNativeTools(item).includes(WEB_SEARCH_TOOL))
     return { state: "hosted" };
-  if (!item || !search) return null;
+  if (
+    !item ||
+    !search ||
+    item.model_provider === ANTHROPIC_MESSAGES_PROVIDER_TYPE
+  )
+    return null;
   // The runtime fields decide availability. `configuration` (the owner may
   // administer search) only adds setup guidance, so an operator-provisioned
   // backend works where the owner has no search settings.

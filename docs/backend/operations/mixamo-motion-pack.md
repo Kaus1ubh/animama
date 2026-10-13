@@ -56,7 +56,9 @@ cannot limit a token to a prefix, so use the write token only to publish.
 
 ## Commands
 
-From `src/frontend`:
+From `src/frontend` (`pnpm desktop:mixamo-motion` is the shared private-pack
+tool, `pnpm desktop:private-pack`, with `--pack mixamo-motion`; the
+[comedy sound pack](comedy-sound-pack.md) uses the same commands):
 
 ```bash
 pnpm desktop:mixamo-motion verify

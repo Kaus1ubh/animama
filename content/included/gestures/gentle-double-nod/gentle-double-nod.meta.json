@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "nod_yes",
   "name": "Gentle Double Nod",
-  "ai_description": "Two gentle nods with a soft smile. Use to agree, confirm or show you are listening.",
+  "ai_description": "Use to agree calmly, confirm or show you are listening. Two gentle nods with a soft smile.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

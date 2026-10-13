@@ -41,6 +41,7 @@ import {
 
 import {
   baseUrlHost,
+  builtinConnectionKey,
   connectionLocation,
   connectionProviderEntry,
   connectionStatusText,
@@ -56,6 +57,7 @@ import {
   modelSettingsAvailability,
   removalConsequences,
   removalUsageSummary,
+  type BuiltinConnectionKey,
   type ConnectionReachability,
   type ModelLocation,
   type ModelProviderEntry,
@@ -92,8 +94,8 @@ const TAG_CLASS =
  * a row of provider tabs. A provider tab shows only that provider: its
  * connection card (status, Edit/Remove, models) when connected, otherwise
  * its connect form inline; Custom lists each custom server plus "Add a
- * custom server". The built-in OpenAI card carries the OpenAI key field on
- * desktop. Each model row shows capability chips and opens an Info modal;
+ * custom server". Each built-in card (OpenAI, Anthropic) carries its own key
+ * field on desktop. Each model row shows capability chips and opens an Info modal;
  * hidden rows stay listed behind a toggle so they can be shown again.
  * Connecting stays on that provider's tab and opens the add-model dialog.
  *
@@ -489,9 +491,9 @@ function reachabilityOf(query: {
 }
 
 /**
- * One connected provider: name, status and actions, the OpenAI key on the
- * built-in card, then its models. Local cards list the server's models once
- * to report whether it is running.
+ * One connected provider: name, status and actions, a built-in card's own
+ * key, then its models. Local cards list the server's models once to report
+ * whether it is running.
  */
 function ConnectionCard({
   connection,
@@ -535,6 +537,7 @@ function ConnectionCard({
   const listed = showHidden ? models : models.filter((model) => !model.hidden);
   const alternates = alternateModelIds(listed);
   const builtin = connection.source === "builtin";
+  const builtinKey = builtinConnectionKey(connection);
   const status = connectionStatusText(
     connection,
     location === "local" ? reachabilityOf(reachability) : undefined,
@@ -602,7 +605,13 @@ function ConnectionCard({
           </div>
         )}
       </div>
-      {builtin ? <OpenAIKey managedKeys={managedKeys} /> : null}
+      {builtinKey ? (
+        <BuiltinKey
+          name={connection.name}
+          builtinKey={builtinKey}
+          managedKeys={managedKeys}
+        />
+      ) : null}
       <ul
         aria-label={t("connections.modelsOf", { name: connection.name })}
         className="divide-border/60 divide-y"
@@ -657,21 +666,29 @@ function ConnectionCard({
 }
 
 /**
- * The OpenAI key on the built-in card: the desktop vault field (the same
- * state as App Settings → API Keys), or where self-hosted web reads it.
+ * A built-in card's key: the desktop vault field (the same state as App
+ * Settings → API Keys), or where self-hosted web reads it.
  */
-function OpenAIKey({ managedKeys }: { managedKeys: boolean }) {
+function BuiltinKey({
+  name,
+  builtinKey,
+  managedKeys,
+}: {
+  name: string;
+  builtinKey: BuiltinConnectionKey;
+  managedKeys: boolean;
+}) {
   const { t } = useTranslation("models");
   return managedKeys ? (
     <DesktopCredentialsPanel
-      providers={["openai"]}
+      providers={[builtinKey.provider]}
       showTitle={false}
-      description={t("connections.openAiKey.managed")}
+      description={t("connections.builtinKey.managed")}
       className="bg-transparent p-3"
     />
   ) : (
     <p className="text-muted-foreground text-xs">
-      {t("connections.openAiKey.server")}
+      {t("connections.builtinKey.server", { name, env: builtinKey.env })}
     </p>
   );
 }

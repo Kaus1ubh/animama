@@ -35,6 +35,32 @@
     "sizeRetry": "{{size}} download · Retry available",
     "verifying": "Verifying download…"
   },
+  "gemini": {
+    "descriptors": {
+      "breathy": "Breathy",
+      "breezy": "Breezy",
+      "bright": "Bright",
+      "casual": "Casual",
+      "clear": "Clear",
+      "easyGoing": "Easy-going",
+      "even": "Even",
+      "excitable": "Excitable",
+      "firm": "Firm",
+      "forward": "Forward",
+      "friendly": "Friendly",
+      "gentle": "Gentle",
+      "gravelly": "Gravelly",
+      "informative": "Informative",
+      "knowledgeable": "Knowledgeable",
+      "lively": "Lively",
+      "mature": "Mature",
+      "smooth": "Smooth",
+      "soft": "Soft",
+      "upbeat": "Upbeat",
+      "warm": "Warm",
+      "youthful": "Youthful"
+    }
+  },
   "microphone": {
     "device": {
       "accessDenied": "Microphone access was not granted. Allow it in your browser or system settings.",
@@ -205,7 +231,10 @@
       },
       "browserOnly": "{{provider}} can only run in a browser context.",
       "elevenLabs": {
-        "description": "ElevenLabs synthesis with realtime and finalized models."
+        "description": "Realtime ElevenLabs speech with Eleven v4 Turbo."
+      },
+      "gemini": {
+        "description": "Gemini speech streamed from the server."
       },
       "pocket": {
         "description": "Client-side PocketTTS synthesis."

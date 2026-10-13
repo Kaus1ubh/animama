@@ -13,6 +13,7 @@ from animama.app.services.model_provider_catalog_service import ModelCatalogPoli
 from animama.local.database import LocalDatabase
 from animama.local.http.composition import install_local_http
 from animama.logging_config import configure_logging
+from animama.product_http.ports import install_product_ports
 from animama.server.config import Settings
 from animama.server.content_startup import start_content_runtime, stop_content_runtime
 from animama.server.deps import get_async_session_factory
@@ -21,6 +22,7 @@ from animama.server.local_http import local_assets, local_http_config, local_tel
 from animama.server.local_installation_bootstrap import create_local_installation_bootstrap_service
 from animama.server.local_runtime import initialize_local_runtime
 from animama.server.model_assets import close_model_asset_service, model_asset_service_for
+from animama.server.product_ports import LocalProductPorts
 from animama.server.routers import router
 from animama.server.routers.desktop_control import require_desktop_control, router as desktop_control_router
 from animama.server.routers.model_configuration import router as model_configuration_router
@@ -54,6 +56,8 @@ def create_local_app(
     application.state.session_factory = session_factory
     if database is not None:
         application.state.session_factory_provider = database.session_factory
+    # Shared product routes resolve sessions through these ports (ADR 0021).
+    install_product_ports(application, LocalProductPorts(application))
     setup_telemetry(application, service_name="animama-server", service_version=application.version)
 
     @application.get("/health")
@@ -63,7 +67,8 @@ def create_local_app(
     application.include_router(router)
     # The installation owner may add model connections and models. These routes
     # reach owner-supplied endpoints, so only the local composition mounts them.
-    application.state.model_catalog_policy = ModelCatalogPolicy(owner_models_enabled=True)
+    # Anthropic built-ins are local-only as well (spec constraint "Local only").
+    application.state.model_catalog_policy = ModelCatalogPolicy.local()
     application.include_router(model_configuration_router)
     # Application web search sends queries to an owner-configured backend
     # (a SearXNG URL may be a loopback or LAN host), so only this composition

@@ -1769,6 +1769,30 @@ export type FaceSurfaceAttachment = {
 };
 
 /**
+ * GeminiTtsCapability
+ *
+ * Gemini voice options a composition offers; absent where Gemini voice is not offered.
+ */
+export type GeminiTtsCapability = {
+    /**
+     * Default Model
+     */
+    default_model: 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts';
+    /**
+     * Default Voice
+     */
+    default_voice: 'Zephyr' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Leda' | 'Orus' | 'Aoede' | 'Callirrhoe' | 'Autonoe' | 'Enceladus' | 'Iapetus' | 'Umbriel' | 'Algieba' | 'Despina' | 'Erinome' | 'Algenib' | 'Rasalgethi' | 'Laomedeia' | 'Achernar' | 'Alnilam' | 'Schedar' | 'Gacrux' | 'Pulcherrima' | 'Achird' | 'Zubenelgenubi' | 'Vindemiatrix' | 'Sadachbia' | 'Sadaltager' | 'Sulafat';
+    /**
+     * Models
+     */
+    models: Array<'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts'>;
+    /**
+     * Voices
+     */
+    voices: Array<'Zephyr' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Leda' | 'Orus' | 'Aoede' | 'Callirrhoe' | 'Autonoe' | 'Enceladus' | 'Iapetus' | 'Umbriel' | 'Algieba' | 'Despina' | 'Erinome' | 'Algenib' | 'Rasalgethi' | 'Laomedeia' | 'Achernar' | 'Alnilam' | 'Schedar' | 'Gacrux' | 'Pulcherrima' | 'Achird' | 'Zubenelgenubi' | 'Vindemiatrix' | 'Sadachbia' | 'Sadaltager' | 'Sulafat'>;
+};
+
+/**
  * GestureSelection
  */
 export type GestureSelection = {
@@ -3136,11 +3160,11 @@ export type PyAnimaTtsRunOptions = {
     /**
      * Model Id
      */
-    model_id?: 'eleven_multilingual_v2' | 'eleven_flash_v2_5' | 'eleven_v3' | null;
+    model_id?: 'eleven_v4_turbo' | 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts' | null;
     /**
      * Provider
      */
-    provider?: 'browser' | 'pocket_tts' | 'elevenlabs' | null;
+    provider?: 'browser' | 'pocket_tts' | 'elevenlabs' | 'gemini' | null;
     /**
      * Transport
      */
@@ -4392,6 +4416,9 @@ export type PyChatUpdate = {
  * PyConfiguredModel
  *
  * A catalog row as the owner manages it, including capabilities and probe results.
+ *
+ * ``early_compaction`` is the **Compact early** setting. It is ``None`` when
+ * the model has no long-context price step, so the setting does not apply.
  */
 export type PyConfiguredModel = {
     /**
@@ -4407,6 +4434,10 @@ export type PyConfiguredModel = {
      * Context Window Tokens
      */
     context_window_tokens?: number | null;
+    /**
+     * Early Compaction
+     */
+    early_compaction?: boolean | null;
     /**
      * Hidden
      */
@@ -4931,7 +4962,7 @@ export type PyElevenLabsTextToSpeechRequest = {
     /**
      * Model Id
      */
-    model_id?: string | null;
+    model_id?: 'eleven_v4_turbo';
     /**
      * Output Format
      */
@@ -4985,6 +5016,8 @@ export type PyElevenLabsVoice = {
 
 /**
  * PyElevenLabsVoiceSettings
+ *
+ * The voice settings Eleven v4 accepts; it has no Style, Speed or Speaker Boost.
  */
 export type PyElevenLabsVoiceSettings = {
     /**
@@ -4992,21 +5025,9 @@ export type PyElevenLabsVoiceSettings = {
      */
     similarity_boost?: number | null;
     /**
-     * Speed
-     */
-    speed?: number | null;
-    /**
      * Stability
      */
     stability?: number | null;
-    /**
-     * Style
-     */
-    style?: number | null;
-    /**
-     * Use Speaker Boost
-     */
-    use_speaker_boost?: boolean | null;
 };
 
 /**
@@ -6989,6 +7010,10 @@ export type PyModelConnectionUpdate = {
  * PyModelProbeReport
  *
  * Suggested capabilities; ``None`` means the probe could not determine a value.
+ *
+ * ``max_output_tokens``, ``supported_reasoning_efforts`` and
+ * ``native_tool_support`` come only from servers that publish them
+ * (Anthropic's Models API).
  */
 export type PyModelProbeReport = {
     /**
@@ -7000,9 +7025,17 @@ export type PyModelProbeReport = {
      */
     embedding_dimensions?: number | null;
     /**
+     * Max Output Tokens
+     */
+    max_output_tokens?: number | null;
+    /**
      * Model
      */
     model: string;
+    /**
+     * Native Tool Support
+     */
+    native_tool_support?: Array<string> | null;
     /**
      * Notes
      */
@@ -7015,6 +7048,10 @@ export type PyModelProbeReport = {
      * Structured Output Transport
      */
     structured_output_transport?: string | null;
+    /**
+     * Supported Reasoning Efforts
+     */
+    supported_reasoning_efforts?: Array<string> | null;
     /**
      * Supports Streaming
      */
@@ -7031,6 +7068,9 @@ export type PyModelProbeReport = {
 
 /**
  * PyModelProbeRequest
+ *
+ * ``provider_type`` defaults to the connection's API family: Anthropic Messages
+ * on the built-in Anthropic connection, Chat Completions elsewhere.
  */
 export type PyModelProbeRequest = {
     /**
@@ -7044,7 +7084,7 @@ export type PyModelProbeRequest = {
     /**
      * Provider Type
      */
-    provider_type?: 'OpenAIHTTPAgent' | 'OpenAIResponsesHTTPAgent';
+    provider_type?: 'OpenAIHTTPAgent' | 'OpenAIResponsesHTTPAgent' | 'AnthropicMessagesHTTPAgent' | null;
 };
 
 /**
@@ -7093,6 +7133,12 @@ export type PyModelProviderCatalogItem = {
      * Context Window Tokens
      */
     context_window_tokens?: number | null;
+    /**
+     * Default Reasoning Effort
+     *
+     * Effort a chat picker preselects for this row (one of supported_reasoning_efforts), or null to use the first supported effort. Anthropic Messages rows report their chat default when they offer it.
+     */
+    default_reasoning_effort?: string | null;
     /**
      * Hidden
      */
@@ -7357,7 +7403,10 @@ export type PyOwnerModelCapabilities = {
 /**
  * PyOwnerModelPatch
  *
- * Built-in models accept only ``hidden``.
+ * Built-in models accept only ``hidden`` and ``early_compaction``.
+ *
+ * ``early_compaction`` is accepted only on models with a long-context price
+ * step (code ``early_compaction_unavailable`` otherwise).
  */
 export type PyOwnerModelPatch = {
     /**
@@ -7373,6 +7422,10 @@ export type PyOwnerModelPatch = {
      * Context Window Tokens
      */
     context_window_tokens?: number | null;
+    /**
+     * Early Compaction
+     */
+    early_compaction?: boolean | null;
     /**
      * Hidden
      */
@@ -7423,7 +7476,7 @@ export type PyOwnerModelRequest = {
     /**
      * Provider Type
      */
-    provider_type?: 'OpenAIHTTPAgent' | 'OpenAIResponsesHTTPAgent' | null;
+    provider_type?: 'OpenAIHTTPAgent' | 'OpenAIResponsesHTTPAgent' | 'AnthropicMessagesHTTPAgent' | null;
     /**
      * Template Id
      */
@@ -7822,6 +7875,12 @@ export type PyRuntimeAction = {
      * Intensity
      */
     intensity?: number | null;
+    /**
+     * Missing References
+     */
+    missing_references?: {
+        [key: string]: string;
+    };
     /**
      * Name
      */
@@ -8317,6 +8376,12 @@ export type PyRuntimeIdleGesture = {
      * Intensity
      */
     intensity?: number | null;
+    /**
+     * Missing References
+     */
+    missing_references?: {
+        [key: string]: string;
+    };
     /**
      * Name
      */
@@ -9807,6 +9872,7 @@ export type RuntimeCapabilities = {
      */
     chat_file_uploads: boolean;
     companion_safety: CompanionSafetyCapability;
+    gemini_tts?: GeminiTtsCapability | null;
     /**
      * Local Filesystem Administration
      */
@@ -13083,6 +13149,55 @@ export type ProcessUserFileV1FilesFileIdProcessPostResponses = {
 };
 
 export type ProcessUserFileV1FilesFileIdProcessPostResponse = ProcessUserFileV1FilesFileIdProcessPostResponses[keyof ProcessUserFileV1FilesFileIdProcessPostResponses];
+
+export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetData = {
+    body?: never;
+    headers?: {
+        /**
+         * If-None-Match
+         */
+        'If-None-Match'?: string | null;
+    };
+    path: {
+        /**
+         * Voice
+         */
+        voice: 'Zephyr' | 'Puck' | 'Charon' | 'Kore' | 'Fenrir' | 'Leda' | 'Orus' | 'Aoede' | 'Callirrhoe' | 'Autonoe' | 'Enceladus' | 'Iapetus' | 'Umbriel' | 'Algieba' | 'Despina' | 'Erinome' | 'Algenib' | 'Rasalgethi' | 'Laomedeia' | 'Achernar' | 'Alnilam' | 'Schedar' | 'Gacrux' | 'Pulcherrima' | 'Achird' | 'Zubenelgenubi' | 'Vindemiatrix' | 'Sadachbia' | 'Sadaltager' | 'Sulafat';
+    };
+    query?: {
+        /**
+         * Model Id
+         */
+        model_id?: 'gemini-3.8-flash-lite-tts' | 'gemini-3.8-flash-tts';
+    };
+    url: '/v1/gemini/voices/{voice}/sample';
+};
+
+export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetErrors = {
+    /**
+     * Validation Error
+     */
+    422: HttpValidationError;
+    /**
+     * Gemini could not speak the sample; `detail.message` names at most the HTTP status.
+     */
+    502: unknown;
+    /**
+     * No Gemini API key (`gemini_tts_missing_credential`), or the data root is unavailable.
+     */
+    503: unknown;
+};
+
+export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetError = GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetErrors[keyof GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetErrors];
+
+export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponses = {
+    /**
+     * The voice's sample as a 24 kHz mono WAV.
+     */
+    200: Blob | File;
+};
+
+export type GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponse = GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponses[keyof GetGeminiVoiceSampleV1GeminiVoicesVoiceSampleGetResponses];
 
 export type ListGesturesData = {
     body?: never;

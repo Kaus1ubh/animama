@@ -353,7 +353,7 @@
     },
     {
       "kind": "scene_effect",
-      "name": "Comic Pop",
+      "name": "Yellow Pop",
       "definition": {
         "schema": "animama/scene-effect/1",
         "kind": "background_layers",

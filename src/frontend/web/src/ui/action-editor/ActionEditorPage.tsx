@@ -98,6 +98,7 @@ import { loadCreatorPreviewFile } from "@/lib/content/contentEditorSource";
 import {
   isCustomizableStarterAction,
   actionDocumentFromPreview,
+  removedActionEffects,
 } from "./actionDocumentLoader";
 import type { ActionImport } from "./actionProject";
 import { unresolvedActionReferences } from "./actionProject";
@@ -384,6 +385,18 @@ export function ActionEditorPage({
           cleanDigest.current = "__included_copy__";
         replaceLoadedDocument(next, item.origin === "owned");
         setMode(loadedActionEditorMode(intent, next.implementation));
+        const removed = removedActionEffects(preview);
+        if (removed.length) {
+          const t = getI18n().getFixedT(null, "actionEditor");
+          // Aliases and refs are stored identifiers, shown as they are.
+          const effects = removed.map(({ alias, ref }) => `${alias}: ${ref}`);
+          toast.warning(t("loader.effectsRemoved.title"), {
+            description:
+              intent === "gesture"
+                ? t("loader.effectsRemoved.gesture", { effects })
+                : t("loader.effectsRemoved.reaction", { effects }),
+          });
+        }
         if (discardCurrentRecovery && userId) {
           recoveryGeneration.current += 1;
           clearActionRecovery(
@@ -924,7 +937,8 @@ export function ActionEditorPage({
           dependency.content_type === initialComponentType &&
           exactSourceKey(dependency.source) === sourceKey,
       );
-      if (!exists)
+      // Non-portable components (such as licensed sounds) are never added.
+      if (!exists && !isNonPortable(initialComponentItem.data))
         addComponent(initialComponentItem.data, initialComponentType);
       return;
     }

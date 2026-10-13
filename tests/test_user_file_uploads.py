@@ -18,8 +18,8 @@ from animama.domain.user_file import (
     UserFile,
 )
 from animama.domain.user_file_processing import UserFileProcessingInfo
+from animama.product_http.uploads import SpooledUpload
 from animama.server.config import settings
-from animama.server.local_upload_stream import LocalUploadBody
 from animama.server.routers import user_files as user_files_router
 from animama.server.schemas.user_file import PyUserFileUploadInitRequest
 
@@ -250,8 +250,8 @@ async def test_upload_user_file_content_promotes_exact_bytes_to_private_storage(
     _patch_service(monkeypatch, repo, uow)
     captured: dict[str, object] = {}
 
-    async def fake_spool(*_args, **_kwargs) -> LocalUploadBody:
-        return LocalUploadBody(stream=BytesIO(payload), size_bytes=len(payload), sha256="unused")
+    async def fake_spool(*_args, **_kwargs) -> SpooledUpload:
+        return SpooledUpload(stream=BytesIO(payload), size_bytes=len(payload), sha256="unused")
 
     def fake_put(locator, content, *, content_type, content_length):  # noqa: ANN001, ANN202
         captured.update(

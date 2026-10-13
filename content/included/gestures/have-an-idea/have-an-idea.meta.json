@@ -5,7 +5,7 @@
   "version": 1,
   "semantic_key": "have_idea",
   "name": "Have an Idea",
-  "ai_description": "A short \"I've got it!\" moment: thinks with the chin on a fist, then springs the index finger straight up beside the head with a bright aha face as a light bulb pops on above the fingertip. Use when an idea or answer suddenly comes to mind.",
+  "ai_description": "Use when an idea or answer suddenly comes to mind. Rests the chin on a fist in thought, then springs the index finger up with a bright aha face as a light bulb pops on.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"

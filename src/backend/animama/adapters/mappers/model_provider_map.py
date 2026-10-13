@@ -5,6 +5,7 @@ from datetime import date, datetime
 from decimal import Decimal
 from typing import Any
 
+from animama.app.model_clients.credentials import builtin_connection
 from animama.app.model_connection_presets import model_connection_preset
 from animama.domain import ModelProvider, ModelProviderCapabilities, ModelProviderPricing
 from animama.domain.model_connection import MODEL_SOURCE_OWNER
@@ -25,6 +26,7 @@ _ENTRY_FIELD_NAMES = (
     "source",
     "model_kind",
     "hidden",
+    "early_compaction",
     "allow_memory_writes",
     "probe_result",
     "active",
@@ -271,6 +273,8 @@ def model_provider_domain_to_public_catalog_row(model_provider: ModelProvider) -
     # Owner rows are grouped under their connection's current name and preset logo,
     # so renaming a connection or changing its preset relabels its models.
     owner_connection = connection if model_provider.source == MODEL_SOURCE_OWNER else None
+    # Rows built outside the database may omit their built-in connection.
+    named_connection = connection or builtin_connection(model_provider.connection_id)
     row: dict[str, Any] = {
         "id": model_provider.id,
         "model": model_provider.model,
@@ -285,7 +289,7 @@ def model_provider_domain_to_public_catalog_row(model_provider: ModelProvider) -
         **_chat_api_standard_fields(model_provider),
         "source": model_provider.source,
         "connection_id": model_provider.connection_id,
-        "connection_name": connection.name if connection is not None else "OpenAI",
+        "connection_name": named_connection.name if named_connection is not None else None,
         "model_kind": model_provider.model_kind,
         "hidden": model_provider.hidden,
         "context_window_tokens": model_provider.context_window_tokens,

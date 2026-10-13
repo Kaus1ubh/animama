@@ -3,6 +3,7 @@
 import { ListFilter } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { contentInventoryGroups } from "@/lib/content/libraryContentInventory";
 import {
   LIBRARY_UPLOAD_STATUSES,
   type ContentLibrarySearch,
@@ -33,10 +34,9 @@ export function LibraryFilterMenu({
 }) {
   const { t } = useTranslation("library");
   const uploads = search.section === "chat-uploads";
-  const gestures =
-    search.section === "all" ||
-    (search.section === "actions" &&
-      (search.action === "all" || search.action === "gestures"));
+  const groups = contentInventoryGroups(search);
+  const gestures = groups.includes("gestures");
+  const posesOnly = groups.length === 1 && groups[0] === "poses";
   const gestureFiltersActive =
     gestures &&
     (search.gestureUpdatesOnly ||
@@ -136,7 +136,7 @@ export function LibraryFilterMenu({
               >
                 {t("filters.sort.name")}
               </DropdownMenuRadioItem>
-              {!(search.section === "actions" && search.action === "poses") ? (
+              {!posesOnly ? (
                 <DropdownMenuRadioItem
                   value="updated"
                   onSelect={(event) => event.preventDefault()}

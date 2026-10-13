@@ -20,8 +20,10 @@ import {
  *   pnpm -s effects:thumbnails [template-id...]
  *
  * Each template in `src/lib/effects/effectTemplates.ts` is rendered on Annie
- * with the `effects:render --thumbnail` renderer (portrait head framing, or
- * `WIDE_FRAMING_SCALE` times wider for a `wide` template; live expression;
+ * with the `effects:render --thumbnail` renderer (portrait head framing;
+ * `WIDE_FRAMING_SCALE` times wider for a `wide` template; `BODY_FRAMING_SCALE`
+ * times wider and aimed `BODY_FRAMING_DROP` of the view lower for a `body`
+ * template; live expression;
  * 1 s after applying unless the template names another time; posed by the
  * template's Included Gesture `clip`, sampled at that time, when it names
  * one) into `src/assets/effect-templates/<id>.webp`. A full run also removes
@@ -36,6 +38,18 @@ export const THUMBNAIL_SIZE = 320;
 export const THUMBNAIL_TIME = 1;
 /** Camera distance of a `wide` thumbnail, relative to the head framing. */
 export const WIDE_FRAMING_SCALE = 2.2;
+/** Camera distance of a `body` thumbnail, relative to the head framing. */
+export const BODY_FRAMING_SCALE = 3.2;
+/**
+ * How far a `body` thumbnail's camera target sits below the head, as a share
+ * of the view height: the frame runs from just above Annie's head to her
+ * upper thighs with the torso centred, so art at the belly or hips is whole.
+ */
+export const BODY_FRAMING_DROP = 0.28;
+const FRAMINGS = {
+  wide: { framingScale: WIDE_FRAMING_SCALE },
+  body: { framingScale: BODY_FRAMING_SCALE, framingDrop: BODY_FRAMING_DROP },
+};
 
 /** The templates a run renders: all of them, or the named IDs. */
 export function selectTemplates(ids) {
@@ -67,7 +81,8 @@ export async function thumbnailJob(template) {
           .clip
       : null,
     outFile: path.join(THUMBNAIL_DIR, `${template.id}.webp`),
-    framingScale: framing === "wide" ? WIDE_FRAMING_SCALE : 1,
+    framingScale: 1,
+    ...FRAMINGS[framing],
     time,
   };
 }

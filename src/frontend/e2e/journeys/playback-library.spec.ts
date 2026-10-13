@@ -3,7 +3,7 @@ import { attachPlaybackCheckpoint } from "../helpers/checkpoints";
 import {
   expectBottomRightDock,
   proveAvatarVFXPlayback,
-  proveKawaiiSparklesDom,
+  proveEmotionJoySceneDom,
   proveParticlePlayback,
   provePoseClipPlayback,
   proveReactionPlayback,
@@ -50,25 +50,22 @@ type LibraryJourney = {
 
 const JOURNEYS: readonly LibraryJourney[] = [
   {
-    key: "library-scene-fx-kawaii-sparkles",
+    key: "library-scene-fx-emotion-joy",
     channel: "scene-vfx",
-    contentName: "Kawaii Sparkles",
+    contentName: "Emotion Joy",
     section: "scene",
     proof: "scene",
-    target: { kind: "scene_vfx", runtimeId: "kawaii-sparkles" },
-    requiredFiles: [
-      "emoji-sparkles-2728.svg",
-      "emoji-sparkling-heart-1f496.svg",
-    ],
+    target: { kind: "scene_vfx", runtimeId: "scene-vfx-emotion-joy" },
+    requiredFiles: ["pop-star-yellow.png", "confetti-curl-pink.png"],
   },
   {
-    key: "library-particle-vfx-hearts",
+    key: "library-particle-vfx-heart-burst",
     channel: "particle-vfx",
-    contentName: "Hearts",
+    contentName: "Heart Burst",
     section: "particle",
     proof: "particle",
-    target: { kind: "particle_vfx", runtimeId: "hearts" },
-    requiredFiles: ["heart.png"],
+    target: { kind: "particle_vfx", runtimeId: "heart-burst" },
+    requiredFiles: ["glossy-heart.png"],
   },
   {
     key: "library-avatar-vfx-eye-confused-swirl",
@@ -87,15 +84,19 @@ const JOURNEYS: readonly LibraryJourney[] = [
     proof: "reaction",
     target: { kind: "anima_pose_clip", runtimeId: "admiration-3" },
     requiredFiles: [
-      "heart.png",
+      "glossy-heart.png",
       "star3.png",
-      "emoji-star-struck-1f929.svg",
-      "emoji-sparkles-2728.svg",
+      "lilac-star-flower.png",
+      "bokeh-tile.png",
     ],
     clip: {
       avatarEffects: ["star3"],
-      eventIds: ["scene-emotion-background", "avatar-star3", "particle-hearts"],
-      particleEffects: ["hearts"],
+      eventIds: [
+        "scene-emotion-background",
+        "avatar-star3",
+        "particle-heart-burst",
+      ],
+      particleEffects: ["heart-burst"],
       sceneEffects: ["scene-vfx-emotion-admiration"],
       expressionThresholds: { happy: 0.72, relaxed: 0.24 },
     },
@@ -110,19 +111,19 @@ const JOURNEYS: readonly LibraryJourney[] = [
     proof: "reaction",
     target: { kind: "anima_pose_clip", runtimeId: "curiosity-3" },
     requiredFiles: [
-      "exclamation.png",
+      "glossy-question.png",
       "idea_bulb.png",
-      "emoji-thinking-face-1f914.svg",
-      "emoji-question-mark-2753.svg",
+      "twinkle-star-mint.png",
+      "star-field-tile.png",
     ],
     clip: {
       avatarEffects: ["idea_bulb"],
       eventIds: [
         "scene-emotion-background",
-        "particle-exclamation",
+        "particle-question-orbit",
         "avatar-idea-bulb",
       ],
-      particleEffects: ["exclamation"],
+      particleEffects: ["question-orbit"],
       sceneEffects: ["scene-vfx-emotion-curiosity"],
       expressionThresholds: { surprised: 0.48, relaxed: 0.28 },
     },
@@ -197,8 +198,8 @@ for (const journey of JOURNEYS) {
             });
           samples = result.samples;
           checkpoint = result.effectRoot;
-          await test.step("Assert both sparkle resources and moving marquee layers are visible", async () => {
-            await proveKawaiiSparklesDom(result.effectRoot);
+          await test.step("Assert the gradient, pattern and drifting Blob-backed scatter items are visible", async () => {
+            await proveEmotionJoySceneDom(result.effectRoot);
           });
           break;
         }
@@ -208,7 +209,7 @@ for (const journey of JOURNEYS) {
               return proveParticlePlayback({
                 evidence: animamaEvidence,
                 evidenceName: journey.key,
-                expectedAnchor: "head",
+                expectedAnchor: "chest",
                 expectedOwner: "content-preview",
                 expectedTarget: journey.target,
                 surface,

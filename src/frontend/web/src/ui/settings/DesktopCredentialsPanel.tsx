@@ -33,7 +33,9 @@ import {
 
 const names: Record<CredentialProvider, string> = {
   openai: "OpenAI",
+  anthropic: "Anthropic",
   elevenlabs: "ElevenLabs",
+  gemini: "Gemini",
 };
 
 const EMPTY_STATUSES: CredentialStatus[] = [];
@@ -140,7 +142,7 @@ export function useDesktopCredentialConfigured(
  * write-only: main stores them encrypted and reports status, never values.
  * Several edits are saved together and apply without reloading the window or
  * restarting the backend. `providers` limits the panel to the keys a feature
- * needs (the OpenAI model card, Voice settings); API Keys shows them all.
+ * needs (a built-in model card, Voice settings); API Keys shows them all.
  */
 export function DesktopCredentialsPanel({
   onBusyChange,

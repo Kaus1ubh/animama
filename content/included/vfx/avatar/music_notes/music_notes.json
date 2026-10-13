@@ -1,0 +1,79 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:music_notes",
+  "version": 1,
+  "name": "Music Notes",
+  "description": "Two small hopping music notes float beside the head while the Avatar bobs along to background music, the anime humming-along mark.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "head",
+      "offset": {
+        "x": 0.165,
+        "y": 0.165,
+        "z": 0.03
+      },
+      "size": 0.085,
+      "facing": "camera",
+      "rotationDeg": -8
+    },
+    "art": {
+      "image": "music_notes-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "rows": 1,
+        "frames": 4,
+        "fps": 3.2,
+        "loop": "loop"
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.4,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.14,
+            "opacity": 1,
+            "scale": 1.12
+          },
+          {
+            "t": 0.26,
+            "scale": 1
+          },
+          {
+            "t": 1.2,
+            "offset": {
+              "x": 0.004,
+              "y": 0.012
+            }
+          },
+          {
+            "t": 2,
+            "offset": {
+              "x": 0.006,
+              "y": 0.018
+            }
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "music_notes-sheet.png",
+      "role": "image"
+    }
+  ]
+}

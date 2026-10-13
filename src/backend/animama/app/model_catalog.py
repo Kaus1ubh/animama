@@ -1,9 +1,11 @@
 """Built-in provider + model catalog used by direct model clients.
 
 Stores per-provider model information (modalities, streaming, tools and
-pricing) for the release-managed rows of the built-in OpenAI connection, and
-exposes serializers for durable catalog seeding. Other providers are reached
-through owner-configured model connections, not built-in rows.
+pricing) for the release-managed rows of the built-in OpenAI and Anthropic
+connections, and exposes serializers for durable catalog seeding. Each row
+belongs to the built-in connection its provider entry names (OpenAI unless
+stated). Other providers are reached through owner-configured model
+connections, not built-in rows.
 
 Notes
 - This module avoids importing server-side Pydantic schemas to keep
@@ -13,17 +15,21 @@ Notes
 
 from __future__ import annotations
 
+from collections.abc import Iterable
 from datetime import date
 from decimal import Decimal
 from typing import Any
 
-from animama.app.model_clients.credentials import builtin_openai_connection
-from animama.app.model_provider_native_tools import requestable_native_tool_support
+from animama.app.model_clients.credentials import builtin_connection, builtin_model_connections
+from animama.app.model_provider_native_tools import ANTHROPIC_MESSAGES_PROVIDER_TYPE, requestable_native_tool_support
+from animama.domain import ModelProvider
 from animama.domain.model_connection import (
+    BUILTIN_ANTHROPIC_CONNECTION_ID,
     BUILTIN_OPENAI_CONNECTION_ID,
     MODEL_KIND_CHAT,
     MODEL_KIND_EMBEDDING,
     MODEL_SOURCE_BUILTIN,
+    ModelConnection,
 )
 from animama.domain.types import Modality
 from animama.utils.type_helpers import coerce_modalities, coerce_provider_type
@@ -50,6 +56,15 @@ STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA = "json_schema"
 STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT = "json_object"
 
 REASONING_EFFORT_ORDER = ("none", "minimal", "low", "medium", "high", "xhigh", "max")
+ANTHROPIC_REASONING_EFFORTS = frozenset({"none", "low", "medium", "high", "xhigh", "max"})
+"""Efforts an Anthropic Messages row may offer; ``none`` sends disabled thinking (D6)."""
+DEFAULT_ANTHROPIC_CHAT_EFFORT = "medium"
+"""Anthropic chat effort when neither the owner nor the Anima chose one (D22).
+
+The Anthropic adapter applies it to chat requests that carry no effort, and the
+public catalog reports it as ``default_reasoning_effort`` so the chat picker
+preselects it (D26). At ``low``, Haiku 5.5 often skipped needed memory-tool
+calls in live tests."""
 PRICE_TIERS = ("standard", "batch", "flex", "priority")
 GPT_6_PRICING_SOURCE_CHECKED_AT = "2026-09-28"
 
@@ -75,6 +90,39 @@ OPENAI_GPT_6_LUNA_PRICING: dict[str, Any] = {
         "Standard input and output rates were supplied by the owner on 2026-09-28.",
         "The cached-input rate ($0.01 per 1M tokens) comes from secondary sources and awaits owner confirmation.",
         "Prompt-cache write, batch, flex, priority and long-context rates are not recorded and are not estimated.",
+    ],
+}
+
+
+CLAUDE_HAIKU_5_5_PRICING_SOURCE_CHECKED_AT = "2026-10-08"
+
+ANTHROPIC_CLAUDE_HAIKU_5_5_PRICING: dict[str, Any] = {
+    "status": "priced",
+    "source_provider": "anthropic",
+    "source_model": "claude-haiku-5-5",
+    "source_url": "https://platform.claude.com/docs/en/about-claude/pricing",
+    "source_checked_at": CLAUDE_HAIKU_5_5_PRICING_SOURCE_CHECKED_AT,
+    "currency": "USD",
+    "billing_unit": "1M_tokens",
+    # Cached input is the cache-read rate. No prompt-cache write rate is stored,
+    # so turns that report cache writes stay unpriced.
+    "standard": {"input": "0.10", "cached_input": "0.01", "output": "0.50"},
+    # The Message Batches API bills half the standard rates.
+    "batch": {"input": "0.05", "cached_input": "0.005", "output": "0.25"},
+    "flex": None,
+    "priority": None,
+    # Above 100,000 prompt tokens every token of the request bills at the higher
+    # rate. Compact early keeps chats below this step (spec R5).
+    "long_context": {
+        "token_threshold": 100_000,
+        "standard": {"input": "0.50", "cached_input": "0.05", "output": "2.50"},
+        "batch": {"input": "0.25", "cached_input": "0.025", "output": "1.25"},
+    },
+    "pricing_notes": [
+        "Requests above 100,000 prompt tokens bill every token at the long-context rates.",
+        "Batch rates are half the standard rates.",
+        "Prompt-cache write rates are not recorded and are not estimated.",
+        "Web search is billed separately per search and is not estimated.",
     ],
 }
 
@@ -183,6 +231,7 @@ Structure:
     },
     "providers": {
       <provider_type>: {
+        "connection_id": str,                   # optional, default the built-in OpenAI connection
         "supports_developer_role": bool,        # optional, default true
         "native_tool_support": set[str],        # optional
       },
@@ -218,6 +267,31 @@ MODEL_CATALOG: dict[str, dict[str, Any]] = {
             },
         },
         "pricing": OPENAI_GPT_6_LUNA_PRICING,
+    },
+    # Anthropic chat models, served by the built-in Anthropic connection.
+    "claude-haiku-5-5": {
+        "model_metadata": {
+            "model_type": "reasoning",
+            "current_snapshot": "claude-haiku-5-5",
+            "context_window_tokens": 1_000_000,
+            "max_output_tokens": 128_000,
+        },
+        "capabilities": {
+            "accepts": _s("text", "image"),
+            "produces": _s("text"),
+            "supports_tools": True,
+            "supports_streaming": True,
+            "structured_kinds": MAIN_STRUCTURED_RESPONSE_KINDS,
+            "structured_output_transport": STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA,
+            "supports_reasoning": True,
+            # ``none`` disables thinking; the others set the Messages API effort.
+            "supported_reasoning_efforts": {"none", "low", "medium", "high", "xhigh", "max"},
+            "native_tool_support": {"web_search"},
+        },
+        "providers": {
+            "AnthropicMessagesHTTPAgent": {"connection_id": BUILTIN_ANTHROPIC_CONNECTION_ID},
+        },
+        "pricing": ANTHROPIC_CLAUDE_HAIKU_5_5_PRICING,
     },
     # OpenAI embedding models, used only by the embeddings role.
     "text-embedding-3-small": {
@@ -255,12 +329,51 @@ keep chatting after an upgrade. Retired rows stay in the database for history.
 PROVIDER_LABELS: dict[str, str] = {
     "OpenAIHTTPAgent": "OpenAI HTTP",
     "OpenAIResponsesHTTPAgent": "OpenAI Responses HTTP",
+    "AnthropicMessagesHTTPAgent": "Anthropic",
 }
 
 PROVIDER_LOGOS: dict[str, str] = {
     "OpenAIHTTPAgent": "openai",
     "OpenAIResponsesHTTPAgent": "openai",
+    "AnthropicMessagesHTTPAgent": "anthropic",
 }
+
+
+def early_compaction_available(model_provider: ModelProvider) -> bool:
+    """Return whether a row offers the owner's **Compact early** setting.
+
+    Only Anthropic rows whose pricing has a long-context step qualify: compacting
+    before the step keeps a chat at the lower rate. Unpriced owner rows and
+    other providers always use the provider's default trigger.
+    """
+
+    return (
+        model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER_TYPE
+        and model_provider.pricing.long_context_token_threshold is not None
+    )
+
+
+def offered_effort(effort: str, supported_efforts: Iterable[object] | None) -> str | None:
+    """Return ``effort`` when the row's supported efforts include it, else ``None``.
+
+    A role's default effort applies only to rows that offer it.
+    """
+
+    supported = {str(value).strip() for value in supported_efforts or ()}
+    return effort if effort in supported else None
+
+
+def default_chat_reasoning_effort(provider_type: str, supported_efforts: Iterable[object] | None) -> str | None:
+    """Return the effort a chat picker preselects for a catalog row, or ``None`` (D26).
+
+    Anthropic Messages rows report :data:`DEFAULT_ANTHROPIC_CHAT_EFFORT` when
+    they offer it, built-in and owner rows alike. Other rows report ``None``,
+    so clients fall back to the row's first supported effort.
+    """
+
+    if provider_type != ANTHROPIC_MESSAGES_PROVIDER_TYPE:
+        return None
+    return offered_effort(DEFAULT_ANTHROPIC_CHAT_EFFORT, supported_efforts)
 
 
 def builtin_hidden_by_default(provider_type: str, model_kind: str) -> bool:
@@ -384,6 +497,16 @@ def _serialize_pricing(pricing: dict[str, Any]) -> dict[str, Any]:
     return fields
 
 
+def _connection_for_provider(provider_attrs: dict[str, Any]) -> ModelConnection:
+    """Return the built-in connection a catalog provider entry belongs to."""
+
+    connection_id = str(provider_attrs.get("connection_id") or BUILTIN_OPENAI_CONNECTION_ID)
+    connection = builtin_connection(connection_id)
+    if connection is None:
+        raise ValueError(f"Catalog rows must belong to a built-in connection, not {connection_id!r}")
+    return connection
+
+
 def _metadata_for_provider(entry: dict[str, Any], provider_attrs: dict[str, Any]) -> dict[str, Any]:
     metadata = dict(entry.get("metadata") or {})
     provider_metadata = provider_attrs.get("metadata")
@@ -408,6 +531,7 @@ def serialize_model_catalog() -> list[dict[str, Any]]:
             provider_type = _norm_provider_type(str(raw_provider))
             provider_attrs = raw_provider_attrs if isinstance(raw_provider_attrs, dict) else {}
             capabilities = _capabilities_for_provider(cap_entry, provider_attrs)
+            connection = _connection_for_provider(provider_attrs)
             row = {
                 "id": f"{provider_type}:{model}",
                 "model": model,
@@ -417,8 +541,8 @@ def serialize_model_catalog() -> list[dict[str, Any]]:
                 "logo_provider": _logo_provider(provider_type, provider_attrs),
                 **_chat_api_standard_fields(provider_type),
                 "source": MODEL_SOURCE_BUILTIN,
-                "connection_id": BUILTIN_OPENAI_CONNECTION_ID,
-                "connection_name": "OpenAI",
+                "connection_id": connection.id,
+                "connection_name": connection.name,
                 "model_kind": entry.get("model_kind", MODEL_KIND_CHAT),
                 "hidden": builtin_hidden_by_default(provider_type, entry.get("model_kind", MODEL_KIND_CHAT)),
                 "context_window_tokens": (entry.get("model_metadata") or {}).get("context_window_tokens"),
@@ -434,6 +558,10 @@ def serialize_model_catalog() -> list[dict[str, Any]]:
                 row["supported_reasoning_efforts"] = _reasoning_efforts(
                     capabilities.get("supported_reasoning_efforts"),
                 )
+            row["default_reasoning_effort"] = default_chat_reasoning_effort(
+                provider_type,
+                row.get("supported_reasoning_efforts"),
+            )
             if "native_tool_support" in capabilities:
                 native_tools = _native_tool_support(capabilities.get("native_tool_support"))
                 row["native_tool_support"] = native_tools
@@ -458,9 +586,10 @@ def serialize_model_provider_catalog() -> list[dict[str, Any]]:
             provider_type = _norm_provider_type(str(raw_provider))
             provider_attrs = raw_provider_attrs if isinstance(raw_provider_attrs, dict) else {}
             capabilities = _capabilities_for_provider(cap_entry, provider_attrs)
+            connection = _connection_for_provider(provider_attrs)
             pricing = pricing_entry if isinstance(pricing_entry, dict) else {}
             if not pricing:
-                pricing = _unpriced_pricing("openai")
+                pricing = _unpriced_pricing(connection.preset)
             row = {
                 "id": f"{provider_type}:{model}",
                 "model": model,
@@ -472,10 +601,12 @@ def serialize_model_provider_catalog() -> list[dict[str, Any]]:
                 "current_snapshot": model_metadata.get("current_snapshot"),
                 "context_window_tokens": model_metadata.get("context_window_tokens"),
                 "max_output_tokens": model_metadata.get("max_output_tokens"),
-                "connection_id": BUILTIN_OPENAI_CONNECTION_ID,
+                "connection_id": connection.id,
                 "source": MODEL_SOURCE_BUILTIN,
                 "model_kind": entry.get("model_kind", MODEL_KIND_CHAT),
                 "hidden": builtin_hidden_by_default(provider_type, entry.get("model_kind", MODEL_KIND_CHAT)),
+                # The fresh-install default; the seed never changes it afterwards.
+                "early_compaction": True,
                 "service_tiers_supported": _service_tiers_supported(pricing),
                 "active": bool(entry.get("active", True)),
                 "deprecated_at": entry.get("deprecated_at"),
@@ -511,12 +642,12 @@ def serialize_model_provider_catalog() -> list[dict[str, Any]]:
 def serialize_builtin_model_connections() -> list[dict[str, Any]]:
     """Return the release-managed connection rows for database seeding.
 
-    The built-in OpenAI connection stores no base URL or credential reference:
-    it uses the process OpenAI configuration (``OPENAI_BASE_URL`` and
-    ``OPENAI_API_KEY``).
+    Built-in connections store no base URL or credential reference. OpenAI uses
+    the process OpenAI configuration (``OPENAI_BASE_URL`` and
+    ``OPENAI_API_KEY``); Anthropic uses only ``ANTHROPIC_API_KEY`` against
+    Anthropic's API.
     """
 
-    connection = builtin_openai_connection()
     return [
         {
             "id": connection.id,
@@ -529,10 +660,13 @@ def serialize_builtin_model_connections() -> list[dict[str, Any]]:
             "timeout_seconds": connection.timeout_seconds,
             "active": connection.active,
         }
+        for connection in builtin_model_connections()
     ]
 
 
 __all__ = [
+    "ANTHROPIC_REASONING_EFFORTS",
+    "DEFAULT_ANTHROPIC_CHAT_EFFORT",
     "MAIN_STRUCTURED_RESPONSE_KIND",
     "MAIN_STRUCTURED_RESPONSE_KINDS",
     "REASONING_EFFORT_ORDER",
@@ -540,6 +674,9 @@ __all__ = [
     "STRUCTURED_OUTPUT_TRANSPORT_JSON_OBJECT",
     "STRUCTURED_OUTPUT_TRANSPORT_JSON_SCHEMA",
     "builtin_hidden_by_default",
+    "default_chat_reasoning_effort",
+    "early_compaction_available",
+    "offered_effort",
     "serialize_builtin_model_connections",
     "serialize_model_catalog",
     "serialize_model_provider_catalog",

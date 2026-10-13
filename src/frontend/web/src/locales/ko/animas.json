@@ -86,21 +86,17 @@
   "gestures": {
     "all": "전체",
     "clips": "클립",
-    "customFailed": "사용자 지정 제스처를 불러올 수 없습니다.",
     "customFirst": "사용자 지정 먼저",
     "filter": "제스처 필터 및 정렬",
     "listLabel": "사용 가능한 제스처",
-    "loadingCustom": "사용자 지정 제스처를 불러오는 중…",
     "motionType": "모션 유형",
     "nameAsc": "이름 A–Z",
     "nameDesc": "이름 Z–A",
-    "noCustom": "사용 가능한 사용자 지정 제스처가 없습니다.",
     "noFilterMatch": "선택한 필터와 일치하는 제스처가 없습니다.",
     "noSearchMatch": "검색과 일치하는 제스처가 없습니다.",
     "search": "제스처 검색",
     "show": "표시",
     "showMore": "더 보기",
-    "showStarters": "기본 제공 제스처 표시",
     "sortBy": "정렬 기준",
     "status": "상태",
     "title": "제스처",
@@ -109,7 +105,13 @@
     "updateInLibrary": "라이브러리에서 업데이트",
     "updatesOnly": "업데이트 가능한 항목만",
     "viewInLibrary": "라이브러리에서 보기",
-    "vrma": "VRMA"
+    "vrma": "VRMA",
+    "counts": "장착 {{equipped, number}} / 전체 {{total, number}}",
+    "showIncluded": "기본 제공 표시",
+    "showLocal": "로컬 표시",
+    "loading": "제스처를 불러오는 중…",
+    "loadFailed": "제스처를 불러올 수 없습니다.",
+    "none": "사용 가능한 제스처가 없습니다."
   },
   "identity": {
     "edit": "정체성 편집",
@@ -431,6 +433,16 @@
       "sectionLabel": "음성 제공자",
       "speechOff": "애플리케이션 설정에서 음성이 꺼져 있습니다."
     },
-    "title": "음성"
+    "title": "음성",
+    "gemini": {
+      "available": "사용 가능한 Gemini 음성",
+      "listLabel": "Gemini 음성",
+      "sampleNote": "각 음성을 처음 재생할 때 Gemini API 키를 사용하며, 이후에는 샘플이 저장됩니다.",
+      "saved": "Gemini 음성을 저장했습니다.",
+      "saveFailed": "Gemini 음성을 저장하지 못했습니다. 다시 시도하세요.",
+      "searchLabel": "Gemini 음성 검색",
+      "sectionLabel": "Gemini 음성",
+      "trigger": "Gemini 음성: {{name}}"
+    }
   }
 }

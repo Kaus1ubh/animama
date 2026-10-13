@@ -1,5 +1,8 @@
-import { createDefaultParticleVFXTransform } from "./catalog";
-import { isParticleVFXAnchor, normalizeParticleVFXTransform } from "./runtime";
+import {
+  createDefaultParticleVFXTransform,
+  isParticleVFXAnchor,
+  normalizeParticleVFXTransform,
+} from "./runtime";
 import type { ParticleVFXCatalogEntry, ParticleVFXShapeAutoFit } from "./types";
 
 type ParticleVFXRuntimeDefaults = Omit<
@@ -74,6 +77,54 @@ export function parseParticleVFXRuntimeConfig(
           : (fallback?.performanceBudget.canCoexist ?? true),
     },
     ...(shapeAutoFit ? { shapeAutoFit } : {}),
+  };
+}
+
+/**
+ * The stored form of an effect's runtime defaults
+ * (`runtime_defaults.slots.particle_vfx`), as the creator's Save writes it
+ * and `parseParticleVFXRuntimeConfig` reads it back.
+ */
+export function particleVFXRuntimeSlotConfig(
+  entry: Omit<ParticleVFXCatalogEntry, "id" | "assetPath">,
+): Record<string, unknown> {
+  const transform = entry.defaultTransform;
+  const autoFit = entry.shapeAutoFit;
+  return {
+    label: entry.label,
+    description: entry.description,
+    anchor: entry.defaultAnchor,
+    duration_seconds: entry.defaultDurationSec,
+    max_duration_seconds: entry.performanceBudget.maxDurationSec,
+    preload_tier:
+      entry.preloadTier === "tierA"
+        ? "tier_a"
+        : entry.preloadTier === "tierB"
+          ? "tier_b"
+          : "none",
+    follow_anchor: entry.defaultFollowAnchor,
+    transform: {
+      offset: transform.offset,
+      depth_offset: transform.depthOffset,
+      rotation: transform.rotation,
+      scale: transform.scale,
+    },
+    looping_allowed: entry.performanceBudget.loopingAllowed,
+    can_coexist: entry.performanceBudget.canCoexist,
+    max_particles: entry.performanceBudget.maxParticles,
+    ...(autoFit
+      ? {
+          shape_auto_fit: {
+            kind: "avatar_bounds_rectangle",
+            ...(autoFit.padding ? { padding: autoFit.padding } : {}),
+            ...(autoFit.minSize ? { min_size: autoFit.minSize } : {}),
+            ...(autoFit.maxSize ? { max_size: autoFit.maxSize } : {}),
+            ...(autoFit.emitterNames
+              ? { emitter_names: autoFit.emitterNames }
+              : {}),
+          },
+        }
+      : {}),
   };
 }
 

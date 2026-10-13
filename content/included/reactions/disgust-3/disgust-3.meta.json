@@ -25,6 +25,12 @@
       "alias": "texture_sick_2",
       "content_type": "avatar_effect",
       "config": {}
+    },
+    {
+      "ref": "builtin:particle-effect:stink-miasma",
+      "alias": "stink-miasma",
+      "content_type": "particle_effect",
+      "config": {}
     }
   ],
   "files": [

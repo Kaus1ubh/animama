@@ -22,73 +22,143 @@ import { createAnimaPoseClipProgram } from "@/lib/avatar/poses/animaPoseClip/pro
 import { PoseController } from "@/lib/avatar";
 import { ReactionClipPlayer } from "@/lib/avatar/reaction/ReactionClipPlayer";
 import { TRACKED_EMOTIONS } from "@/lib/emotion";
-import { getSceneBackgroundLayerPresetIds } from "@/lib/scene-vfx/catalog";
 
 const emotionReactionIntensities = [1, 2, 3] as const;
-const INCLUDED_AVATAR_EFFECT_ALIASES = readIncludedAvatarEffectAliases();
-const reactionParticleDurations = {
-  hearts: 1.8,
-  stars: 1.4,
-  sparkles: 1.6,
-  "question-marks": 2,
-  exclamation: 1.2,
-  "rain-cloud": 2.4,
-} as const;
-const expectedReactionParticleEffects = new Map<string, string>([
-  ...buildReactionParticleMappings(
-    ["admiration", "caring", "love", "desire"],
-    [2, 3],
-    "hearts",
-  ),
-  ...buildReactionParticleMappings(
-    ["respect", "confidence", "gratitude", "optimism"],
-    [2, 3],
-    "sparkles",
-  ),
-  ...buildReactionParticleMappings(
-    ["amusement", "excitement", "joy"],
-    [2],
-    "stars",
-  ),
-  ...buildReactionParticleMappings(
-    ["amusement", "excitement", "joy"],
-    [3],
-    "sparkles",
-  ),
-  ...buildReactionParticleMappings(["curiosity"], [2], "question-marks"),
-  ...buildReactionParticleMappings(["confusion"], [2, 3], "question-marks"),
-  ...buildReactionParticleMappings(["curiosity"], [3], "exclamation"),
-  ...buildReactionParticleMappings(
-    ["disappointment", "grief", "sadness"],
-    [2, 3],
-    "rain-cloud",
-  ),
-]);
+const INCLUDED_ROOT = join(process.cwd(), "../../../content/included");
+const INCLUDED_AVATAR_EFFECT_ALIASES = readIncludedEffectAliases(
+  "avatar_effect",
+  "vfx/avatar",
+);
+const INCLUDED_PARTICLE_EFFECT_ALIASES = readIncludedEffectAliases(
+  "particle_effect",
+  "vfx/particle/quark",
+);
+const INCLUDED_SCENE_EFFECT_ALIASES = readIncludedEffectAliases(
+  "scene_effect",
+  "vfx/scene",
+);
 
 /**
- * The aliases Included reactions bind Included Avatar Effects by: each
- * reaction's avatar_effect dependency whose ref is an Included effect's
- * content ID. A dependency on a missing effect contributes no alias, so a clip
- * event naming it fails the catalog check.
+ * Each level-1 Reaction's one Avatar Effect alias (R12, owner revision
+ * 2026-10-12): level 1 plays it without its accompanying sound and has no
+ * Particle or Scene Effect.
  */
-function readIncludedAvatarEffectAliases(): string[] {
-  const included = join(process.cwd(), "../../../content/included");
-  const effectsRoot = join(included, "vfx/avatar");
+const expectedLevelOneAvatarEffects: Record<string, string> = {
+  admiration: "star3",
+  caring: "heart_throb",
+  love: "blush",
+  embarrassment: "blush_band",
+  respect: "kira_star_head",
+  confidence: "kira_star_head",
+  gratitude: "heart_throb",
+  amusement: "eye_vv",
+  excitement: "star3",
+  joy: "kira_star_head",
+  desire: "blush",
+  curiosity: "question_mark",
+  optimism: "kira_star_head",
+  fear: "eye_0",
+  nervousness: "sweat_drop",
+  confusion: "question_mark",
+  anger: "angry",
+  annoyance: "huff_puff",
+  disapproval: "eye_=",
+  disgust: "eye_=",
+  remorse: "sweat_drop",
+  disappointment: "sigh_puff",
+  grief: "single_tear",
+  sadness: "single_tear",
+};
+
+/**
+ * The Reaction ladder's Particle Effects (R12): each Reaction's
+ * `[effect, duration]` events in clip order. Intensity 2 plays them at 0.12 s
+ * and intensity 3 at 0.1 s; a Reaction not listed plays none.
+ */
+const expectedReactionParticleEvents: Record<
+  string,
+  Array<[effectId: string, durationSec: number]>
+> = {
+  "admiration-2": [["twinkle-shimmer", 3.4]],
+  "admiration-3": [["heart-burst", 2.5]],
+  "caring-2": [["sparkle-hearts", 4.2]],
+  "caring-3": [["heart-burst", 2.5]],
+  "love-2": [["hearts-v1", 3]],
+  "love-3": [["heart-burst", 2.5]],
+  "embarrassment-3": [["fume-puffs", 3.5]],
+  "respect-2": [["twinkle-shimmer", 3.4]],
+  "respect-3": [["halo-rays", 4.05]],
+  "confidence-3": [["halo-rays", 4.05]],
+  "gratitude-2": [["twinkle-shimmer", 3.4]],
+  "gratitude-3": [["halo-rays", 4.05]],
+  "amusement-3": [["confetti", 3.45]],
+  "excitement-2": [["star-burst", 1.8]],
+  "excitement-3": [
+    ["star-burst", 1.8],
+    ["fireworks-show", 3.8],
+  ],
+  "joy-2": [["confetti", 3.45]],
+  "joy-3": [
+    ["confetti", 3.45],
+    ["star-burst", 1.8],
+  ],
+  "desire-2": [["hearts-v1", 3]],
+  "desire-3": [["heart-fireworks", 3.6]],
+  "curiosity-2": [["question-orbit", 3.2]],
+  "curiosity-3": [["question-orbit", 3.2]],
+  "optimism-2": [["twinkle-shimmer", 3.4]],
+  "optimism-3": [["golden-willow", 4.2]],
+  "confusion-2": [["question-orbit", 3.2]],
+  "confusion-3": [["question-orbit", 3.2]],
+  "anger-2": [["fume-puffs", 3.5]],
+  "anger-3": [["rage-aura", 4]],
+  "annoyance-2": [["fume-puffs", 3.5]],
+  "annoyance-3": [["fume-puffs", 3.5]],
+  "disgust-2": [["stink-miasma", 4]],
+  "disgust-3": [["stink-miasma", 4]],
+  "remorse-3": [["gloom-wisps", 4.5]],
+  "disappointment-2": [["gloom-wisps", 4.5]],
+  "disappointment-3": [["rain-cloud", 3.75]],
+  "grief-2": [["rain-cloud", 3.75]],
+  "grief-3": [
+    ["rain-cloud", 3.75],
+    ["gloom-wisps", 4.5],
+  ],
+  "sadness-2": [["rain-cloud", 3.75]],
+  "sadness-3": [["rain-cloud", 3.75]],
+};
+
+/**
+ * The aliases Included reactions bind Included effects of one content type
+ * by: each reaction dependency of that type whose ref is the content ID of an
+ * Included descriptor (`<root>/<item>/<item>.json`). A dependency on a missing
+ * effect contributes no alias, so a clip event naming it fails the catalog
+ * check.
+ */
+function readIncludedEffectAliases(
+  contentType: "avatar_effect" | "particle_effect" | "scene_effect",
+  effectsFolder: string,
+): string[] {
+  const effectsRoot = join(INCLUDED_ROOT, effectsFolder);
   const effectIds = new Set(
-    readdirSync(effectsRoot).flatMap((item) =>
-      readdirSync(join(effectsRoot, item))
-        .filter((file) => file.endsWith(".json"))
-        .map(
-          (file) =>
+    readdirSync(effectsRoot)
+      .filter((item) => statSync(join(effectsRoot, item)).isDirectory())
+      .flatMap((item) => {
+        const descriptor = join(effectsRoot, item, `${item}.json`);
+        try {
+          return [
             (
-              JSON.parse(
-                readFileSync(join(effectsRoot, item, file), "utf8"),
-              ) as { content_id: string }
+              JSON.parse(readFileSync(descriptor, "utf8")) as {
+                content_id: string;
+              }
             ).content_id,
-        ),
-    ),
+          ];
+        } catch {
+          return [];
+        }
+      }),
   );
-  const reactionsRoot = join(included, "reactions");
+  const reactionsRoot = join(INCLUDED_ROOT, "reactions");
   const aliases = readdirSync(reactionsRoot).flatMap((item) => {
     const meta = JSON.parse(
       readFileSync(join(reactionsRoot, item, `${item}.meta.json`), "utf8"),
@@ -102,22 +172,12 @@ function readIncludedAvatarEffectAliases(): string[] {
     return (meta.dependencies ?? [])
       .filter(
         (dependency) =>
-          dependency.content_type === "avatar_effect" &&
+          dependency.content_type === contentType &&
           effectIds.has(dependency.ref),
       )
       .map((dependency) => dependency.alias);
   });
   return [...new Set(aliases)].sort();
-}
-
-function buildReactionParticleMappings(
-  emotions: readonly string[],
-  intensities: readonly number[],
-  effectId: string,
-): Array<[string, string]> {
-  return emotions.flatMap((emotion) =>
-    intensities.map((intensity) => [`${emotion}-${intensity}`, effectId]),
-  );
 }
 
 function createExpressionOnlyClip(
@@ -253,14 +313,14 @@ describe("animaPoseClip legacy role metadata", () => {
           time: 0.1,
           kind: "scene_vfx",
           sceneKind: "background_layers",
-          presetId: "comic-pop",
+          presetId: "scene-vfx-emotion-joy",
           duration: 0.5,
         },
         {
           id: "particle-vfx",
           time: 0.15,
           kind: "particle_vfx",
-          effectId: "hearts",
+          effectId: "heart-burst",
           anchor: "head",
           duration: 0.5,
         },
@@ -290,7 +350,7 @@ describe("animaPoseClip legacy role metadata", () => {
           id: "particle-vfx",
           time: 0.25,
           kind: "particle_vfx",
-          effectId: "hearts",
+          effectId: "heart-burst",
           anchor: "head",
           duration: 0.5,
           followAnchor: false,
@@ -308,7 +368,7 @@ describe("animaPoseClip legacy role metadata", () => {
     expect(clip.events?.[0]).toMatchObject({
       id: "particle-vfx",
       kind: "particle_vfx",
-      effectId: "hearts",
+      effectId: "heart-burst",
       anchor: "head",
       followAnchor: false,
       envelope: {},
@@ -333,7 +393,7 @@ describe("animaPoseClip legacy role metadata", () => {
         id: "bad-anchor",
         time: 0,
         kind: "particle_vfx",
-        effectId: "hearts",
+        effectId: "heart-burst",
         anchor: "face",
         duration: 0.5,
       },
@@ -341,7 +401,7 @@ describe("animaPoseClip legacy role metadata", () => {
         id: "bad-offset",
         time: 0,
         kind: "particle_vfx",
-        effectId: "hearts",
+        effectId: "heart-burst",
         duration: 0.5,
         transform: { offset: { x: Number.NaN } },
       },
@@ -349,7 +409,7 @@ describe("animaPoseClip legacy role metadata", () => {
         id: "bad-scale",
         time: 0,
         kind: "particle_vfx",
-        effectId: "hearts",
+        effectId: "heart-burst",
         duration: 0.5,
         transform: { scale: { x: 0 } },
       },
@@ -357,7 +417,7 @@ describe("animaPoseClip legacy role metadata", () => {
         id: "bad-follow",
         time: 0,
         kind: "particle_vfx",
-        effectId: "hearts",
+        effectId: "heart-burst",
         duration: 0.5,
         followAnchor: "yes",
       },
@@ -365,7 +425,7 @@ describe("animaPoseClip legacy role metadata", () => {
         id: "bad-envelope",
         time: 0,
         kind: "particle_vfx",
-        effectId: "hearts",
+        effectId: "heart-burst",
         envelope: {},
       },
     ];
@@ -444,12 +504,12 @@ describe("reaction clip catalog", () => {
 
   it("keeps every reaction clip composable and catalog-referenced", () => {
     const eventCatalogs = {
-      // Avatar Effects are descriptor-backed Included items; reactions bind
-      // them by these dependency aliases.
+      // Effects are descriptor-backed Included items; reactions bind them by
+      // these dependency aliases.
       avatarVFXIds: INCLUDED_AVATAR_EFFECT_ALIASES,
-      sceneBackgroundLayerPresetIds: getSceneBackgroundLayerPresetIds(),
+      sceneBackgroundLayerPresetIds: INCLUDED_SCENE_EFFECT_ALIASES,
       sceneFocusLinePresetIds: [],
-      particleVFXIds: AVATAR_PARTICLE_VFX_CATALOG.map((entry) => entry.id),
+      particleVFXIds: INCLUDED_PARTICLE_EFFECT_ALIASES,
       sfxCueIds: [],
     };
 
@@ -479,37 +539,69 @@ describe("reaction clip catalog", () => {
     }
   });
 
-  it("authors Phase 5 particle events only on the selected high-intensity clips", () => {
+  it("plays the Reaction ladder's Particle Effects", () => {
     for (const clipId of AVATAR_REACTION_CLIP_IDS) {
       const clip = getAvatarReactionClip(clipId);
+      const intensity = Number(clipId.split("-").at(-1));
       const particleEvents = (clip.events ?? []).filter(
         (event): event is AnimaPoseClipParticleVFXEvent =>
           event.kind === "particle_vfx",
       );
-      const expectedEffectId = expectedReactionParticleEffects.get(clipId);
+      const expected = expectedReactionParticleEvents[clipId] ?? [];
 
-      if (!expectedEffectId) {
-        expect(particleEvents, `${clipId} should not have particles`).toEqual(
-          [],
-        );
-        continue;
-      }
+      expect(particleEvents, `${clipId} particles`).toEqual(
+        expected.map(([effectId, duration]) => ({
+          id: `particle-${effectId}`,
+          time: intensity === 3 ? 0.1 : 0.12,
+          kind: "particle_vfx",
+          effectId,
+          duration,
+        })),
+      );
+    }
+  });
 
-      const intensity = Number(clipId.split("-").at(-1));
-      const event = particleEvents[0];
-      expect(particleEvents, `${clipId} particle count`).toHaveLength(1);
-      expect(event).toMatchObject({
-        id: `particle-${expectedEffectId}`,
-        effectId: expectedEffectId,
-        time: intensity === 3 ? 0.1 : 0.12,
-        duration:
-          reactionParticleDurations[
-            expectedEffectId as keyof typeof reactionParticleDurations
-          ],
-      });
-      expect("anchor" in event).toBe(false);
-      expect("transform" in event).toBe(false);
-      expect("followAnchor" in event).toBe(false);
+  it("plays each emotion's background only at intensity 3", () => {
+    for (const clipId of AVATAR_REACTION_CLIP_IDS) {
+      const clip = getAvatarReactionClip(clipId);
+      const [emotion, intensity] = clipId.split("-");
+      const sceneEvents = (clip.events ?? []).filter(
+        (event) => event.kind === "scene_vfx",
+      );
+
+      expect(sceneEvents, `${clipId} scene events`).toEqual(
+        intensity === "3"
+          ? [
+              {
+                id: "scene-emotion-background",
+                time: 0,
+                kind: "scene_vfx",
+                sceneKind: "background_layers",
+                presetId: `scene-vfx-emotion-${emotion}`,
+              },
+            ]
+          : [],
+      );
+    }
+    // Every emotion's background is an Included Scene Effect.
+    expect(INCLUDED_SCENE_EFFECT_ALIASES).toEqual(
+      TRACKED_EMOTIONS.map((emotion) => `scene-vfx-emotion-${emotion}`).sort(),
+    );
+  });
+
+  it("plays one silent Avatar Effect at intensity 1", () => {
+    for (const emotion of TRACKED_EMOTIONS) {
+      const clipId = `${emotion}-1`;
+      const clip = getAvatarReactionClip(clipId);
+
+      expect(clip.events, `${clipId} events`).toEqual([
+        expect.objectContaining({
+          time: 0.1,
+          kind: "avatar_vfx",
+          effectId: expectedLevelOneAvatarEffects[emotion],
+          playAccompanyingSound: false,
+        }),
+      ]);
     }
   });
 
@@ -761,7 +853,7 @@ describe("ReactionClipPlayer", () => {
             id: "particle-bang",
             time: 0,
             kind: "particle_vfx",
-            effectId: "hearts",
+            effectId: "heart-burst",
             duration: 0.5,
           },
         ],
@@ -809,18 +901,20 @@ describe("ReactionClipPlayer", () => {
     });
     player.update(0.1);
 
-    const expectedAppliedId =
-      "reaction:run-joy:emotion-event-joy:joy-3:particle-sparkles";
+    const appliedId = (effectId: string) =>
+      `reaction:run-joy:emotion-event-joy:joy-3:particle-${effectId}`;
     expect(applied).toEqual([
-      {
-        id: expectedAppliedId,
-        effectId: "sparkles",
-        duration: 1.6,
-      },
+      { id: appliedId("confetti"), effectId: "confetti", duration: 3.45 },
+      { id: appliedId("star-burst"), effectId: "star-burst", duration: 1.8 },
     ]);
 
-    player.update(1.6);
-    expect(clearedIds).toEqual([expectedAppliedId]);
+    player.update(1.85);
+    expect(clearedIds).toEqual([appliedId("star-burst")]);
+    player.update(1.7);
+    expect(clearedIds).toEqual([
+      appliedId("star-burst"),
+      appliedId("confetti"),
+    ]);
   });
 
   it("holds playback-scoped reactions until clear and then fades out", () => {
@@ -1070,14 +1164,14 @@ describe("PoseController playback-scoped clips", () => {
           id: "particle-duration",
           time: 0,
           kind: "particle_vfx",
-          effectId: "hearts",
+          effectId: "heart-burst",
           duration: 0.25,
         },
         {
           id: "particle-hold",
           time: 0,
           kind: "particle_vfx",
-          effectId: "hearts",
+          effectId: "heart-burst",
         },
       ],
     });

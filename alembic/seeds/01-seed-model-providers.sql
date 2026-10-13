@@ -1,7 +1,8 @@
--- Seed the built-in model connection and its provider/model catalog rows after
+-- Seed the built-in model connections and their provider/model catalog rows after
 -- Alembic creates the tables. Only built-in rows are inserted, updated or retired;
--- owner-added connections and models, and the owner's hidden flags, are never changed.
--- A newly inserted built-in Chat Completions chat row starts hidden.
+-- owner-added connections and models, and the owner's hidden and Compact early
+-- flags, are never changed. A newly inserted built-in Chat Completions chat row
+-- starts hidden.
 -- Generated from animama.app.model_catalog serializers by tests/test_model_provider_catalog.py.
 INSERT INTO model_connections (
     id,
@@ -14,7 +15,8 @@ INSERT INTO model_connections (
     timeout_seconds,
     active
 ) VALUES
-    ('openai', 'builtin', 'OpenAI', 'openai', NULL, NULL, '{"fold_developer_role":false,"reasoning_mode":"openai_effort","send_openai_extensions":true,"send_stream_usage":true,"strip_function_strict":false}'::jsonb, NULL, TRUE)
+    ('openai', 'builtin', 'OpenAI', 'openai', NULL, NULL, '{"fold_developer_role":false,"reasoning_mode":"openai_effort","send_openai_extensions":true,"send_stream_usage":true,"strip_function_strict":false}'::jsonb, NULL, TRUE),
+    ('anthropic', 'builtin', 'Anthropic', 'anthropic', NULL, NULL, '{"fold_developer_role":false,"reasoning_mode":"omit","send_openai_extensions":false,"send_stream_usage":false,"strip_function_strict":false}'::jsonb, NULL, TRUE)
 ON CONFLICT (id) DO UPDATE SET
     source = EXCLUDED.source,
     name = EXCLUDED.name,
@@ -42,6 +44,7 @@ INSERT INTO model_providers (
     source,
     model_kind,
     hidden,
+    early_compaction,
     service_tiers_supported,
     active,
     deprecated_at,
@@ -91,10 +94,11 @@ INSERT INTO model_providers (
     pricing_notes,
     metadata
 ) VALUES
-    ('OpenAIHTTPAgent:gpt-6-luna', 'gpt-6-luna', 'OpenAIHTTPAgent', 'gpt-6-luna', 'OpenAI HTTP', 'openai', 'reasoning', 'gpt-6-luna', 1050000, 128000, 'openai', 'builtin', 'chat', TRUE, '["standard"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh","max"]'::json, NULL, 'priced', 'openai', 'gpt-6-luna', NULL, '2026-09-28', 'USD', '1M_tokens', 0.10, 0.01, 0.50, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["Prompt-cache write, batch, flex, priority and long-context rates are not recorded and are not estimated.","Standard input and output rates were supplied by the owner on 2026-09-28.","The cached-input rate ($0.01 per 1M tokens) comes from secondary sources and awaits owner confirmation."]'::json, '{}'::json),
-    ('OpenAIHTTPAgent:text-embedding-3-large', 'text-embedding-3-large', 'OpenAIHTTPAgent', 'text-embedding-3-large', 'OpenAI HTTP', 'openai', NULL, NULL, NULL, NULL, 'openai', 'builtin', 'embedding', FALSE, '[]'::json, TRUE, NULL, '["text"]'::json, '["embedding"]'::json, TRUE, FALSE, FALSE, '[]'::json, NULL, NULL, NULL, NULL, 'unpriced', 'openai', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
-    ('OpenAIHTTPAgent:text-embedding-3-small', 'text-embedding-3-small', 'OpenAIHTTPAgent', 'text-embedding-3-small', 'OpenAI HTTP', 'openai', NULL, NULL, NULL, NULL, 'openai', 'builtin', 'embedding', FALSE, '[]'::json, TRUE, NULL, '["text"]'::json, '["embedding"]'::json, TRUE, FALSE, FALSE, '[]'::json, NULL, NULL, NULL, NULL, 'unpriced', 'openai', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
-    ('OpenAIResponsesHTTPAgent:gpt-6-luna', 'gpt-6-luna', 'OpenAIResponsesHTTPAgent', 'gpt-6-luna', 'OpenAI Responses HTTP', 'openai', 'reasoning', 'gpt-6-luna', 1050000, 128000, 'openai', 'builtin', 'chat', FALSE, '["standard"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh","max"]'::json, '["apply_patch","web_search"]'::json, 'priced', 'openai', 'gpt-6-luna', NULL, '2026-09-28', 'USD', '1M_tokens', 0.10, 0.01, 0.50, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["Prompt-cache write, batch, flex, priority and long-context rates are not recorded and are not estimated.","Standard input and output rates were supplied by the owner on 2026-09-28.","The cached-input rate ($0.01 per 1M tokens) comes from secondary sources and awaits owner confirmation."]'::json, '{}'::json)
+    ('AnthropicMessagesHTTPAgent:claude-haiku-5-5', 'claude-haiku-5-5', 'AnthropicMessagesHTTPAgent', 'claude-haiku-5-5', 'Anthropic', 'anthropic', 'reasoning', 'claude-haiku-5-5', 1000000, 128000, 'anthropic', 'builtin', 'chat', FALSE, TRUE, '["standard","batch"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh","max"]'::json, '["web_search"]'::json, 'priced', 'anthropic', 'claude-haiku-5-5', 'https://platform.claude.com/docs/en/about-claude/pricing', '2026-10-08', 'USD', '1M_tokens', 0.10, 0.01, 0.50, 0.05, 0.005, 0.25, NULL, NULL, NULL, NULL, NULL, NULL, 100000, 0.50, 0.05, 2.50, 0.25, 0.025, 1.25, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["Batch rates are half the standard rates.","Prompt-cache write rates are not recorded and are not estimated.","Requests above 100,000 prompt tokens bill every token at the long-context rates.","Web search is billed separately per search and is not estimated."]'::json, '{}'::json),
+    ('OpenAIHTTPAgent:gpt-6-luna', 'gpt-6-luna', 'OpenAIHTTPAgent', 'gpt-6-luna', 'OpenAI HTTP', 'openai', 'reasoning', 'gpt-6-luna', 1050000, 128000, 'openai', 'builtin', 'chat', TRUE, TRUE, '["standard"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh","max"]'::json, NULL, 'priced', 'openai', 'gpt-6-luna', NULL, '2026-09-28', 'USD', '1M_tokens', 0.10, 0.01, 0.50, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["Prompt-cache write, batch, flex, priority and long-context rates are not recorded and are not estimated.","Standard input and output rates were supplied by the owner on 2026-09-28.","The cached-input rate ($0.01 per 1M tokens) comes from secondary sources and awaits owner confirmation."]'::json, '{}'::json),
+    ('OpenAIHTTPAgent:text-embedding-3-large', 'text-embedding-3-large', 'OpenAIHTTPAgent', 'text-embedding-3-large', 'OpenAI HTTP', 'openai', NULL, NULL, NULL, NULL, 'openai', 'builtin', 'embedding', FALSE, TRUE, '[]'::json, TRUE, NULL, '["text"]'::json, '["embedding"]'::json, TRUE, FALSE, FALSE, '[]'::json, NULL, NULL, NULL, NULL, 'unpriced', 'openai', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
+    ('OpenAIHTTPAgent:text-embedding-3-small', 'text-embedding-3-small', 'OpenAIHTTPAgent', 'text-embedding-3-small', 'OpenAI HTTP', 'openai', NULL, NULL, NULL, NULL, 'openai', 'builtin', 'embedding', FALSE, TRUE, '[]'::json, TRUE, NULL, '["text"]'::json, '["embedding"]'::json, TRUE, FALSE, FALSE, '[]'::json, NULL, NULL, NULL, NULL, 'unpriced', 'openai', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '[]'::json, '{}'::json),
+    ('OpenAIResponsesHTTPAgent:gpt-6-luna', 'gpt-6-luna', 'OpenAIResponsesHTTPAgent', 'gpt-6-luna', 'OpenAI Responses HTTP', 'openai', 'reasoning', 'gpt-6-luna', 1050000, 128000, 'openai', 'builtin', 'chat', FALSE, TRUE, '["standard"]'::json, TRUE, NULL, '["image","text"]'::json, '["text"]'::json, TRUE, TRUE, TRUE, '["main_structured_response"]'::json, 'json_schema', TRUE, '["none","low","medium","high","xhigh","max"]'::json, '["apply_patch","web_search"]'::json, 'priced', 'openai', 'gpt-6-luna', NULL, '2026-09-28', 'USD', '1M_tokens', 0.10, 0.01, 0.50, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '["Prompt-cache write, batch, flex, priority and long-context rates are not recorded and are not estimated.","Standard input and output rates were supplied by the owner on 2026-09-28.","The cached-input rate ($0.01 per 1M tokens) comes from secondary sources and awaits owner confirmation."]'::json, '{}'::json)
 ON CONFLICT (id) DO UPDATE SET
     model = EXCLUDED.model,
     provider_type = EXCLUDED.provider_type,
@@ -162,7 +166,7 @@ UPDATE model_providers SET
     active = FALSE,
     deprecated_at = COALESCE(deprecated_at, CURRENT_TIMESTAMP),
     updated_at = CURRENT_TIMESTAMP
-WHERE source = 'builtin' AND active AND id NOT IN ('OpenAIHTTPAgent:gpt-6-luna', 'OpenAIHTTPAgent:text-embedding-3-large', 'OpenAIHTTPAgent:text-embedding-3-small', 'OpenAIResponsesHTTPAgent:gpt-6-luna');
+WHERE source = 'builtin' AND active AND id NOT IN ('AnthropicMessagesHTTPAgent:claude-haiku-5-5', 'OpenAIHTTPAgent:gpt-6-luna', 'OpenAIHTTPAgent:text-embedding-3-large', 'OpenAIHTTPAgent:text-embedding-3-small', 'OpenAIResponsesHTTPAgent:gpt-6-luna');
 
 -- Move Animas and the owner's chat-model roles off retired built-in rows onto the
 -- current built-in row on the same API, so existing installations keep chatting.

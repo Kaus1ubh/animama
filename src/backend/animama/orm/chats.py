@@ -20,11 +20,12 @@ class ORMChat(SqlalchemyBase, TimestampMixin, AuditMixin):
     __tablename__ = "chats"
     __table_args__ = (
         CheckConstraint(
-            "last_model_client IS NULL OR last_model_client IN ('openai_chat_completions', 'openai_responses')",
+            "last_model_client IS NULL OR last_model_client IN "
+            "('openai_chat_completions', 'openai_responses', 'anthropic_messages')",
             name="last_model_client_valid",
         ),
         CheckConstraint(
-            "api_standard IS NULL OR api_standard IN ('chat_completions', 'responses')",
+            "api_standard IS NULL OR api_standard IN ('chat_completions', 'responses', 'anthropic_messages')",
             name="api_standard_valid",
         ),
     )

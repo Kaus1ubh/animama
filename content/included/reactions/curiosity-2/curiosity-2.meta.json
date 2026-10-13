@@ -21,8 +21,8 @@
       "config": {}
     },
     {
-      "ref": "builtin:particle-effect:question-marks",
-      "alias": "question-marks",
+      "ref": "builtin:particle-effect:question-orbit",
+      "alias": "question-orbit",
       "content_type": "particle_effect",
       "config": {}
     }

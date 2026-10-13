@@ -4,49 +4,111 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-grief",
   "version": 1,
   "name": "Emotion Grief",
-  "description": "Scene background effect preset",
+  "description": "A midnight-indigo sky with long, heavy gloom lines hanging from the top and large teardrops falling slowly beside the Avatar, for grieving moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#cdd3e8"
+      "enabled": false,
+      "color": "#000000"
     },
     "pattern": {
       "enabled": false,
       "pattern": "none",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.32
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
         {
-          "id": "emoji-crying-face",
-          "kind": "image",
-          "label": "Crying Face 😢",
-          "image": "emoji-crying-face-1f622.svg"
+          "color": "#1c1f3a",
+          "position": 0
+        },
+        {
+          "color": "#3a3d63",
+          "position": 0.55
+        },
+        {
+          "color": "#5b5f86",
+          "position": 1
         }
       ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "lines",
+      "color": "#0b0d1f",
+      "opacity": 0.6,
+      "count": 40,
+      "minLength": 0.35,
+      "maxLength": 0.85,
+      "minWidthPx": 2,
+      "maxWidthPx": 5,
+      "swaySeconds": 12,
+      "seed": 13
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "tear",
+            "kind": "image",
+            "label": "Teardrop",
+            "image": "teardrop.png"
+          }
+        ],
+        "count": 10,
+        "seed": 87,
+        "minSize": 34,
+        "maxSize": 60,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.75,
+        "maxOpacity": 0.95,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "down",
+        "speedPxPerSec": 90,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-crying-face-1f622.svg",
+      "path": "teardrop.png",
       "role": "image"
     }
   ]

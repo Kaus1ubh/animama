@@ -23,9 +23,14 @@ import {
 import {
   getSceneBackgroundLayerPresetById,
   getSceneFocusLinePresetById,
-  parseSceneVFXEntry,
 } from "@/lib/scene-vfx/catalog";
+import { sceneEntryFromDefinition } from "@/lib/scene-vfx/sceneDefinition";
 import type { SceneVFXEntry, SceneVFXKind } from "@/lib/scene-vfx/types";
+import {
+  PARTICLE_TEXTURE_LIMITS,
+  SCENE_IMAGE_LIMITS,
+  inspectEffectArt,
+} from "@/lib/effects/effectArtLimits";
 import { createLogger } from "@/lib/logger";
 import {
   fetchPrivateRuntimeContentResponse,
@@ -530,6 +535,7 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
       if (!document || !images) throw new Error("particle_manifest_invalid");
       const referenced = new Set<string>();
       const textureUrlsByResource = new Map<string, string>();
+      let textureBytes = 0;
       for (const image of images) {
         const imageRecord = recordValue(image);
         if (!imageRecord || typeof imageRecord.url !== "string") {
@@ -556,6 +562,16 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
             },
             "particle",
           );
+          // Check each texture's size and header before the browser decodes
+          // it, as for Avatar Effect images.
+          textureBytes += textureBlob.size;
+          if (
+            textureUrlsByResource.size >= PARTICLE_TEXTURE_LIMITS.count ||
+            textureBytes > PARTICLE_TEXTURE_LIMITS.totalBytes ||
+            !(await inspectEffectArt(textureBlob, PARTICLE_TEXTURE_LIMITS)).ok
+          ) {
+            throw new Error("particle_texture_limit");
+          }
           objectUrl = this.ownedObjectUrl(textureBlob);
           textureUrlsByResource.set(resourceUrl, objectUrl);
           createdUrls.push(objectUrl);
@@ -705,6 +721,9 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
     );
     if (packageBytes > MAX_SCENE_EFFECT_BYTES)
       throw new Error("scene_vfx_package_limit");
+    // The shared Scene image limits, as Save and import apply them.
+    if (Object.keys(logicalResourceUrls).length > SCENE_IMAGE_LIMITS.count)
+      throw new Error("scene_vfx_image_limit");
     this.reservePrivateBytes(packageBytes);
     const createdUrls: string[] = [];
     try {
@@ -726,52 +745,44 @@ export class AnimaRuntimeMediaCatalog implements AnimaRuntimeMediaProvider {
           },
           "effect",
         );
+        // Raster art is checked from its header before anything decodes it;
+        // SVG art is checked for bytes (its content is validated at Save).
+        if (
+          blob.size > SCENE_IMAGE_LIMITS.bytes ||
+          (file.content_type !== "image/svg+xml" &&
+            !(await inspectEffectArt(blob, SCENE_IMAGE_LIMITS)).ok)
+        )
+          throw new Error("scene_vfx_image_limit");
         const objectUrl = this.ownedObjectUrl(blob);
         createdUrls.push(objectUrl);
         objectUrlByLogicalName.set(logicalName, objectUrl);
       }
-      const projected = structuredClone(definition);
-      const marquee = recordValue(projected.marquee);
-      if (expectedKind === "background_layers") {
-        if (!marquee || !Array.isArray(marquee.items))
-          throw new Error("scene_vfx_definition_invalid");
-        const items = marquee.items;
-        const referenced = new Set<string>();
-        const projectedMarquee = marquee;
-        projectedMarquee.items = items.map((rawItem) => {
-          const item = recordValue(rawItem);
-          if (!item) throw new Error("scene_vfx_definition_invalid");
-          if (item.kind !== "image") return item;
-          const logicalName =
-            typeof item.image === "string" ? item.image : null;
-          const src = logicalName
-            ? objectUrlByLogicalName.get(logicalName)
-            : null;
-          if (!logicalName || !src)
-            throw new Error("scene_vfx_resource_invalid");
-          referenced.add(logicalName);
-          return { id: item.id, kind: "png", label: item.label, src };
-        });
-        if (referenced.size !== Object.keys(logicalResourceUrls).length)
-          throw new Error("scene_vfx_resource_invalid");
-      } else if (
-        entry.source.files.length > 0 ||
-        Object.keys(logicalResourceUrls).length > 0
+      if (
+        expectedKind !== "background_layers" &&
+        (entry.source.files.length > 0 ||
+          Object.keys(logicalResourceUrls).length > 0)
       ) {
         throw new Error("scene_vfx_resource_invalid");
       }
       const soundAlias =
-        typeof projected.soundAlias === "string" ? projected.soundAlias : null;
+        typeof definition.soundAlias === "string"
+          ? definition.soundAlias
+          : null;
       const references = recordValue(entry.config.runtime_reference_map) ?? {};
-      return parseSceneVFXEntry({
-        ...projected,
-        id: entry.runtime_id,
-        label: entry.display_name,
-        enabled: true,
-        ...(soundAlias
+      const { entry: sceneEntry, referencedImages } = sceneEntryFromDefinition(
+        definition,
+        { id: entry.runtime_id, label: entry.display_name },
+        (logicalName) => objectUrlByLogicalName.get(logicalName),
+        soundAlias
           ? { sound: { onApply: String(references[soundAlias] ?? soundAlias) } }
-          : {}),
-      });
+          : {},
+      );
+      if (
+        expectedKind === "background_layers" &&
+        referencedImages.size !== Object.keys(logicalResourceUrls).length
+      )
+        throw new Error("scene_vfx_resource_invalid");
+      return sceneEntry;
     } catch (error) {
       this.residentPrivateBytes = Math.max(
         0,

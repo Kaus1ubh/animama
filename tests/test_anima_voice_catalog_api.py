@@ -8,10 +8,12 @@ from sqlalchemy import delete
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.avatar_upload import ORMAvatarUpload
 from animama.orm.content_catalog import ORMContentCatalogItem
-from animama.server.config import settings
-from animama.server.deps import get_async_session, get_current_principal
-from animama.server.routers.anima import router
+from animama.product_http.routes.voice_catalogs import router
+from animama.server.config import Settings
+from animama.server.deps import get_current_principal
+from animama.server.local_runtime import initialize_local_runtime
 from tests.local_http_client import local_client
+from tests.product_http_support import install_local_ports
 
 
 def _voice_catalog() -> bytes:
@@ -25,22 +27,21 @@ def _voice_catalog() -> bytes:
     )
 
 
-async def test_voice_catalog_upload_publishes_readable_local_file(async_session, tmp_path: Path, monkeypatch) -> None:  # noqa: ANN001
-    monkeypatch.setattr(settings, "animama_content_root", tmp_path / "content")
-    monkeypatch.setattr(settings, "animama_data_root", tmp_path / "data")
+async def test_voice_catalog_upload_publishes_readable_local_file(async_session, tmp_path: Path) -> None:  # noqa: ANN001
     payload = _voice_catalog()
+    runtime_settings = Settings(animama_content_root=tmp_path / "content", animama_data_root=tmp_path / "data")
 
     app = FastAPI()
     app.include_router(router)
+    # Startup prepares the runtime paths; the routes never create them.
+    app.state.runtime_settings = runtime_settings
+    app.state.local_runtime_paths = initialize_local_runtime(runtime_settings)
+    install_local_ports(app, async_session)
 
     async def override_user() -> RequestPrincipal:
         return RequestPrincipal(id="voice-owner")
 
-    async def override_session():  # noqa: ANN202
-        yield async_session
-
     app.dependency_overrides[get_current_principal] = override_user
-    app.dependency_overrides[get_async_session] = override_session
     client = local_client(app)
     try:
         initialized = await client.post(

@@ -35,10 +35,12 @@ from animama.domain.request_principal import RequestPrincipal
 from animama.orm import ORMAnima, ORMAvatar, ORMModelProvider
 from animama.orm.content_catalog import ORMContentCatalogItem
 from animama.orm.memory_entry import ORMMemoryEntry, ORMMemoryEntryVersion
+from animama.product_http.routes import chat_turns, loadouts, typed_content
 from animama.server.config import Settings, settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.local_runtime import LocalRuntimePaths, initialize_local_runtime
-from animama.server.routers import anima, anima_creation, anima_loadouts, typed_content
+from animama.server.routers import anima_creation
+from tests.product_http_support import install_local_ports
 
 
 def glb(document: dict[str, Any]) -> bytes:
@@ -185,8 +187,8 @@ class AnimaCreationFixture:
         app = FastAPI()
         app.state.local_runtime_paths = self.paths
         app.include_router(anima_creation.router)
-        app.include_router(anima.router)
-        app.include_router(anima_loadouts.router)
+        app.include_router(chat_turns.router)
+        app.include_router(loadouts.router)
         app.include_router(typed_content.router)
 
         async def user():
@@ -197,6 +199,7 @@ class AnimaCreationFixture:
 
         app.dependency_overrides[get_current_principal] = user
         app.dependency_overrides[get_async_session] = database
+        install_local_ports(app, session)
         return app
 
 
@@ -382,6 +385,81 @@ EXPECTED_STARTER_GESTURE_IDS = (
     "builtin:gesture:cheeky-finger-guns",
     "builtin:gesture:cat-monster-rawr",
     "builtin:gesture:single-hand-on-heart",
+    "builtin:gesture:explain-open-palms",
+    "builtin:gesture:goodbye-wave",
+    "builtin:gesture:tear-wipe",
+    "builtin:gesture:apology-bow",
+    "builtin:gesture:prayer-hands-thanks",
+    "builtin:gesture:air-quotes",
+    "builtin:gesture:attentive-lean-in",
+    "builtin:gesture:beckon",
+    "builtin:gesture:big-circle-maru",
+    "builtin:gesture:big-x-batsu",
+    "builtin:gesture:blow-a-kiss",
+    "builtin:gesture:blow-a-kiss-2",
+    "builtin:gesture:cat-paws-nya",
+    "builtin:gesture:celebration",
+    "builtin:gesture:chefs-kiss",
+    "builtin:gesture:count-on-fingers",
+    "builtin:gesture:cover-face-and-peek",
+    "builtin:gesture:cower",
+    "builtin:gesture:deflated-sigh",
+    "builtin:gesture:drumroll",
+    "builtin:gesture:emphasise-a-point",
+    "builtin:gesture:enthusiastic-yes",
+    "builtin:gesture:ew-recoil",
+    "builtin:gesture:excited-triple-clap",
+    "builtin:gesture:fighting-fist-pump",
+    "builtin:gesture:fingers-crossed",
+    "builtin:gesture:fist-bump",
+    "builtin:gesture:flex",
+    "builtin:gesture:flustered-fan",
+    "builtin:gesture:gentle-double-nod",
+    "builtin:gesture:gentle-head-shake",
+    "builtin:gesture:grr-fists",
+    "builtin:gesture:hand-to-ear",
+    "builtin:gesture:have-an-idea",
+    "builtin:gesture:head-pat",
+    "builtin:gesture:hearty-laugh",
+    "builtin:gesture:high-five",
+    "builtin:gesture:hysterical-laughter",
+    "builtin:gesture:kyaa-hands-on-cheeks",
+    "builtin:gesture:medium-laugh",
+    "builtin:gesture:meme-dab",
+    "builtin:gesture:mild-laugh",
+    "builtin:gesture:mind-blown",
+    "builtin:gesture:nervous-head-scratch",
+    "builtin:gesture:ohohoho-noble-laugh",
+    "builtin:gesture:on-one-hand",
+    "builtin:gesture:palms-up-shrug",
+    "builtin:gesture:peace-over-eye",
+    "builtin:gesture:phew-brow-wipe",
+    "builtin:gesture:pinky-promise",
+    "builtin:gesture:please-hands",
+    "builtin:gesture:polite-bow",
+    "builtin:gesture:pon-realization",
+    "builtin:gesture:pout-huff",
+    "builtin:gesture:presenting",
+    "builtin:gesture:scheming-hands",
+    "builtin:gesture:shh",
+    "builtin:gesture:shy-giggle",
+    "builtin:gesture:small-shy-wave",
+    "builtin:gesture:smug-heh",
+    "builtin:gesture:so-so-wobble",
+    "builtin:gesture:soul-leaves-body",
+    "builtin:gesture:stretch-break",
+    "builtin:gesture:surprise-gasp",
+    "builtin:gesture:tehepero",
+    "builtin:gesture:thinking-chin-rest",
+    "builtin:gesture:this-big",
+    "builtin:gesture:tiny-bit",
+    "builtin:gesture:tongue-out-bleh",
+    "builtin:gesture:typing-away",
+    "builtin:gesture:virtual-hug",
+    "builtin:gesture:wait-stop-palm",
+    "builtin:gesture:wave-hello",
+    "builtin:gesture:who-me",
+    "builtin:gesture:zip-lips",
 )
 
 

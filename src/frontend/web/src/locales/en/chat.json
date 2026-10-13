@@ -122,19 +122,26 @@
       "remove": "Remove from composer"
     },
     "model": {
+      "back": "Back to model and reasoning",
+      "choose": "Choose a model",
       "empty": "No models found.",
+      "fallbackLabel": "Model",
+      "features": "Chat features",
       "needsWindow": "Set its context window in App Settings → Models",
+      "noFeatures": "No optional features for this model.",
       "noProfile": "No chat profile",
+      "noReasoning": "This model has no adjustable reasoning.",
       "notDirect": "Not available for direct chat yet",
-      "reasoning": "Reasoning",
+      "panel": "Model and reasoning",
+      "reasoningEffort": "Reasoning effort",
       "reasoningEfforts": {
-        "high": "high",
-        "low": "low",
-        "max": "max",
-        "medium": "medium",
-        "minimal": "minimal",
-        "none": "none",
-        "xhigh": "xhigh"
+        "high": "High",
+        "low": "Low",
+        "max": "Max",
+        "medium": "Medium",
+        "minimal": "Minimal",
+        "none": "None",
+        "xhigh": "Extra high"
       },
       "search": "Search models...",
       "searchUnavailable": {
@@ -143,13 +150,14 @@
         "tools_unsupported": "This model can't call tools, so it can't search."
       },
       "select": "Select model",
-      "settings": "{{model}} settings",
       "toasts": {
         "selectFirst": "Select a model before chatting.",
         "unsupported": "This model is not available for direct chat yet.",
         "updateFailed": "Failed to update model"
       },
+      "trigger": "Model and reasoning: {{model}}",
       "unavailable": "Model unavailable. Select another model.",
+      "unavailableShort": "Model unavailable",
       "webSearch": "Web search"
     }
   },

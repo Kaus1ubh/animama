@@ -1,0 +1,114 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:heart_hands_pop_chest",
+  "version": 1,
+  "name": "Heart Hands Pop",
+  "description": "A cartoon heart pops out of a two-hand heart held at the chest, rises to sit just above the joined fingertips, then settles a little onto the chest and keeps throbbing gently after the hands release. Anchored to the chest. For warm affection, love and heartfelt thanks.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:love_bubble_01",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "chest",
+      "offset": {
+        "x": 0.003,
+        "y": 0.195,
+        "z": 0.214
+      },
+      "size": 0.05,
+      "facing": "camera"
+    },
+    "art": {
+      "image": "heart_hands_pop.png"
+    },
+    "motion": {
+      "pulse": {
+        "cyclesPerSecond": 1.6,
+        "scaleMin": 0.95,
+        "scaleMax": 1.06
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.3,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.1,
+            "opacity": 1,
+            "scale": 1.18,
+            "offset": {
+              "x": 0,
+              "y": 0.03
+            }
+          },
+          {
+            "t": 0.2,
+            "scale": 0.94,
+            "offset": {
+              "x": 0,
+              "y": 0.05
+            }
+          },
+          {
+            "t": 0.3,
+            "scale": 1,
+            "offset": {
+              "x": 0,
+              "y": 0.065
+            }
+          },
+          {
+            "t": 0.46,
+            "offset": {
+              "x": 0,
+              "y": 0.075
+            }
+          },
+          {
+            "t": 0.55,
+            "offset": {
+              "x": 0,
+              "y": 0.075
+            }
+          },
+          {
+            "t": 1,
+            "offset": {
+              "x": 0,
+              "y": 0.02
+            }
+          },
+          {
+            "t": 1.5,
+            "offset": {
+              "x": 0,
+              "y": 0.012
+            }
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "heart_hands_pop.png",
+      "role": "image"
+    }
+  ]
+}

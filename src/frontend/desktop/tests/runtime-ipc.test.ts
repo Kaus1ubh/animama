@@ -165,6 +165,7 @@ describe("privileged runtime IPC", () => {
     await expect(
       invoke("credentials:apply", main.event, [
         { provider: "openai", value: "fixture-key" },
+        { provider: "anthropic", value: "fixture-anthropic-key" },
         {
           connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
           value: "fixture-connection-key",
@@ -178,6 +179,7 @@ describe("privileged runtime IPC", () => {
     ).resolves.toEqual([]);
     expect(applied).toHaveBeenCalledWith([
       { provider: "openai", value: "fixture-key" },
+      { provider: "anthropic", value: "fixture-anthropic-key" },
       {
         connection: "ANIMAMA_CONNECTION_C_0123456789AB_API_KEY",
         value: "fixture-connection-key",
@@ -198,8 +200,10 @@ describe("privileged runtime IPC", () => {
       [{ provider: "openai", value: "fixture-key", path: "/tmp" }],
       [{ provider: "../path" }],
       [{ provider: "openai", value: "x".repeat(8193) }],
-      [{ provider: "gemini" }],
+      [{ provider: "deepseek" }],
       [{ connection: "OPENAI_API_KEY", value: "fixture-key" }],
+      [{ connection: "ANTHROPIC_API_KEY", value: "fixture-key" }],
+      [{ connection: "GEMINI_API_KEY", value: "fixture-key" }],
       [{ connection: "animama_connection_c1_api_key" }],
       [
         {

@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Despair Shade",
   "description": "The whole Avatar drains into a dark indigo shade as if the lights went out on them, for crushing despair, grief and dread.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:funny_downer_02",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "silhouette",
@@ -34,7 +41,8 @@
           }
         ]
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

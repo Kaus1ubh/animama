@@ -301,7 +301,12 @@
   "loader": {
     "downloadFailed": "无法下载此行为。",
     "noSequence": "此行为没有可读取的序列。",
-    "starterUnavailable": "此内置 Anima 姿势片段不可用。"
+    "starterUnavailable": "此内置 Anima 姿势片段不可用。",
+    "effectsRemoved": {
+      "gesture": "此动作使用了已不存在的内置特效（{{effects, list}}）。播放时将不含这些特效；保存前请将其事件映射到其他特效或将其删除。",
+      "reaction": "此反应使用了已不存在的内置特效（{{effects, list}}）。播放时将不含这些特效；保存前请将其事件映射到其他特效或将其删除。",
+      "title": "部分特效已被移除"
+    }
   },
   "page": {
     "catalogUnavailable": "无法加载此特效目录。",

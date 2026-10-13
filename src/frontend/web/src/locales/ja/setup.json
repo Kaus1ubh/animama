@@ -7,6 +7,23 @@
     "finishing": "完了しています…",
     "skip": "今はスキップ"
   },
+  "ageConfirmation": {
+    "backToSetup": "セットアップに戻る",
+    "confirm": "18 歳以上です",
+    "decline": "18 歳未満です",
+    "declined": "Animama は 18 歳以上の成人専用です。チャットを続けることはできません。",
+    "errors": {
+      "capabilitiesFailed": "AI の設定を確認できませんでした。もう一度お試しください。",
+      "modelUnavailable": "選んだモデルは使用できなくなりました。セットアップに戻って別のモデルを選ぶか、AI をスキップしてください。",
+      "saveFailed": "セットアップを保存できませんでした。もう一度お試しください。"
+    },
+    "goBack": "戻る",
+    "heading": "はじめる前に",
+    "notice": "Animama は 18 歳以上の成人向けです。Anima は人間ではなく AI のコンパニオンです。",
+    "opening": "開いています…",
+    "retry": "再試行",
+    "safetyLink": "安全と危機対応のプロトコル"
+  },
   "ai": {
     "addCustomServer": "カスタムサーバーを追加",
     "addModel": "モデルを追加",
@@ -31,10 +48,9 @@
       "searching": "検索しています…",
       "setUpLater": "後で設定"
     },
-    "openAi": {
-      "heading": "OpenAI",
-      "serverKey": "このサーバーに設定された OpenAI キーを使用します。",
-      "serverKeyMissing": "OpenAI を使うには、サーバーで OPENAI_API_KEY を設定してください。"
+    "builtin": {
+      "serverKey": "このサーバーに設定された {{name}} キーを使用します。",
+      "serverKeyMissing": "{{name}} を使うには、サーバーで {{env}} を設定してください。"
     },
     "providedModels": "このインストールには専用のモデルが用意されているため、ここで選ぶものはありません。",
     "providerTabs": "{{location}}のプロバイダー",
@@ -43,8 +59,6 @@
   "errors": {
     "displayName": "表示名は 1〜{{max}} 文字で入力してください。",
     "keyNotSaved": "キーは保存されませんでした。この手順の詳細を入力するか、キーを破棄してください。",
-    "modelUnavailable": "選んだモデルは使用できなくなりました。AI に戻って別のモデルを選ぶか、スキップしてください。",
-    "saveFailed": "セットアップを保存できませんでした。ローカルランタイムで既に完了している可能性があります。安全に再試行できます。",
     "voiceSettings": "音声設定を保存できませんでした。再試行するか、この手順をスキップしてください。"
   },
   "keys": {
@@ -122,18 +136,10 @@
     }
   },
   "welcome": {
-    "age": {
-      "confirm": "18 歳以上です",
-      "decline": "18 歳未満です",
-      "declined": "Animama は 18 歳以上の成人専用のため、セットアップを続行できません。",
-      "heading": "はじめる前に",
-      "notice": "Anima は人間ではなく AI のコンパニオンです。Animama の AI コンパニオンは一部の未成年者に適さない場合があるため、Animama の利用は 18 歳以上に限られます。"
-    },
     "displayName": {
       "label": "表示名",
       "placeholder": "あなたの名前"
     },
-    "heading": "Animama はあなたを何と呼べばいいですか？",
-    "safetyLink": "安全と危機対応のプロトコル"
+    "heading": "Animama はあなたを何と呼べばいいですか？"
   }
 }

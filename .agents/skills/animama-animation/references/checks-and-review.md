@@ -114,7 +114,15 @@ names: a hand or finger bone covers the hand, a `LowerArm` bone the forearm,
 `head` the head and neck, torso bones the torso. Declare a second contact if
 the forearm also rests on the body. Finger collisions are allowed only between
 the parts a contact names: two digits, or a digit and its palm, of one hand, or
-any parts of the two hands when a contact joins them.
+any parts of the two hands when a contact joins them. A contact allows these
+over its window and, when solved, over its blend ramps, while the solver moves
+the hand onto and off the target.
+
+While a contact joins the two hands, each hand is measured only against the
+part of the other forearm more than a palm length from its wrist: pressed
+palms (a clap, prayer hands) put the wrists inside the capsules' radii, and a
+hand pressed into the forearm itself still fails. Declare only the solved
+palm-to-palm contact; no check-only contacts are needed.
 
 ## Live preview and review notes
 
@@ -126,15 +134,18 @@ chat. A source is an `animaPoseClip/2.0` clip, a creator project file, or a
 Library item
 (`library:<folder | selector | name>`, prefixed `included/` or `local/` when
 ambiguous; Local items come from `--local-content <dir>` or the sourced stack
-record). A Library Gesture or Reaction, or a project file, plays its Avatar
-and Particle Effects from its dependencies, with their fades; Scene Effects
-and sounds are not played, and the page's **Effect warnings** panel lists them. The preview also takes an Avatar
-Effect source (an effect folder, its descriptor, or
-`library:avatar-effect/<name>`); see the `animama-avatar-vfx` skill. Use it to
+record). A Library Gesture or Reaction, or a project file, plays its Avatar,
+Particle and Scene Effects from its dependencies, with their fades; sounds are
+not played, and the page's **Effect warnings** panel lists them. The preview also
+takes an Avatar, Particle or Scene Effect source (an effect folder, its
+descriptor, or `library:avatar-effect/`, `library:particle-effect/` or
+`library:scene-effect/<name>`); see the `animama-avatar-vfx`,
+`animama-particle-vfx` or `animama-scene-vfx` skill. Use it to
 judge timing, which still frames miss:
 
 - play at 0.25–1× speed, loop, scrub, or click a beat marker;
-- switch camera presets (front, ¾, side, face);
+- switch camera presets (front, ¾, side, face, and portrait, the chat's
+  Portrait framing);
 - `--compare library:<original>` plays an existing Gesture in a second row,
   for example next to its replacement;
 - switch sources in the page: the **Review** and **Compare** pickers list the

@@ -22,7 +22,7 @@ from animama.app.services.content_image import (
 )
 from animama.app.services.content_kind_registry import RETIRED_CONTENT_KINDS, definition_for_kind, handler_for_kind
 from animama.app.services.content_names import portable_name
-from animama.app.services.content_package_capabilities import validate_avatar_effect_document
+from animama.app.services.content_package_capabilities import scene_emoji_items, validate_avatar_effect_document
 from animama.app.services.content_portability import reject_restricted_bytes
 from animama.app.services.local_content_mutations import mutation_digest
 from animama.app.services.typed_content_service import TypedContentService, validate_idle_style
@@ -36,7 +36,12 @@ from animama.domain.content_catalog import (
     ContentStatus,
     SavedContent,
 )
-from animama.domain.content_documents import AvatarEffectDocumentV1, ContentDocumentError, IdleStyleDocumentV2
+from animama.domain.content_documents import (
+    AvatarEffectDocumentV1,
+    ContentDocumentError,
+    IdleStyleDocumentV2,
+    SceneEffectDocumentV1,
+)
 
 _ENTRY_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._ -]{0,119}$")
 
@@ -137,7 +142,18 @@ class ContentSaveService:
             if item.owner_user_id != user_id:
                 raise ContentConflictError("content_creator_claim_conflict")
         if item.status is not ContentStatus.VALID:
+            codes = {diagnostic.code for diagnostic in item.diagnostics}
+            # Name policy refusals the editors can explain (effect creators
+            # highlight their sound control); the save rolls back.
+            if "non_portable_dependency" in codes:
+                raise ContentConflictError("content_non_portable_dependency")
+            if "dependency_optional_not_allowed" in codes:
+                raise ContentConflictError("content_optional_dependency")
             raise ContentConflictError("saved_content_invalid", field=invalid_field)
+        if item.missing_dependencies:
+            # Only an Action saved before an Included effect was removed may
+            # outlive it; a Save names content that exists.
+            raise ContentConflictError("saved_content_invalid", field="dependencies")
         return SavedContent(operation_id=operation_id, item=item)
 
     async def save_standalone(
@@ -425,6 +441,12 @@ class ContentSaveService:
                         "avatar_effect_definition_invalid", "Avatar Effect definition is missing", field="definition"
                     )
                 validate_avatar_effect_document(document, code="avatar_effect_definition_invalid")
+            if isinstance(document, SceneEffectDocumentV1):
+                # Animama no longer provides Twemoji: only Scenes saved before
+                # its removal outlive an emoji item, and Save names the first.
+                emoji_items = scene_emoji_items(document.definition)
+                if emoji_items:
+                    raise ContentConflictError("saved_content_invalid", field=emoji_items[0][0])
 
             definition = definition_for_kind(kind)
             if definition.descriptor_suffix is None:

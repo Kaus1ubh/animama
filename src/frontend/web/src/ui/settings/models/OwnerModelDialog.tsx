@@ -9,6 +9,11 @@ import type {
   PyModelProbeReport,
 } from "@animama/runtime-contracts/api-types";
 import {
+  ANTHROPIC_MESSAGES_PROVIDER_TYPE,
+  modelProviderType,
+  type ModelProviderType,
+} from "@/lib/chat/model-catalog";
+import {
   useAddOwnerModel,
   useListAvailableModels,
   useProbeModel,
@@ -37,21 +42,30 @@ import {
 
 import {
   DEFAULT_CAPABILITIES_DRAFT,
-  capabilitiesFromProbe,
+  draftAfterProbe,
   draftFromOpenRouterModel,
   errorCategoryMessage,
   modelApiLabel,
   modelConfigurationErrorMessage,
+  ownerModelRules,
   type OwnerCapabilitiesDraft,
+  type OwnerModelRules,
 } from "./model-configuration-state";
 import { OpenRouterModelPicker } from "./OpenRouterModelPicker";
 
 const NO_TEMPLATE = "__no_template__";
-const RESPONSES = "OpenAIResponsesHTTPAgent";
-const CHAT_COMPLETIONS = "OpenAIHTTPAgent";
 const NO_STRUCTURED_OUTPUT = "none";
 /** Example model ID for the empty Model ID field. */
 const MODEL_ID_EXAMPLE = "qwen3:8b";
+/** Example model ID on the Anthropic connection. */
+const ANTHROPIC_MODEL_ID_EXAMPLE = "claude-sonnet-5-5";
+/**
+ * Where Compact early summarizes, where it waits until when off, and the model
+ * the description cites (the server's long-context price step).
+ */
+const EARLY_COMPACTION_TOKENS = 90_000;
+const LATE_COMPACTION_TOKENS = 150_000;
+const EARLY_COMPACTION_EXAMPLE_MODEL = "Claude Haiku 5.5";
 /** Example context window for the empty field. */
 const CONTEXT_WINDOW_EXAMPLE = "8192";
 
@@ -59,7 +73,8 @@ type Draft = {
   kind: "chat" | "embedding";
   model: string;
   label: string;
-  providerType: typeof RESPONSES | typeof CHAT_COMPLETIONS;
+  /** The API the app picked for this connection; see `ownerModelRules`. */
+  providerType: ModelProviderType;
   templateId: string | null;
   capabilities: OwnerCapabilitiesDraft;
   reasoningEfforts: string[];
@@ -116,8 +131,23 @@ function capabilitiesOf(model: PyConfiguredModel): OwnerCapabilitiesDraft {
   };
 }
 
+/** A draft with a built-in model's capabilities copied in; the owner's context window is kept. */
+function withTemplate(draft: Draft, template: PyConfiguredModel): Draft {
+  return {
+    ...draft,
+    templateId: template.id,
+    capabilities: capabilitiesOf(template),
+    reasoningEfforts: template.capabilities.supported_reasoning_efforts ?? [],
+    contextWindow:
+      draft.contextWindow ||
+      (template.context_window_tokens != null
+        ? String(template.context_window_tokens)
+        : ""),
+  };
+}
+
 function initialDraft(
-  connection: PyModelConnection,
+  rules: OwnerModelRules,
   model: PyConfiguredModel | undefined,
   initialModelId = "",
 ): Draft {
@@ -126,8 +156,7 @@ function initialDraft(
       kind: model.model_kind,
       model: model.model,
       label: model.model_label === model.model ? "" : model.model_label,
-      providerType:
-        model.provider_type === RESPONSES ? RESPONSES : CHAT_COMPLETIONS,
+      providerType: modelProviderType(model.provider_type),
       templateId: model.template_id ?? null,
       capabilities: capabilitiesOf(model),
       reasoningEfforts: model.capabilities.supported_reasoning_efforts ?? [],
@@ -137,19 +166,22 @@ function initialDraft(
           : "",
       allowMemoryWrites: model.allow_memory_writes,
     };
-  return {
+  const draft: Draft = {
     kind: "chat",
     model: initialModelId,
     label: "",
-    // The app picks the API: built-in OpenAI chat models use Responses.
-    providerType:
-      connection.source === "builtin" ? RESPONSES : CHAT_COMPLETIONS,
+    providerType: rules.providerType,
     templateId: null,
     capabilities: DEFAULT_CAPABILITIES_DRAFT,
     reasoningEfforts: [],
     contextWindow: "",
     allowMemoryWrites: true,
   };
+  // Choosing the Anthropic connection starts from Claude Haiku 5.5.
+  const preselected = rules.templates.find(
+    (template) => template.id === rules.defaultTemplateId,
+  );
+  return preselected ? withTemplate(draft, preselected) : draft;
 }
 
 /**
@@ -216,6 +248,49 @@ export function ShowModelButton({
   );
 }
 
+/**
+ * **Compact early** for a model with a long-context price step (the server
+ * reports `early_compaction` as null on every other model). Saves at once.
+ */
+export function EarlyCompactionSwitch({
+  model,
+  disabled,
+}: {
+  model: PyConfiguredModel;
+  disabled?: boolean;
+}) {
+  const { t } = useTranslation("models");
+  const update = useUpdateModel();
+  const descriptionId = useId();
+  if (model.early_compaction == null) return null;
+  const setEarlyCompaction = (early_compaction: boolean) =>
+    void update
+      .mutateAsync({ modelProviderId: model.id, body: { early_compaction } })
+      .catch((error: unknown) =>
+        toast.error(modelConfigurationErrorMessage(error)),
+      );
+  return (
+    <div className="space-y-1">
+      <label className="flex items-center justify-between gap-3 text-sm">
+        {t("ownerModel.earlyCompaction.label")}
+        <Switch
+          checked={model.early_compaction}
+          disabled={disabled || update.isPending}
+          aria-describedby={descriptionId}
+          onCheckedChange={setEarlyCompaction}
+        />
+      </label>
+      <p id={descriptionId} className="text-muted-foreground text-xs">
+        {t("ownerModel.earlyCompaction.description", {
+          early: EARLY_COMPACTION_TOKENS,
+          late: LATE_COMPACTION_TOKENS,
+          model: EARLY_COMPACTION_EXAMPLE_MODEL,
+        })}
+      </p>
+    </div>
+  );
+}
+
 /** "API: Responses" for a chat model's details; the API appears nowhere else. */
 function ModelApiLine({ model }: { model: PyConfiguredModel }) {
   const { t } = useTranslation("models");
@@ -231,8 +306,10 @@ function ModelApiLine({ model }: { model: PyConfiguredModel }) {
  * Add a model to a connection, or show an owner model's details for editing.
  * The owner can copy a built-in model's capabilities, or Test the model to
  * prefill them from the server's answers; the context window is always the
- * owner's to confirm. An existing model's details also offer "Show in model
- * lists" and Remove.
+ * owner's to confirm. On the Anthropic connection the API is fixed, Claude
+ * Haiku 5.5 is preselected as the template and Test reads Anthropic's Models
+ * API. An existing model's details also offer "Show in model lists", Compact
+ * early where it applies, and Remove.
  */
 export function OwnerModelDialog({
   open,
@@ -266,8 +343,9 @@ export function OwnerModelDialog({
   const update = useUpdateModel();
   const discover = useListAvailableModels();
   const probe = useProbeModel();
+  const rules = ownerModelRules(connection, templates);
   const [draft, setDraft] = useState<Draft>(() =>
-    initialDraft(connection, model, initialModelId),
+    initialDraft(rules, model, initialModelId),
   );
   const [report, setReport] = useState<PyModelProbeReport | null>(null);
   const [saving, setSaving] = useState(false);
@@ -277,7 +355,7 @@ export function OwnerModelDialog({
   const modelId = model?.id;
   useEffect(() => {
     if (!open) return;
-    setDraft(initialDraft(connection, model, initialModelId));
+    setDraft(initialDraft(rules, model, initialModelId));
     setReport(null);
     discover.reset();
     // eslint-disable-next-line react-hooks/exhaustive-deps -- reset per opening only
@@ -299,18 +377,9 @@ export function OwnerModelDialog({
     setDraft((current) => ({ ...current, ...patch }));
 
   const chooseTemplate = (value: string) => {
-    const template = templates.find((item) => item.id === value);
+    const template = rules.templates.find((item) => item.id === value);
     if (!template) return change({ templateId: null });
-    change({
-      templateId: template.id,
-      capabilities: capabilitiesOf(template),
-      reasoningEfforts: template.capabilities.supported_reasoning_efforts ?? [],
-      contextWindow:
-        draft.contextWindow ||
-        (template.context_window_tokens != null
-          ? String(template.context_window_tokens)
-          : ""),
-    });
+    setDraft((current) => withTemplate(current, template));
   };
 
   const runProbe = async () => {
@@ -325,14 +394,7 @@ export function OwnerModelDialog({
         },
       });
       setReport(result);
-      setDraft((current) => ({
-        ...current,
-        capabilities: capabilitiesFromProbe(result, current.capabilities),
-        contextWindow:
-          result.context_window_tokens != null
-            ? String(result.context_window_tokens)
-            : current.contextWindow,
-      }));
+      setDraft((current) => draftAfterProbe(connection, current, result));
     } catch (error) {
       toast.error(modelConfigurationErrorMessage(error));
     }
@@ -391,13 +453,9 @@ export function OwnerModelDialog({
   // OpenRouter lists hundreds of models; its public list makes them searchable.
   const showOpenRouterPicker =
     !editing && isChat && connection.preset === "openrouter";
-  // Templates are built-in OpenAI models, so only the built-in connection
-  // offers them, matched to the API the new model uses.
-  const templateChoices = isBuiltinConnection
-    ? templates.filter(
-        (template) => template.provider_type === draft.providerType,
-      )
-    : [];
+  // Only built-in connections offer templates, matched to the API they use.
+  const templateChoices = rules.templates;
+  const anthropic = rules.providerType === ANTHROPIC_MESSAGES_PROVIDER_TYPE;
 
   return (
     <Dialog open={open} onOpenChange={(next) => !saving && onOpenChange(next)}>
@@ -422,6 +480,7 @@ export function OwnerModelDialog({
         </DialogHeader>
         {model ? <ModelApiLine model={model} /> : null}
         {model ? <ModelVisibilitySwitch model={model} disabled={busy} /> : null}
+        {model ? <EarlyCompactionSwitch model={model} disabled={busy} /> : null}
         <form
           id={formId}
           className="space-y-4"
@@ -430,7 +489,7 @@ export function OwnerModelDialog({
             void save();
           }}
         >
-          {!editing ? (
+          {!editing && rules.embeddings ? (
             <div className="space-y-2">
               <Label htmlFor={`${formId}-kind`}>{t("fields.kind")}</Label>
               <Select
@@ -474,7 +533,9 @@ export function OwnerModelDialog({
                 id={`${formId}-model`}
                 value={draft.model}
                 list={`${formId}-available`}
-                placeholder={MODEL_ID_EXAMPLE}
+                placeholder={
+                  anthropic ? ANTHROPIC_MODEL_ID_EXAMPLE : MODEL_ID_EXAMPLE
+                }
                 disabled={busy || editing}
                 onChange={(event) => {
                   setReport(null);
@@ -628,9 +689,11 @@ export function OwnerModelDialog({
                       <SelectItem value="json_schema">
                         {t("structuredOutput.jsonSchema")}
                       </SelectItem>
-                      <SelectItem value="json_object">
-                        {t("structuredOutput.jsonObject")}
-                      </SelectItem>
+                      {rules.jsonMode ? (
+                        <SelectItem value="json_object">
+                          {t("structuredOutput.jsonObject")}
+                        </SelectItem>
+                      ) : null}
                       <SelectItem value={NO_STRUCTURED_OUTPUT}>
                         {t("structuredOutput.none")}
                       </SelectItem>
@@ -654,7 +717,9 @@ export function OwnerModelDialog({
                   }
                 />
                 <p className="text-muted-foreground text-xs">
-                  {t("ownerModel.contextWindowHelp")}
+                  {anthropic
+                    ? t("ownerModel.contextWindowHelpAnthropic")
+                    : t("ownerModel.contextWindowHelp")}
                 </p>
               </div>
               <label className="flex items-center gap-2 text-sm">

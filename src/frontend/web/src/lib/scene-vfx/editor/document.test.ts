@@ -1,7 +1,10 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
+import allLayers from "@/lib/content/fixtures/scene-effect-all-layers.json";
+
 import {
+  addSceneEffectImage,
   applySceneEffectTemplate,
   buildSceneEffectEditorExport,
   canonicalSceneEffectImageName,
@@ -9,6 +12,7 @@ import {
   createSceneEffectDocumentFromDefinition,
   DEFAULT_SCENE_PATTERN_COLOR,
   DEFAULT_SCENE_SOLID_COLOR,
+  normalizeSceneEffectDocument,
   parseSceneEffectEditorExport,
   sceneEffectDefinition,
   sceneEffectDependencies,
@@ -19,6 +23,7 @@ import {
   uniqueSceneEffectImageName,
   validateSceneEffectDocument,
 } from ".";
+import { SCENE_EFFECT_TEMPLATE_OPTIONS } from "./defaults";
 
 const image = {
   logicalName: "sparkle.webp",
@@ -154,6 +159,28 @@ describe("Scene Effect editor document", () => {
     );
   });
 
+  it("labels an added image item as asked, by default after its file", () => {
+    const document = createDefaultSceneEffectDocument();
+    const named = addSceneEffectImage(
+      document,
+      image,
+      { kind: "marquee" },
+      "Heart",
+    );
+    const unnamed = addSceneEffectImage(document, image, { kind: "marquee" });
+
+    expect(named.background.marquee.items.at(-1)).toMatchObject({
+      kind: "image",
+      label: "Heart",
+      image,
+    });
+    expect(unnamed.background.marquee.items.at(-1)).toMatchObject({
+      kind: "image",
+      label: "Sparkle",
+      image,
+    });
+  });
+
   it("preserves front-of-avatar placement in the isolated runtime entry", () => {
     const document = applySceneEffectTemplate(
       createDefaultSceneEffectDocument(),
@@ -256,50 +283,331 @@ describe("Scene Effect editor document", () => {
     });
   });
 
-  it("uses canonical fingerprints and collision-safe webp names", () => {
+  it("uses canonical fingerprints and collision-safe names that keep the format", () => {
     const left = createDefaultSceneEffectDocument();
     const right = structuredClone(left);
 
     expect(sceneEffectDocumentFingerprint(left)).toBe(
       sceneEffectDocumentFingerprint(right),
     );
+    // A saved image's name says what its bytes are.
     expect(canonicalSceneEffectImageName("../My Sparkle.JPEG")).toBe(
-      "My-Sparkle.webp",
+      "My-Sparkle.jpg",
     );
+    expect(canonicalSceneEffectImageName("tile.webp")).toBe("tile.webp");
     expect(
-      uniqueSceneEffectImageName("My Sparkle.png", ["My-Sparkle.webp"]),
-    ).toBe("My-Sparkle-2.webp");
+      uniqueSceneEffectImageName("My Sparkle.png", ["My-Sparkle.png"]),
+    ).toBe("My-Sparkle-2.png");
   });
 });
 
-it("hydrates the registered Included Comic Pop definition with runtime defaults", () => {
-  const descriptor = JSON.parse(
+const includedScene = (presetId: string) =>
+  JSON.parse(
     readFileSync(
       new URL(
-        "../../../../../../../content/included/vfx/scene/comic-pop/comic-pop.json",
+        `../../../../../../../content/included/vfx/scene/${presetId}/${presetId}.json`,
         import.meta.url,
       ),
       "utf8",
     ),
-  );
+  ) as {
+    name: string;
+    description: string;
+    definition: Record<string, unknown> & {
+      gradient: unknown;
+      screen: unknown;
+    };
+  };
+
+it("hydrates a registered Included background with its image", () => {
+  const descriptor = includedScene("scene-vfx-emotion-sadness");
+  const drop = {
+    logicalName: "drop.png",
+    originalName: "drop.png",
+    contentType: "image/png",
+    sizeBytes: 1024,
+    sha256: "0".repeat(64),
+  };
   const document = createSceneEffectDocumentFromDefinition({
     name: descriptor.name,
     description: descriptor.description,
     definition: descriptor.definition,
-    images: new Map(),
+    images: new Map([[drop.logicalName, drop]]),
     sound: null,
   });
   expect(document).toMatchObject({
-    name: "Comic Pop",
-    durationMs: 5000,
-    dismissOnInput: true,
+    name: "Emotion Sadness",
+    durationMs: null,
+    dismissOnInput: false,
     background: {
-      solid: { color: "#ffe869" },
-      pattern: { pattern: "star", color: "#ff547d" },
+      gradient: descriptor.definition.gradient,
+      screen: descriptor.definition.screen,
+      scatters: [
+        { items: [{ kind: "image", label: "Raindrop", image: drop }] },
+      ],
     },
   });
-  expect(validateSceneEffectDocument(document, [])).toEqual([]);
-  expect(sceneEffectRuntimeEntry(document, new Map())).toMatchObject({
-    durationMs: 5000,
+  const resources = [
+    {
+      logicalName: drop.logicalName,
+      file: new File(["x"], drop.logicalName, { type: drop.contentType }),
+      sha256: drop.sha256,
+    },
+  ];
+  expect(validateSceneEffectDocument(document, resources)).toEqual([]);
+});
+
+describe("Scene creator templates", () => {
+  it("offers a background per family and the two focus presets", () => {
+    expect(
+      SCENE_EFFECT_TEMPLATE_OPTIONS.map(({ id, label, kind }) => [
+        id,
+        label,
+        kind,
+      ]),
+    ).toEqual([
+      ["shoujo-bloom", "Shoujo Bloom", "background_layers"],
+      ["radiance", "Radiance", "background_layers"],
+      ["festive-pop", "Festive Pop", "background_layers"],
+      ["anticipation", "Anticipation", "background_layers"],
+      ["shock", "Shock", "background_layers"],
+      ["rage", "Rage", "background_layers"],
+      ["queasy", "Queasy", "background_layers"],
+      ["gloom", "Gloom", "background_layers"],
+      ["dark", "Dark Focus", "focus_lines"],
+      ["light-streak", "Light Streak", "focus_lines"],
+    ]);
+  });
+
+  it("starts a background from its family's Included background, without that effect's images", () => {
+    for (const { id } of SCENE_EFFECT_TEMPLATE_OPTIONS.filter(
+      (option) => option.kind === "background_layers",
+    )) {
+      const document = applySceneEffectTemplate(
+        createDefaultSceneEffectDocument(),
+        id,
+      );
+      expect(document.kind, id).toBe("background_layers");
+      expect(document.background.gradient.enabled, id).toBe(true);
+      expect(document.background.tile).toMatchObject({
+        enabled: false,
+        image: null,
+      });
+      expect(document.background.scatters, id).toEqual([]);
+      expect(document.background.marquee.items, id).toEqual([]);
+      expect(validateSceneEffectDocument(document, []), id).toEqual([]);
+    }
+    const sadness = includedScene("scene-vfx-emotion-sadness").definition;
+    const gloom = applySceneEffectTemplate(
+      createDefaultSceneEffectDocument(),
+      "gloom",
+    );
+    expect(gloom.background.gradient).toEqual(sadness.gradient);
+    expect(gloom.background.screen).toEqual(sadness.screen);
+  });
+
+  it("gives a focus template the default background", () => {
+    const focus = applySceneEffectTemplate(
+      createDefaultSceneEffectDocument(),
+      "light-streak",
+    );
+    expect(focus.background).toEqual(
+      createDefaultSceneEffectDocument().background,
+    );
+  });
+});
+
+describe("optional background layers (C1–C6)", () => {
+  const image = (logicalName: string) => ({
+    logicalName,
+    originalName: logicalName,
+    contentType: "image/png",
+    sizeBytes: 1024,
+    sha256: "0".repeat(64),
+  });
+  const images = new Map(
+    ["petal.png", "bokeh.png"].map((name) => [name, image(name)]),
+  );
+
+  it("reopens a saved definition with every layer and saves it unchanged", () => {
+    const document = createSceneEffectDocumentFromDefinition({
+      name: "Affection",
+      description: "",
+      definition: structuredClone(allLayers),
+      images,
+      sound: null,
+    });
+    expect(document.background.tile.image?.logicalName).toBe("bokeh.png");
+    expect(document.background.scatters).toHaveLength(2);
+    expect(sceneEffectDefinition(document)).toEqual(allLayers);
+    expect(
+      sceneEffectImageMetadata(document)
+        .map(({ logicalName }) => logicalName)
+        .sort(),
+    ).toEqual(["bokeh.png", "petal.png"]);
+    const resources = [...images.keys()].map((logicalName) => ({
+      logicalName,
+      file: new File(["x"], logicalName, { type: "image/png" }),
+      sha256: "0".repeat(64),
+    }));
+    expect(
+      validateSceneEffectDocument(document, resources).filter(
+        (issue) => issue.severity === "error",
+      ),
+    ).toEqual([]);
+  });
+
+  it("reports layer limits by field, as the backend would refuse them", () => {
+    const document = createSceneEffectDocumentFromDefinition({
+      name: "Affection",
+      description: "",
+      definition: structuredClone(allLayers),
+      images,
+      sound: null,
+    });
+    document.background.scatters[0].count = 49;
+    document.background.tile = { ...document.background.tile, image: null };
+    const fields = validateSceneEffectDocument(document, []).map(
+      (issue) => issue.field,
+    );
+    expect(fields).toContain("scatters.0.count");
+    expect(fields).toContain("tile.image");
+  });
+
+  it("gives an older draft the optional layers switched off", () => {
+    const document = createDefaultSceneEffectDocument();
+    const older = structuredClone(document) as unknown as {
+      background: Record<string, unknown>;
+    };
+    for (const key of ["gradient", "tile", "screen", "scatters", "flash"])
+      delete older.background[key];
+    const normalized = normalizeSceneEffectDocument(
+      older as unknown as typeof document,
+    );
+    expect(normalized.background.gradient.enabled).toBe(false);
+    expect(normalized.background.scatters).toEqual([]);
+    expect(sceneEffectDefinition(normalized)).not.toHaveProperty("tile");
+  });
+
+  it("leaves a current document's JSON unchanged", () => {
+    // Restored recovery is compared with the pre-reload export text, so
+    // normalizing must not reorder the layers.
+    const document = createSceneEffectDocumentFromDefinition({
+      name: "Default background",
+      description: "",
+      definition: sceneEffectDefinition(createDefaultSceneEffectDocument()),
+      images: new Map(),
+      sound: null,
+    });
+    expect(JSON.stringify(normalizeSceneEffectDocument(document))).toBe(
+      JSON.stringify(document),
+    );
+  });
+});
+
+describe("a Scene saved with Twemoji items", () => {
+  // Animama no longer provides Twemoji. The creator opens such a Scene with
+  // each emoji item marked missing and refuses Save until it is replaced or
+  // removed; there is no conversion.
+  const petal = {
+    logicalName: "petal.png",
+    originalName: "petal.png",
+    contentType: "image/png",
+    sizeBytes: 1024,
+    sha256: "0".repeat(64),
+  };
+  const emoji = (id: string) => ({
+    id,
+    kind: "emoji",
+    label: "Sparkles",
+    emoji: "✨",
+    provider: "twemoji",
+  });
+  const definition = () => {
+    const value = sceneEffectDefinition(createDefaultSceneEffectDocument());
+    const marquee = value.marquee as { items: unknown[] };
+    marquee.items = [
+      emoji("old-a"),
+      { id: "petal", kind: "image", label: "Petal", image: "petal.png" },
+    ];
+    value.scatters = [
+      { ...structuredClone(allLayers.scatters[1]), items: [emoji("old-b")] },
+    ];
+    return value;
+  };
+  const open = () =>
+    createSceneEffectDocumentFromDefinition({
+      name: "Old sparkles",
+      description: "",
+      definition: definition(),
+      images: new Map([[petal.logicalName, petal]]),
+      sound: null,
+    });
+  const resources = [
+    {
+      logicalName: petal.logicalName,
+      file: new File(["x"], petal.logicalName, { type: "image/png" }),
+      sha256: petal.sha256,
+    },
+  ];
+
+  it("opens with each emoji item marked missing and names it", () => {
+    const document = open();
+    expect(document.background.marquee.items[0]).toEqual({
+      id: "old-a",
+      kind: "emoji",
+      label: "Sparkles",
+      emoji: "✨",
+    });
+    const missing = validateSceneEffectDocument(document, resources).filter(
+      (issue) => issue.message.includes("no longer provides"),
+    );
+    expect(missing).toEqual([
+      expect.objectContaining({ field: "marquee.items.0", severity: "error" }),
+      expect.objectContaining({
+        field: "scatters.0.items.0",
+        severity: "error",
+      }),
+    ]);
+    expect(missing[0].message).toContain("Replace it with a sticker");
+  });
+
+  it("previews without the emoji items", () => {
+    const entry = sceneEffectRuntimeEntry(
+      open(),
+      new Map([[petal.logicalName, "blob:petal"]]),
+    );
+    expect(
+      entry.kind === "background_layers" &&
+        entry.marquee.items.map((item) => item.id),
+    ).toEqual(["petal"]);
+  });
+
+  it("saves once the emoji items are removed", () => {
+    const document = open();
+    document.background.marquee.items =
+      document.background.marquee.items.slice(1);
+    document.background.scatters = [];
+    expect(
+      validateSceneEffectDocument(document, resources).filter(
+        (issue) => issue.severity === "error",
+      ),
+    ).toEqual([]);
+  });
+
+  it("refuses an item of an unknown kind", () => {
+    const value = definition();
+    (value.marquee as { items: unknown[] }).items = [
+      { id: "x", kind: "gif", label: "X" },
+    ];
+    expect(() =>
+      createSceneEffectDocumentFromDefinition({
+        name: "Odd",
+        description: "",
+        definition: value,
+        images: new Map(),
+        sound: null,
+      }),
+    ).toThrow();
   });
 });

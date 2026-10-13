@@ -86,21 +86,17 @@
   "gestures": {
     "all": "全部",
     "clips": "片段",
-    "customFailed": "无法加载自定义动作。",
     "customFirst": "自定义优先",
     "filter": "筛选和排序动作",
     "listLabel": "可用动作",
-    "loadingCustom": "正在加载自定义动作…",
     "motionType": "动画类型",
     "nameAsc": "名称 A–Z",
     "nameDesc": "名称 Z–A",
-    "noCustom": "没有可用的自定义动作。",
     "noFilterMatch": "没有符合所选筛选条件的动作。",
     "noSearchMatch": "没有与搜索匹配的动作。",
     "search": "搜索动作",
     "show": "显示",
     "showMore": "显示更多",
-    "showStarters": "显示内置动作",
     "sortBy": "排序方式",
     "status": "状态",
     "title": "动作",
@@ -109,7 +105,13 @@
     "updateInLibrary": "在资源库中更新",
     "updatesOnly": "仅显示有更新的项目",
     "viewInLibrary": "在资源库中查看",
-    "vrma": "VRMA"
+    "vrma": "VRMA",
+    "counts": "已装备 {{equipped, number}} / 共 {{total, number}}",
+    "showIncluded": "显示内置",
+    "showLocal": "显示本地",
+    "loading": "正在加载动作…",
+    "loadFailed": "无法加载动作。",
+    "none": "没有可用的动作。"
   },
   "identity": {
     "edit": "编辑身份设定",
@@ -431,6 +433,16 @@
       "sectionLabel": "语音提供商",
       "speechOff": "应用设置中已关闭语音。"
     },
-    "title": "语音"
+    "title": "语音",
+    "gemini": {
+      "available": "可用的 Gemini 语音",
+      "listLabel": "Gemini 语音",
+      "sampleNote": "每个语音首次播放时会使用你的 Gemini API 密钥，之后会保留该样本。",
+      "saved": "Gemini 语音已保存。",
+      "saveFailed": "无法保存 Gemini 语音。请重试。",
+      "searchLabel": "搜索 Gemini 语音",
+      "sectionLabel": "Gemini 语音",
+      "trigger": "Gemini 语音：{{name}}"
+    }
   }
 }

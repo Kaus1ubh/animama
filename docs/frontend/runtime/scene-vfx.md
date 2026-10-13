@@ -26,9 +26,10 @@ Catalog source:
 
 - `src/frontend/web/src/assets/effects/scene-vfx/catalog.json`
 
-The JSON catalog owns reusable marquee line items, background-layer presets, and
-focus-line presets. `catalog.ts` validates that JSON and exposes runtime-ready
-entries to the TypeScript helpers.
+The JSON catalog owns the bundled background-layer and focus-line presets.
+`catalog.ts` validates that JSON and exposes runtime-ready entries to the
+TypeScript helpers. It has no line items, so each preset's marquee starts
+empty; the creator adds stickers or private images to it.
 
 On a live Anima route, the mounted `AnimaRuntimeCatalog` resolves exact built-in
 App sources and private `animama/scene-effect/1` definitions. Private
@@ -63,7 +64,7 @@ settings-owned media URL.
 - `src/frontend/web/src/ui/main/MainShell.tsx`
 - `src/frontend/web/src/ui/main/canvas/SceneRuntimeContext.tsx`
 - `src/frontend/web/src/lib/avatar/Avatar.ts`
-- `src/frontend/web/src/styles/globals.css`
+- `src/frontend/web/src/styles/scene-vfx.css`
 
 ### Debug authoring
 
@@ -76,6 +77,7 @@ settings-owned media URL.
 - `src/frontend/web/src/ui/scene-effect-creator/SceneEffectCreatorPage.tsx`
 - `src/frontend/web/src/ui/scene-effect-creator/useSceneEffectSave.ts`
 - `src/frontend/web/src/lib/scene-vfx/editor/`
+- `src/frontend/web/src/lib/scene-vfx/stickers.ts`
 - `src/frontend/web/src/lib/content/catalogApi.ts`
 
 The creator uses the neutral Effect creator primitives in
@@ -130,6 +132,16 @@ single-effect state value, its own viewport provider, and its own Avatar
 context. Preview Stop/Minimize/Close therefore cannot mutate scene effects in a
 simultaneously mounted live Anima scene.
 
+## Tools
+
+`pnpm -s effects check`, `effects:render` and `animation:preview` take Scene
+Effect folders and Library items (`library:scene-effect/…`) and draw the
+Scene layers as chat does; `effects save` takes folders, and `effects
+promote` folders or `library:local/<name>` items. `effects:bench --reaction`
+measures a Reaction's Scene Effects. See the [effect
+tools](avatar-vfx.md#9-effect-tools); the `animama-scene-vfx` skill wraps
+them into the authoring pipeline, with the layer fields and ranges.
+
 ## Product creator behavior
 
 Routes:
@@ -140,17 +152,58 @@ Routes:
 New Scene Effects start from the Effects template picker (the sidebar Create
 menu's **Effects** item, the Create page's Scene FX card or `/effects/new`).
 
-Background Layers combines Solid, Pattern and Marquee layers. Marquee items can
-be reordered and use allowlisted Twemoji or private PNG/JPEG/WebP/SVG sources.
+Background Layers combines Solid, Gradient, Pattern, Tile, Screen, Marquee,
+up to three Scatter layers and an Entry flash; Scene Setup lists them front
+to back, Entry flash first, and each has an inspector. Marquee and scatter
+items can be reordered; each is one of the effect's own images, either an
+Animama sticker or a private PNG/JPEG/WebP/SVG. A tile uses one private image.
+
+The sticker picker lists Animama's built-in stickers by family, with
+thumbnails. Choosing one fetches its PNG and adds it through the same path as
+**Add private image**, labelled with the sticker's name, so Save, browser
+recovery and Portable packages carry its bytes like any other image; the same
+bytes added twice are carried once. The set is
+`content/included/resources/scene-vfx/stickers/`: owner-authored PNGs listed
+in `stickers.json` (`animama/scene-stickers/1`; each item has an `id`, a
+`label`, a `family` and its `file`). `lib/scene-vfx/stickers.ts` bundles the
+manifest and the PNGs as build assets, so the picker works in development, a
+built app and the packaged desktop app; an unlisted PNG or a listed file that
+is missing fails the web tests (`lib/scene-vfx/stickers.test.ts`). To add a sticker, copy its PNG into the
+folder, add its item to `stickers.json` in the order the picker shows it,
+and add an owner-form `licenses/source-review.json` record for the file
+(the folder's licence rule, `resources/scene-vfx/stickers/**`, already
+covers it).
+
+Animama no longer provides Twemoji. A Local Scene Effect saved with an
+`emoji` marquee or scatter item opens with each such item marked missing and a
+prompt to replace it with a sticker or image, or remove it; Save is refused
+until it is (the check names the item, such as `marquee.items.0`). There is no
+automatic conversion. Chat, previews and review renders draw the Scene without
+the item and request nothing for it. The Local scan keeps the Scene valid
+with a `scene_emoji_item_removed` diagnostic per item, so Content Health lists
+it; backend Save refuses an emoji item (`saved_content_invalid`, with the item
+as `field`), and Portable export and package import refuse it with
+`scene_emoji_item_removed`, as they do a package that declares a retired
+`animama/twemoji/…` capability.
+
+A chosen image is checked before it is decoded against the
+Scene image limits (`lib/effects/effectArtLimits.ts`: 8 MiB and 4096 px per
+image, 16 images and 32 MiB per effect), and is saved under a name whose
+extension matches its bytes (`petal.png`, not `petal.webp`).
 SVG images must be UTF-8, self-contained static artwork: shapes, groups,
 gradients, clips, masks and local fragment references. Scripts, event handlers,
 CSS styles, animation, embedded images and external references are rejected on
-Save. Included SVG artwork can be saved unchanged into a Local Scene Effect.
+Save.
 Focus Lines exposes render placement, procedural geometry, Avatar-face or
 normalized manual-box targeting, flicker animation and style controls.
-Selecting a built-in template updates the editable draft. The picker offers
-the same templates; `/scene-effects/new?template=<id>` starts a new, unsaved
-draft from one, named after it.
+Selecting a built-in template updates the editable draft. The background
+templates, one per Scene family (Shoujo Bloom, Radiance, Festive Pop,
+Anticipation, Shock, Rage, Queasy and Gloom), take their family's Included
+emotion background's solid, pattern, gradient, rays or lines and flash, read
+at build time; they start without that effect's images. The focus templates
+are the bundled `dark` and `light-streak` presets. The picker offers the same
+templates; `/scene-effects/new?template=<id>` starts a new, unsaved draft from
+one, named after it.
 
 The portable `animama/scene-effect-editor/1` JSON contains logical image names
 and exact Sound sources only. It never contains Blob URLs, download URLs, or
@@ -283,7 +336,7 @@ Default resolution happens in the store:
 - `dismissOnInput` defaults to `true` for `background_layers`
 - `dismissOnInput` defaults to `false` for `focus_lines`
 - `durationMs: null` means sticky and does not auto-expire
-- emoji marquee items are resolved to local mirrored Twemoji SVG paths before rendering
+- legacy `emoji` marquee and scatter items are skipped (Animama no longer provides Twemoji)
 - marquee `itemRotationMode` defaults to `"upright"` if missing
 - marquee `itemRotationOffsetDeg` defaults to `0` if missing
 
@@ -335,11 +388,71 @@ Important implementation detail:
 
 File: `src/frontend/web/src/ui/main/scene-vfx/SceneVFXBackgroundLayersEffect.tsx`
 
-It renders three DOM layers in order:
+It renders these DOM layers, back to front; the optional ones (`gradient`,
+`tile`, `screen`, `scatters`, `flash`) are off when absent, so definitions
+written before them are unchanged and keep `animama/scene-effect/1`:
 
 1. `SceneVFXSolidLayer`
-2. `SceneVFXPatternLayer`
-3. `SceneVFXMarqueeLayer`
+2. `SceneVFXGradientLayer`: a linear (`angleDeg`) or radial (`centerX`,
+   `centerY`) gradient of 2–4 stops.
+3. `SceneVFXPatternLayer`
+4. `SceneVFXTileLayer`: one image (`image` in a stored definition, `src` at
+   runtime) repeated at `size` px, drifting one tile per cycle in a marquee
+   direction at `speedPxPerSec`.
+5. `SceneVFXScreenLayer`: procedural `rays` (count, centre, wedges or a
+   `spiky` starburst, `turnSeconds` with the sign giving the direction,
+   `throbPerSec`) or `lines` hanging from the top edge (count, length and
+   width ranges, `swaySeconds`), drawn as SVG from a `seed`.
+6. `SceneVFXMarqueeLayer`
+7. `SceneVFXScatterLayers`, one layer per `scatters` entry: `count` items
+   picked from `items`, with seeded per-item size, rotation and opacity
+   ranges, a region, `keepFaceClear`, drift in a marquee direction, a spin
+   range (`alternateSpin`) and a `pulse` (`twinkle`, `pop` or `flicker`).
+   `sceneScatterPlacements` places a Scene's layers together; items count as
+   circles of their size:
+   - Still items never overlap each other, within a layer or across layers.
+     Each rests wholly inside its region and the view, spread by seeded
+     best-candidate placement so gaps to neighbours and to the region's
+     edges come out even. When they cannot all fit at full size (small
+     views such as picture-in-picture), every still item of the Scene
+     shrinks by one common factor, found by bisection, down to 0.4; only a
+     region still too crowded at that floor keeps the least overlap it can.
+     `keepFaceClear` keeps their centres out of the column behind the head
+     (the middle 30% of the width, top 60% of the height).
+   - Drifting items cross the whole view on off-screen tracks, so nothing
+     appears or vanishes mid-view. They run in equal lanes across the motion
+     (the region for left and right motion, the view width for up and down,
+     minus the face column's width with `keepFaceClear`), as many as the
+     largest item fits, and each lane's items are evenly spaced along the
+     track with neighbouring lanes staggered, so the layer stays evenly
+     filled. Its items do not touch unless the layer is too crowded for its
+     span and track (too many or too large items).
+   - Layers moving the same way whose spans meet share that span: each gets
+     its own lanes, interleaved and in proportion to `count × maxSize`, so
+     they never collide, even at different speeds, while the span holds a
+     lane as wide as each layer's largest item (for left and right motion,
+     overlapping regions merge). A drifting item may pass over
+     another layer's still items, and layers moving in different directions
+     may cross.
+
+8. `SceneVFXFlashLayer`: one fade from `color` over `durationMs` when the Scene
+   starts.
+
+The geometry is in `lib/scene-vfx/layerGeometry.ts`, so a definition and view
+size give the same picture on every surface. Motion is CSS keyframes in
+`styles/scene-vfx.css`; the review tools and the headed preview pause and seek
+them. Ranges and counts for every field, old and new, are in
+`lib/scene-vfx/limits.ts`; the creator checks them before Save and the backend
+(`app/contracts/scene_effect_limits.py`) at Save, Local scan and package import,
+with `lib/content/fixtures/scene-effect-limits.json` as the parity record; a
+Local Scene outside them shows a `scene_definition_invalid` diagnostic naming
+the field.
+Every Scene colour is six-digit hex (`#rrggbb`), in the runtime parser and the
+backend, because colours reach CSS gradients and SVG paint. Scene images are
+held to the image limits at Save, scan and import and again when the runtime
+loads a private Scene; a Local Scene whose image is over them shows a
+`scene_image_limit` diagnostic and does not play until the image is replaced
+with a smaller one (an image saved before the limits may need this).
 
 ### Solid fill
 
@@ -368,26 +481,16 @@ Current pattern kinds:
 Files:
 
 - `src/frontend/web/src/ui/main/scene-vfx/SceneVFXMarqueeLayer.tsx`
-- `src/frontend/web/src/styles/globals.css`
+- `src/frontend/web/src/styles/scene-vfx.css`
 - `src/frontend/web/src/assets/effects/scene-vfx/catalog.json`
 - `src/frontend/web/src/lib/scene-vfx/assets.ts`
-- `src/frontend/web/src/lib/scene-vfx/emoji.ts`
 
 This is the animated layer in the background-VFX system.
 
-The scene VFX catalog's marquee line-item registry supports three item kinds:
-
-- `png`
-- `svg`
-- `emoji`
-
-`png` and `svg` items resolve directly to root-relative public asset paths.
-`emoji` items resolve through the authoring-only mirrored Twemoji resource at
-`/effects/resources/scene-vfx/twemoji`. The resource lives outside typed
-product roots, so catalog Rescan does not register each SVG as an Avatar Effect.
-The resolver is pinned to the frontend's installed
-Twemoji `14.0.2` codepoint conversion behavior, so newly mirrored emoji should
-be fetched from the matching upstream Twemoji version.
+A runtime marquee or scatter item is `png` or `svg` and names its URL. A
+stored definition names each item's image by logical name
+(`{ kind: "image", image }`), which `sceneEntryFromDefinition` maps to the
+image's URL; a legacy `emoji` item is skipped.
 
 Custom `svg` line items are project-owned public assets under
 `/effects/scene-vfx/svg/`. The catalog validator rejects SVG `src` values
@@ -408,7 +511,7 @@ Current direction options:
 - `diagonal-up-right`
 - `diagonal-down-right`
 
-The actual motion is driven by the global `scene-vfx-marquee-shift` keyframes in `globals.css`.
+The actual motion is driven by the global `scene-vfx-marquee-shift` keyframes in `styles/scene-vfx.css`.
 
 ### Background-layer presets
 
@@ -416,21 +519,12 @@ Catalog source: `src/frontend/web/src/assets/effects/scene-vfx/catalog.json`
 
 Runtime wrapper: `src/frontend/web/src/lib/scene-vfx/presets.ts`
 
-Current preset ids:
-
-- `none`
-- `shoujo-hearts`
-- `comic-pop`
-- `kawaii-sparkles`
-- `scene-vfx-emotion-<emotion>` for the emotion backgrounds listed in the catalog
-
-`none` clears the live background effect. The other presets are full `background_layers` snapshots.
-
-The emotion presets are intended for reaction clips and use stable ids such as
-`scene-vfx-emotion-joy`, `scene-vfx-emotion-fear`, and
-`scene-vfx-emotion-gratitude`. Reaction clip scene VFX events should reference
-the canonical emotion id directly through `scene_vfx.presetId` unless a clip
-deliberately needs a generic fallback preset.
+The bundled catalog holds no background presets, only `none` (which clears the
+live background effect) and the focus presets below. Backgrounds are Included
+Scene Effects: one per emotion, `content/included/vfx/scene/scene-vfx-emotion-<emotion>/`,
+which reach the runtime through the mounted catalog. Each intensity-3 Reaction
+plays its emotion's background through a `scene_vfx` event whose `presetId` is
+the dependency alias `scene-vfx-emotion-<emotion>`.
 
 ## 9) Effect kind: `focus_lines`
 
@@ -508,7 +602,7 @@ Each triangle gets:
 - a deterministic negative delay
 - a deterministic max opacity
 
-The actual flicker is driven entirely by the global `scene-vfx-focus-lines-flicker` keyframes in `globals.css`.
+The actual flicker is driven entirely by the global `scene-vfx-focus-lines-flicker` keyframes in `styles/scene-vfx.css`.
 
 This means:
 
@@ -570,7 +664,7 @@ The modal keeps independent draft state per scene-VFX kind:
 When the modal opens for a target:
 
 - if a live `background_layers` effect exists, the background draft is seeded from it
-- otherwise the background draft is seeded from `kawaii-sparkles`
+- otherwise the background draft is seeded from the empty `none` entry
 - if a live `focus_lines` effect exists, the focus-lines draft is seeded from it
 - otherwise the focus-lines draft is seeded from `createDefaultSceneFocusLinesVFXEntry()`
 
@@ -600,6 +694,10 @@ Because preview state is tracked per kind, previewing `focus_lines` does not ove
 - pattern is cheap because it is one cached SVG background tile
 - marquee uses CSS transforms instead of per-frame React updates
 - main cost is DOM size when the marquee grid gets dense
+- at their densest allowed settings, gradient, tile, rays, lines and the flash
+  each add at most about 0.3 ms of frame time and all layers together about
+  2.1 ms (Apple M5, DPR 2, `effects:bench --reaction`); scattered items are
+  the costliest layer (about 1.8 ms for 96 large spinning, pulsing drifters)
 
 `focus_lines`:
 

@@ -1,5 +1,7 @@
 import { getI18n } from "react-i18next";
 
+import { apiErrorLine, uncodedErrorText } from "@/lib/errors/apiError";
+
 /** Public recordings and saved originals share one cancellable audio owner. */
 export type VoiceSampleSource = { id: string; name: string } & (
   | { previewUrl: string }
@@ -7,6 +9,12 @@ export type VoiceSampleSource = { id: string; name: string } & (
   /** Why the sample cannot play, worded in the UI Locale. */
   | { sampleUnavailable: string }
 );
+
+/**
+ * A sample failure whose English message is safe and useful to show: as is in
+ * English, and as detail under the generic failure in other locales.
+ */
+export class VoiceSampleError extends Error {}
 
 export type VoiceSampleState = {
   voiceId: string | null;
@@ -65,14 +73,19 @@ export function createVoiceSamplePlayer(
     const request = new AbortController();
     controller = request;
     onChange({ voiceId: voice.id, status: "loading", error: null });
-    const fail = () => {
+    const fail = (message?: string) => {
       if (controller !== request) return;
       release();
       const t = getI18n().getFixedT(null, "voice");
+      const fallback = t("pocket.sample.playFailed", { name: voice.name });
       onChange({
         voiceId: voice.id,
         status: "error",
-        error: t("pocket.sample.playFailed", { name: voice.name }),
+        // A loader's explanation is backend or service English: shown as is
+        // in English, else as detail under the generic failure.
+        error: message
+          ? apiErrorLine(uncodedErrorText(message, fallback))
+          : fallback,
       });
     };
     try {
@@ -97,12 +110,12 @@ export function createVoiceSamplePlayer(
       nextAudio.onended = () => {
         if (controller === request) stop();
       };
-      nextAudio.onerror = fail;
+      nextAudio.onerror = () => fail();
       await nextAudio.play();
       if (controller === request)
         onChange({ voiceId: voice.id, status: "playing", error: null });
-    } catch {
-      fail();
+    } catch (error) {
+      fail(error instanceof VoiceSampleError ? error.message : undefined);
     }
   }
 

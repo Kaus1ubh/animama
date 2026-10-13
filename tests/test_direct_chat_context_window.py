@@ -405,7 +405,8 @@ async def test_pre_send_compactor_compacts_in_its_own_session_and_returns_fresh_
 ) -> None:
     from animama.app.services.direct_model_prompt_runner import DirectModelPromptResult
     from animama.orm import ORMAnima
-    from animama.server.routers.chat import compaction as chat_compaction
+    from animama.product_http.chat import compaction as chat_compaction
+    from tests.product_http_support import local_turn_sessions
     from tests.test_chat_compaction_service import _append_visible_messages, _create_chat
 
     await _create_chat(async_session, anima_id="anima-presend", chat_id="chat-presend")
@@ -420,10 +421,11 @@ async def test_pre_send_compactor_compacts_in_its_own_session_and_returns_fresh_
             return DirectModelPromptResult(text="Summary of earlier turns.", usage=None, model_provider=_provider())
 
     monkeypatch.setattr(chat_compaction, "direct_model_prompt_runner", lambda *_args: _Runner())
+    sessions = local_turn_sessions(async_session_factory, "user-1")
     compactor = chat_compaction.pre_send_compactor(
-        session_factory=async_session_factory,
+        sessions=sessions,
         model_client_registry=cast(Any, SimpleNamespace()),
-        model_roles=cast(Any, SimpleNamespace()),
+        settings=sessions.ports.chat_policy.compaction,
     )
 
     context = await compactor(
@@ -439,7 +441,7 @@ async def test_pre_send_compactor_compacts_in_its_own_session_and_returns_fresh_
 
 def test_run_status_events_become_type_keyed_sse_frames() -> None:
     from animama.domain.events import Event, RunStatusPayload
-    from animama.server.sse_events import format_run_status_event
+    from animama.product_http.chat.sse_events import format_run_status_event
 
     event = Event(
         event_id="run-status-run-1-summarizing_context-started",
@@ -460,7 +462,8 @@ def test_run_status_events_become_type_keyed_sse_frames() -> None:
 @pytest.mark.asyncio
 async def test_post_response_compaction_threshold_follows_the_model_window(monkeypatch) -> None:
     from animama.app.chat.options import DirectChatOptions
-    from animama.server.routers.chat import compaction as chat_compaction
+    from animama.product_http.chat import compaction as chat_compaction
+    from tests.product_http_support import local_turn_sessions
 
     calls: list[dict[str, Any]] = []
 
@@ -472,7 +475,13 @@ async def test_post_response_compaction_threshold_follows_the_model_window(monke
             )
 
     class _Session:
-        async def close(self) -> None:
+        def expire_all(self) -> None:
+            return None
+
+        async def __aenter__(self) -> _Session:
+            return self
+
+        async def __aexit__(self, *_exc_info: object) -> None:
             return None
 
     monkeypatch.setattr(chat_compaction, "chat_compaction_service", lambda *_args: _Service())
@@ -480,18 +489,23 @@ async def test_post_response_compaction_threshold_follows_the_model_window(monke
 
     for provider in (small, _provider()):
         await chat_compaction.compact_chat_after_success(
-            session_factory=_Session,
-            model_client_registry=SimpleNamespace(),
+            sessions=local_turn_sessions(_Session, "user-1"),
+            model_client_registry=cast(Any, SimpleNamespace()),
             chat_id="chat-1",
             user_id="user-1",
             anima_id="anima-1",
             run_id="run-1",
             chat_options=DirectChatOptions(),
-            model_roles=cast(Any, SimpleNamespace()),
+            settings=chat_compaction.ChatCompactionSettings(),
             model_provider=provider,
         )
 
-    assert [call["threshold_tokens"] for call in calls] == [int((8192 - _MAX_OUTPUT) * 0.75), None]
+    # The smaller of 70% of the window and 75% of the room left after the reply; the
+    # cap (ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS) is applied by the service.
+    assert [call["threshold_tokens"] for call in calls] == [
+        min(int(8192 * 0.7), int((8192 - _MAX_OUTPUT) * 0.75)),
+        None,
+    ]
 
 
 @pytest.mark.asyncio

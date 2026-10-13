@@ -1,4 +1,18 @@
 {
+  "air-quotes": {
+    "fileSha256": "ab3efe56ca2f11435491a43a091ff980433724464c9b431a5bcdb80b474d6d96",
+    "samples": {
+      "AvatarSample_Y_0": "a0c1edb0412dc7f8860019ab278deed00d4c22360fa8032be4c9d35b9cf37a7b",
+      "AvatarSample_A_1_New": "5792e9dfd6289c64ee3a9119cd27c9923a1a59ac05759dd1773721f2680fd8ef"
+    }
+  },
+  "apology-bow": {
+    "fileSha256": "67885bb358f2e3648c2bb86693848e783e4af7e35a4d20fa348e64df3e5a3b52",
+    "samples": {
+      "AvatarSample_Y_0": "6a8297ff6832409b8ec03b629aade9452ed5915dcc2399e0b68acd931df60521",
+      "AvatarSample_A_1_New": "06cbe24d9e0222b64684a1f7add638111a06495110bfcfba0036610cab54fcd5"
+    }
+  },
   "arms-crossed": {
     "fileSha256": "1081cf4bba31a11b111aa942a603be6ce4c9f7f96528bb831d2bd331f6fe301f",
     "samples": {
@@ -13,43 +27,120 @@
       "AvatarSample_A_1_New": "83d338fd3225452f1331196ce44d42360072007107c746c337cba13b2ace66b7"
     }
   },
+  "beckon": {
+    "fileSha256": "8fcdebf9943141ab31f36f1247025f8dfded2076aedad5cb1dd845b3f8d37a07",
+    "samples": {
+      "AvatarSample_Y_0": "0d85311eb007ba4e615e0c1316b4fc33c956e91c4c2a2018f92a16ae28aa6c55",
+      "AvatarSample_A_1_New": "e61177c00a51083301e6b6aa1ada348ba2ce52376ee437f6a264bec54e6d4793"
+    }
+  },
+  "bgm-bob": {
+    "fileSha256": "57c6088afb691fb818cdc99f35112a524df5e1e166abae13f3a49a352c006ca5",
+    "samples": {
+      "AvatarSample_Y_0": "fdc2b6cda0c0b9ecdb0c33ad1294eb9cb827e54b3220e6252da846b422cbba16",
+      "AvatarSample_A_1_New": "1060698d588462f67708f72a5ba749388662ca994c7916464fec7b3ee6944583"
+    }
+  },
+  "big-circle-maru": {
+    "fileSha256": "5f9c8daee6bbe61439750afa5dec00dce815adca1fcaba7b0281a2a776086b24",
+    "samples": {
+      "AvatarSample_Y_0": "f301c9ab1f505b9d3539ab7c646282a64a367a9660bd28201ae12a0169946c79",
+      "AvatarSample_A_1_New": "9a6cd221cb05f3a6513635434fc8402533961303d97fca8648257468876b336b"
+    }
+  },
+  "big-x-batsu": {
+    "fileSha256": "d83fdcb56c9893b392c68afd6e34559af9dfad90773cef3b137595cb974ff5a3",
+    "samples": {
+      "AvatarSample_Y_0": "a1ee7b9abee87117292973920e2b98ed014f89ed6c2fa826fb9788281b28dcbe",
+      "AvatarSample_A_1_New": "2c66200b88425ea53b521dec0e91ccb03d5cd48fb7b693a0b577c9c5e72f5487"
+    }
+  },
   "blow-a-kiss": {
-    "fileSha256": "32ee4ad12e7cc48162a98002c4059bbf5f00ffc19efc55de848672a37930ad1c",
+    "fileSha256": "6f4107d38fc6a756030691ddf05bef3cd2e52a5b99429a6abcc152ab3fe48fdb",
     "samples": {
       "AvatarSample_Y_0": "621b553f0e760be6fa21c0829c71be5f3896103a49b43cfb6d88e804d5ea5233",
       "AvatarSample_A_1_New": "46099e8e030eead58027f25b9a624dd9659982982bca3a74e0ac2c6edad5a454"
     }
   },
   "blow-a-kiss-2": {
-    "fileSha256": "df1c665a9f9ef2de2d89e3b8f94f58289c2fdd40c1264eaa87459735a4842f9d",
+    "fileSha256": "e5d0b3bc52492c70c2c2112645a2605cd81b6f75abdc5b242a6438571a527f95",
     "samples": {
       "AvatarSample_Y_0": "24d782be0d5047bff88847e7a9862a3ab669acf62bfe5ab831a7f9d22ca63d49",
       "AvatarSample_A_1_New": "22baa74af78c65a7e57409ff63afa7056c32935d2401c7ab1df9d3cb9c02fd9f"
     }
   },
+  "bored-wait": {
+    "fileSha256": "037f94edc20e3af77b35aa5976f4488995a4dca9e79941c1aaef6e500c878081",
+    "samples": {
+      "AvatarSample_Y_0": "cab78c1f61b2fd7a0dff4f821d4fb6e2c71837585b7effe5d6e3e09bfe478b93",
+      "AvatarSample_A_1_New": "1f4e76ca1e02eebf3c8eea4499d62d9c8d94454caebd40d988458b0970278416"
+    }
+  },
   "cat-monster-rawr": {
-    "fileSha256": "c610a84d4ca37d82e12b13b3c8d4945982446db19cddf22bdb127859200f28c8",
+    "fileSha256": "ce26b04fe388cd8786a9e2c51297c152847ff44972a93b8570ce7a170a7153e6",
     "samples": {
       "AvatarSample_Y_0": "12a2455c68fdba679cb4c8f4795ad920d08bf5be2487c6ed0386328fe45edf46",
       "AvatarSample_A_1_New": "52912a67fcfcf8cb3cab123c15e4793ca3bd2d3fd86e7f4c8d660c30836491b8"
     }
   },
-  "celebration": {
-    "fileSha256": "7809a2b42c381cbff88eaa1cfae5f644b676799cd031c0bdb315df4524a4ee52",
+  "cat-paws-nya": {
+    "fileSha256": "6464c662689f344ee91e9f47da6f107c365578b668817b36abdbfda16cd4c0c1",
     "samples": {
-      "AvatarSample_Y_0": "6d81029bf83e78fa72d53b591b28ece39b71a5ab0078dd369e98f8791c089ee3",
-      "AvatarSample_A_1_New": "8f31f6e49e6067e37bd95b67e016c60cf5c572b6eead4d5a352c2edb252a6a64"
+      "AvatarSample_Y_0": "09d32989c3571bc259c400ad2f8521935d7177991e0bf4a06a1e1511d015d745",
+      "AvatarSample_A_1_New": "94152128ab0b4881d6d129b302c176430d8744f0848dd473c52c335dd2f9aa08"
+    }
+  },
+  "celebration": {
+    "fileSha256": "1b4c9317a627844fe17b4be98831003d7137e55c02541cd7dad4baeb5dee4c41",
+    "samples": {
+      "AvatarSample_Y_0": "068a3989197e2212e9be43b62134d7c321683cb68f0b537486be92675d0e3ecf",
+      "AvatarSample_A_1_New": "f4f61834562b678c88fdad9e619fc2db50ecfc4988d1bc8a3b1f2851fe598f8b"
+    }
+  },
+  "chat-glance": {
+    "fileSha256": "a217b6c1c2b50020e5a91d9525d3302e8405595b7328fe09e539d7e1c64d8edc",
+    "samples": {
+      "AvatarSample_Y_0": "41b870508f76fa6e764ec1c0e2cd17f32fe4aeecd955056375899efab6c16498",
+      "AvatarSample_A_1_New": "7b0a024969643d136d22c4bf64efb7e9400d619fcee776bbd677e70aff1a0f67"
     }
   },
   "cheeky-finger-guns": {
-    "fileSha256": "94dda5254fe18ac9475ce476551ac9dfe2ffea6a068fe653775baff2278e31e1",
+    "fileSha256": "053c1c7b5b250d0def23d3439f0a2db744be571b5aac9a48f0bf264511d98daf",
     "samples": {
       "AvatarSample_Y_0": "68447cfd60062fbd75547dde084e025c8b8a7eb407598e1de5e79d505edeba36",
       "AvatarSample_A_1_New": "16cbc8e4dd8a1fa50ebc7dc2d8adf0c1f38f7eee0e73b0de85f9d715e3a48b91"
     }
   },
+  "chefs-kiss": {
+    "fileSha256": "d5685048303e610162c0e3386c3f5800c20fd7cabb4027a37a9bff157de5400c",
+    "samples": {
+      "AvatarSample_Y_0": "4b1e0bba1fc340111b537a48aae102e7eb96e341d8574cd0569cfba9003a2108",
+      "AvatarSample_A_1_New": "af96a53f5fb76b3f30f8a03aadfe0f1f272bd5be351571c32c402492c47a74c5"
+    }
+  },
+  "count-on-fingers": {
+    "fileSha256": "e761b6d46a83defb1c0054ad2133ea2b4188b9f6c6879d0fbc600a0acb725e90",
+    "samples": {
+      "AvatarSample_Y_0": "3aca140858f2334215ce36915566861a82fdc9fa180b55fcdca9ae04ace2a9cb",
+      "AvatarSample_A_1_New": "55e7093e9ad7ef4f788fcdef3afc0facafe88848deb4eb08809c26f3a6a69d5b"
+    }
+  },
+  "cover-face-and-peek": {
+    "fileSha256": "110ddd13bb0ccf55ad490366b07905846f1b4df73c36725d8f4471f4f86ac5f0",
+    "samples": {
+      "AvatarSample_Y_0": "280930b496677edda09afaa561f6ba421363f04cb50d6f59e3c494a8ac8a03d9",
+      "AvatarSample_A_1_New": "98198089ea54b65f3a7f4ea59444c67a39457657b71b576c1e79c42cfe8e3550"
+    }
+  },
+  "cower": {
+    "fileSha256": "312998e4e2f42e58dd03b7199c7e0319d25e31a240f1523f1c5e775efa807e2a",
+    "samples": {
+      "AvatarSample_Y_0": "734120658f119299a38dc3ad870b03917ea6f7da7f5b69cf6c237fb415c2cdf2",
+      "AvatarSample_A_1_New": "65dce9fb5e4638b771c1190f4ee0d88088542d5dc63345e2410f8c85798d066a"
+    }
+  },
   "deflated-sigh": {
-    "fileSha256": "066225080f5631148976b6e3857a62cbfdbb9eaa4faff19ddd67864fa35d596f",
+    "fileSha256": "bbfe5982cd3c82edb4bc932152c76614af6758b8f122ac980234ac9a62d1e85e",
     "samples": {
       "AvatarSample_Y_0": "07ac59df8a80d4b80219eaf7f427613a44f46e76392f32c303d5d0643d4f640b",
       "AvatarSample_A_1_New": "01f8cc8cc3e938e97d6d3758d9c3ddddd791bcfc55dc68cff9c0ed9adeffe25f"
@@ -76,6 +167,34 @@
       "AvatarSample_A_1_New": "2bfd6d67cb9e93c7dbe478d3d288a92edfaca8fde0bbb267ef0898396af5dba5"
     }
   },
+  "downcast-sigh": {
+    "fileSha256": "9c2fa98130785ce7e27dfcb1c46e52a0d9762766651bba077c4ffc092c17a41b",
+    "samples": {
+      "AvatarSample_Y_0": "0b507130796f8b204fa9896114949c1ed97aa8cd97b76ba3142236bb5457e734",
+      "AvatarSample_A_1_New": "654e1e3f2b283271b8fffd52da8d2858840b95faef67b60106b9cb856c2a8dd8"
+    }
+  },
+  "dreamy-gaze": {
+    "fileSha256": "1eed4bdf5b1b29acc14a7968b4c7a9207c0871c2f1f11ed45919418dcbb26c23",
+    "samples": {
+      "AvatarSample_Y_0": "96378fc60b3d8f8d2c04e9cdea0b26c3533a3cdfd26529581a3be554e336fb26",
+      "AvatarSample_A_1_New": "a3fed50a91edcef9ee50df7c70c61c810dfc881f84757a654dd7f753e383cda0"
+    }
+  },
+  "drumroll": {
+    "fileSha256": "80f17e0f4f3aa5c40168f499f4f41cd2cd05015d69ac22b1996bec165f9ba2c6",
+    "samples": {
+      "AvatarSample_Y_0": "f6a093d14b9075eb85c5505ad21390791d7ea55edcee3fdc0d80e1f15808ef05",
+      "AvatarSample_A_1_New": "a484c7e086bbc4ba8eef830f20f31b43738a28a4f5d54e94f6586f0d447848f3"
+    }
+  },
+  "emphasise-a-point": {
+    "fileSha256": "d04e8bcfedba348e2ab4a4bc70aafa4bfcbd090b2b5bdd7f672b28ddf9b25982",
+    "samples": {
+      "AvatarSample_Y_0": "feb6db70e2bedcf9d4907081c26685a1333e1cfa9a1e2b6fb7aa7715e60fc93d",
+      "AvatarSample_A_1_New": "11cc564e46cdb3a549a671aad984bfc8f1e00cfe86a4b465b674e979b580b560"
+    }
+  },
   "enthusiastic-yes": {
     "fileSha256": "747b466465cf8710469241abe98dacd0d14218581050ff5386e4c2345971cc4a",
     "samples": {
@@ -83,11 +202,32 @@
       "AvatarSample_A_1_New": "1986c87e9442251c154b3828d4971f5a281ceb691511d61ae2e9fe92122e53ff"
     }
   },
+  "ew-recoil": {
+    "fileSha256": "15244aa57434c8a20dadba2bd6d97e16a99fd08cea3d136ace760b3f153c9292",
+    "samples": {
+      "AvatarSample_Y_0": "5c617f8ba52560471b01ea43513b2c2f1c8ad6b69f369071407fa14249ccc230",
+      "AvatarSample_A_1_New": "0d7adfbd56ee7243c7b26003ab3036e1ac66d27aba4e75de067c9aa1b6810c92"
+    }
+  },
   "excited-triple-clap": {
-    "fileSha256": "83f1ceadd357cd09c1cb22b63ceee395eb7f3022b46dae170ba04151b2960a63",
+    "fileSha256": "5eb7d14ce9c95932c6a37322a04f01556f8f11dcbefdacbf70fc4bb7dd64fd70",
     "samples": {
       "AvatarSample_Y_0": "333366ec7456c633aa2dd60e82f86a181c9fa737651a054d5b73d58513e437fc",
       "AvatarSample_A_1_New": "359901db6ea88dbb3aabec5eb98c56a3d33111c4b0eb55f9131ac7723569d48c"
+    }
+  },
+  "explain-open-palms": {
+    "fileSha256": "509b9eb3f5aa810863ba6a725668d827c7380ee57c51aa755b994e1514ece01c",
+    "samples": {
+      "AvatarSample_Y_0": "6ffe7f2b4d74b0297c0732c708d88837638355b5bb197efea8b4041ef18e45d2",
+      "AvatarSample_A_1_New": "813f04ceaa4f338cfd0a0a0a1ffd63202ba7df2d1b8848f847532e324661bae8"
+    }
+  },
+  "fighting-fist-pump": {
+    "fileSha256": "388aa64930fb236c2570589669cfe00b6248ad3ee26bd82926fffb303a52b60e",
+    "samples": {
+      "AvatarSample_Y_0": "649bcbe2ccf91ceca1c2e7c5a5b4689b89fbd6f7a789838fcc86761febae0836",
+      "AvatarSample_A_1_New": "0e8581dfce5526f49899d9107bf0f5e0282557c6601d7135016c5f6fa4e0388d"
     }
   },
   "finger-heart-pose": {
@@ -95,6 +235,34 @@
     "samples": {
       "AvatarSample_Y_0": "e9a8381886334a5bce6742558c6c88df063f8f94e4dff244948fff3dec6b5724",
       "AvatarSample_A_1_New": "06f3463a5e130170f22ff8b198debaba199779d7d7dfaae00adaabd125e76392"
+    }
+  },
+  "fingers-crossed": {
+    "fileSha256": "293abb43841c0921e01e85c26801e50f2a6c5a60dfd2617f72dda1cbc911cccd",
+    "samples": {
+      "AvatarSample_Y_0": "011cb5a2b3e5a6a7e63c2a2d61aaadb04e2c7d678fed9965f7cb1d9d63d7cc53",
+      "AvatarSample_A_1_New": "0fa60b61884c03bd5c81264af5f77289f96bcf89d6ad2df6febbeb64349e6136"
+    }
+  },
+  "fist-bump": {
+    "fileSha256": "cd0a4b33e6f7124f8714f4b765dc232a0ac0141f216fd82cbf56a41d6dd0a79c",
+    "samples": {
+      "AvatarSample_Y_0": "78816060dee52b6e2ea6d7dd2f696c6a39a12750893291f365230f6292b67951",
+      "AvatarSample_A_1_New": "77c36ae481edbbba380b191ccf5af4d88dc63e69eeae613241219b5a67f77530"
+    }
+  },
+  "flex": {
+    "fileSha256": "b0a14f426ec4790d13080e69f8c1446fa899d510838660cdd69c692aa37511eb",
+    "samples": {
+      "AvatarSample_Y_0": "3d29fc16170da57e447846196e9e37c4bb24cf4a7124fb4cd0e42b94a419fe91",
+      "AvatarSample_A_1_New": "f17c60a0ac90685a14c97a703c3c5278584837185d6f96c0fdc703b04dfa091a"
+    }
+  },
+  "flustered-fan": {
+    "fileSha256": "0df9ceecdd7f4d58a817ebc68afec88fa0f36b29738d630dd46a342d655114d6",
+    "samples": {
+      "AvatarSample_Y_0": "df91a5f7aa5dc6029d4da1f27bca616bc08d610d4d4215cfdf34996cac9de369",
+      "AvatarSample_A_1_New": "345ee9fdac7e6e5ce219de947b442d13014dc7b1b590658f4e2be7823354f67c"
     }
   },
   "gentle-double-nod": {
@@ -111,11 +279,46 @@
       "AvatarSample_A_1_New": "f41f6f9e1571bc1a9828119c27f7d984c572516f4e73ae1921fd33b2590bced6"
     }
   },
+  "goodbye-wave": {
+    "fileSha256": "cc2933c6b08b63933107db90b65b4cf95faa700dfc58d70ffe234b88338153de",
+    "samples": {
+      "AvatarSample_Y_0": "d93e17f63a9a34e25dafd09b456c31992a3086f667ea3ffb4e038147fffb4962",
+      "AvatarSample_A_1_New": "e42d5ddef6dd643fa7bea68f6a81fceb973619284e2f1e432b6d4f1aa08d0036"
+    }
+  },
+  "grr-fists": {
+    "fileSha256": "0112138e1c6c96eca4e366fe10b4f1bbda56a5d1b45d672416400df25cc87d40",
+    "samples": {
+      "AvatarSample_Y_0": "22f0c5e72c817fc6bcfdf62e23fa2901e80ecdb665a108a181cec4d77ca5fc5e",
+      "AvatarSample_A_1_New": "5d93bc952f08e8897c6a5ee0d274d7b4874d686a9c6ef42631789a21247e51f5"
+    }
+  },
+  "hair-tuck-settle": {
+    "fileSha256": "8e983529657d7e1f4c2404bac805c06a6937ef7a11b299a674b6ae66b70d945b",
+    "samples": {
+      "AvatarSample_Y_0": "c89ebf9d1ae8e729590464dd12d275a665279e106cacac04698e992b17083f43",
+      "AvatarSample_A_1_New": "ab522bc2ceffd4282a4ef0bd67534e415f4912bf0dfee529230ad0ebf79eeac8"
+    }
+  },
+  "hand-to-ear": {
+    "fileSha256": "7294896f8b42fb0453aae216e8e69d78591fb325c434a25fa6fb1c8d69d50360",
+    "samples": {
+      "AvatarSample_Y_0": "cb24aa894be4e336b3f52b96aa7176fb0b6f2c26bc42765190bd13741ec7576f",
+      "AvatarSample_A_1_New": "2b602f540e87c953dfc829fca18c5d9ec69575ce601735bc814be1b320112251"
+    }
+  },
   "hands-on-hips": {
     "fileSha256": "521b360ac6483e1813059ff6135e162555fd60fcc328835216b1ed74076ca4b9",
     "samples": {
       "AvatarSample_Y_0": "5f7c2483ef4c673c5d7f722a0d0b13c32646bfb7bd832ac0b0da16030862fab8",
       "AvatarSample_A_1_New": "baa3b0f873920482569709a114562dc73a43a986d894e423017a2c588a3b1dca"
+    }
+  },
+  "happy-sway": {
+    "fileSha256": "1ca3946a3580d8c0b0257dc298deeb08f39bc6d79d118c9c47cbcf473bf68193",
+    "samples": {
+      "AvatarSample_Y_0": "b9a73f53ca2ae09b50d5c5dd628d418731c0fb12932e73b40ef7400e613f7559",
+      "AvatarSample_A_1_New": "75c2bf0c1a70579a200b64c73b208708f95a7581c823284fc2d7175e2e8afe4f"
     }
   },
   "have-an-idea": {
@@ -125,11 +328,18 @@
       "AvatarSample_A_1_New": "d3ee126be02d396cd328e700c345f26e839bf9edfaa69033accd3bc42304032b"
     }
   },
-  "heart-hands-build": {
-    "fileSha256": "ce98bec5ceb4693bf26b47eb20249666d5bc44b0243d3463723ffb142950032d",
+  "head-pat": {
+    "fileSha256": "c62840038be86f3713e06b32c5f45102f1fb94ced15bafe7fd8c078b4861ca2d",
     "samples": {
-      "AvatarSample_Y_0": "d20c6fd769573810a49f331dc9ad801909bfd720f56e6a36d54683e8ce52e620",
-      "AvatarSample_A_1_New": "d20c6fd769573810a49f331dc9ad801909bfd720f56e6a36d54683e8ce52e620"
+      "AvatarSample_Y_0": "d098b00d8e6cfee02deb05e11cc849e2be1d04297a5393aae02526c9c8a2e099",
+      "AvatarSample_A_1_New": "f7103872d364328aa5b25b2abc323e91e763c5e8c4e5af03833af26b8d9f39de"
+    }
+  },
+  "heart-hands-build": {
+    "fileSha256": "b38309be297ac0c6503c594e8fd5183878d943b5c0620310de2dc7a9a1d2d488",
+    "samples": {
+      "AvatarSample_Y_0": "207ac23d6e708d27d958def024d521113623fb0dd3b2c079de543758382ad874",
+      "AvatarSample_A_1_New": "7db8386ab6f13cbb01747f18445503dbcb9f2adda0d9f4018612b3633a39f827"
     }
   },
   "hearty-laugh": {
@@ -139,11 +349,32 @@
       "AvatarSample_A_1_New": "4340086ae4cc0a2a442d0da241f3cbadc58585cd00e26e29147810d5fb0588d3"
     }
   },
+  "high-five": {
+    "fileSha256": "d3f732f368b30315ea1521984d587a563d97f6b57a0a73074d4eb66a6fd35f70",
+    "samples": {
+      "AvatarSample_Y_0": "08c4732bf64e0b8e5308eb88124652cab999d173582907be1c57fee2ea59ae3b",
+      "AvatarSample_A_1_New": "8d48b278291d83ef909293052450d597498f85a2638af6677a392fb7aff1d104"
+    }
+  },
+  "hmm-drift": {
+    "fileSha256": "987a073c9c7b76999cd54848a865df218ab0dc9cc93a757b555aebf22b76edfd",
+    "samples": {
+      "AvatarSample_Y_0": "6da8c73018610877074046709f19d051f8073c52094efbac14ae13ebe4c3f102",
+      "AvatarSample_A_1_New": "30cd4257499b0e0936e00177e14a6ab32ccb770fbfd09445e998aa7084dcb1c5"
+    }
+  },
   "hysterical-laughter": {
     "fileSha256": "1bdf78542c3bb0ddfd68848523ea9399e20bc967cb312eec921da6295f40e3e7",
     "samples": {
       "AvatarSample_Y_0": "638bce3c5ca23f8db3dd503cfced5c3a228750250c38a34350d7793fab2e0768",
       "AvatarSample_A_1_New": "b62cd3bd1bb074b9cb862ed6196fcf133d641cfef23df3ac8a40a2d3a0673f5c"
+    }
+  },
+  "kyaa-hands-on-cheeks": {
+    "fileSha256": "77d39a30b0fc99cbfccc646be97a53c6bfb8bf7c378fd9703166fde23724b37d",
+    "samples": {
+      "AvatarSample_Y_0": "a801906376301658ce0270ece6f811fbdf4eb650039bfa1ecff5aa727e705dea",
+      "AvatarSample_A_1_New": "f69d73b5107cd81af7c31c2cd171561159b344853240a4853147bc013f76553d"
     }
   },
   "left-ok-sign": {
@@ -181,11 +412,81 @@
       "AvatarSample_A_1_New": "99c6bf7c7ada1f9a2b694631e878c2dac4a811fd9353c0ec4c3018cfa9737177"
     }
   },
+  "mind-blown": {
+    "fileSha256": "6ff779ea6b76e79e607b1f45c99036701e2bd2912931d79fb29c194160ff0431",
+    "samples": {
+      "AvatarSample_Y_0": "2af0f73a124a07ce0034cc1fbc02a9bd8e1424075d5509ffe7bfc255776ccc7a",
+      "AvatarSample_A_1_New": "d3f0164f1751c1b42ab6a61b7d3634619485c6c10e30ddecaf352bb39a38ad3f"
+    }
+  },
+  "nervous-fidget": {
+    "fileSha256": "3b0628f472d86d13fb7c0d815c715f73c9c26af478289d9f59f7a75954ce952d",
+    "samples": {
+      "AvatarSample_Y_0": "e53aa7227f5f49d32431685e0044f0ffc3224137948ca6e45068e9944bf48932",
+      "AvatarSample_A_1_New": "72d4f421cceb0503eeae2d1b08119166bffebf5dc2fa1f524f70a79b00a66aa3"
+    }
+  },
+  "nervous-head-scratch": {
+    "fileSha256": "f37099eb841ed408fa8b6205651d6d508a53e0d9e6f8d08aa98f53b460ce0bc7",
+    "samples": {
+      "AvatarSample_Y_0": "541dd15ad1932fc2196c63a84f5880d7dee412ed75439a96f8b49639df753594",
+      "AvatarSample_A_1_New": "294ed4380a174299432be4e5335adbc9ba0165383978e7a48abb600ea9e2a8ef"
+    }
+  },
+  "offscreen-look": {
+    "fileSha256": "7ab7b58807ee716875b58ef6030b196c559821f366f57a9799e9f1512fc75229",
+    "samples": {
+      "AvatarSample_Y_0": "4502b0a6412141bbe77a64dbc7d2fc0f674d448645a7e3e290a3f664777e8c76",
+      "AvatarSample_A_1_New": "b3cce253915837b0995eed63066fc786c01cf5dd52d063fc66b6b41b4ed14818"
+    }
+  },
+  "ohohoho-noble-laugh": {
+    "fileSha256": "f6d334ea9b88dea75aafa5abaceb9cbca283dac707200ee43c1b552272ddd22a",
+    "samples": {
+      "AvatarSample_Y_0": "21a4235e958802187a52c72cfd62e809bf9da724a9d739507f06415c4cd67900",
+      "AvatarSample_A_1_New": "a6ab63cccdf878e3269c8722a4d62b1e058c8cf22665e09bfcb146f85346628f"
+    }
+  },
+  "on-one-hand": {
+    "fileSha256": "667191789f0a07d53f005ffb5751f93149cd7d6eaa409ab8710b0921a9085bda",
+    "samples": {
+      "AvatarSample_Y_0": "ffe09d0a4c66d149daf093981044895221913ee998788b3b913b6839750f816b",
+      "AvatarSample_A_1_New": "23e9d246a2ec3f0cf02e91675f1bf99bed2244a942ab6ab548e180a41a211c9e"
+    }
+  },
   "palms-up-shrug": {
     "fileSha256": "6f173c9fd637a6976c8e4957975fac3571ab6690043a5b689109d38d0970a670",
     "samples": {
       "AvatarSample_Y_0": "b4cb6059a95d714993cfe5949854583ada60f90e77221be191efd95b329041d2",
       "AvatarSample_A_1_New": "4c49727ceb776d2ab40b58390bbd430b5c1c52ee55aef0eb12bd0a4782ba6c04"
+    }
+  },
+  "peace-over-eye": {
+    "fileSha256": "502b85f80e12c3d4cc70561e76889622c17e09a526dec58cf0c4a5d98c9cb6ff",
+    "samples": {
+      "AvatarSample_Y_0": "004c56f03a94875651a6ed67e48aca6a878e16bea0bb116296d59e06f0d17713",
+      "AvatarSample_A_1_New": "034b76bf57ed0183eb4f90e6b98da112a90a4e5fe52ef8e5a97993f79ed3162e"
+    }
+  },
+  "phew-brow-wipe": {
+    "fileSha256": "a14e9c28ee109e57a660ce0a85d8651ef66a0e817dd9f8eda6f51de0ced62dcf",
+    "samples": {
+      "AvatarSample_Y_0": "efcd192408dae1a01193e58e3f28a44234d0cebf2425c96225c454d521546bfd",
+      "AvatarSample_A_1_New": "6de25363cec6cb8c79167eba74bdd44ccc68c0f7d160d7d33ffefd1847cd9acb"
+    }
+  },
+  "pinky-promise": {
+    "fileSha256": "4a0f4c2ff2a98a1875eca1712a3d62e2bee88714cff4c6ba04c3622ed689a1a5",
+    "samples": {
+      "AvatarSample_Y_0": "70a737f237bcc6360cc43fbfc728f3968f56d049da963445478f57f234ac7780",
+      "AvatarSample_A_1_New": "39b5feef87788bd2448f6f4febad0869e9a34d91b0bcb21ecc8be4dc96441ab0"
+    }
+  },
+  "please-hands": {
+    "fileSha256": "ecdf500bdc9f2089541fb080d8fdde8d3fa42da1855ca68e32129f08ac41e1c2",
+    "samples": {
+      "AvatarSample_Y_0": "5ee38c1cde25df947300c9b5676e4c00c9280f0226959875fc0e0a801aafa08f",
+      "AvatarSample_A_1_New": "57fa8e88cb40e0be0fd46d9fcc96a8af64b18cdc604d04925e59f743ab13970b"
     }
   },
   "polite-bow": {
@@ -195,11 +496,32 @@
       "AvatarSample_A_1_New": "647a4d61ba00896c303d08c63ee993d217a90c30f3be66e639e53f6442f92e33"
     }
   },
+  "pon-realization": {
+    "fileSha256": "53aac3e71f900f70fed91df2e2d6bbcbbd6958a19b5ff434e61ffc0489c3c40e",
+    "samples": {
+      "AvatarSample_Y_0": "5530fe758e3cfa54f72eb9417baf67ca370341c2306023d8a2261f48223fd9ec",
+      "AvatarSample_A_1_New": "7a64b5f895f28bc9a8fdeec210580ac2bc4ed7ebe1f9dbb497a5ba9b01c86107"
+    }
+  },
   "pout-huff": {
     "fileSha256": "e1434723947e9cc618a410de6dbca9ef2615e112e5412e2ce660745eb18f6410",
     "samples": {
       "AvatarSample_Y_0": "dd91a872b364433ac8be1199611fec8a871f671d670391bc966c1c802f52e72c",
       "AvatarSample_A_1_New": "7ecc691df733d85822550737b8c398a48c12b77b73047127628258fc51255c1e"
+    }
+  },
+  "prayer-hands-thanks": {
+    "fileSha256": "8878203ae47fa553cc7373bb965e7e14bd26fc42acf7cb5262a029cbd6bc9b91",
+    "samples": {
+      "AvatarSample_Y_0": "91db06068fa4b027365a2a9ff714f44c09ce8f3aed3ce598b42a35272535a1bf",
+      "AvatarSample_A_1_New": "0378e632316ade18616b27332389867aa534421462af2f70ba23726fabdeb175"
+    }
+  },
+  "presenting": {
+    "fileSha256": "78772932ef757adb76951ed4412530b4b38a106a813374983766cf1911e36977",
+    "samples": {
+      "AvatarSample_Y_0": "74a3002e7df5e2cafff5f37db6f806bbb6c4617e37a78644355df8e842fcbb16",
+      "AvatarSample_A_1_New": "53e70845a4eac34d4a6123509b02ea4a766e952a4e2bbb99f6fde540d725f4dd"
     }
   },
   "right-face-palm": {
@@ -230,6 +552,20 @@
       "AvatarSample_A_1_New": "87f19418145aac28bb5636ca9020e105869d8050b004b286440de80178b3533d"
     }
   },
+  "scheming-hands": {
+    "fileSha256": "3c531b3d9ff77c3c6f5133cedae9542b52f6c0a26ba32c541e8a00ef9135fbfa",
+    "samples": {
+      "AvatarSample_Y_0": "342272bba75fe85899fd695adb50621c491ae89534487ff6425a72071f6669c3",
+      "AvatarSample_A_1_New": "ef1f7a1a1f5bce20786982157bc2d84208f9e5caf5d14b8d2d5b2848eb009b06"
+    }
+  },
+  "shh": {
+    "fileSha256": "632dde8b5e98143d8d07aed8f42af52450172defd40028477117e358e979dc79",
+    "samples": {
+      "AvatarSample_Y_0": "2b211f915bd016db8c3ac728baf25352c2b0b044a7e7dc2566d042e2cc66446b",
+      "AvatarSample_A_1_New": "a15bfaf53f9d8f6944d4e7a6eae642cbd5e41eb5f714b2c04959c4087f0f5fd4"
+    }
+  },
   "shy-finger-poke-loop": {
     "fileSha256": "12f51f3b903a43ece6015376546298f60e5285b32a02fdee02e12c213a0f46fe",
     "samples": {
@@ -244,11 +580,25 @@
       "AvatarSample_A_1_New": "20198ddd741f6e03431d9e1169adf4947070ab85c7a736ffdf8a3a64cf632a2a"
     }
   },
-  "single-hand-on-heart": {
-    "fileSha256": "870ad932fdc5a796cca56d9573c7e50cdd27afb8ad292815e910e7b776d00976",
+  "simmering-huff": {
+    "fileSha256": "9e653c0286bd60f1d2f500f44a588286722a686e4df93276c41ad9900dd40147",
     "samples": {
-      "AvatarSample_Y_0": "b420cecf2ccfd109c6a3133dbff0a2a497f84e52f917198484993a64ec29bff7",
-      "AvatarSample_A_1_New": "b420cecf2ccfd109c6a3133dbff0a2a497f84e52f917198484993a64ec29bff7"
+      "AvatarSample_Y_0": "7df7fbe55e4223a3cc5f74b4395f4ac80d1abdef37a5b5d62f522e5a7e58f6a6",
+      "AvatarSample_A_1_New": "3abf9acda2f6834696a6ba2e0ddd44fe54312b781c3376ea4de8a3aeab97cbc0"
+    }
+  },
+  "single-hand-on-heart": {
+    "fileSha256": "9db18689a42905415e9f6d661df69bf1caaf181ffc3e41b6c72008abfb3c2dd7",
+    "samples": {
+      "AvatarSample_Y_0": "ad39720b8b150fd3ac57082a258aee8fcb3a34faf3008bd11270ad4d04067dd5",
+      "AvatarSample_A_1_New": "cd4a96244a285a8288f4dfe95e9dd962d2c5f3248b91243ccbef347d59f6d687"
+    }
+  },
+  "sleepy-nod-off": {
+    "fileSha256": "a2994dee7c4fef45ba25407deae883c685fc46df8c6ca648fcd47fc7bb4bc3a2",
+    "samples": {
+      "AvatarSample_Y_0": "7ff9a94b6abd08bddf1c53189638cd8bad9be3105bfbf600b7be29bc18f2b4c6",
+      "AvatarSample_A_1_New": "1ffb5d458600cf0a18a383e4918cc65cc847dfa1445195f6b1a322364ecc07ae"
     }
   },
   "small-shy-wave": {
@@ -258,6 +608,20 @@
       "AvatarSample_A_1_New": "66ec8241d6cb3f41f7e15c15cf8066644e1969f54f9f3b3a6a1887ffd48977f0"
     }
   },
+  "smug-heh": {
+    "fileSha256": "dc11e43215b34532ecd2c8ee9c234b24a9f3c36f665249207a69a3113e53053a",
+    "samples": {
+      "AvatarSample_Y_0": "ad4b895aace53eae4dc3bcc451154001823ed8d1fd9839f72bfbdd941939e8a7",
+      "AvatarSample_A_1_New": "0a22e21b6cc1156226f69f8de58e7066792f48647a392509975a0180f8c025f3"
+    }
+  },
+  "so-so-wobble": {
+    "fileSha256": "9bc73f2f08a7f78a9ab0b4a0c0f9da455b88f382883a13e1b9e831dba083bdc9",
+    "samples": {
+      "AvatarSample_Y_0": "f07eda35872441a083972a2fd925660f24ca7c683a8f90ab16fa808cd03a309a",
+      "AvatarSample_A_1_New": "0f11bd4c5b302b09aed4f54d5b472efc9cf350963562e3df23b0a09b9acd449f"
+    }
+  },
   "soldier-salute": {
     "fileSha256": "8d3698198e067313147de6abfae9da45062291e0e07c39427b69bed1ba6eacef",
     "samples": {
@@ -265,11 +629,39 @@
       "AvatarSample_A_1_New": "f29b2a26df62160dc0bad7e11a5110c89beae929e61eae6774029a524e9e4ed7"
     }
   },
-  "surprise-gasp": {
-    "fileSha256": "7dfc08c486ffccd405b267a522bf903daea711d4efa517eb75dcd48f643e4fd5",
+  "soul-leaves-body": {
+    "fileSha256": "06b833ee16cff1f197b612abebc100a52d590b1d595e1be63e2dc28e810da140",
     "samples": {
-      "AvatarSample_Y_0": "d6cdfca48298ab184a91057525926b54659cadd8fe15e43857e178fe1da90c70",
-      "AvatarSample_A_1_New": "81da194e7d176345705c63e8c3b4f59c9e713d6de680f5261989e2164e8c77de"
+      "AvatarSample_Y_0": "007fb27646eef2c17e29f1ec90446e0aca208ddf073dcf9ccd60b8f762c1aa91",
+      "AvatarSample_A_1_New": "b38c172a25c38889b149a1f40061e362902105fd544016a677f77d8b6e0dd548"
+    }
+  },
+  "stretch-break": {
+    "fileSha256": "1aa3fe8539cf9d625e6d8e04589bdc5e140ce1c3c9fb5fad171f3c8bbcfac892",
+    "samples": {
+      "AvatarSample_Y_0": "800b8c8d8faf459d3da74eed1c7cecf374a31bdeb73ed5fced1151d5b8130149",
+      "AvatarSample_A_1_New": "b0b8a83f341d44547834f5afcb5e4abbea8aa4bcee63ebfd180e1001b5d3378a"
+    }
+  },
+  "surprise-gasp": {
+    "fileSha256": "0c9bd714a0fd7a850d3201247cb5a512a820b5203222bacb0875331d753df068",
+    "samples": {
+      "AvatarSample_Y_0": "93a24f2a30f7fb7d63f7d31b657a2d2c974ffc4fe61f2ce46a12ceab6bf4e335",
+      "AvatarSample_A_1_New": "6cb3cd2759dcf8443640a064069090dbd61061d098a1c6d296e86988f23c0596"
+    }
+  },
+  "tear-wipe": {
+    "fileSha256": "e654fe68c497ae268695fbfa9b708a5584a160a49ee330bc3da3a184d066d61d",
+    "samples": {
+      "AvatarSample_Y_0": "127a00f0fa6fec1e874dcedb1a475a8f9f37b83e7041a2b2e4e60a74649c01e2",
+      "AvatarSample_A_1_New": "d53f6ccd68407517e083fdd7034660a41a16e8f61b802ed195b3655a2799bceb"
+    }
+  },
+  "tehepero": {
+    "fileSha256": "58ead69afc813e3fd96d0a8e0b6740a350a3f3574c973a413b6b56667374420d",
+    "samples": {
+      "AvatarSample_Y_0": "13e8219ce0506c293892442c8dfed11a3ffe510ca97516214a99b85143165155",
+      "AvatarSample_A_1_New": "c27781b6a2cada8f64e9b485db49e4892e2933398d53dfdd0068ca08d1e45d15"
     }
   },
   "thinking-chin-rest": {
@@ -287,10 +679,52 @@
     }
   },
   "thinking-head-scratch": {
-    "fileSha256": "b0e45a4533e0bc16ec22a844069b393d62484e27d348905c425c40de3a7b2258",
+    "fileSha256": "85e72fbc795d30325c75c67b5f8977ebcbcb02666fbb6e42ff143c38244c57ef",
     "samples": {
       "AvatarSample_Y_0": "2bcdea58faf12f09cdffab6860028bb8697074bfbab4bd680a80510ba2630c63",
       "AvatarSample_A_1_New": "b934db334b2b8fabc537a4df18586cef9d71b0d572782bfdede9c3b470159131"
+    }
+  },
+  "this-big": {
+    "fileSha256": "06e89e7f1fbf9323726aa45ef3df913fe560e06516b0b0747bdd31950f6b8449",
+    "samples": {
+      "AvatarSample_Y_0": "fd7a23b5b6b8e9b0af80d4a83dccdba300755ff8c963305c0920e95fe851865b",
+      "AvatarSample_A_1_New": "0c424f909c344823e3943c7a11ca4e015d29dc8856c15212f66d87cb09978482"
+    }
+  },
+  "tiny-bit": {
+    "fileSha256": "8569075640bfbd81c96f3e4d26888fa52e6b24efc5d92734da5ac4371eeddbf5",
+    "samples": {
+      "AvatarSample_Y_0": "66520fd2700791148a13ef6d6b5fc041770cfc72366111bbfc79eaa11312a6d9",
+      "AvatarSample_A_1_New": "15565c9a66fefd78fca9fa4c06188df6229aa4b7e14eedaa6d6532cc4cb4c228"
+    }
+  },
+  "tongue-out-bleh": {
+    "fileSha256": "7b9c6df2586d19f10b197a1cc230ceda15d2cd28b912cb763068598df6136732",
+    "samples": {
+      "AvatarSample_Y_0": "1c9dfacb93fcab65da2eb5caba1afa6735799e91f43bab77d0dc9cd06241306d",
+      "AvatarSample_A_1_New": "10f8b4323f291df9a30e1f71e5f61641e412c891f4df9e33efc30a06d2c5668e"
+    }
+  },
+  "typing-away": {
+    "fileSha256": "1c70c5b962af7103b4a4f6e778f8f04af687541ced17442a9060f49be185761a",
+    "samples": {
+      "AvatarSample_Y_0": "b7f38a59fe75de79dc808620bccdc8c43b2c59be6a0d8715aeffbba0ce342354",
+      "AvatarSample_A_1_New": "456ee5d4705779b00334a01e4525badf5d90fd40886b71849d73130023f7ec0b"
+    }
+  },
+  "virtual-hug": {
+    "fileSha256": "17e9f3c3bda4af09bfd3761a0906489af28d4089d2bdee9ab52a4b6a50f17cde",
+    "samples": {
+      "AvatarSample_Y_0": "db5ca5572d1919954d7f549f59932d626db5e009f9b9e3f55b84cd71ff11396b",
+      "AvatarSample_A_1_New": "ab60a44cea133b0a8739a3e7b27080f34f2b118503d7621d786fcfaeff285e08"
+    }
+  },
+  "wait-stop-palm": {
+    "fileSha256": "860202ea8f3b9c17344d4879a07bb5421d9929f2da57f328a0e500fc88d9ca34",
+    "samples": {
+      "AvatarSample_Y_0": "a37e615c71ea67850190aaa58d03faf75c2a5ca19331ad651b3f300cd7004a86",
+      "AvatarSample_A_1_New": "fbb4969851e8fb148c33fe483f0dfe14b4fe48aa259814b1e9eb3ab8cb82de5d"
     }
   },
   "wave-hello": {
@@ -298,6 +732,20 @@
     "samples": {
       "AvatarSample_Y_0": "668c4d10c61b7453044facc5a0c789ba1656544125dd796c0bbbdda14738e451",
       "AvatarSample_A_1_New": "3c62b84e3b5006e95e1b17153559f952eb93acb6464298f0317b4804747caded"
+    }
+  },
+  "who-me": {
+    "fileSha256": "ca7a0c926e0fb959ec16189c8df81582c432c93ac4715342ab2f80743273e7b5",
+    "samples": {
+      "AvatarSample_Y_0": "95471b9898b6b1e010fc478082c1d66c5411c863281cffa193939424116d6a99",
+      "AvatarSample_A_1_New": "13d3e9d0383494f7155c13cda1eb94941d8158d09905ee7f22842271edbcb5ee"
+    }
+  },
+  "zip-lips": {
+    "fileSha256": "64e46fcffc6f67f7958fcc0ace4819780cb535f3c03091e731b8f4f51f4e876c",
+    "samples": {
+      "AvatarSample_Y_0": "a775bb60a793c9ec3e8b55754366fcf5692564e68032e2c118df76580c65e329",
+      "AvatarSample_A_1_New": "4b06a4038bff918c9f22e8d1af915395a8f3d71c1b4d415ce1c467eaaa38722f"
     }
   }
 }

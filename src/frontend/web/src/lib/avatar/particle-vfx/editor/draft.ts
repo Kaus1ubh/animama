@@ -1,13 +1,10 @@
 import { getI18n } from "react-i18next";
 
-import {
-  AVATAR_PARTICLE_VFX_CATALOG,
-  createDefaultParticleVFXTransform,
-} from "../catalog";
+import { getParticleVFXCatalogEntryById } from "../catalog";
 import { cloneParticleVFXShapeAutoFit } from "../autoFit";
 import {
   cloneParticleVFXTransform,
-  getParticleVFXCatalogEntryById,
+  createDefaultParticleVFXTransform,
 } from "../runtime";
 import {
   DEFAULT_IMPORTED_CATALOG_DRAFT,
@@ -73,7 +70,9 @@ import { readShapeDraft, shapeToJson } from "./shapes";
 import {
   ensureEmitterMaterialAssets,
   readEmitterTexture,
+  setEmitterImageUrl,
   setEmitterTexture,
+  setEmitterTextureReference,
 } from "./textures";
 import type {
   EmitterNodeRef,
@@ -81,6 +80,7 @@ import type {
   ParticleVFXEditorCatalogDraft,
   ParticleVFXEditorColorOverLifeDraft,
   ParticleVFXEditorDraft,
+  ParticleVFXEditorTextureFile,
   ParticleVFXEditorValidationIssue,
   ParticleVFXEmitterDraft,
   ParticleVFXEmitterPatch,
@@ -138,12 +138,16 @@ export function createParticleVFXEditorDraftFromBlank(
   });
 }
 
+/**
+ * A draft of an Included Particle Effect's manifest with its catalog defaults;
+ * an unknown ID keeps the imported-effect defaults instead of borrowing
+ * another effect's.
+ */
 export function createParticleVFXEditorDraftFromCatalog(
   effectId: string,
   quarksJson: unknown,
 ): ParticleVFXEditorDraft {
-  const catalogEntry =
-    getParticleVFXCatalogEntryById(effectId) ?? AVATAR_PARTICLE_VFX_CATALOG[0];
+  const catalogEntry = getParticleVFXCatalogEntryById(effectId);
   return createParticleVFXEditorDraft({
     source: "catalog",
     sourceEffectId: catalogEntry?.id ?? null,
@@ -158,8 +162,10 @@ export function createParticleVFXEditorDraftFromCatalog(
 export function createParticleVFXEditorDraftFromImport(
   quarksJson: unknown,
   overrides: Partial<ParticleVFXEditorCatalogDraft> = {},
+  textureFiles: ParticleVFXEditorDraft["textureFiles"] = {},
 ): ParticleVFXEditorDraft {
   return createParticleVFXEditorDraft({
+    textureFiles,
     source: "imported",
     sourceEffectId: null,
     sourceAssetPath:
@@ -189,21 +195,29 @@ export function addParticleVFXEditorEmitter(
   const root = ensureQuarksRootObject(next.quarksJson, next.catalog.label);
   const children = ensureJsonArrayProperty(root, "children");
   const index = children.length + 1;
-  const textureId = next.emitters.at(-1)?.textureId ?? DEFAULT_TEXTURE_ID;
-  children.push(
-    createParticleEmitterNode({
-      effectId: next.catalog.id,
+  const previous = next.emitters.at(-1);
+  const textureId = previous?.textureId ?? DEFAULT_TEXTURE_ID;
+  const node = createParticleEmitterNode({
+    effectId: next.catalog.id,
+    index,
+    name: `emitter-${index}`,
+    textureId,
+    materialAssets: ensureEmitterMaterialAssets(
+      next.quarksJson,
+      next.catalog.id,
       index,
-      name: `emitter-${index}`,
       textureId,
-      materialAssets: ensureEmitterMaterialAssets(
-        next.quarksJson,
-        next.catalog.id,
-        index,
-        textureId,
-      ),
-    }),
-  );
+    ),
+  });
+  // Follow an emitter whose texture the effect carries with the same art.
+  if (previous && !previous.textureId && previous.textureUrl) {
+    setEmitterTextureReference(
+      next.quarksJson,
+      ensureJsonObjectProperty(node, "ps"),
+      previous.textureUrl,
+    );
+  }
+  children.push(node);
   return refreshParticleVFXEditorDraft(next);
 }
 
@@ -224,22 +238,24 @@ export function duplicateParticleVFXEditorEmitter(
   // so the copy suffix stays English like the other generated names.
   duplicate.name = `${readEmitterName(emitter, index)} Copy`;
   const ps = ensureJsonObjectProperty(duplicate, "ps");
-  const textureId =
-    collectEmitterDraft(
-      next.quarksJson,
-      {
-        path: emitterPath,
-        object: emitter,
-      },
-      index - 1,
-    ).textureId ?? DEFAULT_TEXTURE_ID;
+  const source = collectEmitterDraft(
+    next.quarksJson,
+    {
+      path: emitterPath,
+      object: emitter,
+    },
+    index - 1,
+  );
   const materialAssets = ensureEmitterMaterialAssets(
     next.quarksJson,
     next.catalog.id,
     index,
-    textureId,
+    source.textureId ?? DEFAULT_TEXTURE_ID,
   );
   ps.material = materialAssets.materialUuid;
+  // The copied atlas settings stay; only the image needs carrying over.
+  if (!source.textureId && source.textureUrl)
+    setEmitterImageUrl(next.quarksJson, ps, source.textureUrl);
   children.push(duplicate);
   return refreshParticleVFXEditorDraft(next);
 }
@@ -355,6 +371,9 @@ export function applyParticleVFXEmitterPatch(
   if (patch.textureId) {
     setEmitterTexture(next.quarksJson, ps, patch.textureId);
   }
+  if (patch.textureReference) {
+    setEmitterTextureReference(next.quarksJson, ps, patch.textureReference);
+  }
   if (patch.shape) {
     ps.shape = shapeToJson({
       ...readShapeDraft(ps.shape),
@@ -425,6 +444,8 @@ export function cloneParticleVFXEditorDraft(
       shapeAutoFit: cloneParticleVFXShapeAutoFit(draft.catalog.shapeAutoFit),
     },
     quarksJson: cloneJsonObject(draft.quarksJson),
+    // Entries are immutable; a changed table is always a new object.
+    textureFiles: draft.textureFiles,
     emitters: draft.emitters.map((emitter) => ({
       ...emitter,
       localPosition: { ...emitter.localPosition },
@@ -471,6 +492,7 @@ function createParticleVFXEditorDraft(args: {
   sourceAssetPath: string;
   catalog: ParticleVFXEditorCatalogDraft;
   quarksJson: unknown;
+  textureFiles?: Readonly<Record<string, ParticleVFXEditorTextureFile>>;
 }): ParticleVFXEditorDraft {
   const quarksJson = isJsonObject(args.quarksJson)
     ? cloneJsonObject(args.quarksJson)
@@ -489,6 +511,7 @@ function createParticleVFXEditorDraft(args: {
     },
     quarksJson,
     emitters: [],
+    textureFiles: args.textureFiles ?? {},
   });
 }
 

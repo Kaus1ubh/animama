@@ -1,3 +1,4 @@
 interface:
   display_name: "Animama Particle VFX"
-  short_description: "Understand Quarks and use the Particle Effect creator"
+  short_description: "Create, check and save Particle Effects from a brief"
+  default_prompt: "Use $animama-particle-vfx to create a Particle Effect for: <what it expresses and when>. Write the brief, make the textures, write the effect folder, check and render it, preview it for me, and save it as Local content, then hand it off."

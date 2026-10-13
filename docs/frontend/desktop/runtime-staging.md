@@ -414,11 +414,16 @@ as `runtime/content/mixamo-motion` only when `build-inputs/mixamo-motion/`
 exactly matches the tracked manifest with complete private provenance. Without
 the input the stage proceeds without the pack; set
 `ANIMAMA_REQUIRE_MIXAMO_MOTION=1` for release candidates so a missing pack
-fails. The supervisor mounts a staged pack as its own Included source.
-The starter closure contains 20 authored gestures, 72 reactions and no required
-Idle Style. The tracked-only staging gate still fails on an unavailable selected
-dependency, even if an ignored local copy exists. Full native stage and packaged
-acceptance remain separate checks; do not infer them from a passing content test.
+fails. The [comedy sound pack](../../backend/operations/comedy-sound-pack.md)
+stages the same way as `runtime/content/wow-comedy-sfx` from
+`build-inputs/wow-comedy-sfx/`, required by `ANIMAMA_REQUIRE_WOW_COMEDY_SFX=1`;
+without it, built-in effects play silently. The supervisor mounts each staged
+pack as its own Included source.
+The starter closure contains all 95 non-idle authored gestures, 72 reactions and
+no required Idle Style. The 12 Streamer Idle gestures are not starters. The
+tracked-only staging gate still fails on an unavailable selected dependency, even
+if an ignored local copy exists. Full native stage and packaged acceptance remain
+separate checks; do not infer them from a passing content test.
 
 Content with `distribution: excluded` or `distribution: non-portable` is
 omitted from core and expanded inputs (reasons `redistribution_excluded` and

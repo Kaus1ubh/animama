@@ -5,12 +5,19 @@
   "version": 1,
   "semantic_key": "thinking-head-scratch",
   "name": "Thinking Head Scratch",
-  "ai_description": "Scratch the head to express puzzlement, uncertainty, or an attempt to work something out.",
+  "ai_description": "Use while puzzled or trying to work something out; thinking, not sheepish. Keeps a hand on the head, scratching now and then, with a tilted head and an upward glance.",
   "implementation": {
     "kind": "anima_clip",
     "file_role": "sequence"
   },
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:question_mark",
+      "alias": "question_mark",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
   "files": [
     {
       "path": "thinking-head-scratch.json",

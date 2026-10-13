@@ -502,10 +502,11 @@ Selection is canonical-only: exact tracked emotion tones
 resolve to matching clips, while `neutral`, blank, unknown values, and group
 names such as `alarm` produce no clip. The clips are
 playback-scoped to same-run `talking`, so a single peak expression or VFX event
-can hold without looping or replaying SFX. Level 1 clips are expression-only.
-Selected level 2 and 3 clips add avatar VFX and one particle VFX event; level 3
-clips can also add the `scene-vfx-emotion-<emotion>` background preset plus
-stronger avatar VFX. The `presentation.disable_vfx` preference suppresses
+can hold without looping or replaying SFX. Level 1 clips add one subtle avatar
+VFX, played without its accompanying sound. Level 2 clips add avatar VFX and, where one
+fits, a Particle Effect; every level 3 clip plays its emotion's Included
+`scene-vfx-emotion-<emotion>` background, with a bigger Particle Effect (one or
+two) where one fits. The `presentation.disable_vfx` preference suppresses
 clip-owned avatar, scene, and particle VFX from pose/reaction playback while
 leaving SFX and manual/debug VFX controls unchanged.
 
@@ -553,6 +554,15 @@ Updates include the catalog item ID and expected revision; the backend validates
 and atomically updates readable Local files. Save & Equip uses the saved catalog
 selection in the reviewed Anima loadout flow. Existing and starter Actions use
 typed preview reads to hydrate protected files and dependency runtime.
+
+A Local Action that names a removed Included effect still opens and plays
+without it (see the catalog exception in
+[the data model](../../backend/architecture/data-model.md)). The editor warns
+which effects were removed, does not declare them again, and lists their
+events as unknown event IDs, so Save waits until they are mapped to other
+effects or removed. In chat, `AnimaRuntimeCatalog` skips those events
+(`runtime_missing_references`) with a `missing_effect_dependency` diagnostic,
+and the Library's content-attention list names the Action.
 
 Gesture Pose mode's Hands tool edits ordinary finger-bone drafts. Presets replace
 the chosen whole hand(s); Curl and Spread apply relative deltas to selected
@@ -654,14 +664,14 @@ from `src/frontend/web`:
   Gesture with the same Selector ID.
 - `pnpm -s animation:preview [<source>]` plays a clip, project file or Library
   item live on both Included Avatars through `Avatar`/`PoseController`, lit
-  like the chat canvas. A Library Gesture or Reaction, or a project file,
-  plays its Avatar and Particle Effects from its dependencies, with their
-  fades; seeking such a clip replays it from the start so earlier effects
-  show. Scene Effects and sounds are not played, and the page says so. It
-  also previews Avatar Effect sources (see the
-  [Avatar VFX guide](avatar-vfx.md#headed-preview)). Its Review and Compare
-  pickers switch to any clip beside a file source and any Library Gesture,
-  Reaction or Avatar Effect without a restart. Review notes are saved beside a
+  like the chat canvas, with the chat's Scene layers around each view. A
+  Library Gesture or Reaction, or a project file, plays its Avatar, Particle
+  and Scene Effects from its dependencies, with their fades; seeking such a
+  clip replays it from the start so earlier effects show. Sounds are not
+  played, and the page says so. It also previews Avatar, Particle and Scene
+  Effect sources (see the [Avatar VFX guide](avatar-vfx.md#headed-preview)).
+  Its Review and Compare pickers switch to any clip beside a file source and
+  any Library Gesture, Reaction or effect without a restart. Review notes are saved beside a
   file source (in the working directory for a Library item or any file inside
   Library content); `animation review` and `animation resolve` manage them.
 
@@ -872,7 +882,7 @@ Activation:
 - During deactivation, the controller stops the layer from starting new gesture
   groups; current offsets fade through the generic layer activation weight.
 - While `avatarState="talking"`, gesture groups require a speech timing context
-  from Pocket TTS or ElevenLabs audio playback. Browser TTS does not currently
+  from Pocket TTS, ElevenLabs or Gemini audio playback. Browser TTS does not currently
   provide this audio-clock timing context, so policy activation alone is not
   enough to start talking-hands groups.
 - If talking hands are enabled after speech audio has already started, the
@@ -1308,6 +1318,9 @@ aligned during sidebar resizing.
 - Passes the R3F scene as the spring-bone helper host so helper visuals can render outside `vrm.scene`.
 - On cleanup, cancels first-frame/warm-up callbacks, unsubscribes availability,
   and disposes the avatar instance. Late decoding cannot animate the old rig.
+  Unloading detaches the model, disposes its GPU resources and closes its
+  decoded texture images, and disposal also drops caller sinks. Nothing may keep
+  using the model's textures or materials after its Avatar unloads.
 
 ### Per-frame update
 

@@ -181,6 +181,7 @@
     "collapseAll": "全部折叠",
     "copied": "已复制",
     "copy": "复制",
+    "creatorDocument": "创作器文档（导入时保留名称和设置）",
     "currentPayload": "当前导出内容",
     "download": "下载 JSON",
     "exactJson": "导出的 JSON 原文",
@@ -188,7 +189,7 @@
     "parseFailed": "无法解析导出的 JSON：{{detail}}",
     "parseFailedUnexplained": "无法解析导出的 JSON。",
     "resetView": "重置视图",
-    "snippets": "目录设置和片段事件",
+    "snippets": "创作器文档、目录设置和片段事件",
     "title": "粒子特效导出",
     "unavailable": "没有可导出的 JSON。"
   },
@@ -212,7 +213,8 @@
     "ariaLabel": "粒子特效 JSON",
     "confirm": "导入特效",
     "confirmReplace": "要丢弃当前粒子特效的更改并加载此 JSON 吗？",
-    "description": "粘贴一个 three.quarks 特效。确认未保存的更改后，有效的 JSON 会替换当前文档。",
+    "description": "粘贴一个 three.quarks 特效，或从导出获得的创作器文档（它还会设置名称和设置）。确认未保存的更改后，有效的 JSON 会替换当前文档。嵌入的 PNG 纹理会保留。其他非内置纹理在你选择其文件之前会显示为缺失；普通 Quarks JSON 会继续使用此特效已携带的纹理。",
+    "embeddedTextureRefused": "未导入嵌入的纹理：{{reason}}",
     "title": "导入粒子特效 JSON"
   },
   "inspector": {
@@ -239,12 +241,13 @@
   },
   "issues": {
     "ambiguousTextureFilename": "纹理路径 {{first}} 和 {{second}} 在移植时会使用相同的文件名。",
+    "atlasGridLimit": "精灵图每个方向的图块数为 1 到 {{max}}。",
     "atlasMetadataMismatch": "渲染器的图块数与所选图集纹理的元数据不一致。",
     "atlasTilesMissing": "所选图集纹理应在渲染器中使用多个图块。",
     "blobTextureUrl": "Blob 纹理 URL 仅用于预览，无法导出。",
     "durationLimit": "每个发射器的时长都必须在保存的最大时长预算内。",
     "durationOverBudget": "发射器时长超出了目录的最大时长预算。",
-    "embeddedTextureUrl": "嵌入式数据纹理 URL 可以使用，但应迁移为受管理的公共资源。",
+    "embeddedTextureUrl": "此嵌入纹理不是特效可携带的 PNG；请替换为导入的纹理。",
     "emptyTextureUrl": "纹理图片 URL 必须是非空字符串。",
     "frameAnimationNeedsTiles": "帧动画需要多个渲染器图块。",
     "frameAnimationWithoutAtlas": "已启用帧动画，但所选纹理不是图集。",
@@ -260,7 +263,8 @@
     "missingTexture": "Quarks JSON 必须至少包含一张纹理图片。",
     "nodeLimit": "粒子特效包含超过 {{max}} 个对象节点。",
     "particleBudgetExceeded": "预计粒子数 {{estimated, number}} 超出了目录预算 {{budget, number}}。",
-    "particleLimit": "预计粒子用量必须同时符合保存的预算和 {{max}} 个粒子的私有内容上限。",
+    "particleBudgetUnestimated": "无法估算粒子用量（某个发射量、生命周期、爆发或持续时间值不受支持）；目录预算为 {{budget, number}}。",
+    "particleLimit": "预计粒子数为 {{estimated, number}}，保存的预算为 {{budget, number}}：两者都必须符合 {{max}} 个粒子的私有内容上限。",
     "remoteTextureUrl": "随附的 VFX 资源中不允许使用远程纹理 URL。",
     "resourceLimit": "{{key}} 必须是最多包含 {{max}} 个条目的数组。",
     "rotation3DWithoutMesh": "3D 旋转需要网格渲染模式才能预览。",
@@ -280,6 +284,7 @@
     "worldSpaceEmitter": "世界空间发射器会在锚点处生成，但之后不会持续跟随锚点。"
   },
   "json": {
+    "creatorDocumentInvalid": "粒子创作器文档需要名称、设置和 quarks 特效。",
     "notObject": "Quarks JSON 必须是一个对象。",
     "parseFailed": "无法解析 Quarks JSON：{{detail}}",
     "parseFailedUnexplained": "无法解析 Quarks JSON。"
@@ -287,7 +292,8 @@
   "load": {
     "failed": "无法加载粒子特效。",
     "loading": "正在加载粒子特效…",
-    "manifestMissing": "缺少粒子特效清单。"
+    "manifestMissing": "缺少粒子特效清单。",
+    "textureFailed": "无法加载粒子特效的纹理。"
   },
   "position": {
     "anchorAndPosition": "锚点和位置",
@@ -381,7 +387,8 @@
     "allowCoexist": "允许与其他特效同时播放",
     "allowLooping": "允许发射器循环",
     "defaultAnchor": "默认锚点",
-    "estimatedTotal_other": "预计总数：约 {{count, number}} 个粒子",
+    "estimatedAtOnce_other": "同时存在的预计数量：最多 {{count, number}} 个粒子",
+    "estimateUnavailable": "同时存在的预计数量：无法估算（某个发射量、生命周期、爆发或持续时间值不受支持）",
     "limitsHint": "性能上限适用于整个特效。在此允许循环后，各个发射器可以重复它们的周期。",
     "maxDuration": "最大播放时长 (s)",
     "maxParticles": "最大粒子总数",
@@ -423,6 +430,22 @@
     "animateFrames": "播放帧动画",
     "atlas": "图集",
     "blendTiles": "混合图块",
+    "carried": {
+      "chooseFile": "为 {{file}} 选择文件",
+      "dimensions": "{{width}}×{{height}}",
+      "hint": "PNG 最大 {{size, number}} MiB、{{dimension}} px。精灵图请设置图集图块数。",
+      "import": "导入 PNG 纹理",
+      "missing": "缺少纹理 {{file}}。请选择其 PNG 文件。",
+      "title": "此特效的纹理"
+    },
+    "files": {
+      "dimensionsTooLarge": "纹理每条边不得超过 {{size}} px。",
+      "fileRefused": "纹理 {{texture}}：{{reason}}",
+      "notPng": "纹理文件必须是 PNG 图像。",
+      "tooLarge": "纹理文件不得超过 {{size, number}} MiB。",
+      "tooMany": "一个粒子特效最多可使用 {{max, number}} 个纹理。",
+      "totalTooLarge": "一个粒子特效中的纹理总计不得超过 {{size, number}} MiB。"
+    },
     "frameEnd": "结束帧",
     "frameStart": "起始帧",
     "names": {

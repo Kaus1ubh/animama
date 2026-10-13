@@ -1,10 +1,9 @@
-import { resolveSceneBackgroundLineItem } from "@/lib/scene-vfx/assets";
+import { cloneSceneBackgroundLineItem } from "@/lib/scene-vfx/assets";
 import { hashStringToSeed } from "@/lib/scene-vfx/focus-lines";
 import {
   DEFAULT_SCENE_FOCUS_LINES_FACE_PADDING_X_PX,
   DEFAULT_SCENE_FOCUS_LINES_FACE_PADDING_Y_PX,
   getSceneVFXRenderBand,
-  type ResolvedSceneBackgroundLineItem,
   type ResolvedSceneBackgroundLayersVFXEntry,
   type ResolvedSceneFocusLinesVFXEntry,
   type ResolvedSceneVFXEntry,
@@ -56,12 +55,6 @@ const DEFAULT_FOCUS_LINES_LINE_COUNT = 100;
 const MIN_FOCUS_LINES_LINE_COUNT = 50;
 const MAX_FOCUS_LINES_LINE_COUNT = 200;
 
-function isResolvedSceneBackgroundLineItem(
-  item: ResolvedSceneBackgroundLineItem | null,
-): item is ResolvedSceneBackgroundLineItem {
-  return item !== null;
-}
-
 function clampFinite(value: number | undefined, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
@@ -74,9 +67,10 @@ function clampDurationMs(value: number | null | undefined): number | null {
   return DEFAULT_SCENE_VFX_DURATION_MS;
 }
 
-function resolveSceneBackgroundLayersEntry(
-  entry: SceneBackgroundLayersVFXEntry,
-): ResolvedSceneBackgroundLayersVFXEntry {
+function resolveSceneBackgroundLayersEntry({
+  scatters,
+  ...entry
+}: SceneBackgroundLayersVFXEntry): ResolvedSceneBackgroundLayersVFXEntry {
   return {
     ...entry,
     durationMs: clampDurationMs(entry.durationMs),
@@ -93,10 +87,16 @@ function resolveSceneBackgroundLayersEntry(
         Number.isFinite(entry.marquee.itemRotationOffsetDeg)
           ? entry.marquee.itemRotationOffsetDeg
           : 0,
-      items: entry.marquee.items
-        .map(resolveSceneBackgroundLineItem)
-        .filter(isResolvedSceneBackgroundLineItem),
+      items: entry.marquee.items.map(cloneSceneBackgroundLineItem),
     },
+    ...(scatters
+      ? {
+          scatters: scatters.map((layer) => ({
+            ...layer,
+            items: layer.items.map(cloneSceneBackgroundLineItem),
+          })),
+        }
+      : {}),
   };
 }
 

@@ -3,6 +3,7 @@ import { getI18n } from "react-i18next";
 import { getUnsupportedAdvancedBehaviorLabels } from "./advancedBehaviors";
 import { readJsonObject } from "./json";
 import { PARTICLE_VFX_EDITOR_TEXTURES } from "./constants";
+import { estimateParticleVFXParticles } from "./particleEstimate";
 import { validateParticleVFXEditorDraft } from "./validation";
 import type {
   JsonObject,
@@ -13,7 +14,8 @@ import type {
 
 const MAX_MANIFEST_MIB = 5;
 const MAX_MANIFEST_BYTES = MAX_MANIFEST_MIB * 1024 * 1024;
-const MAX_SYSTEMS = 8;
+/** Most emitters (Quarks particle systems) one Particle Effect may carry. */
+export const PARTICLE_VFX_MAX_EMITTERS = 16;
 const MAX_RESOURCES = 64;
 const MAX_NODES = 128;
 const MAX_TEXTURES = 16;
@@ -89,10 +91,10 @@ export function validateParticleVFXContentReadiness(
       "object",
     );
   }
-  if (systemCount < 1 || systemCount > MAX_SYSTEMS) {
+  if (systemCount < 1 || systemCount > PARTICLE_VFX_MAX_EMITTERS) {
     push(
       "asset-system-limit",
-      t("issues.systemLimit", { min: 1, max: MAX_SYSTEMS }),
+      t("issues.systemLimit", { min: 1, max: PARTICLE_VFX_MAX_EMITTERS }),
       "object.children",
     );
   }
@@ -195,15 +197,21 @@ export function validateParticleVFXContentReadiness(
       "catalog.performanceBudget.loopingAllowed",
     );
   }
-  const estimatedParticles = estimateParticles(draft.quarksJson);
+  // The editor's check (promoted above) reports an estimate over the saved
+  // budget; this adds the private limit.
+  const estimatedParticles = estimateParticleVFXParticles(draft.quarksJson);
+  const budget = draft.catalog.performanceBudget.maxParticles;
   if (
-    estimatedParticles > MAX_PARTICLES ||
-    draft.catalog.performanceBudget.maxParticles > MAX_PARTICLES ||
-    draft.catalog.performanceBudget.maxParticles < estimatedParticles
+    budget > MAX_PARTICLES ||
+    (Number.isFinite(estimatedParticles) && estimatedParticles > MAX_PARTICLES)
   ) {
     push(
       "particle-budget-exceeded",
-      t("issues.particleLimit", { max: MAX_PARTICLES }),
+      t("issues.particleLimit", {
+        estimated: estimatedParticles,
+        budget,
+        max: MAX_PARTICLES,
+      }),
       "catalog.performanceBudget.maxParticles",
     );
   }
@@ -240,74 +248,6 @@ export function validateParticleVFXContentReadiness(
     uniqueTextureReferences,
     estimatedManifestBytes,
   };
-}
-
-/** Match the backend's conservative live-particle estimate for Save gating. */
-function estimateParticles(quarksJson: JsonObject): number {
-  const systems: JsonObject[] = [];
-  const visit = (rawNode: unknown) => {
-    const node = readJsonObject(rawNode);
-    if (!node) return;
-    if (node.type === "ParticleEmitter") {
-      const system = readJsonObject(node.ps);
-      if (system) systems.push(system);
-    }
-    if (Array.isArray(node.children)) node.children.forEach(visit);
-  };
-  visit(quarksJson.object);
-
-  const maximumDuration = Math.max(
-    0,
-    ...systems.map((system) => finiteNumber(system.duration) ?? Infinity),
-  );
-  let total = 0;
-  for (const system of systems) {
-    const duration = finiteNumber(system.duration);
-    const emissionRate = nonnegativeGeneratorMaximum(system.emissionOverTime);
-    if (!duration || !Number.isFinite(emissionRate)) return Infinity;
-    const bursts = Array.isArray(system.emissionBursts)
-      ? system.emissionBursts
-      : [];
-    let burstParticles = 0;
-    for (const rawBurst of bursts) {
-      const burst = readJsonObject(rawBurst);
-      const count = nonnegativeGeneratorMaximum(burst?.count);
-      const cycle = finiteNumber(burst?.cycle ?? 1);
-      if (!burst || !Number.isFinite(count) || !cycle) return Infinity;
-      burstParticles += count * Math.ceil(cycle);
-    }
-    const looping = system.looping === true;
-    const activeDuration = looping ? maximumDuration : duration;
-    const burstRepetitions = looping
-      ? Math.ceil(maximumDuration / duration)
-      : 1;
-    total += Math.ceil(
-      activeDuration * emissionRate + burstParticles * burstRepetitions,
-    );
-  }
-  return total;
-}
-
-function nonnegativeGeneratorMaximum(value: unknown): number {
-  const generator = readJsonObject(value);
-  if (generator?.type === "ConstantValue") {
-    const number = finiteNumber(generator.value, true);
-    return number ?? Infinity;
-  }
-  if (generator?.type === "IntervalValue") {
-    const a = finiteNumber(generator.a, true);
-    const b = finiteNumber(generator.b, true);
-    return a === null || b === null ? Infinity : Math.max(a, b);
-  }
-  return Infinity;
-}
-
-function finiteNumber(value: unknown, allowZero = false): number | null {
-  return typeof value === "number" &&
-    Number.isFinite(value) &&
-    (allowZero ? value >= 0 : value > 0)
-    ? value
-    : null;
 }
 
 function promoteContentBlockingIssue(

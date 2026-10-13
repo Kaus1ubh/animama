@@ -159,10 +159,12 @@
       "elevenLabsClosedEarly": "ElevenLabs 即時 TTS 在播放完成前已關閉。",
       "elevenLabsConnectionFailed": "此回覆的 ElevenLabs 即時 TTS 連線失敗。",
       "elevenLabsDecodeFailed": "無法解碼 ElevenLabs 即時音訊。",
-      "elevenLabsFinalizedDecodeFailed": "無法解碼 ElevenLabs 最終音訊。",
       "elevenLabsMissingAnima": "此回覆的 ElevenLabs TTS 需要 Anima 上下文。",
       "elevenLabsUnsupported": "此瀏覽器環境不支援 ElevenLabs TTS。",
+      "finalizedDecodeFailed": "無法解碼此回覆的音訊。",
       "generic": "無法播放此回覆的語音。",
+      "geminiMissingAnima": "此回覆的 Gemini TTS 需要 Anima 上下文。",
+      "geminiUnsupported": "Gemini TTS 需要 Web Audio API，但此瀏覽器不支援。",
       "pocketGenerationFailed": "PocketTTS 未能合成此回覆的部分內容。",
       "pocketUnsupported": "此瀏覽器環境不支援 PocketTTS。"
     }

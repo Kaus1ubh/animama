@@ -20,6 +20,15 @@ import {
   PopoverTrigger,
 } from "@/ui/components/popover";
 
+/**
+ * Diagnostics of valid items that play without a removed part: an Action
+ * without a removed Included effect, a Scene Effect without a Twemoji item.
+ */
+const PLAYS_WITHOUT_DIAGNOSTICS = new Set([
+  "missing_effect_dependency",
+  "scene_emoji_item_removed",
+]);
+
 /** File formats whose signature checks report `invalid_<format>_header`. */
 const HEADER_FORMATS: Record<string, string> = {
   invalid_png_header: "PNG",
@@ -61,6 +70,8 @@ function diagnosticWording(
       return t("diagnostics.json_too_large");
     case "malformed_json":
       return t("diagnostics.malformed_json");
+    case "missing_effect_dependency":
+      return t("diagnostics.missing_effect_dependency");
     case "missing_descriptor_file":
       return t("diagnostics.missing_descriptor_file");
     case "missing_vrm_extension":
@@ -71,6 +82,8 @@ function diagnosticWording(
       return t("diagnostics.pocket_clone_file_size");
     case "provenance_missing":
       return t("diagnostics.provenance_missing");
+    case "scene_emoji_item_removed":
+      return t("diagnostics.scene_emoji_item_removed");
     case "special_file_rejected":
       return t("diagnostics.special_file_rejected");
     case "svg_size_limit":
@@ -122,8 +135,14 @@ export function ContentHealth({
   const rescan = useRescanContent();
   const { data: capabilities } = useRuntimeCapabilities();
   const canScan = capabilities?.local_filesystem_administration === true;
+  // Invalid items, and valid items that play without a removed part until
+  // their creator repairs them.
   const affected = (catalog.data?.items ?? []).filter(
-    (item) => item.status !== "valid",
+    (item) =>
+      item.status !== "valid" ||
+      item.diagnostics.some((diagnostic) =>
+        PLAYS_WITHOUT_DIAGNOSTICS.has(diagnostic.code),
+      ),
   );
   const needsAttention =
     catalog.isError || affected.length > 0 || catalog.data?.scan_required;

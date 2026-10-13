@@ -1,5 +1,4 @@
 import {
-  Navigate,
   Outlet,
   createFileRoute,
   useRouterState,
@@ -7,6 +6,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { useRuntimeAdmission } from "@web/app/runtime/RuntimeAdmissionProvider";
+import { FirstRunAgeConfirmation } from "@web/app/local-runtime/setup/FirstRunAgeConfirmation";
 import {
   unavailableReasonText,
   unavailableRouteReason,
@@ -29,31 +29,29 @@ function ApplicationAreaLayout() {
     select: (state) => state.location.pathname,
   });
   if (admission.status !== "ready") return null;
-  // The app home is also the entry route; continue an accepted entry
-  // navigation without reopening a departing creator's blocker.
-  if (admission.onboardingRequired)
-    return <Navigate to="/setup" replace ignoreBlocker />;
   const reason = unavailableRouteReason(pathname, admission.capabilities);
   return (
-    <SettingsGate>
-      <AppShell>
-        <ContentPreviewDockProvider>
-          <SidebarShell />
-          {reason ? (
-            <AppShellPage>
-              <h1 className="text-lg font-semibold">
-                {t("unavailable.title")}
-              </h1>
-              <p className="text-muted-foreground">
-                {unavailableReasonText(reason, t)}
-              </p>
-            </AppShellPage>
-          ) : (
-            <Outlet />
-          )}
-          <DesktopUpdatesPanel notice />
-        </ContentPreviewDockProvider>
-      </AppShell>
-    </SettingsGate>
+    <FirstRunAgeConfirmation>
+      <SettingsGate>
+        <AppShell>
+          <ContentPreviewDockProvider>
+            <SidebarShell />
+            {reason ? (
+              <AppShellPage>
+                <h1 className="text-lg font-semibold">
+                  {t("unavailable.title")}
+                </h1>
+                <p className="text-muted-foreground">
+                  {unavailableReasonText(reason, t)}
+                </p>
+              </AppShellPage>
+            ) : (
+              <Outlet />
+            )}
+            {!admission.onboardingRequired && <DesktopUpdatesPanel notice />}
+          </ContentPreviewDockProvider>
+        </AppShell>
+      </SettingsGate>
+    </FirstRunAgeConfirmation>
   );
 }

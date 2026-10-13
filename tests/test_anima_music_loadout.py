@@ -40,9 +40,11 @@ async def test_music_commit_only_replays_exact_historical_receipt(async_session,
     from animama.orm.anima import ORMAnima
     from animama.orm.anima_loadout import ORMAnimaLoadout, ORMAnimaLoadoutMutationReceipt
     from animama.orm.content_catalog import ORMAnimaContentBinding
-    from animama.server.deps import get_async_session, get_current_principal
-    from animama.server.routers.anima_loadouts import router
+    from animama.product_http.ports import install_product_ports
+    from animama.product_http.principal import get_current_principal
+    from animama.product_http.routes.loadouts import router
     from tests.local_http_client import local_client
+    from tests.product_http_support import SessionPorts
 
     fixture = await create_loadout_fixture(async_session)
     application = FastAPI()
@@ -51,11 +53,8 @@ async def test_music_commit_only_replays_exact_historical_receipt(async_session,
     async def principal():
         return RequestPrincipal(id=fixture.user_id)
 
-    async def session():
-        yield async_session
-
     application.dependency_overrides[get_current_principal] = principal
-    application.dependency_overrides[get_async_session] = session
+    install_product_ports(application, SessionPorts(async_session))
     # The source and binding can have disappeared since the successful operation.
     # Reproduce the historical router's defaults and recursive exclude_none dump.
     source = {"type": "catalog", "catalog_item_id": "retired-missing-track", "source": "local"}

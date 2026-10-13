@@ -4,59 +4,155 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-curiosity",
   "version": 1,
   "name": "Emotion Curiosity",
-  "description": "Scene background effect preset",
+  "description": "A teal night sky behind the Avatar with a drifting star field, mint stars blinking on and off and small comets streaking past, for curious, wondering moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#dff4ff"
+      "enabled": false,
+      "color": "#000000"
     },
     "pattern": {
-      "enabled": true,
-      "pattern": "polkadot",
+      "enabled": false,
+      "pattern": "none",
       "color": "#ffffff",
-      "size": 20,
-      "spacing": 18,
-      "opacity": 0.32
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
         {
-          "id": "emoji-thinking-face",
-          "kind": "image",
-          "label": "Thinking Face 🤔",
-          "image": "emoji-thinking-face-1f914.svg"
+          "color": "#1f3d5c",
+          "position": 0
         },
         {
-          "id": "emoji-question-mark",
-          "kind": "image",
-          "label": "Question Mark ❓",
-          "image": "emoji-question-mark-2753.svg"
+          "color": "#2d6a7a",
+          "position": 0.55
+        },
+        {
+          "color": "#6fd6c8",
+          "position": 1
         }
       ]
+    },
+    "tile": {
+      "enabled": true,
+      "size": 140,
+      "opacity": 0.65,
+      "direction": "up",
+      "speedPxPerSec": 6,
+      "image": "star-field-tile.png"
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "star",
+            "kind": "image",
+            "label": "Mint star",
+            "image": "twinkle-star-mint.png"
+          }
+        ],
+        "count": 12,
+        "seed": 53,
+        "minSize": 16,
+        "maxSize": 40,
+        "minRotationDeg": -10,
+        "maxRotationDeg": 10,
+        "minOpacity": 0.8,
+        "maxOpacity": 1,
+        "regionTop": 0.04,
+        "regionBottom": 0.5,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "comet",
+            "kind": "image",
+            "label": "Comet",
+            "image": "comet-streak.png"
+          }
+        ],
+        "count": 4,
+        "seed": 54,
+        "minSize": 40,
+        "maxSize": 72,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.8,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 0.6,
+        "keepFaceClear": true,
+        "direction": "diagonal-down-left",
+        "speedPxPerSec": 120,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-thinking-face-1f914.svg",
+      "path": "twinkle-star-mint.png",
       "role": "image"
     },
     {
-      "path": "emoji-question-mark-2753.svg",
+      "path": "comet-streak.png",
+      "role": "image"
+    },
+    {
+      "path": "star-field-tile.png",
       "role": "image"
     }
   ]

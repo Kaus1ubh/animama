@@ -5,7 +5,14 @@
   "version": 1,
   "name": "Streaming Tears",
   "description": "Comic anime waterfall tears streaming down both cheeks from under the eyes, for overwhelmed crying in deep sadness, grief or tearful gratitude.",
-  "dependencies": [],
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:squirt_01v2",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
   "definition": {
     "schema": "animama/avatar-effect/2",
     "region": "undereye",
@@ -31,7 +38,8 @@
         "loop": "loop",
         "rows": 1
       }
-    }
+    },
+    "soundAlias": "on-apply"
   },
   "files": [
     {

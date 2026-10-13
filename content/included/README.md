@@ -11,6 +11,14 @@ Action-owned Pose Clips are colocated; the retired `pose-clips/` folder is not
 used. Idle-only VRMAs
 belong inside their Idle Style.
 
+The library ships 107 Gestures, 72 Reactions and 73 Avatar Effects; frontend
+and backend tests pin these counts, so update them with any promotion. Its one
+Idle Style, Streamer Idle (`idle-styles/streamer-idle/`), contains no motion: it
+pools twelve Included idle Gestures by emotion and intensity. New companions
+still start with Idle empty and can choose it. Idle plays while the Anima is
+quiet, so every Avatar Effect event in a Gesture that an Included Idle Style
+uses sets `playAccompanyingSound: false`.
+
 `licenses/inventory.json` supplies the current provenance and redistribution
 review state. Rules are ordered, with the first matching rule applied to each
 file. The fallback project-owner assumption is historical development metadata,
@@ -44,17 +52,20 @@ public source repository. User-imported local media remains supported.
 `"distribution": "non-portable"` marks content that plays in the product but
 never leaves it as files. It is also omitted from both desktop partitions: such
 content ships only as its own private Included source, like the
-[Mixamo-motion pack](../../docs/backend/operations/mixamo-motion-pack.md), which
-has its own tracked licence inventory (`scripts/mixamo-motion/inventory.json`).
-This library holds no non-portable content. See
+[Mixamo-motion pack](../../docs/backend/operations/mixamo-motion-pack.md) and the
+[comedy sound pack](../../docs/backend/operations/comedy-sound-pack.md), each
+with its own tracked licence inventory under `scripts/<pack>/`. This library
+holds no non-portable content. See
 [ADR 0018](../../docs/adr/0018-non-portable-included-content.md).
 
-The private comedy sound pack under ignored `sfx/comedy/1/` has no distribution
-license. Shipped effects and Gestures intentionally omit its decorative audio
-cues while retaining their visuals and motion. Desktop staging
-admits tracked inputs only, so neither those sounds nor their metadata enter the
-core or expanded-content pack. Existing private development files are not
-deleted. Owner-provided typed Sound Effects remain supported.
+A built-in Avatar Effect names at most one licensed sound from the comedy sound
+pack through an optional dependency; some have none by design. Builds without
+that pack, including this source tree, drop the edge when scanning and play the
+effect silently
+([ADR 0022](../../docs/adr/0022-optional-licensed-effect-sounds.md)). Never put
+licensed or vendor preview sounds under `sfx/` here: the folder is ignored by
+Git and Docker, and the preview files are restricted by hash.
+Owner-provided typed Sound Effects remain supported.
 
 Browser-engine dependencies such as ONNX runtimes, Basis decoders, workers,
 fonts, and UI images remain frontend application assets.

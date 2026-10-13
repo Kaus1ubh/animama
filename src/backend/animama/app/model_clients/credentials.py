@@ -2,7 +2,8 @@
 
 Model clients ask a :class:`ModelCredentialResolver` for the key of the
 connection that owns the selected catalog row. A key is never shared across
-connections: the built-in OpenAI connection uses the OpenAI key, and an owner
+connections: the built-in OpenAI connection uses only the OpenAI key, the
+built-in Anthropic connection uses only the Anthropic key, and an owner
 connection uses only the key variable it names. Keys come from the process's
 :class:`~animama.app.model_clients.credential_store.RuntimeCredentialStore`,
 never directly from ``os.environ``. Values are never stored in the database or
@@ -16,6 +17,7 @@ from dataclasses import dataclass, field
 from typing import Protocol
 
 from animama.app.model_clients.credential_store import (
+    ANTHROPIC_CREDENTIAL_ENV,
     KNOWN_PROVIDER_CREDENTIAL_ENVS,
     MANAGED_CREDENTIAL_ENV_PATTERN,
     OPENAI_CREDENTIAL_ENV,
@@ -25,9 +27,14 @@ from animama.app.model_clients.credential_store import (
     FixedCredentials,
     is_allowed_credential_env,
 )
-from animama.app.model_connection_presets import PRESET_OPENAI
+from animama.app.model_connection_presets import (
+    ANTHROPIC_CONNECTION_COMPATIBILITY,
+    PRESET_ANTHROPIC,
+    PRESET_OPENAI,
+)
 from animama.domain import ModelProvider
 from animama.domain.model_connection import (
+    BUILTIN_ANTHROPIC_CONNECTION_ID,
     BUILTIN_OPENAI_CONNECTION_ID,
     MODEL_SOURCE_BUILTIN,
     ModelConnection,
@@ -68,18 +75,56 @@ def builtin_openai_connection() -> ModelConnection:
     )
 
 
+def builtin_anthropic_connection() -> ModelConnection:
+    """Return the built-in Anthropic connection, which uses ``ANTHROPIC_API_KEY``."""
+
+    return ModelConnection(
+        id=BUILTIN_ANTHROPIC_CONNECTION_ID,
+        name="Anthropic",
+        preset=PRESET_ANTHROPIC,
+        source=MODEL_SOURCE_BUILTIN,
+        compatibility=ANTHROPIC_CONNECTION_COMPATIBILITY,
+    )
+
+
+_BUILTIN_CONNECTIONS = {
+    BUILTIN_OPENAI_CONNECTION_ID: builtin_openai_connection,
+    BUILTIN_ANTHROPIC_CONNECTION_ID: builtin_anthropic_connection,
+}
+
+_BUILTIN_CREDENTIAL_ENVS = {
+    BUILTIN_OPENAI_CONNECTION_ID: OPENAI_CREDENTIAL_ENV,
+    BUILTIN_ANTHROPIC_CONNECTION_ID: ANTHROPIC_CREDENTIAL_ENV,
+}
+"""The only key each built-in connection may use; neither falls back to the other's."""
+
+
+def builtin_connection(connection_id: str) -> ModelConnection | None:
+    """Return the built-in connection with this id, or ``None`` for owner connections."""
+
+    factory = _BUILTIN_CONNECTIONS.get(connection_id)
+    return factory() if factory is not None else None
+
+
+def builtin_model_connections() -> list[ModelConnection]:
+    """Return every release-managed connection, OpenAI first."""
+
+    return [factory() for factory in _BUILTIN_CONNECTIONS.values()]
+
+
 def connection_for_model_provider(model_provider: ModelProvider) -> ModelConnection:
     """Return the row's loaded connection.
 
-    Only built-in OpenAI rows may omit it (rows built outside the database). A
-    row on another connection without its loaded connection is rejected so its
-    request can never fall back to OpenAI.
+    Only rows on a built-in connection may omit it (rows built outside the
+    database). A row on an owner connection without its loaded connection is
+    rejected so its request can never fall back to a built-in connection.
     """
 
     if model_provider.connection is not None:
         return model_provider.connection
-    if model_provider.connection_id == BUILTIN_OPENAI_CONNECTION_ID:
-        return builtin_openai_connection()
+    connection = builtin_connection(model_provider.connection_id)
+    if connection is not None:
+        return connection
     raise ValueError(f"Model connection is not loaded for {model_provider.id}")
 
 
@@ -115,8 +160,9 @@ class StoreModelCredentialResolver:
 
     def resolve(self, connection: ModelConnection) -> ModelCredential:
         snapshot = self._store.current()
-        if connection.is_builtin_openai:
-            return _credential(snapshot.get(OPENAI_CREDENTIAL_ENV))
+        builtin_env = _BUILTIN_CREDENTIAL_ENVS.get(connection.id)
+        if builtin_env is not None:
+            return _credential(snapshot.get(builtin_env))
         name = (connection.credential_env or "").strip()
         if not name:
             return ModelCredential(state=CREDENTIAL_NOT_REQUIRED)
@@ -149,6 +195,9 @@ __all__ = [
     "ModelCredential",
     "ModelCredentialResolver",
     "StoreModelCredentialResolver",
+    "builtin_anthropic_connection",
+    "builtin_connection",
+    "builtin_model_connections",
     "builtin_openai_connection",
     "connection_for_model_provider",
     "is_allowed_credential_env",

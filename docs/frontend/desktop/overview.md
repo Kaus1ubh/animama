@@ -161,10 +161,13 @@ window and accept zero arguments; recovery can open only the fixed backup folder
 
 ## Provider Settings And Local State
 
-Embedded setup and Settings → API Keys show optional OpenAI and ElevenLabs key
-controls. Keys for other model servers belong to their model connection
-(Settings → Models): main stores each under the connection's managed variable
-`ANIMAMA_CONNECTION_<ID>_API_KEY`, at most 32 of them. Keys are never read back
+Settings → API Keys shows optional OpenAI, Anthropic, ElevenLabs and Gemini
+key controls, and embedded setup the first three; main delivers the Anthropic
+key as `ANTHROPIC_API_KEY` and the Gemini key, used only by
+[Gemini voices](../runtime/gemini-tts.md), as `GEMINI_API_KEY`. Keys for other
+model servers belong to their model connection (Settings → Models): main
+stores each under the connection's
+managed variable `ANIMAMA_CONNECTION_<ID>_API_KEY`, at most 32 of them. Keys are never read back
 or saved to browser storage. A save applies one change or a batch
 (`credentials.apply`, validated as at most eight changes and one per provider
 or connection). Main encrypts the vault through Electron `safeStorage`, then
@@ -184,9 +187,13 @@ it. Main retains
 one bounded failure status per provider or connection key across product-window
 recreation, so reopening Settings explains why the change did not finish. A new
 accepted attempt clears that key's previous failure. Vaults from earlier releases
-open normally; their retired DeepSeek, Hugging Face and Gemini provider keys are
-dropped on load (re-enter them on a model connection). If a fallback restart
-fails after the vault was updated, the saved value remains; recovery Retry starts
+open normally; the DeepSeek, Hugging Face and Gemini provider keys they stored
+are retired and dropped on load. Enter DeepSeek and Hugging Face keys on a model
+connection, and a Gemini key again for Gemini voices; it is stored apart from
+the retired entry (see the
+[vault notes](../../backend/operations/desktop-runtime.md#roots-secrets-and-private-bytes)).
+If a fallback restart fails after the vault was updated, the saved value
+remains; recovery Retry starts
 services with that value and clears the failure after verified readiness. These failure records stay
 in main-process memory only and contain no credential values.
 
@@ -400,7 +407,7 @@ Desktop speech behavior:
 - STT uses client-side Parakeet only when runtime capabilities report it
   available. Embedded mode requires the installed `parakeet-stt` model asset;
   external-stack development retains its configured same-origin model source.
-- TTS uses PocketTTS or ElevenLabs.
+- TTS uses PocketTTS, ElevenLabs or Gemini.
 - Browser TTS/STT providers are not offered in desktop settings.
 - Desktop PiP is visual-only; the main renderer remains the audio owner.
 

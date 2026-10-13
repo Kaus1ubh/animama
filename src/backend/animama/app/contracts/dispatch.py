@@ -4,9 +4,10 @@ from __future__ import annotations
 
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
-from animama.app.contracts.elevenlabs import ElevenLabsChatTtsModelId
+from animama.app.contracts.elevenlabs import ElevenLabsRealtimeTtsModelId, replace_retired_elevenlabs_tts_model_id
+from animama.app.contracts.gemini import SUPPORTED_GEMINI_TTS_MODEL_IDS, GeminiTtsModelId
 from animama.domain.events import EventType
 
 
@@ -14,11 +15,28 @@ class PyAnimaTtsRunOptions(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     enabled: bool | None = None
-    provider: Literal["browser", "pocket_tts", "elevenlabs"] | None = None
+    provider: Literal["browser", "pocket_tts", "elevenlabs", "gemini"] | None = None
     transport: Literal["auto", "direct"] | None = None
     language_code: str | None = Field(default=None, min_length=2, max_length=8)
-    model_id: ElevenLabsChatTtsModelId | None = None
+    model_id: ElevenLabsRealtimeTtsModelId | GeminiTtsModelId | None = None
     finalized_chunking: Literal["sentence", "paragraph"] | None = None
+
+    @field_validator("model_id", mode="before")
+    @classmethod
+    def _replace_retired_model(cls, value: object) -> object:
+        """Speak a retired ElevenLabs model id with its replacement instead of refusing the turn."""
+
+        return replace_retired_elevenlabs_tts_model_id(value)
+
+    @model_validator(mode="after")
+    def _model_matches_provider(self) -> PyAnimaTtsRunOptions:
+        """A Gemini model needs the Gemini provider, and Gemini takes only its own models."""
+
+        if self.model_id is not None and (self.model_id in SUPPORTED_GEMINI_TTS_MODEL_IDS) != (
+            self.provider == "gemini"
+        ):
+            raise ValueError("model_id does not belong to the TTS provider")
+        return self
 
 
 class PyAnimaDispatchOptions(BaseModel):

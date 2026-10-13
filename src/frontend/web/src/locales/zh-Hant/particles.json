@@ -181,6 +181,7 @@
     "collapseAll": "全部收合",
     "copied": "已複製",
     "copy": "複製",
+    "creatorDocument": "創作器文件（匯入時保留名稱和設定）",
     "currentPayload": "目前的匯出內容",
     "download": "下載 JSON",
     "exactJson": "匯出的 JSON 原文",
@@ -188,7 +189,7 @@
     "parseFailed": "無法剖析匯出的 JSON：{{detail}}",
     "parseFailedUnexplained": "無法剖析匯出的 JSON。",
     "resetView": "重設檢視",
-    "snippets": "目錄設定和片段事件",
+    "snippets": "創作器文件、目錄設定和片段事件",
     "title": "粒子特效匯出",
     "unavailable": "沒有可匯出的 JSON。"
   },
@@ -212,7 +213,8 @@
     "ariaLabel": "粒子特效 JSON",
     "confirm": "匯入特效",
     "confirmReplace": "要捨棄目前粒子特效的變更並載入此 JSON 嗎？",
-    "description": "貼上一個 three.quarks 特效。確認未儲存的變更後，有效的 JSON 會取代目前的文件。",
+    "description": "貼上一個 three.quarks 特效，或從匯出取得的創作器文件（它也會設定名稱和設定）。確認未儲存的變更後，有效的 JSON 會取代目前的文件。內嵌的 PNG 紋理會保留。其他非內建紋理在你選擇其檔案之前會顯示為缺少；一般 Quarks JSON 會繼續使用此特效已攜帶的紋理。",
+    "embeddedTextureRefused": "未匯入內嵌的紋理：{{reason}}",
     "title": "匯入粒子特效 JSON"
   },
   "inspector": {
@@ -239,12 +241,13 @@
   },
   "issues": {
     "ambiguousTextureFilename": "紋理路徑 {{first}} 和 {{second}} 在移植時會使用相同的檔名。",
+    "atlasGridLimit": "拼貼圖每個方向的圖塊數為 1 到 {{max}}。",
     "atlasMetadataMismatch": "算繪器的圖塊數與所選圖集紋理的中繼資料不一致。",
     "atlasTilesMissing": "所選圖集紋理應在算繪器中使用多個圖塊。",
     "blobTextureUrl": "Blob 紋理網址僅供預覽，無法匯出。",
     "durationLimit": "每個發射器的時長都必須在儲存的最大時長預算內。",
     "durationOverBudget": "發射器時長超出目錄的最大時長預算。",
-    "embeddedTextureUrl": "內嵌資料的紋理網址可以使用，但應移轉為受管理的公開資源。",
+    "embeddedTextureUrl": "此內嵌紋理不是特效可攜帶的 PNG；請替換為匯入的紋理。",
     "emptyTextureUrl": "紋理圖片網址必須是非空字串。",
     "frameAnimationNeedsTiles": "影格動畫需要多個算繪器圖塊。",
     "frameAnimationWithoutAtlas": "已啟用影格動畫，但所選紋理不是圖集。",
@@ -260,7 +263,8 @@
     "missingTexture": "Quarks JSON 必須至少包含一張紋理圖片。",
     "nodeLimit": "粒子特效包含超過 {{max}} 個物件節點。",
     "particleBudgetExceeded": "預估粒子數 {{estimated, number}} 超出目錄預算 {{budget, number}}。",
-    "particleLimit": "預估粒子用量必須同時符合儲存的預算和 {{max}} 個粒子的私人內容上限。",
+    "particleBudgetUnestimated": "無法估算粒子用量（某個發射量、生命週期、爆發或持續時間值不受支援）；目錄預算為 {{budget, number}}。",
+    "particleLimit": "預估粒子數為 {{estimated, number}}，儲存的預算為 {{budget, number}}：兩者都必須符合 {{max}} 個粒子的私人內容上限。",
     "remoteTextureUrl": "隨附的 VFX 資源中不允許使用遠端紋理網址。",
     "resourceLimit": "{{key}} 必須是最多包含 {{max}} 個項目的陣列。",
     "rotation3DWithoutMesh": "3D 旋轉需要網格算繪模式才能預覽。",
@@ -280,6 +284,7 @@
     "worldSpaceEmitter": "世界空間發射器會在錨點處產生，但之後不會持續跟隨錨點。"
   },
   "json": {
+    "creatorDocumentInvalid": "粒子創作器文件需要名稱、設定和 quarks 特效。",
     "notObject": "Quarks JSON 必須是一個物件。",
     "parseFailed": "無法剖析 Quarks JSON：{{detail}}",
     "parseFailedUnexplained": "無法剖析 Quarks JSON。"
@@ -287,7 +292,8 @@
   "load": {
     "failed": "無法載入粒子特效。",
     "loading": "正在載入粒子特效…",
-    "manifestMissing": "缺少粒子特效資訊清單。"
+    "manifestMissing": "缺少粒子特效資訊清單。",
+    "textureFailed": "無法載入粒子特效的紋理。"
   },
   "position": {
     "anchorAndPosition": "錨點和位置",
@@ -381,7 +387,8 @@
     "allowCoexist": "允許與其他特效同時播放",
     "allowLooping": "允許發射器循環",
     "defaultAnchor": "預設錨點",
-    "estimatedTotal_other": "預估總數：約 {{count, number}} 個粒子",
+    "estimatedAtOnce_other": "同時存在的預估數量：最多 {{count, number}} 個粒子",
+    "estimateUnavailable": "同時存在的預估數量：無法估算（某個發射量、生命週期、爆發或持續時間值不受支援）",
     "limitsHint": "效能上限適用於整個特效。在此允許循環後，各個發射器可以重複自己的週期。",
     "maxDuration": "最大播放時長 (s)",
     "maxParticles": "最大粒子總數",
@@ -423,6 +430,22 @@
     "animateFrames": "播放影格動畫",
     "atlas": "圖集",
     "blendTiles": "混合圖塊",
+    "carried": {
+      "chooseFile": "為 {{file}} 選擇檔案",
+      "dimensions": "{{width}}×{{height}}",
+      "hint": "PNG 最大 {{size, number}} MiB、{{dimension}} px。拼貼圖請設定圖集圖塊數。",
+      "import": "匯入 PNG 紋理",
+      "missing": "缺少紋理 {{file}}。請選擇其 PNG 檔案。",
+      "title": "此特效的紋理"
+    },
+    "files": {
+      "dimensionsTooLarge": "紋理每一邊不得超過 {{size}} px。",
+      "fileRefused": "紋理 {{texture}}：{{reason}}",
+      "notPng": "紋理檔案必須是 PNG 圖片。",
+      "tooLarge": "紋理檔案不得超過 {{size, number}} MiB。",
+      "tooMany": "一個粒子特效最多可使用 {{max, number}} 個紋理。",
+      "totalTooLarge": "一個粒子特效中的紋理總計不得超過 {{size, number}} MiB。"
+    },
     "frameEnd": "結束影格",
     "frameStart": "起始影格",
     "names": {

@@ -1,0 +1,147 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:scene-vfx-emotion-annoyance",
+  "version": 1,
+  "name": "Emotion Annoyance",
+  "description": "A warm orange vignette with a slowly throbbing spiky burst behind the Avatar, small anger marks popping and steam puffs rising, for annoyed moments.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": null,
+    "coverUiOverlays": false,
+    "dismissOnInput": false,
+    "solid": {
+      "enabled": false,
+      "color": "#000000"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "left",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.42,
+      "stops": [
+        {
+          "color": "#ffd3a0",
+          "position": 0
+        },
+        {
+          "color": "#ffb067",
+          "position": 0.4
+        },
+        {
+          "color": "#e8572a",
+          "position": 1
+        }
+      ]
+    },
+    "screen": {
+      "enabled": true,
+      "kind": "rays",
+      "color": "#fff0c8",
+      "opacity": 0.38,
+      "count": 18,
+      "centerX": 0.5,
+      "centerY": 0.42,
+      "spiky": true,
+      "turnSeconds": 0,
+      "throbPerSec": 0.5,
+      "seed": 23
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "mark",
+            "kind": "image",
+            "label": "Anger mark",
+            "image": "anger-mark.png"
+          }
+        ],
+        "count": 4,
+        "seed": 49,
+        "minSize": 28,
+        "maxSize": 44,
+        "minRotationDeg": -30,
+        "maxRotationDeg": 30,
+        "minOpacity": 0.9,
+        "maxOpacity": 1,
+        "regionTop": 0.04,
+        "regionBottom": 0.5,
+        "keepFaceClear": true,
+        "direction": "static",
+        "speedPxPerSec": 0,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "pop"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "steam",
+            "kind": "image",
+            "label": "Steam puff",
+            "image": "steam-puff.png"
+          }
+        ],
+        "count": 6,
+        "seed": 26,
+        "minSize": 36,
+        "maxSize": 60,
+        "minRotationDeg": -15,
+        "maxRotationDeg": 15,
+        "minOpacity": 0.7,
+        "maxOpacity": 0.9,
+        "regionTop": 0.55,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 35,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
+    }
+  },
+  "files": [
+    {
+      "path": "anger-mark.png",
+      "role": "image"
+    },
+    {
+      "path": "steam-puff.png",
+      "role": "image"
+    }
+  ]
+}

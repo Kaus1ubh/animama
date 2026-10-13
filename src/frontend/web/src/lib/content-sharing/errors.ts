@@ -3,15 +3,27 @@ import { getI18n } from "react-i18next";
 import { parseContentApiErrorDetail } from "@/lib/content/contentSaveErrors";
 import { errorWording, failureLine } from "@/lib/errors/apiError";
 
-/** The message for a failure, naming the display names the server attached. */
+/**
+ * The message for a failure, naming the display names the server attached.
+ * A code whose advice differs when it names items (such as opening each named
+ * item in its creator) has its own named form; without names the code's own
+ * wording applies (an import refusal names no items the importer could open).
+ */
 function sharingErrorText(code: string, items: readonly string[]): string {
   if (!items.length) return sharingMessage(code);
-  return code === "package_non_portable"
-    ? getI18n().t("errors:sharing.nonPortableItems", { items })
-    : getI18n().t("errors:sharing.withItems", {
+  switch (code) {
+    case "package_non_portable":
+      return getI18n().t("errors:sharing.nonPortableItems", { items });
+    case "package_dependency_missing":
+      return getI18n().t("errors:sharing.dependencyMissingItems", { items });
+    case "scene_emoji_item_removed":
+      return getI18n().t("errors:sharing.sceneEmojiItems", { items });
+    default:
+      return getI18n().t("errors:sharing.withItems", {
         message: sharingMessage(code),
         items,
       });
+  }
 }
 
 /** Retain an HTTP classification without exposing private backend error details. */

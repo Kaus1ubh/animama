@@ -4,49 +4,123 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-optimism",
   "version": 1,
   "name": "Emotion Optimism",
-  "description": "Scene background effect preset",
+  "description": "A pale dawn sky behind the Avatar with a faint star field drifting up and gold twinkle stars rising, for hopeful, optimistic moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#dff7c7"
+      "enabled": false,
+      "color": "#000000"
     },
     "pattern": {
-      "enabled": true,
-      "pattern": "star",
+      "enabled": false,
+      "pattern": "none",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.34
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
         {
-          "id": "emoji-sunrise",
-          "kind": "image",
-          "label": "Sunrise 🌅",
-          "image": "emoji-sunrise-1f305.svg"
+          "color": "#9fd3ff",
+          "position": 0
+        },
+        {
+          "color": "#cfe6ff",
+          "position": 0.48
+        },
+        {
+          "color": "#ffe1b8",
+          "position": 1
         }
       ]
+    },
+    "tile": {
+      "enabled": true,
+      "size": 140,
+      "opacity": 0.7,
+      "direction": "up",
+      "speedPxPerSec": 5,
+      "image": "star-field-tile.png"
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "star",
+            "kind": "image",
+            "label": "Twinkle star",
+            "image": "twinkle-star-gold.png"
+          }
+        ],
+        "count": 14,
+        "seed": 42,
+        "minSize": 22,
+        "maxSize": 54,
+        "minRotationDeg": -10,
+        "maxRotationDeg": 10,
+        "minOpacity": 0.85,
+        "maxOpacity": 1,
+        "regionTop": 0.3,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "up",
+        "speedPxPerSec": 14,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "twinkle"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-sunrise-1f305.svg",
+      "path": "twinkle-star-gold.png",
+      "role": "image"
+    },
+    {
+      "path": "star-field-tile.png",
       "role": "image"
     }
   ]

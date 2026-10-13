@@ -1,0 +1,16 @@
+id: user-response-stream-speech-0-run-follow-up
+event: user.response
+data: {"event_id": "user-response-stream-speech-0-run-follow-up", "run_id": "run-follow-up", "node_id": "direct-chat:model-client", "text": "Of course.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false, "tokenized_text": "Of course.", "phonemized_text": [["\u0259", "v"], ["k", "\u02c8\u0254", "\u0279", "s"]]}
+
+id: user-response-stream-speech-1-run-follow-up
+event: user.response
+data: {"event_id": "user-response-stream-speech-1-run-follow-up", "run_id": "run-follow-up", "node_id": "direct-chat:model-client", "text": " Green or black?", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 1, "part_final": true, "tokenized_text": "Green or black?", "phonemized_text": [["\u0261", "\u0279", "\u02c8i", "n"], ["\u02c8\u0254", "\u0279"], ["b", "l", "\u02c8\u00e6", "k"]]}
+
+id: emotion-update-run-follow-up-direct-chat:model-client
+event: emotion.update
+data: {"event_id": "emotion-update-run-follow-up-direct-chat:model-client", "run_id": "run-follow-up", "node_id": "direct-chat:model-client", "emotions": [{"emotion": "admiration", "value": 0}, {"emotion": "caring", "value": 6}, {"emotion": "love", "value": 0}, {"emotion": "respect", "value": 0}, {"emotion": "confidence", "value": 0}, {"emotion": "gratitude", "value": 0}, {"emotion": "amusement", "value": 0}, {"emotion": "excitement", "value": 0}, {"emotion": "joy", "value": 13}, {"emotion": "desire", "value": 0}, {"emotion": "curiosity", "value": 8}, {"emotion": "optimism", "value": 0}, {"emotion": "fear", "value": 0}, {"emotion": "nervousness", "value": 0}, {"emotion": "confusion", "value": 0}, {"emotion": "anger", "value": 0}, {"emotion": "annoyance", "value": 0}, {"emotion": "disapproval", "value": 0}, {"emotion": "disgust", "value": 0}, {"emotion": "embarrassment", "value": 0}, {"emotion": "remorse", "value": 0}, {"emotion": "disappointment", "value": 0}, {"emotion": "grief", "value": 0}, {"emotion": "sadness", "value": 2}], "emotional_tone": "neutral", "emotional_intensity": 0, "promoted_emotion": null, "demoted_emotion": null}
+
+id: run-completed-run-follow-up
+event: run.completed
+data: {"run_id": "run-follow-up", "chat_id": "chat-follow-up-<name-0>"}
+

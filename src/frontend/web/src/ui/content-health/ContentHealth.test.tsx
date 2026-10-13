@@ -74,6 +74,45 @@ describe("content attention indicator", () => {
     },
   );
 
+  it("lists a valid Action that plays without a removed Included effect", () => {
+    state.catalog.data!.items.push({
+      item_id: "cheer",
+      display_name: "Cheer",
+      status: "valid",
+      diagnostics: [
+        {
+          code: "missing_effect_dependency",
+          message:
+            "An Included effect this Action uses was removed; it plays without it",
+          relative_path: "builtin:scene-effect:background:joy",
+        },
+      ],
+    });
+    const html = renderToStaticMarkup(<ContentHealth />);
+    expect(html).toContain('aria-label="Content needs attention"');
+    expect(html).toContain("Cheer");
+    expect(html).toContain("builtin:scene-effect:background:joy");
+  });
+
+  it("lists a valid Scene Effect that plays without a removed emoji item", () => {
+    state.catalog.data!.items.push({
+      item_id: "old-sparkles",
+      display_name: "Old sparkles",
+      status: "valid",
+      diagnostics: [
+        {
+          code: "scene_emoji_item_removed",
+          message:
+            "Scene item marquee.items.0 (Sparkles) is an emoji, which Animama no longer provides; it plays without it. Open the Scene Effect to replace it with a sticker or image, or remove it",
+        },
+      ],
+    });
+    const html = renderToStaticMarkup(<ContentHealth />);
+    expect(html).toContain('aria-label="Content needs attention"');
+    expect(html).toContain("Old sparkles");
+    expect(html).toContain("scene_emoji_item_removed");
+  });
+
   it("stays silent before the initial catalog arrives", () => {
     state.catalog.data = undefined;
     state.catalog.isFetching = true;

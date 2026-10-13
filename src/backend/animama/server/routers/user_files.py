@@ -34,13 +34,13 @@ from animama.domain.user_file_processing import (
     UserFileSearchResult,
 )
 from animama.logging_config import get_logger
+from animama.product_http.uploads import UploadEnvelopeError, spool_bounded_request
 from animama.server.config import Settings, settings
 from animama.server.deps import get_async_session, get_current_principal
 from animama.server.embeddings import role_embedder
 from animama.server.local_runtime import initialize_local_runtime
-from animama.server.local_upload_stream import LocalUploadError, spool_bounded_request
 from animama.server.model_roles import ModelRoleSettings, get_model_role_settings
-from animama.server.routers.runtime_capabilities import get_runtime_settings
+from animama.server.runtime_capabilities import get_runtime_settings
 from animama.server.schemas.user_file import (
     PyUserFileFinalizeRequest,
     PyUserFileListResponse,
@@ -246,7 +246,7 @@ async def upload_user_file_content(
             max_size_bytes=settings.anima_user_file_max_upload_bytes,
             staging_directory=initialize_local_runtime(settings).uploads_staging_root,
         )
-    except LocalUploadError as exc:
+    except UploadEnvelopeError as exc:
         raise HTTPException(status_code=422, detail={"code": exc.code}) from exc
     try:
         if not write_private_file_stream(

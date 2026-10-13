@@ -64,14 +64,24 @@ making overrides to those fields, or recheck them afterward. For example, Spark
 Pop 6×5 has 30 cells but 26 authored frames, so its range is 0–25. Fire 8×8 and
 Flame 16×4 have 64 frames with range 0–63.
 
-**Custom uploads are not wired into this creator at the baseline.** There is no
-image file picker, and `useParticleVFXSave` passes `resources: []` to the package
-builder. That builder can accept an exact resource inventory, but this UI uses
-curated references such as `textures/heart.png`. JSON Import does not supply
-missing image bytes. Non-curated imported or reopened texture references can
-therefore fail preview or Save. Do not promise a generated PNG can be uploaded,
-silently replace it with a built-in image, or invent a UI control. Identify the
-missing resource support if it blocks the user's request.
+**Imported textures.** The Inspector's Appearance tab lists *This effect's
+textures*: PNGs the effect carries itself. **Import PNG texture** adds one as
+`textures/<name>-N.png` and assigns it to the active emitter; any listed
+texture can be assigned to the active emitter by clicking it. A texture the
+effect refers to without bytes (after a JSON Import, or a reopened effect
+whose file is gone) is shown as missing for the emitter that uses it, with
+**Choose file for <name>**, which stores the chosen PNG under that existing
+reference whatever the file is called. Each texture must be a PNG within
+4 MiB and 2048 px per side (16 textures, 32 MiB per effect); a sprite sheet
+is one PNG whose U and V tile counts (at most 16 each) you set under Atlas
+tiles. Make and check the art with `animama-effect-assets` (`particle-texture`
+for one sprite, `particle-sheet` for a sheet) before importing it.
+
+Save packages every texture the effect's images use as a file of the saved
+item, built-in curated ones included (copied from the creator's own
+`/effects/vfx/particle-vfx/textures/`), so a saved effect is self-contained.
+Most curated textures are third-party art (CC0 Kenney and Brackeys, one
+CC-BY); promotion keeps their records (see [promote](promote.md)).
 
 Authoring resolves curated previews through same-origin `/effects/vfx/` paths.
 Live Anima playback uses registered content files instead; those public authoring
@@ -97,16 +107,24 @@ Validate actual ending and cancellation in Action playback when requested.
 
 ## Import, export, and validation
 
-JSON Import accepts a raw Quarks resource object. It retains the current effect's
-catalog defaults, including placement and performance settings; it is not an
-importer for the outer typed-content descriptor or an Action event. Importing over
-a dirty document prompts before replacing it. Unsupported values can be preserved
-in the draft while still blocking portable Save.
+JSON Import accepts a raw Quarks resource object or the creator document
+Export offers (`animama/particle-vfx-editor/1`: name, description, settings in
+the stored `runtime_defaults.slots.particle_vfx` form, and the Quarks effect).
+Raw Quarks JSON keeps the current name and catalog settings, including
+placement and performance, and textures this effect already carries; a creator
+document replaces both, so its textures that are neither embedded (`data:`
+PNG URLs, which become `textures/embedded-N.png`) nor built in show as missing
+until their files are chosen. Importing over a dirty document prompts before
+replacing it. Unsupported values can be preserved in the draft while still
+blocking portable Save.
 
-The export dialog separates Quarks JSON, catalog settings, and a clip event
-snippet. Download exports the Quarks JSON only. It does not bundle texture bytes
-or install dependencies. The clip snippet uses the draft runtime ID; use the
-Action catalog integration to resolve actual mounted IDs and dependency aliases.
+The export dialog shows the exact Quarks JSON and, under *Creator document,
+catalog settings and clip event*, the creator document (Import keeps its name
+and settings), a catalog snippet and a clip event snippet. Download exports the
+Quarks JSON only; neither bundles texture bytes. The clip snippet uses the
+draft runtime ID; use the Action catalog integration to resolve actual mounted
+IDs and dependency aliases. `pnpm -s effects save` imports the creator
+document and chooses the missing textures for you.
 
 The header exposes validation messages when present. Save also checks the package,
 so an enabled Save button or a working preview is not proof of save readiness.
@@ -114,12 +132,14 @@ Frontend package limits at the verified baseline are:
 
 | Resource | Limit |
 | --- | --- |
-| Emitters | 1–8 |
+| Emitters | 1–16 |
 | Object graph | Group/ParticleEmitter nodes; at most 128 nodes |
 | Resource arrays | At most 64 entries each in geometries/materials/textures/images |
 | Unique textures | 16 |
 | Quarks manifest | 5 MiB |
-| Each texture | 25 MiB; PNG, JPEG, or WebP bytes matching the declared format |
+| Each texture | PNG, 4 MiB, 2048 px per side and 2048² px |
+| All textures | 32 MiB per effect |
+| Sprite sheets | At most 16 tiles in each direction |
 | Whole package | 64 MiB |
 | Maximum duration | 30 seconds; defaults and emitter durations must fit it |
 | Particle budget | Declared budget and Save estimate must fit 512 |
@@ -129,10 +149,11 @@ Remote, absolute, data, Blob, encoded, or traversal references are not portable
 Save inputs. The general editor validator's softer warnings do not override the
 package rules.
 
-The left-panel particle estimate and Save estimate are not identical. Save
-accounts for all burst entries, authored repetitions, and looping differently;
-neither estimate is a measured live count or a complete motion/lifetime model.
-Do not increase budgets merely to hide a warning without understanding the fields.
+The left-panel particle estimate is the one Save enforces (and `effects check`
+reports): each emitter's maximum rate over its duration plus all its burst
+entries, with a looping emitter counted over the longest emitter's duration.
+It is not a measured live count or a complete motion/lifetime model. Do not
+increase budgets merely to hide a warning without understanding the fields.
 
 ## Save, reopen, and handoff
 

@@ -15,8 +15,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:exclamation",
-      "alias": "exclamation",
+      "ref": "builtin:particle-effect:question-orbit",
+      "alias": "question-orbit",
       "content_type": "particle_effect",
       "config": {}
     },

@@ -118,6 +118,16 @@ function compatibilityLabel(
   }
 }
 
+/** What an option changes, when its label alone cannot say. */
+function compatibilityHelp(
+  t: TFunction<"models">,
+  option: CompatibilityOption,
+): string | null {
+  return option === "fold_developer_role"
+    ? t("connectionForm.compatibility.foldDeveloperRoleHelp")
+    : null;
+}
+
 /** Example variable name for a server that suggests none. */
 const EXAMPLE_KEY_ENV = "MY_SERVER_API_KEY";
 
@@ -540,23 +550,38 @@ function ModelConnectionFields({
         </Button>
         {showAdvanced ? (
           <div className="space-y-3">
-            {COMPATIBILITY_OPTIONS.map((option) => (
-              <label key={option} className="flex items-center gap-2 text-sm">
-                <Checkbox
-                  checked={draft.compatibility[option]}
-                  disabled={saving}
-                  onCheckedChange={(checked) =>
-                    change({
-                      compatibility: {
-                        ...draft.compatibility,
-                        [option]: checked === true,
-                      },
-                    })
-                  }
-                />
-                {compatibilityLabel(t, option)}
-              </label>
-            ))}
+            {COMPATIBILITY_OPTIONS.map((option) => {
+              const help = compatibilityHelp(t, option);
+              const helpId = `${formId}-${option}-help`;
+              return (
+                <div key={option} className="space-y-1">
+                  <label className="flex items-center gap-2 text-sm">
+                    <Checkbox
+                      checked={draft.compatibility[option]}
+                      disabled={saving}
+                      aria-describedby={help ? helpId : undefined}
+                      onCheckedChange={(checked) =>
+                        change({
+                          compatibility: {
+                            ...draft.compatibility,
+                            [option]: checked === true,
+                          },
+                        })
+                      }
+                    />
+                    {compatibilityLabel(t, option)}
+                  </label>
+                  {help ? (
+                    <p
+                      id={helpId}
+                      className="text-muted-foreground pl-6 text-xs"
+                    >
+                      {help}
+                    </p>
+                  ) : null}
+                </div>
+              );
+            })}
             <div className="space-y-2">
               <Label htmlFor={`${formId}-reasoning`}>
                 {t("connectionForm.reasoning.label")}

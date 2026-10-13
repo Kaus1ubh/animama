@@ -120,11 +120,18 @@
       "remove": "從輸入框移除"
     },
     "model": {
+      "back": "返回模型與推理",
+      "choose": "選擇一個模型",
       "empty": "找不到模型。",
+      "fallbackLabel": "模型",
+      "features": "聊天功能",
       "needsWindow": "請在「應用程式設定 → 模型」中設定其上下文視窗",
+      "noFeatures": "此模型沒有可選功能。",
       "noProfile": "沒有聊天設定檔",
+      "noReasoning": "此模型的推理無法調整。",
       "notDirect": "暫不支援直接聊天",
-      "reasoning": "推理",
+      "panel": "模型與推理",
+      "reasoningEffort": "推理強度",
       "reasoningEfforts": {
         "high": "高",
         "low": "低",
@@ -141,13 +148,14 @@
         "tools_unsupported": "此模型無法呼叫工具，因此無法搜尋。"
       },
       "select": "選擇模型",
-      "settings": "{{model}} 設定",
       "toasts": {
         "selectFirst": "請先選擇模型再聊天。",
         "unsupported": "此模型暫不支援直接聊天。",
         "updateFailed": "無法更新模型"
       },
+      "trigger": "模型與推理：{{model}}",
       "unavailable": "模型無法使用。請選擇其他模型。",
+      "unavailableShort": "模型無法使用",
       "webSearch": "網路搜尋"
     }
   },

@@ -42,8 +42,7 @@ CANONICAL_EMOTION_TO_ELEVENLABS_TONE: dict[str, str] = {
     "sadness": "sad",
 }
 
-DEFAULT_ELEVENLABS_V3_TONE_KEY = "friendly"
-DEFAULT_ELEVENLABS_V3_PREFIX = f"[{DEFAULT_ELEVENLABS_V3_TONE_KEY}]"
+DEFAULT_ELEVENLABS_TONE_KEY = "friendly"
 
 ELEVENLABS_TONE_TO_CANONICAL_EMOTION: dict[str, str] = {
     tone: emotion for emotion, tone in CANONICAL_EMOTION_TO_ELEVENLABS_TONE.items()
@@ -69,16 +68,6 @@ class ElevenLabsEmotionalTone:
     @property
     def is_neutral(self) -> bool:
         return self.canonical_emotion == NEUTRAL_EMOTION
-
-
-@dataclass(frozen=True, slots=True)
-class ElevenLabsTonePrefixResult:
-    text: str
-    canonical_emotion: str | None
-    tone_key: str | None
-    intensity_level: int | None
-    prefix: str | None
-    applied: bool
 
 
 def _normalize_tone_token(value: Any) -> str | None:
@@ -113,7 +102,7 @@ def validate_voice_emotional_tone(
     if token is None:
         if warn:
             _log.warning(
-                "Main structured emotional_tone missing or blank; ElevenLabs v3 will use the friendly default prefix",
+                "Main structured emotional_tone missing or blank; speech will use the friendly default tone",
                 context=context,
                 raw_type=type(value).__name__,
             )
@@ -121,7 +110,7 @@ def validate_voice_emotional_tone(
     if normalize_elevenlabs_emotional_tone(token) is None:
         if warn:
             _log.warning(
-                "Main structured emotional_tone is not allowlisted; ElevenLabs v3 will use the friendly default prefix",
+                "Main structured emotional_tone is not allowlisted; speech will use the friendly default tone",
                 context=context,
                 emotional_tone=token,
             )
@@ -129,74 +118,39 @@ def validate_voice_emotional_tone(
     return token
 
 
-def elevenlabs_v3_text_with_emotional_prefix(
+def gemini_speaking_style(
     *,
-    text: str,
     emotional_tone: Any,
     emotional_state: Mapping[str, Any] | None,
-) -> ElevenLabsTonePrefixResult:
-    base_text = text.strip()
+) -> str:
+    """One style sentence for Gemini speech, from the reply's tone and its level.
+
+    Neutral or unknown tones speak in the friendly default; without an emotional
+    state the tone carries no intensity word.
+    """
+
     tone = normalize_elevenlabs_emotional_tone(emotional_tone)
-    if not base_text:
-        return ElevenLabsTonePrefixResult(
-            text=text,
-            canonical_emotion=tone.canonical_emotion if tone is not None else None,
-            tone_key=tone.tone_key if tone is not None else None,
-            intensity_level=None,
-            prefix=None,
-            applied=False,
-        )
-
     if tone is None or tone.is_neutral:
-        return ElevenLabsTonePrefixResult(
-            text=f"{DEFAULT_ELEVENLABS_V3_PREFIX} {base_text}",
-            canonical_emotion=tone.canonical_emotion if tone is not None else None,
-            tone_key=DEFAULT_ELEVENLABS_V3_TONE_KEY,
-            intensity_level=None,
-            prefix=DEFAULT_ELEVENLABS_V3_PREFIX,
-            applied=True,
-        )
-
-    if emotional_state is None:
-        return ElevenLabsTonePrefixResult(
-            text=text,
-            canonical_emotion=tone.canonical_emotion,
-            tone_key=tone.tone_key,
-            intensity_level=None,
-            prefix=None,
-            applied=False,
-        )
-
-    normalized_state = normalize_emotional_state(emotional_state)
-    level = emotion_value_level(normalized_state.get(tone.canonical_emotion))
-
-    if level <= 0:
-        prefix = f"[slightly {tone.tone_key}]"
-    elif level == 1:
-        prefix = f"[{tone.tone_key}]"
+        description = DEFAULT_ELEVENLABS_TONE_KEY
+    elif emotional_state is None:
+        description = tone.tone_key
     else:
-        prefix = f"[very {tone.tone_key}]"
-
-    return ElevenLabsTonePrefixResult(
-        text=f"{prefix} {base_text}",
-        canonical_emotion=tone.canonical_emotion,
-        tone_key=tone.tone_key,
-        intensity_level=level,
-        prefix=prefix,
-        applied=True,
-    )
+        level = emotion_value_level(normalize_emotional_state(emotional_state).get(tone.canonical_emotion))
+        description = (
+            f"slightly {tone.tone_key}" if level <= 0 else tone.tone_key if level == 1 else f"very {tone.tone_key}"
+        )
+    article = "an" if description[0] in "aeiou" else "a"
+    return f"Speak in {article} {description} tone."
 
 
 __all__ = [
+    "gemini_speaking_style",
     "CANONICAL_EMOTION_TO_ELEVENLABS_TONE",
-    "DEFAULT_ELEVENLABS_V3_PREFIX",
-    "DEFAULT_ELEVENLABS_V3_TONE_KEY",
+    "DEFAULT_ELEVENLABS_TONE_KEY",
     "ELEVENLABS_TONE_TO_CANONICAL_EMOTION",
     "ELEVENLABS_EMOTIONAL_TONE_VALUES",
     "VOICE_EMOTIONAL_TONE_VALUES",
     "ElevenLabsEmotionalTone",
-    "ElevenLabsTonePrefixResult",
-    "elevenlabs_v3_text_with_emotional_prefix",
     "normalize_elevenlabs_emotional_tone",
     "validate_voice_emotional_tone",
 ]

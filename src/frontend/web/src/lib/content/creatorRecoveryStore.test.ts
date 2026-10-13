@@ -10,7 +10,11 @@ import {
   createDefaultSceneEffectDocument,
   sceneEffectRecoveryStore,
 } from "@/lib/scene-vfx/editor";
-import { particleVFXRecoveryStore } from "./particleVFXRecovery";
+import {
+  PARTICLE_VFX_RECOVERY_MAX_BYTES,
+  PARTICLE_VFX_RECOVERY_SCHEMA,
+  particleVFXRecoveryStore,
+} from "./particleVFXRecovery";
 
 afterEach(() => vi.unstubAllGlobals());
 
@@ -297,7 +301,11 @@ describe("creator recovery store", () => {
       indexedDB: undefined,
       localStorage: storage.localStorage,
     });
-    const record = JSON.parse(previousFormatDrafts().particleText);
+    const record = {
+      ...JSON.parse(previousFormatDrafts().particleText),
+      schema: PARTICLE_VFX_RECOVERY_SCHEMA,
+      textures: [],
+    };
 
     expect(await particleVFXRecoveryStore.save(record)).toEqual({
       stored: true,
@@ -313,7 +321,7 @@ describe("creator recovery store", () => {
     expect(result.warning).toContain("crash recovery is unavailable");
     const tooLarge = await particleVFXRecoveryStore.save({
       ...record,
-      displayName: "x".repeat(6 * 1024 * 1024),
+      displayName: "x".repeat(PARTICLE_VFX_RECOVERY_MAX_BYTES),
     });
     expect(tooLarge.warning).toContain("too large");
   });

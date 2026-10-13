@@ -14,12 +14,22 @@ import {
   resolvePocketVoicePreference,
 } from "@/lib/speech/pocket/voice-preferences";
 import { voiceCloneSampleSource } from "@/lib/speech/pocket/voice-clones";
+import {
+  geminiVoiceSampleSource,
+  type GeminiVoice,
+} from "@/lib/speech/gemini-voices";
+import {
+  DEFAULT_GEMINI_TTS_MODEL_ID,
+  toGeminiTtsModelId,
+} from "@/lib/settings/preferences";
 import { useAnimaLoadout } from "@/query/hooks/useAnimaLoadout";
+import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
 import { useVoiceClones } from "@/query/hooks/useVoiceClones";
 import { useVoiceSelection } from "@/query/mutations/useVoiceSelection";
 import { VoiceCloneLibrary } from "@/ui/animas/VoiceCloneLibrary";
 import { toTtsProvider } from "@/lib/speech/tts-provider";
 import { LoadoutSectionDisclosure } from "@/ui/animas/LoadoutSectionDisclosure";
+import { GeminiVoicePicker } from "@/ui/animas/GeminiVoicePicker";
 import {
   PocketVoicePicker,
   pocketVoiceNotProvided,
@@ -39,6 +49,7 @@ import { useSettings } from "@/ui/settings/SettingsProvider";
 const PROVIDER_NAMES = {
   pocket_tts: "PocketTTS",
   elevenlabs: "ElevenLabs",
+  gemini: "Gemini",
 } as const;
 
 /** Voice authoring belongs with the rest of an Anima's Loadout. */
@@ -74,6 +85,16 @@ export function elevenLabsVoiceId(
     : "";
 }
 
+/** The Anima's saved Gemini prebuilt voice, if any. */
+export function geminiVoice(
+  speech: { [key: string]: unknown } | undefined,
+): string | null {
+  const profile = speech?.gemini;
+  if (!profile || typeof profile !== "object" || !("voice" in profile))
+    return null;
+  return typeof profile.voice === "string" ? profile.voice : null;
+}
+
 /** Persist choices independently of which provider is currently used for replies. */
 export function AnimaVoicesEditor() {
   const apiClient = useProductApiClient();
@@ -89,6 +110,7 @@ export function AnimaVoicesEditor() {
     isUpdating,
   } = useSettings();
   const runtime = usePocketTtsRuntime();
+  const geminiTts = useRuntimeCapabilities().data?.gemini_tts ?? null;
   const downloads = usePocketVoiceDownloads({ enabled: true });
   const pending = useRef(false);
   const [saving, setSaving] = useState(false);
@@ -106,9 +128,11 @@ export function AnimaVoicesEditor() {
       ? PROVIDER_NAMES.pocket_tts
       : configuredProvider === "elevenlabs"
         ? PROVIDER_NAMES.elevenlabs
-        : configuredProvider === "browser"
-          ? t("voices.provider.browser")
-          : null;
+        : configuredProvider === "gemini"
+          ? PROVIDER_NAMES.gemini
+          : configuredProvider === "browser"
+            ? t("voices.provider.browser")
+            : null;
   const activeProvider = effectivePreferences.speech?.tts_enabled
     ? configuredProvider
     : null;
@@ -118,6 +142,16 @@ export function AnimaVoicesEditor() {
     DEFAULT_POCKET_VOICE;
   const download = downloads.availability(pocketVoice);
   const savedElevenLabs = elevenLabsVoiceId(animaPreferences?.speech);
+  // An unknown saved name is spoken with the default voice, so show that one.
+  const savedGeminiVoice = geminiVoice(animaPreferences?.speech);
+  const selectedGeminiVoice = geminiTts
+    ? (geminiTts.voices.find((voice) => voice === savedGeminiVoice) ??
+      geminiTts.default_voice)
+    : null;
+  // Samples use the model replies are spoken with.
+  const geminiModelId =
+    toGeminiTtsModelId(effectivePreferences.speech?.tts_gemini_model_id) ??
+    DEFAULT_GEMINI_TTS_MODEL_ID;
   const loadout = useAnimaLoadout(animaId);
   const library = useVoiceClones({
     enabled: configuredProvider === "pocket_tts",
@@ -138,8 +172,29 @@ export function AnimaVoicesEditor() {
     ? `clone:${selectedCloneId}`
     : pocketVoice;
 
+  const saveGeminiVoice = async (voice: GeminiVoice) => {
+    if (disabled || pending.current) throw new Error("Voice settings busy");
+    pending.current = true;
+    setSaving(true);
+    try {
+      await updateAnimaPreferences({ speech: { gemini: { voice } } });
+      toast.success(t("voices.gemini.saved"));
+    } catch (error) {
+      toast.error(t("voices.gemini.saveFailed"));
+      throw error;
+    } finally {
+      pending.current = false;
+      setSaving(false);
+    }
+  };
+
   const saveProvider = async (provider: string) => {
-    if (provider !== "pocket_tts" && provider !== "elevenlabs") return;
+    if (
+      provider !== "pocket_tts" &&
+      provider !== "elevenlabs" &&
+      !(provider === "gemini" && geminiTts)
+    )
+      return;
     if (disabled || pending.current) return;
     pending.current = true;
     setSaving(true);
@@ -251,6 +306,9 @@ export function AnimaVoicesEditor() {
               <SelectItem value="elevenlabs">
                 {PROVIDER_NAMES.elevenlabs}
               </SelectItem>
+              {geminiTts ? (
+                <SelectItem value="gemini">{PROVIDER_NAMES.gemini}</SelectItem>
+              ) : null}
             </SelectContent>
           </Select>
         </div>
@@ -383,6 +441,27 @@ export function AnimaVoicesEditor() {
                 setSaving(false);
               }
             }}
+          />
+        </section>
+      ) : null}
+      {configuredProvider === "gemini" && geminiTts ? (
+        <section
+          className="space-y-3"
+          aria-label={t("voices.gemini.sectionLabel")}
+        >
+          <ProviderHeading
+            name={PROVIDER_NAMES.gemini}
+            active={activeProvider === "gemini"}
+          />
+          <GeminiVoicePicker
+            value={selectedGeminiVoice ?? geminiTts.default_voice}
+            voices={geminiTts.voices}
+            modelId={geminiModelId}
+            disabled={disabled}
+            sampleSource={(voice) =>
+              geminiVoiceSampleSource(apiClient, geminiModelId, voice)
+            }
+            onSelect={saveGeminiVoice}
           />
         </section>
       ) : null}

@@ -34,11 +34,49 @@ const media = (overrides: Partial<PreviewMedia> = {}): PreviewMedia => ({
   avatarEffects: [{ alias: "swirl", effect: swirl }],
   particleEffects: [
     {
-      alias: "question-marks",
-      name: "Question Marks",
-      description: "Floating question marks.",
+      alias: "question-orbit",
+      name: "Question Orbit",
+      description: "Orbiting question marks.",
       manifestUrl: "/__preview/media/def/particle.json",
       config: { anchor: "head", duration_seconds: 2, max_particles: 6 },
+    },
+  ],
+  sceneEffects: [
+    {
+      alias: "joy-background",
+      name: "Joy",
+      // As the Included Joy background stores it.
+      definition: {
+        schema: "animama/scene-effect/1",
+        kind: "background_layers",
+        durationMs: null,
+        dismissOnInput: false,
+        coverUiOverlays: false,
+        solid: { enabled: true, color: "#ffe869" },
+        pattern: {
+          enabled: true,
+          pattern: "star",
+          color: "#ffffff",
+          size: 24,
+          spacing: 18,
+          opacity: 0.36,
+        },
+        marquee: {
+          enabled: true,
+          itemSize: 72,
+          gap: 24,
+          rowGap: 18,
+          direction: "diagonal-up-left",
+          itemRotationMode: "upright",
+          itemRotationOffsetDeg: 0,
+          speedPxPerSec: 170,
+          opacity: 0.92,
+          items: [
+            { id: "star", kind: "image", label: "Star", image: "star.svg" },
+          ],
+        },
+      },
+      imageUrls: { "star.svg": "/__preview/media/ghi/star.svg" },
     },
   ],
   notices: [],
@@ -71,11 +109,11 @@ describe("PreviewMediaProvider", () => {
 
   it("builds a Particle Effect from its manifest URL and runtime config", async () => {
     const particle = await new PreviewMediaProvider(media()).resolveParticleVFX(
-      "question-marks",
+      "question-orbit",
     );
     expect(particle).toMatchObject({
-      id: "question-marks",
-      label: "Question Marks",
+      id: "question-orbit",
+      label: "Question Orbit",
       assetPath: "/__preview/media/def/particle.json",
       defaultAnchor: "head",
       defaultDurationSec: 2,
@@ -103,11 +141,57 @@ describe("PreviewMediaProvider", () => {
     ]);
   });
 
+  it("resolves a Scene event's alias and kind to the entry the layers draw", async () => {
+    const provider = new PreviewMediaProvider(media());
+    const entry = await provider.loadSceneVFX(
+      "background_layers",
+      "joy-background",
+    );
+    expect(entry).toMatchObject({ id: "joy-background", label: "Joy" });
+    expect(entry?.kind === "background_layers" && entry.marquee.items).toEqual([
+      expect.objectContaining({ src: "/__preview/media/ghi/star.svg" }),
+    ]);
+    // A preset of another kind does not match, as in the runtime catalog.
+    expect(
+      provider.resolveSceneVFX("focus_lines", "joy-background"),
+    ).toBeNull();
+    expect(provider.listSceneVFX("background_layers")).toHaveLength(1);
+  });
+
+  it("reports a Scene Effect that cannot be drawn", () => {
+    const provider = new PreviewMediaProvider(
+      media({
+        sceneEffects: [
+          {
+            alias: "unserved",
+            name: "Unserved",
+            definition: media().sceneEffects[0].definition,
+            imageUrls: {},
+          },
+        ],
+      }),
+    );
+    expect(
+      provider.resolveSceneVFX("background_layers", "unserved"),
+    ).toBeNull();
+    expect(provider.getProblems()).toEqual([
+      expect.stringMatching(/Scene Effect “unserved”/),
+    ]);
+  });
+
   it("swaps its effects when the playing source changes", async () => {
     const provider = new PreviewMediaProvider(media());
-    provider.setMedia({ avatarEffects: [], particleEffects: [], notices: [] });
+    provider.setMedia({
+      avatarEffects: [],
+      particleEffects: [],
+      sceneEffects: [],
+      notices: [],
+    });
     expect(await provider.loadAvatarVFX("swirl")).toBeNull();
-    expect(await provider.resolveParticleVFX("question-marks")).toBeNull();
+    expect(await provider.resolveParticleVFX("question-orbit")).toBeNull();
+    expect(
+      provider.resolveSceneVFX("background_layers", "joy-background"),
+    ).toBeNull();
   });
 });
 
@@ -116,13 +200,20 @@ describe("previewMediaNotices", () => {
     const events: AnimaPoseClipV2["events"] = [
       { id: "a", time: 0.1, kind: "avatar_vfx", effectId: "swirl" },
       { id: "b", time: 0.1, kind: "avatar_vfx", effectId: "missing" },
-      { id: "c", time: 0.2, kind: "particle_vfx", effectId: "question-marks" },
+      { id: "c", time: 0.2, kind: "particle_vfx", effectId: "question-orbit" },
       {
         id: "d",
         time: 0.5,
         kind: "scene_vfx",
         sceneKind: "background_layers",
-        presetId: "kawaii-sparkles",
+        presetId: "scene-vfx-emotion-joy",
+      },
+      {
+        id: "d2",
+        time: 0.5,
+        kind: "scene_vfx",
+        sceneKind: "background_layers",
+        presetId: "joy-background",
       },
       { id: "e", time: 0.6, kind: "sfx", cueId: "pop" },
     ];
@@ -134,7 +225,7 @@ describe("previewMediaNotices", () => {
     ).toEqual([
       "glow (local:x) does not play: gone",
       "Avatar Effect “missing” has no resolved dependency, so it does not play.",
-      "Scene Effect “kawaii-sparkles” (0.50 s) is not shown: the chat scene draws it.",
+      "Scene Effect “scene-vfx-emotion-joy” has no resolved dependency, so it does not play.",
       "Sounds are not played in the preview.",
     ]);
     expect(previewMediaNotices(clip(events.slice(0, 1)), null)).toEqual([
@@ -150,6 +241,19 @@ describe("previewMediaNotices", () => {
     expect(
       clipUsesMedia(
         clip([{ id: "p", time: 0, kind: "particle_vfx", effectId: "stars" }]),
+      ),
+    ).toBe(true);
+    expect(
+      clipUsesMedia(
+        clip([
+          {
+            id: "s",
+            time: 0,
+            kind: "scene_vfx",
+            sceneKind: "focus_lines",
+            presetId: "speed",
+          },
+        ]),
       ),
     ).toBe(true);
   });

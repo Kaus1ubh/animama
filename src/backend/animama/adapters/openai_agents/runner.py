@@ -57,14 +57,26 @@ class OpenAIAgentsRunner:
         agent: Agent[Any],
         serialized_state: str,
         context: dict[str, Any] | None = None,
+        turn_budget: int | None = None,
     ) -> RunState:
-        """Deserialize one persisted SDK run state."""
+        """Deserialize one persisted SDK run state.
+
+        ``turn_budget`` gives the resumed run that many more model turns. A
+        resumed state keeps its turn count and its own ``max_turns``; the SDK
+        ignores the ``max_turns`` passed to ``Runner.run`` with a state
+        (openai-agents 0.18). The budget is therefore written to the snapshot's
+        public ``max_turns`` field, relative to its ``current_turn``, before
+        ``RunState.from_json`` reads it.
+        """
 
         import json
 
         from agents import RunState
 
-        return await RunState.from_json(agent, json.loads(serialized_state), context_override=context or {})
+        state_json = json.loads(serialized_state)
+        if turn_budget is not None:
+            state_json["max_turns"] = int(state_json.get("current_turn") or 0) + turn_budget
+        return await RunState.from_json(agent, state_json, context_override=context or {})
 
     async def resume_state(
         self,
@@ -74,7 +86,11 @@ class OpenAIAgentsRunner:
         run_config: RunConfig | None = None,
         max_turns: int | None = 10,
     ) -> OpenAIAgentsRunOutput:
-        """Resume a prepared SDK run state."""
+        """Resume a prepared SDK run state.
+
+        The SDK runs a state within the state's own ``max_turns``; give a
+        persisted state a fresh budget through ``load_state(turn_budget=...)``.
+        """
 
         from agents import Runner
 

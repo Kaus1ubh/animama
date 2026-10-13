@@ -25,7 +25,9 @@ from animama.logging import get_logger
 _log = get_logger("app.model_clients.credential_store")
 
 OPENAI_CREDENTIAL_ENV = "OPENAI_API_KEY"
+ANTHROPIC_CREDENTIAL_ENV = "ANTHROPIC_API_KEY"
 ELEVENLABS_CREDENTIAL_ENV = "ELEVENLABS_API_KEY"
+GEMINI_CREDENTIAL_ENV = "GEMINI_API_KEY"
 
 MANAGED_CREDENTIAL_ENV_PATTERN = re.compile(r"^ANIMAMA_CONNECTION_[A-Z0-9_]{1,64}_API_KEY$")
 """Names for owner connection keys; the desktop vault writes keys under this namespace."""
@@ -33,7 +35,12 @@ MANAGED_CREDENTIAL_ENV_PATTERN = re.compile(r"^ANIMAMA_CONNECTION_[A-Z0-9_]{1,64
 KNOWN_PROVIDER_CREDENTIAL_ENVS = frozenset(
     {OPENAI_CREDENTIAL_ENV, "DEEPSEEK_API_KEY", "HF_TOKEN", "OPENROUTER_API_KEY"}
 )
-"""Conventional provider key variables an owner connection may also reference."""
+"""Conventional provider key variables an owner connection may also reference.
+
+``ANTHROPIC_API_KEY`` and ``GEMINI_API_KEY`` are deliberately absent: only the
+built-in Anthropic connection and the Gemini voice read them, so each is sent
+only to its own provider's API.
+"""
 
 WEB_SEARCH_MANAGED_CREDENTIAL_ENV = "ANIMAMA_CONNECTION_WEB_SEARCH_API_KEY"
 """The desktop vault's name for the web search key (inside the managed namespace, so no new vault field)."""
@@ -74,20 +81,28 @@ def is_allowed_credential_env(name: str) -> bool:
 def is_process_credential_env(name: str) -> bool:
     """Return whether startup may load ``name`` from the process environment."""
 
-    return name == ELEVENLABS_CREDENTIAL_ENV or name in WEB_SEARCH_CREDENTIAL_ENVS or is_allowed_credential_env(name)
+    return (
+        name in {ELEVENLABS_CREDENTIAL_ENV, ANTHROPIC_CREDENTIAL_ENV, GEMINI_CREDENTIAL_ENV}
+        or name in WEB_SEARCH_CREDENTIAL_ENVS
+        or is_allowed_credential_env(name)
+    )
 
 
 def is_deliverable_credential_env(name: str) -> bool:
     """Return whether a runtime replacement may set ``name``.
 
-    This is the desktop vault's namespace: the two provider keys and managed
-    connection keys. It is deliberately narrower than what startup reads, so a
-    delivery can never name an arbitrary environment variable.
+    This is the desktop vault's namespace: the OpenAI, Anthropic, ElevenLabs and
+    Gemini keys and managed connection keys. It is deliberately narrower than what
+    startup reads, so a delivery can never name an arbitrary environment
+    variable.
     """
 
-    return name in {OPENAI_CREDENTIAL_ENV, ELEVENLABS_CREDENTIAL_ENV} or bool(
-        MANAGED_CREDENTIAL_ENV_PATTERN.fullmatch(name)
-    )
+    return name in {
+        OPENAI_CREDENTIAL_ENV,
+        ANTHROPIC_CREDENTIAL_ENV,
+        ELEVENLABS_CREDENTIAL_ENV,
+        GEMINI_CREDENTIAL_ENV,
+    } or bool(MANAGED_CREDENTIAL_ENV_PATTERN.fullmatch(name))
 
 
 def credential_values_from_environment(environ: Mapping[str, str]) -> dict[str, str]:
@@ -233,7 +248,9 @@ class RuntimeCredentialStore:
 
 
 __all__ = [
+    "ANTHROPIC_CREDENTIAL_ENV",
     "ELEVENLABS_CREDENTIAL_ENV",
+    "GEMINI_CREDENTIAL_ENV",
     "KNOWN_PROVIDER_CREDENTIAL_ENVS",
     "MANAGED_CREDENTIAL_ENV_PATTERN",
     "MAX_CONNECTION_CREDENTIALS",

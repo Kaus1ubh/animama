@@ -5,6 +5,8 @@ from collections.abc import Mapping
 from typing import Any, cast
 
 from animama.app.model_clients import (
+    ANTHROPIC_TOOL_RESULT_ITEM_TYPE,
+    ANTHROPIC_TOOL_USE_ITEM_TYPE,
     MODEL_CLIENT_TOOL_CALL_ITEM_TYPE,
     MODEL_CLIENT_TOOL_RESULT_ITEM_TYPE,
     ModelClientFinal,
@@ -18,7 +20,7 @@ from animama.domain.chat import ChatMessage, MessageRole
 from animama.domain.usage import Usage
 
 from ..memory_cue import MESSAGE_DATA_MEMORY_KEY
-from .constants import OPENAI_RESPONSES_PROVIDER
+from .constants import ANTHROPIC_MESSAGES_PROVIDER, OPENAI_RESPONSES_PROVIDER
 from .types import DirectChatTurnRequest
 
 
@@ -82,6 +84,24 @@ def model_client_tool_result_prompt_item(tool_result: ModelClientToolResult) -> 
         "status": tool_result.status,
         "output": tool_result.output,
     }
+
+
+def anthropic_tool_use_item(tool_call: ModelClientToolCall) -> dict[str, Any]:
+    """Build one Anthropic ``tool_use`` prompt/history item; the input is the parsed JSON object."""
+
+    arguments = safe_json_loads(tool_call.arguments)
+    return {
+        "type": ANTHROPIC_TOOL_USE_ITEM_TYPE,
+        "id": tool_call.id,
+        "name": tool_call.name,
+        "input": arguments if isinstance(arguments, Mapping) else {},
+    }
+
+
+def anthropic_tool_result_item(tool_call: ModelClientToolCall, output: str) -> dict[str, Any]:
+    """Build one Anthropic ``tool_result`` prompt/history item for a tool call's output."""
+
+    return {"type": ANTHROPIC_TOOL_RESULT_ITEM_TYPE, "tool_use_id": tool_call.id, "content": output}
 
 
 def internal_tool_call_message(
@@ -208,13 +228,35 @@ def assistant_messages_for_persistence(
         final=final,
         model_provider=model_provider,
         usage=final.usage,
-        raw_provider_message={"role": "assistant", "content": content},
+        raw_provider_message=assistant_replay_message(
+            content, model_provider=model_provider, replay_prefix=final.replay_prefix
+        ),
         memory=memory,
         structured_recovery=structured_recovery,
     )
     if internal_tool_messages:
         return [*internal_tool_messages, assistant_msg]
     return assistant_msg
+
+
+def assistant_replay_message(
+    content: str,
+    *,
+    model_provider: ModelProvider,
+    replay_prefix: tuple[Mapping[str, Any], ...] = (),
+) -> dict[str, Any]:
+    """Return the provider-shaped assistant message replayed in later turns.
+
+    Anthropic rows store the turn's latest compaction block, when the server
+    compacted, then the reply's text content block. Thinking blocks and raw
+    web-search blocks are never replayed across turns (D8), and the turn's
+    context message is rebuilt each turn rather than stored.
+    """
+
+    if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER:
+        prefix = [json_safe_copy(block) for block in replay_prefix]
+        return {"role": "assistant", "content": [*prefix, {"type": "text", "text": content}]}
+    return {"role": "assistant", "content": content}
 
 
 def assistant_message(
@@ -281,6 +323,10 @@ def assistant_message_data(
     openai_metadata = openai_metadata_from_final(raw_provider_metadata, model_provider=model_provider)
     if openai_metadata is not None:
         data["openai"] = openai_metadata
+    anthropic_metadata = raw_provider_metadata.get("anthropic") if isinstance(raw_provider_metadata, dict) else None
+    if model_provider.provider_type == ANTHROPIC_MESSAGES_PROVIDER and isinstance(anthropic_metadata, dict):
+        # Message id, stop reason and details, usage (with iterations) and block types.
+        data["anthropic"] = anthropic_metadata
     if memory is not None:
         data[MESSAGE_DATA_MEMORY_KEY] = json_safe_copy(memory)
     if structured_recovery is not None:
@@ -331,7 +377,10 @@ def openai_metadata_from_final(
 
 
 __all__ = [
+    "anthropic_tool_result_item",
+    "anthropic_tool_use_item",
     "assistant_messages_for_persistence",
+    "assistant_replay_message",
     "assistant_tool_call_prompt_message",
     "chat_metadata_patch_from_prompt",
     "internal_tool_call_message",

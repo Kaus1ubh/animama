@@ -38,7 +38,19 @@ pnpm -s effects promote promote.json
 ```
 
 `name` and `description` may override the source's for an add;
-`description` for a replace. Effects with a sound cannot be promoted yet.
+`description` for a replace.
+
+The source effect must have no sound. A built-in effect plays at most one
+licensed sound from the private comedy pack, as an optional dependency
+([ADR 0022](../../../../docs/adr/0022-optional-licensed-effect-sounds.md)): an
+add names it with `"sound": "<key>"`, a key in the tracked pack manifest
+(`src/backend/animama/resources/wow-comedy-sfx-manifest.json`), or sets
+`"sound": null` for an effect the owner wants silent; a replace keeps the
+effect's current sound unless it names another or `null`. A sound not yet in
+the pack needs a new pack version first
+([comedy sound pack](../../../../docs/backend/operations/comedy-sound-pack.md)).
+Where several effects start together in a Reaction, keep one sound and set
+`playAccompanyingSound: false` on the others.
 
 Reactions and Gestures that use the effects are replaced in the same run,
 from creator project files (`animamaActionProject/1.0`) made from the
@@ -74,17 +86,22 @@ list before writing.
 
 1. `git add` the new files: backend Included-content tests read tracked
    files only.
-2. Templates: a new effect becomes an Effects picker template only if the
-   owner asks (`src/frontend/web/src/lib/effects/effectTemplates.ts`, then
-   `pnpm -s effects:thumbnails <id>` and a source-review record for the
-   thumbnail in the existing thumbnail form). Give chest or side art
-   `thumbnail: { framing: "wide" }` and looping art that fades out at 1 s a
-   `time`, and check every image. Regenerate thumbnails of replaced
+2. Templates: every Included Avatar Effect needs an Effects picker template
+   (`effectTemplates.test.ts` checks): add it to
+   `src/frontend/web/src/lib/effects/effectTemplates.ts` under the effect's
+   promoted name, run `pnpm -s effects:thumbnails <id>`, and add a
+   source-review record for the thumbnail in the existing thumbnail form.
+   Give chest or side art `thumbnail: { framing: "wide" }`, art at the belly,
+   hips or a lowered hand `framing: "body"`, art placed for a Gesture's pose
+   that Gesture as `clip`, and looping art that fades out at 1 s a `time`
+   (also the clip time). Check every image. Regenerate thumbnails of replaced
    templates; remove a deleted effect's template, thumbnail and the
    thumbnail's source-review record (`effects promote` drops records only
    for effect files).
-3. Update pinned expectations deliberately (effect counts and mappings in
-   frontend tests such as `tests/avatar/reactionClips.test.ts`).
+3. Update pinned expectations deliberately: the Included Avatar Effect count
+   in `scripts/animation-preview-media.test.mjs` and
+   `scripts/effect-render-sources.test.mjs`, and effect mappings in frontend
+   tests such as `tests/avatar/reactionClips.test.ts`.
 4. Run `uv run pytest -q tests/test_included_content_integrity.py
    tests/test_included_content_catalog.py tests/test_starter_content_closure.py
    scripts/public-release/test_prepare_source.py`, then from `src/frontend`

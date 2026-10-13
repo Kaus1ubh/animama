@@ -20,8 +20,8 @@
     },
     "nonPortableReason": "このアプリに同梱され、ここでのみ使用できます。カスタマイズ、コピー、エクスポートはできません。",
     "particle": {
-      "aTextureTooLarge": "テクスチャが 25 MiB の上限を超えています。",
-      "autoFitEmitters": "長方形の自動フィットのエミッター名は重複せず、最大 8 個のエミッターに一致する必要があります。",
+      "aTextureTooLarge": "テクスチャが {{size}} MiB の上限を超えています。",
+      "autoFitEmitters": "長方形の自動フィットのエミッター名は重複せず、最大 {{max}} 個のエミッターに一致する必要があります。",
       "autoFitEmpty": "長方形の自動フィットの寸法は空にできません。",
       "autoFitHeightRange": "長方形の自動フィットの高さの最小値が最大値を超えています。",
       "autoFitWidthRange": "長方形の自動フィットの幅の最小値が最大値を超えています。",
@@ -43,12 +43,14 @@
         "scale": "スケール"
       },
       "textureAmbiguous": "テクスチャ {{texture}} のリソースの取得元があいまいです。",
+      "textureDimensionsTooLarge": "テクスチャ {{texture}} の各辺は {{size}} px 以下にしてください。",
       "textureEmpty": "テクスチャ {{texture}} は空です。",
       "textureFetchFailed": "テクスチャの取得に失敗しました (HTTP {{status}})。",
       "textureMismatched": "テクスチャ {{texture}} の画像データが一致しないか、サポートされていません。",
       "textureNotAvailable": "テクスチャ {{texture}} はこのコンテンツ項目で利用できません。",
       "textureNotInApp": "テクスチャ {{texture}} はアプリの正確な取得元から利用できません。",
-      "textureTooLarge": "テクスチャ {{texture}} が 25 MiB の上限を超えています。",
+      "texturesTotalTooLarge": "1 つのパーティクルエフェクトのテクスチャは、合計 {{size}} MiB 以下にしてください。",
+      "textureTooLarge": "テクスチャ {{texture}} が {{size}} MiB の上限を超えています。",
       "textureUnresolved": "解決されていないテクスチャリソースがあります。",
       "tooManyTextures_other": "パーティクルエフェクトで使える固有のテクスチャは最大 {{count}} 個です。"
     },
@@ -71,6 +73,7 @@
     },
     "recovery": {
       "discardFailed": "ブラウザーの復元データを破棄できませんでした。もう一度お試しください。",
+      "particleTexturesNotStored": "テクスチャファイルをクラッシュ復元用に保存できませんでした。この下書きを復元した後、足りないテクスチャをもう一度選んでください。",
       "particleTooLarge": "このエフェクトはブラウザーのクラッシュ復元には大きすぎます。保存はそのまま続けられます。",
       "unavailable": "ブラウザーのクラッシュ復元を利用できません。保存が完了するまでこのタブを開いたままにしてください。"
     },
@@ -165,6 +168,19 @@
       "poses": "ポーズ",
       "reactions": "リアクション"
     },
+    "contentTypes": {
+      "all": "すべて",
+      "avatarEffects": "アバターエフェクト",
+      "avatars": "アバター",
+      "gestures": "ジェスチャー",
+      "idleStyles": "待機スタイル",
+      "label": "ライブラリのコンテンツの種類",
+      "particle": "パーティクルエフェクト",
+      "poses": "ポーズ",
+      "reactions": "リアクション",
+      "scene": "シーンエフェクト",
+      "sound": "サウンド"
+    },
     "fxFilters": {
       "all": "すべて",
       "avatar": "アバターエフェクト",
@@ -238,6 +254,7 @@
       },
       "noAnimas": "エクスポートできる Anima はまだいません。",
       "noMatches": "一致するコンテンツはありません。",
+      "omittedSounds_other": "同梱エフェクトのサウンド {{count, number}} 個はこのアプリに残ります。それらのエフェクトをインポートしたコピーは、サウンドなしで再生されます。",
       "plusRequired_other": "+ 必要な依存関係 {{count}} 件",
       "preparingPackage": "パッケージを準備しています…",
       "refreshSelection": "選択内容を更新",

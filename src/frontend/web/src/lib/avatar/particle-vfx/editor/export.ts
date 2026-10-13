@@ -1,6 +1,7 @@
 import { getI18n } from "react-i18next";
 
 import { DEFAULT_IMPORTED_CATALOG_DRAFT } from "./constants";
+import { buildParticleVFXCreatorDocument } from "./creatorDocument";
 import { roundEditorNumber } from "./numbers";
 import type {
   ParticleVFXEditorDraft,
@@ -44,6 +45,7 @@ export function buildParticleVFXEditorExport(
     assetFileName: assetPath.split("/").at(-1) ?? `${draft.catalog.id}.json`,
     assetPath,
     quarksJson: `${JSON.stringify(draft.quarksJson, null, 2)}\n`,
+    creatorDocument: `${JSON.stringify(buildParticleVFXCreatorDocument(draft), null, 2)}\n`,
     catalogEntrySnippet: buildCatalogEntrySnippet(draft, assetPath),
     clipEventSnippet: buildClipEventSnippet(draft),
   };

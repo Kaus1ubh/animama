@@ -6,10 +6,15 @@ specific docs linked from there.
 
 ## Backend Shape
 
-- `server/` is the FastAPI delivery layer: local app startup, routers,
-  request-principal resolution,
-  dependency wiring, direct chat SSE orchestration, notification
-  WebSocket handling, asset helpers, and persistence sinks/subscribers.
+- `server/` is the FastAPI delivery layer: local app startup, local routers,
+  dependency wiring, the local ports, notification WebSocket handling, asset
+  helpers, and persistence sinks/subscribers.
+- `product_http/` holds the product HTTP shared by every composition (ADR 0021):
+  the route inventory, the request principal, the composition-installed
+  `ProductPorts`, the shared routers of every stage and the direct chat SSE
+  turn (`product_http/chat/`). Each composition installs its ports with
+  `install_product_ports`; the local app installs
+  `server/product_ports.py::LocalProductPorts`. It is shared code.
 - `domain/` contains framework-free dataclasses and event types.
 - `app/services/` contains use-case services over repository ports.
 - `app/ports/` defines repository, unit-of-work, and model-provider protocols.
@@ -41,7 +46,7 @@ Do not import FastAPI or SQLAlchemy into `domain/`. Keep provider SDK calls in
 model-client adapters and keep chat orchestration out of route handlers where a
 small app service can own it.
 
-Every transitive import of `domain/` and `app/` must stay independent of
+Every transitive import of `domain/`, `app/` and `product_http/` must stay independent of
 `local/`, `server/`, `runtime/`, `hooks.py`, and `logging_config.py`. Importing a
 shared API must not configure logging, resolve local roots, create database
 engines, register the installation model, or read installation state. Run
@@ -66,6 +71,7 @@ a separate API contract.
 - `../../docs/backend/architecture/data-model.md`
 - `../../docs/backend/runtime/chat.md`
 - `../../docs/backend/runtime/model-client-providers.md`
+- `../../docs/backend/runtime/prompt-caching.md`
 - `../../docs/backend/model-catalog.md`
 - `../../docs/backend/features/memory.md`
 - `../../docs/backend/features/custom-animas-and-content.md`
@@ -77,18 +83,21 @@ apply the [reader-value standard](../../AGENTS.md#documentation).
 
 ## Runtime Notes
 
-Normal chat uses `server/routers/chat/chat_sse.py` through
-`POST /v1/animas/{anima_id}/chat:sse`. It resolves a anima chat profile
-or request `model_provider_id`, validates the selected `model_providers` row,
-prepares the direct turn through `server/routers/chat/turn_setup.py`, invokes a
-shared direct model client through `DirectChatTurnExecutor`, derives emotion and
-gesture updates from the main structured response, uses request-local SSE
-formatting in `server/sse_events.py` and bridge helpers in
-`server/routers/chat/sse_runtime.py`, and performs request-local cleanup. The
-route owns the single public `run.completed` frame after TTS, title generation,
-compaction, and other success-side effects. Provider stream observations stay
-behind the model-client boundary as sanitized `MC*` events and compact metadata;
-do not expose raw upstream OpenAI stream events directly over `chat:sse`.
+Normal chat is the shared `POST /v1/animas/{anima_id}/chat:sse` route
+(`product_http/routes/chat_turns.py`), whose stream and chat-turn lease live in
+`product_http/chat/stream.py`. It resolves a anima chat profile or request
+`model_provider_id`, validates the selected `model_providers` row, prepares the
+direct turn through `product_http/chat/turn_setup.py`, invokes a shared direct
+model client through `DirectChatTurnExecutor`, derives emotion and gesture
+updates from the main structured response, formats frames in
+`product_http/chat/sse_events.py` with bridge helpers in
+`product_http/chat/sse_runtime.py`, and performs request-local cleanup. Its
+collaborators come from the composition's ports (locally
+`server/product_ports.py`). The route owns the single public `run.completed`
+frame after TTS, title generation, compaction, and other success-side effects.
+Provider stream observations stay behind the model-client boundary as sanitized
+`MC*` events and compact metadata; do not expose raw upstream OpenAI stream
+events directly over `chat:sse`.
 
 ## Auth And Ownership
 
@@ -212,7 +221,9 @@ When changing model-provider behavior or OpenAI platform integrations, consult
 current official OpenAI Developer Docs through an available documentation MCP
 server or the official website before changing request fields, model names,
 tool behavior, streaming semantics, or rate-limit/auth assumptions. No imported
-agent skill is required for this workflow.
+agent skill is required for this workflow. Apply the same rule to the Anthropic
+Messages adapter and Memory Manager runtime with Anthropic's current platform
+documentation and the installed `anthropic` SDK types.
 
 ## Commands
 

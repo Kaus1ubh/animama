@@ -102,7 +102,7 @@ function localAware(group: string, withAddress = false): Description {
 }
 
 /** Copy for backend codes; each names the connection that failed. */
-const descriptions: Record<string, Description> = {
+const baseDescriptions: Record<string, Description> = {
   missing_api_key: pair("codes.missing_api_key"),
   openai_authentication_error: pair("codes.openai_authentication_error"),
   openai_permission_denied: pair("codes.openai_permission_denied"),
@@ -118,12 +118,46 @@ const descriptions: Record<string, Description> = {
   connection_base_url_missing: pair("codes.connection_base_url_missing"),
   gateway_request_rejected: pair("codes.gateway_request_rejected"),
   chat_stream_interrupted: pair("codes.chat_stream_interrupted"),
+  // A Claude model's refusal (stop_reason "refusal"); no other model is tried.
+  model_refused: pair("codes.model_refused"),
 };
 
 /** A more specific reading of some failures, from the server's neutral category. */
 const categoryDescriptions: Record<string, Description> = {
   context_exceeded: pair("categories.context_exceeded"),
 };
+
+/** Anthropic codes read like their OpenAI equivalents, naming the Anthropic connection. */
+const ANTHROPIC_EQUIVALENTS: Record<string, string> = {
+  anthropic_authentication_error: "openai_authentication_error",
+  anthropic_permission_denied: "openai_permission_denied",
+  anthropic_not_found: "openai_not_found",
+  anthropic_quota_exceeded: "openai_quota_exceeded",
+  anthropic_rate_limit: "openai_rate_limit",
+  anthropic_overloaded: "openai_overloaded",
+  anthropic_server_error: "openai_server_error",
+  anthropic_timeout: "openai_timeout",
+  anthropic_connection_error: "openai_connection_error",
+  anthropic_bad_request: "openai_bad_request",
+};
+
+const descriptions: Record<string, Description> = {
+  ...baseDescriptions,
+  ...Object.fromEntries(
+    Object.entries(ANTHROPIC_EQUIVALENTS).map(([code, equivalent]) => [
+      code,
+      baseDescriptions[equivalent],
+    ]),
+  ),
+  anthropic_context_exceeded: categoryDescriptions.context_exceeded,
+  anthropic_stream_incomplete: pair("codes.anthropic_stream_incomplete"),
+};
+
+/** Codes whose details may carry the provider's recommended wait. */
+const RETRY_AFTER_CODES = new Set([
+  "openai_rate_limit",
+  "anthropic_rate_limit",
+]);
 
 /**
  * Hosted account and service limits ("Hosted denials" in
@@ -342,7 +376,7 @@ export function describeChatFailure(
     code,
     originalText,
     partialText,
-    ...(code === "openai_rate_limit" &&
+    ...(RETRY_AFTER_CODES.has(code) &&
     typeof delay === "number" &&
     Number.isFinite(delay) &&
     delay > 0

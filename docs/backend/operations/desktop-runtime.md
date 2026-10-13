@@ -79,13 +79,24 @@ PostgreSQL. Loss of per-launch credentials is
 handled by a normal relaunch; a missing/unreadable vault alongside PGDATA fails
 closed because its database password cannot be silently regenerated.
 
-Besides the OpenAI and ElevenLabs keys, the vault holds a `connections` map of
+Besides the OpenAI, Anthropic, ElevenLabs and Gemini keys, the vault holds a `connections` map of
 model-connection keys under their managed names, `ANIMAMA_CONNECTION_<ID>_API_KEY`
 derived from the connection id. It stores at most 32 connection keys in a file
 of at most 512 KiB, and one batch changes at most eight keys, one per provider
 or connection. A vault beyond those bounds is `vault_unreadable`. Provider
-entries for `deepseek`, `huggingface` and `gemini` written by earlier builds are
-dropped on load; re-enter those keys on a model connection.
+entries for `deepseek`, `huggingface` and `gemini` that earlier builds wrote
+under `providers` are retired: they are dropped on load and at the next save.
+Enter DeepSeek and Hugging Face keys on a model connection, and a Gemini key
+again for Gemini voices.
+
+The current Gemini key (`GEMINI_API_KEY`, read only by Gemini voices) is stored
+in a separate `restoredProviders` section, so a retired `providers.gemini`
+entry is never revived, even in a vault that was never re-saved. Earlier
+releases ignore that section and keep it when they save. `restoredProviders`
+may name only the providers in `restoredProviderNames` (`vault.ts`), currently
+`gemini`; any other name makes the vault `vault_unreadable`. A release that
+restores another retired provider adds it there, and downgrading its vault to a
+release that reads `restoredProviders` but lacks that name fails the same way.
 
 ## Supervisor environment and frozen CLI
 
@@ -96,11 +107,11 @@ These are private composition inputs, not end-user configuration switches:
 | `ANIMAMA_DATABASE_URL`, `ANIMAMA_DESKTOP_PGDATA`                                                                  | Supervisor-owned loopback connection and expected cluster path. Never pass the password in argv or logs. |
 | `ANIMAMA_PUBLIC_ORIGIN`, `ANIMAMA_WEB_ROOT` | Exact saved loopback origin and packaged React build root. |
 | `ANIMAMA_DESKTOP_RENDERER_CAPABILITY` | Per-launch renderer admission cookie; never a private-control credential. |
-| `OPENAI_API_KEY`, `ELEVENLABS_API_KEY`, `ANIMAMA_CONNECTION_<ID>_API_KEY` | Saved vault keys at spawn for FastAPI (which moves them into its runtime store and removes them from its environment) and the document worker; withheld from the cleanup worker and `database` commands; redacted from logs. |
+| `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `ELEVENLABS_API_KEY`, `GEMINI_API_KEY`, `ANIMAMA_CONNECTION_<ID>_API_KEY` | Saved vault keys at spawn for FastAPI (which moves them into its runtime store and removes them from its environment) and the document worker; withheld from the cleanup worker and `database` commands; redacted from logs. |
 | `ANIMAMA_PROCESS_START_TOKEN` | Fresh owned-child UUID returned with its PID in private readiness. |
 | `ANIMAMA_PARAKEET_SOURCE` | `asset-store`: FastAPI installs and serves Parakeet sets from its own model-asset store, without a restart. |
 | `ANIMAMA_DESKTOP_CONTROL_TOKEN`, `ANIMAMA_DESKTOP_BUILD_ID`                                                       | Separate private readiness credential and expected build.                                                |
-| `ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON`                                                                           | Ordered bounded `{id, version, root, pack_id}` sources, core first; `pack_id` is `expanded-included-content` or `mixamo-motion`. |
+| `ANIMAMA_INCLUDED_CONTENT_SOURCES_JSON`                                                                           | Ordered bounded `{id, version, root, pack_id}` sources, core first; `pack_id` is `expanded-included-content` or a private pack (`mixamo-motion`, `wow-comedy-sfx`). |
 | `ANIMAMA_LOCAL_CONTENT_ROOT`, `ANIMAMA_DATA_ROOT`                                                                 | Writable Local and private-data roots.                                                                   |
 | `ANIMAMA_USER_FILE_PROCESSING_ENABLED`                                                                            | Whether the verified document pack is active; false in core alone.                                       |
 | `ANIMAMA_DOCUMENT_WORKER_INSTANCE_ID`, `ANIMAMA_DOCUMENT_PACK_VERSION`                                            | Expected heartbeat instance and active version for lifecycle checks.                                     |

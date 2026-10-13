@@ -7,6 +7,23 @@
     "finishing": "正在完成…",
     "skip": "暫時略過"
   },
+  "ageConfirmation": {
+    "backToSetup": "返回設定",
+    "confirm": "我已年滿 18 歲",
+    "decline": "我未滿 18 歲",
+    "declined": "Animama 僅供 18 歲以上的成年人使用。你無法繼續聊天。",
+    "errors": {
+      "capabilitiesFailed": "無法檢查 AI 設定。請再試一次。",
+      "modelUnavailable": "所選模型已無法使用。請返回設定選擇其他模型，或略過 AI。",
+      "saveFailed": "無法儲存設定。請再試一次。"
+    },
+    "goBack": "返回",
+    "heading": "開始之前",
+    "notice": "Animama 僅供 18 歲以上的成年人使用。Anima 是 AI 夥伴，不是真人。",
+    "opening": "正在開啟…",
+    "retry": "重試",
+    "safetyLink": "安全與危機應對規範"
+  },
   "ai": {
     "addCustomServer": "新增自訂伺服器",
     "addModel": "新增模型",
@@ -31,10 +48,9 @@
       "searching": "正在搜尋…",
       "setUpLater": "稍後設定"
     },
-    "openAi": {
-      "heading": "OpenAI",
-      "serverKey": "使用此伺服器上設定的 OpenAI 金鑰。",
-      "serverKeyMissing": "若要使用 OpenAI，請在伺服器上設定 OPENAI_API_KEY。"
+    "builtin": {
+      "serverKey": "使用此伺服器上設定的 {{name}} 金鑰。",
+      "serverKeyMissing": "若要使用 {{name}}，請在伺服器上設定 {{env}}。"
     },
     "providedModels": "此安裝自帶模型，因此這裡無需選擇。",
     "providerTabs": "{{location}}供應商",
@@ -43,8 +59,6 @@
   "errors": {
     "displayName": "請輸入 1 到 {{max}} 個字元的顯示名稱。",
     "keyNotSaved": "你的金鑰未儲存。請填寫此步驟中的資訊，或捨棄該金鑰。",
-    "modelUnavailable": "所選模型已無法使用。請返回 AI 步驟選擇其他模型，或略過。",
-    "saveFailed": "無法儲存設定。你的本機執行環境可能已完成設定；可以放心重試。",
     "voiceSettings": "無法儲存語音設定。請重試，或略過此步驟。"
   },
   "keys": {
@@ -122,18 +136,10 @@
     }
   },
   "welcome": {
-    "age": {
-      "confirm": "我已年滿 18 歲",
-      "decline": "我未滿 18 歲",
-      "declined": "Animama 僅供 18 歲以上的成年人使用，因此無法繼續設定。",
-      "heading": "開始之前",
-      "notice": "Anima 是 AI 夥伴，不是真人。Animama 的 AI 夥伴可能不適合部分未成年人，因此你必須年滿 18 歲才能使用 Animama。"
-    },
     "displayName": {
       "label": "顯示名稱",
       "placeholder": "你的名字"
     },
-    "heading": "Animama 該怎麼稱呼你？",
-    "safetyLink": "安全與危機應對規範"
+    "heading": "Animama 該怎麼稱呼你？"
   }
 }

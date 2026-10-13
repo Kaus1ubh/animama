@@ -15,10 +15,11 @@ from sqlalchemy import delete
 
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.content_catalog import ORMContentCatalogItem
-from animama.server.deps import get_async_session, get_current_principal
-from animama.server.routers import content, typed_content
+from animama.product_http.routes import content, typed_content
+from animama.server.deps import get_current_principal
 from tests.content_package_helpers import package_services
 from tests.local_http_client import local_client
+from tests.product_http_support import install_local_ports
 
 FIXTURES = json.loads(
     (Path(__file__).parents[1] / "src/frontend/web/src/lib/content/fixtures/package-capabilities.json").read_text()
@@ -62,11 +63,8 @@ async def effect_api(async_session, tmp_path: Path) -> AsyncIterator[tuple[Any, 
     async def owner() -> RequestPrincipal:
         return RequestPrincipal(id="effect-owner")
 
-    async def session() -> AsyncIterator[Any]:
-        yield async_session
-
     application.dependency_overrides[get_current_principal] = owner
-    application.dependency_overrides[get_async_session] = session
+    install_local_ports(application, async_session)
     try:
         async with local_client(application) as client:
             yield client, paths.local_root

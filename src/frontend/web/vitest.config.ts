@@ -6,6 +6,10 @@ const webSrc = fileURLToPath(new URL("./src", import.meta.url));
 const safetyDocsRoot = fileURLToPath(
   new URL("../../../docs/safety", import.meta.url),
 );
+// Included content bundled by the app, such as the Scene sticker PNGs.
+const includedContentRoot = fileURLToPath(
+  new URL("../../../content/included", import.meta.url),
+);
 
 export default defineConfig({
   define: {
@@ -14,7 +18,11 @@ export default defineConfig({
   },
   server: {
     fs: {
-      allow: [fileURLToPath(new URL(".", import.meta.url)), safetyDocsRoot],
+      allow: [
+        fileURLToPath(new URL(".", import.meta.url)),
+        safetyDocsRoot,
+        includedContentRoot,
+      ],
     },
   },
   resolve: {

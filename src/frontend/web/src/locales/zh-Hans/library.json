@@ -20,8 +20,8 @@
     },
     "nonPortableReason": "随此应用提供，仅限在此使用。无法自定义、复制或导出。",
     "particle": {
-      "aTextureTooLarge": "有纹理超过 25 MiB 的上限。",
-      "autoFitEmitters": "矩形自动适配的发射器名称必须唯一，且最多匹配八个发射器。",
+      "aTextureTooLarge": "有纹理超过 {{size}} MiB 的上限。",
+      "autoFitEmitters": "矩形自动适配的发射器名称必须唯一，且最多匹配 {{max}} 个发射器。",
       "autoFitEmpty": "矩形自动适配尺寸不能为空。",
       "autoFitHeightRange": "矩形自动适配高度的最小值超过最大值。",
       "autoFitWidthRange": "矩形自动适配宽度的最小值超过最大值。",
@@ -43,12 +43,14 @@
         "scale": "缩放"
       },
       "textureAmbiguous": "纹理 {{texture}} 的资源来源不明确。",
+      "textureDimensionsTooLarge": "纹理 {{texture}} 的每条边不得超过 {{size}} px。",
       "textureEmpty": "纹理 {{texture}} 为空。",
       "textureFetchFailed": "获取纹理失败（HTTP {{status}}）。",
       "textureMismatched": "纹理 {{texture}} 的图像数据不匹配或不受支持。",
       "textureNotAvailable": "纹理 {{texture}} 对此内容条目不可用。",
       "textureNotInApp": "无法从确切的应用来源获取纹理 {{texture}}。",
-      "textureTooLarge": "纹理 {{texture}} 超过 25 MiB 的上限。",
+      "texturesTotalTooLarge": "一个粒子特效中的纹理总计不得超过 {{size}} MiB。",
+      "textureTooLarge": "纹理 {{texture}} 超过 {{size}} MiB 的上限。",
       "textureUnresolved": "有未解析的纹理资源。",
       "tooManyTextures_other": "粒子特效最多支持 {{count}} 个不同的纹理。"
     },
@@ -71,6 +73,7 @@
     },
     "recovery": {
       "discardFailed": "无法丢弃浏览器恢复数据。请重试。",
+      "particleTexturesNotStored": "无法为崩溃恢复存储纹理文件。恢复此草稿后，请重新选择缺少的纹理。",
       "particleTooLarge": "此特效过大，无法用于浏览器崩溃恢复。保存仍可继续。",
       "unavailable": "浏览器崩溃恢复不可用。请在保存完成前保持此标签页打开。"
     },
@@ -165,6 +168,19 @@
       "poses": "姿势",
       "reactions": "反应"
     },
+    "contentTypes": {
+      "all": "全部",
+      "avatarEffects": "形象特效",
+      "avatars": "虚拟形象",
+      "gestures": "动作",
+      "idleStyles": "待机风格",
+      "label": "资源库内容类型",
+      "particle": "粒子特效",
+      "poses": "姿势",
+      "reactions": "反应",
+      "scene": "场景特效",
+      "sound": "音效"
+    },
     "fxFilters": {
       "all": "全部",
       "avatar": "形象特效",
@@ -238,6 +254,7 @@
       },
       "noAnimas": "还没有可导出的 Anima。",
       "noMatches": "没有匹配的内容。",
+      "omittedSounds_other": "{{count, number}} 个内置特效音效会保留在此应用中。这些特效的导入副本将在没有音效的情况下播放。",
       "plusRequired_other": "+ {{count}} 个必需依赖项",
       "preparingPackage": "正在准备你的包…",
       "refreshSelection": "刷新所选内容",

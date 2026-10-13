@@ -58,6 +58,8 @@ class ORMModelProvider(SqlalchemyBase, TimestampMixin):
     source: Mapped[str] = mapped_column(String, nullable=False, default="builtin", server_default="builtin")
     model_kind: Mapped[str] = mapped_column(String, nullable=False, default="chat", server_default="chat")
     hidden: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False, server_default="false")
+    # The owner's Compact early choice; applies only to rows with a long-context price step.
+    early_compaction: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     allow_memory_writes: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True, server_default="true")
     probe_result: Mapped[dict[str, Any] | None] = mapped_column(JSONB, nullable=True)
     service_tiers_supported: Mapped[list[str]] = mapped_column(JSON, nullable=False, default=list)

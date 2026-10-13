@@ -50,7 +50,7 @@ export type ChatSessionEffects = {
     runId: string;
     phonemizedText: string[][] | null;
     tokenizedText: string | null;
-    provider?: "pocket_tts" | "elevenlabs";
+    provider?: "pocket_tts" | "elevenlabs" | "gemini";
   }) => void;
   clearAvatarVisemeBridgeRun: (
     runId?: string | null,
@@ -83,7 +83,7 @@ export type ChatSessionEffects = {
     runId: string,
     error: TtsError | string,
   ) => void;
-  acceptElevenLabsFinalizedAudio: (
+  acceptFinalizedAudio: (
     runId: string,
     payload: {
       run_id?: string | null;
@@ -92,11 +92,8 @@ export type ChatSessionEffects = {
       audio_base64?: string | null;
     },
   ) => void;
-  completeElevenLabsFinalizedAudio: (runId: string) => void;
-  markElevenLabsFinalizedAudioFailed: (
-    runId: string,
-    error: TtsError | string,
-  ) => void;
+  completeFinalizedAudio: (runId: string) => void;
+  markFinalizedAudioFailed: (runId: string, error: TtsError | string) => void;
   /**
    * Speak a run with Pocket TTS after the server declined its ElevenLabs speech
    * because the owner's voice allowance is exhausted, for that run only.
@@ -129,9 +126,9 @@ export const textOnlyChatEffects: ChatSessionEffects = {
   completeTtsRun: ignore,
   acceptElevenLabsSession: ignore,
   markElevenLabsSessionFailed: ignore,
-  acceptElevenLabsFinalizedAudio: ignore,
-  completeElevenLabsFinalizedAudio: ignore,
-  markElevenLabsFinalizedAudioFailed: ignore,
+  acceptFinalizedAudio: ignore,
+  completeFinalizedAudio: ignore,
+  markFinalizedAudioFailed: ignore,
   fallBackToPocketTts: () => false,
   cancelTts: ignore,
   isTtsAudioActive: false,
@@ -139,9 +136,10 @@ export const textOnlyChatEffects: ChatSessionEffects = {
 
 export type ChatSpeechPolicy = {
   enabled: boolean;
-  provider: "browser" | "pocket_tts" | "elevenlabs" | null;
+  provider: "browser" | "pocket_tts" | "elevenlabs" | "gemini" | null;
   elevenLabsModelId: string | null;
-  finalizedElevenLabs: boolean;
+  /** The server pushes the reply's audio as `tts.audio` frames (Gemini). */
+  finalizedServerAudio: boolean;
   dispatchOptions?: PyAnimaDispatchOptions;
 };
 
@@ -149,5 +147,5 @@ export const textOnlySpeechPolicy: ChatSpeechPolicy = {
   enabled: false,
   provider: null,
   elevenLabsModelId: null,
-  finalizedElevenLabs: false,
+  finalizedServerAudio: false,
 };

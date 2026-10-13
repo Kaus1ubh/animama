@@ -11,17 +11,12 @@ import { ContentEditorHydration } from "@/lib/content/contentEditorSource";
 import { useNavigate } from "@tanstack/react-router";
 import {
   AlertTriangleIcon,
-  ArrowDownIcon,
-  ArrowUpIcon,
   CheckCircle2Icon,
   Code2Icon,
-  FileImageIcon,
   FolderOpenIcon,
   GripVerticalIcon,
-  ImagePlusIcon,
-  LoaderCircleIcon,
+  PlusIcon,
   SparklesIcon,
-  Trash2Icon,
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { getI18n, useTranslation } from "react-i18next";
@@ -29,21 +24,20 @@ import { toast } from "sonner";
 
 import { listCatalogItems, previewCatalogItem } from "@/lib/content/catalogApi";
 import { createUniqueContentName } from "@/lib/content/uniqueContentName";
+import { previewSoundForCopy } from "@/lib/content/previewSound";
 import { isSceneEffectTemplateId } from "@/lib/effects/effectTemplates";
 import { failureLine, WordedError } from "@/lib/errors/apiError";
 import type {
-  PyContentDependency,
   PyContentPreview,
   PyExactContentSource,
 } from "@/lib/content/catalogTypes";
 import { Avatar } from "@/lib/avatar";
 import { fetchContentPreviewFile } from "@/lib/content/contentPreview";
-import { preflightContentFile, sha256File } from "@/lib/content/contentUploads";
+import { sha256File } from "@/lib/content/contentUploads";
 import { findLogicalResourceFile } from "@/lib/content/typedLogicalResources";
 import {
   applySceneEffectTemplate,
   buildSceneEffectEditorExport,
-  canonicalSceneEffectImageName,
   createDefaultSceneEffectDocument,
   createSceneEffectDocumentFromDefinition,
   parseSceneEffectEditorExport,
@@ -52,22 +46,22 @@ import {
   sceneEffectFieldLabel,
   sceneEffectTemplateLabel,
   sceneEffectImageMetadata,
-  sceneImagesTooLargeMessage,
+  defaultSceneScatter,
   sceneEffectRecoveryStore,
   sceneEffectRuntimeEntry,
-  SCENE_EFFECT_IMAGE_TYPES,
-  uniqueSceneEffectImageName,
   validateSceneEffectDocument,
   type SceneEffectEditorDocument,
+  type SceneEffectEditorBackground,
   type SceneEffectEditorImage,
   type SceneEffectEditorImageResource,
   type SceneEffectEditorMarqueeItem,
-  type SceneEffectEditorSound,
+  type SceneEffectImageTarget,
   type SceneEffectTemplateId,
 } from "@/lib/scene-vfx/editor";
 import { useRuntimeCacheKey } from "@/app/runtime/RuntimeOwnerContext";
-import { SCENE_BACKGROUND_EMOJI_LINE_ITEMS } from "@/lib/scene-vfx/assets";
+import { SCENE_EFFECT_LIMITS } from "@/lib/scene-vfx/limits";
 import { buildSceneVFXRuntimeEntry } from "@/lib/scene-vfx/runtime-state";
+import type { SceneSticker } from "@/lib/scene-vfx/stickers";
 import {
   SCENE_BACKGROUND_DIRECTIONS,
   SCENE_BACKGROUND_ITEM_ROTATION_MODES,
@@ -112,7 +106,6 @@ import {
 } from "@/ui/content-creator/useCreatorTemplateStart";
 import { useCreatorDocumentHistory } from "@/ui/creator-history/useCreatorDocumentHistory";
 import { Button } from "@/ui/components/button";
-import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import { Switch } from "@/ui/components/switch";
 import {
@@ -125,6 +118,8 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/ui/components/tabs";
 import { Textarea } from "@/ui/components/textarea";
 import {
+  addSceneEffectImageFile,
+  addSceneEffectSticker,
   createSceneEffectHistorySnapshot,
   createSceneEffectObjectUrlLease,
   equalSceneEffectHistorySnapshots,
@@ -137,21 +132,36 @@ import {
   manualBoxFieldName,
   previewStateName,
   sceneDirectionName,
-  sceneEmojiName,
+  sceneGradientTypeName,
   sceneLayerName,
   scenePatternName,
+  scenePulseName,
   sceneRotationModeName,
-  type SceneBackgroundLayer,
+  sceneScreenKindName,
+  type SceneBackgroundLayer as NamedSceneBackgroundLayer,
 } from "./sceneEffectLabels";
+import {
+  ColorField,
+  FlashInspector,
+  GradientInspector,
+  SceneItemsEditor,
+  ScatterInspector,
+  ScreenInspector,
+  TileInspector,
+  type SceneImageControls,
+} from "./sceneLayerControls";
 import { useSceneEffectSave } from "./useSceneEffectSave";
 
-const MAX_SCENE_IMAGE_BYTES = 32 * 1024 * 1024;
 type PreviewStatus = {
   state: "idle" | "loading" | "ready" | "error";
   message: string | null;
 };
 
-type BackgroundLayer = SceneBackgroundLayer;
+/** A background layer the inspector edits; scatter layers by index. */
+type BackgroundLayer = NamedSceneBackgroundLayer | `scatter:${number}`;
+
+const scatterIndex = (layer: BackgroundLayer): number | null =>
+  layer.startsWith("scatter:") ? Number(layer.slice("scatter:".length)) : null;
 
 /**
  * Product Scene Effect creator backed by ordinary editable catalog files.
@@ -499,15 +509,16 @@ export function SceneEffectCreatorPage({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [canSave, playing, save, setPreviewPlaying]);
 
-  const onItemsChange = useCallback(
-    (items: SceneEffectEditorMarqueeItem[]) => {
+  /** Apply a document change, keeping only the image bytes it still uses. */
+  const replaceDocument = useCallback(
+    (nextDocument: SceneEffectEditorDocument) => {
       const referenced = new Set(
-        items.flatMap((item) =>
-          item.kind === "image" ? [item.image.logicalName] : [],
+        sceneEffectImageMetadata(nextDocument).map(
+          (image) => image.logicalName,
         ),
       );
       dispatch(
-        { type: "set-marquee-items", items },
+        { type: "replace", document: nextDocument },
         getSnapshot().imageResources.filter((resource) =>
           referenced.has(resource.logicalName),
         ),
@@ -517,97 +528,79 @@ export function SceneEffectCreatorPage({
     [dispatch, getSnapshot, restartPreview],
   );
 
-  const choosePrivateImage = useCallback(
-    async (source: File) => {
+  /** Replace the items of the marquee or of one scatter layer. */
+  const onItemsChange = useCallback(
+    (
+      target: Exclude<SceneEffectImageTarget, { kind: "tile" }>,
+      items: SceneEffectEditorMarqueeItem[],
+    ) => {
+      const current = getSnapshot().document;
+      replaceDocument(
+        target.kind === "marquee"
+          ? sceneEffectEditorReducer(current, {
+              type: "set-marquee-items",
+              items,
+            })
+          : sceneEffectEditorReducer(current, {
+              type: "patch-background",
+              patch: {
+                scatters: current.background.scatters.map((layer, index) =>
+                  index === target.index ? { ...layer, items } : layer,
+                ),
+              },
+            }),
+      );
+    },
+    [getSnapshot, replaceDocument],
+  );
+
+  /**
+   * Add an image to `target` (see `addSceneEffectImageFile`), holding the
+   * image-busy state so no other image or Save starts meanwhile, and showing
+   * why an image was refused.
+   */
+  const addImage = useCallback(
+    async (
+      add: () => Promise<SceneEffectHistorySnapshot>,
+      fallback: string,
+    ) => {
       setImageError(null);
-      if (!SCENE_EFFECT_IMAGE_TYPES.has(source.type)) {
-        setImageError(t("scene.image.typeInvalid"));
-        return;
-      }
-      if (source.size > MAX_SCENE_IMAGE_BYTES) {
-        setImageError(sceneImagesTooLargeMessage());
-        return;
-      }
       setImageBusy(true);
       try {
-        const preflight = await preflightContentFile("image", source);
-        // Preflight failures are already worded in the UI Locale.
-        if (preflight.error) throw new WordedError(preflight.error);
-        const sha256 = await sha256File(source);
-        const { document, imageResources } = getSnapshot();
-        const baseLogicalName = canonicalSceneEffectImageName(source.name);
-        const missing = document.background.marquee.items.find(
-          (item) =>
-            item.kind === "image" &&
-            item.image.logicalName === baseLogicalName &&
-            !imageResources.some(
-              (resource) => resource.logicalName === baseLogicalName,
-            ),
+        const next = await add();
+        dispatch(
+          { type: "replace", document: next.document },
+          next.imageResources,
         );
-        const logicalName = missing
-          ? baseLogicalName
-          : uniqueSceneEffectImageName(
-              source.name,
-              document.background.marquee.items.flatMap((item) =>
-                item.kind === "image" ? [item.image.logicalName] : [],
-              ),
-            );
-        const sourceExtension =
-          source.name.match(/\.(png|jpe?g|webp|svg)$/i)?.[0] ?? ".webp";
-        const uploadName = logicalName.replace(
-          /\.webp$/i,
-          sourceExtension.toLowerCase(),
-        );
-        const file = new File([source], uploadName, {
-          type: source.type,
-          lastModified: source.lastModified,
-        });
-        const image: SceneEffectEditorImage = {
-          logicalName,
-          originalName: source.name,
-          contentType: source.type,
-          sizeBytes: source.size,
-          sha256,
-        };
-        const current = getSnapshot();
-        const items = missing
-          ? current.document.background.marquee.items.map((item) =>
-              item.kind === "image" && item.image.logicalName === logicalName
-                ? { ...item, image }
-                : item,
-            )
-          : [
-              ...current.document.background.marquee.items,
-              {
-                id: `private-${crypto.randomUUID().slice(0, 8)}`,
-                kind: "image" as const,
-                label: source.name.replace(/\.[^.]+$/, ""),
-                image,
-              },
-            ];
-        let nextDocument = sceneEffectEditorReducer(current.document, {
-          type: "set-marquee-items",
-          items,
-        });
-        if (!missing)
-          nextDocument = sceneEffectEditorReducer(nextDocument, {
-            type: "patch-marquee",
-            patch: { enabled: true },
-          });
-        dispatch({ type: "replace", document: nextDocument }, [
-          ...current.imageResources.filter(
-            (resource) => resource.logicalName !== logicalName,
-          ),
-          { logicalName, file, sha256 },
-        ]);
         restartPreview();
       } catch (error) {
-        setImageError(failureLine(error, t("creator.imageReadFailed")));
+        // A refusal is worded already; other failures use `fallback`.
+        setImageError(failureLine(error, fallback));
       } finally {
         setImageBusy(false);
       }
     },
-    [dispatch, getSnapshot, restartPreview, t],
+    [dispatch, restartPreview],
+  );
+
+  /** Add a chosen private image file to `target`. */
+  const choosePrivateImage = useCallback(
+    (source: File, target: SceneEffectImageTarget) =>
+      addImage(
+        () => addSceneEffectImageFile(getSnapshot, source, target),
+        t("creator.imageReadFailed"),
+      ),
+    [addImage, getSnapshot, t],
+  );
+
+  /** Add a built-in sticker to `target` as the effect's own image. */
+  const chooseSticker = useCallback(
+    (sticker: SceneSticker, target: SceneEffectImageTarget) =>
+      addImage(
+        () => addSceneEffectSticker(getSnapshot, sticker, target),
+        t("scene.stickers.loadFailed"),
+      ),
+    [addImage, getSnapshot, t],
   );
 
   const importDocument = useCallback(() => {
@@ -882,6 +875,14 @@ export function SceneEffectCreatorPage({
             dispatch(action);
             restartPreview();
           }}
+          onBackground={(patch) =>
+            replaceDocument(
+              sceneEffectEditorReducer(document, {
+                type: "patch-background",
+                patch,
+              }),
+            )
+          }
         />
       }
       rightPanel={
@@ -900,6 +901,16 @@ export function SceneEffectCreatorPage({
           }}
           onItemsChange={onItemsChange}
           onChooseImage={choosePrivateImage}
+          onChooseSticker={chooseSticker}
+          onBackground={(patch) =>
+            replaceDocument(
+              sceneEffectEditorReducer(document, {
+                type: "patch-background",
+                patch,
+              }),
+            )
+          }
+          onSelectedLayer={setSelectedLayer}
           onClearSaveErrorField={contentSave.clearSaveErrorField}
         />
       }
@@ -1022,9 +1033,11 @@ function SceneSetupPanel({
   onStartingTemplate,
   onSelectedLayer,
   onDispatch,
+  onBackground,
 }: {
   document: SceneEffectEditorDocument;
   selectedLayer: BackgroundLayer;
+  onBackground: (patch: Partial<SceneEffectEditorBackground>) => void;
   startingTemplate: SceneEffectTemplateId | null;
   onStartingTemplate: (templateId: SceneEffectTemplateId) => void;
   soundOptions: Array<{
@@ -1105,6 +1118,66 @@ function SceneSetupPanel({
           <div className="space-y-2">
             <Label className="text-xs">{t("scene.layers.title")}</Label>
             <LayerCard
+              selected={selectedLayer === "flash"}
+              title={sceneLayerName(t, "flash")}
+              subtitle={t("scene.layers.flashSummary", {
+                color: document.background.flash.color,
+                ms: document.background.flash.durationMs,
+              })}
+              enabled={document.background.flash.enabled}
+              onSelect={() => onSelectedLayer("flash")}
+              onEnabled={(enabled) =>
+                onBackground({
+                  flash: { ...document.background.flash, enabled },
+                })
+              }
+            />
+            {document.background.scatters
+              .map((layer, index) => ({ layer, index }))
+              .reverse()
+              .map(({ layer, index }) => (
+                <LayerCard
+                  key={index}
+                  selected={selectedLayer === `scatter:${index}`}
+                  title={t("scene.layers.scatter", { index: index + 1 })}
+                  subtitle={t("scene.layers.scatterSummary", {
+                    count: layer.items.length,
+                    shown: layer.count,
+                    pulse: scenePulseName(t, layer.pulse),
+                  })}
+                  enabled={layer.enabled}
+                  onSelect={() => onSelectedLayer(`scatter:${index}`)}
+                  onEnabled={(enabled) =>
+                    onBackground({
+                      scatters: document.background.scatters.map((other, at) =>
+                        at === index ? { ...other, enabled } : other,
+                      ),
+                    })
+                  }
+                />
+              ))}
+            {document.background.scatters.length <
+            SCENE_EFFECT_LIMITS.scatter.layers ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={() => {
+                  const index = document.background.scatters.length;
+                  onBackground({
+                    scatters: [
+                      ...document.background.scatters,
+                      defaultSceneScatter(index + 1),
+                    ],
+                  });
+                  onSelectedLayer(`scatter:${index}`);
+                }}
+              >
+                <PlusIcon /> {t("scene.layers.addScatter")}
+              </Button>
+            ) : null}
+            <LayerCard
               selected={selectedLayer === "marquee"}
               title={sceneLayerName(t, "marquee")}
               subtitle={t("scene.layers.marqueeSummary", {
@@ -1121,6 +1194,36 @@ function SceneSetupPanel({
               }
             />
             <LayerCard
+              selected={selectedLayer === "screen"}
+              title={sceneLayerName(t, "screen")}
+              subtitle={t("scene.layers.screenSummary", {
+                kind: sceneScreenKindName(t, document.background.screen.kind),
+                total: document.background.screen.count,
+              })}
+              enabled={document.background.screen.enabled}
+              onSelect={() => onSelectedLayer("screen")}
+              onEnabled={(enabled) =>
+                onBackground({
+                  screen: { ...document.background.screen, enabled },
+                })
+              }
+            />
+            <LayerCard
+              selected={selectedLayer === "tile"}
+              title={sceneLayerName(t, "tile")}
+              subtitle={
+                document.background.tile.image?.logicalName ??
+                t("scene.layers.tileNoImage")
+              }
+              enabled={document.background.tile.enabled}
+              onSelect={() => onSelectedLayer("tile")}
+              onEnabled={(enabled) =>
+                onBackground({
+                  tile: { ...document.background.tile, enabled },
+                })
+              }
+            />
+            <LayerCard
               selected={selectedLayer === "pattern"}
               title={sceneLayerName(t, "pattern")}
               subtitle={t("scene.layers.patternSummary", {
@@ -1134,6 +1237,24 @@ function SceneSetupPanel({
               onSelect={() => onSelectedLayer("pattern")}
               onEnabled={(enabled) =>
                 onDispatch({ type: "patch-pattern", patch: { enabled } })
+              }
+            />
+            <LayerCard
+              selected={selectedLayer === "gradient"}
+              title={sceneLayerName(t, "gradient")}
+              subtitle={t("scene.layers.gradientSummary", {
+                type: sceneGradientTypeName(
+                  t,
+                  document.background.gradient.type,
+                ),
+                count: document.background.gradient.stops.length,
+              })}
+              enabled={document.background.gradient.enabled}
+              onSelect={() => onSelectedLayer("gradient")}
+              onEnabled={(enabled) =>
+                onBackground({
+                  gradient: { ...document.background.gradient, enabled },
+                })
               }
             />
             <LayerCard
@@ -1338,6 +1459,9 @@ function SceneInspectorPanel({
   onDispatch,
   onItemsChange,
   onChooseImage,
+  onChooseSticker,
+  onBackground,
+  onSelectedLayer,
   onClearSaveErrorField,
 }: {
   document: SceneEffectEditorDocument;
@@ -1349,37 +1473,110 @@ function SceneInspectorPanel({
   imageUrls: ReadonlyMap<string, string>;
   saveErrorField: string | null;
   onDispatch: React.Dispatch<Parameters<typeof sceneEffectEditorReducer>[1]>;
-  onItemsChange: (items: SceneEffectEditorMarqueeItem[]) => void;
-  onChooseImage: (file: File) => void;
+  onItemsChange: (
+    target: Exclude<SceneEffectImageTarget, { kind: "tile" }>,
+    items: SceneEffectEditorMarqueeItem[],
+  ) => void;
+  onChooseImage: (file: File, target: SceneEffectImageTarget) => void;
+  onChooseSticker: (
+    sticker: SceneSticker,
+    target: SceneEffectImageTarget,
+  ) => void;
+  onBackground: (patch: Partial<SceneEffectEditorBackground>) => void;
+  onSelectedLayer: (layer: BackgroundLayer) => void;
   onClearSaveErrorField: (field: string) => void;
 }) {
   const { t } = useTranslation("effects");
+  /** Image controls whose chosen file goes to `target`. */
+  const imagesFor = (target: SceneEffectImageTarget): SceneImageControls => ({
+    imageBusy,
+    imageError,
+    imageUrls,
+    filesInvalid: saveErrorField === "files",
+    onChooseImage: (file) => {
+      onClearSaveErrorField("files");
+      void onChooseImage(file, target);
+    },
+    onChooseSticker: (sticker) => {
+      onClearSaveErrorField("files");
+      void onChooseSticker(sticker, target);
+    },
+  });
+  const background = document.background;
+  // A scatter layer that no longer exists (undo, reopen) shows the marquee.
+  const selected =
+    scatterIndex(selectedLayer) !== null &&
+    !background.scatters[scatterIndex(selectedLayer)!]
+      ? "marquee"
+      : selectedLayer;
+  const scatter = scatterIndex(selected);
   return (
     <FloatingPanel
       title={t("creator.panels.inspector")}
       summary={
         document.kind === "background_layers"
           ? t("scene.layers.summary", {
-              layer: sceneLayerName(t, selectedLayer),
+              layer:
+                scatter !== null
+                  ? t("scene.layers.scatter", { index: scatter + 1 })
+                  : sceneLayerName(t, selected as NamedSceneBackgroundLayer),
             })
           : t("scene.kinds.focusLines")
       }
       bodyClassName="overflow-y-auto"
     >
       {document.kind === "background_layers" ? (
-        selectedLayer === "marquee" ? (
+        selected === "marquee" ? (
           <MarqueeInspector
             document={document}
-            imageBusy={imageBusy}
-            imageError={imageError}
-            imageUrls={imageUrls}
-            saveErrorField={saveErrorField}
+            images={imagesFor({ kind: "marquee" })}
             onDispatch={onDispatch}
-            onItemsChange={onItemsChange}
-            onChooseImage={onChooseImage}
-            onClearSaveErrorField={onClearSaveErrorField}
+            onItemsChange={(items) => onItemsChange({ kind: "marquee" }, items)}
           />
-        ) : selectedLayer === "pattern" ? (
+        ) : scatter !== null && background.scatters[scatter] ? (
+          <ScatterInspector
+            key={scatter}
+            layer={background.scatters[scatter]}
+            index={scatter}
+            images={imagesFor({ kind: "scatter", index: scatter })}
+            onLayer={(layer) =>
+              onBackground({
+                scatters: background.scatters.map((other, index) =>
+                  index === scatter ? layer : other,
+                ),
+              })
+            }
+            onItemsChange={(items) =>
+              onItemsChange({ kind: "scatter", index: scatter }, items)
+            }
+            onRemove={() => {
+              onBackground({
+                scatters: background.scatters.filter(
+                  (_, index) => index !== scatter,
+                ),
+              });
+              onSelectedLayer("marquee");
+            }}
+          />
+        ) : selected === "gradient" ? (
+          <GradientInspector
+            background={background}
+            onBackground={onBackground}
+          />
+        ) : selected === "tile" ? (
+          <TileInspector
+            background={background}
+            onBackground={onBackground}
+            images={imagesFor({ kind: "tile" })}
+          />
+        ) : selected === "screen" ? (
+          <ScreenInspector
+            background={background}
+            onBackground={onBackground}
+          />
+        ) : selected === "flash" ? (
+          <FlashInspector background={background} onBackground={onBackground} />
+        ) : selected === "pattern" ? (
           <PatternInspector document={document} onDispatch={onDispatch} />
         ) : (
           <SolidInspector document={document} onDispatch={onDispatch} />
@@ -1428,30 +1625,17 @@ function SceneInspectorPanel({
 
 function MarqueeInspector({
   document,
-  imageBusy,
-  imageError,
-  imageUrls,
-  saveErrorField,
+  images,
   onDispatch,
   onItemsChange,
-  onChooseImage,
-  onClearSaveErrorField,
 }: {
   document: SceneEffectEditorDocument;
-  imageBusy: boolean;
-  imageError: string | null;
-  imageUrls: ReadonlyMap<string, string>;
-  saveErrorField: string | null;
+  images: SceneImageControls;
   onDispatch: React.Dispatch<Parameters<typeof sceneEffectEditorReducer>[1]>;
   onItemsChange: (items: SceneEffectEditorMarqueeItem[]) => void;
-  onChooseImage: (file: File) => void;
-  onClearSaveErrorField: (field: string) => void;
 }) {
   const { t } = useTranslation("effects");
   const marquee = document.background.marquee;
-  const [emojiId, setEmojiId] = useState(
-    SCENE_BACKGROUND_EMOJI_LINE_ITEMS[0]?.id ?? "",
-  );
   return (
     <Tabs defaultValue="content">
       <TabsList className="grid h-9 w-full grid-cols-3">
@@ -1466,106 +1650,12 @@ function MarqueeInspector({
         </TabsTrigger>
       </TabsList>
       <TabsContent value="content" className="mt-3 space-y-3">
-        <Label>{t("scene.marquee.items")}</Label>
-        {marquee.items.length ? (
-          <div className="space-y-2">
-            {marquee.items.map((item, index) => (
-              <MarqueeItemRow
-                key={item.id}
-                item={item}
-                imageUrl={
-                  item.kind === "image"
-                    ? imageUrls.get(item.image.logicalName)
-                    : undefined
-                }
-                first={index === 0}
-                last={index === marquee.items.length - 1}
-                onMove={(offset) =>
-                  onItemsChange(moveItem(marquee.items, index, index + offset))
-                }
-                onRemove={() =>
-                  onItemsChange(
-                    marquee.items.filter((_, itemIndex) => itemIndex !== index),
-                  )
-                }
-              />
-            ))}
-          </div>
-        ) : (
-          <p className="text-muted-foreground text-sm">
-            {t("scene.marquee.empty")}
-          </p>
-        )}
-        <div className="grid grid-cols-[1fr_auto] gap-2">
-          <Select value={emojiId} onValueChange={setEmojiId}>
-            <SelectTrigger size="sm" className="w-full text-xs">
-              <SelectValue placeholder={t("scene.marquee.chooseEmoji")} />
-            </SelectTrigger>
-            <SelectContent>
-              {SCENE_BACKGROUND_EMOJI_LINE_ITEMS.map((item) => (
-                <SelectItem key={item.id} value={item.id}>
-                  {t("scene.marquee.emojiOption", {
-                    emoji: item.emoji,
-                    name: sceneEmojiName(t, item.emoji) ?? item.label,
-                  })}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => {
-              const selected = SCENE_BACKGROUND_EMOJI_LINE_ITEMS.find(
-                (item) => item.id === emojiId,
-              );
-              if (!selected) return;
-              onItemsChange([
-                ...marquee.items,
-                {
-                  id: `${selected.id}-${crypto.randomUUID().slice(0, 6)}`,
-                  kind: "emoji",
-                  label: selected.label,
-                  emoji: selected.emoji,
-                  provider: "twemoji",
-                },
-              ]);
-            }}
-          >
-            {t("scene.marquee.addEmoji")}
-          </Button>
-        </div>
-        <label
-          className={cn(
-            "border-border/70 bg-background/55 hover:bg-accent/50 flex cursor-pointer items-center gap-2 rounded-lg border border-dashed p-3 text-sm transition",
-            saveErrorField === "files" &&
-              "border-destructive bg-destructive/5 text-destructive ring-destructive/40 ring-1",
-          )}
-        >
-          {imageBusy ? (
-            <LoaderCircleIcon className="size-4 animate-spin" />
-          ) : (
-            <ImagePlusIcon className="size-4" />
-          )}
-          {t("scene.marquee.addImage")}
-          <input
-            className="sr-only"
-            type="file"
-            accept={[...SCENE_EFFECT_IMAGE_TYPES].join(",")}
-            aria-invalid={saveErrorField === "files"}
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) {
-                onClearSaveErrorField("files");
-                void onChooseImage(file);
-              }
-              event.currentTarget.value = "";
-            }}
-          />
-        </label>
-        {imageError ? (
-          <p className="text-destructive text-xs">{imageError}</p>
-        ) : null}
+        <SceneItemsEditor
+          items={marquee.items}
+          maxItems={SCENE_EFFECT_LIMITS.marquee.items}
+          images={images}
+          onItemsChange={onItemsChange}
+        />
       </TabsContent>
       <TabsContent value="motion" className="mt-3 space-y-3">
         <Field label={t("scene.marquee.direction")}>
@@ -1682,79 +1772,6 @@ function MarqueeInspector({
         />
       </TabsContent>
     </Tabs>
-  );
-}
-
-function MarqueeItemRow({
-  item,
-  imageUrl,
-  first,
-  last,
-  onMove,
-  onRemove,
-}: {
-  item: SceneEffectEditorMarqueeItem;
-  imageUrl?: string;
-  first: boolean;
-  last: boolean;
-  onMove: (offset: -1 | 1) => void;
-  onRemove: () => void;
-}) {
-  const { t } = useTranslation("effects");
-  // Catalog emoji keep their English label as data; show their worded name.
-  const name =
-    (item.kind === "emoji" ? sceneEmojiName(t, item.emoji) : null) ??
-    item.label;
-  return (
-    <div className="border-border/70 bg-background/55 flex items-center gap-2 rounded-lg border p-2">
-      <GripVerticalIcon className="text-muted-foreground size-4" />
-      <div className="bg-muted flex size-8 items-center justify-center overflow-hidden rounded-md">
-        {item.kind === "emoji" ? (
-          <span>{item.emoji}</span>
-        ) : imageUrl ? (
-          <img src={imageUrl} alt="" className="size-full object-contain" />
-        ) : (
-          <FileImageIcon className="text-muted-foreground size-4" />
-        )}
-      </div>
-      <div className="min-w-0 flex-1">
-        <div className="truncate text-sm font-medium">{name}</div>
-        <div className="text-muted-foreground text-2xs truncate">
-          {item.kind === "image"
-            ? item.image.logicalName
-            : t("scene.marquee.twemoji")}
-        </div>
-      </div>
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        disabled={first}
-        aria-label={t("scene.marquee.moveUp", { name })}
-        onClick={() => onMove(-1)}
-      >
-        <ArrowUpIcon />
-      </Button>
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        disabled={last}
-        aria-label={t("scene.marquee.moveDown", { name })}
-        onClick={() => onMove(1)}
-      >
-        <ArrowDownIcon />
-      </Button>
-      <Button
-        type="button"
-        size="icon-sm"
-        variant="ghost"
-        aria-label={t("scene.marquee.remove", { name })}
-        onClick={onRemove}
-      >
-        <Trash2Icon />
-      </Button>
-    </div>
   );
 }
 
@@ -2132,34 +2149,6 @@ type InspectorFieldsProps = {
   onDispatch: React.Dispatch<Parameters<typeof sceneEffectEditorReducer>[1]>;
 };
 
-function ColorField({
-  label,
-  value,
-  onChange,
-}: {
-  label: string;
-  value: string;
-  onChange: (value: string) => void;
-}) {
-  return (
-    <Field label={label}>
-      <div className="grid grid-cols-[44px_1fr] gap-2">
-        <Input
-          type="color"
-          className="p-1"
-          value={value}
-          onChange={(event) => onChange(event.target.value)}
-        />
-        <Input
-          value={value}
-          maxLength={7}
-          onChange={(event) => onChange(event.target.value)}
-        />
-      </div>
-    </Field>
-  );
-}
-
 function StatusRow({
   good,
   label,
@@ -2265,47 +2254,10 @@ async function hydrateSceneEffect(
       description: args.description,
       definition,
       images: imageMetadata,
-      sound: exactSoundFromPreview(preview),
+      sound: previewSoundForCopy(preview).sound,
     }),
     images: resources,
   };
-}
-
-function exactSoundFromPreview(
-  preview: PyContentPreview,
-): SceneEffectEditorSound | null {
-  const dependencies = Array.isArray(preview.metadata.dependencies)
-    ? preview.metadata.dependencies
-    : [];
-  const edge = dependencies.find((value): value is PyContentDependency =>
-    Boolean(
-      object(value)?.content_type === "sound_effect" &&
-      typeof object(value)?.alias === "string" &&
-      object(object(value)?.source)?.type,
-    ),
-  );
-  if (!edge) return null;
-  const supports = Array.isArray(preview.metadata.supports)
-    ? preview.metadata.supports
-    : [];
-  const referenceMap = object(preview.metadata.reference_map);
-  const runtimeId = referenceMap?.[edge.alias];
-  const support = supports.find(
-    (value) => object(value)?.runtime_id === runtimeId,
-  );
-  return {
-    alias: edge.alias,
-    label: String(object(support)?.name ?? edge.alias),
-    source: edge.source,
-  };
-}
-
-function moveItem<T>(items: T[], from: number, to: number): T[] {
-  if (to < 0 || to >= items.length) return items;
-  const next = [...items];
-  const [item] = next.splice(from, 1);
-  next.splice(to, 0, item);
-  return next;
 }
 
 function soundSourceKey(source: PyExactContentSource | null): string {

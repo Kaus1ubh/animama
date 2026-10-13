@@ -1,8 +1,10 @@
 import { getI18n } from "react-i18next";
 
+import { PARTICLE_TEXTURE_LIMITS } from "@/lib/effects/effectArtLimits";
 import { isParticleVFXAnchor } from "../runtime";
 import { collectEmitterNodes } from "./emitters";
 import { readJsonObject } from "./json";
+import { estimateParticleVFXParticles } from "./particleEstimate";
 import { isSupportedRenderMode } from "./renderer";
 import {
   classifyParticleVFXTextureUrl,
@@ -215,8 +217,23 @@ export function validateParticleVFXEditorDraft(
       ? getParticleVFXEditorTextureById(emitter.textureId)
       : null;
     const atlas = texture?.atlas;
+    // An imported sheet has no built-in metadata: its tile counts are its atlas.
+    const carriedTexture = !texture && Boolean(emitter.textureUrl);
     const tileCapacity =
       emitter.renderer.uTileCount * emitter.renderer.vTileCount;
+    const maxGrid = PARTICLE_TEXTURE_LIMITS.grid;
+    if (
+      [emitter.renderer.uTileCount, emitter.renderer.vTileCount].some(
+        (count) => !Number.isInteger(count) || count < 1 || count > maxGrid,
+      )
+    ) {
+      issues.push({
+        severity: "error",
+        code: "atlas-grid-limit",
+        message: t("issues.atlasGridLimit", { max: maxGrid }),
+        target,
+      });
+    }
     if (atlas) {
       if (
         emitter.renderer.uTileCount === 1 &&
@@ -241,7 +258,7 @@ export function validateParticleVFXEditorDraft(
       }
     }
     if (emitter.frameOverLife.mode !== "off") {
-      if (!atlas) {
+      if (!atlas && !carriedTexture) {
         issues.push({
           severity: "warning",
           code: "frame-over-life-without-atlas",
@@ -274,29 +291,23 @@ export function validateParticleVFXEditorDraft(
     }
   }
 
-  const estimatedParticles = estimateParticleVFXDraftParticles(draft);
-  if (estimatedParticles > draft.catalog.performanceBudget.maxParticles) {
+  // The estimate Save enforces: Save's readiness check promotes this warning
+  // to an error, so the creator and Save state the same numbers.
+  const estimatedParticles = estimateParticleVFXParticles(draft.quarksJson);
+  const budget = draft.catalog.performanceBudget.maxParticles;
+  if (estimatedParticles > budget) {
     issues.push({
       severity: "warning",
       code: "particle-budget-exceeded",
-      message: t("issues.particleBudgetExceeded", {
-        estimated: estimatedParticles,
-        budget: draft.catalog.performanceBudget.maxParticles,
-      }),
+      message: Number.isFinite(estimatedParticles)
+        ? t("issues.particleBudgetExceeded", {
+            estimated: estimatedParticles,
+            budget,
+          })
+        : t("issues.particleBudgetUnestimated", { budget }),
       target: "performanceBudget.maxParticles",
     });
   }
 
   return issues;
-}
-
-export function estimateParticleVFXDraftParticles(
-  draft: ParticleVFXEditorDraft,
-): number {
-  return draft.emitters.reduce((total, emitter) => {
-    const duration = Math.max(0, emitter.durationSec ?? 0);
-    const emissionOverTime = Math.max(0, emitter.emissionOverTime?.max ?? 0);
-    const burstCount = Math.max(0, emitter.burstCount?.max ?? 0);
-    return total + Math.ceil(duration * emissionOverTime + burstCount);
-  }, 0);
 }

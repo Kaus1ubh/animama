@@ -18,6 +18,7 @@ from animama.adapters.memory_manager import (
 from animama.adapters.memory_manager.openai_agents_runtime import _instructions
 from animama.adapters.repositories.sqlalchemy.anima_repo import SQLAlchemyAnimaRepository
 from animama.adapters.repositories.sqlalchemy.memory_entry_repo import SQLAlchemyMemoryEntryRepository
+from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
 from animama.adapters.repositories.sqlalchemy.uow import SQLAlchemyUnitOfWork
 from animama.app.safety.prompts import SENSITIVE_MEMORY_RULE
 from animama.app.services.anima_identity_memory import (
@@ -42,10 +43,9 @@ from animama.orm import (
     ORMMemoryManagerMessage,
     ORMMemoryManagerRun,
 )
-from animama.server.model_roles import ModelRoleSettings
-from animama.server.routers import (
-    anima as anima_router,
-    memory_entries as memory_entries_router,
+from animama.product_http.routes import (
+    animas as anima_router,
+    memory as memory_entries_router,
     memory_manager as memory_manager_router,
 )
 from animama.server.schemas.memory_entry import PyMemoryEntryCreateRequest, PyMemoryEntryPatchRequest
@@ -53,8 +53,9 @@ from animama.server.schemas.memory_manager import (
     PyMemoryManagerApprovalDecisionRequest,
     PyMemoryManagerRunCreateRequest,
 )
+from tests.product_http_support import TEST_POLICY, local_ports
 
-_LOCAL_ROLES = ModelRoleSettings(owner_roles_enabled=True)
+_LOCAL_PORTS = local_ports()
 
 
 def _user(user_id: str) -> RequestPrincipal:
@@ -103,24 +104,30 @@ async def _anima_with_identity(async_session, *, user_id: str, name: str = "Anni
             content=f"# {name}\n\nCalm and curious.\n",
             description=f"Who {name} is",
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     return anima_id, identity.id
 
 
 async def _identity(async_session, *, user_id: str, entry_id: str):
-    return await memory_entries_router.get_memory_entry(entry_id, session=async_session, user=_user(user_id))
+    return await memory_entries_router.get_memory_entry(
+        entry_id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(user_id)
+    )
 
 
 @pytest.mark.asyncio
 async def test_manager_navigation_lists_anima_files_only_when_enabled(async_session, clean_rows) -> None:
     user_id = f"user-{uuid.uuid4()}"
     anima_id, _identity_id = await _anima_with_identity(async_session, user_id=user_id)
-    await memory_entries_router.repair_anima_memories(anima_id, session=async_session, user=_user(user_id))
+    await memory_entries_router.repair_anima_memories(
+        anima_id, repositories=SQLAlchemyProductRepositories(async_session), policy=TEST_POLICY, user=_user(user_id)
+    )
     await memory_entries_router.create_memory_entry(
         PyMemoryEntryCreateRequest(type="file", name="PROFILE.md", content="# Me", description="Owner profile"),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=_user(user_id),
     )
     manager_path = f"animas/{anima_id}/IDENTITY.md"
@@ -217,7 +224,7 @@ async def test_identity_approval_survives_rename_and_supports_undo(async_session
         PyMemoryManagerRunCreateRequest(message=f"Update {manager_path} to mention she loves jazz."),
         session=async_session,
         user=user,
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     approval = run.approvals[0]
     assert approval.preview.path == manager_path
@@ -233,7 +240,7 @@ async def test_identity_approval_survives_rename_and_supports_undo(async_session
         PyMemoryManagerApprovalDecisionRequest(decision="approve"),
         session=async_session,
         user=user,
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert approved.status == "approved"
     assert approved.can_undo is True
@@ -242,7 +249,7 @@ async def test_identity_approval_survives_rename_and_supports_undo(async_session
     assert updated.aggregate_revision == 4
 
     undone = await memory_manager_router.undo_memory_manager_approval(
-        approved.id, session=async_session, user=user, roles=_LOCAL_ROLES
+        approved.id, session=async_session, user=user, ports=_LOCAL_PORTS
     )
     assert undone.deleted is False
     restored = await _identity(async_session, user_id=user_id, entry_id=identity_id)
@@ -262,7 +269,7 @@ async def test_identity_auto_approve_applies_the_change(async_session, clean_row
         ),
         session=async_session,
         user=_user(user_id),
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
 
     assert [approval.status for approval in run.approvals] == ["approved"]
@@ -280,7 +287,7 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
         PyMemoryManagerRunCreateRequest(message=f"Update {manager_path} with a stale note."),
         session=async_session,
         user=user,
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     current = await _identity(async_session, user_id=user_id, entry_id=identity_id)
     await memory_entries_router.patch_memory_entry(
@@ -290,7 +297,8 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
             expected_version=current.version,
             expected_aggregate_revision=current.aggregate_revision,
         ),
-        session=async_session,
+        repositories=SQLAlchemyProductRepositories(async_session),
+        policy=TEST_POLICY,
         user=user,
     )
     with pytest.raises(HTTPException) as stale_error:
@@ -299,7 +307,7 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
             PyMemoryManagerApprovalDecisionRequest(decision="approve"),
             session=async_session,
             user=user,
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
     assert stale_error.value.status_code == 409
     rejected = await memory_manager_router.decide_memory_manager_approval(
@@ -307,7 +315,7 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
         PyMemoryManagerApprovalDecisionRequest(decision="reject"),
         session=async_session,
         user=user,
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert rejected.status == "rejected"
 
@@ -315,16 +323,16 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
         PyMemoryManagerRunCreateRequest(message=f"Update {manager_path} before deletion."),
         session=async_session,
         user=user,
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
-    await anima_router.delete_anima(anima_id, session=async_session, user=user)
+    await anima_router.delete_anima(anima_id, repositories=SQLAlchemyProductRepositories(async_session), user=user)
     with pytest.raises(HTTPException) as deleted_error:
         await memory_manager_router.decide_memory_manager_approval(
             pending.approvals[0].id,
             PyMemoryManagerApprovalDecisionRequest(decision="approve"),
             session=async_session,
             user=user,
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
     assert deleted_error.value.status_code == 409
     assert "no longer exists" in deleted_error.value.detail
@@ -333,7 +341,7 @@ async def test_stale_or_deleted_identity_approvals_conflict_but_can_be_rejected(
         PyMemoryManagerApprovalDecisionRequest(decision="reject"),
         session=async_session,
         user=user,
-        roles=_LOCAL_ROLES,
+        ports=_LOCAL_PORTS,
     )
     assert rejected_after_delete.status == "rejected"
 
@@ -375,7 +383,7 @@ async def test_episode_processing_runs_cannot_change_identities(async_session, c
             PyMemoryManagerApprovalDecisionRequest(decision="approve"),
             session=async_session,
             user=_user(user_id),
-            roles=_LOCAL_ROLES,
+            ports=_LOCAL_PORTS,
         )
     assert error.value.status_code == 400
     unchanged = await _identity(async_session, user_id=user_id, entry_id=identity_id)

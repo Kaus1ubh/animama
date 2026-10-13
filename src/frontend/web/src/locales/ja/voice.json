@@ -205,7 +205,7 @@
       },
       "browserOnly": "{{provider}} はブラウザー内でのみ動作します。",
       "elevenLabs": {
-        "description": "リアルタイムモデルと確定モデルを使う ElevenLabs の音声合成です。"
+        "description": "Eleven v4 Turbo によるリアルタイムの ElevenLabs 音声です。"
       },
       "pocket": {
         "description": "クライアント側で動作する PocketTTS の音声合成です。"
@@ -213,7 +213,36 @@
       "secureContext": "{{provider}} には HTTPS または localhost (セキュアコンテキスト) が必要です。",
       "webAudioUnsupported": "このブラウザーは Web Audio API に対応していません。",
       "webSocketUnsupported": "このブラウザーは WebSocket に対応していません。",
-      "workersUnsupported": "このブラウザーは Web Workers に対応していません。"
+      "workersUnsupported": "このブラウザーは Web Workers に対応していません。",
+      "gemini": {
+        "description": "サーバーからストリーミングされる Gemini の音声です。"
+      }
+    }
+  },
+  "gemini": {
+    "descriptors": {
+      "bright": "明るい",
+      "upbeat": "アップビート",
+      "informative": "知的",
+      "firm": "しっかり",
+      "excitable": "エネルギッシュ",
+      "youthful": "若々しい",
+      "breezy": "軽やか",
+      "easyGoing": "気さく",
+      "breathy": "息づかいのある",
+      "clear": "クリア",
+      "smooth": "なめらか",
+      "gravelly": "しゃがれ声",
+      "soft": "やわらか",
+      "even": "落ち着いた",
+      "mature": "大人びた",
+      "forward": "はっきり",
+      "friendly": "フレンドリー",
+      "casual": "カジュアル",
+      "gentle": "やさしい",
+      "lively": "いきいき",
+      "knowledgeable": "物知り",
+      "warm": "あたたかい"
     }
   }
 }

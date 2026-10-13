@@ -25,12 +25,24 @@ worker with `--no-dev --extra file-worker` when testing the parser directly on
 the host; that replaces the development packages in `.venv` until the next
 plain `uv sync` or `uv run`.
 
+A `.venv` last synced from a lock older than October 9, 2026 holds both
+griffe 1.x and griffelib 2.x, which install the same `griffe` package. Syncing
+the current lock removes griffe 1.x together with griffelib's shared files, so
+importing the OpenAI Agents SDK fails with `ImportError: cannot import name
+'Docstring' from 'griffe'`. Reinstall griffelib once with the same extras:
+
+```bash
+uv sync --extra server --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev --reinstall-package griffelib
+```
+
+A new `.venv` is unaffected.
+
 ## Shared Backend Package
 
 The backend wheel contains both the public local implementation and reusable
-`animama.domain`/`animama.app` APIs. Shared imports receive owner IDs, policy, and
-storage/model ports explicitly and cannot import local composition or read
-installation state. Verify the transitive import graph and build the wheel:
+`animama.domain`, `animama.app` and `animama.product_http` APIs. Shared imports
+receive owner IDs, policy, and storage/model ports explicitly and cannot import
+local composition or read installation state. Verify the transitive import graph and build the wheel:
 
 ```bash
 uv run --no-sync python scripts/repository-boundary/check-python-imports.py
@@ -54,6 +66,8 @@ edit them independently. The repository's packed-artifact check installs the
 wheel outside this checkout and runs
 `scripts/repository-boundary/consumers/backend.py`, exercising two independent
 owners through real shared bootstrap/chat services with fake ports.
+`consumers/product_http.py` mounts the shared product routes the same way a hosted
+consumer would, with local composition imports blocked.
 
 ## Run The API
 
@@ -530,7 +544,12 @@ Ordinary pytest does not load `.env`. Offline fixtures use a dummy provider key
 and a temporary private data root; Included-content checks still read the
 checkout's `content` library. Live provider tests require explicit exported
 `ANIMAMA_RUN_LIVE_TESTS=1` and `ANIMAMA_LIVE_OPENAI_API_KEY` or `OPENAI_API_KEY`;
-`make test-live` explicitly loads `.env` for that opt-in command. Database fixtures
+`make test-live` explicitly loads `.env` for that opt-in command. The paid
+Anthropic and prompt-cache tests also need `ANTHROPIC_API_KEY`, and the Gemini
+voice test `GEMINI_API_KEY`; each skips without its key. Pass the owner-only
+credentials file with
+`uv run --env-file "$HOME/.config/animama/dev-secrets.env"` rather than sourcing
+it (see [live tests](../../../tests/live/README.md)). Database fixtures
 own their async loop scope. A missing Docker daemon is a fixture failure, not a
 reason to skip the offline database suite.
 
@@ -648,7 +667,7 @@ is not owner acceptance of the coverage or budget tradeoff.
 | Modified eligible documentation only                                 | Frozen Python install, typed-content audit, synthetic-document and accountless repository tests                                         | None                                                                                        |
 | Allowlisted existing backend tests or pure formatter                 | Frozen Python install, typed-content audit, format/Ruff/mypy and accountless repository guards                                          | Full backend checks in a fresh reviewed receipt                                             |
 | Allowlisted web UI implementation                                    | Frozen Python/frontend installs, package preparation, web lint, web/desktop/package/harness types, SDK freshness and accountless guards | Complete frontend source checks and both rendered browser modes in a fresh reviewed receipt |
-| High-risk, mixed, added/deleted/renamed, unknown or uncertain inputs | Full hosted validation                                                                                                                  | Local evidence cannot narrow these changes                                                  |
+| High-risk, mixed, added/deleted/renamed, unknown or uncertain inputs | Full hosted validation; a PR run may skip unchanged suites (`selective`, below)                                                         | Local evidence cannot narrow these changes                                                  |
 | Persistent `ci:full`, manual dispatch or release reuse               | Full hosted validation of exact source                                                                                                  | No substitution                                                                             |
 | Draft without `ci:full`                                              | Selection and a non-accepting final gate                                                                                                | Draft deferral is not acceptance                                                            |
 
@@ -665,6 +684,55 @@ review higher-risk behavior changes inside an allowed file and use `ci:full`.
 Repository instructions, executable/symlink/LFS inputs,
 configuration, dependency/build inputs and shared contracts remain full scope.
 
+### Suite selection in full PR runs
+
+A full PR run that is not a promotion candidate skips the expensive suites
+whose inputs did not change. It records this as the `selective` profile, with
+each skipped suite and its reason in the selection receipt and the job summary.
+Promotion candidates always run every suite and record `full`. They are a
+`main` push validated in full, a manual dispatch, a release caller, a PR
+labelled `ci:full`, and a scheduled checkpoint.
+
+| Suite | Steps | Runs on a PR when |
+| --- | --- | --- |
+| `promotion` | Package build, installed and whole-application consumers, baseline comparison, set upload | Any packaging input changed |
+| `browser-hosted` | Hosted-composition, hosted-workflows and retained-screens browser files | Any packaging input, or their fixtures or tests, changed |
+| `browser-tooling` | Animation and effect preview, render, check and thumbnail browser files | Any packaging input, or the tooling's `.mjs` sources or tests, changed |
+
+Any packaging input therefore selects every suite. The run records `full`
+and can serve reuse after merge.
+
+Packaging inputs are everything that can change the set's bytes or how it is
+validated:
+
+- the backend wheel sources and `README.md`;
+- the web app, its packages, `src/frontend/scripts` and the Vite configuration
+  and plugins;
+- Included content, `docs/safety`, contracts, the model manifests and model
+  scripts;
+- the desktop version, desktop notices and the desktop runtime scripts that the
+  hosted build copies;
+- the packaging and consumer scripts.
+
+`scripts/ci/validation_policy.py` owns the exact tables. A path it does not
+recognize selects every suite. So do workflow, `scripts/ci`, lockfile, manifest
+and browser-setup changes, and links, executables and LFS inputs. Every other
+check runs on every full or selective run, including the backend suite, Vitest,
+the remaining browser files, the web build and the accountless smoke.
+
+A selective run is never promotion-complete: it cannot serve reuse after merge
+(below) and uploads no set. A regression from a misclassified packaging input,
+or from fresh-resolution consumer dependency drift, therefore surfaces on the
+next promotion-candidate run, usually the `main` push after merge.
+
+`scripts/ci/browser_tests.py` runs the selected browser groups. Each file runs
+in its own process with a 20-minute bound and writes its own result row. The
+files run one at a time: on the two-vCPU runner, two concurrent lanes doubled
+each file's time and timed out a preview. The runner keeps a lane table for a
+larger runner. The gate checks that the files that ran match the selected
+groups. Locally, `pnpm --filter animama-web test:source` still runs every file,
+one at a time.
+
 ### Reuse a full hosted PR result after merging
 
 A `main` push that would otherwise require full validation can use the `reused`
@@ -677,10 +745,28 @@ validation scripts), and its base must equal the push's previous `main` commit.
 A green feature-branch check alone does not qualify. If `main` advanced since the
 PR run, the different baseline requires full validation even if files happen to
 match. Local assertions and previously reused results cannot supply this proof.
+The PR run must have recorded `full` (a `selective` run does not qualify), and
+its uploaded package set must still exist, with the digest its receipt
+recorded.
 
 The lightweight run still executes CI policy tests, source/evidence selection
 and the aggregate gate. Its receipt and job summary link the original full run
-and record the artifact digest. Missing, expired, stale, failed, reduced,
+and record the artifact digest. Its `selection.json` `hosted_evidence.package_set`
+names the PR run's set so the hosted consumer can promote it without a second
+full run. The consumer's acceptance of this record is tracked in its own
+repository; until it lands, promoting a reused merge still needs a full `main`
+run, such as a manual dispatch. The record holds:
+
+- the artifact ID, name and digest, and its expiry;
+- the manifest digest and the manifest's `source` record;
+- the consumer receipt's digest;
+- the promotion steps' outcomes;
+- `tested_commit_parents`.
+
+The set records the PR's test-merge commit, not the `main` commit, and cannot
+be relabelled. A consumer binds it through the identical tree
+(`package_set.source.tree`) and parents (`[previous main, PR head]`) of the
+`main` commit, then validates the set's own receipt. Missing, expired, stale, failed, reduced,
 ambiguous or mismatched evidence retains full validation. Initially this supports
 same-repository PRs merged with an ordinary merge commit; forks, squash/rebase
 merges and batched pushes retain full validation. `ci:full`, manual dispatch,
@@ -761,7 +847,10 @@ coverage tradeoff for owner review, not permission to merge known failures.
 Full backend verification retains the `make check-test` contract: typed-content
 audit, formatting, Ruff, mypy and complete offline pytest, shown as separate
 hosted steps. `UV_NO_SYNC=1` prevents re-resolution after the frozen install.
-Missing fixtures remain failures, not automatic skips. Full frontend validation
+Missing fixtures remain failures, not automatic skips. The hosted backend suite
+runs with two pytest-xdist workers (`pytest -n 2`), and the web unit step sets
+`VITEST_MAX_WORKERS=2` (Vitest otherwise uses one worker on the two-vCPU
+runner). `make check-test` and local `pnpm` commands keep their defaults. Full frontend validation
 prepares shared packages once and invokes the individual source/harness/type/test/
 build commands; standalone developer commands still prepare their dependencies.
 `pnpm ci:source` remains a local convenience, not an opaque hosted CI step.
@@ -774,8 +863,14 @@ Library/setup modes using fresh PostgreSQL containers and original synthetic
 content. The independent tracked-source producer keeps its
 own frozen installation and package build. Isolated installed consumers retain
 their distinct fresh-resolution contract and recorded dependency graph. The exact
-compatibility baseline is checked out separately and built for comparison with
-the browser speech set its own manifest pins.
+compatibility baseline is checked out separately. `scripts/ci/baseline_set.py`
+compares against the set a successful full run of that commit retained. It also
+accepts the PR set that a `reused` receipt names for the same tree. Either set
+must verify in provenance, digest and tree, and come from identical producer
+code; the recipe may differ only in its contract files, which `compare` reads
+from each set itself. Otherwise the step rebuilds the baseline with the browser
+speech set its own manifest pins. The receipt's `baseline_set` records which
+path was taken and why.
 Real supplied-animation acquisition/playback, audio fidelity and native signing
 remain separate acceptance. See the [bounded browser smoke](../../frontend/testing/browser-journeys.md).
 
@@ -785,8 +880,16 @@ independently executed in this job from accepted owner-reviewed local assertions
 Download `validation-receipt-*` for selection, aggregate and compact check records;
 `validation-evidence-*` contains detailed logs/browser/consumer evidence. Pair
 artifacts from the same run and attempt; a source hash alone is not acceptance.
-Compact receipts and failures retain 14 days. Ordinary successful logs/package
-archives retain 3 days; explicit full requests retain 14 days.
+Compact receipts and failures retain 14 days. Logs and package archives of
+`full` runs, explicit requests and scheduled checkpoints retain 14 days, so a
+set outlives the reuse window and can serve a later baseline. Other successful
+runs retain them for 3 days. The job summary lists:
+
+- each step's duration, from the jobs API, or from command receipts when that
+  API is unavailable;
+- the job's wall-clock time;
+- any skipped suites;
+- each browser file's lane, result and time.
 
 Native uv and pnpm download caches use toolchain/platform/lockfile keys. They do
 not restore installed environments or replace clean frozen installation. Manual
@@ -873,7 +976,11 @@ API's re-embedding adds its vectors once the connection works.
 
 `docker-compose.yml` supplies the built application and private PostgreSQL, with
 optional voice/profile services and local administration tools. The development
-override adds Vite/HMR and keeps FastAPI private. Core startup requires no
+override adds Vite/HMR and keeps FastAPI private. HMR covers the web app's own
+source only: the `web` service builds the workspace packages, including the
+generated API client, once at start. After changing a package or running
+`pnpm openapi-ts`, restart that stack's `web` service, for example
+`docker compose -p animama-abc restart web`. Core startup requires no
 collector, metrics database or object-storage service. Local logging and shared
 instrumentation remain available independently.
 
@@ -1083,9 +1190,12 @@ outputs and, when running separately, private application data.
 #### Credentials and nonsecret configuration
 
 Keep reusable development credentials in an owner-only file outside every
-checkout, for example `$HOME/.config/animama/dev-secrets.env`. Create or edit that
-file with a restrictive umask (`umask 077`) and ensure only its owner can read or
-write it (`chmod 600`); use a private parent directory. Obtain actual values
+checkout, for example `$HOME/.config/animama/dev-secrets.env`, including
+`OPENAI_API_KEY` and `ANTHROPIC_API_KEY` when the stack uses those built-in
+connections, and `ELEVENLABS_API_KEY` or `GEMINI_API_KEY` for those voices.
+Create or edit that file with a restrictive umask (`umask 077`) and ensure only
+its owner can read or write it (`chmod 600`); use a private parent directory.
+Obtain actual values
 through the owner's existing credential mechanism. Do not invent keys, copy a
 main checkout's `.env`, or put credentials in a branch, task receipt or command
 line. Do not overwrite an existing credential file as a setup step.
@@ -1305,12 +1415,12 @@ APP_HOST APP_SCHEME WEB_SERVER_PORT PGADMIN_PORT DOZZLE_PORT
 ANIMAMA_INCLUDED_CONTENT_HOST_PATH ANIMAMA_LOCAL_CONTENT_HOST_PATH
 ANIMAMA_DATA_HOST_PATH ANIMAMA_DOCLING_CACHE_HOST_PATH ANIMAMA_LOG_DIR
 POSTGRES_USER POSTGRES_PASSWORD POSTGRES_DB PGADMIN_EMAIL PGADMIN_PASSWORD
-OPENAI_API_KEY OPENAI_BASE_URL DEEPSEEK_API_KEY HF_TOKEN
+OPENAI_API_KEY OPENAI_BASE_URL ANTHROPIC_API_KEY DEEPSEEK_API_KEY HF_TOKEN
 ANIMAMA_LOCAL_MODEL_HOST ANIMAMA_CONNECTION_KEYS_FILE
 ANIMAMA_DEFAULT_MODEL_PROVIDER_ID ANIMAMA_DEFAULT_UTILITY_MODEL_PROVIDER_ID
 ANIMAMA_DEFAULT_MEMORY_MANAGER_MODEL_PROVIDER_ID ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID
 ANIMAMA_CHAT_TITLE_GENERATION_ENABLED ANIMAMA_CHAT_COMPACTION_ENABLED
-ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS
+ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS
 ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT ANIMAMA_LLM_SKIP
 ANIMAMA_COMPANION_SAFETY_ENABLED ANIMAMA_AI_NOTICE_ENABLED ANIMAMA_AI_NOTICE_REMINDER_HOURS
 ANIMAMA_CRISIS_DETECTION_ENABLED ANIMAMA_CRISIS_RESOURCES_PATH
@@ -1398,9 +1508,11 @@ connection; unset or empty uses the official OpenAI API. Built-in catalog rows
 store no URL, so this variable redirects every built-in OpenAI row, including
 the Luna Responses row, and `OPENAI_API_KEY` goes with it. Owner connections use
 their own base URL and only the key variable they name; they never fall back to
-`OPENAI_BASE_URL` or `OPENAI_API_KEY`. Select only trusted endpoints because
-credentials and prompts are sent there. Verify the selected row's connection
-before a live turn. These settings provide no hard request, token or spending cap; short prompts,
+`OPENAI_BASE_URL` or `OPENAI_API_KEY`. Compose forwards `ANTHROPIC_API_KEY`
+(empty when unset) for the built-in Anthropic connection, which always targets
+Anthropic's own API; there is no Anthropic base URL setting. Select only
+trusted endpoints because credentials and prompts are sent there. Verify the
+selected row's connection before a live turn. These settings provide no hard request, token or spending cap; short prompts,
 reasoning `none` and Stop do not establish a budget ceiling.
 
 Preparing credentials, acquiring public model assets and checking readiness do
@@ -1508,6 +1620,10 @@ Models; see [local model servers](local-models.md)):
   role and Anima uses another connection)
 - `OPENAI_BASE_URL` (endpoint of the built-in OpenAI connection; unset uses the
   official OpenAI API)
+- `ANTHROPIC_API_KEY` (key of the built-in Anthropic connection, sent only to
+  Anthropic's API; without it Anthropic models report a missing key. Keep it in
+  the owner-only credentials file selected through `COMPOSE_ENV_FILES`, never in
+  a worktree `.env`)
 - `ANIMAMA_CONNECTION_<NAME>_API_KEY` (a key variable that an owner connection
   names; a connection may also name `DEEPSEEK_API_KEY` or `HF_TOKEN`, which
   Compose forwards individually)
@@ -1517,7 +1633,8 @@ Models; see [local model servers](local-models.md)):
 - `ANIMAMA_LOCAL_MODEL_HOST` (host that the Ollama, LM Studio, llama.cpp and vLLM
   presets fill in; default `127.0.0.1` natively, `host.docker.internal` in Compose)
 - `ANIMAMA_MODEL_CLIENT_TIMEOUT_SECONDS` (default `60`; used by connections
-  without their own timeout, such as the built-in OpenAI connection)
+  without their own timeout, such as the built-in OpenAI and Anthropic
+  connections)
 - `ANIMAMA_DEFAULT_MODEL_PROVIDER_ID` (default
   `OpenAIResponsesHTTPAgent:gpt-6-luna`; catalog row id of the default chat
   model for new Animas; the App Settings default chat model takes precedence)
@@ -1526,13 +1643,15 @@ Models; see [local model servers](local-models.md)):
   `ANIMAMA_DEFAULT_EMBEDDING_MODEL_PROVIDER_ID` (operator role defaults as catalog
   row ids; App Settings assignments take precedence; unset utility and Memory
   Manager roles use the default chat model, and embeddings stay off)
-- `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS` (default `10000`; `0`
+- `ANIMAMA_OPENAI_RESPONSES_COMPACTION_THRESHOLD_TOKENS` (default `90000`; `0`
   omits OpenAI Responses native compaction)
 - `ANIMAMA_CHAT_TITLE_GENERATION_ENABLED`,
   `ANIMAMA_CHAT_TITLE_GENERATION_TIMEOUT_SECONDS`,
   `ANIMAMA_CHAT_TITLE_GENERATION_REASONING_EFFORT` (titles from the utility role)
 - `ANIMAMA_CHAT_COMPACTION_ENABLED`, `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS`
-  (post-response compaction by the utility role),
+  (post-response compaction by the utility role; the threshold caps the
+  trigger, default `90000`, and a row with a context window triggers at 70% of
+  it when that is lower),
   `ANIMAMA_CHAT_PRESEND_COMPACTION_TIMEOUT_SECONDS` (default `90`; bound on
   compaction before a turn that nears its model's window)
 
@@ -1563,6 +1682,11 @@ Content storage:
 Voice:
 
 - ElevenLabs API key/settings
+- `GEMINI_API_KEY` (key for Gemini voices, sent only to Google's Gemini API;
+  no model connection can name it, and `GOOGLE_API_KEY` is never read. Compose
+  forwards it to `animama-server`, empty when unset; keep it in the owner-only
+  credentials file selected through `COMPOSE_ENV_FILES`, never in a worktree
+  `.env`. See [voice and speech](../integrations/voice-and-speech.md#gemini-tts))
 - `ANIMAMA_ENABLE_VOICE`
 - realtime TTS intermediary settings
 
@@ -1571,17 +1695,24 @@ environment usage.
 
 ## Adding A Route
 
-1. Put the route in the closest existing router or a new router under
-   `server/routers/`.
+1. Put a product route every composition serves in the closest router under
+   `product_http/routes/` (register a new router in its `ROUTERS`); put a
+   local-only route under `server/routers/`. Add the route to
+   `product_http/inventory.py` with its disposition and access class.
 2. Use `get_current_principal` for every local product route. Only the internal
-   `/health` readiness probe is unauthenticated.
+   `/health` readiness probe is unauthenticated. Shared handlers take sessions,
+   repositories, policy, content services and byte delivery from the installed
+   `ProductPorts`, never `get_async_session` or global settings.
 3. Prefer app services and repository ports for persistence.
-4. Keep Pydantic request/response schemas near the router or established schema
-   module.
+4. Keep a shared route's Pydantic request/response schemas in `app/contracts/`;
+   a local route's may stay near its router or established schema module.
 5. Filter by `RequestPrincipal.id` through retained `user_id`/`owner_user_id`
    ownership columns.
-6. Add tests for auth, ownership, success, and error behavior.
-7. Include the router through `server/routers/__init__.py` if it is new.
+6. Add tests for auth, ownership, success, and error behavior. A shared route
+   also gets two-owner isolation and deferred-commit tests
+   (`tests/product_http_support.py`).
+7. Include a new router through `server/routers/__init__.py`, at the position its
+   routes take in the inventory.
 
 ## Adding Runtime Behavior
 

@@ -60,6 +60,8 @@ type PreviewActorProps = {
   catalog: PreviewRuntimeCatalogSession;
   loop: boolean;
   playRequest: number;
+  /** Increments whenever the host commits a newly prepared preview. */
+  preparationRequest: number;
   resetCameraRequest: number;
   stopRequest: number;
   target: ContentPreviewTarget;
@@ -93,6 +95,7 @@ function PreviewActor({
   catalog,
   loop,
   playRequest,
+  preparationRequest,
   stopRequest,
   target,
   moveAvatar,
@@ -104,8 +107,13 @@ function PreviewActor({
   onStatusChange,
 }: PreviewActorRuntimeProps) {
   const { camera, gl } = useThree();
+  // ContentPreviewScene keys this actor by model revision. Later preparations
+  // with that revision reuse its Avatar; only a failed load is started again,
+  // so one Avatar never runs two loads at once.
+  const avatarEntryRef = useRef(avatarEntry);
+  const avatarLoadRef = useRef<"loading" | "ready" | "failed">("loading");
+  const [avatarLoadAttempt, setAvatarLoadAttempt] = useState(0);
   const avatarRef = useRef<Avatar | null>(null);
-  const sourceKeyRef = useRef<string | null>(null);
   const loadGenerationRef = useRef(0);
   const handledPlayRequestRef = useRef(0);
   const firstMotionFrameRef = useRef(false);
@@ -152,28 +160,30 @@ function PreviewActor({
   }, [clipEventBridge]);
 
   useEffect(() => {
+    avatarEntryRef.current = avatarEntry;
+  }, [avatarEntry]);
+
+  useEffect(() => {
     const t = getI18n().getFixedT(null, "actionEditor");
     const avatar = avatarRef.current;
     if (!avatar) return;
-    if (sourceKeyRef.current === avatarSourceKey && avatar.isReady) {
-      logContentPreviewLifecycle("avatar_reuse", "dock");
-      setAvatarReadyKey(avatarSourceKey);
-      return;
-    }
-    const logicalUrl = runtimeContentEntryUrl(avatarEntry);
+    const entry = avatarEntryRef.current;
+    const logicalUrl = runtimeContentEntryUrl(entry);
     if (!logicalUrl) {
+      avatarLoadRef.current = "failed";
       onStatusChange("error", t("preview.errors.avatarNoFile"));
       return;
     }
     const generation = ++loadGenerationRef.current;
     const controller = new AbortController();
+    avatarLoadRef.current = "loading";
     setSceneObject(null);
     setAvatarReadyKey(null);
     onStatusChange("loading", t("preview.loadingAvatar"));
     void (async () => {
       let download: RuntimeContentUrlLease | null = null;
       try {
-        download = await runtimeContentDownloadUrl(avatarEntry, logicalUrl, {
+        download = await runtimeContentDownloadUrl(entry, logicalUrl, {
           signal: controller.signal,
         });
         if (!download)
@@ -193,7 +203,7 @@ function PreviewActor({
           return;
         }
         avatar.setAutomaticAnimationPlaybackEnabled(false);
-        sourceKeyRef.current = avatarSourceKey;
+        avatarLoadRef.current = "ready";
         setSceneObject(avatar.scene);
         setAvatarReadyKey(avatarSourceKey);
         logContentPreviewLifecycle("avatar_load", "dock");
@@ -204,13 +214,26 @@ function PreviewActor({
           generation !== loadGenerationRef.current
         )
           return;
+        avatarLoadRef.current = "failed";
         onStatusChange("error", errorMessage(error));
       } finally {
         download?.release();
       }
     })();
     return () => controller.abort();
-  }, [avatarEntry, avatarSourceKey, onStatusChange]);
+  }, [avatarLoadAttempt, avatarSourceKey, onStatusChange]);
+
+  useEffect(() => {
+    // Each new preparation, including Retry, either reuses the loaded model or
+    // retries a failed load. Reporting ready clears the host's loading state
+    // even when no autoplay request follows.
+    if (avatarLoadRef.current === "failed") {
+      setAvatarLoadAttempt((current) => current + 1);
+    } else if (avatarLoadRef.current === "ready") {
+      logContentPreviewLifecycle("avatar_reuse", "dock");
+      onStatusChange("ready");
+    }
+  }, [onStatusChange, preparationRequest]);
 
   useEffect(() => {
     if (avatarRoot) applyAvatarTransformToObject(avatarRoot, avatarTransform);
@@ -421,7 +444,9 @@ export function ContentPreviewScene(props: PreviewActorProps) {
       resetCameraRequest={props.resetCameraRequest}
       sceneVFX={sceneVFX}
     >
+      {/* A different model mounts a fresh Avatar; the Canvas stays. */}
       <PreviewActor
+        key={props.avatarEntry.content_revision}
         {...props}
         onAvatarChange={handleAvatarChange}
         onSceneVFXChange={handleSceneVFXChange}

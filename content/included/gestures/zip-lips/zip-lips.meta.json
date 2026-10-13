@@ -1,0 +1,20 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:zip-lips",
+  "version": 1,
+  "semantic_key": "zip_lips",
+  "name": "Zip Lips",
+  "ai_description": "Use when promising to keep a secret or saying you'll stay quiet about something. Pinches an imaginary zipper across the lips, turns it like a key and tosses it over the shoulder with a knowing smile.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [],
+  "files": [
+    {
+      "path": "zip-lips.json",
+      "role": "sequence"
+    }
+  ]
+}

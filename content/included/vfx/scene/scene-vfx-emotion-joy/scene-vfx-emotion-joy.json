@@ -4,59 +4,159 @@
   "content_id": "builtin:scene-effect:background:scene-vfx-emotion-joy",
   "version": 1,
   "name": "Emotion Joy",
-  "description": "Scene background effect preset",
+  "description": "A sunny yellow pop background with halftone dots behind the Avatar and chunky stars and confetti bouncing past, for joyful moments.",
   "dependencies": [],
   "definition": {
     "schema": "animama/scene-effect/1",
     "kind": "background_layers",
     "durationMs": null,
-    "dismissOnInput": false,
     "coverUiOverlays": false,
+    "dismissOnInput": false,
     "solid": {
-      "enabled": true,
-      "color": "#ffe869"
+      "enabled": false,
+      "color": "#000000"
     },
     "pattern": {
       "enabled": true,
-      "pattern": "star",
+      "pattern": "polkadot",
       "color": "#ffffff",
-      "size": 24,
-      "spacing": 18,
-      "opacity": 0.36
+      "size": 8,
+      "spacing": 22,
+      "opacity": 0.32
     },
     "marquee": {
-      "enabled": true,
+      "enabled": false,
+      "items": [],
       "itemSize": 72,
       "gap": 24,
       "rowGap": 18,
-      "direction": "diagonal-up-left",
+      "direction": "left",
       "itemRotationMode": "upright",
       "itemRotationOffsetDeg": 0,
-      "speedPxPerSec": 170,
-      "opacity": 0.92,
-      "items": [
+      "speedPxPerSec": 100,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": true,
+      "type": "linear",
+      "angleDeg": 135,
+      "centerX": 0.5,
+      "centerY": 0.5,
+      "stops": [
         {
-          "id": "emoji-sparkles",
-          "kind": "image",
-          "label": "Sparkles ✨",
-          "image": "emoji-sparkles-2728.svg"
+          "color": "#fff27a",
+          "position": 0
         },
         {
-          "id": "emoji-star",
-          "kind": "image",
-          "label": "Star ⭐",
-          "image": "emoji-star-2b50.svg"
+          "color": "#ffb547",
+          "position": 1
         }
       ]
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "star",
+            "kind": "image",
+            "label": "Pop star",
+            "image": "pop-star-yellow.png"
+          }
+        ],
+        "count": 18,
+        "seed": 61,
+        "minSize": 40,
+        "maxSize": 76,
+        "minRotationDeg": -25,
+        "maxRotationDeg": 25,
+        "minOpacity": 1,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": true,
+        "direction": "diagonal-up-left",
+        "speedPxPerSec": 55,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 25,
+        "alternateSpin": true,
+        "pulse": "pop"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "curl",
+            "kind": "image",
+            "label": "Confetti curl",
+            "image": "confetti-curl-pink.png"
+          },
+          {
+            "id": "chip-teal",
+            "kind": "image",
+            "label": "Confetti chip",
+            "image": "confetti-chip-teal.png"
+          },
+          {
+            "id": "chip-violet",
+            "kind": "image",
+            "label": "Confetti chip",
+            "image": "confetti-chip-violet.png"
+          }
+        ],
+        "count": 26,
+        "seed": 62,
+        "minSize": 12,
+        "maxSize": 22,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 180,
+        "minOpacity": 0.9,
+        "maxOpacity": 1,
+        "regionTop": 0,
+        "regionBottom": 1,
+        "keepFaceClear": false,
+        "direction": "diagonal-up-left",
+        "speedPxPerSec": 70,
+        "minSpinDegPerSec": 90,
+        "maxSpinDegPerSec": 220,
+        "alternateSpin": true,
+        "pulse": "none"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
     }
   },
   "files": [
     {
-      "path": "emoji-sparkles-2728.svg",
+      "path": "pop-star-yellow.png",
       "role": "image"
     },
     {
-      "path": "emoji-star-2b50.svg",
+      "path": "confetti-curl-pink.png",
+      "role": "image"
+    },
+    {
+      "path": "confetti-chip-teal.png",
+      "role": "image"
+    },
+    {
+      "path": "confetti-chip-violet.png",
       "role": "image"
     }
   ]

@@ -569,6 +569,25 @@ describe("hosted admission and transport", () => {
     }
   });
 
+  it("refuses Gemini voice, which needs the owner's own key", async () => {
+    const { composition } = fixture({
+      ...active,
+      capabilities: {
+        ...capabilities,
+        gemini_tts: {
+          models: ["gemini-3.8-flash-lite-tts"],
+          default_model: "gemini-3.8-flash-lite-tts",
+          voices: ["Kore"],
+          default_voice: "Kore",
+        },
+      },
+    } as typeof active);
+    expect(await composition.readAdmission()).toMatchObject({
+      status: "unavailable",
+      message: "This hosted runtime has incompatible application capabilities.",
+    });
+  });
+
   it("admits operator-provisioned web search but never owner search settings", async () => {
     const operatorSearch = {
       configuration: false,

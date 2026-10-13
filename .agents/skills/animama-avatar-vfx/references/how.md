@@ -181,7 +181,9 @@ Play once, Back and forth).
 
 **Sound when applied** selects a Sound Effect; the saved effect refers to exact
 sound content, and an Action event can disable it for one occurrence. Do not add
-audio merely because the control is available.
+audio merely because the control is available. Licensed built-in sounds are not
+offered, and a copy of a built-in effect leaves its sound behind (the creator
+says so under the picker).
 
 ## Verify the region
 
@@ -239,7 +241,8 @@ From `src/frontend/web`, with no running stack:
   plays the effect live on both Avatars in the browser, with camera presets,
   scrubbing and review notes; `--duration <s>` applies it for a set time. Keep a
   descriptor in its own `<stem>/` folder, which the preview watches. A Library
-  Gesture or Reaction source plays its Avatar and Particle Effects as in chat.
+  Gesture or Reaction source plays its Avatar, Particle and Scene Effects as in
+  chat.
 
 Renders and previews use the chat canvas lighting but not a live Anima; they do
 not replace checking the saved Action in chat when that is the outcome.

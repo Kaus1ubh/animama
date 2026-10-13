@@ -120,11 +120,18 @@
       "remove": "입력창에서 제거"
     },
     "model": {
+      "back": "모델 및 추론으로 돌아가기",
+      "choose": "모델을 선택하세요",
       "empty": "모델을 찾을 수 없습니다.",
+      "fallbackLabel": "모델",
+      "features": "채팅 기능",
       "needsWindow": "앱 설정 → 모델에서 컨텍스트 창을 설정하세요",
+      "noFeatures": "이 모델에는 선택할 수 있는 기능이 없습니다.",
       "noProfile": "채팅 프로필 없음",
+      "noReasoning": "이 모델은 추론을 조정할 수 없습니다.",
       "notDirect": "아직 직접 채팅에서 사용할 수 없음",
-      "reasoning": "추론",
+      "panel": "모델 및 추론",
+      "reasoningEffort": "추론 강도",
       "reasoningEfforts": {
         "high": "높음",
         "low": "낮음",
@@ -141,13 +148,14 @@
         "tools_unsupported": "이 모델은 도구를 호출할 수 없어 검색할 수 없습니다."
       },
       "select": "모델 선택",
-      "settings": "{{model}} 설정",
       "toasts": {
         "selectFirst": "채팅하기 전에 모델을 선택하세요.",
         "unsupported": "이 모델은 아직 직접 채팅에서 사용할 수 없습니다.",
         "updateFailed": "모델을 업데이트하지 못했습니다"
       },
+      "trigger": "모델 및 추론: {{model}}",
       "unavailable": "모델을 사용할 수 없습니다. 다른 모델을 선택하세요.",
+      "unavailableShort": "모델을 사용할 수 없음",
       "webSearch": "웹 검색"
     }
   },

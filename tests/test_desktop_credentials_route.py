@@ -109,6 +109,21 @@ async def test_delivery_replaces_the_store_and_acknowledges_its_generation(
     _assert_never_reflected(response, captured_logs, capsys)
 
 
+async def test_a_gemini_key_is_applied_and_removed_without_a_restart(client: httpx.AsyncClient) -> None:
+    generation = runtime_credentials.snapshot().generation + 1
+    added = await client.put(
+        ROUTE, content=_body({"GEMINI_API_KEY": SENTINEL}, generation=generation), headers=NODE_FETCH
+    )
+
+    assert added.status_code == 200
+    assert runtime_credentials.current().get("GEMINI_API_KEY") == SENTINEL
+
+    removed = await client.put(ROUTE, content=_body({}, generation=generation + 1), headers=NODE_FETCH)
+
+    assert removed.status_code == 200
+    assert runtime_credentials.current().get("GEMINI_API_KEY") is None
+
+
 async def test_an_empty_delivery_removes_every_key(client: httpx.AsyncClient) -> None:
     runtime_credentials.reset({"OPENAI_API_KEY": SENTINEL, "ELEVENLABS_API_KEY": SENTINEL})
 
@@ -252,6 +267,7 @@ def test_backend_rules_match_the_desktop_vault() -> None:
         MANAGED_CREDENTIAL_ENV_PATTERN,
         MAX_CONNECTION_CREDENTIALS,
         MAX_CREDENTIAL_LENGTH,
+        is_deliverable_credential_env,
     )
 
     root = Path(__file__).resolve().parents[1] / "src/frontend"
@@ -268,7 +284,12 @@ def test_backend_rules_match_the_desktop_vault() -> None:
     assert limit and int(limit.group(1)) == MAX_CONNECTION_CREDENTIALS
     assert length and int(length.group(1)) == MAX_CREDENTIAL_LENGTH
     assert characters and characters.group(1) == _INVALID_VALUE_CHARACTER.pattern
-    assert '"OPENAI_API_KEY"' in vault and '"ELEVENLABS_API_KEY"' in vault
+    # Every provider key the vault delivers is one the backend accepts.
+    environment = re.search(r"const providerEnvironment[^{]*\{(.+?)\};", vault, re.DOTALL)
+    assert environment
+    delivered = set(re.findall(r'"([A-Z_]+)"', environment.group(1)))
+    assert delivered == {"OPENAI_API_KEY", "ANTHROPIC_API_KEY", "ELEVENLABS_API_KEY", "GEMINI_API_KEY"}
+    assert all(is_deliverable_credential_env(name) for name in delivered)
 
 
 @pytest.mark.parametrize("host", ["localhost:41234", "evil.test", f"127.0.0.1:{PORT + 1}", "attacker.test:41234"])

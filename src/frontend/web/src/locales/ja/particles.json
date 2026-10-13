@@ -181,6 +181,7 @@
     "collapseAll": "すべて折りたたむ",
     "copied": "コピーしました",
     "copy": "コピー",
+    "creatorDocument": "クリエイタードキュメント (インポート時に名前と設定を保持)",
     "currentPayload": "現在のエクスポート内容",
     "download": "JSON をダウンロード",
     "exactJson": "エクスポートされる JSON",
@@ -188,7 +189,7 @@
     "parseFailed": "エクスポート JSON を解析できませんでした: {{detail}}",
     "parseFailedUnexplained": "エクスポート JSON を解析できませんでした。",
     "resetView": "表示をリセット",
-    "snippets": "カタログ設定とクリップイベント",
+    "snippets": "クリエイタードキュメント、カタログ設定とクリップイベント",
     "title": "パーティクルエフェクトのエクスポート",
     "unavailable": "エクスポートできる JSON がありません。"
   },
@@ -212,7 +213,8 @@
     "ariaLabel": "パーティクルエフェクトの JSON",
     "confirm": "エフェクトをインポート",
     "confirmReplace": "現在のパーティクルエフェクトの変更を破棄して、この JSON を読み込みますか？",
-    "description": "three.quarks のエフェクトを貼り付けてください。有効な JSON は、未保存の変更の確認後に現在のドキュメントを置き換えます。",
+    "description": "three.quarks のエフェクト、またはエクスポートしたクリエイタードキュメントを貼り付けてください。クリエイタードキュメントは名前と設定も設定します。有効な JSON は、未保存の変更の確認後に現在のドキュメントを置き換えます。埋め込みの PNG テクスチャは保持されます。同梱されていないその他のテクスチャは、ファイルを選ぶまで不足として表示されます。通常の Quarks JSON は、このエフェクトがすでに持っているテクスチャを引き続き使用します。",
+    "embeddedTextureRefused": "埋め込みテクスチャをインポートしませんでした: {{reason}}",
     "title": "パーティクルエフェクトの JSON をインポート"
   },
   "inspector": {
@@ -239,12 +241,13 @@
   },
   "issues": {
     "ambiguousTextureFilename": "テクスチャのパス {{first}} と {{second}} は、移植時に同じファイル名になります。",
+    "atlasGridLimit": "スプライトシートのタイル数は、各方向とも 1〜{{max}} です。",
     "atlasMetadataMismatch": "レンダラーのタイル数が、選択したアトラステクスチャのメタデータと一致しません。",
     "atlasTilesMissing": "選択したアトラステクスチャでは、レンダラーで複数のタイルを使ってください。",
     "blobTextureUrl": "Blob のテクスチャ URL はプレビュー専用で、エクスポートできません。",
     "durationLimit": "すべてのエミッターの長さを、保存された最大再生時間の範囲内にしてください。",
     "durationOverBudget": "エミッターの長さがカタログの最大再生時間を超えています。",
-    "embeddedTextureUrl": "埋め込みデータのテクスチャ URL は動作しますが、管理されている公開アセットに移行してください。",
+    "embeddedTextureUrl": "この埋め込みテクスチャは、エフェクトに含められる PNG ではありません。インポートしたテクスチャに置き換えてください。",
     "emptyTextureUrl": "テクスチャ画像の URL は空でない文字列にしてください。",
     "frameAnimationNeedsTiles": "フレームアニメーションには、レンダラーのタイルが複数必要です。",
     "frameAnimationWithoutAtlas": "フレームアニメーションが有効ですが、選択したテクスチャはアトラスではありません。",
@@ -260,7 +263,8 @@
     "missingTexture": "Quarks JSON にはテクスチャ画像が少なくとも 1 つ必要です。",
     "nodeLimit": "パーティクルエフェクトのオブジェクトノードが {{max}} 個を超えています。",
     "particleBudgetExceeded": "推定パーティクル数 {{estimated, number}} が、カタログの上限 {{budget, number}} を超えています。",
-    "particleLimit": "推定パーティクル数は、保存された上限と非公開コンテンツの上限 {{max}} 個の両方に収めてください。",
+    "particleBudgetUnestimated": "パーティクル数を推定できません (放出量、寿命、バースト、または継続時間の値がサポートされていません)。カタログの上限は {{budget, number}} です。",
+    "particleLimit": "推定パーティクル数は {{estimated, number}}、保存された上限は {{budget, number}} です。どちらも非公開コンテンツの上限 {{max}} 個に収めてください。",
     "remoteTextureUrl": "リモートのテクスチャ URL は、配布する VFX アセットでは使えません。",
     "resourceLimit": "{{key}} は {{max}} 個以下の要素を持つ配列にしてください。",
     "rotation3DWithoutMesh": "「3D 回転」をプレビューするには、メッシュ描画モードが必要です。",
@@ -280,6 +284,7 @@
     "worldSpaceEmitter": "ワールド空間のエミッターはアンカーの位置で生成されますが、その後はアンカーに追従しません。"
   },
   "json": {
+    "creatorDocumentInvalid": "パーティクルのクリエイタードキュメントには、名前、設定、quarks エフェクトが必要です。",
     "notObject": "Quarks JSON はオブジェクトにしてください。",
     "parseFailed": "Quarks JSON を解析できませんでした: {{detail}}",
     "parseFailedUnexplained": "Quarks JSON を解析できませんでした。"
@@ -287,7 +292,8 @@
   "load": {
     "failed": "パーティクルエフェクトを読み込めませんでした。",
     "loading": "パーティクルエフェクトを読み込み中…",
-    "manifestMissing": "パーティクルエフェクトのマニフェストがありません。"
+    "manifestMissing": "パーティクルエフェクトのマニフェストがありません。",
+    "textureFailed": "パーティクルエフェクトのテクスチャを読み込めませんでした。"
   },
   "position": {
     "anchorAndPosition": "アンカーと位置",
@@ -381,7 +387,8 @@
     "allowCoexist": "ほかのエフェクトとの同時再生を許可",
     "allowLooping": "エミッターのループを許可",
     "defaultAnchor": "既定のアンカー",
-    "estimatedTotal_other": "推定合計: 約 {{count, number}} 個のパーティクル",
+    "estimatedAtOnce_other": "同時に存在する推定数: 最大 {{count, number}} 個のパーティクル",
+    "estimateUnavailable": "同時に存在する推定数: 推定できません (放出量、寿命、バースト、または継続時間の値がサポートされていません)",
     "limitsHint": "パフォーマンスの上限はエフェクト全体に適用されます。ここでループを許可すると、各エミッターがサイクルを繰り返せるようになります。",
     "maxDuration": "最大再生時間 (s)",
     "maxParticles": "最大パーティクル数",
@@ -423,6 +430,22 @@
     "animateFrames": "フレームをアニメーション",
     "atlas": "アトラス",
     "blendTiles": "タイルをブレンド",
+    "carried": {
+      "chooseFile": "{{file}} のファイルを選択",
+      "dimensions": "{{width}}×{{height}}",
+      "hint": "PNG は {{size, number}} MiB、{{dimension}} px まで。スプライトシートにはアトラスのタイル数を設定してください。",
+      "import": "PNG テクスチャをインポート",
+      "missing": "テクスチャ {{file}} がありません。PNG ファイルを選んでください。",
+      "title": "このエフェクトのテクスチャ"
+    },
+    "files": {
+      "dimensionsTooLarge": "テクスチャの各辺は {{size}} px 以下にしてください。",
+      "fileRefused": "テクスチャ {{texture}}: {{reason}}",
+      "notPng": "テクスチャファイルは PNG 画像にしてください。",
+      "tooLarge": "テクスチャファイルは {{size, number}} MiB 以下にしてください。",
+      "tooMany": "1 つのパーティクルエフェクトで使えるテクスチャは {{max, number}} 個までです。",
+      "totalTooLarge": "1 つのパーティクルエフェクトのテクスチャは、合計 {{size, number}} MiB 以下にしてください。"
+    },
     "frameEnd": "終了フレーム",
     "frameStart": "開始フレーム",
     "names": {

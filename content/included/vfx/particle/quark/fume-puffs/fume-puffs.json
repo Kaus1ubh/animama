@@ -1,0 +1,58 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:fume-puffs",
+  "version": 1,
+  "name": "Fume Puffs",
+  "description": "Two glossy pink-lit jets of steam blast sideways out of the ears and puff in beats over a warm pink glow, the anime ear-steam overheat for fuming, annoyed or flustered moments.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "fume-puffs",
+    "slots": {
+      "particle_vfx": {
+        "label": "Fume Puffs",
+        "description": "Two glossy pink-lit jets of steam blast sideways out of the ears and puff in beats over a warm pink glow, the anime ear-steam overheat for fuming, annoyed or flustered moments.",
+        "anchor": "head",
+        "duration_seconds": 3.5,
+        "max_duration_seconds": 4,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0.06,
+            "z": 0
+          },
+          "depth_offset": 0.04,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 5
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/heat-glow.png",
+      "role": "texture"
+    },
+    {
+      "path": "textures/ear-jet-sheet.png",
+      "role": "texture"
+    }
+  ]
+}

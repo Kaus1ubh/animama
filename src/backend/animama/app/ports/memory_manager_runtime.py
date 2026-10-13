@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Protocol, Self
+from typing import Any, Protocol
 
 from animama.domain.memory_manager import MemoryManagerApproval, MemoryManagerMessage, MemoryManagerRun
 
@@ -102,11 +102,12 @@ class MemoryManagerRuntime(Protocol):
 
         raise NotImplementedError
 
-    async def for_run(self, run: MemoryManagerRun) -> Self:
-        """Return this runtime on the row ``run`` started on, for resuming it.
+    async def for_run(self, run: MemoryManagerRun) -> MemoryManagerRuntime:
+        """Return the runtime on the row ``run`` is pinned to, for resuming it.
 
-        Raises ``MemoryManagerPinnedModelUnavailableError`` when that row was
-        removed or can no longer run the Memory Manager.
+        That may be another runtime kind when the row's provider type differs
+        from the role row's. Raises ``MemoryManagerPinnedModelUnavailableError``
+        when that row was removed or can no longer run the Memory Manager.
         """
 
         raise NotImplementedError

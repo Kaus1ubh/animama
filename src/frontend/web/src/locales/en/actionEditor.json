@@ -304,6 +304,11 @@
   },
   "loader": {
     "downloadFailed": "This Action could not be downloaded.",
+    "effectsRemoved": {
+      "gesture": "This Gesture uses Included effects that no longer exist ({{effects, list}}). It plays without them; map their events to other effects or remove them before saving.",
+      "reaction": "This Reaction uses Included effects that no longer exist ({{effects, list}}). It plays without them; map their events to other effects or remove them before saving.",
+      "title": "Some effects were removed"
+    },
     "noSequence": "This Action has no readable sequence.",
     "starterUnavailable": "This Starter Anima Pose Clip is unavailable."
   },

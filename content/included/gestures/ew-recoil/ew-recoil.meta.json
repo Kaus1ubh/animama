@@ -1,0 +1,39 @@
+{
+  "schema_version": 1,
+  "content_type": "gesture",
+  "content_id": "builtin:gesture:ew-recoil",
+  "version": 1,
+  "semantic_key": "ew_recoil",
+  "name": "Ew Recoil",
+  "ai_description": "Use when something is gross, creepy or off-putting, or to react with 'ew, no thanks'. Recoils and turns the head away with both palms up in front of the chest, a little shudder and a scrunched, disgusted side-eye.",
+  "implementation": {
+    "kind": "anima_clip",
+    "file_role": "sequence"
+  },
+  "dependencies": [
+    {
+      "ref": "builtin:avatar-effect:shake_lines",
+      "alias": "shake_lines",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:shake_lines_left",
+      "alias": "shake_lines_left",
+      "content_type": "avatar_effect",
+      "config": {}
+    },
+    {
+      "ref": "builtin:avatar-effect:gloom_lines",
+      "alias": "gloom_lines",
+      "content_type": "avatar_effect",
+      "config": {}
+    }
+  ],
+  "files": [
+    {
+      "path": "ew-recoil.json",
+      "role": "sequence"
+    }
+  ]
+}

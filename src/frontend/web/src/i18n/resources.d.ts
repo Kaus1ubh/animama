@@ -306,6 +306,11 @@ export default interface Resources {
     },
     "loader": {
       "downloadFailed": "This Action could not be downloaded.",
+      "effectsRemoved": {
+        "gesture": "This Gesture uses Included effects that no longer exist ({{effects, list}}). It plays without them; map their events to other effects or remove them before saving.",
+        "reaction": "This Reaction uses Included effects that no longer exist ({{effects, list}}). It plays without them; map their events to other effects or remove them before saving.",
+        "title": "Some effects were removed"
+      },
       "noSequence": "This Action has no readable sequence.",
       "starterUnavailable": "This Starter Anima Pose Clip is unavailable."
     },
@@ -632,21 +637,23 @@ export default interface Resources {
     "gestures": {
       "all": "All",
       "clips": "Clips",
-      "customFailed": "Custom Gestures could not be loaded.",
+      "counts": "{{equipped, number}} equipped / {{total, number}} total",
       "customFirst": "Custom first",
       "filter": "Filter and sort Gestures",
       "listLabel": "Available Gestures",
-      "loadingCustom": "Loading custom Gestures…",
+      "loadFailed": "Gestures could not be loaded.",
+      "loading": "Loading Gestures…",
       "motionType": "Motion type",
       "nameAsc": "Name A–Z",
       "nameDesc": "Name Z–A",
-      "noCustom": "No custom Gestures available.",
       "noFilterMatch": "No Gestures match the selected filters.",
       "noSearchMatch": "No Gestures match your search.",
+      "none": "No Gestures available.",
       "search": "Search gestures",
       "show": "Show",
+      "showIncluded": "Show included",
+      "showLocal": "Show local",
       "showMore": "Show more",
-      "showStarters": "Show starters",
       "sortBy": "Sort by",
       "status": "Status",
       "title": "Gestures",
@@ -907,6 +914,16 @@ export default interface Resources {
         "saved": "ElevenLabs voice saved.",
         "sectionLabel": "ElevenLabs voice"
       },
+      "gemini": {
+        "available": "Available Gemini voices",
+        "listLabel": "Gemini voices",
+        "sampleNote": "The first play of each voice uses your Gemini API key; the sample is then kept.",
+        "saveFailed": "Failed to save Gemini voice. Try again.",
+        "saved": "Gemini voice saved.",
+        "searchLabel": "Search Gemini voices",
+        "sectionLabel": "Gemini voice",
+        "trigger": "Gemini voice: {{name}}"
+      },
       "picker": {
         "available": "Available PocketTTS voices",
         "availableState": "{{name}} available",
@@ -1143,9 +1160,11 @@ export default interface Resources {
         "elevenLabsClosedEarly": "ElevenLabs realtime TTS closed before playback completed.",
         "elevenLabsConnectionFailed": "ElevenLabs realtime TTS connection failed for this response.",
         "elevenLabsDecodeFailed": "Failed to decode ElevenLabs realtime audio.",
-        "elevenLabsFinalizedDecodeFailed": "Failed to decode ElevenLabs finalized audio.",
         "elevenLabsMissingAnima": "ElevenLabs TTS requires an Anima context for this response.",
         "elevenLabsUnsupported": "ElevenLabs TTS is not supported in this browser environment.",
+        "finalizedDecodeFailed": "Failed to decode the reply's audio.",
+        "geminiMissingAnima": "Gemini TTS requires an Anima context for this response.",
+        "geminiUnsupported": "Gemini TTS needs the Web Audio API, which this browser lacks.",
         "generic": "Speech could not play for this response.",
         "pocketGenerationFailed": "PocketTTS failed to synthesize part of this response.",
         "pocketUnsupported": "PocketTTS is not supported in this browser environment."
@@ -1318,19 +1337,26 @@ export default interface Resources {
         "remove": "Remove from composer"
       },
       "model": {
+        "back": "Back to model and reasoning",
+        "choose": "Choose a model",
         "empty": "No models found.",
+        "fallbackLabel": "Model",
+        "features": "Chat features",
         "needsWindow": "Set its context window in App Settings → Models",
+        "noFeatures": "No optional features for this model.",
         "noProfile": "No chat profile",
+        "noReasoning": "This model has no adjustable reasoning.",
         "notDirect": "Not available for direct chat yet",
-        "reasoning": "Reasoning",
+        "panel": "Model and reasoning",
+        "reasoningEffort": "Reasoning effort",
         "reasoningEfforts": {
-          "high": "high",
-          "low": "low",
-          "max": "max",
-          "medium": "medium",
-          "minimal": "minimal",
-          "none": "none",
-          "xhigh": "xhigh"
+          "high": "High",
+          "low": "Low",
+          "max": "Max",
+          "medium": "Medium",
+          "minimal": "Minimal",
+          "none": "None",
+          "xhigh": "Extra high"
         },
         "search": "Search models...",
         "searchUnavailable": {
@@ -1339,13 +1365,14 @@ export default interface Resources {
           "tools_unsupported": "This model can't call tools, so it can't search."
         },
         "select": "Select model",
-        "settings": "{{model}} settings",
         "toasts": {
           "selectFirst": "Select a model before chatting.",
           "unsupported": "This model is not available for direct chat yet.",
           "updateFailed": "Failed to update model"
         },
+        "trigger": "Model and reasoning: {{model}}",
         "unavailable": "Model unavailable. Select another model.",
+        "unavailableShort": "Model unavailable",
         "webSearch": "Web search"
       }
     },
@@ -1491,10 +1518,12 @@ export default interface Resources {
       "json_too_large": "The JSON file exceeds the supported size limit.",
       "malformed_json": "The file is not a valid UTF-8 JSON document.",
       "missing_descriptor_file": "A file declared by this entry is missing.",
+      "missing_effect_dependency": "An Included effect this item uses was removed; it plays without it. Open it in its creator to map or remove those effect events.",
       "missing_vrm_extension": "The file does not contain the extension its VRM or VRMA type requires.",
       "nested_descriptor": "Content entries cannot be nested inside one another.",
       "pocket_clone_file_size": "Voice clone files must be nonempty and at most 25 MiB.",
       "provenance_missing": "This Included entry has no license record.",
+      "scene_emoji_item_removed": "This Scene Effect has an emoji item, which Animama no longer provides; it plays without it. Open it in its creator to replace the item with a sticker or image, or remove it.",
       "special_file_rejected": "Only ordinary files and folders are scanned.",
       "svg_size_limit": "SVG images must be at most 32 MiB.",
       "symlink_rejected": "Symbolic links are not scanned.",
@@ -2520,6 +2549,7 @@ export default interface Resources {
       "sound": {
         "exact": "{{name}} · exact content",
         "label": "Sound when applied",
+        "licensedOmitted": "The built-in sound plays only with the built-in effect, so this copy has no sound. You can choose one of your own.",
         "loading": "Loading sounds…",
         "none": "No sound"
       },
@@ -2649,6 +2679,44 @@ export default interface Resources {
         "opacity": "Opacity"
       },
       "confirmNew": "Discard the current changes and start a new Scene Effect?",
+      "controls": {
+        "addStop": "Add stop",
+        "alternateSpin": "Alternate spin",
+        "angle": "Angle (deg)",
+        "centerX": "Center X",
+        "centerY": "Center Y",
+        "chooseTileImage": "Choose tile image",
+        "colorPicker": "{{label}} picker",
+        "fade": "Fade (ms)",
+        "flashColor": "Flash color",
+        "gradientType": "Gradient type",
+        "itemsShown": "Items shown",
+        "keepFaceClear": "Keep the face clear",
+        "keepFaceClearHint": "Still items, and items drifting up or down, stay out of the column behind the head.",
+        "length": "Length",
+        "newSeed": "New random seed",
+        "opacity": "Opacity",
+        "pulse": "Pulse",
+        "rangeMax": "{{label}} max",
+        "rangeMin": "{{label}} min",
+        "region": "Region (top to bottom)",
+        "removeScatter": "Remove scatter layer",
+        "removeStop": "Remove stop {{index, number}}",
+        "replaceTileImage": "Replace tile image",
+        "rotation": "Rotation (deg)",
+        "screenColor": "Screen color",
+        "screenKind": "Screen kind",
+        "size": "Size (px)",
+        "spiky": "Spiky starburst",
+        "spin": "Spin (deg/s)",
+        "stopAt": "At",
+        "stopColor": "Stop {{index, number}} color",
+        "stops": "Stops",
+        "swaySeconds": "Seconds per sway (0 still)",
+        "tileSize": "Tile size (px)",
+        "turnSeconds": "Seconds per turn (0 still)",
+        "width": "Width (px)"
+      },
       "directions": {
         "down": "Down",
         "downLeft": "Diagonal down left",
@@ -2660,49 +2728,27 @@ export default interface Resources {
         "upLeft": "Diagonal up left",
         "upRight": "Diagonal up right"
       },
-      "emoji": {
-        "angerSymbol": "Anger Symbol",
-        "cherryBlossom": "Cherry Blossom",
-        "cloudWithRain": "Cloud with Rain",
-        "collision": "Collision",
-        "crown": "Crown",
-        "cryingFace": "Crying Face",
-        "disappointedFace": "Disappointed Face",
-        "dizzy": "Dizzy",
-        "flushedFace": "Flushed Face",
-        "foldedHands": "Folded Hands",
-        "huggingFace": "Hugging Face",
-        "medal": "Medal",
-        "nauseatedFace": "Nauseated Face",
-        "partyPopper": "Party Popper",
-        "pleadingFace": "Pleading Face",
-        "questionMark": "Question Mark",
-        "ribbon": "Ribbon",
-        "sparkles": "Sparkles",
-        "sparklingHeart": "Sparkling Heart",
-        "star": "Star",
-        "starStruck": "Star-Struck",
-        "sunrise": "Sunrise",
-        "sweatDroplets": "Sweat Droplets",
-        "target": "Target",
-        "tearsOfJoy": "Face with Tears of Joy",
-        "thinkingFace": "Thinking Face",
-        "thumbsDown": "Thumbs Down",
-        "warning": "Warning"
-      },
       "fields": {
         "baseThickness": "Base thickness",
         "definition": "Effect settings",
         "description": "Description",
         "duration": "Duration",
+        "flashColor": "Flash color",
+        "flashDuration": "Flash fade",
         "flicker": "Flicker timing",
         "gap": "Gap",
+        "gradientAngle": "Gradient angle",
+        "gradientCenterX": "Gradient center X",
+        "gradientCenterY": "Gradient center Y",
+        "gradientStop": "Gradient stop {{index, number}}",
+        "gradientStops": "Gradient stops",
         "images": "Private images",
         "itemSize": "Item size",
         "lengthVariation": "Length variation",
         "lineColor": "Line color",
         "lineCount": "Line count",
         "lineOpacity": "Line opacity",
+        "marqueeItem": "Marquee item {{index, number}}",
         "marqueeItems": "Marquee items",
         "marqueeOpacity": "Marquee opacity",
         "maxHiddenMs": "Longest hidden (ms)",
@@ -2720,11 +2766,55 @@ export default interface Resources {
         "patternSpacing": "Pattern spacing",
         "rotationOffset": "Rotation offset",
         "rowGap": "Row gap",
+        "scatter": {
+          "count": "Scatter {{layer, number}} items shown",
+          "item": "Scatter {{layer, number}} item {{index, number}}",
+          "items": "Scatter {{layer, number}} items",
+          "layer": "Scatter {{layer, number}}",
+          "maxOpacity": "Scatter {{layer, number}} highest opacity",
+          "maxRotation": "Scatter {{layer, number}} largest rotation",
+          "maxSize": "Scatter {{layer, number}} largest size",
+          "maxSpin": "Scatter {{layer, number}} fastest spin",
+          "minOpacity": "Scatter {{layer, number}} lowest opacity",
+          "minRotation": "Scatter {{layer, number}} smallest rotation",
+          "minSize": "Scatter {{layer, number}} smallest size",
+          "minSpin": "Scatter {{layer, number}} slowest spin",
+          "opacity": "Scatter {{layer, number}} opacity",
+          "region": "Scatter {{layer, number}} region",
+          "regionBottom": "Scatter {{layer, number}} region bottom",
+          "regionTop": "Scatter {{layer, number}} region top",
+          "rotation": "Scatter {{layer, number}} rotation",
+          "seed": "Scatter {{layer, number}} seed",
+          "size": "Scatter {{layer, number}} size",
+          "speed": "Scatter {{layer, number}} speed",
+          "spin": "Scatter {{layer, number}} spin"
+        },
+        "scatters": "Scatter layers",
+        "screenCenterX": "Ray center X",
+        "screenCenterY": "Ray center Y",
+        "screenColor": "Screen color",
+        "screenCount": "Ray or line count",
+        "screenLength": "Line length",
+        "screenMaxLength": "Longest line length",
+        "screenMaxWidth": "Thickest line width",
+        "screenMinLength": "Shortest line length",
+        "screenMinWidth": "Thinnest line width",
+        "screenOpacity": "Screen opacity",
+        "screenSeed": "Screen seed",
+        "screenSway": "Seconds per sway",
+        "screenThrob": "Throbs per second",
+        "screenTurn": "Seconds per turn",
+        "screenWidth": "Line width",
+        "seed": "Seed",
         "solidColor": "Solid color",
         "sound": "Sound",
         "speed": "Speed",
         "target": "Target",
-        "thicknessVariation": "Thickness variation"
+        "thicknessVariation": "Thickness variation",
+        "tileImage": "Tile image",
+        "tileOpacity": "Tile opacity",
+        "tileSize": "Tile size",
+        "tileSpeed": "Tile speed"
       },
       "focus": {
         "avatarFace": "Avatar face",
@@ -2747,8 +2837,15 @@ export default interface Resources {
         },
         "target": "Target"
       },
+      "gradientTypes": {
+        "linear": "Linear",
+        "radial": "Radial"
+      },
       "image": {
-        "typeInvalid": "Choose a PNG, JPEG, WebP, or static SVG image."
+        "dimensionsTooLarge": "Scene images must be at most {{size}} px on each side.",
+        "tooLarge": "Scene images must be at most {{size, number}} MiB.",
+        "typeInvalid": "Choose a PNG, JPEG, WebP, or static SVG image.",
+        "unreadable": "The image is not a readable PNG, JPEG or WebP file."
       },
       "import": {
         "description": "Paste an Animama Scene Effect editor document. Private image bytes must be reselected.",
@@ -2756,6 +2853,16 @@ export default interface Resources {
         "reselectImages": "Reselect the imported document's private images before saving.",
         "title": "Import Scene Effect JSON",
         "unsupportedSchema": "The Scene Effect editor schema is unsupported."
+      },
+      "items": {
+        "addImage": "Add private image",
+        "emojiRemoved": "Animama no longer provides emoji items. Replace each with a sticker or image, or remove it, before saving.",
+        "empty": "Add a sticker or private image.",
+        "missingEmoji": "Missing emoji",
+        "moveDown": "Move {{name}} down",
+        "moveUp": "Move {{name}} up",
+        "remove": "Remove {{name}}",
+        "title": "Items"
       },
       "json": {
         "description": "The authoring document contains local logical image names and exact dependency sources, never Blob URLs or storage capabilities.",
@@ -2766,30 +2873,34 @@ export default interface Resources {
         "focusLines": "Focus Lines"
       },
       "layers": {
+        "addScatter": "Add scatter layer",
         "enabled": "{{layer}} enabled",
+        "flash": "Entry flash",
+        "flashSummary": "{{color}} · {{ms, number}} ms",
+        "gradient": "Gradient",
+        "gradientSummary_one": "{{type}} · {{count, number}} stop",
+        "gradientSummary_other": "{{type}} · {{count, number}} stops",
         "marquee": "Marquee",
         "marqueeSummary_one": "{{count, number}} item · {{direction}}",
         "marqueeSummary_other": "{{count, number}} items · {{direction}}",
         "pattern": "Pattern",
         "patternSummary": "{{pattern}} · {{size, number}}px",
+        "scatter": "Scatter {{index, number}}",
+        "scatterSummary_one": "{{count, number}} item · {{shown, number}} shown · {{pulse}}",
+        "scatterSummary_other": "{{count, number}} items · {{shown, number}} shown · {{pulse}}",
+        "screen": "Screen",
+        "screenSummary": "{{kind}} · {{total, number}}",
         "solid": "Solid",
         "summary": "{{layer}} layer",
-        "title": "Layers"
+        "tile": "Tile",
+        "tileNoImage": "No image",
+        "title": "Layers (front to back)"
       },
       "loading": "Loading Scene Effect…",
       "marquee": {
-        "addEmoji": "Add emoji",
-        "addImage": "Add private image",
-        "chooseEmoji": "Choose emoji",
         "direction": "Direction",
-        "emojiOption": "{{emoji}} {{name}}",
-        "empty": "Add an emoji or private image.",
         "gap": "Gap",
         "itemSize": "Item size",
-        "items": "Items",
-        "moveDown": "Move {{name}} down",
-        "moveUp": "Move {{name}} up",
-        "remove": "Remove {{name}}",
         "rotation": "Rotation",
         "rotationOffset": "Rotation offset (deg)",
         "rowGap": "Row gap",
@@ -2798,8 +2909,7 @@ export default interface Resources {
           "appearance": "Appearance",
           "content": "Content",
           "motion": "Motion"
-        },
-        "twemoji": "Twemoji"
+        }
       },
       "open": {
         "backgroundIncomplete": "The background layer definition is incomplete.",
@@ -2810,8 +2920,10 @@ export default interface Resources {
         "imageUnavailable": "The release image {{file}} is unavailable.",
         "itemImageUnavailable": "The image for marquee item {{index, number}} is unavailable.",
         "itemInvalid": "Marquee item {{index, number}} is invalid.",
+        "itemKindUnsupported": "The Scene item kind is unsupported.",
         "itemUnsupported": "Marquee item {{index, number}} is unsupported.",
-        "kindUnsupported": "The Scene Effect kind is unsupported."
+        "kindUnsupported": "The Scene Effect kind is unsupported.",
+        "scatterInvalid": "Scatter layer {{index, number}} is invalid."
       },
       "openFailed": "The Scene Effect could not be opened.",
       "pattern": {
@@ -2827,6 +2939,12 @@ export default interface Resources {
         "polkadot": "Polkadot",
         "star": "Star"
       },
+      "pulses": {
+        "flicker": "Flicker",
+        "none": "None",
+        "pop": "Pop",
+        "twinkle": "Twinkle"
+      },
       "recovery": {
         "metadataOnly": "Image bytes could not be stored for crash recovery. Reselect private images after restoring this draft.",
         "needsImages": "This recovered draft needs its private images reselected before Save.",
@@ -2840,6 +2958,10 @@ export default interface Resources {
         "defaultName": "New Scene FX",
         "reselectImage": "Reselect {{file}} before saving.",
         "saved": "Scene Effect saved."
+      },
+      "screenKinds": {
+        "lines": "Lines",
+        "rays": "Rays"
       },
       "setup": {
         "behavior": "Effect behavior",
@@ -2857,28 +2979,44 @@ export default interface Resources {
         "color": "Solid color",
         "enabled": "Solid enabled"
       },
+      "stickers": {
+        "add": "Add {{name}} sticker",
+        "extras": "Extras",
+        "loadFailed": "The sticker could not be loaded.",
+        "title": "Add a sticker"
+      },
       "template": {
         "unavailable": "This Scene Effect template is unavailable."
       },
       "validation": {
         "bounds": "{{setting}} must be between {{min, number}} and {{max, number}}.",
         "boundsWhole": "{{setting}} must be a whole number between {{min, number}} and {{max, number}}.",
+        "countAtMost": "{{setting}} can have at most {{max, number}} entries.",
+        "countRange": "{{setting}} needs {{min, number}} to {{max, number}} entries.",
         "definitionInvalid": "The Scene Effect settings are invalid.",
         "descriptionTooLong": "Description must be {{max, number}} characters or shorter.",
-        "duplicateItemIds": "Every marquee item needs a unique id.",
+        "duplicateItemIds": "Every item needs a unique id.",
         "duration": "Duration must be sticky or between {{min, number}} and {{max, number}} seconds.",
+        "flashColor": "Choose a six-digit hex flash color.",
         "flickerOrder": "Minimum flicker times cannot exceed their maximums.",
+        "gradientStopColor": "Choose a six-digit hex gradient stop color.",
         "imageType": "{{file}} is not PNG, JPEG, WebP, or SVG.",
         "imagesTooLarge": "Private Scene images must total {{size}} or less.",
+        "legacyEmoji": "{{label}} is an emoji, which Animama no longer provides. Replace it with a sticker or image, or remove it.",
+        "legacyEmojiUnnamed": "This item is an emoji, which Animama no longer provides. Replace it with a sticker or image, or remove it.",
         "lineColor": "Choose a six-digit hex line color.",
         "manualTarget": "The manual target must stay within the normalized viewport.",
+        "minAboveMax": "{{setting}}: the minimum cannot exceed the maximum.",
         "nameTooLong": "Keep the Scene Effect name within {{max, number}} characters.",
         "patternColor": "Choose a six-digit hex pattern color.",
         "reselectForPreview": "Reselect {{file}} for preview.",
         "reselectImage": "Reselect {{file}} so its bytes can be saved.",
+        "scatterTotal": "Scattered layers can show at most {{max, number}} items in all.",
+        "screenColor": "Choose a six-digit hex screen color.",
         "solidColor": "Choose a six-digit hex solid color.",
+        "stopsAscending": "Gradient stops must run in ascending position.",
+        "tileImage": "Choose an image to tile.",
         "tooManyImages": "A Scene Effect can contain at most {{max, number}} private images.",
-        "tooManyItems": "A marquee can contain at most {{max, number}} items.",
         "unusedImages": "Unused background image bytes will not be saved with Focus Lines."
       },
       "views": {
@@ -3068,8 +3206,10 @@ export default interface Resources {
       "content_file_empty": "The selected file is empty. Choose a valid exported file. Your draft is preserved.",
       "content_file_too_large": "The selected file exceeds the supported size limit. Reduce its size and retry. Your draft is preserved.",
       "content_metadata_too_large": "The item details exceed the supported size limit. Shorten the description or configuration and retry. Your draft is preserved.",
-      "content_non_portable": "These files match motion included with this app for use here only, so they can't be saved as your own content.",
+      "content_non_portable": "These files match content included with this app for use here only, so they can't be saved as your own content.",
+      "content_non_portable_dependency": "Licensed built-in sounds play only with built-in effects. Choose one of your own sounds. Your draft is preserved.",
       "content_not_found": "The original item no longer exists. Return to the Library or save this draft as a new item. Your draft is preserved.",
+      "content_optional_dependency": "Only built-in effects can have an optional sound. Choose a sound or none. Your draft is preserved.",
       "content_path_exists": "Another item already uses this name. Choose a different name and try again. Your draft is preserved.",
       "content_path_invalid": "Use a name that starts with a letter or number (in any script) and contains only letters, numbers, spaces, periods, underscores or hyphens. Your draft is preserved.",
       "descriptor_not_supported": "This creator produced descriptor data that the content kind does not support. Your draft is preserved; retry or check the backend logs.",
@@ -3245,8 +3385,10 @@ export default interface Resources {
     },
     "sharing": {
       "clip_format_unsupported": "This package contains a clip in an unsupported format, such as the retired animaPoseClip/1.0. Only animaPoseClip/2.0 clips can be imported or exported.",
+      "dependencyMissingItems": "Some content uses an Included effect that was removed. Open it in its creator, map or remove those effect events, then export: {{items, list(style: narrow)}}.",
       "nonPortableItems": "Some content comes with Animama for use only where it is installed, so it can't be exported or imported: {{items, list(style: narrow)}}.",
       "package_anima_import_unavailable": "Anima creation is not ready on this installation. Check the default model settings, then refresh the review.",
+      "package_dependency_missing": "Some content uses an Included effect that was removed. Open it in its creator, map or remove those effect events, then export.",
       "package_destination_changed": "Your Library changed. Refresh the import review to see the new names before importing.",
       "package_disk_full": "There is not enough disk space for this package. Free some space and retry.",
       "package_export_expired": "This export expired. Go back and prepare a new review.",
@@ -3267,6 +3409,8 @@ export default interface Resources {
       "package_stage_quota": "Other package operations are using the temporary storage limit. Close their reviews or try again later.",
       "package_stage_unavailable": "This import is no longer available. Check its result before starting again.",
       "package_transport_unavailable": "Animama could not be reached. Check the local app and retry.",
+      "sceneEmojiItems": "Some Scene Effects use emoji, which Animama no longer provides. Open each in its creator, replace each emoji with a sticker or image or remove it, then export again: {{items, list(style: narrow)}}.",
+      "scene_emoji_item_removed": "This package has Scene Effects that use emoji, which Animama no longer provides, so it can't be imported. Ask whoever exported it to replace each emoji with a sticker or image, then export again.",
       "unexpected": "Animama could not finish this package operation. Your selection is preserved; retry or review the file again.",
       "withItems": "{{message}} {{items, list(style: narrow)}}."
     },
@@ -3347,8 +3491,8 @@ export default interface Resources {
       },
       "nonPortableReason": "Included with this app for use here only. It can't be customized, copied or exported.",
       "particle": {
-        "aTextureTooLarge": "A texture exceeds the 25 MiB limit.",
-        "autoFitEmitters": "Rectangle auto-fit emitter names must be unique and match up to eight emitters.",
+        "aTextureTooLarge": "A texture exceeds the {{size}} MiB limit.",
+        "autoFitEmitters": "Rectangle auto-fit emitter names must be unique and match up to {{max}} emitters.",
         "autoFitEmpty": "Rectangle auto-fit dimensions cannot be empty.",
         "autoFitHeightRange": "Rectangle auto-fit height minimum exceeds its maximum.",
         "autoFitWidthRange": "Rectangle auto-fit width minimum exceeds its maximum.",
@@ -3370,13 +3514,15 @@ export default interface Resources {
           "scale": "scale transform"
         },
         "textureAmbiguous": "Texture {{texture}} has an ambiguous resource source.",
+        "textureDimensionsTooLarge": "Texture {{texture}} must be at most {{size}} px on each side.",
         "textureEmpty": "Texture {{texture}} is empty.",
         "textureFetchFailed": "Texture fetch failed with HTTP {{status}}.",
         "textureMismatched": "Texture {{texture}} has mismatched or unsupported image bytes.",
         "textureNotAvailable": "Texture {{texture}} is not available to the content entry.",
         "textureNotInApp": "Texture {{texture}} is not available from the exact App source.",
-        "textureTooLarge": "Texture {{texture}} exceeds the 25 MiB limit.",
+        "textureTooLarge": "Texture {{texture}} exceeds the {{size}} MiB limit.",
         "textureUnresolved": "A texture resource is unresolved.",
+        "texturesTotalTooLarge": "Textures in one Particle Effect must total at most {{size}} MiB.",
         "tooManyTextures_one": "Particle Effects support at most {{count}} unique texture.",
         "tooManyTextures_other": "Particle Effects support at most {{count}} unique textures."
       },
@@ -3399,6 +3545,7 @@ export default interface Resources {
       },
       "recovery": {
         "discardFailed": "Browser recovery could not be discarded. Please retry.",
+        "particleTexturesNotStored": "Texture files could not be stored for crash recovery. Choose the missing textures again after restoring this draft.",
         "particleTooLarge": "This effect is too large for browser crash recovery. Save can still continue.",
         "unavailable": "Browser crash recovery is unavailable. Keep this tab open until Save finishes."
       },
@@ -3493,6 +3640,19 @@ export default interface Resources {
         "poses": "Poses",
         "reactions": "Reactions"
       },
+      "contentTypes": {
+        "all": "All",
+        "avatarEffects": "Avatar FX",
+        "avatars": "Avatars",
+        "gestures": "Gestures",
+        "idleStyles": "Idle Styles",
+        "label": "Library content types",
+        "particle": "Particle FX",
+        "poses": "Poses",
+        "reactions": "Reactions",
+        "scene": "Scene FX",
+        "sound": "Sounds"
+      },
       "fxFilters": {
         "all": "All",
         "avatar": "Avatar FX",
@@ -3567,6 +3727,8 @@ export default interface Resources {
         },
         "noAnimas": "There are no Anima to export yet.",
         "noMatches": "No matching content.",
+        "omittedSounds_one": "{{count, number}} built-in effect sound stays with this app. Imported copies of those effects play without them.",
+        "omittedSounds_other": "{{count, number}} built-in effect sounds stay with this app. Imported copies of those effects play without them.",
         "plusRequired_one": "+ {{count}} required dependency",
         "plusRequired_other": "+ {{count}} required dependencies",
         "preparingPackage": "Preparing your package…",
@@ -4198,6 +4360,7 @@ export default interface Resources {
         "label": "App search"
       },
       "builtInSearch": {
+        "anthropicDescription": "Searches the web with Anthropic's own search. Anthropic bills each search to your Anthropic account.",
         "description": "Searches the web with the provider's own search",
         "label": "Built-in search"
       },
@@ -4224,7 +4387,8 @@ export default interface Resources {
       "baseUrl": "Base URL",
       "baseUrlHelp": "The server's OpenAI-compatible address, usually ending in /v1.",
       "compatibility": {
-        "foldDeveloperRole": "Merge developer instructions into the system message",
+        "foldDeveloperRole": "Send no developer messages",
+        "foldDeveloperRoleHelp": "For servers that reject the developer role. Each turn's context (memory map, attached files) goes in a tagged block at the start of the user message; a summary of compacted history and instructions within a turn are merged into the system message.",
         "sendOpenaiExtensions": "Send OpenAI-only request fields",
         "sendStreamUsage": "Request token usage while streaming",
         "stripFunctionStrict": "Remove strict flags from tools"
@@ -4261,6 +4425,10 @@ export default interface Resources {
       "addModel": "Add model",
       "addModelTo": "Add model to {{name}}",
       "added": "Connection added.",
+      "builtinKey": {
+        "managed": "Encrypted on this computer and never shown again. Also in App Settings → API Keys.",
+        "server": "Uses the {{name}} key configured on this server ({{env}})."
+      },
       "connect": "Connect",
       "connecting": "Connecting…",
       "detail": "{{host}} · {{status}}",
@@ -4269,10 +4437,6 @@ export default interface Resources {
       "loadFailed": "Model connections could not be loaded.",
       "modelsOf": "{{name}} models",
       "noModels": "No models yet. Add one to chat with it.",
-      "openAiKey": {
-        "managed": "Encrypted on this computer and never shown again. Also in App Settings → API Keys.",
-        "server": "Uses the OpenAI key configured on this server (OPENAI_API_KEY)."
-      },
       "removeNamed": "Remove {{name}}",
       "removed": "Connection removed.",
       "saved": "Connection saved.",
@@ -4291,7 +4455,7 @@ export default interface Resources {
     "credentials": {
       "allFailed": "The changes could not finish. Check runtime recovery, then retry. Saved keys are never shown here.",
       "connectionKey": "Model connection key",
-      "description": "Add an OpenAI key for cloud chat or an ElevenLabs key for voices. Keys for other model servers are entered on each connection in App Settings → Models. Keys are encrypted with this computer’s secure storage and never shown again. Changes apply as soon as you save. You can change them later in App Settings → API Keys.",
+      "description": "Add an OpenAI or Anthropic key for cloud chat or an ElevenLabs or Gemini key for voices. Keys for other model servers are entered on each connection in App Settings → Models. Keys are encrypted with this computer’s secure storage and never shown again. Changes apply as soon as you save. You can change them later in App Settings → API Keys.",
       "failure": {
         "full": "This computer already stores the most model connection keys it allows ({{max, number}}). Remove the key from a connection you no longer use, then retry.",
         "line": "{{name}}: {{message}}",
@@ -4424,10 +4588,15 @@ export default interface Resources {
       },
       "contextWindow": "Context window (tokens)",
       "contextWindowHelp": "Required. Use the context size the server loads the model with (for example Ollama's num_ctx or llama.cpp's -c), not the model's maximum; long chats are summarized to fit.",
+      "contextWindowHelpAnthropic": "Required. Test the model to fill in the window Anthropic publishes for it; long chats are summarized to fit.",
       "copyFrom": "Copy capabilities from",
       "copyFromHelp": "Useful for a newer version of a built-in model.",
       "copyNothing": "Nothing (set them below)",
       "displayName": "Display name",
+      "earlyCompaction": {
+        "description": "Summarizes earlier conversation before prompts reach the higher long-context price (at {{early, number}} tokens on {{model}}). Off waits until {{late, number}} tokens, keeping more word for word at the higher price.",
+        "label": "Compact early"
+      },
       "editDescription": {
         "chat": "Chat model on {{connection}}. Change its details, then save.",
         "embedding": "Embedding model on {{connection}}. Change its details, then save."
@@ -4464,6 +4633,7 @@ export default interface Resources {
       "connected": " (connected)",
       "custom": "Custom",
       "purpose": {
+        "anthropic": "Chat with Anthropic's Claude models using your API key.",
         "customCloud": "Connect any OpenAI-compatible cloud service.",
         "customLocal": "Connect any OpenAI-compatible server on this computer or your network.",
         "deepseek": "Chat with DeepSeek's models using your DeepSeek API key.",
@@ -4532,7 +4702,7 @@ export default interface Resources {
         "help": "Enable the json format under search.formats in its settings.yml. From a Docker stack, a server on this computer is at host.docker.internal instead of 127.0.0.1."
       },
       "service": {
-        "description": "Lets any model that can call tools search the web. OpenAI models with built-in search keep using it.",
+        "description": "Lets models that can call tools search the web. Models with built-in search keep using theirs, and Anthropic models never use this service.",
         "label": "Search service"
       },
       "testPassed_one": "Search works: {{count, number}} result for a test query.",
@@ -4731,6 +4901,7 @@ export default interface Resources {
       "collapseAll": "Collapse all",
       "copied": "Copied",
       "copy": "Copy",
+      "creatorDocument": "Creator document (Import keeps the name and settings)",
       "currentPayload": "Current export payload",
       "download": "Download JSON",
       "exactJson": "Exact export JSON",
@@ -4738,7 +4909,7 @@ export default interface Resources {
       "parseFailed": "Export JSON could not parse: {{detail}}",
       "parseFailedUnexplained": "Export JSON could not parse.",
       "resetView": "Reset view",
-      "snippets": "Catalog settings and clip event",
+      "snippets": "Creator document, catalog settings and clip event",
       "title": "Particle VFX export",
       "unavailable": "No export JSON is available."
     },
@@ -4762,7 +4933,8 @@ export default interface Resources {
       "ariaLabel": "Particle VFX JSON",
       "confirm": "Import effect",
       "confirmReplace": "Discard the current Particle VFX changes and load this JSON?",
-      "description": "Paste a three.quarks effect. Valid JSON replaces the current document after the unsaved-change confirmation.",
+      "description": "Paste a three.quarks effect, or a creator document from Export, which also sets the name and settings. Valid JSON replaces the current document after the unsaved-change confirmation. Embedded PNG textures are kept. Other textures that are not built in show as missing until you choose their files; plain Quarks JSON keeps using textures this effect already carries.",
+      "embeddedTextureRefused": "An embedded texture was not imported: {{reason}}",
       "title": "Import Particle VFX JSON"
     },
     "inspector": {
@@ -4789,12 +4961,13 @@ export default interface Resources {
     },
     "issues": {
       "ambiguousTextureFilename": "Texture paths {{first}} and {{second}} share one portable filename.",
+      "atlasGridLimit": "Sprite sheets have 1 to {{max}} tiles in each direction.",
       "atlasMetadataMismatch": "Renderer tile counts do not match the selected atlas texture metadata.",
       "atlasTilesMissing": "Selected atlas texture should use more than one tile in the renderer.",
       "blobTextureUrl": "Blob texture URLs are preview-only and cannot be exported.",
       "durationLimit": "Every emitter duration must fit the saved maximum duration budget.",
       "durationOverBudget": "Emitter duration exceeds the catalog max duration budget.",
-      "embeddedTextureUrl": "Embedded data texture URLs work but should be migrated to tracked public assets.",
+      "embeddedTextureUrl": "This embedded texture is not a PNG the effect can carry; replace it with an imported texture.",
       "emptyTextureUrl": "Texture image URL must be a non-empty string.",
       "frameAnimationNeedsTiles": "Frame animation needs more than one renderer tile.",
       "frameAnimationWithoutAtlas": "Frame animation is enabled but the selected texture is not an atlas.",
@@ -4810,7 +4983,8 @@ export default interface Resources {
       "missingTexture": "Quarks JSON must include at least one texture image.",
       "nodeLimit": "Particle VFX contains more than {{max}} object nodes.",
       "particleBudgetExceeded": "Estimated {{estimated, number}} particles exceeds the catalog budget of {{budget, number}}.",
-      "particleLimit": "Estimated particle use must fit both the saved budget and the {{max}}-particle private limit.",
+      "particleBudgetUnestimated": "Particle use cannot be estimated (an emission, lifetime, burst or duration value is unsupported); the catalog budget is {{budget, number}}.",
+      "particleLimit": "Estimated {{estimated, number}} particles with a saved budget of {{budget, number}}: both must fit the {{max}}-particle private limit.",
       "remoteTextureUrl": "Remote texture URLs are not allowed in shipped VFX assets.",
       "resourceLimit": "{{key}} must be an array with no more than {{max}} entries.",
       "rotation3DWithoutMesh": "Rotation3DOverLife needs Mesh render mode to preview.",
@@ -4830,6 +5004,7 @@ export default interface Resources {
       "worldSpaceEmitter": "World-space emitters spawn at the anchor but do not continuously follow it."
     },
     "json": {
+      "creatorDocumentInvalid": "A Particle creator document needs a name, its settings and a quarks effect.",
       "notObject": "Quarks JSON must be an object.",
       "parseFailed": "Quarks JSON could not parse: {{detail}}",
       "parseFailedUnexplained": "Quarks JSON could not parse."
@@ -4837,7 +5012,8 @@ export default interface Resources {
     "load": {
       "failed": "The Particle Effect could not be loaded.",
       "loading": "Loading Particle Effect…",
-      "manifestMissing": "The Particle Effect manifest is missing."
+      "manifestMissing": "The Particle Effect manifest is missing.",
+      "textureFailed": "A Particle Effect texture could not be loaded."
     },
     "position": {
       "anchorAndPosition": "Anchor and position",
@@ -4931,8 +5107,9 @@ export default interface Resources {
       "allowCoexist": "Allow simultaneous effects",
       "allowLooping": "Allow emitter looping",
       "defaultAnchor": "Default anchor",
-      "estimatedTotal_one": "Estimated total: ~{{count, number}} particle",
-      "estimatedTotal_other": "Estimated total: ~{{count, number}} particles",
+      "estimateUnavailable": "Estimated at once: cannot be estimated (an emission, lifetime, burst or duration value is unsupported)",
+      "estimatedAtOnce_one": "Estimated at once: up to {{count, number}} particle",
+      "estimatedAtOnce_other": "Estimated at once: up to {{count, number}} particles",
       "limitsHint": "Performance limits apply to the whole effect. Enabling looping here permits individual emitters to repeat their cycles.",
       "maxDuration": "Maximum playback duration (s)",
       "maxParticles": "Maximum total particles",
@@ -4974,6 +5151,22 @@ export default interface Resources {
       "animateFrames": "Animate frames",
       "atlas": "Atlas",
       "blendTiles": "Blend tiles",
+      "carried": {
+        "chooseFile": "Choose file for {{file}}",
+        "dimensions": "{{width}}×{{height}}",
+        "hint": "PNG up to {{size, number}} MiB and {{dimension}} px. Set Atlas tiles for a sprite sheet.",
+        "import": "Import PNG texture",
+        "missing": "Texture {{file}} is missing. Choose its PNG file.",
+        "title": "This effect's textures"
+      },
+      "files": {
+        "dimensionsTooLarge": "Textures must be at most {{size}} px on each side.",
+        "fileRefused": "Texture {{texture}}: {{reason}}",
+        "notPng": "Texture files must be PNG images.",
+        "tooLarge": "Texture files must be at most {{size, number}} MiB.",
+        "tooMany": "A Particle Effect can use at most {{max, number}} textures.",
+        "totalTooLarge": "Textures in one Particle Effect must total at most {{size, number}} MiB."
+      },
       "frameEnd": "Frame end",
       "frameStart": "Frame start",
       "names": {
@@ -6025,39 +6218,28 @@ export default interface Resources {
       },
       "tts": {
         "elevenLabs": {
-          "grouping": {
-            "ariaLabel": "Eleven v3 audio grouping",
-            "fallbackDescription": "Sentence grouping starts fastest.",
-            "label": "Audio grouping",
-            "options": {
-              "paragraph": {
-                "description": "Smoother long-form audio with paragraph-sized requests.",
-                "label": "Paragraph"
-              },
-              "sentence": {
-                "description": "Fastest start with one finalized request per sentence.",
-                "label": "Sentence"
-              }
-            },
-            "placeholder": "Select grouping",
-            "updateFailed": "Failed to update Eleven v3 audio grouping."
-          },
           "key": {
             "description": "Needed for ElevenLabs voices. Encrypted on this computer and also in API Keys.",
             "label": "ElevenLabs API key"
-          },
-          "model": {
-            "descriptions": {
-              "eleven_flash_v2_5": "Lower-latency realtime ElevenLabs speech.",
-              "eleven_multilingual_v2": "The established multilingual realtime model.",
-              "eleven_v3": "Expressive speech generated after the response is complete."
-            },
-            "label": "ElevenLabs model",
-            "placeholder": "Select model",
-            "updateFailed": "Failed to update ElevenLabs model."
           }
         },
         "enable": "Enable Text-to-Speech",
+        "gemini": {
+          "key": {
+            "description": "Needed for Gemini voices. Encrypted on this computer and also in API Keys.",
+            "label": "Gemini API key"
+          },
+          "model": {
+            "descriptions": {
+              "flash": "Gemini's flagship speech model, at a higher cost.",
+              "flashLite": "Lower-latency, lower-cost Gemini speech."
+            },
+            "label": "Gemini model",
+            "note": "Google bills Gemini speech to your API key. Choose each Anima's voice in Loadout → Voices.",
+            "placeholder": "Select model",
+            "updateFailed": "Failed to update Gemini model."
+          }
+        },
         "noProvider": "No supported TTS provider is available in this environment.",
         "provider": {
           "ariaLabel": "Text-to-Speech provider",
@@ -6070,7 +6252,7 @@ export default interface Resources {
         "stream": {
           "description": "Start speaking before the full response is ready.",
           "label": "Stream chunked Text-to-Speech",
-          "unavailable": "Unavailable with Eleven v3.",
+          "unavailable": "Unavailable with Gemini.",
           "updateFailed": "Failed to update TTS streaming mode."
         },
         "updateFailed": "Failed to update TTS settings."
@@ -6087,10 +6269,31 @@ export default interface Resources {
       "finishing": "Finishing…",
       "skip": "Skip for now"
     },
+    "ageConfirmation": {
+      "backToSetup": "Back to setup",
+      "confirm": "I am 18 or older",
+      "decline": "I'm under 18",
+      "declined": "Animama is only for adults 18 and older. You can't continue to chat.",
+      "errors": {
+        "capabilitiesFailed": "AI settings could not be checked. Please try again.",
+        "modelUnavailable": "The chosen model can no longer be used. Go back to setup and choose another, or skip AI.",
+        "saveFailed": "Setup could not be saved. Please try again."
+      },
+      "goBack": "Go back",
+      "heading": "Before you start",
+      "notice": "Animama is for adults 18 and older. Animas are AI companions, not people.",
+      "opening": "Opening…",
+      "retry": "Retry",
+      "safetyLink": "Safety and crisis protocol"
+    },
     "ai": {
       "addCustomServer": "Add a custom server",
       "addModel": "Add model",
       "addModelTo": "Add model to {{name}}",
+      "builtin": {
+        "serverKey": "Uses the {{name}} key configured on this server.",
+        "serverKeyMissing": "Set {{env}} on the server to use {{name}}."
+      },
       "checking": "Checking which models this installation offers…",
       "connect": "Connect",
       "connecting": "Connecting…",
@@ -6111,11 +6314,6 @@ export default interface Resources {
         "searching": "Searching…",
         "setUpLater": "Set up later"
       },
-      "openAi": {
-        "heading": "OpenAI",
-        "serverKey": "Uses the OpenAI key configured on this server.",
-        "serverKeyMissing": "Set OPENAI_API_KEY on the server to use OpenAI."
-      },
       "providedModels": "This installation provides its own models, so there is nothing to choose here.",
       "providerTabs": "{{location}} providers",
       "purpose": "Pick the model your Animas chat with."
@@ -6123,8 +6321,6 @@ export default interface Resources {
     "errors": {
       "displayName": "Enter a display name between 1 and {{max}} characters.",
       "keyNotSaved": "Your key wasn't saved. Complete the details on this step, or discard the key.",
-      "modelUnavailable": "The chosen model can no longer be used. Go back to AI and choose another, or skip it.",
-      "saveFailed": "Setup could not be saved. Your local runtime may have completed it already; try again safely.",
       "voiceSettings": "Voice settings could not be saved. Try again, or skip this step."
     },
     "keys": {
@@ -6202,19 +6398,11 @@ export default interface Resources {
       }
     },
     "welcome": {
-      "age": {
-        "confirm": "I am 18 or older",
-        "decline": "I'm under 18",
-        "declined": "Animama is only for adults 18 and older, so setup can't continue.",
-        "heading": "Before you start",
-        "notice": "Animas are AI companions, not people. Animama's AI companions may not be suitable for some minors, so you must be 18 or older to use Animama."
-      },
       "displayName": {
         "label": "Display name",
         "placeholder": "Your name"
       },
-      "heading": "What should Animama call you?",
-      "safetyLink": "Safety and crisis protocol"
+      "heading": "What should Animama call you?"
     }
   },
   "sidebar": {
@@ -6362,6 +6550,32 @@ export default interface Resources {
       "size": "{{size}} download",
       "sizeRetry": "{{size}} download · Retry available",
       "verifying": "Verifying download…"
+    },
+    "gemini": {
+      "descriptors": {
+        "breathy": "Breathy",
+        "breezy": "Breezy",
+        "bright": "Bright",
+        "casual": "Casual",
+        "clear": "Clear",
+        "easyGoing": "Easy-going",
+        "even": "Even",
+        "excitable": "Excitable",
+        "firm": "Firm",
+        "forward": "Forward",
+        "friendly": "Friendly",
+        "gentle": "Gentle",
+        "gravelly": "Gravelly",
+        "informative": "Informative",
+        "knowledgeable": "Knowledgeable",
+        "lively": "Lively",
+        "mature": "Mature",
+        "smooth": "Smooth",
+        "soft": "Soft",
+        "upbeat": "Upbeat",
+        "warm": "Warm",
+        "youthful": "Youthful"
+      }
     },
     "microphone": {
       "device": {
@@ -6533,7 +6747,10 @@ export default interface Resources {
         },
         "browserOnly": "{{provider}} can only run in a browser context.",
         "elevenLabs": {
-          "description": "ElevenLabs synthesis with realtime and finalized models."
+          "description": "Realtime ElevenLabs speech with Eleven v4 Turbo."
+        },
+        "gemini": {
+          "description": "Gemini speech streamed from the server."
         },
         "pocket": {
           "description": "Client-side PocketTTS synthesis."

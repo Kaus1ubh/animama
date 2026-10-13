@@ -7,6 +7,10 @@
       }
     },
     "codes": {
+      "anthropic_stream_incomplete": {
+        "guidance": "{{name}}が返信を最後まで終える前に終了しました。もう一度メッセージを送信してください。",
+        "title": "返信が中断されました。"
+      },
       "chat_stream_interrupted": {
         "guidance": "Animama が完了を確認する前に接続が切れました。接続を確認してから、もう一度送信してください。",
         "title": "返信が中断されました。"
@@ -26,6 +30,10 @@
       "missing_api_key": {
         "guidance": "インストールの所有者に、「$t(chatFailure.settingsPath)」または「API キー」でキーを追加するよう依頼してから、メッセージをもう一度送信してください。",
         "title": "{{name}}の API キーが設定されていません。"
+      },
+      "model_refused": {
+        "guidance": "言い回しを変えてお試しください。",
+        "title": "モデルがこのメッセージへの応答を断りました。"
       },
       "openai_authentication_error": {
         "guidance": "もう一度試す前に、{{name}}に設定されたキーの確認をインストールの所有者に依頼してください。",

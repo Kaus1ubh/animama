@@ -15,14 +15,14 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:particle-effect:stars",
-      "alias": "stars",
-      "content_type": "particle_effect",
+      "ref": "builtin:avatar-effect:eye_vv",
+      "alias": "eye_vv",
+      "content_type": "avatar_effect",
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:eye_vv",
-      "alias": "eye_vv",
+      "ref": "builtin:avatar-effect:heh_lettering",
+      "alias": "heh_lettering",
       "content_type": "avatar_effect",
       "config": {}
     }

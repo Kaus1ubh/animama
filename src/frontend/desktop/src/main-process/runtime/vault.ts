@@ -58,14 +58,25 @@ type VaultData = {
   providers: Partial<Record<CredentialProvider, VaultEntry>>;
   /** Model-connection keys by environment name; absent in older vaults. */
   connections?: Record<string, VaultEntry>;
+  /**
+   * Keys for providers an earlier release retired and this one offers again
+   * (Gemini). They live apart from `providers`, where an older vault may still
+   * hold a retired entry that must stay dropped.
+   */
+  restoredProviders?: Partial<Record<CredentialProvider, VaultEntry>>;
 };
+/** The backend variable each provider key is delivered as. */
 const providerEnvironment: Record<CredentialProvider, string> = {
   openai: "OPENAI_API_KEY",
+  anthropic: "ANTHROPIC_API_KEY",
   elevenlabs: "ELEVENLABS_API_KEY",
+  gemini: "GEMINI_API_KEY",
 };
 /** Provider keys earlier releases stored; they are dropped when a vault loads. */
 const retiredProviders = new Set(["deepseek", "huggingface", "gemini"]);
-/** Room for both providers and every connection key at the value limit. */
+/** Retired names this release stores again, only under `restoredProviders`. */
+const restoredProviderNames = new Set<CredentialProvider>(["gemini"]);
+/** Room for every provider and connection key at the value limit. */
 const maxVaultBytes = 512 * 1024;
 
 export function validateProvider(value: unknown): CredentialProvider {
@@ -142,6 +153,19 @@ function validateEntry(entry: VaultEntry): void {
     throw new Error();
 }
 
+/** The on-disk form: restored providers move out of `providers`. */
+function stored(data: VaultData): VaultData {
+  const providers: VaultData["providers"] = {};
+  const restoredProviders: VaultData["providers"] = {};
+  for (const [name, entry] of Object.entries(data.providers)) {
+    const provider = name as CredentialProvider;
+    if (restoredProviderNames.has(provider))
+      restoredProviders[provider] = entry;
+    else providers[provider] = entry;
+  }
+  return { ...data, providers, restoredProviders };
+}
+
 /** Only main can decrypt. Public methods return configured/missing status. */
 export class CredentialVault {
   private data: VaultData;
@@ -180,6 +204,15 @@ export class CredentialVault {
           validateEntry(entry);
           providers[validateProvider(name)] = entry;
         }
+        const restored = data.restoredProviders ?? {};
+        if (typeof restored !== "object" || Array.isArray(restored))
+          throw new Error();
+        for (const [name, entry] of Object.entries(restored)) {
+          const provider = validateProvider(name);
+          if (!restoredProviderNames.has(provider)) throw new Error();
+          validateEntry(entry);
+          providers[provider] = entry;
+        }
         const connections = data.connections ?? {};
         if (
           typeof connections !== "object" ||
@@ -191,6 +224,7 @@ export class CredentialVault {
           validateConnectionCredential(name);
           validateEntry(entry);
         }
+        delete data.restoredProviders;
         this.data = { ...data, providers, connections };
       } catch {
         throw new RuntimeError("vault_unreadable");
@@ -211,7 +245,7 @@ export class CredentialVault {
       throw new RuntimeError("secure_storage_unavailable");
     let encrypted: Buffer;
     try {
-      encrypted = this.encryption.encryptString(JSON.stringify(next));
+      encrypted = this.encryption.encryptString(JSON.stringify(stored(next)));
     } catch {
       // Windows reports encryption as available once the app is ready; a
       // failing DPAPI call surfaces only here.

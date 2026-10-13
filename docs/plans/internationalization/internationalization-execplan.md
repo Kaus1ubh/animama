@@ -272,7 +272,7 @@ Issue: #418. Dependencies: workspace setup.
    is never in the picker, selectable in development through a query parameter.
    AC4 fixture tests prove the check fails on a raw string, a missing English
    key and an unused key.
-8. **Records.** ADR 0021 (UI Locale separate from Conversation language; codes
+8. **Records.** ADR 0024 (UI Locale separate from Conversation language; codes
    from the backend, words in the frontend; resolution order; beta policy).
    `GLOSSARY.md` entries "Locale" and "Conversation language".
    `docs/frontend/architecture/i18n.md`: adding strings, namespaces, the
@@ -1393,6 +1393,61 @@ Optional, not changed:
 - The English particle texture-fetch text matches the network-failure pattern,
   so English shows the network message. This already happens on `main`.
 - No `ja` test covers a particle package error through `toContentSaveApiError`.
+
+### Integration with `main` (2026-10-13)
+
+The owner asked to bring the branch up to date before the final review. `main`
+had moved 259 commits past the branch point, across about 1,680 files. The
+changes include the Anthropic provider, Gemini TTS, ElevenLabs v4, particle and
+scene effects content, gesture starters, shared product routes (ADR 0021) and
+the age confirmation flow.
+- **The merge.** The app's sync tool refused because `.claude/settings.json` is
+  protected, so the owner ran `git merge origin/main` (`7a25aa34`) in the
+  worktree. The branch never changed that file.
+- **Conflicts.** 48 files conflicted.
+  - The coordinator resolved contracts, versions, docs, backend, product-ui and
+    the Playwright config.
+  - Two agents resolved the web content and settings/voice areas.
+  - Rule: keep all of main's behavior and re-apply the branch's catalogs, error
+    semantics and locale-switch fixes. Main's new and changed English gets keys
+    in all five locales.
+- **Versions:**
+  - `local-http` becomes 7.0.0 and `runtime-contracts` 0.7.0, on top of main's
+    6.0.0 and 0.6.0;
+  - `product-ui` becomes 0.11.0, on top of 0.10.0.
+  - The hosted handoff and the HTTP docs name the new versions.
+- **ADR.** Main took ADR 0021–0023, so this plan's ADR is now 0024. GLOSSARY,
+  `i18n.md` and the ADR index are updated.
+- **Backend.**
+  - The merged baseline keeps both schema changes (nullable `locale`;
+    Anthropic and `early_compaction`), and the fingerprint is updated.
+  - The locale tests use main's shared settings route and helpers.
+  - Main's settings tests use supported tags (unset by default; `"fr-FR"` is
+    rejected).
+  - The full backend suite passes: 4194 passed, 29 skipped.
+- **Generated client.** Regenerated through `pnpm openapi-ts`; it matched the
+  merged text exactly.
+- **New main UI text.** It was converted where the agents met it: new provider
+  and voice settings, age confirmation, chat model popover, scene layers and
+  stickers, particle texture files, sharing and save codes. Main's new files
+  that the whole-app lint flagged are converted too.
+- **Post-merge fixes.**
+  - Main's removed-effects toast in the Action editor is worded.
+  - Main's Gemini voice descriptors are worded; search still matches Google's
+    English words. Sample failures without a backend message use the player's
+    worded failure.
+  - Main's PiP test fake gains `setTitle`, and the test passes a `ShellLocale`.
+  - A mypy annotation in the names test is fixed.
+- **Checks on the merged tree:**
+  - `make check` passes;
+  - `pnpm check` passes, including the whole-app `i18n:check`;
+  - `pnpm web:lint` passes; web and desktop Prettier are clean;
+  - web vitest: 497 files, 4411 pass;
+  - desktop tests: 533 pass, 14 skipped;
+  - product-ui: 40 pass; e2e helper tests: 25 pass;
+  - backend `pytest`: 4194 passed, 29 skipped.
+- **Follow-up candidates:** `early_compaction_unavailable` has no wording yet
+  (main's test expects the backend message).
 
 ## Final integration review
 

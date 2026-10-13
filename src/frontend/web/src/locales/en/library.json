@@ -20,8 +20,8 @@
     },
     "nonPortableReason": "Included with this app for use here only. It can't be customized, copied or exported.",
     "particle": {
-      "aTextureTooLarge": "A texture exceeds the 25 MiB limit.",
-      "autoFitEmitters": "Rectangle auto-fit emitter names must be unique and match up to eight emitters.",
+      "aTextureTooLarge": "A texture exceeds the {{size}} MiB limit.",
+      "autoFitEmitters": "Rectangle auto-fit emitter names must be unique and match up to {{max}} emitters.",
       "autoFitEmpty": "Rectangle auto-fit dimensions cannot be empty.",
       "autoFitHeightRange": "Rectangle auto-fit height minimum exceeds its maximum.",
       "autoFitWidthRange": "Rectangle auto-fit width minimum exceeds its maximum.",
@@ -43,12 +43,14 @@
         "scale": "scale transform"
       },
       "textureAmbiguous": "Texture {{texture}} has an ambiguous resource source.",
+      "textureDimensionsTooLarge": "Texture {{texture}} must be at most {{size}} px on each side.",
       "textureEmpty": "Texture {{texture}} is empty.",
       "textureFetchFailed": "Texture fetch failed with HTTP {{status}}.",
       "textureMismatched": "Texture {{texture}} has mismatched or unsupported image bytes.",
       "textureNotAvailable": "Texture {{texture}} is not available to the content entry.",
       "textureNotInApp": "Texture {{texture}} is not available from the exact App source.",
-      "textureTooLarge": "Texture {{texture}} exceeds the 25 MiB limit.",
+      "texturesTotalTooLarge": "Textures in one Particle Effect must total at most {{size}} MiB.",
+      "textureTooLarge": "Texture {{texture}} exceeds the {{size}} MiB limit.",
       "textureUnresolved": "A texture resource is unresolved.",
       "tooManyTextures_one": "Particle Effects support at most {{count}} unique texture.",
       "tooManyTextures_other": "Particle Effects support at most {{count}} unique textures."
@@ -72,6 +74,7 @@
     },
     "recovery": {
       "discardFailed": "Browser recovery could not be discarded. Please retry.",
+      "particleTexturesNotStored": "Texture files could not be stored for crash recovery. Choose the missing textures again after restoring this draft.",
       "particleTooLarge": "This effect is too large for browser crash recovery. Save can still continue.",
       "unavailable": "Browser crash recovery is unavailable. Keep this tab open until Save finishes."
     },
@@ -166,6 +169,19 @@
       "poses": "Poses",
       "reactions": "Reactions"
     },
+    "contentTypes": {
+      "all": "All",
+      "avatarEffects": "Avatar FX",
+      "avatars": "Avatars",
+      "gestures": "Gestures",
+      "idleStyles": "Idle Styles",
+      "label": "Library content types",
+      "particle": "Particle FX",
+      "poses": "Poses",
+      "reactions": "Reactions",
+      "scene": "Scene FX",
+      "sound": "Sounds"
+    },
     "fxFilters": {
       "all": "All",
       "avatar": "Avatar FX",
@@ -240,6 +256,8 @@
       },
       "noAnimas": "There are no Anima to export yet.",
       "noMatches": "No matching content.",
+      "omittedSounds_one": "{{count, number}} built-in effect sound stays with this app. Imported copies of those effects play without them.",
+      "omittedSounds_other": "{{count, number}} built-in effect sounds stay with this app. Imported copies of those effects play without them.",
       "plusRequired_one": "+ {{count}} required dependency",
       "plusRequired_other": "+ {{count}} required dependencies",
       "preparingPackage": "Preparing your package…",

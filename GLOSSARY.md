@@ -108,18 +108,22 @@ Reusable art drawn on or around an Avatar during a Gesture or Reaction: painted
 on the face, floating in front of it, on a body point, as a sticker beside the
 Avatar or filling its silhouette. The effect owns its art, look and motion; the
 Action event that plays it owns when it starts, ends and fades. It is never
-equipped directly. One image moving as one piece is an Avatar Effect, not a
-Particle Effect.
+equipped directly. Art that only sits on the Avatar and moves as one piece is
+an Avatar Effect, not a Particle Effect.
 
 ## Particle Effect
 
-A three.quarks emitter of many independently moving sprites, such as sparkles,
-hearts or bursts, attached to a point on the Avatar and played by a Gesture or
-Reaction.
+A three.quarks effect of one or more emitters, such as sparkles, hearts or
+bursts, attached to a point on the Avatar and played by a Gesture or Reaction.
+Its textures are its own images or the creator's built-in ones. A single
+long-lived particle is a valid layer when it uses particle behaviour
+(emission, life curves, bursting into other particles), usually alongside
+other layers.
 
 ## Scene Effect
 
-Background layers, marquees or focus lines drawn in page layers behind or in
+Background layers (solid, gradient, pattern, tile, rays or lines, marquee,
+scatter and an entry flash) or focus lines drawn in page layers behind or in
 front of the Avatar, outside its 3D scene, and played by a Gesture or Reaction.
 It never changes the Avatar itself.
 
@@ -180,7 +184,7 @@ and for date, number and plural formatting: `en`, or the beta `ja`, `ko`,
 `zh-Hans` and `zh-Hant`. Saved in App settings, where unset means "System
 default". It never changes what an Anima says, hears or remembers, and it is not
 the crisis-resource region; see
-[ADR 0021](docs/adr/0021-ui-locale-separate-from-conversation-language.md).
+[ADR 0024](docs/adr/0024-ui-locale-separate-from-conversation-language.md).
 Code that names the browser's language tag `locale` (for example the chat client
 context) is not the UI Locale.
 
@@ -215,10 +219,13 @@ is applied.
 ## Model connection
 
 An endpoint the installation reaches models through: a base URL, how its key is
-supplied and compatibility options. The built-in OpenAI connection uses the
-OpenAI key and base URL from API Keys or the environment; the owner adds others,
-such as Ollama, LM Studio, llama.cpp or any OpenAI-compatible Chat Completions
-server, in App Settings → Models. Keys never enter the database. A connection's
+supplied and compatibility options. A connection speaks an OpenAI protocol
+(Responses or Chat Completions) or Anthropic's Messages API. The built-in
+OpenAI connection uses the OpenAI key and base URL from API Keys or the
+environment, and the built-in Anthropic connection uses only the Anthropic key
+against Anthropic's API; the owner adds others, such as Ollama, LM Studio,
+llama.cpp or any OpenAI-compatible Chat Completions server, in App Settings →
+Models. Keys never enter the database. A connection's
 **models** are either built-in (read-only templates the owner can hide) or
 owner-added. The hosted composition has no owner connections; see
 [ADR 0011](docs/adr/0011-application-owned-companion-features-and-composition-catalog-policy.md).
@@ -242,9 +249,10 @@ instead. Post-response compaction, after a reply, remains the usual path.
 ## Application web search
 
 Web search that Animama runs itself through the installation's configured
-backend (SearXNG or the Brave Search API), offered to any model that can call
-tools as a `web_search` tool. OpenAI Responses models with hosted search use
-that instead. The per-model Web search control turns either on.
+backend (SearXNG or the Brave Search API), offered as a `web_search` tool to
+tool-calling models other than Anthropic's. OpenAI Responses models with hosted
+search use OpenAI's search instead, and Anthropic models use only Anthropic's
+own search. The per-model Web search control turns either on.
 
 ## Companion guardrail
 

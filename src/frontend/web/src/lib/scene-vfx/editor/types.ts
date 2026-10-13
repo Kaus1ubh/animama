@@ -1,12 +1,18 @@
 import type { PyExactContentSource } from "@/lib/content/catalogTypes";
 import type {
   SceneBackgroundDirection,
+  SceneBackgroundFlashLayer,
+  SceneBackgroundGradientLayer,
   SceneBackgroundItemRotationMode,
   SceneBackgroundPatternLayer,
+  SceneBackgroundScatterLayer,
+  SceneBackgroundScreenLayer,
   SceneBackgroundSolidLayer,
+  SceneBackgroundTileLayer,
   SceneFocusLinesAnimation,
   SceneFocusLinesRenderPlacement,
   SceneFocusLinesTarget,
+  SceneLegacyEmojiItem,
   SceneVFXKind,
 } from "@/lib/scene-vfx/types";
 
@@ -33,13 +39,12 @@ export type SceneEffectEditorSound = {
   source: PyExactContentSource;
 };
 
-export type SceneEffectEditorEmojiItem = {
-  id: string;
-  kind: "emoji";
-  label: string;
-  emoji: string;
-  provider: "twemoji";
-};
+/**
+ * A Twemoji item from a Scene saved before the sticker set. Animama no longer
+ * provides Twemoji, so the creator shows it as missing and refuses Save until
+ * it is replaced with a sticker or image, or removed.
+ */
+export type SceneEffectEditorLegacyEmojiItem = SceneLegacyEmojiItem;
 
 export type SceneEffectEditorImageItem = {
   id: string;
@@ -49,8 +54,8 @@ export type SceneEffectEditorImageItem = {
 };
 
 export type SceneEffectEditorMarqueeItem =
-  | SceneEffectEditorEmojiItem
-  | SceneEffectEditorImageItem;
+  | SceneEffectEditorImageItem
+  | SceneEffectEditorLegacyEmojiItem;
 
 export type SceneEffectEditorMarquee = {
   enabled: boolean;
@@ -65,10 +70,29 @@ export type SceneEffectEditorMarquee = {
   opacity: number;
 };
 
+/** A tile names a private image; it has none until one is chosen. */
+export type SceneEffectEditorTile = Omit<SceneBackgroundTileLayer, "src"> & {
+  image: SceneEffectEditorImage | null;
+};
+
+/** Scattered items are the effect's own images, as marquee items are. */
+export type SceneEffectEditorScatter = Omit<
+  SceneBackgroundScatterLayer,
+  "items"
+> & {
+  items: SceneEffectEditorMarqueeItem[];
+};
+
 export type SceneEffectEditorBackground = {
   solid: SceneBackgroundSolidLayer;
   pattern: SceneBackgroundPatternLayer;
   marquee: SceneEffectEditorMarquee;
+  gradient: SceneBackgroundGradientLayer;
+  tile: SceneEffectEditorTile;
+  screen: SceneBackgroundScreenLayer;
+  /** Up to `SCENE_EFFECT_LIMITS.scatter.layers` scatter layers, in order. */
+  scatters: SceneEffectEditorScatter[];
+  flash: SceneBackgroundFlashLayer;
 };
 
 export type SceneEffectEditorFocus = {
@@ -142,9 +166,20 @@ export type SceneEffectEditorExport = {
   document: SceneEffectEditorDocument;
 };
 
+/** A background template, one per Scene background family. */
+export type SceneEffectBackgroundTemplateId =
+  | "shoujo-bloom"
+  | "radiance"
+  | "festive-pop"
+  | "anticipation"
+  | "shock"
+  | "rage"
+  | "queasy"
+  | "gloom";
+
+/** A focus-line template: the bundled focus presets. */
+export type SceneEffectFocusTemplateId = "dark" | "light-streak";
+
 export type SceneEffectTemplateId =
-  | "kawaii-sparkles"
-  | "shoujo-hearts"
-  | "comic-pop"
-  | "dark"
-  | "light-streak";
+  | SceneEffectBackgroundTemplateId
+  | SceneEffectFocusTemplateId;

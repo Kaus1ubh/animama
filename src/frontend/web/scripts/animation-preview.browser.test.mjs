@@ -178,6 +178,33 @@ test("previews an animaPoseClip/2.0 clip", async () => {
       scrubber.dispatchEvent(new Event("input"));
     });
     assert.equal(await page.evaluate(() => window.animationPreview.time), 0.6);
+
+    // Portrait frames each Avatar as the chat's Portrait camera preset does:
+    // 1.6 m in front of the rest head, 35° field of view, aimed 0.1 m below.
+    await page.click('#cameras button[data-camera="portrait"]');
+    assert.equal(
+      await page.getAttribute(
+        '#cameras button[data-camera="portrait"]',
+        "aria-pressed",
+      ),
+      "true",
+    );
+    await page.waitForFunction(() =>
+      window.animationPreview.cameras.every((view) => view.fov === 35),
+    );
+    const views = await page.evaluate(() => window.animationPreview.cameras);
+    assert.equal(views.length, 2);
+    for (const view of views) {
+      const [x, y, z] = view.position;
+      assert.ok(Math.abs(x) < 1e-6 && Math.abs(z - 1.6) < 1e-6, view.position);
+      assert.ok(y > 1 && y < 1.7, `head height ${y}`);
+      assert.ok(Math.abs(view.target[1] - (y - 0.1)) < 1e-6, view.target);
+    }
+    // The other presets keep their own framing.
+    await page.click('#cameras button[data-camera="front"]');
+    await page.waitForFunction(() =>
+      window.animationPreview.cameras.every((view) => view.fov === 30),
+    );
     assert.deepEqual(errors, []);
   } finally {
     await browser.close();
@@ -444,7 +471,7 @@ test("plays a Library Reaction with its Avatar and Particle Effects", async () =
     );
     assert.deepEqual(
       media.particleEffects.map(({ alias }) => alias),
-      ["question-marks"],
+      ["question-orbit"],
     );
     await waitForActiveEffect(page, "Eye Confused Swirl");
     await page.waitForFunction(
@@ -524,6 +551,246 @@ test("applies a timed effect source, removes it and loops", async () => {
   } finally {
     await browser.close();
     await preview.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+/** Open the preview page and wait until it plays. */
+async function openPreview(browser, preview) {
+  const page = await browser.newPage();
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await page.goto(preview.url);
+  await page.waitForFunction(() => window.animationPreview?.ready, null, {
+    timeout: 90_000,
+  });
+  return { page, errors };
+}
+
+/** Wait until every view shows the Scene `id`, drawn in its own layers. */
+async function waitForScene(page, id, timeout = 60_000) {
+  await page.waitForFunction(
+    (wanted) =>
+      window.animationPreview.effects.length === 2 &&
+      window.animationPreview.effects.every(({ scenes }) =>
+        scenes.includes(wanted),
+      ) &&
+      [...document.querySelectorAll(".scene-cell")].every((host) =>
+        host.querySelector("[data-scene-vfx-id]"),
+      ),
+    id,
+    { timeout },
+  );
+}
+
+// Particle and Scene Effect sources play through the runtime path, the
+// Scene in each view's own layers behind and in front of the canvas.
+test("previews Particle and Scene Effect sources", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-preview-kinds-"));
+  const preview = await startPreviewServer({
+    sources: ["library:particle-effect/hearts-v1"],
+    cwd: dir,
+    localContent: null,
+  });
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  });
+  try {
+    const { page, errors } = await openPreview(browser, preview);
+    assert.equal(
+      preview.session.state().rows[0].effect.kind,
+      "particle_effect",
+    );
+    await page.waitForFunction(
+      () =>
+        window.animationPreview.effects.length === 2 &&
+        window.animationPreview.effects.every(({ particles }) => particles > 0),
+      null,
+      { timeout: 60_000 },
+    );
+
+    const choices = await page.evaluate(async () =>
+      (await fetch("/__preview/choices")).json(),
+    );
+    for (const group of ["Included Particle Effects", "Included Scene Effects"])
+      assert.ok(
+        choices.some((choice) => choice.group === group),
+        `the pickers list ${group}`,
+      );
+    await page.selectOption(
+      "#pick-source",
+      "library:scene-effect/included/scene-vfx-emotion-joy",
+    );
+    await waitForScene(
+      page,
+      "builtin:scene-effect:background:scene-vfx-emotion-joy",
+    );
+    // Each view's layers fill its own cell and stack around the canvas.
+    const stacking = await page.evaluate(() => {
+      const canvas = getComputedStyle(document.querySelector("#canvas"));
+      const hosts = [...document.querySelectorAll(".scene-cell")];
+      return {
+        canvas: canvas.zIndex,
+        hosts: hosts.map((host) => getComputedStyle(host).zIndex),
+        sizes: hosts.map((host) => host.getBoundingClientRect().width > 0),
+      };
+    });
+    assert.deepEqual(stacking, {
+      canvas: "10",
+      hosts: ["auto", "auto"],
+      sizes: [true, true],
+    });
+    // Paused, the Scene's animations hold the playhead's time.
+    await page.click("#play");
+    await scrubTo(page, 1);
+    // The page seeks Scene animations as it draws the next frame.
+    const times = await page.evaluate(async () => {
+      for (let frame = 0; frame < 2; frame += 1)
+        await new Promise((resolve) => requestAnimationFrame(resolve));
+      return document
+        .querySelector(".scene-cell")
+        .getAnimations({ subtree: true })
+        .map((animation) => Math.round(Number(animation.currentTime)));
+    });
+    assert.ok(times.length > 0 && times.every((time) => time === 1000), times);
+    const state = await page.evaluate(() => window.animationPreview);
+    assert.deepEqual(state.notices, []);
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await preview.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// A Reaction's Scene event shows its Scene with its Avatar and Particle
+// Effects, as chat applies it.
+test("plays a Library Reaction with its Avatar, Particle and Scene Effects", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-preview-joy-"));
+  const preview = await startPreviewServer({
+    sources: ["library:included/joy-3"],
+    cwd: dir,
+    localContent: null,
+  });
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  });
+  try {
+    const { page, errors } = await openPreview(browser, preview);
+    const media = preview.session.state().rows[0].media;
+    assert.deepEqual(
+      media.sceneEffects.map(({ alias }) => alias),
+      ["scene-vfx-emotion-joy"],
+    );
+    await waitForScene(page, "scene-vfx-emotion-joy");
+    await waitForActiveEffect(page, "Star3");
+    await page.waitForFunction(
+      () =>
+        window.animationPreview.effects.every(({ particles }) => particles > 0),
+      null,
+      { timeout: 60_000 },
+    );
+    // Scrubbing replays the events before the time, Scene included.
+    await page.click("#play");
+    await scrubTo(page, 0.4);
+    await waitForScene(page, "scene-vfx-emotion-joy");
+    const state = await page.evaluate(() => window.animationPreview);
+    assert.deepEqual(state.notices, []);
+    assert.ok(state.effects.every(({ warnings }) => warnings.length === 0));
+    assert.deepEqual(errors, []);
+  } finally {
+    await browser.close();
+    await preview.close();
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+// A Scene drawn in front of the Avatar sits above the canvas, as in chat; a
+// Scene event whose dependency is the other kind fails as a clip event.
+test("stacks a front Scene above the Avatar and reports a Scene of the wrong kind", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "animama-preview-front-"));
+  const folder = path.join(dir, "front-lines");
+  await cp(path.join(INCLUDED_EFFECT_ROOT, "../scene/light-streak"), folder, {
+    recursive: true,
+  });
+  const descriptor = JSON.parse(
+    await readFile(path.join(folder, "light-streak.json"), "utf8"),
+  );
+  await rm(path.join(folder, "light-streak.json"));
+  descriptor.definition.renderPlacement = "front_of_avatar";
+  await writeFile(
+    path.join(folder, "front-lines.json"),
+    JSON.stringify(descriptor),
+  );
+  await writeFile(
+    path.join(dir, "wrong-kind.project.json"),
+    JSON.stringify({
+      schema: "animamaActionProject/1.0",
+      sequence: {
+        ...clip(0.1),
+        events: [
+          {
+            id: "scene",
+            time: 0.1,
+            kind: "scene_vfx",
+            sceneKind: "background_layers",
+            presetId: "lines",
+          },
+        ],
+      },
+      dependencies: [
+        {
+          ref: descriptor.content_id,
+          alias: "lines",
+          content_type: "scene_effect",
+          config: {},
+        },
+      ],
+    }),
+  );
+  const browser = await chromium.launch({
+    headless: true,
+    args: ["--use-angle=swiftshader", "--enable-unsafe-swiftshader"],
+  });
+  /** Preview `source` in a fresh server and page, then close both. */
+  const withPreview = async (source, check) => {
+    const preview = await startPreviewServer({
+      sources: [source],
+      cwd: dir,
+      localContent: null,
+    });
+    try {
+      const { page, errors } = await openPreview(browser, preview);
+      await check(page);
+      assert.deepEqual(errors, []);
+    } finally {
+      await preview.close();
+    }
+  };
+  try {
+    await withPreview("front-lines", async (page) => {
+      await waitForScene(page, descriptor.content_id);
+      const zIndexes = await page.evaluate(() =>
+        [...document.querySelectorAll(".scene-cell [data-scene-vfx-id]")].map(
+          (layer) => getComputedStyle(layer.parentElement).zIndex,
+        ),
+      );
+      assert.deepEqual(zIndexes, ["20", "20"]);
+    });
+    await withPreview("wrong-kind.project.json", (page) =>
+      page.waitForFunction(
+        () =>
+          window.animationPreview.notices.some((line) =>
+            line.includes("“lines” has no background dependency"),
+          ),
+        null,
+        { timeout: 60_000 },
+      ),
+    );
+  } finally {
+    await browser.close();
     await rm(dir, { recursive: true, force: true });
   }
 });

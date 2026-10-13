@@ -10,6 +10,7 @@ import sharp from "sharp";
 
 import {
   BUDGETS,
+  EFFECT_ART_LIMITS,
   FLIPBOOK_LIMITS,
   RUNTIME_LIMITS,
   assembleFlipbook,
@@ -288,6 +289,88 @@ test("runtime limits match the app and the definition contract", async () => {
     contract,
     /FlipbookLoop = Literal\["loop", "once", "pingpong"\]/,
   );
+});
+
+test("particle and scene budgets carry their kind's hard limits", async () => {
+  const fixture = JSON.parse(
+    await readFile(
+      path.join(
+        repoRoot,
+        "src/frontend/web/src/lib/content/fixtures/effect-art-limits.json",
+      ),
+      "utf8",
+    ),
+  );
+  assert.deepEqual(EFFECT_ART_LIMITS, fixture);
+  for (const name of ["particle-texture", "particle-sheet"])
+    assert.equal(BUDGETS[name].limits, EFFECT_ART_LIMITS.particleTexture, name);
+  for (const name of ["scene-sticker", "scene-tile", "scene-background"])
+    assert.equal(BUDGETS[name].limits, EFFECT_ART_LIMITS.sceneImage, name);
+  // Each budget fits inside its hard limits.
+  for (const budget of Object.values(BUDGETS)) {
+    const limits = budget.limits ?? RUNTIME_LIMITS;
+    assert.ok(budget.maxDimension <= limits.dimension);
+    assert.ok(budget.maxKiB * 1024 <= limits.bytes);
+  }
+});
+
+test("particle budgets leave room for detailed sprites and sheets", async () => {
+  assert.deepEqual(
+    {
+      texture: BUDGETS["particle-texture"].maxDimension,
+      textureKiB: BUDGETS["particle-texture"].maxKiB,
+      sheet: BUDGETS["particle-sheet"].maxDimension,
+      sheetKiB: BUDGETS["particle-sheet"].maxKiB,
+    },
+    { texture: 1024, textureKiB: 512, sheet: 2048, sheetKiB: 2048 },
+  );
+  // A 1024 px ray fan fits a particle sprite's budget.
+  const input = await png(1024, 1024, disc(512, 512, 480, clear));
+  const found = codes(
+    await checkImage(input, { budget: BUDGETS["particle-texture"] }),
+  );
+  assert.ok(!found.some((code) => code.startsWith("FAIL:budget")), found);
+});
+
+test("art over a particle texture's hard limit fails with that limit", async () => {
+  const input = await png(2050, 8, (x) =>
+    x < 1000 ? [200, 40, 40, 255] : [0, 0, 0, 0],
+  );
+  const result = await checkImage(input, {
+    budget: BUDGETS["particle-texture"],
+  });
+  const issue = result.issues.find((entry) => entry.code === "dimension_limit");
+  assert.ok(issue, codes(result));
+  assert.match(issue.message, /2048 px limit/);
+});
+
+test("opaque tiles and backgrounds pass where transparency is optional", async () => {
+  const input = await png(256, 256, (x, y) =>
+    (x + y) % 64 < 32 ? [250, 180, 200, 255] : [255, 230, 240, 255],
+  );
+  for (const name of ["scene-tile", "scene-background"]) {
+    const found = codes(await checkImage(input, { budget: BUDGETS[name] }));
+    assert.ok(
+      !found.some((code) => code.startsWith("FAIL")),
+      `${name}: ${found}`,
+    );
+    assert.ok(!found.includes("WARN:opaque_border"), `${name}: ${found}`);
+  }
+  const sticker = codes(
+    await checkImage(input, { budget: BUDGETS["scene-sticker"] }),
+  );
+  assert.ok(sticker.includes("FAIL:no_alpha"), sticker);
+  // A checkerboard painted where transparency should be still fails.
+  const painted = await png(256, 256, disc(128, 128, 60, checker(16)));
+  const tile = codes(
+    await checkImage(painted, { budget: BUDGETS["scene-tile"] }),
+  );
+  assert.ok(tile.includes("FAIL:checkerboard"), tile);
+  assert.ok(!tile.includes("FAIL:no_alpha"), tile);
+});
+
+test("particle sheets share the flipbook grid limit", () => {
+  assert.equal(EFFECT_ART_LIMITS.particleTexture.grid, FLIPBOOK_LIMITS.grid);
 });
 
 test("faint alpha is treated as transparent by check, as fix clears it", async () => {

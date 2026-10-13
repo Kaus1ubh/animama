@@ -12,6 +12,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from animama.app.contracts.gemini import GeminiTtsCapability
+
 
 class UserFileProcessingCapability(BaseModel):
     enabled: bool
@@ -79,6 +81,8 @@ class RuntimeCapabilities(BaseModel):
     """The active WebGPU Parakeet version, or null when that set is unavailable."""
     companion_safety: CompanionSafetyCapability
     web_search: WebSearchCapability = Field(default_factory=WebSearchCapability)
+    gemini_tts: GeminiTtsCapability | None = None
+    """Gemini voice models and prebuilt voices, present only where the composition offers Gemini voice."""
 
 
 __all__ = [

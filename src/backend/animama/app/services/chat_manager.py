@@ -228,10 +228,32 @@ class ChatManager:
         self,
         *,
         chat_id: str,
+        native_compaction: bool = False,
     ) -> ChatContext:
-        """Fetch replayable chat history and active compaction for a model turn."""
+        """Fetch replayable chat history and active compaction for a model turn.
+
+        With ``native_compaction`` (Anthropic chats, whose server compacts),
+        application compaction summaries are ignored. History starts at the
+        newest assistant row whose stored content begins with a compaction
+        block, however far back, and includes every later row: the API ignores
+        whatever precedes the block, so older rows are not sent. A chat without
+        one replays its recent window.
+        """
 
         limit = self._history_limit if self._history_limit is not None else 200
+        if native_compaction:
+            start_turn = await self._messages.latest_compaction_block_turn(chat_id)
+            if start_turn is None:
+                messages = await self._messages.recent_model_history(chat_id, limit=limit)
+            else:
+                messages = await self._messages.recent_model_history(chat_id, after_turn=start_turn - 1, limit=None)
+            self._log.info(
+                "Chat context fetched",
+                chat_id=chat_id,
+                message_count=len(messages),
+                compaction_block_turn=start_turn,
+            )
+            return ChatContext(messages=list(messages), active_compaction=None)
         active_compaction = None
         if self._compactions is not None:
             candidate = await self._compactions.get_active(chat_id)

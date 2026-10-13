@@ -26,14 +26,18 @@ export function ttsWarningText(reason: string, message?: string): string {
       return t("tts.warnings.elevenLabsUnsupported");
     case "elevenlabs_missing_persona":
       return t("tts.warnings.elevenLabsMissingAnima");
+    case "gemini_unsupported":
+      return t("tts.warnings.geminiUnsupported");
+    case "gemini_missing_persona":
+      return t("tts.warnings.geminiMissingAnima");
     case "elevenlabs_ws_error":
       return t("tts.warnings.elevenLabsConnectionFailed");
     case "elevenlabs_ws_closed":
       return t("tts.warnings.elevenLabsClosedEarly");
     case "elevenlabs_audio_decode_failed":
       return t("tts.warnings.elevenLabsDecodeFailed");
-    case "elevenlabs_finalized_audio_decode_failed":
-      return t("tts.warnings.elevenLabsFinalizedDecodeFailed");
+    case "finalized_audio_decode_failed":
+      return t("tts.warnings.finalizedDecodeFailed");
     default:
       return message || t("tts.warnings.generic");
   }

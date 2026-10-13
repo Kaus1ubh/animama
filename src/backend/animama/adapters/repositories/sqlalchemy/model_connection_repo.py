@@ -9,7 +9,7 @@ from animama.adapters.mappers.model_connection_map import (
     model_connection_orm_to_domain,
 )
 from animama.app.ports.model_connection_port import ModelConnectionRepository
-from animama.domain.model_connection import MODEL_SOURCE_BUILTIN, ModelConnection
+from animama.domain.model_connection import BUILTIN_OPENAI_CONNECTION_ID, MODEL_SOURCE_BUILTIN, ModelConnection
 from animama.orm import ORMModelConnection
 
 
@@ -24,7 +24,13 @@ class SQLAlchemyModelConnectionRepository(ModelConnectionRepository):
         return model_connection_orm_to_domain(orm) if orm is not None else None
 
     async def list_all(self) -> list[ModelConnection]:
-        builtin_first = case((ORMModelConnection.source == MODEL_SOURCE_BUILTIN, 0), else_=1)
+        """List connections: the default OpenAI connection, other built-ins, then owner connections by name."""
+
+        builtin_first = case(
+            (ORMModelConnection.id == BUILTIN_OPENAI_CONNECTION_ID, 0),
+            (ORMModelConnection.source == MODEL_SOURCE_BUILTIN, 1),
+            else_=2,
+        )
         stmt = select(ORMModelConnection).order_by(builtin_first, ORMModelConnection.name, ORMModelConnection.id)
         res = await self._s.execute(stmt)
         return [model_connection_orm_to_domain(orm) for orm in res.scalars()]

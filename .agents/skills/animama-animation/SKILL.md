@@ -1,6 +1,6 @@
 ---
 name: animama-animation
-description: Author natural, expressive Animama Gestures from a text prompt by writing an animaPoseClip/2.0 clip (beats and per-joint tracks), validating it, running the motion checks, live preview and review renders on both Included Avatars, and saving it as Local content through the Gesture creator; starts with a short clarifying interview, authors up to ten Gestures as a batch, and revises saved Gestures from their Library item. Use for new or revised body-and-face Gesture motion; VRM internals, Avatar Effects and particle effects have their own skills.
+description: Author natural, expressive Animama Gestures from a text prompt by writing an animaPoseClip/2.0 clip (beats and per-joint tracks), validating it, running the motion checks, live preview and review renders on both Included Avatars, and saving it as Local content through the Gesture creator; starts with a short clarifying interview, authors up to ten Gestures as a batch, and revises saved Gestures from their Library item. Use for new or revised body-and-face Gesture motion; VRM internals, Avatar Effects (animama-avatar-vfx), Particle Effects (animama-particle-vfx) and Scene Effects (animama-scene-vfx) have their own skills.
 ---
 
 # Animama Animation
@@ -55,7 +55,7 @@ first.
 5. **Preview and look:** `pnpm -s animation:preview <file>.clip.json`
    plays it live on both Avatars, lit like the chat canvas, with live layers,
    beat markers and camera presets (a Library item or project file also plays
-   its Avatar and Particle Effects), and reloads as you edit; its pickers
+   its Avatar, Particle and Scene Effects), and reloads as you edit; its pickers
    switch to other clips and Library items without a restart. Judge timing there; use
    `pnpm -s animation:render <file>.clip.json --out <dir>` for still contact
    sheets (`--times` for beats, `--side left` for left-handed action) and
@@ -125,6 +125,17 @@ Included Gesture's bytes is a promotion (step 9) with `mode: "replace"`.
 - Repeated pulses (laughs, giggles, bounces) run at 2.5–3.3 Hz, three or
   four per burst, decaying and staggered across regions; faster, phase-locked
   pulses read as twitching. See [human movement](references/human-movement.md).
+- Effects in a Gesture are action-bound: play an Avatar Effect only where it
+  carries the motion's meaning, anchored to the acting hand, mouth, head or
+  body (or coming out of the motion as a puff, pop, impact or sparkle) and
+  timed to a beat. Most conversation beats stay clean. Reactions already show
+  emotion face paint in the same turn, so prefer action-bound effects; reusing
+  an Included blush, sweat, anger or gloom effect is allowed where it adds to
+  the Gesture's meaning, accepting some doubling with Reactions. Reuse an
+  Included effect before asking for new art.
+- A Gesture sounds only through its effects (no `sfx` events). When effects
+  start together, keep one sound and set `playAccompanyingSound: false` on
+  the others; an idle Gesture sets it on every effect event.
 - A Gesture's keyed emotion expressions replace the emotion face while it
   plays. Key expressions that suit the motion, and leave them out when the
   Gesture should keep the Anima's current emotion.

@@ -20,13 +20,16 @@ let stopOnToken = false;
 let run = 0;
 let api;
 let speechEnabled = false;
-let speechModel = "eleven_flash_v2_5";
+let speechModel = "eleven_v4_turbo";
+let speechProvider = "elevenlabs";
 let pocketFallback = true;
 const speechSessions = [];
 const speechFailures = [];
 const speechFallbacks = [];
 const ttsTokens = [];
 const ttsCompletions = [];
+const finalizedAudio = [];
+const finalizedCompletions = [];
 const transport = {
   baseUrl: "https://chat-fixture.invalid",
   fetch: async (request) => {
@@ -136,9 +139,10 @@ function SessionConsumer() {
     speech: speechEnabled
       ? {
           enabled: true,
-          provider: "elevenlabs",
-          elevenLabsModelId: speechModel,
-          finalizedElevenLabs: speechModel === "eleven_v3",
+          provider: speechProvider,
+          elevenLabsModelId:
+            speechProvider === "elevenlabs" ? speechModel : null,
+          finalizedServerAudio: speechProvider === "gemini",
         }
       : undefined,
     effects: {
@@ -147,8 +151,11 @@ function SessionConsumer() {
         speechSessions.push({ runId, value }),
       markElevenLabsSessionFailed: (runId, error) =>
         speechFailures.push({ runId, error }),
-      markElevenLabsFinalizedAudioFailed: (runId, error) =>
+      markFinalizedAudioFailed: (runId, error) =>
         speechFailures.push({ runId, error }),
+      acceptFinalizedAudio: (runId, payload) =>
+        finalizedAudio.push({ runId, provider: payload.provider }),
+      completeFinalizedAudio: (runId) => finalizedCompletions.push(runId),
       // The playback adapter speaks a declined run with Pocket TTS if it can.
       fallBackToPocketTts: (runId) => {
         speechFallbacks.push(runId);
@@ -229,9 +236,14 @@ function mount(owner = "owner-fixture", session = false, sessionKey = owner) {
 }
 window.fixture = {
   mount,
-  enableSpeech: ({ model = "eleven_flash_v2_5", fallback = true } = {}) => {
+  enableSpeech: ({
+    model = "eleven_v4_turbo",
+    provider = "elevenlabs",
+    fallback = true,
+  } = {}) => {
     speechEnabled = true;
     speechModel = model;
+    speechProvider = provider;
     pocketFallback = fallback;
     mount("owner-fixture", true);
   },
@@ -240,6 +252,8 @@ window.fixture = {
   speechFallbacks: () => speechFallbacks,
   ttsTokens: () => ttsTokens,
   ttsCompletions: () => ttsCompletions,
+  finalizedAudio: () => finalizedAudio,
+  finalizedCompletions: () => finalizedCompletions,
   mountSession: (sessionKey = "owner-fixture") =>
     mount("owner-fixture", true, sessionKey),
   seedSessionCaches: (key) => {

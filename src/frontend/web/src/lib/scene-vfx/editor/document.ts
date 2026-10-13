@@ -4,11 +4,20 @@ import type {
   PyContentDependency,
   PyExactContentSource,
 } from "@/lib/content/catalogTypes";
+import {
+  SCENE_IMAGE_LIMITS,
+  inspectEffectArt,
+} from "@/lib/effects/effectArtLimits";
 import { failureLine, WordedError } from "@/lib/errors/apiError";
-import { parseSceneVFXEntry } from "@/lib/scene-vfx/catalog";
+import {
+  sceneDefinitionLimitIssues,
+  type SceneLimitIssue,
+} from "@/lib/scene-vfx/limits";
+import { sceneEntryFromDefinition } from "@/lib/scene-vfx/sceneDefinition";
 import type { SceneVFXEntry } from "@/lib/scene-vfx/types";
 import {
   createDefaultSceneEffectDocument,
+  defaultSceneOptionalLayers,
   sceneEffectTemplate,
 } from "./defaults";
 import {
@@ -32,8 +41,7 @@ export const SCENE_EFFECT_IMAGE_TYPES = new Set([
   "image/webp",
   "image/svg+xml",
 ]);
-const MAX_SCENE_IMAGE_COUNT = 16;
-const MAX_SCENE_IMAGE_BYTES = 32 * 1024 * 1024;
+const MIB = 1024 * 1024;
 
 export function sceneEffectEditorReducer(
   state: SceneEffectEditorDocument,
@@ -102,6 +110,30 @@ export function cloneSceneEffectDocument(
   return structuredClone(document);
 }
 
+/**
+ * A document from before the optional layers (C1–C6), from browser recovery
+ * or an editor export, gains them switched off. Layers it has keep their
+ * place, so a current document's JSON is unchanged (restored recovery is
+ * compared with the export text).
+ */
+export function normalizeSceneEffectDocument(
+  document: SceneEffectEditorDocument,
+): SceneEffectEditorDocument {
+  const optional = defaultSceneOptionalLayers();
+  const background = document.background;
+  return {
+    ...document,
+    background: {
+      ...background,
+      gradient: background.gradient ?? optional.gradient,
+      tile: background.tile ?? optional.tile,
+      screen: background.screen ?? optional.screen,
+      scatters: background.scatters ?? optional.scatters,
+      flash: background.flash ?? optional.flash,
+    },
+  };
+}
+
 export function applySceneEffectTemplate(
   document: SceneEffectEditorDocument,
   templateId: SceneEffectTemplateId,
@@ -116,7 +148,32 @@ export function applySceneEffectTemplate(
   };
 }
 
-export function canonicalSceneEffectImageName(filename: string): string {
+/** The extension a Scene image keeps: its own, so name and bytes agree. */
+const SCENE_IMAGE_EXTENSIONS: Record<string, string> = {
+  ".png": ".png",
+  ".jpg": ".jpg",
+  ".jpeg": ".jpg",
+  ".webp": ".webp",
+  ".svg": ".svg",
+};
+
+/** The extension each accepted Scene image type is saved with. */
+const SCENE_IMAGE_TYPE_EXTENSIONS: Record<string, string> = {
+  "image/png": ".png",
+  "image/jpeg": ".jpg",
+  "image/webp": ".webp",
+  "image/svg+xml": ".svg",
+};
+
+/**
+ * A safe logical name for a chosen image. The extension follows `contentType`
+ * when given (the type its bytes were read as), else the file's own, so a
+ * saved image's name and bytes agree.
+ */
+export function canonicalSceneEffectImageName(
+  filename: string,
+  contentType?: string,
+): string {
   const basename =
     filename.replaceAll("\\", "/").split("/").at(-1) ?? "scene-item";
   const stem =
@@ -125,7 +182,141 @@ export function canonicalSceneEffectImageName(filename: string): string {
       .trim()
       .replace(/[^a-zA-Z0-9._-]+/g, "-")
       .replace(/^-+|-+$/g, "") || "scene-item";
-  return `${stem}${/\.svg$/i.test(basename) ? ".svg" : ".webp"}`;
+  const extension =
+    (contentType && SCENE_IMAGE_TYPE_EXTENSIONS[contentType]) ??
+    SCENE_IMAGE_EXTENSIONS[
+      basename.match(/\.[^.]+$/)?.[0].toLowerCase() ?? ""
+    ] ??
+    ".png";
+  return `${stem}${extension}`;
+}
+
+/**
+ * Check a chosen Scene image before it is decoded, against the shared limits
+ * the backend applies at Save: its type, bytes, and for a raster image its
+ * format and size from the file header. Returns the content type its bytes
+ * are (whatever the file claims), or why it is refused.
+ */
+export async function inspectSceneEffectImage(
+  file: Blob,
+): Promise<{ ok: true; contentType: string } | { ok: false; message: string }> {
+  const t = getI18n().getFixedT(null, "effects");
+  if (!SCENE_EFFECT_IMAGE_TYPES.has(file.type))
+    return { ok: false, message: t("scene.image.typeInvalid") };
+  const tooLarge = t("scene.image.tooLarge", {
+    size: SCENE_IMAGE_LIMITS.bytes / MIB,
+  });
+  if (file.type === "image/svg+xml")
+    return file.size > SCENE_IMAGE_LIMITS.bytes
+      ? { ok: false, message: tooLarge }
+      : { ok: true, contentType: file.type };
+  const inspection = await inspectEffectArt(file, SCENE_IMAGE_LIMITS);
+  if (inspection.ok)
+    return { ok: true, contentType: `image/${inspection.format}` };
+  return {
+    ok: false,
+    message:
+      inspection.reason === "bytes"
+        ? tooLarge
+        : inspection.reason === "format"
+          ? t("scene.image.unreadable")
+          : t("scene.image.dimensionsTooLarge", {
+              size: SCENE_IMAGE_LIMITS.dimension,
+            }),
+  };
+}
+
+/** Where a chosen image goes: a marquee or scatter item, or the tile. */
+export type SceneEffectImageTarget =
+  | { kind: "marquee" }
+  | { kind: "scatter"; index: number }
+  | { kind: "tile" };
+
+/** The label an image item takes by default: its file name without extension. */
+export function sceneEffectImageItemLabel(filename: string): string {
+  return filename.replace(/\.[^.]+$/, "");
+}
+
+/**
+ * Add a chosen image to `target`, switching that layer on. The new item is
+ * labelled `label` (a sticker's label), by default the file's name.
+ */
+export function addSceneEffectImage(
+  document: SceneEffectEditorDocument,
+  image: SceneEffectEditorImage,
+  target: SceneEffectImageTarget,
+  label?: string,
+): SceneEffectEditorDocument {
+  const background = document.background;
+  const item: SceneEffectEditorMarqueeItem = {
+    id: `private-${crypto.randomUUID().slice(0, 8)}`,
+    kind: "image",
+    label: label ?? sceneEffectImageItemLabel(image.originalName),
+    image,
+  };
+  if (target.kind === "tile")
+    return {
+      ...document,
+      background: {
+        ...background,
+        tile: { ...background.tile, enabled: true, image },
+      },
+    };
+  if (target.kind === "scatter")
+    return {
+      ...document,
+      background: {
+        ...background,
+        scatters: background.scatters.map((layer, index) =>
+          index === target.index
+            ? { ...layer, enabled: true, items: [...layer.items, item] }
+            : layer,
+        ),
+      },
+    };
+  return {
+    ...document,
+    background: {
+      ...background,
+      marquee: {
+        ...background.marquee,
+        enabled: true,
+        items: [...background.marquee.items, item],
+      },
+    },
+  };
+}
+
+/** Give every use of an image (by logical name) newly chosen bytes. */
+export function replaceSceneEffectImage(
+  document: SceneEffectEditorDocument,
+  image: SceneEffectEditorImage,
+): SceneEffectEditorDocument {
+  const items = (list: SceneEffectEditorMarqueeItem[]) =>
+    list.map((item) =>
+      item.kind === "image" && item.image.logicalName === image.logicalName
+        ? { ...item, image }
+        : item,
+    );
+  const background = document.background;
+  return {
+    ...document,
+    background: {
+      ...background,
+      marquee: {
+        ...background.marquee,
+        items: items(background.marquee.items),
+      },
+      scatters: background.scatters.map((layer) => ({
+        ...layer,
+        items: items(layer.items),
+      })),
+      tile:
+        background.tile.image?.logicalName === image.logicalName
+          ? { ...background.tile, image }
+          : background.tile,
+    },
+  };
 }
 
 export function uniqueSceneEffectImageName(
@@ -135,7 +326,7 @@ export function uniqueSceneEffectImageName(
   const canonical = canonicalSceneEffectImageName(filename);
   const existing = new Set(existingNames);
   if (!existing.has(canonical)) return canonical;
-  const extension = canonical.match(/\.[^.]+$/)?.[0] ?? ".webp";
+  const extension = canonical.match(/\.[^.]+$/)?.[0] ?? ".png";
   const stem = canonical.slice(0, -extension.length);
   for (let index = 2; index <= 99; index += 1) {
     const candidate = `${stem}-${index}${extension}`;
@@ -156,14 +347,25 @@ export function sceneEffectDefinition(
     ...(document.sound ? { soundAlias: document.sound.alias } : {}),
   };
   if (document.kind === "background_layers") {
+    const { solid, pattern, marquee, gradient, tile, screen, scatters, flash } =
+      document.background;
+    const { image: tileImage, ...tileSettings } = tile;
     return {
       ...common,
-      solid: { ...document.background.solid },
-      pattern: { ...document.background.pattern },
-      marquee: {
-        ...document.background.marquee,
-        items: document.background.marquee.items.map(definitionItem),
-      },
+      solid: { ...solid },
+      pattern: { ...pattern },
+      marquee: { ...marquee, items: marquee.items.map(definitionItem) },
+      gradient: structuredClone(gradient),
+      // A tile names its image; without one there is no tile to save.
+      ...(tileImage
+        ? { tile: { ...tileSettings, image: tileImage.logicalName } }
+        : {}),
+      screen: { ...screen },
+      scatters: scatters.map((layer) => ({
+        ...layer,
+        items: layer.items.map(definitionItem),
+      })),
+      flash: { ...flash },
     };
   }
   return {
@@ -182,36 +384,27 @@ export function sceneEffectDefinition(
   };
 }
 
+/** The runtime entry the preview draws, with each image at its URL. */
 export function sceneEffectRuntimeEntry(
   document: SceneEffectEditorDocument,
   imageUrls: ReadonlyMap<string, string>,
 ): SceneVFXEntry {
-  const definition = sceneEffectDefinition(document);
-  const projected = structuredClone(definition);
-  if (document.kind === "background_layers") {
-    const marquee = object(projected.marquee);
-    if (!marquee) throw new Error("The marquee definition is unavailable.");
-    marquee.items = document.background.marquee.items.map((item) => {
-      if (item.kind === "emoji") return { ...item };
-      const src = imageUrls.get(item.image.logicalName);
-      if (!src) {
-        const t = getI18n().getFixedT(null, "effects");
-        throw new WordedError(
-          t("scene.validation.reselectForPreview", {
-            file: item.image.originalName,
-          }),
-        );
-      }
-      return { id: item.id, kind: "png", label: item.label, src };
-    });
-  }
-  return parseSceneVFXEntry({
-    ...projected,
-    id: "scene-effect-editor-preview",
-    label: document.name || "Scene Effect preview",
-    enabled: true,
-    ...(document.sound ? { sound: { onApply: document.sound.alias } } : {}),
-  });
+  for (const image of sceneEffectImageMetadata(document))
+    if (!imageUrls.get(image.logicalName)) {
+      const t = getI18n().getFixedT(null, "effects");
+      throw new WordedError(
+        t("scene.validation.reselectForPreview", { file: image.originalName }),
+      );
+    }
+  return sceneEntryFromDefinition(
+    sceneEffectDefinition(document),
+    {
+      id: "scene-effect-editor-preview",
+      label: document.name || "Scene Effect preview",
+    },
+    (logicalName) => imageUrls.get(logicalName),
+    document.sound ? { sound: { onApply: document.sound.alias } } : {},
+  ).entry;
 }
 
 export function sceneEffectDependencies(
@@ -229,14 +422,20 @@ export function sceneEffectDependencies(
     : [];
 }
 
+/** The private images a background shows: marquee and scatter items, the tile. */
 export function sceneEffectImageMetadata(
   document: SceneEffectEditorDocument,
 ): SceneEffectEditorImage[] {
   if (document.kind !== "background_layers") return [];
   const byName = new Map<string, SceneEffectEditorImage>();
-  for (const item of document.background.marquee.items) {
+  const { marquee, scatters, tile } = document.background;
+  for (const item of [
+    ...marquee.items,
+    ...scatters.flatMap((layer) => layer.items),
+  ]) {
     if (item.kind === "image") byName.set(item.image.logicalName, item.image);
   }
+  if (tile.image) byName.set(tile.image.logicalName, tile.image);
   return [...byName.values()];
 }
 
@@ -268,6 +467,13 @@ export function validateSceneEffectDocument(
   if (document.sound && !isExactContentSource(document.sound.source))
     issue(issues, "sound", t("creator.validation.reselectSound"));
 
+  // Ranges, counts and legacy Twemoji items, as the backend checks them at
+  // Save (the duration is reported above in the creator's own terms).
+  for (const limit of sceneDefinitionLimitIssues(
+    sceneEffectDefinition(document),
+  ))
+    if (limit.field !== "durationMs")
+      issue(issues, limit.field, sceneLimitMessage(limit));
   if (document.kind === "background_layers") {
     validateBackground(document, resources, issues);
   } else {
@@ -299,10 +505,19 @@ export function validateSceneEffectDocument(
 
 /**
  * The plain label for a validation field (`name`, `pattern.size`,
- * `focus.animation.minVisibleMs`), as the Checks list and messages name it.
+ * `scatters.0.minSize`, `focus.animation.minVisibleMs`), as the Checks list
+ * and messages name it.
  */
 export function sceneEffectFieldLabel(field: string): string {
   const t = getI18n().getFixedT(null, "effects");
+  const scatter = /^scatters\.(\d+)\.(.+)$/.exec(field);
+  if (scatter)
+    return sceneScatterFieldLabel(Number(scatter[1]) + 1, scatter[2]!);
+  const indexed = /^(marquee\.items|gradient\.stops)\.(\d+)$/.exec(field);
+  if (indexed)
+    return indexed[1] === "marquee.items"
+      ? t("scene.fields.marqueeItem", { index: Number(indexed[2]) + 1 })
+      : t("scene.fields.gradientStop", { index: Number(indexed[2]) + 1 });
   switch (field) {
     case "name":
       return t("scene.fields.name");
@@ -370,8 +585,115 @@ export function sceneEffectFieldLabel(field: string): string {
       return t("scene.fields.maxHiddenMs");
     case "focus.animation.opacityJitter":
       return t("scene.fields.opacityJitter");
+    case "focus.seed":
+      return t("scene.fields.seed");
+    case "gradient.angle":
+      return t("scene.fields.gradientAngle");
+    case "gradient.centerX":
+      return t("scene.fields.gradientCenterX");
+    case "gradient.centerY":
+      return t("scene.fields.gradientCenterY");
+    case "gradient.stops":
+      return t("scene.fields.gradientStops");
+    case "tile.image":
+      return t("scene.fields.tileImage");
+    case "tile.size":
+      return t("scene.fields.tileSize");
+    case "tile.opacity":
+      return t("scene.fields.tileOpacity");
+    case "tile.speed":
+      return t("scene.fields.tileSpeed");
+    case "screen.color":
+      return t("scene.fields.screenColor");
+    case "screen.count":
+      return t("scene.fields.screenCount");
+    case "screen.opacity":
+      return t("scene.fields.screenOpacity");
+    case "screen.centerX":
+      return t("scene.fields.screenCenterX");
+    case "screen.centerY":
+      return t("scene.fields.screenCenterY");
+    case "screen.throb":
+      return t("scene.fields.screenThrob");
+    case "screen.seed":
+      return t("scene.fields.screenSeed");
+    case "screen.turnSeconds":
+      return t("scene.fields.screenTurn");
+    case "screen.minLength":
+      return t("scene.fields.screenMinLength");
+    case "screen.maxLength":
+      return t("scene.fields.screenMaxLength");
+    case "screen.length":
+      return t("scene.fields.screenLength");
+    case "screen.minWidth":
+      return t("scene.fields.screenMinWidth");
+    case "screen.maxWidth":
+      return t("scene.fields.screenMaxWidth");
+    case "screen.width":
+      return t("scene.fields.screenWidth");
+    case "screen.sway":
+      return t("scene.fields.screenSway");
+    case "scatters":
+      return t("scene.fields.scatters");
+    case "flash.color":
+      return t("scene.fields.flashColor");
+    case "flash.duration":
+      return t("scene.fields.flashDuration");
     default:
       return t("scene.fields.definition");
+  }
+}
+
+/** A scatter layer's field (`minSize`, `items.2`), for scatter layer `layer` (1-based). */
+function sceneScatterFieldLabel(layer: number, field: string): string {
+  const t = getI18n().getFixedT(null, "effects");
+  const item = /^items\.(\d+)$/.exec(field);
+  if (item)
+    return t("scene.fields.scatter.item", {
+      layer,
+      index: Number(item[1]) + 1,
+    });
+  switch (field) {
+    case "items":
+      return t("scene.fields.scatter.items", { layer });
+    case "count":
+      return t("scene.fields.scatter.count", { layer });
+    case "seed":
+      return t("scene.fields.scatter.seed", { layer });
+    case "minSize":
+      return t("scene.fields.scatter.minSize", { layer });
+    case "maxSize":
+      return t("scene.fields.scatter.maxSize", { layer });
+    case "size":
+      return t("scene.fields.scatter.size", { layer });
+    case "minRotationDeg":
+      return t("scene.fields.scatter.minRotation", { layer });
+    case "maxRotationDeg":
+      return t("scene.fields.scatter.maxRotation", { layer });
+    case "rotation":
+      return t("scene.fields.scatter.rotation", { layer });
+    case "minOpacity":
+      return t("scene.fields.scatter.minOpacity", { layer });
+    case "maxOpacity":
+      return t("scene.fields.scatter.maxOpacity", { layer });
+    case "opacity":
+      return t("scene.fields.scatter.opacity", { layer });
+    case "regionTop":
+      return t("scene.fields.scatter.regionTop", { layer });
+    case "regionBottom":
+      return t("scene.fields.scatter.regionBottom", { layer });
+    case "region":
+      return t("scene.fields.scatter.region", { layer });
+    case "minSpinDegPerSec":
+      return t("scene.fields.scatter.minSpin", { layer });
+    case "maxSpinDegPerSec":
+      return t("scene.fields.scatter.maxSpin", { layer });
+    case "spin":
+      return t("scene.fields.scatter.spin", { layer });
+    case "speed":
+      return t("scene.fields.scatter.speed", { layer });
+    default:
+      return t("scene.fields.scatter.layer", { layer });
   }
 }
 
@@ -381,36 +703,38 @@ function validateBackground(
   issues: SceneEffectValidationIssue[],
 ) {
   const t = getI18n().getFixedT(null, "effects");
-  const { solid, pattern, marquee } = document.background;
-  if (!COLOR_PATTERN.test(solid.color))
-    issue(issues, "solid.color", t("scene.validation.solidColor"));
-  if (!COLOR_PATTERN.test(pattern.color))
-    issue(issues, "pattern.color", t("scene.validation.patternColor"));
-  bounded(issues, "pattern.size", pattern.size, 1, 512);
-  bounded(issues, "pattern.spacing", pattern.spacing, 0, 1024);
-  bounded(issues, "pattern.opacity", pattern.opacity, 0, 1);
-  if (marquee.items.length > 64)
-    issue(
-      issues,
-      "marquee.items",
-      t("scene.validation.tooManyItems", { max: 64 }),
-    );
-  if (
-    new Set(marquee.items.map((item) => item.id)).size !== marquee.items.length
-  )
-    issue(issues, "marquee.items", t("scene.validation.duplicateItemIds"));
-  bounded(issues, "marquee.itemSize", marquee.itemSize, 1, 1024);
-  bounded(issues, "marquee.gap", marquee.gap, 0, 2048);
-  bounded(issues, "marquee.rowGap", marquee.rowGap, 0, 2048);
-  bounded(issues, "marquee.rotation", marquee.itemRotationOffsetDeg, -360, 360);
-  bounded(issues, "marquee.speed", marquee.speedPxPerSec, 0, 2000);
-  bounded(issues, "marquee.opacity", marquee.opacity, 0, 1);
+  const { solid, pattern, marquee, gradient, tile, screen, scatters, flash } =
+    document.background;
+  const color = (field: string, value: string, message: string) => {
+    if (!COLOR_PATTERN.test(value)) issue(issues, field, message);
+  };
+  color("solid.color", solid.color, t("scene.validation.solidColor"));
+  color("pattern.color", pattern.color, t("scene.validation.patternColor"));
+  gradient.stops.forEach((stop, index) =>
+    color(
+      `gradient.stops.${index}`,
+      stop.color,
+      t("scene.validation.gradientStopColor"),
+    ),
+  );
+  color("screen.color", screen.color, t("scene.validation.screenColor"));
+  color("flash.color", flash.color, t("scene.validation.flashColor"));
+  for (const [field, items] of [
+    ["marquee.items", marquee.items],
+    ...scatters.map(
+      (layer, index) => [`scatters.${index}.items`, layer.items] as const,
+    ),
+  ] as const)
+    if (new Set(items.map((item) => item.id)).size !== items.length)
+      issue(issues, field, t("scene.validation.duplicateItemIds"));
+  if (tile.enabled && !tile.image)
+    issue(issues, "tile.image", t("scene.validation.tileImage"));
   const metadata = sceneEffectImageMetadata(document);
-  if (metadata.length > MAX_SCENE_IMAGE_COUNT)
+  if (metadata.length > SCENE_IMAGE_LIMITS.count)
     issue(
       issues,
       "images",
-      t("scene.validation.tooManyImages", { max: MAX_SCENE_IMAGE_COUNT }),
+      t("scene.validation.tooManyImages", { max: SCENE_IMAGE_LIMITS.count }),
     );
   const resourcesByName = new Map(
     resources.map((resource) => [resource.logicalName, resource]),
@@ -430,18 +754,16 @@ function validateBackground(
       );
   }
   const totalBytes = metadata.reduce((sum, image) => sum + image.sizeBytes, 0);
-  if (totalBytes > MAX_SCENE_IMAGE_BYTES)
-    issue(issues, "images", sceneImagesTooLargeMessage());
-}
-
-/** The private image budget, shared by validation and the image chooser. */
-export function sceneImagesTooLargeMessage(): string {
-  const t = getI18n().getFixedT(null, "effects");
-  return t("scene.validation.imagesTooLarge", {
-    size: formattersForLanguage(getI18n().resolvedLanguage).fileSize(
-      MAX_SCENE_IMAGE_BYTES,
-    ),
-  });
+  if (totalBytes > SCENE_IMAGE_LIMITS.totalBytes)
+    issue(
+      issues,
+      "images",
+      t("scene.validation.imagesTooLarge", {
+        size: formattersForLanguage(getI18n().resolvedLanguage).fileSize(
+          SCENE_IMAGE_LIMITS.totalBytes,
+        ),
+      }),
+    );
 }
 
 function validateFocus(
@@ -452,22 +774,7 @@ function validateFocus(
   const focus = document.focus;
   if (!COLOR_PATTERN.test(focus.color))
     issue(issues, "focus.color", t("scene.validation.lineColor"));
-  bounded(issues, "focus.lineCount", focus.lineCount, 1, 256, true);
-  bounded(issues, "focus.opacity", focus.opacity, 0, 1);
-  bounded(issues, "focus.baseThickness", focus.baseThicknessPx, 0.1, 128);
-  bounded(
-    issues,
-    "focus.thicknessVariation",
-    focus.thicknessVariationPx,
-    0,
-    128,
-  );
-  bounded(issues, "focus.lengthVariation", focus.lengthVariation, 0, 1);
-  bounded(issues, "focus.overscan", focus.overscanPx, 0, 4096);
-  if (focus.target.kind === "avatar_face") {
-    bounded(issues, "focus.paddingX", focus.target.paddingXPx, 0, 2048);
-    bounded(issues, "focus.paddingY", focus.target.paddingYPx, 0, 2048);
-  } else {
+  if (focus.target.kind === "manual_box") {
     const { x, y, width, height } = focus.target.rect;
     if (
       x < 0 ||
@@ -480,14 +787,6 @@ function validateFocus(
       issue(issues, "focus.target", t("scene.validation.manualTarget"));
   }
   const animation = focus.animation;
-  for (const [field, value] of Object.entries(animation))
-    bounded(
-      issues,
-      `focus.animation.${field}`,
-      value,
-      0,
-      field === "opacityJitter" ? 1 : 10_000,
-    );
   if (
     animation.minVisibleMs > animation.maxVisibleMs ||
     animation.minHiddenMs > animation.maxHiddenMs
@@ -521,7 +820,9 @@ export function parseSceneEffectEditorExport(
   const document = raw as unknown as SceneEffectEditorDocument;
   if (document.schema !== SCENE_EFFECT_EDITOR_SCHEMA)
     throw new WordedError(t("scene.import.unsupportedSchema"));
-  const clone = cloneSceneEffectDocument(document);
+  const clone = normalizeSceneEffectDocument(
+    cloneSceneEffectDocument(document),
+  );
   const images = sceneEffectImageMetadata(clone);
   sceneEffectRuntimeEntry(
     clone,
@@ -575,18 +876,56 @@ export function createSceneEffectDocumentFromDefinition(args: {
     const items = marquee.items.map((value, index) =>
       hydrateMarqueeItem(value, index, args.images),
     );
+    type Background = SceneEffectEditorDocument["background"];
+    const optional = defaultSceneOptionalLayers();
+    const tile = object(raw.tile);
+    const tileImage =
+      tile && typeof tile.image === "string"
+        ? args.images.get(tile.image)
+        : null;
+    if (tile && !tileImage)
+      throw new WordedError(
+        t("scene.open.imageUnavailable", { file: String(tile.image) }),
+      );
     document.background = {
-      solid:
-        solid as unknown as SceneEffectEditorDocument["background"]["solid"],
-      pattern:
-        pattern as unknown as SceneEffectEditorDocument["background"]["pattern"],
+      solid: solid as unknown as Background["solid"],
+      pattern: pattern as unknown as Background["pattern"],
       marquee: {
-        ...(marquee as unknown as Omit<
-          SceneEffectEditorDocument["background"]["marquee"],
-          "items"
-        >),
+        ...(marquee as unknown as Omit<Background["marquee"], "items">),
         items,
       },
+      // The optional layers (C1–C6); an absent one is off.
+      gradient:
+        (object(raw.gradient) as unknown as Background["gradient"] | null) ??
+        optional.gradient,
+      tile:
+        tile && tileImage
+          ? {
+              ...(tile as unknown as Omit<Background["tile"], "image">),
+              image: tileImage,
+            }
+          : optional.tile,
+      screen:
+        (object(raw.screen) as unknown as Background["screen"] | null) ??
+        optional.screen,
+      scatters: Array.isArray(raw.scatters)
+        ? raw.scatters.map((value, index) => {
+            const layer = object(value);
+            if (!layer || !Array.isArray(layer.items))
+              throw new WordedError(
+                t("scene.open.scatterInvalid", { index: index + 1 }),
+              );
+            return {
+              ...(layer as unknown as Background["scatters"][number]),
+              items: layer.items.map((item, itemIndex) =>
+                hydrateMarqueeItem(item, itemIndex, args.images),
+              ),
+            };
+          })
+        : optional.scatters,
+      flash:
+        (object(raw.flash) as unknown as Background["flash"] | null) ??
+        optional.flash,
     };
   } else {
     const target = object(raw.target);
@@ -646,32 +985,31 @@ function hydrateMarqueeItem(
     throw new WordedError(
       t("scene.open.itemUnsupported", { index: index + 1 }),
     );
+  // A Twemoji item, kept so the creator can show it as missing.
   return {
     id: String(item.id),
     kind: "emoji",
     label: String(item.label),
     emoji: String(item.emoji),
-    provider: "twemoji",
   };
 }
 
 function definitionItem(
   item: SceneEffectEditorMarqueeItem,
 ): Record<string, unknown> {
-  return item.kind === "image"
-    ? {
-        id: item.id,
-        kind: "image",
-        label: item.label,
-        image: item.image.logicalName,
-      }
-    : {
-        id: item.id,
-        kind: "emoji",
-        label: item.label,
-        emoji: item.emoji,
-        provider: "twemoji",
-      };
+  if (item.kind === "image")
+    return {
+      id: item.id,
+      kind: "image",
+      label: item.label,
+      image: item.image.logicalName,
+    };
+  // A legacy Twemoji item stays in the definition (the runtime skips it) and
+  // blocks Save until it is replaced; any other kind is a forged document.
+  if (item.kind === "emoji")
+    return { id: item.id, kind: "emoji", label: item.label, emoji: item.emoji };
+  const t = getI18n().getFixedT(null, "effects");
+  throw new WordedError(t("scene.open.itemKindUnsupported"));
 }
 
 function issue(
@@ -680,27 +1018,6 @@ function issue(
   message: string,
 ) {
   issues.push({ field, severity: "error", message });
-}
-
-function bounded(
-  issues: SceneEffectValidationIssue[],
-  field: string,
-  value: number,
-  minimum: number,
-  maximum: number,
-  integer = false,
-) {
-  if (
-    !Number.isFinite(value) ||
-    value < minimum ||
-    value > maximum ||
-    (integer && !Number.isInteger(value))
-  )
-    issue(
-      issues,
-      field,
-      boundsMessage(sceneEffectFieldLabel(field), minimum, maximum, integer),
-    );
 }
 
 function boundsMessage(
@@ -713,6 +1030,40 @@ function boundsMessage(
   return integer
     ? t("scene.validation.boundsWhole", { setting, min, max })
     : t("scene.validation.bounds", { setting, min, max });
+}
+
+/** A definition limit issue (`sceneDefinitionLimitIssues`) in the UI Locale. */
+function sceneLimitMessage({ field, problem }: SceneLimitIssue): string {
+  const t = getI18n().getFixedT(null, "effects");
+  const setting = sceneEffectFieldLabel(field);
+  switch (problem.kind) {
+    case "range":
+      return boundsMessage(
+        setting,
+        problem.minimum,
+        problem.maximum,
+        problem.integer,
+      );
+    case "order":
+      return t("scene.validation.minAboveMax", { setting });
+    case "ascending":
+      return t("scene.validation.stopsAscending");
+    case "count":
+      return problem.minimum > 0
+        ? t("scene.validation.countRange", {
+            setting,
+            min: problem.minimum,
+            max: problem.maximum,
+          })
+        : t("scene.validation.countAtMost", { setting, max: problem.maximum });
+    case "total":
+      return t("scene.validation.scatterTotal", { max: problem.maximum });
+    case "legacyEmoji":
+      // The label is the stored item name, shown as it was saved.
+      return problem.label
+        ? t("scene.validation.legacyEmoji", { label: problem.label })
+        : t("scene.validation.legacyEmojiUnnamed");
+  }
 }
 
 function isExactContentSource(value: unknown): value is PyExactContentSource {

@@ -27,6 +27,10 @@ PRE_SEND_COMPACTION_TRIGGER_RATIO = 0.9
 # Post-response compaction starts earlier, so small windows usually compact
 # after a reply instead of delaying the next turn.
 POST_RESPONSE_COMPACTION_TRIGGER_RATIO = 0.75
+# App compaction rewrites the summary that heads the cached history, so it
+# waits until 70% of the context window (ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS
+# caps it, 90,000 by default).
+POST_RESPONSE_COMPACTION_WINDOW_RATIO = 0.7
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,7 +50,17 @@ class ContextBudget:
 
     @property
     def post_response_trigger_tokens(self) -> int:
-        return int(self.available_tokens * POST_RESPONSE_COMPACTION_TRIGGER_RATIO)
+        """Return the context size at which compaction runs after a reply.
+
+        The trigger is 70% of the window. Where the reply reserve is large, 75%
+        of what remains after it is lower and wins, so compaction still runs
+        after a reply before the pre-send trigger would delay the next turn.
+        """
+
+        return min(
+            int(self.context_window_tokens * POST_RESPONSE_COMPACTION_WINDOW_RATIO),
+            int(self.available_tokens * POST_RESPONSE_COMPACTION_TRIGGER_RATIO),
+        )
 
 
 def context_budget_for_model(model_provider: ModelProvider) -> ContextBudget | None:
@@ -100,6 +114,7 @@ def _json_default(value: Any) -> Any:
 
 __all__ = [
     "POST_RESPONSE_COMPACTION_TRIGGER_RATIO",
+    "POST_RESPONSE_COMPACTION_WINDOW_RATIO",
     "PRE_SEND_COMPACTION_TRIGGER_RATIO",
     "ContextBudget",
     "context_budget_for_model",
