@@ -90,8 +90,8 @@ and this plan does not edit it.
 - [ ] Phase 1: local measurement and Q1 recommendation (not started).
 - [x] Phase 2: suite selection, the `selective` profile and the gate. Review passed after one repair round (#483).
 - [ ] Phase 3: concurrent browser groups and run summary (not started).
-- [ ] Phase 4: baseline set reuse (not started).
-- [ ] Phase 5: reused receipt names the PR set (not started).
+- [x] Phase 4: baseline set reuse. Review passed after one repair round (#485).
+- [x] Phase 5: the reused receipt names the PR set. Review passed after one repair round (#486).
 - [ ] Phase 6 (only if the owner chooses a Q1 option): backend-suite lever (not
   started).
 - [ ] Phase 7: documentation and final integration review (not started).
@@ -401,6 +401,79 @@ Requirements: R7, R9. Changes:
   local pair, built locally with `build.py build` at two recent `main` commits.
 
 **Completion:** the tests pass, and the local equivalence check passes.
+
+#### Phase 4 implementation notes
+
+- `scripts/ci/baseline_set.py` runs inside the existing `package-compat` step,
+  with the read-only token. The baseline checkout still runs, because the
+  fallback needs it.
+- The retained set is used only when its producer recipe matches the
+  candidate's, ignoring `contracts/*`.
+- Until a `main` run records a schema-3 receipt (the first is H3, after merge),
+  no baseline can qualify. Older receipts use schema 2 and are refused, so runs
+  before then rebuild as today.
+
+#### Code Review #1 Findings (Phases 4 and 5, one review)
+
+The reviewed source was the uncommitted tree on `5f7e5593`. Checks: unittest
+123 OK, ruff clean, YAML parses. The reviewer also confirmed by reading
+upload-artifact `ea165f8d` that `artifact-digest` is 64 hex characters with no
+prefix.
+
+- **P5-F1 (blocking):** `promotion_suites` was a constant. The contract
+  promises the PR run's outcomes.
+- **Optional:**
+  - **P5-F2:** add a test for an old-schema `validation.json`.
+  - **P5-F3:** validate the artifact ID before fetching it.
+  - **P5-F4:** fail cleanly on a malformed baseline record.
+  - **P4-F1:** delete the ZIP on failure, and bound its expanded size.
+  - **P4-F2:** write the record before a rebuild.
+  - **P4-F3:** move on to the next candidate run after a transport error.
+  - **P4-F4:** toolchain fields remain a difference from today's rebuild, but
+    `compare` does not read them.
+  - **P4-F5:** the step name is stale.
+- **Verified as correct:** equivalence with today's rebuild, refusal of
+  selective and old-schema runs, the binding fields, token handling, ZIP
+  safety and job mechanics.
+
+#### Code Review #1 Revisions
+
+- **P5-F1, accepted:** the gate records `promotion_suites` as a map from step
+  to outcome. Reuse requires every step to be `success`, both in that map and
+  in the PR receipt's `steps`, and `bound_evidence` re-checks the map. Tests
+  were added.
+- **Accepted:**
+  - P5-F2: the `old_schema` case now sets the receipt's schema to 2.
+  - P5-F3: the artifact ID is checked before the fetch.
+  - P5-F4: a malformed record fails the gate, and the receipt is still
+    written. Tested.
+  - P4-F1: the ZIP is deleted in `finally`, with an expanded-size bound.
+  - P4-F2: the record is written before the rebuild.
+  - P4-F3: any exception moves on to the next candidate run.
+  - P4-F5: the step is renamed.
+- **P4-F4, rejected:** no change. `compare` does not read the toolchain fields.
+- Checks after the revisions: unittest 123 OK, ruff clean. Repair round 1 of 2
+  used.
+
+#### Code Review #2 Findings (Phases 4 and 5)
+
+This was a targeted recheck (repair round 1). All eight revisions are
+resolved, with no regressions, and the spec row matches. Unittest 123 OK,
+ruff clean. Optional notes:
+
+- There are no direct tests for the ZIP deletion, the size bound or the
+  next-run fallback.
+- A record that parses but is not a JSON object is dropped without failing the
+  gate.
+- `git rev-parse` runs before the record exists.
+
+Result: pass.
+
+#### Code Review #2 Revisions
+
+None required. The optional notes are low risk: our own script writes the
+record, and every case falls back to a rebuild or full validation. The Phase 4
+and 5 reviews are complete after one repair round.
 
 ### Phase 5: The reused receipt names the PR set
 

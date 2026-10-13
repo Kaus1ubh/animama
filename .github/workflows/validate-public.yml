@@ -359,17 +359,15 @@ jobs:
           fetch-depth: 1
           lfs: true
           persist-credentials: false
-      - name: Compare the candidate against its independently built exact baseline
+      - name: Compare the candidate against its exact baseline's retained or rebuilt set
         id: package-compat
         if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode) && steps.select.outputs.promotion == 'true'
         env:
           BASE_COMMIT: ${{ steps.select.outputs.baseline }}
+          CI_READ_TOKEN: ${{ github.token }}
         run: |
-          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" package-compat -- bash -e -o pipefail -c '
-          uv run --no-sync python scripts/package-sets/build.py models --source "$GITHUB_WORKSPACE/.compatibility-base"
-          uv run --no-sync python scripts/package-sets/build.py build --source "$GITHUB_WORKSPACE/.compatibility-base" --commit "$BASE_COMMIT" --output "$RUNNER_TEMP/base-artifacts"
-          uv run --no-sync python scripts/package-sets/build.py compare "$RUNNER_TEMP/base-artifacts" "$RUNNER_TEMP/public-artifacts"
-          '
+          # Compare against the baseline's retained validated set when it verifies; otherwise rebuild it.
+          python3 "$GITHUB_WORKSPACE/scripts/ci/check.py" package-compat -- uv run --no-sync python scripts/ci/baseline_set.py --baseline "$BASE_COMMIT" --checkout "$GITHUB_WORKSPACE/.compatibility-base" --candidate "$RUNNER_TEMP/public-artifacts" --work "$RUNNER_TEMP" --record "$RUNNER_TEMP/baseline-set.json"
       - name: Retain unpublished validated package outputs
         id: package-artifacts
         if: contains(fromJSON('["full","selective"]'), steps.select.outputs.mode) && steps.select.outputs.promotion == 'true'
@@ -386,6 +384,8 @@ jobs:
           CI_STEPS: ${{ toJSON(steps) }}
           CI_PLAN_PATH: ${{ runner.temp }}/selection.json
           CI_RESULTS_DIR: ${{ runner.temp }}/checks
+          CI_PACKAGE_SET_DIR: ${{ runner.temp }}/public-artifacts
+          CI_BASELINE_RECORD: ${{ runner.temp }}/baseline-set.json
         run: python3 scripts/ci/validation.py gate --output "$RUNNER_TEMP/validation.json"
       - name: Retain success and failure diagnostics
         id: diagnostics
