@@ -324,6 +324,30 @@ const NUMBER = String.raw`\d+(?:\.\d+)?`;
 /** A number with optional thousands separators and decimals: 10,000 or 15.5. */
 const AMOUNT = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d+)?|\d+(?:\.\d+)?`;
 
+/** Words that make "30s" a duration wherever they stand beside it. */
+const SECONDS_BEFORE = /\b(rest|wait|hold|within|takes|took|lasts)\s+$/i;
+const SECONDS_AFTER = /^\s+(between|rest|left|each|later|remaining|per)\b/i;
+/** "on" and "off" make a duration only at the end of a phrase: "20s on, 10s off". */
+const SECONDS_ON_OFF = /^\s+(on|off)\s*([^\w\s]|$)/i;
+/**
+ * Words that introduce a decade as often as a duration ("for 90s anime", "for
+ * 30s."): a duration only when the phrase ends after the number or a duration
+ * word follows it.
+ */
+const SECONDS_MAYBE_BEFORE = /\b(for|in|every|after|another)\s+$/i;
+/**
+ * The end of a phrase: the end of the text or punctuation, but not a hyphen,
+ * dash or slash that joins a word ("90s-era", "80s/90s").
+ */
+const PHRASE_END = /^\s*(?:$|(?![-–/][\p{L}\p{N}])[^\p{L}\p{N}\s'_])/u;
+
+/** Whether "<number>s" between `before` and `after` reads as seconds. */
+function secondsCue(before: string, after: string): boolean {
+  const cuedAfter = SECONDS_AFTER.test(after) || SECONDS_ON_OFF.test(after);
+  if (SECONDS_BEFORE.test(before) || cuedAfter) return true;
+  return SECONDS_MAYBE_BEFORE.test(before) && PHRASE_END.test(after);
+}
+
 /** Rules for text starting at a digit or symbol, in priority order; the first that reads its match wins. */
 const RULES: Array<[RegExp, Spell]> = [
   // ISO dates: 2026-10-13.
@@ -355,11 +379,17 @@ const RULES: Array<[RegExp, Spell]> = [
   // reads each price in full.
   [
     new RegExp(
-      String.raw`([$€£¥])(${AMOUNT})\s?[-–]\s?[$€£¥]?(${AMOUNT})(?![\d.,]*\d)`,
+      String.raw`([$€£¥])(${AMOUNT})\s?[-–]\s?[$€£¥]?(${AMOUNT})(?:(bn|[kKmMbB])|\s(thousand|million|billion|trillion))?(?![\d.,]*\d)(?![A-Za-z])`,
       "y",
     ),
     (m) => {
       const symbol = m[1]!;
+      // "$1-2 million" and "$5-$10k" share one magnitude.
+      const magnitude = m[4] ?? m[5];
+      if (magnitude) {
+        const scale = MAGNITUDES[magnitude] ?? magnitude.toLowerCase();
+        return `${amountToWords(m[2]!)} to ${amountToWords(m[3]!)} ${scale} ${CURRENCIES[symbol]!.many}`;
+      }
       if (m[2]!.includes(".") || m[3]!.includes(".")) {
         return `${currencyToWords(symbol, m[2]!, undefined)} to ${currencyToWords(symbol, m[3]!, undefined)}`;
       }
@@ -496,7 +526,21 @@ const RULES: Array<[RegExp, Spell]> = [
     /(?<![\d'])(1[1-9]|20)(\d)0s\b/y,
     (m) => pluralWords(yearToWords(Number(`${m[1]}${m[2]}0`))),
   ],
-  [/(?<![\d])'?([2-9])0s\b/y, (m) => pluralWords(TENS[Number(m[1])]!)],
+  // "80s" is a decade ("80s music", "in your 30s") and "45s" is left as written,
+  // unless a duration word sits beside it: "rest 60s", "wait 10s", "20s left".
+  [
+    /(?<!\d)'?(\d{1,3})s\b/y,
+    (m, source) => {
+      const value = Number(m[1]);
+      const decade = /^[2-9]0$/.test(m[1]!);
+      const after = source.slice(m.index + m[0].length);
+      const seconds =
+        !m[0].startsWith("'") && secondsCue(source.slice(0, m.index), after);
+      if (seconds)
+        return `${numberToWords(value)} ${value === 1 ? "second" : "seconds"}`;
+      return decade ? pluralWords(TENS[value / 10]!) : null;
+    },
+  ],
   // Years: 1900 to 2099 standing alone, or an older year after "in", "since"
   // and the like. "1250 yen" stays a number.
   [

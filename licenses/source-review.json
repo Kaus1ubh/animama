@@ -7459,6 +7459,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "scripts/lipsync/build_english_dictionary.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "scripts/lipsync/clips.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -10676,6 +10683,21 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/desktop/runtime/notices/cmudict-bsd-2-clause.txt",
+      "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
+      "basis": "License or notice document; do not relabel its underlying third-party terms",
+      "copyright": "Respective upstream holders identified in the preserved document",
+      "source": "Document text and adjacent source mappings",
+      "revision": "Reviewed source document bytes",
+      "evidence": [
+        "src/frontend/desktop/runtime/notices/cmudict-bsd-2-clause.txt"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/cmudict-bsd-2-clause.txt"
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/desktop/runtime/notices/fft-js-mit.txt",
       "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
       "basis": "License or notice document; do not relabel its underlying third-party terms",
@@ -10837,6 +10859,21 @@
       ],
       "notices": [
         "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt"
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/desktop/runtime/notices/scowl-copyright.txt",
+      "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
+      "basis": "License or notice document; do not relabel its underlying third-party terms",
+      "copyright": "Respective upstream holders identified in the preserved document",
+      "source": "Document text and adjacent source mappings",
+      "revision": "Reviewed source document bytes",
+      "evidence": [
+        "src/frontend/desktop/runtime/notices/scowl-copyright.txt"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/scowl-copyright.txt"
       ],
       "review": "prepared-not-release-approved"
     },
@@ -16719,6 +16756,39 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/lib/lipsync/text/english-dictionary.data.ts",
+      "candidate_license": "BSD-2-Clause (CMUdict) and the SCOWL permission notice; generated reduction",
+      "basis": "Retained third-party code/model review: english-lipsync-dictionary",
+      "source": "https://github.com/cmusphinx/cmudict; SCOWL 2020.12.07",
+      "revision": "cmudict 74790861f652b15e4ac49015a90074ad62a27690; SCOWL 2020.12.07",
+      "copyright": "Carnegie Mellon University 1993-2015; Kevin Atkinson 2000-2018 and the sources SCOWL names",
+      "evidence": [
+        "licenses/third-party/code-and-models.json"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/cmudict-bsd-2-clause.txt",
+        "src/frontend/desktop/runtime/notices/scowl-copyright.txt"
+      ],
+      "conditions": [
+        "Preserve the CMUdict and SCOWL notices in bundled web/desktop output and source; final candidate acceptance remains separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/english-dictionary.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/english-dictionary.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/lib/lipsync/text/spell-out-english.test.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -21487,6 +21557,17 @@
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/english-gruut-reference.json",
+      "candidate_license": "SCOWL permission notice (word list); AGPL-3.0-only (repository test lines and vowel codes)",
+      "basis": "Test data, not shipped: gruut 2.4.0 (MIT) vowel readings of SCOWL-listed words and of the repository's own test lines",
+      "source": "SCOWL 2020.12.07",
+      "copyright": "Kevin Atkinson 2000-2018 and the sources SCOWL names (word list); 2026 Raymond Van (test lines and codes)",
+      "notices": [
+        "src/frontend/desktop/runtime/notices/scowl-copyright.txt"
+      ],
       "review": "prepared-not-release-approved"
     },
     {

@@ -192,6 +192,57 @@ describe("spellOutEnglish", () => {
     ],
     ["On 3/16 we met, due 5/8.", "On March sixteenth we met, due May eighth."],
     ["Dr. King Jr. Day", "Doctor King Junior Day"],
+    ["Rest 60s between sets.", "Rest sixty seconds between sets."],
+    [
+      "Wait 30s, then go. 20s left!",
+      "Wait thirty seconds, then go. twenty seconds left!",
+    ],
+    ["I love 80s music.", "I love eighties music."],
+    ["90s kids remember this.", "nineties kids remember this."],
+    ["It was very 80s.", "It was very eighties."],
+    ["Classic 60s rock.", "Classic sixties rock."],
+    ["80s and 90s fans.", "eighties and nineties fans."],
+    [
+      "I have a soft spot for 90s anime.",
+      "I have a soft spot for nineties anime.",
+    ],
+    ["Every 90s kid remembers this.", "Every nineties kid remembers this."],
+    ["Another 80s classic!", "Another eighties classic!"],
+    [
+      "Like in 90s anime, dressed in 80s style.",
+      "Like in nineties anime, dressed in eighties style.",
+    ],
+    ["The 90s on MTV were great.", "The nineties on MTV were great."],
+    ["I've had 80s on repeat all day.", "I've had eighties on repeat all day."],
+    [
+      "Hold for 30s. Back in 30s!",
+      "Hold for thirty seconds. Back in thirty seconds!",
+    ],
+    ["Plank for 30s each side.", "Plank for thirty seconds each side."],
+    ["Do 20s on, 10s off.", "Do twenty seconds on, ten seconds off."],
+    [
+      "Rest 45s, then wait 1s.",
+      "Rest forty-five seconds, then wait one second.",
+    ],
+    ["Like in 90s-era anime.", "Like in nineties-era anime."],
+    [
+      "I'm a sucker for 80s/90s anime.",
+      "I'm a sucker for eighties/nineties anime.",
+    ],
+    ["Hold for 30s—then switch.", "Hold for thirty seconds—then switch."],
+    [
+      "Hmm...90s? Wait...30s left.",
+      "Hmm...nineties? Wait...thirty seconds left.",
+    ],
+    [
+      "In your 20s and the early 90s.",
+      "In your twenties and the early nineties.",
+    ],
+    ["It raised $1-2 million.", "It raised one to two million dollars."],
+    [
+      "Budgets of $5-$10k each.",
+      "Budgets of five to ten thousand dollars each.",
+    ],
   ])("reads %j", (text, spoken) => {
     expect(spellOutEnglish(text)).toBe(spoken);
   });

@@ -18,12 +18,12 @@
 import { spellOutEnglishSegments } from "./spell-out-english";
 import {
   chineseUnits,
-  englishLetterUnits,
   hangulUnits,
   kanaUnits,
   latinUnits,
   unknownHanUnits,
 } from "./converters";
+import { englishWordUnits } from "./english-dictionary";
 import { pausePriorSec, splitTags, TAG_PRIOR_SEC } from "./tags";
 import type { LipSyncUnit } from "./units";
 
@@ -38,7 +38,10 @@ export type EnglishPronouncer = (
 export type TextUnitOptions = {
   /** How to read Han characters; see `detectHanLanguage`. */
   hanLanguage: "ja" | "zh";
-  /** English pronunciation; spelling rules when absent. */
+  /**
+   * English pronunciation. Defaults to the dictionary once
+   * `loadEnglishDictionary` has run, with spelling rules for other words.
+   */
   english?: EnglishPronouncer;
 };
 
@@ -83,7 +86,7 @@ export function textToUnits(
   options: TextUnitOptions,
 ): LipSyncUnit[] {
   const units: LipSyncUnit[] = [];
-  const english = options.english ?? englishLetterUnits;
+  const english = options.english ?? englishWordUnits;
   let word = -1;
   let whisper = false;
   // Whether the next CJK character continues the current word.

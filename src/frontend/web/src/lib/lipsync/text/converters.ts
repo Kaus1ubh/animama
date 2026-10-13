@@ -14,9 +14,9 @@ import type { LipSyncUnit } from "./units";
 type Emit = (unit: LipSyncUnit) => void;
 
 /** Relative lengths, in syllables. */
-const CLOSURE_ONSET = 0.25;
-const CLOSURE_CODA = 0.35;
-const NASAL_CODA = 0.25;
+export const CLOSURE_ONSET = 0.25;
+export const CLOSURE_CODA = 0.35;
+export const NASAL_CODA = 0.25;
 /** An average kanji is about one and a half morae. */
 const KANJI_WEIGHT = 1.6;
 

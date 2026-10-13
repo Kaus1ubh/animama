@@ -56,3 +56,22 @@ only: it is never shipped, and tests never run it. Japanese is romanised from
 The committed reference timings derive from that aligner. Their redistribution
 in a public source candidate is a pending rights question, recorded in
 `licenses/source-review.json`.
+
+## English pronunciation data
+
+`src/frontend/web/src/lib/lipsync/text/english-dictionary.data.ts` is generated from
+CMUdict and SCOWL by `build_english_dictionary.py`; lip-sync loads it on first use
+(`loadEnglishDictionary`). To rebuild it, download CMUdict's `cmudict.dict` at the
+pinned commit and SCOWL 2020.12.07 into a folder of their own (the script checks
+CMUdict's SHA-256 and SCOWL's `VERSION`), then:
+
+```bash
+python3 scripts/lipsync/build_english_dictionary.py "$DOWNLOADS/cmudict.dict" "$DOWNLOADS/scowl-2020.12.07"
+```
+
+Update the file's SHA-256 in `licenses/third-party/code-and-models.json` afterwards.
+`english-gruut-reference.json` in the tests records how gruut read SCOWL's most
+common words, so the dictionary's agreement with gruut is still checked after gruut
+is removed. It was made with
+`uv run python scripts/lipsync/build_english_dictionary.py --gruut-reference "$DOWNLOADS/scowl-2020.12.07"`
+while gruut was a backend dependency.

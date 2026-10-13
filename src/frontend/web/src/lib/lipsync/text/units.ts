@@ -55,6 +55,8 @@ export type LipSyncUnit = {
   word?: number;
   /** A primary-stressed syllable, when the text says so (English). */
   stressed?: boolean;
+  /** A weak, unstressed vowel such as the schwa in "about": short and small. */
+  weak?: boolean;
   /** Spoken in a whisper: narrower shapes. */
   whisper?: boolean;
   /** For tags: what kind, and the tag as written, such as `[laughs]`. */

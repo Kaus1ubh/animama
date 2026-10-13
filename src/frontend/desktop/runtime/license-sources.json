@@ -134,6 +134,14 @@
         "whisper-extractor-attribution.txt"
       ],
       "review": "pending"
+    },
+    {
+      "id": "english-lipsync-dictionary",
+      "name": "English lip-sync pronunciation data from CMUdict and SCOWL",
+      "license": "BSD-2-Clause and the SCOWL permission notice",
+      "source": "CMUdict 74790861f652b15e4ac49015a90074ad62a27690 and SCOWL 2020.12.07, reduced by scripts/lipsync/build_english_dictionary.py. Source mapping: licenses/third-party/code-and-models.json",
+      "notice_files": ["cmudict-bsd-2-clause.txt", "scowl-copyright.txt"],
+      "review": "pending"
     }
   ]
 }

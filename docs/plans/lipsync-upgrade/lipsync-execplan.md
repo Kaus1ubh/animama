@@ -91,7 +91,9 @@ prototypes.
   passed after one repair round.
 - [x] Phase 2 (#514): text units, tags and spelled-out numbers (R2, R3, R12 for
   Pocket). Review passed after two repair rounds.
-- [ ] Phase 3 (#515): English pronunciation source (R11, D5).
+- [ ] Phase 3 (#515): English pronunciation source (R11, D5). Committed locally;
+  the owner allowed an extra repair round for P3-F14 and P3-F15, awaiting its
+  recheck.
 - [ ] Phase 4 (#516): aligner, renderer and beats, scored offline (R1, R3, R4, R6,
   R7).
 - [ ] Phase 5 (#517): in the app, including the debug comparison (R1, R3, R6–R9).
@@ -176,6 +178,18 @@ From planning, 2026-10-13 (code reading of `main` at `b10ee432`):
   200 KB gzip covers lip-sync code and the English dictionary, and the Chinese
   pinyin table loads on first use, outside it. Phase 3 reports the measured size
   before the English source merges. The owner can change D5 at plan review.
+- **2026-10-13 — agent, awaiting owner confirmation (Phase 3 review P3-F2):** R11's
+  "vowel shapes agree with gruut's for at least 90% of words" is measured with
+  unstressed weak vowels (ə, ɪ, ɚ in gruut; AH0, IH0, ER0 in CMUdict) as one
+  class: 91.7%. The two sources reduce vowels differently, and both draw a short,
+  small mouth.
+  - **Other measures:** syllable count 99.1%; shapes as shown, with each weak vowel
+    as its own small vowel, 85.6% (tested at 85% or more); exact 82.9%.
+  - **Before the review,** every weak vowel was drawn as a small E, so the shapes
+    as shown agreed only 64.6%. IH0 now draws a small I.
+  - **If the owner reads R11 strictly** (shapes as shown at 90%), the dictionary
+    alone cannot reach it: most of the rest are CMUdict and gruut differing on
+    dialect and weak forms, not errors.
 - **2026-10-13 — agent proposals (for plan review):**
   - **P1, evaluation data:**
     - fixtures hold derived features (10 ms loudness, voicing and pitch; phone
@@ -768,15 +782,242 @@ Checks:
 Completion: agreement at least 90%; size within D5 or an owner decision recorded;
 review passes.
 
-Results: —
+Results (2026-10-13, starting source `9993ef5a`):
+
+- **Spike** (sources fetched into an isolated folder, never executed):
+
+  | Candidate | Words | Size, gzip | Missed words in sample chat replies |
+  | --- | --: | --: | --: |
+  | CMUdict ∩ SCOWL size 10 | 4,200 | 15 KB | 13% |
+  | CMUdict ∩ SCOWL size 20 | 11,375 | 41 KB | 6% |
+  | CMUdict ∩ SCOWL size 35 | 34,298 | 121 KB | 2% |
+  | **size 35, capitals to 50, contractions (chosen)** | 40,108 | 149 KB | 1% |
+  | CMUdict ∩ SCOWL size 50 | 49,778 | 189 KB | 0.4% |
+
+  - **What the sample was:** 30 typical companion replies, written for the spike
+    and not committed, so the missed-words column is indicative only.
+  - **Frequency ranking:** SCOWL's size levels serve as the ranking, so no separate
+    frequency list (and its licence) is needed.
+  - **Not built:**
+    - an exceptions-only dictionary, because the full subset already fits the
+      budget;
+    - a learned letter-to-sound model.
+- **Licences:**
+  - CMUdict at `74790861` is BSD-2-Clause;
+  - SCOWL 2020.12.07 carries Kevin Atkinson's permissive notice and its
+    public-domain sources.
+  - Both notices are now in `src/frontend/desktop/runtime/notices/`, with entries
+    in `licenses/third-party/code-and-models.{md,json}`,
+    `src/frontend/desktop/runtime/license-sources.json` and the source review.
+- **Built:**
+  - `scripts/lipsync/build_english_dictionary.py`. It checks CMUdict's SHA-256 and
+    encodes each word's vowel shapes, primary stress, weak vowels, long vowels and
+    lip closures in front-coded lines.
+    It also checks SCOWL's `VERSION`.
+  - The generated `english-dictionary.data.ts`: 434,449 bytes on disk (a 384 KB
+    encoded body); 149 KB gzip once minified.
+  - `english-dictionary.ts`:
+    - lazy load and decode, retried after a failed load;
+    - possessives and words with a trailing apostrophe through their stem, adding
+      a weak syllable after a hissing sound ("box's");
+    - letter names for capitalised abbreviations of two to four letters that the
+      dictionary lacks ("P M", "TV");
+    - spelling rules otherwise, and for every word until the dictionary loads.
+  - The default English pronouncer in `textToUnits` is now the dictionary, once
+    loaded.
+  - Units gain `weak` for unstressed weak vowels: a small E for AH0 and ER0, a
+    small I for IH0.
+- **Agreement with gruut**, recorded first in `tests/lipsync/english-gruut-reference.json`
+  from gruut 2.4.0 on SCOWL's 4,408 most common words plus the test lines' words
+  (4,436 in all), after review revisions:
+
+  | Measure | Agreement |
+  | --- | --: |
+  | Syllable count | 99.1% |
+  | Vowel shapes, weak vowels as one class (the test's 90% measure) | 91.7% |
+  | Vowel shapes as shown (a weak vowel as its own small vowel; tested at 85%) | 85.6% |
+  | Exact, weak classes included | 82.9% |
+
+  - By source, weak vowels as one class: 92.3% of the 4,197 dictionary words; 84.8%
+    of the 223 words read through a stem (possessives); 31% of the 16 words left to
+    spelling rules (such as "haha", "hmm", "inputted").
+  - **Why weak vowels form one class:** the two sources reduce vowels differently
+    ("added" is AH0 in CMUdict and ɪ in gruut), and both render as a short, small
+    mouth. This reading of R11's "vowel shapes agree" awaits owner confirmation
+    (Decision Log).
+  - **Remaining differences** are dialect choices ("caught" with ɑ or ɔ) and weak
+    forms ("and", "can").
+- **Size against D5:** measured with esbuild 0.27.7 (`text-units.ts` and
+  `pocket-speech-text.ts` as entries, `--bundle --splitting --format=esm --minify`,
+  `pinyin-pro` external, gzip -9) because nothing in the app imports the code yet,
+  so `pnpm build` cannot show it: the dictionary chunk is 149.3 KB and the Phase
+  2–3 text code 8.4 KB, about 158 KB in all. That
+  leaves about 42 KB for Phases 4–6. The build size is measured in Phase 5.
+- **Deferred from Phase 2, done here:**
+  - "Rest 60s" and "20s left" read as seconds beside a duration word; otherwise a
+    bare "80s" is a decade ("80s music", "your 20s", "for 90s anime");
+  - currency ranges keep their magnitude ("$1-2 million", "$5-$10k").
+- **Harness scores for English** wait for the planner in Phase 4; the English
+  source has no consumer before then.
+
+Checks:
+
+- `npx vitest run src/lib/lipsync`: 152 passed, including the agreement test;
+- `pnpm check`: passed;
+- ESLint, Prettier, and Ruff on `scripts/lipsync/`: passed;
+- `pnpm desktop:test`, which covers the notice inventory: 27 files, 509 passed, 14
+  skipped.
+
+
 
 #### Code Review #1 Findings
 
-—
+Independent review (sdlc-reviewer) of the uncommitted Phase 3 tree on `9993ef5a`.
+Phase 4 files appeared during the review; the findings cover the Phase 3 files
+only, which had not changed. Required:
+
+- **P3-F1:** the new decade rule read "I love 80s music" as "eighty seconds music",
+  a regression on Pocket's live path. Decades should be the default, and seconds
+  read only beside a duration word.
+- **P3-F2:** 90% agreement holds only with weak vowels as one class, an agent
+  reading of R11 that needs owner confirmation. Every weak vowel was drawn as a
+  small E (shapes as shown agreed 64.6%); IH0 could keep its own weak-I code.
+- **P3-F3:** the recorded figures were wrong:
+  - only 16 words reach spelling rules (223 of the "239" are possessives read
+    through a stem);
+  - "384 KB" is the decoded body, while the file is 434,449 bytes.
+- **P3-F4:** `pnpm web:lint`, `pnpm web:test` and `pnpm build` were not run on the
+  exact Phase 3 source, and the size check needs an equivalent measurement since
+  nothing imports the code yet.
+
+Optional:
+
+- P3-F5: the single-letter clause in the abbreviation rule was dead code, and
+  all-caps words read letter by letter before the dictionary loaded.
+- P3-F6: possessives of hissing stems lost their extra syllable.
+- P3-F7: words with a trailing apostrophe missed the dictionary.
+- P3-F8: a failed dictionary load was never retried.
+- P3-F9: closure and nasal weights were duplicated, and onsets used the coda weight.
+- P3-F10: the generator lacked a SCOWL version check and argument errors, and
+  hard-coded gruut's version.
+- P3-F11: the gruut reference's licence entry omitted SCOWL.
+- P3-F12: wording ("the worker loads it", "contractions", the uncommitted spike
+  sample).
 
 #### Code Review #1 Revisions
 
-—
+- **P3-F1 accepted:** a bare "80s" is a decade unless a duration word is beside it
+  (before: rest, wait, hold, for, every, in, within, after, another, takes, took,
+  lasts; after: between, rest, left, each, later, remaining, per, on, off). The
+  reviewer's five phrases and "Wait 30s… 20s left" are now tests.
+- **P3-F2 accepted, with the optional fix:**
+  - IH0 is now `y`, a small I; AH0 and ER0 stay `w`, a small E;
+  - the gruut reference was re-recorded with the same split;
+  - the test asserts at least 90% with weak vowels as one class, and at least 85%
+    for shapes as shown (now 85.6%);
+  - the reading of R11 is recorded in the Decision Log for owner confirmation.
+- **P3-F3 accepted:** Results now give the corrected breakdown and sizes.
+- **P3-F4 accepted:** the checks below ran on the exact Phase 3 source, with the
+  Phase 4 work set aside. The size was measured with esbuild (Results).
+- **P3-F5–F11 accepted:**
+  - letter names apply only to two- to four-letter capitals the loaded dictionary
+    lacks;
+  - hissing stems add a weak I ("box's");
+  - one trailing apostrophe is ignored when looking a word up;
+  - a failed load resets so the next call retries;
+  - weights come from `converters.ts`, onsets included;
+  - the generator verifies SCOWL's `VERSION`, parses its arguments and records
+    the installed gruut version;
+  - the reference's licence entry names SCOWL and its notice.
+- **P3-F12 accepted:** README, generator and licence wording corrected; the spike
+  sample is marked indicative.
+- **Checks on the revised Phase 3 source** (`9993ef5a` plus the Phase 3 files, with
+  the Phase 4 work set aside):
+  - Ruff check and format check on `scripts/lipsync/`: passed;
+  - `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`: passed;
+  - `pnpm web:test`: 492 vitest files, 4,502 passed and 1 skipped; node tests 220
+    passed;
+  - `pnpm build`: passed (the dictionary is not yet imported by the app);
+  - `pnpm desktop:test`: 27 files, 509 passed and 14 skipped.
+
+#### Code Review #2 Findings
+
+Targeted recheck of `2d210094` against `9993ef5a`. P3-F2 to P3-F12 are fixed, and
+every recorded figure reproduces (the dictionary and gruut reference regenerate
+byte for byte). Required:
+
+- **P3-F13:** the decade fix still read some decades as seconds, because "for",
+  "in", "every", "another", "on" and "off" introduce decades as often as
+  durations ("a soft spot for 90s anime", "80s on repeat").
+
+Optional, not adopted in this round:
+
+- all-caps interjections that the dictionary lacks ("HAHA", "YAY") are spelled
+  letter by letter;
+- the load retry and the path before the dictionary loads have no test;
+- "ch" read as /k/ ("stomach's") gains a syllable.
+
+The reviewer also noted that gruut's own possessive readings are unreliable, so the
+84.8% stem figure understates the dictionary. The esbuild entry set is now recorded
+in Results.
+
+#### Code Review #2 Revisions
+
+- **P3-F13 accepted:**
+  - firm duration words make seconds anywhere beside the number: rest, wait,
+    hold, within, takes, took and lasts before it; between, rest, left, each,
+    later, remaining and per after it;
+  - "on" and "off" count only at the end of a phrase ("20s on, 10s off");
+  - for, in, every, after and another count only when the phrase ends after the
+    number or a firm word follows it ("Hold for 30s.", "Plank for 30s each
+    side");
+  - the same cues now read other numbers as seconds ("Rest 45s" is "forty-five
+    seconds"; "1s" is "one second"), where "45s" was "forty-five s".
+  - The reviewer's decade phrases and these cases are tests.
+- **Checks:** `npx vitest run src/lib/lipsync/text`: 143 passed; ESLint and
+  Prettier on the changed files: passed.
+
+#### Code Review #3 Findings
+
+Final targeted review of `11b28086` (the last round in the budget). The P3-F13
+cases in the tests are fixed, rule order holds ("1990s", "5 sec", times, phone
+numbers, ranges) and the Pocket fixture test passes. Required, and unresolved
+at the budget limit:
+
+- **P3-F14:** the "phrase ends" test for ambiguous cues treats a hyphen, en dash
+  or slash as an ending, so "for 80s-style synths", "Every 90s-born kid" and "for
+  80s/90s anime" still read seconds.
+- **P3-F15 (regression):** the revision widened the rule's lookbehind to
+  `(?<![\d.,])`, so a number straight after "..." or a comma is no longer read:
+  "Hmm...90s?" reaches Pocket as digits (it was "nineties"), and "Wait...30s
+  left." likewise.
+
+Optional:
+
+- P3-F16: the RULES comment moved above the new cue constants.
+- P3-F17: firm after-cues can follow a decade ("The 90s left a mark").
+- P3-F18: comma lists after an ambiguous cue, and "100s of tries".
+- The Review #2 record should name the changed files and the lookbehind change.
+
+**Status:** blocked at the review budget and reported to the owner, who on
+2026-10-13 allowed one more repair round and a targeted recheck.
+
+#### Code Review #3 Revisions (owner-approved extra round)
+
+In `src/frontend/web/src/lib/lipsync/text/spell-out-english.ts` and its test:
+
+- **P3-F15 accepted:** the rule's lookbehind is `(?<!\d)` again (round 2 had
+  widened it to `(?<![\d.,])`), so "Hmm...90s?" reads "nineties".
+- **P3-F14 accepted:** a phrase end is the end of the text or punctuation, but
+  not a hyphen, dash or slash joined to a word, so "in 90s-era" and "for
+  80s/90s" read as decades while "Hold for 30s—then switch." stays seconds.
+- **P3-F16 accepted:** the RULES comment is back above `RULES`.
+- **Review #2 record:** its revisions changed the same two files, and widened
+  the lookbehind (now reverted).
+- P3-F17 and P3-F18 are not adopted: rare readings, outside this round.
+- **Checks:** `npx vitest run src/lib/lipsync/text src/lib/lipsync/eval/fixtures.test.ts`:
+  150 passed, including the Pocket fixture test; `tsc -p tsconfig.app.json`,
+  ESLint and Prettier on the changed files: passed.
 
 ### Phase 4: Aligner, renderer and beats, scored offline
 
