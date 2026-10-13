@@ -16,7 +16,7 @@ Authorized scope: Phases 1–2 (owner, 2026-10-12).
 Explicit gates:
 
 - **G1 — Paid live checks.** Live ElevenLabs checks during implementation stay
-  within the owner-approved budget (spec D6: US$1, of which about US$0.16 is
+  within the owner-approved budget (spec D6: US$1, of which about US$0.17 is
   spent).
 - **G2 — Owner gate before merge.**
   - The owner listens to v4 Turbo with the voices in use.
@@ -156,7 +156,9 @@ Ownership and boundaries:
   authorized).
 - [x] Intent discovery for audio tags in `speech` (D12), 2026-10-12: linked
   issue [#479](https://github.com/raymond-van/animama/issues/479).
-- [ ] Final integration review.
+- [x] Phases 1–2 scope review (2026-10-13): passed after a one-line doc fix.
+  Every language was then spoken live on the current paths.
+- [ ] Final integration review (after Phase 5).
 - [ ] G2 owner gate.
 
 ## Surprises & Discoveries
@@ -1621,6 +1623,66 @@ After Phase 5, one `sdlc-reviewer` integration review covers:
 - docs accuracy.
 
 It may use at most two repair rounds. Still-valid phase evidence is reused.
+
+### Phases 1–2 scope review (2026-10-13)
+
+Before the PR, a fresh `sdlc-reviewer` reviewed the authorized subset on
+`37a661ff` against base `95a2db39` and the amended spec (#471, read back at
+03:31 UTC). This is not the plan's final integration review, which follows
+Phase 5.
+
+**Result:** the code meets the authorized acceptance, with one blocking doc
+line.
+
+- **Cross-phase behaviour:**
+  - realtime v4 Turbo is the only ElevenLabs path, and Gemini the only
+    finalized provider, with no Gemini regression;
+  - migration agrees across the backend validators, frontend reads and
+    settings;
+  - frames agree across the backend, product-ui and runtime;
+  - the hosted server transport and the allowance → Pocket fallback are intact.
+- **Versions:** `local-http` 6.0.0, `runtime-contracts` 0.6.0 and `product-ui`
+  0.9.1 cover the cumulative changes, and the mirrors match.
+- **Leftovers:** old ids appear only in the maps, their tests, refusal tests and
+  mapping docs.
+- **Security:** no token or key in any log, and the web runtime redacts the
+  socket query.
+- **Phases 3–5:** nothing blocks them. Alignment-only and null-alignment frames
+  are tolerated, `sync_alignment` is on, and Cloud imports only the kept name.
+- **The reviewer's checks:**
+  - import boundary clean;
+  - `openapi-ts:check` current;
+  - pytest 247 passed with `UserWarning` as an error;
+  - Vitest (7 files, 68 passed);
+  - product-ui lifecycle 30 of 30;
+  - the leftover, prose and security greps;
+  - doc anchors resolve.
+
+Findings and dispositions:
+
+- **S12-F1 (blocking), accepted.** `avatar-lipsync.md` said "ElevenLabs (v4
+  and v4 Turbo)". It now says "ElevenLabs (Eleven v4 Turbo)".
+- **S12-F2 (optional), accepted.** `elevenlabs-tts.md` now says the "Stream
+  chunked TTS" switch applies only to ElevenLabs, as `shouldStreamChunksForProvider`
+  does.
+- **S12-F3 (optional), accepted.** R7's live evidence on the current paths
+  covered only Japanese, so the other languages were run live on 2026-10-13:
+  - **Realtime v4 Turbo:** Korean 4.3 s, Chinese 4.2 s and Spanish 4.7 s of
+    audio, each final with close 1000. A first Spanish turn lost its speech:
+    its OpenAI stream took 37 s to open while the session token was minted at
+    the same moment, which points to a transient network stall. The browser's
+    existing 1.5 s session wait then ended that run's speech with its notice,
+    and the text was intact. The retry spoke.
+  - **Gemini:** Korean, Chinese and Spanish replies came as 19, 33 and 34
+    `tts.audio` frames and `tts.done`, with no errors.
+  - Japanese was spoken live on both paths earlier (Phase 1 realtime; the
+    amendment's Gemini check).
+  - Spend: about 250 characters of v4 Turbo, under US$0.01.
+- **S12-F4 (optional), deferred.** A Gemini decode failure shows "Failed to
+  decode ElevenLabs finalized audio." The text predates this change and joins
+  the ElevenLabs-naming follow-up, which should cover user-visible strings.
+
+Scope review: **passed** after the S12-F1 fix (one round).
 
 ## Validation and acceptance
 

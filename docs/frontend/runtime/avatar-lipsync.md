@@ -69,7 +69,7 @@ viseme input. The worker builds or rebuilds the actual viseme plan:
 
 - `buildGruutVisemeKeyframes({ tokenizedText, phonemizedText })`
 
-For ElevenLabs (v4 and v4 Turbo) and Gemini speech, `useChatSession` prefers
+For ElevenLabs (Eleven v4 Turbo) and Gemini speech, `useChatSession` prefers
 `tts_text` and `tts_phonemized_text` so the TTS request and gruut phonemes share
 the same gruut `text_with_ws` basis. Empty final markers and complete
 corrections that were not re-sent to TTS do not append duplicate viseme input.
