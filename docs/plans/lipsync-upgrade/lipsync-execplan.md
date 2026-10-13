@@ -87,7 +87,8 @@ prototypes.
 - [x] Setup (2026-10-13): the owner merged `main` (`7a25aa34`) into the branch at
   `b8c7080c`; spec published to #468; phase issues #513–#519 created as
   sub-issues with their dependencies.
-- [ ] Phase 1 (#513): evaluation harness, fixtures and baseline (R10).
+- [x] Phase 1 (#513): evaluation harness, fixtures and baseline (R10). Review
+  passed after one repair round.
 - [ ] Phase 2 (#514): text units, tags and spelled-out numbers (R2, R3, R12 for
   Pocket).
 - [ ] Phase 3 (#515): English pronunciation source (R11, D5).
@@ -287,15 +288,165 @@ review passes.
 Recovery: the fixture builder is idempotent; regenerate from the clips. New paid
 clips are never regenerated once they exist.
 
-Results: —
+Results (2026-10-13, starting source `8e292cd5`):
+
+- **Built:**
+  - `src/frontend/web/src/lib/lipsync/audio/features.ts`: an incremental feature
+    extractor. Pushing a clip in chunks of any size gives exactly the frames of a
+    whole-clip pass;
+  - `src/frontend/web/src/lib/lipsync/eval/`: fixture codec, metrics, arrival
+    simulation, summaries and the "Estimated (today)" source;
+  - `src/frontend/web/scripts/lipsync.mjs` (`pnpm lipsync:eval`, `pnpm lipsync:fixtures`);
+  - `scripts/lipsync/clips.py` and its README, for maintainers;
+  - `src/frontend/web/tests/lipsync/testset.json` and 58 fixtures (400 KB, no audio).
+- **New clips (D4):**
+  - 15 held-out clips: Gemini 7, ElevenLabs v4 Turbo socket 7, Pocket 1. They
+    cover a two-tag English line, kanji-heavy Japanese, Korean, Chinese, a numbers
+    line, and an anime-styled voice (Gemini Autonoe with a style prompt; ElevenLabs
+    with a leading `[high-pitched, cute anime voice]` direction);
+  - spend about US$0.04 (389 ElevenLabs characters at half credit, 7 short Gemini
+    requests);
+  - Parakeet transcripts confirm the tags and the anime direction were performed,
+    not read.
+- **Numbers lines are not scored.** Providers read digits differently (Gemini
+  dropped "dollars" from "$5.99"), so their reference words cannot be trusted.
+  They remain fixtures for Phases 2 and 7.
+- **Baseline** (`pnpm lipsync:eval --mode whole`, "Estimated (today)"):
+
+  | Set | Clips | Vowel match ja/ko/zh (+es) | Open in silence, English / tags | Tags |
+  | --- | --: | --: | --: | --: |
+  | Main | 21 | 6% (6%) | 73% / 66% | 0/8 |
+  | ElevenLabs v4 HTTP | 14 | 13% (13%) | 63% / 60% | 0/7 |
+  | ElevenLabs v4 Turbo socket | 8 | 6% (10%) | — / 74% | 0/5 |
+  | Main, held out | 7 | 0% | 69% / 82% | 0/2 |
+  | Turbo socket, held out | 6 | 3% | 79% / 62% | 0/2 |
+
+  The brief measured 6% and 72% / 65% (main), and 13% and 61% / 58% (ElevenLabs
+  HTTP). The remaining gap of up to 2 points comes from detecting silence on the
+  100 Hz features rather than re-reading each WAV: short gaps hold 10–12 frames, so
+  one frame moves a clip by about 10%.
+- **The socket set's English column is empty** because its English lines are all
+  tag lines (`tags` group), as for the HTTP set's tag lines. The brief's socket
+  table counted every English-language line instead, so its figures (10%, 59% /
+  71%) are not directly comparable.
+- **The progressive simulation is stricter than the lab's.** A plan now fills only
+  frames that play before the next plan exists. Frames that played before any plan
+  stay closed. The lab filled each frame from the first plan made after it played,
+  which gave up to one step (0.25 s) of extra audio. Phase 4 compares against the
+  brief's progressive figures with that in mind.
+- **Deviations from the steps above:**
+  - the metrics and simulation live in `src/lib/lipsync/eval/`, not under
+    `tests/`, so they are type-checked with the app sources (nothing imports them);
+  - the fixture builder is `pnpm lipsync:fixtures` with `eval/build.ts`;
+  - "two English lines of numbers" became one numbers line on two providers.
+- **Environment:** this worktree's Git LFS objects had not been fetched, so
+  `web:lint` failed on pointer files in `public/`; `git lfs pull` fixed it.
+
+Checks:
+
+- `npx vitest run src/lib/lipsync`: 21 passed;
+- `pnpm check`: passed;
+- `pnpm web:lint`: passed;
+- `pnpm web:test`: 489 files, 4,361 passed, 1 skipped;
+- Prettier on new docs, Ruff check and format on `scripts/lipsync/`: passed.
+
+
 
 #### Code Review #1 Findings
 
-—
+Reviewer: independent `sdlc-reviewer`, on the uncommitted Phase 1 tree (baseline
+`8e292cd5`). It reran `lipsync:eval --mode whole` and `vitest run src/lib/lipsync`
+and inspected the fixtures, the test set and the source review.
+
+- **P1-F1 (required):** the `live` and `faster` simulations filled each frame from
+  the first plan made after it played, contradicting the module's own description
+  and the brief's rule. A probe that stamped each plan's arrival time showed frames
+  using up to 0.25 s of audio that had not arrived. Progressive scores would come
+  out better than they should.
+- **P1-F2 (required):** the Spanish references dropped accented vowels ("qué"
+  became "qu", "día" became "da"). The aligner's letter filter deleted accented
+  letters instead of folding them. The "+es" vowel column was therefore wrong.
+- **P1-F3 (optional):** the gap margin is 3 frames (50 ms), not the stated 60 ms.
+- **P1-F4 (optional):** the feature lookahead (45 ms) was hand-copied and not tied
+  to the extractor's geometry.
+- **P1-F5 (optional):** tag scoring counted any event of a tag kind, so a
+  punctuation pause could count as a placed tag.
+- **P1-F6 (optional):** an unknown `--mode` printed an empty table and exited 0.
+- **P1-F7 (optional):** the clip tool's Gemini path ignored stream errors (a failed
+  paid stream could leave a kept partial clip), copied the backend's request
+  instead of reusing it, and ignored `perSentence`.
+- **P1-F8 (optional):** the plan record missed several deviations and the socket
+  set's comparison note.
+- **P1-F9 (optional):** an unused `scoreTrack`, an unread source label, and a
+  re-derived frame count.
+- **P1-F10 (optional):** the Korean "eo"/"eu" vowel span covered only its first
+  letter.
+
+Result: changes required (P1-F1, P1-F2).
 
 #### Code Review #1 Revisions
 
-—
+All ten findings were verified and accepted.
+
+- **P1-F1, fixed:**
+  - a plan now fills frames from the playhead at its arrival up to the playhead
+    when the next plan arrives; frames that played before any plan stay closed;
+  - a new test stamps each plan's arrival time into its frames and asserts that no
+    frame used a plan made after it played, in both `live` and `faster` modes. It
+    failed before the fix, including for faster-mode frames that played before the
+    first plan.
+- **P1-F2, fixed:**
+  - `clips.py reference` folds accents (NFD, combining marks dropped) before
+    keeping the aligner's letters;
+  - `g-es`, `e-es` and `t-es` were realigned (`que`, `dia` now present) and every
+    fixture was rebuilt. No paid requests were needed.
+- **P1-F3:** documented as 3 frames (50 ms), as the brief's scoring truncated it.
+- **P1-F4:** `speechFeatureFramesReady` in `features.ts` shares the extractor's
+  geometry. The simulation uses it with each clip's recorded sample rate, and a
+  test checks it against an extractor fed the same audio.
+- **P1-F5:** only events with a `label` (made by a tag) are scored as tags; a test
+  covers an unlabeled pause.
+- **P1-F6:** `evaluate` rejects unknown modes and names the valid ones.
+- **P1-F7:** Gemini lines now go through the backend's
+  `stream_gemini_finalized_speech`, which stops with an error rather than keeping a
+  partial clip, and `perSentence` lines are spoken a sentence at a time.
+- **P1-F8:** the deviations and the socket comparison note are recorded in Results
+  above.
+- **P1-F9:** `scoreTrack` was removed, rows show the source's label, and metrics
+  use `lipSyncFrameCount`.
+- **P1-F10:** the vowel span now covers both letters. The baseline moved by 1
+  point (main 5% → 6%, ElevenLabs HTTP 12% → 13%).
+
+Verification after the fixes:
+
+- `npx vitest run src/lib/lipsync`: 24 passed;
+- `pnpm lipsync:eval`: the table above;
+- `pnpm check`: passed;
+- ESLint and Prettier on `src/lib/lipsync` and `scripts/lipsync.mjs`: passed;
+- Ruff check and format on `scripts/lipsync/`: passed;
+- not rerun: the full `pnpm web:test` and `pnpm web:lint`, since the fixes stayed in
+  the new, unimported `src/lib/lipsync` code and its tests.
+
+Repair rounds used: 1 of 2.
+
+#### Code Review #2 Findings
+
+Targeted recheck of P1-F1 to P1-F10 by the same reviewer. It reran the lip-sync
+tests, `lipsync:eval` in all modes, its arrival probe and the fixture checks.
+
+- All ten fixes hold; no blocking findings. Result: pass.
+- **P1-F11 (optional):** `mode in ARRIVAL_MODES` also accepted inherited names such
+  as `toString`.
+- **P1-F12 (optional):** the verification list above omitted the type-check, lint
+  and format reruns, and did not say which checks were not rerun.
+
+#### Code Review #2 Revisions
+
+- **P1-F11, accepted:** the check now uses `Object.hasOwn`.
+- **P1-F12, accepted:** the verification list above now records every rerun and
+  what was not rerun.
+
+Phase 1 complete: checks pass and review passed after one repair round.
 
 ### Phase 2: Text units, tags and spelled-out numbers
 

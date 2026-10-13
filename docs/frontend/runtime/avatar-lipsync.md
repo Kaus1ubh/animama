@@ -515,3 +515,19 @@ can be compared by eye and ear.
 4. **`TTS / Audio ended` is not the same as raw Pocket playback-ended**
    - `useTtsPlayback` gates `onAudioEnded` on run completion
    - use the raw playback-ended signal logs for end-of-audio alignment debugging
+
+## 14) Evaluating lip-sync offline
+
+`pnpm --dir src/frontend/web lipsync:eval` scores lip-sync plan sources against
+recorded speech, with no network or paid speech. It reports, per clip set:
+
+- vowel match in Japanese, Korean and Chinese (and with Spanish);
+- how often the mouth is open in silent gaps, for English lines and tag lines;
+- how many laughs, sighs, gasps and pauses are placed;
+- planning CPU per second of audio.
+
+Each source runs as the audio would arrive: the whole clip at once (`whole`), 2.9×
+faster than real time like Gemini (`faster`), or in real time behind a 0.3 s
+playback buffer (`live`). Sources live in `src/lib/lipsync/eval/sources.ts`; the
+fixtures and how to rebuild them are described in
+[`scripts/lipsync/README.md`](../../../scripts/lipsync/README.md).

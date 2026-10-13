@@ -12,6 +12,8 @@
     "effects:bench": "node scripts/effect-bench.mjs",
     "effects:assets": "node scripts/effect-assets.mjs",
     "effects": "node scripts/effects.mjs",
+    "lipsync:eval": "node scripts/lipsync.mjs eval",
+    "lipsync:fixtures": "node scripts/lipsync.mjs fixtures",
     "animation:preview": "node scripts/animation-preview.mjs",
     "animation:save": "node scripts/animation-save.mjs",
     "dev": "pnpm --dir .. poses:check && pnpm --dir .. packages:build && pnpm routes:generate && vite",
