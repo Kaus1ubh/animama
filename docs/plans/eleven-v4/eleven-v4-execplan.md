@@ -169,8 +169,10 @@ Ownership and boundaries:
   issue [#479](https://github.com/raymond-van/animama/issues/479).
 - [x] Phases 1–2 scope review (2026-10-13): passed after a one-line doc fix.
   Every language was then spoken live on the current paths.
-- [x] Final integration review (2026-10-13): #1 passed with no blockers. Its
-  one required plan record and the optional fixes are recorded below.
+- [x] Final integration review (2026-10-13): #1–#3 passed, with no blocking
+  finding and two repair rounds.
+- [ ] Before merge: the Docker-backed backend tests and `pnpm e2e:test:fast`,
+  once Docker works again.
 - [ ] G2 owner gate.
 
 ## Surprises & Discoveries
@@ -2454,6 +2456,17 @@ are verified, and the record matches the validation logs.
   both hosted server-socket tests, and runtime-contracts' 3 tests.
 
 Repair budget: round 2 of 2 used. A final targeted recheck closes this review.
+
+### Final Integration Review #3 Findings
+
+Last targeted recheck, of `b1900883`. Result: **pass**, with no findings and no
+regressions.
+
+- FI2-F1 and FI2-F2 are verified.
+- The reviewer reran tsc, ESLint, Prettier and Vitest across `src/ui/debug` and
+  `src/stores` (111 tests), and checked the links.
+
+Final integration review: **passed** (one full review and two repair rounds).
 
 ### Phases 1–2 scope review (2026-10-13)
 
