@@ -1,19 +1,18 @@
-"""The owner's UI Locale never changes chat behavior (internationalization spec R6, AC7).
+"""The UI Locale never changes chat options or companion safety (internationalization spec R6).
 
-The saved ``locale`` only chooses interface text and formatting. Turn setup reads
-App settings for chat options and companion safety; neither may differ by locale,
-and the provider prompt assembler takes no locale at all.
+The Anima's reply and speech language follow the locale the client applied for
+the turn (``client_context.ui_locale``, ADR 0024; see ``test_conversation_language``).
+The saved preference does not reach turn options, and safety reads neither it
+nor the turn's ``ui_locale``.
 """
 
 from __future__ import annotations
 
-import inspect
 from uuid import uuid4
 
 import pytest
 
 from animama.adapters.repositories.sqlalchemy.product_repositories import SQLAlchemyProductRepositories
-from animama.app.chat.openai_prompt import DirectChatPromptAssembler
 from animama.app.contracts.chat import PyChatClientContext
 from animama.domain.request_principal import RequestPrincipal
 from animama.orm.settings import ORMUserSettings
@@ -43,14 +42,9 @@ async def test_turn_options_and_safety_do_not_depend_on_the_ui_locale(async_sess
         safety = await prepare_turn_safety(
             repositories=repositories,
             user_id=owner,
-            client_context=PyChatClientContext(time_zone="UTC", locale=client_locale),
+            client_context=PyChatClientContext(time_zone="UTC", locale=client_locale, ui_locale=ui_locale),
             operator=runtime_settings.companion_safety,
             crisis_resources=runtime_crisis_resources(runtime_settings),
         )
         outcomes.append((options, safety.effective, safety.crisis_region.code))
     assert outcomes[0] == outcomes[1] == outcomes[2]
-
-
-def test_prompt_assembly_has_no_locale_input() -> None:
-    parameters = inspect.signature(DirectChatPromptAssembler.assemble).parameters
-    assert not [name for name in parameters if "locale" in name or "language" in name]

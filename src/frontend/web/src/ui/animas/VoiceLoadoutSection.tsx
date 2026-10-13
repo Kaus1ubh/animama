@@ -44,6 +44,7 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { useSettings } from "@/ui/settings/SettingsProvider";
+import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 
 /** Provider product names, shown as written in every locale. */
 const PROVIDER_NAMES = {
@@ -317,6 +318,10 @@ export function AnimaVoicesEditor() {
             {t("voices.provider.speechOff")}
           </p>
         ) : null}
+        <SpeechLanguageNotice
+          direction="textToSpeech"
+          provider={activeProvider}
+        />
       </section>
       {configuredProvider === "pocket_tts" ? (
         <section

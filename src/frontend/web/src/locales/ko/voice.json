@@ -244,5 +244,9 @@
       "knowledgeable": "박식한",
       "warm": "따뜻한"
     }
+  },
+  "languageNotice": {
+    "speechToText": "Parakeet은 영어만 알아듣습니다. {{language}} 음성 인식은 곧 지원될 예정입니다.",
+    "textToSpeech": "Pocket TTS는 영어만 말할 수 있습니다. Anima가 {{language}}로 말하게 하려면 ElevenLabs 또는 Gemini를 선택하세요."
   }
 }

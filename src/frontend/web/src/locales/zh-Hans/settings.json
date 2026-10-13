@@ -146,17 +146,6 @@
       },
       "updateFailed": "无法更新{{label}}颜色。"
     },
-    "language": {
-      "description": "Animama 菜单、按钮和消息使用的语言。不会改变你的 Anima 说话的语言。测试版语言为机器翻译。",
-      "keywords": [
-        "语言",
-        "区域设置",
-        "翻译"
-      ],
-      "label": "语言",
-      "saveFailed": "无法更改语言。",
-      "systemDefaultResolved": "系统默认（{{language}}）"
-    },
     "theme": {
       "group": "主题",
       "keywords": [
@@ -260,6 +249,17 @@
     "textToSpeech": "文字转语音",
     "voiceClone": "语音克隆",
     "webSearch": "网页搜索"
+  },
+  "language": {
+    "description": "Animama 和 Anima 使用的语言：包括菜单、消息，以及 Anima 说话和听懂的语言。测试版语言为机器翻译。",
+    "keywords": [
+      "语言",
+      "区域设置",
+      "翻译"
+    ],
+    "label": "语言",
+    "saveFailed": "无法更改语言。",
+    "systemDefaultResolved": "系统默认（{{language}}）"
   },
   "modal": {
     "close": "关闭应用设置",

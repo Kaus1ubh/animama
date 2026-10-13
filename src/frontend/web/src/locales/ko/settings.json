@@ -146,17 +146,6 @@
       },
       "updateFailed": "{{label}} 색상을 업데이트하지 못했습니다."
     },
-    "language": {
-      "description": "Animama의 메뉴, 버튼, 메시지에 사용되는 언어입니다. Anima가 말하는 언어는 바뀌지 않습니다. 베타 언어는 기계 번역입니다.",
-      "keywords": [
-        "언어",
-        "로케일",
-        "번역"
-      ],
-      "label": "언어",
-      "saveFailed": "언어를 변경하지 못했습니다.",
-      "systemDefaultResolved": "시스템 기본값 ({{language}})"
-    },
     "theme": {
       "group": "테마",
       "keywords": [
@@ -260,6 +249,17 @@
     "textToSpeech": "텍스트 음성 변환",
     "voiceClone": "음성 복제",
     "webSearch": "웹 검색"
+  },
+  "language": {
+    "description": "Animama와 Anima의 언어입니다. 메뉴와 메시지뿐 아니라 Anima가 말하고 알아듣는 언어에도 적용됩니다. 베타 언어는 기계 번역입니다.",
+    "keywords": [
+      "언어",
+      "로케일",
+      "번역"
+    ],
+    "label": "언어",
+    "saveFailed": "언어를 변경하지 못했습니다.",
+    "systemDefaultResolved": "시스템 기본값 ({{language}})"
   },
   "modal": {
     "close": "앱 설정 닫기",

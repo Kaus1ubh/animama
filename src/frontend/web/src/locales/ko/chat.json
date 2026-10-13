@@ -237,6 +237,10 @@
   },
   "suggestions": {
     "greeting": "간단한 인사",
-    "joke": "농담해 줘"
+    "joke": "농담해 줘",
+    "greetingMessage": "안녕! 요즘 어때?",
+    "greetingMessageNamed": "안녕, {{name}}! 요즘 어때?",
+    "jokeMessage": "있잖아, 농담 하나 해 줘!",
+    "jokeMessageNamed": "{{name}}, 농담 하나 해 줘!"
   }
 }

@@ -39,6 +39,7 @@ import {
 } from "@/lib/speech/pocket/anima-voice-selection";
 import type { PocketAnimaVoiceSelectionContext } from "@/lib/speech/pocket/anima-voice-selection";
 import { DEFAULT_POCKET_VOICE } from "@/lib/speech/pocket/voice-catalog";
+import { browserSpeechLanguage } from "@/lib/speech/speech-language";
 import { usePocketVoiceDownloads } from "@/hooks/use-pocket-voice-downloads";
 import {
   showPocketVoiceUnavailable,
@@ -708,6 +709,9 @@ export function useTtsPlayback(
 
       const utterance = new SpeechSynthesisUtterance(nextChunk);
       utterance.volume = ttsVolumeRef.current;
+      // A conversation language picks a matching system voice.
+      const speechLanguage = browserSpeechLanguage();
+      if (speechLanguage) utterance.lang = speechLanguage;
       activeUtteranceRef.current = utterance;
       browserSpeakingRef.current = true;
 

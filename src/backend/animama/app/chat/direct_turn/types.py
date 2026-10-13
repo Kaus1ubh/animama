@@ -10,6 +10,7 @@ from animama.app.model_clients import ModelClientError, ModelClientRequest
 from animama.domain.chat import Chat
 from animama.domain.user_file_processing import UserFileOutlineItem
 
+from ..conversation_language import ConversationLanguage
 from ..memory_context import DirectChatMemoryContext
 from ..options import DirectChatOptions
 from .constants import DIRECT_CHAT_NODE_ID
@@ -63,6 +64,8 @@ class DirectChatTurnRequest:
     node_id: str = DIRECT_CHAT_NODE_ID
     provider_moderation: bool = False
     """Request provider-side moderation scores where the provider supports them (spec R3)."""
+    conversation_language: ConversationLanguage | None = None
+    """Non-English language the Anima replies in; ``None`` keeps the default (ADR 0024)."""
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "request_options", DirectChatOptions.from_value(self.request_options))

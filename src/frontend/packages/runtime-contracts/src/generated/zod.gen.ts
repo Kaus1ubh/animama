@@ -2282,7 +2282,10 @@ export const zPyCatalogPreviewSource = z.object({
 /**
  * PyChatClientContext
  *
- * Client-reported context used only for safety presentation (spec R2, R5).
+ * Client-reported context for one turn.
+ *
+ * ``time_zone`` and ``locale`` serve only safety presentation (companion safety
+ * spec R2, R5). ``ui_locale`` sets the conversation language (ADR 0024).
  */
 export const zPyChatClientContext = z.object({
     locale: z.optional(z.union([
@@ -2291,6 +2294,10 @@ export const zPyChatClientContext = z.object({
     ])),
     time_zone: z.optional(z.union([
         z.string().max(64),
+        z.null()
+    ])),
+    ui_locale: z.optional(z.union([
+        z.string().max(35),
         z.null()
     ]))
 });

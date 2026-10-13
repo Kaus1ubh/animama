@@ -73,7 +73,10 @@ Boundaries:
 - [x] Phase 8: desktop shell (R8); review #3 passed 2026-10-10; G2 pending.
 - [x] Phase 9: completion, guards at full strength and pseudo-locale smoke (R7, R17); review #2 passed 2026-10-13.
 - [x] Final integration review; review #2 passed 2026-10-13 after the record fix.
-- [ ] PR; owner gates G1–G3; owner merge approval.
+- [x] 2026-10-13 PR #520 opened at `659bb9c5`.
+- [x] Phase 10: one language for the whole app and picker placement (owner
+  revision of R6 and R1, 2026-10-13); review #2 passed 2026-10-13.
+- [ ] Owner gates G1–G3; owner merge approval.
 
 ## Handoff
 
@@ -91,6 +94,9 @@ ran. See "Integration with `main`" and "Final integration review" below.
   packages inside the `web` service.
 - `tests/local-api-proxy.test.ts` fails while another task's server holds port
   5173. That failure is environmental.
+- After PR #520 opened, the owner revised R6 and R1 on 2026-10-13 (Phase 10).
+  The `animama-i18n` database predates `main`'s baseline change and needs
+  `./reset.sh --name i18n --base-port 8300 --purge` before the stack starts.
 
 ## Surprises & Discoveries
 
@@ -187,10 +193,40 @@ ran. See "Integration with `main`" and "Final integration review" below.
     - it changes an OS-level preference the owner manages in System Settings;
     - it would lag one launch behind the in-app choice.
 
+- Owner, 2026-10-13 (after PR #520 opened): one language for the whole app.
+  The UI Locale is the conversation language. Replaces "two settings, never
+  coupled" (ADR 0024 revised before release; R6 rewritten, AC7 revised).
+  - Under a non-English locale the model is instructed to reply in it, and
+    ElevenLabs and Gemini receive its language code.
+  - Parakeet and Pocket TTS, which are English-only, warn and suggest
+    ElevenLabs or Gemini; multilingual speech recognition is #509, rewritten
+    for that.
+  - The picker moves to General under the display name and joins the setup
+    Welcome step.
+- Agent, 2026-10-13 (Phase 10), choices within that decision:
+  - English, unset, unknown and pseudo locales add no instruction and no code,
+    so English turns are unchanged and the model still follows a user who
+    writes in another language.
+  - The client reports the applied locale per turn
+    (`client_context.ui_locale`), because "System default" resolves on the
+    client.
+  - The backend ignores an unsupported value rather than rejecting the turn,
+    so a newer client does not break an older server.
+  - Both Chinese locales speak `zh` (Mandarin). A live probe on 2026-10-13
+    confirmed that Gemini accepts `ja`, `ko`, `zh` and `en` in
+    `speech_config.language` and returns 400 for an invalid code.
+  - The browser's own speech recognition and synthesis use the locale's
+    regional tag (`ja-JP`, `ko-KR`, `zh-CN`, `zh-TW`).
+  - Prompt suggestions now send their message in the UI Locale, which answers
+    the open question from the PR.
+
 ## Owner gates
 
 - **G1 — Beta visual pass (AC6).** For each beta locale, the owner reviews setup,
   chat, Library, one creator and Settings at desktop size and one narrower size.
+  Under `ja`, the owner also checks that a reply comes back in Japanese and is
+  spoken by ElevenLabs and Gemini, and that the Parakeet and Pocket TTS warnings
+  show (Phase 10).
 - **G2 — Native desktop (AC8).** A macOS build shows the localized application
   menu and microphone prompt; the recovery page check runs on the owner's machine.
   Also confirm that Start Dictation and Emoji & Symbols still appear under the
@@ -1543,6 +1579,148 @@ Targeted recheck.
   which is a small cosmetic lag. Emotion rows keep a deliberate fixed order.
 
 Repair budget: one of two repair rounds used. Result: pass, after FI2-01.
+
+## Phase 10 — One language for the whole app (owner revision of R6 and R1)
+
+Owner request, 2026-10-13, after PR #520 opened. Scope:
+
+- **Picker placement (R1):**
+  - On the setup Welcome step, after the display name. It saves and applies at
+    once, so the rest of setup follows.
+  - In App Settings, in General under the display name (the Profile group)
+    instead of Appearance.
+  - Catalog keys move from `settings:appearance.language.*` to
+    `settings:language.*`.
+- **Conversation language (R6, AC7):**
+  - `client_context.ui_locale`: product-ui's `activeUiLocale()`, which sends
+    nothing under the pseudo-locale.
+  - `app/chat/conversation_language.py`, which provides:
+    - the reply-language prompt section after Response Guidance;
+    - `with_speech_language` for `tts.language_code`;
+    - `DirectChatTurnRequest.conversation_language`.
+  - Gemini `speech_config[].language` through an optional `language_code` on
+    `FinalizedSpeechPort.prepare_finalized`. Animama Cloud's implementation
+    accepts `**_values`.
+  - The browser's own speech recognition and synthesis use the locale's tag.
+  - Prompt suggestions send their message in the locale.
+- **Warnings:** `SpeechLanguageNotice` beside every speech-engine choice:
+  - App Settings speech recognition and text-to-speech;
+  - the setup Voice step;
+  - the Anima voice editor;
+  - Create Anima.
+- **Docs and records:**
+  - ADR 0024 renamed and revised before release;
+  - GLOSSARY, i18n.md and the backend voice integration doc;
+  - spec R1, R6 and AC7, republished to #385 and read back at
+    2026-10-13T21:14:07Z;
+  - #509 rewritten for multilingual speech recognition.
+
+Not in scope: lip-sync for non-English replies (#468), memory language, the
+`PROFILE.md` template and starter identities (stay English).
+
+Checks: backend `make check` and pytest, `pnpm check`, `pnpm web:lint`,
+`pnpm i18n:check`, prettier, web Vitest, product-ui, desktop and e2e-unit
+tests, the package-set comparison, and a browser check of the picker and
+warnings.
+
+### Phase 10 Code Review #1 Findings
+
+Reviewer: `sdlc-reviewer`, full initial review of the uncommitted Phase 10 tree
+on `659bb9c5`. It reviewed the code statically, with targeted read-only checks
+(pytest for the new module, ruff, the SDK generator check, eslint and
+`i18next-cli types --ci`), while the full gate ran at the same time.
+
+- **P10-01 (blocking):** `resources.d.ts` was stale after the prompt-suggestion
+  keys were added, so `i18n:check` and `pnpm check` failed. The local gate
+  confirmed the TypeScript failure.
+- **P10-02 (blocking):** four docs contradicted the new behavior:
+  - `i18n.md`, on where the picker is;
+  - `runtime/chat.md`, which said `client_context` serves safety only;
+  - `http-api.md`, twice: the `client_context` fields, and that `locale` is
+    "never the Conversation language".
+- **P10-03 (blocking):** the safety-independence test never set the turn's
+  `ui_locale`.
+- **Optional:**
+  - P10-N1: the prompt-caching and frontend chat docs, and a stale key example.
+  - P10-N2: text the Anima writes for itself may follow the conversation
+    language, unlike what ADR 0024 said.
+  - P10-N3: a tautological English prompt test.
+  - P10-N4: R9 cited where R6 applies.
+  - P10-N5: `ui_locale` values longer than 35 characters return 422.
+  - P10-N6: no ElevenLabs language probe was recorded.
+  - P10-N7: the ADR was revised in place.
+  - P10-N8: description `aria-describedby` links.
+  - P10-N9: the pseudo-locale sends pseudo text through prompt suggestions.
+
+### Phase 10 Code Review #1 Revisions
+
+- **P10-01, accepted.** Types regenerated (`i18next-cli types`).
+- **P10-02, accepted.** All four statements corrected.
+- **P10-03, accepted.** The independence test now sets `ui_locale` to the same
+  locale as the saved preference, and the crisis region and safety stay
+  identical.
+- **Optional findings:**
+  - P10-N1 and P10-N4: accepted (docs and citations corrected).
+  - P10-N2: accepted as documentation. ADR 0024 now says self-written memory
+    text may follow the conversation, and R6 says "memory behavior". Both were
+    republished to #385 and read back at 2026-10-13T21:14:07Z.
+  - P10-N3: accepted. The test now checks that both instruction styles have no
+    language section.
+  - P10-N5: rejected. The first-party client sends only canonical tags, every
+    BCP-47 tag in use fits, and a bound keeps the contract tight.
+  - P10-N6: deferred to G1. An ElevenLabs probe needs a minted websocket
+    session; the owner's beta pass listens to an ElevenLabs reply under `ja`.
+  - P10-N7: no change. ADR 0024 never reached `main`, and it records the
+    earlier decision as a rejected alternative.
+  - P10-N8 and P10-N9: no change. They match the existing field pattern, and
+    the pseudo-locale is development-only.
+- **Other fixes from the local gate:**
+  - a mypy import in the new test (`INSTRUCTION_STYLE_ANTHROPIC` comes from
+    `anthropic_instructions`);
+  - an expected Gemini prepare call that now includes `language_code: None`.
+
+Checks after the repairs (2026-10-13):
+
+- backend: `make check` passed; pytest 4212 passed, 29 skipped.
+- frontend:
+  - `pnpm check` passed after regenerating `resources.d.ts`;
+  - `pnpm i18n:check`, `pnpm web:lint` and prettier passed;
+  - tests: web Vitest 4420 passed and 1 skipped; product-ui 40, desktop 533
+    and e2e-unit all passed.
+- Browser check on a fresh disposable development stack (`animama-i18n-p10`,
+  port 8500, at the working tree):
+  - Choosing 日本語 on the setup Welcome step switched setup at once.
+  - The Voice step showed the Parakeet and Pocket TTS warnings.
+  - In App Settings, Language sat under the display name in General and kept
+    the choice.
+  - The Voice section warned about Pocket TTS. It did not warn about speech
+    recognition, because that stack used the browser engine.
+  - A prompt suggestion sent Japanese text. An English message ("What is your
+    favorite food?") got a Japanese reply.
+  - The stack was then stopped.
+- The package-set comparison runs with the pre-push gate on the committed
+  candidate.
+
+Repair budget: one of two repair rounds used.
+
+### Phase 10 Code Review #2 Findings
+
+Targeted recheck of P10-01 to P10-03 and the accepted optional findings: all
+resolved, with no regressions. One record-only blocker: these Revisions lacked
+the post-repair checks and the repair-budget line. Non-blocking:
+- the review-method wording;
+- "per owner" is not one of the prompt-caching doc's volatility classes;
+- an unwrapped line in `http-api.md`;
+- the stray `.animama-stack.i18n-p10.env` record.
+
+### Phase 10 Code Review #2 Revisions
+
+All accepted:
+- the checks and the budget line above;
+- the review-method wording;
+- the volatility class is now "per installation";
+- the `http-api.md` line is rewrapped;
+- the stack record was deleted with the stack.
 
 ## Validation and acceptance
 

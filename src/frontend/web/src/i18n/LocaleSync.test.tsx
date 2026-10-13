@@ -20,7 +20,7 @@ vi.mock("@/query/hooks/useUserSettings", () => ({
 // Memoized so only the i18n subscription, not a parent render, can update it.
 const LanguageLabel = memo(function LanguageLabel() {
   const { t } = useTranslation("settings");
-  return <span>{t("appearance.language.label")}</span>;
+  return <span>{t("language.label")}</span>;
 });
 
 let root: Root | null = null;

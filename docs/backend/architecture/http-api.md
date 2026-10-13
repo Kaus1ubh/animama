@@ -755,8 +755,9 @@ persistent WebSocket.
 
 The route accepts a `PyAnimaChatRequest` with a required non-blank `message`,
 optional `chat_id`, optional `run_id`, optional `model_provider_id`,
-optional `dispatch_options`, optional `client_context` (`time_zone`, `locale`
-for safety presentation), and required `runtime_revision`. The backend
+optional `dispatch_options`, optional `client_context` (`time_zone` and
+`locale` for safety presentation; `ui_locale` for the conversation language),
+and required `runtime_revision`. The backend
 authorizes that owner's persisted runtime snapshot before provider work and
 returns `409 runtime_remount_required` when it is missing or expired. The same
 snapshot's Gesture inventory defines the strict model enum,
@@ -1279,9 +1280,11 @@ Settings routes manage:
 
 User `locale` is the UI Locale: `en`, `ja`, `ko`, `zh-Hans` or `zh-Hant`, or
 `null` for "System default" (the client resolves it from the OS or browser).
-It controls interface text and formatting only, never the Conversation language
-or crisis region. `POST`/`PATCH` accept `null` to clear it; any other tag,
-including `en-US`, returns 422. Stored unsupported values read as `null`.
+It controls interface text and formatting; the client reports the locale it
+applied with each chat turn (`client_context.ui_locale`), which sets the
+Conversation language. It is never the crisis region. `POST`/`PATCH` accept
+`null` to clear it; any other tag, including `en-US`, returns 422. Stored
+unsupported values read as `null`.
 
 Anima settings include runtime preferences such as memory influence, memory
 updates, emotional analysis, and presentation flags for animation or visual

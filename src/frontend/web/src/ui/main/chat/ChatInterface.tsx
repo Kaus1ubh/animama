@@ -886,33 +886,25 @@ export const ChatInterface = ({
     [activeMode, clearDictationBuffers, markManualTypingActivity, setInput],
   );
 
-  // Labels follow the UI Locale. The text is the message sent to the Anima, so
-  // it stays as written: the UI Locale never changes the conversation (spec R6).
-  const promptSuggestions = useMemo(() => {
-    if (!animaName) {
-      return [
-        {
-          label: t("suggestions.greeting"),
-          text: `Hi! How's it going?`,
-        },
-        {
-          label: t("suggestions.joke"),
-          text: `Hey, tell me a joke!`,
-        },
-      ];
-    }
-
-    return [
+  // The label and the message it sends are both in the UI Locale, the
+  // language the Anima speaks (ADR 0024).
+  const promptSuggestions = useMemo(
+    () => [
       {
         label: t("suggestions.greeting"),
-        text: `Hi ${animaName}! How's it going?`,
+        text: animaName
+          ? t("suggestions.greetingMessageNamed", { name: animaName })
+          : t("suggestions.greetingMessage"),
       },
       {
         label: t("suggestions.joke"),
-        text: `Hey ${animaName}, tell me a joke!`,
+        text: animaName
+          ? t("suggestions.jokeMessageNamed", { name: animaName })
+          : t("suggestions.jokeMessage"),
       },
-    ];
-  }, [animaName, t]);
+    ],
+    [animaName, t],
+  );
 
   const isFirstChat = useFirstChatSuggestions(displayMessages);
   const showPromptSuggestions =

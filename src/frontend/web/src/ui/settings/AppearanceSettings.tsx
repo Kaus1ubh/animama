@@ -4,14 +4,6 @@ import { useTheme } from "next-themes";
 import { useTranslation } from "react-i18next";
 import type { TFunction } from "i18next";
 import { toast } from "sonner";
-import { systemPreferredLanguages } from "@animama/product-ui/i18n";
-import {
-  SUPPORTED_LOCALES,
-  isBetaLocale,
-  isUiLocale,
-  localeNativeName,
-  resolveLocale,
-} from "@animama/runtime-contracts/locale";
 
 import { cn } from "@/lib/utils";
 import {
@@ -23,21 +15,9 @@ import {
 } from "@/lib/theme/appearance-overrides";
 import { Button } from "@/ui/components/button";
 import { Input } from "@/ui/components/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/ui/components/select";
-import { useUserSettings } from "@/query/hooks/useUserSettings";
-import { useUpdateUserSettings } from "@/query/mutations/useUpdateUserSettings";
 import { SettingsRow } from "@/ui/settings/SettingsLayout";
 import { useSettings } from "@/ui/settings/SettingsProvider";
 import { THEME_MODES } from "@/ui/theme/theme-provider";
-
-/** Select value standing for "follow the OS or browser language". */
-const SYSTEM_LOCALE = "system";
 
 function isChartColorKey(
   key: AppearanceColorToken["key"],
@@ -119,62 +99,6 @@ export function colorGroupLabel(
     case "charts":
       return t("appearance.colors.groups.charts");
   }
-}
-
-/**
- * Interface language picker. "System default" stores no preference so the app
- * follows the OS or browser; every language is named in its own script, so a
- * user who cannot read the active language can still find theirs.
- */
-export function LanguageSetting() {
-  const { t } = useTranslation(["settings", "common"]);
-  const { data: settings } = useUserSettings();
-  const { mutateAsync: updateUserSettings, isPending } =
-    useUpdateUserSettings();
-  const saved = isUiLocale(settings?.locale) ? settings.locale : null;
-  const systemLocale = resolveLocale({ preferred: systemPreferredLanguages() });
-  const nameWithBeta = (locale: (typeof SUPPORTED_LOCALES)[number]) =>
-    isBetaLocale(locale)
-      ? `${localeNativeName(locale)} · ${t("common:beta")}`
-      : localeNativeName(locale);
-
-  return (
-    <SettingsRow
-      label={t("appearance.language.label")}
-      description={t("appearance.language.description")}
-      control={
-        <Select
-          value={saved ?? SYSTEM_LOCALE}
-          disabled={!settings || isPending}
-          onValueChange={(value) => {
-            const locale = isUiLocale(value) ? value : null;
-            void updateUserSettings({ body: { locale } }).catch(() =>
-              toast.error(t("appearance.language.saveFailed")),
-            );
-          }}
-        >
-          <SelectTrigger
-            className="w-56"
-            aria-label={t("appearance.language.label")}
-          >
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value={SYSTEM_LOCALE}>
-              {t("appearance.language.systemDefaultResolved", {
-                language: localeNativeName(systemLocale),
-              })}
-            </SelectItem>
-            {SUPPORTED_LOCALES.map((locale) => (
-              <SelectItem key={locale} value={locale} lang={locale}>
-                {nameWithBeta(locale)}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      }
-    />
-  );
 }
 
 /** Delay before a colour chosen with the native picker is saved. */

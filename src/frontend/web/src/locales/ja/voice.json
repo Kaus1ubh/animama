@@ -244,5 +244,9 @@
       "knowledgeable": "物知り",
       "warm": "あたたかい"
     }
+  },
+  "languageNotice": {
+    "speechToText": "Parakeet は英語のみ聞き取れます。{{language}}の音声認識は近日対応予定です。",
+    "textToSpeech": "Pocket TTS は英語のみ話せます。Anima に{{language}}で話してもらうには、ElevenLabs または Gemini を選んでください。"
   }
 }

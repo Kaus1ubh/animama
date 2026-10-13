@@ -237,6 +237,10 @@
   },
   "suggestions": {
     "greeting": "简单问候",
-    "joke": "讲个笑话"
+    "joke": "讲个笑话",
+    "greetingMessage": "嗨！最近怎么样？",
+    "greetingMessageNamed": "嗨，{{name}}！最近怎么样？",
+    "jokeMessage": "嘿，给我讲个笑话吧！",
+    "jokeMessageNamed": "嘿，{{name}}，给我讲个笑话吧！"
   }
 }

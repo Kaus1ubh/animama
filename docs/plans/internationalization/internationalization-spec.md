@@ -3,9 +3,10 @@
 Status: Agreed
 Owner decision: 2026-10-10. The owner agreed the scope decisions during intent
 discovery, accepted this text by requesting the ExecPlan, and decided P1–P4.
+Owner revision: 2026-10-13 (R6 conversation language, picker placement).
 Authoritative source: https://github.com/raymond-van/animama/issues/385,
-published and read back 2026-10-10T05:27:55Z. This file is a snapshot of that
-publication.
+published and read back 2026-10-10T05:27:55Z; the revision was published and
+read back 2026-10-13T21:14:07Z. This file is a snapshot of that publication.
 
 ## Problem and intended users
 
@@ -45,6 +46,9 @@ and ships the first locales as beta.
 In scope:
 
 - Locale resolution, persistence and a language picker in both products.
+- The locale as the conversation language: the Anima's reply language and the
+  speech language for ElevenLabs, Gemini and the browser's speech engines, with
+  a warning on engines that work only in English (R6).
 - English plus four beta locales: Japanese (`ja`), Korean (`ko`), Simplified
   Chinese (`zh-Hans`) and Traditional Chinese (`zh-Hant`).
 - Converting all owner-facing UI in both products, the desktop shell surfaces in
@@ -56,10 +60,10 @@ In scope:
 
 Non-goals:
 
-- **Conversation language** (model reply language, text-to-speech,
-  speech-to-text, lip-sync, memory language, the `PROFILE.md` template and the
-  starter Anima identities). Linked follow-up issue; whether it is global or per
-  Anima is decided there.
+- Multilingual speech recognition (Parakeet v2 is English-only; linked
+  follow-up issue), lip-sync for non-English replies (#468), memory language,
+  the `PROFILE.md` template and the starter Anima identities, which stay
+  English.
 - Localized display names for Included content (Gestures, Reactions, Avatar,
   Particle and Scene Effects, voices). Linked follow-up issue; it needs a
   manifest schema change, and the model keeps the authored name and description.
@@ -78,11 +82,10 @@ Non-goals:
 
 These become `GLOSSARY.md` entries, and an ADR records the separation:
 
-- **Locale** (UI locale): the language and regional conventions Animama uses for
-  its own interface text and for formatting dates, numbers and plurals. It never
-  changes what an Anima says, hears or remembers.
-- **Conversation language**: the language an Anima speaks, understands and
-  remembers in. Defined now; implemented by the follow-up.
+- **Locale** (UI locale): the one language Animama uses for its interface text,
+  for formatting dates, numbers and plurals, and for its Animas' conversations.
+- **Conversation language**: the language an Anima replies, speaks and listens
+  in. It is always the active locale (revised 2026-10-13).
 
 The crisis region is neither. It comes from the owner's region preference or the
 browser's region. Code that names the browser locale `locale` (for example
@@ -96,6 +99,8 @@ browser's region. Code that names the browser locale `locale` (for example
   and `zh-Hant` ship as beta and are marked "Beta" in the picker. The picker
   names every locale in its own script (English, 日本語, 한국어, 简体中文,
   繁體中文), so a user who cannot read the active locale can still find English.
+  It sits in App Settings → General under the display name, and on the
+  first-run Welcome step after the display name, where it applies at once.
   A development-only pseudo-locale exists (R17) and is never offered to users.
 - **R2 — Local resolution.** The app setting is unset by default, shown as
   "System default". When it is unset, the app uses the first supported match in
@@ -117,8 +122,14 @@ browser's region. Code that names the browser locale `locale` (for example
   with British dates on an `en-GB` system); otherwise the locale's default.
 - **R5 — Missing translations.** A string missing from a beta catalog shows its
   English text, never a raw key or a broken layout.
-- **R6 — Independence.** Changing the locale never changes provider instructions,
-  Anima replies, voices, speech-recognition language, memory, the crisis region,
+- **R6 — Conversation language.** The locale is also the language the Anima
+  replies and speaks in. Under a non-English locale the model is instructed to
+  reply in it (unless the user asks for another language), and ElevenLabs,
+  Gemini and the browser's own speech engines receive its language code;
+  English adds nothing. Parakeet and Pocket TTS work only in English and stay
+  selectable, with a short warning that suggests ElevenLabs or Gemini for
+  speech and says multilingual speech recognition is coming. The locale never
+  changes memory behavior, the crisis region, companion safety,
   authentication, ownership or security behavior.
 
 ### Converted surfaces
@@ -230,8 +241,10 @@ browser's region. Code that names the browser locale `locale` (for example
 - [ ] **AC6 (R1, R4, R5).** For each beta locale, an owner visual pass at desktop
   size and one narrower size finds no clipped or overlapping text on setup, chat,
   Library, a creator and Settings, and CJK glyphs render with the system font.
-- [ ] **AC7 (R6).** Exact-prompt tests show identical provider instructions under
-  every locale; speech-recognition language and crisis region are unchanged.
+- [ ] **AC7 (R6).** Prompt tests show the reply-language section only under
+  non-English locales; ElevenLabs and Gemini speech receive the language code;
+  the crisis region and safety are unchanged under every locale; the English-only
+  engine warnings appear under non-English locales.
 - [ ] **AC8 (R8).** With the backend stopped, the desktop recovery page appears in
   the last applied locale; on first launch it follows the OS locale; a macOS build
   shows the localized application menu and microphone prompt.
@@ -254,9 +267,8 @@ Agreed by the owner in intent discovery, 2026-10-10:
 
 - Foundation without a deadline; machine-only translations labeled beta (R1).
 - First wave `ja`, `ko`, `zh-Hans`, `zh-Hant`, with separate Chinese catalogs.
-- Conversation language, Included content display names and CJK crisis
-  resources are linked follow-ups; right-to-left is a non-goal that must not be
-  blocked.
+- Included content display names and CJK crisis resources are linked
+  follow-ups; right-to-left is a non-goal that must not be blocked.
 - "System default" as the unset local preference (R2, R3).
 - Completion means all owner-facing UI, with debug tools exempt (R7).
 - Desktop shell follows the app; installer stays English (R8).
@@ -286,6 +298,12 @@ Open, not blocking:
 - Whether the landing root redirects or suggests a language; decided at the
   rework, within R15.
 - Order of the later locale wave.
+
+Revised by the owner, 2026-10-13: one language for the whole app (the locale is
+the conversation language, R6, replacing "Independence"); ElevenLabs and Gemini
+receive the language code; English-only engines warn; the picker moves to
+General under the display name and joins the Welcome step; multilingual speech
+recognition becomes the follow-up.
 
 ## Spec
 

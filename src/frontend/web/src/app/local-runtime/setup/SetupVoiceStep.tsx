@@ -15,6 +15,7 @@ import {
   DesktopCredentialsPanel,
   type DesktopCredentialsController,
 } from "@/ui/settings/DesktopCredentialsPanel";
+import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 
 import { ModelLink } from "./ModelLink";
 import { SetupSpeechDownloads } from "./SetupSpeechDownloads";
@@ -56,6 +57,8 @@ export function SetupVoiceStep({
         <h2 id={`${id}-stt`} className="text-base font-semibold">
           {t("voice.stt.heading")}
         </h2>
+        {/* Setup downloads only Parakeet. */}
+        <SpeechLanguageNotice direction="speechToText" provider="parakeet" />
         <SetupSpeechDownloads />
       </section>
       <section aria-labelledby={`${id}-tts`} className="space-y-3">
@@ -117,6 +120,10 @@ export function SetupVoiceStep({
                   t("voice.tts.elevenLabs.description")
                 )}
               </p>
+              <SpeechLanguageNotice
+                direction="textToSpeech"
+                provider={option.id}
+              />
               {option.id === "elevenlabs" ? (
                 <DesktopCredentialsPanel
                   providers={["elevenlabs"]}

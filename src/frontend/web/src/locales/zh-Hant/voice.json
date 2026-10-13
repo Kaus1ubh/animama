@@ -244,5 +244,9 @@
       "knowledgeable": "博學",
       "warm": "溫暖"
     }
+  },
+  "languageNotice": {
+    "speechToText": "Parakeet 僅能辨識英語。{{language}}語音辨識即將推出。",
+    "textToSpeech": "Pocket TTS 僅支援英語。要讓 Anima 用{{language}}說話，請選擇 ElevenLabs 或 Gemini。"
   }
 }

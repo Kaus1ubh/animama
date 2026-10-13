@@ -30,6 +30,7 @@ import {
   type ParakeetPreviewController,
 } from "@/lib/speech/client-parakeet/preview-controller";
 import type { ClientParakeetBackend } from "@/lib/speech/client-parakeet/worker-protocol";
+import { browserSpeechLanguage } from "@/lib/speech/speech-language";
 import {
   type BrowserRecognitionStopReason,
   appendTranscript,
@@ -2642,7 +2643,9 @@ export function useDictation(options: UseDictationOptions = {}) {
       const recognition = new SpeechRecognition();
       recognition.continuous = true;
       recognition.interimResults = true;
-      recognition.lang = navigator.language || "en-US";
+      // Animas speak the app's language; under English, keep the browser's.
+      recognition.lang =
+        browserSpeechLanguage() ?? (navigator.language || "en-US");
 
       if (provider === "browser_local") {
         try {

@@ -239,6 +239,10 @@
   },
   "suggestions": {
     "greeting": "Simple greeting",
-    "joke": "Tell me a joke"
+    "greetingMessage": "Hi! How's it going?",
+    "greetingMessageNamed": "Hi {{name}}! How's it going?",
+    "joke": "Tell me a joke",
+    "jokeMessage": "Hey, tell me a joke!",
+    "jokeMessageNamed": "Hey {{name}}, tell me a joke!"
   }
 }

@@ -61,6 +61,10 @@
       "youthful": "Youthful"
     }
   },
+  "languageNotice": {
+    "speechToText": "Parakeet understands English only. Speech recognition in {{language}} is coming soon.",
+    "textToSpeech": "Pocket TTS speaks English only. To hear your Animas in {{language}}, choose ElevenLabs or Gemini."
+  },
   "microphone": {
     "device": {
       "accessDenied": "Microphone access was not granted. Allow it in your browser or system settings.",

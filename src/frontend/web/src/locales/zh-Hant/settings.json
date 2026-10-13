@@ -146,17 +146,6 @@
       },
       "updateFailed": "無法更新{{label}}顏色。"
     },
-    "language": {
-      "description": "Animama 選單、按鈕和訊息使用的語言。不會改變你的 Anima 說話的語言。測試版語言為機器翻譯。",
-      "keywords": [
-        "語言",
-        "地區設定",
-        "翻譯"
-      ],
-      "label": "語言",
-      "saveFailed": "無法變更語言。",
-      "systemDefaultResolved": "系統預設（{{language}}）"
-    },
     "theme": {
       "group": "主題",
       "keywords": [
@@ -260,6 +249,17 @@
     "textToSpeech": "文字轉語音",
     "voiceClone": "語音複製",
     "webSearch": "網頁搜尋"
+  },
+  "language": {
+    "description": "Animama 和 Anima 使用的語言：包括選單、訊息，以及 Anima 說話和聽懂的語言。測試版語言為機器翻譯。",
+    "keywords": [
+      "語言",
+      "地區設定",
+      "翻譯"
+    ],
+    "label": "語言",
+    "saveFailed": "無法變更語言。",
+    "systemDefaultResolved": "系統預設（{{language}}）"
   },
   "modal": {
     "close": "關閉應用程式設定",

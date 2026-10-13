@@ -148,17 +148,6 @@
       },
       "updateFailed": "{{label}}の色を更新できませんでした。"
     },
-    "language": {
-      "description": "Animama のメニュー、ボタン、メッセージの言語です。Anima が話す言語は変わりません。ベータ版の言語は機械翻訳です。",
-      "keywords": [
-        "言語",
-        "ロケール",
-        "翻訳"
-      ],
-      "label": "言語",
-      "saveFailed": "言語を変更できませんでした。",
-      "systemDefaultResolved": "システムのデフォルト（{{language}}）"
-    },
     "theme": {
       "group": "テーマ",
       "keywords": [
@@ -262,6 +251,17 @@
     "textToSpeech": "読み上げ",
     "voiceClone": "音声クローン",
     "webSearch": "Web 検索"
+  },
+  "language": {
+    "description": "Animama と Anima の言語です。メニューやメッセージに加え、Anima が話す言葉と聞き取る言葉にも使われます。ベータ版の言語は機械翻訳です。",
+    "keywords": [
+      "言語",
+      "ロケール",
+      "翻訳"
+    ],
+    "label": "言語",
+    "saveFailed": "言語を変更できませんでした。",
+    "systemDefaultResolved": "システムのデフォルト（{{language}}）"
   },
   "modal": {
     "close": "アプリ設定を閉じる",

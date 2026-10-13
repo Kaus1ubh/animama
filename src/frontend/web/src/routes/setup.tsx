@@ -37,6 +37,7 @@ import {
 import { Input } from "@/ui/components/input";
 import { Label } from "@/ui/components/label";
 import type { DesktopCredentialsController } from "@/ui/settings/DesktopCredentialsPanel";
+import { LanguageSelect } from "@/ui/settings/LanguageSetting";
 import { SetupAiStep } from "@/app/local-runtime/setup/SetupAiStep";
 import { SetupVoiceStep } from "@/app/local-runtime/setup/SetupVoiceStep";
 import {
@@ -393,7 +394,10 @@ function SetupProgress({ step }: { step: SetupStep }) {
   );
 }
 
-/** The private display name is the only required wizard answer. */
+/**
+ * The private display name is the only required wizard answer. The language
+ * applies and saves as soon as it is picked, so the rest of setup follows it.
+ */
 function WelcomeStep({
   displayName,
   autoFocus,
@@ -403,7 +407,7 @@ function WelcomeStep({
   autoFocus: boolean;
   onNameChange: (value: string) => void;
 }) {
-  const { t } = useTranslation("setup");
+  const { t } = useTranslation(["setup", "settings"]);
   return (
     <>
       <div className="space-y-2">
@@ -425,6 +429,13 @@ function WelcomeStep({
           placeholder={t("welcome.displayName.placeholder")}
           onChange={(event) => onNameChange(event.target.value)}
         />
+      </div>
+      <div className="space-y-2">
+        <Label htmlFor="local-language">{t("settings:language.label")}</Label>
+        <LanguageSelect id="local-language" className="w-full" />
+        <p className="text-muted-foreground text-xs">
+          {t("settings:language.description")}
+        </p>
       </div>
     </>
   );

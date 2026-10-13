@@ -4,6 +4,7 @@ import {
   SOURCE_LOCALE,
   formattingLocale,
   isUiLocale,
+  type UiLocale,
 } from "@animama/runtime-contracts/locale";
 
 /** Locale-aware formatting helpers bound to one `Intl` locale tag. */
@@ -82,14 +83,23 @@ export function systemPreferredLanguages(): readonly string[] {
 const displayCollators = new Map<string, Intl.Collator>();
 
 /**
+ * The supported UI Locale currently applied, outside React; `null` before i18n
+ * starts and under the development pseudo-locale. Chat turns report it as the
+ * language the Anima replies and speaks in (ADR 0024).
+ */
+export function activeUiLocale(): UiLocale | null {
+  const i18n = getI18n();
+  const language = i18n?.resolvedLanguage ?? i18n?.language;
+  return language && isUiLocale(language) ? language : null;
+}
+
+/**
  * Compare display text (names, labels) in the active UI Locale's collation,
  * outside React; English without an i18n instance. Inside React, use
  * `useFormatters().compare`.
  */
 export function compareDisplayText(left: string, right: string): number {
-  const i18n = getI18n();
-  const language = i18n?.resolvedLanguage ?? i18n?.language;
-  const locale = language && isUiLocale(language) ? language : SOURCE_LOCALE;
+  const locale = activeUiLocale() ?? SOURCE_LOCALE;
   const tag = formattingLocale(locale, systemPreferredLanguages());
   let collator = displayCollators.get(tag);
   if (!collator) {

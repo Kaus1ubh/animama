@@ -1454,7 +1454,11 @@ export default interface Resources {
     },
     "suggestions": {
       "greeting": "Simple greeting",
-      "joke": "Tell me a joke"
+      "greetingMessage": "Hi! How's it going?",
+      "greetingMessageNamed": "Hi {{name}}! How's it going?",
+      "joke": "Tell me a joke",
+      "jokeMessage": "Hey, tell me a joke!",
+      "jokeMessageNamed": "Hey {{name}}, tell me a joke!"
     }
   },
   "common": {
@@ -5971,13 +5975,6 @@ export default interface Resources {
         },
         "updateFailed": "Failed to update the {{label, lowercase}} colour."
       },
-      "language": {
-        "description": "The language of Animama's menus, buttons and messages. It does not change the language your Animas speak. Beta languages are machine-translated.",
-        "keywords": ["language", "locale", "translation"],
-        "label": "Language",
-        "saveFailed": "Failed to change the language.",
-        "systemDefaultResolved": "System default ({{language}})"
-      },
       "theme": {
         "group": "Theme",
         "keywords": ["mode", "dark", "light", "system", "dark mode"],
@@ -6075,6 +6072,13 @@ export default interface Resources {
       "textToSpeech": "Text-to-Speech",
       "voiceClone": "Voice Clone",
       "webSearch": "Web search"
+    },
+    "language": {
+      "description": "The language of Animama and of your Animas: menus, messages, and what your Animas say and hear. Beta languages are machine-translated.",
+      "keywords": ["language", "locale", "translation"],
+      "label": "Language",
+      "saveFailed": "Failed to change the language.",
+      "systemDefaultResolved": "System default ({{language}})"
     },
     "modal": {
       "close": "Close App Settings",
@@ -6576,6 +6580,10 @@ export default interface Resources {
         "warm": "Warm",
         "youthful": "Youthful"
       }
+    },
+    "languageNotice": {
+      "speechToText": "Parakeet understands English only. Speech recognition in {{language}} is coming soon.",
+      "textToSpeech": "Pocket TTS speaks English only. To hear your Animas in {{language}}, choose ElevenLabs or Gemini."
     },
     "microphone": {
       "device": {

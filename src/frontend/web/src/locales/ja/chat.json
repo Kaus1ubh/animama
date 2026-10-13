@@ -237,6 +237,10 @@
   },
   "suggestions": {
     "greeting": "簡単なあいさつ",
-    "joke": "ジョークを言って"
+    "joke": "ジョークを言って",
+    "greetingMessage": "こんにちは！調子はどう？",
+    "greetingMessageNamed": "こんにちは、{{name}}！調子はどう？",
+    "jokeMessage": "ねえ、何かジョークを言って！",
+    "jokeMessageNamed": "ねえ{{name}}、何かジョークを言って！"
   }
 }

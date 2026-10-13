@@ -11,6 +11,7 @@ export {
 } from "./i18n/runtime";
 export { AnimamaI18nProvider } from "./i18n/provider";
 export {
+  activeUiLocale,
   compareDisplayText,
   createFormatters,
   formattersForLanguage,

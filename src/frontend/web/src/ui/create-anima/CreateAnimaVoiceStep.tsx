@@ -24,6 +24,7 @@ import {
   SelectValue,
 } from "@/ui/components/select";
 import { useSettings } from "@/ui/settings/SettingsProvider";
+import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 import type { CreateAnimaDraft, DraftEdit } from "./createAnimaDraft";
 import { WordedError } from "@/lib/errors/apiError";
 
@@ -145,6 +146,10 @@ export function CreateAnimaVoiceStep({
           </SelectContent>
         </Select>
       </div>
+      <SpeechLanguageNotice
+        direction="textToSpeech"
+        provider={voice.provider}
+      />
       {voice.provider === "pocket_tts" ? (
         <div className="space-y-6">
           <div className="space-y-3">

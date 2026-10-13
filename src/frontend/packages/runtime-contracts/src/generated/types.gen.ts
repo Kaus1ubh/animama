@@ -4140,7 +4140,10 @@ export type PyCatalogPreviewSource = {
 /**
  * PyChatClientContext
  *
- * Client-reported context used only for safety presentation (spec R2, R5).
+ * Client-reported context for one turn.
+ *
+ * ``time_zone`` and ``locale`` serve only safety presentation (companion safety
+ * spec R2, R5). ``ui_locale`` sets the conversation language (ADR 0024).
  */
 export type PyChatClientContext = {
     /**
@@ -4155,6 +4158,12 @@ export type PyChatClientContext = {
      * IANA time zone, e.g. America/Toronto.
      */
     time_zone?: string | null;
+    /**
+     * Ui Locale
+     *
+     * UI Locale the client applied, e.g. ja. A non-English supported locale sets the language the Anima replies and speaks in; other values are ignored.
+     */
+    ui_locale?: string | null;
 };
 
 /**

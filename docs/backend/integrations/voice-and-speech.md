@@ -35,7 +35,10 @@ is ElevenLabs:
 - `enabled: true`
 - `provider: "elevenlabs"`
 - `transport: "auto" | "direct"` as request intent
-- optional `language_code`
+- optional `language_code`; the frontend sends none. A turn whose
+  `client_context.ui_locale` is a non-English UI Locale fills it with that
+  language's ISO 639-1 code (`ja`, `ko`, `zh`) for ElevenLabs and Gemini, the
+  conversation language ([ADR 0024](../../adr/0024-ui-locale-is-the-conversation-language.md)).
 - optional `model_id`: `eleven_v4_turbo`, the only ElevenLabs model. The
   retired ids `eleven_flash_v2_5`, `eleven_multilingual_v2` and `eleven_v3` are
   accepted and mapped to it (`RETIRED_ELEVENLABS_TTS_MODEL_REPLACEMENTS`), so
@@ -170,9 +173,11 @@ A chat request selects Gemini with `dispatch_options.tts`
 `product_http/chat/tts.py`), with its sentence or paragraph batching,
 paragraph pause and frame order. Each batch is one streamed Interactions
 request with `store: false`, `audio/l16` at 24 kHz and
-`speech_config: [{voice}]`, where the voice is the Anima's
+`speech_config: [{voice, language}]`, where the voice is the Anima's
 `speech.gemini.voice`, resolved once per run; a missing or unknown name speaks
-`Kore`. Gemini receives no continuity text or language code. Its stream is
+`Kore`. `language` is the turn's conversation language code and is omitted
+under English, so Gemini detects the language. Gemini receives no continuity
+text. Its stream is
 16-bit little-endian PCM (measured), which `server/finalized_speech.py`
 re-frames into `pcm_24000` `tts.audio` frames of at least 0.2 s each, except
 the last of each request. Frames carry `provider: "gemini"` and the Gemini `model_id`. At most

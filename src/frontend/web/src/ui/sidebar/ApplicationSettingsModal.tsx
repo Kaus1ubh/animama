@@ -84,10 +84,11 @@ import {
   AppearanceColorSetting,
   ResetColorsSetting,
   AppearanceModeSetting,
-  LanguageSetting,
   colorGroupLabel,
   colorTokenLabel,
 } from "@/ui/settings/AppearanceSettings";
+import { LanguageSetting } from "@/ui/settings/LanguageSetting";
+import { SpeechLanguageNotice } from "@/ui/settings/SpeechLanguageNotice";
 import { useRuntimePlatform } from "@/platform/RuntimePlatformProvider";
 import {
   getSttProviderOptions,
@@ -327,7 +328,6 @@ type SettingGroupId =
   | "webSearch"
   | "animama"
   | "diagnostics"
-  | "language"
   | "theme"
   | "colors"
   | "advancedColors"
@@ -359,8 +359,6 @@ function settingGroupLabel(
       return t("groups.animama");
     case "diagnostics":
       return t("groups.diagnostics");
-    case "language":
-      return t("appearance.language.label");
     case "theme":
       return t("appearance.theme.group");
     case "colors":
@@ -1244,6 +1242,21 @@ export function ApplicationSettingsModal({
       ),
     },
     {
+      id: "language",
+      section: "General",
+      // Sits with the display name in the Profile group.
+      ...inGroup("profile"),
+      label: t("language.label"),
+      // English terms and native names keep the picker findable from any language.
+      keywords: [
+        ...t("language.keywords", { returnObjects: true }),
+        "language",
+        "locale",
+        ...SUPPORTED_LOCALES.map(localeNativeName),
+      ],
+      render: () => <LanguageSetting />,
+    },
+    {
       id: "model-connections",
       section: "Models",
       label: t("models.connections"),
@@ -1380,20 +1393,6 @@ export function ApplicationSettingsModal({
       label: t("about.diagnostics.entryLabel"),
       keywords: ["diagnostics", "bug report", "support", "troubleshooting"],
       render: () => <CopyDiagnosticsSetting />,
-    },
-    {
-      id: "appearance-language",
-      section: "Appearance",
-      ...inGroup("language"),
-      label: t("appearance.language.label"),
-      // English terms and native names keep the picker findable from any language.
-      keywords: [
-        ...t("appearance.language.keywords", { returnObjects: true }),
-        "language",
-        "locale",
-        ...SUPPORTED_LOCALES.map(localeNativeName),
-      ],
-      render: () => <LanguageSetting />,
     },
     {
       id: "appearance-mode",
@@ -1575,6 +1574,10 @@ export function ApplicationSettingsModal({
           {currentSttOption?.reason ? (
             <p className="text-warning text-xs">{currentSttOption.reason}</p>
           ) : null}
+          <SpeechLanguageNotice
+            direction="speechToText"
+            provider={selectedSttOption}
+          />
           {isInitializing ? (
             <p className="text-muted-foreground text-xs">
               {t("voice.stt.preparing")}
@@ -1687,6 +1690,12 @@ export function ApplicationSettingsModal({
         >
           {currentTtsOption?.reason && ttsEnabled ? (
             <p className="text-warning text-xs">{currentTtsOption.reason}</p>
+          ) : null}
+          {ttsEnabled ? (
+            <SpeechLanguageNotice
+              direction="textToSpeech"
+              provider={selectedTtsProvider}
+            />
           ) : null}
           <p className="text-muted-foreground text-xs">
             {t("voice.tts.provider.note")}

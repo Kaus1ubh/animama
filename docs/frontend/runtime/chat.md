@@ -499,8 +499,9 @@ The user-facing contract is the
 cadence and detection rules are in
 [backend chat](../../backend/runtime/chat.md#companion-safety).
 
-`useProductChatSession` sends `client_context` (browser time zone and locale)
-with every turn and forwards `safety.ai_notice` and `safety.crisis_support`
+`useProductChatSession` sends `client_context` (browser time zone and locale,
+and the applied UI Locale as `ui_locale`, the conversation language) with every
+turn and forwards `safety.ai_notice` and `safety.crisis_support`
 through its optional `safety` argument (`ChatSafetyEffects`). Types and guards
 live in `packages/product-ui/src/lib/chat/companion-safety.ts`.
 
