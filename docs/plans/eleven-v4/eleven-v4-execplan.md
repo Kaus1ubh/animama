@@ -18,7 +18,7 @@ plus the folded issues #498 and #499.
 Explicit gates:
 
 - **G1 — Paid live checks.** Live ElevenLabs checks during implementation stay
-  within the owner-approved budget (spec D6: US$1, of which about US$0.20 is
+  within the owner-approved budget (spec D6: US$1, of which about US$0.21 is
   spent).
 - **G2 — Owner gate before merge.**
   - The owner listens to v4 Turbo with the voices in use.
@@ -98,9 +98,9 @@ Orientation (paths relative to the repository root):
 - **Contracts:**
   - `contracts/hosted-web.md` (realtime session descriptor, speech refusals,
     versions);
-  - `contracts/versions.json` (`local-http` 5.0.0);
-  - `src/frontend/packages/runtime-contracts/package.json` (0.5.0);
-  - `src/frontend/packages/product-ui/package.json` (0.9.0);
+  - `contracts/versions.json` (`local-http` 5.0.0, now 6.0.0);
+  - `src/frontend/packages/runtime-contracts/package.json` (0.5.0, now 0.6.0);
+  - `src/frontend/packages/product-ui/package.json` (0.9.0, now 0.10.0);
   - `docs/backend/architecture/http-api.md` (version mirror).
 - **Docs:**
   - `docs/frontend/runtime/elevenlabs-tts.md`, `voice.md` and `avatar-lipsync.md`;
@@ -160,12 +160,17 @@ Ownership and boundaries:
 - [x] Phase 4 (#501): side-by-side view with pluggable plan sources. Checks
   pass; live capture, replay and both layouts were checked; Code Review #1–#2
   passed.
-- [ ] Phase 5 (#502): hosted contract, Cloud issue, docs and full validation.
+- [x] Phase 5 (#502): hosted contract, Cloud issue, docs and full validation.
+  Code Review #1 found three Cloud-draft corrections. They were fixed and
+  verified by the final integration review.
+  - The native full validation passed, apart from the Docker-backed backend
+    tests and `e2e:test:fast`, which wait for Docker.
 - [x] Intent discovery for audio tags in `speech` (D12), 2026-10-12: linked
   issue [#479](https://github.com/raymond-van/animama/issues/479).
 - [x] Phases 1–2 scope review (2026-10-13): passed after a one-line doc fix.
   Every language was then spoken live on the current paths.
-- [ ] Final integration review (after Phase 5).
+- [x] Final integration review (2026-10-13): #1 passed with no blockers. Its
+  one required plan record and the optional fixes are recorded below.
 - [ ] G2 owner gate.
 
 ## Surprises & Discoveries
@@ -291,6 +296,15 @@ From Phase 4, 2026-10-13:
   - Reason: Cloud forwards that output with an offset instead of reshaping it.
   - `tts.audio` carries no timing since finalized v4 was removed (D13). Only the
     direct dialogue socket uses `chars` and relative milliseconds.
+- **2026-10-13 — agent proposal (Phase 5 review P5-F1): where retired ids are
+  mapped.**
+  - The shared option normalizer (`merge_chat_request_options`) keeps dropping
+    unsupported ids.
+  - The shared route maps retired ids through `PyAnimaTtsRunOptions`. Cloud's
+    own route must apply `replace_retired_elevenlabs_tts_model_id`, as the
+    Cloud draft and the contract say.
+  - Reason: mapping in the normalizer is a shared behaviour change that needs
+    its own tests, and Cloud changes this area before adoption anyway.
 - **2026-10-12 — agent proposal: old ids in requests.**
   - A `mode="before"` validator maps legacy ids to their replacements in
     `PyAnimaTtsRunOptions`.
@@ -2183,6 +2197,50 @@ Starting revision: `3c6b7d98`, merged with `main` at `00442ec9` in `10812ec4`
   - It is not filed.
 - **G2 pack.** The checklist is below.
 
+#### Phase 5 results
+
+Validated revision: `7b50f27c`, the merged branch. Baseline: `00442ec9`
+(`main`).
+
+- `75de884c` has the same code. Later commits change only docs, the plan and
+  the debug view's replay stop, which are checked separately below.
+- The containerised `scripts/ci/local_validate.py --profile full` run of
+  `75de884c` stalled in its frozen Python install for 50 minutes, with
+  OrbStack at about 700% CPU and Docker no longer answering. It was stopped and
+  left no receipt.
+- The checks then ran natively on the same clean source:
+
+| Check | Result |
+| --- | --- |
+| `make check-test` | Typed-content audit, Ruff format (833 files), Ruff and mypy (833 files) pass. pytest: 3,164 passed, 29 skipped, 0 failed, and 995 errors. Every error is `DockerException: Error while fetching server API version` from the Postgres test containers. |
+| `pnpm openapi-ts:check` | Current |
+| `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`, `pnpm build` | Pass |
+| `pnpm web:test` | Vitest, 484 files: 4,301 passed, 1 skipped. Node suites: 114 and 13 passed. |
+| `pnpm packages:test` | product-ui 30 of 30; discover-client passes |
+| `pnpm desktop:test` | 509 passed, 14 skipped |
+| Package sets | `build.py build` for `7b50f27c`, and for `main` at `00442ec9` (current tooling, with the primary checkout as source). `compare`: "Compatibility policy passed". |
+
+Not run:
+
+- **Waiting for Docker:** the 995 Docker-backed backend tests and
+  `pnpm e2e:test:fast` on a disposable built stack. Both need a working Docker
+  and run before merge once OrbStack recovers.
+- **Outside this phase's list:** `build.py validate` (installed consumers in
+  Chromium) and a receipt-bound local profile. Both are part of the
+  containerised full profile.
+- **Never run by agents here:**
+  - hosted Validation (disabled by owner policy);
+  - real hosted speech (G3);
+  - Instant Voice Clones (D5);
+  - packaged desktop builds.
+
+G1 spend:
+
+- Some small checks had no spend line: Phase 1's round-2 live reply, the #498
+  realtime Japanese reply and the P4-F2 live reply. Each was under US$0.01.
+  Gemini replies are not ElevenLabs spend.
+- The total is about US$0.21 of US$1.
+
 #### G2 owner gate pack
 
 The owner's checks before merge. Each English reply costs about US$0.004 of
@@ -2219,6 +2277,9 @@ panel on, then open http://animama-ev4.localhost:8460:
    Cloud repository.
 6. **Finalized ElevenLabs.** Confirm that no finalized ElevenLabs model returns
    (D13). Reviving one from `c6b87dd2` would be a separate follow-up.
+7. **An emoji at the end.** On ElevenLabs, send a reply that ends in an emoji
+   (for example 😊). It should speak fully, without a notice. This was never
+   verified for v4 Turbo.
 
 #### Code Review #1 Findings
 
@@ -2308,6 +2369,67 @@ After Phase 5, one `sdlc-reviewer` integration review covers:
 - docs accuracy.
 
 It may use at most two repair rounds. Still-valid phase evidence is reused.
+
+### Final Integration Review #1 Findings
+
+An independent reviewer (`sdlc-reviewer`) reviewed `7b50f27c` against
+`00442ec9` across all phases, the folded follow-ups and the merge. Result:
+**pass**, with no blocking code, contract or security finding.
+
+The reviewer verified the following:
+
+- realtime protocols and timing;
+- #498's feed into the socket;
+- the renamed Gemini path;
+- the Pocket fallback;
+- retired ids and the `eleven_v4` refusal;
+- the utility route;
+- D8;
+- production exclusion and session replacement;
+- contracts and versions;
+- security;
+- the merge;
+- the fixes left to this review (FF3-F1, FF3-F2, P4R2-F1 and P4R2-F2).
+
+Findings:
+
+- **FI-F1 (required, plan record).** The plan did not yet close Phase 5's
+  review. The reviewer verified that P5-F1 to P5-F3 hold in the draft and the
+  contract.
+- **FI-F2 (optional).** Stopping a replay cleared the avatar's lip-sync, so a
+  reply that started speaking during a replay could lose its mouth. The guide
+  overstated the guarantee.
+- **FI-F3 (optional).** The contract's retired-id sentence should name the risky
+  case: a route that does not validate its `dispatch_options`.
+- **FI-F4 (optional).** A few small live checks had no spend line.
+- **FI-F5 (optional).** An emoji-ending reply on v4 Turbo is unverified.
+- **Nits:**
+  - "Production Loading" could list the lip-sync capture;
+  - the plan's orientation showed only the old versions;
+  - the spec snapshot's authorization line was out of date;
+  - the P5-F1 choice belongs in the Decision Log.
+
+### Final Integration Review #1 Revisions
+
+- **FI-F1: accepted.**
+  - Progress marks Phase 5 and this review.
+  - This record states that the review verified P5-F1 to P5-F3.
+  - Phase 5 records its validation.
+- **FI-F2: accepted.**
+  - `stopReplaySegment` leaves the avatar's lip-sync when a reply has started
+    speaking.
+  - The view ends a replay as soon as a reply starts speaking.
+  - Both have tests, and the guide says exactly that.
+- **FI-F3: accepted** with the reviewer's wording.
+- **FI-F4: accepted.** The Phase 5 results add the missing checks; the total is
+  about US$0.21.
+- **FI-F5: accepted.** It is G2 item 7.
+- **Nits: accepted.**
+
+After the repairs, `tsc` and ESLint are clean, and Vitest across `src/ui/debug`
+and `src/stores` passes 9 files and 110 tests.
+
+Repair budget: round 1 of 2 used.
 
 ### Phases 1–2 scope review (2026-10-13)
 
@@ -2412,4 +2534,35 @@ and packaged desktop release builds.
 
 ## Outcomes & Retrospective
 
-Pending implementation.
+Delivered in raymond-van/animama#497:
+
+- ElevenLabs speaks only with Eleven v4 Turbo, in realtime over the Text to
+  Dialogue socket. Median first audio is 155 ms on web and desktop, against
+  862 ms for Flash v2.5 as Animama sent it.
+- Retired ids map to v4 Turbo, and finalized ElevenLabs is gone (D13).
+- Every language is spoken. Japanese and Chinese start before the reply ends
+  (#498), and Gemini's finalized path carries neutral names (#499).
+- ElevenLabs character timing is collected on one clock per run and turned
+  into lip-sync evidence. A development-only view compares lip-sync plans
+  against it and replays them on the avatar.
+- The hosted contract documents optional server-socket timing. A Cloud draft
+  states the changes and their order.
+
+Still open:
+
+- the G2 owner gate;
+- the G3 Cloud rollout;
+- the Docker-backed checks, which wait for Docker.
+
+Lessons:
+
+- Provider timing is close to the audio but not exact. A turn's timing can run
+  80 ms past its audio, and tag spans can be shorter than their sound. Planners
+  should resynchronise at turn ends and treat these as hints.
+- The debug panel closes on outside clicks, so tools that must watch a reply
+  should run while the panel is enabled, not only while it is open.
+- Japanese, Chinese and Korean replies have never had lip-sync (no gruut
+  phonemes). Provider timing is the first evidence for them (#468).
+- The containerised local validation stalled on macOS while installing into a
+  bind mount. Native runs gave the same coverage except for Docker-backed
+  tests.

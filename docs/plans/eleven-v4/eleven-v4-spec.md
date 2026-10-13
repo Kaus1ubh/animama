@@ -421,7 +421,7 @@ this file on 2026-10-12.
 ## ExecPlan
 
 [eleven-v4-execplan.md](eleven-v4-execplan.md). Phases 1–2 authorized on
-2026-10-12.
+2026-10-12; Phases 3–5 and the folded follow-ups #498 and #499 on 2026-10-13.
 
 ## Delivery links
 
