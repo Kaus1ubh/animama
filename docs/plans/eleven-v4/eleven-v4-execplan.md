@@ -1,14 +1,16 @@
 # Eleven v4 and v4 Turbo execution plan
 
-Status: Phases 1–2 authorized by the owner on 2026-10-12. Phases 3–5 are agreed in
-scope but not yet authorized.
+Status: Phases 1–2 authorized by the owner on 2026-10-12, and Phases 3–5 on
+2026-10-13. Issues #498 and #499 are folded into the same PR (owner,
+2026-10-13).
 
 Source agreement: [spec](eleven-v4-spec.md), agreed by the owner on 2026-10-12
 (decisions D1–D13; D13 removed finalized Eleven v4 after Phase 2), for
 [issue #471](https://github.com/raymond-van/animama/issues/471). Research:
 [eleven-v4-research.md](eleven-v4-research.md).
 
-Authorized scope: Phases 1–2 (owner, 2026-10-12).
+Authorized scope: Phases 1–5 (owner: 1–2 on 2026-10-12, 3–5 on 2026-10-13),
+plus the folded issues #498 and #499.
 - Phase 1 delivers the v4 Turbo streamed path first, by the owner's priority
   (spec D10).
 - One PR carries the whole plan (owner, 2026-10-12).
@@ -148,12 +150,11 @@ Ownership and boundaries:
 - [x] Phase 2 amendment (owner, 2026-10-12): finalized v4 removed; ElevenLabs
   speaks only with Eleven v4 Turbo. Checks pass, and Amendment Code Review #1–#2
   passed. Pending G2 (owner listening to v4 Turbo).
-- [ ] Phase 3: timing plumbing and the timing evidence module (not yet
-  authorized).
-- [ ] Phase 4: side-by-side view with pluggable plan sources (not yet
-  authorized).
-- [ ] Phase 5: hosted contract, Cloud issue, docs and full validation (not yet
-  authorized).
+- [ ] Folded follow-ups: #498 (Japanese and Chinese sentence splitting) and #499
+  (provider-neutral names for the Gemini finalized path).
+- [ ] Phase 3 (#500): timing plumbing and the timing evidence module.
+- [ ] Phase 4 (#501): side-by-side view with pluggable plan sources.
+- [ ] Phase 5 (#502): hosted contract, Cloud issue, docs and full validation.
 - [x] Intent discovery for audio tags in `speech` (D12), 2026-10-12: linked
   issue [#479](https://github.com/raymond-van/animama/issues/479).
 - [x] Phases 1–2 scope review (2026-10-13): passed after a one-line doc fix.
@@ -285,6 +286,12 @@ From the spike, 2026-10-12 (details and numbers in the research brief):
     `tts.audio` timing for ElevenLabs.
   - The Phase 2 work stays in history as reviewed. The removal is a Phase 2
     amendment with its own bounded review.
+- **2026-10-13 — owner:**
+  - Fold #498 (split Japanese and Chinese speech at `。！？`) and #499
+    (provider-neutral names for the Gemini finalized path) into this PR.
+  - Authorize Phases 3–5 and keep Phases 3–4 in this PR (declining the
+    proposal to move them to #468).
+  - Phase issues: #500, #501 and #502, native sub-issues of #471.
 
 ## Setup and execution rules
 
@@ -1395,10 +1402,55 @@ Optional notes, all taken:
 
 Amendment review: **passed**, using one full review and one repair round.
 
+### Folded follow-ups: #498 and #499 (owner, 2026-10-13)
+
+Both were found while delivering Phase 2. They are folded into this PR before
+Phase 3.
+
+- **#498:** `domain/text_segmenter.py` ends a sentence only at ASCII `.!?`
+  followed by whitespace, so Japanese or Chinese speech is one segment. Change:
+  - also end a sentence after `。！？` (with runs and closing brackets or quotes),
+    with no following whitespace needed;
+  - keep the ASCII heuristics.
+
+  Acceptance:
+  - three Japanese sentences become three segments as they complete;
+  - English, Korean and Spanish segmentation and the golden fixtures are
+    unchanged;
+  - live, realtime v4 Turbo starts after the first Japanese sentence, and Gemini
+    sends one request per sentence.
+- **#499:** rename the finalized runtime, playback functions and product-ui
+  effects to provider-neutral names, and make the decode-failure text neutral.
+  - Remove product-ui's unreachable `tts.error` allowance fallback. Gemini
+    declines still end that reply's speech, and the realtime ElevenLabs fallback
+    is unchanged.
+  - Bump product-ui for the effect renames, and mirror the bump.
+
+  Acceptance:
+  - no ElevenLabs naming remains in the Gemini finalized path;
+  - behaviour is unchanged;
+  - the web, product-ui and desktop tests pass.
+
+Commits:
+
+- `perf(chat): speak Japanese and Chinese replies sentence by sentence`;
+- `refactor(voice): drop ElevenLabs names from the Gemini finalized speech path`.
+
+Review: one bounded review covers both (one full review, at most two repair
+rounds).
+
+#### Folded follow-ups Code Review #1 Findings
+
+Pending.
+
+#### Folded follow-ups Code Review #1 Revisions
+
+Pending.
+
 ### Phase 3: timing plumbing and the timing evidence module
 
-Requirements: R4 (timing and module), R5 (timing frames). Depends on Phases 1–2.
-Not yet authorized.
+Issue: #500. Requirements: R4 (timing and module), R5 (timing frames). Depends
+on Phases 1–2. Authorized on 2026-10-13.
 
 Outcome:
 
@@ -1479,7 +1531,8 @@ Pending.
 
 ### Phase 4: side-by-side view with pluggable plan sources
 
-Requirements: R4 (side-by-side view). Depends on Phase 3. Not yet authorized.
+Issue: #501. Requirements: R4 (side-by-side view). Depends on Phase 3.
+Authorized on 2026-10-13.
 
 Outcome: where the Anima debug panel is enabled, the owner can inspect a v4
 reply's audio, its timing evidence and every registered lip-sync plan, and
@@ -1536,8 +1589,8 @@ Pending.
 
 ### Phase 5: hosted contract, Cloud issue, docs and full validation
 
-Requirements: R5, docs and contract acceptance. Depends on Phases 1–4. Not yet
-authorized.
+Issue: #502. Requirements: R5, docs and contract acceptance. Depends on Phases
+1–4. Authorized on 2026-10-13.
 
 Changes:
 

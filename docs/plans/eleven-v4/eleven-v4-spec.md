@@ -1,7 +1,8 @@
 # Eleven v4 and v4 Turbo voices, with provider timing for lip-sync
 
-Status: Agreed (owner, 2026-10-12). Phases 1–2 of the ExecPlan are authorized.
-Amended the same day by D13: finalized Eleven v4 is removed, and ElevenLabs
+Status: Agreed (owner, 2026-10-12). Phases 1–2 of the ExecPlan were authorized
+on 2026-10-12, and Phases 3–5 on 2026-10-13, with #498 and #499 folded into the
+same PR. Amended on 2026-10-12 by D13: finalized Eleven v4 is removed, and ElevenLabs
 speaks only with Eleven v4 Turbo.
 
 Owner decisions, 2026-10-12, in D1–D13 below:
@@ -18,8 +19,8 @@ Owner decisions, 2026-10-12, in D1–D13 below:
 Authoritative source: parent issue
 [#471](https://github.com/raymond-van/animama/issues/471), published on
 2026-10-12 (updated 23:23 UTC) from this file at `5e0c6797`, and amended with D13
-on 2026-10-13 at 02:45 UTC (R4 and R6 wording at 03:31 UTC). This file is that
-snapshot. Refresh it from the
+on 2026-10-13 at 02:45 UTC (R4 and R6 wording at 03:31 UTC; phase
+authorization at 05:04 UTC). This file is that snapshot. Refresh it from the
 issue before resuming.
 Research: [eleven-v4-research.md](eleven-v4-research.md) (spike of 2026-10-12).
 
@@ -428,6 +429,14 @@ this file on 2026-10-12.
   v4 Turbo).
 - Phase 2: [#481](https://github.com/raymond-van/animama/issues/481) (model
   cleanup and every language; finalized v4 was built, then withdrawn by D13).
-- Phases 3–5: issues follow when they are authorized.
+- Phase 3: [#500](https://github.com/raymond-van/animama/issues/500) (Eleven
+  v4 Turbo timing as lip-sync evidence).
+- Phase 4: [#501](https://github.com/raymond-van/animama/issues/501)
+  (side-by-side lip-sync view).
+- Phase 5: [#502](https://github.com/raymond-van/animama/issues/502) (hosted
+  contract, Cloud issue, docs and full validation).
+- Folded into the PR (owner, 2026-10-13):
+  [#498](https://github.com/raymond-van/animama/issues/498) and
+  [#499](https://github.com/raymond-van/animama/issues/499).
 - Linked: [#479](https://github.com/raymond-van/animama/issues/479) (audio tags).
 - Branch: `feat/eleven-v4`, delivered in one PR.
