@@ -19,6 +19,7 @@ import {
   mapNormalizedVolumeToPocketGain,
 } from "@/lib/speech/pocket/audio/volume.js";
 import { createPocketTTS } from "@/lib/speech/pocket/createPocketTTS";
+import { pocketSpeechText } from "@/lib/speech/pocket-speech-text";
 import { isPocketTtsSupported } from "@/lib/speech/tts-provider";
 
 const logger = createLogger("PocketTTSRuntime");
@@ -608,8 +609,14 @@ export async function generatePocketTtsText(
   text: string,
   args?: GeneratePocketTtsArgs,
 ): Promise<void> {
-  const trimmed = text.trim();
-  if (!trimmed) return;
+  // Pocket reads digits and symbols poorly and cannot perform tags.
+  const spoken = pocketSpeechText(text);
+  if (!spoken) {
+    // Playback drops such chunks before queueing; if one arrives anyway, still
+    // end the stream it was meant to end.
+    if (args?.endStream === true) endPocketTtsRuntimeStream();
+    return;
+  }
 
   args?.assertAnimaCatalogActive?.();
   await warmupPocketTtsRuntime(apiClient);
@@ -642,7 +649,7 @@ export async function generatePocketTtsText(
     throw createAbortError();
   }
 
-  const { generationId } = await core.generate(trimmed, {
+  const { generationId } = await core.generate(spoken, {
     ...(args?.voice?.trim() ? { voice: args.voice.trim() } : {}),
     ...(args?.animaId?.trim() ? { animaId: args.animaId.trim() } : {}),
     ...(args?.animaVoiceKey?.trim()

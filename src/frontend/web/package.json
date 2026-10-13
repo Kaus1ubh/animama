@@ -79,6 +79,7 @@
     "onnxruntime-web": "^1.24.1",
     "onnxruntime-web-assets": "npm:onnxruntime-web@1.24.2",
     "parakeet.js": "1.4.4",
+    "pinyin-pro": "3.29.4",
     "radix-ui": "^1.4.3",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",

@@ -194,7 +194,7 @@ def reference(args: argparse.Namespace) -> None:
     model = bundle.get_model(with_star=False)
     tokenizer = bundle.get_tokenizer()
     aligner = bundle.get_aligner()
-    letters = set(bundle.get_dict().keys())
+    letters = set(bundle.get_dict().keys()) - {"-"}
     roman = uroman.Uroman()
 
     def words_for(line: dict) -> list[str]:
@@ -209,7 +209,8 @@ def reference(args: argparse.Namespace) -> None:
         elif line["lang"] == "ko":
             raw = [roman.romanize_string(w, lcode="kor") for w in text.split()]
         else:
-            raw = text.split()
+            # Hyphens split words: the aligner uses "-" as its blank token.
+            raw = re.split(r"[\s\-–—]+", text)
         # Fold accents (qué -> que) before keeping the aligner's letters.
         plain = ["".join(c for c in unicodedata.normalize("NFD", w) if not unicodedata.combining(c)) for w in raw]
         cleaned = ["".join(c for c in w.lower().replace("’", "'") if c in letters) for w in plain]

@@ -944,6 +944,14 @@ Generation path:
 
 - `generateAndWait(text, { preservePlayback, endStream, voice, animaId, animaVoiceKey, signal })`
 - queued sequentially in `use-tts-playback` with abort support
+- the text Pocket speaks is `pocketSpeechText(text)`
+  (`src/lib/speech/pocket-speech-text.ts`): English numbers, symbols and
+  abbreviations spelled out ("$5.99" as "five dollars ninety-nine cents"), and
+  vocal tags and emoji left out, since Pocket cannot perform them. A chunk with
+  nothing left to say is dropped before it is queued, so the stream ends on the
+  last chunk Pocket speaks. While the backend still prepares English text with
+  gruut, Pocket receives gruut's text for sentences whose letters are all ASCII, and spells out
+  only what gruut left.
 
 End-of-stream handling:
 

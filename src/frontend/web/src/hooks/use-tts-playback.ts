@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { createLogger } from "@/lib/logger";
+import { pocketSpeechText } from "@/lib/speech/pocket-speech-text";
 import type { TimedChar } from "@/lib/speech/provider-speech-timing";
 import {
   countTtsChunkWords,
@@ -1029,6 +1030,9 @@ export function useTtsPlayback(
       for (const chunk of chunks) {
         const trimmed = chunk.text.trim();
         if (!trimmed) continue;
+        // A chunk of only tags or emoji has nothing for Pocket to say; dropping
+        // it here keeps the stream's end on the last chunk Pocket speaks.
+        if (provider === "pocket_tts" && !pocketSpeechText(trimmed)) continue;
 
         logger.info("Prepare", "Prepared TTS text", {
           provider,
@@ -1065,9 +1069,9 @@ export function useTtsPlayback(
       runId: string,
       chunks: readonly TtsChunkCandidate[],
       options?: { markLastChunkAsFinal?: boolean },
-    ) => {
+    ): boolean => {
       const prepared = prepareChunksForPlayback(chunks, "pocket_tts");
-      if (prepared.length === 0) return;
+      if (prepared.length === 0) return false;
       recordPreparedChunksForAvatar(runId, "pocket_tts", prepared);
       const markLastChunkAsFinal = options?.markLastChunkAsFinal === true;
       const queueItems: PocketQueueItem[] = prepared.map((chunk, index) => ({
@@ -1081,6 +1085,7 @@ export function useTtsPlayback(
         pocketStreamNeedsExplicitEndRef.current = false;
       }
       drainPocketQueue();
+      return true;
     },
     [drainPocketQueue, prepareChunksForPlayback, recordPreparedChunksForAvatar],
   );
@@ -1410,17 +1415,23 @@ export function useTtsPlayback(
       } else if (provider === "pocket_tts") {
         activePocketVoiceSelectionRef.current =
           resolvePocketVoiceSelectionForRun(runId);
-        if (chunks.length > 0) {
+        // When the final chunks queue, the last one ends the stream; otherwise
+        // (none left, or nothing in them to say) end the stream another way.
+        const queuedFinal =
+          chunks.length > 0 &&
           enqueuePocketChunks(runId, chunks, { markLastChunkAsFinal: true });
-        } else if (pocketQueueRef.current.length > 0) {
-          pocketQueueRef.current[pocketQueueRef.current.length - 1]!.endStream =
-            true;
-          pocketStreamNeedsExplicitEndRef.current = false;
-        } else if (pocketStreamOpenRef.current) {
-          pocketStreamNeedsExplicitEndRef.current = true;
-          drainPocketQueue();
-        } else if (!audioStartedRef.current) {
-          emitAudioEnded(runId, "pocket_tts", runSeq, "natural");
+        if (!queuedFinal) {
+          if (pocketQueueRef.current.length > 0) {
+            pocketQueueRef.current[
+              pocketQueueRef.current.length - 1
+            ]!.endStream = true;
+            pocketStreamNeedsExplicitEndRef.current = false;
+          } else if (pocketStreamOpenRef.current) {
+            pocketStreamNeedsExplicitEndRef.current = true;
+            drainPocketQueue();
+          } else if (!audioStartedRef.current) {
+            emitAudioEnded(runId, "pocket_tts", runSeq, "natural");
+          }
         }
         maybeEmitPocketAudioEnded(runId, runSeq);
       } else {

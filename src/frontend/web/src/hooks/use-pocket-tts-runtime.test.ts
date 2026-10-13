@@ -13,6 +13,7 @@ const { core } = vi.hoisted(() => ({
     addEventListener: vi.fn(),
     removeEventListener: vi.fn(),
     stop: vi.fn(),
+    endPlaybackStream: vi.fn(),
     preloadAnimaVoices:
       vi.fn<
         (reference: string) => Promise<{ available: boolean; voices: string[] }>
@@ -115,5 +116,40 @@ describe("mounted Pocket voice generation", () => {
       ["Hello", { animaId: "clone-b-reference", animaVoiceKey: "neutral" }],
       ["Hello again", { voice: "eve" }],
     ]);
+  });
+
+  it("speaks numbers and symbols as words and leaves out tags and emoji", async () => {
+    const { generatePocketTtsText } = await import("./use-pocket-tts-runtime");
+    await generatePocketTtsText(
+      testApiClient,
+      "[laughs] It costs $5.99 at 3:30 pm 😊",
+      { voice: "eve" },
+    );
+    expect(core.generate.mock.calls).toEqual([
+      [
+        "It costs five dollars ninety-nine cents at three thirty P M",
+        { voice: "eve" },
+      ],
+    ]);
+  });
+
+  it("skips text that has nothing left to say", async () => {
+    const { generatePocketTtsText } = await import("./use-pocket-tts-runtime");
+    await generatePocketTtsText(testApiClient, "😊 [laughs]", { voice: "eve" });
+    expect(core.generate).not.toHaveBeenCalled();
+  });
+
+  it("still ends the stream when a final chunk has nothing to say", async () => {
+    const { generatePocketTtsText } = await import("./use-pocket-tts-runtime");
+    await generatePocketTtsText(testApiClient, "Hello there.", {
+      voice: "eve",
+    });
+    core.endPlaybackStream.mockClear();
+    await generatePocketTtsText(testApiClient, "😊", {
+      voice: "eve",
+      endStream: true,
+    });
+    expect(core.generate).toHaveBeenCalledTimes(1);
+    expect(core.endPlaybackStream).toHaveBeenCalledTimes(1);
   });
 });

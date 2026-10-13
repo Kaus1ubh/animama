@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import { decodeEvalClip, type EncodedEvalClip } from "./clip";
 import { evaluate } from "./evaluate";
 import { estimatedEvalSource } from "./estimated-source";
+import { pocketSpeechText } from "@/lib/speech/pocket-speech-text";
 
 const fixturesDir = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -37,6 +38,18 @@ describe("lip-sync evaluation fixtures", () => {
     );
     expect(clip.timing?.length).toBeGreaterThan(10);
     expect(clip.reference.vowels.length).toBeGreaterThan(10);
+  });
+
+  it("speak Pocket lines as Pocket receives them", () => {
+    const testset = JSON.parse(
+      readFileSync(path.join(fixturesDir, "../testset.json"), "utf8"),
+    ) as { lines: Array<{ provider: string; text: string; written?: string }> };
+    const written = testset.lines.filter((line) => line.written !== undefined);
+    expect(written.length).toBeGreaterThan(0);
+    for (const line of written) {
+      expect(line.provider).toBe("pocket");
+      expect(line.text).toBe(pocketSpeechText(line.written!));
+    }
   });
 
   it("score today's estimated planner on a few clips", () => {

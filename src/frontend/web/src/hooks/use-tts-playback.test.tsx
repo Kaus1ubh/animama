@@ -316,6 +316,24 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     expect(fixture.toast.warning).not.toHaveBeenCalled();
   });
 
+  it("ends a Pocket reply that has nothing to say", () => {
+    fixture.speech = { tts_provider: "pocket_tts" };
+    const { playback, onAudioEnded } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "😊 [laughs]");
+      playback().completeRun("run-1");
+    });
+    // Nothing is left to speak once tags and emoji go, so Pocket is not
+    // asked to generate and the reply ends at once.
+    expect(fixture.pocket.generateAndWait).not.toHaveBeenCalled();
+    expect(onAudioEnded).toHaveBeenCalledWith({
+      runId: "run-1",
+      provider: "pocket_tts",
+      reason: "natural",
+    });
+  });
+
   it("speaks a reply declined after its text with the Anima's Pocket voice", () => {
     const assertActive = vi.fn();
     const { playback } = renderPlayback({

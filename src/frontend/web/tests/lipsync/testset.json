@@ -1,5 +1,5 @@
 {
-  "description": "Lip-sync evaluation lines. Text is as sent to the provider, tags included. Clips are kept by maintainers (raw audio is not committed); fixtures/ holds what the evaluation needs. See scripts/lipsync/README.md. Lines with no groups are kept for listening and spelling checks but not scored: providers read their numbers differently, so they have no reliable reference words.",
+  "description": "Lip-sync evaluation lines. Text is as sent to the provider, tags included. Clips are kept by maintainers (raw audio is not committed); fixtures/ holds what the evaluation needs. See scripts/lipsync/README.md. Lines with no groups are kept for listening and spelling checks but not scored: providers read their numbers differently, so they have no reliable reference words. A line with `written` is a reply as the chat model wrote it; its `text` is what the provider receives.",
   "lines": [
     {
       "id": "s-en",
@@ -864,6 +864,22 @@
       "voice": "eve",
       "lang": "en",
       "text": "I was thinking we could cook dinner together tonight. What do you feel like eating?",
+      "style": null,
+      "perSentence": false,
+      "set": "main",
+      "groups": ["english"],
+      "heldOut": true,
+      "intervalTags": 0
+    },
+    {
+      "id": "h-p-en-numbers",
+      "provider": "pocket",
+      "transport": null,
+      "model": null,
+      "voice": "eve",
+      "lang": "en",
+      "text": "It costs five dollars ninety-nine cents, about one thousand two hundred fifty yen. Meet me at three thirty P M on October thirteenth, twenty twenty-six, room number four.",
+      "written": "It costs $5.99, about 1,250 yen. Meet me at 3:30 pm on 10/13/2026, room #4.",
       "style": null,
       "perSentence": false,
       "set": "main",

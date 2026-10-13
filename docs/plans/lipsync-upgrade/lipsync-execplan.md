@@ -89,8 +89,8 @@ prototypes.
   sub-issues with their dependencies.
 - [x] Phase 1 (#513): evaluation harness, fixtures and baseline (R10). Review
   passed after one repair round.
-- [ ] Phase 2 (#514): text units, tags and spelled-out numbers (R2, R3, R12 for
-  Pocket).
+- [x] Phase 2 (#514): text units, tags and spelled-out numbers (R2, R3, R12 for
+  Pocket). Review passed after two repair rounds.
 - [ ] Phase 3 (#515): English pronunciation source (R11, D5).
 - [ ] Phase 4 (#516): aligner, renderer and beats, scored offline (R1, R3, R4, R6,
   R7).
@@ -498,15 +498,238 @@ Checks:
 
 Completion: tests pass; the Pocket transcript check passes; review passes.
 
-Results: —
+Results (2026-10-13, starting source `57fb60d4`):
+
+- **Built** under `src/frontend/web/src/lib/lipsync/text/`:
+  - `units.ts`: the unit model. Units are syllables, unknown-vowel units,
+    closures, nasals, pauses and tags. Each keeps its source range, its word and
+    any whisper.
+  - `tags.ts`: Gemini `<…>` and ElevenLabs `[…]` tags, including combined
+    directions, as eight kinds. It reuses `classifyAudioTag` from
+    `speech-timing-evidence.ts`, so text and timing agree; no change there was
+    needed.
+  - `converters.ts`:
+    - kana morae;
+    - kanji as unknown-vowel units;
+    - Hangul arithmetic;
+    - Chinese through `pinyin-pro`, loaded on first use;
+    - letter rules for accented Latin;
+    - temporary English letter rules.
+  - `text-units.ts`: script runs. Han reads as Japanese when the reply has kana.
+    Digits written against CJK text become unknown units. Punctuation gives
+    merged pauses, and a whisper carries forward until another delivery
+    direction.
+  - `spell-out-english.ts`: every R12 category, with source ranges for each
+    spelled segment.
+- **Pocket TTS** now speaks `pocketSpeechText` (`src/lib/speech/pocket-speech-text.ts`):
+  - numbers, symbols and abbreviations are spelled out, and tags and emoji are
+    left out (Pocket cannot perform tags);
+  - this includes the re-speak after a declined ElevenLabs run, which goes through
+    the same `generatePocketTtsText`.
+- **Deviation from P3, simpler:** the Pocket worker needed no change. Its own
+  passes rewrite digits, symbols and abbreviations the speller never emits, so on
+  spelled text they do nothing (the reviewer checked "ninety-nine", "P M",
+  "o'clock", "Saint" and "Street", unit words and commas).
+- **While gruut remains (until Phase 7),** Pocket receives gruut's prepared text
+  for sentences whose letters are all ASCII, and the speller then spells only what gruut
+  left. gruut's misreadings, such as "5-10" as "five ten", persist there until
+  then.
+- **Dependency:** `pinyin-pro` pinned to 3.29.4 (MIT). 3.29.5 was published three
+  days earlier, inside the two-week rule. Desktop notices pick it up from the
+  dependency graph.
+- **Pocket transcript check (new held-out fixture `h-p-en-numbers`):**
+  - its `text` is what Pocket now receives, and `written` is the reply as the
+    model wrote it; a test keeps the two in step through `pocketSpeechText`;
+  - rendered locally with Pocket and transcribed with Parakeet: "It costs $5.99,
+    about 1,250 yen. Meet me at 3:30 p.m. on october 13th, 2026, room number 4.";
+  - Parakeet writes numbers back as digits, so this shows each one was read
+    correctly ("one thousand two hundred fifty", not "twelve fifty"), with no
+    symbol names.
+- **Found while aligning that line:** MMS uses "-" as its blank token, so
+  `clips.py reference` now splits words on hyphens ("ninety-nine").
+
+Checks:
+
+- `npx vitest run src/lib/lipsync src/hooks/use-pocket-tts-runtime.test.ts`: 110
+  passed;
+- `pnpm check`: passed, after typing fixes in `converters.ts`;
+- `pnpm web:lint`: passed;
+- `pnpm web:test`: 491 files, 4,445 passed, 1 skipped, run before those
+  type-only fixes;
+- Prettier and ESLint on the changed files, and Ruff on `scripts/lipsync/`: passed.
+
 
 #### Code Review #1 Findings
 
-—
+Reviewer: independent `sdlc-reviewer`, on the uncommitted Phase 2 tree (baseline
+`57fb60d4`). It ran the lip-sync, Pocket and timing-evidence tests, type-checked,
+linted, and probed the speller and gruut 2.4.0 on prose cases.
+
+- **P2-F1 (required):** a Pocket reply never ended when its last chunk spelled out
+  to nothing, such as a final `[laughs]` or emoji. `generatePocketTtsText` returned
+  before asking Pocket to end the stream, so `playback_ended` never fired and the
+  run stayed active.
+- **P2-F2 (required):** ranges were misread:
+  - "5-10%" lost "percent";
+  - "5%-10%" ran together;
+  - "500-1000" was read as a phone number, digit by digit;
+  - adjacent spelled segments joined with no space ("C plusplus").
+- **P2-F3 (required):** numbers of 2×10¹⁵ or more were read with "undefined".
+- **P2-F4 (required):** "Baker St. See you" read "Saint", and the sentence's
+  full stop was lost.
+- **Optional:**
+  - currency with a magnitude word ("$5 million");
+  - fractions read as dates ("5/8");
+  - "100m" read as millions;
+  - decades;
+  - ".5" and ratios ("16:9");
+  - full stops swallowed by "etc." and "p.m.";
+  - `stripTags` removing "x < 5 and y > 3";
+  - combined tags losing a whisper;
+  - spaced and full-width CJK digits, and astral kanji;
+  - the docs and Results not saying that Pocket still gets gruut's text until
+    Phase 7;
+  - "P M" aligned as bare letters in `h-p-en-numbers`;
+  - a misleading test comment, the `voice.md` row, and trailing blank lines.
+
+Result: changes required (P2-F1 to P2-F4).
 
 #### Code Review #1 Revisions
 
-—
+- **P2-F1, fixed at the source:**
+  - `prepareChunksForPlayback` drops Pocket chunks with nothing left to say, so the
+    stream ends on the last chunk Pocket speaks;
+  - `enqueuePocketChunks` reports whether it queued anything, and `completeRun`
+    falls through to its existing end-of-stream branches when it did not;
+  - a new playback test ("ends a Pocket reply that has nothing to say") failed
+    before the fix.
+- **P2-F2, fixed:**
+  - ranges carry a trailing `%`, meridiem or year reading;
+  - "5 - 3 = 2" reads as a subtraction;
+  - bare `ddd-dddd` is a phone number only after "call", "number" and the like;
+  - currency ranges read as "five to ten dollars";
+  - adjacent spelled segments are separated.
+- **P2-F3, fixed:** numbers past trillions, and digit strings over 15 digits, are
+  read digit by digit.
+- **P2-F4, fixed:** "St." is Street after a name and Saint only before one, and an
+  abbreviation keeps a sentence's full stop ("etc.", "Jr.", "p.m.").
+- **Optional, accepted:**
+  - magnitude words after currency;
+  - fractions with denominators 2, 3, 4, 8 and 16;
+  - decimal scores such as "4.5/5";
+  - "m" as meters after a number;
+  - decades;
+  - leading decimals;
+  - ratios;
+  - tags limited to words (letters, spaces, commas, hyphens, apostrophes);
+  - whispers from combined tags, ended by any delivery direction;
+  - spaced and full-width digits inside CJK text;
+  - astral kanji as one unit;
+  - the docs (`voice.md` Pocket section) and Results updated;
+  - test comment fixed.
+- **Every review case is now a test:** 22 prose cases plus the earlier tables.
+- **Deferred to Phase 3:** reading single capitals such as "P M" as letter names;
+  the English source owns it.
+- **Not changed:**
+  - `tags.ts` keeps its own 64-character limit and strength order rather than
+    sharing them with `speech-timing-evidence.ts`, as the reviewer accepted;
+  - "[Settings]" in square brackets still reads as a tag, because tags are words.
+
+Verification after the fixes:
+
+- `npx vitest run src/lib/lipsync src/hooks/use-pocket-tts-runtime.test.ts src/hooks/use-tts-playback.test.tsx tests/speech`:
+  201 passed;
+- `pnpm check`: passed;
+- ESLint and Prettier on the changed files: passed;
+- not rerun: the full `pnpm web:test` and `pnpm web:lint`.
+
+Repair rounds used: 1 of 2.
+
+#### Code Review #2 Findings
+
+Targeted recheck by the same reviewer. It confirmed P2-F1 to P2-F4 and the
+accepted optional items, and reran 226 tests, type-check, lint and its probes. The
+revisions caused four regressions:
+
+- **P2-F5 (required):** "Happy St. Patrick's Day" read "Street", because a
+  capitalised first word counted as a street name.
+- **P2-F6 (required):** "5-10,000" and "10-15.5" broke apart with stray digits.
+  "$5.99-$9.99" read cents as decimal digits.
+- **P2-F7 (required):** ASCII punctuation between CJK text ("안녕, 반가워",
+  "うーん...そうだね") no longer gave a pause.
+- **P2-F8 (required):** a bare "555-0123" read as a range.
+- **Optional:**
+  - dates without a year read as fractions after "on" or "due";
+  - "1000s" and bare "80s";
+  - "Jr. Day" gained a false stop;
+  - tags containing "!";
+  - the "all-ASCII" wording;
+  - a defensive end of stream in `generatePocketTtsText`;
+  - the empty `if` block in `completeRun`;
+  - number paths beyond 2⁵³ in ordinals and ratios.
+
+Result: changes required (P2-F5 to P2-F8).
+
+#### Code Review #2 Revisions
+
+- **P2-F5, fixed:** a capitalised word that starts its sentence is not a street
+  name. "Happy St. Patrick's Day" and "Visit St. Louis" read "Saint" again; "Baker
+  St. See you" still reads "Street.".
+- **P2-F6, fixed:**
+  - range bounds read whole amounts with separators and decimals and cannot
+    backtrack into shorter numbers;
+  - currency ranges with cents read each price in full.
+- **P2-F7, fixed:** a CJK digit run must contain a digit, so punctuation runs give
+  pauses again.
+- **P2-F8, fixed:** a bare "ddd-dddd" whose four-digit part starts with 0, or
+  which starts with 555, is a phone number.
+- **Optional, accepted:**
+  - a date cue ("on", "by", "due", "until" …) keeps a date;
+  - decades are limited to 1100–2099, and bare 20s–90s read as "twenties" to
+    "nineties";
+  - "Jr." and "Sr." keep no stop;
+  - tags may hold sentence punctuation;
+  - the wording says "sentences whose letters are all ASCII";
+  - `generatePocketTtsText` ends the stream if an empty final chunk arrives
+    anyway (with a test);
+  - `completeRun` reads without an empty block.
+- **Not changed:** ordinal, ratio and number-sign readings beyond 2⁵³, which are
+  vanishingly rare.
+- Each fix has a test, failing before the fix where it was a regression.
+
+Verification after the fixes:
+
+- `npx vitest run src/lib/lipsync src/hooks/use-pocket-tts-runtime.test.ts src/hooks/use-tts-playback.test.tsx tests/speech src/lib/speech/speech-timing-evidence.test.ts`:
+  240 passed;
+- `pnpm check`: passed;
+- ESLint and Prettier on the changed files: passed.
+
+Repair rounds used: 2 of 2.
+
+#### Code Review #3 Findings
+
+Final targeted recheck by the same reviewer: P2-F5 to P2-F8 are fixed, P2-F1 to
+P2-F4 still hold, and nothing blocks. It reran the 240 tests, type-check, lint and
+its probes (50 speller and 19 unit cases). Result: pass.
+
+Optional, not required for Phase 2:
+
+- "Rest 60s between sets" now reads "sixties" (the bare decade rule);
+- currency ranges with a magnitude ("$1-2 million");
+- "cut from 3/8 to 1/4 inch" reads a date after "from";
+- units after ranges ("5-10 km");
+- bracketed asides such as "[this]" still count as tags.
+
+#### Code Review #3 Revisions
+
+No change in Phase 2; the review budget is used. Deferred to Phase 3, whose review
+covers it: seconds such as "60s" after a number-like context, and currency ranges
+with a magnitude. The rest are recorded as known limits.
+
+Final checks: `pnpm web:test` 491 files, 4,486 passed, 1 skipped, on the reviewed
+tree.
+
+Phase 2 complete: checks pass and the final review passed.
 
 ### Phase 3: English pronunciation source
 
