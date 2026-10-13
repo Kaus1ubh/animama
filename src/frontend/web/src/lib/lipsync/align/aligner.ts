@@ -21,9 +21,30 @@ const LOG_EPS = 1e-4;
 const WINDOW_COST = 1.5;
 /** Skipping an optional pause costs a little, so real pauses are preferred. */
 const SKIP_PAUSE_COST = 0.5;
+/**
+ * Between words (and between Japanese, Korean or Chinese characters), a short
+ * optional gap takes the dip of a stop consonant or a breath, which the text
+ * has no unit for. Without it, partial plans slide the
+ * text forward to put lip closures and nasals on those dips.
+ */
+const SKIP_GAP_COST = 0.1;
+const GAP_MEAN_FRAMES = 4;
+const GAP_MAX_FRAMES = 20;
+/**
+ * A tag the voice did not perform leaves no event: skipping a tag costs this
+ * much, so the audio has to show something tag-like for it to be placed.
+ */
+const SKIP_TAG_COST = 3;
+/** A placed tag lasts at least this share of its expected length. */
+const TAG_MIN_SHARE = 0.35;
 /** Leading and trailing silence may take up to this many frames. */
 const MAX_EDGE_FRAMES = 300;
-/** Frames per unit of speech weight, when the audio cannot tell yet. */
+/**
+ * Frames per unit of speech weight, when the audio cannot tell yet. The
+ * evaluation voices speak at 10 to 15; assuming slower is safer, because a plan
+ * that lags catches up as audio arrives, while one that runs ahead uses up
+ * words the voice has not said yet.
+ */
 export const DEFAULT_FRAMES_PER_WEIGHT = 16;
 
 /** Phone-model evidence on its own frame grid. */
@@ -58,6 +79,8 @@ export type AlignOptions = {
   levels?: LoudnessLevels;
   /** Speaking rate: frames per unit of speech weight. Measured from the audio otherwise. */
   framesPerWeight?: number;
+  /** Tags that must be placed (an earlier plan found them), rather than skipped. */
+  required?: ReadonlySet<LipSyncUnit>;
 };
 
 export type LoudnessLevels = {
@@ -69,7 +92,8 @@ export type LoudnessLevels = {
 
 type State = {
   unit: LipSyncUnit | null;
-  optional: boolean;
+  /** The cost of taking no frames, or `null` when the state must take some. */
+  skipCost: number | null;
   minF: number;
   maxF: number;
   meanF: number;
@@ -121,28 +145,42 @@ export function loudnessLevels(loudnessDb: Float32Array): LoudnessLevels {
   return { floor, peak };
 }
 
-/** Speech units' total weight, and the seconds tags that make a sound should take. */
-function unitLoad(units: readonly LipSyncUnit[]) {
-  let tagSec = 0;
-  let speechWeight = 0;
+/** The total weight of the speech units (not pauses or tags). */
+function speechWeight(units: readonly LipSyncUnit[]): number {
+  let weight = 0;
   for (const unit of units) {
-    if (unit.kind === "tag") {
-      const kind = unit.tag!.kind;
-      if (kind !== "pause" && kind !== "sound_effect") tagSec += unit.weight;
-    } else if (unit.kind !== "pause") speechWeight += unit.weight;
+    if (unit.kind !== "pause" && unit.kind !== "tag") weight += unit.weight;
   }
-  return { tagSec, speechWeight };
+  return weight;
 }
 
+/**
+ * Align `units` to the audio. Returns `null` when no alignment exists, for
+ * example when the text is far too short or too long for the audio; the caller
+ * then falls back to the audio alone.
+ */
 export function alignUnits(
   units: readonly LipSyncUnit[],
   features: SpeechFeatures,
   options: AlignOptions = {},
-): AlignedUnit[] {
+): AlignedUnit[] | null {
+  return alignUnitsScored(units, features, options)?.aligned ?? null;
+}
+
+/**
+ * `alignUnits`, with the alignment's cost: its negative log-likelihood, which
+ * compares alignments of the same units and audio under different settings,
+ * such as speaking rates.
+ */
+export function alignUnitsScored(
+  units: readonly LipSyncUnit[],
+  features: SpeechFeatures,
+  options: AlignOptions = {},
+): { aligned: AlignedUnit[]; cost: number } | null {
   const rate = features.rate;
   const from = Math.max(0, options.fromFrame ?? 0);
   const T = features.loudnessDb.length - from;
-  if (T <= 0 || !units.length) return [];
+  if (T <= 0 || !units.length) return { aligned: [], cost: 0 };
   const { floor } = options.levels ?? loudnessLevels(features.loudnessDb);
   const speech = new Float64Array(T);
   const voiced = new Float64Array(T);
@@ -216,8 +254,14 @@ export function alignUnits(
           ? 1 - speech[t]! + speech[t]! * (1 - dense[t]!) * 0.6
           : 1 - speech[t]! + speech[t]! * (1 - voiced[t]!) * 0.4,
       ),
+    // Laughs mix voiced bursts with breathy aspiration; steadily voiced
+    // frames are more likely speech.
     laugh: () =>
-      emission("laugh", (t) => (0.15 + 0.6 * speech[t]!) * notSpeech(t)),
+      emission(
+        "laugh",
+        (t) =>
+          (0.15 + 0.6 * speech[t]!) * (1 - 0.5 * voiced[t]!) * notSpeech(t),
+      ),
     // Sighs, gasps and other vocal sounds: audible and mostly unvoiced.
     breath: () =>
       emission(
@@ -229,13 +273,13 @@ export function alignUnits(
 
   let framesPerWeight = options.framesPerWeight;
   if (framesPerWeight === undefined) {
-    // Speaking rate: active frames shared by the speech units' weights.
+    // Speaking rate: active frames shared by the speech units' weights. Tags
+    // are not counted: the voice may not perform them.
     let active = 0;
     for (let t = 0; t < T; t += 1) active += speech[t]! > 0.5 ? 1 : 0;
-    const { tagSec, speechWeight } = unitLoad(units);
     framesPerWeight = Math.max(
       4,
-      Math.min(30, (active - tagSec * rate * 0.8) / Math.max(1, speechWeight)),
+      Math.min(30, active / Math.max(1, speechWeight(units))),
     );
   }
 
@@ -250,7 +294,7 @@ export function alignUnits(
 
   const edge = (): State => ({
     unit: null,
-    optional: true,
+    skipCost: SKIP_PAUSE_COST,
     minF: 1,
     maxF: Math.min(T, MAX_EDGE_FRAMES),
     meanF: 25,
@@ -258,13 +302,29 @@ export function alignUnits(
     emission: emissions.silence(),
   });
   const states: State[] = [edge()];
+  let lastStart: number | undefined;
   units.forEach((unit, index) => {
     const window = windowFrames(index);
+    const speech = unit.kind !== "pause" && unit.kind !== "tag";
+    // A new word, or a new character in Japanese, Korean and Chinese; an
+    // English word's syllables share their word's range.
+    if (speech && lastStart !== undefined && unit.start !== lastStart) {
+      states.push({
+        unit: null,
+        skipCost: SKIP_GAP_COST,
+        minF: 1,
+        maxF: GAP_MAX_FRAMES,
+        meanF: GAP_MEAN_FRAMES,
+        sigma: 0.8,
+        emission: emissions.pause(),
+      });
+    }
+    if (speech) lastStart = unit.start;
     if (unit.kind === "pause") {
       const mean = Math.max(3, unit.weight * rate);
       states.push({
         unit,
-        optional: true,
+        skipCost: SKIP_PAUSE_COST,
         minF: 2,
         maxF: Math.round(mean * 6),
         meanF: mean,
@@ -277,8 +337,8 @@ export function alignUnits(
       const mean = unit.weight * rate;
       states.push({
         unit,
-        optional: false,
-        minF: 5,
+        skipCost: options.required?.has(unit) ? null : SKIP_TAG_COST,
+        minF: Math.max(10, Math.round(mean * TAG_MIN_SHARE)),
         maxF: Math.round(mean * 4),
         meanF: mean,
         sigma: 0.7,
@@ -296,7 +356,7 @@ export function alignUnits(
       const mean = unit.weight * framesPerWeight;
       states.push({
         unit,
-        optional: false,
+        skipCost: null,
         minF: 1,
         maxF: Math.max(4, Math.round(mean * 3.5)),
         meanF: Math.max(1, mean),
@@ -314,11 +374,17 @@ export function alignUnits(
     }
   });
   states.push(edge());
-  return viterbi(states, T, !!options.partial).map((span) => ({
-    unit: span.unit,
-    startSec: (from + span.start) / rate,
-    endSec: (from + span.end) / rate,
-  }));
+  const path = viterbi(states, T, !!options.partial);
+  return path
+    ? {
+        aligned: path.spans.map((span) => ({
+          unit: span.unit,
+          startSec: (from + span.start) / rate,
+          endSec: (from + span.end) / rate,
+        })),
+        cost: path.cost,
+      }
+    : null;
 }
 
 /**
@@ -348,28 +414,41 @@ function viterbi(states: State[], T: number, partial: boolean) {
       const z = (Math.log(d) - logMean) / state.sigma;
       durationCost[d] = 0.5 * z * z;
     }
-    const windowCost = (a: number, t: number) =>
-      state.window
-        ? WINDOW_COST *
-          (Math.max(0, state.window[0] - a) + Math.max(0, t - state.window[1]))
-        : 0;
+    const [windowStart, windowEnd] = state.window ?? [-Infinity, Infinity];
+    // What starting at frame `a` costs before the segment's own frames:
+    // the path so far, the emission prefix, and starting before the window.
+    const startCost = new Float64Array(T + 1);
+    for (let a = 0; a <= T; a += 1) {
+      const p = previous[a]!;
+      startCost[a] =
+        p >= INF
+          ? INF
+          : p + prefix[a]! + WINDOW_COST * Math.max(0, windowStart - a);
+    }
     for (let t = 0; t <= T; t += 1) {
-      if (state.optional && previous[t]! + SKIP_PAUSE_COST < current[t]!) {
-        current[t] = previous[t]! + SKIP_PAUSE_COST;
+      if (
+        state.skipCost !== null &&
+        previous[t]! + state.skipCost < current[t]!
+      ) {
+        current[t] = previous[t]! + state.skipCost;
         from[t] = t;
       }
       const low = Math.max(0, t - maxF);
+      let best = INF;
+      let bestFrom = -1;
       for (let a = t - state.minF; a >= low; a -= 1) {
-        const p = previous[a]!;
-        if (p >= INF) continue;
-        const cost =
-          p -
-          (prefix[t]! - prefix[a]!) +
-          durationCost[t - a]! +
-          windowCost(a, t);
-        if (cost < current[t]!) {
-          current[t] = cost;
-          from[t] = a;
+        const cost = startCost[a]! + durationCost[t - a]!;
+        if (cost < best) {
+          best = cost;
+          bestFrom = a;
+        }
+      }
+      if (bestFrom >= 0) {
+        // Ending after the window costs per frame too.
+        best += -prefix[t]! + WINDOW_COST * Math.max(0, t - windowEnd);
+        if (best < current[t]!) {
+          current[t] = best;
+          from[t] = bestFrom;
         }
       }
     }
@@ -377,13 +456,12 @@ function viterbi(states: State[], T: number, partial: boolean) {
       // Only a tag, long enough to matter, may end open; a cut-short syllable
       // still pays its full prior, which keeps partial plans from lagging.
       const open = state.unit.kind === "tag";
+      const end = -prefix[T]! + WINDOW_COST * Math.max(0, T - windowEnd);
       for (let a = T - 1; a >= Math.max(0, T - maxF); a -= 1) {
-        const p = previous[a]!;
-        if (p >= INF) continue;
+        if (startCost[a]! >= INF) continue;
         const d = T - a;
         const duration = open && d < state.meanF ? 0 : durationCost[d]!;
-        const cost =
-          p - (prefix[T]! - prefix[a]!) + duration + windowCost(a, T);
+        const cost = startCost[a]! + duration + end;
         if (cost < openCost[s]!) {
           openCost[s] = cost;
           openFrom[s] = a;
@@ -395,8 +473,8 @@ function viterbi(states: State[], T: number, partial: boolean) {
   }
   let last = S - 1;
   let lastFrom = back[last]![T]!;
+  let best = previous[T]!;
   if (partial) {
-    let best = previous[T]!;
     for (let s = 0; s < S; s += 1) {
       if (openCost[s]! < best) {
         best = openCost[s]!;
@@ -405,6 +483,8 @@ function viterbi(states: State[], T: number, partial: boolean) {
       }
     }
   }
+  // No path reaches the end of the audio.
+  if (best >= INF) return null;
   const out: Array<{ unit: LipSyncUnit; start: number; end: number }> = [];
   let t = T;
   for (let s = last; s >= 0; s -= 1) {
@@ -414,5 +494,5 @@ function viterbi(states: State[], T: number, partial: boolean) {
     if (a < 0) break;
     t = a;
   }
-  return out.reverse();
+  return { spans: out.reverse(), cost: best };
 }

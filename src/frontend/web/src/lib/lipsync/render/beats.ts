@@ -62,23 +62,32 @@ type Syllable = {
   stressed: boolean;
 };
 
-function median(values: number[]): number {
-  if (!values.length) return 0;
-  const sorted = [...values].sort((a, b) => a - b);
-  return sorted[Math.floor(sorted.length / 2)]!;
+const MAX_PITCH_HZ = 1000;
+
+/** The median of voiced frames' pitch, from a 1 Hz histogram. */
+function medianVoicedPitch(features: SpeechFeatures): number {
+  const counts = new Uint32Array(MAX_PITCH_HZ + 1);
+  let total = 0;
+  for (let t = 0; t < features.pitchHz.length; t += 1) {
+    if (features.voicing[t]! <= VOICED) continue;
+    counts[
+      Math.min(MAX_PITCH_HZ, Math.max(0, Math.round(features.pitchHz[t]!)))
+    ]! += 1;
+    total += 1;
+  }
+  let seen = 0;
+  for (let hz = 0; hz <= MAX_PITCH_HZ; hz += 1) {
+    seen += counts[hz]!;
+    if (seen > total / 2) return hz;
+  }
+  return 0;
 }
 
 function measureSyllables(
   aligned: readonly AlignedUnit[],
   features: SpeechFeatures | null,
 ): Syllable[] {
-  const voicedPitch: number[] = [];
-  if (features) {
-    for (let t = 0; t < features.pitchHz.length; t += 1) {
-      if (features.voicing[t]! > VOICED) voicedPitch.push(features.pitchHz[t]!);
-    }
-  }
-  const medianPitch = median(voicedPitch);
+  const medianPitch = features ? medianVoicedPitch(features) : 0;
   const out: Syllable[] = [];
   aligned.forEach(({ unit, startSec, endSec }, unitIndex) => {
     if (unit.kind !== "syllable" && unit.kind !== "unknown") return;
@@ -122,9 +131,10 @@ function measureSyllables(
 /** How much each syllable stands out from its neighbours. */
 function prominence(syllables: Syllable[], withAudio: boolean): number[] {
   return syllables.map((syllable, index) => {
-    const around = syllables.filter(
-      (_, other) => other !== index && Math.abs(other - index) <= NEIGHBOURS,
-    );
+    const around = [
+      ...syllables.slice(Math.max(0, index - NEIGHBOURS), index),
+      ...syllables.slice(index + 1, index + 1 + NEIGHBOURS),
+    ];
     const stress = syllable.stressed ? STRESS_BONUS : 0;
     if (!around.length) return 1 + stress;
     const mean = (pick: (s: Syllable) => number) =>

@@ -66,7 +66,7 @@ describe("alignUnits", () => {
   ];
 
   it("puts syllables on speech and the pause on the silence between", () => {
-    const aligned = alignUnits(units, clip);
+    const aligned = alignUnits(units, clip)!;
     expect(aligned.map((a) => a.unit)).toEqual(units);
     const [first, second, pause, third, fourth] = aligned;
     expect(first!.startSec).toBeCloseTo(0.3, 1);
@@ -89,13 +89,13 @@ describe("alignUnits", () => {
     const aligned = alignUnits(units, partial, {
       partial: true,
       framesPerWeight: 20,
-    });
+    })!;
     expect(aligned.at(-1)!.unit).toBe(stop);
     expect(aligned.at(-1)!.endSec).toBeCloseTo(0.9, 2);
   });
 
   it("aligns from a frame, keeping times on the clip's clock", () => {
-    const aligned = alignUnits(units.slice(3), clip, { fromFrame: 110 });
+    const aligned = alignUnits(units.slice(3), clip, { fromFrame: 110 })!;
     expect(aligned[0]!.startSec).toBeGreaterThanOrEqual(1.1);
     expect(aligned[1]!.endSec).toBeCloseTo(1.5, 1);
   });
@@ -105,7 +105,7 @@ describe("alignUnits", () => {
     const flat = features([[1, SPEECH, 0.9]]);
     const two = [syllable(0, 0), syllable(2, 1)];
     const windows = [null, { startSec: 0.7, endSec: 1, toleranceSec: 0.02 }];
-    const aligned = alignUnits(two, flat, { windows });
+    const aligned = alignUnits(two, flat, { windows })!;
     expect(aligned[1]!.startSec).toBeCloseTo(0.68, 1);
   });
 
@@ -119,10 +119,30 @@ describe("alignUnits", () => {
     const aligned = alignUnits(
       [laugh, syllable(8, 0), syllable(10, 1)],
       withLaugh,
-    );
+    )!;
     expect(aligned[0]!.unit).toBe(laugh);
     expect(aligned[0]!.startSec).toBeCloseTo(0.2, 1);
     expect(aligned[0]!.endSec).toBeCloseTo(0.8, 1);
+  });
+
+  it("drops a tag the audio does not show", () => {
+    // A laugh in the text, but the audio is plain voiced speech.
+    const speechOnly = features([
+      [0.2, SILENT, 0],
+      [0.6, SPEECH, 0.9],
+      [0.2, SILENT, 0],
+    ]);
+    const aligned = alignUnits(
+      [laugh, syllable(8, 0), syllable(10, 1), syllable(12, 2)],
+      speechOnly,
+    )!;
+    expect(aligned.some((a) => a.unit === laugh)).toBe(false);
+  });
+
+  it("reports when no alignment fits the audio", () => {
+    // One syllable cannot cover eight seconds of speech.
+    const long = features([[8, SPEECH, 0.9]]);
+    expect(alignUnits([syllable(0, 0)], long)).toBeNull();
   });
 
   it("measures loudness levels from a histogram", () => {

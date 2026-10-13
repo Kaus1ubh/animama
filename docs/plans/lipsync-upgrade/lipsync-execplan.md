@@ -91,9 +91,9 @@ prototypes.
   passed after one repair round.
 - [x] Phase 2 (#514): text units, tags and spelled-out numbers (R2, R3, R12 for
   Pocket). Review passed after two repair rounds.
-- [ ] Phase 3 (#515): English pronunciation source (R11, D5). Committed locally;
-  the owner allowed an extra repair round for P3-F14 and P3-F15, awaiting its
-  recheck.
+- [x] Phase 3 (#515): English pronunciation source (R11, D5). Review passed after
+  two repair rounds and one owner-approved extra round (P3-F14, P3-F15). The
+  agreement measure awaits owner confirmation (Decision Log).
 - [ ] Phase 4 (#516): aligner, renderer and beats, scored offline (R1, R3, R4, R6,
   R7).
 - [ ] Phase 5 (#517): in the app, including the debug comparison (R1, R3, R6–R9).
@@ -1028,6 +1028,25 @@ In `src/frontend/web/src/lib/lipsync/text/spell-out-english.ts` and its test:
   150 passed, including the Pocket fixture test; `tsc -p tsconfig.app.json`,
   ESLint and Prettier on the changed files: passed.
 
+#### Code Review #4 Findings
+
+Targeted recheck of the extra round at `69d8105d`: **pass**. P3-F14, P3-F15 and
+P3-F16 are fixed. Across 2,533 inputs, every output that changed is an intended
+change: numbers after "..." or ",", joined hyphens and slashes, and the new tests.
+Optional, not adopted:
+
+- P3-F19: a joined seconds range after an ambiguous cue reads its first number as
+  a decade ("Hold for 30s-45s"), the counterpart of "80s–90s"; "Hold for 30-45s"
+  is unaffected.
+- P3-F20: decade ranges with spaces around the dash ("in 80s – 90s") still read
+  seconds, the counterpart of "Hold for 30s - then switch".
+- More of the reviewer's phrases could become tests.
+- **Process:** the Phase 4 commit was made locally before this recheck reported.
+  Nothing was pushed or reviewed out of order, and the Phase 3 files are the
+  same in both commits; future phases wait for the gate before committing.
+
+**Phase 3 complete** at `69d8105d`.
+
 ### Phase 4: Aligner, renderer and beats, scored offline
 
 Requirements: R1, R3 (placement and shapes), R4, R6 (text-only estimate) and R7
@@ -1081,24 +1100,30 @@ Completion:
 - if Japanese misses 40% because kanji have no readings, record it and ask the owner
   (the D2 risk).
 
-Results (2026-10-13, starting source `11b28086`):
+Results (2026-10-13, starting source `11b28086`; revised after Code Review #1):
 
 - **Built** under `src/frontend/web/src/lib/lipsync/`:
   - `align/aligner.ts`: the lab's explicit-duration alignment on 10 ms frames,
     with:
+    - an optional short gap between words, and between Japanese, Korean and
+      Chinese characters, for the dips of stop consonants and breaths (without
+      it, partial plans slid the text forward to put closures on those dips);
+    - lip closures that prefer quiet or voiced frames, never a loud breath;
+    - tags that may be skipped at a cost, so a tag the voice did not perform
+      leaves no event, and laughs that discount steadily voiced frames;
     - loudness levels robust to a short start (the noise percentile grows from
       the lowest to the 8th over three seconds; a speech peak of at least -35
       dBFS);
-    - lip closures that prefer quiet or voiced frames, never a loud breath (the
-      lab's closure let a breath swallow Japanese units);
     - a tag still sounding at the end of partial audio that pays no penalty for
       being short;
-    - duration costs computed once per state.
+    - `null` when no alignment fits, for the caller to fall back;
+    - duration and start costs computed once per state.
   - `align/timing-windows.ts`: provider timing as soft windows (cost 1.5 a frame;
     60 ms for speech, 0.4 s for tags, loose for punctuation; gap pauses between
     words), matched to the text ignoring the socket's added spaces. While audio
-    is arriving, units not yet timed start after the end of the audio, and the
-    pause before them stays open.
+    is arriving, words not yet timed start after the end of the audio and the
+    pause before them stays open; tags are exempt, since their characters are
+    often timed after their sound.
   - `align/estimate.ts`: the text-only estimate (R6), re-anchored on known word
     starts.
   - `render/render.ts`: `vowel5` frames at 60 FPS:
@@ -1112,81 +1137,179 @@ Results (2026-10-13, starting source `11b28086`):
   - `render/beats.ts`: word timings, phrases between stops, long pauses and tags,
     and beats on prominent syllables (louder, higher or longer than two neighbours
     each side, English stress as a tie-break, 0.4 s apart).
-  - `planner.ts`: text to units once, then progressive plans. Units ending a
-    second behind the newest audio are kept, only the audio after them is
-    re-aligned, and the speaking rate comes from the units already placed.
+  - `planner.ts`: text to units once, then progressive plans:
+    - units ending two seconds behind the newest audio are kept, and only the
+      audio after them is re-aligned;
+    - the speaking rate comes from the units already placed, starting from a
+      deliberately slow 16 frames per unit of weight (a lagging plan catches
+      up; one running ahead uses up words early);
+    - a tag placed for 0.2 s is pinned near its start in later plans;
+    - with no usable text, or no alignment that fits, the mouth follows the
+      audio alone and `fallback` says why (`no_text`, `no_alignment`).
   - Evaluation sources `aligned` and opt-in `aligned-full`, which re-aligns
     everything. Sources now start per clip, so a planner keeps state across
-    steps.
+    steps. The report adds "vowel open", the share of reference vowel frames
+    with the mouth open, which falls when a plan drifts.
 - **Scores** (tuning clips; held-out in brackets), from `pnpm lipsync:eval`:
 
-  | Set, arrival | Vowel match ja/ko/zh | Open in silence, English / tags | Tags placed |
-  | --- | --: | --: | --: |
-  | Main, whole | 46.7% (54.2%) | 0.1% / 6.9% | 5/8 (0/2) |
-  | Main, 2.9× (D2: ≥40%, ≤10%) | 41.4% (45.7%) | 0.4% / 6.4% | 2/8 (1/2) |
-  | Main, live | 43.5% (35.0%) | 0% / 3.8% | 2/8 (0/2) |
-  | ElevenLabs HTTP, 2.9× | 61.8% | 4.0% / 3.0% | 7/7 |
-  | ElevenLabs socket, 2.9× | 61.0% (67.3%) | — / 7.1% | 3/5 (1/2) |
-  | ElevenLabs HTTP, live | 61.1% | 4.0% / 2.7% | 7/7 |
-  | ElevenLabs socket, live | 63.9% (61.1%) | — / 9.7% | 4/5 (0/2) |
+  | Set, arrival | Vowel open | Vowel match ja/ko/zh | Open in silence, English / tags | Tags placed |
+  | --- | --: | --: | --: | --: |
+  | Main, whole | 91.6% (90.8%) | 50.6% (67.0%) | 0% / 1.3% | 3/8 (0/2) |
+  | Main, 2.9× | 92.8% (88.5%) | 49.4% (66.5%) | 0.1% / 0.8% | 4/8 (0/2) |
+  | Main, live | 91.7% (86.4%) | 41.0% (41.3%) | 0% / 1.0% | 2/8 (0/2) |
+  | ElevenLabs HTTP, whole | 96.5% | 69.4% | 0% / 3.9% | 7/7 |
+  | ElevenLabs HTTP, 2.9× | 94.8% | 68.8% | 0% / 4.2% | 7/7 |
+  | ElevenLabs HTTP, live | 95.6% | 63.6% | 0% / 4.0% | 7/7 |
+  | ElevenLabs socket, whole | 97.0% (88.6%) | 66.4% (66.1%) | — / 5.9% | 4/5 (1/2) |
+  | ElevenLabs socket, 2.9× | 95.1% (88.8%) | 66.8% (68.2%) | — / 8.4% | 2/5 (1/2) |
+  | ElevenLabs socket, live | 94.8% (89.8%) | 65.4% (62.8%) | — / 5.9% | 3/5 (0/2) |
 
   - **Against D2:**
-    - default tier at 2.9×: passes, narrowly on vowels (41.4%);
-    - ElevenLabs (D2: ≥60%, ≤10%, ≥75% of tags): passes at 2.9× (tags 10/12)
-      and live (11/12), narrowly on tag-line silence (9.7% live on the socket).
+    - default tier: passes at 2.9× (49.4%) and live (41.0%);
+    - ElevenLabs (≥60%, ≤10%, ≥75% of tags): passes at 2.9× (tags 9/12, at the
+      line) and live (10/12).
+  - **Drift:** progressive plans open on reference vowels as often as whole ones
+    on every set, and on multi-sentence parts made by joining clips without
+    timing (Gemini and Pocket English, Gemini Japanese, untimed ElevenLabs,
+    17–29 s). A 91 s part joining eight clips of different voices still lags
+    whole planning live (84% against 90% vowel open).
   - **Today's planner** for comparison: 6% vowel match on the main set and
     13% / 6% on ElevenLabs HTTP / socket, with the mouth open in 60–74% of
     silences.
-  - **Japanese (the D2 risk):** 45% on the main set at 2.9× (Korean 40%, Chinese
-    38%), so kanji as unknown units do not sink the 40% target. Held-out
-    Japanese is 37%.
-  - **Held-out clips** stay within 10 points on vowel match and silence. Tags do
-    not, on two tags per set (one clip each, never tuned on):
-    - ElevenLabs (`h-e-en-tags`): the laugh is placed at 2.9× (IoU 0.51) but not
-      live (0.40); the sigh lands at IoU 0.41 in every mode;
-    - Gemini (`h-g-en-tags`): the laugh is placed at 2.9× (0.64) but not live;
-      the sigh is missed (IoU 0.19 or less).
+  - **Japanese (the D2 risk):** 43% on the main set at 2.9× (Korean 57%, Chinese
+    48%) and 41% live, so kanji as unknown units keep the 40% target, narrowly.
+    Held-out Japanese is 59% at 2.9× and 26% live (two clips).
+  - **Held-out clips** are no more than 10 points worse on vowel match and
+    silence (tested). Not tested, and recorded for the owner at G1:
+    - **Tags:** two per set. ElevenLabs `h-e-en-tags`: the laugh is placed at
+      2.9× (IoU 0.51) but not live; the sigh lands at IoU 0.41 in every mode,
+      whole included. Gemini `h-g-en-tags`: both are missed.
+    - **Correlation** on held-out ElevenLabs clips is 0.29–0.32 against
+      0.42–0.46 for tuning clips (every one of the six held-out clips is
+      0.21–0.35); the main set matches. They use the same voice as the tuning
+      clips, so the cause is not established.
+    - None of these clips was used for tuning.
+  - **Gemini tags** (no timing) are placed in 2–4 of 8 progressive. Laughs and
+    sighs that are voiced look like speech to loudness and voicing alone; the
+    phone model (Phase 6) adds phone density for them.
+  - **Unperformed tags** leave no event when the whole part is planned. A
+    progressive plan can still flash one for up to 0.2 s before dropping it
+    (`[laughs]` before "Welcome back" gave a 0.16 s event live). Phase 5's tag
+    overlay should ramp in over about 0.15 s so such blips stay invisible.
+- **Progressive spike** (final code, Node, all clips):
 
-    This is recorded for the owner at G1 rather than tuned on held-out clips.
-  - **Gemini tags** (no timing) are placed whole (5/8) but rarely when
-    progressive (2/8); R3 asks only for audio placement here, and the phone model
-    (Phase 6) targets tags.
-- **Progressive spike** (same code, both sources, Node):
-
-  | Arrival | Windowed: vowel / CPU | Full re-align: vowel / CPU |
+  | Arrival | Windowed: vowel open / ja-ko-zh / CPU | Full re-align: vowel open / ja-ko-zh / CPU |
   | --- | --: | --: |
-  | Main, 2.9× | 41% / 3.4 ms/s | 41% / 15.6 ms/s |
-  | Main, live | 43% / 3.3 ms/s | 28% / 17.9 ms/s |
-  | Socket, live | 64% / 3.6 ms/s | 61% / 15.4 ms/s |
+  | Main, 2.9× | 93% / 49% / 1.8 ms/s | 91% / 46% / 3.4 ms/s |
+  | Main, live | 92% / 41% / 1.3 ms/s | 92% / 34% / 3.3 ms/s |
+  | Socket, live | 95% / 65% / 1.2 ms/s | 96% / 65% / 2.4 ms/s |
 
-  Windowed alignment is as accurate (better live, where full re-alignment
-  re-decides past units on too little audio) at a fifth of the cost. Precomputing
-  duration costs then halved it.
-- **CPU per second of audio** (Node, this Mac, progressive, all clips): median 2.0
-  ms, 90th percentile 2.8 ms, highest 6.3 ms (`h-e-en-tags`, many tags and timed
-  pauses; 4.4 ms once warm). The 5 ms budget is measured in Electron in Phase 5.
-- **Beats against gruut** on the 28 scored English clips: 83.8% of 160 beats fall
-  on gruut's primary-stressed syllable (67.3% of syllables are), and 96.9% on a
-  word gruut stresses.
-- **Tests:** aligner on synthetic signals, timing windows, renderer, beats,
-  estimate, planner stability and the D2 threshold test
-  (`eval/aligned-thresholds.test.ts`, about 2 s).
-- **Checks** (Phase 3 at `11b28086` plus Phase 4; the lip-sync suite was rerun on
-  `69d8105d` plus Phase 4):
-  - `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`: passed;
-  - `pnpm web:test`: 497 vitest files, 4,545 passed and 1 skipped. Two browser
-    reload journeys in `hosted-workflows.browser.test.mjs` timed out while a
-    reviewer ran tests in parallel; the file alone then passed 25 of 25;
-  - `pnpm desktop:test`: 27 files, 509 passed and 14 skipped;
-  - `npx vitest run src/lib/lipsync`: 11 files, 205 passed.
+  Windowed planning matches full re-alignment, and beats it on main-set vowels
+  live, at about half the cost. Full re-alignment's partial plans measure the
+  speaking rate against the whole text, which pushes it to its fastest bound;
+  that handicap is part of its live gap.
+- **CPU per second of audio** (Node, this Mac, progressive, all clips): median 1.6
+  ms, 90th percentile 2.5 ms. The highest (7–9 ms) are first runs before the JIT
+  warms; warm Korean plans take about 0.5 ms each, about 2 ms a second.
+  - **Scaling:** loudness levels, openness, rendering and gesture timing still
+    cover the whole part on every call. On the 91 s part the average is 4.3 ms a
+    second, rising towards the end.
+  - Phase 5's worker sends only new frames, and should render from the kept
+    point on; the 5 ms budget is measured in Electron there.
+- **Beats against gruut** on the 28 scored English clips (tested in
+  `aligned-thresholds.test.ts`, at least 75%): 85.8% of 162 beats fall on gruut's
+  primary-stressed syllable (67.3% of syllables are), and 99.4% on a word gruut
+  stresses.
+- **Tests:** aligner on synthetic signals (including skipped tags and no-path),
+  timing windows, renderer, beats, estimate, planner stability and fallbacks,
+  and `eval/aligned-thresholds.test.ts`:
+  - D2 at each delivery rate;
+  - held-out clips no more than 10 points worse;
+  - progressive vowel opening within 5 points of whole, per set and on four
+    joined parts;
+  - beats against gruut's stress.
+- **Checks:** see Code Review #1 Revisions.
 
 #### Code Review #1 Findings
 
-—
+Independent review of `d502423f` against `69d8105d`. Required:
+
+- **P4-F1:** without provider timing, the windowed planner ran ahead of the audio
+  and kept those placements. Per-clip vowel opening fell from about 90% whole to
+  about 45% progressive on `g-en-pause`, `g-ko-sigh` and `h-p-en-numbers`, and
+  multi-sentence parts ran out of text early (the 8th line of a 56 s part placed
+  17 s early). The D2 test could not see it.
+- **P4-F2:** when no alignment existed (text far too short or long for the
+  audio), the aligner returned nothing and the mouth stayed shut, with no failure
+  signal.
+- **P4-F3:** every tag in the text produced an event, performed or not, against
+  R3.
+- **P4-F4:** the held-out check left out tags and correlation, and Results did
+  not record the correlation gap.
+- **P4-F5:** the planner's docstring claimed bounded work per call, but levels,
+  rendering and gestures cover the whole part (gestures with an O(n²) neighbour
+  filter and a full pitch sort).
+
+Optional:
+
+- P4-F6: symbol-only text left the mouth closed.
+- P4-F7: tag events fragmented across progressive plans.
+- P4-F8: on the two known limits: two held-out tags cannot show a 10-point
+  gap, and Gemini's progressive tag losses come from the progressive planner.
+- P4-F9: the new gesture types run parallel to the old ones; Phase 5 should
+  converge them.
+- P4-F10: spike caveats (full re-align's rate handicap, stale CPU columns, the
+  beat figure not reproducible).
+- P4-F11: assert the main set live too, and do not let a missing English group
+  pass silently.
 
 #### Code Review #1 Revisions
 
-—
+- **P4-F1 accepted.** The cause was partial plans sliding text forward: the text
+  has no units for most consonant dips, so closures and nasals were placed on
+  them, and a too-fast rate and a one-second hold kept the result. Fixed by:
+  - optional short gaps between words and between CJK characters;
+  - a two-second hold before units are kept;
+  - a slower starting rate (16 frames per unit of weight);
+  - cheaper alignment (start costs precomputed) to pay for the longer window;
+  - a narrower lookahead (1.2× the remaining audio plus 0.5 s).
+
+  Tried and rejected, measured: per-frame breath scoring, a fixed rate,
+  likelihood-chosen rates, and keeping units only when two plans agree. The new
+  "vowel open" summary and tests guard it: progressive within 5 points of whole
+  per set and on four joined parts.
+- **P4-F2 accepted:** `alignUnits` returns `null` when no path exists; the planner
+  then follows the audio alone and reports `fallback: "no_alignment"` for Phase
+  5 to log. Tested.
+- **P4-F3 accepted:** tags may be skipped at a cost, and the rate estimate no
+  longer assumes tags are performed. Unperformed laughs before or inside a line
+  leave no event when planned whole; progressive plans can flash one for up to
+  0.2 s (Results), which Phase 5's overlay ramp should hide.
+- **P4-F4 accepted:** the held-out test checks vowel match and silence one-sided
+  (held-out may be better); tags and correlation are recorded in Results for the
+  owner.
+- **P4-F5 accepted:** the docstring now states the scaling, and Results record it
+  with the 91 s measurement. Gesture timing uses a pitch histogram and a local
+  neighbour slice. Incremental rendering moves to Phase 5.
+- **P4-F6 accepted:** symbol-only text follows the audio (`fallback: "no_text"`).
+- **P4-F7 partly:** a tag placed for 0.2 s is pinned near its start, and
+  ElevenLabs tags are exempt from the "untimed means not started" rule, since
+  their characters are timed after the sound. Hiding still-short tags was tried
+  and rejected: it delayed every tag at the start of a part.
+- **P4-F8–F11 accepted:**
+  - the Gemini tags note now names the progressive cause;
+  - P4-F9 is left to Phase 5, step 6;
+  - the spike is re-run on the final code, with the full re-align handicap
+    stated;
+  - the beat measure is a test;
+  - the main set is asserted live, and the English groups must be present.
+- **Checks** (`d502423f` plus these revisions):
+  - `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`: passed;
+  - `pnpm web:test`: 497 vitest files, 4,566 passed and 1 skipped, including the
+    lip-sync suite (222). One browser journey ("actual Library blocks denied
+    upload permission…", `retained-screens.browser.test.mjs`) timed out at 35 s;
+    the file alone then passed 8 of 8;
+  - `pnpm desktop:test`: 27 files, 509 passed and 14 skipped.
 
 ### Phase 5: In the app
 

@@ -2,12 +2,17 @@
  * The lip-sync planner for one speech part: its text becomes units once, then
  * each call aligns them to the audio that has arrived and renders a track.
  *
- * Planning is progressive. Units placed well behind the newest audio (one
- * second) are kept, and each call re-aligns only the audio after them with the
- * units still to come, so the work per call stays small however long the part
- * is. The speaking rate comes from the units already placed. With
+ * Planning is progressive. Units placed well behind the newest audio (two
+ * seconds) are kept, and each call re-aligns only the audio after them with the
+ * units still to come, so alignment work per call stays bounded. Loudness
+ * levels, rendering and gesture timing still cover the whole part on every
+ * call, so their cost grows with its length (about 2 ms a call for a two-minute
+ * part, in Node). The speaking rate comes from the units already placed. With
  * `windowed: false` every call re-aligns everything, which the evaluation uses
  * as a reference.
+ *
+ * When the text has nothing to say (only symbols) or cannot be aligned to the
+ * audio, the mouth follows the audio alone, and the plan says why.
  */
 
 import type { SpeechFeatures } from "@/lib/lipsync/audio/features";
@@ -27,13 +32,26 @@ import { detectHanLanguage, textToUnits } from "./text/text-units";
 import type { LipSyncUnit } from "./text/units";
 import { lipSyncFrameCount, type LipSyncTrack } from "./track";
 
-/** Units that end this long before the newest audio are kept. */
-const HOLD_SEC = 1;
+/**
+ * Units that end this long before the newest audio are kept. Two seconds of
+ * later audio usually settles an ambiguous stretch, such as a breath after
+ * "Oh...", before it is kept; one second let such errors push later words
+ * early.
+ */
+const HOLD_SEC = 2;
 /** Speech weight placed before the measured speaking rate is trusted. */
 const RATE_MIN_WEIGHT = 4;
+/**
+ * Once a plan has placed a tag for this long, later plans keep it, starting
+ * near the same time, so its event does not flicker as audio arrives.
+ */
+const PIN_TAG_SEC = 0.2;
+const PIN_TOLERANCE_SEC = 0.1;
+/** Frames of speech that make audio worth following when the text cannot be used. */
+const MIN_SPEECH_FRAMES = 10;
 /** Partial plans consider units up to this many times the remaining frames. */
-const LOOKAHEAD_FACTOR = 1.5;
-const LOOKAHEAD_EXTRA_FRAMES = 100;
+const LOOKAHEAD_FACTOR = 1.2;
+const LOOKAHEAD_EXTRA_FRAMES = 50;
 
 export type LipSyncPlannerOptions = {
   /** The text sent to the voice, tags included. */
@@ -58,6 +76,12 @@ export type LipSyncPlan = {
   track: LipSyncTrack;
   aligned: AlignedUnit[];
   gestures: SpeechGestureTiming;
+  /**
+   * Why part of the mouth follows the audio alone: the text has nothing to say
+   * (`no_text`), or no alignment of the text fits the audio (`no_alignment`,
+   * a planner failure worth logging).
+   */
+  fallback: "no_text" | "no_alignment" | null;
 };
 
 export type LipSyncPlanner = {
@@ -75,6 +99,7 @@ export function createLipSyncPlanner(
     hanLanguage: options.hanLanguage ?? detectHanLanguage(options.text),
   });
   const textUnits = new Set(units);
+  const hasText = units.some(isSpeech);
   const windowed = options.windowed ?? true;
   /** Units placed for good, and where the audio after them starts. */
   const committed: AlignedUnit[] = [];
@@ -83,6 +108,8 @@ export function createLipSyncPlanner(
   let nextUnit = 0;
   let placedFrames = 0;
   let placedWeight = 0;
+  /** Tags placed by an earlier plan, with their start. */
+  const pinned = new Map<LipSyncUnit, number>();
 
   const plan = (input: LipSyncPlanInput): LipSyncPlan => {
     const { features, complete } = input;
@@ -95,14 +122,47 @@ export function createLipSyncPlanner(
         })
       : { units: [...units], windows: units.map(() => null) };
 
+    // A pinned tag starts where it was first placed, whatever the timing says.
+    timed.units.forEach((unit, index) => {
+      const start = pinned.get(unit);
+      if (start === undefined) return;
+      timed.windows[index] = {
+        startSec: start,
+        endSec: Infinity,
+        toleranceSec: PIN_TOLERANCE_SEC,
+      };
+    });
+
+    /** The audio from `fromFrame` on, followed by loudness alone. */
+    const followAudio = (fromFrame: number): AlignedUnit[] => {
+      let speechFrames = 0;
+      for (let t = fromFrame; t < frames; t += 1) {
+        if (features.loudnessDb[t]! > levels.floor + 4) speechFrames += 1;
+      }
+      if (speechFrames < MIN_SPEECH_FRAMES) return [];
+      return [
+        {
+          unit: { kind: "unknown", weight: 1, start: 0, end: 0 },
+          startSec: fromFrame / rate,
+          endSec: frames / rate,
+        },
+      ];
+    };
+
     let aligned: AlignedUnit[];
-    if (!windowed) {
-      aligned = alignUnits(timed.units, features, {
+    let fallback: LipSyncPlan["fallback"] = null;
+    if (!hasText) {
+      aligned = followAudio(0);
+      if (aligned.length) fallback = "no_text";
+    } else if (!windowed) {
+      const all = alignUnits(timed.units, features, {
         acoustic: input.acoustic,
         windows: timed.windows,
         partial: !complete,
         levels,
       });
+      aligned = all ?? followAudio(0);
+      if (!all) fallback = "no_alignment";
     } else {
       // The units still to place: from the next text unit, with a gap pause
       // the timing put just before it.
@@ -136,9 +196,29 @@ export function createLipSyncPlanner(
         fromFrame: committedFrame,
         levels,
         framesPerWeight,
+        required: new Set(pinned.keys()),
       });
-      aligned = [...committed, ...fresh];
-      if (!complete) commit(fresh, frames / rate - HOLD_SEC, rate);
+      if (!fresh) {
+        // Nothing fits after the kept units: follow the audio there, and try
+        // again with the next plan.
+        const rest = followAudio(committedFrame);
+        aligned = [...committed, ...rest];
+        if (rest.length) fallback = "no_alignment";
+      } else {
+        aligned = [...committed, ...fresh];
+      }
+      if (fresh && !complete) {
+        for (const placed of fresh) {
+          if (
+            placed.unit.kind === "tag" &&
+            placed.endSec - placed.startSec >= PIN_TAG_SEC &&
+            !pinned.has(placed.unit)
+          ) {
+            pinned.set(placed.unit, placed.startSec);
+          }
+        }
+        commit(fresh, frames / rate - HOLD_SEC, rate);
+      }
     }
 
     const durationSec = frames / rate;
@@ -151,6 +231,7 @@ export function createLipSyncPlanner(
       track: renderAlignedUnits(aligned, durationSec, openness),
       aligned,
       gestures: speechGestureTiming(aligned, features),
+      fallback,
     };
   };
 

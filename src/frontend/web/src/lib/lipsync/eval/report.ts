@@ -18,6 +18,11 @@ export type ScoredClip = {
 
 export type EvalSummary = {
   clips: number;
+  /**
+   * Mean share of reference vowel frames with the mouth open, over all clips:
+   * low when the plan drifts away from the speech.
+   */
+  vowelOpen: number | null;
   /** Mean vowel match over Japanese, Korean and Chinese clips. */
   vowelMatchCjk: number | null;
   /** Mean vowel match over Japanese, Korean, Chinese and Spanish clips (the brief's figure). */
@@ -70,6 +75,7 @@ export function summarise(scored: ScoredClip[]): EvalSummary {
   }
   return {
     clips: scored.length,
+    vowelOpen: mean(scored.map((s) => s.score.vowelOpen)),
     vowelMatchCjk: mean(scored.filter(isCjk).map((s) => s.score.vowelMatch)),
     vowelMatchCjkEs: mean(
       scored
@@ -107,6 +113,7 @@ export function formatSummaryTable(rows: SummaryRow[]): string {
   const header = [
     "source / mode",
     "clips",
+    "vowel open",
     "vowel ja/ko/zh",
     "+es",
     "silence en",
@@ -118,6 +125,7 @@ export function formatSummaryTable(rows: SummaryRow[]): string {
   const body = rows.map(({ label, summary }) => [
     label,
     String(summary.clips),
+    percent(summary.vowelOpen),
     percent(summary.vowelMatchCjk),
     percent(summary.vowelMatchCjkEs),
     percent(summary.openInSilenceEnglish),

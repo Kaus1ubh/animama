@@ -48,6 +48,29 @@ describe("createLipSyncPlanner", () => {
     expect(new Set(placed).size).toBe(placed.length);
   });
 
+  it("follows the audio alone when the text has nothing to say", () => {
+    const clip = fixture("s-en");
+    const plan = createLipSyncPlanner({ text: "!!! ***" }).plan({
+      features: clip.features,
+      timing: null,
+      complete: true,
+    });
+    expect(plan.fallback).toBe("no_text");
+    expect(Math.max(...plan.track.frames)).toBeGreaterThan(0.3);
+  });
+
+  it("reports and falls back when the text cannot fit the audio", () => {
+    // "Hi!" against thirteen seconds of speech.
+    const clip = fixture("p-en-long");
+    const plan = createLipSyncPlanner({ text: "Hi!" }).plan({
+      features: clip.features,
+      timing: null,
+      complete: true,
+    });
+    expect(plan.fallback).toBe("no_alignment");
+    expect(Math.max(...plan.track.frames)).toBeGreaterThan(0.3);
+  });
+
   it("keeps the units it has placed as more audio arrives", () => {
     const clip = fixture("s-ja");
     const planner = createLipSyncPlanner({ text: clip.text });
@@ -60,10 +83,10 @@ describe("createLipSyncPlanner", () => {
         timing: null,
         complete,
       });
-      // Units ending more than a second before the newest audio stay put.
+      // Units ending well before the newest audio (two seconds) stay put.
       if (previous) {
         const settled = previous.aligned.filter(
-          (a) => a.endSec < (frames - step) / 100 - 1,
+          (a) => a.endSec < (frames - step) / 100 - 2.5,
         );
         expect(plan.aligned.slice(0, settled.length)).toEqual(settled);
       }

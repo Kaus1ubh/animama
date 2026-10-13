@@ -11,9 +11,10 @@
  * - a tag may stray 0.4 s, so the audio decides where its sound is;
  * - where the provider leaves a gap of 0.1 s or more between words, an optional
  *   pause is added;
- * - timing arrives with its audio, so while a part is still arriving, a unit
+ * - timing arrives with its audio, so while a part is still arriving, a word
  *   whose characters have not been timed has not started yet: it may start no
- *   earlier than shortly before the end of the audio (`horizonSec`). A word
+ *   earlier than shortly before the end of the audio (`horizonSec`). Tags are
+ *   exempt, because their characters can be timed after their sound. A word
  *   timed only in part keeps an open end.
  *
  * The provider's characters are matched to the planned text in order, ignoring
@@ -267,6 +268,9 @@ export function unitTimingWindows(
       first += 1;
     }
     for (let k = first; k < out.units.length; k += 1) {
+      // A tag's characters are often timed after its sound ("gosh, [laughs]"
+      // credits the laugh to the comma), so an untimed tag may have begun.
+      if (out.units[k]!.kind === "tag") continue;
       out.windows[k] = {
         startSec: options.horizonSec,
         endSec: Infinity,

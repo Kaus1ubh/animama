@@ -521,6 +521,8 @@ can be compared by eye and ear.
 `pnpm --dir src/frontend/web lipsync:eval` scores lip-sync plan sources against
 recorded speech, with no network or paid speech. It reports, per clip set:
 
+- how often the mouth is open on spoken vowels, which falls when a plan drifts
+  from the speech;
 - vowel match in Japanese, Korean and Chinese (and with Spanish);
 - how often the mouth is open in silent gaps, for English lines and tag lines;
 - how many laughs, sighs, gasps and pauses are placed;
@@ -540,5 +542,7 @@ fixtures and how to rebuild them are described in
   cost.
 
 `src/lib/lipsync/eval/aligned-thresholds.test.ts` holds `aligned` to the agreed
-thresholds at each provider's delivery rate, so a tuning change that breaks one
-fails `pnpm web:test`.
+thresholds at each provider's delivery rate. It also checks that progressive
+plans open on spoken vowels about as often as whole-clip plans, on every set and
+on multi-sentence parts joined from clips, and that beats fall on the syllables
+gruut stressed. A tuning change that breaks one fails `pnpm web:test`.
