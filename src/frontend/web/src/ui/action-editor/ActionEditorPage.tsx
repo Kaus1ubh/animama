@@ -205,6 +205,8 @@ export function ActionEditorPage({
   const internalNavigation = useRef(false);
   const initialComponentApplied = useRef(false);
   const actions = useActionEditorActions(intent);
+  // Stable across renders, unlike the `actionPreview` object around it.
+  const loadActionPreview = actions.actionPreview.load;
   const userId = useRuntimeCacheKey();
   const navigate = useNavigate();
   const existing = useAction(intent, itemId ?? null);
@@ -354,7 +356,7 @@ export function ActionEditorPage({
         if (!item.source) throw new WordedError(t("page.load.noSource"));
         // Non-portable motion never loads into a draft that could be saved.
         if (isNonPortable(item)) throw new WordedError(nonPortableReason());
-        const preview = await actions.actionPreview.load(item.source);
+        const preview = await loadActionPreview(item.source);
         const next = await actionDocumentFromPreview({
           intent,
           item,
@@ -413,11 +415,11 @@ export function ActionEditorPage({
       }
     },
     [
-      actions.actionPreview.load,
       clearSaveFailure,
       createDocument,
       intent,
       itemId,
+      loadActionPreview,
       replaceLoadedDocument,
       setFailureMessage,
       t,

@@ -8,17 +8,11 @@ import { RuntimeOwnerProvider } from "@web/app/runtime/RuntimeOwnerContext";
 import type { PyExactContentSource } from "@/lib/content/catalogTypes";
 import { useActionEditorActions } from "./useActionEditorActions";
 
-const response = vi.hoisted(() => {
-  let resolve!: (value: { data: unknown }) => void;
-  const promise = new Promise<{ data: unknown }>((done) => {
-    resolve = done;
-  });
-  return { promise, resolve };
-});
+const previewGesture = vi.hoisted(() => vi.fn());
 
 vi.mock("@animama/runtime-contracts/sdk", async (importOriginal) => ({
   ...(await importOriginal<object>()),
-  previewGesture: vi.fn(() => response.promise),
+  previewGesture,
 }));
 vi.mock("@/lib/content/typedPreviewAdapters", async (importOriginal) => ({
   ...(await importOriginal<object>()),
@@ -39,40 +33,68 @@ let root: Root | null = null;
 afterEach(() => {
   act(() => root?.unmount());
   root = null;
+  previewGesture.mockReset();
 });
+
+/** Start one preview from a mount effect, as the creator's hydration does. */
+function mountCreatorPreview() {
+  let response!: {
+    resolve: (value: { data: unknown }) => void;
+    reject: (cause: Error) => void;
+  };
+  previewGesture.mockReturnValueOnce(
+    new Promise((resolve, reject) => {
+      response = { resolve, reject };
+    }),
+  );
+  let actions!: ReturnType<typeof useActionEditorActions>;
+  let loading: Promise<unknown> | null = null;
+  function Probe() {
+    actions = useActionEditorActions("gesture");
+    const { load } = actions.actionPreview;
+    useEffect(() => {
+      // Like the creator's hydration ref, start the load only once even
+      // though development StrictMode replays this mount effect.
+      loading ??= load(source);
+    }, [load]);
+    return null;
+  }
+  act(() => {
+    root = createRoot(document.createElement("div"));
+    root.render(
+      <StrictMode>
+        <QueryClientProvider client={new QueryClient()}>
+          <RuntimeOwnerProvider ownerId="owner" sessionKey="session">
+            <Probe />
+          </RuntimeOwnerProvider>
+        </QueryClientProvider>
+      </StrictMode>,
+    );
+  });
+  return { actions: () => actions, loading: () => loading, response };
+}
 
 describe("Gesture and Reaction creator previews", () => {
   it("settle a preview the creator starts while mounting under StrictMode", async () => {
-    let actions!: ReturnType<typeof useActionEditorActions>;
-    let loading: Promise<unknown> | null = null;
-    function Probe() {
-      actions = useActionEditorActions("gesture");
-      const { load } = actions.actionPreview;
-      useEffect(() => {
-        // Like the creator's hydration ref, start the load only once even
-        // though development StrictMode replays this mount effect.
-        loading ??= load(source);
-      }, [load]);
-      return null;
-    }
-    act(() => {
-      root = createRoot(document.createElement("div"));
-      root.render(
-        <StrictMode>
-          <QueryClientProvider client={new QueryClient()}>
-            <RuntimeOwnerProvider ownerId="owner" sessionKey="session">
-              <Probe />
-            </RuntimeOwnerProvider>
-          </QueryClientProvider>
-        </StrictMode>,
-      );
-    });
+    const probe = mountCreatorPreview();
     // A pending preview keeps Save, New and Import disabled.
-    expect(actions.actionPreview.isPending).toBe(true);
+    expect(probe.actions().actionPreview.isPending).toBe(true);
     await act(async () => {
-      response.resolve({ data: { preview: "have-an-idea" } });
-      await expect(loading).resolves.toEqual({ preview: "have-an-idea" });
+      probe.response.resolve({ data: { preview: "have-an-idea" } });
+      await expect(probe.loading()).resolves.toEqual({
+        preview: "have-an-idea",
+      });
     });
-    expect(actions.actionPreview.isPending).toBe(false);
+    expect(probe.actions().actionPreview.isPending).toBe(false);
+  });
+
+  it("stop reporting a failed preview as pending", async () => {
+    const probe = mountCreatorPreview();
+    expect(probe.actions().actionPreview.isPending).toBe(true);
+    await act(async () => {
+      probe.response.reject(new Error("preview unavailable"));
+      await expect(probe.loading()).rejects.toThrow("preview unavailable");
+    });
+    expect(probe.actions().actionPreview.isPending).toBe(false);
   });
 });
