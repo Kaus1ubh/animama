@@ -483,6 +483,8 @@ export async function exerciseClipCompatibility(
             signed_out: true,
             first_point_playback_limit:
                 "This fixture checks clip data semantics and emitted workers; it does not establish physical avatar/audio fidelity.",
+            // The creator's preview never mounts, so no clip plays on an Avatar.
+            creator_preview: "hidden",
             future_id_semantics_verified: false,
         };
     } catch (error) {
