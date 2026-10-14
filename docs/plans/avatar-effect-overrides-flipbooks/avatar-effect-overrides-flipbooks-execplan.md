@@ -105,8 +105,8 @@ effects (20 family variants and 4 left twins) and adds 5, so 75 → 56.
   passed at round 3.
 - [x] P6: Flipbook conversions (F4), 2026-10-14; G2 and G3 approved, 23
   promoted; review passed at round 3.
-- [x] P7: Documentation and acceptance, 2026-10-14; the full `pnpm e2e:test`
-  is recorded in the P7 record.
+- [x] P7: Documentation and acceptance, 2026-10-14; main merged twice and
+  D-11 added; the full `pnpm e2e:test` is recorded in the P7 record.
 - [ ] Final integration review: round 1 found three required items, fixed
   (see below); targeted recheck pending.
 
@@ -226,6 +226,15 @@ fixes), and the final-review fixes after them.
   variant gets `playAccompanyingSound: false`, because its family has a sound.
   This departs from P4 step 3's "`playAccompanyingSound` is unchanged"; the
   Action still plays no sound, as before.
+- **D-11 (owner direction, 2026-10-14, P7):**
+  - Equip the four Gestures that #557 added to main on the starter Animas in
+    this PR: Double Take, Noted, Ready Let's Do This and Tut-tut Finger Wag.
+  - `starter-loadout.v1.json` lists them (99 starter Gestures: every
+    non-idle Included Gesture), and they leave `CORE_LIBRARY_ROOTS`.
+  - Starter Gestures resolve from the policy at runtime, so existing starter
+    Animas get them too, unless the owner disabled them.
+  - Main's starter tests already pinned 107 Gestures and 95 starters, which
+    its own four Gestures broke; they now pin 111 and 99.
 
 ## Gates
 
@@ -1163,6 +1172,23 @@ trip plus a browser reopen), on the task stack:
 - The imported effect copy has no licensed sounds (ADR 0022), so no sound
   choice shows and the stored `soundAlias` plays silent, as designed.
 
+Main merges (owner request, 2026-10-14):
+- `fc077dba` merged #557 (companion content: 4 Gestures and 14 Avatar
+  Effects) and #556. Resolutions:
+  - `source-review.json`: the union of both sides' records, with no
+    conflicting path.
+  - Effect templates: main's new ones, without its stale `huff_puff` and
+    `heart_throb` lines.
+  - Effect counts 56 + 14 = 70; README now 111 Gestures, 72 Reactions and
+    70 Avatar Effects.
+  - `CORE_LIBRARY_ROOTS` and the closure test no longer name the merged
+    `hearts_burst_soft`. The test's shared starter effects now name `puff`
+    and `hearts_burst` instead of the merged `sigh_puff`.
+  - No new Action names a removed effect.
+- `339ff3a0`: D-11.
+- `bcec0cd0` merged #558 (voice audio tags). Only `source-review.json`
+  conflicted, resolved the same way.
+
 Full `pnpm e2e:test` on a purged built stack: pending.
 
 ## Final integration review
@@ -1207,6 +1233,52 @@ boundary defects across the phase seams.
   - PR disclosure: the PR body states the counts and D-8;
   - Impact Burst: the owner approved the conversion; fist-bump is left for
     the e2e and live passes.
+
+#### Final Integration Review #2 Findings
+
+Targeted recheck at `e70a367d`. FI-R1-F1 to F3 and the optional items are
+fixed; the 28 rebaselined clips changed only their file hashes.
+- **FI-R2-F1 (required):** the Outcomes count said 5 families plus Steam
+  Puffs; 10 effects remain.
+- **Optional:** P7 progress said the e2e run was recorded; the follow-ups
+  have no issues yet; #555 may affect the `@complete-anima` journeys.
+
+#### Final Integration Review #2 Revisions
+
+- **FI-R2-F1:** accepted; fixed in `2d97e504`. The rest is addressed in the
+  P7 record and the PR.
+
+#### Final Integration Review #3 Findings
+
+Final targeted recheck (last round) at `bcec0cd0`, after the main merges and
+D-11. FI-R2-F1 is fixed. The merge resolutions are verified:
+- `source-review.json` is the exact three-way union;
+- 70 templates, effects and thumbnails;
+- core roots and locators match (40 each);
+- the shared starter effects are exact;
+- no Action names a merged effect, and all 29 overrides still validate.
+
+D-11 is consistent (99 unique starter IDs; existing starter Animas pick the
+Gestures up at runtime).
+- **FI-R3-F1 (required):** the template-picker journey still expected 89
+  thumbnails. P4 never updated it, and the merge auto-merged main's
+  75 → 89.
+- **FI-R3-F2 (required):** `mixamo-acquisition.md` still said 95 of 99
+  starters.
+- **Optional:** main's promote guidance told promoters to add every new item
+  to `CORE_LIBRARY_ROOTS`, which conflicts with the starter oracle for a new
+  non-idle Gesture.
+
+#### Final Integration Review #3 Revisions
+
+- **FI-R3-F1:** accepted; `toHaveCount(70)`. The journey was rerun after the
+  fix (P7 record).
+- **FI-R3-F2:** accepted; it now says "all 99".
+- **Optional:** accepted. The animation promote guide and
+  `runtime-staging.md` now say a new non-idle Gesture joins the starter
+  loadout, and other new items join the core roots.
+- The review budget is spent. Both fixes are one-line changes, verified by
+  the rerun journey and by reading; they are listed for the owner in the PR.
 
 ## Validation and acceptance
 

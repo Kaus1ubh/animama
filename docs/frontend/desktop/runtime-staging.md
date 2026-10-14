@@ -79,7 +79,8 @@ Each staging pass clears only `desktop/.desktop-runtime/darwin-arm64`, then:
    dependencies ship in core without entering starter loadouts or per-starter
    receipts. With the starter closure and Poses they cover every valid tracked
    Included item, so desktop core matches self-host and the expanded input is
-   empty; add each new Included item to these roots. Only tracked distribution
+   empty; add each new Included item that no starter selects to these roots
+   (a new non-idle Gesture joins the starter loadout instead). Only tracked distribution
    inputs may enter the stage; missing or excluded required roots fail staging.
    Optional portraits use the same presentation contract as installation
    bootstrap.
