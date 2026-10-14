@@ -1,6 +1,7 @@
 # Shorter full validation and promotion from one full run
 
-> Superseded in part on 2026-10-14 by an owner decision recorded in #503:
+> Superseded in part on 2026-10-14 by an owner decision for #503, recorded in
+> PR #556 and the ExecPlan's Decision Log:
 > ordinary PR runs and `main` pushes skip the promotion suite and both
 > selectable browser groups unless their own inputs changed, and product
 > code no longer selects them. Promotion runs (manual dispatch, release

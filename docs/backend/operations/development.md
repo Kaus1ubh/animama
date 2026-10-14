@@ -707,8 +707,8 @@ merge.
 
 Every suite still runs on an ordinary run when the workflow, `scripts/ci`, the
 packaging and consumer scripts (`scripts/package-sets/`,
-`scripts/repository-boundary/`), the lockfiles, the root, frontend, web or
-desktop `package.json`, the Vite configuration or plugins, patches, models or
+`scripts/repository-boundary/`), the lockfiles, `pyproject.toml`, the frontend
+workspace, web or desktop `package.json`, the Vite configuration or plugins, patches, models or
 the shared browser setup change, or when links, executables or LFS inputs do.
 Such a run records `full`, so every package set comes from a `full` run.
 Promotion runs mostly rebuild their baseline set: `main` pushes are usually
