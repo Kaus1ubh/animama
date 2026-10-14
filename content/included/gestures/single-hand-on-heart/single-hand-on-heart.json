@@ -672,7 +672,7 @@
       "id": "heart-throb",
       "time": 0.35,
       "kind": "avatar_vfx",
-      "effectId": "heart_throb",
+      "effectId": "heart_pop",
       "duration": 2.5,
       "envelope": {
         "intensity": {
@@ -680,6 +680,50 @@
           "fadeIn": 0.4,
           "fadeOut": 0.6
         }
+      },
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "chest",
+          "offset": {
+            "x": 0.05,
+            "y": 0.16,
+            "z": 0.16
+          },
+          "size": 0.1
+        },
+        "motion": {
+          "keyframes": {
+            "loop": true,
+            "frames": [
+              {
+                "scale": 1,
+                "t": 0
+              },
+              {
+                "scale": 1.2,
+                "t": 0.08
+              },
+              {
+                "scale": 0.98,
+                "t": 0.17
+              },
+              {
+                "scale": 1.12,
+                "t": 0.25
+              },
+              {
+                "scale": 1,
+                "t": 0.38
+              },
+              {
+                "scale": 1,
+                "t": 0.667
+              }
+            ]
+          }
+        },
+        "soundAlias": "heartbeat_03v1_light"
       }
     }
   ]

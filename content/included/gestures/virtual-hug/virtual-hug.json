@@ -1728,11 +1728,49 @@
       "id": "hug-hearts",
       "time": 1.25,
       "kind": "avatar_vfx",
-      "effectId": "pat_hearts",
+      "effectId": "hearts_burst",
       "duration": 1.35,
       "envelope": {
         "intensity": {
           "fadeOut": 0.4
+        }
+      },
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "head",
+          "offset": {
+            "x": 0.144,
+            "y": 0.142,
+            "z": 0.006
+          },
+          "size": 0.09,
+          "facing": "camera"
+        },
+        "motion": {
+          "keyframes": {
+            "frames": [
+              {
+                "t": 0,
+                "opacity": 0,
+                "offset": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "t": 0.08,
+                "opacity": 1
+              },
+              {
+                "t": 1.6,
+                "offset": {
+                  "x": 0.003,
+                  "y": 0.01
+                }
+              }
+            ]
+          }
         }
       }
     }

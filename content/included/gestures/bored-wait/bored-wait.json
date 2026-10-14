@@ -2489,7 +2489,7 @@
       "id": "exhale-puff",
       "time": 5.1,
       "kind": "avatar_vfx",
-      "effectId": "sigh_puff",
+      "effectId": "puff",
       "duration": 1.9,
       "envelope": {
         "intensity": {

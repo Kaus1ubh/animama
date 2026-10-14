@@ -124,7 +124,6 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   }),
   included("doki_doki", "Doki Doki", "around-head", { framing: "wide" }),
   included("idea_bulb", "Idea Bulb", "around-head", { framing: "wide" }),
-  included("huff_puff", "Huff Puff", "around-head", { time: 0.3 }),
   included("annoyed_scribble", "Annoyed Scribble", "around-head", {
     framing: "wide",
     clip: "simmering-huff",
@@ -140,11 +139,6 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     clip: "celebration",
     time: 1.1,
   }),
-  included("cheer_sparkles_head_left", "Cheer Sparkles Left", "around-head", {
-    framing: "wide",
-    clip: "celebration",
-    time: 1.1,
-  }),
   included("emphasis_lines_peek", "Emphasis Lines", "around-head", {
     framing: "wide",
     clip: "cover-face-and-peek",
@@ -155,45 +149,20 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     clip: "downcast-sigh",
     time: 3.9,
   }),
-  included("hearts_burst_kyaa", "Hearts Burst Kyaa", "around-head", {
-    framing: "wide",
-    clip: "kyaa-hands-on-cheeks",
-    time: 1.4,
-  }),
-  included("hearts_burst_soft", "Hearts Burst Soft", "around-head", {
-    framing: "wide",
-    clip: "dreamy-gaze",
-    time: 4,
-  }),
   included("heh_lettering", "Heh Lettering", "around-head", {
     framing: "wide",
     clip: "smug-heh",
     time: 1.5,
   }),
-  included("kira_star_head", "Kira Star", "around-head", {
+  included("kira_star", "Kira Star", "around-head", {
     framing: "wide",
     clip: "peace-over-eye",
     time: 1.6,
-  }),
-  included("kira_star_tehe", "Kira Star Tehe", "around-head", {
-    framing: "wide",
-    clip: "tehepero",
-    time: 1.2,
-  }),
-  included("kiss_heart_head", "Kiss Heart", "around-head", {
-    framing: "wide",
-    clip: "blow-a-kiss",
-    time: 1.3,
   }),
   included("laugh_marks", "Laugh Marks", "around-head", {
     framing: "wide",
     clip: "ohohoho-noble-laugh",
     time: 1.6,
-  }),
-  included("laugh_sparkle", "Laugh Sparkle", "around-head", {
-    framing: "wide",
-    clip: "ohohoho-noble-laugh",
-    time: 1.9,
   }),
   included("mind_blown_burst", "Mind Blown Burst", "around-head", {
     framing: "wide",
@@ -205,20 +174,10 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     clip: "bgm-bob",
     time: 5.3,
   }),
-  included("pat_hearts", "Pat Hearts", "around-head", {
-    framing: "wide",
-    clip: "head-pat",
-    time: 1.5,
-  }),
   included("paw_prints", "Paw Prints", "around-head", {
     framing: "wide",
     clip: "cat-paws-nya",
     time: 1.2,
-  }),
-  included("please_sparkle", "Please Sparkle", "around-head", {
-    framing: "wide",
-    clip: "please-hands",
-    time: 1.6,
   }),
   included("question_mark", "Question Mark", "around-head", {
     framing: "wide",
@@ -235,7 +194,7 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     clip: "flex",
     time: 1.8,
   }),
-  included("sigh_puff", "Sigh Puff", "around-head", { time: 0.4 }),
+  included("puff", "Puff", "around-head", { time: 0.4 }),
   included("sigh_puff_droop", "Sigh Puff Droop", "around-head", { time: 0.5 }),
   included("sly_glint", "Sly Glint", "around-head", {
     clip: "scheming-hands",
@@ -268,24 +227,18 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
   }),
   included("mouth_w", "Mouth w", "mouth"),
   included("mouth_hover_w", "Mouth Hover w", "mouth"),
-  included("heart_throb", "Heart Throb", "body", { framing: "wide" }),
   included("despair_shade", "Despair Shade", "body"),
   included("idea_bulb_fingertip", "Idea Bulb Fingertip", "body", {
     framing: "wide",
     clip: "have-an-idea",
     time: 3,
   }),
-  included("finger_heart_pop", "Finger Heart Pop", "body", {
+  included("heart_pop", "Heart Pop", "body", {
     framing: "wide",
     clip: "finger-heart-pose",
     time: 1,
   }),
-  included("badum_burst", "Badum Burst", "body", {
-    framing: "body",
-    clip: "drumroll",
-    time: 2.8,
-  }),
-  included("badum_burst_left", "Badum Burst Left", "body", {
+  included("impact_burst", "Impact Burst", "body", {
     framing: "body",
     clip: "drumroll",
     time: 2.8,
@@ -295,49 +248,14 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     clip: "have-an-idea",
     time: 3,
   }),
-  included("drumroll_ticks_left", "Drumroll Ticks Left", "body", {
-    framing: "wide",
-    clip: "left-peace-sign",
-    time: 1.13,
-  }),
   included("finger_gun_spark", "Finger Gun Spark", "body", {
     framing: "wide",
     clip: "cheeky-finger-guns",
     time: 0.7,
   }),
-  included("finger_gun_spark_left", "Finger Gun Spark Left", "body", {
-    framing: "wide",
-    clip: "cheeky-finger-guns",
-    time: 0.73,
-  }),
-  included("fist_bump_burst", "Fist Bump Burst", "body", {
-    framing: "body",
-    clip: "fist-bump",
-    time: 0.8,
-  }),
-  included("heart_hands_pop_chest", "Heart Hands Pop", "body", {
-    framing: "wide",
-    clip: "heart-hands-build",
-    time: 1,
-  }),
-  included("hearts_burst_hands", "Hearts Burst Hands", "body", {
+  included("hearts_burst", "Hearts Burst", "body", {
     framing: "wide",
     clip: "prayer-hands-thanks",
-    time: 1.4,
-  }),
-  included("high_five_burst", "High Five Burst", "body", {
-    framing: "wide",
-    clip: "high-five",
-    time: 1.0,
-  }),
-  included("kira_star_wish", "Kira Star Wish", "body", {
-    framing: "wide",
-    clip: "fingers-crossed",
-    time: 1.4,
-  }),
-  included("kira_star_wish_left", "Kira Star Wish Left", "body", {
-    framing: "wide",
-    clip: "fingers-crossed",
     time: 1.4,
   }),
   included("scratch_ticks", "Scratch Ticks", "body", {
@@ -346,11 +264,6 @@ export const AVATAR_EFFECT_TEMPLATES: readonly AvatarEffectTemplate[] = [
     time: 1.2,
   }),
   included("shake_lines", "Shake Lines", "body", {
-    framing: "wide",
-    clip: "cower",
-    time: 1.2,
-  }),
-  included("shake_lines_left", "Shake Lines Left", "body", {
     framing: "wide",
     clip: "cower",
     time: 1.2,

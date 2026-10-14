@@ -48,11 +48,13 @@ import {
  * sounds or other dependencies, validated as the creator's Save validates
  * them, and their art re-checked against its budget; Scene art must be PNG.
  *
- * A built-in Avatar Effect plays at most one licensed sound from the private
- * comedy sound pack, as an optional dependency (ADR 0022). An add names it
- * with `"sound": "<key>"`, a sound in the tracked pack manifest, or chooses a
+ * A built-in Avatar Effect plays licensed sounds from the private comedy
+ * sound pack, as optional dependencies (ADR 0022); a merged effect declares
+ * several and each use picks one (ADR 0025). An add names its sound with
+ * `"sound": "<key>"`, a sound in the tracked pack manifest, or chooses a
  * silent effect with `"sound": null`; a replace keeps the effect's current
- * sound unless it names another or `null` (which removes it).
+ * sounds unless it names one (which replaces them) or `null` (which removes
+ * them).
  *
  * Licence records (D1): Avatar Effect files fall under the existing
  * `vfx/avatar/**\/*` rule and Scene PNGs under `vfx/scene/**\/*.png`. Each
@@ -329,25 +331,33 @@ export async function planEffectPromotion(
     return soundKeys;
   };
   /**
-   * The licensed sound edge an Avatar Effect add or replace writes: the one the
-   * item names, none for `"sound": null`, else (for a replace) the effect's
-   * current one.
+   * The licensed sound edges an Avatar Effect add or replace writes, and the
+   * alias it plays by default: the one sound the item names, none for
+   * `"sound": null`, else (for a replace) the effect's current sounds; a
+   * merged effect declares several (ADR 0025).
    */
-  const licensedSound = (item, original) => {
-    const kept = (original?.dependencies ?? []).find(
-      (edge) => edge.content_type === "sound_effect" && edge.optional === true,
-    );
-    if (item.sound === null) return null;
+  const licensedSounds = (item, original) => {
+    if (item.sound === null) return { edges: [], alias: null };
     if (item.mode === "add" && item.sound === undefined)
       throw new EffectPromoteError(
         `${item.stem}: choose the effect's licensed sound: name one with "sound", or set "sound": null for a silent effect.`,
       );
-    if (item.sound === undefined) return kept ?? null;
+    if (item.sound === undefined) {
+      const edges = (original?.dependencies ?? []).filter(
+        (edge) =>
+          edge.content_type === "sound_effect" && edge.optional === true,
+      );
+      return {
+        edges,
+        alias: edges.length ? (original.definition?.soundAlias ?? null) : null,
+      };
+    }
     if (!packSounds().has(item.sound))
       throw new EffectPromoteError(
         `${item.stem}: "${item.sound}" is not a sound in the tracked comedy pack manifest.`,
       );
-    return soundEdge(item.sound);
+    const edge = soundEdge(item.sound);
+    return { edges: [edge], alias: edge.alias };
   };
   const kindOf = (item) => item.kind ?? "avatar_effect";
   const effectItems = items.filter((item) => EFFECT_KINDS[kindOf(item)]);
@@ -521,7 +531,7 @@ export async function planEffectPromotion(
       fail(error.message);
     }
     const sound =
-      kind === "avatar_effect" ? licensedSound(item, original) : null;
+      kind === "avatar_effect" ? licensedSounds(item, original) : null;
     const planned = EFFECT_PLANNERS[kind](item, {
       original,
       contentId,
@@ -694,8 +704,8 @@ const EFFECT_PLANNERS = {
     if (images.some((image) => image.name === `${item.stem}.json`))
       fail("an image cannot be named like the descriptor.");
     const files = images.map((image) => ({ path: image.name, role: "image" }));
-    const dependencies = sound ? [sound] : [];
-    const definition = sound
+    const dependencies = sound?.edges ?? [];
+    const definition = sound?.alias
       ? { ...effect.definition, soundAlias: sound.alias }
       : effect.definition;
     return {

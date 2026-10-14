@@ -11,9 +11,12 @@ self-host images or the public package set. See
 
 ## How effects use the sounds
 
-A built-in effect descriptor under `content/included/vfx/avatar/` declares at
-most one optional sound edge and names it in `definition.soundAlias`; an effect
-the owner chose to keep quiet (for example one used only by idles) has none:
+A built-in effect descriptor under `content/included/vfx/avatar/` declares its
+sounds as optional edges and names the one it plays by default in
+`definition.soundAlias`. A merged effect declares each of its uses' sounds, and
+a Gesture or Reaction event picks another with its override's `soundAlias`
+([ADR 0025](../../adr/0025-per-use-avatar-effect-overrides.md)). An effect the
+owner chose to keep quiet (for example one used only by idles) has none:
 
 ```json
 "dependencies": [
@@ -23,8 +26,8 @@ the owner chose to keep quiet (for example one used only by idles) has none:
 ```
 
 Where the pack isn't mounted (self-host, public source, a desktop build without
-the input), the Included scan drops that edge and the alias, and the effect plays
-silently. Where several effects start together in a Reaction, only one plays its
+the input), the Included scan drops those edges and the alias, and the effect
+plays silently, as does an event that picks one of the dropped sounds. Where several effects start together in a Reaction, only one plays its
 sound; the others set `playAccompanyingSound: false` on their clip events.
 `tests/test_included_content_integrity.py` enforces both rules.
 

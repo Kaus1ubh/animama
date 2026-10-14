@@ -19,8 +19,8 @@ from tests.content_package_helpers import package_services
 
 OWNER = "effect-override-owner"
 REPOSITORY = Path(__file__).parents[1]
-EFFECT = "builtin:avatar-effect:kira_star_head"
-EFFECT_FOLDER = "vfx/avatar/kira_star_head"
+EFFECT = "builtin:avatar-effect:kira_star"
+EFFECT_FOLDER = "vfx/avatar/kira_star"
 
 
 @pytest.fixture(autouse=True)

@@ -18,12 +18,6 @@
       "config": {}
     },
     {
-      "ref": "builtin:avatar-effect:shake_lines_left",
-      "alias": "shake_lines_left",
-      "content_type": "avatar_effect",
-      "config": {}
-    },
-    {
       "ref": "builtin:avatar-effect:sweat_splash_cower",
       "alias": "sweat_splash_cower",
       "content_type": "avatar_effect",

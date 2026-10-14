@@ -47,7 +47,7 @@ test("resolves a template's Included Gesture clip into its thumbnail job", async
   assert.equal(rest.framingScale, 1);
   assert.equal(rest.framingDrop, undefined);
 
-  const [body] = selectTemplates(["badum_burst"]);
+  const [body] = selectTemplates(["impact_burst"]);
   assert.equal(body.thumbnail?.framing, "body");
   const bodyJob = await thumbnailJob(body);
   assert.equal(bodyJob.framingScale, BODY_FRAMING_SCALE);

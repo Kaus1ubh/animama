@@ -12,8 +12,8 @@
   },
   "dependencies": [
     {
-      "ref": "builtin:avatar-effect:fist_bump_burst",
-      "alias": "fist_bump_burst",
+      "ref": "builtin:avatar-effect:impact_burst",
+      "alias": "impact_burst",
       "content_type": "avatar_effect",
       "config": {}
     }

@@ -1,0 +1,104 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:heart_pop",
+  "version": 1,
+  "name": "Heart Pop",
+  "description": "A cartoon red heart pops out and throbs, for a finger heart, a two-hand heart, a blown kiss or a warm hand on the heart.",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:bubble_pop_01",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    },
+    {
+      "ref": "builtin:sound-effect:love_bubble_01",
+      "content_type": "sound_effect",
+      "alias": "love_bubble_01",
+      "optional": true
+    },
+    {
+      "ref": "builtin:sound-effect:accidental_kiss_02",
+      "content_type": "sound_effect",
+      "alias": "accidental_kiss_02",
+      "optional": true
+    },
+    {
+      "ref": "builtin:sound-effect:heartbeat_03v1_light",
+      "content_type": "sound_effect",
+      "alias": "heartbeat_03v1_light",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "rightHand",
+      "offset": {
+        "x": -0.131,
+        "y": -0.05,
+        "z": 0.037
+      },
+      "size": 0.07,
+      "facing": "camera",
+      "rotationDeg": -10
+    },
+    "art": {
+      "image": "finger_heart_pop.png"
+    },
+    "motion": {
+      "pulse": {
+        "cyclesPerSecond": 1.4,
+        "scaleMax": 1.06,
+        "scaleMin": 0.95
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "opacity": 0,
+            "scale": 0.3,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 1.3,
+            "t": 0.12
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "scale": 0.9,
+            "t": 0.22
+          },
+          {
+            "scale": 1,
+            "t": 0.32
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 0.008
+            },
+            "t": 0.6
+          }
+        ]
+      }
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "finger_heart_pop.png",
+      "role": "image"
+    }
+  ]
+}

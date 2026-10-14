@@ -1,0 +1,101 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:puff",
+  "version": 1,
+  "name": "Puff",
+  "description": "A little cartoon breath puff bursts out beside the mouth and drifts away as it fades, for a long sigh or a sulky \"hmph!\".",
+  "dependencies": [
+    {
+      "ref": "builtin:sound-effect:whoosh_01v2",
+      "content_type": "sound_effect",
+      "alias": "on-apply",
+      "optional": true
+    }
+  ],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "mouth",
+      "offset": {
+        "x": 0.085,
+        "y": 0,
+        "z": 0.04
+      },
+      "scale": {
+        "x": 1.7,
+        "y": 1.7
+      },
+      "rotationDeg": {
+        "x": 0,
+        "y": -35,
+        "z": -40
+      }
+    },
+    "art": {
+      "image": "huff_puff.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "t": 0,
+            "opacity": 0,
+            "scale": 0.35,
+            "offset": {
+              "x": -0.012,
+              "y": -0.004
+            }
+          },
+          {
+            "t": 0.1,
+            "opacity": 1,
+            "scale": 1.1,
+            "offset": {
+              "x": 0,
+              "y": 0
+            }
+          },
+          {
+            "t": 0.2,
+            "scale": 0.95
+          },
+          {
+            "t": 0.3,
+            "scale": 1
+          },
+          {
+            "t": 1.45,
+            "opacity": 1,
+            "scale": 1.12,
+            "offset": {
+              "x": 0.02,
+              "y": 0.008
+            }
+          },
+          {
+            "t": 1.9,
+            "opacity": 0,
+            "scale": 1.2,
+            "offset": {
+              "x": 0.028,
+              "y": 0.012
+            }
+          }
+        ]
+      }
+    },
+    "faceOptions": {
+      "faceCleanup": false
+    },
+    "soundAlias": "on-apply"
+  },
+  "files": [
+    {
+      "path": "huff_puff.png",
+      "role": "image"
+    }
+  ]
+}

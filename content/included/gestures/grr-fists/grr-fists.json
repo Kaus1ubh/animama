@@ -1972,14 +1972,28 @@
       "id": "shake-lines-left",
       "time": 0.7095,
       "kind": "avatar_vfx",
-      "effectId": "shake_lines_left",
+      "effectId": "shake_lines",
       "duration": 1.4025,
       "envelope": {
         "intensity": {
           "fadeOut": 0.33
         }
       },
-      "playAccompanyingSound": false
+      "playAccompanyingSound": false,
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "leftHand",
+          "offset": {
+            "x": 0.04,
+            "y": -0.015,
+            "z": 0
+          },
+          "size": 0.2,
+          "facing": "camera",
+          "rotationDeg": 180
+        }
+      }
     }
   ]
 }

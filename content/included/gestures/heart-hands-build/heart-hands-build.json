@@ -1274,12 +1274,99 @@
       "id": "heart-hands-pop",
       "time": 0.72,
       "kind": "avatar_vfx",
-      "effectId": "heart_hands_pop_chest",
+      "effectId": "heart_pop",
       "duration": 1.13,
       "envelope": {
         "intensity": {
           "fadeOut": 0.14
         }
+      },
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "chest",
+          "offset": {
+            "x": 0.003,
+            "y": 0.195,
+            "z": 0.214
+          },
+          "size": 0.05,
+          "facing": "camera"
+        },
+        "motion": {
+          "pulse": {
+            "cyclesPerSecond": 1.6,
+            "scaleMin": 0.95,
+            "scaleMax": 1.06
+          },
+          "keyframes": {
+            "frames": [
+              {
+                "t": 0,
+                "opacity": 0,
+                "scale": 0.3,
+                "offset": {
+                  "x": 0,
+                  "y": 0
+                }
+              },
+              {
+                "t": 0.1,
+                "opacity": 1,
+                "scale": 1.18,
+                "offset": {
+                  "x": 0,
+                  "y": 0.03
+                }
+              },
+              {
+                "t": 0.2,
+                "scale": 0.94,
+                "offset": {
+                  "x": 0,
+                  "y": 0.05
+                }
+              },
+              {
+                "t": 0.3,
+                "scale": 1,
+                "offset": {
+                  "x": 0,
+                  "y": 0.065
+                }
+              },
+              {
+                "t": 0.46,
+                "offset": {
+                  "x": 0,
+                  "y": 0.075
+                }
+              },
+              {
+                "t": 0.55,
+                "offset": {
+                  "x": 0,
+                  "y": 0.075
+                }
+              },
+              {
+                "t": 1,
+                "offset": {
+                  "x": 0,
+                  "y": 0.02
+                }
+              },
+              {
+                "t": 1.5,
+                "offset": {
+                  "x": 0,
+                  "y": 0.012
+                }
+              }
+            ]
+          }
+        },
+        "soundAlias": "love_bubble_01"
       }
     }
   ]

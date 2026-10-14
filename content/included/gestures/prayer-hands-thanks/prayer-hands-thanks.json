@@ -1230,7 +1230,7 @@
       "id": "hearts-burst",
       "time": 0.75,
       "kind": "avatar_vfx",
-      "effectId": "hearts_burst_hands",
+      "effectId": "hearts_burst",
       "duration": 1.85,
       "envelope": {
         "intensity": {

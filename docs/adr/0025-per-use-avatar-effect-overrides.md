@@ -40,7 +40,9 @@ transform. The variants of one image often played different sounds, which
    override's `soundAlias` picks another. An unknown or unmounted alias plays
    silently, as an effect without its pack does today.
 4. **Merging duplicates.** The Included library merges effects that share art
-   into one effect per image and attachment kind. One tracked mapping rewrites
+   into one family effect wherever an override can reproduce each of them (an
+   effect whose face options cannot apply to the family's placement stays
+   separate). One tracked mapping rewrites
    both Included Actions and, through the content transition, Local Actions
    that name a removed effect.
 

@@ -18,7 +18,7 @@ Two changes, delivered in this order (Q4):
 1. **Per-use overrides (D1–D7).** An `avatar_vfx` event in a Gesture or
    Reaction (`animaPoseClip/2.0`) may override the played effect's
    attachment (same kind), appearance and motion. The Included library then
-   merges Avatar Effects that share art: 29 effects become 9. Local Actions
+   merges Avatar Effects that share art: 29 effects become 10 (Steam Puffs stays, D-9). Local Actions
    that reference a removed effect are rewritten automatically.
 2. **Flipbooks (F1–F4).** `effects:assets` derives consistent flipbook frames
    from one key image (`boil`, `draw-on`). The effect skills gain a decision
@@ -76,16 +76,16 @@ Users are the Included Gestures and Reactions that reference each effect
 | | `high_five_burst` | `slap_03` | high-five |
 | Puff (`puff`) | `sigh_puff` (default) | `whoosh_01v2` | bored-wait, deflated-sigh, phew-brow-wipe, stretch-break; Reaction disappointment-1 |
 | | `huff_puff` | `whoosh_01v2` | pout-huff; Reaction annoyance-1 |
-| | `steam_puffs` | `irritated_02` | Reaction anger-3 |
+| | ~~`steam_puffs`~~ stays its own effect (D-9) | `irritated_02` | Reaction anger-3 (unchanged) |
 | Shake Lines (`shake_lines`) | `shake_lines`, `shake_lines_left` | `wobble_short` | cower, ew-recoil, grr-fists (both) |
 | Finger Gun Spark (`finger_gun_spark`) | both twins | `retro_laser_focus_02v1` | cheeky-finger-guns (both) |
 | Drumroll Ticks (`drumroll_ticks`) | both twins | `drum_tremolo_01` | drumroll (both) |
 | Cheer Sparkles (`cheer_sparkles_head`) | both twins | `correct_answer_04` | celebration (both) |
 
-In total, 28 Gestures and 12 Reactions change. The five multi-variant
-families take new neutral stems. The four mirror pairs keep the right-hand
-stem, so only the left twin's users change (D-4). That removes 25 effects
-(21 family variants and 4 left twins) and adds 5, so 75 → 55.
+In total, 28 Gestures and 11 Reactions change (39 Actions). The five
+multi-variant families take new neutral stems. The four mirror pairs keep the
+right-hand stem, so only the left twin's users change (D-4). That removes 24
+effects (20 family variants and 4 left twins) and adds 5, so 75 → 56.
 
 ## Progress
 
@@ -97,10 +97,12 @@ stem, so only the left twin's users change (D-4). That removes 25 effects
   passed at round 2. D-8 is for owner review with the PR.
 - [x] P2: Runtime playback with overrides (D3), 2026-10-14; review passed at
   round 2.
-- [ ] P3: Action creator editing (D4).
-- [ ] P4: Library merge and Local transition (D5, D6). Gate G1.
+- [x] P3: Action creator editing (D4), 2026-10-14; review passed; browser
+  check done on the task stack.
+- [x] P4: Library merge and Local transition (D5, D6), 2026-10-14; G1
+  approved; review passed at round 2.
 - [x] P5: Flipbook frame tooling and skills (F1–F3, D7), 2026-10-14; review
-  passed at round 3. Commits: P1 `c32edd57`, P5 `7d02443c`.
+  passed at round 3. Commits: P1 `c32edd57`, P5 `7d02443c`, P2 `2c588cf8`.
 - [ ] P6: Flipbook conversions (F4). Gates G2 and G3.
 - [ ] P7: Documentation and acceptance.
 - [ ] Final integration review.
@@ -201,6 +203,17 @@ stem, so only the left twin's users change (D-4). That removes 25 effects
   validate each field as it is edited. The issue's acceptance "naming the
   field (backend and frontend)" is met by the backend and the editor, not by
   the parser.
+- **D-9 (agent decision, 2026-10-14, P4; shown to the owner at G1):**
+  Steam Puffs stays its own effect. It floats above the head (`top`
+  landmark), and Sigh and Huff Puff carry a mouth face option
+  (`faceCleanup: false`) that cannot apply there, so no override can make the
+  Puff family play as Steam Puffs; its sound also differs. The Puff family is
+  Sigh and Huff Puff: 24 effects are removed and 5 added (75 → 56), and 39
+  Actions change (anger-3 keeps Steam Puffs).
+- **D-10 (agent decision, 2026-10-14, P4):** an event that played a silent
+  variant gets `playAccompanyingSound: false`, because its family has a sound.
+  This departs from P4 step 3's "`playAccompanyingSound` is unchanged"; the
+  Action still plays no sound, as before.
 
 ## Gates
 
@@ -514,6 +527,74 @@ preview it, save, reopen, export and import. Desktop viewport first, then a
 narrow layout. Record the result here.
 Checks: `pnpm web:test`, `pnpm check`, `pnpm web:lint`, `pnpm build`.
 
+#### P3 record
+
+- Issue #548; starting SHA `2c588cf8`; implemented 2026-10-14 by a delegated
+  agent (P2 files untouched), integrated here.
+- Draft patch `override?: … | null` (null removes; changing the effect drops
+  the override unless the same patch sets one). Pure helpers in
+  `FE/ui/pose-creator/avatarEffectUse.ts`: the effect's definition and declared
+  sounds from the preview runtime snapshot, the use's editor document, the
+  minimal override (changed parts whole; nothing changed → no override), and
+  `editAvatarEffectUse`, which refuses an edit the effect cannot play.
+- `PoseCreatorAvatarEffectUse.tsx` ("This use" in the event inspector) reuses
+  the creator's `AttachmentFields` (now exported) and `AvatarEffectInspector`;
+  Reset to effect; a sound picker when the effect declares two or more sounds.
+  `PoseCreatorEffectHandles.tsx` in `ActionEditorScene` reuses the creator's
+  handle renderer and manipulation hook (paused, event visible): the art moves
+  in place during a drag and the override is written once at the end, as one
+  Undo step. `PoseCreatorClipPreviewSync` uses the shared
+  `poseCreatorClipAppliedId`. i18n keys `clip.event.accompanyingSoundLabel`
+  and `clip.event.use.*` in five locales.
+- Checks: vitest on the pose creator, action editor, avatar effect creator
+  and `lib/avatar/vfx` (738 passed); `pnpm check` and `pnpm web:lint` exit 0;
+  pose-creator suite 176 passed after integration.
+- Browser check (2026-10-14, task stack `animama-effect-overrides`,
+  development mode, Fingers Crossed after the merge, 1440×900): the section
+  shows the left-hand override from the merge; Size 6 → 12 enlarges the star
+  in the preview; Undo restores 6 (preview and inspector refresh a moment
+  later); Reset to effect removes the override and the star moves to the
+  family default beside the head, and Undo restores it; Save writes a valid
+  Local Gesture whose clip carries the override (size 0.09) and its
+  `soundAlias`; reopening shows the saved values; dragging the star moves it
+  under the cursor, updates the position fields and adds one Undo entry.
+  Tablet (768×1024) layout works, inspector included. At phone width
+  (375×812) the whole editor is clipped, not just this section; not compared
+  with `main`. Export and import were not exercised in the browser (backend
+  package tests cover overrides).
+
+#### Code Review #1 Findings
+
+Reviewed source: working tree on `2c588cf8` (P3 files), independent
+`sdlc-reviewer`, 2026-10-14. Checks: 562 vitest tests, scoped ESLint and
+Prettier, `tsc`, `pnpm -s i18n:check`, and a probe that opens and writes back
+all 29 Included overrides (29/29 unchanged in content). No blocking findings.
+
+- P3-R1-F1 (optional): no-op detection compared raw JSON, so a typed-back
+  value could rewrite an override with reordered keys and record an empty
+  Undo step.
+- P3-R1-F2 (optional, DRY): the section re-implemented the creator's setting
+  problem wording and its canonical JSON helper.
+- P3-R1-F3 (optional): the handle overlay and its per-frame renderer stayed
+  mounted with no draggable use.
+- Notes: the inspector re-renders per playback frame (existing); a drag moves
+  the playhead to the event start (existing store behaviour); after Pause the
+  stage is focusable before the scrub re-applies (existing); test gaps for
+  the sound picker, refusal alert, focus-visit grouping and nudges.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: `sameAvatarEffectOverride` (sorted-key comparison) in both
+  components.
+- F2 accepted: `avatarEffectSettingProblem` and `canonicalJson` exported from
+  `vfx/editor/document.ts` and reused.
+- F3 accepted: the overlay and renderer mount only while a use can be dragged.
+- Notes not changed (existing behaviour or no defect); test gaps left for the
+  browser check above.
+- Verification: vitest on the pose creator, action editor, avatar effect
+  creator and `lib/avatar/vfx`: 74 files, 738 passed; `tsc`; scoped ESLint
+  and Prettier. Result: **pass** at round 1 (no blockers).
+
 ### P4 — Library merge and Local transition (D5, D6). Gate G1
 
 1. **Mapping resource** (D-5), generated once by a script from the current
@@ -537,12 +618,12 @@ Checks: `pnpm web:test`, `pnpm check`, `pnpm web:lint`, `pnpm build`.
    bytes are not.
 5. **G1:** render before/after sheets for all 40 Actions on both Included
    Avatars (`effects:render --with-clip`), run `effects promote --dry-run`
-   with `delete` items for the 25 removed effects, and present the merge
+   with `delete` items for the 24 removed effects, and present the merge
    table, sheets and list. After approval, run the delete.
 6. **Clean up:**
    - per-stem inventory rules of removed stems;
    - `effectTemplates.ts` entries and thumbnails;
-   - pinned counts (75 → 55; recount and record);
+   - pinned counts (75 → 56; recount and record);
    - `reactionClips.test.ts`, `effect-thumbnails.browser.test.mjs`, the e2e
      specs, `test_avatar_effect_conversion.py`;
    - the `content/included/README.md` count;
@@ -557,6 +638,129 @@ tests.
 Checks: `uv run pytest -q`, `make check`, `pnpm web:test`, `pnpm check`.
 Completion: G1 approved, with no reference to a removed stem outside the
 mapping resource and history (`rg` over the repository).
+
+#### P4 record
+
+- Issue #549; starting SHA `2c588cf8`; 2026-10-14.
+- `BE/app/services/avatar_effect_merges.py`: `AvatarEffectMerge`,
+  `load_avatar_effect_merges` (reads `BE/resources/avatar-effect-merges.json`)
+  and `rewrite_action_effect_merges` (twins share one family dependency; an
+  event's own override parts win; a silent variant's events get
+  `playAccompanyingSound: false`; a taken alias gets a suffix; inputs are not
+  modified; `None` when nothing names a merged effect).
+- `scripts/content/merge_avatar_effects.py` (one-time, idempotent): wrote
+  the five family effects from their defaults with every member's sound
+  (`on-apply` for the default's), the merge map, the removed definitions
+  (`tests/fixtures/avatar-effect-merge-variants.json`), the 39 rewritten
+  Included Actions (formatting kept; Prettier with the frontend config for the
+  files it formats, after Code Review #1),
+  family licence rules and source-review records, and copied thumbnails. It
+  refuses a member whose art bytes, region or face options differ from its
+  family's (found D-9).
+- `AvatarEffectMergeTransitionService`
+  (`BE/app/services/avatar_effect_merge_transition.py`), run by
+  `ContentTransitionService.transition` after the Avatar Effect conversion:
+  rewrites eligible Local Gestures and Reactions in place under the mutation
+  journal; a failure is logged and leaves the Action unchanged and valid.
+- `pnpm -s effects promote` keeps all of an effect's sounds on replace (it
+  kept only the first). Integrity test: several optional sounds per effect,
+  `soundAlias` names one, and an event's chosen sound must be declared.
+  `effectTemplates.ts` lists the families; the level-1 Reaction map in
+  `tests/avatar/reactionClips.test.ts` names them. Comedy sound pack doc and
+  the avatar-vfx skill's promote wording updated.
+- Tests: `test_avatar_effect_merges.py` (6), `test_avatar_effect_merge_map.py`
+  (equivalence for all 24 removed effects, map coverage, no Included Action
+  names a removed effect), `test_avatar_effect_merge_transition.py` (2),
+  integrity, catalog, starter closure (needs the new folders tracked: they
+  are marked intent-to-add), removed-dependency, `effects.test.mjs` (29),
+  `reactionClips.test.ts`.
+- G1 evidence (in `.animama-drafts/effects/merge-g1/`, not committed):
+  before/after `effects:render --with-clip` sheets of the 40 listed Actions
+  at 0.2, 0.6, 1, 1.5 and 2.5 s on both Included Avatars, their pixel diffs,
+  and `effects promote --dry-run` of the 24 deletions (48 files and their
+  source-review records).
+- **G1 (owner, 2026-10-14): approved** deleting all 24 listed effects
+  (`badum_burst`, `badum_burst_left`, `cheer_sparkles_head_left`,
+  `drumroll_ticks_left`, `finger_gun_spark_left`, `finger_heart_pop`,
+  `fist_bump_burst`, `heart_hands_pop_chest`, `heart_throb`,
+  `hearts_burst_hands`, `hearts_burst_kyaa`, `hearts_burst_soft`,
+  `high_five_burst`, `huff_puff`, `kira_star_head`, `kira_star_tehe`,
+  `kira_star_wish`, `kira_star_wish_left`, `kiss_heart_head`,
+  `laugh_sparkle`, `pat_hearts`, `please_sparkle`, `shake_lines_left`,
+  `sigh_puff`), after seeing the merge table, D-9, the pixel-diff summary of
+  all 40 sheets and one before/after pair (fingers-crossed); the owner chose
+  to approve rather than review all 40 sheets, which were offered.
+- Deletion (2026-10-14, after G1): `pnpm -s effects promote` applied 49
+  changes (48 files and their source-review records); 56 Included Avatar
+  Effects remain. Cleanup: 23 per-stem licence rules, 24 templates, 24
+  thumbnails and their source-review records removed; the thumbnail browser
+  test now uses `impact_burst`; pinned counts 75 → 56 in
+  `effect-render-sources.test.mjs` and `animation-preview-media.test.mjs`;
+  `content/included/README.md` count corrected (it said 73). Tests that used
+  removed effects as fixtures now use `kira_star` and `shake_lines`.
+- G1 evidence: all 40 before/after diffs ≤ 16 differing pixels of 2.6 M
+  (≤ 0.0006 %), on hair and eye edges, 0 on 20 sheets.
+
+#### Code Review #1 Findings
+
+Reviewed source: working tree on `2c588cf8` (P4 files; P3 excluded),
+independent `sdlc-reviewer`, 2026-10-14; the deletion and cleanup landed
+during the review. Checks: 165 targeted backend tests, ruff, script and
+vitest suites, a semantic diff of all 39 Actions (39/39 equal to HEAD through
+the rewrite), Prettier with the frontend config.
+
+- **P4-R1-F1 (required):** the script's Prettier run picked up the root
+  config (`tabWidth: 4`) and re-indented 18 Gesture clips (+25.8k/−24.9k
+  lines), so "formatting kept" was false.
+- **P4-R1-F2 (required):** seven Gesture licence texts named a family twice
+  after stem replacement.
+- **P4-R1-F3 (required):** transition tests used a made-up mapping and only a
+  Reaction; #549 asks that a Local Gesture and Reaction play as before.
+- **P4-R1-F4 (required):** the deletions were staged without a G1 record.
+- **P4-R1-F5 (required):** the plan said 38 Actions; 39 change.
+- Post-G1 notes: family licence texts cite removed effects and paths; the
+  script cannot rerun; stale counts (25 removed, 75 → 55); ADR 0025's "one
+  effect per image and attachment kind" contradicts D-9; the local-content
+  storage doc lacks the merge transition (P7).
+- Optional: an event's own `"on-apply"` would switch a non-default variant to
+  the family default; dependencies written as `id`/`content_id` are not
+  rewritten and nothing is logged; no size check on the rewritten clip; D-10
+  unrecorded; the map test compared only three parts; a promote `replace`
+  naming one sound drops a merged effect's other sounds.
+
+#### Code Review #1 Revisions
+
+- F1 accepted: the 67 rewritten files whose originals Prettier formats were
+  re-formatted with `src/frontend/prettier.config.mjs`; the Action diff is
+  now +1,096/−169 lines.
+- F2 accepted: duplicates removed; a single remaining effect reads in the
+  singular.
+- F3 accepted: `test_local_actions_naming_removed_effects_play_their_families_as_before`
+  runs a Local Gesture (`kira_star_tehe`) and Reaction (`laugh_sparkle`)
+  through the real map and checks the played parts, the sound or silence, and
+  `check_clip_effect_overrides`.
+- F4 accepted: G1 recorded above. F5 accepted: counts corrected throughout.
+- Notes: family licence texts and the heart image records say the cited
+  effects and paths were removed in the merge (and where the same bytes now
+  live); the script says it ran once; stale counts fixed; ADR 0025 Decision 4
+  reworded; the storage doc is on the P7 list.
+- Optional: own `"on-apply"` now maps to the variant's family sound (test);
+  the transition refuses a rewritten clip over 2 MiB; D-10 recorded; the map
+  test also compares region and face options. Not changed: `id`/`content_id`
+  dependency forms (the creator writes `ref`, as the backend's own Local
+  content does) and promote's single named sound (documented in the skill).
+- Verification: 72 tests across the merge, map, transition, integrity,
+  catalog and closure modules; `ruff check` and `ruff format`. Repair budget:
+  one round used.
+
+#### Code Review #2 Findings
+
+Targeted recheck, 2026-10-14: all five fixes hold; 39/39 Actions still match
+HEAD through the rewrite and none are re-indented; the same 11 files differ
+from Prettier at HEAD and now. Leftover wording (step 5's "25 removed", the
+summary's "29 effects become 9", the G1 evidence description, a circular
+source-review note) fixed afterwards. Checks: 121 backend tests, ruff.
+Result: **pass**.
 
 ### P5 — Flipbook frame tooling and skills (F1–F3, D7)
 
@@ -702,6 +906,8 @@ here.
   field (`docs/backend/features/typed-content-and-marketplace.md`).
 - The skills' "one licensed sound" wording (avatar-vfx step 9,
   `references/promote.md`) if P4 has not already changed it.
+- `docs/backend/architecture/local-content-storage.md`: the merge transition
+  beside the `/1`→`/2` conversion.
 - Full local checks (below) and the full `pnpm e2e:test` on a purged built
   stack.
 

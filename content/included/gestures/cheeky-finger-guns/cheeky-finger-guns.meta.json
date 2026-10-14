@@ -16,12 +16,6 @@
       "alias": "finger_gun_spark",
       "content_type": "avatar_effect",
       "config": {}
-    },
-    {
-      "ref": "builtin:avatar-effect:finger_gun_spark_left",
-      "alias": "finger_gun_spark_left",
-      "content_type": "avatar_effect",
-      "config": {}
     }
   ],
   "files": [

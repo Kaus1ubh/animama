@@ -1147,11 +1147,81 @@
       "id": "huff-puff",
       "time": 0.95,
       "kind": "avatar_vfx",
-      "effectId": "huff_puff",
+      "effectId": "puff",
       "duration": 0.8,
       "envelope": {
         "intensity": {
           "fadeOut": 0.15
+        }
+      },
+      "override": {
+        "attachment": {
+          "kind": "face_landmark",
+          "landmark": "mouth",
+          "offset": {
+            "x": 0.04,
+            "y": 0.005,
+            "z": 0.04
+          },
+          "scale": {
+            "x": 1.9,
+            "y": 1.9
+          },
+          "rotationDeg": {
+            "x": 0,
+            "y": -35,
+            "z": -40
+          }
+        },
+        "motion": {
+          "keyframes": {
+            "frames": [
+              {
+                "offset": {
+                  "x": -0.014,
+                  "y": -0.006
+                },
+                "opacity": 0,
+                "scale": 0.35,
+                "t": 0
+              },
+              {
+                "offset": {
+                  "x": 0,
+                  "y": 0
+                },
+                "opacity": 1,
+                "scale": 1.12,
+                "t": 0.08
+              },
+              {
+                "scale": 0.94,
+                "t": 0.16
+              },
+              {
+                "scale": 1,
+                "t": 0.24
+              },
+              {
+                "offset": {
+                  "x": 0.018,
+                  "y": 0.007
+                },
+                "opacity": 0.9,
+                "scale": 1.1,
+                "t": 0.55
+              },
+              {
+                "offset": {
+                  "x": 0.028,
+                  "y": 0.011
+                },
+                "opacity": 0,
+                "scale": 1.22,
+                "t": 0.75
+              }
+            ]
+          }
         }
       }
     }

@@ -11,7 +11,7 @@ Action-owned Pose Clips are colocated; the retired `pose-clips/` folder is not
 used. Idle-only VRMAs
 belong inside their Idle Style.
 
-The library ships 107 Gestures, 72 Reactions and 73 Avatar Effects; frontend
+The library ships 107 Gestures, 72 Reactions and 56 Avatar Effects; frontend
 and backend tests pin these counts, so update them with any promotion. Its one
 Idle Style, Streamer Idle (`idle-styles/streamer-idle/`), contains no motion: it
 pools twelve Included idle Gestures by emotion and intensity. New companions

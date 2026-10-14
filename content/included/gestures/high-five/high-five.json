@@ -851,12 +851,54 @@
       "id": "slap-burst",
       "time": 0.67,
       "kind": "avatar_vfx",
-      "effectId": "high_five_burst",
+      "effectId": "impact_burst",
       "duration": 1,
       "envelope": {
         "intensity": {
           "fadeOut": 0.35
         }
+      },
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "chest",
+          "offset": {
+            "x": -0.166,
+            "y": 0.361,
+            "z": 0.433
+          },
+          "size": 0.13,
+          "facing": "camera"
+        },
+        "motion": {
+          "keyframes": {
+            "frames": [
+              {
+                "t": 0,
+                "opacity": 0,
+                "scale": 0.45
+              },
+              {
+                "t": 0.05,
+                "opacity": 1,
+                "scale": 1.08
+              },
+              {
+                "t": 0.1,
+                "scale": 0.96
+              },
+              {
+                "t": 0.22,
+                "scale": 1.1
+              },
+              {
+                "t": 1,
+                "scale": 1.25
+              }
+            ]
+          }
+        },
+        "soundAlias": "slap_03"
       }
     }
   ]

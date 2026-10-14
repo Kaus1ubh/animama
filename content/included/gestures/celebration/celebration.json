@@ -567,14 +567,27 @@
       "id": "cheer-sparkles-left",
       "time": 0.48,
       "kind": "avatar_vfx",
-      "effectId": "cheer_sparkles_head_left",
+      "effectId": "cheer_sparkles_head",
       "duration": 1.48,
       "envelope": {
         "intensity": {
           "fadeOut": 0.22
         }
       },
-      "playAccompanyingSound": false
+      "playAccompanyingSound": false,
+      "override": {
+        "attachment": {
+          "kind": "body",
+          "bone": "head",
+          "offset": {
+            "x": 0.12,
+            "y": 0.2,
+            "z": 0.25
+          },
+          "size": 0.12,
+          "facing": "camera"
+        }
+      }
     }
   ]
 }
