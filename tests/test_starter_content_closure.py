@@ -43,10 +43,6 @@ CORE_LIBRARY_LOCATORS = (
     "vfx/avatar/zzz",
     "vfx/scene/dark",
     "vfx/scene/light-streak",
-    "gestures/double-take",
-    "gestures/noted",
-    "gestures/ready-lets-do-this",
-    "gestures/tut-tut-finger-wag",
     "vfx/avatar/awkward-ellipsis",
     "vfx/avatar/blank-dot-eyes",
     "vfx/avatar/broken-heart",
@@ -104,10 +100,10 @@ def test_reviewed_library_ships_in_core_without_equipping_starters(tmp_path: Pat
     entries = {entry["locator"]: entry for entry in inventory["entries"]}
     library = [entries[locator] for locator in CORE_LIBRARY_LOCATORS]
 
-    assert len(library) == 44
+    assert len(library) == 40
     assert {entry["partition"] for entry in library} == {"core"}
     library_files = {file for entry in library for file in entry["files"]}
-    assert len(library_files) == 93
+    assert len(library_files) == 85
     assert {file["partition"] for file in inventory["files"] if file["path"] in library_files} == {"core"}
     library_keys = {entry["logical_key"] for entry in library}
     for starter in inventory["starters"]:
@@ -131,7 +127,7 @@ def test_required_library_content_fails_instead_of_silently_leaving_core(
 ) -> None:
     root = tmp_path / "included"
     shutil.copytree(staged_core, root)
-    descriptor = root / "gestures/noted/noted.meta.json"
+    descriptor = root / "gestures/bgm-bob/bgm-bob.meta.json"
     allowed_paths = None
     if failure == "missing":
         shutil.rmtree(descriptor.parent)
@@ -145,7 +141,7 @@ def test_required_library_content_fails_instead_of_silently_leaving_core(
         policy["rules"].insert(
             0,
             {
-                "glob": "gestures/noted/**",
+                "glob": "gestures/bgm-bob/**",
                 "license_id": "test-unavailable",
                 "provenance": "Explicitly unavailable test content",
                 "distribution": failure,
@@ -174,7 +170,7 @@ def test_core_library_includes_required_dependencies_without_equipping_them(stag
     child_document["name"] = "Library child fixture"
     (child / "library-child.json").write_text(json.dumps(child_document))
     child_descriptor.unlink()
-    descriptor = root / "gestures/noted/noted.meta.json"
+    descriptor = root / "gestures/bgm-bob/bgm-bob.meta.json"
     document = json.loads(descriptor.read_text())
     document["dependencies"] = [
         {"ref": "builtin:avatar-effect:library-child", "content_type": "avatar_effect", "alias": "child"}

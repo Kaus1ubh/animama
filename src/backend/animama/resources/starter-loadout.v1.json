@@ -160,6 +160,10 @@
       "version": 1
     },
     {
+      "content_id": "builtin:gesture:double-take",
+      "version": 1
+    },
+    {
       "content_id": "builtin:gesture:drumroll",
       "version": 1
     },
@@ -260,6 +264,10 @@
       "version": 1
     },
     {
+      "content_id": "builtin:gesture:noted",
+      "version": 1
+    },
+    {
       "content_id": "builtin:gesture:ohohoho-noble-laugh",
       "version": 1
     },
@@ -301,6 +309,10 @@
     },
     {
       "content_id": "builtin:gesture:presenting",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:ready-lets-do-this",
       "version": 1
     },
     {
@@ -357,6 +369,10 @@
     },
     {
       "content_id": "builtin:gesture:tongue-out-bleh",
+      "version": 1
+    },
+    {
+      "content_id": "builtin:gesture:tut-tut-finger-wag",
       "version": 1
     },
     {
