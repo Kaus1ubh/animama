@@ -26,7 +26,11 @@ function importedModelFiles(): string[] {
   const files = new Set<string>();
   for (const entry of readdirSync(webSrc, { recursive: true })) {
     const file = path.join(webSrc, String(entry));
-    if (!/\.tsx?$/.test(file) || /\.(test|spec)\.tsx?$/.test(file)) continue;
+    if (
+      !/\.[cm]?[jt]sx?$/.test(file) ||
+      /\.(test|spec)\.[cm]?[jt]sx?$/.test(file)
+    )
+      continue;
     for (const [, specifier] of readFileSync(file, "utf8").matchAll(
       modelSpecifier,
     )) {
