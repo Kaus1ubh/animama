@@ -443,7 +443,11 @@ test("accountless vfx guides retain Particle Avatar and Outline controls", async
   }
 });
 
-/** Measure the painted background separately from the avatar's unchanged stage. */
+/**
+ * Measure the painted background separately from the avatar's unchanged stage:
+ * it covers the whole window and is centred on the Avatar canvas, so
+ * centre-based layers line up with the Avatar beside the page panels.
+ */
 async function expectViewportBackground(page: Page): Promise<Locator> {
   const background = page.locator(
     '[data-scene-background-scope="viewport"] [data-scene-vfx-kind="background_layers"]',
@@ -451,12 +455,24 @@ async function expectViewportBackground(page: Page): Promise<Locator> {
   await expect(background).toHaveCount(1);
   await expect(background).toBeVisible();
   await expect
-    .poll(() => background.boundingBox())
-    .toEqual({
-      x: 0,
-      y: 0,
-      ...viewport,
-    });
+    .poll(async () => {
+      const box = await background.boundingBox();
+      const canvas = await page.locator("canvas:visible").boundingBox();
+      if (!box || !canvas) return null;
+      return {
+        coversWindow:
+          box.x <= 0 &&
+          box.y <= 0 &&
+          box.x + box.width >= viewport.width &&
+          box.y + box.height >= viewport.height,
+        centredOnCanvas:
+          Math.abs(box.x + box.width / 2 - (canvas.x + canvas.width / 2)) <=
+            1 &&
+          Math.abs(box.y + box.height / 2 - (canvas.y + canvas.height / 2)) <=
+            1,
+      };
+    })
+    .toEqual({ coversWindow: true, centredOnCanvas: true });
   return background;
 }
 
@@ -513,7 +529,7 @@ test("accountless loadout scene fills the viewport without moving the avatar can
       .click();
     await expectViewportBackground(page);
     await expect.poll(() => canvas.boundingBox()).toEqual(playingCanvas);
-    // Sidebar layout can change the stage, while scene extent remains the window.
+    // Sidebar layout can move the stage; the scene follows it and still covers the window.
     await page
       .getByRole("button", { name: "Close sidebar", exact: true })
       .click();

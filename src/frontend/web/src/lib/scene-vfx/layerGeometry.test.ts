@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import allLayers from "@/lib/content/fixtures/scene-effect-all-layers.json";
 
 import {
+  anchoredViewportCover,
   directionVector,
   gradientCss,
   linesGeometry,
@@ -786,5 +787,28 @@ describe("Scene scatter fit", () => {
       expect(item.y + item.size).toBeLessThanOrEqual(0.3 * HEIGHT + 1e-6);
     for (const item of second)
       expect(item.y).toBeGreaterThanOrEqual(0.6 * HEIGHT - 1e-6);
+  });
+});
+
+describe("anchoredViewportCover", () => {
+  it("is the viewport itself when the anchor is centred", () => {
+    expect(
+      anchoredViewportCover(
+        { left: 200, top: 100, width: 1040, height: 700 },
+        { width: 1440, height: 900 },
+      ),
+    ).toEqual({ left: 0, top: 0, width: 1440, height: 900 });
+  });
+
+  it("centres on an off-centre anchor while covering the viewport", () => {
+    const cover = anchoredViewportCover(
+      { left: 242, top: 0, width: 590, height: 900 },
+      { width: 1440, height: 900 },
+    );
+    // Canvas centre is x = 537, so the far (right) edge sets the half-width.
+    expect(cover).toEqual({ left: -366, top: 0, width: 1806, height: 900 });
+    expect(cover.left + cover.width / 2).toBe(537);
+    expect(cover.left).toBeLessThanOrEqual(0);
+    expect(cover.left + cover.width).toBeGreaterThanOrEqual(1440);
   });
 });

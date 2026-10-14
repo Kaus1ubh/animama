@@ -731,3 +731,32 @@ export function scatterPlacements(
 ): ScatterPlacement[] {
   return sceneScatterPlacements([layer], width, height)[0];
 }
+
+export type ViewportRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
+
+/**
+ * The smallest rectangle centred on `anchor` that still covers the whole
+ * viewport. Window-wide scene backgrounds use it so centre-based layers
+ * (rays, gradients, stickers) line up with the Avatar's canvas even when
+ * the canvas sits off-centre beside page panels.
+ */
+export function anchoredViewportCover(
+  anchor: ViewportRect,
+  viewport: { width: number; height: number },
+): ViewportRect {
+  const centerX = anchor.left + anchor.width / 2;
+  const centerY = anchor.top + anchor.height / 2;
+  const halfWidth = Math.max(centerX, viewport.width - centerX);
+  const halfHeight = Math.max(centerY, viewport.height - centerY);
+  return {
+    left: centerX - halfWidth,
+    top: centerY - halfHeight,
+    width: halfWidth * 2,
+    height: halfHeight * 2,
+  };
+}
