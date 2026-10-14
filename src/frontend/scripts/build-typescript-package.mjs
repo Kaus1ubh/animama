@@ -97,5 +97,5 @@ for (const output of result.outputFiles) {
   await writeFile(output.path, output.contents);
 }
 await copyFile(resolve(frontendRoot, "../../LICENSE"), join(outputRoot, "LICENSE"));
-// Written last, so a failed or interrupted build leaves no digest and never reads as current.
+// Written after the bundle, so a failed or interrupted bundle leaves no digest and never reads as current.
 await writeFile(join(outputRoot, SOURCE_DIGEST_FILE), `${sourceDigest}\n`);

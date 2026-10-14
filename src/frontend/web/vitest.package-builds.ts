@@ -49,7 +49,8 @@ export default async function verifyLinkedPackageBuilds() {
     let installed: string;
     try {
       installed = await realpath(join(webRoot, "node_modules", name));
-    } catch {
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== "ENOENT") throw error;
       problems.push(`${name}: not installed; run \`pnpm install\``);
       continue;
     }
