@@ -3,11 +3,13 @@
 import { contentSlug } from "@/lib/content/nameIdentifiers";
 import { useProductApiClient } from "@animama/product-ui";
 
+import { useCallback, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { formattersForLanguage } from "@animama/product-ui/i18n";
 import { getI18n } from "react-i18next";
 
 import {
+  type Client,
   previewGesture,
   previewReaction,
 } from "@animama/runtime-contracts/sdk";
@@ -122,6 +124,37 @@ export function actionDescriptorFor(
   };
 }
 
+/** Read the resolved preview of the Gesture or Reaction behind a catalog source. */
+async function previewActionSource(
+  apiClient: Client,
+  intent: ActionIntent,
+  source: PyExactContentSource,
+): Promise<PyActionPreview> {
+  let itemId: string | null = null;
+  if (source.type === "catalog") itemId = source.catalog_item_id;
+  else {
+    const items = await listCatalogItems(apiClient, intent);
+    itemId =
+      items.find((item) => item.logical_key === source.content_id)?.item_id ??
+      null;
+  }
+  if (!itemId) {
+    const t = getI18n().getFixedT(null, "errors");
+    throw new WordedError(t("creation.source_unavailable"));
+  }
+  const options = {
+    client: apiClient,
+    path: { item_id: itemId },
+    responseValidator: undefined,
+    throwOnError: true as const,
+  };
+  return typedActionPreview(
+    intent === "gesture"
+      ? (await previewGesture(options)).data
+      : (await previewReaction(options)).data,
+  );
+}
+
 /** Direct editable-catalog operations used by the Gesture and Reaction studio. */
 export function useActionEditorActions(intent: ActionIntent) {
   const apiClient = useProductApiClient();
@@ -140,21 +173,6 @@ export function useActionEditorActions(intent: ActionIntent) {
         queryKey: queryKeys.content.catalog(userId),
       }),
     ]);
-  };
-
-  const previewSavedAction = async (
-    itemId: string,
-  ): Promise<PyActionPreview> => {
-    const options = {
-      path: { item_id: itemId },
-      responseValidator: undefined,
-      throwOnError: true as const,
-    };
-    return typedActionPreview(
-      intent === "gesture"
-        ? (await previewGesture({ ...options, client: apiClient })).data
-        : (await previewReaction({ ...options, client: apiClient })).data,
-    );
   };
 
   async function persist(
@@ -259,27 +277,23 @@ export function useActionEditorActions(intent: ActionIntent) {
     },
   });
 
-  const starterPreview = useMutation<
-    PyActionPreview,
-    Error,
-    { source: PyExactContentSource }
-  >({
-    mutationFn: async ({ source }) => {
-      let itemId: string | null = null;
-      if (source.type === "catalog") itemId = source.catalog_item_id;
-      else {
-        const items = await listCatalogItems(apiClient, intent);
-        itemId =
-          items.find((item) => item.logical_key === source.content_id)
-            ?.item_id ?? null;
+  // Count preview loads in component state instead of a mutation observer. The
+  // creator loads its first preview from a mount effect; development
+  // StrictMode replays that effect, and the replay detaches a mutation observer
+  // from the running mutation, so it would keep reporting the finished load as
+  // pending and leave the creator busy.
+  const [pendingPreviews, setPendingPreviews] = useState(0);
+  const loadActionPreview = useCallback(
+    async (source: PyExactContentSource): Promise<PyActionPreview> => {
+      setPendingPreviews((count) => count + 1);
+      try {
+        return await previewActionSource(apiClient, intent, source);
+      } finally {
+        setPendingPreviews((count) => count - 1);
       }
-      if (!itemId) {
-        const t = getI18n().getFixedT(null, "errors");
-        throw new WordedError(t("creation.source_unavailable"));
-      }
-      return previewSavedAction(itemId);
     },
-  });
+    [apiClient, intent],
+  );
 
   const stageFile = useMutation<
     PyContentFile,
@@ -343,7 +357,8 @@ export function useActionEditorActions(intent: ActionIntent) {
     },
     beginSession,
     updateSession,
-    starterPreview,
+    /** Load the resolved preview behind a Gesture or Reaction catalog source. */
+    actionPreview: { isPending: pendingPreviews > 0, load: loadActionPreview },
     stageFile,
     save,
   };

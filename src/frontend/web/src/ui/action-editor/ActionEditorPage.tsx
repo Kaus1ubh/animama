@@ -264,7 +264,7 @@ export function ActionEditorPage({
   const busy =
     actions.beginSession.isPending ||
     actions.updateSession.isPending ||
-    actions.starterPreview.isPending ||
+    actions.actionPreview.isPending ||
     actions.stageFile.isPending ||
     actions.save.isPending ||
     saveStage !== "idle";
@@ -354,9 +354,7 @@ export function ActionEditorPage({
         if (!item.source) throw new WordedError(t("page.load.noSource"));
         // Non-portable motion never loads into a draft that could be saved.
         if (isNonPortable(item)) throw new WordedError(nonPortableReason());
-        const preview = await actions.starterPreview.mutateAsync({
-          source: item.source,
-        });
+        const preview = await actions.actionPreview.load(item.source);
         const next = await actionDocumentFromPreview({
           intent,
           item,
@@ -415,7 +413,7 @@ export function ActionEditorPage({
       }
     },
     [
-      actions.starterPreview,
+      actions.actionPreview.load,
       clearSaveFailure,
       createDocument,
       intent,
@@ -503,8 +501,8 @@ export function ActionEditorPage({
   }, [intent, itemId, replaceLoadedDocument, userId]);
 
   // The catalog item whose automatic hydration failed. The loader callback is
-  // recreated whenever mutation state changes, so without this guard a failed
-  // load would retry in a tight loop. A changed item gets one fresh attempt.
+  // recreated when its inputs change (such as the UI Locale), so without this
+  // guard a failed load would retry. A changed item gets one fresh attempt.
   const failedHydrationItem = useRef<PyGesture | PyReaction | null>(null);
   useEffect(() => {
     if (hydrated.current || hydrating.current) return;
