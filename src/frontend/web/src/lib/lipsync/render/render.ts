@@ -250,6 +250,12 @@ export function renderAlignedUnits(
         }
       }
     }
+    if (unit.kind === "closure") {
+      // The frame at a closure's centre shuts the lips exactly, so smoothing
+      // eases into it rather than averaging the closure away.
+      const centre = Math.round(((startSec + endSec) / 2) * LIPSYNC_FPS);
+      if (centre >= 0 && centre < count) gate[centre] = 0;
+    }
   }
 
   // A short crossfade between vowel targets, so units do not switch in one frame.

@@ -220,12 +220,14 @@ From planning, 2026-10-13 (code reading of `main` at `b10ee432`):
   | --- | --: | --: | --: |
   | gruut (removed) | 2.6 | 0.145 | 2.0 |
   | New, before | 5.6 | 0.211 | 2.6 |
-  | New, smoothed | 2.0–2.1 | 0.127–0.128 | 1.9 |
+  | New, smoothed | 2.5–2.6 | 0.136–0.139 | 1.9 |
 
   The opening followed loudness frame by frame, so every dip, closure and onset
   jumped. A slower loudness follower or a soft floor changed almost nothing; a
   zero-lag Gaussian over the rendered frames (35 ms), keeping shut frames shut
-  and easing over the two frames beside them, fixed it. Accuracy moves by at
+  and easing over the two frames beside them, fixed it. Each lip closure shuts
+  its centre frame exactly, so smoothing eases into it rather than averaging it
+  away: all 73 closures inside speech on those clips close. Accuracy moves by at
   most a point (default tier Japanese, Korean and Chinese 50% at 2.9× and 40%
   live; ElevenLabs 64–69%); open in silence rises to 10% on ElevenLabs socket
   tag lines (from 6–8%), at the spec's limit, and stays at 0–5% on English
@@ -2198,6 +2200,29 @@ On `43af7b23`, from a clean tree:
 On `e3fddec8` (the FI-F9 fix and records): the plan-source and debug-view tests
 (27), `pnpm check:source`, eslint and Prettier on the changed files; then
 `pnpm e2e:test:fast` on a disposable built stack: 38 passed.
+
+### Final Integration Review #3 Findings
+
+Targeted review of the owner-requested smoothing (`d0948ebc`), the last round
+in the budget:
+
+- **FI-F10 (blocking):** smoothing averaged lip closures with their open
+  neighbours: only a closure centred exactly on a frame stayed shut, so about
+  40% of voiced closures (m, b, p) no longer closed.
+- **Non-blocking:** the margins are thin (live Japanese, Korean and Chinese
+  vowel match 40.2%; ElevenLabs socket tag lines 9.6% open in silence at 2.9×);
+  smoothing the whole run per plan adds about 1 ms of CPU per second of audio on
+  a 90 s reply, which the owner's Electron reading will show; progressive plans,
+  tag shapes and onsets are fine.
+
+### Final Integration Review #3 Revisions
+
+- **FI-F10 accepted:** each closure's centre frame is shut exactly; a render
+  test covers a closure centred between frames. All 73 closures inside speech on
+  the English clips close; jumps are 2.5–2.6 per second (gruut 2.6) and the
+  evaluation is unchanged. `pnpm check`, `pnpm web:lint`, `pnpm prettier:check`,
+  vitest (518 files, 4,697 passed), `lipsync:eval` and `pnpm build` pass.
+- **Margins and CPU:** recorded; the Electron reading is owner gate 2.
 
 **Owner gates still open** (for the PR):
 

@@ -107,6 +107,24 @@ describe("renderAlignedUnits", () => {
   });
 });
 
+describe("lip closures after smoothing", () => {
+  it("shut the lips even when the closure's centre falls between frames", () => {
+    // "ama": a closure centred at 0.2125 s, a quarter frame off the 60 FPS grid.
+    const track = renderAlignedUnits(
+      [
+        at({ vowel: "A", word: 0 }, 0, 0.2),
+        at({ kind: "closure" }, 0.2, 0.225),
+        at({ vowel: "A", word: 0 }, 0.225, 0.45),
+      ],
+      0.5,
+      OPEN(31),
+    );
+    const around = [11, 12, 13, 14].map((f) => frameOpenness(track, f));
+    expect(Math.min(...around)).toBe(0);
+    expect(frameOpenness(track, frame(0.1))).toBeGreaterThan(0.5);
+  });
+});
+
 describe("smoothFrames", () => {
   it("smooths jumps without opening the mouth into a silence", () => {
     // Open "A" with a one-frame dip and a sudden step, then silence.
