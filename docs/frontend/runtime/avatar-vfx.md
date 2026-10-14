@@ -5,8 +5,10 @@ around an Anima's Avatar: painted onto the face, floating in front of it,
 following a body point, placed beside the Avatar as a sticker, or filling its
 silhouette. Effects are never equipped directly. A Gesture or Reaction plays
 one through an `avatar_vfx` clip event, which owns when it starts and ends and
-its fade; the effect owns its art, look and motion. An effect's optional Sound
-is a second exact dependency of that Action.
+its fade, and may override the effect's placement, look, motion and sound for
+that one use ([section 7](#7-timing-fades-and-motion)); the effect owns its
+art and their defaults. An effect's optional Sound is a second exact
+dependency of that Action.
 
 Emitted sprites are [Particle Effects](avatar-particle-vfx.md); backgrounds
 and focus lines are [Scene Effects](scene-vfx.md). See
@@ -178,7 +180,11 @@ skipped with a diagnostic.
     | `body`, `sticker`, `silhouette`         | attachment entry                   | `AvatarAttachmentEffects`        |
 
 4. The mounted catalog loads the images (one Blob URL per image, revoked when
-   the catalog is disposed) and the controller applies the entry through
+   the catalog is disposed). For an event with an override,
+   `loadAvatarVFX(id, override)` parses that use from the effect's definition
+   and the same images (`parseAvatarEffectUse`) and never caches it under the
+   effect's id; a use the effect cannot play resolves to null and the event is
+   skipped. The controller applies the entry through
    `applyTextureVFX`, `applyFaceAnchoredVFX`, `applyHoverVFX` or
    `applyAttachmentVFX`; `applyAvatarVFXEffectById` chooses one. Stale async
    results are discarded.
@@ -367,6 +373,19 @@ creator's preview samples the envelope too, while playing and when paused.
 Events that end **With Action** do not fade. Parameter
 keyframes are not supported for Avatar Effects.
 
+An event's optional `override` changes the effect for that use only
+([ADR 0025](../../adr/0025-per-use-avatar-effect-overrides.md)): any of
+`attachment` (same kind), `appearance` and `motion`, each replacing the
+effect's part whole, and `soundAlias`, which picks one of the effect's
+declared sounds (an unknown or unmounted one is silent). Clip parsing checks
+the shape; backend Save and package import/export also check the definition
+the use plays and name the failing field (`event.<id>.override…`), as the
+reason `action_effect_override_invalid` at Save. In the Action creator, an
+`avatar_vfx` event's inspector shows **This use**: the effect creator's
+placement, look and motion controls, direct manipulation on the paused
+preview, a sound choice when the effect declares several, and **Reset to
+effect**. Edits store only the parts that differ from the effect.
+
 ## 8) Creator
 
 ### Starting an effect
@@ -494,11 +513,12 @@ pnpm -s effects:assets preview art/drop.png --out /tmp/drop-preview.png
   flipbook frames from one key image, each on the key's canvas, so painted
   face art keeps its UV layout. `boil` (4 frames by default) warps the art by
   a smooth, seeded random displacement of at most `--amplitude` px (default
-  1.5) per frame, so the lines wobble like hand-traced art; `--seed` repeats
-  or varies it. `draw-on` (6 frames) reveals the art outward from `--origin
-  x,y` (fractions of the canvas; default the art's centre) or as a wipe
-  toward `--direction right|left|up|down`; `--break-off` (8 frames) reveals
-  in the first half and then clears the art from the same start. `--frames`
+  1.25% of the key's longer side, at most 8) per frame, so the lines wobble
+  like hand-traced art; `--seed` repeats or varies it. `draw-on` (6 frames)
+  reveals the art outward from `--origin x,y` (fractions of the canvas;
+  default the art's centre) or as a wipe toward `--direction
+  right|left|up|down`; `--break-off` (8 frames) reveals in the first half and
+  then clears the art from the same start. `--frames`
   sets the count (2–64). Frames get `fix`'s alpha clean-up and edge bleed,
   are written as `<key>-<mode>-NN.png`, and the command prints the `flipbook`
   command with a suitable rate (boil loops at 8 fps, a draw-on plays once at
