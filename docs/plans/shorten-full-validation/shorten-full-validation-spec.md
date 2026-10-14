@@ -1,5 +1,13 @@
 # Shorter full validation and promotion from one full run
 
+> Superseded in part on 2026-10-14 by an owner decision for #503, recorded in
+> PR #556 and the ExecPlan's Decision Log:
+> ordinary PR runs and `main` pushes skip the promotion suite and both
+> selectable browser groups unless their own inputs changed, and product
+> code no longer selects them. Promotion runs (manual dispatch, release
+> callers, the weekly checkpoint and `ci:full` PRs) run every suite. The
+> requirements below describe the earlier rules.
+
 Status: Agreed
 Owner decision: 2026-10-12. The owner directed this spec and an ExecPlan for
 #442. The owner decided that a full PR run may skip the whole-application

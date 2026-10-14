@@ -7,6 +7,18 @@ import { createApplicationServer } from "./server.mjs";
 import { observeBrowser } from "./measurements.mjs";
 import { STEP_TIMEOUT_MS, exerciseClipCompatibility } from "./clips.mjs";
 
+// Wall time of each journey phase in run order, from when this script starts.
+const phases = [];
+let phaseStarted = Date.now();
+const endPhase = (name) => {
+    const now = Date.now();
+    phases.push({ name, seconds: (now - phaseStarted) / 1000 });
+    console.log(
+        JSON.stringify({ timing: name, seconds: phases.at(-1).seconds }),
+    );
+    phaseStarted = now;
+};
+
 // "candidate" is the set under validation; "previous" is the verified clean
 // predecessor or controlled byte-change variant that it upgrades from.
 const load = (directory, role) => ({
@@ -264,6 +276,7 @@ const signOut = async (owner) => {
     );
 };
 try {
+    endPhase("server-and-browser-start");
     // Route, static, shell, avatar and voice checks run on the candidate; only
     // the upgrade and rollback steps below select the previous app.
     server.select(candidate);
@@ -313,6 +326,7 @@ try {
         "application/json",
     );
     check("production-shell", candidate);
+    endPhase("production-shell");
     const runtimePath = candidate.manifest.files.find((file) =>
         file.path.endsWith("/resource-manifests/browser-runtime.json"),
     ).path;
@@ -382,6 +396,7 @@ try {
         304,
     );
     check("static-inventory-head-range-cache", candidate);
+    endPhase("static-inventory");
     for (const [route, ready] of [
         [
             "/library",
@@ -444,6 +459,7 @@ try {
     }
     await page.screenshot({ path: "whole-app-library.png", fullPage: true });
     await checkpoint("retained-deep-links", candidate);
+    endPhase("deep-links");
     await admit("artifact-owner", true);
     for (const temperature of ["cold", "warm"]) {
         const started = Date.now(),
@@ -468,6 +484,7 @@ try {
         ),
         "An owner with Text-to-Speech off loads no Pocket TTS before turning voice on",
     );
+    endPhase("first-avatar");
     const voiceStart = Date.now(),
         callStart = server.calls.length;
     await voice("artifact-owner");
@@ -491,6 +508,7 @@ try {
         "The candidate page creates the candidate's worker",
     );
     check("cold-voice-pcm", candidate);
+    endPhase("cold-voice");
     await signOut("artifact-owner");
     await checkpoint("sign-out-cleanup", candidate);
     const endedCookie = await context.cookies();
@@ -507,6 +525,7 @@ try {
         "Same owner receives a fresh admitted session",
     );
     check("session-cleanup", candidate);
+    endPhase("session-cleanup");
     if (previous) {
         // Keep the previous app's actual page open while the candidate becomes
         // the entry selection. Its next runtime-created worker and model URLs
@@ -554,6 +573,7 @@ try {
         check("old-tab-late-worker", previous);
         await signOut("upgrade-owner");
         await checkpoint("previous-sign-out-cleanup", previous);
+        endPhase("old-tab-late-worker");
     }
     await admit("second-owner", true);
     await page.goto(server.origin + "/fixture-anima");
@@ -594,6 +614,7 @@ try {
         0,
         "Owner voice catalogs are private API bytes, not immutable application resources",
     );
+    endPhase("warm-voice");
     if (previous) {
         server.select(previous);
         await admit("rollback-owner");
@@ -612,12 +633,14 @@ try {
             "Rollback selects the previous app's emitted entry and retained chunks",
         );
         check("rollback-entry", previous);
+        endPhase("rollback-entry");
     }
     const clipCompatibility = await exerciseClipCompatibility(
         browser,
         server,
         apps,
         selectionKind,
+        endPhase,
     );
     assert.deepEqual(errors, []);
     assert.deepEqual(
@@ -663,6 +686,7 @@ try {
         checks,
         routes,
         measurements,
+        phase_seconds: phases,
         http_calls: server.calls,
         authority_calls: server.apiCalls,
         external_requests: externalRequests,
@@ -693,6 +717,7 @@ try {
                 consoleErrors,
                 http_calls: server.calls,
                 measurements,
+                phase_seconds: phases,
                 body: await page.locator("body").innerText(),
             },
             null,

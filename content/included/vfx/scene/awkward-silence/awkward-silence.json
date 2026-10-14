@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "content_type": "scene_effect",
+  "content_id": "builtin:scene-effect:background:awkward-silence",
+  "version": 1,
+  "name": "Awkward Silence",
+  "description": "An empty warm-grey pause with a large tumbleweed rolling along the lower edge and thin wind curls drifting past.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/scene-effect/1",
+    "kind": "background_layers",
+    "durationMs": 12900,
+    "coverUiOverlays": false,
+    "dismissOnInput": false,
+    "solid": {
+      "enabled": true,
+      "color": "#d5d0c9"
+    },
+    "pattern": {
+      "enabled": false,
+      "pattern": "none",
+      "color": "#ffffff",
+      "size": 10,
+      "spacing": 20,
+      "opacity": 0.3
+    },
+    "marquee": {
+      "enabled": false,
+      "items": [],
+      "itemSize": 72,
+      "gap": 24,
+      "rowGap": 18,
+      "direction": "right",
+      "itemRotationMode": "upright",
+      "itemRotationOffsetDeg": 0,
+      "speedPxPerSec": 0,
+      "opacity": 1
+    },
+    "gradient": {
+      "enabled": false,
+      "type": "radial",
+      "angleDeg": 180,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "stops": [
+        {
+          "color": "#ffffff",
+          "position": 0
+        },
+        {
+          "color": "#87ceeb",
+          "position": 1
+        }
+      ]
+    },
+    "screen": {
+      "enabled": false,
+      "kind": "rays",
+      "color": "#ffffff",
+      "opacity": 0.4,
+      "count": 20,
+      "centerX": 0.5,
+      "centerY": 0.3,
+      "spiky": false,
+      "turnSeconds": 60,
+      "throbPerSec": 0,
+      "seed": 1
+    },
+    "scatters": [
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "tumbleweed",
+            "kind": "image",
+            "label": "Tumbleweed",
+            "image": "tumbleweed.png"
+          }
+        ],
+        "count": 1,
+        "seed": 4,
+        "minSize": 88,
+        "maxSize": 88,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 1,
+        "maxOpacity": 1,
+        "regionTop": 0.84,
+        "regionBottom": 0.99,
+        "keepFaceClear": true,
+        "direction": "right",
+        "speedPxPerSec": 80,
+        "minSpinDegPerSec": 180,
+        "maxSpinDegPerSec": 180,
+        "alternateSpin": false,
+        "pulse": "none"
+      },
+      {
+        "enabled": true,
+        "items": [
+          {
+            "id": "wind-strokes",
+            "kind": "image",
+            "label": "Wind curls",
+            "image": "wind-strokes.png"
+          }
+        ],
+        "count": 2,
+        "seed": 14,
+        "minSize": 220,
+        "maxSize": 220,
+        "minRotationDeg": 0,
+        "maxRotationDeg": 0,
+        "minOpacity": 0.8,
+        "maxOpacity": 0.8,
+        "regionTop": 0.67,
+        "regionBottom": 0.82,
+        "keepFaceClear": true,
+        "direction": "right",
+        "speedPxPerSec": 100,
+        "minSpinDegPerSec": 0,
+        "maxSpinDegPerSec": 0,
+        "alternateSpin": false,
+        "pulse": "none"
+      }
+    ],
+    "flash": {
+      "enabled": false,
+      "color": "#ffffff",
+      "durationMs": 260
+    }
+  },
+  "files": [
+    {
+      "path": "tumbleweed.png",
+      "role": "image"
+    },
+    {
+      "path": "wind-strokes.png",
+      "role": "image"
+    }
+  ]
+}

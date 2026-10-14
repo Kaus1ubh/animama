@@ -26,6 +26,7 @@ import {
   type ReactionClipPlayerSnapshot,
 } from "./reaction/ReactionClipPlayer";
 import {
+  DEFAULT_GESTURE_DURATION_SEC,
   DEFAULT_IDLE_STINT_QUIET_INTERVAL_SEC,
   type AvatarPlannerEnterPolicy,
   type AvatarPlannerExitPolicy,
@@ -179,6 +180,8 @@ export type PoseClipPlayOptions = PoseBaseReplacementOptions & {
   /** Called once after natural clip completion; stopping or replacing cancels it. */
   onFinished?: () => void;
   finitePlayback?: FinitePoseClipPlayback;
+  /** Playback-clock speed; fades retain their wall-clock duration. */
+  timeScale?: number;
   transition?: AvatarPlannerEnterPolicy;
 };
 
@@ -1184,6 +1187,7 @@ export class Avatar {
     try {
       snapshot = poseController.playAnimaPoseClip(clip, {
         finitePlayback: options?.finitePlayback,
+        timeScale: options?.timeScale,
         fadeInDurationSec: getAvatarPlannerEnterPolicyDuration(
           options?.transition,
         ),
@@ -1615,10 +1619,11 @@ export class Avatar {
     const poseControllerClipActive =
       this.poseController?.isClipActive() ?? false;
     const plannerPoseClipRuntimeActive =
-      activePlannerPoseClip?.status === "active" &&
-      (this.poseController?.isClipActive(activePlannerPoseClip.clipId) ===
-        true ||
-        this._pendingPlannerPoseClipOwnerId === activePlannerPoseClip.ownerId);
+      !!activePlannerPoseClip &&
+      (this._pendingPlannerPoseClipOwnerId === activePlannerPoseClip.ownerId ||
+        (activePlannerPoseClip.status === "active" &&
+          this.poseController?.isClipActive(activePlannerPoseClip.clipId) ===
+            true));
     const manualPoseClipActive =
       context.manualPoseClipActive ??
       (poseControllerClipActive && !plannerPoseClipRuntimeActive);
@@ -1912,24 +1917,49 @@ export class Avatar {
         }
         return;
       }
+      const gesture =
+        current.source === "gesture"
+          ? this._motionCatalog.getGesture(current.manifestGestureId)
+          : null;
+      const gestureTimeScale = gesture?.timeScale ?? 1;
       const snapshot = this.playAnimaPoseClip(clip, {
         preserveProceduralOffsets: true,
         transition: action.transition,
         finitePlayback: current.finitePlayback,
+        timeScale: gestureTimeScale,
       });
-      if (snapshot.playing && current.source === "idle") {
+      if (
+        snapshot.playing &&
+        (current.source === "idle" || current.source === "gesture")
+      ) {
         const nowMs = Date.now();
+        // Start from the delivered clip, never a cold-cache fallback, so
+        // loading time does not consume the Gesture's playback. A one-shot
+        // clip ends with its timeline. A looping clip never finishes on its
+        // own, so it keeps its configured length with the planner minimum.
+        const timelineSec = getAnimaPoseClipTimelineDuration(clip);
+        const durationSec =
+          current.source === "idle"
+            ? current.finitePlayback!.durationSec
+            : clip.loop === true
+              ? Math.max(
+                  DEFAULT_GESTURE_DURATION_SEC,
+                  (gesture?.duration ?? timelineSec) / gestureTimeScale,
+                )
+              : timelineSec / gestureTimeScale;
         this._avatarPlannerState.activePlannerPoseClip = {
           ...current,
           status: "active",
           startedAtMs: nowMs,
-          expiresAtMs: nowMs + current.finitePlayback!.durationSec * 1000,
+          expiresAtMs: nowMs + durationSec * 1000,
         };
-        this._avatarPlannerState.idleStint = {
-          ...this._avatarPlannerState.idleStint,
-          activeStartedAtMs: nowMs,
-          nextDueAtMs: nowMs + current.finitePlayback!.durationSec * 1000,
-        };
+        if (current.source === "idle") {
+          this._avatarPlannerState.idleStint = {
+            ...this._avatarPlannerState.idleStint,
+            activeStartedAtMs: nowMs,
+            nextDueAtMs: nowMs + durationSec * 1000,
+          };
+        }
       }
       logger.info("AvatarPlanner", "Playing pose clip", {
         status: "playing",

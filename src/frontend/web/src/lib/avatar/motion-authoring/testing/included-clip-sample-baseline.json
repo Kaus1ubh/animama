@@ -153,6 +153,13 @@
       "AvatarSample_A_1_New": "fe6c0ce84b1705893c6f5404a3c9c24847747ecfc27e394bc6468a15dbc44374"
     }
   },
+  "double-take": {
+    "fileSha256": "150128fe58e072e9b18f9c6f0441f8fc443fd415e08a9d5b888a1e7d478426c4",
+    "samples": {
+      "AvatarSample_Y_0": "0333a312b91f636390bb6ec8f46cabc7a99f34d2283d8bb43f9045650f47e5d8",
+      "AvatarSample_A_1_New": "c5e6db02db82dd70014b3205813da3546105148a8d966a3686c7725a8e497f4d"
+    }
+  },
   "double-thumbs-down": {
     "fileSha256": "90408b7ed31aebaa143fd4e6e18bc7bd023d07475afd87e6713ac95bef1d9990",
     "samples": {
@@ -433,6 +440,13 @@
       "AvatarSample_A_1_New": "294ed4380a174299432be4e5335adbc9ba0165383978e7a48abb600ea9e2a8ef"
     }
   },
+  "noted": {
+    "fileSha256": "cf2e29eb871e3a44680a162fd314744ce0408437384317512125734856941595",
+    "samples": {
+      "AvatarSample_Y_0": "f21a497fd91a904e0a0fcc0914d3376d226c4fd797e182f05bbcc0d6fa9c6b23",
+      "AvatarSample_A_1_New": "45e5ac459797f6dfbbb39065a91d87bb43ee4be916b3d95bfeca0edf17ee7562"
+    }
+  },
   "offscreen-look": {
     "fileSha256": "7ab7b58807ee716875b58ef6030b196c559821f366f57a9799e9f1512fc75229",
     "samples": {
@@ -522,6 +536,13 @@
     "samples": {
       "AvatarSample_Y_0": "74a3002e7df5e2cafff5f37db6f806bbb6c4617e37a78644355df8e842fcbb16",
       "AvatarSample_A_1_New": "53e70845a4eac34d4a6123509b02ea4a766e952a4e2bbb99f6fde540d725f4dd"
+    }
+  },
+  "ready-lets-do-this": {
+    "fileSha256": "2c3ec2d6bd206063b5c0ebe845ec831dd012c49d39dacf1e8a26e3b5339a19b7",
+    "samples": {
+      "AvatarSample_Y_0": "8fb460ade73b846129dc493fbf526e0fe3aeb4a9681ce6561d27f182878d9ad7",
+      "AvatarSample_A_1_New": "ee9a4bde488fc2d01361fba30d695c57481cf9abea466063df875b54b37d8e2a"
     }
   },
   "right-face-palm": {
@@ -704,6 +725,13 @@
     "samples": {
       "AvatarSample_Y_0": "1c9dfacb93fcab65da2eb5caba1afa6735799e91f43bab77d0dc9cd06241306d",
       "AvatarSample_A_1_New": "10f8b4323f291df9a30e1f71e5f61641e412c891f4df9e33efc30a06d2c5668e"
+    }
+  },
+  "tut-tut-finger-wag": {
+    "fileSha256": "d321cf86f43357c2fdcf75652fce73d2d0810c57a84af61504916390beece091",
+    "samples": {
+      "AvatarSample_Y_0": "dfef73add297da734b30f75df2fd894d1bcd3e10eb2dba828724e7a0ad1a63aa",
+      "AvatarSample_A_1_New": "b6ec3aea42e598305292ecad1275adb375528f368d3d74a8f0d756da2493f3ba"
     }
   },
   "typing-away": {

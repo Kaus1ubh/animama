@@ -1,0 +1,73 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:knockout-x-eyes",
+  "version": 1,
+  "name": "Knockout X Eyes",
+  "description": "Tapered ink X eyes spring into a dazed tilted settle for comic defeat and overload.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "eyes",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "mirror": true,
+      "scale": {
+        "x": 0.49,
+        "y": 0.49
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "cross.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "rotationDeg": -18,
+            "scale": 0.45,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "rotationDeg": 13,
+            "scale": 1.18,
+            "t": 0.12
+          },
+          {
+            "rotationDeg": -9,
+            "scale": 0.94,
+            "t": 0.24
+          },
+          {
+            "rotationDeg": 6,
+            "scale": 1.04,
+            "t": 0.38
+          },
+          {
+            "rotationDeg": -4,
+            "scale": 1,
+            "t": 0.58
+          },
+          {
+            "rotationDeg": 3,
+            "t": 0.85
+          },
+          {
+            "rotationDeg": -3,
+            "t": 1.15
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "cross.png",
+      "role": "image"
+    }
+  ]
+}

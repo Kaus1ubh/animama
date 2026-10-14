@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:money-eyes",
+  "version": 1,
+  "name": "Money Eyes",
+  "description": "Rich emerald dollar eyes spring into place for a bargain, greed or imagined riches.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "eyes",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "mirror": true,
+      "scale": {
+        "x": 0.564,
+        "y": 0.564
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "dollar.png",
+      "otherEyeImage": "other-dollar.png"
+    },
+    "motion": {
+      "pulse": {
+        "cyclesPerSecond": 0.7,
+        "scaleMax": 1.035,
+        "scaleMin": 0.99
+      },
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "rotationDeg": -12,
+            "scale": 0.55,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "rotationDeg": 6,
+            "scale": 1.1,
+            "t": 0.15
+          },
+          {
+            "rotationDeg": -3,
+            "scale": 0.97,
+            "t": 0.32
+          },
+          {
+            "rotationDeg": 0,
+            "scale": 1,
+            "t": 0.55
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "dollar.png",
+      "role": "image"
+    },
+    {
+      "path": "other-dollar.png",
+      "role": "image"
+    }
+  ]
+}

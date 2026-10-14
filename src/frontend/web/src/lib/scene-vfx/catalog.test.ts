@@ -52,9 +52,10 @@ describe("scene VFX catalog", () => {
       );
       expect(descriptor.definition.kind).toBe("background_layers");
     }
-    // The Included Scene Effects are these backgrounds and the focus presets.
+    // Included also contains the authored Awkward Silence background.
     expect(readdirSync(`${includedRoot}/vfx/scene`).sort()).toEqual(
       [
+        "awkward-silence",
         ...getSceneFocusLinePresetIds(),
         ...TRACKED_EMOTIONS.map((emotion) => `scene-vfx-emotion-${emotion}`),
       ].sort(),

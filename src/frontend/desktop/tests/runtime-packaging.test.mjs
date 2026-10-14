@@ -66,8 +66,10 @@ import {
 } from "../scripts/runtime/document-native.mjs";
 import {
   assertDesktopWebAssets,
+  assertNoIncludedAliasCopies,
   excludeDesktopWebAssets,
   excludedDesktopWebAssets,
+  includedAliasRoutes,
 } from "../scripts/runtime/desktop-web.mjs";
 import { componentInventory } from "../scripts/runtime/inventory.mjs";
 import { validateUpdateCandidate } from "../src/main-process/updates/policy.js";
@@ -280,6 +282,48 @@ describe("desktop runtime packaging", () => {
     expect(() => assertDesktopWebAssets(root)).not.toThrow();
     excludeDesktopWebAssets(root);
   });
+  it("keeps public stage scenes while rejecting Included alias copies", () => {
+    const web = fixture();
+    const publicRoot = fixture();
+    for (const root of [web, publicRoot]) {
+      mkdirSync(path.join(root, "background"), { recursive: true });
+      writeFileSync(path.join(root, "background/cafe-light.webp"), "scene");
+    }
+    excludeDesktopWebAssets(web);
+    expect(
+      readFileSync(path.join(web, "background/cafe-light.webp"), "utf8"),
+    ).toBe("scene");
+    expect(() => assertNoIncludedAliasCopies(web, publicRoot)).not.toThrow();
+
+    writeFileSync(path.join(web, "background/cafe-light.webp"), "changed");
+    expect(() => assertNoIncludedAliasCopies(web, publicRoot)).toThrow(
+      "compatibility alias: background/cafe-light.webp",
+    );
+    writeFileSync(path.join(web, "background/cafe-light.webp"), "scene");
+    writeFileSync(path.join(web, "background/included.webp"), "appearance");
+    expect(() => assertNoIncludedAliasCopies(web, publicRoot)).toThrow(
+      "compatibility alias: background/included.webp",
+    );
+    rmSync(path.join(web, "background/included.webp"));
+    for (const route of includedAliasRoutes.filter((r) => r !== "background")) {
+      mkdirSync(path.join(web, route), { recursive: true });
+      writeFileSync(path.join(web, route, "copied.png"), "duplicate");
+      expect(() => assertNoIncludedAliasCopies(web, publicRoot)).toThrow(
+        `compatibility alias: ${route}/copied.png`,
+      );
+      rmSync(path.join(web, route), { recursive: true });
+    }
+  });
+  it.skipIf(!symlinksAvailable)(
+    "rejects a symlinked compatibility route",
+    () => {
+      const web = fixture();
+      symlinkSync(fixture(), path.join(web, "background"), "dir");
+      expect(() => assertNoIncludedAliasCopies(web, fixture())).toThrow(
+        "compatibility alias: background",
+      );
+    },
+  );
   it.skipIf(process.platform !== "darwin")(
     "launches the worker relative to its relocated app without a shell or PATH lookup",
     () => {

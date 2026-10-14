@@ -1,0 +1,77 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:tiny-victory-crown",
+  "version": 1,
+  "name": "Tiny Victory Crown",
+  "description": "A small gold crown drops crookedly, wobbles and settles after a little victory.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "emote",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "top_edge",
+      "offset": {
+        "x": 0,
+        "y": 0.06,
+        "z": 0.015
+      },
+      "position": "middle",
+      "rotationDeg": {
+        "x": 0,
+        "y": 0,
+        "z": -9
+      },
+      "scale": {
+        "x": 1.8,
+        "y": 1.8
+      }
+    },
+    "art": {
+      "image": "crown.png"
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "offset": {
+              "x": 0,
+              "y": 0.08
+            },
+            "opacity": 0,
+            "rotationDeg": 15,
+            "t": 0
+          },
+          {
+            "offset": {
+              "x": 0,
+              "y": 0
+            },
+            "opacity": 1,
+            "rotationDeg": -14,
+            "t": 0.22
+          },
+          {
+            "rotationDeg": 8,
+            "t": 0.4
+          },
+          {
+            "rotationDeg": -4,
+            "t": 0.62
+          },
+          {
+            "rotationDeg": 0,
+            "t": 0.9
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "crown.png",
+      "role": "image"
+    }
+  ]
+}

@@ -31,6 +31,7 @@ import { EMPTY_RUNTIME_MEDIA_PROVIDER } from "@/lib/runtime-content/AnimaRuntime
  * folder stems), which the catalog reads from their descriptors.
  */
 const INCLUDED_PARTICLE_VFX_IDS = [
+  "butterfly-flutter",
   "confetti",
   "fireworks-show",
   "fume-puffs",
@@ -40,9 +41,11 @@ const INCLUDED_PARTICLE_VFX_IDS = [
   "heart-burst",
   "heart-fireworks",
   "hearts-v1",
+  "musical-cascade",
   "question-orbit",
   "rage-aura",
   "rain-cloud",
+  "snow-crystal-flurry",
   "sparkle-hearts",
   "star-burst",
   "stink-miasma",

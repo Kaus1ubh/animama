@@ -666,7 +666,7 @@ is not owner acceptance of the coverage or budget tradeoff.
 | Modified eligible documentation only                                 | Frozen Python install, typed-content audit, synthetic-document and accountless repository tests                                         | None                                                                                        |
 | Allowlisted existing backend tests or pure formatter                 | Frozen Python install, typed-content audit, format/Ruff/mypy and accountless repository guards                                          | Full backend checks in a fresh reviewed receipt                                             |
 | Allowlisted web UI implementation                                    | Frozen Python/frontend installs, package preparation, web lint, web/desktop/package/harness types, SDK freshness and accountless guards | Complete frontend source checks and both rendered browser modes in a fresh reviewed receipt |
-| High-risk, mixed, added/deleted/renamed, unknown or uncertain inputs | Full hosted validation; a PR run may skip unchanged suites (`selective`, below)                                                         | Local evidence cannot narrow these changes                                                  |
+| High-risk, mixed, added/deleted/renamed, unknown or uncertain inputs | Full hosted validation; an ordinary PR run or `main` push skips suites whose inputs did not change (`selective`, below)                  | Local evidence cannot narrow these changes                                                  |
 | Persistent `ci:full`, manual dispatch or release reuse               | Full hosted validation of exact source                                                                                                  | No substitution                                                                             |
 | Draft without `ci:full`                                              | Selection and a non-accepting final gate                                                                                                | Draft deferral is not acceptance                                                            |
 
@@ -683,46 +683,42 @@ review higher-risk behavior changes inside an allowed file and use `ci:full`.
 Repository instructions, executable/symlink/LFS inputs,
 configuration, dependency/build inputs and shared contracts remain full scope.
 
-### Suite selection in full PR runs
+### Suite selection and promotion runs
 
-A full PR run that is not a promotion candidate skips the expensive suites
-whose inputs did not change. It records this as the `selective` profile, with
+An ordinary run, a PR run or a `main` push, runs each expensive suite only
+when its own inputs changed. It records this as the `selective` profile, with
 each skipped suite and its reason in the selection receipt and the job summary.
-Promotion candidates always run every suite and record `full`. They are a
-`main` push validated in full, a manual dispatch, a release caller, a PR
-labelled `ci:full`, and a scheduled checkpoint.
+Promotion runs execute every suite and record `full`: a manual dispatch, a
+release caller, the weekly scheduled checkpoint and a PR labelled `ci:full`.
+Dispatch on `main` to produce a set for promotion.
 
-| Suite | Steps | Runs on a PR when |
+| Suite | Steps | An ordinary run includes it when |
 | --- | --- | --- |
-| `promotion` | Package build, installed and whole-application consumers, baseline comparison, set upload | Any packaging input changed |
-| `browser-hosted` | Hosted-composition, hosted-workflows and retained-screens browser files | Any packaging input, or their fixtures or tests, changed |
-| `browser-tooling` | Animation and effect preview, render, check and thumbnail browser files | Any packaging input, or the tooling's `.mjs` sources or tests, changed |
+| `promotion` | Package build, installed and whole-application consumers, baseline comparison, set upload | Never: it runs only with every suite |
+| `browser-hosted` | Hosted-composition, hosted-workflows and retained-screens browser files | Their tests or fixtures, `web/src/app/hosted-runtime/` or `web/src/main.hosted.tsx` changed |
+| `browser-tooling` | Animation and effect preview, render, check and thumbnail browser files | The tools' `animation*`/`effect*` sources under `web/scripts/`, their tests or the preview-session modules changed |
 
-Any packaging input therefore selects every suite. The run records `full`
-and can serve reuse after merge.
+Product code, Included content, contracts, documentation and tests select none
+of them, and neither do paths the selector does not recognize. The owner
+accepted this on 2026-10-14 (#503): a packaging, authoring-tool or hosted-screen
+regression caused by such a change surfaces on the next promotion run. Use
+`ci:full` on a PR whose packaging, tools or hosted screens need proof before
+merge.
 
-Packaging inputs are everything that can change the set's bytes or how it is
-validated:
-
-- the backend wheel sources and `README.md`;
-- the web app, its packages, `src/frontend/scripts` and the Vite configuration
-  and plugins;
-- Included content, `docs/safety`, contracts, the model manifests and model
-  scripts;
-- the desktop version, desktop notices and the desktop runtime scripts that the
-  hosted build copies;
-- the packaging and consumer scripts.
-
-`scripts/ci/validation_policy.py` owns the exact tables. A path it does not
-recognize selects every suite. So do workflow, `scripts/ci`, lockfile, manifest
-and browser-setup changes, and links, executables and LFS inputs. Every other
+Every suite still runs on an ordinary run when the workflow, `scripts/ci`, the
+packaging and consumer scripts (`scripts/package-sets/`,
+`scripts/repository-boundary/`), the lockfiles, `pyproject.toml`, the frontend
+workspace, web or desktop `package.json`, the Vite configuration or plugins, patches, models or
+the shared browser setup change, or when links, executables or LFS inputs do.
+Such a run records `full`, so every package set comes from a `full` run.
+Promotion runs mostly rebuild their baseline set: `main` pushes are usually
+selective and retain none. After a selective PR the `main` push is selective
+too, not `reused`. `scripts/ci/validation_policy.py` owns the exact tables. Every other
 check runs on every full or selective run, including the backend suite, Vitest,
 the remaining browser files, the web build and the accountless smoke.
 
 A selective run is never promotion-complete: it cannot serve reuse after merge
-(below) and uploads no set. A regression from a misclassified packaging input,
-or from fresh-resolution consumer dependency drift, therefore surfaces on the
-next promotion-candidate run, usually the `main` push after merge.
+(below) and uploads no set.
 
 `scripts/ci/browser_tests.py` runs the selected browser groups. Each file runs
 in its own process with a 20-minute bound and writes its own result row. The
@@ -734,8 +730,8 @@ one at a time.
 
 ### Reuse a full hosted PR result after merging
 
-A `main` push that would otherwise require full validation can use the `reused`
-profile when the latest PR validation run successfully executed the complete
+A `main` push whose changes select every suite would otherwise run in full. It
+can use the `reused` profile instead when the latest PR validation run successfully executed the complete
 hosted contract within seven days and before the merge. The selector verifies
 GitHub run and artifact provenance, the artifact SHA-256 digest, successful full
 step/command receipts, and the tested merge commit's Git tree and parents.
@@ -768,7 +764,7 @@ be relabelled. A consumer binds it through the identical tree
 `main` commit, then validates the set's own receipt. Missing, expired, stale, failed, reduced,
 ambiguous or mismatched evidence retains full validation. Initially this supports
 same-repository PRs merged with an ordinary merge commit; forks, squash/rebase
-merges and batched pushes retain full validation. `ci:full`, manual dispatch,
+merges and batched pushes do not qualify. `ci:full`, manual dispatch,
 release validation and scheduled checkpoints do not use this substitution.
 Existing focused documentation and reviewed-local profiles remain unchanged.
 

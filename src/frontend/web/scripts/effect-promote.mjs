@@ -59,9 +59,10 @@ import {
  * Licence records (D1): Avatar Effect files fall under the existing
  * `vfx/avatar/**\/*` rule and Scene PNGs under `vfx/scene/**\/*.png`. Each
  * promoted Particle Effect gets its own owner-authored rule,
- * `vfx/particle/quark/<stem>/**`, ahead of the generated-art rule, and loses
- * it when deleted. Every written file gets a `licenses/source-review.json`
- * record in the form of the Included Avatar Effect files, except a file whose
+ * `vfx/particle/quark/<stem>/**`, ahead of a generated-art rule when present,
+ * and loses it when deleted. Every written file gets a
+ * `licenses/source-review.json` record in the form of the Included Avatar
+ * Effect files, except a file whose
  * bytes repeat third-party Included art (such as a creator's built-in
  * texture): it keeps that file's record and, in an exact-path rule ahead of
  * the effect's own, its licence terms. Deleted files lose their records and
@@ -76,7 +77,7 @@ const STEM = /^[a-z0-9]+(?:[_-][a-z0-9]+)*$/;
 /**
  * Each effect kind: its Included folder, the kind `resolveAnyEffectSource`
  * reports for its sources, its name, and the licence rule its files need
- * (for Particle Effects, the rule each per-effect rule goes ahead of).
+ * (for Particle Effects, an optional anchor for each per-effect rule).
  */
 const EFFECT_KINDS = {
   avatar_effect: {
@@ -367,7 +368,7 @@ export async function planEffectPromotion(
     (inventory.rules ?? []).findIndex((rule) => rule.glob === glob);
   for (const kind of new Set(["avatar_effect", ...effectItems.map(kindOf)])) {
     const { rule, noun } = EFFECT_KINDS[kind];
-    if (ruleIndex(rule) < 0)
+    if (kind !== "particle_effect" && ruleIndex(rule) < 0)
       throw new EffectPromoteError(
         `${EFFECT_PROMOTE_PATHS.inventory}: no "${rule}" rule for the files of ${noun}.`,
       );
@@ -555,7 +556,11 @@ export async function planEffectPromotion(
     for (const file of files ?? [])
       if (!writes.has(`${folder}/${file}`)) deletes.add(`${folder}/${file}`);
     if (kind === "particle_effect" && ruleIndex(particleRule(item.stem)) < 0) {
-      inventory.rules.splice(ruleIndex(EFFECT_KINDS.particle_effect.rule), 0, {
+      // Per-folder inventories need no Particle catch-all. Without that
+      // anchor, put this narrow rule first so a generic fallback cannot win;
+      // copied third-party files get their exact rules ahead of it below.
+      const anchor = ruleIndex(EFFECT_KINDS.particle_effect.rule);
+      inventory.rules.splice(Math.max(anchor, 0), 0, {
         glob: particleRule(item.stem),
         creator,
         provenance:

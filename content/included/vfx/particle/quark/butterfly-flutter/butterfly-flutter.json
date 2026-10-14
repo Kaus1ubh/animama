@@ -1,0 +1,54 @@
+{
+  "schema_version": 1,
+  "content_type": "particle_effect",
+  "content_id": "builtin:particle-effect:butterfly-flutter",
+  "version": 1,
+  "name": "Butterfly Flutter",
+  "description": "Four luminous butterflies flutter upward in two staggered pairs.",
+  "runtime_defaults": {
+    "schema_version": 1,
+    "runtime_id": "butterfly-flutter",
+    "slots": {
+      "particle_vfx": {
+        "label": "Butterfly Flutter",
+        "description": "Four luminous butterflies flutter upward in two staggered pairs.",
+        "anchor": "head",
+        "duration_seconds": 6.2,
+        "max_duration_seconds": 6.2,
+        "preload_tier": "none",
+        "follow_anchor": true,
+        "transform": {
+          "offset": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "depth_offset": 0,
+          "rotation": {
+            "x": 0,
+            "y": 0,
+            "z": 0
+          },
+          "scale": {
+            "x": 1,
+            "y": 1,
+            "z": 1
+          }
+        },
+        "looping_allowed": false,
+        "can_coexist": true,
+        "max_particles": 4
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "particle.json",
+      "role": "manifest"
+    },
+    {
+      "path": "textures/flutter-wingbeat-sheet.png",
+      "role": "texture"
+    }
+  ]
+}

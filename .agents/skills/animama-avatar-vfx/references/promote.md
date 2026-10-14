@@ -105,6 +105,11 @@ list before writing.
    in `scripts/animation-preview-media.test.mjs` and
    `scripts/effect-render-sources.test.mjs`, and effect mappings in frontend
    tests such as `tests/avatar/reactionClips.test.ts`.
+   Ship new items in desktop core: add each content ID to `CORE_LIBRARY_ROOTS`
+   in `src/backend/animama/runtime/starter_content.py` and its folder (plus the
+   entry/file counts) to `CORE_LIBRARY_LOCATORS` in
+   `tests/test_starter_content_closure.py`; that test fails while any valid
+   Included item is left out of core.
 4. Run `uv run pytest -q tests/test_included_content_integrity.py
    tests/test_included_content_catalog.py tests/test_starter_content_closure.py
    scripts/public-release/test_prepare_source.py`, then from `src/frontend`

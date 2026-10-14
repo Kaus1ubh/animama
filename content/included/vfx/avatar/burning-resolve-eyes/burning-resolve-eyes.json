@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:burning-resolve-eyes",
+  "version": 1,
+  "name": "Burning Resolve Eyes",
+  "description": "Upright flames kindle over the eyes as golden tongues rise through steady orange roots for fiery resolve.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "eyes",
+    "attachment": {
+      "kind": "face_landmark",
+      "landmark": "eyes",
+      "mirror": true,
+      "scale": {
+        "x": 0.825,
+        "y": 0.825
+      },
+      "side": "right"
+    },
+    "art": {
+      "image": "flames-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 10,
+        "frames": 8,
+        "loop": "loop",
+        "rows": 2
+      }
+    },
+    "motion": {
+      "keyframes": {
+        "frames": [
+          {
+            "opacity": 0,
+            "scale": 0.65,
+            "t": 0
+          },
+          {
+            "opacity": 1,
+            "scale": 1.06,
+            "t": 0.16
+          },
+          {
+            "scale": 1,
+            "t": 0.3
+          }
+        ]
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "flames-sheet.png",
+      "role": "image"
+    }
+  ]
+}

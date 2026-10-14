@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "content_type": "avatar_effect",
+  "content_id": "builtin:avatar-effect:mended-heart",
+  "version": 1,
+  "name": "Mended Heart",
+  "description": "A split coral heart joins beneath an ivory bandage and beats gently for comfort and recovery.",
+  "dependencies": [],
+  "definition": {
+    "schema": "animama/avatar-effect/2",
+    "region": "body",
+    "attachment": {
+      "kind": "body",
+      "bone": "chest",
+      "facing": "camera",
+      "offset": {
+        "x": 0.035,
+        "y": 0.115,
+        "z": 0.17
+      },
+      "size": 0.14
+    },
+    "art": {
+      "image": "heart-sheet.png",
+      "flipbook": {
+        "columns": 4,
+        "fps": 8,
+        "frames": 16,
+        "loop": "once",
+        "rows": 4
+      }
+    },
+    "motion": {
+      "pulse": {
+        "cyclesPerSecond": 0.8,
+        "scaleMax": 1.05,
+        "scaleMin": 0.99
+      }
+    }
+  },
+  "files": [
+    {
+      "path": "heart-sheet.png",
+      "role": "image"
+    }
+  ]
+}

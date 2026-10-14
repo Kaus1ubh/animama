@@ -67,8 +67,8 @@ jobs:
       ANIMAMA_RUN_LIVE_TESTS: "0"
     steps:
       # Setup: one candidate checkout; exact baseline checkout happens only for packaging.
-      # Full PR runs that are not promotion candidates may record a `selective`
-      # mode that skips the promotion suite and unchanged browser groups.
+      # Ordinary PR runs and main pushes may record a `selective` mode that
+      # skips the promotion suite and unchanged browser groups.
       - name: Check out exact candidate without asset hydration
         id: checkout
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0

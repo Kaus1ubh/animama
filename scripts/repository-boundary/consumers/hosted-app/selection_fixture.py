@@ -63,7 +63,12 @@ def previous_resource_fixture(directory: Path, output: Path, contracts: list) ->
     shutil.copytree(directory / "catalog-seed", staging / "catalog-seed")
     (staging / "app-manifest.json").write_bytes(canonical(changed))
     archive = output / "controlled-previous-app.tar.gz"
-    with archive.open("wb") as stream, gzip.GzipFile(filename="", mode="wb", fileobj=stream, mtime=0) as zipped:
+    # This archive exists only to pass the production verifier and unpacker
+    # below, so the fastest level suffices: level 9 took most of this step.
+    with (
+        archive.open("wb") as stream,
+        gzip.GzipFile(filename="", mode="wb", fileobj=stream, mtime=0, compresslevel=1) as zipped,
+    ):
         with tarfile.open(fileobj=zipped, mode="w", format=tarfile.PAX_FORMAT) as tar:
             for file in sorted(staging.rglob("*")):
                 if not file.is_file():

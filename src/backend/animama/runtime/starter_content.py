@@ -36,6 +36,57 @@ from animama.domain.content_catalog import (
 )
 from animama.utils.files import path_is_link
 
+# Included Library content bundled with desktop core without changing any Anima's
+# starter loadout. Together with the starter closure and authoring Poses, these
+# roots cover every valid tracked Included item, so desktop matches self-host.
+# Resolve these exact IDs through the same typed admission gates.
+CORE_LIBRARY_ROOTS = (
+    "builtin:idle-style:streamer-idle",
+    "builtin:gesture:bgm-bob",
+    "builtin:gesture:bored-wait",
+    "builtin:gesture:chat-glance",
+    "builtin:gesture:downcast-sigh",
+    "builtin:gesture:dreamy-gaze",
+    "builtin:gesture:hair-tuck-settle",
+    "builtin:gesture:happy-sway",
+    "builtin:gesture:hmm-drift",
+    "builtin:gesture:nervous-fidget",
+    "builtin:gesture:offscreen-look",
+    "builtin:gesture:simmering-huff",
+    "builtin:gesture:sleepy-nod-off",
+    "builtin:avatar-effect:annoyed_scribble",
+    "builtin:avatar-effect:gloomy_cloud",
+    "builtin:avatar-effect:mouth_hover_w",
+    "builtin:avatar-effect:mouth_w",
+    "builtin:avatar-effect:music_notes",
+    "builtin:avatar-effect:sigh_puff_droop",
+    "builtin:avatar-effect:zzz",
+    "builtin:scene-effect:focus:dark",
+    "builtin:scene-effect:focus:light-streak",
+    "builtin:gesture:double-take",
+    "builtin:gesture:noted",
+    "builtin:gesture:ready-lets-do-this",
+    "builtin:gesture:tut-tut-finger-wag",
+    "builtin:avatar-effect:awkward-ellipsis",
+    "builtin:avatar-effect:blank-dot-eyes",
+    "builtin:avatar-effect:broken-heart",
+    "builtin:avatar-effect:burning-resolve-eyes",
+    "builtin:avatar-effect:calculating-glasses",
+    "builtin:avatar-effect:gray-silhouette",
+    "builtin:avatar-effect:knockout-x-eyes",
+    "builtin:avatar-effect:little-devil-horns",
+    "builtin:avatar-effect:mended-heart",
+    "builtin:avatar-effect:money-eyes",
+    "builtin:avatar-effect:suspicious-side-eye",
+    "builtin:avatar-effect:ticking-fuse",
+    "builtin:avatar-effect:tiny-victory-crown",
+    "builtin:avatar-effect:twitching-cat-ears",
+    "builtin:particle-effect:butterfly-flutter",
+    "builtin:particle-effect:musical-cascade",
+    "builtin:particle-effect:snow-crystal-flurry",
+    "builtin:scene-effect:background:awkward-silence",
+)
+
 
 def _regular_path(root: Path, relative: str) -> Path:
     parts = PurePosixPath(relative)
@@ -181,6 +232,9 @@ def starter_inventory(included_root: Path, *, allowed_paths: set[str] | None = N
                 "diagnostics": [],
             }
         )
+
+    # Library availability is separate from the unchanged per-starter receipts.
+    core.update(resolve_roots(list(CORE_LIBRARY_ROOTS)))
 
     expanded: set[str] = set()
     for item_id, catalog_entry in sorted(visible.items()):
