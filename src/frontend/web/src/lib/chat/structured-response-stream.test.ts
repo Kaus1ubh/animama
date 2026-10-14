@@ -34,6 +34,68 @@ describe("structured response stream", () => {
     ]);
   });
 
+  it("shows speech without its audio tags, and a tag-only reply not at all", () => {
+    let state = createStructuredResponseStreamState();
+    state = reduceStructuredResponseStream(state, {
+      response_part: "speech",
+      text: "Oh my gosh, [laughs] that is so funny!",
+      is_delta: true,
+      part_index: 0,
+    }).state;
+    state = reduceStructuredResponseStream(state, {
+      response_part: "display",
+      text: "See [the guide](https://example.com).",
+      is_delta: true,
+      part_index: 0,
+    }).state;
+
+    // The raw speech stays for TTS; only the bubble hides its tags.
+    expect(state.speechText).toBe("Oh my gosh, [laughs] that is so funny!");
+    expect(getStructuredAssistantTexts(state)).toEqual([
+      "Oh my gosh, that is so funny!",
+      "See [the guide](https://example.com).",
+    ]);
+
+    let tagOnly = createStructuredResponseStreamState();
+    tagOnly = reduceStructuredResponseStream(tagOnly, {
+      response_part: "speech",
+      text: "[laughs]",
+      is_delta: true,
+      part_index: 0,
+    }).state;
+    expect(getStructuredAssistantTexts(tagOnly)).toEqual([]);
+  });
+
+  it("does not repeat a display that matches what the speech shows", () => {
+    let state = createStructuredResponseStreamState();
+    state = reduceStructuredResponseStream(state, {
+      response_part: "speech",
+      text: "Oh [laughs] wow.",
+      is_delta: true,
+      part_index: 0,
+    }).state;
+    state = reduceStructuredResponseStream(state, {
+      response_part: "display",
+      text: "Oh wow.",
+      is_delta: true,
+      part_index: 0,
+    }).state;
+    expect(getStructuredAssistantTexts(state)).toEqual(["Oh wow."]);
+  });
+
+  it("does not repeat a display that copies the speech, tags included", () => {
+    let state = createStructuredResponseStreamState();
+    for (const part of ["speech", "display"] as const) {
+      state = reduceStructuredResponseStream(state, {
+        response_part: part,
+        text: "Oh [laughs] wow.",
+        is_delta: true,
+        part_index: 0,
+      }).state;
+    }
+    expect(getStructuredAssistantTexts(state)).toEqual(["Oh wow."]);
+  });
+
   it("marks an empty final speech marker without changing text", () => {
     let state = createStructuredResponseStreamState();
     state = reduceStructuredResponseStream(state, {

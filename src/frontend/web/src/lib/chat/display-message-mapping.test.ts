@@ -39,6 +39,49 @@ describe("display message mapping", () => {
     ]);
   });
 
+  it("hides audio tags in reloaded speech, and drops a tag-only speech bubble", () => {
+    expect(
+      mapServerMessagesForDisplay([
+        {
+          id: 1,
+          chat_id: "chat-1",
+          run_id: "run-1",
+          role: "assistant",
+          content: "Oh my gosh, [laughs] that is so funny!",
+          data: {
+            structured: {
+              speech: "Oh my gosh, [laughs] that is so funny!",
+              display: null,
+            },
+          },
+        },
+        {
+          id: 2,
+          chat_id: "chat-1",
+          run_id: "run-2",
+          role: "assistant",
+          content: "Details.",
+          data: { structured: { speech: "[laughs]", display: "Details." } },
+        },
+      ]).map((message) => message.text),
+    ).toEqual(["Oh my gosh, that is so funny!", "Details."]);
+  });
+
+  it("shows no bubble for reloaded speech of only tags, not its content", () => {
+    expect(
+      mapServerMessagesForDisplay([
+        {
+          id: 3,
+          chat_id: "chat-1",
+          run_id: "run-3",
+          role: "assistant",
+          content: "[laughs] [sighs]",
+          data: { structured: { speech: "[laughs] [sighs]", display: null } },
+        },
+      ]),
+    ).toEqual([]);
+  });
+
   it("suppresses display text that duplicates structured speech", () => {
     expect(
       mapServerMessagesForDisplay([

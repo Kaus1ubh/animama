@@ -649,6 +649,126 @@ test("a voice allowance exhausted after the reply text speaks the reply with Poc
   assert.deepEqual(speech.completions, [runId]);
 });
 
+test("a tagged reply speaks its tags with its tone tag and shows only its words", async (t) => {
+  const { page, runId } = await speechTurn(t);
+  const speech = await streamSpeechTurn(page, runId, [
+    {
+      text: "Oh my gosh, [laughs] that is so funny!",
+      response_part: "speech",
+      is_delta: true,
+      part_index: 0,
+      speech_tone_tag: "[very happy]",
+    },
+    {
+      text: " [sighs] Bye.",
+      response_part: "speech",
+      is_delta: true,
+      part_index: 1,
+    },
+    {
+      text: "",
+      response_part: "speech",
+      is_delta: true,
+      part_index: 1,
+      part_final: true,
+    },
+    { chat_id: "chat-fixture" },
+  ]);
+  assert.deepEqual(speech.tokens, [
+    {
+      runId,
+      token: "Oh my gosh, [laughs] that is so funny!",
+      speechToneTag: "[very happy]",
+    },
+    { runId, token: " [sighs] Bye." },
+  ]);
+  await page
+    .getByText("Oh my gosh, that is so funny! Bye.", { exact: true })
+    .waitFor();
+  assert.equal(await page.getByText("[laughs]").count(), 0);
+});
+
+test("speech of only tags shows no bubble and still completes with plain text", async (t) => {
+  const { page, runId } = await speechTurn(t, { markdown: false });
+  await streamSpeechTurn(page, runId, [
+    {
+      text: "[laughs]",
+      response_part: "speech",
+      is_delta: true,
+      part_index: 0,
+    },
+    {
+      text: "",
+      response_part: "speech",
+      is_delta: true,
+      part_index: 0,
+      part_final: true,
+    },
+    {
+      text: "Details.",
+      response_part: "display",
+      is_delta: true,
+      part_index: 0,
+    },
+    { chat_id: "chat-fixture" },
+  ]);
+  await page.getByText("Details.", { exact: true }).waitFor();
+  assert.equal(await page.textContent("#finalizing"), "false");
+  assert.equal(await page.getByText("[laughs]").count(), 0);
+});
+
+test("a memory cue during a reply that shows no bubble does not break the chat", async (t) => {
+  const { page, runId } = await speechTurn(t);
+  const errors = [];
+  page.on("pageerror", (error) => errors.push(error.message));
+  await streamSpeechTurn(page, runId, [
+    {
+      text: "[laughs]",
+      response_part: "speech",
+      is_delta: true,
+      part_index: 0,
+    },
+    {
+      text: "[laughs]",
+      response_part: "display",
+      is_delta: true,
+      part_index: 0,
+    },
+    {
+      type: "memory.updated",
+      message_id: 1,
+      memory_cue: { episode: { text: "Laughed together" }, memories: null },
+    },
+    { chat_id: "chat-fixture" },
+  ]);
+  assert.deepEqual(errors, []);
+  assert.equal(await page.textContent("#finalizing"), "false");
+  assert.equal(await page.getByText("[laughs]").count(), 0);
+});
+
+test("a failed reply's partial text hides its tags", async (t) => {
+  const { page, runId } = await speechTurn(t);
+  await page.evaluate(
+    (run_id) =>
+      window.fixture.send(0, [
+        {
+          text: "[laughs] Partial answer.",
+          response_part: "speech",
+          is_delta: true,
+          part_index: 0,
+          run_id,
+        },
+      ]),
+    runId,
+  );
+  await page.getByText("Partial answer.", { exact: true }).waitFor();
+  await page.evaluate(() => window.fixture.close(0));
+  await page.getByRole("alert").waitFor();
+  await sessionIdle(page);
+  await page.getByText("Partial answer.", { exact: true }).waitFor();
+  assert.equal(await page.getByText("[laughs]").count(), 0);
+});
+
 test("Gemini audio the server pushes reaches the finalized playback adapter", async (t) => {
   const { page, runId } = await speechTurn(t, {
     provider: "gemini",

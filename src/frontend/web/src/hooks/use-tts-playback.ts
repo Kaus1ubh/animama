@@ -7,6 +7,11 @@ import {
   performanceClock,
   performanceClockNow,
 } from "@/lib/speech/performance-clock";
+import {
+  createProviderSpeechText,
+  findAudioTags,
+  stripAudioTags,
+} from "@animama/product-ui/audio-tags";
 import { dropEmoji } from "@/lib/lipsync/text/spell-out-english";
 import { pocketSpeechText } from "@/lib/speech/pocket-speech-text";
 import { emitSpeechUtterance } from "@/lib/speech/speech-pcm-tap";
@@ -80,9 +85,33 @@ function isAbortError(error: unknown): boolean {
   return error instanceof Error && error.name === "AbortError";
 }
 
+/** Only one well-formed square tag may lead ElevenLabs' text as the reply's tone. */
+function isSingleSquareTag(value: unknown): value is string {
+  if (typeof value !== "string") return false;
+  const tags = findAudioTags(value);
+  return tags.length === 1 && tags[0]!.label === value && value.startsWith("[");
+}
+
+/**
+ * The reply text a finalized server voice speaks, as lip-sync and the debug
+ * capture should see it: Gemini, the only one, gets its own tag spellings,
+ * as the backend prepares them.
+ */
+function finalizedServerSpeechText(text: string): string {
+  return createProviderSpeechText("gemini")(text);
+}
+
 type UseTtsPlaybackResult = {
   startRun: (runId: string) => void;
-  appendToken: (runId: string, token: string) => void;
+  /**
+   * Adds speech text to the run. `speechToneTag`, from the reply's first speech
+   * frame, leads the run's first ElevenLabs chunk.
+   */
+  appendToken: (
+    runId: string,
+    token: string,
+    options?: { speechToneTag?: string | null },
+  ) => void;
   completeRun: (runId: string) => void;
   acceptElevenLabsSession: (
     runId: string,
@@ -400,6 +429,12 @@ export function useTtsPlayback(
   const runSpeechTextRef = useRef("");
   /** The run's text as each voice receives it, for lip-sync. */
   const plannedTextRef = useRef("");
+  // Per run: ElevenLabs' text with its tags respelled and the sound cap counted,
+  // and the tone tag waiting for the run's first ElevenLabs chunk.
+  const elevenLabsSpeechTextRef = useRef<((text: string) => string) | null>(
+    null,
+  );
+  const pendingSpeechToneTagRef = useRef<string | null>(null);
 
   const resolveSpeechRuntimeContext = useCallback(
     (runId: string) => getSpeechVoiceSelectionContext?.(runId) ?? null,
@@ -434,6 +469,8 @@ export function useTtsPlayback(
     audioEndedRef.current = false;
     ttsChunkIndexRef.current = 0;
     ttsChunkWordCursorRef.current = 0;
+    elevenLabsSpeechTextRef.current = null;
+    pendingSpeechToneTagRef.current = null;
     setAudioActiveState(false);
     browserPlaybackErrorRef.current = false;
     pocketPlaybackErrorRef.current = false;
@@ -1046,10 +1083,20 @@ export function useTtsPlayback(
       for (const chunk of chunks) {
         // Other voices read text as written, so they lose the emoji here;
         // Pocket spells its text out, emoji and tags dropped, as it speaks.
-        const text =
-          provider === "pocket_tts"
-            ? chunk.text.trim()
-            : dropEmoji(chunk.text).trim();
+        // ElevenLabs gets its own spelling of the reply's audio tags, and
+        // browser speech none, since it would read them aloud.
+        let text: string;
+        if (provider === "pocket_tts") {
+          text = chunk.text.trim();
+        } else if (provider === "elevenlabs") {
+          elevenLabsSpeechTextRef.current ??=
+            createProviderSpeechText("elevenlabs");
+          text = elevenLabsSpeechTextRef.current(dropEmoji(chunk.text));
+        } else if (provider === "browser") {
+          text = stripAudioTags(dropEmoji(chunk.text));
+        } else {
+          text = dropEmoji(chunk.text).trim();
+        }
         if (!text) continue;
         // A chunk of only tags or emoji has nothing for Pocket to say; dropping
         // it here keeps the stream's end on the last chunk Pocket speaks.
@@ -1113,6 +1160,15 @@ export function useTtsPlayback(
       if (!speechContext?.animaId) {
         warnOnceForRun(runId, "elevenlabs_missing_persona");
         return;
+      }
+      // The reply's tone leads its first chunk, so ElevenLabs starts in it.
+      const toneTag = pendingSpeechToneTagRef.current;
+      if (toneTag) {
+        pendingSpeechToneTagRef.current = null;
+        prepared[0] = {
+          ...prepared[0]!,
+          text: `${toneTag} ${prepared[0]!.text}`,
+        };
       }
       recordPreparedChunksForAvatar(runId, "elevenlabs", prepared);
       for (const chunk of prepared) {
@@ -1332,7 +1388,11 @@ export function useTtsPlayback(
   );
 
   const appendToken = useCallback(
-    (runId: string, token: string) => {
+    (
+      runId: string,
+      token: string,
+      options?: { speechToneTag?: string | null },
+    ) => {
       if (!runId || !token) return;
       if (runIdRef.current !== runId) {
         startRun(runId);
@@ -1342,6 +1402,12 @@ export function useTtsPlayback(
       const provider = resolveActiveProvider(runId);
       if (!provider) return;
 
+      if (
+        ttsChunkIndexRef.current === 0 &&
+        isSingleSquareTag(options?.speechToneTag)
+      ) {
+        pendingSpeechToneTagRef.current = options.speechToneTag;
+      }
       bufferRef.current += token;
       runSpeechTextRef.current += token;
       if (isFinalizedServerProvider(provider)) {
@@ -1349,7 +1415,7 @@ export function useTtsPlayback(
         onSpeechText?.({
           runId,
           provider,
-          text: runSpeechTextRef.current,
+          text: finalizedServerSpeechText(runSpeechTextRef.current),
           final: false,
         });
       }
@@ -1415,7 +1481,7 @@ export function useTtsPlayback(
                     text: finalChunk,
                     boundaryType: "final" as const,
                     isExclamation: isExclamationTtsChunk(finalChunk),
-                    wordCount: countTtsChunkWords(finalChunk),
+                    wordCount: countTtsChunkWords(stripAudioTags(finalChunk)),
                   },
                 ]
               : [];
@@ -1470,7 +1536,7 @@ export function useTtsPlayback(
         runId,
         provider,
         text: isFinalizedServerProvider(provider)
-          ? runSpeechTextRef.current
+          ? finalizedServerSpeechText(runSpeechTextRef.current)
           : plannedTextRef.current,
         final: true,
       });
@@ -1593,6 +1659,7 @@ export function useTtsPlayback(
       // Text already sent to ElevenLabs was never spoken; Pocket starts over.
       bufferRef.current = runSpeechTextRef.current;
       plannedTextRef.current = "";
+      pendingSpeechToneTagRef.current = null;
       logger.info("Run", "Speaking with PocketTTS after declined speech", {
         runId,
         runCompleted: runCompletedRef.current,

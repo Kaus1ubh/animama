@@ -1,3 +1,4 @@
+import { hideSpeechTags } from "../lib/chat/audio-tags";
 import { describeChatFailure } from "./chat-failure";
 import { useProductTranslation } from "../i18n/product-translation";
 import type { Dispatch, SetStateAction } from "react";
@@ -45,6 +46,7 @@ import { isSpeechAllowanceExhausted } from "../lib/chat/speech-allowance";
 import {
   createStructuredResponseStreamState,
   getStructuredAssistantTexts,
+  replyBubbleTexts,
   reduceStructuredResponseStream,
   selectStructuredSpeechTtsPayload,
   type StructuredSpeechTtsPayload,
@@ -645,6 +647,12 @@ export function useProductChatSession({
   // ---------------------------------------------------------------------------
   // Derived message list rendered by ChatInterface.
   // ---------------------------------------------------------------------------
+  // Speech bubbles hide audio tags. Segments are whole sentences, so a tag
+  // never spans two of them.
+  const visibleStreamingSegments = useMemo(
+    () => streamingSegments.map(hideSpeechTags).filter(Boolean),
+    [streamingSegments],
+  );
   const displayMessages = useMemo(() => {
     const base = mapServerMessagesForDisplay(serverMessages);
     // Keep failed local turns beside their original place after later successful
@@ -655,20 +663,28 @@ export function useProductChatSession({
     );
     sortDisplayMessagesByCreatedAt(combined);
     if (streamingRunId) {
-      const streamed: ChatMessage[] = [
-        {
+      const visibleText = hideSpeechTags(streamingText);
+      const displayText = streamingDisplayText.trim();
+      const streamed: ChatMessage[] = [];
+      // Speech of only tags shows no bubble once the display has started.
+      if (visibleText || !displayText) {
+        streamed.push({
           id: chatRunMessageId(streamingRunId, "assistant"),
           role: "assistant",
-          text: streamingText,
-          isPending: !streamingText,
+          text: visibleText,
+          isPending: !visibleText,
           pendingStatus: streamingStatus ?? undefined,
           animateOnEnter: true,
-          animateTextEffect: Boolean(streamingText),
-          streamingSegments,
-        },
-      ];
-      const displayText = streamingDisplayText.trim();
-      if (displayText && displayText !== streamingText.trim()) {
+          animateTextEffect: Boolean(visibleText),
+          streamingSegments: visibleStreamingSegments,
+        });
+      }
+      // As in replyBubbleTexts: the display shows unless it repeats the speech.
+      if (
+        displayText &&
+        displayText !== visibleText.trim() &&
+        displayText !== streamingText.trim()
+      ) {
         streamed.push({
           id: chatRunMessageId(streamingRunId, "assistant", 1),
           role: "assistant",
@@ -677,9 +693,10 @@ export function useProductChatSession({
           animateTextEffect: true,
         });
       }
-      // Like a persisted reply, the cue sits on the run's last bubble.
-      const last = streamed[streamed.length - 1];
-      if (streamingMemoryCue && !last.isPending) {
+      // Like a persisted reply, the cue sits on the run's last bubble. A reply of
+      // only tags can have none yet.
+      const last = streamed.at(-1);
+      if (last && streamingMemoryCue && !last.isPending) {
         streamed[streamed.length - 1] = {
           ...last,
           memoryCue: streamingMemoryCue,
@@ -697,6 +714,7 @@ export function useProductChatSession({
     streamingSegments,
     streamingStatus,
     streamingText,
+    visibleStreamingSegments,
   ]);
 
   useEffect(() => {
@@ -790,14 +808,10 @@ export function useProductChatSession({
       // Snapshot partial output before clearing streaming refs. Failure notices
       // are session-local evidence, never optimistic claims of persisted history.
       const showFailure = (error: unknown) => {
-        const speechText = streamingSegmentsRef.current.join("");
-        const displayText = streamingDisplayTextRef.current;
-        const partialText = [
-          speechText,
-          displayText === speechText ? "" : displayText,
-        ]
-          .filter(Boolean)
-          .join("\n\n");
+        const partialText = replyBubbleTexts(
+          streamingSegmentsRef.current.join(""),
+          streamingDisplayTextRef.current,
+        ).join("\n\n");
         const failure = describeChatFailure(error, trimmed, partialText);
         setLocalMessages((messages) => {
           const id = chatRunMessageId(runId, "user");
@@ -1006,6 +1020,7 @@ export function useProductChatSession({
         const appendStructuredSpeechTts = (
           completedRunId: string,
           payload: StructuredSpeechTtsPayload | null,
+          speechToneTag?: string | null,
         ) => {
           if (
             !payload ||
@@ -1015,7 +1030,7 @@ export function useProductChatSession({
           ) {
             return;
           }
-          appendTtsToken(completedRunId, payload.text);
+          appendTtsToken(completedRunId, payload.text, { speechToneTag });
           structuredTtsAppended = true;
         };
         /**
@@ -1151,7 +1166,11 @@ export function useProductChatSession({
                 isDelta: isDeltaSpeech,
                 structuredTtsAppended,
               });
-              appendStructuredSpeechTts(data.run_id ?? runId, ttsPayload);
+              appendStructuredSpeechTts(
+                data.run_id ?? runId,
+                ttsPayload,
+                data.speech_tone_tag,
+              );
               // A final marker can be an empty delta, so completion depends on
               // partFinal rather than token truthiness.
               if (structuredUpdate.partFinal || !isDeltaSpeech) {
@@ -1315,9 +1334,9 @@ export function useProductChatSession({
               chatId: data.chat_id ?? resolvedChatId,
               runId: completedRunId,
             });
-            let assistantTexts = [streamingSegmentsRef.current.join("").trim()]
-              .map((value) => value.trim())
-              .filter(Boolean);
+            let assistantTexts = [
+              hideSpeechTags(streamingSegmentsRef.current.join("").trim()),
+            ].filter(Boolean);
             if (voiceStructuredResponseSeen) {
               // Structured completion writes speech plus an optional distinct
               // display message. Equal display text is suppressed by the helper.
@@ -1389,7 +1408,14 @@ export function useProductChatSession({
               requestNonTtsAvatarCompletion: !ttsEnabled,
               refreshChatListsOnComplete: !isNewChat || receivedChatTitle,
             };
-            if (assistantTexts.length) {
+            // Only visible streamed speech has an animation queue to drain;
+            // speech of only tags has none.
+            if (
+              assistantTexts.length &&
+              streamingSegmentsRef.current.some((segment) =>
+                hideSpeechTags(segment),
+              )
+            ) {
               setIsAwaitingStreamingAnimationFinalization(true);
               pendingStreamFinalizationRef.current = pendingFinalization;
             } else {

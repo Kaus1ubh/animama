@@ -16,10 +16,10 @@ the whole plan.
 
 Explicit gates:
 
-- **G1 — Paid live checks (proposed).**
+- **G1 — Paid live checks (US$0.50, owner, 2026-10-14).**
   - Agent-run live Gemini and ElevenLabs replies, used to confirm provider text
     and placement, stay within a budget the owner approves.
-  - Proposed budget: US$0.50.
+  - Budget: US$0.50, approved by the owner on 2026-10-14.
   - Record characters and estimated cost for each check.
 - **G2 — Owner listening gate, before merge.** The spec's listening criterion:
   - on Eleven v4 Turbo and on Gemini: a laugh, a sigh, a pause and a whisper;
@@ -216,7 +216,7 @@ Boundaries:
 - [x] ExecPlan drafted (2026-10-14).
 - [x] Owner requested implementation of Phases 1–5 (2026-10-14). Q1–Q3 proceed
       as proposed.
-- [ ] G1 budget approved (asked before the first paid live check).
+- [x] G1 budget approved: US$0.50 (owner, 2026-10-14).
 - [x] Spec published to #479 from `2337e064` and read back (2026-10-14T16:32:55Z); phase
       issues #538–#542 created as sub-issues.
 - [x] Phase 1 (#538): one tag grammar in both languages. Review #1 was blocked
@@ -225,10 +225,34 @@ Boundaries:
       findings, fixed), review #2 passed; one repair round remains.
 - [x] Phase 3 (#540): backend speech, tone and readers. Review #1 was blocked
       (2 reader findings, fixed), review #2 passed; one repair round remains.
-- [ ] Phase 4 (#541): browser speech and chat display.
+- [x] Phase 4 (#541): browser speech and chat display.
+  - Reviews #1–#3 used the full repair budget.
+  - The owner waived a further recheck for the final one-line guard (P4-R3-F1,
+    2026-10-14). The final integration review still covers it.
 - [ ] Phase 5 (#542): docs, dead prompt code, live checks, full validation and the G2 pack.
 - [ ] Final integration review.
 - [ ] G2 owner gate.
+
+## Resume here (paused again 2026-10-14, after the Phase 4 repairs)
+
+- **Workspace:**
+  - worktree `worktrees/animama/chat-model-voice-tags-b0f3d7`, branch
+    `feat/voice-audio-tags`;
+  - commits: `2337e064` (docs), `730b6a63` (p1), `dfbcbc46` (p2), `be9e4e43`
+    (p3);
+  - nothing is pushed and no PR exists.
+  - No Compose stack is running.
+- **Phase 4:** implemented in the working tree and not committed. Its changed
+  files are listed under "Phase 4 implementation notes".
+- **Next steps:**
+  1. Done (resumed 2026-10-14): Phase 4's Code Review #1 is adjudicated and
+     repaired. Next is the targeted recheck.
+  2. Done: the idle `web:test` rerun passed (see "Phase 4 results"). Next is
+     Phase 4's Code Review #2, a targeted recheck.
+  3. Done: Phase 4 is committed.
+  4. Start Phase 5: docs, dead prompt code, the Cloud draft, the G1 live
+     checks (US$0.50 approved), full validation and the G2 pack.
+  5. Final integration review, push and PR.
 
 ## Surprises & Discoveries
 
@@ -1017,15 +1041,210 @@ Starting point: the Phase 3 commit.
 
 #### Phase 4 results
 
-Pending.
+Source: the working tree on `be9e4e43`. The changes are uncommitted.
+
+- **Frontend checks:**
+  - `pnpm --dir src/frontend check`, `web:lint` and `packages:check`: pass.
+  - Prettier on the changed files: clean.
+  - `packages:test`: pass, including the new tagged-reply lifecycle test.
+  - `pnpm build`: pass.
+- **Lip-sync:** `node scripts/lipsync.mjs eval`: quality identical to Phase 1
+  (CPU column aside).
+- **`pnpm --dir src/frontend web:test`:** in both full runs, 4,822 vitest tests
+  passed and `src/i18n/LocaleSync.test.tsx` ("re-renders mounted text when the
+  saved locale needs a catalog load") failed. Because vitest failed, the
+  browser-script tests did not run. That test:
+  - passes 3/3 alone;
+  - waits a fixed ~200 ms for a catalog chunk;
+  - passed in both of Phase 1's full runs;
+  - is in code this branch does not touch.
+
+  The second run overlapped a review agent's test runs. **Open:** rerun
+  `web:test` on an idle machine. If it still fails, compare against `be9e4e43`
+  before calling it a flake.
+- **Idle rerun, after the review repairs:** `pnpm --dir src/frontend web:test`
+  passed: 523 vitest files (4,829 passed, 1 skipped) and all 221 node and
+  browser-script tests, LocaleSync included. The earlier failures were
+  load-related.
 
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full initial review of the uncommitted working tree
+on `be9e4e43`. Result: **blocked**, on two required findings.
+
+- **P4-R1-F1 (required).** A reloaded reply whose speech is only tags, with no
+  display, shows the raw tags.
+  - Cause: `structuredAssistantTexts` returns `[]`, so `mapServerMessagesForDisplay`
+    falls back to `content`, which the history API sets to the speech.
+  - Location: `display-message-mapping.ts:74-81, 106-130`.
+  - Fix: fall back to `content` only for rows that are not structured, and add
+    a test for display null.
+- **P4-R1-F2 (required, rare).** Tag-only speech that is still streaming shows
+  a loader bubble.
+  - With Markdown off and a display part, the turn never finalises: no
+    plain-text animation completes. The completion rows never reach the cache,
+    and the display bubble disappears on the next submit.
+  - Fix: drop the speech bubble once its hidden text is empty and it is final
+    or display has started. Wait for the plain-text queue only when a visible
+    speech segment exists.
+- **P4-R1-F3 (optional).** An idle flush whose buffer starts with an open tag
+  (opener at index 0) still cuts the tag. It affects raw token streams only:
+  0 of 5,000 sentence-delivered replies were affected. Fix: return no idle
+  chunk in that case.
+- **P4-R1-F4 (optional).** The final flush splits a trailing unclosed `[` or
+  `<` into its own chunk. It could be skipped when the input fits one chunk.
+- **P4-R1-F5 (optional).** The failure notice compares display with the hidden
+  speech; the other paths compare with the raw speech. Choose one rule; the
+  visible speech avoids duplicate bubbles.
+- **P4-R1-F6 (optional tests).** Missing tests:
+  - the failure notice with tags;
+  - reload of tag-only speech without display;
+  - an idle flush with the opener at index 0.
+- **P4-R1-F7 (optional hardening).** Check that `speech_tone_tag` is a string
+  that is exactly one tag before prefixing it.
+- **Notes:**
+  - Chunk `wordCount` includes tag words (pre-existing).
+  - `streamingSegments.map(...).filter(...)` creates a new array on every
+    recompute, defeating a memo.
+  - `docs/frontend/runtime/elevenlabs-tts.md:105` is stale (Phase 5).
+
+Confirmed correct:
+
+- the ElevenLabs cap across chunk kinds;
+- the tone tag's consumption and resets;
+- browser speech, Pocket and Gemini text;
+- the debug count;
+- chunker termination (a 20,000-stream fuzz);
+- the additive `appendTtsToken` API;
+- the dependency-free entry and package boundaries.
 
 #### Code Review #1 Revisions
 
-Pending.
+Adjudicated after the owner resumed the work (2026-10-14).
+
+- **F1: accepted.**
+  - `structuredAssistantTexts` returns `null` only for rows that are not
+    structured, or whose structured speech and display are both empty. Only
+    those fall back to `content`.
+  - A tag-only speech now shows no bubble after a reload.
+  - New test: reloaded speech of only tags, with display null.
+- **F2: accepted.**
+  - The live speech bubble is dropped when its hidden text is empty and the
+    display has started.
+  - Completion waits for the animation queue only when a visible streamed
+    speech segment exists; otherwise the turn finalises at once.
+  - New lifecycle test: Markdown off, `[laughs]` speech plus a display. The turn
+    completes, with no loader and no `[laughs]`. The consumer fixture gained a
+    `markdown` option.
+- **F3: accepted.** An idle flush whose buffer starts with a tag still being
+  written returns no chunk. Test added.
+- **F4: accepted.** A final piece that fits one chunk is sent whole, with no
+  back-off. Test added.
+- **F5: accepted.**
+  - One shared `replyBubbleTexts(speech, display)` (in
+    `structured-response-stream.ts`) builds the bubbles for completion, reload
+    and the failure notice.
+  - The live bubble applies the same rule: display is compared with the visible
+    speech.
+  - Test added.
+- **F6: accepted.** Added tests for the reload case and for an idle flush that
+  opens with a tag, and a lifecycle test for a failed reply's tagged partial
+  text. Quick chat reuses `displayMessages`, so it is covered by the same data.
+- **F7: accepted.** `appendToken` accepts `speechToneTag` only when it is
+  exactly one well-formed square tag. Test added.
+- **Word-count note: accepted.** Chunk `wordCount` counts words without tags,
+  so talking-hands ranges match lip-sync. Test added.
+- **Memo note: accepted.** The visible streaming segments are memoised.
+
+Verification after repairs:
+
+- `packages:build`, then vitest (`src/lib/chat`, `src/lib/speech`,
+  `use-tts-playback`, `src/ui/debug`, `tests/speech`): 46 files, 502 tests
+  passed.
+- product-ui `pnpm run test`: 43 passed.
+- `pnpm --dir src/frontend check`, `web:lint` and `packages:check`: pass.
+- Prettier on the changed files: clean.
+
+Repair budget: round #1 used; one round remains.
+
+#### Code Review #2 Findings
+
+Reviewer: `sdlc-reviewer`, a targeted recheck. Result: **blocked**, on one
+regression.
+
+- **P4-R2-F1 (required, a regression from the F5 revision).** A display that
+  copies the speech word for word, tags included, was no longer deduplicated,
+  so the reply showed twice and the copy kept its raw tags.
+- **Notes:**
+  - a JSDoc comment was stranded in `use-tts-playback.ts`;
+  - `completeRun`'s single final chunk still counted tag words;
+  - an idle timer re-arms harmlessly while an open tag sits at index 0;
+  - the lifecycle test's `[role="status"]` assertion could not see the plain
+    loader.
+- **Confirmed:** F1–F4, F6, F7, the word count in the chunker and the memo
+  (fuzz runs: 0 splits in 5,000 token streams with idle flushes, and 20,000
+  streams terminated).
+
+#### Code Review #2 Revisions
+
+- **P4-R2-F1: accepted.** `replyBubbleTexts` hides a display that equals either
+  the raw or the visible speech; the live bubble applies the same rule. Test
+  added.
+- **Notes:**
+  - JSDoc: fixed.
+  - The final-chunk word count now strips tags.
+  - The idle re-arm: no change, as it is harmless.
+  - The lifecycle assertion that could not see the loader: removed. The
+    `#finalizing` check covers the hang.
+
+Verification:
+
+- `packages:build`, then vitest (chat, speech, playback, quick chat, debug, tag
+  cases): 47 files, 505 tests passed.
+- product-ui tests: 43 passed.
+- `pnpm --dir src/frontend check`, `packages:check` and `web:lint`: pass.
+
+Repair budget: both repair rounds are now used. Review #3 is the final targeted
+recheck.
+
+#### Code Review #3 Findings
+
+Reviewer: `sdlc-reviewer`, the final targeted recheck. Result: **blocked**.
+
+- **P4-R2-F1:** fixed and confirmed.
+- **The note fixes:** confirmed.
+- **P4-R3-F1 (required, a regression from the round 2 fix).**
+  - Trigger: speech of only tags (`[laughs]`) together with a display that
+    copies it.
+  - Both live bubbles are dropped (`useProductChatSession.ts:670, 682-686`), so
+    the streamed list is empty.
+  - A `memory.updated` cue arriving mid-stream then reads `last.isPending` on
+    `undefined` (`:692-693`) and crashes the chat render.
+  - It needs the model to break two prompt rules, plus a memory update in the
+    same turn.
+  - Implementer verification: confirmed by reading the code.
+  - Fix: guard `last`, and push the run only when `streamed` is non-empty.
+
+The repair budget is exhausted, so the phase stops: **escalated to the owner**
+(2026-10-14).
+
+#### Owner decision on P4-R3-F1 (2026-10-14)
+
+The owner chose "fix, no extra recheck": the waiver covers this one change, and
+the final integration review still covers it.
+
+- **Fix:** `const last = streamed.at(-1); if (last && streamingMemoryCue &&
+  !last.isPending)`.
+- **New lifecycle test:** a memory cue during a reply that shows no bubble does
+  not break the chat. It records no page errors and the turn finalises.
+- **Red check:** without the guard the test fails (0 passed, 1 failed); with it,
+  it passes.
+- **Verification:**
+  - product-ui tests: 44 passed;
+  - `pnpm --dir src/frontend check`, `packages:check` and `web:lint`: pass;
+  - vitest (chat, speech, playback, quick chat, debug, tag cases): 47 files,
+    505 tests passed;
+  - Prettier: clean.
 
 ### Phase 5: docs, dead prompt code, live checks, full validation and the G2 pack
 
