@@ -228,6 +228,32 @@ describe("avatar lip-sync bridge store", () => {
     ).toBeCloseTo(0.8);
   });
 
+  it("keeps talking hands' beats and window on the playback clock after an underrun", () => {
+    fakeAvatar();
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.applyPlannerResponse(
+      RUN,
+      plan({
+        frameCount: 61,
+        gestures: {
+          words: [{ wordIndex: 0, startSec: 0.6, endSec: 0.9 }],
+          beats: [{ timeSec: 0.7, wordIndex: 0, unitIndex: 1, strength: 1 }],
+          phrases: [{ startSec: 0.6, endSec: 0.9, firstWord: 0, lastWord: 0 }],
+        },
+      }),
+    );
+    startPlayback({ currentTime: 10.1 });
+    store.markSpeechAudioDurationResolved({ runId: RUN, audioDurationSec: 1 });
+
+    // Run second 0.5 resumed at context 10.8: 0.3 s of silence.
+    store.markPlaybackResumed({ runId: RUN, runSec: 0.5, contextSec: 10.8 });
+
+    const context = store.getSpeechTimingContext(RUN)!;
+    expect(context.durationSec).toBeCloseTo(1.3);
+    expect(context.gestureTimeline?.utteranceDurationSec).toBeCloseTo(1.3);
+    expect(context.gestureTimeline?.beats[0]?.timeSec).toBeCloseTo(1);
+  });
+
   it("shows a tag's expression while it sounds, then clears it", () => {
     const { overlays } = fakeAvatar();
     const store = useAvatarLipSyncBridgeStore.getState();

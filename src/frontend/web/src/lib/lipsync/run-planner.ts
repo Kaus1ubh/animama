@@ -47,7 +47,6 @@ export type RunPlanUpdate = {
 
 export type LipSyncRunPlannerOptions = {
   sampleRate: number;
-  hanLanguage?: "ja" | "zh";
   onUpdate: (update: RunPlanUpdate) => void;
 };
 
@@ -102,9 +101,11 @@ export function createLipSyncRunPlanner(
   options: LipSyncRunPlannerOptions,
 ): LipSyncRunPlanner {
   const extractor = createSpeechFeatureExtractor(options.sampleRate);
+  /** The reply's text so far, kept for its language when parts bring the text. */
+  let replyText = "";
   let planner = createLipSyncPlanner({
     text: "",
-    hanLanguage: options.hanLanguage,
+    languageContext: () => replyText,
   });
   /** The planning error that switched the run to the audio alone. */
   let failure: string | null = null;
@@ -154,7 +155,9 @@ export function createLipSyncRunPlanner(
 
   return {
     setText: (next, final) => {
-      if (done || inParts) return;
+      if (done) return;
+      replyText = next;
+      if (inParts) return;
       text = next;
       textFinal = final;
       if (failure === null) {

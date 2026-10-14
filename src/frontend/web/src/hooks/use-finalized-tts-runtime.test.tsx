@@ -49,14 +49,16 @@ let root: Root | null = null;
 const latest = {
   current: null as ReturnType<typeof useFinalizedTtsRuntime> | null,
 };
+const onAudioDurationResolved = vi.fn();
 
 function Harness() {
-  latest.current = useFinalizedTtsRuntime({});
+  latest.current = useFinalizedTtsRuntime({ onAudioDurationResolved });
   return null;
 }
 
 describe("useFinalizedTtsRuntime", () => {
   beforeEach(() => {
+    onAudioDurationResolved.mockClear();
     vi.stubGlobal("AudioContext", FakeAudioContext);
     act(() => {
       root = createRoot(document.createElement("div"));
@@ -106,5 +108,12 @@ describe("useFinalizedTtsRuntime", () => {
       { sec: 0.2, partText: "How are you?", provider: "gemini" },
       { sec: 0.2, partText: undefined, provider: "gemini" },
     ]);
+
+    // The reported length is the run clock's, gap included.
+    await act(async () => latest.current!.finishPushedStream("run-1"));
+    expect(onAudioDurationResolved).toHaveBeenCalledWith({
+      runId: "run-1",
+      audioDurationSec: expect.closeTo(0.84, 3),
+    });
   });
 });

@@ -67,7 +67,6 @@ function handle(message: LipSyncWorkerRequest): void {
       message.runId,
       createLipSyncRunPlanner({
         sampleRate: message.sampleRate,
-        hanLanguage: message.hanLanguage,
         onUpdate: postPlan(message.runId),
       }),
     );
@@ -78,7 +77,6 @@ function handle(message: LipSyncWorkerRequest): void {
     estimateRuns.set(
       message.runId,
       createEstimateRunPlanner({
-        hanLanguage: message.hanLanguage,
         onUpdate: postPlan(message.runId),
       }),
     );

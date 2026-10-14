@@ -23,7 +23,7 @@
         "index.html",
         "src/main.local.tsx",
         "src/routes/**/*.{ts,tsx}",
-        "src/workers/{content-hash,viseme,client-parakeet,smart-turn}-worker.ts",
+        "src/workers/{content-hash,lipsync,client-parakeet,smart-turn}-worker.ts",
         "src/lib/recharts/es-toolkit-compat/*.js",
         "public/tts/workers/inference-worker.js",
         "public/tts/audio/pcm-processor.worklet.js",

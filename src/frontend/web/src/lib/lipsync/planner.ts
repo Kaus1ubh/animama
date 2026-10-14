@@ -58,8 +58,12 @@ const LOOKAHEAD_EXTRA_FRAMES = 50;
 export type LipSyncPlannerOptions = {
   /** The text sent to the voice, tags included. */
   text: string;
-  /** How Han characters read; detected from `text` when omitted. */
-  hanLanguage?: "ja" | "zh";
+  /**
+   * More of the reply's text than the planner has been given, such as the
+   * sentences of parts not yet spoken. Han characters read as Japanese when it
+   * or the text has kana, so a part like "了解！" is not read as Chinese.
+   */
+  languageContext?: () => string;
   /** Re-align only the newest audio (default) or everything on every call. */
   windowed?: boolean;
 };
@@ -114,7 +118,9 @@ export function createLipSyncPlanner(
   let text = options.text;
   const toUnits = (value: string) =>
     textToUnits(value, {
-      hanLanguage: options.hanLanguage ?? detectHanLanguage(value),
+      hanLanguage: detectHanLanguage(
+        `${options.languageContext?.() ?? ""} ${value}`,
+      ),
     });
   let units = toUnits(text);
   let textUnits = new Set(units);

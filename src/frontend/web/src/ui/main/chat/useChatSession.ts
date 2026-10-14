@@ -34,9 +34,10 @@ export {
   type PendingModelSwitch,
 } from "@animama/product-ui/chat";
 
-/** Providers whose played audio the lip-sync planner aligns the reply's text to. */
-// Every provider plans lip-sync: from the played audio, or (browser speech)
-// from the text on the performance clock.
+/**
+ * Providers whose replies the lip-sync planner plans: from the played audio,
+ * or (browser speech) from the text on the performance clock.
+ */
 const VISEME_SYNC_PROVIDERS = new Set([
   "pocket_tts",
   "elevenlabs",

@@ -65,7 +65,6 @@ function fitUtterance(utterance: Utterance, endSec: number): AlignedUnit[] {
 }
 
 export function createEstimateRunPlanner(options: {
-  hanLanguage?: "ja" | "zh";
   onUpdate: (update: RunPlanUpdate) => void;
 }): EstimateRunPlanner {
   const utterances: Utterance[] = [];
@@ -133,7 +132,7 @@ export function createEstimateRunPlanner(options: {
       replyText += `${text} `;
       utterances.push({
         units: textToUnits(text, {
-          hanLanguage: options.hanLanguage ?? detectHanLanguage(replyText),
+          hanLanguage: detectHanLanguage(replyText),
         }),
         startSec: sec,
         endSec: null,

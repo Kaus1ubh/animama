@@ -16,8 +16,9 @@ research brief and the spec.
 After this plan, the avatar's mouth follows the speech audio itself, in Japanese,
 Korean, Chinese and English, for every speech provider. Laughs, sighs, gasps,
 pauses and whispers show as themselves, not as words. ElevenLabs character timing
-sharpens the alignment, an optional phone model sharpens vowels, talking hands
-beat in every language, and gruut is gone from the product. The spec owns the
+sharpens the alignment, talking hands beat in every language, and gruut is gone
+from the product. (The optional phone model planned to sharpen vowels was
+deferred with #518 on 2026-10-13; see the Decision Log.) The spec owns the
 required behavior (R1–R13) and acceptance; this plan owns how to deliver and
 verify it.
 
@@ -75,7 +76,7 @@ prototypes.
 
 - Frontend code lives under `src/frontend/web` (new lip-sync modules in
   `src/frontend/web/src/lib/lipsync/`). Backend changes are removals, plus the
-  Model asset entry.
+  Model asset entry (deferred with #518).
 - Docs under `docs/frontend` and `docs/backend`; contract text in
   `contracts/hosted-web.md`.
 - Cloud is out of scope. A linked Cloud issue records the removed fields (Phase 7).
@@ -107,7 +108,8 @@ prototypes.
 - [ ] Phase 7 (#519): gruut removed (R12 providers, R13). Gate G3. Implemented,
   checked and reviewed (pass after two repair rounds); waiting for the owner's G3
   listening check.
-- [ ] Final integration review.
+- [ ] Final integration review: review #1 and repair round 1 done; the targeted
+  recheck is next. The owner gates listed there stay open.
 - [ ] Owner acceptance and merge approval.
 
 ## Surprises & Discoveries
@@ -2079,6 +2081,82 @@ still-valid phase evidence and reruns the evaluation command, the full local che
 set and `pnpm e2e:test:fast`. Findings and revisions are recorded here, within one
 review and at most two repair rounds.
 
+### Final Integration Review #1 Findings
+
+Independent reviewer, whole branch (Phases 1–5 and 7) on `5430dd2f` against the
+merge base `4ea60543`; Phase 6 is deferred with #518 and was not reviewed:
+
+- **FI-F1 (required):** Gemini's reported audio length left out the silence
+  tapped for late chunks, so the talking-hands window ended early by the gaps'
+  length.
+- **FI-F2 (required, record):** two owner decisions were open but not listed as
+  gates: R11's agreement reading (weak vowels as one class, 91.7%; shapes as
+  shown, 85.6%) and the held-out disposition (ElevenLabs correlation 0.29–0.32
+  against 0.42–0.46; tags untestable at two per set).
+- **FI-F3 (required, record):** the plan still described the phone model as
+  delivered (purpose, boundaries, evidence map, recovery), and Outcomes was
+  empty.
+- **FI-F4 (required, evidence):** tag overlays were never seen on an avatar;
+  Gemini English, ElevenLabs Korean and Chinese, a laugh tag and
+  picture-in-picture hands were not run live after the change.
+- **FI-F5 (required):** P5-F13 had no disposition: after an underrun, the
+  gesture timeline's length and the resolved length were not shifted past the
+  gap.
+- **FI-F6 (optional):** the talking-hands chunk path (`queueTtsChunksForRun`,
+  `speechChunksByRun`, the duration-matching branch) no longer affects hands.
+- **FI-F7 (optional):** the Han reading option was never set, so a kanji-only
+  Gemini part of a Japanese reply ("了解！") was read as Chinese.
+- **FI-F8 (optional):** the PCM worklet's licence hash was stale and its
+  modifications text omitted the played-sample reporting.
+- **Nits:** `knip.json` listed the deleted viseme worker; a JSDoc said "played
+  audio" for a set that includes browser speech; `primaryStressCount` held the
+  beat count; ADR 0024's consequences still said lip-sync waits for #468;
+  browser speech keeps tags (#479); a debug plan's promise never settles if the
+  worker is terminated mid-plan.
+
+The agent's own live check (ElevenLabs English, after Phase 7) also found the
+decimal split fixed in `939fb9d4` (Phase 7 Results).
+
+### Final Integration Review #1 Revisions
+
+- **FI-F1 accepted:** the Gemini runtime counts the tapped gap silence in the
+  reported length; its test asserts the length with a gap.
+- **FI-F2 accepted:** both are listed as open owner gates below and in the PR;
+  no disposition is assumed.
+- **FI-F3 accepted:** purpose, boundaries, the evidence map and recovery mark the
+  phone model deferred with #518; Outcomes is filled.
+- **FI-F4 accepted as an owner gate:** the agent's live attempt after the fixes
+  could not play audio (the browser pane was hidden, so the page drew no frames
+  and had no user activation). The live session is listed below.
+- **FI-F5 accepted:** the bridge keeps each run's gesture timing and rebuilds the
+  timeline when playback resumes after an underrun; the timeline's length and the
+  resolved length are mapped through the gaps like the beats. A test covers the
+  hands' window after an underrun; `avatar-lipsync.md` §4 says so.
+- **FI-F6 deferred:** removing the chunk path touches the talking-hands layer
+  beyond this plan; a follow-up task is offered.
+- **FI-F7 accepted:** the run planner keeps the reply's text as language context
+  for its parts, so Han characters read as Japanese when the reply has kana; the
+  unused `hanLanguage` option is removed from the worker protocol, client and
+  planners. A test covers a kanji-only part.
+- **FI-F8 accepted:** the worklet's hash and modifications text are updated.
+- **Nits:** `knip.json` lists the lip-sync worker; the JSDoc is corrected;
+  `primaryStressCount` is `beatCount`; ADR 0024's consequence is corrected in
+  place. Browser speech tags stay with #479. The debug promise is left: it
+  affects only the debug view during a session reset.
+
+**Owner gates still open** (for the PR):
+
+1. **G3:** listen to the numbers-and-symbols line on Pocket, Gemini and
+   ElevenLabs (clips provided; or in the app).
+2. **Live session** on the desktop app (`desktop:dev`, debug panel on): a reply
+   with a laugh tag on ElevenLabs (the laugh's expression shows), Gemini
+   English, ElevenLabs Korean or Chinese, picture-in-picture talking hands, and
+   the Electron CPU reading in the Lip-sync view on a reply of 60 s or more.
+3. **R11 reading:** accept the weak-vowel class reading (91.7%) or ask for more
+   dictionary work.
+4. **Held-out disposition:** accept the held-out correlation gap and the
+   untestable tag counts, or ask for more clips.
+
 ## Validation and acceptance
 
 The spec's acceptance criteria are the contract. Evidence map:
@@ -2086,14 +2164,14 @@ The spec's acceptance criteria are the contract. Evidence map:
 | Criterion | Evidence |
 | --- | --- |
 | Default tier, ElevenLabs with timing, held-out clips | `lipsync:eval` output and the threshold test (Phases 4–5) |
-| Phone model thresholds | Pack threshold test (Phase 6) |
+| Phone model thresholds | Deferred with #518 |
 | English without gruut | Agreement test (Phase 3); evaluation English scores (Phase 7) |
 | Numbers and symbols | Speller tests and Parakeet transcript (Phase 2); G3 |
 | gruut gone | Check commands and grep (Phase 7); runtime size |
-| CPU | Node indicator (Phase 4); Electron reading in the Lip-sync view (Phases 5–6) |
+| CPU | Node indicator (Phase 4); Electron reading in the Lip-sync view (Phase 5; owner gate); the phone model's CPU is deferred with #518 |
 | End to end | Live stack replies and captures (Phases 5 and 7) |
 | Talking hands, picture-in-picture | Live check (Phase 5) |
-| Model asset | Tests (Phase 6); G4 |
+| Model asset | Deferred with #518 |
 | Owner comparison | G1 |
 
 Local commands, from the repository root unless noted:
@@ -2129,17 +2207,37 @@ check as passed.
   are recorded as fixtures (Phase 3) and the baseline numbers are recorded (Phase
   1). If G1 fails, iterate within the review budget or return to the owner; gruut
   stays until then.
-- **Model assets** install atomically and cannot be removed while leased. A failed
-  or missing model never blocks speech.
+- **Model assets** (deferred with #518) install atomically and cannot be removed
+  while leased. A failed or missing model never blocks speech.
 - **Stacks:** use the named stack `lipsync` and tear it down after each phase's last
   use (`docker compose -p animama-lipsync down`, or `reset.sh` cleanup). Never touch
   other tasks' stacks.
 - **Decisions that stop progress and go to the owner:**
   - the D5 budget cannot be met (Phase 3);
   - Japanese misses its threshold (Phase 4);
-  - G2 publication is delayed (merge waits);
+  - G2 publication is delayed (merge waits; deferred with #518);
   - spend would pass US$0.50.
 
 ## Outcomes & Retrospective
 
-—
+**Delivered (PR #473):** Phases 1–5 and 7. Every reply's mouth is planned in a
+worker from the audio it plays and the text sent to the voice, in Japanese,
+Korean, Chinese and English, for Gemini, ElevenLabs (with its character timing),
+Pocket and browser speech. Tags show as themselves with brief expressions;
+talking hands beat on prominent syllables, in picture-in-picture too. gruut and
+its chat fields are gone; voices speak the reply as written without emoji, and
+Pocket gets the speller's text. The desktop runtime's frozen backend is 71 MiB
+smaller.
+
+**Deferred:** the optional phone model (#518): measured, built on a local branch,
+and set aside because no chunking met the vowel, tag and CPU targets together.
+
+**Lessons:**
+
+- Score every planner change offline first; the evaluation command caught most
+  regressions before any live check.
+- Removing a normalizer exposes what it hid: emoji and decimal points reached
+  the voices only once gruut was gone. Live checks with symbols and emoji belong
+  in the removal phase.
+- A hidden browser pane neither draws frames nor grants audio, so live avatar
+  checks need the pane shown or the owner's session.

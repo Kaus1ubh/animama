@@ -36,7 +36,7 @@ export type SpeechGestureTimeline = {
   /** Present when the planner knows the phrases (the audio-aligned planner). */
   phrases?: SpeechGesturePhrase[];
   features: {
-    primaryStressCount: number;
+    beatCount: number;
     wordCount: number;
   };
 };

@@ -33,6 +33,7 @@ type ActiveFinalizedRuntime = {
   audioContext: AudioContext | null;
   gainNode: GainNode | null;
   sources: Set<AudioBufferSourceNode>;
+  /** Samples on the run clock: the audio and any gap silence before a late chunk. */
   totalSamples: number;
   durationResolved: boolean;
   closed: boolean;
@@ -303,12 +304,16 @@ export function useFinalizedTtsRuntime(options: UseFinalizedTtsRuntimeOptions) {
           ? 0
           : Math.max(0, startTime - runtime.nextStartTime);
         // A part's text goes with its first audio, after any gap before it.
-        if (gapSec > 0) {
+        // The gap counts toward the reported length, so the run's duration
+        // stays on the same clock as its plan and talking hands.
+        const gapSamples = Math.round(gapSec * FINALIZED_SAMPLE_RATE);
+        if (gapSamples > 0) {
+          runtime.totalSamples += gapSamples;
           emitSpeechPcm({
             runId: runtime.runId,
             provider: "gemini",
             sampleRate: FINALIZED_SAMPLE_RATE,
-            pcm: new Float32Array(Math.round(gapSec * FINALIZED_SAMPLE_RATE)),
+            pcm: new Float32Array(gapSamples),
           });
         }
         emitSpeechPcm({

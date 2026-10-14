@@ -52,6 +52,22 @@ describe("createLipSyncPlanner", () => {
     expect(new Set(placed).size).toBe(placed.length);
   });
 
+  it("reads a kanji-only part as Japanese when the rest of the reply has kana", () => {
+    const hanKinds = (units: readonly LipSyncUnit[]) =>
+      units.filter((unit) => unit.kind !== "pause").map((unit) => unit.kind);
+    const reply = "了解！すぐ行きます。";
+    const inReply = createLipSyncPlanner({
+      text: "",
+      languageContext: () => reply,
+    });
+    inReply.setText("了解！");
+    // Japanese kanji without readings are unknown vowels; Chinese has pinyin.
+    expect(new Set(hanKinds(inReply.units))).toEqual(new Set(["unknown"]));
+    expect(
+      hanKinds(createLipSyncPlanner({ text: "了解！" }).units),
+    ).not.toContain("unknown");
+  });
+
   it("follows the audio alone when the text has nothing to say", () => {
     const clip = fixture("s-en");
     const plan = createLipSyncPlanner({ text: "!!! ***" }).plan({

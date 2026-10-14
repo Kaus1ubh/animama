@@ -183,6 +183,11 @@ const SPEECH_GESTURE_TIMELINE_DURATION_EPS_SEC = 0.05;
 const TAG_OVERLAY_OWNER = "lipsync-tags";
 /** Each run's full planned track (60 FPS vowel5), merged from worker updates. */
 const plannedTracks = new Map<string, Float32Array>();
+/** Each run's latest gesture timing on the run clock, to re-map after an underrun. */
+const plannedGestures = new Map<
+  string,
+  Parameters<typeof plannedGestureTimeline>[0]
+>();
 /** Whether the tag overlay is currently set, so clearing it is not repeated. */
 let tagOverlayShown = false;
 
@@ -258,17 +263,19 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
     };
 
     /**
-     * Rebuild a run's segment (and, with `gestures`, its timeline) from its
-     * planned track, and revise the live segment from run time `fromRunSec`
-     * on if playback has started.
+     * Rebuild a run's segment and gesture timeline from its planned track and
+     * gesture timing (`gestures` when new), and revise the live segment from
+     * run time `fromRunSec` on if playback has started.
      */
     const refreshPlannedRun = (
       runId: string,
       fromRunSec: number,
-      gestures?: Parameters<typeof plannedGestureTimeline>[0],
+      newGestures?: Parameters<typeof plannedGestureTimeline>[0],
     ) => {
       const track = plannedTracks.get(runId);
       if (!track) return;
+      if (newGestures) plannedGestures.set(runId, newGestures);
+      const gestures = plannedGestures.get(runId);
       const state = get();
       const gaps = gapsFor(state, runId);
       const segment = plannedSegment(runId, track, gaps);
@@ -599,9 +606,15 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
         if (!isFiniteNumber(elapsedSec)) return null;
 
         const nonNegativeElapsedSec = Math.max(0, elapsedSec);
-        const durationSec =
+        // The elapsed time is on the playback clock, so the run's length is
+        // too: underrun gaps play as silence before the audio after them.
+        const runDurationSec =
           state.speechAudioDurationsByRun[selectedRunId]?.audioDurationSec ??
           null;
+        const durationSec =
+          runDurationSec === null
+            ? null
+            : playbackTime(runDurationSec, gapsFor(state, selectedRunId));
         const gestureTimeline =
           state.speechGestureTimelinesByRun[selectedRunId] ?? null;
         // The planner's timeline grows with the audio and brings its phrases,
@@ -766,6 +779,7 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
         }
         cancelLipSyncRun(runId);
         plannedTracks.delete(runId);
+        plannedGestures.delete(runId);
         if (tagOverlayShown) {
           state.avatar?.expressionController?.clearExpressionOverlay(
             TAG_OVERLAY_OWNER,
@@ -810,6 +824,7 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
         }
         cancelAllLipSyncRuns();
         plannedTracks.clear();
+        plannedGestures.clear();
         if (tagOverlayShown) {
           state.avatar?.expressionController?.clearExpressionOverlay(
             TAG_OVERLAY_OWNER,

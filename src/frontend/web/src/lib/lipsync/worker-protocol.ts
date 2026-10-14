@@ -13,8 +13,6 @@ export type LipSyncWorkerRequest =
       type: "start";
       runId: string;
       sampleRate: number;
-      /** How Han characters read, from the whole reply when known. */
-      hanLanguage?: "ja" | "zh";
     }
   /** The text sent to the voice so far, tags included. */
   | { type: "text"; runId: string; text: string; final: boolean }
@@ -24,7 +22,7 @@ export type LipSyncWorkerRequest =
   | { type: "pcm"; runId: string; pcm: Float32Array | Int16Array }
   | { type: "timing"; runId: string; chars: TimedChar[] }
   | { type: "end_audio"; runId: string }
-  | { type: "start_estimate"; runId: string; hanLanguage?: "ja" | "zh" }
+  | { type: "start_estimate"; runId: string }
   /** Times are seconds on the run clock, from the first utterance's start. */
   | { type: "utterance_start"; runId: string; text: string; sec: number }
   | {

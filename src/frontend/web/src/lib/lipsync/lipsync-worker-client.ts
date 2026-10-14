@@ -94,16 +94,11 @@ export type LipSyncEstimateRunHandle = {
 /** Start planning a run from its utterances' text (browser speech). */
 export function startLipSyncEstimateRun(args: {
   runId: string;
-  hanLanguage?: "ja" | "zh";
   onResponse: RunListener;
 }): LipSyncEstimateRunHandle {
   const { runId } = args;
   const run = openRun(runId, args.onResponse);
-  run.send({
-    type: "start_estimate",
-    runId,
-    ...(args.hanLanguage ? { hanLanguage: args.hanLanguage } : {}),
-  });
+  run.send({ type: "start_estimate", runId });
   return {
     startUtterance: (text, sec) =>
       run.send({ type: "utterance_start", runId, text, sec }),
@@ -118,18 +113,12 @@ export function startLipSyncEstimateRun(args: {
 export function startLipSyncRun(args: {
   runId: string;
   sampleRate: number;
-  hanLanguage?: "ja" | "zh";
   onResponse: RunListener;
 }): LipSyncRunHandle {
   const { runId } = args;
   const run = openRun(runId, args.onResponse);
   const { send } = run;
-  send({
-    type: "start",
-    runId,
-    sampleRate: args.sampleRate,
-    ...(args.hanLanguage ? { hanLanguage: args.hanLanguage } : {}),
-  });
+  send({ type: "start", runId, sampleRate: args.sampleRate });
   return {
     setText: (text, final) => send({ type: "text", runId, text, final }),
     startPart: (text) => send({ type: "part", runId, text }),

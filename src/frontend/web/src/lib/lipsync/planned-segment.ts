@@ -152,17 +152,21 @@ export function plannedSegment(
   };
 }
 
-/** The talking-hands timeline for a plan's gesture timing. */
+/**
+ * The talking-hands timeline for a plan's gesture timing (run clock) and the
+ * run's length, on the playback clock: underrun gaps delay what follows them.
+ */
 export function plannedGestureTimeline(
   gestures: SpeechGestureTiming,
   durationSec: number,
   gaps: readonly PlaybackGap[] = [],
 ): SpeechGestureTimeline {
   const at = (sec: number) => playbackTime(sec, gaps);
+  const playbackDurationSec = at(durationSec);
   return {
-    utteranceDurationSec: durationSec,
-    durationSec,
-    durationMs: Math.round(durationSec * 1000),
+    utteranceDurationSec: playbackDurationSec,
+    durationSec: playbackDurationSec,
+    durationMs: Math.round(playbackDurationSec * 1000),
     wordTimings: gestures.words.map((word) => ({
       wordIndex: word.wordIndex,
       startSec: at(word.startSec),
@@ -179,7 +183,7 @@ export function plannedGestureTimeline(
       endSec: at(phrase.endSec),
     })),
     features: {
-      primaryStressCount: gestures.beats.length,
+      beatCount: gestures.beats.length,
       wordCount: gestures.words.length,
     },
   };
