@@ -196,6 +196,15 @@ The language an Anima replies, speaks and listens in. It is always the active
 language code; English leaves both to their defaults. English-only speech
 engines (Parakeet, Pocket TTS) show a warning under other locales.
 
+## Audio tag
+
+A short bracketed direction in a reply's `speech`, such as `[laughs]`,
+`<long pause>` or `[whispers]`, that the voice performs and never speaks as
+words. The chat model may write them only when the turn's voice is Gemini or
+ElevenLabs. Each voice receives its own spelling, and Pocket TTS, browser
+speech and chat bubbles receive none. Stored replies keep the tags as written.
+See [audio tags](docs/backend/integrations/voice-and-speech.md#audio-tags).
+
 ## Anima settings
 
 Per-Anima preferences stored in `anima_settings`. A memory or emotion value

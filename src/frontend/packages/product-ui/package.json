@@ -1,6 +1,6 @@
 {
   "name": "@animama/product-ui",
-  "version": "0.12.0",
+  "version": "0.13.0",
   "private": true,
   "license": "UNLICENSED",
   "type": "module",
@@ -23,6 +23,10 @@
       "types": "./dist/types/chat.d.ts",
       "import": "./dist/chat.js"
     },
+    "./audio-tags": {
+      "types": "./dist/types/audio-tags.d.ts",
+      "import": "./dist/audio-tags.js"
+    },
     "./components": {
       "types": "./dist/types/components.d.ts",
       "import": "./dist/components.js"
@@ -43,7 +47,7 @@
     "./theme.css": "./dist/theme.css"
   },
   "scripts": {
-    "build": "node ../../scripts/build-typescript-package.mjs src/index.ts src/query.ts src/chat.ts src/components.ts src/emotion.ts src/anima-profile.ts src/i18n.ts src/theme.css && node build-styles.mjs",
+    "build": "node ../../scripts/build-typescript-package.mjs src/index.ts src/query.ts src/chat.ts src/audio-tags.ts src/components.ts src/emotion.ts src/anima-profile.ts src/i18n.ts src/theme.css && node build-styles.mjs",
     "check": "tsc -p tsconfig.json --noEmit --emitDeclarationOnly false",
     "test": "node --test tests/*.test.mjs"
   },

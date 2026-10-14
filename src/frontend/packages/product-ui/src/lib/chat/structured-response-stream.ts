@@ -1,3 +1,5 @@
+import { hideSpeechTags } from "./audio-tags";
+
 export type StructuredResponsePart = "speech" | "display";
 
 export type StructuredResponseStreamEvent = {
@@ -118,16 +120,30 @@ export function reduceStructuredResponseStream(
   };
 }
 
+/**
+ * A reply's bubbles: its speech with the audio tags hidden (a tag-only speech
+ * shows none), then its display unless it repeats the speech, as written or as
+ * shown.
+ */
+export function replyBubbleTexts(speech: string, display: string): string[] {
+  const rawSpeech = speech.trim();
+  const visibleSpeech = hideSpeechTags(rawSpeech);
+  const visibleDisplay = display.trim();
+  const texts = visibleSpeech ? [visibleSpeech] : [];
+  if (
+    visibleDisplay &&
+    visibleDisplay !== visibleSpeech &&
+    visibleDisplay !== rawSpeech
+  ) {
+    texts.push(visibleDisplay);
+  }
+  return texts;
+}
+
 export function getStructuredAssistantTexts(
   state: StructuredResponseStreamState,
 ): string[] {
-  const speech = state.speechText.trim();
-  const display = state.displayText.trim();
-  const texts = speech ? [speech] : [];
-  if (display && display !== speech) {
-    texts.push(display);
-  }
-  return texts;
+  return replyBubbleTexts(state.speechText, state.displayText);
 }
 
 export function selectStructuredSpeechTtsPayload({

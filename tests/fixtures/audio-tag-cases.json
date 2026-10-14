@@ -1,0 +1,672 @@
+{
+  "description": "Audio tags in the chat model's speech (#479). Both sides test against this file: the backend's animama.domain.audio_tags (tests/test_audio_tags.py) and product-ui's lib/chat/audio-tags.ts (src/frontend/web/tests/speech/audioTagCases.test.ts). Each side asserts that its own constants equal the vocabulary below and that every case gives the expected text. Neither loads this file at runtime.",
+  "vocabulary": {
+    "soundCap": 2,
+    "accentPrefix": "accent",
+    "neutral": [
+      {
+        "id": "laugh",
+        "aliases": [
+          "laugh",
+          "laughs",
+          "laughing",
+          "laughter"
+        ],
+        "gemini": "<laugh>",
+        "elevenlabs": "[laughs]",
+        "sound": true
+      },
+      {
+        "id": "chuckle",
+        "aliases": [
+          "chuckle",
+          "chuckles",
+          "chuckling"
+        ],
+        "gemini": "<chuckle>",
+        "elevenlabs": "[chuckles]",
+        "sound": true
+      },
+      {
+        "id": "giggle",
+        "aliases": [
+          "giggle",
+          "giggles",
+          "giggling"
+        ],
+        "gemini": "<giggle>",
+        "elevenlabs": "[giggles]",
+        "sound": true
+      },
+      {
+        "id": "sigh",
+        "aliases": [
+          "sigh",
+          "sighs",
+          "sighing"
+        ],
+        "gemini": "<sigh>",
+        "elevenlabs": "[sighs]",
+        "sound": true
+      },
+      {
+        "id": "gasp",
+        "aliases": [
+          "gasp",
+          "gasps",
+          "gasping"
+        ],
+        "gemini": "<gasp>",
+        "elevenlabs": "[gasps]",
+        "sound": true
+      },
+      {
+        "id": "breath",
+        "aliases": [
+          "breath",
+          "breathes",
+          "breathing"
+        ],
+        "gemini": "<breath>",
+        "elevenlabs": "[breathes]",
+        "sound": true
+      },
+      {
+        "id": "short_pause",
+        "aliases": [
+          "short pause",
+          "pause"
+        ],
+        "gemini": "<short pause>",
+        "elevenlabs": "[pause]",
+        "sound": true
+      },
+      {
+        "id": "long_pause",
+        "aliases": [
+          "long pause"
+        ],
+        "gemini": "<long pause>",
+        "elevenlabs": "[long pause]",
+        "sound": true
+      },
+      {
+        "id": "whisper",
+        "aliases": [
+          "whisper",
+          "whispers",
+          "whispering"
+        ],
+        "gemini": "<whispers>",
+        "elevenlabs": "[whispers]",
+        "sound": false
+      }
+    ],
+    "wordClasses": {
+      "sound_effect": [
+        "applause",
+        "beep",
+        "beeps",
+        "bell",
+        "bells",
+        "clapping",
+        "claps",
+        "crash",
+        "ding",
+        "door",
+        "explosion",
+        "footsteps",
+        "gulp",
+        "gulps",
+        "gunshot",
+        "gunshots",
+        "knock",
+        "knocking",
+        "knocks",
+        "phone",
+        "rain",
+        "ringing",
+        "splash",
+        "swallows",
+        "thunder",
+        "wind"
+      ],
+      "nonverbal": [
+        "breath",
+        "breathes",
+        "breathing",
+        "chuckle",
+        "chuckles",
+        "chuckling",
+        "cough",
+        "coughing",
+        "coughs",
+        "cries",
+        "cry",
+        "crying",
+        "exhale",
+        "exhales",
+        "exhaling",
+        "gasp",
+        "gasping",
+        "gasps",
+        "giggle",
+        "giggles",
+        "giggling",
+        "groan",
+        "groaning",
+        "groans",
+        "grunt",
+        "grunts",
+        "hiccup",
+        "hiccups",
+        "hum",
+        "humming",
+        "hums",
+        "inhale",
+        "inhales",
+        "inhaling",
+        "laugh",
+        "laughing",
+        "laughs",
+        "laughter",
+        "scream",
+        "screaming",
+        "screams",
+        "sigh",
+        "sighing",
+        "sighs",
+        "sneeze",
+        "sneezes",
+        "sneezing",
+        "snicker",
+        "snickers",
+        "sniff",
+        "sniffle",
+        "sniffles",
+        "sniffs",
+        "snort",
+        "snorting",
+        "snorts",
+        "sob",
+        "sobbing",
+        "sobs",
+        "throat",
+        "wheeze",
+        "wheezes",
+        "wheezing",
+        "whimper",
+        "whimpers",
+        "yawn",
+        "yawning",
+        "yawns"
+      ],
+      "pacing": [
+        "pause",
+        "pauses",
+        "silence"
+      ]
+    }
+  },
+  "classes": [
+    {
+      "direction": "laughs softly",
+      "class": "nonverbal"
+    },
+    {
+      "direction": "long pause",
+      "class": "pacing"
+    },
+    {
+      "direction": "door knocks",
+      "class": "sound_effect"
+    },
+    {
+      "direction": "whispering",
+      "class": "delivery"
+    },
+    {
+      "direction": "excited",
+      "class": "delivery"
+    },
+    {
+      "direction": "Laughs",
+      "class": "nonverbal"
+    }
+  ],
+  "tagLabels": [
+    {
+      "text": "Oh <laugh> wow [whispering, playful] ok",
+      "tags": [
+        "<laugh>",
+        "[whispering, playful]"
+      ]
+    },
+    {
+      "text": "Wow [laughs!] okay",
+      "tags": [
+        "[laughs!]"
+      ]
+    },
+    {
+      "text": "Is x < 5 and y > 3?",
+      "tags": []
+    },
+    {
+      "text": "[see 2] the chart",
+      "tags": []
+    },
+    {
+      "text": "Read [the guide](https://example.com) first.",
+      "tags": []
+    },
+    {
+      "text": "[Note] [sic]",
+      "tags": [
+        "[Note]",
+        "[sic]"
+      ]
+    }
+  ],
+  "cases": [
+    {
+      "id": "neutral laugh in square brackets",
+      "chunks": [
+        "Oh my gosh, [laughs] that is so funny!"
+      ],
+      "gemini": [
+        "Oh my gosh, <laugh> that is so funny!"
+      ],
+      "elevenlabs": [
+        "Oh my gosh, [laughs] that is so funny!"
+      ],
+      "stripped": [
+        "Oh my gosh, that is so funny!"
+      ]
+    },
+    {
+      "id": "the model writes Gemini's syntax",
+      "chunks": [
+        "Oh my gosh, <laugh> that is so funny!"
+      ],
+      "gemini": [
+        "Oh my gosh, <laugh> that is so funny!"
+      ],
+      "elevenlabs": [
+        "Oh my gosh, [laughs] that is so funny!"
+      ],
+      "stripped": [
+        "Oh my gosh, that is so funny!"
+      ]
+    },
+    {
+      "id": "case and alias are normalized",
+      "chunks": [
+        "[Sighs] Fine, you win. [chuckle] Heh."
+      ],
+      "gemini": [
+        "<sigh> Fine, you win. <chuckle> Heh."
+      ],
+      "elevenlabs": [
+        "[sighs] Fine, you win. [chuckles] Heh."
+      ],
+      "stripped": [
+        "Fine, you win. Heh."
+      ]
+    },
+    {
+      "id": "punctuation inside a neutral tag is ignored",
+      "chunks": [
+        "Wow [laughs!] okay"
+      ],
+      "gemini": [
+        "Wow <laugh> okay"
+      ],
+      "elevenlabs": [
+        "Wow [laughs] okay"
+      ],
+      "stripped": [
+        "Wow okay"
+      ]
+    },
+    {
+      "id": "pauses map per provider",
+      "chunks": [
+        "[short pause] Well... [long  Pause] okay."
+      ],
+      "gemini": [
+        "<short pause> Well... <long pause> okay."
+      ],
+      "elevenlabs": [
+        "[pause] Well... [long pause] okay."
+      ],
+      "stripped": [
+        "Well... okay."
+      ]
+    },
+    {
+      "id": "a plain pause is the short pause",
+      "chunks": [
+        "Hmm [pause] maybe."
+      ],
+      "gemini": [
+        "Hmm <short pause> maybe."
+      ],
+      "elevenlabs": [
+        "Hmm [pause] maybe."
+      ],
+      "stripped": [
+        "Hmm maybe."
+      ]
+    },
+    {
+      "id": "whisper is a modifier, not a sound",
+      "chunks": [
+        "[whispers] It's a secret. [laughs] [gasps] Oh!"
+      ],
+      "gemini": [
+        "<whispers> It's a secret. <laugh> <gasp> Oh!"
+      ],
+      "elevenlabs": [
+        "[whispers] It's a secret. [laughs] [gasps] Oh!"
+      ],
+      "stripped": [
+        "It's a secret. Oh!"
+      ]
+    },
+    {
+      "id": "the third sound in a reply is dropped across chunks",
+      "chunks": [
+        "[laughs] One.",
+        "[gasps] Two.",
+        "[sighs] Three."
+      ],
+      "gemini": [
+        "<laugh> One.",
+        "<gasp> Two.",
+        "Three."
+      ],
+      "elevenlabs": [
+        "[laughs] One.",
+        "[gasps] Two.",
+        "Three."
+      ],
+      "stripped": [
+        "One.",
+        "Two.",
+        "Three."
+      ]
+    },
+    {
+      "id": "extras pass on ElevenLabs only",
+      "chunks": [
+        "[excited] We won! [applause]"
+      ],
+      "gemini": [
+        "We won!"
+      ],
+      "elevenlabs": [
+        "[excited] We won! [applause]"
+      ],
+      "stripped": [
+        "We won!"
+      ]
+    },
+    {
+      "id": "sound effects and other sounds share the cap",
+      "chunks": [
+        "[coughs] Excuse me. [door knocks] Who? [yawns] Sorry."
+      ],
+      "gemini": [
+        "Excuse me. Who? Sorry."
+      ],
+      "elevenlabs": [
+        "[coughs] Excuse me. [door knocks] Who? Sorry."
+      ],
+      "stripped": [
+        "Excuse me. Who? Sorry."
+      ]
+    },
+    {
+      "id": "emotion and delivery tags are not capped",
+      "chunks": [
+        "[happy] A. [sad] B. [angry] C."
+      ],
+      "gemini": [
+        "A. B. C."
+      ],
+      "elevenlabs": [
+        "[happy] A. [sad] B. [angry] C."
+      ],
+      "stripped": [
+        "A. B. C."
+      ]
+    },
+    {
+      "id": "combined directions pass whole on ElevenLabs",
+      "chunks": [
+        "[whispering, playful] Come closer."
+      ],
+      "gemini": [
+        "Come closer."
+      ],
+      "elevenlabs": [
+        "[whispering, playful] Come closer."
+      ],
+      "stripped": [
+        "Come closer."
+      ]
+    },
+    {
+      "id": "an angle-bracket extra becomes square on ElevenLabs",
+      "chunks": [
+        "<softly> Good night."
+      ],
+      "gemini": [
+        "Good night."
+      ],
+      "elevenlabs": [
+        "[softly] Good night."
+      ],
+      "stripped": [
+        "Good night."
+      ]
+    },
+    {
+      "id": "accents are dropped everywhere",
+      "chunks": [
+        "[British accent] Cheerio. [accented] Bonjour."
+      ],
+      "gemini": [
+        "Cheerio. Bonjour."
+      ],
+      "elevenlabs": [
+        "Cheerio. Bonjour."
+      ],
+      "stripped": [
+        "Cheerio. Bonjour."
+      ]
+    },
+    {
+      "id": "stray brackets never reach a voice",
+      "chunks": [
+        "Is x < 5 and y > 3?"
+      ],
+      "gemini": [
+        "Is x 5 and y 3?"
+      ],
+      "elevenlabs": [
+        "Is x 5 and y 3?"
+      ],
+      "stripped": [
+        "Is x < 5 and y > 3?"
+      ]
+    },
+    {
+      "id": "a span with digits is text, not a tag",
+      "chunks": [
+        "[see 2] the chart"
+      ],
+      "gemini": [
+        "see 2 the chart"
+      ],
+      "elevenlabs": [
+        "see 2 the chart"
+      ],
+      "stripped": [
+        "[see 2] the chart"
+      ]
+    },
+    {
+      "id": "a Markdown link label is not a tag",
+      "chunks": [
+        "Read [the guide](https://example.com) first."
+      ],
+      "gemini": [
+        "Read the guide(https://example.com) first."
+      ],
+      "elevenlabs": [
+        "Read the guide(https://example.com) first."
+      ],
+      "stripped": [
+        "Read [the guide](https://example.com) first."
+      ]
+    },
+    {
+      "id": "a span over 64 characters is not a tag",
+      "chunks": [
+        "[laughing so hard that I can barely breathe and my sides really hurt now] okay"
+      ],
+      "gemini": [
+        "laughing so hard that I can barely breathe and my sides really hurt now okay"
+      ],
+      "elevenlabs": [
+        "laughing so hard that I can barely breathe and my sides really hurt now okay"
+      ],
+      "stripped": [
+        "[laughing so hard that I can barely breathe and my sides really hurt now] okay"
+      ]
+    },
+    {
+      "id": "punctuation closes up after a removed tag",
+      "chunks": [
+        "Oh [excited], okay [applause]."
+      ],
+      "gemini": [
+        "Oh, okay."
+      ],
+      "elevenlabs": [
+        "Oh [excited], okay [applause]."
+      ],
+      "stripped": [
+        "Oh, okay."
+      ]
+    },
+    {
+      "id": "speech that is only a tag",
+      "chunks": [
+        "[laughs]"
+      ],
+      "gemini": [
+        "<laugh>"
+      ],
+      "elevenlabs": [
+        "[laughs]"
+      ],
+      "stripped": [
+        ""
+      ]
+    },
+    {
+      "id": "English tags in other languages",
+      "chunks": [
+        "本当に？[laughs] すごい！"
+      ],
+      "gemini": [
+        "本当に？<laugh> すごい！"
+      ],
+      "elevenlabs": [
+        "本当に？[laughs] すごい！"
+      ],
+      "stripped": [
+        "本当に？ すごい！"
+      ]
+    },
+    {
+      "id": "a square tag before an opening parenthesis is not read as a link label",
+      "chunks": [
+        "<sad softly>(aside) Hi",
+        "[laughs]](x) Hi"
+      ],
+      "gemini": [
+        "(aside) Hi",
+        "<laugh>(x) Hi"
+      ],
+      "elevenlabs": [
+        "[sad softly] (aside) Hi",
+        "[laughs] (x) Hi"
+      ],
+      "stripped": [
+        "(aside) Hi",
+        "](x) Hi"
+      ]
+    },
+    {
+      "id": "full-width punctuation closes up after a removed tag",
+      "chunks": [
+        "すごい[laughs]！[applause]。"
+      ],
+      "gemini": [
+        "すごい<laugh>！。"
+      ],
+      "elevenlabs": [
+        "すごい[laughs]！[applause]。"
+      ],
+      "stripped": [
+        "すごい！。"
+      ]
+    }
+  ],
+  "openTags": [
+    {
+      "text": "Well [sighs. long",
+      "inside": true
+    },
+    {
+      "text": "Well <whisper",
+      "inside": true
+    },
+    {
+      "text": "Well [whispering, play",
+      "inside": true
+    },
+    {
+      "text": "Well [sighs] okay.",
+      "inside": false
+    },
+    {
+      "text": "Is x < 5.",
+      "inside": false
+    },
+    {
+      "text": "[see 2.",
+      "inside": false
+    },
+    {
+      "text": "Well [",
+      "inside": true
+    },
+    {
+      "text": "Well [aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "inside": false
+    },
+    {
+      "text": "Plain text.",
+      "inside": false
+    },
+    {
+      "text": "Well <",
+      "inside": true
+    }
+  ]
+}

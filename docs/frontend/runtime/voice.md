@@ -881,6 +881,8 @@ Behavior:
   brackets, once at least 24 characters are buffered. A mark directly followed
   by a letter or digit ("$5.99", "animama.ai") ends nothing. Longer text splits near
   140 characters, and 700 ms without new text flushes at least 36 characters.
+  No split lands inside an audio tag: a split backs off to before the tag, and
+  an idle flush waits for a tag that is still being written.
 - Only ElevenLabs respects `tts_stream_chunks`.
 - Browser and Pocket TTS are forced non-streaming at token phase
   (`shouldStreamChunksForProvider` returns `false` for them), then emit final
@@ -894,6 +896,8 @@ Behavior:
 Mechanics:
 
 - `SpeechSynthesisUtterance` queue
+- speaks the reply without emoji or audio tags (`stripAudioTags`), which it
+  would read aloud
 - emits `onAudioStarted` on utterance start
 - emits `onAudioEnded` only after run complete + queue drained
 - robust cancellation via `speechSynthesis.cancel()`

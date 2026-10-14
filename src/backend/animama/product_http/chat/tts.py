@@ -37,6 +37,7 @@ from animama.app.contracts.gemini import (
     SUPPORTED_GEMINI_TTS_MODEL_IDS,
     gemini_voice_or_default,
 )
+from animama.domain.audio_tags import ProviderSpeechText
 from animama.logging import get_logger
 from animama.product_http.ports import (
     FinalizedSpeechPort,
@@ -264,7 +265,7 @@ class TtsSessionBootstrap:
 
 @dataclass(frozen=True, slots=True)
 class FinalizedTtsSegmentBatch:
-    """Speech segments sent to Gemini as one request, with the text it speaks as written."""
+    """Speech segments sent to Gemini as one request, with the text it speaks: as written, its audio tags prepared."""
 
     segments: tuple[SsePreparedTtsSpeechSegment, ...]
     text: str
@@ -279,10 +280,18 @@ class FinalizedTtsSegmentBatch:
 
 
 class FinalizedTtsSegmentBatcher:
-    """Converts sentence-level prepared speech segments into finalized TTS requests."""
+    """Converts sentence-level prepared speech segments into finalized TTS requests.
 
-    def __init__(self, chunking: DirectChatFinalizedTtsChunking) -> None:
+    With ``speech_text``, each batch's text is prepared for the provider: its
+    audio tags respelled or dropped, with the reply's sound cap counted in order.
+    A batch left with nothing to speak is skipped.
+    """
+
+    def __init__(
+        self, chunking: DirectChatFinalizedTtsChunking, *, speech_text: ProviderSpeechText | None = None
+    ) -> None:
         self._chunking = chunking
+        self._speech_text = speech_text
         self._pending: list[SsePreparedTtsSpeechSegment] = []
         self._ready: list[FinalizedTtsSegmentBatch] = []
         self._closed = False
@@ -291,7 +300,7 @@ class FinalizedTtsSegmentBatcher:
         if self._closed:
             return
         if self._chunking == "sentence":
-            self._ready.append(FinalizedTtsSegmentBatch(segments=(segment,), text=segment.tts_text))
+            self._append_batch((segment,), segment.tts_text)
             return
 
         if segment.paragraph_break_before and self._pending:
@@ -319,8 +328,12 @@ class FinalizedTtsSegmentBatcher:
         segments = tuple(self._pending)
         self._pending = []
         # Joined from the visible text, which keeps the spaces between sentences.
-        text = speakable_text("".join(segment.visible_text for segment in segments))
-        if not text:
+        self._append_batch(segments, speakable_text("".join(segment.visible_text for segment in segments)))
+
+    def _append_batch(self, segments: tuple[SsePreparedTtsSpeechSegment, ...], text: str) -> None:
+        if self._speech_text is not None:
+            text = self._speech_text.prepare(text)
+        if not any(character.isalnum() for character in text):
             return
         self._ready.append(FinalizedTtsSegmentBatch(segments=segments, text=text))
 
@@ -464,7 +477,8 @@ class FinalizedTtsStreamBootstrap:
         try:
             next_segment_index = 0
             streamed_any = False
-            batcher = FinalizedTtsSegmentBatcher(self.finalized_chunking)
+            # Gemini performs its own spelling of the reply's audio tags (#479).
+            batcher = FinalizedTtsSegmentBatcher(self.finalized_chunking, speech_text=ProviderSpeechText("gemini"))
             while True:
                 segment = self._segment_at(state, next_segment_index)
                 if segment is None:

@@ -11,7 +11,6 @@ from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_PART_SPEECH,
     MainStructuredJsonStreamParser,
     build_main_response_model,
-    build_main_structured_output_schema,
     build_main_structured_prompt,
     build_main_structured_response_json_schema,
     parse_main_structured_response,
@@ -189,16 +188,6 @@ def test_main_structured_model_schema_is_openai_strict_by_construction() -> None
     assert schema["properties"]["gesture"]["type"] == ["string", "null"]
     assert schema["properties"]["display"]["type"] == ["string", "null"]
     assert schema["properties"]["remember"]["type"] == ["string", "null"]
-
-
-def test_main_structured_output_schema_lists_available_gesture_values() -> None:
-    gesture_ids = TEST_RUNTIME_GESTURE_IDS
-
-    schema = build_main_structured_output_schema(gesture_ids=gesture_ids)
-
-    assert gesture_ids
-    assert schema["fields"]["gesture"]["values"] == [None, *gesture_ids]
-    assert schema["fields"]["remember"]["required"] is True
 
 
 def test_main_structured_schema_uses_request_runtime_gesture_ids() -> None:

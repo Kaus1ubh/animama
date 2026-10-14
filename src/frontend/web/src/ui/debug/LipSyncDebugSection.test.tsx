@@ -212,6 +212,13 @@ describe("Lip-sync debug section", () => {
     ]);
   });
 
+  it("counts the tags in the text the voice received", async () => {
+    capture({ text: "Oh [laughs] wow. [sighs] Okay." });
+    await render();
+
+    expect(container?.textContent).toContain("Text2 tags");
+  });
+
   it("waits for the reply to finish playing before planning or replaying", async () => {
     // The stream has ended, so the length is known, but the audio still plays.
     capture({ playbackEnded: false });

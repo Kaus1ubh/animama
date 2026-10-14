@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 
 import {
   extractReadyTtsChunkCandidates,
+  flushRemainingTtsChunkCandidates,
   isExclamationTtsChunk,
+  takeIdleTtsChunkCandidate,
   TTS_CHUNKING_DEFAULTS,
 } from "./tts-chunker";
 
@@ -97,5 +99,80 @@ describe("extractReadyTtsChunkCandidates", () => {
       chunks: ["Hello there.", "How are you?"],
       remaining: "Fine",
     });
+  });
+});
+
+describe("audio tags", () => {
+  it("never ends a sentence inside a tag", () => {
+    expect(readyChunks("Well [sighs. long pause] okay. Next")).toEqual({
+      chunks: ["Well [sighs. long pause] okay."],
+      remaining: "Next",
+    });
+    expect(readyChunks("Hmm [sighs? softly] fine! More")).toEqual({
+      chunks: ["Hmm [sighs? softly] fine!"],
+      remaining: "More",
+    });
+  });
+
+  it("waits for a tag that is still being written", () => {
+    expect(readyChunks("Oh [gasps! wow")).toEqual({
+      chunks: [],
+      remaining: "Oh [gasps! wow",
+    });
+  });
+
+  it("splits a long chunk before a tag, never inside it", () => {
+    // The last space within 140 characters falls inside the tag.
+    const words = "word ".repeat(25);
+    const { chunks, remaining } = extractReadyTtsChunkCandidates(
+      `${words}[whispering, very playfully] then more`,
+      { ...TTS_CHUNKING_DEFAULTS, maxChunkChars: 140 },
+    );
+    expect(chunks.map((chunk) => chunk.text)).toEqual([words.trim()]);
+    expect(remaining.startsWith("[whispering, very playfully]")).toBe(true);
+  });
+
+  it("does not let an idle flush cut a tag in half", () => {
+    const { chunk, remaining } = takeIdleTtsChunkCandidate(
+      "This is a long enough sentence so far [whispering, play",
+    );
+    expect(chunk?.text).toBe("This is a long enough sentence so far");
+    expect(remaining).toBe("[whispering, play");
+  });
+
+  it("does not idle-flush a tag that starts the buffer and is still being written", () => {
+    expect(
+      takeIdleTtsChunkCandidate(
+        "[whispering, softly and very playfully, gently",
+      ),
+    ).toEqual({
+      chunk: null,
+      remaining: "[whispering, softly and very playfully, gently",
+    });
+  });
+
+  it("sends a reply's last piece whole when no later text can close its bracket", () => {
+    expect(
+      flushRemainingTtsChunkCandidates(
+        "I think x<y and that is fine with me",
+      ).map((chunk) => chunk.text),
+    ).toEqual(["I think x<y and that is fine with me"]);
+  });
+
+  it("counts a chunk's words without its tags", () => {
+    const { chunks } = extractReadyTtsChunkCandidates(
+      "[laughs] That is so funny! ",
+      { ...TTS_CHUNKING_DEFAULTS, minSentenceChars: 1 },
+    );
+    expect(chunks[0]?.wordCount).toBe(4);
+  });
+
+  it("flushes a finished reply without cutting its tags", () => {
+    const words = "word ".repeat(26);
+    expect(
+      flushRemainingTtsChunkCandidates(`${words}[laughs softly] the end`).map(
+        (chunk) => chunk.text,
+      ),
+    ).toEqual([words.trim(), "[laughs softly] the end"]);
   });
 });

@@ -814,6 +814,22 @@ describe("browser speech", () => {
       "I love it so much!",
     ]);
   });
+
+  it("leaves audio tags out, so the voice does not read them", () => {
+    const { playback } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken(
+        "run-1",
+        "[laughs] Oh my gosh, that is so funny! [applause]",
+      );
+      playback().completeRun("run-1");
+    });
+
+    expect(FakeUtterance.spoken.map((utterance) => utterance.text)).toEqual([
+      "Oh my gosh, that is so funny!",
+    ]);
+  });
 });
 
 describe("speech text for lip-sync", () => {
@@ -874,6 +890,104 @@ describe("speech text for lip-sync", () => {
     expect(texts(onSpeechText).at(-1)?.text).toBe(
       "[laughs] I love it so much! ",
     );
+  });
+
+  it("sends ElevenLabs its tag spellings and at most two sounds per reply", () => {
+    const { playback, onSpeechText } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken(
+        "run-1",
+        "[laughs] One sentence that is long enough here. ",
+      );
+      playback().appendToken(
+        "run-1",
+        "<sigh> Two sentence that is long enough here. [gasps] Three more words [applause].",
+      );
+      playback().completeRun("run-1");
+    });
+
+    const sent = [
+      "[laughs] One sentence that is long enough here.",
+      "[sighs] Two sentence that is long enough here.",
+      "Three more words.",
+    ];
+    expect(
+      fixture.realtime.appendText.mock.calls.map(([, text]) => text),
+    ).toEqual(sent);
+    expect(texts(onSpeechText).at(-1)?.text).toBe(`${sent.join(" ")} `);
+  });
+
+  it("starts an ElevenLabs reply with its tone tag, once", () => {
+    const { playback, onSpeechText } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "Hello there, this is long enough. ", {
+        speechToneTag: "[very happy]",
+      });
+      playback().appendToken("run-1", "And then more text here.");
+      playback().completeRun("run-1");
+    });
+
+    expect(
+      fixture.realtime.appendText.mock.calls.map(([, text]) => text),
+    ).toEqual([
+      "[very happy] Hello there, this is long enough.",
+      "And then more text here.",
+    ]);
+    expect(texts(onSpeechText).at(-1)?.text).toBe(
+      "[very happy] Hello there, this is long enough. And then more text here. ",
+    );
+  });
+
+  it("ignores a tone tag that is not exactly one square tag", () => {
+    const { playback } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "Hello there, this is long enough. ", {
+        speechToneTag: "[happy] say this",
+      });
+      playback().completeRun("run-1");
+    });
+
+    expect(
+      fixture.realtime.appendText.mock.calls.map(([, text]) => text),
+    ).toEqual(["Hello there, this is long enough."]);
+  });
+
+  it("speaks a fallback to Pocket without tags or the tone tag", () => {
+    const { playback, onSpeechText } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken(
+        "run-1",
+        "[laughs] This first sentence is long enough to stream. ",
+        { speechToneTag: "[happy]" },
+      );
+      playback().fallBackToPocketTts("run-1");
+      playback().completeRun("run-1");
+    });
+
+    expect(texts(onSpeechText).at(-1)).toEqual({
+      runId: "run-1",
+      provider: "pocket_tts",
+      text: "This first sentence is long enough to stream. ",
+      final: true,
+    });
+  });
+
+  it("reports Gemini's text with Gemini's tag spellings", () => {
+    fixture.speech = { tts_provider: "gemini" };
+    const { playback, onSpeechText } = renderPlayback({
+      modelId: "gemini-3.8-flash-tts",
+    });
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "Oh [laughs] wow. [applause] Bye.");
+      playback().completeRun("run-1");
+    });
+
+    expect(texts(onSpeechText).at(-1)?.text).toBe("Oh <laugh> wow. Bye.");
   });
 
   it("reports Pocket's text spelled out as Pocket speaks it", () => {

@@ -458,7 +458,7 @@ If you change the emotion system, update these pieces together:
 
 - backend source of truth: `src/backend/animama/domain/emotions.py`
 - frontend source of truth: `src/frontend/web/src/lib/emotion/index.ts`
-- backend prompt/schema: `src/backend/animama/prompts/profiles.py`, `src/backend/animama/prompts/structured_output.py`
+- backend prompt/schema: `src/backend/animama/app/main_structured_response.py`, `src/backend/animama/prompts/structured_output.py`
 - backend primary update helper: `src/backend/animama/app/primary_emotion_update.py`
 - frontend runtime/UI/avatar mapping files under `src/frontend/web/src/lib/emotion`, `src/frontend/web/src/lib/avatar`, and `src/frontend/web/src/ui/components`
 

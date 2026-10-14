@@ -20,6 +20,7 @@ let stopOnToken = false;
 let run = 0;
 let api;
 let speechEnabled = false;
+let markdownEnabled = true;
 let speechModel = "eleven_v4_turbo";
 let speechProvider = "elevenlabs";
 let pocketFallback = true;
@@ -161,7 +162,12 @@ function SessionConsumer() {
         speechFallbacks.push(runId);
         return pocketFallback;
       },
-      appendTtsToken: (runId, token) => ttsTokens.push({ runId, token }),
+      appendTtsToken: (runId, token, options) =>
+        ttsTokens.push(
+          options?.speechToneTag
+            ? { runId, token, speechToneTag: options.speechToneTag }
+            : { runId, token },
+        ),
       completeTtsRun: (runId) => ttsCompletions.push(runId),
     },
     openDraftChatRoute: () => {},
@@ -200,7 +206,7 @@ function SessionConsumer() {
       </output>
       <ChatConversation
         messages={session.displayMessages}
-        markdownEnabled
+        markdownEnabled={markdownEnabled}
         isStreaming={session.isStreaming}
         completionPending={session.isAwaitingStreamingAnimationFinalization}
         onQueueComplete={session.handleStreamingAnimationComplete}
@@ -240,8 +246,10 @@ window.fixture = {
     model = "eleven_v4_turbo",
     provider = "elevenlabs",
     fallback = true,
+    markdown = true,
   } = {}) => {
     speechEnabled = true;
+    markdownEnabled = markdown;
     speechModel = model;
     speechProvider = provider;
     pocketFallback = fallback;

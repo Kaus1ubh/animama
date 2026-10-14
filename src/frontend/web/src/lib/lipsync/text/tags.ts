@@ -1,12 +1,19 @@
 /**
  * Vocal tags in spoken text: Gemini writes them in angle brackets (`<laugh>`,
  * `<long pause>`), ElevenLabs in square brackets (`[laughs]`,
- * `[whispering, playful]`). Each becomes a lip-sync tag kind; the
- * classification is shared with the provider timing evidence, so text and
- * timing agree on what kind a tag is.
+ * `[whispering, playful]`). Each becomes a lip-sync tag kind. The grammar and
+ * classification are product-ui's audio tags, shared with chat bubbles, the
+ * speech text and the provider timing evidence, so they all agree on what a tag
+ * is and what kind it is. (The timing evidence accepts any short bracketed
+ * span, so it can see a tag the shared grammar rejects; both classify a tag's
+ * directions the same way.)
  */
 
-import { classifyAudioTag } from "@/lib/speech/speech-timing-evidence";
+import {
+  classifyAudioTag,
+  findAudioTags,
+  stripAudioTags,
+} from "@animama/product-ui/audio-tags";
 import type { LipSyncTagKind } from "./units";
 
 export type ParsedTag = {
@@ -23,12 +30,6 @@ export type ParsedTag = {
 export type TextPiece =
   | { type: "text"; start: number; end: number }
   | { type: "tag"; tag: ParsedTag };
-
-// Tags are short directions in words, such as [laughs] or [whispering, playful]!;
-// a longer span, or one holding digits or symbols such as "x < 5 and y > 3", is
-// not one. The timing evidence accepts any short bracketed span, so it can see a
-// tag this rejects; both classify a tag's directions the same way.
-const TAG = /<(\p{L}[\p{L} ,.!?'’-]{0,63})>|\[(\p{L}[\p{L} ,.!?'’-]{0,63})\]/gu;
 
 const LAUGH = /\b(laugh\w*|chuckl\w*|giggl\w*)\b/;
 const SIGH = /\b(sigh\w*|exhal\w*|breath\w*|inhal\w*)\b/;
@@ -101,18 +102,16 @@ export function lipSyncTagKind(content: string): LipSyncTagKind {
 export function splitTags(text: string): TextPiece[] {
   const pieces: TextPiece[] = [];
   let last = 0;
-  for (const match of text.matchAll(TAG)) {
-    const start = match.index;
+  for (const { label, content, start, end } of findAudioTags(text)) {
     if (start > last) pieces.push({ type: "text", start: last, end: start });
-    const end = start + match[0].length;
     pieces.push({
       type: "tag",
       tag: {
-        label: match[0],
+        label,
         start,
         end,
-        kind: lipSyncTagKind(match[1] ?? match[2]!),
-        kinds: directionKinds(match[1] ?? match[2]!),
+        kind: lipSyncTagKind(content),
+        kinds: directionKinds(content),
       },
     });
     last = end;
@@ -123,10 +122,4 @@ export function splitTags(text: string): TextPiece[] {
 }
 
 /** Text with its tags removed, for consumers that speak or show it without them. */
-export function stripTags(text: string): string {
-  return text
-    .replace(TAG, " ")
-    .replace(/[ \t]{2,}/g, " ")
-    .replace(/ +([,.!?;:])/g, "$1")
-    .trim();
-}
+export const stripTags = stripAudioTags;

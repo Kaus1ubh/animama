@@ -109,6 +109,7 @@ from .memory_context import DirectChatMemoryContext, DirectChatMemoryContextErro
 from .memory_cue import AnimaMemoriesTurn, memory_cue_payload, turn_memory_message_data
 from .memory_tools import MEMORY_TOOL_SEARCH_UPLOADED_FILES, MEMORY_TOOL_WRITE_NAMES
 from .openai_prompt import DirectChatPromptAssembler, scoped_prompt_cache_key
+from .speech_tags import speech_tags_instruction
 
 _log = get_logger("app.chat.direct_executor")
 
@@ -1235,6 +1236,7 @@ class DirectChatTurnExecutor:
                 else INSTRUCTION_STYLE_DEFAULT
             ),
             conversation_language=request.conversation_language,
+            speech_tags_guidance=speech_tags_instruction(request.options.tts),
             metadata={
                 "anima_id": request.anima_id,
                 "chat_id": request.chat_id,

@@ -90,7 +90,11 @@ where it is supported.
 
 Realtime ElevenLabs speech sends the visible speech text to the admitted
 websocket as written, in any language, without emoji (`dropEmoji`); ElevenLabs
-reads numbers and symbols itself, and performs its tags.
+reads numbers and symbols itself, and performs its tags. Each chunk passes
+through the run's `createProviderSpeechText("elevenlabs")`
+(`@animama/product-ui/audio-tags`), which respells neutral tags, keeps other
+directions except accents, passes at most two sounds per reply and removes
+stray brackets ([audio tags](../../backend/integrations/voice-and-speech.md#audio-tags)). The chunker never splits a tag.
 
 For structured speech streaming, `useChatSession.ts` sends each speech delta
 into the existing TTS pipeline as it arrives. Realtime ElevenLabs speech keeps
@@ -101,9 +105,12 @@ Voice-structured responses also contain internal `emotional_tone` and
 `emotional_intensity` fields before `speech`. The backend filters those fields
 out of frontend `user.response` events. Normal `chat:sse` uses them to compute
 and persist the full-state `emotion.update`; the frontend still uses that
-event's `emotions` array as the avatar source of truth. ElevenLabs speech text
-carries no tone tag. Missing, blank, or unrecognized tone metadata is handled in
-the backend with a warning and does not create a frontend-visible error.
+event's `emotions` array as the avatar source of truth. The reply's first
+speech frame may carry `speech_tone_tag`, such as `[very happy]`; the runtime
+puts it at the start of the run's first ElevenLabs chunk, so the voice starts in
+the reply's tone. It is never shown or stored, and a Pocket fallback drops it.
+Missing, blank, or unrecognized tone metadata is handled in the backend with a
+warning and does not create a frontend-visible error.
 
 ## Avatar Timing
 

@@ -688,7 +688,8 @@ baseline includes these columns; it does not backfill legacy databases.
 Chat message search stores a generated `search_vector` column computed from
 structured speech and display text concatenated together, falling back to raw
 `content` when neither structured field is available. Search-result snippets
-use the same combined user-facing text. This keeps search user-facing even
+show the same user-facing text, with the speech's audio tags hidden
+([audio tags](../integrations/voice-and-speech.md#audio-tags)); matching still uses the stored speech. This keeps search user-facing even
 though raw assistant content is durable JSON. A partial PostgreSQL GIN index
 covers that vector only for visible user/assistant rows with non-null content.
 The search API builds a
