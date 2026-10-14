@@ -1998,7 +1998,8 @@ test("Particle and Scene import documents come from the creators' functions", as
 });
 
 // `effects save` and `promote` run the creators' own modules, which word
-// their messages through the app's i18n.
+// their messages through the app's i18n. react-i18next's instance is shared by
+// the process, so no earlier test in this file may create it.
 test("the creators' modules load with English messages", async () => {
   const loader = await loadWebModule("/src/lib/scene-vfx/editor/document.ts");
   try {

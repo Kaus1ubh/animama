@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 import {
   DEFAULT_CHECK_TIMES,
   checkEffects,
-  createEnglishI18n,
+  loadEnglishCatalogs,
   particleSourceLines,
   sceneImageLines,
   sceneLimitLines,
@@ -101,7 +101,7 @@ export async function loadWebModule(file) {
     server: { middlewareMode: true, hmr: false, ws: false },
   });
   try {
-    await createEnglishI18n(server);
+    await loadEnglishCatalogs(server);
     return {
       module: await server.ssrLoadModule(file),
       load: (other) => server.ssrLoadModule(other),
