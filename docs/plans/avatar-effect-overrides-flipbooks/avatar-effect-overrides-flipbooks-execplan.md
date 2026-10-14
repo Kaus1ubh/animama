@@ -1254,8 +1254,8 @@ Delivered (2026-10-14, pending merge approval):
   sound for one use. They are validated at Save and package boundaries,
   played by every runtime path and edited in the Action creator's **This
   use** panel.
-- 29 duplicate Included effects became 5 families plus the kept Steam Puffs
-  (24 deleted, 75 → 56). 39 Included Actions were rewritten, and Local
+- 29 duplicate Included effects became 10: 5 new families, 4 right-hand
+  mirrors and the kept Steam Puffs (24 deleted and 5 added, 75 → 56). 39 Included Actions were rewritten, and Local
   Actions are rewritten by a journaled transition.
 - `frames` derives boil and draw-on flipbooks. 23 Included effects were
   converted at the owner's G2 and G3; 21 candidates stay static.
