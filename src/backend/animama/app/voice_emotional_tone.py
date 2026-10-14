@@ -118,32 +118,49 @@ def validate_voice_emotional_tone(
     return token
 
 
+def _tone_description(*, emotional_tone: Any, emotional_state: Mapping[str, Any] | None) -> str:
+    """The reply's tone with its level's degree word, such as ``very happy``.
+
+    Neutral or unknown tones are the friendly default; without an emotional
+    state the tone carries no degree word.
+    """
+
+    tone = normalize_elevenlabs_emotional_tone(emotional_tone)
+    if tone is None or tone.is_neutral:
+        return DEFAULT_ELEVENLABS_TONE_KEY
+    if emotional_state is None:
+        return tone.tone_key
+    level = emotion_value_level(normalize_emotional_state(emotional_state).get(tone.canonical_emotion))
+    return f"slightly {tone.tone_key}" if level <= 0 else tone.tone_key if level == 1 else f"very {tone.tone_key}"
+
+
 def gemini_speaking_style(
     *,
     emotional_tone: Any,
     emotional_state: Mapping[str, Any] | None,
 ) -> str:
-    """One style sentence for Gemini speech, from the reply's tone and its level.
+    """One style sentence for Gemini speech, from the reply's tone and its level."""
 
-    Neutral or unknown tones speak in the friendly default; without an emotional
-    state the tone carries no intensity word.
-    """
-
-    tone = normalize_elevenlabs_emotional_tone(emotional_tone)
-    if tone is None or tone.is_neutral:
-        description = DEFAULT_ELEVENLABS_TONE_KEY
-    elif emotional_state is None:
-        description = tone.tone_key
-    else:
-        level = emotion_value_level(normalize_emotional_state(emotional_state).get(tone.canonical_emotion))
-        description = (
-            f"slightly {tone.tone_key}" if level <= 0 else tone.tone_key if level == 1 else f"very {tone.tone_key}"
-        )
+    description = _tone_description(emotional_tone=emotional_tone, emotional_state=emotional_state)
     article = "an" if description[0] in "aeiou" else "a"
     return f"Speak in {article} {description} tone."
 
 
+def elevenlabs_tone_tag(
+    *,
+    emotional_tone: Any,
+    emotional_state: Mapping[str, Any] | None,
+) -> str:
+    """The leading ElevenLabs direction for a reply, such as ``[very happy]``.
+
+    It gives ElevenLabs the same tone and degree that Gemini's speaking style gets.
+    """
+
+    return f"[{_tone_description(emotional_tone=emotional_tone, emotional_state=emotional_state)}]"
+
+
 __all__ = [
+    "elevenlabs_tone_tag",
     "gemini_speaking_style",
     "CANONICAL_EMOTION_TO_ELEVENLABS_TONE",
     "DEFAULT_ELEVENLABS_TONE_KEY",

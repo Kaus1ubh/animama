@@ -1259,8 +1259,9 @@ should be replaced by a new chat.
 
 Chat search runs PostgreSQL full-text search over visible current-user chat
 messages. Structured assistant speech and display text are concatenated for
-indexing and snippets; messages without structured response text fall back to
-raw `content`. The API accepts `query`, `limit`, and `offset`, uses sanitized
+indexing and snippets; snippets hide the speech's audio tags
+([audio tags](../integrations/voice-and-speech.md#audio-tags)), while matching uses the stored speech. Messages without
+structured response text fall back to raw `content`. The API accepts `query`, `limit`, and `offset`, uses sanitized
 prefix FTS for partial terms instead of web-search operator syntax, hides
 internal rows, uses a generated `search_vector` column backed by a partial GIN
 index scoped to visible user/assistant content, joins through

@@ -73,9 +73,9 @@ model. Chat Completions sends it only on connections with
 from three parts:
 
 - **Stable instructions:** core instructions, Anima identity, `MEMORIES.md`,
-  memory guidance, response guidance with the Gesture list, the conversation
-  language section under a non-English UI Locale, and then the Companion
-  Guardrails.
+  memory guidance, response guidance with the Gesture list, the audio-tag rule
+  for the selected voice, the conversation language section under a
+  non-English UI Locale, and then the Companion Guardrails.
 - **History**, replayed exactly as stored.
 - **Turn context:** the memory map, then the attachment list, then the
   guardrails again, immediately before the user's new message (after it on
@@ -183,7 +183,8 @@ Anima, per chat, or per turn.
 | Anima memories (`MEMORIES.md`) | per Anima | stable instructions | a chat memory tool or a Memory Manager Reflection edits it. On Responses this also misses the stored chain's prefix; edits are rare. |
 | Memory and response guidance | per Anima | stable instructions | memory-write flags or the response format change |
 | Gesture list and response schema | per Anima | stable instructions (response guidance) and `response_format` | the Anima's loadout changes; the schema's `gesture` enum changes with it |
-| Conversation language | per installation | stable instructions, after response guidance | the owner switches the UI Locale to or from a non-English language |
+| Audio-tag rule (`app/chat/speech_tags.py`) | per Anima | stable instructions, after response guidance | the turn's voice changes: Gemini, Eleven v4 Turbo and every other case (speech off, Pocket TTS, browser speech) each have their own rule |
+| Conversation language | per installation | stable instructions, after the audio-tag rule | the owner switches the UI Locale to or from a non-English language |
 | Companion Guardrails | per installation | end of the stable instructions, and end of the turn context | never ([ADR 0008](../../adr/0008-non-overridable-companion-guardrail.md)) |
 | Compaction summary | per chat | developer message after the system message, or the end of the system message before the guardrails (rows without a developer role); on Anthropic, a compaction block at the head of the history | app compaction runs (Chat Completions). The trigger is the smallest of `ANIMAMA_CHAT_COMPACTION_THRESHOLD_TOKENS` (default 90,000), 70% of the context window, and 75% of the window left after the reply reserve. On Anthropic the server compacts when a request's input reaches the row's trigger. Each compaction misses the history cache once. |
 | History | per turn | after the stable instructions | every turn (append) |

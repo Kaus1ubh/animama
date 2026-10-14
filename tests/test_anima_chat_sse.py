@@ -40,6 +40,7 @@ from animama.app.safety.ai_notice import AiNoticeState
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationSettings
 from animama.app.services.direct_model_prompt_runner import DirectModelPromptResult
 from animama.domain.anima_chat_profile import AnimaChatProfile
+from animama.domain.audio_tags import ProviderSpeechText
 from animama.domain.chat import ChatMessage
 from animama.domain.emotions import normalize_emotional_state
 from animama.domain.events import EmotionUpdatePayload
@@ -2047,6 +2048,56 @@ def test_finalized_tts_batches_leave_out_emoji_in_both_modes() -> None:
         while (batch := batcher.pop_ready()) is not None:
             batches.append(batch.text)
         assert batches == expected, mode
+
+
+def test_finalized_tts_batches_respell_and_cap_audio_tags_for_gemini_in_both_modes() -> None:
+    """Gemini hears its own tag spellings, at most two sounds, and no tag it cannot perform."""
+
+    cases: tuple[tuple[DirectChatFinalizedTtsChunking, list[str]], ...] = (
+        ("sentence", ["Oh my gosh, <laugh> that is so funny!", "<sigh> Anyway.", "Wow."]),
+        ("paragraph", ["Oh my gosh, <laugh> that is so funny! <sigh> Anyway. Wow."]),
+    )
+    for mode, expected in cases:
+        batcher = chat_tts.FinalizedTtsSegmentBatcher(mode, speech_text=ProviderSpeechText("gemini"))
+        state = SseTextState()
+        speech = (
+            "Oh my gosh, [laughs] that is so funny!",
+            " [applause] [sighs] Anyway.",
+            " [applause]",
+            " [gasps] Wow.",
+        )
+        for index, text in enumerate(speech):
+            chat_sse_events._record_tts_speech_segment(
+                state=state, value=text, is_delta=True, part_index=index, part_final=False
+            )
+        for segment in state.tts_speech_segments:
+            batcher.add_segment(segment)
+        batcher.close()
+        batches = []
+        while (batch := batcher.pop_ready()) is not None:
+            batches.append(batch.text)
+        assert batches == expected, mode
+
+
+@pytest.mark.asyncio
+async def test_chat_sse_gemini_speaks_its_tag_spellings_and_the_chat_keeps_the_written_text(monkeypatch) -> None:
+    _gemini_tts_route_mocks(monkeypatch, speech="Oh my gosh, [laughs] that is so funny! [applause] Bye.")
+    prepared_calls = _install_gemini_speech(monkeypatch, audio=lambda _prepared: "AUDIO")
+
+    response = await chat_anima_direct_sse(
+        "anima-1", _gemini_tts_request(), request=_test_request(), user=RequestPrincipal(id="user-1")
+    )
+    chunks = await _collect_chunks(response)
+
+    assert [call["text"] for call in prepared_calls] == ["Oh my gosh, <laugh> that is so funny!", "Bye."]
+    assert [event.get("part_text") for event in _event_data_all(chunks, "tts.audio")] == [
+        "Oh my gosh, <laugh> that is so funny!",
+        "Bye.",
+    ]
+    speech = "".join(
+        event["text"] for event in _event_data_all(chunks, "user.response") if event.get("response_part") == "speech"
+    )
+    assert speech == "Oh my gosh, [laughs] that is so funny! [applause] Bye."
 
 
 @pytest.mark.asyncio

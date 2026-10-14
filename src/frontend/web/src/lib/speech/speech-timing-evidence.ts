@@ -15,23 +15,18 @@
  * planner that does.
  */
 
+import {
+  AUDIO_TAG_CLASS_STRENGTH,
+  classifyAudioTag,
+  type AudioTagClass,
+} from "@animama/product-ui/audio-tags";
 import type { TimedChar } from "./provider-speech-timing";
 
-/**
- * How an audio tag affects the mouth:
- *
- * - `nonverbal`: a vocal sound (a laugh, sigh or gasp), a non-speech interval;
- * - `sound_effect`: a sound that is not the voice, an interval with the mouth at
- *   rest;
- * - `pacing`: a pause, a silent interval;
- * - `delivery`: an emotion or delivery direction, a zero-width marker at the
- *   span's start that applies to the words after it. Unknown tags are delivery.
- */
-export type AudioTagClass =
-  | "nonverbal"
-  | "sound_effect"
-  | "pacing"
-  | "delivery";
+// The tag classes are product-ui's audio tags, shared with the speech text, so
+// timing and text agree on what kind a tag is: a non-verbal sound and a sound
+// effect are intervals, a pause is silence, and a delivery direction is a
+// zero-width marker for the words after it.
+export { classifyAudioTag, type AudioTagClass };
 
 /** An entry's place in the timeline: characters `charStart` up to `charEnd`. */
 type TimelineSpan = {
@@ -68,122 +63,6 @@ export type SpeechTimingEvidence = {
   punctuation: EvidencePunctuation[];
   tags: EvidenceTag[];
 };
-
-// Lowercase words that name each class; any other direction is delivery.
-const SOUND_EFFECT_WORDS = new Set([
-  "applause",
-  "beep",
-  "beeps",
-  "bell",
-  "bells",
-  "clapping",
-  "claps",
-  "crash",
-  "ding",
-  "door",
-  "explosion",
-  "footsteps",
-  "gulp",
-  "gulps",
-  "gunshot",
-  "gunshots",
-  "knock",
-  "knocking",
-  "knocks",
-  "phone",
-  "rain",
-  "ringing",
-  "splash",
-  "swallows",
-  "thunder",
-  "wind",
-]);
-const NONVERBAL_WORDS = new Set([
-  "breath",
-  "breathes",
-  "breathing",
-  "chuckle",
-  "chuckles",
-  "chuckling",
-  "cough",
-  "coughing",
-  "coughs",
-  "cries",
-  "cry",
-  "crying",
-  "exhale",
-  "exhales",
-  "exhaling",
-  "gasp",
-  "gasping",
-  "gasps",
-  "giggle",
-  "giggles",
-  "giggling",
-  "groan",
-  "groaning",
-  "groans",
-  "grunt",
-  "grunts",
-  "hiccup",
-  "hiccups",
-  "hum",
-  "humming",
-  "hums",
-  "inhale",
-  "inhales",
-  "inhaling",
-  "laugh",
-  "laughing",
-  "laughs",
-  "laughter",
-  "scream",
-  "screaming",
-  "screams",
-  "sigh",
-  "sighing",
-  "sighs",
-  "sneeze",
-  "sneezes",
-  "sneezing",
-  "sniff",
-  "sniffle",
-  "sniffles",
-  "sniffs",
-  "snicker",
-  "snickers",
-  "snort",
-  "snorting",
-  "snorts",
-  "sob",
-  "sobbing",
-  "sobs",
-  "throat",
-  "wheeze",
-  "wheezes",
-  "wheezing",
-  "whimper",
-  "whimpers",
-  "yawn",
-  "yawning",
-  "yawns",
-]);
-const PACING_WORDS = new Set(["pause", "pauses", "silence"]);
-const CLASS_STRENGTH: readonly AudioTagClass[] = [
-  "sound_effect",
-  "nonverbal",
-  "pacing",
-  "delivery",
-];
-
-/** Classify one tag direction, such as `laughs softly` or `long pause`. */
-export function classifyAudioTag(direction: string): AudioTagClass {
-  const words = direction.toLowerCase().split(/[^\p{L}]+/u);
-  if (words.some((word) => SOUND_EFFECT_WORDS.has(word))) return "sound_effect";
-  if (words.some((word) => NONVERBAL_WORDS.has(word))) return "nonverbal";
-  if (words.some((word) => PACING_WORDS.has(word))) return "pacing";
-  return "delivery";
-}
 
 // Tags are short directions; a longer bracketed span is not one.
 const MAX_TAG_LENGTH = 64;
@@ -294,7 +173,7 @@ export function buildSpeechTimingEvidence(
             tagClass: classifyAudioTag(direction),
           }));
         const tagClass =
-          CLASS_STRENGTH.find((candidate) =>
+          AUDIO_TAG_CLASS_STRENGTH.find((candidate) =>
             directions.some((direction) => direction.tagClass === candidate),
           ) ?? "delivery";
         evidence.tags.push({ raw: text, directions, tagClass, ...tagSpan });

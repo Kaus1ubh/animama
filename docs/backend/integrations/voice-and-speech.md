@@ -67,9 +67,11 @@ pool separate from ordinary request concurrency, so the browser closes it as
 soon as the reply ends.
 
 Speech is sent as written, in any language, without its emoji: a voice would
-read out their names. The backend adds no speech fields to `user.response`;
-Gemini and ElevenLabs read numbers and symbols themselves, and the browser
-spells them out only for Pocket TTS ([voice](../../frontend/runtime/voice.md)).
+read out their names. Its audio tags are prepared for the voice that speaks it
+(see [Audio tags](#audio-tags)). Gemini and ElevenLabs read numbers and symbols
+themselves, and the browser spells them out only for Pocket TTS
+([voice](../../frontend/runtime/voice.md)). The only speech field the backend
+adds to `user.response` is an ElevenLabs reply's `speech_tone_tag`.
 For an active TTS run, `_record_tts_speech_segment` in
 `product_http/chat/sse_events.py` queues each main-structured `speech` sentence
 for finalized speech (Gemini), emoji dropped. A segment with no letters or
@@ -90,10 +92,12 @@ final `tts.done`, or `tts.error` over the same stream.
 What is sent:
 
 - **Sentence mode**, the default `finalized_chunking="sentence"`, sends one
-  request per speech sentence, using its visible text without emoji.
+  request per speech sentence, using its visible text without emoji and with
+  its audio tags in Gemini's spelling.
 - **Paragraph mode**, `finalized_chunking="paragraph"`, keeps the public
   sentence-level `user.response` events but joins the visible sentence text of
-  each paragraph, without emoji, into one request. A batch flushes when a new paragraph starts,
+  each paragraph, without emoji and with Gemini's tag spellings, into one
+  request. A batch flushes when a new paragraph starts,
   at four sentence segments, at about 600 visible characters, or when the
   speech stream closes.
 
@@ -119,9 +123,9 @@ and are not stored as assistant messages. Normal `chat:sse` uses them to compute
 and persist a full-state `emotion.update`; the frontend still treats the
 resulting `emotions` array, not raw tone metadata, as canonical avatar emotion
 state. Gemini speech also takes its speaking style from the tone (see
-[Gemini TTS](#gemini-tts)). Persisted speech, avatar lip-sync inputs, Gemini
-request text, realtime ElevenLabs websocket text, PocketTTS text, and browser
-TTS text carry no tone tag. If the model sends `neutral`,
+[Gemini TTS](#gemini-tts)), and ElevenLabs from a leading tone tag (see
+[Audio tags](#audio-tags)). Persisted speech, Gemini request text, Pocket TTS
+text and browser speech text carry no tone tag. If the model sends `neutral`,
 omits `emotional_tone`, sends it blank, or returns a value outside the
 allowlist, the backend logs a warning for malformed metadata when applicable,
 emits a no-op emotion update with `emotional_intensity=0`, and speaks in the
@@ -130,6 +134,53 @@ friendly default tone instead of failing the chat turn.
 The frontend finalized runtime decodes and plays PCM audio from SSE events.
 Avatar lip-sync is planned in the browser from the played audio and each
 batch's `part_text` ([lip-sync pipeline](../../frontend/runtime/avatar-lipsync.md)).
+
+## Audio tags
+
+The chat model may write short bracketed directions in `speech`, such as
+`[laughs]` or `[long pause]`, which the voice performs and never speaks as words.
+`animama.domain.audio_tags` (backend) and `@animama/product-ui/audio-tags`
+(browser) hold one grammar. Both run `tests/fixtures/audio-tag-cases.json`.
+
+- **Grammar.** A tag starts with a letter and holds only letters, spaces and
+  `,.!?'’-`, at most 64 characters, in `[…]` or `<…>`. A `[…]` followed by `(`
+  is a Markdown link label, not a tag.
+- **Prompt.** `app/chat/speech_tags.py` adds an "Audio Tags in Speech" section
+  to the stable instructions, chosen by the turn's speech options:
+  - **Gemini:** the neutral set: `[laughs]`, `[chuckles]`, `[giggles]`,
+    `[sighs]`, `[gasps]`, `[breathes]`, `[short pause]`, `[long pause]` and
+    `[whispers]`.
+  - **ElevenLabs:** the neutral set, plus emotion and delivery directions,
+    other non-verbal sounds and sound effects, but no accents.
+  - **Every other turn** (speech off, Pocket TTS, browser speech) is told not
+    to write tags.
+
+  Tag names stay in English in every language. Changing the voice changes the
+  stable prefix once ([prompt caching](../runtime/prompt-caching.md)).
+- **Provider text.** `ProviderSpeechText(provider)`, one instance per reply:
+  - respells neutral tags (`[laughs]` becomes `<laugh>` on Gemini and stays
+    `[laughs]` on ElevenLabs);
+  - keeps other well-formed directions on ElevenLabs only, and drops accents;
+  - passes at most two sounds per reply (non-verbal sounds, sound effects and
+    pauses); emotion and delivery directions are not capped;
+  - drops every other tag, and removes stray brackets.
+
+  The backend prepares Gemini's finalized batches. The browser prepares
+  ElevenLabs' chunks.
+- **Splitting.** `UserResponseSegmenter` never ends a sentence inside a tag.
+- **Tone.** On an ElevenLabs run, the first speech `user.response` carries
+  `speech_tone_tag`, such as `[very happy]`, from `elevenlabs_tone_tag`
+  (`app/voice_emotional_tone.py`). It has the same tone and degree as Gemini's
+  speaking style. It is omitted when the speech opens with the model's own
+  emotion or delivery direction (`opens_with_delivery_tag`). It is never stored.
+- **Readers.**
+  - Stored replies keep the tags the model wrote.
+  - Reflection reads speech without tags; a tag-only speech gives no text.
+  - Search snippets show speech without tags and display as written. Search
+    matching is unchanged.
+- **Hosted.** Cloud speaks hosted ElevenLabs from its own copy of the text, so
+  it must prepare that copy with `ProviderSpeechText("elevenlabs")` and the
+  tone tag itself.
 
 ## Gemini TTS
 

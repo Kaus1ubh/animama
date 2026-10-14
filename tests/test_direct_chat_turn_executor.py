@@ -33,6 +33,7 @@ from animama.app.chat.memory_context import (
 )
 from animama.app.chat.memory_tools import memory_tool_specs
 from animama.app.chat.openai_prompt import TURN_CONTEXT_DESCRIPTION
+from animama.app.chat.speech_tags import speech_tags_instruction
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
     MAIN_STRUCTURED_RESPONSE_KIND,
@@ -610,6 +611,8 @@ def _phase5_prefix(response_format_guidance: str | None = None) -> list[tuple[st
                     "# Anima Identity\n\nTest anima identity.",
                     "# Memory Guidance\n\n" + MEMORY_SYSTEM_GUIDANCE.strip(),
                     "# Response Guidance\n\n" + guidance,
+                    # A request without speech options gets the no-tags rule.
+                    speech_tags_instruction(None),
                     COMPANION_GUARDRAILS.strip(),
                 )
             ),
@@ -3167,6 +3170,26 @@ async def test_direct_turn_stale_cursor_retry_keeps_the_gesture_list_in_stable_i
     first, retried = (spec.prompt.messages[0] for spec in model_client.seen_specs)
     assert "Available Gestures for this Anima" in str(first["content"])
     assert retried == first
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    ("tts", "expected"),
+    [
+        ({"enabled": True, "provider": "elevenlabs", "model_id": "eleven_v4_turbo"}, "Never ask for an accent."),
+        ({"enabled": True, "provider": "gemini"}, "This voice performs no other tags."),
+        (None, "cannot perform audio tags"),
+    ],
+)
+async def test_direct_turn_prompt_carries_the_audio_tag_rule_for_the_selected_voice(tts, expected) -> None:
+    model_client = _FinalModelClient(_structured_response(speech="Hi."))
+    executor, _chats = _executor(client=model_client)
+
+    await _collect(executor.stream_turn(_request(request_options={"tts": tts} if tts else {})))
+
+    system = str(model_client.seen_specs[0].prompt.messages[0]["content"])
+    assert system.count("# Audio Tags in Speech") == 1
+    assert expected in system
 
 
 class _CancellableChunkedModelClient(_ChunkedModelClient):

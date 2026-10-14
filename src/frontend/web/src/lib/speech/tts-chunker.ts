@@ -1,3 +1,8 @@
+import {
+  endsInsideAudioTag,
+  stripAudioTags,
+} from "@animama/product-ui/audio-tags";
+
 export type TtsChunkingConfig = {
   minSentenceChars: number;
   maxChunkChars: number;
@@ -81,7 +86,8 @@ function createChunkCandidate(
     text: normalized,
     boundaryType,
     isExclamation: isExclamationTtsChunk(normalized),
-    wordCount: countTtsChunkWords(normalized),
+    // Tags are never spoken as words, so gestures and lip-sync count without them.
+    wordCount: countTtsChunkWords(stripAudioTags(normalized)),
   };
 }
 
@@ -95,6 +101,8 @@ function findSentenceBoundaryEnd(
     // An ASCII mark inside a number or word ("$5.99", "animama.ai") ends nothing.
     if (/[.!?;]/.test(text[i]) && /[\p{L}\p{N}]/u.test(text[i + 1] ?? ""))
       continue;
+    // A mark inside an audio tag ("[sighs. long pause]") ends nothing.
+    if (endsInsideAudioTag(text.slice(0, i + 1))) continue;
     let end = i + 1;
     // A line break ends the sentence like the space after a mark.
     let sawSpace = /\s/.test(text[i]);
@@ -119,21 +127,39 @@ function splitAtWhitespaceOrLimit(
   text: string,
   maxChunkChars: number,
   minChunkChars: number,
+  boundaryType: TtsChunkBoundaryType,
 ): IdleChunkResult {
   const normalizedInput = normalizeLeadingWhitespace(text);
   if (!normalizedInput) {
     return { chunk: null, remaining: "" };
   }
-
-  if (normalizedInput.length <= maxChunkChars) {
+  // At the reply's end nothing can close an open bracket, so a final piece that
+  // fits is sent whole.
+  if (boundaryType === "final" && normalizedInput.length <= maxChunkChars) {
     const chunk = normalizeChunk(normalizedInput);
     return { chunk: chunk || null, remaining: "" };
   }
 
-  const sliceEnd = Math.min(normalizedInput.length, maxChunkChars);
-  const whitespaceIndex = normalizedInput.lastIndexOf(" ", sliceEnd);
-  const splitIndex =
-    whitespaceIndex >= minChunkChars ? whitespaceIndex : sliceEnd;
+  let splitIndex = normalizedInput.length;
+  if (normalizedInput.length > maxChunkChars) {
+    const sliceEnd = Math.min(normalizedInput.length, maxChunkChars);
+    const whitespaceIndex = normalizedInput.lastIndexOf(" ", sliceEnd);
+    splitIndex = whitespaceIndex >= minChunkChars ? whitespaceIndex : sliceEnd;
+  }
+  // Split before an audio tag rather than inside it, so it reaches the voice
+  // whole; a tag still being written waits in the remainder.
+  const head = normalizedInput.slice(0, splitIndex);
+  if (endsInsideAudioTag(head)) {
+    const opener = Math.max(head.lastIndexOf("["), head.lastIndexOf("<"));
+    if (opener > 0) splitIndex = opener;
+    // An idle flush of a tag still being written waits for the rest of it.
+    else if (boundaryType === "idle")
+      return { chunk: null, remaining: normalizedInput };
+  }
+  if (splitIndex >= normalizedInput.length) {
+    const chunk = normalizeChunk(normalizedInput);
+    return { chunk: chunk || null, remaining: "" };
+  }
 
   const rawChunk = normalizedInput.slice(0, splitIndex);
   const rawRemaining = normalizedInput.slice(splitIndex);
@@ -155,6 +181,7 @@ function splitCandidateAtWhitespaceOrLimit(
     text,
     maxChunkChars,
     minChunkChars,
+    boundaryType,
   );
   return {
     chunk: chunk ? createChunkCandidate(chunk, boundaryType) : null,

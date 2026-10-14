@@ -35,6 +35,8 @@ type ChatSseUserResponse = {
   is_delta?: boolean | null;
   part_index?: number | null;
   part_final?: boolean | null;
+  /** On the first speech frame of an ElevenLabs reply: the direction its speech starts with. */
+  speech_tone_tag?: string | null;
 };
 
 type ChatSseRunCompleted = {

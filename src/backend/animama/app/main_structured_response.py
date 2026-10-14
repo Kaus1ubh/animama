@@ -703,62 +703,6 @@ def build_main_structured_response_model(
     )
 
 
-def build_main_structured_output_schema(
-    *,
-    entries: Sequence[HelperInstructionData] | None = None,
-    gesture_ids: Sequence[str] | None = None,
-) -> dict[str, Any]:
-    runtime_gesture_ids = _runtime_gesture_ids(gesture_ids)
-    fields: dict[str, dict[str, Any]] = {
-        "emotional_tone": {
-            "type": "str",
-            "required": True,
-            "description": (
-                "Required vocal delivery tone. Use neutral or one allowed vocal tone key. "
-                "Do not include bracketed audio tags in speech."
-            ),
-            "values": list(ELEVENLABS_EMOTIONAL_TONE_VALUES),
-        },
-        "emotional_intensity": {
-            "type": "int",
-            "required": True,
-            "minimum": 1,
-            "maximum": 10,
-            "description": "Required utterance-level emotional strength from 1 through 10.",
-        },
-        "gesture": {
-            "type": "str|null",
-            "required": True,
-            "description": "Optional production gesture id; null or empty string means no gesture.",
-            "values": [None, *runtime_gesture_ids],
-        },
-        "speech": {
-            "type": "str",
-            "required": True,
-            "description": "Concise text to speak aloud through text-to-speech.",
-        },
-        "display": {
-            "type": "str|null",
-            "required": True,
-            "description": "Optional fuller visual answer for the chat transcript.",
-        },
-        "remember": {
-            "type": "str|null",
-            "required": True,
-            "description": "Optional 1-3 sentence durable memory note; null or empty string means none.",
-        },
-    }
-    _ = entries
-
-    return {
-        "kind": MAIN_STRUCTURED_RESPONSE_KIND,
-        "version": 1,
-        "response_format": MAIN_STRUCTURED_RESPONSE_FORMAT,
-        "additionalProperties": False,
-        "fields": fields,
-    }
-
-
 def is_main_structured_output_schema(schema: Any) -> bool:
     if not isinstance(schema, Mapping):
         return False
@@ -1078,7 +1022,6 @@ __all__ = [
     "build_main_response_model_from_schema",
     "build_main_structured_response_model",
     "build_main_structured_response_model_from_schema",
-    "build_main_structured_output_schema",
     "build_main_structured_prompt",
     "build_main_structured_response_json_schema",
     "is_main_structured_output_schema",

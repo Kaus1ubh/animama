@@ -64,7 +64,9 @@ larger buffers.
 The backend turns the reply's hidden emotional tone and the Anima's emotional
 level into one speaking style, such as "Speak in a very happy tone.", and sends
 it with every request in the reply; neutral or unrecognized tones speak in a
-friendly tone. The visible speech and lip-sync inputs carry no style.
+friendly tone. The visible speech and lip-sync inputs carry no style. Each
+request's text, and its `part_text`, has the reply's audio tags in Gemini's
+spelling, such as `<laugh>` ([audio tags](../../backend/integrations/voice-and-speech.md#audio-tags)).
 
 ## Avatar Timing
 

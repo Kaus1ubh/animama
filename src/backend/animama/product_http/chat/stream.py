@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from starlette.types import Receive, Scope, Send
 
 from animama.app.chat.completion import complete_successful_turn
+from animama.app.chat.speech_tags import speech_tag_provider
 from animama.app.contracts.chat import PyAnimaChatRequest
 from animama.app.services.chat_title_generation_service import ChatTitleGenerationResult
 from animama.domain.events import EventType
@@ -237,6 +238,7 @@ async def stream_direct_chat_sse(
         state = SseTextState(
             emotional_state=turn.emotional_state,
             tts_speech_payload_enabled=_tts_speech_payload_enabled(turn.chat_options),
+            speech_tone_tag_pending=speech_tag_provider(turn.chat_options.tts) == "elevenlabs",
             public_error_text=policy.public_error_text,
         )
         active_task: asyncio.Task[Any] | None = None

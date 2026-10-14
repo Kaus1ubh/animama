@@ -73,3 +73,27 @@ def test_mixed_japanese_and_english_split_at_both_kinds_of_end() -> None:
 )
 def test_ascii_sentence_ends_are_unchanged(deltas: tuple[str, ...], expected: list[list[str]]) -> None:
     assert _segments(*deltas) == expected
+
+
+def test_a_sentence_mark_inside_an_audio_tag_ends_nothing() -> None:
+    assert _segments("Well [sighs. long pause] okay. Next one. ") == [
+        ["Well [sighs. long pause] okay.", " Next one."],
+        [],
+    ]
+
+
+def test_an_audio_tag_streamed_across_deltas_stays_whole() -> None:
+    assert _segments("Oh [gasps! ", "wow] really? Yes. ") == [[], ["Oh [gasps! wow] really?", " Yes."], []]
+
+
+def test_a_bracket_that_cannot_be_a_tag_does_not_hold_the_sentence() -> None:
+    assert _segments("Is x < 5. Maybe [see 2. later ") == [["Is x < 5.", " Maybe [see 2."], [" later "]]
+
+
+def test_a_question_mark_inside_an_audio_tag_ends_nothing() -> None:
+    assert _segments("Hmm [sighs? softly] fine. ") == [["Hmm [sighs? softly] fine."], []]
+
+
+def test_a_bracket_open_past_a_tags_length_no_longer_holds_sentences() -> None:
+    held = "a" * 70
+    assert _segments(f"Look [{held}. Next. ") == [[f"Look [{held}.", " Next."], []]

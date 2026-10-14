@@ -1,3 +1,4 @@
+import { replyBubbleTexts } from "./structured-response-stream";
 import type { ChatFailure } from "../../chat/chat-failure";
 import type { PyChatMessage } from "@animama/runtime-contracts/api-types";
 import { parseMemoryCue, type ChatMemoryCue } from "./memory-cue";
@@ -71,13 +72,11 @@ export function mapServerMessagesForDisplay(
 
     const role = message.role === "user" ? "user" : "assistant";
     const structuredTexts =
-      role === "assistant" ? structuredAssistantTexts(message) : [];
+      role === "assistant" ? structuredAssistantTexts(message) : null;
     const rawContent = message.content ?? "";
-    const texts = structuredTexts.length
-      ? structuredTexts
-      : rawContent.trim()
-        ? [rawContent]
-        : [];
+    // A structured reply shows only its own bubbles, possibly none (speech of
+    // only tags); `content` would repeat the speech with its tags.
+    const texts = structuredTexts ?? (rawContent.trim() ? [rawContent] : []);
 
     // One row may render as speech plus display bubbles; the cue follows the
     // reply, so it belongs on the last one, matching the live stream.
@@ -102,28 +101,24 @@ export function mapServerMessagesForDisplay(
  * persisted assistant row. The history API keeps both values in
  * `data.structured`, while its legacy `content` projection prefers display.
  */
-function structuredAssistantTexts(message: PyChatMessage): string[] {
+function structuredAssistantTexts(message: PyChatMessage): string[] | null {
   const structured = message.data?.structured;
   if (
     !structured ||
     typeof structured !== "object" ||
     Array.isArray(structured)
   ) {
-    return [];
+    return null;
   }
 
   const structuredRecord = structured as Record<string, unknown>;
   const speechValue = structuredRecord.speech;
   const displayValue = structuredRecord.display;
-  const speech = typeof speechValue === "string" ? speechValue.trim() : "";
-  const display = typeof displayValue === "string" ? displayValue.trim() : "";
-  const texts = speech ? [speech] : [];
-
-  if (display && display !== speech) {
-    texts.push(display);
-  }
-
-  return texts;
+  const speech = typeof speechValue === "string" ? speechValue : "";
+  const display = typeof displayValue === "string" ? displayValue : "";
+  // Unusable structured data falls back to the row's content.
+  if (!speech.trim() && !display.trim()) return null;
+  return replyBubbleTexts(speech, display);
 }
 
 function serverMessageDisplayId(

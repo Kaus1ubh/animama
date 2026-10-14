@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { findAudioTags } from "@animama/product-ui/audio-tags";
+
 import { useElementSize } from "@/hooks/useElementSize";
 import type { VowelVisemeLipSyncSegment } from "@/lib/avatar/vowelVisemeSegment";
 import { decodeLipSyncCapture } from "@/lib/lipsync/capture-file";
@@ -159,6 +161,16 @@ export function LipSyncDebugSection() {
         complete: timingComplete,
       }),
     [capture?.timing, timingComplete],
+  );
+  // The text the voice received, tags included (Gemini's arrives in parts).
+  const textTagCount = useMemo(
+    () =>
+      findAudioTags(
+        capture?.text ??
+          capture?.parts.map((part) => part.text).join(" ") ??
+          "",
+      ).length,
+    [capture?.text, capture?.parts],
   );
   const [plans, setPlans] = useState<PlanEntry[]>([]);
   const [replay, setReplay] = useState<{
@@ -379,6 +391,10 @@ export function LipSyncDebugSection() {
             count(evidence.punctuation.length, "pause"),
             count(evidence.tags.length, "tag"),
           ].join(" · ")}
+        </dd>
+        <dt className="text-muted-foreground">Text</dt>
+        <dd className="text-2xs text-right font-mono">
+          {count(textTagCount, "tag")}
         </dd>
       </dl>
 

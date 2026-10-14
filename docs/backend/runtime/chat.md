@@ -306,6 +306,8 @@ they are not forwarded directly to browser clients over `chat:sse`.
 - optional `is_delta`
 - optional `part_index`
 - optional `part_final`
+- optional `speech_tone_tag`, on the first speech frame of an ElevenLabs run
+  ([audio tags](../integrations/voice-and-speech.md#audio-tags))
 
 Main structured turns use one JSON shape: `emotional_tone`,
 `emotional_intensity`, nullable `gesture`, `speech`, and nullable `display`.
@@ -329,7 +331,9 @@ A sentence ends at ASCII `.!?` followed by whitespace, except after common
 abbreviations, initials and list numbers. It also ends at Japanese or Chinese
 `。！？`, with any following marks and closing brackets or quotes. That end waits
 for the next character that is not a mark or closer, so a run streamed one mark
-at a time stays with its sentence (`domain/text_segmenter.py`).
+at a time stays with its sentence (`domain/text_segmenter.py`). A mark inside
+an audio tag that is still being written, as in `[sighs. long pause]`, ends
+nothing.
 The hidden `emotional_tone` event is emitted only after both
 `emotional_tone` and `emotional_intensity` have been decoded, so request-local
 state receives the paired delivery metadata before speech chunks arrive. The
@@ -346,7 +350,10 @@ emotion updates.
 
 When a run requests TTS, each main-structured `speech` segment is queued for
 speech as soon as it is emitted, with its visible text as written in any
-language, emoji dropped; providers read numbers and symbols themselves. A segment without
+language, emoji dropped; providers read numbers and symbols themselves. Gemini
+batches respell or drop the reply's audio tags
+([audio tags](../integrations/voice-and-speech.md#audio-tags)), so `x < 5`
+loses its stray `<` there. A segment without
 letters or digits, such as a closing emoji, stays visible only. Empty
 `part_final=true` speech markers close the segment stream without adding audio
 text. If semantic deltas were unavailable, one complete non-delta `speech`
@@ -366,7 +373,7 @@ no speech frames.
   accumulates segments by paragraph, flushing when a new paragraph starts, when
   a batch reaches four sentence segments, when it reaches about 600 visible
   characters, or when the speech stream closes. Paragraph batches join the
-  visible sentence text, emoji dropped.
+  visible sentence text, emoji dropped and tags in Gemini's spelling.
   Before each paragraph batch after the first, the backend inserts a 400 ms
   silent PCM `tts.audio` frame so adjacent paragraph utterances do not play
   back-to-back.
@@ -377,8 +384,9 @@ upstream PCM bytes into larger frames so the frontend does not need to schedule
 many tiny audio buffers, and emits exactly one `tts.done` after the last batch.
 If setup or upstream streaming fails, it emits `tts.error`, stops synthesis,
 skips `tts.done`, and still lets the chat run finish with `run.completed`.
-Chat text and the spoken text carry no tone tag, and no paragraph-specific
-fields are added to public SSE events. Frames and error codes name `gemini`. See
+Chat text and Gemini's spoken text carry no tone tag; only an ElevenLabs run's
+first speech frame adds `speech_tone_tag`. No paragraph-specific fields are
+added to public SSE events. Frames and error codes name `gemini`. See
 [voice and speech](../integrations/voice-and-speech.md#gemini-tts).
 
 `emotion.update` frames include the event ID, run ID, direct chat node ID, and

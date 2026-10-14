@@ -52,7 +52,12 @@ export type ChatSessionEffects = {
   ) => void;
   clearAvatarVisemeBridgeAll: (options?: ClearOptions) => void;
   startTtsRun: (runId: string) => void;
-  appendTtsToken: (runId: string, token: string) => void;
+  /** `speechToneTag` comes from the reply's first speech frame (ElevenLabs only). */
+  appendTtsToken: (
+    runId: string,
+    token: string,
+    options?: { speechToneTag?: string | null },
+  ) => void;
   completeTtsRun: (runId: string) => void;
   acceptElevenLabsSession: (
     runId: string,
