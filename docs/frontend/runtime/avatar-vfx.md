@@ -470,7 +470,8 @@ sourced (or `--local-content`).
 ```bash
 pnpm -s effects:assets check art/*.png --budget landmark
 pnpm -s effects:assets fix art/drop-src.png --out art/drop.png --remove-background --trim --pad 8 --square --budget landmark
-pnpm -s effects:assets flipbook frames/*.png --out art/steam.png --cell 256 --fps 10
+pnpm -s effects:assets frames art/mark.png --mode boil --out-dir frames
+pnpm -s effects:assets flipbook frames/mark-boil-01.png frames/mark-boil-02.png frames/mark-boil-03.png frames/mark-boil-04.png --out art/mark-sheet.png --fps 8
 pnpm -s effects:assets preview art/drop.png --out /tmp/drop-preview.png
 ```
 
@@ -489,6 +490,19 @@ pnpm -s effects:assets preview art/drop.png --out /tmp/drop-preview.png
   layout, and a Scene tile's or background's margins are its spacing and
   framing. Only art placed by its own framing (iris and decal art) is
   reframed, with `--canvas`.
+- `frames <key.png> --mode boil|draw-on --out-dir <dir>` derives consistent
+  flipbook frames from one key image, each on the key's canvas, so painted
+  face art keeps its UV layout. `boil` (4 frames by default) warps the art by
+  a smooth, seeded random displacement of at most `--amplitude` px (default
+  1.5) per frame, so the lines wobble like hand-traced art; `--seed` repeats
+  or varies it. `draw-on` (6 frames) reveals the art outward from `--origin
+  x,y` (fractions of the canvas; default the art's centre) or as a wipe
+  toward `--direction right|left|up|down`; `--break-off` (8 frames) reveals
+  in the first half and then clears the art from the same start. `--frames`
+  sets the count (2–64). Frames get `fix`'s alpha clean-up and edge bleed,
+  are written as `<key>-<mode>-NN.png`, and the command prints the `flipbook`
+  command with a suitable rate (boil loops at 8 fps, a draw-on plays once at
+  12 fps). It never overwrites the key.
 - `flipbook` lays frames out left to right, top to bottom, within the grid
   limits, fitting them into `--cell` when sizes differ and settling their alpha
   after resampling, and prints the `art.flipbook` fragment. `--trim` crops

@@ -203,7 +203,8 @@ coexist, up to four at once. Region does not move the image.
 Save writes a Local catalog item with the images, definition, authoring data and
 optional sound dependency. An owned item updates at its expected revision; a
 template or Included source becomes a new Local item. Choose a distinct name for
-a new variant.
+a new effect. Do not save a variant only to place, tint or move existing art
+differently in one Action: override the effect on that Action's event instead.
 
 The backend validates the definition on Save. A rejected field opens the tab
 holding its control and outlines it; a missing image also blocks Save. A missing
