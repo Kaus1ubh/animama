@@ -214,12 +214,14 @@ Boundaries:
 - [x] Owner requested implementation of Phases 1–5 (2026-10-14). Q1–Q3 proceed
       as proposed.
 - [ ] G1 budget approved (asked before the first paid live check).
-- [ ] Spec published to #479 and read back; phase issues created.
-- [ ] Phase 1: one tag grammar in both languages.
-- [ ] Phase 2: prompt rules.
-- [ ] Phase 3: backend speech, tone and readers.
-- [ ] Phase 4: browser speech and chat display.
-- [ ] Phase 5: docs, dead prompt code, live checks, full validation and the G2 pack.
+- [x] Spec published to #479 from `2337e064` and read back (2026-10-14T16:32:55Z); phase
+      issues #538–#542 created as sub-issues.
+- [x] Phase 1 (#538): one tag grammar in both languages. Review #1 was blocked
+      (2 findings, fixed), review #2 passed; one repair round remains.
+- [ ] Phase 2 (#539): prompt rules.
+- [ ] Phase 3 (#540): backend speech, tone and readers.
+- [ ] Phase 4 (#541): browser speech and chat display.
+- [ ] Phase 5 (#542): docs, dead prompt code, live checks, full validation and the G2 pack.
 - [ ] Final integration review.
 - [ ] G2 owner gate.
 
@@ -282,10 +284,15 @@ Boundaries:
     run, and only when that frame does not open with a delivery tag. A new frame
     type would add ordering and contract surface for no gain.
   - **P-D3 — Where the TypeScript grammar lives.** It moves to
-    `packages/product-ui/src/lib/chat/audio-tags.ts`, exported through the
-    existing `@animama/product-ui/chat` entry. `web`'s `tags.ts` and
-    `speech-timing-evidence.ts` import it from there, so bubbles, browser speech
-    and lip-sync share one grammar.
+    `packages/product-ui/src/lib/chat/audio-tags.ts`. `web`'s `tags.ts` and
+    `speech-timing-evidence.ts` import it, so bubbles, browser speech and
+    lip-sync share one grammar.
+    - **Revised 2026-10-14 (Phase 1 review, P1-R1-F3):** the grammar is
+      exported through a new, dependency-free entry,
+      `@animama/product-ui/audio-tags`, not through `./chat`.
+    - Reason: importing `./chat` pulled React, react-dom and sonner into the
+      lip-sync worker.
+    - product-ui moves to 0.13.0 once for this PR.
   - **P-D4 — Where the Python grammar lives.** It goes in
     `src/backend/animama/domain/audio_tags.py`, as pure functions documented for
     reuse by Cloud.
@@ -302,9 +309,11 @@ Boundaries:
 
 - **Workspace:**
   - Worktree `worktrees/animama/chat-model-voice-tags-b0f3d7`, branch
-    `feat/voice-audio-tags`, starting at `0019e280` (`origin/main` at drafting).
-  - Re-read `origin/main` before implementation, and record the starting
-    revision in Phase 1.
+    `feat/voice-audio-tags`. Drafted at `0019e280`; fast-forwarded to
+    `19919ded` (`origin/main`, 2026-10-14) before implementation. Plan and spec
+    commit: `2337e064`.
+  - Dependencies: `uv sync --frozen --python 3.12.13` with the documented extras,
+    and `pnpm install --frozen-lockfile` in `src/frontend` (2026-10-14).
   - Keep the primary checkout on `main`.
 - **Python:** `uv sync --python 3.12.13`. A new worktree venv may pick 3.14.
 - **Stack:**
@@ -331,7 +340,7 @@ Boundaries:
 Requirements: T2, T3, T5 (grammar, mapping, removal and the sound cap), the
 one-grammar constraint, and the Markdown-link part of T6.
 
-Depends on: nothing. Issue: created at workspace setup.
+Depends on: nothing. Issue: #538.
 
 Changes:
 
@@ -344,11 +353,15 @@ Changes:
      - the word classes now in `speech-timing-evidence.ts`: sound effect,
        non-verbal and pacing;
      - the accent rule: any tag word starting with `accent`.
-   - **The cases:** each has an input, a provider (`gemini`, `elevenlabs`,
-     `browser` or `pocket`) and expected outputs:
-     - the provider text;
-     - the display text;
-     - the kinds and accepted or dropped status of each tag.
+   - **The cases:** each lists the chunks of one reply, and the expected
+     output of each chunk:
+     - the Gemini provider text;
+     - the ElevenLabs provider text;
+     - the tag-free text.
+
+     Further sections hold direction classes and the tags found in sample
+     texts. Every neutral alias is checked in both syntaxes by a loop over the
+     vocabulary.
    - **What the cases must cover:**
      - both syntaxes and mixed case;
      - combined tags such as `[whispering, playful]`;
@@ -363,12 +376,13 @@ Changes:
      - tag-only speech;
      - non-English text with English tags.
 2. **TypeScript.**
-   - Add `packages/product-ui/src/lib/chat/audio-tags.ts` and export it from
-     `src/chat.ts`. It holds:
+   - Add `packages/product-ui/src/lib/chat/audio-tags.ts`, exported as
+     `@animama/product-ui/audio-tags` (P-D3). It holds:
      - the grammar from `tags.ts`, with the link exclusion;
      - `classifyAudioTag` and its word lists, moved out of
        `speech-timing-evidence.ts`;
-     - `splitAudioTags`, `stripAudioTags` and `hideSpeechTags` (display);
+     - `findAudioTags`, `audioTagClass`, `stripAudioTags` and `hideSpeechTags`
+       (display);
      - `createProviderSpeechText(provider)`, which returns a per-run function
        that maps one chunk at a time and keeps the sound count across chunks.
    - `web/src/lib/lipsync/text/tags.ts` keeps its exports
@@ -378,15 +392,16 @@ Changes:
      Its square-bracket timing parser is unchanged.
 3. **Python.** Add `src/backend/animama/domain/audio_tags.py`, the same module in
    Python:
-   - `split_audio_tags`, `strip_audio_tags` and `classify_audio_tag`;
+   - `find_audio_tags`, `strip_audio_tags` and `classify_audio_tag`;
    - `ProviderSpeechText(provider)`, a per-reply object whose
      `.prepare(segment) -> str` keeps the sound count;
    - `opens_with_delivery_tag(text)`.
 
    Docstrings name Cloud's server socket as a supported caller.
 4. **Tests:**
-   - `tests/test_audio_tags.py`, and `audio-tags.test.ts` in `web` (alongside the
-     chat shims), both run the case file and assert that the vocabulary is equal.
+   - `tests/test_audio_tags.py` and `web/tests/speech/audioTagCases.test.ts`
+     (following the idle-playback precedent) both run the case file and assert
+     that the vocabulary is equal.
    - Existing lip-sync tests run unchanged: `text-units.test.ts`,
      `fixtures.test.ts`, `aligned-thresholds.test.ts` and the timing evidence
      tests.
@@ -408,19 +423,152 @@ Recovery: the change is pure code. If moving the grammar disturbs lip-sync,
 restore the `web` copy and import only the new provider functions from the
 package until the difference is found.
 
+#### Phase 1 implementation notes
+
+- **Starting point:** `2337e064` (`19919ded` plus the spec and plan). The
+  worktree needed `git lfs pull` before the web tests: `pcm-processor.worklet.js`
+  was an LFS pointer.
+- **Case file:** `tests/fixtures/audio-tag-cases.json` holds 21 reply cases,
+  6 class cases and 6 tag-finding cases. Its word lists are sorted.
+- **Python:** `regex` is used only where `\p{L}` is needed; the rest uses `re`.
+  It trims JavaScript's `trim()` set, so both halves treat edge whitespace the
+  same. `ProviderSpeechText` refuses providers that perform no tags.
+- **`opens_with_delivery_tag`:** true when any direction of the leading tag is
+  emotion or delivery, as in `[sad, laughs]`. Accent tags never count.
+- **TypeScript:**
+  - `web`'s `tags.ts` keeps its exports.
+  - `stripTags` is now `stripAudioTags`.
+  - `speech-timing-evidence.ts` re-exports `classifyAudioTag` and
+    `AudioTagClass`, so its existing importers are unchanged.
+- **Known limitation (P1-R1-F5):** a sound that is not in the word lists, such
+  as `[dog barks]`, classes as delivery and escapes the sound cap on ElevenLabs.
+  The prompt asks for at most two sounds; the cap is a backstop for the listed
+  sounds.
+
+#### Phase 1 results
+
+Source: the working tree on `2337e064`, before the phase commit.
+
+- **Python:**
+  - `uv run pytest -q tests/test_audio_tags.py`: 120 passed;
+  - `uv run mypy` on the module and test: clean;
+  - `uv run ruff check` and `uv run ruff format --check src/backend/animama tests`:
+    clean.
+- **Frontend:**
+  - `pnpm --dir src/frontend packages:build`, `packages:check` and
+    `packages:test`: pass.
+  - `web:check` and `web:lint`: pass.
+  - Prettier check on the changed files: pass.
+  - Vitest on `tests/speech/audioTagCases.test.ts`, `src/lib/lipsync`,
+    `src/lib/speech` and `src/ui/debug`: 41 files, 539 tests passed.
+  - `pnpm --dir src/frontend web:test`:
+    - before the review fixes: 523 vitest files (4,749 tests passed, 1
+      skipped) and 114 browser-script tests passed;
+    - after them: 523 files (4,799 passed, 1 skipped), and every browser-script
+      test passed (221).
+- **Lip-sync:** `node scripts/lipsync.mjs eval --json` was run with the new
+  grammar and with `main`'s `tags.ts` and `speech-timing-evidence.ts`. Every
+  quality metric is identical; only `cpuMs` timing differs. The test set
+  contains no Markdown links, so the link exclusion cannot affect it.
+- **Race to avoid:** `packages:check` failed once because it ran in parallel
+  with `web:check`, which rebuilds the packages. It passed when rerun alone.
+
 #### Code Review #1 Findings
 
-Pending.
+Reviewer: `sdlc-reviewer`, full initial review of the working tree on
+`2337e064`. Result: **blocked**, on two required findings.
+
+- **P1-R1-F1 (required).** `audio_tags.py` `_tidy` returns `Any` from the
+  untyped `regex`, which fails mypy (`make check-test`, CI `backend-types`).
+- **P1-R1-F2 (required).** The cases never map `giggle` or `breath`. Only
+  `<laugh>` is exercised in angle brackets, so a wrong alias or spelling would
+  pass both suites.
+- **P1-R1-F3 (recommended).** Importing the grammar from
+  `@animama/product-ui/chat` pulls React, react-dom and sonner into the lip-sync
+  worker: +33 KB in an esbuild bundle of the worker.
+- **P1-R1-F4 (optional).** Python's `strip()` and JavaScript's `trim()` differ
+  on U+0085, U+001C–U+001F and U+FEFF. A 24,000-input differential run found
+  no other mismatch.
+- **P1-R1-F5 (optional).** Sounds missing from the word lists class as delivery
+  and escape the sound cap.
+- **P1-R1-F6 (judgement).** `opens_with_delivery_tag("[sad, laughs] Oh.")` is
+  false, so Phase 3 would add a tone tag before the model's own emotion.
+- **P1-R1-F7 (nit).** The `hideSpeechTags` docstring says "the rest as written",
+  but a segment with a tag is tidied.
+- **P1-R1-F8 (record).** The plan's names (`splitAudioTags`), test path and case
+  structure differ from the code.
+- **P1-R1-F9 (nits).**
+  - An orphaned comment in `tags.ts`.
+  - `as_fixture` is a test-only serializer on a production dataclass.
+  - `ProviderSpeechText` accepts any provider string.
+  - The timing evidence works out the strongest class inline.
 
 #### Code Review #1 Revisions
 
-Pending.
+- **F1: accepted.** The ASCII patterns use the typed `re`; only `_TAG` and
+  `_NOT_LETTER` use `regex`. mypy is clean.
+- **F2: accepted.** Both suites loop over every neutral alias in `[…]` and
+  `<…>` (Python also tries title case) and check both provider spellings:
+  75 Python and 50 TypeScript cases.
+- **F3: accepted.** The new `@animama/product-ui/audio-tags` entry is
+  dependency-free; its built `dist/audio-tags.js` has no imports. P-D3 is
+  revised.
+- **F4: accepted.** Python trims JavaScript's `trim()` set. Checked:
+  `'[laughs] Hi\ufeff'` → `'<laugh> Hi'`, and U+0085 is kept, as in
+  TypeScript.
+- **F5: rejected as a code change; recorded as a known limitation.** Widening
+  the word lists is speculative, and the prompt is the primary control.
+- **F6: accepted.** Any emotion or delivery direction in the leading tag
+  counts. `[sad, laughs]` and `[laughs, whispering]` are now true; accents
+  never count.
+- **F7: accepted.** The docstring is reworded.
+- **F8: accepted.** This plan is updated (names, entry, test path, case
+  structure, Phase 4 step 5).
+- **F9:**
+  - orphaned comment: accepted, folded into the module comment;
+  - `as_fixture`: accepted, moved to the test (`asdict`);
+  - provider check: accepted, `ProviderSpeechText` raises `ValueError` for any
+    other provider;
+  - inline strongest class: rejected. The evidence needs each direction's class
+    anyway, and `audioTagClass` would classify twice.
+
+Repair budget: 2 rounds remain before this repair; round #1 is now used.
+
+#### Code Review #2 Findings
+
+Reviewer: `sdlc-reviewer`, a targeted recheck of the accepted findings and of
+regressions the fixes could cause. Result: **pass**, with no blocking findings.
+
+**Repairs confirmed:**
+
+- F1: the full Makefile mypy scope is clean (839 files).
+- F2: the alias loops cover every neutral spelling.
+- F3: re-bundling the worker gives 907 KB against the 906 KB baseline, with no
+  React, react-dom or sonner.
+- F4: a 24,000-input differential run with exotic whitespace found 0 mismatches.
+- F6: a "true" result always means the model's own direction reaches the voice.
+- F7, F8 and F9: fixed.
+
+**Non-blocking notes:**
+
+- **P1-R2-N1.** An accepted square tag immediately followed by `(` re-scans as
+  a Markdown link label, so lip-sync and the debug count would read it as words
+  (for example `<sad softly>(aside)` → `[sad softly](aside)`). It is rare.
+  **Taken into Phase 4:** put a space after an accepted square tag when `(`
+  follows.
+- **P1-R2-N2.** The TypeScript alias loop skips the title-case form that Python
+  tests. The shared cases cover mixed case.
+- **P1-R2-N3 (Phase 4 watch item).** Once bubbles import the grammar inside
+  product-ui, check that `dist/audio-tags.js` still pulls in only a
+  dependency-free chunk.
+
+Repair budget: one round remains (round #2), unused.
 
 ### Phase 2: prompt rules
 
 Requirements: T1 and T4 (prompt text).
 
-Depends on: Phase 1, for the vocabulary names only.
+Depends on: Phase 1, for the vocabulary names only. Issue: #539.
 
 Changes:
 
@@ -479,7 +627,7 @@ Requirements:
 - T6 (Reflection and search snippets);
 - the Q3 proposal.
 
-Depends on: Phase 1.
+Depends on: Phase 1. Issue: #540.
 
 Changes:
 
@@ -551,7 +699,7 @@ Requirements:
 - the Q1 proposal;
 - the debug tag count.
 
-Depends on: Phases 1 and 3.
+Depends on: Phases 1 and 3. Issue: #541.
 
 Changes:
 
@@ -580,7 +728,7 @@ Changes:
    A speech part that is empty after hiding shows no bubble (Q1). The TTS input
    and stored speech stay raw.
 5. **Debug:** `LipSyncDebugSection` shows the provider text's tag count from
-   `splitAudioTags(capture.text)`, next to the existing timing count.
+   `findAudioTags(capture.text)`, next to the existing timing count.
 
 Tests:
 
@@ -614,6 +762,8 @@ Pending.
 Pending.
 
 ### Phase 5: docs, dead prompt code, live checks, full validation and the G2 pack
+
+Issue: #542. Depends on: Phases 1–4.
 
 Requirements:
 

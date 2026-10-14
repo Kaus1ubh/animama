@@ -8,8 +8,8 @@ Owner decision: 2026-10-14. It builds on the owner's intent-discovery decisions 
 [Eleven v4 spec](../eleven-v4/eleven-v4-spec.md).
 
 Authoritative source: issue [#479](https://github.com/raymond-van/animama/issues/479),
-published from this file (publication details below). This file is a snapshot of
-that issue; refresh it from the issue before resuming.
+published from this file at `2337e064` and read back on 2026-10-14T16:32:55Z. This file is a
+snapshot of that issue; refresh it from the issue before resuming.
 
 ## Problem and intended users
 
@@ -411,6 +411,11 @@ listening gate.
 
 ## Delivery links
 
+- **Phases:** [#538](https://github.com/raymond-van/animama/issues/538) (shared grammar),
+  [#539](https://github.com/raymond-van/animama/issues/539) (prompt rules),
+  [#540](https://github.com/raymond-van/animama/issues/540) (backend speech),
+  [#541](https://github.com/raymond-van/animama/issues/541) (browser speech and bubbles),
+  [#542](https://github.com/raymond-van/animama/issues/542) (docs, dead code, validation).
 - **Depends on:**
   - [#471](https://github.com/raymond-van/animama/issues/471), delivered;
   - [#468](https://github.com/raymond-van/animama/issues/468), delivered in PR
