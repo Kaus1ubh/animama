@@ -141,3 +141,59 @@ describe("ExpressionController temporary values", () => {
     expect(expressionManager.getValue("Fcl_MTH_Joy")).toBe(0);
   });
 });
+
+describe("ExpressionController lip-sync segments", () => {
+  function createLipSyncController() {
+    const expressionManager = new MockExpressionManager([
+      "aa",
+      "ee",
+      "ih",
+      "oh",
+      "ou",
+    ]);
+    const vrm = { expressionManager, scene: { traverse: () => {} } };
+    const controller = new ExpressionController(vrm as never);
+    const clock = { currentTime: 0 };
+    controller.setAudioContext(clock as unknown as AudioContext);
+    return { controller, expressionManager, clock };
+  }
+
+  it("replaces a live segment's frames from a time on", () => {
+    const { controller, expressionManager, clock } = createLipSyncController();
+    controller.initLipSyncSegment({
+      segment_id: "seg",
+      run_id: "run",
+      duration_seconds: 1,
+      format: "vowel5",
+    });
+    for (const time of [0, 1]) {
+      controller.registerLipSyncFrame({
+        segment_id: "seg",
+        time_sec: time,
+        values: [1, 0, 0, 0, 0],
+        format: "vowel5",
+      });
+    }
+    controller.onSegmentAudioStarted("seg", 0);
+
+    // The plan improves: from 0.4 s on the mouth says "O", and it runs to 2 s.
+    controller.replaceLipSyncFrames(
+      "seg",
+      0.4,
+      [0.4, 2].map((time) => ({
+        time_sec: time,
+        values: [0, 0, 0, 1, 0],
+        format: "vowel5" as const,
+      })),
+      2,
+    );
+
+    clock.currentTime = 0.2;
+    controller.update(0.016);
+    expect(expressionManager.getValue("aa")).toBeGreaterThan(0.4);
+    clock.currentTime = 1.5;
+    controller.update(0.016);
+    expect(expressionManager.getValue("oh")).toBeGreaterThan(0.9);
+    expect(expressionManager.getValue("aa")).toBe(0);
+  });
+});

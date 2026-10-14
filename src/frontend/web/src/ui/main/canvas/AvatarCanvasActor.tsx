@@ -653,6 +653,8 @@ export function AvatarCanvasActor({
       avatarState,
       preferredRunId: preferredSpeechRunId,
     });
+    // Laughs, sighs and gasps show briefly on the face while they sound.
+    lipSyncBridge.tickTagOverlays(preferredSpeechRunId);
 
     avatar.update(delta, {
       speechTiming: lipSyncBridge.getSpeechTimingContext(preferredSpeechRunId),

@@ -35,18 +35,11 @@ type ChatSseUserResponse = {
   is_delta?: boolean | null;
   part_index?: number | null;
   part_final?: boolean | null;
-  tokenized_text?: string | null;
-  phonemized_text?: string[][] | null;
-  tts_text?: string | null;
-  tts_phonemized_text?: string[][] | null;
-  tts_text_basis?: "gruut_text_with_ws" | string | null;
 };
 
 type ChatSseRunCompleted = {
   run_id?: string | null;
   chat_id?: string | null;
-  tokenized_text?: string | null;
-  phonemized_text?: string[][] | null;
 };
 
 type ChatSseChatTitleUpdated = {
@@ -107,6 +100,8 @@ export type ChatSseTtsAudio = {
   model_id?: string | null;
   output_format?: string | null;
   audio_base64?: string | null;
+  /** On the first frame of each speech part (Gemini batch): the part's text. */
+  part_text?: string | null;
 };
 
 export type ChatSseTtsDone = {
@@ -581,20 +576,6 @@ export function useChatSse() {
               chatId: data.chat_id,
               tokenCount,
             });
-            if (data.tokenized_text || data.phonemized_text) {
-              logger.info("useChatSse", "SSE run completed speech text", {
-                animaId: args.animaId,
-                runId: expectedRunId,
-                tokenizedText: data.tokenized_text ?? null,
-                phonemizedText: data.phonemized_text ?? null,
-                hasTokenizedText: Boolean(data.tokenized_text?.trim()),
-                hasPhonemizedText: Array.isArray(data.phonemized_text),
-                phonemizedWordCount: Array.isArray(data.phonemized_text)
-                  ? data.phonemized_text.length
-                  : 0,
-                visemePlanningDeferred: true,
-              });
-            }
             args.onComplete?.(data);
             break;
           }

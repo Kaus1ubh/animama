@@ -762,14 +762,12 @@ async def test_direct_turn_emits_sse_compatible_events_and_persists_model_snapsh
         tone_event,
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=lambda *_args, **_kwargs: None,
     )
     assert tone_frame is None
     frame = format_user_response_event(
         user_event,
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=lambda *_args, **_kwargs: None,
     )
     assert frame is not None
     assert json.loads(frame.split("data: ", 1)[1])["text"] == "Hello there."
@@ -1049,7 +1047,6 @@ async def test_direct_turn_streams_structured_speech_before_model_final() -> Non
         tone_event,
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=lambda *_args, **_kwargs: None,
     )
     assert tone_frame is None
     assert state.emotional_tone == "joy"
@@ -1058,7 +1055,6 @@ async def test_direct_turn_streams_structured_speech_before_model_final() -> Non
         first_speech_event,
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=lambda *_args, **_kwargs: None,
     )
     assert frame is not None
     data = json.loads(frame.split("data: ", 1)[1])
@@ -1095,14 +1091,6 @@ def _sse_user_response_event(
     )
 
 
-def _fake_tts_gruut(text: str, **kwargs: Any) -> dict[str, Any]:
-    return {
-        "tokenized_text": " ".join(text.split()),
-        "phonemized_text": [["PH"]],
-        **({"lang": kwargs["lang"]} if "lang" in kwargs and "tokenized_text_source" not in kwargs else {}),
-    }
-
-
 def test_sse_formatter_queues_multiple_prepared_tts_speech_segments() -> None:
     state = SseTextState(tts_speech_payload_enabled=True)
 
@@ -1115,7 +1103,6 @@ def test_sse_formatter_queues_multiple_prepared_tts_speech_segments() -> None:
         ),
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=_fake_tts_gruut,
     )
     second_frame = format_user_response_event(
         _sse_user_response_event(
@@ -1126,11 +1113,22 @@ def test_sse_formatter_queues_multiple_prepared_tts_speech_segments() -> None:
         ),
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=_fake_tts_gruut,
     )
 
     assert first_frame is not None
     assert second_frame is not None
+    # Speech frames carry the visible text only; the queued segment is spoken as written.
+    assert set(json.loads(first_frame.split("data: ", 1)[1])) == {
+        "event_id",
+        "run_id",
+        "node_id",
+        "text",
+        "response_format",
+        "response_part",
+        "is_delta",
+        "part_index",
+        "part_final",
+    }
     assert [segment.tts_text for segment in state.tts_speech_segments] == [
         "First sentence.",
         "Second sentence.",
@@ -1155,7 +1153,6 @@ def test_sse_formatter_marks_tts_speech_paragraph_breaks() -> None:
         ),
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=_fake_tts_gruut,
     )
     format_user_response_event(
         _sse_user_response_event(
@@ -1166,7 +1163,6 @@ def test_sse_formatter_marks_tts_speech_paragraph_breaks() -> None:
         ),
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=_fake_tts_gruut,
     )
 
     assert [segment.tts_text for segment in state.tts_speech_segments] == [
@@ -1190,7 +1186,6 @@ def test_sse_formatter_empty_final_marker_closes_tts_speech_stream() -> None:
         ),
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=_fake_tts_gruut,
     )
     marker_frame = format_user_response_event(
         _sse_user_response_event(
@@ -1201,7 +1196,6 @@ def test_sse_formatter_empty_final_marker_closes_tts_speech_stream() -> None:
         ),
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=_fake_tts_gruut,
     )
 
     assert marker_frame is not None
@@ -1221,7 +1215,6 @@ def test_sse_formatter_complete_fallback_speech_queues_one_tts_segment() -> None
         ),
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=_fake_tts_gruut,
     )
 
     assert frame is not None
@@ -1241,7 +1234,6 @@ def test_sse_formatter_complete_correction_after_deltas_does_not_duplicate_tts()
         ),
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=_fake_tts_gruut,
     )
     correction_frame = format_user_response_event(
         _sse_user_response_event(
@@ -1252,13 +1244,11 @@ def test_sse_formatter_complete_correction_after_deltas_does_not_duplicate_tts()
         ),
         run_id="run-1",
         state=state,
-        build_gruut_sse_text=_fake_tts_gruut,
     )
 
     assert correction_frame is not None
     correction_data = json.loads(correction_frame.split("data: ", 1)[1])
     assert correction_data["text"] == "Final sentence."
-    assert "tts_text" not in correction_data
     assert [segment.tts_text for segment in state.tts_speech_segments] == ["Draft sentence."]
     assert state.tts_speech_segments_closed is True
 

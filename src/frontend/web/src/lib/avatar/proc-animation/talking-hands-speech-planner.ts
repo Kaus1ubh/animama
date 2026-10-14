@@ -1,5 +1,5 @@
 import type { TalkingHandsProceduralAnimationParams } from "./types";
-import type { SpeechGestureBeat } from "@/lib/speech/gruut-viseme-keyframes";
+import type { SpeechGestureBeat } from "@/lib/speech/speech-gesture-timeline";
 import type { TtsChunkBoundaryType } from "@/lib/speech/tts-chunker";
 
 const EPSILON = 0.0001;
@@ -45,8 +45,7 @@ export type TalkingHandsSpeechPlanSkippedBeatReason =
 export type TalkingHandsSpeechPlanBeatDiagnostic = {
   timeSec: number;
   wordIndex: number;
-  phonemeIndex: number;
-  phoneme: string;
+  unitIndex: number;
 };
 
 export type TalkingHandsSpeechPlanSkippedBeatDiagnostic =
@@ -619,8 +618,7 @@ function createBeatDiagnostic(
   return {
     timeSec: beat.timeSec,
     wordIndex: beat.wordIndex,
-    phonemeIndex: beat.phonemeIndex,
-    phoneme: beat.phoneme,
+    unitIndex: beat.unitIndex,
   };
 }
 
@@ -632,7 +630,7 @@ function compareSpeechGestureBeatsByTime(
 }
 
 function createSpeechBeatKey(beat: SpeechGestureBeat): string {
-  return [beat.wordIndex, beat.phonemeIndex, beat.timeSec.toFixed(3)].join(":");
+  return [beat.wordIndex, beat.unitIndex, beat.timeSec.toFixed(3)].join(":");
 }
 
 function sanitizeNonNegativeFinite(value: number): number {

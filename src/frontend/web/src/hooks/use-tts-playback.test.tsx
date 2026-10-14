@@ -4,6 +4,10 @@ import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { DEFAULT_POCKET_VOICE } from "@/lib/speech/pocket/voice-catalog";
+import {
+  addSpeechUtteranceListener,
+  type SpeechUtteranceEvent,
+} from "@/lib/speech/speech-pcm-tap";
 import type { PocketAnimaVoiceSelectionContext } from "@/lib/speech/pocket/anima-voice-selection";
 import { useTtsPlayback } from "./use-tts-playback";
 
@@ -198,12 +202,14 @@ function renderPlayback({
   const onAudioStarted = vi.fn();
   const onAudioEnded = vi.fn();
   const onAudioDurationResolved = vi.fn();
+  const onSpeechText = vi.fn();
   const latest = { current: null as unknown as Playback };
   function Harness() {
     latest.current = useTtsPlayback({
       onAudioStarted,
       onAudioEnded,
       onAudioDurationResolved,
+      onSpeechText,
       geminiTtsOffered: true,
       getPocketVoiceSelectionContext: () => ({
         animaId: ANIMA_ID,
@@ -222,7 +228,13 @@ function renderPlayback({
   });
   // The hook's callbacks change identity when its audio state re-renders it.
   const playback = () => latest.current;
-  return { playback, onAudioStarted, onAudioEnded, onAudioDurationResolved };
+  return {
+    playback,
+    onAudioStarted,
+    onAudioEnded,
+    onAudioDurationResolved,
+    onSpeechText,
+  };
 }
 
 function emitPocketEvent(name: string, detail: Record<string, unknown>) {
@@ -316,6 +328,24 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     expect(fixture.toast.warning).not.toHaveBeenCalled();
   });
 
+  it("ends a Pocket reply that has nothing to say", () => {
+    fixture.speech = { tts_provider: "pocket_tts" };
+    const { playback, onAudioEnded } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "😊 [laughs]");
+      playback().completeRun("run-1");
+    });
+    // Nothing is left to speak once tags and emoji go, so Pocket is not
+    // asked to generate and the reply ends at once.
+    expect(fixture.pocket.generateAndWait).not.toHaveBeenCalled();
+    expect(onAudioEnded).toHaveBeenCalledWith({
+      runId: "run-1",
+      provider: "pocket_tts",
+      reason: "natural",
+    });
+  });
+
   it("speaks a reply declined after its text with the Anima's Pocket voice", () => {
     const assertActive = vi.fn();
     const { playback } = renderPlayback({
@@ -323,12 +353,8 @@ describe("speaking a declined ElevenLabs reply with Pocket TTS", () => {
     });
     act(() => {
       playback().startRun("run-1");
-      playback().appendToken("run-1", "Hi there. ", {
-        textBasis: "gruut_text_with_ws",
-      });
-      playback().appendToken("run-1", "Nice to meet you.", {
-        textBasis: "gruut_text_with_ws",
-      });
+      playback().appendToken("run-1", "Hi there. ");
+      playback().appendToken("run-1", "Nice to meet you.");
       playback().completeRun("run-1");
     });
     // The realtime run owns the reply until the server declines its speech.
@@ -611,9 +637,7 @@ describe("playing Gemini audio the server pushes", () => {
     });
     act(() => {
       playback().startRun("run-1");
-      playback().appendToken("run-1", "Hello there. How are you?", {
-        textBasis: "gruut_text_with_ws",
-      });
+      playback().appendToken("run-1", "Hello there. How are you?");
       playback().completeRun("run-1");
     });
 
@@ -705,5 +729,220 @@ describe("playing Gemini audio the server pushes", () => {
     });
     expect(fixture.finalized.prepareRun).not.toHaveBeenCalled();
     expect(fixture.finalized.acceptAudioChunk).not.toHaveBeenCalled();
+  });
+});
+
+describe("browser speech", () => {
+  /** A voice that records its utterances and speaks only when told. */
+  class FakeUtterance {
+    static spoken: FakeUtterance[] = [];
+    volume = 1;
+    onstart: (() => void) | null = null;
+    onboundary: ((event: { name?: string; charIndex: number }) => void) | null =
+      null;
+    onend: (() => void) | null = null;
+    onerror: (() => void) | null = null;
+    text: string;
+    constructor(text: string) {
+      this.text = text;
+    }
+  }
+
+  beforeEach(() => {
+    vi.clearAllMocks();
+    FakeUtterance.spoken = [];
+    fixture.speech = { tts_provider: "browser" };
+    vi.stubGlobal("SpeechSynthesisUtterance", FakeUtterance);
+    vi.stubGlobal("speechSynthesis", {
+      speak: (utterance: FakeUtterance) => FakeUtterance.spoken.push(utterance),
+      cancel: vi.fn(),
+      getVoices: () => [],
+    });
+  });
+  afterEach(() => {
+    act(() => root?.unmount());
+    root = null;
+    vi.unstubAllGlobals();
+  });
+
+  it("reports each utterance and its words for lip-sync, on the performance clock", () => {
+    const events: SpeechUtteranceEvent[] = [];
+    const stop = addSpeechUtteranceListener((event) => events.push(event));
+    const { playback, onAudioStarted } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "Hello there.");
+      playback().completeRun("run-1");
+    });
+    const utterance = FakeUtterance.spoken[0]!;
+    act(() => {
+      utterance.onstart?.();
+      utterance.onboundary?.({ name: "word", charIndex: 6 });
+      utterance.onboundary?.({ name: "sentence", charIndex: 0 });
+      utterance.onend?.();
+    });
+    stop();
+
+    expect(events.map((event) => event.type)).toEqual([
+      "start",
+      "boundary",
+      "end",
+    ]);
+    expect(events[0]).toMatchObject({ runId: "run-1", text: "Hello there." });
+    expect(events[1]).toMatchObject({ charIndex: 6 });
+    const start = events[0]!.atSec;
+    expect(onAudioStarted).toHaveBeenCalledWith(
+      expect.objectContaining({
+        runId: "run-1",
+        provider: "browser",
+        audioStartSec: start,
+      }),
+    );
+    const clock = onAudioStarted.mock.calls[0]![0].audioContext as AudioContext;
+    expect(clock.currentTime).toBeGreaterThanOrEqual(start);
+  });
+
+  it("leaves emoji out, so the voice does not read their names", () => {
+    const { playback } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "I love it 😊 so much! 👍🏽");
+      playback().completeRun("run-1");
+    });
+
+    expect(FakeUtterance.spoken.map((utterance) => utterance.text)).toEqual([
+      "I love it so much!",
+    ]);
+  });
+});
+
+describe("speech text for lip-sync", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    fixture.pocketSupported = true;
+    fixture.ttsMuted = false;
+    fixture.speech = {};
+    fixture.realtimeOptions = null;
+    fixture.coreHandlers.clear();
+  });
+  afterEach(() => {
+    act(() => root?.unmount());
+    root = null;
+  });
+
+  const texts = (onSpeechText: ReturnType<typeof vi.fn>) =>
+    onSpeechText.mock.calls.map(([event]) => event);
+
+  it("reports each chunk sent to ElevenLabs, then the final text", () => {
+    const { playback, onSpeechText } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken(
+        "run-1",
+        "This first sentence is long enough to stream. ",
+      );
+    });
+    expect(texts(onSpeechText).at(-1)).toEqual({
+      runId: "run-1",
+      provider: "elevenlabs",
+      text: "This first sentence is long enough to stream. ",
+      final: false,
+    });
+    act(() => {
+      playback().appendToken("run-1", "Then the reply ends.");
+      playback().completeRun("run-1");
+    });
+    expect(texts(onSpeechText).at(-1)).toEqual({
+      runId: "run-1",
+      provider: "elevenlabs",
+      text: "This first sentence is long enough to stream. Then the reply ends. ",
+      final: true,
+    });
+  });
+
+  it("sends ElevenLabs the text without emoji, tags kept", () => {
+    const { playback, onSpeechText } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "[laughs] I love it 😊 so much! 🎉");
+      playback().completeRun("run-1");
+    });
+
+    expect(
+      fixture.realtime.appendText.mock.calls.map(([, text]) => text),
+    ).toEqual(["[laughs] I love it so much!"]);
+    expect(texts(onSpeechText).at(-1)?.text).toBe(
+      "[laughs] I love it so much! ",
+    );
+  });
+
+  it("reports Pocket's text spelled out as Pocket speaks it", () => {
+    fixture.speech = { tts_provider: "pocket_tts" };
+    const { playback, onSpeechText } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "I have 3 cats.");
+      playback().completeRun("run-1");
+    });
+    expect(texts(onSpeechText).at(-1)).toEqual({
+      runId: "run-1",
+      provider: "pocket_tts",
+      text: "I have three cats. ",
+      final: true,
+    });
+  });
+
+  it("reports Gemini's reply text as it arrives", () => {
+    fixture.speech = { tts_provider: "gemini" };
+    const { playback, onSpeechText } = renderPlayback({
+      modelId: "gemini-3.8-flash-tts",
+    });
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken("run-1", "Hello there.");
+      playback().appendToken("run-1", " How are you?");
+      playback().completeRun("run-1");
+    });
+    expect(texts(onSpeechText)).toEqual([
+      {
+        runId: "run-1",
+        provider: "gemini",
+        text: "Hello there.",
+        final: false,
+      },
+      {
+        runId: "run-1",
+        provider: "gemini",
+        text: "Hello there. How are you?",
+        final: false,
+      },
+      {
+        runId: "run-1",
+        provider: "gemini",
+        text: "Hello there. How are you?",
+        final: true,
+      },
+    ]);
+  });
+
+  it("starts the text again when a reply falls back to Pocket", () => {
+    const { playback, onSpeechText } = renderPlayback();
+    act(() => {
+      playback().startRun("run-1");
+      playback().appendToken(
+        "run-1",
+        "This first sentence is long enough to stream. ",
+      );
+      playback().fallBackToPocketTts("run-1");
+      playback().appendToken("run-1", "Then 2 more arrive.");
+      playback().completeRun("run-1");
+    });
+    // Pocket speaks the whole reply; its text is not added to ElevenLabs'.
+    expect(texts(onSpeechText).at(-1)).toEqual({
+      runId: "run-1",
+      provider: "pocket_tts",
+      text: "This first sentence is long enough to stream. Then two more arrive. ",
+      final: true,
+    });
   });
 });

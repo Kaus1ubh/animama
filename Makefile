@@ -7,7 +7,7 @@ help: ## Show backend tasks (frontend tasks use pnpm in src/frontend).
 	@awk 'BEGIN {FS = ":.*## "} /^[a-z-]+:.*## / {printf "  %-20s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
 sync: ## Install backend development dependencies and supported local extras.
-	uv sync --extra server --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev
+	uv sync --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev
 
 test: ## Run offline backend tests; database tests use disposable containers.
 	uv run pytest

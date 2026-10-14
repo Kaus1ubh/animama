@@ -1,10 +1,10 @@
 id: user-response-stream-speech-0-run-follow-up
 event: user.response
-data: {"event_id": "user-response-stream-speech-0-run-follow-up", "run_id": "run-follow-up", "node_id": "direct-chat:model-client", "text": "Of course.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false, "tokenized_text": "Of course.", "phonemized_text": [["\u0259", "v"], ["k", "\u02c8\u0254", "\u0279", "s"]]}
+data: {"event_id": "user-response-stream-speech-0-run-follow-up", "run_id": "run-follow-up", "node_id": "direct-chat:model-client", "text": "Of course.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false}
 
 id: user-response-stream-speech-1-run-follow-up
 event: user.response
-data: {"event_id": "user-response-stream-speech-1-run-follow-up", "run_id": "run-follow-up", "node_id": "direct-chat:model-client", "text": " Green or black?", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 1, "part_final": true, "tokenized_text": "Green or black?", "phonemized_text": [["\u0261", "\u0279", "\u02c8i", "n"], ["\u02c8\u0254", "\u0279"], ["b", "l", "\u02c8\u00e6", "k"]]}
+data: {"event_id": "user-response-stream-speech-1-run-follow-up", "run_id": "run-follow-up", "node_id": "direct-chat:model-client", "text": " Green or black?", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 1, "part_final": true}
 
 id: emotion-update-run-follow-up-direct-chat:model-client
 event: emotion.update

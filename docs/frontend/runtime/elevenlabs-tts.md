@@ -88,21 +88,9 @@ where it is supported.
 
 ## Speech Text
 
-For main-structured TTS speech, `user.response` can include additive TTS
-fields:
-
-- `tts_text`
-- `tts_phonemized_text`
-- `tts_text_basis: "gruut_text_with_ws"`
-
-gruut prepares speech whose letters are all ASCII, which is treated as English,
-whatever its punctuation, symbols or emoji: `tts_text` is its normalized text,
-with numbers spelled out, and `tts_phonemized_text` is its phonemes. Speech with
-other letters carries no TTS fields and is spoken as written, in any language.
-This includes Japanese, Korean, Chinese and accented Spanish, and English with an
-accented loanword. Realtime ElevenLabs speech sends `tts_text` to the admitted
-websocket when `tts_text_basis` is `gruut_text_with_ws`, and the visible speech
-text otherwise.
+Realtime ElevenLabs speech sends the visible speech text to the admitted
+websocket as written, in any language, without emoji (`dropEmoji`); ElevenLabs
+reads numbers and symbols itself, and performs its tags.
 
 For structured speech streaming, `useChatSession.ts` sends each speech delta
 into the existing TTS pipeline as it arrives. Realtime ElevenLabs speech keeps
@@ -127,19 +115,16 @@ providers:
 - `onPlaybackEndedSignal`
 - `onAudioEnded`
 
-The avatar lip-sync bridge uses gruut phonemes from SSE and the actual played
-audio duration to build or recompute vowel viseme timing. For structured speech
-streaming, `useChatSession` accumulates the `tts_phonemized_text` from every
-speech segment that is sent to TTS, so the final run-level duration correction
-uses the same text basis as the spoken audio. Lip-sync timing comes from those
-phonemes and playback callbacks, not ElevenLabs alignment metadata.
+Lip-sync plans the mouth from the audio frames the runtime plays, the text of
+each chunk sent to the socket, and the provider's character timing (see
+[Avatar lip-sync](avatar-lipsync.md#2-text-and-audio-per-provider)).
 
 ### Provider character timing
 
 The runtime also reports the provider's character timing through
 `onSpeechTiming`. `useChatSession` appends it to the lip-sync bridge's
-`providerSpeechTimingByRun`, which is cleared with the run. It is evidence for
-lip-sync planners; the current planner does not read it.
+`providerSpeechTimingByRun`, which is cleared with the run, and forwards it to
+the lip-sync planner, which places words and tags within it.
 
 `lib/speech/provider-speech-timing.ts` puts every character on the run clock:
 seconds from the run's first audio sample. Add the run's `audioStartSec` to map a

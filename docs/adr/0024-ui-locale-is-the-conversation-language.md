@@ -71,10 +71,11 @@ showed backend English verbatim.
   identifiers) are never translated; only their display is.
 - Under a non-English locale with Parakeet, the owner speaks English while the
   Anima replies in the locale until multilingual speech recognition lands
-  ([#509](https://github.com/raymond-van/animama/issues/509)). Lip-sync is
-  estimated from English phonemes, so the mouth does not move for Japanese,
-  Korean or Chinese replies until audio-driven lip-sync lands
-  ([#468](https://github.com/raymond-van/animama/issues/468)).
+  ([#509](https://github.com/raymond-van/animama/issues/509)). Lip-sync was
+  estimated from English phonemes, so the mouth did not move for Japanese,
+  Korean or Chinese replies until audio-driven lip-sync landed
+  ([#468](https://github.com/raymond-van/animama/issues/468)); it now plans
+  every reply from its audio and text.
 - The model's instruction text, the Companion Guardrails, memory guidance and
   starter Anima identities stay English; only the reply language changes. Text
   the Anima writes for itself (episodic notes, `MEMORIES.md` edits) may follow

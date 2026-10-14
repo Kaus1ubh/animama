@@ -7,18 +7,31 @@ import {
   type AvatarAnimationState,
   type ProceduralSpeechTimingContext,
 } from "@/lib/avatar";
-import { buildVisemeAssetsFromRaw } from "@/lib/avatar/viseme-worker-client";
-import type {
-  GruutVisemeKeyframePlanSummary,
-  VisemeWorkerBuildMode,
-  VisemeWorkerOverrunPolicy,
-} from "@/lib/avatar/viseme-worker-protocol";
-import type {
-  Vowel5FrameValues,
-  VowelVisemeLipSyncSegment,
-} from "@/lib/avatar/vowelVisemeSegment";
+import type { VowelVisemeLipSyncSegment } from "@/lib/avatar/vowelVisemeSegment";
+import {
+  addLipSyncRunTiming,
+  cancelAllLipSyncRuns,
+  cancelLipSyncRun,
+  connectLipSyncRuns,
+  endLipSyncRunAudio,
+  setLipSyncRunText,
+} from "@/lib/lipsync/lipsync-runs";
+import {
+  mergePlanFrames,
+  phraseChunks,
+  plannedGestureTimeline,
+  plannedSegment,
+  playbackGaps,
+  playbackTime,
+  runTime,
+  tagOverlayWeights,
+  type RunClockAnchor,
+} from "@/lib/lipsync/planned-segment";
+import { LIPSYNC_FPS, type LipSyncEvent } from "@/lib/lipsync/track";
+import type { LipSyncWorkerResponse } from "@/lib/lipsync/worker-protocol";
 import { createLogger } from "@/lib/logger";
-import type { SpeechGestureTimeline } from "@/lib/speech/gruut-viseme-keyframes";
+import type { SpeechGestureTimeline } from "@/lib/speech/speech-gesture-timeline";
+import { addSpeechPlaybackListener } from "@/lib/speech/speech-pcm-tap";
 import type { TimedChar } from "@/lib/speech/provider-speech-timing";
 import type { TtsChunkRecord } from "@/lib/speech/tts-chunker";
 
@@ -40,12 +53,8 @@ type SpeechAudioDuration = {
 type StoredSegment = VowelVisemeLipSyncSegment & {
   runId: string;
   queuedAtMs: number;
-};
-
-export type RawVisemeInputs = {
-  phonemizedText: string[][] | null;
-  tokenizedText: string | null;
-  fps: number;
+  /** Increases with every revision, so mirrors can tell when to re-apply it. */
+  revision: number;
 };
 
 type TickGateArgs = {
@@ -60,41 +69,59 @@ type ClearOptions = {
 /**
  * A run's provider character timing on the run clock (seconds from its first
  * audio sample; add the run's `audioStartSec` for the playback clock, which
- * holds until playback starves). It is lip-sync evidence for planners: today's
- * estimated plan does not read it.
+ * holds until playback starves). The lip-sync planner reads it as evidence.
  */
 export type ProviderSpeechTiming = {
   provider: "elevenlabs";
   chars: TimedChar[];
 };
 
+/** How a run's lip-sync planning is going. */
+export type PlannedLipSyncStats = {
+  /** Whether all of the run's text and audio were planned. */
+  complete: boolean;
+  /**
+   * Why the mouth follows the audio alone, if it does: the text has nothing to
+   * say, no alignment fits, or the planner failed.
+   */
+  fallback: "no_text" | "no_alignment" | "planner_failed" | null;
+  /** Seconds of the run's audio planned so far. */
+  audioSec: number;
+  /** Planning CPU per second of audio, in milliseconds. */
+  cpuMsPerAudioSec: number | null;
+};
+
 type AvatarLipSyncBridgeState = {
   avatar: Avatar | null;
   avatarAnimaId: string | null;
-  sourcePlansByRun: Record<string, GruutVisemeKeyframePlanSummary>;
   speechGestureTimelinesByRun: Record<string, SpeechGestureTimeline>;
   speechChunksByRun: Record<string, TtsChunkRecord[]>;
-  rawVisemeInputsByRun: Record<string, RawVisemeInputs>;
   segmentsByRun: Record<string, StoredSegment>;
   speechAudioStartsByRun: Record<string, SpeechAudioStart>;
   speechAudioDurationsByRun: Record<string, SpeechAudioDuration>;
   providerSpeechTimingByRun: Record<string, ProviderSpeechTiming>;
+  /** Each run's complete speech text, for the debug comparison. */
+  speechTextByRun: Record<string, string>;
+  /** Tag events (laughs, sighs, pauses) on each run's own audio clock. */
+  lipSyncEventsByRun: Record<string, LipSyncEvent[]>;
+  plannerStatsByRun: Record<string, PlannedLipSyncStats>;
+  /** Where each run's playback resumed after an underrun. */
+  playbackAnchorsByRun: Record<string, RunClockAnchor[]>;
   startedRuns: Record<string, true>;
-  buildSeqByRun: Record<string, number>;
   registerAvatarInstance: (args: {
     avatar: Avatar;
     animaId?: string | null;
   }) => void;
   unregisterAvatarInstance: (avatar: Avatar) => void;
-  queueVisemeInputsForRun: (args: {
-    runId: string;
-    phonemizedText: string[][] | null;
-    tokenizedText: string | null;
-    provider?: "pocket_tts" | "elevenlabs" | "gemini";
-  }) => void;
   queueTtsChunksForRun: (args: {
     runId: string;
     chunks: readonly TtsChunkRecord[];
+  }) => void;
+  /** The text a run's voice speaks so far, tags included; `final` once complete. */
+  setSpeechText: (args: {
+    runId: string;
+    text: string;
+    final: boolean;
   }) => void;
   markSpeechAudioStarted: (args: {
     runId: string;
@@ -102,10 +129,17 @@ type AvatarLipSyncBridgeState = {
     audioContext: AudioContext;
     generationId?: string | null;
   }) => void;
+  /** All of a run's audio has arrived; its duration is known. */
   markSpeechAudioDurationResolved: (args: {
     runId: string;
     audioDurationSec: number;
     generationId?: string | null;
+  }) => void;
+  /** Playback of a run resumed after an underrun: run second `runSec` played at `contextSec`. */
+  markPlaybackResumed: (args: {
+    runId: string;
+    runSec: number;
+    contextSec: number;
   }) => void;
   /** Append characters the speech runtime timed for a run, in arrival order. */
   appendProviderSpeechTiming: (args: {
@@ -113,6 +147,11 @@ type AvatarLipSyncBridgeState = {
     provider: ProviderSpeechTiming["provider"];
     chars: readonly TimedChar[];
   }) => void;
+  /** Apply a lip-sync worker response for a run. */
+  applyPlannerResponse: (
+    runId: string,
+    response: LipSyncWorkerResponse,
+  ) => void;
   getSpeechTimingContext: (
     preferredRunId?: string | null,
   ) => ProceduralSpeechTimingContext | null;
@@ -132,23 +171,25 @@ type AvatarLipSyncBridgeState = {
    */
   stopReplaySegment: () => void;
   tickGate: (args: TickGateArgs) => void;
+  /** Show the brief expressions of the tags sounding now (laughs, sighs, gasps). */
+  tickTagOverlays: (preferredRunId?: string | null) => void;
   clearRun: (runId?: string | null, options?: ClearOptions) => void;
   clearAll: (options?: ClearOptions) => void;
 };
 
 const logger = createLogger("AvatarVisemeSync");
-const EPS = 1e-6;
 const DURATION_DEDUPE_EPS_SEC = 1e-4;
 const SPEECH_GESTURE_TIMELINE_DURATION_EPS_SEC = 0.05;
-const PROVISIONAL_VISEME_MARGIN_MIN_SEC = 1.5;
-const PROVISIONAL_VISEME_MARGIN_RATIO = 0.3;
-const PROVISIONAL_VISEME_MARGIN_MAX_SEC = 4.0;
-const DEFAULT_VOWEL_VISEME_FPS = 60;
-const PROVISIONAL_OVERRUN_POLICY: VisemeWorkerOverrunPolicy = {
-  minSec: PROVISIONAL_VISEME_MARGIN_MIN_SEC,
-  ratio: PROVISIONAL_VISEME_MARGIN_RATIO,
-  maxSec: PROVISIONAL_VISEME_MARGIN_MAX_SEC,
-};
+const TAG_OVERLAY_OWNER = "lipsync-tags";
+/** Each run's full planned track (60 FPS vowel5), merged from worker updates. */
+const plannedTracks = new Map<string, Float32Array>();
+/** Each run's latest gesture timing on the run clock, to re-map after an underrun. */
+const plannedGestures = new Map<
+  string,
+  Parameters<typeof plannedGestureTimeline>[0]
+>();
+/** Whether the tag overlay is currently set, so clearing it is not repeated. */
+let tagOverlayShown = false;
 
 function isFiniteNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value);
@@ -156,81 +197,6 @@ function isFiniteNumber(value: unknown): value is number {
 
 function isValidDurationSec(value: unknown): value is number {
   return isFiniteNumber(value) && value > 0;
-}
-
-function clamp(value: number, min: number, max: number): number {
-  return Math.min(max, Math.max(min, value));
-}
-
-function readVowel5Values(values: unknown): Vowel5FrameValues {
-  if (!Array.isArray(values)) return [0, 0, 0, 0, 0];
-  return [0, 1, 2, 3, 4].map((index) => {
-    const raw = values[index];
-    if (typeof raw === "number" && Number.isFinite(raw)) return raw;
-    if (typeof raw === "string") {
-      const parsed = Number(raw);
-      if (Number.isFinite(parsed)) return parsed;
-    }
-    return 0;
-  }) as Vowel5FrameValues;
-}
-
-function lerpValues(
-  a: Vowel5FrameValues,
-  b: Vowel5FrameValues,
-  alpha: number,
-): Vowel5FrameValues {
-  const t = clamp(alpha, 0, 1);
-  return [
-    a[0] + (b[0] - a[0]) * t,
-    a[1] + (b[1] - a[1]) * t,
-    a[2] + (b[2] - a[2]) * t,
-    a[3] + (b[3] - a[3]) * t,
-    a[4] + (b[4] - a[4]) * t,
-  ];
-}
-
-function sampleSegmentValuesAtTime(
-  segment: VowelVisemeLipSyncSegment,
-  timeSec: number,
-): Vowel5FrameValues {
-  const frames = segment.frames;
-  if (!Array.isArray(frames) || frames.length === 0) {
-    return [0, 0, 0, 0, 0];
-  }
-
-  const t = clamp(timeSec, 0, Math.max(0, segment.durationSec));
-  const first = frames[0]!;
-  const firstTime = typeof first.time_sec === "number" ? first.time_sec : 0;
-  if (t <= firstTime + EPS) {
-    return readVowel5Values(first.values);
-  }
-
-  const last = frames[frames.length - 1]!;
-  const lastTime =
-    typeof last.time_sec === "number" ? last.time_sec : firstTime;
-  if (t >= lastTime - EPS) {
-    return readVowel5Values(last.values);
-  }
-
-  for (let index = 0; index < frames.length - 1; index += 1) {
-    const f0 = frames[index]!;
-    const f1 = frames[index + 1]!;
-    const t0 = typeof f0.time_sec === "number" ? f0.time_sec : 0;
-    const t1 = typeof f1.time_sec === "number" ? f1.time_sec : t0;
-    if (t < t0 - EPS || t > t1 + EPS) continue;
-    if (Math.abs(t1 - t0) <= EPS) {
-      return readVowel5Values(f1.values);
-    }
-    const alpha = (t - t0) / (t1 - t0);
-    return lerpValues(
-      readVowel5Values(f0.values),
-      readVowel5Values(f1.values),
-      alpha,
-    );
-  }
-
-  return readVowel5Values(last.values);
 }
 
 function applySegmentToAvatarPlayback(args: {
@@ -264,272 +230,108 @@ export function isProviderTimingOnlyChange(
   );
 }
 
+function withoutRun<T>(record: Record<string, T>, runId: string) {
+  if (!(runId in record)) return record;
+  const next = { ...record };
+  delete next[runId];
+  return next;
+}
+
+const emptyRunState = () => ({
+  speechGestureTimelinesByRun: {},
+  speechChunksByRun: {},
+  segmentsByRun: {},
+  speechAudioStartsByRun: {},
+  speechAudioDurationsByRun: {},
+  providerSpeechTimingByRun: {},
+  speechTextByRun: {},
+  lipSyncEventsByRun: {},
+  plannerStatsByRun: {},
+  playbackAnchorsByRun: {},
+  startedRuns: {},
+});
+
 export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
   (set, get) => {
-    const requestVisemeBuildForRun = async ({
-      runId,
-      reason,
-    }: {
-      runId: string;
-      reason:
-        | "queue_inputs"
-        | "actual_duration_resolved"
-        | "known_actual_before_queue";
-    }): Promise<void> => {
-      if (!runId) return;
-      const snapshot = get();
-      const rawInputs = snapshot.rawVisemeInputsByRun[runId];
-      if (!rawInputs || !Array.isArray(rawInputs.phonemizedText)) {
-        logger.warn(
-          "Worker",
-          "Skipped viseme worker build missing raw inputs",
-          {
-            runId,
-            reason,
-            hasRawInputs: Boolean(rawInputs),
-          },
-        );
-        return;
-      }
-
-      const durationEntry = snapshot.speechAudioDurationsByRun[runId] ?? null;
-      const currentSegment = snapshot.segmentsByRun[runId] ?? null;
-      const audioStart = snapshot.speechAudioStartsByRun[runId] ?? null;
-      const hasStarted = Boolean(snapshot.startedRuns[runId]);
-
-      let mode: VisemeWorkerBuildMode = "estimated_provisional";
-      let targetDurationSec: number | null = null;
-      let anchor: {
-        elapsedSec: number;
-        currentDurationSec: number;
-        currentValues: Vowel5FrameValues;
-      } | null = null;
-      let elapsedSec: number | null = null;
-
-      if (durationEntry && isValidDurationSec(durationEntry.audioDurationSec)) {
-        targetDurationSec = durationEntry.audioDurationSec;
-        if (hasStarted && currentSegment && audioStart) {
-          mode = "actual_inflight";
-          elapsedSec = clamp(
-            audioStart.audioContext.currentTime - audioStart.audioStartSec,
-            0,
-            Math.max(currentSegment.durationSec, targetDurationSec),
-          );
-          anchor = {
-            elapsedSec,
-            currentDurationSec: currentSegment.durationSec,
-            currentValues: sampleSegmentValuesAtTime(
-              currentSegment,
-              elapsedSec,
-            ),
-          };
-        } else {
-          mode = "actual_prestart";
-        }
-      } else if (hasStarted && currentSegment && audioStart) {
-        elapsedSec = clamp(
-          audioStart.audioContext.currentTime - audioStart.audioStartSec,
-          0,
-          Math.max(currentSegment.durationSec, 0),
-        );
-        anchor = {
-          elapsedSec,
-          currentDurationSec: currentSegment.durationSec,
-          currentValues: sampleSegmentValuesAtTime(currentSegment, elapsedSec),
-        };
-      }
-
-      const nextSeq = (snapshot.buildSeqByRun[runId] ?? 0) + 1;
-      set((state) => ({
-        buildSeqByRun: {
-          ...state.buildSeqByRun,
-          [runId]: nextSeq,
-        },
-      }));
-
-      logger.info("Worker", "Requesting viseme worker build", {
-        runId,
-        reason,
-        seq: nextSeq,
-        mode,
-        targetDurationSec,
-        hasAnchor: Boolean(anchor),
-        elapsedSec,
-        hasCurrentSegment: Boolean(currentSegment),
-        hasStarted,
-      });
-
-      try {
-        const result = await buildVisemeAssetsFromRaw({
-          runId,
-          mode,
-          phonemizedText: rawInputs.phonemizedText,
-          tokenizedText: rawInputs.tokenizedText,
-          fps: rawInputs.fps,
-          targetDurationSec,
-          anchor,
-          provisionalOverrun:
-            mode === "estimated_provisional"
-              ? PROVISIONAL_OVERRUN_POLICY
-              : null,
-        });
-
-        const latest = get();
-        if ((latest.buildSeqByRun[runId] ?? 0) !== nextSeq) {
-          logger.info("Worker", "Dropped stale viseme worker response", {
-            runId,
-            reason,
-            seq: nextSeq,
-            latestSeq: latest.buildSeqByRun[runId] ?? null,
-            mode,
-          });
-          return;
-        }
-
-        const nowMs = Date.now();
-        const previousSegment = latest.segmentsByRun[runId];
-        const nextStoredSegment: StoredSegment = {
-          ...result.segment,
-          runId,
-          queuedAtMs: previousSegment?.queuedAtMs ?? nowMs,
-        };
-
-        set((state) => ({
-          sourcePlansByRun: {
-            ...state.sourcePlansByRun,
-            [runId]: result.planSummary,
-          },
-          speechGestureTimelinesByRun: {
-            ...state.speechGestureTimelinesByRun,
-            [runId]: result.speechGestureTimeline,
-          },
-          segmentsByRun: {
-            ...state.segmentsByRun,
-            [runId]: nextStoredSegment,
-          },
-        }));
-
-        logger.info(
-          "Worker",
-          "Applied viseme worker build result to bridge state",
-          {
-            runId,
-            reason,
-            seq: nextSeq,
-            mode: result.buildMode,
-            frameCount: nextStoredSegment.frameCount,
-            durationSec: nextStoredSegment.durationSec,
-            durationMs: nextStoredSegment.durationMs,
-            fps: nextStoredSegment.fps,
-            plannerBasis: result.planSummary.basis,
-            plannerDurationSec: result.planSummary.durationSec,
-            plannerFrameCount: result.planSummary.frameCount,
-            speechGestureBeatCount: result.speechGestureTimeline.beats.length,
-            provisionalTargetDurationSec: result.provisionalTargetDurationSec,
-            provisionalMarginSec: result.provisionalMarginSec,
-            workerElapsedMs: result.workerElapsedMs,
-          },
-        );
-
-        const shouldApplyInflightReplacement =
-          result.buildMode === "actual_inflight" ||
-          (result.buildMode === "estimated_provisional" &&
-            Boolean(get().startedRuns[runId]));
-        if (!shouldApplyInflightReplacement) {
-          return;
-        }
-
-        const applyState = get();
-        const avatar = applyState.avatar;
-        const applyAudioStart = applyState.speechAudioStartsByRun[runId];
-        if (
-          !avatar?.isReady ||
-          !applyAudioStart ||
-          !applyState.startedRuns[runId]
-        ) {
-          logger.info(
-            "Worker",
-            "Skipped immediate in-flight viseme replacement after worker build",
-            {
-              runId,
-              reason,
-              seq: nextSeq,
-              hasAvatar: Boolean(avatar?.isReady),
-              hasAudioStart: Boolean(applyAudioStart),
-              hasStarted: Boolean(applyState.startedRuns[runId]),
-            },
-          );
-          return;
-        }
-
-        try {
-          applySegmentToAvatarPlayback({
-            avatar,
-            segment: nextStoredSegment,
-            audioStart: applyAudioStart,
-          });
-          logger.info(
-            "Playback",
-            result.buildMode === "actual_inflight"
-              ? "Replaced in-flight vowel keyframes with actual-duration keyframes"
-              : "Replaced in-flight vowel keyframes with provisional keyframes",
-            {
-              runId,
-              generationId: applyAudioStart.generationId ?? null,
-              segmentId: nextStoredSegment.segmentId,
-              elapsedSec,
-              audioStartSec: applyAudioStart.audioStartSec,
-              frameCount: nextStoredSegment.frameCount,
-              durationSec: nextStoredSegment.durationSec,
-              seq: nextSeq,
-            },
-          );
-        } catch (error) {
-          logger.warn(
-            "Playback",
-            "Failed to apply in-flight actual-duration viseme segment replacement",
-            {
-              runId,
-              seq: nextSeq,
-              error: error instanceof Error ? error.message : String(error),
-            },
-          );
-        }
-      } catch (error) {
-        const latest = get();
-        if ((latest.buildSeqByRun[runId] ?? 0) !== nextSeq) {
-          logger.info("Worker", "Ignored stale viseme worker failure", {
-            runId,
-            reason,
-            seq: nextSeq,
-            latestSeq: latest.buildSeqByRun[runId] ?? null,
-            mode,
-          });
-          return;
-        }
-        logger.warn("Worker", "Viseme worker build failed", {
-          runId,
-          reason,
-          seq: nextSeq,
-          mode,
-          error: error instanceof Error ? error.message : String(error),
-        });
-      }
+    /** The gaps underruns inserted in a run's playback. */
+    const gapsFor = (state: AvatarLipSyncBridgeState, runId: string) => {
+      const start = state.speechAudioStartsByRun[runId];
+      const anchors = state.playbackAnchorsByRun[runId];
+      return start && anchors?.length
+        ? playbackGaps(anchors, start.audioStartSec)
+        : [];
     };
+
+    /**
+     * Rebuild a run's segment and gesture timeline from its planned track and
+     * gesture timing (`gestures` when new), and revise the live segment from
+     * run time `fromRunSec` on if playback has started.
+     */
+    const refreshPlannedRun = (
+      runId: string,
+      fromRunSec: number,
+      newGestures?: Parameters<typeof plannedGestureTimeline>[0],
+    ) => {
+      const track = plannedTracks.get(runId);
+      if (!track) return;
+      if (newGestures) plannedGestures.set(runId, newGestures);
+      const gestures = plannedGestures.get(runId);
+      const state = get();
+      const gaps = gapsFor(state, runId);
+      const segment = plannedSegment(runId, track, gaps);
+      const previous = state.segmentsByRun[runId];
+      const stored: StoredSegment = {
+        ...segment,
+        runId,
+        queuedAtMs: previous?.queuedAtMs ?? Date.now(),
+        revision: (previous?.revision ?? 0) + 1,
+      };
+      const audioSec = Math.max(0, (track.length / 5 - 1) / LIPSYNC_FPS);
+      // The timeline spans the words placed ahead of the audio too, so talking
+      // hands can use their provisional beats before the audio arrives.
+      const timelineSec = gestures
+        ? Math.max(
+            audioSec,
+            ...gestures.words.map((word) => word.endSec),
+            ...gestures.phrases.map((phrase) => phrase.endSec),
+          )
+        : audioSec;
+      set((current) => ({
+        segmentsByRun: { ...current.segmentsByRun, [runId]: stored },
+        ...(gestures
+          ? {
+              speechGestureTimelinesByRun: {
+                ...current.speechGestureTimelinesByRun,
+                [runId]: plannedGestureTimeline(gestures, timelineSec, gaps),
+              },
+            }
+          : {}),
+      }));
+      const avatar = state.avatar;
+      if (!state.startedRuns[runId] || !avatar?.isReady) return;
+      const fromSec = playbackTime(fromRunSec, gaps);
+      avatar.replaceLipSyncFrames(
+        segment.segmentId,
+        fromSec,
+        segment.frames.filter(
+          (frame) => (frame.time_sec ?? 0) >= fromSec - 1e-6,
+        ),
+        segment.durationSec,
+      );
+    };
+
+    // Plans from the lip-sync worker arrive here, and so do the points where
+    // playback resumed after an underrun.
+    connectLipSyncRuns({
+      onResponse: (runId, response) =>
+        get().applyPlannerResponse(runId, response),
+    });
+    addSpeechPlaybackListener((event) => get().markPlaybackResumed(event));
 
     return {
       avatar: null,
       avatarAnimaId: null,
-      sourcePlansByRun: {},
-      speechGestureTimelinesByRun: {},
-      speechChunksByRun: {},
-      rawVisemeInputsByRun: {},
-      segmentsByRun: {},
-      speechAudioStartsByRun: {},
-      speechAudioDurationsByRun: {},
-      providerSpeechTimingByRun: {},
-      startedRuns: {},
-      buildSeqByRun: {},
+      ...emptyRunState(),
 
       registerAvatarInstance: ({ avatar, animaId }) => {
         if (!avatar) return;
@@ -554,74 +356,6 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
         });
       },
 
-      queueVisemeInputsForRun: ({
-        runId,
-        phonemizedText,
-        tokenizedText,
-        provider,
-      }) => {
-        if (!runId) return;
-        if (
-          provider &&
-          provider !== "pocket_tts" &&
-          provider !== "elevenlabs" &&
-          provider !== "gemini"
-        ) {
-          logger.info(
-            "Queue",
-            "Skipped viseme queue for unsupported provider",
-            {
-              runId,
-              provider,
-            },
-          );
-          return;
-        }
-        if (!Array.isArray(phonemizedText) || phonemizedText.length === 0) {
-          logger.info("Queue", "Skipped viseme queue missing phonemized text", {
-            runId,
-            provider: provider ?? null,
-            hasPhonemizedText: Array.isArray(phonemizedText),
-          });
-          return;
-        }
-        const state = get();
-        const knownDurationSec =
-          state.speechAudioDurationsByRun[runId]?.audioDurationSec ?? null;
-        const rawInputs: RawVisemeInputs = {
-          phonemizedText,
-          tokenizedText,
-          fps: DEFAULT_VOWEL_VISEME_FPS,
-        };
-
-        logger.info("Queue", "Captured raw viseme inputs for run", {
-          runId,
-          provider: provider ?? null,
-          hasPhonemizedText: Array.isArray(phonemizedText),
-          phonemizedWordCount: Array.isArray(phonemizedText)
-            ? phonemizedText.length
-            : 0,
-          hasTokenizedText: Boolean(tokenizedText && tokenizedText.trim()),
-          fps: rawInputs.fps,
-          knownDurationSec,
-        });
-
-        set((current) => ({
-          rawVisemeInputsByRun: {
-            ...current.rawVisemeInputsByRun,
-            [runId]: rawInputs,
-          },
-        }));
-
-        void requestVisemeBuildForRun({
-          runId,
-          reason:
-            knownDurationSec != null
-              ? "known_actual_before_queue"
-              : "queue_inputs",
-        });
-      },
-
       queueTtsChunksForRun: ({ runId, chunks }) => {
         if (!runId || chunks.length === 0) return;
 
@@ -640,11 +374,16 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
             },
           };
         });
+      },
 
-        logger.info("Queue", "Captured TTS chunk metadata for run", {
-          runId,
-          chunkCount: chunks.length,
-        });
+      setSpeechText: ({ runId, text, final }) => {
+        if (!runId) return;
+        setLipSyncRunText(runId, text, final);
+        if (final) {
+          set((state) => ({
+            speechTextByRun: { ...state.speechTextByRun, [runId]: text },
+          }));
+        }
       },
 
       markSpeechAudioStarted: ({
@@ -694,27 +433,16 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
       }) => {
         if (!runId || !isValidDurationSec(audioDurationSec)) return;
 
-        const previousState = get();
-        const previousDuration = previousState.speechAudioDurationsByRun[runId];
+        const previousDuration = get().speechAudioDurationsByRun[runId];
         if (
           previousDuration &&
           Math.abs(previousDuration.audioDurationSec - audioDurationSec) <=
             DURATION_DEDUPE_EPS_SEC &&
           (previousDuration.generationId ?? null) === (generationId ?? null)
         ) {
-          logger.info(
-            "Playback",
-            "Ignored duplicate speech audio duration for viseme recompute",
-            {
-              runId,
-              generationId: generationId ?? null,
-              audioDurationSec,
-            },
-          );
           return;
         }
 
-        const nowMs = Date.now();
         set((state) => ({
           speechAudioDurationsByRun: {
             ...state.speechAudioDurationsByRun,
@@ -722,66 +450,32 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
               runId,
               audioDurationSec,
               generationId: generationId ?? null,
-              receivedAtMs: nowMs,
+              receivedAtMs: Date.now(),
             },
           },
         }));
+        endLipSyncRunAudio(runId);
+      },
 
-        const state = get();
-        const previousPlan = state.sourcePlansByRun[runId];
-        const rawInputs = state.rawVisemeInputsByRun[runId];
-        if (!rawInputs || !Array.isArray(rawInputs.phonemizedText)) {
-          logger.warn(
-            "Playback",
-            "Missing raw viseme inputs for speech actual-duration recompute",
-            {
-              runId,
-              generationId: generationId ?? null,
-              hasPreviousPlan: Boolean(previousPlan),
-              hasCurrentSegment: Boolean(state.segmentsByRun[runId]),
-              hasStarted: Boolean(state.startedRuns[runId]),
-              hasRawVisemeInputs: Boolean(rawInputs),
-            },
-          );
+      markPlaybackResumed: ({ runId, runSec, contextSec }) => {
+        if (!runId || !isFiniteNumber(runSec) || !isFiniteNumber(contextSec))
           return;
-        }
-
-        const currentSegment = state.segmentsByRun[runId];
-        const hasStarted = Boolean(state.startedRuns[runId]);
-        logger.info(
-          "Playback",
-          "Recomputing viseme plan from actual speech audio duration",
-          {
-            runId,
-            generationId: generationId ?? null,
-            mode: hasStarted ? "inflight" : "prestart",
-            actualDurationSec: audioDurationSec,
-            previousPlanDurationSec: previousPlan?.durationSec ?? null,
-            previousSegmentDurationSec: currentSegment?.durationSec ?? null,
-            previousFrameCount:
-              currentSegment?.frameCount ?? previousPlan?.frameCount ?? null,
-            fps: rawInputs.fps,
-            phonemizedWordCount: rawInputs.phonemizedText.length,
-            hasTokenizedText: Boolean(rawInputs.tokenizedText?.trim()),
+        set((state) => ({
+          playbackAnchorsByRun: {
+            ...state.playbackAnchorsByRun,
+            [runId]: [
+              ...(state.playbackAnchorsByRun[runId] ?? []),
+              { runSec, contextSec },
+            ],
           },
-        );
-
-        if (!previousPlan) {
-          logger.info(
-            "Playback",
-            "Stored speech audio duration before viseme plan was available",
-            {
-              runId,
-              audioDurationSec,
-              generationId: generationId ?? null,
-            },
-          );
-        }
-
-        void requestVisemeBuildForRun({
+        }));
+        logger.info("Playback", "Shifted a run's lip-sync past an underrun", {
           runId,
-          reason: "actual_duration_resolved",
+          runSec,
+          contextSec,
         });
+        // What follows the gap now plays later.
+        refreshPlannedRun(runId, runSec);
       },
 
       appendProviderSpeechTiming: ({ runId, provider, chars }) => {
@@ -797,6 +491,68 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
             },
           },
         }));
+        addLipSyncRunTiming(runId, chars);
+      },
+
+      applyPlannerResponse: (runId, response) => {
+        if (response.type === "error") {
+          set((state) => ({
+            plannerStatsByRun: {
+              ...state.plannerStatsByRun,
+              [runId]: {
+                complete: false,
+                fallback: "planner_failed",
+                audioSec: state.plannerStatsByRun[runId]?.audioSec ?? 0,
+                cpuMsPerAudioSec: null,
+              },
+            },
+          }));
+          return;
+        }
+        plannedTracks.set(
+          runId,
+          mergePlanFrames(plannedTracks.get(runId) ?? null, response),
+        );
+        const previous = get().plannerStatsByRun[runId];
+        set((state) => ({
+          lipSyncEventsByRun: {
+            ...state.lipSyncEventsByRun,
+            [runId]: response.events,
+          },
+          plannerStatsByRun: {
+            ...state.plannerStatsByRun,
+            [runId]: {
+              complete: response.complete,
+              fallback: response.fallback,
+              audioSec: response.audioSec,
+              cpuMsPerAudioSec:
+                response.audioSec > 0
+                  ? response.cpuMs / response.audioSec
+                  : null,
+            },
+          },
+        }));
+        // A planner failure is worth one log line per run.
+        if (response.error) {
+          logger.error(
+            "Plan",
+            "Lip-sync planning failed; the mouth follows the audio",
+            { runId, message: response.error },
+          );
+        } else if (
+          response.fallback === "no_alignment" &&
+          previous?.fallback !== "no_alignment"
+        ) {
+          logger.warn("Plan", "Lip-sync text did not fit a run's audio", {
+            runId,
+            audioSec: response.audioSec,
+          });
+        }
+        refreshPlannedRun(
+          runId,
+          response.fromFrame / LIPSYNC_FPS,
+          response.gestures,
+        );
       },
 
       playReplaySegment: ({ segment, audioContext, audioStartSec }) => {
@@ -818,8 +574,8 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
 
       stopReplaySegment: () => {
         const state = get();
-        // A reply without its own plan (Japanese, or one still being planned)
-        // would otherwise keep the replay's last pose on a stopped clock.
+        // A reply without its own plan would otherwise keep the replay's last
+        // pose on a stopped clock.
         if (
           Object.keys(state.speechAudioStartsByRun).some(
             (runId) => state.startedRuns[runId],
@@ -850,16 +606,29 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
         if (!isFiniteNumber(elapsedSec)) return null;
 
         const nonNegativeElapsedSec = Math.max(0, elapsedSec);
-        const durationSec =
+        // The elapsed time is on the playback clock, so the run's length is
+        // too: underrun gaps play as silence before the audio after them.
+        const runDurationSec =
           state.speechAudioDurationsByRun[selectedRunId]?.audioDurationSec ??
           null;
+        const durationSec =
+          runDurationSec === null
+            ? null
+            : playbackTime(runDurationSec, gapsFor(state, selectedRunId));
         const gestureTimeline =
           state.speechGestureTimelinesByRun[selectedRunId] ?? null;
+        // The planner's timeline grows with the audio and brings its phrases,
+        // which stand in for the chunks gestures are scheduled by.
+        const phrases = gestureTimeline?.phrases ?? null;
+        const ttsChunks = phrases
+          ? phraseChunks(selectedRunId, phrases)
+          : (state.speechChunksByRun[selectedRunId] ?? []);
         if (isValidDurationSec(durationSec)) {
           const matchingGestureTimeline =
             gestureTimeline &&
-            Math.abs(gestureTimeline.utteranceDurationSec - durationSec) <=
-              SPEECH_GESTURE_TIMELINE_DURATION_EPS_SEC
+            (phrases ||
+              Math.abs(gestureTimeline.utteranceDurationSec - durationSec) <=
+                SPEECH_GESTURE_TIMELINE_DURATION_EPS_SEC)
               ? gestureTimeline
               : null;
           return {
@@ -870,7 +639,7 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
             remainingSec: Math.max(0, durationSec - nonNegativeElapsedSec),
             durationKnown: true,
             gestureTimeline: matchingGestureTimeline,
-            ttsChunks: state.speechChunksByRun[selectedRunId] ?? [],
+            ttsChunks,
           };
         }
 
@@ -891,7 +660,7 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
               : null,
           durationKnown: false,
           gestureTimeline,
-          ttsChunks: state.speechChunksByRun[selectedRunId] ?? [],
+          ttsChunks,
         };
       },
 
@@ -943,53 +712,21 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
               error: error instanceof Error ? error.message : String(error),
             },
           );
-          set((current) => {
-            const nextSegments = { ...current.segmentsByRun };
-            const nextStarts = { ...current.speechAudioStartsByRun };
-            const nextDurations = { ...current.speechAudioDurationsByRun };
-            const nextPlans = { ...current.sourcePlansByRun };
-            const nextGestureTimelines = {
-              ...current.speechGestureTimelinesByRun,
-            };
-            const nextSpeechChunks = { ...current.speechChunksByRun };
-            const nextRawInputs = { ...current.rawVisemeInputsByRun };
-            const nextBuildSeq = { ...current.buildSeqByRun };
-            delete nextSegments[selectedRunId!];
-            delete nextStarts[selectedRunId!];
-            delete nextDurations[selectedRunId!];
-            delete nextPlans[selectedRunId!];
-            delete nextGestureTimelines[selectedRunId!];
-            delete nextSpeechChunks[selectedRunId!];
-            delete nextRawInputs[selectedRunId!];
-            delete nextBuildSeq[selectedRunId!];
-            return {
-              segmentsByRun: nextSegments,
-              speechAudioStartsByRun: nextStarts,
-              speechAudioDurationsByRun: nextDurations,
-              sourcePlansByRun: nextPlans,
-              speechGestureTimelinesByRun: nextGestureTimelines,
-              speechChunksByRun: nextSpeechChunks,
-              rawVisemeInputsByRun: nextRawInputs,
-              buildSeqByRun: nextBuildSeq,
-              startedRuns: {
-                ...current.startedRuns,
-                [selectedRunId!]: true,
-              },
-            };
-          });
+          // Drop the run's plan; it is not retried.
+          get().clearRun(selectedRunId);
+          set((current) => ({
+            startedRuns: { ...current.startedRuns, [selectedRunId!]: true },
+          }));
           return;
         }
 
         logger.info("Playback", "Expression blendshape started", {
           runId: selectedRunId,
           segmentId: segment.segmentId,
-          provider: "speech_audio",
           audioStartSec: audioStart.audioStartSec,
           avatarState,
           frameCount: segment.frameCount,
           durationMs: segment.durationMs,
-          fps: segment.fps,
-          visemeFormat: "vowel5",
         });
 
         set((current) => ({
@@ -1000,98 +737,103 @@ export const useAvatarLipSyncBridgeStore = create<AvatarLipSyncBridgeState>(
         }));
       },
 
-      clearRun: (runId, options) => {
-        const clearAvatarLipSync = options?.clearAvatarLipSync === true;
+      tickTagOverlays: (preferredRunId) => {
         const state = get();
+        const controller = state.avatar?.expressionController;
+        if (!controller) return;
+        const runId =
+          preferredRunId && state.startedRuns[preferredRunId]
+            ? preferredRunId
+            : (Object.keys(state.startedRuns).find(
+                (candidate) => state.lipSyncEventsByRun[candidate]?.length,
+              ) ?? null);
+        const events = runId ? state.lipSyncEventsByRun[runId] : null;
+        const start = runId ? state.speechAudioStartsByRun[runId] : null;
+        const weights =
+          events?.length && start
+            ? tagOverlayWeights(
+                events,
+                runTime(
+                  start.audioContext.currentTime - start.audioStartSec,
+                  gapsFor(state, runId!),
+                ),
+              )
+            : {};
+        if (Object.keys(weights).length) {
+          controller.setExpressionOverlay(TAG_OVERLAY_OWNER, weights);
+          tagOverlayShown = true;
+        } else if (tagOverlayShown) {
+          controller.clearExpressionOverlay(TAG_OVERLAY_OWNER);
+          tagOverlayShown = false;
+        }
+      },
+
+      clearRun: (runId, options) => {
         if (!runId) {
-          if (clearAvatarLipSync) {
-            state.avatar?.clearLipSync();
-          }
-          set({
-            sourcePlansByRun: {},
-            speechGestureTimelinesByRun: {},
-            speechChunksByRun: {},
-            rawVisemeInputsByRun: {},
-            segmentsByRun: {},
-            speechAudioStartsByRun: {},
-            speechAudioDurationsByRun: {},
-            providerSpeechTimingByRun: {},
-            startedRuns: {},
-            buildSeqByRun: {},
-          });
-          logger.info("Cleanup", "Cleared all viseme bridge run state", {
-            clearAvatarLipSync,
-          });
+          get().clearAll(options);
           return;
         }
-
-        if (clearAvatarLipSync) {
+        const state = get();
+        if (options?.clearAvatarLipSync === true) {
           state.avatar?.clearLipSync();
         }
-
-        set((current) => {
-          const nextPlans = { ...current.sourcePlansByRun };
-          const nextGestureTimelines = {
-            ...current.speechGestureTimelinesByRun,
-          };
-          const nextSpeechChunks = { ...current.speechChunksByRun };
-          const nextRawInputs = { ...current.rawVisemeInputsByRun };
-          const nextSegments = { ...current.segmentsByRun };
-          const nextStarts = { ...current.speechAudioStartsByRun };
-          const nextDurations = { ...current.speechAudioDurationsByRun };
-          const nextTiming = { ...current.providerSpeechTimingByRun };
-          const nextStarted = { ...current.startedRuns };
-          const nextBuildSeq = { ...current.buildSeqByRun };
-          delete nextPlans[runId];
-          delete nextGestureTimelines[runId];
-          delete nextSpeechChunks[runId];
-          delete nextRawInputs[runId];
-          delete nextSegments[runId];
-          delete nextStarts[runId];
-          delete nextDurations[runId];
-          delete nextTiming[runId];
-          delete nextStarted[runId];
-          delete nextBuildSeq[runId];
-          return {
-            sourcePlansByRun: nextPlans,
-            speechGestureTimelinesByRun: nextGestureTimelines,
-            speechChunksByRun: nextSpeechChunks,
-            rawVisemeInputsByRun: nextRawInputs,
-            segmentsByRun: nextSegments,
-            speechAudioStartsByRun: nextStarts,
-            speechAudioDurationsByRun: nextDurations,
-            providerSpeechTimingByRun: nextTiming,
-            startedRuns: nextStarted,
-            buildSeqByRun: nextBuildSeq,
-          };
-        });
-
+        cancelLipSyncRun(runId);
+        plannedTracks.delete(runId);
+        plannedGestures.delete(runId);
+        if (tagOverlayShown) {
+          state.avatar?.expressionController?.clearExpressionOverlay(
+            TAG_OVERLAY_OWNER,
+          );
+          tagOverlayShown = false;
+        }
+        set((current) => ({
+          speechGestureTimelinesByRun: withoutRun(
+            current.speechGestureTimelinesByRun,
+            runId,
+          ),
+          speechChunksByRun: withoutRun(current.speechChunksByRun, runId),
+          segmentsByRun: withoutRun(current.segmentsByRun, runId),
+          speechAudioStartsByRun: withoutRun(
+            current.speechAudioStartsByRun,
+            runId,
+          ),
+          speechAudioDurationsByRun: withoutRun(
+            current.speechAudioDurationsByRun,
+            runId,
+          ),
+          providerSpeechTimingByRun: withoutRun(
+            current.providerSpeechTimingByRun,
+            runId,
+          ),
+          speechTextByRun: withoutRun(current.speechTextByRun, runId),
+          lipSyncEventsByRun: withoutRun(current.lipSyncEventsByRun, runId),
+          plannerStatsByRun: withoutRun(current.plannerStatsByRun, runId),
+          playbackAnchorsByRun: withoutRun(current.playbackAnchorsByRun, runId),
+          startedRuns: withoutRun(current.startedRuns, runId),
+        }));
         logger.info("Cleanup", "Cleared viseme bridge run state", {
           runId,
-          clearAvatarLipSync,
+          clearAvatarLipSync: options?.clearAvatarLipSync === true,
         });
       },
 
       clearAll: (options) => {
-        const clearAvatarLipSync = options?.clearAvatarLipSync === true;
         const state = get();
-        if (clearAvatarLipSync) {
+        if (options?.clearAvatarLipSync === true) {
           state.avatar?.clearLipSync();
         }
-        set({
-          sourcePlansByRun: {},
-          speechGestureTimelinesByRun: {},
-          speechChunksByRun: {},
-          rawVisemeInputsByRun: {},
-          segmentsByRun: {},
-          speechAudioStartsByRun: {},
-          speechAudioDurationsByRun: {},
-          providerSpeechTimingByRun: {},
-          startedRuns: {},
-          buildSeqByRun: {},
-        });
+        cancelAllLipSyncRuns();
+        plannedTracks.clear();
+        plannedGestures.clear();
+        if (tagOverlayShown) {
+          state.avatar?.expressionController?.clearExpressionOverlay(
+            TAG_OVERLAY_OWNER,
+          );
+          tagOverlayShown = false;
+        }
+        set(emptyRunState());
         logger.info("Cleanup", "Cleared all viseme bridge state", {
-          clearAvatarLipSync,
+          clearAvatarLipSync: options?.clearAvatarLipSync === true,
         });
       },
     };

@@ -1,11 +1,9 @@
 import { describe, expect, it } from "vitest";
 
 import {
-  appendStructuredSpeechVisemeInputs,
   createStructuredResponseStreamState,
   getStructuredAssistantTexts,
   reduceStructuredResponseStream,
-  selectStructuredSpeechVisemePayload,
   selectStructuredSpeechTtsPayload,
 } from "./structured-response-stream";
 
@@ -148,39 +146,20 @@ describe("structured response stream", () => {
     expect(state.lastSpeechPartIndex).toBeNull();
   });
 
-  it("selects gruut tts_text for structured speech deltas when present", () => {
+  it("speaks structured speech deltas as written", () => {
     expect(
       selectStructuredSpeechTtsPayload({
-        visibleText: "Visible sentence.",
-        ttsText: " Gruut sentence. ",
-        ttsTextBasis: "gruut_text_with_ws",
+        visibleText: " It costs $5.99 at 3:30 pm.",
         isDelta: true,
         structuredTtsAppended: false,
       }),
-    ).toEqual({
-      text: " Gruut sentence. ",
-      textBasis: "gruut_text_with_ws",
-    });
+    ).toEqual({ text: " It costs $5.99 at 3:30 pm." });
   });
 
-  it("falls back to visible speech text for deltas without valid tts_text", () => {
-    expect(
-      selectStructuredSpeechTtsPayload({
-        visibleText: " Second visible sentence.",
-        ttsText: " ",
-        ttsTextBasis: "gruut_text_with_ws",
-        isDelta: true,
-        structuredTtsAppended: false,
-      }),
-    ).toEqual({ text: " Second visible sentence." });
-  });
-
-  it("speaks a segment without tts fields, such as Japanese, as written", () => {
+  it("speaks a segment in any language as written", () => {
     expect(
       selectStructuredSpeechTtsPayload({
         visibleText: "おはようございます。",
-        ttsText: undefined,
-        ttsTextBasis: undefined,
         isDelta: true,
         structuredTtsAppended: false,
       }),
@@ -191,89 +170,28 @@ describe("structured response stream", () => {
     expect(
       selectStructuredSpeechTtsPayload({
         visibleText: "",
-        ttsText: null,
-        ttsTextBasis: null,
         isDelta: true,
         structuredTtsAppended: true,
       }),
     ).toBeNull();
   });
 
-  it("selects gruut tts_text for complete non-delta fallback speech", () => {
+  it("speaks complete non-delta fallback speech once", () => {
     expect(
       selectStructuredSpeechTtsPayload({
         visibleText: "Visible complete text.",
-        ttsText: "Gruut complete text.",
-        ttsTextBasis: "gruut_text_with_ws",
         isDelta: false,
         structuredTtsAppended: false,
       }),
-    ).toEqual({
-      text: "Gruut complete text.",
-      textBasis: "gruut_text_with_ws",
-    });
+    ).toEqual({ text: "Visible complete text." });
   });
 
   it("does not re-select replacement speech after structured TTS was appended", () => {
     expect(
       selectStructuredSpeechTtsPayload({
         visibleText: "Corrected complete text.",
-        ttsText: "Corrected TTS text.",
-        ttsTextBasis: "gruut_text_with_ws",
         isDelta: false,
         structuredTtsAppended: true,
-      }),
-    ).toBeNull();
-  });
-
-  it("selects gruut phonemes for structured speech visemes when TTS text is gruut based", () => {
-    const ttsPayload = selectStructuredSpeechTtsPayload({
-      visibleText: " Visible sentence.",
-      ttsText: "Gruut sentence.",
-      ttsTextBasis: "gruut_text_with_ws",
-      isDelta: true,
-      structuredTtsAppended: false,
-    });
-
-    expect(
-      selectStructuredSpeechVisemePayload({
-        ttsPayload,
-        ttsPhonemizedText: [["G"], ["R"]],
-        phonemizedText: [["V"]],
-        tokenizedText: "Visible sentence.",
-        fallbackTokenizedText: "Visible sentence.",
-      }),
-    ).toEqual({
-      tokenizedText: "Gruut sentence.",
-      phonemizedText: [["G"], ["R"]],
-    });
-  });
-
-  it("accumulates structured speech viseme inputs across TTS speech segments", () => {
-    let inputs = appendStructuredSpeechVisemeInputs(null, {
-      tokenizedText: "First sentence.",
-      phonemizedText: [["F"], ["S"]],
-    });
-
-    inputs = appendStructuredSpeechVisemeInputs(inputs, {
-      tokenizedText: "Second sentence.",
-      phonemizedText: [["S"], ["S"]],
-    });
-
-    expect(inputs).toEqual({
-      tokenizedText: "First sentence. Second sentence.",
-      phonemizedText: [["F"], ["S"], ["S"], ["S"]],
-    });
-  });
-
-  it("does not select viseme payloads for empty final markers or corrections that were not sent to TTS", () => {
-    expect(
-      selectStructuredSpeechVisemePayload({
-        ttsPayload: null,
-        ttsPhonemizedText: [["IGNORED"]],
-        phonemizedText: [["IGNORED"]],
-        tokenizedText: "",
-        fallbackTokenizedText: "",
       }),
     ).toBeNull();
   });

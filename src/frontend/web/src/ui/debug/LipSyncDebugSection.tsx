@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useElementSize } from "@/hooks/useElementSize";
 import type { VowelVisemeLipSyncSegment } from "@/lib/avatar/vowelVisemeSegment";
+import { decodeLipSyncCapture } from "@/lib/lipsync/capture-file";
 import {
   lipSyncPlanSources,
   mouthOpennessCurve,
@@ -25,11 +26,14 @@ import {
 } from "./lipsync-debug-timeline";
 
 const CURVE_COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ec4899", "#8b5cf6"];
-const DEFAULT_FPS = 60;
 
 type PlanState =
   | { status: "building" }
-  | { status: "ready"; segment: VowelVisemeLipSyncSegment }
+  | {
+      status: "ready";
+      segment: VowelVisemeLipSyncSegment;
+      cpuMsPerAudioSec?: number;
+    }
   | { status: "none" }
   | { status: "failed"; error: string };
 
@@ -50,6 +54,11 @@ function isComplete(
   );
 }
 
+/** Planning CPU per second of audio. */
+function cpuLabel(msPerAudioSec: number): string {
+  return `${msPerAudioSec.toFixed(1)} ms CPU per s`;
+}
+
 function count(value: number, noun: string): string {
   return `${value} ${noun}${value === 1 ? "" : "s"}`;
 }
@@ -59,7 +68,9 @@ function planStatusLabel(plan: PlanState): string {
     case "building":
       return "building…";
     case "ready":
-      return `${plan.segment.frameCount} frames`;
+      return plan.cpuMsPerAudioSec === undefined
+        ? `${plan.segment.frameCount} frames`
+        : `${plan.segment.frameCount} frames · ${cpuLabel(plan.cpuMsPerAudioSec)}`;
     case "none":
       return "no plan";
     case "failed":
@@ -67,8 +78,69 @@ function planStatusLabel(plan: PlanState): string {
   }
 }
 
+/** How the live planner did on the run: CPU per second of audio, and any fallback. */
+function plannerLabel(capture: LipSyncDebugCapture): string {
+  if (capture.origin === "file") return "capture file";
+  const stats = capture.plannerStats;
+  if (!stats) return "—";
+  return [
+    stats.cpuMsPerAudioSec === null ? null : cpuLabel(stats.cpuMsPerAudioSec),
+    stats.fallback ? `fallback: ${stats.fallback.replace("_", " ")}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
+
 /**
- * The debug panel's Lip-sync view: the latest captured realtime run's audio,
+ * Development only: load a capture file (`pnpm lipsync:captures`) into the
+ * view, to compare plans for a test line without speaking it.
+ */
+function LoadCaptureButton() {
+  const loadCapture = useLipSyncDebugStore((state) => state.loadCapture);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const load = async (file: File) => {
+    setError(null);
+    try {
+      loadCapture(decodeLipSyncCapture(JSON.parse(await file.text())));
+    } catch (loadError) {
+      setError(
+        loadError instanceof Error ? loadError.message : String(loadError),
+      );
+    }
+  };
+  return (
+    <div className="flex items-center gap-2">
+      <input
+        ref={inputRef}
+        type="file"
+        accept="application/json,.json"
+        className="hidden"
+        aria-label="Lip-sync capture file"
+        onChange={(event) => {
+          const file = event.target.files?.[0];
+          event.target.value = "";
+          if (file) void load(file);
+        }}
+      />
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="text-2xs h-6 px-1.5"
+        onClick={() => inputRef.current?.click()}
+      >
+        Load capture
+      </Button>
+      {error ? (
+        <span className="text-destructive text-2xs">{error}</span>
+      ) : null}
+    </div>
+  );
+}
+
+/**
+ * The debug panel's Lip-sync view: the latest captured spoken run's audio,
  * its provider timing evidence and a mouth-openness curve per plan source, with
  * a replay of the run on the avatar using any of them.
  */
@@ -110,12 +182,12 @@ export function LipSyncDebugSection() {
     let cancelled = false;
     const inputs = {
       runId: complete.runId,
-      phonemizedText: complete.inputs?.phonemizedText ?? null,
-      tokenizedText: complete.inputs?.tokenizedText ?? null,
-      fps: complete.inputs?.fps ?? DEFAULT_FPS,
       audioDurationSec: complete.audioDurationSec,
       timing: complete.timing,
       evidence,
+      audio: { chunks: complete.chunks, sampleRate: complete.sampleRate },
+      text: complete.text,
+      parts: complete.parts,
     };
     const sources = lipSyncPlanSources();
     setPlans(
@@ -129,8 +201,8 @@ export function LipSyncDebugSection() {
       void source
         .build(inputs)
         .then(
-          (segment): PlanState =>
-            segment ? { status: "ready", segment } : { status: "none" },
+          (result): PlanState =>
+            result ? { status: "ready", ...result } : { status: "none" },
         )
         .catch(
           (error: unknown): PlanState => ({
@@ -253,9 +325,13 @@ export function LipSyncDebugSection() {
 
   if (!capture) {
     return (
-      <p className="border-border/70 text-muted-foreground rounded-md border border-dashed p-2">
-        Send a reply with ElevenLabs speech to capture its audio and timing.
-      </p>
+      <div className="space-y-2">
+        <p className="border-border/70 text-muted-foreground rounded-md border border-dashed p-2">
+          Send a reply spoken by ElevenLabs, Gemini or Pocket to capture its
+          audio, text and timing.
+        </p>
+        {__ANIMAMA_DEV_BUILD__ ? <LoadCaptureButton /> : null}
+      </div>
     );
   }
 
@@ -291,6 +367,10 @@ export function LipSyncDebugSection() {
           {complete
             ? `${complete.audioDurationSec.toFixed(2)} s${complete.truncated ? " (first 90 s kept)" : ""}`
             : `capturing… ${(capture.samples / capture.sampleRate).toFixed(1)} s`}
+        </dd>
+        <dt className="text-muted-foreground">Planner</dt>
+        <dd className="text-2xs text-right font-mono">
+          {plannerLabel(capture)}
         </dd>
         <dt className="text-muted-foreground">Evidence</dt>
         <dd className="text-2xs text-right font-mono">
@@ -370,6 +450,7 @@ export function LipSyncDebugSection() {
           ) : null}
         </>
       ) : null}
+      {__ANIMAMA_DEV_BUILD__ ? <LoadCaptureButton /> : null}
     </div>
   );
 }

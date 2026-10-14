@@ -17,13 +17,12 @@ make sync
 ```
 
 This uses
-`uv sync --extra server --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev`.
-It intentionally excludes the file-worker parser stack. The default `dev` group
-includes the `server` extra, so a plain `uv sync` also has the gruut phonemizer
-the backend tests require. The file-worker extra conflicts with it: run the
-worker with `--no-dev --extra file-worker` when testing the parser directly on
-the host; that replaces the development packages in `.venv` until the next
-plain `uv sync` or `uv run`.
+`uv sync --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev`.
+It intentionally excludes the file-worker parser stack. The file-worker extra
+conflicts with the default `dev` group: run the worker with
+`--no-dev --extra file-worker` when testing the parser directly on the host;
+that replaces the development packages in `.venv` until the next plain
+`uv sync` or `uv run`.
 
 A `.venv` last synced from a lock older than October 9, 2026 holds both
 griffe 1.x and griffelib 2.x, which install the same `griffe` package. Syncing
@@ -32,7 +31,7 @@ importing the OpenAI Agents SDK fails with `ImportError: cannot import name
 'Docstring' from 'griffe'`. Reinstall griffelib once with the same extras:
 
 ```bash
-uv sync --extra server --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev --reinstall-package griffelib
+uv sync --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev --reinstall-package griffelib
 ```
 
 A new `.venv` is unaffected.
@@ -904,8 +903,8 @@ workflow does not configure them. Measure complete run costs, including local
 validation and weekly work, before claiming savings. Preserve owner review of
 coverage and detection-delay tradeoffs when changing validation policy.
 
-The development dependency group includes the server extra and the PyYAML,
-jsonschema and ReportLab type stubs required by the existing mypy target.
+The development dependency group includes the PyYAML, jsonschema and ReportLab
+type stubs required by the existing mypy target.
 Install from `uv.lock` with `uv sync --frozen` before checking a clean checkout. Ruff lint
 checks its configured repository scope; formatting checks only
 `src/backend/animama` and `tests`, and mypy checks those same backend/test roots.
@@ -1084,7 +1083,7 @@ docker compose -p animama-abc logs -f animama-server
 ```
 
 The backend Dockerfile has separate final targets. `animama-server` installs the
-server extra and intentionally omits Docling/parser dependencies. The
+core dependencies and intentionally omits Docling/parser dependencies. The
 `animama-file-worker` target installs the full `docling` package and resolves
 PyTorch through uv's explicit CPU-only `pytorch-cpu` index, avoiding CUDA
 runtime packages in the worker image. Backend images copy the backend package,
@@ -1278,7 +1277,7 @@ For the supported host backend development extras, use the frozen equivalent of
 `make sync`:
 
 ```bash
-uv sync --frozen --extra server --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev
+uv sync --frozen --extra voice --extra viz --extra realtime --extra encrypt --all-packages --group dev
 ```
 
 Choose narrower existing extras when appropriate; file-worker parsing is

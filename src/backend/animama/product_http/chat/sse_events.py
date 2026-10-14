@@ -4,16 +4,16 @@ from __future__ import annotations
 
 import json
 import re
-from collections.abc import Callable, Mapping
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
+import regex
 from fastapi import HTTPException
 from fastapi.encoders import jsonable_encoder
 
 from animama.app.contracts.elevenlabs import PyElevenLabsRealtimeTtsSessionResponse
 from animama.app.contracts.gemini import DEFAULT_GEMINI_TTS_MODEL_ID
-from animama.app.gruut_text import gruut_prepares_text
 from animama.app.main_structured_response import (
     MAIN_STRUCTURED_RESPONSE_FORMAT,
     MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE,
@@ -30,11 +30,12 @@ from .setup_helpers import TurnSessions
 _log = get_logger("product_http.chat.sse_events")
 # Codes a composition with public error text still shows: short lowercase identifiers.
 _PUBLIC_ERROR_CODE = re.compile(r"^[a-z0-9_.]{1,64}$")
-
-GruutSseTextBuilder = Callable[..., Mapping[str, object] | None]
-TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS = "gruut_text_with_ws"
-# The reply's own text, spoken as written; the provider normalizes it.
-TTS_TEXT_BASIS_VISIBLE_TEXT = "visible_text"
+# Emoji and pictographs with their joiners, modifiers and variation selectors, as
+# the browser's speech text drops them (`spell-out-english.ts`).
+_EMOJI = regex.compile(
+    r"(?:\p{Extended_Pictographic}|\p{Regional_Indicator})"
+    r"(?:\uFE0F|\u200D|\u20E3|\p{Extended_Pictographic}|\p{Emoji_Modifier})*"
+)
 
 
 def _is_main_structured_response_format(response_format: object) -> bool:
@@ -43,10 +44,15 @@ def _is_main_structured_response_format(response_format: object) -> bool:
 
 @dataclass(slots=True)
 class SsePreparedTtsSpeechSegment:
+    """One speakable sentence of a reply's ``speech`` part, queued for TTS.
+
+    ``tts_text`` is the text the voice speaks: the visible text as written, without
+    emoji (a voice would read out their names) or surrounding whitespace. Providers
+    read numbers and symbols themselves.
+    """
+
     visible_text: str
     tts_text: str
-    tts_phonemized_text: list[object]
-    text_basis: str
     part_index: int
     part_final: bool
     paragraph_index: int = 0
@@ -55,9 +61,6 @@ class SsePreparedTtsSpeechSegment:
 
 @dataclass(slots=True)
 class SseTextState:
-    stream_text_parts: list[str] = field(default_factory=list)
-    last_full_text: str | None = None
-    main_structured_response_seen: bool = False
     emotional_tone: str | None = None
     emotional_intensity: int | None = None
     emotional_state: dict[str, int] | None = None
@@ -243,7 +246,10 @@ def format_tts_session_error_event(*, run_id: str, exc: BaseException) -> str:
     return format_sse("tts.session.error", data, event_id=f"tts-session-error-{run_id}")
 
 
-def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object], provider: str) -> str | None:
+def format_tts_audio_event(
+    *, run_id: str, payload: Mapping[str, object], provider: str, part_text: str | None = None
+) -> str | None:
+    """One ``tts.audio`` frame; ``part_text`` marks the first frame of a speech part with the part's text."""
     audio_base64 = payload.get("audio_base64")
     if not isinstance(audio_base64, str) or not audio_base64:
         return None
@@ -257,6 +263,8 @@ def format_tts_audio_event(*, run_id: str, payload: Mapping[str, object], provid
         "output_format": output_format if isinstance(output_format, str) else "pcm_24000",
         "audio_base64": audio_base64,
     }
+    if part_text:
+        data["part_text"] = part_text
     return format_sse("tts.audio", data)
 
 
@@ -294,56 +302,32 @@ def format_tts_error_event(
     return format_sse("tts.error", data, event_id=f"tts-error-{run_id}")
 
 
-def _attach_tts_speech_payload(
-    data: dict[str, object],
+def _record_tts_speech_segment(
     *,
     state: SseTextState,
     value: str,
     is_delta: bool | None,
     part_index: int | None,
     part_final: bool | None,
-    build_gruut_sse_text: GruutSseTextBuilder,
 ) -> None:
+    """Queue one ``speech`` event's text for the reply's TTS, whatever its language."""
+
     effective_part_final = part_final if isinstance(part_final, bool) else is_delta is False
     if effective_part_final:
         state.tts_speech_segments_closed = True
 
     # Nothing to speak: whitespace, punctuation or emoji alone, such as a closing 😊,
     # stays visible text only.
-    if not any(character.isalnum() for character in value):
+    spoken = speakable_text(value)
+    if not any(character.isalnum() for character in spoken):
         return
 
     # A complete speech event after streamed speech is a visible correction.
     # Audio already emitted for prior segments cannot be replaced, so do not
-    # queue or tag the correction for another TTS pass.
+    # queue the correction for another TTS pass.
     if is_delta is False and state.tts_speech_segments:
         return
 
-    # Every sentence is spoken, whatever its language. gruut prepares English text
-    # (its phonemes also time lip-sync); other text, or any text when gruut is
-    # unavailable, is spoken as written.
-    tts_payload = (
-        build_gruut_sse_text(value, lang="en_US", tokenized_text_source="text_with_ws")
-        if gruut_prepares_text(value)
-        else None
-    )
-    gruut_text = tts_payload.get("tokenized_text") if tts_payload is not None else None
-    if isinstance(gruut_text, str) and gruut_text.strip():
-        gruut_phonemes = tts_payload.get("phonemized_text") if tts_payload is not None else None
-        tts_text = gruut_text
-        tts_phonemized_text = gruut_phonemes if isinstance(gruut_phonemes, list) else []
-        text_basis = TTS_TEXT_BASIS_GRUUT_TEXT_WITH_WS
-        data.update(
-            {
-                "tts_text": tts_text,
-                "tts_phonemized_text": tts_phonemized_text,
-                "tts_text_basis": text_basis,
-            }
-        )
-    else:
-        tts_text = value.strip()
-        tts_phonemized_text = []
-        text_basis = TTS_TEXT_BASIS_VISIBLE_TEXT
     paragraph_break_before = bool(state.tts_speech_segments) and _has_leading_blank_line_break(value)
     if paragraph_break_before:
         state.tts_speech_paragraph_index += 1
@@ -351,15 +335,20 @@ def _attach_tts_speech_payload(
     state.tts_speech_segments.append(
         SsePreparedTtsSpeechSegment(
             visible_text=value,
-            tts_text=tts_text,
-            tts_phonemized_text=tts_phonemized_text,
-            text_basis=text_basis,
+            tts_text=spoken,
             part_index=part_index if isinstance(part_index, int) else len(state.tts_speech_segments),
             part_final=effective_part_final,
             paragraph_index=state.tts_speech_paragraph_index,
             paragraph_break_before=paragraph_break_before,
         )
     )
+
+
+def speakable_text(value: str) -> str:
+    """``value`` as a voice should receive it: without emoji (a voice would read out
+    their names), its doubled spaces closed and its ends trimmed."""
+
+    return re.sub(r"[ \t]{2,}", " ", _EMOJI.sub("", value)).strip()
 
 
 async def persist_sse_side_effect(
@@ -392,7 +381,6 @@ def format_user_response_event(
     *,
     run_id: str,
     state: SseTextState,
-    build_gruut_sse_text: GruutSseTextBuilder,
 ) -> str | None:
     payload = getattr(event, "payload", None)
     payload_run_id = _payload_run_id(payload)
@@ -409,14 +397,15 @@ def format_user_response_event(
     response_part = _payload_value(payload, "response_part")
     part_index = _payload_value(payload, "part_index")
     part_final = _payload_value(payload, "part_final")
-    if _is_main_structured_response_format(response_format):
-        state.main_structured_response_seen = True
-        if response_part == MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE:
-            state.emotional_tone = value.strip()
-            emotional_intensity = _payload_value(payload, "emotional_intensity")
-            if isinstance(emotional_intensity, int):
-                state.emotional_intensity = emotional_intensity
-            return None
+    if (
+        _is_main_structured_response_format(response_format)
+        and response_part == MAIN_STRUCTURED_RESPONSE_PART_EMOTIONAL_TONE
+    ):
+        state.emotional_tone = value.strip()
+        emotional_intensity = _payload_value(payload, "emotional_intensity")
+        if isinstance(emotional_intensity, int):
+            state.emotional_intensity = emotional_intensity
+        return None
 
     data: dict[str, object] = {
         "event_id": getattr(event, "event_id", None),
@@ -434,25 +423,18 @@ def format_user_response_event(
         data["part_index"] = part_index
     if isinstance(part_final, bool):
         data["part_final"] = part_final
-    if _is_main_structured_response_format(response_format) and response_part == MAIN_STRUCTURED_RESPONSE_PART_SPEECH:
-        gruut_payload = build_gruut_sse_text(value, lang="en_US")
-        if gruut_payload is not None:
-            data.update(gruut_payload)
-        if state.tts_speech_payload_enabled:
-            _attach_tts_speech_payload(
-                data,
-                state=state,
-                value=value,
-                is_delta=is_delta if isinstance(is_delta, bool) else None,
-                part_index=part_index if isinstance(part_index, int) else None,
-                part_final=part_final if isinstance(part_final, bool) else None,
-                build_gruut_sse_text=build_gruut_sse_text,
-            )
-
-    if is_delta is False:
-        state.last_full_text = value
-    else:
-        state.stream_text_parts.append(value)
+    if (
+        state.tts_speech_payload_enabled
+        and _is_main_structured_response_format(response_format)
+        and response_part == MAIN_STRUCTURED_RESPONSE_PART_SPEECH
+    ):
+        _record_tts_speech_segment(
+            state=state,
+            value=value,
+            is_delta=is_delta if isinstance(is_delta, bool) else None,
+            part_index=part_index if isinstance(part_index, int) else None,
+            part_final=part_final if isinstance(part_final, bool) else None,
+        )
 
     return format_sse("user.response", data, event_id=str(getattr(event, "event_id", "")))
 
@@ -533,8 +515,6 @@ def format_run_completed_event(
     *,
     run_id: str,
     chat_id: str | None = None,
-    state: SseTextState,
-    build_gruut_sse_text: GruutSseTextBuilder,
 ) -> str | None:
     payload = getattr(event, "payload", None)
     if _payload_run_id(payload) != run_id:
@@ -544,14 +524,4 @@ def format_run_completed_event(
     resolved_chat_id = chat_id or getattr(event, "chat_id", None)
     if isinstance(resolved_chat_id, str) and resolved_chat_id:
         data["chat_id"] = resolved_chat_id
-    if not state.main_structured_response_seen:
-        final_text = (
-            state.last_full_text if state.last_full_text is not None else "".join(state.stream_text_parts)
-        ).strip()
-    else:
-        final_text = ""
-    if final_text:
-        gruut_payload = build_gruut_sse_text(final_text, lang="en_US")
-        if gruut_payload is not None:
-            data.update(gruut_payload)
     return format_sse("run.completed", data, event_id=str(getattr(event, "event_id", "")))

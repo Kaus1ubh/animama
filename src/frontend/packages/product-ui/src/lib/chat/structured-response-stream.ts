@@ -28,33 +28,12 @@ export type StructuredResponseStreamUpdate = {
 
 export type StructuredSpeechTtsPayload = {
   text: string;
-  textBasis?: "gruut_text_with_ws";
-};
-
-export type StructuredSpeechVisemePayload = {
-  tokenizedText: string | null;
-  phonemizedText: string[][];
-};
-
-export type AccumulatedStructuredSpeechVisemeInputs = {
-  tokenizedText: string | null;
-  phonemizedText: string[][];
 };
 
 export type SelectStructuredSpeechTtsPayloadArgs = {
   visibleText?: string | null;
-  ttsText?: string | null;
-  ttsTextBasis?: string | null;
   isDelta: boolean;
   structuredTtsAppended: boolean;
-};
-
-export type SelectStructuredSpeechVisemePayloadArgs = {
-  ttsPayload: StructuredSpeechTtsPayload | null;
-  ttsPhonemizedText?: string[][] | null;
-  phonemizedText?: string[][] | null;
-  tokenizedText?: string | null;
-  fallbackTokenizedText?: string | null;
 };
 
 export function createStructuredResponseStreamState(): StructuredResponseStreamState {
@@ -67,26 +46,6 @@ export function createStructuredResponseStreamState(): StructuredResponseStreamS
     lastSpeechPartIndex: null,
     lastDisplayPartIndex: null,
   };
-}
-
-function hasPhonemizedText(
-  value: string[][] | null | undefined,
-): value is string[][] {
-  return Array.isArray(value) && value.length > 0;
-}
-
-function joinTokenizedVisemeText(
-  previous: string | null,
-  next: string | null,
-): string | null {
-  const prior = typeof previous === "string" ? previous : "";
-  const addition = typeof next === "string" ? next : "";
-  if (!prior.trim()) return addition.trim() || null;
-  if (!addition.trim()) return prior;
-  if (/\s$/.test(prior) || /^\s/.test(addition)) {
-    return `${prior}${addition}`.replace(/\s+/g, " ").trim();
-  }
-  return `${prior} ${addition}`.replace(/\s+/g, " ").trim();
 }
 
 export function isStructuredResponsePart(
@@ -173,8 +132,6 @@ export function getStructuredAssistantTexts(
 
 export function selectStructuredSpeechTtsPayload({
   visibleText,
-  ttsText,
-  ttsTextBasis,
   isDelta,
   structuredTtsAppended,
 }: SelectStructuredSpeechTtsPayloadArgs): StructuredSpeechTtsPayload | null {
@@ -182,65 +139,9 @@ export function selectStructuredSpeechTtsPayload({
     return null;
   }
 
-  if (
-    ttsTextBasis === "gruut_text_with_ws" &&
-    typeof ttsText === "string" &&
-    ttsText.trim()
-  ) {
-    return {
-      text: ttsText,
-      textBasis: "gruut_text_with_ws",
-    };
-  }
-
   if (typeof visibleText !== "string" || !visibleText.trim()) {
     return null;
   }
 
   return { text: visibleText };
-}
-
-export function selectStructuredSpeechVisemePayload({
-  ttsPayload,
-  ttsPhonemizedText,
-  phonemizedText,
-  tokenizedText,
-  fallbackTokenizedText,
-}: SelectStructuredSpeechVisemePayloadArgs): StructuredSpeechVisemePayload | null {
-  if (!ttsPayload) return null;
-
-  if (
-    ttsPayload.textBasis === "gruut_text_with_ws" &&
-    hasPhonemizedText(ttsPhonemizedText)
-  ) {
-    return {
-      tokenizedText: ttsPayload.text,
-      phonemizedText: ttsPhonemizedText,
-    };
-  }
-
-  if (!hasPhonemizedText(phonemizedText)) {
-    return null;
-  }
-
-  return {
-    tokenizedText: tokenizedText ?? fallbackTokenizedText ?? ttsPayload.text,
-    phonemizedText,
-  };
-}
-
-export function appendStructuredSpeechVisemeInputs(
-  current: AccumulatedStructuredSpeechVisemeInputs | null,
-  payload: StructuredSpeechVisemePayload,
-): AccumulatedStructuredSpeechVisemeInputs {
-  return {
-    tokenizedText: joinTokenizedVisemeText(
-      current?.tokenizedText ?? null,
-      payload.tokenizedText,
-    ),
-    phonemizedText: [
-      ...(current?.phonemizedText ?? []),
-      ...payload.phonemizedText,
-    ],
-  };
 }

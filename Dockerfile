@@ -50,10 +50,10 @@ COPY src/frontend/web/src/assets/vrm/animations/manifest.json \
 
 FROM base AS animama-server-development
 RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
-    uv sync --frozen --no-dev --extra server --no-install-project
+    uv sync --frozen --no-dev --no-install-project
 COPY --from=source /app /app
 RUN --mount=type=cache,id=animama-uv-linux-${TARGETARCH}-py312-uv0.11.28,target=/root/.cache/uv,sharing=locked \
-    uv sync --frozen --no-dev --extra server
+    uv sync --frozen --no-dev
 EXPOSE 8000
 CMD ["python", "-m", "animama.server.compose_entrypoint"]
 

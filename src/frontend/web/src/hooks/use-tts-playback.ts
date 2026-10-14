@@ -3,6 +3,13 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { createLogger } from "@/lib/logger";
+import {
+  performanceClock,
+  performanceClockNow,
+} from "@/lib/speech/performance-clock";
+import { dropEmoji } from "@/lib/lipsync/text/spell-out-english";
+import { pocketSpeechText } from "@/lib/speech/pocket-speech-text";
+import { emitSpeechUtterance } from "@/lib/speech/speech-pcm-tap";
 import type { TimedChar } from "@/lib/speech/provider-speech-timing";
 import {
   countTtsChunkWords,
@@ -75,11 +82,7 @@ function isAbortError(error: unknown): boolean {
 
 type UseTtsPlaybackResult = {
   startRun: (runId: string) => void;
-  appendToken: (
-    runId: string,
-    token: string,
-    options?: TtsAppendOptions,
-  ) => void;
+  appendToken: (runId: string, token: string) => void;
   completeRun: (runId: string) => void;
   acceptElevenLabsSession: (
     runId: string,
@@ -104,10 +107,6 @@ type UseTtsPlaybackResult = {
 };
 
 type AudioEndedReason = "natural" | "error";
-type TtsTextBasis = "plain" | "gruut_text_with_ws";
-type TtsAppendOptions = {
-  textBasis?: TtsTextBasis | null;
-};
 
 type UseTtsPlaybackOptions = {
   onAudioStarted?: (event: {
@@ -138,6 +137,16 @@ type UseTtsPlaybackOptions = {
     provider: TtsProvider;
     chunks: TtsChunkRecord[];
   }) => void;
+  /**
+   * The text a run's voice speaks so far, as sent (Pocket's spelled out), for
+   * lip-sync planning; `final` once the run's text is complete.
+   */
+  onSpeechText?: (event: {
+    runId: string;
+    provider: TtsProvider;
+    text: string;
+    final: boolean;
+  }) => void;
   /** Characters ElevenLabs timed for a realtime run, on the run clock (lip-sync evidence). */
   onSpeechTiming?: (event: {
     runId: string;
@@ -155,7 +164,6 @@ type UseTtsPlaybackOptions = {
     emotionIntensity?: number | null;
     languageCode?: string | null;
     modelId?: string | null;
-    textBasis?: TtsTextBasis | null;
     animaVoiceCatalogUrl?: string | null;
   } | null;
 };
@@ -219,6 +227,7 @@ export function useTtsPlayback(
     onPlaybackEndedSignal,
     onAudioEnded,
     onChunksQueued,
+    onSpeechText,
     onSpeechTiming,
     getPocketVoiceSelectionContext,
     geminiTtsOffered = false,
@@ -383,13 +392,14 @@ export function useTtsPlayback(
     useRef<ResolvedPocketVoiceSelection | null>(null);
   const pocketFallbackVoiceRef = useRef<PerRunValue<string | undefined>>(null);
   const lastPreloadedPocketAnimaRefRef = useRef<string | null>(null);
-  const finalizedTextBasisByRunRef = useRef<Record<string, TtsTextBasis>>({});
   // A run whose ElevenLabs speech the server declined speaks with Pocket TTS
   // instead (fallBackToPocketTts); the saved provider is unchanged.
   const declinedElevenLabsRunIdRef = useRef<string | null>(null);
   // All speech text appended to the active run, so a declined run can be
   // spoken again from its first word.
   const runSpeechTextRef = useRef("");
+  /** The run's text as each voice receives it, for lip-sync. */
+  const plannedTextRef = useRef("");
 
   const resolveSpeechRuntimeContext = useCallback(
     (runId: string) => getSpeechVoiceSelectionContext?.(runId) ?? null,
@@ -406,6 +416,7 @@ export function useTtsPlayback(
   const clearActiveUtteranceHandlers = useCallback(() => {
     if (!activeUtteranceRef.current) return;
     activeUtteranceRef.current.onstart = null;
+    activeUtteranceRef.current.onboundary = null;
     activeUtteranceRef.current.onend = null;
     activeUtteranceRef.current.onerror = null;
     activeUtteranceRef.current = null;
@@ -665,9 +676,9 @@ export function useTtsPlayback(
     clearIdleFlushTimer();
     bufferRef.current = "";
     runSpeechTextRef.current = "";
+    plannedTextRef.current = "";
     runIdRef.current = null;
     declinedElevenLabsRunIdRef.current = null;
-    finalizedTextBasisByRunRef.current = {};
     warnedKeysRef.current.clear();
     resetRunPlaybackLifecycle();
     cancelBrowserPlayback();
@@ -715,11 +726,32 @@ export function useTtsPlayback(
       activeUtteranceRef.current = utterance;
       browserSpeakingRef.current = true;
 
+      // Lip-sync estimates the mouth from each utterance's text, placed by
+      // when the voice starts it and, where it says, each word.
       utterance.onstart = () => {
-        emitAudioStarted(runId, "browser", runSeq);
+        const atSec = performanceClockNow();
+        emitSpeechUtterance({ runId, type: "start", text: nextChunk, atSec });
+        emitAudioStarted(runId, "browser", runSeq, {
+          audioStartSec: atSec,
+          audioContext: performanceClock,
+        });
+      };
+      utterance.onboundary = (event) => {
+        if (event.name && event.name !== "word") return;
+        emitSpeechUtterance({
+          runId,
+          type: "boundary",
+          charIndex: event.charIndex,
+          atSec: performanceClockNow(),
+        });
       };
 
       utterance.onend = () => {
+        emitSpeechUtterance({
+          runId,
+          type: "end",
+          atSec: performanceClockNow(),
+        });
         if (activeUtteranceRef.current === utterance) {
           clearActiveUtteranceHandlers();
         }
@@ -902,6 +934,7 @@ export function useTtsPlayback(
             resolvePocketVoiceSelectionForRun(runId);
           await generatePocketTtsChunk(nextChunk.text, {
             signal: abortController.signal,
+            runId,
             preservePlayback: true,
             endStream: nextChunk.endStream,
             assertAnimaCatalogActive: voiceSelection.assertAnimaCatalogActive,
@@ -985,8 +1018,21 @@ export function useTtsPlayback(
         provider,
         chunks: records,
       });
+      // ElevenLabs sends each chunk with a trailing space; Pocket speaks it
+      // spelled out.
+      for (const chunk of chunks) {
+        plannedTextRef.current += `${
+          provider === "pocket_tts" ? pocketSpeechText(chunk.text) : chunk.text
+        } `;
+      }
+      onSpeechText?.({
+        runId,
+        provider,
+        text: plannedTextRef.current,
+        final: false,
+      });
     },
-    [onChunksQueued],
+    [onChunksQueued, onSpeechText],
   );
 
   const prepareChunksForPlayback = useCallback(
@@ -998,17 +1044,19 @@ export function useTtsPlayback(
       const prepared: TtsChunkCandidate[] = [];
 
       for (const chunk of chunks) {
-        const trimmed = chunk.text.trim();
-        if (!trimmed) continue;
+        // Other voices read text as written, so they lose the emoji here;
+        // Pocket spells its text out, emoji and tags dropped, as it speaks.
+        const text =
+          provider === "pocket_tts"
+            ? chunk.text.trim()
+            : dropEmoji(chunk.text).trim();
+        if (!text) continue;
+        // A chunk of only tags or emoji has nothing for Pocket to say; dropping
+        // it here keeps the stream's end on the last chunk Pocket speaks.
+        if (provider === "pocket_tts" && !pocketSpeechText(text)) continue;
 
-        logger.info("Prepare", "Prepared TTS text", {
-          provider,
-          text: trimmed,
-        });
-        prepared.push({
-          ...chunk,
-          text: trimmed,
-        });
+        logger.info("Prepare", "Prepared TTS text", { provider, text });
+        prepared.push({ ...chunk, text });
       }
 
       return prepared;
@@ -1036,9 +1084,9 @@ export function useTtsPlayback(
       runId: string,
       chunks: readonly TtsChunkCandidate[],
       options?: { markLastChunkAsFinal?: boolean },
-    ) => {
+    ): boolean => {
       const prepared = prepareChunksForPlayback(chunks, "pocket_tts");
-      if (prepared.length === 0) return;
+      if (prepared.length === 0) return false;
       recordPreparedChunksForAvatar(runId, "pocket_tts", prepared);
       const markLastChunkAsFinal = options?.markLastChunkAsFinal === true;
       const queueItems: PocketQueueItem[] = prepared.map((chunk, index) => ({
@@ -1052,6 +1100,7 @@ export function useTtsPlayback(
         pocketStreamNeedsExplicitEndRef.current = false;
       }
       drainPocketQueue();
+      return true;
     },
     [drainPocketQueue, prepareChunksForPlayback, recordPreparedChunksForAvatar],
   );
@@ -1283,7 +1332,7 @@ export function useTtsPlayback(
   );
 
   const appendToken = useCallback(
-    (runId: string, token: string, options?: TtsAppendOptions) => {
+    (runId: string, token: string) => {
       if (!runId || !token) return;
       if (runIdRef.current !== runId) {
         startRun(runId);
@@ -1293,11 +1342,17 @@ export function useTtsPlayback(
       const provider = resolveActiveProvider(runId);
       if (!provider) return;
 
-      if (options?.textBasis === "gruut_text_with_ws") {
-        finalizedTextBasisByRunRef.current[runId] = "gruut_text_with_ws";
-      }
       bufferRef.current += token;
       runSpeechTextRef.current += token;
+      if (isFinalizedServerProvider(provider)) {
+        // The server speaks the reply's speech text as it arrives.
+        onSpeechText?.({
+          runId,
+          provider,
+          text: runSpeechTextRef.current,
+          final: false,
+        });
+      }
       if (!shouldStreamChunksForProvider(provider)) {
         return;
       }
@@ -1322,6 +1377,7 @@ export function useTtsPlayback(
       enqueueBrowserChunks,
       enqueueElevenLabsChunks,
       enqueuePocketChunks,
+      onSpeechText,
       resolveActiveProvider,
       scheduleIdleFlush,
       shouldStreamChunksForProvider,
@@ -1373,24 +1429,29 @@ export function useTtsPlayback(
       } else if (provider === "pocket_tts") {
         activePocketVoiceSelectionRef.current =
           resolvePocketVoiceSelectionForRun(runId);
-        if (chunks.length > 0) {
+        // When the final chunks queue, the last one ends the stream; otherwise
+        // (none left, or nothing in them to say) end the stream another way.
+        const queuedFinal =
+          chunks.length > 0 &&
           enqueuePocketChunks(runId, chunks, { markLastChunkAsFinal: true });
-        } else if (pocketQueueRef.current.length > 0) {
-          pocketQueueRef.current[pocketQueueRef.current.length - 1]!.endStream =
-            true;
-          pocketStreamNeedsExplicitEndRef.current = false;
-        } else if (pocketStreamOpenRef.current) {
-          pocketStreamNeedsExplicitEndRef.current = true;
-          drainPocketQueue();
-        } else if (!audioStartedRef.current) {
-          emitAudioEnded(runId, "pocket_tts", runSeq, "natural");
+        if (!queuedFinal) {
+          if (pocketQueueRef.current.length > 0) {
+            pocketQueueRef.current[
+              pocketQueueRef.current.length - 1
+            ]!.endStream = true;
+            pocketStreamNeedsExplicitEndRef.current = false;
+          } else if (pocketStreamOpenRef.current) {
+            pocketStreamNeedsExplicitEndRef.current = true;
+            drainPocketQueue();
+          } else if (!audioStartedRef.current) {
+            emitAudioEnded(runId, "pocket_tts", runSeq, "natural");
+          }
         }
         maybeEmitPocketAudioEnded(runId, runSeq);
       } else {
         const speechContext = resolveSpeechRuntimeContext(runId);
         if (speechContext?.animaId) {
           if (isFinalizedServerProvider(provider)) {
-            delete finalizedTextBasisByRunRef.current[runId];
             logger.info("Run", "Waiting for pushed finalized audio", {
               runId,
               provider,
@@ -1404,6 +1465,15 @@ export function useTtsPlayback(
           emitAudioEnded(runId, provider, runSeq, "error");
         }
       }
+
+      onSpeechText?.({
+        runId,
+        provider,
+        text: isFinalizedServerProvider(provider)
+          ? runSpeechTextRef.current
+          : plannedTextRef.current,
+        final: true,
+      });
 
       logger.info("Run", "Completed TTS run", {
         runId,
@@ -1422,6 +1492,7 @@ export function useTtsPlayback(
       logger,
       maybeEmitBrowserAudioEnded,
       maybeEmitPocketAudioEnded,
+      onSpeechText,
       resolveActiveProvider,
       resolveSpeechRuntimeContext,
       resolvePocketVoiceSelectionForRun,
@@ -1521,6 +1592,7 @@ export function useTtsPlayback(
       setPocketFallbackUsed(true);
       // Text already sent to ElevenLabs was never spoken; Pocket starts over.
       bufferRef.current = runSpeechTextRef.current;
+      plannedTextRef.current = "";
       logger.info("Run", "Speaking with PocketTTS after declined speech", {
         runId,
         runCompleted: runCompletedRef.current,

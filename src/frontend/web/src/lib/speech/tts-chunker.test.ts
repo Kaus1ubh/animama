@@ -83,6 +83,15 @@ describe("extractReadyTtsChunkCandidates", () => {
     expect(isExclamationTtsChunk("Wow! It works.")).toBe(false);
   });
 
+  it("keeps a decimal point or a dot inside a word with its sentence", () => {
+    expect(
+      readyChunks("It costs $5.99 at 3:30 pm, see animama.ai. Then"),
+    ).toEqual({
+      chunks: ["It costs $5.99 at 3:30 pm, see animama.ai."],
+      remaining: "Then",
+    });
+  });
+
   it("keeps English sentence ends unchanged", () => {
     expect(readyChunks("Hello there. How are you? Fine")).toEqual({
       chunks: ["Hello there.", "How are you?"],

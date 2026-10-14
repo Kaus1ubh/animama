@@ -15,7 +15,6 @@ from animama.product_http.ports import ChatTurnStop
 
 from .setup_helpers import TurnSessions
 from .sse_events import (
-    GruutSseTextBuilder,
     SseTextState,
     format_avatar_gesture_requested_event,
     format_crisis_support_event,
@@ -71,7 +70,6 @@ async def drain_pending_events(
     anima_id: str,
     sessions: TurnSessions,
     state: SseTextState,
-    build_gruut_sse_text: GruutSseTextBuilder,
     stream_user_response: bool,
     stream_emotion_update: bool,
     stream_error: bool = True,
@@ -89,7 +87,6 @@ async def drain_pending_events(
             anima_id=anima_id,
             sessions=sessions,
             state=state,
-            build_gruut_sse_text=build_gruut_sse_text,
             stream_user_response=stream_user_response,
             stream_emotion_update=stream_emotion_update,
             stream_error=stream_error,
@@ -105,7 +102,6 @@ async def drain_events_while_task_runs(
     anima_id: str,
     sessions: TurnSessions,
     state: SseTextState,
-    build_gruut_sse_text: GruutSseTextBuilder,
     stream_user_response: bool,
     stream_emotion_update: bool,
     poll_extra_frame: Callable[[], str | None] | None = None,
@@ -133,7 +129,6 @@ async def drain_events_while_task_runs(
             anima_id=anima_id,
             sessions=sessions,
             state=state,
-            build_gruut_sse_text=build_gruut_sse_text,
             stream_user_response=stream_user_response,
             stream_emotion_update=stream_emotion_update,
             stream_error=True,
@@ -151,7 +146,6 @@ async def drain_events_while_task_runs(
         anima_id=anima_id,
         sessions=sessions,
         state=state,
-        build_gruut_sse_text=build_gruut_sse_text,
         stream_user_response=stream_user_response,
         stream_emotion_update=stream_emotion_update,
     ):
@@ -242,8 +236,6 @@ def direct_run_completed_frame(
     chat_id: str,
     user_id: str,
     run_id: str,
-    state: SseTextState,
-    build_gruut_sse_text: GruutSseTextBuilder,
 ) -> str | None:
     """Build the canonical public completion frame for a direct chat run."""
 
@@ -259,8 +251,6 @@ def direct_run_completed_frame(
         completed_event,
         run_id=run_id,
         chat_id=chat_id,
-        state=state,
-        build_gruut_sse_text=build_gruut_sse_text,
     )
 
 
@@ -281,7 +271,6 @@ async def _handle_direct_event(
     anima_id: str,
     sessions: TurnSessions,
     state: SseTextState,
-    build_gruut_sse_text: GruutSseTextBuilder,
     stream_user_response: bool,
     stream_emotion_update: bool,
     stream_error: bool,
@@ -303,7 +292,6 @@ async def _handle_direct_event(
             event,
             run_id=run_id,
             state=state,
-            build_gruut_sse_text=build_gruut_sse_text,
         )
     elif stream_emotion_update and event.type == EventType.EMOTION_UPDATE:
         updated_emotional_state = _emotional_state_from_update_event(event, run_id=run_id)

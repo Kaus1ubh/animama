@@ -249,7 +249,7 @@ def build(source, commit, output, allow_dirty=False):
         env["SOURCE_DATE_EPOCH"] = str(source_record["source_date_epoch"])
         stage = Path(temp) / "set"
         stage.mkdir()
-        run(["uv", "sync", "--frozen", "--python", "3.12.13", "--extra", "server"], root, env)
+        run(["uv", "sync", "--frozen", "--python", "3.12.13"], root, env)
         run(["pnpm", "install", "--frozen-lockfile", "--package-import-method=copy"], root / "src/frontend", env)
         run(
             [

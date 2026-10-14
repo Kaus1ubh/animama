@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildVisemeAssetsFromRaw } from "@/lib/avatar/viseme-worker-client";
+import { encodeLipSyncCapture } from "@/lib/lipsync/capture-file";
 import type { VowelVisemeLipSyncSegment } from "@/lib/avatar/vowelVisemeSegment";
 import { registerLipSyncPlanSource } from "@/lib/speech/lipsync-plan-sources";
 import { useAvatarLipSyncBridgeStore } from "@/stores/avatar-lipsync-bridge-store";
@@ -15,9 +15,6 @@ import { LipSyncDebugSection } from "./LipSyncDebugSection";
 import { startLipSyncReplay } from "./lipsync-debug-replay";
 import { drawLipSyncTimeline } from "./lipsync-debug-timeline";
 
-vi.mock("@/lib/avatar/viseme-worker-client", () => ({
-  buildVisemeAssetsFromRaw: vi.fn(),
-}));
 vi.mock("./lipsync-debug-replay", () => ({
   startLipSyncReplay: vi.fn(),
 }));
@@ -50,6 +47,9 @@ function segment(frameCount: number): VowelVisemeLipSyncSegment {
 let root: Root | null = null;
 let container: HTMLDivElement | null = null;
 let unregister: (() => void) | null = null;
+let unregisterPlan: (() => void) | null = null;
+// The built-in sources plan in a worker, which happy-dom lacks; this one stands in.
+const planBuild = vi.fn(async () => ({ segment: segment(3) }));
 
 async function settle() {
   await act(async () => {
@@ -68,6 +68,10 @@ async function render() {
 function capture(overrides: Partial<LipSyncDebugCapture> = {}) {
   useLipSyncDebugStore.setState({
     capture: {
+      origin: "live",
+      text: null,
+      parts: [],
+      plannerStats: null,
       runId: "run-1",
       provider: "elevenlabs",
       sampleRate: 24_000,
@@ -79,7 +83,6 @@ function capture(overrides: Partial<LipSyncDebugCapture> = {}) {
         startSec: index / 300,
         endSec: (index + 1) / 300,
       })),
-      inputs: { phonemizedText: [["h", "aɪ"]], tokenizedText: "Hi.", fps: 60 },
       audioDurationSec: 0.01,
       seenInBridge: true,
       playbackEnded: true,
@@ -92,7 +95,7 @@ function registerTimingSource() {
   unregister = registerLipSyncPlanSource({
     id: "timing-test",
     label: "Timing (test)",
-    build: async () => segment(5),
+    build: async () => ({ segment: segment(5) }),
   });
 }
 
@@ -101,9 +104,11 @@ function button(label: string) {
 }
 
 beforeEach(() => {
-  vi.mocked(buildVisemeAssetsFromRaw).mockResolvedValue({
-    segment: segment(3),
-  } as Awaited<ReturnType<typeof buildVisemeAssetsFromRaw>>);
+  unregisterPlan = registerLipSyncPlanSource({
+    id: "plan-test",
+    label: "Plan (test)",
+    build: planBuild,
+  });
   // happy-dom has no 2D canvas; the drawing itself is tested separately.
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
     setTransform: () => undefined,
@@ -116,6 +121,9 @@ afterEach(async () => {
   root = null;
   unregister?.();
   unregister = null;
+  unregisterPlan?.();
+  unregisterPlan = null;
+  planBuild.mockClear();
   useLipSyncDebugStore.getState().reset();
   useAvatarLipSyncBridgeStore.getState().clearAll();
   vi.mocked(startLipSyncReplay).mockReset();
@@ -127,7 +135,63 @@ describe("Lip-sync debug section", () => {
     await render();
 
     expect(container?.textContent).toContain(
-      "Send a reply with ElevenLabs speech",
+      "Send a reply spoken by ElevenLabs, Gemini or Pocket",
+    );
+  });
+
+  it("loads a capture file in development", async () => {
+    await render();
+    const file = new File(
+      [
+        JSON.stringify(
+          encodeLipSyncCapture({
+            id: "g-en-laugh",
+            provider: "gemini",
+            sampleRate: 24_000,
+            pcm: new Int16Array(2400).fill(8000),
+            text: "Ha!",
+            parts: [{ sample: 0, text: "Ha!" }],
+            timing: [],
+          }),
+        ),
+      ],
+      "g-en-laugh.json",
+    );
+    const input = container!.querySelector<HTMLInputElement>(
+      '[aria-label="Lip-sync capture file"]',
+    )!;
+    Object.defineProperty(input, "files", { value: [file] });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+
+    expect(useLipSyncDebugStore.getState().capture).toMatchObject({
+      origin: "file",
+      runId: "g-en-laugh",
+      samples: 2400,
+      parts: [{ sample: 0, text: "Ha!" }],
+      playbackEnded: true,
+    });
+    expect(container?.textContent).toContain("capture file");
+    expect(container?.textContent).toContain("Plan (test)3 frames");
+  });
+
+  it("says why a file is not a capture", async () => {
+    await render();
+    const input = container!.querySelector<HTMLInputElement>(
+      '[aria-label="Lip-sync capture file"]',
+    )!;
+    Object.defineProperty(input, "files", {
+      value: [new File(["{}"], "other.json")],
+    });
+    await act(async () => {
+      input.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await settle();
+
+    expect(container?.textContent).toContain(
+      "Not a lip-sync capture file (version 1)",
     );
   });
 
@@ -137,13 +201,13 @@ describe("Lip-sync debug section", () => {
     await render();
 
     const plans = container?.querySelector('[aria-label="Lip-sync plans"]');
-    expect(plans?.textContent).toContain("Estimated (today)3 frames");
+    expect(plans?.textContent).toContain("Plan (test)3 frames");
     expect(plans?.textContent).toContain("Timing (test)5 frames");
     expect(button("Replay with Timing (test)")).not.toBeNull();
     expect(container?.textContent).toContain("1 word · 1 pause · 0 tags");
     const drawn = vi.mocked(drawLipSyncTimeline).mock.calls.at(-1)?.[1];
     expect(drawn?.curves.map((curve) => curve.id)).toEqual([
-      "estimated",
+      "plan-test",
       "timing-test",
     ]);
   });
@@ -154,8 +218,8 @@ describe("Lip-sync debug section", () => {
     await render();
 
     expect(container?.textContent).toContain("capturing…");
-    expect(button("Replay with Estimated (today)")).toBeNull();
-    expect(buildVisemeAssetsFromRaw).not.toHaveBeenCalled();
+    expect(button("Replay with Plan (test)")).toBeNull();
+    expect(planBuild).not.toHaveBeenCalled();
   });
 
   it("keeps Replay off while another reply is speaking", async () => {
@@ -173,13 +237,13 @@ describe("Lip-sync debug section", () => {
     });
     await render();
 
-    expect(button("Replay with Estimated (today)")?.disabled).toBe(true);
+    expect(button("Replay with Plan (test)")?.disabled).toBe(true);
     expect(container?.textContent).toContain("Replay waits for the reply");
 
     await act(async () => {
       useAvatarLipSyncBridgeStore.getState().clearRun("run-2");
     });
-    expect(button("Replay with Estimated (today)")?.disabled).toBe(false);
+    expect(button("Replay with Plan (test)")?.disabled).toBe(false);
   });
 
   it("draws a capped reply on the length of the audio it kept", async () => {
@@ -236,7 +300,7 @@ describe("Lip-sync debug section", () => {
     });
     capture();
     await render();
-    await act(async () => button("Replay with Estimated (today)")?.click());
+    await act(async () => button("Replay with Plan (test)")?.click());
 
     await act(async () => {
       useAvatarLipSyncBridgeStore.setState({
@@ -273,7 +337,7 @@ describe("Lip-sync debug section", () => {
     await render();
 
     await act(async () => button("Replay with Timing (test)")?.click());
-    await act(async () => button("Replay with Estimated (today)")?.click());
+    await act(async () => button("Replay with Plan (test)")?.click());
 
     expect(stop).toHaveBeenCalled();
     expect(container?.textContent).toContain(

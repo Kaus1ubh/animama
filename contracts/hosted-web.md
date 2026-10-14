@@ -45,8 +45,6 @@ guard](../docs/backend/runtime/chat.md#chat-turn-guard)). The chat policy's
 frames carry the speech port's own messages, so it raises only browser-safe ones,
 and a speech decline (`ProductRefusal`, such as `speech_allowance_exhausted`)
 keeps its code in `tts.session.error` or `tts.error`.
-Frames carry gruut phoneme payloads only where the wheel's `server` extra is
-installed.
 
 ## Admission and browser lifetime
 
@@ -170,7 +168,7 @@ in `local-http` version **7.0.0** with capability `schema_version: 2`. The gener
 TypeScript `RuntimeCapabilities` and validator are the same contract.
 `ProductRuntimeCapabilities` is a derived `Pick` for the existing extracted chat
 surface, not another wire schema. `runtime-contracts` is version 0.7.0 and
-`product-ui` is version 0.11.0. Consumers explicitly admit
+`product-ui` is version 0.12.0. Consumers explicitly admit
 the new contract major before adoption.
 
 Permissions are separate from browser support and temporary errors:

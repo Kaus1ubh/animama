@@ -4,5 +4,5 @@ data: {"type": "safety.ai_notice", "run_id": "run-disconnect", "kind": "start", 
 
 id: user-response-stream-speech-0-run-disconnect
 event: user.response
-data: {"event_id": "user-response-stream-speech-0-run-disconnect", "run_id": "run-disconnect", "node_id": "direct-chat:model-client", "text": "First sentence.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false, "tokenized_text": "First sentence.", "phonemized_text": [["f", "\u02c8\u025a", "s", "t"], ["s", "\u02c8\u025b", "n", "t", "\u0259", "n", "s"]]}
+data: {"event_id": "user-response-stream-speech-0-run-disconnect", "run_id": "run-disconnect", "node_id": "direct-chat:model-client", "text": "First sentence.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false}
 

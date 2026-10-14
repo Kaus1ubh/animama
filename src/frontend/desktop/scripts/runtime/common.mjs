@@ -351,8 +351,6 @@ export function syncBuildEnvironment() {
       "--no-default-groups",
       "--group",
       "desktop-build",
-      "--extra",
-      "server",
     ],
     { env: pythonEnvironment() },
   );

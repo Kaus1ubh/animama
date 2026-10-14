@@ -1,20 +1,16 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
-import { speechPcmTap } from "@/lib/speech/speech-debug-tap";
+import { emitSpeechPcm } from "@/lib/speech/speech-pcm-tap";
 import { useAvatarLipSyncBridgeStore } from "./avatar-lipsync-bridge-store";
 import {
   LIPSYNC_DEBUG_MAX_SECONDS,
   useLipSyncDebugStore,
 } from "./lipsync-debug-store";
 
-vi.mock("@/lib/avatar/viseme-worker-client", () => ({
-  buildVisemeAssetsFromRaw: vi.fn(),
-}));
-
 const SAMPLE_RATE = 24_000;
 
 function play(runId: string, samples: number, value = 1) {
-  speechPcmTap()?.({
+  emitSpeechPcm({
     runId,
     provider: "elevenlabs",
     sampleRate: SAMPLE_RATE,
@@ -33,7 +29,6 @@ afterEach(() => {
 
 describe("lip-sync debug capture", () => {
   it("captures nothing until the debug view starts capturing", () => {
-    expect(speechPcmTap()).toBeNull();
     play("run-1", 100);
 
     expect(useLipSyncDebugStore.getState().capture).toBeNull();
@@ -42,7 +37,7 @@ describe("lip-sync debug capture", () => {
   it("keeps a copy of the latest run's audio only", () => {
     useLipSyncDebugStore.getState().startCapture();
     const pcm = new Int16Array([1, 2, 3]);
-    speechPcmTap()?.({
+    emitSpeechPcm({
       runId: "run-1",
       provider: "elevenlabs",
       sampleRate: SAMPLE_RATE,
@@ -75,16 +70,10 @@ describe("lip-sync debug capture", () => {
     expect(capture?.truncated).toBe(true);
   });
 
-  it("keeps the run's timing, planner inputs and length after the bridge clears them", () => {
+  it("keeps the run's text, timing and length after the bridge clears them", () => {
     useLipSyncDebugStore.getState().startCapture();
     useAvatarLipSyncBridgeStore.setState({
-      rawVisemeInputsByRun: {
-        "run-1": {
-          phonemizedText: [["h", "aɪ"]],
-          tokenizedText: "Hi",
-          fps: 60,
-        },
-      },
+      speechTextByRun: { "run-1": "Hi" },
     });
     play("run-1", 10);
     useAvatarLipSyncBridgeStore.getState().appendProviderSpeechTiming({
@@ -106,7 +95,7 @@ describe("lip-sync debug capture", () => {
 
     expect(useLipSyncDebugStore.getState().capture).toMatchObject({
       runId: "run-1",
-      inputs: { phonemizedText: [["h", "aɪ"]], tokenizedText: "Hi", fps: 60 },
+      text: "Hi",
       timing: [{ char: "H", startSec: 0, endSec: 0.1 }],
       audioDurationSec: 0.4,
     });
@@ -127,13 +116,29 @@ describe("lip-sync debug capture", () => {
     expect(useLipSyncDebugStore.getState().capture?.playbackEnded).toBe(true);
   });
 
-  it("drops the capture and its tap when capturing stops", () => {
+  it("keeps float PCM as 16-bit samples", () => {
+    useLipSyncDebugStore.getState().startCapture();
+    emitSpeechPcm({
+      runId: "run-1",
+      provider: "pocket",
+      sampleRate: SAMPLE_RATE,
+      pcm: new Float32Array([0, 0.5, -1]),
+    });
+
+    expect(
+      useLipSyncDebugStore
+        .getState()
+        .capture?.chunks.map((chunk) => Array.from(chunk)),
+    ).toEqual([[0, 16384, -32767]]);
+  });
+
+  it("drops the capture and stops listening when capturing stops", () => {
     useLipSyncDebugStore.getState().startCapture();
     play("run-1", 10);
 
     useLipSyncDebugStore.getState().stopCapture();
+    play("run-1", 10);
 
-    expect(speechPcmTap()).toBeNull();
     expect(useLipSyncDebugStore.getState().capture).toBeNull();
     useAvatarLipSyncBridgeStore.getState().appendProviderSpeechTiming({
       runId: "run-1",

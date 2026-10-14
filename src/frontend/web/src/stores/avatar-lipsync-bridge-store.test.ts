@@ -1,194 +1,283 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { buildVisemeAssetsFromRaw } from "@/lib/avatar/viseme-worker-client";
+import {
+  addLipSyncRunTiming,
+  cancelLipSyncRun,
+  endLipSyncRunAudio,
+  setLipSyncRunText,
+} from "@/lib/lipsync/lipsync-runs";
+import { createTalkingHandsSpeechPlan } from "@/lib/avatar/proc-animation/talking-hands-speech-planner";
+import { DEFAULT_TALKING_HANDS_PROCEDURAL_ANIMATION_PARAMS } from "@/lib/avatar/proc-animation/types";
+import type { LipSyncWorkerResponse } from "@/lib/lipsync/worker-protocol";
 import {
   isProviderTimingOnlyChange,
   useAvatarLipSyncBridgeStore,
 } from "./avatar-lipsync-bridge-store";
 
-vi.mock("@/lib/avatar/viseme-worker-client", () => ({
-  buildVisemeAssetsFromRaw: vi.fn(
-    async (args: {
-      runId: string;
-      targetDurationSec?: number | null;
-      phonemizedText?: string[][] | null;
-    }) => {
-      const wordCount = Array.isArray(args.phonemizedText)
-        ? args.phonemizedText.length
-        : 1;
-      const durationSec = args.targetDurationSec ?? wordCount;
-      const segmentId = `viseme-${args.runId}`;
-      return {
-        segment: {
-          segmentId,
-          meta: {
-            run_id: args.runId,
-            segment_id: segmentId,
-            duration_seconds: durationSec,
-            format: "vowel5",
-          },
-          frames: [],
-          frameCount: 0,
-          durationMs: durationSec * 1000,
-          durationSec,
-          fps: 60,
-        },
-        planSummary: {
-          basis: "phoneme_viseme_plan",
-          durationSec,
-          durationMs: durationSec * 1000,
-          frameCount: 0,
-          fps: 60,
-        },
-        speechGestureTimeline: {
-          beats: [],
-          words: [],
-          utteranceDurationSec: durationSec,
-        },
-        buildMode: args.targetDurationSec
-          ? "actual_prestart"
-          : "estimated_provisional",
-        provisionalTargetDurationSec: null,
-        provisionalMarginSec: null,
-        workerElapsedMs: 0,
-      };
-    },
-  ),
+vi.mock("@/lib/lipsync/lipsync-runs", () => ({
+  connectLipSyncRuns: vi.fn(() => () => {}),
+  setLipSyncRunText: vi.fn(),
+  addLipSyncRunTiming: vi.fn(),
+  endLipSyncRunAudio: vi.fn(),
+  cancelLipSyncRun: vi.fn(),
+  cancelAllLipSyncRuns: vi.fn(),
 }));
+
+const RUN = "run-1";
+
+/** A plan update: `frameCount` frames with the mouth half open on "A". */
+function plan(
+  overrides: Partial<Extract<LipSyncWorkerResponse, { type: "plan" }>> & {
+    frameCount: number;
+  },
+): LipSyncWorkerResponse {
+  const fromFrame = overrides.fromFrame ?? 0;
+  const frames = new Float32Array((overrides.frameCount - fromFrame) * 5);
+  for (let i = 0; i < frames.length; i += 5) frames[i] = 0.5;
+  return {
+    type: "plan",
+    runId: RUN,
+    seq: 1,
+    fromFrame,
+    frames,
+    events: [],
+    gestures: {
+      words: [{ wordIndex: 0, startSec: 0.1, endSec: 0.4 }],
+      beats: [{ timeSec: 0.2, wordIndex: 0, unitIndex: 1, strength: 1 }],
+      phrases: [{ startSec: 0.1, endSec: 0.4, firstWord: 0, lastWord: 0 }],
+    },
+    complete: false,
+    fallback: null,
+    audioSec: (overrides.frameCount - 1) / 60,
+    cpuMs: 2,
+    ...overrides,
+  };
+}
+
+function fakeAvatar() {
+  const replaced: Array<{
+    fromSec: number;
+    frames: number;
+    durationSec: number;
+  }> = [];
+  const overlays: Array<Record<string, number> | null> = [];
+  const avatar = {
+    isReady: true,
+    clearLipSync: vi.fn(),
+    setAudioContext: vi.fn(),
+    initLipSyncSegment: vi.fn(),
+    registerLipSyncFrame: vi.fn(),
+    onSegmentAudioStarted: vi.fn(),
+    replaceLipSyncFrames: (
+      _segmentId: string,
+      fromSec: number,
+      frames: unknown[],
+      durationSec: number,
+    ) => replaced.push({ fromSec, frames: frames.length, durationSec }),
+    expressionController: {
+      setExpressionOverlay: (_owner: string, weights: Record<string, number>) =>
+        overlays.push(weights),
+      clearExpressionOverlay: () => overlays.push(null),
+    },
+  };
+  const store = useAvatarLipSyncBridgeStore.getState();
+  store.registerAvatarInstance({
+    avatar: avatar as unknown as Parameters<
+      typeof store.registerAvatarInstance
+    >[0]["avatar"],
+  });
+  return { avatar, replaced, overlays };
+}
+
+/** Start the run's audio at context time 10 and let the gate apply its plan. */
+function startPlayback(clock: { currentTime: number }) {
+  const store = useAvatarLipSyncBridgeStore.getState();
+  store.markSpeechAudioStarted({
+    runId: RUN,
+    audioStartSec: 10,
+    audioContext: clock as unknown as AudioContext,
+  });
+  store.tickGate({ avatarState: "talking", preferredRunId: RUN });
+}
 
 describe("avatar lip-sync bridge store", () => {
   beforeEach(() => {
-    vi.mocked(buildVisemeAssetsFromRaw).mockClear();
+    vi.clearAllMocks();
     useAvatarLipSyncBridgeStore.getState().clearAll();
+    useAvatarLipSyncBridgeStore.setState({ avatar: null, avatarAnimaId: null });
   });
 
-  it("stores duration without throwing when raw viseme inputs arrive later", async () => {
+  it("routes a run's text, timing and audio end to the planner", () => {
     const store = useAvatarLipSyncBridgeStore.getState();
-
-    expect(() => {
-      store.markSpeechAudioDurationResolved({
-        runId: "run-1",
-        audioDurationSec: 1.25,
-        generationId: null,
-      });
-    }).not.toThrow();
-    expect(
-      useAvatarLipSyncBridgeStore.getState().speechAudioDurationsByRun["run-1"]
-        ?.audioDurationSec,
-    ).toBe(1.25);
-    expect(buildVisemeAssetsFromRaw).not.toHaveBeenCalled();
-
-    store.queueVisemeInputsForRun({
-      runId: "run-1",
-      phonemizedText: [["h", "AI"]],
-      tokenizedText: "Hi!",
+    store.setSpeechText({ runId: RUN, text: "Hi there.", final: false });
+    store.appendProviderSpeechTiming({
+      runId: RUN,
       provider: "elevenlabs",
+      chars: [{ char: "H", startSec: 0, endSec: 0.1 }],
     });
+    store.markSpeechAudioDurationResolved({ runId: RUN, audioDurationSec: 1 });
+    store.clearRun(RUN);
 
-    await vi.waitFor(() => {
-      expect(buildVisemeAssetsFromRaw).toHaveBeenCalledTimes(1);
-    });
-    expect(buildVisemeAssetsFromRaw).toHaveBeenCalledWith(
-      expect.objectContaining({
-        runId: "run-1",
-        mode: "actual_prestart",
-        targetDurationSec: 1.25,
-        phonemizedText: [["h", "AI"]],
-        tokenizedText: "Hi!",
-      }),
-    );
+    expect(setLipSyncRunText).toHaveBeenCalledWith(RUN, "Hi there.", false);
+    expect(addLipSyncRunTiming).toHaveBeenCalledWith(RUN, [
+      { char: "H", startSec: 0, endSec: 0.1 },
+    ]);
+    expect(endLipSyncRunAudio).toHaveBeenCalledWith(RUN);
+    expect(cancelLipSyncRun).toHaveBeenCalledWith(RUN);
   });
 
-  it("replaces in-flight provisional visemes when later speech segments extend a run", async () => {
-    const avatar = {
-      isReady: true,
-      clearLipSync: vi.fn(),
-      setAudioContext: vi.fn(),
-      initLipSyncSegment: vi.fn(),
-      registerLipSyncFrame: vi.fn(),
-      onSegmentAudioStarted: vi.fn(),
-    };
-    const audioContext = { currentTime: 6.5 } as AudioContext;
+  it("turns a plan into the run's segment, timeline and stats", () => {
     const store = useAvatarLipSyncBridgeStore.getState();
+    store.applyPlannerResponse(RUN, plan({ frameCount: 61 }));
 
-    store.registerAvatarInstance({
-      avatar: avatar as never,
-      animaId: "anima-1",
-    });
-    store.queueVisemeInputsForRun({
-      runId: "run-1",
-      phonemizedText: [["one"], ["two"], ["three"], ["four"]],
-      tokenizedText: "One two three four.",
-      provider: "elevenlabs",
-    });
+    const state = useAvatarLipSyncBridgeStore.getState();
+    expect(state.segmentsByRun[RUN]?.frames).toHaveLength(61);
+    expect(state.segmentsByRun[RUN]?.durationSec).toBeCloseTo(1);
+    expect(state.speechGestureTimelinesByRun[RUN]?.phrases).toHaveLength(1);
+    expect(state.plannerStatsByRun[RUN]?.cpuMsPerAudioSec).toBeCloseTo(2);
 
-    await vi.waitFor(() => {
-      expect(buildVisemeAssetsFromRaw).toHaveBeenCalledTimes(1);
-    });
-
+    // Talking hands schedule gestures by the planner's phrases.
+    const clock = { currentTime: 10.2 };
     store.markSpeechAudioStarted({
-      runId: "run-1",
-      audioStartSec: 4,
-      audioContext,
+      runId: RUN,
+      audioStartSec: 10,
+      audioContext: clock as unknown as AudioContext,
     });
-    store.tickGate({ avatarState: "talking", preferredRunId: "run-1" });
-    expect(avatar.initLipSyncSegment).toHaveBeenCalledTimes(1);
-
-    store.queueVisemeInputsForRun({
-      runId: "run-1",
-      phonemizedText: [
-        ["one"],
-        ["two"],
-        ["three"],
-        ["four"],
-        ["five"],
-        ["six"],
-      ],
-      tokenizedText: "One two three four. Five six.",
-      provider: "elevenlabs",
-    });
-
-    await vi.waitFor(() => {
-      expect(buildVisemeAssetsFromRaw).toHaveBeenCalledTimes(2);
-      expect(avatar.initLipSyncSegment).toHaveBeenCalledTimes(2);
-    });
-    expect(buildVisemeAssetsFromRaw).toHaveBeenLastCalledWith(
-      expect.objectContaining({
-        runId: "run-1",
-        mode: "estimated_provisional",
-        targetDurationSec: null,
-        anchor: expect.objectContaining({
-          elapsedSec: 2.5,
-          currentDurationSec: 4,
-        }),
-      }),
-    );
+    const context = store.getSpeechTimingContext(RUN);
+    expect(context?.gestureTimeline?.beats).toHaveLength(1);
+    expect(context?.ttsChunks).toMatchObject([
+      { wordStartIndex: 0, wordEndIndex: 1 },
+    ]);
   });
 
-  it("plans visemes for Gemini speech and skips unknown providers", async () => {
+  it("lets talking hands use beats placed ahead of the audio", () => {
     const store = useAvatarLipSyncBridgeStore.getState();
-    store.queueVisemeInputsForRun({
-      runId: "run-gemini",
-      phonemizedText: [["h", "AI"]],
-      tokenizedText: "Hi!",
-      provider: "gemini",
-    });
-    await vi.waitFor(() => {
-      expect(buildVisemeAssetsFromRaw).toHaveBeenCalledWith(
-        expect.objectContaining({ runId: "run-gemini" }),
-      );
+    // 0.8 s heard; the planner placed the rest of the phrase at the speaking
+    // rate, with provisional beats at 1.2 s and 1.8 s.
+    store.applyPlannerResponse(
+      RUN,
+      plan({
+        frameCount: 49,
+        gestures: {
+          words: [
+            { wordIndex: 0, startSec: 0.1, endSec: 0.5 },
+            { wordIndex: 1, startSec: 1, endSec: 1.4 },
+            { wordIndex: 2, startSec: 1.6, endSec: 2.35 },
+          ],
+          beats: [
+            { timeSec: 0.3, wordIndex: 0, unitIndex: 0, strength: 1 },
+            { timeSec: 1.2, wordIndex: 1, unitIndex: 1, strength: 0.5 },
+            { timeSec: 1.8, wordIndex: 2, unitIndex: 2, strength: 0.5 },
+          ],
+          phrases: [{ startSec: 0.1, endSec: 2.35, firstWord: 0, lastWord: 2 }],
+        },
+      }),
+    );
+    store.markSpeechAudioStarted({
+      runId: RUN,
+      audioStartSec: 10,
+      audioContext: { currentTime: 10.4 } as unknown as AudioContext,
     });
 
-    store.queueVisemeInputsForRun({
-      runId: "run-other",
-      phonemizedText: [["h", "AI"]],
-      tokenizedText: "Hi!",
-      provider: "other" as "gemini",
+    const context = store.getSpeechTimingContext(RUN)!;
+    expect(context.durationKnown).toBe(false);
+    expect(context.utteranceDurationSec).toBeCloseTo(2.35);
+    const handsPlan = createTalkingHandsSpeechPlan({
+      runId: RUN,
+      elapsedSec: context.elapsedSec,
+      utteranceDurationSec: context.utteranceDurationSec!,
+      scope: "chunk",
+      windowEndSec: 2.35,
+      remainingSec: context.remainingSec!,
+      beats: context.gestureTimeline!.beats,
+      params: DEFAULT_TALKING_HANDS_PROCEDURAL_ANIMATION_PARAMS,
     });
-    await new Promise((resolve) => setTimeout(resolve, 0));
-    expect(buildVisemeAssetsFromRaw).not.toHaveBeenCalledWith(
-      expect.objectContaining({ runId: "run-other" }),
+    expect(handsPlan.status).toBe("ready");
+    expect(
+      handsPlan.status === "ready"
+        ? handsPlan.selectedBeats.map((beat) => beat.timeSec)
+        : [],
+    ).toContain(1.2);
+  });
+
+  it("revises a playing run's segment from the first changed frame", () => {
+    const { replaced } = fakeAvatar();
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.applyPlannerResponse(RUN, plan({ frameCount: 61 }));
+    startPlayback({ currentTime: 10.1 });
+    expect(useAvatarLipSyncBridgeStore.getState().startedRuns[RUN]).toBe(true);
+
+    store.applyPlannerResponse(RUN, plan({ fromFrame: 30, frameCount: 91 }));
+
+    expect(replaced).toEqual([{ fromSec: 0.5, frames: 61, durationSec: 1.5 }]);
+  });
+
+  it("delays what follows an underrun", () => {
+    fakeAvatar();
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.applyPlannerResponse(RUN, plan({ frameCount: 61 }));
+    startPlayback({ currentTime: 10.1 });
+
+    // Run second 0.5 resumed at context 10.8: 0.3 s of silence.
+    store.markPlaybackResumed({ runId: RUN, runSec: 0.5, contextSec: 10.8 });
+
+    const segment = useAvatarLipSyncBridgeStore.getState().segmentsByRun[RUN]!;
+    expect(segment.durationSec).toBeCloseTo(1.3);
+    expect(
+      segment.frames.find((frame) => frame.frame_index === 30)?.time_sec,
+    ).toBeCloseTo(0.8);
+  });
+
+  it("keeps talking hands' beats and window on the playback clock after an underrun", () => {
+    fakeAvatar();
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.applyPlannerResponse(
+      RUN,
+      plan({
+        frameCount: 61,
+        gestures: {
+          words: [{ wordIndex: 0, startSec: 0.6, endSec: 0.9 }],
+          beats: [{ timeSec: 0.7, wordIndex: 0, unitIndex: 1, strength: 1 }],
+          phrases: [{ startSec: 0.6, endSec: 0.9, firstWord: 0, lastWord: 0 }],
+        },
+      }),
     );
+    startPlayback({ currentTime: 10.1 });
+    store.markSpeechAudioDurationResolved({ runId: RUN, audioDurationSec: 1 });
+
+    // Run second 0.5 resumed at context 10.8: 0.3 s of silence.
+    store.markPlaybackResumed({ runId: RUN, runSec: 0.5, contextSec: 10.8 });
+
+    const context = store.getSpeechTimingContext(RUN)!;
+    expect(context.durationSec).toBeCloseTo(1.3);
+    expect(context.gestureTimeline?.utteranceDurationSec).toBeCloseTo(1.3);
+    expect(context.gestureTimeline?.beats[0]?.timeSec).toBeCloseTo(1);
+  });
+
+  it("shows a tag's expression while it sounds, then clears it", () => {
+    const { overlays } = fakeAvatar();
+    const store = useAvatarLipSyncBridgeStore.getState();
+    store.applyPlannerResponse(
+      RUN,
+      plan({
+        frameCount: 121,
+        events: [
+          { kind: "laugh", startSec: 0.2, endSec: 1, label: "[laughs]" },
+        ],
+      }),
+    );
+    const clock = { currentTime: 10.1 };
+    startPlayback(clock);
+
+    clock.currentTime = 10.5;
+    store.tickTagOverlays(RUN);
+    clock.currentTime = 12;
+    store.tickTagOverlays(RUN);
+    store.tickTagOverlays(RUN);
+
+    expect(overlays).toHaveLength(2);
+    expect(overlays[0]?.happy).toBeCloseTo(0.8);
+    expect(overlays[1]).toBeNull();
   });
 });
 

@@ -4,11 +4,11 @@ data: {"type": "safety.ai_notice", "run_id": "run-tts-realtime", "kind": "start"
 
 id: user-response-stream-speech-0-run-tts-realtime
 event: user.response
-data: {"event_id": "user-response-stream-speech-0-run-tts-realtime", "run_id": "run-tts-realtime", "node_id": "direct-chat:model-client", "text": "Hello there.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false, "tokenized_text": "Hello there.", "phonemized_text": [["h", "\u025b", "l", "\u02c8o\u028a"], ["\u00f0", "\u02c8\u025b", "\u0279"]], "tts_text": "Hello there.", "tts_phonemized_text": [["h", "\u025b", "l", "\u02c8o\u028a"], ["\u00f0", "\u02c8\u025b", "\u0279"]], "tts_text_basis": "gruut_text_with_ws"}
+data: {"event_id": "user-response-stream-speech-0-run-tts-realtime", "run_id": "run-tts-realtime", "node_id": "direct-chat:model-client", "text": "Hello there.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 0, "part_final": false}
 
 id: user-response-stream-speech-1-run-tts-realtime
 event: user.response
-data: {"event_id": "user-response-stream-speech-1-run-tts-realtime", "run_id": "run-tts-realtime", "node_id": "direct-chat:model-client", "text": " The kettle is on.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 1, "part_final": true, "tokenized_text": "The kettle is on.", "phonemized_text": [["\u00f0", "\u0259"], ["k", "\u02c8\u025b", "t", "\u0259", "l"], ["\u02c8\u026a", "z"], ["\u02c8\u0254", "n"]], "tts_text": "The kettle is on.", "tts_phonemized_text": [["\u00f0", "\u0259"], ["k", "\u02c8\u025b", "t", "\u0259", "l"], ["\u02c8\u026a", "z"], ["\u02c8\u0254", "n"]], "tts_text_basis": "gruut_text_with_ws"}
+data: {"event_id": "user-response-stream-speech-1-run-tts-realtime", "run_id": "run-tts-realtime", "node_id": "direct-chat:model-client", "text": " The kettle is on.", "response_format": "main_structured_json", "response_part": "speech", "is_delta": true, "part_index": 1, "part_final": true}
 
 id: emotion-update-run-tts-realtime-direct-chat:model-client
 event: emotion.update

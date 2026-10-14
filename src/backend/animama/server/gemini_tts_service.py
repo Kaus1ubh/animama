@@ -31,7 +31,7 @@ from animama.app.voice_emotional_tone import gemini_speaking_style
 from animama.domain.request_principal import RequestPrincipal
 from animama.logging_config import get_logger
 from animama.product_http.ports import ProductRefusal
-from animama.server.finalized_speech import FINALIZED_TTS_OUTPUT_FORMAT, finalized_tts_text, pop_pcm_audio_frame
+from animama.server.finalized_speech import FINALIZED_TTS_OUTPUT_FORMAT, pop_pcm_audio_frame
 from animama.server.runtime_credentials import runtime_credentials
 
 _log = get_logger("server.gemini_tts_service")
@@ -91,19 +91,21 @@ async def prepare_gemini_finalized_speech(
     run_id: str | None,
     text: str,
     model_id: str | None,
-    text_basis: str,
     emotional_tone: str | None,
     emotional_state: dict[str, int] | None,
     language_code: str | None = None,
 ) -> GeminiFinalizedSpeech:
-    """Check the key and prepare one segment; an unknown voice or model falls back to the default."""
+    """Check the key and prepare one segment; an unknown voice or model falls back to the default.
+
+    The segment's text is spoken as written: Gemini reads numbers and symbols itself.
+    """
 
     _require_api_key()
     return GeminiFinalizedSpeech(
         run_id=run_id or f"tts-{uuid.uuid4().hex}",
         voice_id=gemini_voice_or_default(voice_id),
         model_id=model_id if model_id in SUPPORTED_GEMINI_TTS_MODEL_IDS else DEFAULT_GEMINI_TTS_MODEL_ID,
-        text=finalized_tts_text(text, text_basis=text_basis),
+        text=text,
         # Every segment speaks in the reply's style.
         style=gemini_speaking_style(emotional_tone=emotional_tone, emotional_state=emotional_state),
         language_code=language_code,
@@ -238,7 +240,6 @@ class LocalGeminiSpeech:
         run_id: str,
         text: str,
         model_id: str | None,
-        text_basis: str,
         emotional_tone: str | None,
         emotional_state: dict[str, int] | None,
         language_code: str | None = None,
@@ -249,7 +250,6 @@ class LocalGeminiSpeech:
             run_id=run_id,
             text=text,
             model_id=model_id,
-            text_basis=text_basis,
             emotional_tone=emotional_tone,
             emotional_state=emotional_state,
             language_code=language_code,

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef } from "react";
 
 import { createLogger } from "@/lib/logger";
+import { emitSpeechPcm } from "@/lib/speech/speech-pcm-tap";
 
 const FINALIZED_SAMPLE_RATE = 24000;
 const FIRST_BUFFER_START_LEAD_SEC = 0.08;
@@ -32,6 +33,7 @@ type ActiveFinalizedRuntime = {
   audioContext: AudioContext | null;
   gainNode: GainNode | null;
   sources: Set<AudioBufferSourceNode>;
+  /** Samples on the run clock: the audio and any gap silence before a late chunk. */
   totalSamples: number;
   durationResolved: boolean;
   closed: boolean;
@@ -40,16 +42,21 @@ type ActiveFinalizedRuntime = {
   sawPlaybackStart: boolean;
   stopReason: AudioEndedReason | null;
   startPromise: Promise<void> | null;
-  pendingPcm: Int16Array[];
+  /** Decoded chunks waiting for playback, with the text of a part each starts. */
+  pendingPcm: PendingFinalizedChunk[];
   pendingFinish: boolean;
   nextStartTime: number;
 };
+
+type PendingFinalizedChunk = { pcm: Int16Array; partText: string | null };
 
 export type FinalizedTtsAudioPayload = {
   run_id?: string | null;
   model_id?: string | null;
   output_format?: string | null;
   audio_base64?: string | null;
+  /** On the first frame of each speech part: the part's text. */
+  part_text?: string | null;
 };
 
 export type FinalizedTtsErrorPayload = {
@@ -240,7 +247,10 @@ export function useFinalizedTtsRuntime(options: UseFinalizedTtsRuntimeOptions) {
   );
 
   const scheduleAudioChunk = useCallback(
-    (runtime: ActiveFinalizedRuntime, pcm: Int16Array): boolean => {
+    (
+      runtime: ActiveFinalizedRuntime,
+      { pcm, partText }: PendingFinalizedChunk,
+    ): boolean => {
       const audioContext = runtime.audioContext;
       const gainNode = runtime.gainNode;
       if (
@@ -288,6 +298,31 @@ export function useFinalizedTtsRuntime(options: UseFinalizedTtsRuntimeOptions) {
           runtime.nextStartTime,
           audioContext.currentTime + startLeadSec,
         );
+        // A late chunk leaves a silent gap on the playback clock; lip-sync
+        // hears it as silence, so its run clock stays the playback clock.
+        const gapSec = isFirstPlayback
+          ? 0
+          : Math.max(0, startTime - runtime.nextStartTime);
+        // A part's text goes with its first audio, after any gap before it.
+        // The gap counts toward the reported length, so the run's duration
+        // stays on the same clock as its plan and talking hands.
+        const gapSamples = Math.round(gapSec * FINALIZED_SAMPLE_RATE);
+        if (gapSamples > 0) {
+          runtime.totalSamples += gapSamples;
+          emitSpeechPcm({
+            runId: runtime.runId,
+            provider: "gemini",
+            sampleRate: FINALIZED_SAMPLE_RATE,
+            pcm: new Float32Array(gapSamples),
+          });
+        }
+        emitSpeechPcm({
+          runId: runtime.runId,
+          provider: "gemini",
+          sampleRate: FINALIZED_SAMPLE_RATE,
+          pcm,
+          ...(partText ? { partText } : {}),
+        });
         runtime.nextStartTime = startTime + audioBuffer.duration;
 
         runtime.sources.add(source);
@@ -326,12 +361,12 @@ export function useFinalizedTtsRuntime(options: UseFinalizedTtsRuntimeOptions) {
   const flushPendingAudio = useCallback(
     (runtime: ActiveFinalizedRuntime) => {
       while (runtime.pendingPcm.length > 0 && !runtime.closed) {
-        const pcm = runtime.pendingPcm[0];
-        if (!pcm) {
+        const chunk = runtime.pendingPcm[0];
+        if (!chunk) {
           runtime.pendingPcm.shift();
           continue;
         }
-        if (!scheduleAudioChunk(runtime, pcm)) {
+        if (!scheduleAudioChunk(runtime, chunk)) {
           return;
         }
         runtime.pendingPcm.shift();
@@ -435,7 +470,13 @@ export function useFinalizedTtsRuntime(options: UseFinalizedTtsRuntimeOptions) {
       if (!runtime || runtime.closed) return;
 
       try {
-        runtime.pendingPcm.push(decodeBase64Pcm16(audioBase64));
+        runtime.pendingPcm.push({
+          pcm: decodeBase64Pcm16(audioBase64),
+          partText:
+            typeof payload.part_text === "string" && payload.part_text.trim()
+              ? payload.part_text
+              : null,
+        });
       } catch {
         handleRuntimeFailure(
           runtime,

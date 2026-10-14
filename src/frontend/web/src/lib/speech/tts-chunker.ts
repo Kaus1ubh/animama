@@ -92,6 +92,9 @@ function findSentenceBoundaryEnd(
   const minIndex = Math.max(0, minSentenceChars - 1);
   for (let i = minIndex; i < text.length; i++) {
     if (!isSentenceBoundaryChar(text[i])) continue;
+    // An ASCII mark inside a number or word ("$5.99", "animama.ai") ends nothing.
+    if (/[.!?;]/.test(text[i]) && /[\p{L}\p{N}]/u.test(text[i + 1] ?? ""))
+      continue;
     let end = i + 1;
     // A line break ends the sentence like the space after a mark.
     let sawSpace = /\s/.test(text[i]);

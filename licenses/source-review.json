@@ -7083,6 +7083,27 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "docs/plans/lipsync-upgrade/lipsync-execplan.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "docs/plans/lipsync-upgrade/lipsync-research.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "docs/plans/lipsync-upgrade/lipsync-spec.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "licenses/README.md",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -7425,6 +7446,27 @@
     },
     {
       "path": "scripts/generate_synthetic_docs.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/lipsync/README.md",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/lipsync/build_english_dictionary.py",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "scripts/lipsync/clips.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -9791,13 +9833,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/backend/animama/server/gruut_text.py",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "src/backend/animama/server/installation_personalization.py",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -10641,6 +10676,21 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/desktop/runtime/notices/cmudict-bsd-2-clause.txt",
+      "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
+      "basis": "License or notice document; do not relabel its underlying third-party terms",
+      "copyright": "Respective upstream holders identified in the preserved document",
+      "source": "Document text and adjacent source mappings",
+      "revision": "Reviewed source document bytes",
+      "evidence": [
+        "src/frontend/desktop/runtime/notices/cmudict-bsd-2-clause.txt"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/cmudict-bsd-2-clause.txt"
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/desktop/runtime/notices/fft-js-mit.txt",
       "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
       "basis": "License or notice document; do not relabel its underlying third-party terms",
@@ -10802,6 +10852,21 @@
       ],
       "notices": [
         "src/frontend/desktop/runtime/notices/pocket-tts-onnx-license.txt"
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/desktop/runtime/notices/scowl-copyright.txt",
+      "candidate_license": "Preserved upstream license/notice text; local attribution additions follow repository license",
+      "basis": "License or notice document; do not relabel its underlying third-party terms",
+      "copyright": "Respective upstream holders identified in the preserved document",
+      "source": "Document text and adjacent source mappings",
+      "revision": "Reviewed source document bytes",
+      "evidence": [
+        "src/frontend/desktop/runtime/notices/scowl-copyright.txt"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/scowl-copyright.txt"
       ],
       "review": "prepared-not-release-approved"
     },
@@ -12962,6 +13027,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/scripts/lipsync.mjs",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/app/components/RouteView.tsx",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -14738,6 +14810,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/hooks/use-finalized-tts-runtime.test.tsx",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/hooks/use-pocket-tts-runtime.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -15949,20 +16028,6 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/lib/avatar/viseme-worker-client.ts",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
-      "path": "src/frontend/web/src/lib/avatar/viseme-worker-protocol.ts",
-      "candidate_license": "AGPL-3.0-only",
-      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
-      "copyright": "2026 Raymond Van",
-      "review": "prepared-not-release-approved"
-    },
-    {
       "path": "src/frontend/web/src/lib/avatar/vowelVisemeSegment.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -16573,6 +16638,354 @@
     },
     {
       "path": "src/frontend/web/src/lib/emotion/index.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/align/aligner.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/align/aligner.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/align/estimate.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/align/timing-windows.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/align/timing-windows.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/audio/features.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/audio/features.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/base64.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/capture-file.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/estimate-run.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/estimate-run.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/aligned-source.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/aligned-thresholds.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/arrival.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/build.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/clip.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/evaluate.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/fixtures.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/join.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/metrics.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/metrics.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/reference.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/report.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/eval/sources.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/lipsync-runs.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/lipsync-runs.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/lipsync-worker-client.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/planned-segment.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/planned-segment.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/planner.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/planner.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/render/beats.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/render/render.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/render/render.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/run-planner.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/run-planner.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/converters.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/english-dictionary.data.ts",
+      "candidate_license": "BSD-2-Clause (CMUdict) and the SCOWL permission notice; generated reduction",
+      "basis": "Retained third-party code/model review: english-lipsync-dictionary",
+      "source": "https://github.com/cmusphinx/cmudict; SCOWL 2020.12.07",
+      "revision": "cmudict 74790861f652b15e4ac49015a90074ad62a27690; SCOWL 2020.12.07",
+      "copyright": "Carnegie Mellon University 1993-2015; Kevin Atkinson 2000-2018 and the sources SCOWL names",
+      "evidence": [
+        "licenses/third-party/code-and-models.json"
+      ],
+      "notices": [
+        "src/frontend/desktop/runtime/notices/cmudict-bsd-2-clause.txt",
+        "src/frontend/desktop/runtime/notices/scowl-copyright.txt"
+      ],
+      "conditions": [
+        "Preserve the CMUdict and SCOWL notices in bundled web/desktop output and source; final candidate acceptance remains separate."
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/english-dictionary.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/english-dictionary.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/spell-out-english.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/spell-out-english.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/tags.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/text-units.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/text-units.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/text/units.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/track.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/lipsync/worker-protocol.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -17382,6 +17795,13 @@
       "review": "prepared-not-release-approved"
     },
     {
+      "path": "src/frontend/web/src/lib/speech/audio/pcm-processor-worklet.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
       "path": "src/frontend/web/src/lib/speech/client-parakeet/assets.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
@@ -17410,7 +17830,28 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/lib/speech/gruut-viseme-keyframes.ts",
+      "path": "src/frontend/web/src/lib/speech/performance-clock.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/speech/pocket-pcm-tap.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/speech/pocket-pcm-tap.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/speech/pocket-speech-text.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -17628,6 +18069,20 @@
     },
     {
       "path": "src/frontend/web/src/lib/speech/pocket/voice-preferences.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/speech/speech-gesture-timeline.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/src/lib/speech/speech-pcm-tap.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -21154,14 +21609,14 @@
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/workers/smart-turn-worker.ts",
+      "path": "src/frontend/web/src/workers/lipsync-worker.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
       "review": "prepared-not-release-approved"
     },
     {
-      "path": "src/frontend/web/src/workers/viseme-worker.ts",
+      "path": "src/frontend/web/src/workers/smart-turn-worker.ts",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",
@@ -21288,6 +21743,437 @@
     },
     {
       "path": "src/frontend/web/tests/includedContentCompat.test.ts",
+      "candidate_license": "AGPL-3.0-only",
+      "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/english-gruut-reference.json",
+      "candidate_license": "SCOWL permission notice (word list); AGPL-3.0-only (repository test lines and vowel codes)",
+      "basis": "Test data, not shipped: gruut 2.4.0 (MIT) vowel readings of SCOWL-listed words and of the repository's own test lines",
+      "source": "SCOWL 2020.12.07",
+      "copyright": "Kevin Atkinson 2000-2018 and the sources SCOWL names (word list); 2026 Raymond Van (test lines and codes)",
+      "notices": [
+        "src/frontend/desktop/runtime/notices/scowl-copyright.txt"
+      ],
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-en-gasp.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-en-laugh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-en-long.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-en-pause.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-en-sigh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-en-whisper.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-en.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-es.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-ja-laugh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-ja.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-ko-sigh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-ko.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-zh-laugh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/e-zh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/g-en-gasp.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/g-en-laugh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/g-en-long.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/g-en-pause.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/g-en-sigh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/g-en-whisper.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/g-es.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/g-ja-laugh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/g-ko-sigh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/g-zh-laugh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-e-en-anime.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-e-en-numbers.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-e-en-tags.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-e-ja-anime.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-e-ja.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-e-ko.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-e-zh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-g-en-anime.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-g-en-numbers.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-g-en-tags.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-g-ja-anime.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-g-ja.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-g-ko.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-g-zh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-p-en-numbers.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/h-p-en.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/p-en-laugh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/p-en-long.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/p-en-pause.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/p-en.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/s-en-sad.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/s-en.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/s-ja-excited.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/s-ja.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/s-ko-openai.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/s-ko.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/s-zh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/t-en-laugh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/t-en-pause.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/t-en-sigh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/t-es.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/t-ja-laugh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/t-ja.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/t-ko.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/fixtures/t-zh-laugh.json",
+      "candidate_license": "AGPL-3.0-only (pending rights question)",
+      "basis": "Lip-sync evaluation data: audio features of TTS outputs (Gemini, ElevenLabs, OpenAI, Pocket TTS), provider character timing and reference timings from the evaluation-only MMS forced aligner (CC-BY-NC-4.0 weights); no audio. Pending rights question before a public candidate: redistribution of MMS-derived timings and of features derived from provider outputs.",
+      "copyright": "2026 Raymond Van",
+      "review": "prepared-not-release-approved"
+    },
+    {
+      "path": "src/frontend/web/tests/lipsync/testset.json",
       "candidate_license": "AGPL-3.0-only",
       "basis": "Raymond Van original-work attestation and source review; known upstream exceptions mapped separately",
       "copyright": "2026 Raymond Van",

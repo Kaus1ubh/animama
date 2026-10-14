@@ -28,7 +28,7 @@ import {
 import type {
   SpeechGestureBeat,
   SpeechGestureTimeline,
-} from "@/lib/speech/gruut-viseme-keyframes";
+} from "@/lib/speech/speech-gesture-timeline";
 import type { TtsChunkRecord } from "@/lib/speech/tts-chunker";
 
 const DEG_TO_RAD = Math.PI / 180;
@@ -2797,7 +2797,7 @@ function compareSpeechGestureBeatsByTime(
   return (
     left.timeSec - right.timeSec ||
     left.wordIndex - right.wordIndex ||
-    left.phonemeIndex - right.phonemeIndex
+    left.unitIndex - right.unitIndex
   );
 }
 

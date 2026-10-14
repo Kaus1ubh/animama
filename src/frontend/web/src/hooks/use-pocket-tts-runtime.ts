@@ -19,6 +19,7 @@ import {
   mapNormalizedVolumeToPocketGain,
 } from "@/lib/speech/pocket/audio/volume.js";
 import { createPocketTTS } from "@/lib/speech/pocket/createPocketTTS";
+import { pocketSpeechText } from "@/lib/speech/pocket-speech-text";
 import { isPocketTtsSupported } from "@/lib/speech/tts-provider";
 
 const logger = createLogger("PocketTTSRuntime");
@@ -50,6 +51,11 @@ import type {
   PocketTtsOrtRuntimeDebug,
   PocketTtsWorkerRegistryDebug,
 } from "@/hooks/pocket-tts-runtime-debug";
+import {
+  setPocketPcmRun,
+  tapPocketPlayer,
+  type PocketPlayerLike,
+} from "@/lib/speech/pocket-pcm-tap";
 
 export type PocketTtsCoreEventName =
   | "state_changed"
@@ -129,6 +135,8 @@ type GeneratePocketTtsArgs = {
   signal?: AbortSignal;
   preservePlayback?: boolean;
   endStream?: boolean;
+  /** The chat run the audio belongs to, so lip-sync can follow it. */
+  runId?: string;
 };
 
 type PocketTtsRuntimeState = {
@@ -608,8 +616,14 @@ export async function generatePocketTtsText(
   text: string,
   args?: GeneratePocketTtsArgs,
 ): Promise<void> {
-  const trimmed = text.trim();
-  if (!trimmed) return;
+  // Pocket reads digits and symbols poorly and cannot perform tags.
+  const spoken = pocketSpeechText(text);
+  if (!spoken) {
+    // Playback drops such chunks before queueing; if one arrives anyway, still
+    // end the stream it was meant to end.
+    if (args?.endStream === true) endPocketTtsRuntimeStream();
+    return;
+  }
 
   args?.assertAnimaCatalogActive?.();
   await warmupPocketTtsRuntime(apiClient);
@@ -642,7 +656,13 @@ export async function generatePocketTtsText(
     throw createAbortError();
   }
 
-  const { generationId } = await core.generate(trimmed, {
+  // Warm-up created the core's player; one recreated after a reset is tapped
+  // here before its first run.
+  tapPocketPlayer(
+    (core as unknown as { player?: PocketPlayerLike | null }).player,
+  );
+  setPocketPcmRun(args?.runId ?? null);
+  const { generationId } = await core.generate(spoken, {
     ...(args?.voice?.trim() ? { voice: args.voice.trim() } : {}),
     ...(args?.animaId?.trim() ? { animaId: args.animaId.trim() } : {}),
     ...(args?.animaVoiceKey?.trim()

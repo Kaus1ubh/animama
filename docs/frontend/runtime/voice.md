@@ -878,7 +878,8 @@ Behavior:
 
 - A chunk ends at `.`, `!`, `?`, `;` or a newline, or at Japanese and Chinese
   `。！？`, with any following marks (`?!`, `！？`, `...`) and closing quotes or
-  brackets, once at least 24 characters are buffered. Longer text splits near
+  brackets, once at least 24 characters are buffered. A mark directly followed
+  by a letter or digit ("$5.99", "animama.ai") ends nothing. Longer text splits near
   140 characters, and 700 ms without new text flushes at least 36 characters.
 - Only ElevenLabs respects `tts_stream_chunks`.
 - Browser and Pocket TTS are forced non-streaming at token phase
@@ -913,8 +914,8 @@ same voice resolution and no notice, and later runs return to ElevenLabs. See th
 See [ElevenLabs TTS](elevenlabs-tts.md) for session setup, the socket protocol,
 settings and playback timing. The [chat contract](chat.md#main-structured-response-mode)
 separates speakable `speech` from visible-only `display`; raw JSON and hidden
-emotion metadata are never spoken. The [lip-sync bridge](avatar-lipsync.md)
-uses the phonemes matching spoken text and local audio timing.
+emotion metadata are never spoken. [Lip-sync](avatar-lipsync.md) plans the
+mouth from the played audio and the spoken text.
 
 ### Gemini TTS
 
@@ -944,6 +945,12 @@ Generation path:
 
 - `generateAndWait(text, { preservePlayback, endStream, voice, animaId, animaVoiceKey, signal })`
 - queued sequentially in `use-tts-playback` with abort support
+- the text Pocket speaks is `pocketSpeechText(text)`
+  (`src/lib/speech/pocket-speech-text.ts`): English numbers, symbols and
+  abbreviations spelled out ("$5.99" as "five dollars ninety-nine cents"), and
+  vocal tags and emoji left out, since Pocket cannot perform them. A chunk with
+  nothing left to say is dropped before it is queued, so the stream ends on the
+  last chunk Pocket speaks.
 
 End-of-stream handling:
 
@@ -952,8 +959,9 @@ End-of-stream handling:
 
 Playback event bridge:
 
-- `playback_started` => avatar speech start + optional viseme timing start
-- `generation_finished` => audio duration metrics for viseme timing
+- `playback_started` => avatar speech start and the lip-sync audio clock
+- `generation_finished` => audio duration, which also ends the run's lip-sync
+  audio
 - `playback_ended` => playback end signal and eventual audio-ended completion
 
 Voice resolution:

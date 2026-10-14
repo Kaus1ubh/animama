@@ -58,7 +58,7 @@ installed files even when a pack has no compatible catalog entry.
 
 The first-party global input addon exposes only the configured binding's down/up
 transitions to JavaScript. Its native binary requires platform/signing acceptance.
-The LGPL dependencies `num2words`, `psycopg` and `psycopg-binary` retain their
+The LGPL dependencies `psycopg` and `psycopg-binary` retain their
 source coordinates and bundled terms in the runtime inventory. Review linkage,
 notices and distribution obligations for the exact build. A generated inventory
 or a successful Apple notarization does not grant redistribution permission.

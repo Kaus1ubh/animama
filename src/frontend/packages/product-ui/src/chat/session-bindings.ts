@@ -46,23 +46,13 @@ export type ChatSessionEffects = {
     runId?: string | null;
     gesture?: string | null;
   }) => void;
-  queueAvatarVisemeInputsForRun: (args: {
-    runId: string;
-    phonemizedText: string[][] | null;
-    tokenizedText: string | null;
-    provider?: "pocket_tts" | "elevenlabs" | "gemini";
-  }) => void;
   clearAvatarVisemeBridgeRun: (
     runId?: string | null,
     options?: ClearOptions,
   ) => void;
   clearAvatarVisemeBridgeAll: (options?: ClearOptions) => void;
   startTtsRun: (runId: string) => void;
-  appendTtsToken: (
-    runId: string,
-    token: string,
-    options?: { textBasis?: "plain" | "gruut_text_with_ws" | null },
-  ) => void;
+  appendTtsToken: (runId: string, token: string) => void;
   completeTtsRun: (runId: string) => void;
   acceptElevenLabsSession: (
     runId: string,
@@ -90,6 +80,7 @@ export type ChatSessionEffects = {
       model_id?: string | null;
       output_format?: string | null;
       audio_base64?: string | null;
+      part_text?: string | null;
     },
   ) => void;
   completeFinalizedAudio: (runId: string) => void;
@@ -118,7 +109,6 @@ export const textOnlyChatEffects: ChatSessionEffects = {
   abortAvatarRun: ignore,
   applyAvatarEmotionUpdate: ignore,
   requestAvatarGesture: ignore,
-  queueAvatarVisemeInputsForRun: ignore,
   clearAvatarVisemeBridgeRun: ignore,
   clearAvatarVisemeBridgeAll: ignore,
   startTtsRun: ignore,

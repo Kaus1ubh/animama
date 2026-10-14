@@ -1,6 +1,6 @@
 import { disposePocketTtsRuntime } from "@/hooks/use-pocket-tts-runtime";
 import { clearVrmaCache } from "@/lib/avatar";
-import { terminateVisemeWorker } from "@/lib/avatar/viseme-worker-client";
+import { terminateLipSyncWorker } from "@/lib/lipsync/lipsync-worker-client";
 import { terminateClientParakeetWorker } from "@/lib/speech/client-parakeet/client";
 import { terminateSmartTurnWorker } from "@/lib/voice/smart-turn-worker-client";
 import { useAvatarRuntimeStore } from "@/stores/avatar-runtime-store";
@@ -27,7 +27,7 @@ export async function clearPrivateSessionState(
   // One failing resource must not retain the rest of the former account's state.
   const disposals = [
     disposePocketTtsRuntime,
-    terminateVisemeWorker,
+    terminateLipSyncWorker,
     // Synchronous: the session also terminates these workers, so an awaited
     // dispose reply could never arrive and would leave a dead worker behind.
     terminateClientParakeetWorker,

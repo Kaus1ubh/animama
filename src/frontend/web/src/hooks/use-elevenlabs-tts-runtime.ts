@@ -10,7 +10,11 @@ import {
   type SpeechTimingCollector,
   type TimedChar,
 } from "@/lib/speech/provider-speech-timing";
-import { speechPcmTap } from "@/lib/speech/speech-debug-tap";
+import {
+  emitSpeechPcm,
+  emitSpeechPlaybackResumed,
+  playbackResumedAnchor,
+} from "@/lib/speech/speech-pcm-tap";
 import { redactUrlForLogging } from "@/lib/utils";
 import { publicResourceUrl } from "@/lib/resource-urls";
 import { useRuntimeCapabilities } from "@/query/hooks/useRuntimeCapabilities";
@@ -564,8 +568,8 @@ export function useElevenLabsTtsRuntime(
           },
         );
       }
-      // The debug panel's Lip-sync view copies the run's audio while it is enabled.
-      speechPcmTap()?.({
+      // Lip-sync planning and the debug panel's Lip-sync view read the audio.
+      emitSpeechPcm({
         runId: runtime.runId,
         provider: "elevenlabs",
         sampleRate: ELEVENLABS_SAMPLE_RATE,
@@ -729,6 +733,16 @@ export function useElevenLabsTtsRuntime(
               typeof detail.startTime === "number" ? detail.startTime : null,
             audioContext,
           });
+        },
+      );
+
+      // Lip-sync follows the silence an underrun inserts.
+      player.addEventListener(
+        "playbackResumed",
+        (event: { detail?: unknown }) => {
+          if (activeRuntimeRef.current !== runtime) return;
+          const anchor = playbackResumedAnchor(event?.detail);
+          if (anchor) emitSpeechPlaybackResumed({ runId, ...anchor });
         },
       );
 

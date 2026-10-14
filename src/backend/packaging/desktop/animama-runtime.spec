@@ -30,17 +30,14 @@ for target, relative in RESOURCE_INPUTS.items():
                 datas.append((str(file), str(folder)))
 
 # Metadata is used by provider SDKs and telemetry entrypoints. The build venv
-# contains only the locked server/core dependency closure plus freezer tools.
+# contains only the locked core dependency closure plus freezer tools.
 for distribution in importlib.metadata.distributions():
     datas += copy_metadata(distribution.metadata["Name"])
-for package in ("tiktoken_ext", "gruut", "gruut_lang_en", "llama_index.core", "certifi", "agents"):
+for package in ("tiktoken_ext", "llama_index.core", "certifi", "agents"):
     datas += collect_data_files(package)
 
 hiddenimports = collect_submodules("animama") + collect_submodules("uvicorn")
 hiddenimports += collect_submodules("psycopg_binary") + collect_submodules("tiktoken_ext")
-# gruut imports its language package by name at runtime. Without the module its
-# data folder imports as a namespace package that lacks get_lang_dir().
-hiddenimports += ["gruut_lang_en"]
 # Namespace packages and telemetry plugins are imported via package entrypoints.
 hiddenimports += collect_submodules("opentelemetry")
 

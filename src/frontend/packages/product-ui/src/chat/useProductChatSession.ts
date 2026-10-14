@@ -43,13 +43,10 @@ import type { ChatMemoryCue } from "../lib/chat/memory-cue";
 import type { ChatRunStatusKind } from "../lib/chat/run-status";
 import { isSpeechAllowanceExhausted } from "../lib/chat/speech-allowance";
 import {
-  appendStructuredSpeechVisemeInputs,
   createStructuredResponseStreamState,
   getStructuredAssistantTexts,
   reduceStructuredResponseStream,
-  selectStructuredSpeechVisemePayload,
   selectStructuredSpeechTtsPayload,
-  type AccumulatedStructuredSpeechVisemeInputs,
   type StructuredSpeechTtsPayload,
 } from "../lib/chat/structured-response-stream";
 import {
@@ -353,7 +350,6 @@ export function useProductChatSession({
     abortAvatarRun,
     applyAvatarEmotionUpdate,
     requestAvatarGesture,
-    queueAvatarVisemeInputsForRun,
     clearAvatarVisemeBridgeRun,
     clearAvatarVisemeBridgeAll,
     startTtsRun,
@@ -923,13 +919,6 @@ export function useProductChatSession({
         const useMainStructuredResponse = ttsEnabled;
         const ttsProvider = speech.provider;
         const elevenLabsModelId = speech.elevenLabsModelId;
-        const visemeProvider =
-          ttsProvider === "pocket_tts" ||
-          ttsProvider === "elevenlabs" ||
-          ttsProvider === "gemini"
-            ? ttsProvider
-            : undefined;
-        const shouldQueueViseme = ttsEnabled && visemeProvider !== undefined;
         const isFinalizedServerAudio = speech.finalizedServerAudio;
 
         // 4) Start local run state before opening SSE:
@@ -974,7 +963,6 @@ export function useProductChatSession({
           useMainStructuredResponse,
           ttsProvider,
           elevenLabsModelId,
-          shouldQueueViseme,
         });
 
         let replacedRoute = false;
@@ -983,9 +971,6 @@ export function useProductChatSession({
         let voiceTtsCompleted = false;
         let structuredTtsAppended = false;
         let nonTtsResponseStarted = false;
-        let visemeInputsQueued = false;
-        let structuredVisemeInputs: AccumulatedStructuredSpeechVisemeInputs | null =
-          null;
         const ttsSkippedForRun = (id: string) =>
           skippedTtsRunIdsRef.current.has(id);
         /**
@@ -1030,53 +1015,8 @@ export function useProductChatSession({
           ) {
             return;
           }
-          appendTtsToken(
-            completedRunId,
-            payload.text,
-            payload.textBasis === "gruut_text_with_ws"
-              ? { textBasis: "gruut_text_with_ws" }
-              : undefined,
-          );
+          appendTtsToken(completedRunId, payload.text);
           structuredTtsAppended = true;
-        };
-        const queueStructuredSpeechVisemeInputs = (
-          completedRunId: string,
-          payload: StructuredSpeechTtsPayload | null,
-          data: {
-            tts_phonemized_text?: string[][] | null;
-            phonemized_text?: string[][] | null;
-            tokenized_text?: string | null;
-          },
-          fallbackTokenizedText: string,
-        ) => {
-          if (
-            !shouldQueueViseme ||
-            !payload ||
-            ttsSkippedForRun(completedRunId)
-          ) {
-            return;
-          }
-
-          const visemePayload = selectStructuredSpeechVisemePayload({
-            ttsPayload: payload,
-            ttsPhonemizedText: data.tts_phonemized_text,
-            phonemizedText: data.phonemized_text,
-            tokenizedText: data.tokenized_text,
-            fallbackTokenizedText,
-          });
-          if (!visemePayload) return;
-
-          structuredVisemeInputs = appendStructuredSpeechVisemeInputs(
-            structuredVisemeInputs,
-            visemePayload,
-          );
-          queueAvatarVisemeInputsForRun({
-            runId: completedRunId,
-            phonemizedText: structuredVisemeInputs.phonemizedText,
-            tokenizedText: structuredVisemeInputs.tokenizedText,
-            provider: visemeProvider,
-          });
-          visemeInputsQueued = true;
         };
         /**
          * Final markers only close the TTS run. They must not re-append the
@@ -1208,21 +1148,9 @@ export function useProductChatSession({
               const isDeltaSpeech = data.is_delta === true;
               const ttsPayload = selectStructuredSpeechTtsPayload({
                 visibleText: token,
-                ttsText: data.tts_text,
-                ttsTextBasis: data.tts_text_basis,
                 isDelta: isDeltaSpeech,
                 structuredTtsAppended,
               });
-              queueStructuredSpeechVisemeInputs(
-                data.run_id ?? runId,
-                ttsPayload,
-                {
-                  tts_phonemized_text: data.tts_phonemized_text,
-                  phonemized_text: data.phonemized_text,
-                  tokenized_text: data.tokenized_text,
-                },
-                token,
-              );
               appendStructuredSpeechTts(data.run_id ?? runId, ttsPayload);
               // A final marker can be an empty delta, so completion depends on
               // partFinal rather than token truthiness.
@@ -1396,30 +1324,6 @@ export function useProductChatSession({
               assistantTexts = getStructuredAssistantTexts(
                 structuredResponseStateRef.current,
               );
-            }
-            if (
-              shouldQueueViseme &&
-              !visemeInputsQueued &&
-              !ttsSkippedForRun(completedRunId) &&
-              Array.isArray(data.phonemized_text) &&
-              data.phonemized_text.length
-            ) {
-              queueAvatarVisemeInputsForRun({
-                runId: completedRunId,
-                phonemizedText: data.phonemized_text ?? null,
-                tokenizedText: data.tokenized_text ?? null,
-                provider: visemeProvider,
-              });
-              visemeInputsQueued = true;
-            } else {
-              logger.info("Chat", "No viseme inputs queued for completed run", {
-                runId: completedRunId,
-                shouldQueueViseme,
-                ttsEnabled,
-                ttsProvider,
-                hasPhonemizedText: Array.isArray(data.phonemized_text),
-                visemeInputsQueued,
-              });
             }
             if (ttsEnabled && !ttsSkippedForRun(completedRunId)) {
               if (voiceStructuredResponseSeen) {
@@ -1598,7 +1502,6 @@ export function useProductChatSession({
       markElevenLabsSessionFailed,
       replaceChatRoute,
       routeChatId,
-      queueAvatarVisemeInputsForRun,
       requestModelSwitchToNewChat,
       startChat,
       startAvatarRun,
